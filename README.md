@@ -28,43 +28,60 @@
 
 ## 📥 安装指南
 
-# 克隆仓库
+- 克隆仓库
+```ssh
 git clone https://github.com/yourusername/IPTV-Scanner-Editor-Pro.git
-
-# 安装依赖
+```
+- 安装依赖
+```ssh
 pip install -r requirements.txt
-
-# 启动程序
+```
+- 启动程序
+```ssh
 python main.py
-🖥 使用说明
-播放列表管理
-# 示例：加载播放列表
+```
+## 🖥 使用说明
+
+### 播放列表管理
+- 示例：加载播放列表
+
 manager = PlaylistManager()
 playlist = manager.load("example.m3u")
 
-# 示例：EPG智能匹配
+- 示例：EPG智能匹配
+
 channel.rename_with_epg_suggestions(epg_provider="huoshan")
-直播源扫描
+
+- 直播源扫描
+
 scanner = SourceScanner(
     ip_range="192.168.1.1-192.168.1.255",
     ports=[8000, 8001, 1935],
     timeout=2.0
 )
 valid_sources = scanner.start_scan()
-📷 界面预览
+
+## 📷 界面预览
 
 功能完善的播放列表编辑器
 
 
 智能扫描结果展示（有效源标记为绿色）
 
-🤝 参与贡献
+## 🤝 参与贡献
+
 欢迎通过Issue提交建议或PR：
 
 Fork项目仓库
+
 创建功能分支 (git checkout -b feature/AmazingFeature)
+
 提交更改 (git commit -m 'Add some AmazingFeature')
+
 推送分支 (git push origin feature/AmazingFeature)
+
 新建Pull Request
-📜 开源协议
+
+##📜 开源协议
+
 本项目基于 MIT License 开源
