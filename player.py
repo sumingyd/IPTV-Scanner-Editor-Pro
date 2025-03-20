@@ -1,0 +1,141 @@
+import vlc
+import asyncio
+import platform
+from PyQt6 import QtWidgets, QtCore
+from PyQt6.QtCore import pyqtSignal, QDateTime
+from utils import setup_logger
+
+logger = setup_logger('Player')
+
+class VLCPlayer(QtWidgets.QWidget):
+    state_changed = pyqtSignal(str)
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.instance = None
+        self.media_player = None
+        self.hw_accel = 'd3d11va'
+        self._init_vlc()
+        self._init_ui()
+        self._setup_connections()  # 确保这个方法存在
+        self.history = []
+        self.max_history = 50
+
+    def _init_vlc(self):
+        """Initialize VLC实例"""
+        args = [
+            f'--avcodec-hw={self.hw_accel}',
+            '--network-caching=3000',
+            '--no-video-title-show',
+            '--drop-late-frames',
+            '--skip-frames'
+        ]
+        logger.debug(f"初始化VLC参数: {args}")
+        self.instance = vlc.Instance(args)
+        self.media_player = self.instance.media_player_new()
+        logger.info("VLC实例创建成功")
+
+    def _init_ui(self):
+        """初始化界面组件"""
+        self.video_frame = QtWidgets.QFrame()
+        self.video_frame.setStyleSheet("background-color: black;")
+        self.video_frame.setMinimumSize(640, 360)
+        
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.video_frame)
+        self.setLayout(layout)
+        
+        QtCore.QTimer.singleShot(100, self._bind_video_window)
+
+    def _setup_connections(self):
+        """初始化信号连接（新增方法）"""
+        try:
+            event_manager = self.media_player.event_manager()
+            event_manager.event_attach(vlc.EventType.MediaPlayerPlaying, self._on_play)
+            event_manager.event_attach(vlc.EventType.MediaPlayerStopped, self._on_stop)
+            logger.debug("VLC事件绑定成功")
+        except Exception as e:
+            logger.error(f"事件绑定失败: {str(e)}")
+
+    def _bind_video_window(self):
+        """窗口绑定逻辑"""
+        if not self.video_frame or not self.media_player:
+            return
+
+        try:
+            if platform.system() == 'Windows':
+                hwnd = int(self.video_frame.winId())
+                self.media_player.set_hwnd(hwnd)
+            else:
+                xid = int(self.video_frame.winId())
+                self.media_player.set_xwindow(xid)
+            logger.info("视频窗口绑定成功")
+        except Exception as e:
+            logger.error(f"窗口绑定失败: {str(e)}")
+            QtCore.QTimer.singleShot(100, self._bind_video_window)
+
+    async def async_play(self, url: str, retry=3) -> bool:
+        """播放核心方法"""
+        for attempt in range(retry):
+            try:
+                media = self.instance.media_new(url)
+                opts = [
+                    f':network-caching={2000 + attempt * 1000}',
+                    f':avcodec-hw={self.hw_accel}',
+                    ':rtsp-tcp'
+                ]
+                media.add_options(opts)
+                self.media_player.set_media(media)
+                
+                if self.media_player.play() == -1:
+                    raise RuntimeError("播放失败")
+                
+                if not await self._wait_for_playback():
+                    raise TimeoutError("播放超时")
+                
+                return True
+            except Exception as e:
+                logger.error(f"播放失败 ({attempt+1}/{retry}): {str(e)}")
+        return False
+
+    async def _wait_for_playback(self, timeout=10) -> bool:
+        """等待播放状态"""
+        start_time = asyncio.get_event_loop().time()
+        while (asyncio.get_event_loop().time() - start_time) < timeout:
+            await asyncio.sleep(0.5)
+            if self.media_player.is_playing():
+                return True
+        return False
+
+    def stop(self):
+        """停止播放"""
+        if self.media_player:
+            self.media_player.stop()
+            logger.info("播放已停止")
+
+    def _on_play(self, event):
+        """播放事件处理"""
+        self.state_changed.emit("正在播放...")
+
+    def _on_stop(self, event):
+        """停止事件处理"""
+        self.state_changed.emit("播放停止")
+
+    def __del__(self):
+        """资源清理"""
+        try:
+            if self.media_player:
+                self.media_player.release()
+            if self.instance:
+                self.instance.release()
+            logger.info("资源已释放")
+        except Exception as e:
+            logger.error(f"资源释放失败: {str(e)}")
+
+if __name__ == "__main__":
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    player = VLCPlayer()
+    player.show()
+    sys.exit(app.exec())
