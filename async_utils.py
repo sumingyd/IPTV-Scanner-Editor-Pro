@@ -16,6 +16,8 @@ class AsyncWorker(QObject):
         self._task: Optional[asyncio.Task] = None  # 异步任务对象
         self._is_running = False       # 运行状态标志
         self._is_finished = False      # 完成状态标志
+        self._result = None            # 任务结果
+        self._exception = None         # 任务异常
 
     @pyqtSlot()
     async def run(self):
@@ -26,19 +28,26 @@ class AsyncWorker(QObject):
 
         self._is_running = True
         self._is_finished = False
+        self._result = None
+        self._exception = None
+
+        logger.debug("开始执行异步任务")
+
         try:
             self._task = asyncio.create_task(self._coroutine)
-            result = await self._task
-            self.finished.emit(result)
+            self._result = await self._task
+            self.finished.emit(self._result)
         except asyncio.CancelledError:
             logger.info("任务已被取消")
             self.cancelled.emit()
         except Exception as e:
             logger.error(f"任务执行失败: {str(e)}")
+            self._exception = e
             self.error.emit(e)
         finally:
             self._is_running = False
             self._is_finished = True
+            logger.debug("异步任务执行完成")
 
     def cancel(self):
         """取消任务"""
@@ -59,11 +68,15 @@ class AsyncWorker(QObject):
     def result(self) -> Any:
         """获取任务结果（如果已完成）"""
         if self._task and self._task.done():
-            return self._task.result()
+            return self._result
         return None
 
     def exception(self) -> Optional[Exception]:
         """获取任务异常（如果有）"""
         if self._task and self._task.done():
-            return self._task.exception()
+            return self._exception
         return None
+
+    def __del__(self):
+        """析构时自动取消任务"""
+        self.cancel()

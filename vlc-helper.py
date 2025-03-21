@@ -1,38 +1,27 @@
 import vlc
 import platform
 import logging
-from typing import List
+from typing import List, Optional
 from utils import ConfigHandler, check_gpu_driver
 
 logger = logging.getLogger('VLC-Helper')
 
-def create_vlc_instance(retry_count: int = 3) -> vlc.Instance:
-    """
-    创建智能配置的VLC实例
-    
-    功能特性:
-    - 自动检测硬件加速支持
-    - 跨平台优化参数
-    - 失败自动降级策略
-    - 可配置的重试机制
-    """
+def create_vlc_instance(retry_count: int = 3) -> Optional[vlc.Instance]:
+    """创建智能配置的VLC实例，去掉调试日志"""
     config = ConfigHandler()
     for attempt in range(retry_count):
         try:
             args = _generate_vlc_args(config, attempt)
-            logger.info(f"尝试创建VLC实例 (第{attempt+1}次) 参数: {args}")
             instance = vlc.Instance(args)
-            
+
             # 验证实例有效性
             if _validate_instance(instance):
-                logger.info("VLC实例创建成功")
                 return instance
-                
-        except Exception as e:
-            logger.error(f"VLC初始化失败: {str(e)}")
+
+        except Exception:
             if attempt == retry_count - 1:
                 return _create_fallback_instance(config)
-    return vlc.Instance()
+    return None
 
 def _generate_vlc_args(config: ConfigHandler, attempt: int) -> List[str]:
     """生成动态VLC参数"""
@@ -41,7 +30,7 @@ def _generate_vlc_args(config: ConfigHandler, attempt: int) -> List[str]:
         '--avcodec-hw=any',
         '--network-caching=' + config.config['Player'].get(
             'network_cache', 
-            '3000' if attempt == 0 else str(3000 + attempt*1000)
+            '3000' if attempt == 0 else str(3000 + attempt * 1000)
         ),
         '--drop-late-frames=1',
         '--skip-frames=1',
@@ -112,11 +101,14 @@ if __name__ == "__main__":
     setup_logger('VLC-Helper')
     
     instance = create_vlc_instance()
-    player = instance.media_player_new()
-    media = instance.media_new('rtp://239.1.1.1:5002')
-    player.set_media(media)
-    
-    if player.play() == -1:
-        logger.error("播放初始化失败")
+    if instance:
+        player = instance.media_player_new()
+        media = instance.media_new('rtp://239.1.1.1:5002')
+        player.set_media(media)
+        
+        if player.play() == -1:
+            logger.error("播放初始化失败")
+        else:
+            logger.info("播放已启动")
     else:
-        logger.info("播放已启动")
+        logger.error("无法创建VLC实例")

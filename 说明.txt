@@ -1,0 +1,7 @@
+iptv_manager/
+├── main.py          # 主界面和程序入口
+├── scanner.py       # 扫描功能实现
+├── epg_manager.py   # EPG管理模块
+├── playlist_io.py   # 文件读写和格式转换
+├── player.py        # 播放器组件
+└── utils.py         # 工具类和辅助函数

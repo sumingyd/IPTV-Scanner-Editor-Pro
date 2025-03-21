@@ -34,11 +34,14 @@ class StreamScanner(QObject):
 
     async def _scan_task(self, ip_pattern: str) -> None:
         """执行扫描的核心任务"""
+        logger.debug("进入 _scan_task 方法")
         try:
             # 生成待扫描URL列表
-            urls = [f"rtp://{ip}" for ip in parse_ip_range(ip_pattern)]
+            urls = [f"{ip}" for ip in parse_ip_range(ip_pattern)]
             total = len(urls)
             valid_channels = []
+            
+            logger.debug(f"生成的 URL 列表: {urls}")
             
             for i, url in enumerate(urls):
                 if not self._is_scanning:
@@ -49,7 +52,9 @@ class StreamScanner(QObject):
                 self.progress_updated.emit(progress, f"扫描中 {url}")
                 
                 # 探测流信息
+                logger.debug(f"开始探测: {url}")
                 if info := await self._probe_stream(url):
+                    logger.debug(f"探测成功: {url} - {info}")
                     valid_channels.append({
                         'url': url,
                         'width': info['width'],
@@ -57,6 +62,8 @@ class StreamScanner(QObject):
                         'codec': info['codec'],
                         'resolution': f"{info['width']}x{info['height']}"
                     })
+                else:
+                    logger.debug(f"探测失败: {url}")
             
             # 发送最终结果
             if self._is_scanning:
@@ -68,6 +75,12 @@ class StreamScanner(QObject):
             raise
         finally:
             self._is_scanning = False
+
+    def parse_ip_range(ip_pattern: str) -> List[str]:
+        """解析 IP 范围"""
+        logger.debug(f"解析 IP 范围: {ip_pattern}")
+        # 在这里实现 IP 范围解析逻辑
+        # 返回 IP 地址列表
 
     async def _probe_stream(self, url: str) -> Optional[Dict]:
         """探测单个流媒体信息"""
@@ -82,6 +95,8 @@ class StreamScanner(QObject):
                 '-timeout', str(self._timeout * 1_000_000),  # 微秒单位
                 url
             ]
+            
+            logger.debug(f"执行 ffprobe 命令: {' '.join(cmd)}")
             
             # 启动子进程
             proc = await asyncio.create_subprocess_exec(
@@ -104,6 +119,7 @@ class StreamScanner(QObject):
                 
             # 解析输出
             video_info = stdout.decode().strip().split(',')
+            logger.debug(f"ffprobe 输出: {video_info}")
             return {
                 'codec': video_info[0],
                 'width': int(video_info[1]),
