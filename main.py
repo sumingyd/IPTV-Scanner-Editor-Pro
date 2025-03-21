@@ -100,12 +100,16 @@ class MainWindow(QtWidgets.QMainWindow):
         scan_layout = QtWidgets.QFormLayout()
 
         self.ip_range_input = QtWidgets.QLineEdit()
+        self.timeout_input = QtWidgets.QSpinBox()  # 超时时间输入框
+        self.timeout_input.setRange(1, 60)  # 超时时间范围：1 到 60 秒
+        self.timeout_input.setValue(10)  # 默认超时时间：10 秒
         self.scan_progress = QtWidgets.QProgressBar()
         scan_btn = QtWidgets.QPushButton("开始扫描")
         scan_btn.clicked.connect(self.start_scan)
 
-        scan_layout.addRow("IP范围格式：", QtWidgets.QLabel("示例：192.168.[1-5].[1-255]:5002"))
-        scan_layout.addRow("输入范围：", self.ip_range_input)
+        scan_layout.addRow("URL格式：", QtWidgets.QLabel("示例：http://192.168.50.1:20231/rtp/239.21.[1-20].[1-20]:5002"))
+        scan_layout.addRow("输入URL：", self.ip_range_input)
+        scan_layout.addRow("超时时间（秒）：", self.timeout_input)  # 添加超时时间输入框
         scan_layout.addRow("进度：", self.scan_progress)
         scan_layout.addRow(scan_btn)
 
@@ -289,8 +293,12 @@ class MainWindow(QtWidgets.QMainWindow):
         """启动扫描任务"""
         ip_range = self.ip_range_input.text().strip()
         if not ip_range:
-            self.show_error("请输入有效的频道地址")  # 修改提示信息
+            self.show_error("请输入有效的频道地址")
             return
+
+        # 设置超时时间（从配置或用户输入中获取）
+        timeout = self.config.config.getint('Scanner', 'timeout', fallback=10)  # 默认 10 秒
+        self.scanner.set_timeout(timeout)
 
         # 确保传入的是一个协程
         self.scan_worker = AsyncWorker(self.scanner.start_scan(ip_range))
