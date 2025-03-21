@@ -22,6 +22,7 @@ class PlayerMonitor(QThread):
         self.player = player
         self._is_running = False
         self._gpu_type = self._detect_gpu()
+        self._last_stats = {}  # 用于存储上一次的监控数据
 
     def _detect_gpu(self) -> str:
         """检测显卡类型"""
@@ -52,7 +53,11 @@ class PlayerMonitor(QThread):
                     'buffer': self._get_buffer_level(),
                     'timestamp': time.time()
                 }
-                self.update_signal.emit(stats)
+                
+                # 仅在数据发生变化时发送信号
+                if stats != self._last_stats:
+                    self.update_signal.emit(stats)
+                    self._last_stats = stats
             except Exception as e:
                 self.update_signal.emit({'error': str(e)})
             

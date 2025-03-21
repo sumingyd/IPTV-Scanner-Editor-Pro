@@ -4,8 +4,10 @@ import platform
 import re
 import subprocess
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
 from itertools import product
+
+logger = logging.getLogger('Utils')
 
 class ConfigHandler:
     _instance = None
@@ -37,7 +39,7 @@ class ConfigHandler:
         
         cfg_path = self.get_config_path()
         if cfg_path.exists():
-            with open(cfg_path, 'r') as f:
+            with open(cfg_path, 'r', encoding='utf-8') as f:
                 self.config.read_file(f)
                 
         self._migrate_old_config()
@@ -57,7 +59,7 @@ class ConfigHandler:
                 old_path.rename(old_path.with_suffix('.ini.bak'))
                 self.save_prefs()
             except Exception as e:
-                logging.warning(f"配置迁移失败: {str(e)}")
+                logger.warning(f"配置迁移失败: {str(e)}")
 
     def save_prefs(self) -> None:
         """安全保存配置"""
@@ -66,7 +68,7 @@ class ConfigHandler:
         
         # 使用临时文件避免写入中断
         temp_path = cfg_path.with_suffix('.tmp')
-        with open(temp_path, 'w') as f:
+        with open(temp_path, 'w', encoding='utf-8', newline='\n') as f:
             self.config.write(f)
         temp_path.replace(cfg_path)
 

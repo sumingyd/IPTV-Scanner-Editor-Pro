@@ -2,7 +2,7 @@ import vlc
 import asyncio
 import platform
 from PyQt6 import QtWidgets, QtCore
-from PyQt6.QtCore import pyqtSignal, QDateTime
+from PyQt6.QtCore import pyqtSignal
 from utils import setup_logger
 
 logger = setup_logger('Player')
@@ -17,12 +17,12 @@ class VLCPlayer(QtWidgets.QWidget):
         self.hw_accel = 'd3d11va'
         self._init_vlc()
         self._init_ui()
-        self._setup_connections()  # 确保这个方法存在
+        self._setup_connections()
         self.history = []
         self.max_history = 50
 
     def _init_vlc(self):
-        """Initialize VLC实例"""
+        """Initialize VLC实例，去掉调试日志"""
         args = [
             f'--avcodec-hw={self.hw_accel}',
             '--network-caching=3000',
@@ -30,10 +30,8 @@ class VLCPlayer(QtWidgets.QWidget):
             '--drop-late-frames',
             '--skip-frames'
         ]
-        logger.debug(f"初始化VLC参数: {args}")
         self.instance = vlc.Instance(args)
         self.media_player = self.instance.media_player_new()
-        logger.info("VLC实例创建成功")
 
     def _init_ui(self):
         """初始化界面组件"""
@@ -49,17 +47,17 @@ class VLCPlayer(QtWidgets.QWidget):
         QtCore.QTimer.singleShot(100, self._bind_video_window)
 
     def _setup_connections(self):
-        """初始化信号连接（新增方法）"""
+        """初始化信号连接，去掉调试日志"""
         try:
             event_manager = self.media_player.event_manager()
             event_manager.event_attach(vlc.EventType.MediaPlayerPlaying, self._on_play)
             event_manager.event_attach(vlc.EventType.MediaPlayerStopped, self._on_stop)
-            logger.debug("VLC事件绑定成功")
+            event_manager.event_attach(vlc.EventType.MediaPlayerPaused, self._on_pause)
         except Exception as e:
             logger.error(f"事件绑定失败: {str(e)}")
 
     def _bind_video_window(self):
-        """窗口绑定逻辑"""
+        """窗口绑定逻辑，去掉调试日志"""
         if not self.video_frame or not self.media_player:
             return
 
@@ -70,10 +68,14 @@ class VLCPlayer(QtWidgets.QWidget):
             else:
                 xid = int(self.video_frame.winId())
                 self.media_player.set_xwindow(xid)
-            logger.info("视频窗口绑定成功")
         except Exception as e:
             logger.error(f"窗口绑定失败: {str(e)}")
             QtCore.QTimer.singleShot(100, self._bind_video_window)
+
+    def set_hardware_accel(self, hw_accel: str) -> None:
+        """设置硬件加速"""
+        self.hw_accel = hw_accel
+        logger.info(f"硬件加速设置为: {hw_accel}")
 
     async def async_play(self, url: str, retry=3) -> bool:
         """播放核心方法"""
@@ -85,7 +87,8 @@ class VLCPlayer(QtWidgets.QWidget):
                     f':avcodec-hw={self.hw_accel}',
                     ':rtsp-tcp'
                 ]
-                media.add_options(opts)
+                # 将 opts 列表拼接为字符串
+                media.add_options(' '.join(opts))
                 self.media_player.set_media(media)
                 
                 if self.media_player.play() == -1:
@@ -108,15 +111,38 @@ class VLCPlayer(QtWidgets.QWidget):
                 return True
         return False
 
-    def stop(self):
-        """停止播放"""
+    def toggle_pause(self) -> None:
+        """暂停/继续播放"""
+        if self.media_player.is_playing():
+            self.media_player.pause()
+            logger.info("播放已暂停")
+        else:
+            self.media_player.play()
+            logger.info("播放已继续")
+
+    def stop(self) -> None:
+        """停止播放，修复崩溃问题"""
         if self.media_player:
             self.media_player.stop()
-            logger.info("播放已停止")
+            self.media_player.release()
+            self.media_player = None
+        self.state_changed.emit("播放已停止")  # 直接使用信号
+
+    def set_volume(self, volume: int) -> None:
+        """设置音量 (0-100)"""
+        if 0 <= volume <= 100:
+            self.media_player.audio_set_volume(volume)
+            logger.info(f"音量设置为: {volume}")
+        else:
+            logger.warning(f"无效的音量值: {volume}")
 
     def _on_play(self, event):
         """播放事件处理"""
         self.state_changed.emit("正在播放...")
+
+    def _on_pause(self, event):
+        """暂停事件处理"""
+        self.state_changed.emit("播放已暂停")
 
     def _on_stop(self, event):
         """停止事件处理"""

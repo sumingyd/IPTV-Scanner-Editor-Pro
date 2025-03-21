@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtCore import Qt, pyqtSlot, QModelIndex
-from PyQt6.QtGui import QCloseEvent, QAction, QKeySequence
+from PyQt6.QtGui import QCloseEvent, QAction, QKeySequence, QIcon
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
 from scanner import StreamScanner
 from epg_manager import EPGManager
@@ -16,6 +16,7 @@ import qasync
 from async_utils import AsyncWorker
 
 logger = setup_logger('Main')
+
 
 class ChannelListModel(QtCore.QAbstractListModel):
     def __init__(self, data: Optional[List[Dict]] = None):
@@ -33,7 +34,10 @@ class ChannelListModel(QtCore.QAbstractListModel):
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return len(self.channels)
 
+
 class MainWindow(QtWidgets.QMainWindow):
+    # 定义信号（必须在类的作用域内定义）
+    epg_progress_updated = QtCore.pyqtSignal(str)  # 用于更新进度提示
     def __init__(self):
         super().__init__()
         self.config = ConfigHandler()
@@ -42,35 +46,43 @@ class MainWindow(QtWidgets.QMainWindow):
         self.player = VLCPlayer()
         self.playlist_handler = PlaylistHandler()
         self.converter = PlaylistConverter(self.epg_manager)
-        
+
         # 异步任务跟踪
         self.scan_worker: Optional[AsyncWorker] = None
         self.play_worker: Optional[AsyncWorker] = None
-        
+
         self._init_ui()
         self._connect_signals()
         self.load_config()
+
+        # 添加防抖定时器
+        self.debounce_timer = QtCore.QTimer()
+        self.debounce_timer.setSingleShot(True)  # 单次触发
+        self.debounce_timer.timeout.connect(self.update_completer_model)
+
+        # 连接信号与槽
+        self.epg_progress_updated.connect(self.update_status)
 
     def _init_ui(self) -> None:
         """初始化用户界面"""
         self.setWindowTitle("IPTV管理工具")
         self.resize(1200, 800)
-        
+
         # 主布局
         main_widget = QtWidgets.QWidget()
         self.setCentralWidget(main_widget)
         main_layout = QtWidgets.QHBoxLayout(main_widget)
-        
+
         # 左侧面板
         left_panel = QtWidgets.QSplitter(Qt.Orientation.Vertical)
         self._setup_scan_panel(left_panel)
         self._setup_channel_list(left_panel)
-        
+
         # 右侧面板
         right_panel = QtWidgets.QSplitter(Qt.Orientation.Vertical)
         self._setup_player_panel(right_panel)
         self._setup_edit_panel(right_panel)
-        
+
         main_layout.addWidget(left_panel)
         main_layout.addWidget(right_panel)
 
@@ -78,21 +90,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self._setup_menubar()
         self._setup_toolbar()
 
+        # 确保状态栏显示
+        self.statusBar().show()
+        self.statusBar().showMessage("程序已启动")
+
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
         """配置扫描面板"""
         scan_group = QtWidgets.QGroupBox("扫描设置")
         scan_layout = QtWidgets.QFormLayout()
-        
+
         self.ip_range_input = QtWidgets.QLineEdit()
         self.scan_progress = QtWidgets.QProgressBar()
         scan_btn = QtWidgets.QPushButton("开始扫描")
         scan_btn.clicked.connect(self.start_scan)
-        
+
         scan_layout.addRow("IP范围格式：", QtWidgets.QLabel("示例：192.168.[1-5].[1-255]:5002"))
         scan_layout.addRow("输入范围：", self.ip_range_input)
         scan_layout.addRow("进度：", self.scan_progress)
         scan_layout.addRow(scan_btn)
-        
+
         scan_group.setLayout(scan_layout)
         parent.addWidget(scan_group)
 
@@ -100,14 +116,14 @@ class MainWindow(QtWidgets.QMainWindow):
         """配置频道列表"""
         list_group = QtWidgets.QGroupBox("频道列表")
         list_layout = QtWidgets.QVBoxLayout()
-        
+
         self.channel_list = QtWidgets.QListView()
         self.channel_list.setSelectionMode(
             QtWidgets.QListView.SelectionMode.ExtendedSelection
         )
         self.model = ChannelListModel()
         self.channel_list.setModel(self.model)
-        
+
         list_layout.addWidget(self.channel_list)
         list_group.setLayout(list_layout)
         parent.addWidget(list_group)
@@ -116,75 +132,149 @@ class MainWindow(QtWidgets.QMainWindow):
         """配置播放器面板"""
         player_group = QtWidgets.QGroupBox("视频播放")
         player_layout = QtWidgets.QVBoxLayout()
+
+        # 播放器控件
         player_layout.addWidget(self.player)
+
+        # 控制按钮
+        control_layout = QtWidgets.QHBoxLayout()
+
+        self.pause_btn = QtWidgets.QPushButton("暂停/继续")
+        self.pause_btn.clicked.connect(self.player.toggle_pause)
+
+        self.stop_btn = QtWidgets.QPushButton("停止")
+        self.stop_btn.clicked.connect(self.player.stop)
+
+        control_layout.addWidget(self.pause_btn)
+        control_layout.addWidget(self.stop_btn)
+
+        player_layout.addLayout(control_layout)
+
+        # 音量控制
+        volume_layout = QtWidgets.QHBoxLayout()
+
+        self.volume_slider = QtWidgets.QSlider(Qt.Orientation.Horizontal)
+        self.volume_slider.setRange(0, 100)
+        self.volume_slider.setValue(50)  # 默认音量
+        self.volume_slider.valueChanged.connect(self.set_volume)
+
+        volume_layout.addWidget(QtWidgets.QLabel("音量："))
+        volume_layout.addWidget(self.volume_slider)
+
+        player_layout.addLayout(volume_layout)
+
         player_group.setLayout(player_layout)
         parent.addWidget(player_group)
 
     def _setup_edit_panel(self, parent: QtWidgets.QSplitter) -> None:
-        """配置编辑面板"""
+        """配置编辑面板，修复频道名称输入框的自动补全功能"""
         edit_group = QtWidgets.QGroupBox("频道编辑")
         edit_layout = QtWidgets.QFormLayout()
-        
+
         self.name_edit = QtWidgets.QLineEdit()
         self.name_edit.setPlaceholderText("输入频道名称...")
+
+        # 修复自动补全功能
         self.epg_completer = QtWidgets.QCompleter()
+        self.epg_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)  # 不区分大小写
+        self.epg_completer.setFilterMode(Qt.MatchFlag.MatchContains)  # 支持模糊匹配
+        self.epg_completer.setCompletionMode(QtWidgets.QCompleter.CompletionMode.PopupCompletion)  # 显示下拉列表
+        self.epg_completer.setMaxVisibleItems(10)  # 最多显示10个匹配项
         self.name_edit.setCompleter(self.epg_completer)
-        
+
+        # 绑定文本变化事件
+        self.name_edit.textChanged.connect(self.on_text_changed)
+
         self.group_combo = QtWidgets.QComboBox()
         self.group_combo.addItems(["未分类", "央视", "卫视", "本地", "高清频道", "测试频道"])
-        
+
         edit_layout.addRow("频道名称：", self.name_edit)
         edit_layout.addRow("分组分类：", self.group_combo)
-        
+
         save_btn = QtWidgets.QPushButton("保存修改")
         save_btn.clicked.connect(self.save_channel_edit)
         edit_layout.addRow(save_btn)
-        
+
         edit_group.setLayout(edit_layout)
         parent.addWidget(edit_group)
 
     def _setup_menubar(self) -> None:
         """初始化菜单栏"""
         menubar = self.menuBar()
-        
+
         # 文件菜单
         file_menu = menubar.addMenu("文件(&F)")
         open_action = QAction("打开列表(&O)", self)
         open_action.setShortcut(QKeySequence("Ctrl+O"))
         open_action.triggered.connect(self.open_playlist)
         file_menu.addAction(open_action)
-        
+
         save_action = QAction("保存列表(&S)", self)
         save_action.setShortcut(QKeySequence("Ctrl+S"))
         save_action.triggered.connect(self.save_playlist)
         file_menu.addAction(save_action)
-        
+
         file_menu.addSeparator()
         exit_action = QAction("退出(&X)", self)
         exit_action.setShortcut(QKeySequence("Ctrl+Q"))
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
-        
+
         # 工具菜单
         tool_menu = menubar.addMenu("工具(&T)")
         tool_menu.addAction("扫描设置(&S)", self.show_scan_settings)
         tool_menu.addAction("EPG管理(&E)", self.manage_epg)
 
     def _setup_toolbar(self) -> None:
-        """初始化工具栏"""
+        """初始化工具栏，区分加载 EPG 和更新 EPG 按钮"""
         toolbar = self.addToolBar("主工具栏")
+        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)  # 图标下方显示文字
         toolbar.setMovable(False)
-        
-        self.tool_actions = {
-            'open': toolbar.addAction("📂 打开", self.open_playlist),
-            'save': toolbar.addAction("💾 保存", self.save_playlist),
-            'scan': toolbar.addAction("🔍 扫描", self.start_scan),
-            'epg_refresh': toolbar.addAction("🔄 EPG", self.refresh_epg),
-            'stop': toolbar.addAction("⏹ 停止", self.stop_play)
-        }
-        toolbar.addSeparator()
-        toolbar.addWidget(QtWidgets.QLabel("|"))
-        toolbar.addAction("⚙ 设置", self.show_settings)
+
+        # 修复图标加载问题
+        def load_icon(path: str) -> QIcon:
+            icon_path = Path(__file__).parent / path
+            if not icon_path.exists():
+                return QIcon()  # 返回空图标
+            icon = QIcon(str(icon_path))
+            if icon.isNull():
+                return QIcon()  # 返回空图标
+            return icon
+
+        # 打开列表
+        open_action = QAction(load_icon("icons/open.png"), "打开列表", self)
+        open_action.triggered.connect(self.open_playlist)
+        toolbar.addAction(open_action)
+
+        # 保存列表
+        save_action = QAction(load_icon("icons/save.png"), "保存列表", self)
+        save_action.triggered.connect(self.save_playlist)
+        toolbar.addAction(save_action)
+
+        # 扫描
+        scan_action = QAction(load_icon("icons/scan.png"), "扫描频道", self)
+        scan_action.triggered.connect(self.start_scan)
+        toolbar.addAction(scan_action)
+
+        # 加载 EPG 缓存
+        load_epg_action = QAction(load_icon("icons/load.png"), "加载 EPG", self)
+        load_epg_action.triggered.connect(self.load_epg_cache)
+        toolbar.addAction(load_epg_action)
+
+        # 更新 EPG 数据
+        refresh_epg_action = QAction(load_icon("icons/refresh.png"), "更新 EPG", self)
+        refresh_epg_action.triggered.connect(self.refresh_epg)
+        toolbar.addAction(refresh_epg_action)
+
+        # 停止
+        stop_action = QAction(load_icon("icons/stop.png"), "停止播放", self)
+        stop_action.triggered.connect(self.stop_play)
+        toolbar.addAction(stop_action)
+
+        # 设置
+        settings_action = QAction(load_icon("icons/settings.png"), "设置", self)
+        settings_action.triggered.connect(self.show_settings)
+        toolbar.addAction(settings_action)
 
     def _connect_signals(self) -> None:
         """连接信号与槽"""
@@ -201,8 +291,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if not ip_range:
             self.show_error("请输入有效的IP范围")
             return
-        
-        self.scan_worker = AsyncWorker(self._async_scan(ip_range))
+
+        self.scan_worker = AsyncWorker(self.scanner._scan_task(ip_range))  # 使用 _scan_task
         self.scan_worker.finished.connect(self.handle_scan_success)
         self.scan_worker.error.connect(self.handle_scan_error)
         self.scan_worker.cancelled.connect(self.handle_scan_cancel)
@@ -231,11 +321,11 @@ class MainWindow(QtWidgets.QMainWindow):
         index = self.channel_list.currentIndex()
         if not index.isValid():
             return
-        
+
         chan = self.model.channels[index.row()]
         self.name_edit.setText(chan.get('name', '未命名频道'))
         self.group_combo.setCurrentText(chan.get('group', '未分类'))
-        
+
         if url := chan.get('url'):
             asyncio.create_task(self.safe_play(url))
 
@@ -244,7 +334,7 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             if self.play_worker and not self.play_worker.is_finished():
                 self.play_worker.cancel()
-            
+
             self.play_worker = AsyncWorker(self.player.async_play(url))
             self.play_worker.finished.connect(self.handle_play_success)
             self.play_worker.error.connect(self.handle_play_error)
@@ -267,42 +357,114 @@ class MainWindow(QtWidgets.QMainWindow):
         if not index.isValid():
             self.show_error("请先选择要编辑的频道")
             return
-        
+
         new_name = self.name_edit.text().strip()
         new_group = self.group_combo.currentText()
-        
+
         if not new_name:
             self.show_error("频道名称不能为空")
             return
-        
+
         self.model.channels[index.row()].update({
             'name': new_name,
             'group': new_group
         })
         self.model.dataChanged.emit(index, index)
-        
+
         # 自动跳转到下一个频道
         next_index = index.siblingAtRow(index.row() + 1)
         if next_index.isValid():
             self.channel_list.setCurrentIndex(next_index)
 
+    async def _load_epg_data(self, is_refresh: bool) -> None:
+        """加载或刷新 EPG 数据"""
+        try:
+            if is_refresh:
+                success = await self.epg_manager.refresh_epg()
+                message = "EPG 数据更新成功" if success else "EPG 更新失败，请检查网络连接"
+            else:
+                success = self.epg_manager.load_cached_epg()
+                message = "EPG 缓存已加载" if success else "EPG 缓存加载失败"
+
+            if success:
+                self.update_completer_model()
+            self.statusBar().showMessage(message)
+        except Exception as e:
+            logger.error(f"EPG 操作失败: {str(e)}")
+            self.show_error(f"EPG 操作失败: {str(e)}")
+
+    @pyqtSlot()
+    def load_epg_cache(self) -> None:
+        """异步加载 EPG 缓存"""
+        self.epg_progress_updated.emit("正在加载 EPG 缓存...")
+        self.scan_worker = AsyncWorker(self._async_load_epg(is_refresh=False))
+        self.scan_worker.finished.connect(self.handle_epg_load_success)
+        self.scan_worker.error.connect(self.handle_epg_load_error)
+        asyncio.create_task(self.scan_worker.run())
+
     @pyqtSlot()
     def refresh_epg(self) -> None:
-        """刷新EPG数据"""
+        """异步更新 EPG 数据"""
+        self.epg_progress_updated.emit("正在更新 EPG 数据...")
+        self.scan_worker = AsyncWorker(self._async_load_epg(is_refresh=True))
+        self.scan_worker.finished.connect(self.handle_epg_load_success)
+        self.scan_worker.error.connect(self.handle_epg_load_error)
+        asyncio.create_task(self.scan_worker.run())
+
+    async def _async_load_epg(self, is_refresh: bool) -> None:
+        """异步加载或刷新 EPG 数据"""
         try:
-            if self.epg_manager.refresh_epg():
-                self.update_completer_model()
-                self.statusBar().showMessage("EPG数据更新成功")
+            if is_refresh:
+                success = await self.epg_manager.refresh_epg()
+                message = "EPG 数据更新成功" if success else "EPG 更新失败，请检查网络连接"
             else:
-                self.show_error("EPG更新失败，请检查网络连接")
+                success = self.epg_manager.load_cached_epg()
+                message = "EPG 缓存已加载" if success else "EPG 缓存加载失败"
+
+            if success:
+                self.epg_progress_updated.emit("EPG 数据加载完成，正在更新界面...")
+                self.update_completer_model()
+                self.epg_progress_updated.emit(message)
+            else:
+                self.epg_progress_updated.emit(message)
         except Exception as e:
-            self.show_error(f"EPG刷新错误: {str(e)}")
+            logger.error(f"EPG 操作失败: {str(e)}")
+            self.epg_progress_updated.emit(f"EPG 操作失败: {str(e)}")
+
+    @pyqtSlot()
+    def handle_epg_load_success(self) -> None:
+        """EPG 加载成功后的处理"""
+        self.statusBar().showMessage("EPG 数据加载完成")
+
+    @pyqtSlot(Exception)
+    def handle_epg_load_error(self, error: Exception) -> None:
+        """EPG 加载失败后的处理"""
+        self.show_error(f"EPG 加载失败: {str(error)}")
+
+    def on_text_changed(self, text: str) -> None:
+        """输入框文本变化时的处理"""
+        logger.debug(f"输入框文本变化: {text}")
+        self.debounce_timer.start(300)
+        self.name_edit.setFocus()  # 强制设置输入框焦点
 
     def update_completer_model(self) -> None:
         """更新自动补全模型"""
-        names = self.epg_manager.match_channel_name('')
-        model = QtCore.QStringListModel(names)
-        self.epg_completer.setModel(model)
+        try:
+            # 获取输入框的当前文本
+            partial = self.name_edit.text().strip()
+            logger.debug(f"开始匹配: {partial}")
+            names = self.epg_manager.match_channel_name(partial)
+            logger.debug(f"匹配结果: {names}")
+
+            # 更新自动补全模型
+            model = QtCore.QStringListModel(names)
+            self.epg_completer.setModel(model)
+
+            # 强制刷新待选框
+            if partial:  # 仅在输入框不为空时刷新
+                self.epg_completer.complete()
+        except Exception as e:
+            logger.warning(f"更新自动补全模型失败: {str(e)}")
 
     @pyqtSlot()
     def open_playlist(self) -> None:
@@ -315,16 +477,16 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         if not path:
             return
-        
+
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 content = f.read()
-            
+
             if path.endswith('.txt'):
                 channels = PlaylistParser.parse_txt(content)
             else:
                 channels = PlaylistParser.parse_m3u(content)
-            
+
             self.model.channels = channels
             self.model.layoutChanged.emit()
             self.statusBar().showMessage(f"已加载列表：{Path(path).name}")
@@ -342,7 +504,7 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         if not path:
             return
-        
+
         try:
             success = self.playlist_handler.save_playlist(self.model.channels, path)
             if success:
@@ -358,18 +520,18 @@ class MainWindow(QtWidgets.QMainWindow):
             # 窗口布局
             if geometry := self.config.config.get('UserPrefs', 'window_geometry', fallback=''):
                 self.restoreGeometry(QtCore.QByteArray.fromHex(geometry.encode()))
-            
+
             # 扫描历史
             self.ip_range_input.setText(
                 self.config.config.get('Scanner', 'last_range', fallback='')
             )
-            
+
             # 播放器设置
             hardware_accel = self.config.config.get(
                 'Player', 'hardware_accel', fallback='d3d11va'
             )
-            self.player.set_hardware_accel(hardware_accel)
-            
+            self.player.hw_accel = hardware_accel  # 直接设置属性
+
         except Exception as e:
             logger.error(f"配置加载失败: {str(e)}")
 
@@ -377,14 +539,14 @@ class MainWindow(QtWidgets.QMainWindow):
         """处理关闭事件"""
         try:
             # 保存窗口状态
-            self.config.config['UserPrefs']['window_geometry'] = self.saveGeometry().toHex().decode()
-            
+            self.config.config['UserPrefs']['window_geometry'] = self.saveGeometry().toHex().data().decode()  # 修复 decode 错误
+
             # 保存扫描记录
             self.config.config['Scanner']['last_range'] = self.ip_range_input.text()
-            
+
             # 保存播放器设置
-            self.config.config['Player']['hardware_accel'] = self.player.get_hardware_accel()
-            
+            self.config.config['Player']['hardware_accel'] = self.player.hw_accel
+
             self.config.save_prefs()
             super().closeEvent(event)
         except Exception as e:
@@ -422,23 +584,105 @@ class MainWindow(QtWidgets.QMainWindow):
     def handle_play_error(self, error: Exception) -> None:
         self.show_error(f"播放错误: {str(error)}")
 
-    # 辅助功能占位
+    # 辅助功能
     def show_scan_settings(self) -> None:
-        QMessageBox.information(self, "提示", "扫描设置功能待实现")
+        """显示扫描设置对话框"""
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("扫描设置")
+        layout = QtWidgets.QVBoxLayout()
+
+        # 添加设置项
+        timeout_label = QtWidgets.QLabel("超时时间（秒）：")
+        self.timeout_input = QtWidgets.QSpinBox()
+        self.timeout_input.setRange(1, 60)
+        self.timeout_input.setValue(self.scanner._timeout)
+
+        layout.addWidget(timeout_label)
+        layout.addWidget(self.timeout_input)
+
+        # 保存按钮
+        save_btn = QtWidgets.QPushButton("保存")
+        save_btn.clicked.connect(lambda: self.save_scan_settings(dialog))
+        layout.addWidget(save_btn)
+
+        dialog.setLayout(layout)
+        dialog.exec()
+
+    def save_scan_settings(self, dialog: QtWidgets.QDialog) -> None:
+        """保存扫描设置"""
+        self.scanner._timeout = self.timeout_input.value()
+        dialog.close()
+        self.statusBar().showMessage("扫描设置已保存")
 
     def manage_epg(self) -> None:
-        QMessageBox.information(self, "提示", "EPG管理功能待实现")
+        """管理EPG数据源"""
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("EPG管理")
+        layout = QtWidgets.QVBoxLayout()
+
+        # 添加EPG源设置
+        epg_label = QtWidgets.QLabel("EPG源URL：")
+        self.epg_url_input = QtWidgets.QLineEdit()
+        self.epg_url_input.setText(self.epg_manager.epg_sources['main'])
+
+        layout.addWidget(epg_label)
+        layout.addWidget(self.epg_url_input)
+
+        # 保存按钮
+        save_btn = QtWidgets.QPushButton("保存")
+        save_btn.clicked.connect(lambda: self.save_epg_settings(dialog))
+        layout.addWidget(save_btn)
+
+        dialog.setLayout(layout)
+        dialog.exec()
+
+    def save_epg_settings(self, dialog: QtWidgets.QDialog) -> None:
+        """保存EPG设置"""
+        self.epg_manager.epg_sources['main'] = self.epg_url_input.text()
+        dialog.close()
+        self.statusBar().showMessage("EPG设置已保存")
 
     def show_settings(self) -> None:
-        QMessageBox.information(self, "提示", "全局设置功能待实现")
+        """显示全局设置对话框"""
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("全局设置")
+        layout = QtWidgets.QVBoxLayout()
+
+        # 添加硬件加速设置
+        hw_accel_label = QtWidgets.QLabel("硬件加速：")
+        self.hw_accel_combo = QtWidgets.QComboBox()
+        self.hw_accel_combo.addItems(['auto', 'd3d11va', 'vaapi', 'vdpau', 'none'])
+        self.hw_accel_combo.setCurrentText(self.player.hw_accel)
+
+        layout.addWidget(hw_accel_label)
+        layout.addWidget(self.hw_accel_combo)
+
+        # 保存按钮
+        save_btn = QtWidgets.QPushButton("保存")
+        save_btn.clicked.connect(lambda: self.save_global_settings(dialog))
+        layout.addWidget(save_btn)
+
+        dialog.setLayout(layout)
+        dialog.exec()
+
+    def save_global_settings(self, dialog: QtWidgets.QDialog) -> None:
+        """保存全局设置"""
+        self.player.hw_accel = self.hw_accel_combo.currentText()
+        dialog.close()
+        self.statusBar().showMessage("全局设置已保存")
+
+    def set_volume(self, volume: int) -> None:
+        """设置音量"""
+        self.player.set_volume(volume)
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(loop)
-    
+
     main_window = MainWindow()
     main_window.show()
-    
+
     with loop:
         sys.exit(loop.run_forever())
