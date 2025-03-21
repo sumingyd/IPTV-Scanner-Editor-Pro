@@ -16,12 +16,17 @@ class StreamScanner(QObject):
     def __init__(self):
         super().__init__()
         self._is_scanning = False
-        self._timeout = 5          # 单个流探测超时时间
+        self._timeout = 5  # 默认超时时间为 5 秒
+        self._thread_count = 10  # 默认线程数为 10
         self._scan_lock = asyncio.Lock()  # 扫描任务锁
 
     def set_timeout(self, timeout: int) -> None:
         """设置超时时间（单位：秒）"""
         self._timeout = timeout
+
+    def set_thread_count(self, thread_count: int) -> None:
+        """设置线程数"""
+        self._thread_count = thread_count
 
     @asyncSlot()
     async def start_scan(self, ip_pattern: str) -> None:
@@ -48,30 +53,19 @@ class StreamScanner(QObject):
             
             logger.debug(f"生成的 URL 列表: {urls}")
             
-            for i, url in enumerate(urls):
-                if not self._is_scanning:
-                    break
-                
-                # 更新进度
-                progress = int((i + 1) / total * 100)
-                self.progress_updated.emit(progress, f"扫描中 {url}")
-                
-                # 探测流信息
-                logger.debug(f"开始探测: {url}")
-                if info := await self._probe_stream(url):
-                    logger.debug(f"探测成功: {url} - {info}")
-                    # 格式化频道信息
-                    channel_info = f"{url.split('/')[-1]}[{info['width']}x{info['height']}],{url}"
-                    valid_channels.append({
-                        'name': channel_info,
-                        'url': url,
-                        'width': info['width'],
-                        'height': info['height'],
-                        'codec': info['codec'],
-                        'resolution': f"{info['width']}x{info['height']}"
-                    })
-                else:
-                    logger.debug(f"探测失败: {url}")
+            # 使用信号量控制并发数
+            semaphore = asyncio.Semaphore(self._thread_count)
+            
+            async def probe_with_semaphore(url: str) -> Optional[Dict]:
+                async with semaphore:
+                    return await self._probe_stream(url)
+            
+            # 并发探测
+            tasks = [probe_with_semaphore(url) for url in urls]
+            results = await asyncio.gather(*tasks)
+            
+            # 过滤有效结果
+            valid_channels = [result for result in results if result is not None]
             
             # 发送最终结果
             if self._is_scanning:
@@ -120,8 +114,21 @@ class StreamScanner(QObject):
                 return None
                 
             # 解析输出
-            video_info = stdout.decode().strip().split(',')
-            logger.debug(f"ffprobe 输出: {video_info}")
+            output = stdout.decode().strip()
+            logger.debug(f"ffprobe 输出: {output}")
+            
+            # 处理多余的空行和重复信息
+            lines = [line for line in output.splitlines() if line.strip()]
+            if not lines:
+                logger.warning(f"ffprobe 输出为空: {url}")
+                return None
+            
+            # 取第一行有效数据
+            video_info = lines[0].split(',')
+            if len(video_info) < 3:
+                logger.warning(f"ffprobe 输出格式错误: {video_info}")
+                return None
+            
             return {
                 'codec': video_info[0],
                 'width': int(video_info[1]),
