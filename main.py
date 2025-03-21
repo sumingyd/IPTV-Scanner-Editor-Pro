@@ -26,7 +26,7 @@ class ChannelListModel(QtCore.QAbstractListModel):
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
         if role == Qt.ItemDataRole.DisplayRole:
             chan = self.channels[index.row()]
-            return f"{chan['name']} [{chan.get('width', 0)}x{chan.get('height', 0)}]"
+            return f"{chan.get('name', '未命名频道')} [{chan.get('width', 0)}x{chan.get('height', 0)}]"
         elif role == Qt.ItemDataRole.UserRole:
             return self.channels[index.row()]
         return None
