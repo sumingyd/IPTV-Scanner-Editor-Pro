@@ -289,10 +289,11 @@ class MainWindow(QtWidgets.QMainWindow):
         """启动扫描任务"""
         ip_range = self.ip_range_input.text().strip()
         if not ip_range:
-            self.show_error("请输入有效的IP范围")
+            self.show_error("请输入有效的频道地址")  # 修改提示信息
             return
 
-        self.scan_worker = AsyncWorker(self.scanner._scan_task(ip_range))  # 使用 _scan_task
+        # 确保传入的是一个协程
+        self.scan_worker = AsyncWorker(self.scanner.start_scan(ip_range))
         self.scan_worker.finished.connect(self.handle_scan_success)
         self.scan_worker.error.connect(self.handle_scan_error)
         self.scan_worker.cancelled.connect(self.handle_scan_cancel)

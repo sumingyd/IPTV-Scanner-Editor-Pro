@@ -2,8 +2,9 @@ import asyncio
 import subprocess
 from typing import List, Dict, Optional
 from PyQt6.QtCore import QObject, pyqtSignal
-from utils import parse_ip_range, setup_logger
+from utils import setup_logger
 from qasync import asyncSlot
+from utils import parse_ip_range
 
 logger = setup_logger('Scanner')
 
@@ -37,7 +38,7 @@ class StreamScanner(QObject):
         logger.debug("进入 _scan_task 方法")
         try:
             # 生成待扫描URL列表
-            urls = [f"{ip}" for ip in parse_ip_range(ip_pattern)]
+            urls = parse_ip_range(ip_pattern)  # 直接使用 parse_ip_range 生成的完整 URL
             total = len(urls)
             valid_channels = []
             
@@ -48,14 +49,17 @@ class StreamScanner(QObject):
                     break
                 
                 # 更新进度
-                progress = int((i+1)/total*100)
+                progress = int((i + 1) / total * 100)
                 self.progress_updated.emit(progress, f"扫描中 {url}")
                 
                 # 探测流信息
                 logger.debug(f"开始探测: {url}")
                 if info := await self._probe_stream(url):
                     logger.debug(f"探测成功: {url} - {info}")
+                    # 格式化频道信息
+                    channel_info = f"{url.split('/')[-1]}[{info['width']}x{info['height']}],{url}"
                     valid_channels.append({
+                        'name': channel_info,
                         'url': url,
                         'width': info['width'],
                         'height': info['height'],
@@ -75,12 +79,6 @@ class StreamScanner(QObject):
             raise
         finally:
             self._is_scanning = False
-
-    def parse_ip_range(ip_pattern: str) -> List[str]:
-        """解析 IP 范围"""
-        logger.debug(f"解析 IP 范围: {ip_pattern}")
-        # 在这里实现 IP 范围解析逻辑
-        # 返回 IP 地址列表
 
     async def _probe_stream(self, url: str) -> Optional[Dict]:
         """探测单个流媒体信息"""
@@ -114,7 +112,7 @@ class StreamScanner(QObject):
             # 检查返回码
             if proc.returncode != 0:
                 err_msg = stderr.decode().strip()
-                logger.debug(f"流探测失败: {url} - {err_msg}")
+                logger.error(f"流探测失败: {url} - {err_msg}")  # 增加错误日志
                 return None
                 
             # 解析输出
