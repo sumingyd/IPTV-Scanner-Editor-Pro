@@ -85,6 +85,7 @@ class EPGManager:
             cache_key = self._generate_cache_key(url)
             cached_data = self._load_cache(cache_key)
             if cached_data:
+                logger.debug(f"从缓存加载: {cache_key}")
                 return cached_data
 
             # 发起带重试的请求
@@ -101,6 +102,7 @@ class EPGManager:
             # 保存缓存
             content = resp.content
             self._save_cache(cache_key, content)
+            logger.debug(f"缓存已保存: {cache_key}")
             return content
         except requests.exceptions.RequestException as e:
             logger.error(f"EPG下载失败 [{url}]: {str(e)}")
@@ -239,6 +241,17 @@ class EPGManager:
         parsed = urlparse(url)
         return hashlib.md5(f"{parsed.netloc}{parsed.path}".encode()).hexdigest()
 
+    def _save_cache(self, key: str, data: bytes) -> None:
+        """保存缓存数据"""
+        try:
+            cache_path = self._cache_file_path(key)
+            Path(cache_path).parent.mkdir(parents=True, exist_ok=True)  # 创建缓存目录
+            with open(cache_path, 'wb') as f:
+                f.write(data)
+            logger.debug(f"缓存已保存: {cache_path}")
+        except Exception as e:
+            logger.warning(f"缓存保存失败: {str(e)}")
+
     def _cache_file_path(self, key: str) -> str:
         """获取缓存文件路径，确保保存到程序目录下的 epg_cache 文件夹"""
         cache_dir = Path(__file__).parent / "epg_cache"
@@ -257,12 +270,3 @@ class EPGManager:
         except Exception:
             return None
 
-    def _save_cache(self, key: str, data: bytes) -> None:
-        """保存缓存数据"""
-        try:
-            cache_path = self._cache_file_path(key)
-            Path(cache_path).parent.mkdir(parents=True, exist_ok=True)
-            with open(cache_path, 'wb') as f:
-                f.write(data)
-        except Exception as e:
-            logger.warning(f"缓存保存失败: {str(e)}")
