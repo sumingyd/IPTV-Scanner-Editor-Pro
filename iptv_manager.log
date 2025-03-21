@@ -1,124 +1,82 @@
-2025-03-22 01:33:23,243 [DEBUG] Scanner:42 - 进入 _scan_task 方法
-2025-03-22 01:33:23,244 [DEBUG] Scanner:49 - 生成的 URL 列表: ['http://192.168.50.1:20231/rtp/239.21.1.1:5002', 'http://192.168.50.1:20231/rtp/239.21.1.2:5002', 'http://192.168.50.1:20231/rtp/239.21.1.3:5002', 'http://192.168.50.1:20231/rtp/239.21.1.4:5002', 'http://192.168.50.1:20231/rtp/239.21.1.5:5002', 'http://192.168.50.1:20231/rtp/239.21.1.6:5002', 'http://192.168.50.1:20231/rtp/239.21.1.7:5002', 'http://192.168.50.1:20231/rtp/239.21.1.8:5002', 'http://192.168.50.1:20231/rtp/239.21.1.9:5002', 'http://192.168.50.1:20231/rtp/239.21.1.10:5002', 'http://192.168.50.1:20231/rtp/239.21.1.11:5002', 'http://192.168.50.1:20231/rtp/239.21.1.12:5002', 'http://192.168.50.1:20231/rtp/239.21.1.13:5002', 'http://192.168.50.1:20231/rtp/239.21.1.14:5002', 'http://192.168.50.1:20231/rtp/239.21.1.15:5002', 'http://192.168.50.1:20231/rtp/239.21.1.16:5002', 'http://192.168.50.1:20231/rtp/239.21.1.17:5002', 'http://192.168.50.1:20231/rtp/239.21.1.18:5002', 'http://192.168.50.1:20231/rtp/239.21.1.19:5002', 'http://192.168.50.1:20231/rtp/239.21.1.20:5002']
-2025-03-22 01:33:23,244 [DEBUG] Scanner:60 - 开始探测: http://192.168.50.1:20231/rtp/239.21.1.1:5002
-2025-03-22 01:33:23,244 [DEBUG] Scanner:101 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.1:5002
-2025-03-22 01:33:28,438 [DEBUG] Scanner:124 - ffprobe 输出: ['h264', '720', '576\r\n\r\nh264', '720', '576']
-2025-03-22 01:33:28,438 [ERROR] Scanner:138 - 流探测异常: http://192.168.50.1:20231/rtp/239.21.1.1:5002
-Traceback (most recent call last):
-  File "D:\github\IPTV-Scanner-Editor-Pro\scanner.py", line 128, in _probe_stream
-    'height': int(video_info[2])
-              ^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '576\r\n\r\nh264'
-2025-03-22 01:33:28,439 [DEBUG] Scanner:74 - 探测失败: http://192.168.50.1:20231/rtp/239.21.1.1:5002
-2025-03-22 01:33:28,441 [DEBUG] Scanner:60 - 开始探测: http://192.168.50.1:20231/rtp/239.21.1.2:5002
-2025-03-22 01:33:28,441 [DEBUG] Scanner:101 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.2:5002
-2025-03-22 01:33:33,647 [DEBUG] Scanner:124 - ffprobe 输出: ['h264', '720', '576\r\n\r\nh264', '720', '576']
-2025-03-22 01:33:33,647 [ERROR] Scanner:138 - 流探测异常: http://192.168.50.1:20231/rtp/239.21.1.2:5002
-Traceback (most recent call last):
-  File "D:\github\IPTV-Scanner-Editor-Pro\scanner.py", line 128, in _probe_stream
-    'height': int(video_info[2])
-              ^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '576\r\n\r\nh264'
-2025-03-22 01:33:33,648 [DEBUG] Scanner:74 - 探测失败: http://192.168.50.1:20231/rtp/239.21.1.2:5002
-2025-03-22 01:33:33,650 [DEBUG] Scanner:60 - 开始探测: http://192.168.50.1:20231/rtp/239.21.1.3:5002
-2025-03-22 01:33:33,650 [DEBUG] Scanner:101 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.3:5002
-2025-03-22 01:33:38,836 [DEBUG] Scanner:124 - ffprobe 输出: ['h264', '720', '576\r\n\r\nh264', '720', '576']
-2025-03-22 01:33:38,836 [ERROR] Scanner:138 - 流探测异常: http://192.168.50.1:20231/rtp/239.21.1.3:5002
-Traceback (most recent call last):
-  File "D:\github\IPTV-Scanner-Editor-Pro\scanner.py", line 128, in _probe_stream
-    'height': int(video_info[2])
-              ^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '576\r\n\r\nh264'
-2025-03-22 01:33:38,837 [DEBUG] Scanner:74 - 探测失败: http://192.168.50.1:20231/rtp/239.21.1.3:5002
-2025-03-22 01:33:38,839 [DEBUG] Scanner:60 - 开始探测: http://192.168.50.1:20231/rtp/239.21.1.4:5002
-2025-03-22 01:33:38,839 [DEBUG] Scanner:101 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.4:5002
-2025-03-22 01:33:44,055 [DEBUG] Scanner:124 - ffprobe 输出: ['h264', '720', '576\r\n\r\nh264', '720', '576']
-2025-03-22 01:33:44,055 [ERROR] Scanner:138 - 流探测异常: http://192.168.50.1:20231/rtp/239.21.1.4:5002
-Traceback (most recent call last):
-  File "D:\github\IPTV-Scanner-Editor-Pro\scanner.py", line 128, in _probe_stream
-    'height': int(video_info[2])
-              ^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '576\r\n\r\nh264'
-2025-03-22 01:33:44,056 [DEBUG] Scanner:74 - 探测失败: http://192.168.50.1:20231/rtp/239.21.1.4:5002
-2025-03-22 01:33:44,058 [DEBUG] Scanner:60 - 开始探测: http://192.168.50.1:20231/rtp/239.21.1.5:5002
-2025-03-22 01:33:44,058 [DEBUG] Scanner:101 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.5:5002
-2025-03-22 01:33:49,190 [DEBUG] Scanner:124 - ffprobe 输出: ['h264', '720', '576\r\n\r\nh264', '720', '576']
-2025-03-22 01:33:49,190 [ERROR] Scanner:138 - 流探测异常: http://192.168.50.1:20231/rtp/239.21.1.5:5002
-Traceback (most recent call last):
-  File "D:\github\IPTV-Scanner-Editor-Pro\scanner.py", line 128, in _probe_stream
-    'height': int(video_info[2])
-              ^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '576\r\n\r\nh264'
-2025-03-22 01:33:49,191 [DEBUG] Scanner:74 - 探测失败: http://192.168.50.1:20231/rtp/239.21.1.5:5002
-2025-03-22 01:33:49,192 [DEBUG] Scanner:60 - 开始探测: http://192.168.50.1:20231/rtp/239.21.1.6:5002
-2025-03-22 01:33:49,192 [DEBUG] Scanner:101 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.6:5002
-2025-03-22 01:33:54,689 [DEBUG] Scanner:124 - ffprobe 输出: ['h264', '720', '576\r\n\r\nh264', '720', '576']
-2025-03-22 01:33:54,689 [ERROR] Scanner:138 - 流探测异常: http://192.168.50.1:20231/rtp/239.21.1.6:5002
-Traceback (most recent call last):
-  File "D:\github\IPTV-Scanner-Editor-Pro\scanner.py", line 128, in _probe_stream
-    'height': int(video_info[2])
-              ^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '576\r\n\r\nh264'
-2025-03-22 01:33:54,690 [DEBUG] Scanner:74 - 探测失败: http://192.168.50.1:20231/rtp/239.21.1.6:5002
-2025-03-22 01:33:54,692 [DEBUG] Scanner:60 - 开始探测: http://192.168.50.1:20231/rtp/239.21.1.7:5002
-2025-03-22 01:33:54,692 [DEBUG] Scanner:101 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.7:5002
-2025-03-22 01:33:59,921 [DEBUG] Scanner:124 - ffprobe 输出: ['h264', '720', '576\r\n\r\nh264', '720', '576']
-2025-03-22 01:33:59,921 [ERROR] Scanner:138 - 流探测异常: http://192.168.50.1:20231/rtp/239.21.1.7:5002
-Traceback (most recent call last):
-  File "D:\github\IPTV-Scanner-Editor-Pro\scanner.py", line 128, in _probe_stream
-    'height': int(video_info[2])
-              ^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '576\r\n\r\nh264'
-2025-03-22 01:33:59,921 [DEBUG] Scanner:74 - 探测失败: http://192.168.50.1:20231/rtp/239.21.1.7:5002
-2025-03-22 01:33:59,924 [DEBUG] Scanner:60 - 开始探测: http://192.168.50.1:20231/rtp/239.21.1.8:5002
-2025-03-22 01:33:59,924 [DEBUG] Scanner:101 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.8:5002
-2025-03-22 01:34:05,101 [DEBUG] Scanner:124 - ffprobe 输出: ['h264', '720', '576\r\n\r\nh264', '720', '576']
-2025-03-22 01:34:05,101 [ERROR] Scanner:138 - 流探测异常: http://192.168.50.1:20231/rtp/239.21.1.8:5002
-Traceback (most recent call last):
-  File "D:\github\IPTV-Scanner-Editor-Pro\scanner.py", line 128, in _probe_stream
-    'height': int(video_info[2])
-              ^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '576\r\n\r\nh264'
-2025-03-22 01:34:05,101 [DEBUG] Scanner:74 - 探测失败: http://192.168.50.1:20231/rtp/239.21.1.8:5002
-2025-03-22 01:34:05,103 [DEBUG] Scanner:60 - 开始探测: http://192.168.50.1:20231/rtp/239.21.1.9:5002
-2025-03-22 01:34:05,103 [DEBUG] Scanner:101 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.9:5002
-2025-03-22 01:34:10,413 [DEBUG] Scanner:124 - ffprobe 输出: ['h264', '720', '576\r\n\r\nh264', '720', '576']
-2025-03-22 01:34:10,413 [ERROR] Scanner:138 - 流探测异常: http://192.168.50.1:20231/rtp/239.21.1.9:5002
-Traceback (most recent call last):
-  File "D:\github\IPTV-Scanner-Editor-Pro\scanner.py", line 128, in _probe_stream
-    'height': int(video_info[2])
-              ^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '576\r\n\r\nh264'
-2025-03-22 01:34:10,414 [DEBUG] Scanner:74 - 探测失败: http://192.168.50.1:20231/rtp/239.21.1.9:5002
-2025-03-22 01:34:10,416 [DEBUG] Scanner:60 - 开始探测: http://192.168.50.1:20231/rtp/239.21.1.10:5002
-2025-03-22 01:34:10,416 [DEBUG] Scanner:101 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.10:5002
-2025-03-22 01:34:15,634 [DEBUG] Scanner:124 - ffprobe 输出: ['h264', '720', '576\r\n\r\nh264', '720', '576']
-2025-03-22 01:34:15,635 [ERROR] Scanner:138 - 流探测异常: http://192.168.50.1:20231/rtp/239.21.1.10:5002
-Traceback (most recent call last):
-  File "D:\github\IPTV-Scanner-Editor-Pro\scanner.py", line 128, in _probe_stream
-    'height': int(video_info[2])
-              ^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '576\r\n\r\nh264'
-2025-03-22 01:34:15,635 [DEBUG] Scanner:74 - 探测失败: http://192.168.50.1:20231/rtp/239.21.1.10:5002
-2025-03-22 01:34:15,637 [DEBUG] Scanner:60 - 开始探测: http://192.168.50.1:20231/rtp/239.21.1.11:5002
-2025-03-22 01:34:15,638 [DEBUG] Scanner:101 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.11:5002
-2025-03-22 01:34:20,880 [DEBUG] Scanner:124 - ffprobe 输出: ['h264', '720', '576\r\n\r\nh264', '720', '576']
-2025-03-22 01:34:20,880 [ERROR] Scanner:138 - 流探测异常: http://192.168.50.1:20231/rtp/239.21.1.11:5002
-Traceback (most recent call last):
-  File "D:\github\IPTV-Scanner-Editor-Pro\scanner.py", line 128, in _probe_stream
-    'height': int(video_info[2])
-              ^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '576\r\n\r\nh264'
-2025-03-22 01:34:20,880 [DEBUG] Scanner:74 - 探测失败: http://192.168.50.1:20231/rtp/239.21.1.11:5002
-2025-03-22 01:34:20,883 [DEBUG] Scanner:60 - 开始探测: http://192.168.50.1:20231/rtp/239.21.1.12:5002
-2025-03-22 01:34:20,883 [DEBUG] Scanner:101 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.12:5002
-2025-03-22 01:34:26,107 [DEBUG] Scanner:124 - ffprobe 输出: ['h264', '720', '576\r\n\r\nh264', '720', '576']
-2025-03-22 01:34:26,107 [ERROR] Scanner:138 - 流探测异常: http://192.168.50.1:20231/rtp/239.21.1.12:5002
-Traceback (most recent call last):
-  File "D:\github\IPTV-Scanner-Editor-Pro\scanner.py", line 128, in _probe_stream
-    'height': int(video_info[2])
-              ^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '576\r\n\r\nh264'
-2025-03-22 01:34:26,107 [DEBUG] Scanner:74 - 探测失败: http://192.168.50.1:20231/rtp/239.21.1.12:5002
-2025-03-22 01:34:26,110 [DEBUG] Scanner:60 - 开始探测: http://192.168.50.1:20231/rtp/239.21.1.13:5002
-2025-03-22 01:34:26,110 [DEBUG] Scanner:101 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.13:5002
+2025-03-22 01:59:16,859 [DEBUG] Scanner:47 - 进入 _scan_task 方法
+2025-03-22 01:59:16,859 [DEBUG] Scanner:54 - 生成的 URL 列表: ['http://192.168.50.1:20231/rtp/239.21.1.1:5002', 'http://192.168.50.1:20231/rtp/239.21.1.2:5002', 'http://192.168.50.1:20231/rtp/239.21.1.3:5002', 'http://192.168.50.1:20231/rtp/239.21.1.4:5002', 'http://192.168.50.1:20231/rtp/239.21.1.5:5002', 'http://192.168.50.1:20231/rtp/239.21.1.6:5002', 'http://192.168.50.1:20231/rtp/239.21.1.7:5002', 'http://192.168.50.1:20231/rtp/239.21.1.8:5002', 'http://192.168.50.1:20231/rtp/239.21.1.9:5002', 'http://192.168.50.1:20231/rtp/239.21.1.10:5002', 'http://192.168.50.1:20231/rtp/239.21.1.11:5002', 'http://192.168.50.1:20231/rtp/239.21.1.12:5002', 'http://192.168.50.1:20231/rtp/239.21.1.13:5002', 'http://192.168.50.1:20231/rtp/239.21.1.14:5002', 'http://192.168.50.1:20231/rtp/239.21.1.15:5002', 'http://192.168.50.1:20231/rtp/239.21.1.16:5002', 'http://192.168.50.1:20231/rtp/239.21.1.17:5002', 'http://192.168.50.1:20231/rtp/239.21.1.18:5002', 'http://192.168.50.1:20231/rtp/239.21.1.19:5002', 'http://192.168.50.1:20231/rtp/239.21.1.20:5002']
+2025-03-22 01:59:16,860 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.1:5002
+2025-03-22 01:59:16,895 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.2:5002
+2025-03-22 01:59:16,927 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.3:5002
+2025-03-22 01:59:16,961 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.4:5002
+2025-03-22 01:59:16,994 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.5:5002
+2025-03-22 01:59:17,027 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.6:5002
+2025-03-22 01:59:17,059 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.7:5002
+2025-03-22 01:59:17,092 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.8:5002
+2025-03-22 01:59:17,124 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.9:5002
+2025-03-22 01:59:17,155 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.10:5002
+2025-03-22 01:59:21,949 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:21,949 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.11:5002
+2025-03-22 01:59:22,083 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:22,084 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.12:5002
+2025-03-22 01:59:22,118 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:22,119 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.13:5002
+2025-03-22 01:59:22,224 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:22,225 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.14:5002
+2025-03-22 01:59:22,269 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:22,270 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.15:5002
+2025-03-22 01:59:22,305 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:22,305 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:22,306 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.16:5002
+2025-03-22 01:59:22,342 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.17:5002
+2025-03-22 01:59:22,379 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:22,380 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.18:5002
+2025-03-22 01:59:22,415 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:22,415 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.19:5002
+2025-03-22 01:59:22,450 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:22,450 [DEBUG] Scanner:95 - 执行 ffprobe 命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 -timeout 10000000 http://192.168.50.1:20231/rtp/239.21.1.20:5002
+2025-03-22 01:59:27,064 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:27,299 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:27,336 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:27,478 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:27,510 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:27,543 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:27,569 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:27,604 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:27,634 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576
+2025-03-22 01:59:27,661 [DEBUG] Scanner:118 - ffprobe 输出: h264,720,576
+
+h264,720,576

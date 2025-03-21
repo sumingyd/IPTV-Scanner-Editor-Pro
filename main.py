@@ -103,15 +103,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timeout_input = QtWidgets.QSpinBox()  # 超时时间输入框
         self.timeout_input.setRange(1, 60)  # 超时时间范围：1 到 60 秒
         self.timeout_input.setValue(10)  # 默认超时时间：10 秒
+        self.thread_count_input = QtWidgets.QSpinBox()  # 线程数输入框
+        self.thread_count_input.setRange(1, 100)  # 线程数范围：1 到 100
+        self.thread_count_input.setValue(10)  # 默认线程数：10
         self.scan_progress = QtWidgets.QProgressBar()
         scan_btn = QtWidgets.QPushButton("开始扫描")
         scan_btn.clicked.connect(self.start_scan)
+        stop_btn = QtWidgets.QPushButton("停止扫描")  # 停止扫描按钮
+        stop_btn.clicked.connect(self.stop_scan)
 
         scan_layout.addRow("URL格式：", QtWidgets.QLabel("示例：http://192.168.50.1:20231/rtp/239.21.[1-20].[1-20]:5002"))
         scan_layout.addRow("输入URL：", self.ip_range_input)
         scan_layout.addRow("超时时间（秒）：", self.timeout_input)  # 添加超时时间输入框
+        scan_layout.addRow("线程数：", self.thread_count_input)  # 添加线程数输入框
         scan_layout.addRow("进度：", self.scan_progress)
-        scan_layout.addRow(scan_btn)
+        scan_layout.addRow(scan_btn, stop_btn)  # 添加开始和停止按钮
 
         scan_group.setLayout(scan_layout)
         parent.addWidget(scan_group)
@@ -296,9 +302,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self.show_error("请输入有效的频道地址")
             return
 
-        # 设置超时时间（从配置或用户输入中获取）
-        timeout = self.config.config.getint('Scanner', 'timeout', fallback=10)  # 默认 10 秒
+        # 设置超时时间（从用户输入中获取）
+        timeout = self.timeout_input.value()
         self.scanner.set_timeout(timeout)
+
+        # 设置线程数（从用户输入中获取）
+        thread_count = self.thread_count_input.value()
+        self.scanner.set_thread_count(thread_count)
 
         # 确保传入的是一个协程
         self.scan_worker = AsyncWorker(self.scanner.start_scan(ip_range))
@@ -306,6 +316,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scan_worker.error.connect(self.handle_scan_error)
         self.scan_worker.cancelled.connect(self.handle_scan_cancel)
         asyncio.create_task(self.scan_worker.run())
+
+    @pyqtSlot()
+    def stop_scan(self) -> None:
+        """停止扫描任务"""
+        self.scanner.stop_scan()
+        self.statusBar().showMessage("扫描已停止")
 
     async def _async_scan(self, ip_range: str) -> None:
         """执行异步扫描"""
