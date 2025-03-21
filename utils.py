@@ -180,56 +180,72 @@ def _check_gpu_mac() -> Tuple[str, str]:
         return ('apple', info)
     return ('unknown', info)
 
+def is_valid_pattern(pattern: str) -> bool:
+    """
+    验证输入格式是否合法
+    """
+    # 匹配包含多个范围的 URL
+    regex = r'^https?://[^\s]+$'
+    return re.match(regex, pattern) is not None
+
 def parse_ip_range(pattern: str) -> List[str]:
     """
-    增强IP范围解析器
+    增强IP范围解析器，支持完整URL格式
     
     支持格式:
-    - IPv4: 192.168.[1-5].[10-20]:5000
-    - 混合格式: 10.[1-3,5,7].0.[1-4]
-    - 多范围: 172.[16-18,20].0.[1-100/2] (步长支持)
+    - 多个范围: http://192.168.50.1:20231/rtp/239.[1-20].[1-20].[1-20]:5002
+    - 非 IP 部分的 URL: http://150.138.8.143/00/SNM/CHANNEL[00000311-00001000]/index.m3u8
+    - 混合格式: http://192.168.50.1:20231/rtp/239.21.1.[1-20]:5002
     """
-    def parse_segment(seg: str) -> List[str]:
-        if not seg.startswith('[') or not seg.endswith(']'):
-            return [seg]
+    if not pattern:
+        raise ValueError("频道地址不能为空")  # 修改提示信息
 
-        ranges = []
-        parts = seg[1:-1].split(',')
-        for part in parts:
-            if '-' in part:
-                if '/' in part:
-                    range_part, step = part.split('/', 1)
-                    start, end = map(int, range_part.split('-'))
-                    step = int(step)
-                else:
-                    start, end = map(int, part.split('-'))
-                    step = 1
-                
-                if start > end:
-                    raise ValueError(f"无效的IP范围: {start} > {end}")
-                ranges.extend(list(range(start, end+1, step)))
-            else:
-                ranges.append(int(part))
-        return list(map(str, sorted(set(ranges))))
-
-    # 分离IP和端口
-    if ':' in pattern:
-        ip_part, port = pattern.rsplit(':', 1)
-        port_part = f":{port.strip()}"
-    else:
-        ip_part = pattern
-        port_part = ""
+    # 验证输入格式
+    if not is_valid_pattern(pattern):
+        raise ValueError(f"无效的频道地址格式: {pattern}")  # 修改提示信息
 
     # 解析每个段
     segments = []
-    for seg in ip_part.split('.'):
-        segments.append(parse_segment(seg))
+    for seg in pattern.split('/'):
+        if '[' in seg and ']' in seg:
+            # 处理范围部分
+            start_idx = seg.find('[')
+            end_idx = seg.find(']')
+            prefix = seg[:start_idx]
+            suffix = seg[end_idx + 1:]
+            range_part = seg[start_idx + 1:end_idx]
+
+            # 解析范围
+            ranges = []
+            parts = range_part.split(',')
+            for part in parts:
+                if '-' in part:
+                    if '/' in part:
+                        range_part, step = part.split('/', 1)
+                        start, end = map(int, range_part.split('-'))
+                        step = int(step)
+                    else:
+                        start, end = map(int, part.split('-'))
+                        step = 1
+                    
+                    # 检查 start 和 end 的有效性
+                    if start > end:
+                        raise ValueError(f"无效的范围: {start} > {end}")
+                    if start == end:
+                        ranges.append(str(start))  # 如果 start == end，直接添加单个值
+                    else:
+                        ranges.extend(list(map(str, range(start, end + 1, step))))
+                else:
+                    ranges.append(part)  # 直接添加单个值
+
+            # 生成所有组合
+            segments.append([prefix + str(r) + suffix for r in ranges])
+        else:
+            # 非范围部分
+            segments.append([seg])
 
     # 生成所有组合
-    return [
-        '.'.join(combo) + port_part
-        for combo in product(*segments)
-    ]
+    return ['/'.join(combo) for combo in product(*segments)]
 
 if __name__ == "__main__":
     # 验证所有组件
@@ -245,13 +261,14 @@ if __name__ == "__main__":
     
     # 测试IP解析
     test_cases = [
-        '192.168.[1-2].[100-101]:5002',
-        '10.[1-3,5].0.[1-10/2]',
-        '172.[16-18,20].0.1'
+        'http://192.168.50.1:20231/rtp/239.21.1.[1-20]:5002',
+        'http://192.168.50.1:20231/rtp/239.[1-20].[1-20].[1-20]:5002',
+        'http://150.138.8.143/00/SNM/CHANNEL[00000311-00001000]/index.m3u8',
+        'http://150.138.8.143/00/SNM/CHANNEL0000[0001-1000]/index.m3u8'
     ]
     for pattern in test_cases:
         try:
             ips = parse_ip_range(pattern)
-            logger.info("生成 %d 个IP (样例): %s...", len(ips), ips[:3])
+            logger.info("生成 %d 个URL (样例): %s...", len(ips), ips[:3])
         except ValueError as e:
             logger.error("解析失败: %s", str(e))
