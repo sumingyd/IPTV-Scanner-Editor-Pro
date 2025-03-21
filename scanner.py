@@ -65,7 +65,18 @@ class StreamScanner(QObject):
             results = await asyncio.gather(*tasks)
             
             # 过滤有效结果
-            valid_channels = [result for result in results if result is not None]
+            for i, result in enumerate(results):
+                if result is not None:
+                    # 生成频道名称（使用序号代替）
+                    channel_name = f"频道 {i + 1}"
+                    valid_channels.append({
+                        'name': channel_name,
+                        'url': urls[i],
+                        'width': result['width'],
+                        'height': result['height'],
+                        'codec': result['codec'],
+                        'resolution': f"{result['width']}x{result['height']}"
+                    })
             
             # 发送最终结果
             if self._is_scanning:
