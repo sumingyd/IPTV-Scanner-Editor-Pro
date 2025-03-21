@@ -19,6 +19,10 @@ class StreamScanner(QObject):
         self._timeout = 5          # 单个流探测超时时间
         self._scan_lock = asyncio.Lock()  # 扫描任务锁
 
+    def set_timeout(self, timeout: int) -> None:
+        """设置超时时间（单位：秒）"""
+        self._timeout = timeout
+
     @asyncSlot()
     async def start_scan(self, ip_pattern: str) -> None:
         """启动扫描任务"""
