@@ -378,11 +378,20 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @pyqtSlot()
     def stop_play(self) -> None:
-        """停止播放"""
-        if self.play_worker:
-            self.play_worker.cancel()
-        self.player.stop()
-        self.statusBar().showMessage("播放已停止")
+        """安全停止播放"""
+        try:
+            # 停止播放器
+            if hasattr(self, 'player') and self.player:
+                self.player.stop()
+                
+            # 清理资源
+            if hasattr(self, 'player'):
+                self.player.cleanup()
+                
+            self.statusBar().showMessage("播放已停止")
+        except Exception as e:
+            logger.error(f"停止播放失败: {str(e)}")
+            self.show_error(f"停止失败: {str(e)}")
 
     @pyqtSlot()
     def save_channel_edit(self) -> None:
