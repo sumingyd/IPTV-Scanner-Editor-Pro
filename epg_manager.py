@@ -18,39 +18,6 @@ class EPGManager:
         self._name_index: Dict[str, List[str]] = {}  # 频道名称倒排索引
         self._init_epg_sources()
 
-    def load_cached_epg(self, progress_callback: Optional[callable] = None) -> bool:
-        """从缓存加载 EPG 数据"""
-        cache_dir = Path(__file__).parent / "epg_cache"
-        if not cache_dir.exists():
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            if progress_callback:
-                progress_callback("缓存目录不存在，已创建")
-            return False
-
-        # 只加载最新的缓存文件
-        cache_files = sorted(cache_dir.glob("*.xml"), key=lambda f: f.stat().st_mtime, reverse=True)
-        if not cache_files:
-            if progress_callback:
-                progress_callback("未找到缓存文件")
-            return False
-
-        latest_cache = cache_files[0]
-        try:
-            with open(latest_cache, "rb") as f:
-                content = f.read()
-            if parsed_data := self._parse_xmltv(content):
-                self.epg_data = parsed_data
-                if progress_callback:
-                    progress_callback(f"从缓存加载 EPG 数据: {latest_cache.name}")
-                logger.info(f"从缓存加载 EPG 数据: {latest_cache.name}")
-                logger.info(f"频道数: {len(self.epg_data)} 节目总数: {sum(len(c['programmes']) for c in self.epg_data.values())}")
-                return True
-        except Exception as e:
-            if progress_callback:
-                progress_callback(f"加载缓存文件失败: {str(e)}")
-            logger.warning(f"加载缓存文件失败: {str(e)}")
-        return False
-
     def _init_epg_sources(self) -> None:
         """初始化EPG数据源配置"""
         self.epg_sources = {
@@ -169,38 +136,6 @@ class EPGManager:
                 continue
         return programmes
 
-    async def refresh_epg(self, progress_callback: Optional[callable] = None) -> bool:
-        """从网络更新 EPG 数据"""
-        try:
-            if progress_callback:
-                progress_callback("正在下载 EPG 数据...")
-            content = await self._download_epg(self.epg_sources['main'])
-            if not content:
-                # 尝试备用源
-                for backup_url in self.epg_sources['backups']:
-                    if progress_callback:
-                        progress_callback(f"正在尝试备用源: {backup_url}")
-                    content = await self._download_epg(backup_url)
-                    if content:
-                        break
-
-            if content:
-                if progress_callback:
-                    progress_callback("正在解析 EPG 数据...")
-                parsed_data = self._parse_xmltv(content)
-                if parsed_data:
-                    self.epg_data = parsed_data
-                    if progress_callback:
-                        progress_callback("EPG 数据更新成功")
-                    logger.info(f"EPG更新成功 频道数: {len(self.epg_data)} 节目总数: {sum(len(c['programmes']) for c in self.epg_data.values())}")
-                    return True
-            return False
-        except Exception as e:
-            if progress_callback:
-                progress_callback(f"EPG 更新失败: {str(e)}")
-            logger.error(f"EPG更新失败: {str(e)}")
-            return False
-
     def match_channel_name(self, partial: str, max_results: int = 10) -> List[str]:
         """频道名称模糊匹配（带异常保护版）"""
         try:
@@ -231,7 +166,6 @@ class EPGManager:
 
             # 保护性访问EPG数据
             if not hasattr(self, 'epg_data') or not isinstance(self.epg_data, dict):
-                logger.error("EPG数据未正确加载")
                 return []
 
             unique_channels = {}
@@ -260,11 +194,9 @@ class EPGManager:
                     )
                 )[:max_results]
             except Exception as sort_error:
-                logger.error(f"排序失败: {str(sort_error)}")
                 return list(unique_channels.keys())[:max_results]
 
         except Exception as e:
-            logger.error(f"频道匹配异常: {str(e)}", exc_info=True)
             return []
 
     # 缓存管理方法
@@ -280,26 +212,77 @@ class EPGManager:
             Path(cache_path).parent.mkdir(parents=True, exist_ok=True)  # 创建缓存目录
             with open(cache_path, 'wb') as f:
                 f.write(data)
-            logger.debug(f"缓存已保存: {cache_path}")
         except Exception as e:
-            logger.warning(f"缓存保存失败: {str(e)}")
+            pass
 
     def _cache_file_path(self, key: str) -> str:
-        """统一保存在程序根目录的cache文件夹"""
-        base_dir = Path(__file__).parent.parent  # 假设文件结构是iptv_manager/epg_manager.py
-        cache_dir = base_dir / "cache"
-        cache_dir.mkdir(exist_ok=True)
+        """保存到 main.py 所在目录的 epg-xml 文件夹"""
+        base_dir = Path(__file__).parent  # 指向当前脚本所在目录
+        cache_dir = base_dir / "epg-xml"  # 创建 epg-xml 文件夹
+        cache_dir.mkdir(exist_ok=True)  # 确保目录存在
         return str(cache_dir / f"{key}.xml")
 
     def _load_cache(self, key: str) -> Optional[bytes]:
-        """加载缓存数据"""
+        """加载缓存数据，检查是否过期"""
         try:
             cache_path = self._cache_file_path(key)
             if not Path(cache_path).exists():
+                return None
+
+            # 检查缓存是否过期
+            cache_mtime = Path(cache_path).stat().st_mtime
+            if time.time() - cache_mtime > self.epg_sources['cache_ttl']:
                 return None
 
             with open(cache_path, 'rb') as f:
                 return f.read()
         except Exception:
             return None
+        
+    async def load_epg(self, is_refresh: bool, progress_callback: Optional[callable] = None) -> bool:
+        """加载或刷新 EPG 数据"""
+        try:
+            if is_refresh:
+                if progress_callback:
+                    progress_callback("正在下载 EPG 数据...")
+                content = await self._download_epg(self.epg_sources['main'])
+                if not content:
+                    # 尝试备用源
+                    for backup_url in self.epg_sources['backups']:
+                        if progress_callback:
+                            progress_callback(f"正在尝试备用源: {backup_url}")
+                        content = await self._download_epg(backup_url)
+                        if content:
+                            break
 
+                if content:
+                    if progress_callback:
+                        progress_callback("正在解析 EPG 数据...")
+                    parsed_data = self._parse_xmltv(content)
+                    if parsed_data:
+                        self.epg_data = parsed_data
+                        if progress_callback:
+                            progress_callback("EPG 数据更新成功")
+                        return True
+            else:
+                if latest_cache := self.cache_manager.get_latest_cache():
+                    try:
+                        with open(latest_cache, "rb") as f:
+                            content = f.read()
+                        if parsed_data := self._parse_xmltv(content):
+                            self.epg_data = parsed_data
+                            if progress_callback:
+                                progress_callback(f"从缓存加载 EPG 数据: {latest_cache.name}")
+                            return True
+                    except Exception as e:
+                        if progress_callback:
+                            progress_callback(f"加载缓存文件失败: {str(e)}")
+                else:
+                    if progress_callback:
+                        progress_callback("未找到缓存文件")
+            return False
+        except Exception as e:
+            if progress_callback:
+                progress_callback(f"EPG 操作失败: {str(e)}")
+            logger.error(f"EPG 操作失败: {str(e)}")
+            return False
