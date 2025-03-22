@@ -202,38 +202,70 @@ class EPGManager:
             return False
 
     def match_channel_name(self, partial: str, max_results: int = 10) -> List[str]:
-        """频道名称模糊匹配，支持任意顺序匹配"""
-        partial = partial.lower().strip()
-        matches = []
+        """频道名称模糊匹配（带异常保护版）"""
+        try:
+            # 输入验证
+            if not partial or not isinstance(partial, str):
+                return []
+                
+            partial = partial.lower().strip()
+            matches = []
 
-        # 将输入的文字拆分为单个字符
-        partial_chars = set(partial)
+            # 保护性访问索引数据
+            if not hasattr(self, '_name_index') or not isinstance(self._name_index, dict):
+                logger.error("频道名称索引未正确初始化")
+                return []
 
-        # 遍历所有频道名称
-        for name, chan_ids in self._name_index.items():
-            name_lower = name.lower()
-            # 检查输入的所有字符是否都在频道名称中
-            if partial_chars.issubset(set(name_lower)):
-                matches.extend(chan_ids)
+            # 将输入拆分为字符（带空值保护）
+            partial_chars = set(partial) if partial else set()
 
-        # 去重并获取频道信息
-        unique_channels = {}
-        for chan_id in list(dict.fromkeys(matches)):  # 去重频道 ID
-            if chan := self.epg_data.get(chan_id):
-                # 遍历所有频道名称，保留包含 partial 的名称
-                for chan_name in chan['names']:
-                    if partial_chars.issubset(set(chan_name.lower())):  # 忽略大小写
-                        unique_channels[chan_name] = chan
+            # 遍历索引（带类型检查）
+            for name, chan_ids in self._name_index.items():
+                if not isinstance(name, str) or not isinstance(chan_ids, list):
+                    continue
+                    
+                name_lower = name.lower()
+                if partial_chars.issubset(set(name_lower)):
+                    # 过滤无效频道ID
+                    matches.extend([cid for cid in chan_ids if isinstance(cid, (str, int))])
 
-        # 按匹配相关性排序：优先匹配次数多的，其次按名称长度和字母顺序
-        return sorted(
-            unique_channels.keys(),
-            key=lambda x: (
-                -sum(1 for char in partial_chars if char in x.lower()),  # 匹配字符数多的排前面
-                len(x),  # 名称短的排前面
-                x  # 字母顺序
-            )
-        )[:max_results]
+            # 保护性访问EPG数据
+            if not hasattr(self, 'epg_data') or not isinstance(self.epg_data, dict):
+                logger.error("EPG数据未正确加载")
+                return []
+
+            unique_channels = {}
+            for chan_id in list(dict.fromkeys(matches)):
+                # 类型安全访问
+                chan = self.epg_data.get(str(chan_id)) if isinstance(chan_id, (str, int)) else None
+                
+                if chan and isinstance(chan, dict):
+                    chan_names = chan.get('names', [])
+                    # 过滤非列表类型的名称数据
+                    if not isinstance(chan_names, list):
+                        continue
+                        
+                    for chan_name in chan_names:
+                        if isinstance(chan_name, str) and partial_chars.issubset(set(chan_name.lower())):
+                            unique_channels[chan_name] = chan
+
+            # 安全排序
+            try:
+                return sorted(
+                    unique_channels.keys(),
+                    key=lambda x: (
+                        -sum(1 for char in partial_chars if char in x.lower()),
+                        len(x),
+                        x
+                    )
+                )[:max_results]
+            except Exception as sort_error:
+                logger.error(f"排序失败: {str(sort_error)}")
+                return list(unique_channels.keys())[:max_results]
+
+        except Exception as e:
+            logger.error(f"频道匹配异常: {str(e)}", exc_info=True)
+            return []
 
     # 缓存管理方法
     def _generate_cache_key(self, url: str) -> str:
