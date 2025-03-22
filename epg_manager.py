@@ -285,9 +285,10 @@ class EPGManager:
             logger.warning(f"缓存保存失败: {str(e)}")
 
     def _cache_file_path(self, key: str) -> str:
-        """获取缓存文件路径，确保保存到程序目录下的 epg_cache 文件夹"""
-        cache_dir = Path(__file__).parent / "epg_cache"
-        cache_dir.mkdir(parents=True, exist_ok=True)  # 创建缓存目录
+        """统一保存在程序根目录的cache文件夹"""
+        base_dir = Path(__file__).parent.parent  # 假设文件结构是iptv_manager/epg_manager.py
+        cache_dir = base_dir / "cache"
+        cache_dir.mkdir(exist_ok=True)
         return str(cache_dir / f"{key}.xml")
 
     def _load_cache(self, key: str) -> Optional[bytes]:

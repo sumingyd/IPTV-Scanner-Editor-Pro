@@ -62,7 +62,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 连接信号与槽
         self.epg_progress_updated.connect(self.update_status)
-
+        self.player.state_changed.connect(self._handle_player_state)
         self.name_edit.installEventFilter(self)
 
     def eventFilter(self, source, event: QtCore.QEvent) -> bool:
@@ -287,7 +287,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 停止
         stop_action = QAction(load_icon("icons/stop.png"), "停止播放", self)
-        stop_action.triggered.connect(self.stop_play)
+        stop_action.triggered.connect(self.player.stop)
         toolbar.addAction(stop_action)
 
         # 设置
@@ -301,7 +301,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scanner.scan_finished.connect(self.handle_scan_results)
         self.scanner.error_occurred.connect(self.show_error)
         self.channel_list.selectionModel().currentChanged.connect(self.on_channel_selected)
-        self.player.state_changed.connect(self.update_status)
+        self.player.state_changed.connect(self._handle_player_state)
+
+    def _handle_player_state(self, msg: str):
+        """统一处理播放状态更新"""
+        self.statusBar().showMessage(msg)
 
     @pyqtSlot()
     def start_scan(self) -> None:
@@ -382,25 +386,13 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.show_error(f"播放失败: {str(e)}")
 
-    def stop(self) -> None:
-        """安全停止播放（优化版）"""
+    def stop_play(self):
+        """统一调用播放器的停止方法"""
         try:
-            if self.media_player:
-                # 先停止播放
-                if self.media_player.is_playing():
-                    self.media_player.stop()
-                
-                # 释放媒体资源
-                media = self.media_player.get_media()
-                if media:
-                    media.release()
-                
-                # 不释放 media_player 和 instance
-                logger.info("播放已停止")
-                self.state_changed.emit("播放已停止")
+            if hasattr(self, 'player') and self.player:
+                self.player.stop()
         except Exception as e:
-            logger.error(f"停止播放失败: {str(e)}")
-            self.state_changed.emit(f"停止失败: {str(e)}")
+            self.show_error(f"停止失败: {str(e)}")
 
     @pyqtSlot()
     def save_channel_edit(self) -> None:
@@ -600,42 +592,32 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             logger.error(f"配置加载失败: {str(e)}")
 
-    @pyqtSlot()
-    def stop_play(self) -> None:
-        """安全停止播放"""
+    def closeEvent(self, event: QCloseEvent):
         try:
-            # 取消播放任务
-            if hasattr(self, 'play_worker') and self.play_worker:
-                self.play_worker.cancel()
-                self.play_worker = None
-                
-            # 停止播放器
-            if hasattr(self, 'player') and self.player:
-                self.player.stop()
-                
-            self.statusBar().showMessage("播放已停止")
-        except Exception as e:
-            logger.error(f"停止播放失败: {str(e)}")
-            self.show_error(f"停止失败: {str(e)}")
-
-    def closeEvent(self, event: QCloseEvent) -> None:
-        """处理关闭事件（优化版）"""
-        try:
-            # 停止播放
-            if hasattr(self, 'player') and self.player:
-                self.player.stop()
-                
+            # 取消所有任务
+            AsyncWorker.cancel_all()
+            
+            # 强制同步释放
+            if hasattr(self, 'player'):
+                self.player.force_stop()
+            
             # 保存配置
             self.config.config['UserPrefs']['window_geometry'] = self.saveGeometry().toHex().data().decode()
             self.config.config['Scanner']['last_range'] = self.ip_range_input.text()
-            if hasattr(self, 'player') and self.player:
-                self.config.config['Player']['hardware_accel'] = self.player.hw_accel
             self.config.save_prefs()
             
             super().closeEvent(event)
         except Exception as e:
-            logger.error(f"关闭时保存配置失败: {str(e)}")
+            logger.error(f"关闭异常: {str(e)}")
             event.ignore()
+
+    def _save_config_sync(self):
+        """同步保存配置"""
+        self.config.config['UserPrefs']['window_geometry'] = self.saveGeometry().toHex().data().decode()
+        self.config.config['Scanner']['last_range'] = self.ip_range_input.text()
+        if hasattr(self, 'player'):
+            self.config.config['Player']['hardware_accel'] = self.player.hw_accel
+        self.config.save_prefs()
 
     @pyqtSlot(str)
     def show_error(self, msg: str) -> None:

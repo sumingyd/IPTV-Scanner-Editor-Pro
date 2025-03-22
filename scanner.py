@@ -30,7 +30,7 @@ class StreamScanner(QObject):
 
     @asyncSlot()
     async def start_scan(self, ip_pattern: str) -> None:
-        """启动扫描任务"""
+        """正确的异步任务启动方式"""
         async with self._scan_lock:
             if self._is_scanning:
                 self.error_occurred.emit("已有扫描任务正在进行")
@@ -38,6 +38,7 @@ class StreamScanner(QObject):
 
             self._is_scanning = True
             try:
+                # 直接返回协程对象而不是任务
                 await self._scan_task(ip_pattern)
             finally:
                 self._is_scanning = False
