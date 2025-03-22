@@ -1,4 +1,3 @@
-# 在项目文件夹内右键新建文本文档，粘贴以下内容后保存为`snapshot.bat`
 @echo off
 echo 正在创建版本指纹...
 git init > nul 2>&1
