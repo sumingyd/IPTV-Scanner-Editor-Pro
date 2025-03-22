@@ -44,14 +44,11 @@ class StreamScanner(QObject):
 
     async def _scan_task(self, ip_pattern: str) -> None:
         """执行扫描的核心任务"""
-        logger.debug("进入 _scan_task 方法")
         try:
             # 生成待扫描URL列表
             urls = parse_ip_range(ip_pattern)  # 直接使用 parse_ip_range 生成的完整 URL
             total = len(urls)
             valid_channels = []
-            
-            logger.debug(f"生成的 URL 列表: {urls}")
             
             # 使用信号量控制并发数
             semaphore = asyncio.Semaphore(self._thread_count)
@@ -103,8 +100,6 @@ class StreamScanner(QObject):
                 url
             ]
             
-            logger.debug(f"执行 ffprobe 命令: {' '.join(cmd)}")
-            
             # 启动子进程
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -126,7 +121,6 @@ class StreamScanner(QObject):
                 
             # 解析输出
             output = stdout.decode().strip()
-            logger.debug(f"ffprobe 输出: {output}")
             
             # 处理多余的空行和重复信息
             lines = [line for line in output.splitlines() if line.strip()]

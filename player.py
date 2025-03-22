@@ -22,16 +22,22 @@ class VLCPlayer(QtWidgets.QWidget):
         self.max_history = 50
 
     def _init_vlc(self):
-        """Initialize VLC实例，去掉调试日志"""
+        """初始化 VLC 实例"""
         args = [
-            f'--avcodec-hw={self.hw_accel}',
+            '--avcodec-hw=none',  # 强制禁用硬件解码
             '--network-caching=3000',
             '--no-video-title-show',
             '--drop-late-frames',
             '--skip-frames'
         ]
-        self.instance = vlc.Instance(args)
-        self.media_player = self.instance.media_player_new()
+        try:
+            self.instance = vlc.Instance(args)
+            if self.instance is None:
+                raise RuntimeError("无法创建 VLC 实例，请检查参数是否正确。")
+            self.media_player = self.instance.media_player_new()
+        except Exception as e:
+            logger.error(f"VLC 初始化失败: {str(e)}")
+            raise
 
     def _init_ui(self):
         """初始化界面组件"""
@@ -47,7 +53,7 @@ class VLCPlayer(QtWidgets.QWidget):
         QtCore.QTimer.singleShot(100, self._bind_video_window)
 
     def _setup_connections(self):
-        """初始化信号连接，去掉调试日志"""
+        """初始化信号连接"""
         try:
             event_manager = self.media_player.event_manager()
             event_manager.event_attach(vlc.EventType.MediaPlayerPlaying, self._on_play)
@@ -57,7 +63,7 @@ class VLCPlayer(QtWidgets.QWidget):
             logger.error(f"事件绑定失败: {str(e)}")
 
     def _bind_video_window(self):
-        """窗口绑定逻辑，去掉调试日志"""
+        """窗口绑定逻辑"""
         if not self.video_frame or not self.media_player:
             return
 
@@ -84,7 +90,6 @@ class VLCPlayer(QtWidgets.QWidget):
                 media = self.instance.media_new(url)
                 opts = [
                     f':network-caching={2000 + attempt * 1000}',
-                    f':avcodec-hw={self.hw_accel}',
                     ':rtsp-tcp'
                 ]
                 # 将 opts 列表拼接为字符串
@@ -100,6 +105,8 @@ class VLCPlayer(QtWidgets.QWidget):
                 return True
             except Exception as e:
                 logger.error(f"播放失败 ({attempt+1}/{retry}): {str(e)}")
+                if attempt == retry - 1:  # 最后一次尝试失败后，停止播放
+                    self.stop()
         return False
 
     async def _wait_for_playback(self, timeout=10) -> bool:
@@ -121,12 +128,22 @@ class VLCPlayer(QtWidgets.QWidget):
             logger.info("播放已继续")
 
     def stop(self) -> None:
-        """停止播放，修复崩溃问题"""
-        if self.media_player:
-            self.media_player.stop()
-            self.media_player.release()
-            self.media_player = None
-        self.state_changed.emit("播放已停止")  # 直接使用信号
+        """停止播放"""
+        try:
+            if self.media_player:
+                if self.media_player.is_playing():
+                    self.media_player.stop()
+                # 确保释放媒体资源
+                media = self.media_player.get_media()
+                if media:
+                    media.release()
+                # 释放播放器资源
+                self.media_player.release()
+                self.media_player = None
+            self.state_changed.emit("播放已停止")
+            logger.info("播放器资源已释放")
+        except Exception as e:
+            logger.error(f"停止播放失败: {str(e)}")
 
     def set_volume(self, volume: int) -> None:
         """设置音量 (0-100)"""
@@ -146,6 +163,7 @@ class VLCPlayer(QtWidgets.QWidget):
 
     def _on_stop(self, event):
         """停止事件处理"""
+        logger.info("播放停止，当前解码器状态: %s", self.media_player.get_state())
         self.state_changed.emit("播放停止")
 
     def __del__(self):
@@ -158,10 +176,3 @@ class VLCPlayer(QtWidgets.QWidget):
             logger.info("资源已释放")
         except Exception as e:
             logger.error(f"资源释放失败: {str(e)}")
-
-if __name__ == "__main__":
-    import sys
-    app = QtWidgets.QApplication(sys.argv)
-    player = VLCPlayer()
-    player.show()
-    sys.exit(app.exec())

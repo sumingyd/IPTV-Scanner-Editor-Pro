@@ -2,6 +2,7 @@ import vlc
 import platform
 import logging
 from typing import List, Optional
+from pathlib import Path
 from utils import ConfigHandler, check_gpu_driver
 
 logger = logging.getLogger('VLC-Helper')
@@ -25,9 +26,11 @@ def create_vlc_instance(retry_count: int = 3) -> Optional[vlc.Instance]:
 
 def _generate_vlc_args(config: ConfigHandler, attempt: int) -> List[str]:
     """生成动态VLC参数"""
-    gpu_type, _ = check_gpu_driver()
+    log_file = str(Path.home() / 'vlc-debug.log')  # 将日志文件保存到用户主目录
     args = [
-        '--avcodec-hw=any',
+        '--avcodec-hw=none',  # 强制禁用硬件解码
+        '--no-hw-decoder',  # 禁用所有硬件解码器
+        '--no-d3d11',  # 显式禁用 Direct3D11
         '--network-caching=' + config.config['Player'].get(
             'network_cache', 
             '3000' if attempt == 0 else str(3000 + attempt * 1000)
@@ -38,40 +41,22 @@ def _generate_vlc_args(config: ConfigHandler, attempt: int) -> List[str]:
         '--live-caching=300',
         '--clock-jitter=0',
         '--clock-synchro=99',
-        '--no-xlib'  # Linux系统禁用Xlib
+        '--no-xlib',  # Linux系统禁用Xlib
+        '--verbose=4',  # 最高级别的日志
+        '--file-logging',
+        f'--logfile={log_file}'  # 使用格式化字符串确保路径正确
     ]
 
     # 平台特定参数
     if platform.system() == 'Windows':
         args += [
             '--directx-hw-yuv',
-            '--d3d11vpu=enable',
             '--winrt-swapchain=enable'
         ]
     elif platform.system() == 'Darwin':
         args += [
             '--vout=macosx',
             '--no-macosx-interface'
-        ]
-
-    # 硬件加速优化
-    hw_accel = config.config['Player'].get('hardware_accel', 'auto')
-    if hw_accel == 'auto':
-        if gpu_type == 'nvidia':
-            args += ['--ffmpeg-hw', '--codec=avcodec,none']
-        elif gpu_type == 'amd':
-            args += ['--avcodec-hw=dxva2', '--disable-accelerated-video']
-        elif gpu_type == 'intel':
-            args += ['--avcodec-hw=vaapi', '--vdpau=disable']
-    else:
-        args += [f'--avcodec-hw={hw_accel}']
-
-    # 调试参数
-    if config.config.getboolean('Debug', 'enable_vlc_log', fallback=False):
-        args += [
-            '--verbose=2',
-            '--file-logging',
-            '--logfile=vlc-debug.log'
         ]
         
     return args
@@ -94,21 +79,3 @@ def _create_fallback_instance(config: ConfigHandler) -> vlc.Instance:
         '--drop-late-frames=2',
         '--no-hw-decoder'
     ])
-
-# 示例用法
-if __name__ == "__main__":
-    from utils import setup_logger
-    setup_logger('VLC-Helper')
-    
-    instance = create_vlc_instance()
-    if instance:
-        player = instance.media_player_new()
-        media = instance.media_new('rtp://239.1.1.1:5002')
-        player.set_media(media)
-        
-        if player.play() == -1:
-            logger.error("播放初始化失败")
-        else:
-            logger.info("播放已启动")
-    else:
-        logger.error("无法创建VLC实例")

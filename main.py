@@ -360,7 +360,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.play_worker and not self.play_worker.is_finished():
                 self.play_worker.cancel()
 
-            self.play_worker = AsyncWorker(self.player.async_play(url))
+            self.play_worker = AsyncWorker(self.player.async_play(url))  # 调用 player 的 async_play 方法
             self.play_worker.finished.connect(self.handle_play_success)
             self.play_worker.error.connect(self.handle_play_error)
             await self.play_worker.run()
@@ -468,7 +468,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def on_text_changed(self, text: str) -> None:
         """输入框文本变化时的处理"""
-        logger.debug(f"输入框文本变化: {text}")
         self.debounce_timer.start(300)
         self.name_edit.setFocus()  # 强制设置输入框焦点
 
@@ -477,9 +476,7 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             # 获取输入框的当前文本
             partial = self.name_edit.text().strip()
-            logger.debug(f"开始匹配: {partial}")
             names = self.epg_manager.match_channel_name(partial)
-            logger.debug(f"匹配结果: {names}")
 
             # 更新自动补全模型
             model = QtCore.QStringListModel(names)
@@ -512,6 +509,7 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 channels = PlaylistParser.parse_m3u(content)
 
+            # 清空现有列表，而不是追加
             self.model.channels = channels
             self.model.layoutChanged.emit()
             self.statusBar().showMessage(f"已加载列表：{Path(path).name}")
@@ -555,7 +553,7 @@ class MainWindow(QtWidgets.QMainWindow):
             hardware_accel = self.config.config.get(
                 'Player', 'hardware_accel', fallback='d3d11va'
             )
-            self.player.hw_accel = hardware_accel  # 直接设置属性
+            self.player.hw_accel = 'none'  # 硬件加速设置
 
         except Exception as e:
             logger.error(f"配置加载失败: {str(e)}")
@@ -563,8 +561,12 @@ class MainWindow(QtWidgets.QMainWindow):
     def closeEvent(self, event: QCloseEvent) -> None:
         """处理关闭事件"""
         try:
+            # 停止播放并释放资源
+            if self.player:
+                self.player.stop()
+
             # 保存窗口状态
-            self.config.config['UserPrefs']['window_geometry'] = self.saveGeometry().toHex().data().decode()  # 修复 decode 错误
+            self.config.config['UserPrefs']['window_geometry'] = self.saveGeometry().toHex().data().decode()
 
             # 保存扫描记录
             self.config.config['Scanner']['last_range'] = self.ip_range_input.text()

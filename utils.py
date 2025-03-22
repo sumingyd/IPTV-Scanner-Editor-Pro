@@ -246,29 +246,3 @@ def parse_ip_range(pattern: str) -> List[str]:
 
     # 生成所有组合
     return ['/'.join(combo) for combo in product(*segments)]
-
-if __name__ == "__main__":
-    # 验证所有组件
-    logger = setup_logger('utils_test')
-    
-    # 测试配置系统
-    config = ConfigHandler()
-    logger.info("当前硬件加速设置: %s", config.config['Player'].get('hardware_accel'))
-    
-    # 测试显卡检测
-    gpu_type, info = check_gpu_driver()
-    logger.info("检测到显卡类型: %s\n详细信息:\n%s", gpu_type, info)
-    
-    # 测试IP解析
-    test_cases = [
-        'http://192.168.50.1:20231/rtp/239.21.1.[1-20]:5002',
-        'http://192.168.50.1:20231/rtp/239.[1-20].[1-20].[1-20]:5002',
-        'http://150.138.8.143/00/SNM/CHANNEL[00000311-00001000]/index.m3u8',
-        'http://150.138.8.143/00/SNM/CHANNEL0000[0001-1000]/index.m3u8'
-    ]
-    for pattern in test_cases:
-        try:
-            ips = parse_ip_range(pattern)
-            logger.info("生成 %d 个URL (样例): %s...", len(ips), ips[:3])
-        except ValueError as e:
-            logger.error("解析失败: %s", str(e))

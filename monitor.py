@@ -88,7 +88,9 @@ class PlayerMonitor(QThread):
         """获取缓冲区状态"""
         try:
             stats = self.player.media_player.get_stats()
-            return (stats.i_decoded_audio + stats.i_decoded_video) / 1000.0  # 转换为KB
+            buffer_level = (stats.i_decoded_audio + stats.i_decoded_video) / 1000.0  # 转换为KB
+            logger.debug("当前缓冲区状态: %.2f KB", buffer_level)  # 增加日志
+            return buffer_level
         except AttributeError:
             return 0.0
 
