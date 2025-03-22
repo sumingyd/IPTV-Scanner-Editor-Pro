@@ -30,3 +30,7 @@ class AsyncWorker(QObject):
         if self._task and not self._task.done():
             self._is_cancelled = True
             self._task.cancel()
+
+    def is_finished(self) -> bool:
+        """检查任务是否已完成"""
+        return self._task is None or self._task.done()

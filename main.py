@@ -366,32 +366,41 @@ class MainWindow(QtWidgets.QMainWindow):
     async def safe_play(self, url: str) -> None:
         """安全播放包装器"""
         try:
-            if self.play_worker and not self.play_worker.is_finished():
+            # 取消旧任务
+            if hasattr(self, 'play_worker') and self.play_worker and not self.play_worker.is_finished():
                 self.play_worker.cancel()
-
-            self.play_worker = AsyncWorker(self.player.async_play(url))  # 调用 player 的 async_play 方法
+                
+            # 确保播放器已初始化
+            if not hasattr(self, 'player') or not self.player:
+                self.player = VLCPlayer()
+                
+            # 创建新任务
+            self.play_worker = AsyncWorker(self.player.async_play(url))
             self.play_worker.finished.connect(self.handle_play_success)
             self.play_worker.error.connect(self.handle_play_error)
             await self.play_worker.run()
         except Exception as e:
             self.show_error(f"播放失败: {str(e)}")
 
-    @pyqtSlot()
-    def stop_play(self) -> None:
-        """安全停止播放"""
+    def stop(self) -> None:
+        """安全停止播放（优化版）"""
         try:
-            # 停止播放器
-            if hasattr(self, 'player') and self.player:
-                self.player.stop()
+            if self.media_player:
+                # 先停止播放
+                if self.media_player.is_playing():
+                    self.media_player.stop()
                 
-            # 清理资源
-            if hasattr(self, 'player'):
-                self.player.cleanup()
+                # 释放媒体资源
+                media = self.media_player.get_media()
+                if media:
+                    media.release()
                 
-            self.statusBar().showMessage("播放已停止")
+                # 不释放 media_player 和 instance
+                logger.info("播放已停止")
+                self.state_changed.emit("播放已停止")
         except Exception as e:
             logger.error(f"停止播放失败: {str(e)}")
-            self.show_error(f"停止失败: {str(e)}")
+            self.state_changed.emit(f"停止失败: {str(e)}")
 
     @pyqtSlot()
     def save_channel_edit(self) -> None:
@@ -591,23 +600,38 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             logger.error(f"配置加载失败: {str(e)}")
 
-    def closeEvent(self, event: QCloseEvent) -> None:
-        """处理关闭事件"""
+    @pyqtSlot()
+    def stop_play(self) -> None:
+        """安全停止播放"""
         try:
-            # 停止播放并释放资源
-            if self.player:
+            # 取消播放任务
+            if hasattr(self, 'play_worker') and self.play_worker:
+                self.play_worker.cancel()
+                self.play_worker = None
+                
+            # 停止播放器
+            if hasattr(self, 'player') and self.player:
                 self.player.stop()
+                
+            self.statusBar().showMessage("播放已停止")
+        except Exception as e:
+            logger.error(f"停止播放失败: {str(e)}")
+            self.show_error(f"停止失败: {str(e)}")
 
-            # 保存窗口状态
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """处理关闭事件（优化版）"""
+        try:
+            # 停止播放
+            if hasattr(self, 'player') and self.player:
+                self.player.stop()
+                
+            # 保存配置
             self.config.config['UserPrefs']['window_geometry'] = self.saveGeometry().toHex().data().decode()
-
-            # 保存扫描记录
             self.config.config['Scanner']['last_range'] = self.ip_range_input.text()
-
-            # 保存播放器设置
-            self.config.config['Player']['hardware_accel'] = self.player.hw_accel
-
+            if hasattr(self, 'player') and self.player:
+                self.config.config['Player']['hardware_accel'] = self.player.hw_accel
             self.config.save_prefs()
+            
             super().closeEvent(event)
         except Exception as e:
             logger.error(f"关闭时保存配置失败: {str(e)}")
