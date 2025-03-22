@@ -128,22 +128,27 @@ class VLCPlayer(QtWidgets.QWidget):
             logger.info("播放已继续")
 
     def stop(self) -> None:
-        """停止播放"""
+        """停止播放（增强版）"""
         try:
             if self.media_player:
+                # 先停止播放
                 if self.media_player.is_playing():
                     self.media_player.stop()
-                # 确保释放媒体资源
+                    
+                # 释放媒体资源
                 media = self.media_player.get_media()
                 if media:
                     media.release()
-                # 释放播放器资源
+                    
+                # 释放播放器实例
                 self.media_player.release()
                 self.media_player = None
-            self.state_changed.emit("播放已停止")
-            logger.info("播放器资源已释放")
+                
+                logger.info("播放器资源已释放")
+                self.state_changed.emit("播放已停止")
         except Exception as e:
             logger.error(f"停止播放失败: {str(e)}")
+            self.state_changed.emit(f"停止失败: {str(e)}")
 
     def set_volume(self, volume: int) -> None:
         """设置音量 (0-100)"""
@@ -167,12 +172,25 @@ class VLCPlayer(QtWidgets.QWidget):
         self.state_changed.emit("播放停止")
 
     def __del__(self):
-        """资源清理"""
+        """资源清理（增强版）"""
         try:
+            # 确保停止播放
+            if self.media_player and self.media_player.is_playing():
+                self.media_player.stop()
+                
+            # 释放媒体资源
             if self.media_player:
+                media = self.media_player.get_media()
+                if media:
+                    media.release()
                 self.media_player.release()
+                self.media_player = None
+                
+            # 释放 VLC 实例
             if self.instance:
                 self.instance.release()
-            logger.info("资源已释放")
+                self.instance = None
+                
+            logger.info("资源已彻底释放")
         except Exception as e:
             logger.error(f"资源释放失败: {str(e)}")
