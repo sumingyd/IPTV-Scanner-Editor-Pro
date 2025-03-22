@@ -458,19 +458,13 @@ class MainWindow(QtWidgets.QMainWindow):
     async def _async_load_epg(self, is_refresh: bool) -> None:
         """异步加载或刷新 EPG 数据"""
         try:
-            if is_refresh:
-                success = await self.epg_manager.refresh_epg()
-                message = "EPG 数据更新成功" if success else "EPG 更新失败，请检查网络连接"
-            else:
-                success = self.epg_manager.load_cached_epg()
-                message = "EPG 缓存已加载" if success else "EPG 缓存加载失败"
-
+            success = await self.epg_manager.load_epg(is_refresh, self.epg_progress_updated.emit)
             if success:
                 self.epg_progress_updated.emit("EPG 数据加载完成，正在更新界面...")
                 self.update_completer_model()
-                self.epg_progress_updated.emit(message)
+                self.epg_progress_updated.emit("EPG 数据加载成功")
             else:
-                self.epg_progress_updated.emit(message)
+                self.epg_progress_updated.emit("EPG 数据加载失败")
         except Exception as e:
             logger.error(f"EPG 操作失败: {str(e)}")
             self.epg_progress_updated.emit(f"EPG 操作失败: {str(e)}")
