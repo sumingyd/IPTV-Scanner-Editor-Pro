@@ -151,8 +151,6 @@ class StreamScanner(QObject):
             return None
 
     def stop_scan(self) -> None:
-        """停止当前扫描任务"""
-        if self._is_scanning:
-            logger.info("用户请求停止扫描")
-            self._is_scanning = False
-            self.progress_updated.emit(0, "扫描已中止")
+        """增强停止方法"""
+        self._is_scanning = False
+        logger.info("扫描已强制停止")
