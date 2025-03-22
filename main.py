@@ -63,6 +63,15 @@ class MainWindow(QtWidgets.QMainWindow):
         # 连接信号与槽
         self.epg_progress_updated.connect(self.update_status)
 
+        self.name_edit.installEventFilter(self)
+
+    def eventFilter(self, source, event: QtCore.QEvent) -> bool:
+        """事件过滤器处理焦点事件（最终版）"""
+        if (source is self.name_edit and 
+            event.type() == QtCore.QEvent.Type.FocusIn):
+            self.update_completer_model()
+        return super().eventFilter(source, event)
+
     def _init_ui(self) -> None:
         """初始化用户界面"""
         self.setWindowTitle("IPTV管理工具")
@@ -467,26 +476,41 @@ class MainWindow(QtWidgets.QMainWindow):
         self.show_error(f"EPG 加载失败: {str(error)}")
 
     def on_text_changed(self, text: str) -> None:
-        """输入框文本变化时的处理"""
+        """输入框文本变化处理（优化版）"""
+        # 立即触发补全更新
+        self.update_completer_model()
+        # 启动防抖定时器（后续输入防抖）
         self.debounce_timer.start(300)
-        self.name_edit.setFocus()  # 强制设置输入框焦点
 
     def update_completer_model(self) -> None:
-        """更新自动补全模型"""
+        """自动补全模型更新（最终稳健版）"""
         try:
-            # 获取输入框的当前文本
-            partial = self.name_edit.text().strip()
-            names = self.epg_manager.match_channel_name(partial)
+            current_text = self.name_edit.text().strip()
+            
+            # 空输入时清除补全列表
+            if not current_text:
+                self.epg_completer.setModel(QtCore.QStringListModel([]))
+                return
 
-            # 更新自动补全模型
-            model = QtCore.QStringListModel(names)
-            self.epg_completer.setModel(model)
+            # 带异常保护的查询逻辑
+            try:
+                raw_names = self.epg_manager.match_channel_name(current_text)
+                names = sorted(list(set(raw_names)), key=lambda x: (len(x), x))
+            except Exception as query_error:
+                logger.error(f"EPG查询失败: {str(query_error)}")
+                names = []
 
-            # 强制刷新待选框
-            if partial:  # 仅在输入框不为空时刷新
+            # 线程安全更新
+            QtCore.QTimer.singleShot(0, lambda: 
+                self.epg_completer.setModel(QtCore.QStringListModel(names)))
+            
+            # 智能显示逻辑
+            if names and self.name_edit.hasFocus():
                 self.epg_completer.complete()
+                
         except Exception as e:
-            logger.warning(f"更新自动补全模型失败: {str(e)}")
+            logger.error(f"自动补全异常: {str(e)}", exc_info=True)
+            self.epg_completer.setModel(QtCore.QStringListModel([]))  # 失败时清空列表
 
     @pyqtSlot()
     def open_playlist(self) -> None:
