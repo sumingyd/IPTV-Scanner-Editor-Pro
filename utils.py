@@ -92,6 +92,7 @@ class EnhancedFormatter(logging.Formatter):
 def setup_logger(name: str) -> logging.Logger:
     """配置跨平台日志记录器"""
     logger = logging.getLogger(name)
+    logger.addFilter(VlcWarningFilter())  # 新增过滤器
     if logger.hasHandlers():
         return logger
 
@@ -121,6 +122,17 @@ def setup_logger(name: str) -> logging.Logger:
     logger.setLevel(logging.DEBUG)
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
+
+    # 为所有Handler添加过滤器
+    vlc_filter = VlcWarningFilter()
+    for handler in logger.handlers:
+        handler.addFilter(vlc_filter)
+    
+    # 特别处理VLC自有日志
+    vlc_logger = logging.getLogger('VLC')
+    for handler in vlc_logger.handlers:
+        handler.addFilter(vlc_filter)
+    
     return logger
 
 def check_gpu_driver() -> Tuple[str, str]:
@@ -246,3 +258,18 @@ def parse_ip_range(pattern: str) -> List[str]:
 
     # 生成所有组合
     return ['/'.join(combo) for combo in product(*segments)]
+
+class VlcWarningFilter(logging.Filter):
+    def filter(self, record):
+        msg = record.getMessage().lower()
+        blocked = [
+            'thumbnailclip',
+            'get_buffer',
+            'thread_get_buffer',
+            'decode_slice',
+            'no frame',
+            'd3d11',
+            'dxva',
+            'vaapi'
+        ]
+        return not any(kw in msg for kw in blocked)

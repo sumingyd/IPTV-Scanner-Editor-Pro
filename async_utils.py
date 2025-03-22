@@ -2,6 +2,7 @@ import asyncio
 from PyQt6.QtCore import QObject, pyqtSignal
 
 class AsyncWorker(QObject):
+    _active_workers = set()  # 类变量跟踪所有活跃任务
     finished = pyqtSignal(object)  # 任务完成时发射，携带结果
     error = pyqtSignal(Exception)  # 任务出错时发射，携带异常
     cancelled = pyqtSignal()       # 任务被取消时发射
@@ -11,13 +12,28 @@ class AsyncWorker(QObject):
         self._coro = coro  # 确保传入的是一个协程
         self._task = None
         self._is_cancelled = False
+        self.__class__._active_workers.add(self)
+
+    def __del__(self):
+        self.__class__._active_workers.discard(self)
+
+    @classmethod
+    def cancel_all(cls):
+        """强制取消所有任务"""
+        for worker in list(cls._active_workers):
+            try:
+                worker.cancel()
+                if worker._task and not worker._task.done():
+                    worker._task.cancel()  # 双重保障
+            except Exception as e:
+                pass
 
     async def run(self):
-        """执行异步任务"""
+        """执行异步任务（修正版）"""
         try:
             if self._is_cancelled:
                 return
-            # 直接 await 协程，而不是创建任务
+            # 直接运行协程，不创建额外任务
             result = await self._coro
             self.finished.emit(result)
         except asyncio.CancelledError:
