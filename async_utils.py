@@ -9,7 +9,7 @@ class AsyncWorker(QObject):
     def __init__(self, coro):
         super().__init__()
         self._coro = coro  # 确保传入的是一个协程
-        self._task = None  # 用于存储 asyncio.Task 对象
+        self._task = None
         self._is_cancelled = False
 
     async def run(self):
@@ -17,9 +17,8 @@ class AsyncWorker(QObject):
         try:
             if self._is_cancelled:
                 return
-            # 创建任务并存储到 self._task
-            self._task = asyncio.create_task(self._coro)
-            result = await self._task
+            # 直接 await 协程，而不是创建任务
+            result = await self._coro
             self.finished.emit(result)
         except asyncio.CancelledError:
             self.cancelled.emit()
@@ -31,7 +30,3 @@ class AsyncWorker(QObject):
         if self._task and not self._task.done():
             self._is_cancelled = True
             self._task.cancel()
-
-    def is_finished(self) -> bool:
-        """检查任务是否已完成"""
-        return self._task is not None and self._task.done()
