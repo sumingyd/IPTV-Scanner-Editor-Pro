@@ -1,4 +1,4 @@
-iptv_manager/
+IPTV-Scanner-Editor-Pro/
 ├── icons/           # 图标资源
 ├── main.py          # 主界面和程序入口
 ├── scanner.py       # 扫描功能实现

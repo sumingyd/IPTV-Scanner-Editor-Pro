@@ -1,9 +1,10 @@
 import sys
 import asyncio
 import platform
+import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-from PyQt6 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets,QtGui
 from PyQt6.QtCore import Qt, pyqtSlot, QModelIndex
 from PyQt6.QtGui import QCloseEvent, QAction, QKeySequence, QIcon
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
@@ -318,10 +319,41 @@ class MainWindow(QtWidgets.QMainWindow):
         epg_manage_action.triggered.connect(self.manage_epg)
         toolbar.addAction(epg_manage_action)
 
-        # 停止
-        stop_action = QAction(load_icon("icons/stop.png"), "停止播放", self)
-        stop_action.triggered.connect(self.player.stop)
-        toolbar.addAction(stop_action)
+        # 关于
+        about_action = QAction(load_icon("icons/info.png"), "关于", self) 
+        about_action.triggered.connect(self._show_about_dialog)
+        toolbar.addAction(about_action)
+
+        # 添加分隔线保持布局美观
+        toolbar.addSeparator()
+
+    def _show_about_dialog(self):
+        """显示关于对话框"""
+        about_text = f'''
+        <b>IPTV 专业扫描器</b>
+        <p style="line-height: 1.5;">
+            版本：2.1.0<br>
+            编译日期：{datetime.date.today().strftime("%Y-%m-%d")}<br>
+            QT版本：{QtCore.qVersion()}
+        </p>
+        <p>功能特性：</p>
+        <ul style="margin-left: 20px;">
+            <li>支持 HTTP/UDP/RTP 协议检测</li>
+            <li>智能 EPG 信息匹配</li>
+            <li>多线程高效扫描引擎</li>
+        </ul>
+        <p>程序由 deepseek 提供代码</p>
+        <p>作者QQ:331874545</p>
+        '''
+        
+        dialog = QtWidgets.QMessageBox(self)
+        dialog.setWindowTitle("关于")
+        # 确保存在 icons/logo.png
+        dialog.setIconPixmap(QtGui.QPixmap(str(Path(__file__).parent / "icons/logo.png")).scaled(64, 64))
+        dialog.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        dialog.setText(about_text)
+        dialog.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
+        dialog.exec()
 
     def _connect_signals(self) -> None:
         """连接信号与槽"""
