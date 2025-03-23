@@ -227,6 +227,10 @@ class VLCPlayer(QtWidgets.QWidget):
     def __del__(self):
         """资源清理（优化版）"""
         try:
+            from async_utils import AsyncWorker
+            # 取消所有异步任务
+            AsyncWorker.cancel_all()
+            
             # 确保停止播放
             if self.media_player and self.media_player.is_playing():
                 self.media_player.stop()
@@ -245,7 +249,7 @@ class VLCPlayer(QtWidgets.QWidget):
                 self.instance = None
                 
         except Exception as e:
-            pass
+            logger.error(f"资源清理失败: {str(e)}")
 
     def _release_sync(self):
         """同步释放资源（用于关闭事件）"""
