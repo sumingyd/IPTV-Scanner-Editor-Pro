@@ -386,6 +386,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.show_error("请输入有效的频道地址")
             return
 
+        # 清空现有频道列表
+        self.model.channels.clear()
+        self.model.layoutChanged.emit()
+
         # 设置超时时间（从用户输入中获取）
         timeout = self.timeout_input.value()
         self.scanner.set_timeout(timeout)
