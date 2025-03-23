@@ -176,6 +176,7 @@ cython_debug/
 __pycache__/
 *.pyc
 *.pyo
+*.log
 
 # 缓存和数据
 epg_cache/
@@ -184,3 +185,4 @@ epg_cache/
 # 环境
 venv/
 .env
+iptv_manager.log
