@@ -258,6 +258,16 @@ class StreamScanner(QObject):
                     worker.cancel()
             self._workers.clear()
             
-        # 确保线程池设置立即生效
-        if hasattr(self, '_semaphore'):
-            self._semaphore = asyncio.Semaphore(self._thread_count)
+        # 清空有效频道列表
+        if hasattr(self, 'valid_channels'):
+            self.valid_channels.clear()
+            
+        # 重置所有状态变量
+        self._url_queue = asyncio.Queue()
+        self._workers = []
+        self._semaphore = asyncio.Semaphore(self._thread_count)
+        self._is_scanning = False
+        
+        # 释放扫描锁
+        if self._scan_lock.locked():
+            self._scan_lock.release()
