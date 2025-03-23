@@ -159,7 +159,7 @@ class MainWindow(QtWidgets.QMainWindow):
         button_layout.addWidget(scan_btn)
         button_layout.addWidget(stop_btn)
 
-        scan_layout.addRow("URL格式：", QtWidgets.QLabel("示例：http://192.168.50.1:20231/rtp/239.21.[1-20].[1-20]:5002"))
+        scan_layout.addRow("URL格式：", QtWidgets.QLabel("示例：http://192.168.50.1:20231/rtp/239.21.[1-20].[1-20]:5002   [1-20]表示范围"))
         scan_layout.addRow("输入URL：", self.ip_range_input)
         scan_layout.addRow(timeout_layout)  # 添加超时时间和线程数布局
         scan_layout.addRow("进度：", self.scan_progress)
