@@ -159,11 +159,21 @@ class PlaylistHandler:
     def save_playlist(self, channels: List[Dict], path: str) -> bool:
         """保存播放列表到文件"""
         try:
+            # 参数校验
+            if not channels or not isinstance(channels, list):
+                logger.error("无效的频道列表")
+                return False
+                
             path = Path(path).resolve()
             path.parent.mkdir(parents=True, exist_ok=True)
             
+            # 生成内容
             content = self._generate_content(path.suffix, channels)
-            
+            if not content:
+                logger.error("生成内容失败")
+                return False
+                
+            # 写入文件
             with open(path, 'w', encoding='utf-8', newline='\n') as f:
                 f.write(content)
             
@@ -171,8 +181,10 @@ class PlaylistHandler:
             return True
         except PermissionError:
             logger.error("文件写入权限被拒绝")
+        except ValueError as e:
+            logger.error(f"不支持的格式: {e}")
         except Exception as e:
-            logger.exception("保存播放列表失败")
+            logger.exception(f"保存播放列表失败: {e}")
         return False
 
     def _generate_content(self, ext: str, channels: List[Dict]) -> str:
@@ -190,14 +202,17 @@ class PlaylistHandler:
         lines = []
         current_group = None
         
-        for chan in sorted(channels, key=lambda x: x['group']):
-            if chan['group'] != current_group:
-                current_group = chan['group']
+        for chan in channels:
+            # 确保group字段存在，默认值为"未分类"
+            group = chan.get('group', '未分类')
+            
+            if group != current_group:
+                current_group = group
                 lines.append(f"#group={current_group}")
             
             line = (
                 f"{chan['name']} "
-                f"[{chan['width']}x{chan['height']}],"
+                f"[{chan.get('width', 0)}x{chan.get('height', 0)}],"
                 f"{chan['url']}"
             )
             lines.append(line)
