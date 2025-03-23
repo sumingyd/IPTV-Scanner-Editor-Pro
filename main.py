@@ -83,17 +83,21 @@ class MainWindow(QtWidgets.QMainWindow):
         main_layout = QtWidgets.QHBoxLayout(main_widget)
 
         # 左侧面板
-        left_panel = QtWidgets.QSplitter(Qt.Orientation.Vertical)
-        self._setup_scan_panel(left_panel)
-        self._setup_channel_list(left_panel)
+        self.left_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
+        self._setup_scan_panel(self.left_splitter)
+        self._setup_channel_list(self.left_splitter)
 
         # 右侧面板
-        right_panel = QtWidgets.QSplitter(Qt.Orientation.Vertical)
-        self._setup_player_panel(right_panel)
-        self._setup_edit_panel(right_panel)
+        self.right_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
+        self._setup_player_panel(self.right_splitter)
+        self._setup_edit_panel(self.right_splitter)
 
-        main_layout.addWidget(left_panel)
-        main_layout.addWidget(right_panel)
+        # 添加分隔线样式
+        self._setup_splitter_handle(self.left_splitter)
+        self._setup_splitter_handle(self.right_splitter)
+
+        main_layout.addWidget(self.left_splitter)
+        main_layout.addWidget(self.right_splitter)
 
         # 初始化菜单和工具栏
         self._setup_menubar()
@@ -103,30 +107,65 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusBar().show()
         self.statusBar().showMessage("程序已启动")
 
+    def _setup_splitter_handle(self, splitter: QtWidgets.QSplitter) -> None:
+        """为 QSplitter 设置分隔线样式"""
+        # 设置分隔线的样式表
+        if splitter.orientation() == QtCore.Qt.Orientation.Vertical:
+            # 垂直分隔线：设置高度和背景颜色
+            splitter.setStyleSheet("""
+                QSplitter::handle {
+                    background-color: red;  /* 分隔线颜色 */
+                    height: 1px;           /* 分隔线高度 */
+                }
+            """)
+            print(f"分隔线样式表: {splitter.styleSheet()}")
+        else:
+            # 水平分隔线：设置宽度和背景颜色
+            splitter.setStyleSheet("""
+                QSplitter::handle {
+                    background-color: red;  /* 分隔线颜色 */
+                    width: 1px;            /* 分隔线宽度 */
+                }
+            """)
+        print("分隔线样式已设置")
+
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
         """配置扫描面板"""
         scan_group = QtWidgets.QGroupBox("扫描设置")
         scan_layout = QtWidgets.QFormLayout()
 
         self.ip_range_input = QtWidgets.QLineEdit()
-        self.timeout_input = QtWidgets.QSpinBox()  # 超时时间输入框
-        self.timeout_input.setRange(1, 60)  # 超时时间范围：1 到 60 秒
-        self.timeout_input.setValue(10)  # 默认超时时间：10 秒
-        self.thread_count_input = QtWidgets.QSpinBox()  # 线程数输入框
-        self.thread_count_input.setRange(1, 100)  # 线程数范围：1 到 100
-        self.thread_count_input.setValue(10)  # 默认线程数：10
         self.scan_progress = QtWidgets.QProgressBar()
+
+        # 超时时间和线程数放在同一行
+        timeout_layout = QtWidgets.QHBoxLayout()
+        timeout_layout.addWidget(QtWidgets.QLabel("超时时间（秒）："))
+        self.timeout_input = QtWidgets.QSpinBox()
+        self.timeout_input.setRange(1, 60)
+        self.timeout_input.setValue(10)
+        timeout_layout.addWidget(self.timeout_input)
+        timeout_layout.addStretch()  # 添加间距
+        timeout_layout.addWidget(QtWidgets.QLabel("线程数："))
+        self.thread_count_input = QtWidgets.QSpinBox()
+        self.thread_count_input.setRange(1, 100)
+        self.thread_count_input.setValue(10)
+        timeout_layout.addWidget(self.thread_count_input)
+
+        # 开始扫描和停止扫描按钮
         scan_btn = QtWidgets.QPushButton("开始扫描")
         scan_btn.clicked.connect(self.start_scan)
-        stop_btn = QtWidgets.QPushButton("停止扫描")  # 停止扫描按钮
+        stop_btn = QtWidgets.QPushButton("停止扫描")
         stop_btn.clicked.connect(self.stop_scan)
+
+        button_layout = QtWidgets.QHBoxLayout()
+        button_layout.addWidget(scan_btn)
+        button_layout.addWidget(stop_btn)
 
         scan_layout.addRow("URL格式：", QtWidgets.QLabel("示例：http://192.168.50.1:20231/rtp/239.21.[1-20].[1-20]:5002"))
         scan_layout.addRow("输入URL：", self.ip_range_input)
-        scan_layout.addRow("超时时间（秒）：", self.timeout_input)  # 添加超时时间输入框
-        scan_layout.addRow("线程数：", self.thread_count_input)  # 添加线程数输入框
+        scan_layout.addRow(timeout_layout)  # 添加超时时间和线程数布局
         scan_layout.addRow("进度：", self.scan_progress)
-        scan_layout.addRow(scan_btn, stop_btn)  # 添加开始和停止按钮
+        scan_layout.addRow(button_layout)  # 添加按钮布局
 
         scan_group.setLayout(scan_layout)
         parent.addWidget(scan_group)
@@ -239,15 +278,10 @@ class MainWindow(QtWidgets.QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
-        # 工具菜单
-        tool_menu = menubar.addMenu("工具(&T)")
-        tool_menu.addAction("扫描设置(&S)", self.show_scan_settings)
-        tool_menu.addAction("EPG管理(&E)", self.manage_epg)
-
     def _setup_toolbar(self) -> None:
-        """初始化工具栏，区分加载 EPG 和更新 EPG 按钮"""
+        """初始化工具栏"""
         toolbar = self.addToolBar("主工具栏")
-        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)  # 图标下方显示文字
+        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
         toolbar.setMovable(False)
 
         def load_icon(path: str) -> QIcon:
@@ -282,15 +316,15 @@ class MainWindow(QtWidgets.QMainWindow):
         refresh_epg_action.triggered.connect(self.refresh_epg)
         toolbar.addAction(refresh_epg_action)
 
+        # EPG 管理
+        epg_manage_action = QAction(load_icon("icons/settings.png"), "EPG 管理", self)
+        epg_manage_action.triggered.connect(self.manage_epg)
+        toolbar.addAction(epg_manage_action)
+
         # 停止
         stop_action = QAction(load_icon("icons/stop.png"), "停止播放", self)
         stop_action.triggered.connect(self.player.stop)
         toolbar.addAction(stop_action)
-
-        # 设置
-        settings_action = QAction(load_icon("icons/settings.png"), "设置", self)
-        settings_action.triggered.connect(self.show_settings)
-        toolbar.addAction(settings_action)
 
     def _connect_signals(self) -> None:
         """连接信号与槽"""
@@ -545,12 +579,34 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.show_error(f"保存文件失败: {str(e)}")
 
+    def closeEvent(self, event: QCloseEvent):
+        try:
+            self._cleanup_resources()
+            self._save_config_sync()
+            # 保存区域大小
+            self.config.config['UserPrefs']['left_splitter_sizes'] = ','.join(map(str, self.left_splitter.sizes()))
+            self.config.config['UserPrefs']['right_splitter_sizes'] = ','.join(map(str, self.right_splitter.sizes()))
+            self.config.save_prefs()
+            super().closeEvent(event)
+        except Exception as e:
+            logger.error(f"关闭异常: {str(e)}")
+            event.ignore()
+
     def load_config(self) -> None:
         """加载用户配置"""
         try:
             # 窗口布局
             if geometry := self.config.config.get('UserPrefs', 'window_geometry', fallback=''):
                 self.restoreGeometry(QtCore.QByteArray.fromHex(geometry.encode()))
+
+            # 加载区域大小
+            if left_splitter_sizes := self.config.config.get('UserPrefs', 'left_splitter_sizes', fallback=''):
+                sizes = list(map(int, left_splitter_sizes.split(',')))
+                self.left_splitter.setSizes(sizes)
+
+            if right_splitter_sizes := self.config.config.get('UserPrefs', 'right_splitter_sizes', fallback=''):
+                sizes = list(map(int, right_splitter_sizes.split(',')))
+                self.right_splitter.setSizes(sizes)
 
             # 扫描历史
             self.ip_range_input.setText(
@@ -565,15 +621,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         except Exception as e:
             logger.error(f"配置加载失败: {str(e)}")
-
-    def closeEvent(self, event: QCloseEvent):
-        try:
-            self._cleanup_resources()
-            self._save_config_sync()
-            super().closeEvent(event)
-        except Exception as e:
-            logger.error(f"关闭异常: {str(e)}")
-            event.ignore()
 
     def _cleanup_resources(self) -> None:
         """清理资源"""
@@ -649,32 +696,43 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusBar().showMessage("扫描设置已保存")
 
     def manage_epg(self) -> None:
-        """管理EPG数据源"""
+        """管理 EPG 数据源"""
         dialog = QtWidgets.QDialog(self)
-        dialog.setWindowTitle("EPG管理")
+        dialog.setWindowTitle("EPG 管理")
         layout = QtWidgets.QVBoxLayout()
 
-        # 添加EPG源设置
-        epg_label = QtWidgets.QLabel("EPG源URL：")
-        self.epg_url_input = QtWidgets.QLineEdit()
-        self.epg_url_input.setText(self.epg_manager.epg_sources['main'])
+        # 主源设置
+        main_source_label = QtWidgets.QLabel("主源 URL：")
+        self.main_source_input = QtWidgets.QLineEdit()
+        self.main_source_input.setText(self.epg_manager.epg_sources['main'])
 
-        layout.addWidget(epg_label)
-        layout.addWidget(self.epg_url_input)
+        # 备用源设置
+        backup_sources_label = QtWidgets.QLabel("备用源 URL（多个用逗号分隔）：")
+        self.backup_sources_input = QtWidgets.QLineEdit()
+        self.backup_sources_input.setText(','.join(self.epg_manager.epg_sources['backups']))
 
         # 保存按钮
         save_btn = QtWidgets.QPushButton("保存")
         save_btn.clicked.connect(lambda: self.save_epg_settings(dialog))
+
+        # 添加到布局
+        layout.addWidget(main_source_label)
+        layout.addWidget(self.main_source_input)
+        layout.addWidget(backup_sources_label)
+        layout.addWidget(self.backup_sources_input)
         layout.addWidget(save_btn)
 
         dialog.setLayout(layout)
         dialog.exec()
 
     def save_epg_settings(self, dialog: QtWidgets.QDialog) -> None:
-        """保存EPG设置"""
-        self.epg_manager.epg_sources['main'] = self.epg_url_input.text()
+        """保存 EPG 设置"""
+        self.epg_manager.epg_sources['main'] = self.main_source_input.text()
+        self.epg_manager.epg_sources['backups'] = [
+            url.strip() for url in self.backup_sources_input.text().split(',') if url.strip()
+        ]
         dialog.close()
-        self.statusBar().showMessage("EPG设置已保存")
+        self.statusBar().showMessage("EPG 设置已保存")
 
     def show_settings(self) -> None:
         """显示全局设置对话框"""
