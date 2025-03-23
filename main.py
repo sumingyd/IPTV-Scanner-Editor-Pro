@@ -34,7 +34,6 @@ class ChannelListModel(QtCore.QAbstractListModel):
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return len(self.channels)
 
-
 class MainWindow(QtWidgets.QMainWindow):
     # 定义信号（必须在类的作用域内定义）
     epg_progress_updated = QtCore.pyqtSignal(str)  # 用于更新进度提示
@@ -114,20 +113,18 @@ class MainWindow(QtWidgets.QMainWindow):
             # 垂直分隔线：设置高度和背景颜色
             splitter.setStyleSheet("""
                 QSplitter::handle {
-                    background-color: red;  /* 分隔线颜色 */
-                    height: 1px;           /* 分隔线高度 */
+                    background-color: rgba(245, 166, 35, 128);  /* 最后一位是透明度(0-255) */
+                    height: 2px;           /* 分隔线高度 */
                 }
             """)
-            print(f"分隔线样式表: {splitter.styleSheet()}")
         else:
             # 水平分隔线：设置宽度和背景颜色
             splitter.setStyleSheet("""
                 QSplitter::handle {
-                    background-color: red;  /* 分隔线颜色 */
-                    width: 1px;            /* 分隔线宽度 */
+                    background-color: rgba(245, 166, 35, 128);  /* 最后一位是透明度(0-255) */
+                    width: 2px;            /* 分隔线宽度 */
                 }
             """)
-        print("分隔线样式已设置")
 
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
         """配置扫描面板"""
