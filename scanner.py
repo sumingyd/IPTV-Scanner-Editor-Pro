@@ -131,10 +131,10 @@ class StreamScanner(QObject):
                             break
 
             # 创建worker任务
-            workers = []
+            self._workers = []
             for _ in range(self._thread_count):
                 worker_task = asyncio.create_task(worker())
-                workers.append(worker_task)
+                self._workers.append(worker_task)
                 # 立即检查扫描状态
                 if not self._is_scanning:
                     break
@@ -250,3 +250,14 @@ class StreamScanner(QObject):
                     self._url_queue.task_done()
                 except:
                     break
+                    
+        # 立即取消所有worker任务
+        if hasattr(self, '_workers'):
+            for worker in self._workers:
+                if not worker.done():
+                    worker.cancel()
+            self._workers.clear()
+            
+        # 确保线程池设置立即生效
+        if hasattr(self, '_semaphore'):
+            self._semaphore = asyncio.Semaphore(self._thread_count)
