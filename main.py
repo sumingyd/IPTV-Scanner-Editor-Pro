@@ -1,20 +1,25 @@
-import sys
+# ================= 标准库导入 =================
 import asyncio
-import platform
 import datetime
+import platform
+import sys
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-from PyQt6 import QtCore, QtWidgets,QtGui
-from PyQt6.QtCore import Qt, pyqtSlot, QModelIndex
-from PyQt6.QtGui import QCloseEvent, QAction, QKeySequence, QIcon
+
+# ================= 第三方库导入 =================
+from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6.QtCore import Qt, QModelIndex, pyqtSlot
+from PyQt6.QtGui import QAction, QIcon, QKeySequence, QCloseEvent
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
-from scanner import StreamScanner
-from epg_manager import EPGManager
-from playlist_io import PlaylistParser, PlaylistConverter, PlaylistHandler
-from player import VLCPlayer
-from utils import ConfigHandler, setup_logger
 import qasync
+
+# ================= 本地模块导入 =================
 from async_utils import AsyncWorker
+from epg_manager import EPGManager
+from player import VLCPlayer
+from playlist_io import PlaylistConverter, PlaylistHandler, PlaylistParser
+from scanner import StreamScanner
+from utils import ConfigHandler, setup_logger
 
 logger = setup_logger('Main')
 
