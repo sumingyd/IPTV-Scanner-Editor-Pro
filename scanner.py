@@ -144,11 +144,11 @@ class StreamScanner(QObject):
                 await url_queue.join()
             finally:
                 # 优雅地取消worker任务
-                for w in workers:
+                for w in self._workers:
                     if not w.done():
                         w.cancel()
                 # 等待所有worker完成取消
-                await asyncio.gather(*workers, return_exceptions=True)
+                await asyncio.gather(*self._workers, return_exceptions=True)
             
             # 发送最终结果
             if self._is_scanning:
