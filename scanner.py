@@ -60,7 +60,16 @@ class StreamScanner(QObject):
             
             # 并发探测
             tasks = [probe_with_semaphore(url) for url in urls]
-            results = await asyncio.gather(*tasks)
+            results = [None] * len(tasks)  # 初始化结果列表
+            
+            # 添加进度更新
+            completed = 0
+            for i, task in enumerate(asyncio.as_completed(tasks)):
+                result = await task
+                completed += 1
+                progress = int((completed / total) * 100)
+                self.progress_updated.emit(progress, f"正在扫描 {completed}/{total}")
+                results[i] = result
             
             # 过滤有效结果
             for i, result in enumerate(results):
