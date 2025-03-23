@@ -32,7 +32,7 @@ class ChannelListModel(QtCore.QAbstractListModel):
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
         if role == Qt.ItemDataRole.DisplayRole:
             chan = self.channels[index.row()]
-            return f"{chan.get('name', '未命名频道')} [{chan.get('width', 0)}x{chan.get('height', 0)}]"
+            return f"{chan.get('name', '未命名频道')} [{chan.get('width', 0)}x{chan.get('height', 0)}] - {chan.get('url', '无地址')}"
         elif role == Qt.ItemDataRole.UserRole:
             return self.channels[index.row()]
         return None
@@ -51,6 +51,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.player = VLCPlayer()
         self.playlist_handler = PlaylistHandler()
         self.converter = PlaylistConverter(self.epg_manager)
+        self.playlist_source = None  # 播放列表来源：None/file/scan
 
         # 异步任务跟踪
         self.scan_worker: Optional[AsyncWorker] = None
@@ -389,6 +390,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # 清空现有频道列表
         self.model.channels.clear()
         self.model.layoutChanged.emit()
+        self.playlist_source = 'scan'  # 设置播放列表来源为扫描
 
         # 设置超时时间（从用户输入中获取）
         timeout = self.timeout_input.value()
@@ -599,6 +601,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.model.channels = channels
             self.model.layoutChanged.emit()
             self.statusBar().showMessage(f"已加载列表：{Path(path).name}")
+            self.playlist_source = 'file'  # 设置播放列表来源为文件
         except Exception as e:
             self.show_error(f"打开文件失败: {str(e)}")
 
@@ -634,6 +637,21 @@ class MainWindow(QtWidgets.QMainWindow):
             # 停止播放器
             if hasattr(self, 'player') and self.player:
                 self.player.force_stop()
+                
+            # 如果播放列表来自文件且有修改，提示保存
+            if self.playlist_source == 'file' and self.model.channels:
+                reply = QMessageBox.question(
+                    self,
+                    '保存修改',
+                    '是否保存对播放列表的修改？',
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
+                )
+                
+                if reply == QMessageBox.StandardButton.Yes:
+                    self.save_playlist()
+                elif reply == QMessageBox.StandardButton.Cancel:
+                    event.ignore()
+                    return
                 
             # 保存配置
             self._save_config_sync()
