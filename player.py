@@ -154,6 +154,7 @@ class VLCPlayer(QtWidgets.QWidget):
 
     def stop(self) -> None:
         if self._is_active:
+            self.force_stop()
             asyncio.create_task(self.async_release())
 
     def force_stop(self):
