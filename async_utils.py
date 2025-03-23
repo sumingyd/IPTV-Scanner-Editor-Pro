@@ -1,5 +1,5 @@
 import asyncio
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal, QThreadPool, QRunnable
 
 class AsyncWorker(QObject):
     _active_workers = set()  # 类变量跟踪所有活跃任务
@@ -41,6 +41,14 @@ class AsyncWorker(QObject):
         except Exception as e:
             self.error.emit(e)
 
+    def start(self):
+        """启动异步任务"""
+        if self._is_cancelled:
+            return
+        # 使用线程池运行任务
+        runnable = AsyncRunnable(self)
+        QThreadPool.globalInstance().start(runnable)
+
     def cancel(self):
         """取消任务"""
         if self._task and not self._task.done():
@@ -50,3 +58,18 @@ class AsyncWorker(QObject):
     def is_finished(self) -> bool:
         """检查任务是否已完成"""
         return self._task is None or self._task.done()
+
+
+class AsyncRunnable(QRunnable):
+    """用于在 QThreadPool 中运行异步任务的 Runnable"""
+    def __init__(self, worker: AsyncWorker):
+        super().__init__()
+        self.worker = worker
+
+    def run(self):
+        """在单独的线程中运行任务"""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self.worker._task = loop.create_task(self.worker.run())
+        loop.run_until_complete(self.worker._task)
+        loop.close()

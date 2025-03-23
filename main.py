@@ -250,15 +250,12 @@ class MainWindow(QtWidgets.QMainWindow):
         toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)  # 图标下方显示文字
         toolbar.setMovable(False)
 
-        # 修复图标加载问题
         def load_icon(path: str) -> QIcon:
+            """加载图标，如果失败则返回空图标"""
             icon_path = Path(__file__).parent / path
-            if not icon_path.exists():
-                return QIcon()  # 返回空图标
-            icon = QIcon(str(icon_path))
-            if icon.isNull():
-                return QIcon()  # 返回空图标
-            return icon
+            if icon_path.exists():
+                return QIcon(str(icon_path))
+            return QIcon()
 
         # 打开列表
         open_action = QAction(load_icon("icons/open.png"), "打开列表", self)
@@ -420,51 +417,34 @@ class MainWindow(QtWidgets.QMainWindow):
         if next_index.isValid():
             self.channel_list.setCurrentIndex(next_index)
 
-    async def _load_epg_data(self, is_refresh: bool) -> None:
-        """加载或刷新 EPG 数据"""
-        try:
-            if is_refresh:
-                success = await self.epg_manager.refresh_epg()
-                message = "EPG 数据更新成功" if success else "EPG 更新失败，请检查网络连接"
-            else:
-                success = self.epg_manager.load_cached_epg()
-                message = "EPG 缓存已加载" if success else "EPG 缓存加载失败"
-
-            if success:
-                self.update_completer_model()
-            self.statusBar().showMessage(message)
-        except Exception as e:
-            logger.error(f"EPG 操作失败: {str(e)}")
-            self.show_error(f"EPG 操作失败: {str(e)}")
-
     @pyqtSlot()
     def load_epg_cache(self) -> None:
         """异步加载 EPG 缓存"""
-        self.epg_progress_updated.emit("正在加载 EPG 缓存...")
-        self.scan_worker = AsyncWorker(self._async_load_epg(is_refresh=False))
-        self.scan_worker.finished.connect(self.handle_epg_load_success)
-        self.scan_worker.error.connect(self.handle_epg_load_error)
-        asyncio.create_task(self.scan_worker.run())
+        self._start_epg_task(is_refresh=False)
 
     @pyqtSlot()
     def refresh_epg(self) -> None:
         """异步更新 EPG 数据"""
-        self.epg_progress_updated.emit("正在更新 EPG 数据...")
-        self.scan_worker = AsyncWorker(self._async_load_epg(is_refresh=True))
+        self._start_epg_task(is_refresh=True)
+
+    def _start_epg_task(self, is_refresh: bool) -> None:
+        """启动 EPG 任务"""
+        message = "正在加载 EPG 缓存..." if not is_refresh else "正在更新 EPG 数据..."
+        self.epg_progress_updated.emit(message)
+        self.scan_worker = AsyncWorker(self._async_load_epg(is_refresh))
         self.scan_worker.finished.connect(self.handle_epg_load_success)
         self.scan_worker.error.connect(self.handle_epg_load_error)
-        asyncio.create_task(self.scan_worker.run())
+        self.scan_worker.start()  # 使用 start 方法启动任务
 
     async def _async_load_epg(self, is_refresh: bool) -> None:
         """异步加载或刷新 EPG 数据"""
         try:
             success = await self.epg_manager.load_epg(is_refresh, self.epg_progress_updated.emit)
+            message = "EPG 数据加载成功" if success else "EPG 数据加载失败"
             if success:
                 self.epg_progress_updated.emit("EPG 数据加载完成，正在更新界面...")
                 self.update_completer_model()
-                self.epg_progress_updated.emit("EPG 数据加载成功")
-            else:
-                self.epg_progress_updated.emit("EPG 数据加载失败")
+            self.epg_progress_updated.emit(message)
         except Exception as e:
             logger.error(f"EPG 操作失败: {str(e)}")
             self.epg_progress_updated.emit(f"EPG 操作失败: {str(e)}")
@@ -473,11 +453,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def handle_epg_load_success(self) -> None:
         """EPG 加载成功后的处理"""
         self.statusBar().showMessage("EPG 数据加载完成")
+        self.update_completer_model()  # 确保界面更新
 
     @pyqtSlot(Exception)
     def handle_epg_load_error(self, error: Exception) -> None:
         """EPG 加载失败后的处理"""
         self.show_error(f"EPG 加载失败: {str(error)}")
+        self.statusBar().showMessage("EPG 加载失败")
 
     def on_text_changed(self, text: str) -> None:
         """输入框文本变化处理（优化版）"""
@@ -487,34 +469,32 @@ class MainWindow(QtWidgets.QMainWindow):
         self.debounce_timer.start(300)
 
     def update_completer_model(self) -> None:
-        """自动补全模型更新（最终稳健版）"""
+        """自动补全模型更新"""
         try:
             current_text = self.name_edit.text().strip()
-            
-            # 空输入时清除补全列表
             if not current_text:
                 self.epg_completer.setModel(QtCore.QStringListModel([]))
                 return
 
-            # 带异常保护的查询逻辑
-            try:
-                raw_names = self.epg_manager.match_channel_name(current_text)
-                names = sorted(list(set(raw_names)), key=lambda x: (len(x), x))
-            except Exception as query_error:
-                logger.error(f"EPG查询失败: {str(query_error)}")
-                names = []
-
-            # 线程安全更新
-            QtCore.QTimer.singleShot(0, lambda: 
-                self.epg_completer.setModel(QtCore.QStringListModel(names)))
-            
-            # 智能显示逻辑
-            if names and self.name_edit.hasFocus():
-                self.epg_completer.complete()
-                
+            # 获取匹配的频道名称
+            names = self._get_matching_channel_names(current_text)
+            if names:
+                QtCore.QTimer.singleShot(0, lambda: 
+                    self.epg_completer.setModel(QtCore.QStringListModel(names)))
+                if self.name_edit.hasFocus():
+                    self.epg_completer.complete()
         except Exception as e:
             logger.error(f"自动补全异常: {str(e)}", exc_info=True)
-            self.epg_completer.setModel(QtCore.QStringListModel([]))  # 失败时清空列表
+            self.epg_completer.setModel(QtCore.QStringListModel([]))
+
+    def _get_matching_channel_names(self, text: str) -> List[str]:
+        """获取匹配的频道名称"""
+        try:
+            raw_names = self.epg_manager.match_channel_name(text)
+            return sorted(list(set(raw_names)), key=lambda x: (len(x), x))
+        except Exception as e:
+            logger.error(f"EPG查询失败: {str(e)}")
+            return []
 
     @pyqtSlot()
     def open_playlist(self) -> None:
@@ -588,29 +568,23 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def closeEvent(self, event: QCloseEvent):
         try:
-            # 取消所有任务
-            AsyncWorker.cancel_all()
-            
-            # 强制同步释放
-            if hasattr(self, 'player'):
-                self.player.force_stop()
-            
-            # 保存配置
-            self.config.config['UserPrefs']['window_geometry'] = self.saveGeometry().toHex().data().decode()
-            self.config.config['Scanner']['last_range'] = self.ip_range_input.text()
-            self.config.save_prefs()
-            
+            self._cleanup_resources()
+            self._save_config_sync()
             super().closeEvent(event)
         except Exception as e:
             logger.error(f"关闭异常: {str(e)}")
             event.ignore()
 
-    def _save_config_sync(self):
+    def _cleanup_resources(self) -> None:
+        """清理资源"""
+        AsyncWorker.cancel_all()
+        if hasattr(self, 'player'):
+            self.player.force_stop()
+
+    def _save_config_sync(self) -> None:
         """同步保存配置"""
         self.config.config['UserPrefs']['window_geometry'] = self.saveGeometry().toHex().data().decode()
         self.config.config['Scanner']['last_range'] = self.ip_range_input.text()
-        if hasattr(self, 'player'):
-            self.config.config['Player']['hardware_accel'] = self.player.hw_accel
         self.config.save_prefs()
 
     @pyqtSlot(str)

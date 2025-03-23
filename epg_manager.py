@@ -16,6 +16,7 @@ class EPGManager:
         self.config = ConfigHandler()
         self.epg_data: Dict[str, Dict] = {}
         self._name_index: Dict[str, List[str]] = {}  # 频道名称倒排索引
+        self.cache_manager = CacheManager(Path(__file__).parent / "epg-xml")  # 初始化缓存管理器
         self._init_epg_sources()
 
     def _init_epg_sources(self) -> None:
@@ -46,11 +47,11 @@ class EPGManager:
         }
 
     async def _download_epg(self, url: str) -> Optional[bytes]:
-        """下载EPG数据并缓存"""
+        """下载 EPG 数据并缓存"""
         try:
             # 检查缓存有效性
-            cache_key = self._generate_cache_key(url)
-            cached_data = self._load_cache(cache_key)
+            cache_key = self.cache_manager.generate_cache_key(url)
+            cached_data = self.cache_manager.load_cache(cache_key)
             if cached_data:
                 logger.debug(f"从缓存加载: {cache_key}")
                 return cached_data
@@ -68,11 +69,10 @@ class EPGManager:
 
             # 保存缓存
             content = resp.content
-            self._save_cache(cache_key, content)
-            logger.debug(f"缓存已保存: {cache_key}")
+            self.cache_manager.save_cache(cache_key, content)
             return content
         except requests.exceptions.RequestException as e:
-            logger.error(f"EPG下载失败 [{url}]: {str(e)}")
+            logger.error(f"EPG 下载失败 [{url}]: {str(e)}")
         except Exception as e:
             logger.exception(f"未知下载错误: {str(e)}")
         return None
@@ -199,46 +199,6 @@ class EPGManager:
         except Exception as e:
             return []
 
-    # 缓存管理方法
-    def _generate_cache_key(self, url: str) -> str:
-        """生成缓存键"""
-        parsed = urlparse(url)
-        return hashlib.md5(f"{parsed.netloc}{parsed.path}".encode()).hexdigest()
-
-    def _save_cache(self, key: str, data: bytes) -> None:
-        """保存缓存数据"""
-        try:
-            cache_path = self._cache_file_path(key)
-            Path(cache_path).parent.mkdir(parents=True, exist_ok=True)  # 创建缓存目录
-            with open(cache_path, 'wb') as f:
-                f.write(data)
-        except Exception as e:
-            pass
-
-    def _cache_file_path(self, key: str) -> str:
-        """保存到 main.py 所在目录的 epg-xml 文件夹"""
-        base_dir = Path(__file__).parent  # 指向当前脚本所在目录
-        cache_dir = base_dir / "epg-xml"  # 创建 epg-xml 文件夹
-        cache_dir.mkdir(exist_ok=True)  # 确保目录存在
-        return str(cache_dir / f"{key}.xml")
-
-    def _load_cache(self, key: str) -> Optional[bytes]:
-        """加载缓存数据，检查是否过期"""
-        try:
-            cache_path = self._cache_file_path(key)
-            if not Path(cache_path).exists():
-                return None
-
-            # 检查缓存是否过期
-            cache_mtime = Path(cache_path).stat().st_mtime
-            if time.time() - cache_mtime > self.epg_sources['cache_ttl']:
-                return None
-
-            with open(cache_path, 'rb') as f:
-                return f.read()
-        except Exception:
-            return None
-        
     async def load_epg(self, is_refresh: bool, progress_callback: Optional[callable] = None) -> bool:
         """加载或刷新 EPG 数据"""
         try:
@@ -286,3 +246,37 @@ class EPGManager:
                 progress_callback(f"EPG 操作失败: {str(e)}")
             logger.error(f"EPG 操作失败: {str(e)}")
             return False
+        
+class CacheManager:
+    def __init__(self, cache_dir: Path):
+        self.cache_dir = cache_dir
+        self.cache_dir.mkdir(parents=True, exist_ok=True)  # 确保目录存在
+
+    def generate_cache_key(self, url: str) -> str:
+        """生成缓存文件名"""
+        parsed = urlparse(url)
+        return hashlib.md5(f"{parsed.netloc}{parsed.path}".encode()).hexdigest()
+
+    def get_cache_path(self, key: str) -> Path:
+        """获取缓存文件路径"""
+        return self.cache_dir / f"{key}.xml"
+
+    def save_cache(self, key: str, data: bytes) -> None:
+        """保存缓存文件"""
+        cache_path = self.get_cache_path(key)
+        with open(cache_path, "wb") as f:
+            f.write(data)
+        logger.debug(f"缓存已保存: {cache_path}")
+
+    def load_cache(self, key: str) -> Optional[bytes]:
+        """加载缓存文件"""
+        cache_path = self.get_cache_path(key)
+        if cache_path.exists():
+            with open(cache_path, "rb") as f:
+                return f.read()
+        return None
+
+    def get_latest_cache(self) -> Optional[Path]:
+        """获取最新的缓存文件"""
+        cache_files = sorted(self.cache_dir.glob("*.xml"), key=lambda f: f.stat().st_mtime, reverse=True)
+        return cache_files[0] if cache_files else None
