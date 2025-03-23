@@ -393,6 +393,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """连接信号与槽"""
         self.scanner.progress_updated.connect(self.update_progress)
         self.scanner.scan_finished.connect(self.handle_scan_results)
+        self.scanner.channel_found.connect(self.handle_channel_found)
         self.scanner.error_occurred.connect(self.show_error)
         self.channel_list.selectionModel().currentChanged.connect(self.on_channel_selected)
         self.player.state_changed.connect(self._handle_player_state)
@@ -445,12 +446,32 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scan_progress.setValue(percent)
         self.statusBar().showMessage(f"{msg} ({percent}%)")
 
+    @pyqtSlot(dict)
+    def handle_channel_found(self, channel: Dict) -> None:
+        """处理单个频道发现"""
+        # 检查是否已存在相同URL的频道
+        if not any(c['url'] == channel['url'] for c in self.model.channels):
+            # 在主线程中执行UI更新
+            QtCore.QMetaObject.invokeMethod(self, "_add_channel", 
+                QtCore.Qt.ConnectionType.QueuedConnection,
+                QtCore.Q_ARG(dict, channel))
+
+    @pyqtSlot(dict)
+    def _add_channel(self, channel: Dict) -> None:
+        """实际添加频道的槽函数"""
+        self.model.beginInsertRows(QtCore.QModelIndex(),
+                                 len(self.model.channels),
+                                 len(self.model.channels))
+        self.model.channels.append(channel)
+        self.model.endInsertRows()
+        # 强制刷新UI
+        QtWidgets.QApplication.processEvents()
+        self.statusBar().showMessage(f"发现新频道: {channel['name']}")
+
     @pyqtSlot(list)
     def handle_scan_results(self, channels: List[Dict]) -> None:
-        """处理扫描结果"""
-        self.model.channels.extend(channels)
-        self.model.layoutChanged.emit()
-        self.statusBar().showMessage(f"发现 {len(channels)} 个有效频道")
+        """处理最终扫描结果"""
+        self.statusBar().showMessage(f"扫描完成，共发现 {len(channels)} 个有效频道")
 
     @pyqtSlot()
     def on_channel_selected(self) -> None:
