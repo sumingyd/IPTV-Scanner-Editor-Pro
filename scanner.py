@@ -271,3 +271,6 @@ class StreamScanner(QObject):
         # 释放扫描锁
         if self._scan_lock.locked():
             self._scan_lock.release()
+            
+        # 重置进度条
+        self.progress_updated.emit(0, "已停止")
