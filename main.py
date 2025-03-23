@@ -147,7 +147,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timeout_input.setRange(1, 60)
         self.timeout_input.setValue(10)
         timeout_layout.addWidget(self.timeout_input)
-        timeout_layout.addStretch()  # 添加间距
+        timeout_layout.addSpacing(20)  # 固定间距
         timeout_layout.addWidget(QtWidgets.QLabel("线程数："))
         self.thread_count_input = QtWidgets.QSpinBox()
         self.thread_count_input.setRange(1, 100)
@@ -615,13 +615,30 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def closeEvent(self, event: QCloseEvent):
         try:
-            self._cleanup_resources()
+            # 先停止所有异步任务
+            if hasattr(self, 'scan_worker') and self.scan_worker:
+                self.scan_worker.cancel()
+            if hasattr(self, 'play_worker') and self.play_worker:
+                self.play_worker.cancel()
+                
+            # 停止播放器
+            if hasattr(self, 'player') and self.player:
+                self.player.force_stop()
+                
+            # 保存配置
             self._save_config_sync()
+            
             # 保存区域大小
             self.config.config['UserPrefs']['left_splitter_sizes'] = ','.join(map(str, self.left_splitter.sizes()))
             self.config.config['UserPrefs']['right_splitter_sizes'] = ','.join(map(str, self.right_splitter.sizes()))
             self.config.save_prefs()
-            super().closeEvent(event)
+            
+            # 确保所有异步任务完成
+            async def _final_cleanup():
+                await asyncio.sleep(0.1)  # 给任务一些时间完成
+                super().closeEvent(event)
+                
+            asyncio.create_task(_final_cleanup())
         except Exception as e:
             logger.error(f"关闭异常: {str(e)}")
             event.ignore()
