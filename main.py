@@ -140,19 +140,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ip_range_input = QtWidgets.QLineEdit()
         self.scan_progress = QtWidgets.QProgressBar()
 
-        # 超时时间和线程数放在同一行
+        # 超时时间设置
         timeout_layout = QtWidgets.QHBoxLayout()
-        timeout_layout.addWidget(QtWidgets.QLabel("超时时间（秒）："))
+        timeout_label = QtWidgets.QLabel("设置扫描超时时间（秒）")
+        timeout_layout.addWidget(timeout_label)
         self.timeout_input = QtWidgets.QSpinBox()
         self.timeout_input.setRange(1, 60)
         self.timeout_input.setValue(10)
+        self.timeout_input.setSuffix(" 秒")
         timeout_layout.addWidget(self.timeout_input)
-        timeout_layout.addSpacing(20)  # 固定间距
-        timeout_layout.addWidget(QtWidgets.QLabel("线程数："))
+        
+        # 线程数设置
+        thread_layout = QtWidgets.QHBoxLayout()
+        thread_label = QtWidgets.QLabel("设置扫描使用的线程数量")
+        thread_layout.addWidget(thread_label)
         self.thread_count_input = QtWidgets.QSpinBox()
         self.thread_count_input.setRange(1, 100)
         self.thread_count_input.setValue(10)
-        timeout_layout.addWidget(self.thread_count_input)
+        thread_layout.addWidget(self.thread_count_input)
 
         # 开始扫描和停止扫描按钮
         scan_btn = QtWidgets.QPushButton("开始扫描")
@@ -166,7 +171,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         scan_layout.addRow("URL格式：", QtWidgets.QLabel("示例：http://192.168.50.1:20231/rtp/239.21.[1-20].[1-20]:5002   [1-20]表示范围"))
         scan_layout.addRow("输入URL：", self.ip_range_input)
-        scan_layout.addRow(timeout_layout)  # 添加超时时间和线程数布局
+        scan_layout.addRow("超时时间：", timeout_layout)
+        scan_layout.addRow("线程数：", thread_layout)
         scan_layout.addRow("进度：", self.scan_progress)
         scan_layout.addRow(button_layout)  # 添加按钮布局
 
