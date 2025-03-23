@@ -24,21 +24,40 @@ from utils import ConfigHandler, setup_logger
 logger = setup_logger('Main')
 
 
-class ChannelListModel(QtCore.QAbstractListModel):
+class ChannelListModel(QtCore.QAbstractTableModel):
     def __init__(self, data: Optional[List[Dict]] = None):
         super().__init__()
         self.channels = data if data is not None else []
+        self.headers = ["频道名称", "分辨率", "URL", "分组"]
 
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
+        if not index.isValid():
+            return None
+            
         if role == Qt.ItemDataRole.DisplayRole:
             chan = self.channels[index.row()]
-            return f"{chan.get('name', '未命名频道')} [{chan.get('width', 0)}x{chan.get('height', 0)}] - {chan.get('url', '无地址')}"
+            if index.column() == 0:
+                return chan.get('name', '未命名频道')
+            elif index.column() == 1:
+                return f"{chan.get('width', 0)}x{chan.get('height', 0)}"
+            elif index.column() == 2:
+                return chan.get('url', '无地址')
+            elif index.column() == 3:
+                return chan.get('group', '未分类')
         elif role == Qt.ItemDataRole.UserRole:
             return self.channels[index.row()]
         return None
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return len(self.channels)
+
+    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        return len(self.headers)
+
+    def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
+        if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
+            return self.headers[section]
+        return None
 
 class MainWindow(QtWidgets.QMainWindow):
     # 定义信号（必须在类的作用域内定义）
@@ -185,10 +204,13 @@ class MainWindow(QtWidgets.QMainWindow):
         list_group = QtWidgets.QGroupBox("频道列表")
         list_layout = QtWidgets.QVBoxLayout()
 
-        self.channel_list = QtWidgets.QListView()
+        self.channel_list = QtWidgets.QTableView()
         self.channel_list.setSelectionMode(
-            QtWidgets.QListView.SelectionMode.ExtendedSelection
+            QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection
         )
+        self.channel_list.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        self.channel_list.horizontalHeader().setStretchLastSection(True)
+        self.channel_list.verticalHeader().setVisible(False)
         self.model = ChannelListModel()
         self.channel_list.setModel(self.model)
 
