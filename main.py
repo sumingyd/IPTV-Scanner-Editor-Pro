@@ -428,6 +428,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.model.layoutChanged.emit()
         self.playlist_source = 'scan'  # 设置播放列表来源为扫描
 
+        # 显示扫描开始信息
+        timeout = self.timeout_input.value()
+        thread_count = self.thread_count_input.value()
+        self.statusBar().showMessage(
+            f"开始扫描: {ip_range} (超时: {timeout}秒, 线程数: {thread_count})"
+        )
+
         # 设置超时时间（从用户输入中获取）
         timeout = self.timeout_input.value()
         self.scanner.set_timeout(timeout)
