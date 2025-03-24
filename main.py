@@ -940,49 +940,57 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # 处理关闭事件
     def closeEvent(self, event: QCloseEvent):
-        try:
-            # 先停止所有异步任务
-            if hasattr(self, 'scan_worker') and self.scan_worker:
-                self.scan_worker.cancel()
-            if hasattr(self, 'play_worker') and self.play_worker:
-                self.play_worker.cancel()
+        async def _async_close():
+            try:
+                # 1. 先停止播放器
+                if hasattr(self, 'player') and self.player:
+                    self.player.force_stop()
                 
-            # 停止播放器
-            if hasattr(self, 'player') and self.player:
-                self.player.force_stop()
+                # 2. 取消所有异步任务，带超时保护
+                await AsyncWorker.cancel_all(timeout=1.0)
                 
-            # 如果播放列表来自文件且有修改，提示保存
-            if self.playlist_source == 'file' and self.model.channels:
-                reply = QMessageBox.question(
-                    self,
-                    '保存修改',
-                    '是否保存对播放列表的修改？',
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
-                )
+                # 3. 检查是否需要保存播放列表
+                if self.playlist_source == 'file' and self.model.channels:
+                    reply = QMessageBox.question(
+                        self,
+                        '保存修改',
+                        '是否保存对播放列表的修改？',
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
+                    )
+                    
+                    if reply == QMessageBox.StandardButton.Yes:
+                        self.save_playlist()
+                    elif reply == QMessageBox.StandardButton.Cancel:
+                        event.ignore()
+                        return
                 
-                if reply == QMessageBox.StandardButton.Yes:
-                    self.save_playlist()
-                elif reply == QMessageBox.StandardButton.Cancel:
-                    event.ignore()
-                    return
+                # 4. 同步保存配置
+                self._save_config_sync()
                 
-            # 保存配置
-            self._save_config_sync()
-            
-            # 保存区域大小
-            self.config.config['UserPrefs']['left_splitter_sizes'] = ','.join(map(str, self.left_splitter.sizes()))
-            self.config.config['UserPrefs']['right_splitter_sizes'] = ','.join(map(str, self.right_splitter.sizes()))
-            self.config.save_prefs()
-            
-            # 确保所有异步任务完成
-            async def _final_cleanup():
-                await asyncio.sleep(0.1)  # 给任务一些时间完成
+                # 5. 保存窗口布局
+                self.config.config['UserPrefs']['left_splitter_sizes'] = ','.join(map(str, self.left_splitter.sizes()))
+                self.config.config['UserPrefs']['right_splitter_sizes'] = ','.join(map(str, self.right_splitter.sizes()))
+                self.config.save_prefs()
+                
+                # 6. 执行父类关闭事件
                 super().closeEvent(event)
                 
-            asyncio.create_task(_final_cleanup())
-        except Exception as e:
-            logger.error(f"关闭异常: {str(e)}")
-            event.ignore()
+                # 7. 确保所有资源释放完成
+                if hasattr(self, 'player') and self.player:
+                    self.player._release_sync()
+            except Exception as e:
+                logger.error(f"关闭异常: {str(e)}")
+                event.ignore()
+
+        # 获取当前事件循环
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # 在已有事件循环中运行
+            future = asyncio.ensure_future(_async_close())
+            future.add_done_callback(lambda _: None)  # 防止未等待警告
+        else:
+            # 没有运行中的事件循环，创建新循环
+            loop.run_until_complete(_async_close())
 
     #加载用户配置
     def load_config(self) -> None:
@@ -1018,7 +1026,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # 清理资源
     def _cleanup_resources(self) -> None:
         """清理资源"""
-        AsyncWorker.cancel_all()
+        asyncio.run(AsyncWorker.cancel_all())
         if hasattr(self, 'player'):
             self.player.force_stop()
 
