@@ -98,7 +98,26 @@ class StreamScanner(QObject):
                 
                 completed += 1
                 progress = int((completed / total) * 100)
-                self.progress_updated.emit(progress, f"正在扫描 {completed}/{total}")
+                
+                # 计算扫描速度(IP/秒)
+                elapsed = self.get_elapsed_time()
+                scan_speed = completed / elapsed if elapsed > 0 else 0
+                
+                # 计算剩余时间(秒)
+                remaining = (total - completed) / scan_speed if scan_speed > 0 else 0
+                
+                # 构建详细状态信息
+                current_ip = url.split('/')[-1].split(':')[0] if url else ""
+                status_parts = [
+                    f"进度: {completed}/{total} ({progress}%)", 
+                    f"速度: {scan_speed:.1f} IP/s",
+                    f"剩余: {int(remaining)}s",
+                    f"当前: {current_ip}",
+                    f"有效: {len(valid_channels)}"
+                ]
+                status_msg = " | ".join(filter(None, status_parts))
+                
+                self.progress_updated.emit(progress, status_msg)
                 await asyncio.sleep(0)
                 QtWidgets.QApplication.processEvents()
 

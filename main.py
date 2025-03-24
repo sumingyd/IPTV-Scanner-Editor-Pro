@@ -229,7 +229,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # 控制按钮
         control_layout = QtWidgets.QHBoxLayout()
 
-        self.pause_btn = QtWidgets.QPushButton("暂停/继续")
+        self.pause_btn = QtWidgets.QPushButton("播放")
         self.pause_btn.clicked.connect(self.player.toggle_pause)
 
         self.stop_btn = QtWidgets.QPushButton("停止")
@@ -414,6 +414,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def _handle_player_state(self, msg: str):
         """统一处理播放状态更新"""
         self.statusBar().showMessage(msg)
+        # 根据播放状态更新按钮文字
+        if "播放中" in msg:
+            self.pause_btn.setText("暂停")
+        elif "暂停" in msg:
+            self.pause_btn.setText("继续")
+        else:  # 不在播放状态
+            self.pause_btn.setText("播放")
 
     @pyqtSlot()
     def start_scan(self) -> None:
@@ -471,11 +478,7 @@ class MainWindow(QtWidgets.QMainWindow):
         found_count = len(self.model.channels)
         
         # 格式化状态信息
-        if "耗时" in msg:
-            status_msg = f"{msg} | 已扫描: {scanned_count} | 发现: {found_count}"
-        else:
-            status_msg = (f"{msg} ({percent}%) | 耗时: {elapsed:.1f}s | "
-                        f"已扫描: {scanned_count} | 发现: {found_count}")
+        status_msg = f"扫描进度: {percent}% | 耗时: {elapsed:.1f}s | 已扫描: {scanned_count} | 发现: {found_count}"
         
         self.statusBar().showMessage(status_msg)
 
@@ -506,6 +509,13 @@ class MainWindow(QtWidgets.QMainWindow):
         """处理最终扫描结果"""
         elapsed = self.scanner.get_elapsed_time()
         self.statusBar().showMessage(f"扫描完成，共发现 {len(channels)} 个有效频道 - 总耗时: {elapsed:.1f}秒")
+        
+        # 自动选择第一个频道但不自动播放
+        if channels:
+            first_index = self.model.index(0, 0)
+            self.channel_list.setCurrentIndex(first_index)
+            # 手动触发状态更新
+            self._handle_player_state("准备播放")
 
     @pyqtSlot()
     def on_channel_selected(self) -> None:
@@ -537,6 +547,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.play_worker.finished.connect(self.handle_play_success)
             self.play_worker.error.connect(self.handle_play_error)
             await self.play_worker.run()
+            
+            # 手动触发状态更新
+            self._handle_player_state("播放中")
         except Exception as e:
             self.show_error(f"播放失败: {str(e)}")
 
