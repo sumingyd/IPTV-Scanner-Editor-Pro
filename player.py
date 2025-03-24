@@ -3,7 +3,7 @@ import asyncio
 import platform
 import logging
 from typing import List
-from PyQt6 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtCore import pyqtSignal
 from utils import ConfigHandler, check_gpu_driver
 
@@ -82,8 +82,25 @@ class VLCPlayer(QtWidgets.QWidget):
 
     def _init_ui(self):
         self.video_frame = QtWidgets.QFrame()
-        self.video_frame.setStyleSheet("background-color: black;")
+        self.video_frame.setStyleSheet("""
+            QFrame {
+                background-color: black;
+                border: 2px solid #444;
+                border-radius: 6px;
+            }
+            QFrame:hover {
+                border-color: #888;
+                border-width: 3px;
+            }
+        """)
+        self.video_frame.setGraphicsEffect(QtWidgets.QGraphicsDropShadowEffect(
+            blurRadius=15,
+            xOffset=3,
+            yOffset=3,
+            color=QtGui.QColor(0, 0, 0, 100)
+        ))
         self.video_frame.setMinimumSize(640, 360)
+        
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.video_frame)
         self.setLayout(layout)

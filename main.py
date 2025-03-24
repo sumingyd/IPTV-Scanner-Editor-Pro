@@ -101,7 +101,19 @@ class MainWindow(QtWidgets.QMainWindow):
         """初始化用户界面"""
         self.setWindowTitle("IPTV管理工具")
         self.resize(1200, 800)
-
+        
+        # 使用系统调色板适应深色/浅色模式
+        self.setStyleSheet("""
+            QMainWindow {
+                background: palette(window);
+                border: 1px solid palette(mid);
+            }
+            QMainWindow::separator {
+                width: 1px;
+                background: palette(mid);
+            }
+        """)
+        
         # 主布局
         main_widget = QtWidgets.QWidget()
         self.setCentralWidget(main_widget)
@@ -128,9 +140,80 @@ class MainWindow(QtWidgets.QMainWindow):
         self._setup_menubar()
         self._setup_toolbar()
 
-        # 确保状态栏显示
-        self.statusBar().show()
-        self.statusBar().showMessage("程序已启动")
+        # 确保状态栏显示并设置样式
+        status_bar = self.statusBar()
+        status_bar.show()
+        status_bar.setStyleSheet("""
+            QStatusBar {
+                background: palette(window);
+                border-top: 1px solid palette(mid);
+                padding: 4px 12px;
+                font-size: 13px;
+                color: palette(window-text);
+                min-height: 28px;
+                border-radius: 0 0 6px 6px;
+            }
+            QStatusBar::item {
+                border: none;
+                padding: 0 8px;
+                border-radius: 3px;
+            }
+            QStatusBar::item:hover {
+                background: rgba(0,0,0,0.05);
+            }
+            QStatusBar QLabel {
+                background: transparent;
+                padding: 2px 8px;
+                font-weight: 500;
+                border-radius: 3px;
+            }
+            QStatusBar QLabel:hover {
+                background: rgba(0,0,0,0.05);
+            }
+            QStatusBar QLabel[status="error"] {
+                color: palette(highlight);
+                font-weight: bold;
+                background: rgba(255,0,0,0.1);
+                padding: 2px 10px;
+            }
+            QStatusBar QLabel[status="success"] {
+                color: palette(highlight);
+                font-weight: bold;
+                background: rgba(0,255,0,0.1);
+                padding: 2px 10px;
+            }
+            QStatusBar QLabel[status="warning"] {
+                color: palette(highlight);
+                font-weight: bold;
+                background: rgba(255,165,0,0.1);
+                padding: 2px 10px;
+            }
+        """)
+        status_bar.showMessage("程序已启动")
+        
+        # 添加进度指示器
+        self.progress_indicator = QtWidgets.QProgressBar()
+        self.progress_indicator.setRange(0, 0)  # 无限循环模式
+        self.progress_indicator.setTextVisible(False)
+        self.progress_indicator.setFixedWidth(120)
+        self.progress_indicator.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #90CAF9;
+                border-radius: 6px;
+                background: #E3F2FD;
+                height: 16px;
+            }
+            QProgressBar::chunk {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #2196F3, stop:0.3 #42A5F5, stop:0.6 #64B5F6, stop:1 #90CAF9);
+                width: 10px;
+                margin: 1px;
+                border-radius: 4px;
+                border: 1px solid rgba(255,255,255,0.3);
+            }
+        """)
+        self.progress_indicator.hide()
+        status_bar.addPermanentWidget(self.progress_indicator)
 
     def _setup_splitter_handle(self, splitter: QtWidgets.QSplitter) -> None:
         """为 QSplitter 设置分隔线样式"""
@@ -138,17 +221,22 @@ class MainWindow(QtWidgets.QMainWindow):
         if splitter.orientation() == QtCore.Qt.Orientation.Vertical:
             # 垂直分隔线：设置高度和背景颜色
             splitter.setStyleSheet("""
-                QSplitter::handle {
-                    background-color: rgba(245, 166, 35, 128);  /* 最后一位是透明度(0-255) */
-                    height: 2px;           /* 分隔线高度 */
-                }
+            QSplitter::handle {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #2196F3, stop:1 #42A5F5);
+                height: 4px;
+                border-radius: 2px;
+                margin: 3px 0;
+            }
             """)
         else:
             # 水平分隔线：设置宽度和背景颜色
             splitter.setStyleSheet("""
                 QSplitter::handle {
-                    background-color: rgba(245, 166, 35, 128);  /* 最后一位是透明度(0-255) */
-                    width: 2px;            /* 分隔线宽度 */
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 #2196F3, stop:1 #42A5F5);
+                    width: 4px;
+                    border-radius: 2px;
                 }
             """)
 
@@ -162,19 +250,26 @@ class MainWindow(QtWidgets.QMainWindow):
         # 设置进度条样式
         self.scan_progress.setStyleSheet("""
             QProgressBar {
-                border: 2px solid #3A3A3A;
-                border-radius: 5px;
+                border: 2px solid palette(mid);
+                border-radius: 8px;
                 text-align: center;
-                background: #F0F0F0;
+                background: palette(base);
+                height: 24px;
+                min-width: 200px;
+                font-size: 12px;
+                color: palette(window-text);
             }
             QProgressBar::chunk {
-                background: QLinearGradient(
-                    x1: 0, y1: 0, 
-                    x2: 1, y2: 0, 
-                    stop: 0 #FFA500, 
-                    stop: 1 #FF4500
-                );
-                border-radius: 3px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #4FC3F7, stop:0.5 #29B6F6, stop:1 #039BE5);
+                border-radius: 6px;
+                border: 1px solid rgba(255,255,255,0.3);
+                width: 12px;
+                margin: 1px;
+            }
+            QProgressBar::chunk:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #81D4FA, stop:0.5 #4FC3F7, stop:1 #29B6F6);
             }
         """)
 
@@ -199,8 +294,63 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 开始扫描和停止扫描按钮
         scan_btn = QtWidgets.QPushButton("开始扫描")
+        scan_btn.setStyleSheet("""
+            QPushButton {
+                background-color: palette(button);
+                color: palette(buttonText);
+                border: 1px solid palette(mid);
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+                min-width: 80px;
+                font-size: 14px;
+            }
+            QPushButton::text {
+                color: palette(windowText);
+            }
+            QPushButton:hover {
+                background-color: palette(light);
+                border-color: palette(highlight);
+            }
+            QPushButton:pressed {
+                background-color: palette(mid);
+                color: palette(highlightedText);
+            }
+            QPushButton:disabled {
+                background-color: palette(window);
+                color: palette(mid);
+            }
+        """)
         scan_btn.clicked.connect(self.start_scan)
+        
         stop_btn = QtWidgets.QPushButton("停止扫描")
+        stop_btn.setStyleSheet("""
+            QPushButton {
+                background-color: palette(button);
+                color: palette(buttonText);
+                border: 1px solid palette(mid);
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+                min-width: 80px;
+                font-size: 14px;
+            }
+            QPushButton::text {
+                color: palette(windowText);
+            }
+            QPushButton:hover {
+                background-color: palette(light);
+                border-color: palette(highlight);
+            }
+            QPushButton:pressed {
+                background-color: palette(mid);
+                color: palette(highlightedText);
+            }
+            QPushButton:disabled {
+                background-color: palette(window);
+                color: palette(mid);
+            }
+        """)
         stop_btn.clicked.connect(self.stop_scan)
 
         button_layout = QtWidgets.QHBoxLayout()
@@ -231,6 +381,52 @@ class MainWindow(QtWidgets.QMainWindow):
         self.channel_list.verticalHeader().setVisible(False)
         self.model = ChannelListModel()
         self.channel_list.setModel(self.model)
+        
+        # 设置频道列表样式
+        self.channel_list.setStyleSheet("""
+            QTableView {
+                border: 1px solid palette(mid);
+                border-radius: 6px;
+                gridline-color: transparent;
+                font-size: 13px;
+                background: palette(base);
+            }
+            QTableView::item {
+                padding: 10px 8px;
+                border-bottom: 1px solid palette(alternate-base);
+            }
+            QTableView::item:nth-child(even) {
+                background-color: palette(alternate-base);
+            }
+            QTableView::item:nth-child(odd) {
+                background-color: palette(base);
+            }
+            QTableView::item:selected {
+                background: palette(highlight);
+                color: palette(highlighted-text);
+                border-left: 4px solid palette(dark);
+            }
+            QTableView::item:hover {
+                background: palette(light);
+                border-left: 4px solid palette(highlight);
+            }
+            QHeaderView::section {
+                background: palette(button);
+                padding: 10px 8px;
+                border: none;
+                border-bottom: 2px solid palette(highlight);
+                font-weight: bold;
+                font-size: 13px;
+                color: palette(window-text);
+            }
+            QHeaderView::section:hover {
+                background: palette(mid);
+                color: palette(highlight);
+            }
+            QHeaderView::section:pressed {
+                background: palette(dark);
+            }
+        """)
 
         list_layout.addWidget(self.channel_list)
         list_group.setLayout(list_layout)
@@ -246,11 +442,63 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 控制按钮
         control_layout = QtWidgets.QHBoxLayout()
-
         self.pause_btn = QtWidgets.QPushButton("播放")
+        self.pause_btn.setStyleSheet("""
+            QPushButton {
+                background-color: palette(button);
+                color: palette(buttonText);
+                border: 1px solid palette(mid);
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+                min-width: 80px;
+                font-size: 14px;
+            }
+            QPushButton::text {
+                color: palette(windowText);
+            }
+            QPushButton:hover {
+                background-color: palette(light);
+                border-color: palette(highlight);
+            }
+            QPushButton:pressed {
+                background-color: palette(mid);
+                color: palette(highlightedText);
+            }
+            QPushButton:disabled {
+                background-color: palette(window);
+                color: palette(mid);
+            }
+        """)
         self.pause_btn.clicked.connect(self.player.toggle_pause)
-
         self.stop_btn = QtWidgets.QPushButton("停止")
+        self.stop_btn.setStyleSheet("""
+            QPushButton {
+                background-color: palette(button);
+                color: palette(buttonText);
+                border: 1px solid palette(mid);
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+                min-width: 80px;
+                font-size: 14px;
+            }
+            QPushButton::text {
+                color: palette(windowText);
+            }
+            QPushButton:hover {
+                background-color: palette(light);
+                border-color: palette(highlight);
+            }
+            QPushButton:pressed {
+                background-color: palette(mid);
+                color: palette(highlightedText);
+            }
+            QPushButton:disabled {
+                background-color: palette(window);
+                color: palette(mid);
+            }
+        """)
         self.stop_btn.clicked.connect(self.player.stop)
 
         control_layout.addWidget(self.pause_btn)
@@ -300,6 +548,33 @@ class MainWindow(QtWidgets.QMainWindow):
         edit_layout.addRow("分组分类：", self.group_combo)
 
         save_btn = QtWidgets.QPushButton("保存修改")
+        save_btn.setStyleSheet("""
+            QPushButton {
+                background-color: palette(button);
+                color: palette(buttonText);
+                border: 1px solid palette(mid);
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+                min-width: 80px;
+                font-size: 14px;
+            }
+            QPushButton::text {
+                color: palette(windowText);
+            }
+            QPushButton:hover {
+                background-color: palette(light);
+                border-color: palette(highlight);
+            }
+            QPushButton:pressed {
+                background-color: palette(mid);
+                color: palette(highlightedText);
+            }
+            QPushButton:disabled {
+                background-color: palette(window);
+                color: palette(mid);
+            }
+        """)
         save_btn.clicked.connect(self.save_channel_edit)
         edit_layout.addRow(save_btn)
 
