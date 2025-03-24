@@ -20,8 +20,14 @@ class VLCInstanceManager:
     @classmethod
     def get_instance(cls) -> vlc.Instance:
         if not cls._instance:
-            args = cls._generate_vlc_args()
-            cls._instance = vlc.Instance(args)
+            try:
+                args = cls._generate_vlc_args()
+                cls._instance = vlc.Instance(args)
+                if not cls._instance:
+                    raise RuntimeError("VLC实例创建失败")
+            except Exception as e:
+                logger.error(f"VLC实例创建失败: {str(e)}")
+                raise
         return cls._instance
     
     @classmethod
@@ -144,9 +150,14 @@ class VLCPlayer(QtWidgets.QWidget):
                 if self.media_player:
                     self.media_player.stop()
                     await asyncio.sleep(0.1)
-                    self.media_player.release()
+                    try:
+                        self.media_player.release()
+                    except Exception as e:
+                        logger.error(f"媒体资源释放失败: {str(e)}")
+                        raise
             except Exception as e:
                 logger.error(f"释放失败: {str(e)}")
+                raise
             finally:
                 self.media_player = None
                 self._is_active = False
@@ -208,10 +219,14 @@ class VLCPlayer(QtWidgets.QWidget):
 #############################
     def set_volume(self, volume: int) -> None:
         """设置音量 (0-100)"""
-        if 0 <= volume <= 100:
-            self.media_player.audio_set_volume(volume)
-        else:
-            pass
+        try:
+            if 0 <= volume <= 100:
+                self.media_player.audio_set_volume(volume)
+            else:
+                logger.warning(f"无效的音量值: {volume}")
+        except Exception as e:
+            logger.error(f"音量设置失败: {str(e)}")
+            raise
 
     def _on_play(self, event):
         """播放事件处理"""
