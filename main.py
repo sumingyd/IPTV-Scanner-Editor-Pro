@@ -464,12 +464,20 @@ class MainWindow(QtWidgets.QMainWindow):
     def update_progress(self, percent: int, msg: str) -> None:
         """更新扫描进度"""
         self.scan_progress.setValue(percent)
-        # 如果消息包含耗时信息则直接显示
+        
+        # 获取扫描统计信息
+        elapsed = self.scanner.get_elapsed_time()
+        scanned_count = self.scanner.get_scanned_count()
+        found_count = len(self.model.channels)
+        
+        # 格式化状态信息
         if "耗时" in msg:
-            self.statusBar().showMessage(msg)
+            status_msg = f"{msg} | 已扫描: {scanned_count} | 发现: {found_count}"
         else:
-            elapsed = self.scanner.get_elapsed_time()
-            self.statusBar().showMessage(f"{msg} ({percent}%) - 已耗时: {elapsed:.1f}秒")
+            status_msg = (f"{msg} ({percent}%) | 耗时: {elapsed:.1f}s | "
+                        f"已扫描: {scanned_count} | 发现: {found_count}")
+        
+        self.statusBar().showMessage(status_msg)
 
     @pyqtSlot(dict)
     def handle_channel_found(self, channel: Dict) -> None:
