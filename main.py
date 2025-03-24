@@ -474,45 +474,130 @@ class MainWindow(QtWidgets.QMainWindow):
         toolbar.addSeparator()
 
     # 显示关于对话框
-    def _show_about_dialog(self):  
-        """显示关于对话框"""
-        about_text = f'''
-        <b>IPTV 专业扫描器</b>
-        <p style="line-height: 1.5;">
-            版本：2.1.0<br>
-            编译日期：{datetime.date.today().strftime("%Y-%m-%d")}<br>
-            QT版本：{QtCore.qVersion()}
-        </p>
-        <p>功能特性：</p>
-        <ul style="margin-left: 20px;">
-            <li>支持 HTTP/UDP/RTP/RTSP 协议检测</li>
-            <li> EPG 信息保存与加载</li>
-            <li>多线程高效扫描引擎</li>
-            <li>支持 M3U/M3U8/TXT 播放列表格式</li>
-            <li>编辑频道名匹配EGP频道名功能</li>
-            <li>实时流媒体可用性检测</li>
-            <li>硬件加速视频播放</li>
-            <li>快捷键设置</li>
-            <li>频道分组与批量编辑</li>
-        </ul>
-        <p>快捷键：</p>
-        <ul style="margin-left: 20px;">
-            <li>Ctrl+O - 打开播放列表</li>
-            <li>Ctrl+S - 保存播放列表</li>
-            <li>Ctrl+Q - 退出程序</li>
-            <li>空格键 - 暂停/继续播放</li>
-        </ul>
-        <p>程序由 deepseek 提供代码</p>
-        <p>作者QQ:331874545</p>
-        '''
+    def _show_about_dialog(self):
+        """显示自动适应系统深浅色主题的关于对话框"""
+        # 检测系统主题
+        is_dark = self.palette().window().color().lightness() < 128
         
-        dialog = QtWidgets.QMessageBox(self)
+        # 动态颜色设置
+        bg_color = "#2d2d2d" if is_dark else "#ffffff"
+        text_color = "#eeeeee" if is_dark else "#333333"
+        accent_color = "#3498db"  # 主色调保持不变
+        card_bg = "#3a3a3a" if is_dark else "#f8f9fa"
+        border_color = "#444444" if is_dark else "#e0e0e0"
+        code_bg = "#454545" if is_dark else "#f0f0f0"
+        code_text = "#ffffff" if is_dark else "#333333"
+
+        about_text = f'''
+        <div style="font-family: 'Microsoft YaHei', sans-serif; color: {text_color};">
+            <h1 style="color: {accent_color}; text-align: center; margin-bottom: 15px; font-size: 18px;">
+                IPTV 专业扫描器
+            </h1>
+            
+            <div style="background-color: {card_bg}; padding: 15px; border-radius: 8px; 
+                 margin-bottom: 15px; border: 1px solid {border_color};">
+                <p style="line-height: 1.6; margin: 5px 0;">
+                    <b>版本：</b> 2.1.0
+                </p>
+                <p style="line-height: 1.6; margin: 5px 0;">
+                    <b>编译日期：</b> {datetime.date.today().strftime("%Y-%m-%d")}
+                </p>
+                <p style="line-height: 1.6; margin: 5px 0;">
+                    <b>QT版本：</b> {QtCore.qVersion()}
+                </p>
+            </div>
+            
+            <h3 style="color: {accent_color}; border-bottom: 1px solid {border_color}; 
+                padding-bottom: 5px; font-size: 15px; margin-top: 0;">
+                功能特性
+            </h3>
+            <ul style="margin-left: 20px; line-height: 1.6; padding-left: 5px;">
+                <li>支持 HTTP/UDP/RTP/RTSP 协议检测</li>
+                <li>EPG 信息保存与加载</li>
+                <li>多线程高效扫描引擎</li>
+                <li>支持 M3U/M3U8/TXT 播放列表格式</li>
+                <li>实时流媒体可用性检测</li>
+            </ul>
+            
+            <h3 style="color: {accent_color}; border-bottom: 1px solid {border_color}; 
+                padding-bottom: 5px; font-size: 15px; margin-top: 15px;">
+                快捷键
+            </h3>
+            <ul style="margin-left: 20px; line-height: 1.6; padding-left: 5px;">
+                <li><code style="background-color: {code_bg}; color: {code_text}; 
+                    padding: 2px 5px; border-radius: 3px;">Ctrl+O</code> - 打开播放列表</li>
+                <li><code style="background-color: {code_bg}; color: {code_text};
+                    padding: 2px 5px; border-radius: 3px;">Ctrl+S</code> - 保存播放列表</li>
+                <li><code style="background-color: {code_bg}; color: {code_text};
+                    padding: 2px 5px; border-radius: 3px;">空格键</code> - 暂停/继续播放</li>
+            </ul>
+            
+            <div style="margin-top: 20px; text-align: center; font-size: 0.9em; color: {text_color}; opacity: 0.8;">
+                <p>   DeepSeek 贡献代码  </p>
+                <p>
+                    <a href="https://github.com/sumingyd/IPTV-Scanner-Editor-Pro" 
+                       style="color: {accent_color}; text-decoration: none;">GitHub 仓库</a> 
+                    | <span>作者QQ: 331874545</span>
+                </p>
+            </div>
+        </div>
+        '''
+
+        # 创建对话框
+        dialog = QtWidgets.QDialog(self)
         dialog.setWindowTitle("关于")
-        # 确保存在 icons/logo.png
-        dialog.setIconPixmap(QtGui.QPixmap(str(Path(__file__).parent / "icons/logo.png")).scaled(64, 64))
-        dialog.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        dialog.setText(about_text)
-        dialog.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
+        dialog.setMinimumWidth(480)
+        dialog.setMinimumHeight(550)
+        
+        # 设置自适应样式
+        dialog.setStyleSheet(f"""
+            QDialog {{
+                background-color: {bg_color};
+                color: {text_color};
+            }}
+            QPushButton {{
+                background-color: {accent_color};
+                color: white;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                min-width: 80px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: #2980b9;
+            }}
+        """)
+        
+        # 主布局
+        layout = QtWidgets.QVBoxLayout(dialog)
+        layout.setContentsMargins(20, 20, 20, 15)
+        layout.setSpacing(15)
+        
+        # 添加图标
+        icon_path = str(Path(__file__).parent / "icons" / "logo.png")
+        pixmap = QtGui.QPixmap(icon_path)
+        if not pixmap.isNull():
+            pixmap = pixmap.scaled(90, 90, 
+                                 QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                                 QtCore.Qt.TransformationMode.SmoothTransformation)
+            icon_label = QtWidgets.QLabel()
+            icon_label.setPixmap(pixmap)
+            icon_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(icon_label)
+        
+        # 添加文本内容
+        text_label = QtWidgets.QLabel(about_text)
+        text_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        text_label.setOpenExternalLinks(True)
+        text_label.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.TextBrowserInteraction)
+        layout.addWidget(text_label)
+        
+        # 确定按钮
+        button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Ok)
+        button_box.accepted.connect(dialog.accept)
+        layout.addWidget(button_box)
+        
         dialog.exec()
 
     # 连接信号与槽
