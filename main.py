@@ -376,6 +376,13 @@ class MainWindow(QtWidgets.QMainWindow):
             <li>智能 EPG 信息匹配</li>
             <li>多线程高效扫描引擎</li>
         </ul>
+        <p>快捷键：</p>
+        <ul style="margin-left: 20px;">
+            <li>Ctrl+O - 打开播放列表</li>
+            <li>Ctrl+S - 保存播放列表</li>
+            <li>Ctrl+Q - 退出程序</li>
+            <li>空格键 - 暂停/继续播放</li>
+        </ul>
         <p>程序由 deepseek 提供代码</p>
         <p>作者QQ:331874545</p>
         '''
