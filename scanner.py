@@ -268,7 +268,10 @@ class StreamScanner(QObject):
         self._semaphore = asyncio.Semaphore(self._thread_count)
         self._is_scanning = False
         
-        if self._scan_lock.locked():
-            self._scan_lock.release()
+        try:
+            if self._scan_lock.locked():
+                self._scan_lock.release()
+        except RuntimeError:
+            pass  # 忽略锁未被获取的错误
             
         self.progress_updated.emit(0, "已停止")
