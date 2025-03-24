@@ -94,8 +94,6 @@ class StreamScanner(QObject):
                     await asyncio.sleep(0)
                     self.channel_found.emit(channel_info)
                     await asyncio.sleep(0)
-                    logger.debug(f"发现频道: {channel_info['name']}")
-                    await asyncio.sleep(0)
                     QtWidgets.QApplication.processEvents()
                 
                 completed += 1
