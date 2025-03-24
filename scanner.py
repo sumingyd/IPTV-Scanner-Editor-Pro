@@ -245,7 +245,6 @@ class StreamScanner(QObject):
             return
             
         self._is_scanning = False
-        logger.info("扫描已强制停止")
         
         if hasattr(self, '_url_queue'):
             while not self._url_queue.empty():

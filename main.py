@@ -460,8 +460,15 @@ class MainWindow(QtWidgets.QMainWindow):
     @pyqtSlot()
     def stop_scan(self) -> None:
         """停止扫描任务"""
+        if not hasattr(self.scanner, '_is_scanning') or not self.scanner._is_scanning:
+            self.statusBar().showMessage("当前没有进行中的扫描任务")
+            return
+            
         self.scanner.stop_scan()
-        self.statusBar().showMessage("扫描已停止")
+        if self.model.channels:
+            self.statusBar().showMessage(f"扫描已停止，共发现 {len(self.model.channels)} 个频道")
+        else:
+            self.statusBar().showMessage("扫描已停止，未发现有效频道")
 
     async def _async_scan(self, ip_range: str) -> None:
         """执行异步扫描"""
@@ -471,16 +478,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def update_progress(self, percent: int, msg: str) -> None:
         """更新扫描进度"""
         self.scan_progress.setValue(percent)
-        
-        # 获取扫描统计信息
-        elapsed = self.scanner.get_elapsed_time()
-        scanned_count = self.scanner.get_scanned_count()
-        found_count = len(self.model.channels)
-        
-        # 格式化状态信息
-        status_msg = f"扫描进度: {percent}% | 耗时: {elapsed:.1f}s | 已扫描: {scanned_count} | 发现: {found_count}"
-        
-        self.statusBar().showMessage(status_msg)
+        # 强制更新扫描状态信息，确保不会被其他消息覆盖
+        self.statusBar().showMessage(msg)
+        # 标记当前处于扫描状态
+        self._last_scan_status = msg
 
     @pyqtSlot(dict)
     def handle_channel_found(self, channel: Dict) -> None:
@@ -502,7 +503,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.model.endInsertRows()
         # 强制刷新UI
         QtWidgets.QApplication.processEvents()
-        self.statusBar().showMessage(f"发现新频道: {channel['name']}")
 
     @pyqtSlot(list)
     def handle_scan_results(self, channels: List[Dict]) -> None:
