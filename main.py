@@ -159,6 +159,24 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.ip_range_input = QtWidgets.QLineEdit()
         self.scan_progress = QtWidgets.QProgressBar()
+        # 设置进度条样式
+        self.scan_progress.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid #3A3A3A;
+                border-radius: 5px;
+                text-align: center;
+                background: #F0F0F0;
+            }
+            QProgressBar::chunk {
+                background: QLinearGradient(
+                    x1: 0, y1: 0, 
+                    x2: 1, y2: 0, 
+                    stop: 0 #FFA500, 
+                    stop: 1 #FF4500
+                );
+                border-radius: 3px;
+            }
+        """)
 
         # 超时时间设置
         timeout_layout = QtWidgets.QHBoxLayout()
