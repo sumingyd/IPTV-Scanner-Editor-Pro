@@ -1,0 +1,6 @@
+lxml==5.3.1
+PyQt6==6.8.1
+PyQt6_sip==13.10.0
+python_vlc==3.0.21203
+qasync==0.27.1
+Requests==2.32.3
