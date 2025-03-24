@@ -20,16 +20,20 @@ from player import VLCPlayer
 from playlist_io import PlaylistConverter, PlaylistHandler, PlaylistParser
 from scanner import StreamScanner
 from utils import ConfigHandler, setup_logger
+from styles import AppStyles
 
-logger = setup_logger('Main')
+logger = setup_logger('Main') # 主程序日志器
 
-
+# 频道列表模型
 class ChannelListModel(QtCore.QAbstractTableModel):
+
+    # 初始化频道列表
     def __init__(self, data: Optional[List[Dict]] = None):
         super().__init__()
         self.channels = data if data is not None else []
         self.headers = ["频道名称", "分辨率", "URL", "分组"]
 
+    # 数据处理
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
         if not index.isValid():
             return None
@@ -48,20 +52,26 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             return self.channels[index.row()]
         return None
 
+    # 行数
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return len(self.channels)
 
+    # 列数
     def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return len(self.headers)
 
+    # 表头数据
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
         if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
             return self.headers[section]
         return None
 
+# 主窗口
 class MainWindow(QtWidgets.QMainWindow):
     # 定义信号（必须在类的作用域内定义）
     epg_progress_updated = QtCore.pyqtSignal(str)  # 用于更新进度提示
+
+    # 初始化
     def __init__(self):
         super().__init__()
         self.config = ConfigHandler()
@@ -90,6 +100,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.player.state_changed.connect(self._handle_player_state)
         self.name_edit.installEventFilter(self)
 
+    # 事件过滤器处理焦点事件（最终版）
     def eventFilter(self, source, event: QtCore.QEvent) -> bool:
         """事件过滤器处理焦点事件（最终版）"""
         if (source is self.name_edit and 
@@ -97,6 +108,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.update_completer_model()
         return super().eventFilter(source, event)
 
+    # 初始化用户界面
     def _init_ui(self) -> None:
         """初始化用户界面"""
         self.setWindowTitle("IPTV管理工具")
@@ -215,6 +227,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress_indicator.hide()
         status_bar.addPermanentWidget(self.progress_indicator)
 
+    # 为 QSplitter 设置分隔线样式
     def _setup_splitter_handle(self, splitter: QtWidgets.QSplitter) -> None:
         """为 QSplitter 设置分隔线样式"""
         # 设置分隔线的样式表
@@ -240,6 +253,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 }
             """)
 
+    # 配置扫描面板
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
         """配置扫描面板"""
         scan_group = QtWidgets.QGroupBox("扫描设置")
@@ -247,31 +261,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.ip_range_input = QtWidgets.QLineEdit()
         self.scan_progress = QtWidgets.QProgressBar()
-        # 设置进度条样式
-        self.scan_progress.setStyleSheet("""
-            QProgressBar {
-                border: 2px solid palette(mid);
-                border-radius: 8px;
-                text-align: center;
-                background: palette(base);
-                height: 24px;
-                min-width: 200px;
-                font-size: 12px;
-                color: palette(window-text);
-            }
-            QProgressBar::chunk {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #4FC3F7, stop:0.5 #29B6F6, stop:1 #039BE5);
-                border-radius: 6px;
-                border: 1px solid rgba(255,255,255,0.3);
-                width: 12px;
-                margin: 1px;
-            }
-            QProgressBar::chunk:hover {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #81D4FA, stop:0.5 #4FC3F7, stop:1 #29B6F6);
-            }
-        """)
+        self.scan_progress.setStyleSheet(AppStyles.progress_style())
 
         # 超时时间设置
         timeout_layout = QtWidgets.QHBoxLayout()
@@ -292,65 +282,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.thread_count_input.setValue(10)
         thread_layout.addWidget(self.thread_count_input)
 
-        # 开始扫描和停止扫描按钮
+        # 开始扫描按钮
         scan_btn = QtWidgets.QPushButton("开始扫描")
-        scan_btn.setStyleSheet("""
-            QPushButton {
-                background-color: palette(button);
-                color: palette(buttonText);
-                border: 1px solid palette(mid);
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-                min-width: 80px;
-                font-size: 14px;
-            }
-            QPushButton::text {
-                color: palette(windowText);
-            }
-            QPushButton:hover {
-                background-color: palette(light);
-                border-color: palette(highlight);
-            }
-            QPushButton:pressed {
-                background-color: palette(mid);
-                color: palette(highlightedText);
-            }
-            QPushButton:disabled {
-                background-color: palette(window);
-                color: palette(mid);
-            }
-        """)
+        scan_btn.setStyleSheet(AppStyles.button_style())
         scan_btn.clicked.connect(self.start_scan)
-        
+        # 停止扫描按钮
         stop_btn = QtWidgets.QPushButton("停止扫描")
-        stop_btn.setStyleSheet("""
-            QPushButton {
-                background-color: palette(button);
-                color: palette(buttonText);
-                border: 1px solid palette(mid);
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-                min-width: 80px;
-                font-size: 14px;
-            }
-            QPushButton::text {
-                color: palette(windowText);
-            }
-            QPushButton:hover {
-                background-color: palette(light);
-                border-color: palette(highlight);
-            }
-            QPushButton:pressed {
-                background-color: palette(mid);
-                color: palette(highlightedText);
-            }
-            QPushButton:disabled {
-                background-color: palette(window);
-                color: palette(mid);
-            }
-        """)
+        stop_btn.setStyleSheet(AppStyles.button_style())
         stop_btn.clicked.connect(self.stop_scan)
 
         button_layout = QtWidgets.QHBoxLayout()
@@ -367,7 +305,8 @@ class MainWindow(QtWidgets.QMainWindow):
         scan_group.setLayout(scan_layout)
         parent.addWidget(scan_group)
 
-    def _setup_channel_list(self, parent: QtWidgets.QSplitter) -> None:
+    # 配置频道列表
+    def _setup_channel_list(self, parent: QtWidgets.QSplitter) -> None:  
         """配置频道列表"""
         list_group = QtWidgets.QGroupBox("频道列表")
         list_layout = QtWidgets.QVBoxLayout()
@@ -381,58 +320,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.channel_list.verticalHeader().setVisible(False)
         self.model = ChannelListModel()
         self.channel_list.setModel(self.model)
-        
-        # 设置频道列表样式
-        self.channel_list.setStyleSheet("""
-            QTableView {
-                border: 1px solid palette(mid);
-                border-radius: 6px;
-                gridline-color: transparent;
-                font-size: 13px;
-                background: palette(base);
-            }
-            QTableView::item {
-                padding: 10px 8px;
-                border-bottom: 1px solid palette(alternate-base);
-            }
-            QTableView::item:nth-child(even) {
-                background-color: palette(alternate-base);
-            }
-            QTableView::item:nth-child(odd) {
-                background-color: palette(base);
-            }
-            QTableView::item:selected {
-                background: palette(highlight);
-                color: palette(highlighted-text);
-                border-left: 4px solid palette(dark);
-            }
-            QTableView::item:hover {
-                background: palette(light);
-                border-left: 4px solid palette(highlight);
-            }
-            QHeaderView::section {
-                background: palette(button);
-                padding: 10px 8px;
-                border: none;
-                border-bottom: 2px solid palette(highlight);
-                font-weight: bold;
-                font-size: 13px;
-                color: palette(window-text);
-            }
-            QHeaderView::section:hover {
-                background: palette(mid);
-                color: palette(highlight);
-            }
-            QHeaderView::section:pressed {
-                background: palette(dark);
-            }
-        """)
-
+        self.channel_list.setStyleSheet(AppStyles.list_style())
         list_layout.addWidget(self.channel_list)
         list_group.setLayout(list_layout)
         parent.addWidget(list_group)
 
-    def _setup_player_panel(self, parent: QtWidgets.QSplitter) -> None:
+    #配置播放器面板
+    def _setup_player_panel(self, parent: QtWidgets.QSplitter) -> None:  
         """配置播放器面板"""
         player_group = QtWidgets.QGroupBox("视频播放")
         player_layout = QtWidgets.QVBoxLayout()
@@ -443,62 +337,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # 控制按钮
         control_layout = QtWidgets.QHBoxLayout()
         self.pause_btn = QtWidgets.QPushButton("播放")
-        self.pause_btn.setStyleSheet("""
-            QPushButton {
-                background-color: palette(button);
-                color: palette(buttonText);
-                border: 1px solid palette(mid);
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-                min-width: 80px;
-                font-size: 14px;
-            }
-            QPushButton::text {
-                color: palette(windowText);
-            }
-            QPushButton:hover {
-                background-color: palette(light);
-                border-color: palette(highlight);
-            }
-            QPushButton:pressed {
-                background-color: palette(mid);
-                color: palette(highlightedText);
-            }
-            QPushButton:disabled {
-                background-color: palette(window);
-                color: palette(mid);
-            }
-        """)
+        self.pause_btn.setStyleSheet(AppStyles.button_style())
         self.pause_btn.clicked.connect(self.player.toggle_pause)
         self.stop_btn = QtWidgets.QPushButton("停止")
-        self.stop_btn.setStyleSheet("""
-            QPushButton {
-                background-color: palette(button);
-                color: palette(buttonText);
-                border: 1px solid palette(mid);
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-                min-width: 80px;
-                font-size: 14px;
-            }
-            QPushButton::text {
-                color: palette(windowText);
-            }
-            QPushButton:hover {
-                background-color: palette(light);
-                border-color: palette(highlight);
-            }
-            QPushButton:pressed {
-                background-color: palette(mid);
-                color: palette(highlightedText);
-            }
-            QPushButton:disabled {
-                background-color: palette(window);
-                color: palette(mid);
-            }
-        """)
+        self.stop_btn.setStyleSheet(AppStyles.button_style())
         self.stop_btn.clicked.connect(self.player.stop)
 
         control_layout.addWidget(self.pause_btn)
@@ -522,8 +364,9 @@ class MainWindow(QtWidgets.QMainWindow):
         player_group.setLayout(player_layout)
         parent.addWidget(player_group)
 
-    def _setup_edit_panel(self, parent: QtWidgets.QSplitter) -> None:
-        """配置编辑面板，修复频道名称输入框的自动补全功能"""
+    # 配置编辑面板
+    def _setup_edit_panel(self, parent: QtWidgets.QSplitter) -> None:  
+        """配置编辑面板"""
         edit_group = QtWidgets.QGroupBox("频道编辑")
         edit_layout = QtWidgets.QFormLayout()
 
@@ -548,40 +391,15 @@ class MainWindow(QtWidgets.QMainWindow):
         edit_layout.addRow("分组分类：", self.group_combo)
 
         save_btn = QtWidgets.QPushButton("保存修改")
-        save_btn.setStyleSheet("""
-            QPushButton {
-                background-color: palette(button);
-                color: palette(buttonText);
-                border: 1px solid palette(mid);
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-                min-width: 80px;
-                font-size: 14px;
-            }
-            QPushButton::text {
-                color: palette(windowText);
-            }
-            QPushButton:hover {
-                background-color: palette(light);
-                border-color: palette(highlight);
-            }
-            QPushButton:pressed {
-                background-color: palette(mid);
-                color: palette(highlightedText);
-            }
-            QPushButton:disabled {
-                background-color: palette(window);
-                color: palette(mid);
-            }
-        """)
+        save_btn.setStyleSheet(AppStyles.button_style())
         save_btn.clicked.connect(self.save_channel_edit)
         edit_layout.addRow(save_btn)
 
         edit_group.setLayout(edit_layout)
         parent.addWidget(edit_group)
 
-    def _setup_menubar(self) -> None:
+    # 初始化菜单栏
+    def _setup_menubar(self) -> None:  
         """初始化菜单栏"""
         menubar = self.menuBar()
 
@@ -603,7 +421,8 @@ class MainWindow(QtWidgets.QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
-    def _setup_toolbar(self) -> None:
+    # 初始化工具栏
+    def _setup_toolbar(self) -> None:  
         """初始化工具栏"""
         toolbar = self.addToolBar("主工具栏")
         toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
@@ -654,7 +473,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # 添加分隔线保持布局美观
         toolbar.addSeparator()
 
-    def _show_about_dialog(self):
+    # 显示关于对话框
+    def _show_about_dialog(self):  
         """显示关于对话框"""
         about_text = f'''
         <b>IPTV 专业扫描器</b>
@@ -695,7 +515,8 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
         dialog.exec()
 
-    def _connect_signals(self) -> None:
+    # 连接信号与槽
+    def _connect_signals(self) -> None:  
         """连接信号与槽"""
         self.scanner.progress_updated.connect(self.update_progress)
         self.scanner.scan_finished.connect(self.handle_scan_results)
@@ -704,7 +525,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.channel_list.selectionModel().currentChanged.connect(self.on_channel_selected)
         self.player.state_changed.connect(self._handle_player_state)
 
-    def _handle_player_state(self, msg: str):
+    # 统一处理播放状态更新
+    def _handle_player_state(self, msg: str):  
         """统一处理播放状态更新"""
         self.statusBar().showMessage(msg)
         # 根据播放状态更新按钮文字
@@ -715,8 +537,9 @@ class MainWindow(QtWidgets.QMainWindow):
         else:  # 不在播放状态
             self.pause_btn.setText("播放")
 
+    # 启动扫描任务
     @pyqtSlot()
-    def start_scan(self) -> None:
+    def start_scan(self) -> None: 
         """启动扫描任务"""
         ip_range = self.ip_range_input.text().strip()
         if not ip_range:
@@ -750,8 +573,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scan_worker.cancelled.connect(self.handle_scan_cancel)
         asyncio.create_task(self.scan_worker.run())
 
+    # 停止扫描任务
     @pyqtSlot()
-    def stop_scan(self) -> None:
+    def stop_scan(self) -> None: 
         """停止扫描任务"""
         if not hasattr(self.scanner, '_is_scanning') or not self.scanner._is_scanning:
             self.statusBar().showMessage("当前没有进行中的扫描任务")
@@ -763,12 +587,14 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.statusBar().showMessage("扫描已停止，未发现有效频道")
 
-    async def _async_scan(self, ip_range: str) -> None:
+    # 执行异步扫描
+    async def _async_scan(self, ip_range: str) -> None:  
         """执行异步扫描"""
         await self.scanner.scan_task(ip_range)
 
+    # 更新扫描进度
     @pyqtSlot(int, str)
-    def update_progress(self, percent: int, msg: str) -> None:
+    def update_progress(self, percent: int, msg: str) -> None: 
         """更新扫描进度"""
         self.scan_progress.setValue(percent)
         # 直接显示scanner.py传递的详细状态信息
@@ -776,8 +602,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # 标记当前处于扫描状态
         self._last_scan_status = msg
 
+    #处理单个频道发现
     @pyqtSlot(dict)
-    def handle_channel_found(self, channel: Dict) -> None:
+    def handle_channel_found(self, channel: Dict) -> None: 
         """处理单个频道发现"""
         # 检查是否已存在相同URL的频道
         if not any(c['url'] == channel['url'] for c in self.model.channels):
@@ -786,8 +613,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 QtCore.Qt.ConnectionType.QueuedConnection,
                 QtCore.Q_ARG(dict, channel))
 
+    #实际添加频道的槽函数
     @pyqtSlot(dict)
-    def _add_channel(self, channel: Dict) -> None:
+    def _add_channel(self, channel: Dict) -> None: 
         """实际添加频道的槽函数"""
         self.model.beginInsertRows(QtCore.QModelIndex(),
                                  len(self.model.channels),
@@ -797,8 +625,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # 强制刷新UI
         QtWidgets.QApplication.processEvents()
 
+    #处理最终扫描结果
     @pyqtSlot(list)
-    def handle_scan_results(self, channels: List[Dict]) -> None:
+    def handle_scan_results(self, channels: List[Dict]) -> None: 
         """处理最终扫描结果"""
         elapsed = self.scanner.get_elapsed_time()
         self.statusBar().showMessage(f"扫描完成，共发现 {len(channels)} 个有效频道 - 总耗时: {elapsed:.1f}秒")
@@ -810,8 +639,9 @@ class MainWindow(QtWidgets.QMainWindow):
             # 手动触发状态更新
             self._handle_player_state("准备播放")
 
+    # 处理频道选择事件
     @pyqtSlot()
-    def on_channel_selected(self) -> None:
+    def on_channel_selected(self) -> None: 
         """处理频道选择事件"""
         index = self.channel_list.currentIndex()
         if not index.isValid():
@@ -824,7 +654,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if url := chan.get('url'):
             asyncio.create_task(self.safe_play(url))
 
-    async def safe_play(self, url: str) -> None:
+    # 安全播放包装器
+    async def safe_play(self, url: str) -> None: 
         """安全播放包装器"""
         try:
             # 取消旧任务
@@ -846,7 +677,8 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.show_error(f"播放失败: {str(e)}")
 
-    def stop_play(self):
+    # 统一调用播放器的停止方法
+    def stop_play(self): 
         """统一调用播放器的停止方法"""
         try:
             if hasattr(self, 'player') and self.player:
@@ -854,6 +686,7 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.show_error(f"停止失败: {str(e)}")
 
+    # 保存频道编辑
     @pyqtSlot()
     def save_channel_edit(self) -> None:
         """保存频道编辑"""
@@ -880,16 +713,19 @@ class MainWindow(QtWidgets.QMainWindow):
         if next_index.isValid():
             self.channel_list.setCurrentIndex(next_index)
 
+    # 异步加载 EPG 缓存
     @pyqtSlot()
-    def load_epg_cache(self) -> None:
+    def load_epg_cache(self) -> None: 
         """异步加载 EPG 缓存"""
         self._start_epg_task(is_refresh=False)
 
+    # 异步更新 EPG 数据
     @pyqtSlot()
-    def refresh_epg(self) -> None:
+    def refresh_epg(self) -> None: 
         """异步更新 EPG 数据"""
         self._start_epg_task(is_refresh=True)
 
+    # 启动 EPG 任务
     def _start_epg_task(self, is_refresh: bool) -> None:
         """启动 EPG 任务"""
         message = "正在加载 EPG 缓存..." if not is_refresh else "正在更新 EPG 数据..."
@@ -899,7 +735,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scan_worker.error.connect(self.handle_epg_load_error)
         self.scan_worker.start()  # 使用 start 方法启动任务
 
-    async def _async_load_epg(self, is_refresh: bool) -> None:
+    # 异步加载或刷新 EPG 数据
+    async def _async_load_epg(self, is_refresh: bool) -> None: 
         """异步加载或刷新 EPG 数据"""
         try:
             success = await self.epg_manager.load_epg(is_refresh, self.epg_progress_updated.emit)
@@ -912,26 +749,30 @@ class MainWindow(QtWidgets.QMainWindow):
             logger.error(f"EPG 操作失败: {str(e)}")
             self.epg_progress_updated.emit(f"EPG 操作失败: {str(e)}")
 
+    # EPG 加载成功后的处理
     @pyqtSlot()
-    def handle_epg_load_success(self) -> None:
+    def handle_epg_load_success(self) -> None: 
         """EPG 加载成功后的处理"""
         self.statusBar().showMessage("EPG 数据加载完成")
         self.update_completer_model()  # 确保界面更新
 
+    # EPG 加载失败后的处理
     @pyqtSlot(Exception)
-    def handle_epg_load_error(self, error: Exception) -> None:
+    def handle_epg_load_error(self, error: Exception) -> None: 
         """EPG 加载失败后的处理"""
         self.show_error(f"EPG 加载失败: {str(error)}")
         self.statusBar().showMessage("EPG 加载失败")
 
-    def on_text_changed(self, text: str) -> None:
-        """输入框文本变化处理（优化版）"""
+    # 输入框文本变化处理
+    def on_text_changed(self, text: str) -> None: 
+        """输入框文本变化处理"""
         # 立即触发补全更新
         self.update_completer_model()
         # 启动防抖定时器（后续输入防抖）
         self.debounce_timer.start(300)
 
-    def update_completer_model(self) -> None:
+    # 自动补全模型更新
+    def update_completer_model(self) -> None: 
         """自动补全模型更新"""
         try:
             current_text = self.name_edit.text().strip()
@@ -950,7 +791,8 @@ class MainWindow(QtWidgets.QMainWindow):
             logger.error(f"自动补全异常: {str(e)}", exc_info=True)
             self.epg_completer.setModel(QtCore.QStringListModel([]))
 
-    def _get_matching_channel_names(self, text: str) -> List[str]:
+    # 获取匹配的频道名称
+    def _get_matching_channel_names(self, text: str) -> List[str]: 
         """获取匹配的频道名称"""
         try:
             raw_names = self.epg_manager.match_channel_name(text)
@@ -958,9 +800,10 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             logger.error(f"EPG查询失败: {str(e)}")
             return []
-
+    
+    # 打开播放列表文件
     @pyqtSlot()
-    def open_playlist(self) -> None:
+    def open_playlist(self) -> None: 
         """打开播放列表文件"""
         path, _ = QFileDialog.getOpenFileName(
             self,
@@ -987,9 +830,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.playlist_source = 'file'  # 设置播放列表来源为文件
         except Exception as e:
             self.show_error(f"打开文件失败: {str(e)}")
-
+    
+    # 保存播放列表文件
     @pyqtSlot()
-    def save_playlist(self) -> None:
+    def save_playlist(self) -> None: 
         """保存播放列表文件"""
         path, _ = QFileDialog.getSaveFileName(
             self,
@@ -1009,6 +853,7 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.show_error(f"保存文件失败: {str(e)}")
 
+    # 处理关闭事件
     def closeEvent(self, event: QCloseEvent):
         try:
             # 先停止所有异步任务
@@ -1054,6 +899,7 @@ class MainWindow(QtWidgets.QMainWindow):
             logger.error(f"关闭异常: {str(e)}")
             event.ignore()
 
+    #加载用户配置
     def load_config(self) -> None:
         """加载用户配置"""
         try:
@@ -1084,51 +930,59 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             logger.error(f"配置加载失败: {str(e)}")
 
+    # 清理资源
     def _cleanup_resources(self) -> None:
         """清理资源"""
         AsyncWorker.cancel_all()
         if hasattr(self, 'player'):
             self.player.force_stop()
 
+    # 同步保存配置
     def _save_config_sync(self) -> None:
         """同步保存配置"""
         self.config.config['UserPrefs']['window_geometry'] = self.saveGeometry().toHex().data().decode()
         self.config.config['Scanner']['last_range'] = self.ip_range_input.text()
         self.config.save_prefs()
 
+    # 显示错误对话框
     @pyqtSlot(str)
     def show_error(self, msg: str) -> None:
         """显示错误对话框"""
         QMessageBox.critical(self, "操作错误", msg)
 
+    # 更新状态栏
     @pyqtSlot(str)
     def update_status(self, msg: str) -> None:
         """更新状态栏"""
         self.statusBar().showMessage(msg)
 
-    # 信号处理方法
+    # 处理扫描成功结果（信号槽）
     @pyqtSlot(object)
     def handle_scan_success(self, result: Any) -> None:
         elapsed = self.scanner.get_elapsed_time()
         self.statusBar().showMessage(f"扫描完成，耗时 {elapsed:.1f} 秒")
 
+    # # 处理扫描错误（异常信号槽）
     @pyqtSlot(Exception)
     def handle_scan_error(self, error: Exception) -> None:
         self.show_error(f"扫描错误: {str(error)}")
 
+    # 处理扫描取消信号（信号槽）
     @pyqtSlot()
     def handle_scan_cancel(self) -> None:
         self.statusBar().showMessage("扫描已取消")
 
+    # 处理播放成功信号（信号槽） 
     @pyqtSlot(object)
     def handle_play_success(self, result: Any) -> None:
         self.statusBar().showMessage("播放成功")
 
+    # 处理播放错误（异常信号槽）
     @pyqtSlot(Exception)
     def handle_play_error(self, error: Exception) -> None:
         self.show_error(f"播放错误: {str(error)}")
 
-    # 辅助功能
+    # 显示扫描设置对话框
     def show_scan_settings(self) -> None:
         """显示扫描设置对话框"""
         dialog = QtWidgets.QDialog(self)
@@ -1152,12 +1006,14 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog.setLayout(layout)
         dialog.exec()
 
+    # 保存扫描设置
     def save_scan_settings(self, dialog: QtWidgets.QDialog) -> None:
         """保存扫描设置"""
         self.scanner._timeout = self.timeout_input.value()
         dialog.close()
         self.statusBar().showMessage("扫描设置已保存")
 
+    # 管理 EPG 数据源
     def manage_epg(self) -> None:
         """管理 EPG 数据源"""
         dialog = QtWidgets.QDialog(self)
@@ -1188,6 +1044,7 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog.setLayout(layout)
         dialog.exec()
 
+    # 保存 EPG 设置
     def save_epg_settings(self, dialog: QtWidgets.QDialog) -> None:
         """保存 EPG 设置"""
         self.epg_manager.epg_sources['main'] = self.main_source_input.text()
@@ -1197,6 +1054,7 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog.close()
         self.statusBar().showMessage("EPG 设置已保存")
 
+    # 显示全局设置对话框
     def show_settings(self) -> None:
         """显示全局设置对话框"""
         dialog = QtWidgets.QDialog(self)
@@ -1220,17 +1078,19 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog.setLayout(layout)
         dialog.exec()
 
+    # 保存全局设置
     def save_global_settings(self, dialog: QtWidgets.QDialog) -> None:
         """保存全局设置"""
         self.player.hw_accel = self.hw_accel_combo.currentText()
         dialog.close()
         self.statusBar().showMessage("全局设置已保存")
 
+    # 设置音量
     def set_volume(self, volume: int) -> None:
         """设置音量"""
         self.player.set_volume(volume)
 
-
+# 程序入口
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     loop = qasync.QEventLoop(app)
