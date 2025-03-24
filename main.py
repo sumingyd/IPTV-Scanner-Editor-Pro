@@ -457,7 +457,12 @@ class MainWindow(QtWidgets.QMainWindow):
     def update_progress(self, percent: int, msg: str) -> None:
         """更新扫描进度"""
         self.scan_progress.setValue(percent)
-        self.statusBar().showMessage(f"{msg} ({percent}%)")
+        # 如果消息包含耗时信息则直接显示
+        if "耗时" in msg:
+            self.statusBar().showMessage(msg)
+        else:
+            elapsed = self.scanner.get_elapsed_time()
+            self.statusBar().showMessage(f"{msg} ({percent}%) - 已耗时: {elapsed:.1f}秒")
 
     @pyqtSlot(dict)
     def handle_channel_found(self, channel: Dict) -> None:
@@ -484,7 +489,8 @@ class MainWindow(QtWidgets.QMainWindow):
     @pyqtSlot(list)
     def handle_scan_results(self, channels: List[Dict]) -> None:
         """处理最终扫描结果"""
-        self.statusBar().showMessage(f"扫描完成，共发现 {len(channels)} 个有效频道")
+        elapsed = self.scanner.get_elapsed_time()
+        self.statusBar().showMessage(f"扫描完成，共发现 {len(channels)} 个有效频道 - 总耗时: {elapsed:.1f}秒")
 
     @pyqtSlot()
     def on_channel_selected(self) -> None:
@@ -782,7 +788,8 @@ class MainWindow(QtWidgets.QMainWindow):
     # 信号处理方法
     @pyqtSlot(object)
     def handle_scan_success(self, result: Any) -> None:
-        self.statusBar().showMessage("扫描任务完成")
+        elapsed = self.scanner.get_elapsed_time()
+        self.statusBar().showMessage(f"扫描完成，耗时 {elapsed:.1f} 秒")
 
     @pyqtSlot(Exception)
     def handle_scan_error(self, error: Exception) -> None:

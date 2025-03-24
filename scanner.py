@@ -21,6 +21,7 @@ class StreamScanner(QObject):
         self._timeout = 5  # 默认超时时间为 5 秒
         self._thread_count = 10  # 默认线程数为 10
         self._scan_lock = asyncio.Lock()  # 扫描任务锁
+        self._start_time = 0  # 扫描开始时间
 
     def set_timeout(self, timeout: int) -> None:
         """设置超时时间（单位：秒）"""
@@ -39,6 +40,7 @@ class StreamScanner(QObject):
                 return
 
             self._is_scanning = True
+            self._start_time = asyncio.get_event_loop().time()
             try:
                 # 直接返回协程对象而不是任务
                 await self._scan_task(ip_pattern)
@@ -152,7 +154,9 @@ class StreamScanner(QObject):
             
             # 发送最终结果
             if self._is_scanning:
+                elapsed = asyncio.get_event_loop().time() - self._start_time
                 self.scan_finished.emit(valid_channels)
+                self.progress_updated.emit(100, f"扫描完成，耗时 {elapsed:.1f} 秒")
                 
         except Exception as e:
             logger.exception("扫描任务异常终止")
@@ -233,6 +237,12 @@ class StreamScanner(QObject):
             logger.exception(f"流探测异常: {url}")
             return None
             
+
+    def get_elapsed_time(self) -> float:
+        """获取扫描耗时(秒)"""
+        if not hasattr(self, '_start_time'):
+            return 0.0
+        return asyncio.get_event_loop().time() - self._start_time
 
     def stop_scan(self) -> None:
         """增强停止方法"""
