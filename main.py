@@ -372,9 +372,15 @@ class MainWindow(QtWidgets.QMainWindow):
         </p>
         <p>功能特性：</p>
         <ul style="margin-left: 20px;">
-            <li>支持 HTTP/UDP/RTP 协议检测</li>
-            <li>智能 EPG 信息匹配</li>
+            <li>支持 HTTP/UDP/RTP/RTSP 协议检测</li>
+            <li> EPG 信息保存与加载</li>
             <li>多线程高效扫描引擎</li>
+            <li>支持 M3U/M3U8/TXT 播放列表格式</li>
+            <li>编辑频道名匹配EGP频道名功能</li>
+            <li>实时流媒体可用性检测</li>
+            <li>硬件加速视频播放</li>
+            <li>快捷键设置</li>
+            <li>频道分组与批量编辑</li>
         </ul>
         <p>快捷键：</p>
         <ul style="margin-left: 20px;">
