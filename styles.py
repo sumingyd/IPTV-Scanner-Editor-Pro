@@ -1,7 +1,8 @@
 class AppStyles: #应用样式
     """样式定义类"""
+    #按钮样式
     @staticmethod
-    def button_style():  #按钮样式
+    def button_style():  
         """按钮样式"""
         return """
         QPushButton {
@@ -30,8 +31,9 @@ class AppStyles: #应用样式
             color: palette(mid);
         }
         """
+    #列表样式
     @staticmethod
-    def list_style():  #列表样式
+    def list_style():  
         """列表样式"""
         return """
         QTableView {
@@ -77,9 +79,9 @@ class AppStyles: #应用样式
             background: palette(dark);
         }
     """
-
+        #进度条样式
     @staticmethod
-    def progress_style():  #进度条样式
+    def progress_style():  
         """进度条样式"""
         return"""
         QProgressBar {
@@ -97,8 +99,8 @@ class AppStyles: #应用样式
                 stop:0 #4FC3F7, stop:0.5 #29B6F6, stop:1 #039BE5);
             border-radius: 6px;
             border: 1px solid rgba(255,255,255,0.3);
-            width: 12px;
-            margin: 1px;
+            width: 0px;
+            margin: 0px;
         }
         QProgressBar::chunk:hover {
             background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
