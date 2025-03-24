@@ -496,7 +496,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def update_progress(self, percent: int, msg: str) -> None:
         """更新扫描进度"""
         self.scan_progress.setValue(percent)
-        # 强制更新扫描状态信息，确保不会被其他消息覆盖
+        # 直接显示scanner.py传递的详细状态信息
         self.statusBar().showMessage(msg)
         # 标记当前处于扫描状态
         self._last_scan_status = msg
