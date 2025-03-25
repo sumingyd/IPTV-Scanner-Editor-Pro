@@ -1,0 +1,6 @@
+# UTF-8
+VersionInfo(
+  version="1.0.0.0",
+  company_name="sumingyd",
+  file_description="IPTV 扫描编辑工具",
+)

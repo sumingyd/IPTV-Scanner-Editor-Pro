@@ -497,7 +497,7 @@ class MainWindow(QtWidgets.QMainWindow):
             <div style="background-color: {card_bg}; padding: 15px; border-radius: 8px; 
                  margin-bottom: 15px; border: 1px solid {border_color};">
                 <p style="line-height: 1.6; margin: 5px 0;">
-                    <b>版本：</b> 1.0.0
+                    <b>版本：</b> 1.0.0.0
                 </p>
                 <p style="line-height: 1.6; margin: 5px 0;">
                     <b>编译日期：</b> {datetime.date.today().strftime("%Y-%m-%d")}
