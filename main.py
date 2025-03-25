@@ -372,6 +372,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.name_edit = QtWidgets.QLineEdit()
         self.name_edit.setPlaceholderText("输入频道名称...")
+        self.name_edit.returnPressed.connect(self.save_channel_edit)  # 绑定回车键事件
 
         # 修复自动补全功能
         self.epg_completer = QtWidgets.QCompleter()
@@ -792,11 +793,19 @@ class MainWindow(QtWidgets.QMainWindow):
             'group': new_group
         })
         self.model.dataChanged.emit(index, index)
-
+        
         # 自动跳转到下一个频道
-        next_index = index.siblingAtRow(index.row() + 1)
-        if next_index.isValid():
+        next_row = index.row() + 1
+        if next_row < self.model.rowCount():
+            next_index = self.model.index(next_row, 0)
             self.channel_list.setCurrentIndex(next_index)
+            self.on_channel_selected()  # 触发频道选择事件更新编辑框内容
+        else:
+            # 如果是最后一个频道，保持当前选中状态
+            self.channel_list.setCurrentIndex(index)
+        
+        # 保持编辑框焦点
+        self.name_edit.setFocus()
 
     # 异步加载 EPG 缓存
     @pyqtSlot()
