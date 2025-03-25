@@ -84,7 +84,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.playlist_source = None  # 播放列表来源：None/file/scan
         
         # 初始化配置缓存
-        self.cache_file = Path(__file__).parent / ".config_cache"
+        self.cache_file = Path(__file__).parent / ".iptv_manager.ini"
         self.config_cache = {}
         
         # 首次启动清空缓存，非首次读取缓存
@@ -110,7 +110,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._connect_signals()
         self.load_config()
         
-        # 应用缓存配置（必须在_init_ui之后调用）
+            # 应用配置（必须在_init_ui之后调用）
         self.ip_range_input.setText(self.config_cache.get('scan_address', ''))
         self.timeout_input.setValue(self.config_cache.get('timeout', 10))
         self.thread_count_input.setValue(self.config_cache.get('thread_count', 10))
@@ -657,7 +657,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.show_error("请输入有效的频道地址")
             return
             
-        # 更新缓存配置
+        # 更新配置
         self.config_cache.update({
             'scan_address': ip_range,
             'timeout': self.timeout_input.value(),
