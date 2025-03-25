@@ -3,6 +3,7 @@ import asyncio
 import datetime
 import platform
 import sys
+import json
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -82,16 +83,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self.converter = PlaylistConverter(self.epg_manager)
         self.playlist_source = None  # 播放列表来源：None/file/scan
         
-        # 初始化扫描地址缓存
-        self.cache_file = Path(__file__).parent / ".scan_address_cache"
-        if self.cache_file.exists():
-            try:
-                cached_address = self.cache_file.read_text(encoding='utf-8').strip()
-                if cached_address:
-                    self.ip_range_input.setText(cached_address)
-            except Exception:
-                pass
-
+        # 初始化配置缓存
+        self.cache_file = Path(__file__).parent / ".config_cache"
+        self.config_cache = {}
+        
+        # 首次启动清空缓存，非首次读取缓存
+        if not self.cache_file.exists():
+            self.config_cache = {
+                'scan_address': '',
+                'timeout': 10,
+                'thread_count': 10,
+                'epg_main': '',
+                'epg_backups': [],
+                'window_geometry': '',
+                'splitter_sizes': []
+            }
+            self._save_cache()
+        else:
+            self._load_cache()
+            
         # 异步任务跟踪
         self.scan_worker: Optional[AsyncWorker] = None
         self.play_worker: Optional[AsyncWorker] = None
@@ -99,6 +109,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self._init_ui()
         self._connect_signals()
         self.load_config()
+        
+        # 应用缓存配置（必须在_init_ui之后调用）
+        self.ip_range_input.setText(self.config_cache.get('scan_address', ''))
+        self.timeout_input.setValue(self.config_cache.get('timeout', 10))
+        self.thread_count_input.setValue(self.config_cache.get('thread_count', 10))
 
         # 添加防抖定时器
         self.debounce_timer = QtCore.QTimer()
@@ -642,15 +657,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self.show_error("请输入有效的频道地址")
             return
             
-        # 保存当前扫描地址到缓存文件
-        try:
-            self.cache_file.write_text(ip_range, encoding='utf-8')
-            # 设置文件为隐藏属性(仅Windows)
-            if platform.system() == 'Windows':
-                import ctypes
-                ctypes.windll.kernel32.SetFileAttributesW(str(self.cache_file), 2)
-        except Exception as e:
-            logger.error(f"保存扫描地址缓存失败: {str(e)}")
+        # 更新缓存配置
+        self.config_cache.update({
+            'scan_address': ip_range,
+            'timeout': self.timeout_input.value(),
+            'thread_count': self.thread_count_input.value()
+        })
+        self._save_cache()
 
         # 清空现有频道列表
         self.model.channels.clear()
@@ -1161,37 +1174,62 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 主源设置
         main_source_label = QtWidgets.QLabel("主源 URL：")
-        self.main_source_input = QtWidgets.QLineEdit()
-        self.main_source_input.setText(self.epg_manager.epg_sources['main'])
+        main_source_input = QtWidgets.QLineEdit()
+        main_source_input.setText(self.config_cache.get('epg_main', ''))
 
         # 备用源设置
         backup_sources_label = QtWidgets.QLabel("备用源 URL（多个用逗号分隔）：")
-        self.backup_sources_input = QtWidgets.QLineEdit()
-        self.backup_sources_input.setText(','.join(self.epg_manager.epg_sources['backups']))
+        backup_sources_input = QtWidgets.QLineEdit()
+        backup_sources_input.setText(','.join(self.config_cache.get('epg_backups', [])))
 
         # 保存按钮
         save_btn = QtWidgets.QPushButton("保存")
-        save_btn.clicked.connect(lambda: self.save_epg_settings(dialog))
+        def save_epg_settings():
+            self.config_cache.update({
+                'epg_main': main_source_input.text(),
+                'epg_backups': [url.strip() for url in backup_sources_input.text().split(',') if url.strip()]
+            })
+            self._save_cache()
+            dialog.close()
+            self.statusBar().showMessage("EPG 设置已保存")
+        save_btn.clicked.connect(save_epg_settings)
 
         # 添加到布局
         layout.addWidget(main_source_label)
-        layout.addWidget(self.main_source_input)
+        layout.addWidget(main_source_input)
         layout.addWidget(backup_sources_label)
-        layout.addWidget(self.backup_sources_input)
+        layout.addWidget(backup_sources_input)
         layout.addWidget(save_btn)
 
         dialog.setLayout(layout)
         dialog.exec()
 
-    # 保存 EPG 设置
-    def save_epg_settings(self, dialog: QtWidgets.QDialog) -> None:
-        """保存 EPG 设置"""
-        self.epg_manager.epg_sources['main'] = self.main_source_input.text()
-        self.epg_manager.epg_sources['backups'] = [
-            url.strip() for url in self.backup_sources_input.text().split(',') if url.strip()
-        ]
-        dialog.close()
-        self.statusBar().showMessage("EPG 设置已保存")
+    # 加载缓存配置
+    def _load_cache(self) -> None:
+        """加载缓存配置"""
+        try:
+            with open(self.cache_file, 'r', encoding='utf-8') as f:
+                self.config_cache = json.load(f)
+            # 设置文件为隐藏属性(仅Windows)
+            if platform.system() == 'Windows':
+                import ctypes
+                ctypes.windll.kernel32.SetFileAttributesW(str(self.cache_file), 2)
+        except Exception as e:
+            logger.error(f"加载缓存失败: {str(e)}")
+            self.config_cache = {}
+
+    # 保存缓存配置
+    def _save_cache(self) -> None:
+        """保存缓存配置"""
+        try:
+            with open(self.cache_file, 'w', encoding='utf-8') as f:
+                json.dump(self.config_cache, f, ensure_ascii=False, indent=2)
+            # 设置文件为隐藏属性(仅Windows)
+            if platform.system() == 'Windows':
+                import ctypes
+                ctypes.windll.kernel32.SetFileAttributesW(str(self.cache_file), 2)
+        except Exception as e:
+            logger.error(f"保存缓存失败: {str(e)}")
 
     # 显示全局设置对话框
     def show_settings(self) -> None:
