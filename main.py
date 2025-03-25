@@ -81,6 +81,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.playlist_handler = PlaylistHandler()
         self.converter = PlaylistConverter(self.epg_manager)
         self.playlist_source = None  # 播放列表来源：None/file/scan
+        
+        # 初始化扫描地址缓存
+        self.cache_file = Path(__file__).parent / ".scan_address_cache"
+        if self.cache_file.exists():
+            try:
+                cached_address = self.cache_file.read_text(encoding='utf-8').strip()
+                if cached_address:
+                    self.ip_range_input.setText(cached_address)
+            except Exception:
+                pass
 
         # 异步任务跟踪
         self.scan_worker: Optional[AsyncWorker] = None
@@ -631,6 +641,16 @@ class MainWindow(QtWidgets.QMainWindow):
         if not ip_range:
             self.show_error("请输入有效的频道地址")
             return
+            
+        # 保存当前扫描地址到缓存文件
+        try:
+            self.cache_file.write_text(ip_range, encoding='utf-8')
+            # 设置文件为隐藏属性(仅Windows)
+            if platform.system() == 'Windows':
+                import ctypes
+                ctypes.windll.kernel32.SetFileAttributesW(str(self.cache_file), 2)
+        except Exception as e:
+            logger.error(f"保存扫描地址缓存失败: {str(e)}")
 
         # 清空现有频道列表
         self.model.channels.clear()
@@ -794,6 +814,9 @@ class MainWindow(QtWidgets.QMainWindow):
             'group': new_group
         })
         self.model.dataChanged.emit(index, index)
+        
+        # 自动保存配置
+        self._save_config_sync()
         
         # 处理焦点和选择逻辑
         row_count = self.model.rowCount()
