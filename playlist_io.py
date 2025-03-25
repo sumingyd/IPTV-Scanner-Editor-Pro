@@ -168,15 +168,15 @@ class PlaylistHandler:
     def _load_scan_address_cache(self) -> None:
         """加载扫描地址缓存
         功能:
-            1. 检查缓存文件是否存在
+            1. 检查配置文件是否存在
             2. 如果不存在则初始化空值并创建隐藏文件
             3. 如果存在则读取上次扫描地址
         """
         self.scan_address = ''  # 默认空值
         
         try:
-            # 获取缓存文件路径(程序所在目录/.config_cache)
-            cfg_path = Path(__file__).parent / ".config_cache"
+            # 获取配置文件路径(程序所在目录/.iptv_manager.ini)
+            cfg_path = Path(__file__).parent / ".iptv_manager.ini"
             
             # 如果文件不存在则创建空文件并返回
             if not cfg_path.exists():
@@ -207,20 +207,20 @@ class PlaylistHandler:
             self.scan_address = ''
 
     def _save_scan_address_cache(self, address: str) -> None:
-        """保存扫描地址到缓存
+        """保存扫描地址到配置文件
         参数:
             address: 要保存的扫描地址
         功能:
             1. 验证地址有效性
-            2. 更新JSON缓存文件
+            2. 更新JSON配置文件
             3. 设置文件隐藏属性
         """
         if not isinstance(address, str):
             return
             
         try:
-            # 获取缓存文件路径(程序所在目录/.config_cache)
-            cfg_path = Path(__file__).parent / ".config_cache"
+            # 获取配置文件路径(程序所在目录/.iptv_manager.ini)
+            cfg_path = Path(__file__).parent / ".iptv_manager.ini"
             
             # 确保父目录存在
             cfg_path.parent.mkdir(parents=True, exist_ok=True)
