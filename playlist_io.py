@@ -2,6 +2,7 @@ import re
 import sys
 import uuid
 import platform
+import json
 from pathlib import Path
 from typing import List, Dict, Optional
 from urllib.parse import urlparse
@@ -174,36 +175,36 @@ class PlaylistHandler:
         self.scan_address = ''  # 默认空值
         
         try:
-            # 确保配置已初始化
-            if not hasattr(self.config, 'config'):
-                self.config._initialize_config()
-                
-            # 确保Scanner配置节存在
-            if 'Scanner' not in self.config.config:
-                self.config.config['Scanner'] = {}
-                
-            # 获取缓存文件路径(程序所在目录/.iptv_manager.ini)
-            cfg_path = Path.cwd() / '.iptv_manager.ini'
+            # 获取缓存文件路径(程序所在目录/.config_cache)
+            cfg_path = Path(__file__).parent / ".config_cache"
             
-            # 如果文件不存在则创建空文件并设置隐藏属性
+            # 如果文件不存在则创建空文件并返回
             if not cfg_path.exists():
-                try:
-                    cfg_path.touch()
-                    if platform.system() == 'Windows':
-                        import ctypes
-                        ctypes.windll.kernel32.SetFileAttributesW(str(cfg_path), 2)
-                    else:
-                        cfg_path.chmod(0o600)
-                except Exception as e:
-                    logger.debug(f"创建缓存文件失败: {str(e)}")
-                    return
-                    
-            # 读取配置
-            self.config.config.read(cfg_path)
-            self.scan_address = self.config.config['Scanner'].get('last_scan_address', '')
+                # 确保父目录存在
+                cfg_path.parent.mkdir(parents=True, exist_ok=True)
+                # 创建空JSON文件
+                with open(cfg_path, 'w', encoding='utf-8') as f:
+                    json.dump({'scan_address': ''}, f)
+                # 设置文件隐藏属性(仅Windows)
+                if platform.system() == 'Windows':
+                    import ctypes
+                    ctypes.windll.kernel32.SetFileAttributesW(str(cfg_path), 2)
+                return
+                
+            # 读取JSON格式缓存
+            with open(cfg_path, 'r', encoding='utf-8') as f:
+                cache_data = json.load(f)
+                self.scan_address = cache_data.get('scan_address', '')
+                
+            # 设置文件隐藏属性(仅Windows)
+            if platform.system() == 'Windows':
+                import ctypes
+                ctypes.windll.kernel32.SetFileAttributesW(str(cfg_path), 2)
             
         except Exception as e:
             logger.error(f"加载扫描地址缓存失败: {str(e)}")
+            # 确保scan_address为空字符串
+            self.scan_address = ''
 
     def _save_scan_address_cache(self, address: str) -> None:
         """保存扫描地址到缓存
@@ -211,53 +212,47 @@ class PlaylistHandler:
             address: 要保存的扫描地址
         功能:
             1. 验证地址有效性
-            2. 更新内存配置
-            3. 原子性写入到隐藏配置文件
+            2. 更新JSON缓存文件
+            3. 设置文件隐藏属性
         """
-        if not address or not isinstance(address, str):
+        if not isinstance(address, str):
             return
             
         try:
-            # 确保配置已初始化
-            if not hasattr(self.config, 'config'):
-                self.config._initialize_config()
-                
-            # 确保Scanner配置节存在
-            if 'Scanner' not in self.config.config:
-                self.config.config['Scanner'] = {}
-                
-            # 更新内存配置
-            self.config.config['Scanner']['last_scan_address'] = address
+            # 获取缓存文件路径(程序所在目录/.config_cache)
+            cfg_path = Path(__file__).parent / ".config_cache"
             
-            # 获取缓存文件路径(程序所在目录/.iptv_manager.ini)
-            cfg_path = Path.cwd() / '.iptv_manager.ini'
+            # 确保父目录存在
+            cfg_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # 读取现有缓存或创建新缓存
+            cache_data = {'scan_address': address}
+            if cfg_path.exists():
+                try:
+                    with open(cfg_path, 'r', encoding='utf-8') as f:
+                        cache_data = json.load(f)
+                        cache_data['scan_address'] = address
+                except json.JSONDecodeError:
+                    # 如果文件损坏则创建新缓存
+                    cache_data = {'scan_address': address}
             
             # 使用临时文件确保原子性写入
             temp_path = cfg_path.with_suffix('.tmp')
-            try:
-                # 写入临时文件
-                with open(temp_path, 'w', encoding='utf-8') as f:
-                    self.config.config.write(f)
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                json.dump(cache_data, f, ensure_ascii=False, indent=2)
+            
+            # 原子性替换文件
+            if platform.system() == 'Windows':
+                # Windows需要先删除目标文件
+                if cfg_path.exists():
+                    cfg_path.unlink()
+            temp_path.replace(cfg_path)
                 
-                # 设置隐藏属性
-                if platform.system() == 'Windows':
-                    import ctypes
-                    ctypes.windll.kernel32.SetFileAttributesW(str(temp_path), 2)
-                else:
-                    temp_path.chmod(0o600)
-                
-                # 原子性替换
-                if platform.system() == 'Windows':
-                    if cfg_path.exists():
-                        cfg_path.unlink()
-                temp_path.replace(cfg_path)
-                
-            except Exception as e:
-                logger.error(f"临时文件操作失败: {str(e)}")
-                if temp_path.exists():
-                    temp_path.unlink()
-                raise
-                
+            # 设置文件隐藏属性(仅Windows)
+            if platform.system() == 'Windows':
+                import ctypes
+                ctypes.windll.kernel32.SetFileAttributesW(str(cfg_path), 2)
+            
         except Exception as e:
             logger.error(f"保存扫描地址缓存失败: {str(e)}")
 
