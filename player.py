@@ -33,14 +33,30 @@ class VLCInstanceManager:
     
     @classmethod
     def _generate_vlc_args(cls) -> List[str]:
+        """生成VLC启动参数
+        包含隐藏窗口、控制台输出和硬件加速配置
+        """
         args = [
             '--no-video-title-show',
             '--network-caching=3000',
-            '--drop-late-frames',
             '--skip-frames',
-            '--quiet'
+            '--quiet',
+            '--no-xlib',  # Linux/macOS隐藏X11窗口
+            '--no-qt-error-dialogs',  # 隐藏Qt错误对话框
+            '--no-qt-video-autoresize',  # 禁用自动调整大小
+            '--no-embedded-video'  # 防止嵌入式视频弹出
         ]
         
+        # 平台特定参数
+        if platform.system() == 'Windows':
+            args += [
+                '--dshow-vdev=none',  # 隐藏Windows视频设备
+                '--dshow-adev=none',  # 隐藏Windows音频设备
+                '--no-dshow-config',  # 禁用Windows配置对话框
+                '--directx-hw-yuv'
+            ]
+        
+        # 硬件加速配置
         hw_mode = cls._config.config['DEFAULT'].get('hardware_accel', 'auto')
         if hw_mode == 'auto':
             gpu_type, _ = check_gpu_driver()
@@ -53,8 +69,6 @@ class VLCInstanceManager:
         elif hw_mode != 'none':
             args += [f'--avcodec-hw={hw_mode}']
             
-        if platform.system() == 'Windows':
-            args += ['--directx-hw-yuv']
         return args
 
 
@@ -255,7 +269,7 @@ class VLCPlayer(QtWidgets.QWidget):
         finally:
             self.media_player = None
             self._is_active = False
-#############################
+
     def _setup_connections(self):
         """初始化信号连接"""
         try:
@@ -266,34 +280,11 @@ class VLCPlayer(QtWidgets.QWidget):
         except Exception as e:
             pass
 
-    def _generate_hw_args(self, hw_mode: str) -> List[str]:
-        """修正后的参数生成逻辑"""
-        args = [
-            '--no-video-title-show',
-            '--network-caching=3000',
-            '--skip-frames'
-        ]
-        
-        # 硬件加速配置
-        hw_map = {
-            'auto': self._auto_detect_hw,
-            'none': lambda: ['--avcodec-hw=none'],
-            'd3d11va': lambda: ['--avcodec-hw=d3d11va', '--vout=direct3d11'],
-            'vaapi': lambda: ['--avcodec-hw=vaapi', '--vout=vaapi'],
-            'dxva2': lambda: ['--avcodec-hw=dxva2', '--vout=direct3d11']
-        }
-        
-        if hw_mode in hw_map:
-            args += hw_map[hw_mode]()
-        else:
-            args += ['--avcodec-hw=none']
-        
-        return args
     
     def _init_managers(self):
         """初始化管理器（关键！）"""
         VLCInstanceManager.initialize(self.config)
-#############################
+
     def set_volume(self, volume: int) -> None:
         """设置音量 (0-100)"""
         try:
