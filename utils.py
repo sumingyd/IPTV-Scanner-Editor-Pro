@@ -329,7 +329,7 @@ def parse_ip_range(pattern: str) -> List[str]:
     支持格式:
         1. 多个范围: http://192.168.50.1:20231/rtp/239.[1-20].[1-20].[1-20]:5002
         2. 非IP部分的URL: http://150.138.8.143/00/SNM/CHANNEL[00000311-00001000]/index.m3u8
-        3. 混合格式: http://192.168.50.1:20231/rtp/239.21.1.[1-20]:5002
+        3. 混合格式: http://192.168.50.1:20231/rtp/239.21.[1-5].[1-255]:5002
         4. 带步长的范围: http://192.168.50.1:20231/rtp/239.1.[1-20/2].1:5002
     异常:
         ValueError: 当输入格式无效或范围定义错误时抛出
@@ -352,13 +352,28 @@ def parse_ip_range(pattern: str) -> List[str]:
     if not is_valid_pattern(pattern):
         raise ValueError(f"无效的频道地址格式: {pattern}")
 
+    # 特殊处理包含端口号的URL
+    if ':' in pattern and '/' in pattern:
+        # 分割出端口号部分单独处理
+        base_url, port_part = pattern.rsplit(':', 1)
+        port = port_part.split('/')[-1]
+        # 仅当端口号是纯数字时才进行替换
+        if port.isdigit():
+            # 保留原始端口号格式
+            pattern = base_url + ':' + port_part
+    
+    logger.debug(f"解析前的原始模式: {pattern}")
+    
     # 解析每个段
     segments = []
     for seg in pattern.split('/'):
-        if '[' in seg and ']' in seg:
+        # 支持方括号和圆括号两种格式
+        if ('[' in seg and ']' in seg) or ('(' in seg and ')' in seg):
             # 处理范围部分
-            start_idx = seg.find('[')
-            end_idx = seg.find(']')
+            open_char = '[' if '[' in seg else '('
+            close_char = ']' if '[' in seg else ')'
+            start_idx = seg.find(open_char)
+            end_idx = seg.find(close_char)
             prefix = seg[:start_idx]
             suffix = seg[end_idx + 1:]
             range_part = seg[start_idx + 1:end_idx]
@@ -387,13 +402,43 @@ def parse_ip_range(pattern: str) -> List[str]:
                 else:
                     ranges.append(part)
 
-            # 生成所有组合
-            segments.append([prefix + r + suffix for r in ranges])
+            # 生成所有组合(处理嵌套范围)
+            current_segments = []
+            for r in ranges:
+                # 检查当前r是否包含范围表达式
+                if ('[' in r and ']' in r) or ('(' in r and ')' in r):
+                    # 递归处理嵌套范围
+                    nested = parse_ip_range(prefix + r + suffix)
+                    current_segments.extend(nested)
+                else:
+                    # 检查当前r是否包含未解析的范围表达式
+                    if ('[' in r or ']' in r or '(' in r or ')' in r):
+                        # 递归处理不完整的范围表达式
+                        nested = parse_ip_range(prefix + r + suffix)
+                        current_segments.extend(nested)
+                    else:
+                        # 处理IP段中的范围表达式
+                        if '.' in prefix and any(c.isdigit() for c in r):
+                            # 如果是IP段，直接添加数字部分
+                            current_segments.append(prefix + r + suffix)
+                        else:
+                            # 其他情况保持原样
+                            current_segments.append(prefix + r + suffix)
+            segments.append(current_segments)
         else:
             segments.append([seg])
 
     # 使用生成器表达式减少内存使用
-    return ['/'.join(combo) for combo in product(*segments)]
+    urls = []
+    for combo in product(*segments):
+        url = '/'.join(combo)
+        # 处理IP段中的范围表达式
+        if '[' in url or '(' in url:
+            urls.extend(parse_ip_range(url))
+        else:
+            urls.append(url)
+    logger.debug(f"生成的URL示例: {urls[:3]}... (共{len(urls)}个)")
+    return urls
 
 class VlcWarningFilter(logging.Filter):
     def filter(self, record):

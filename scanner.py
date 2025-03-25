@@ -82,7 +82,30 @@ class StreamScanner(QObject):
     async def _scan_task(self, ip_pattern: str) -> None:
         """执行扫描的核心任务"""
         try:
-            urls = parse_ip_range(ip_pattern)
+            try:
+                urls = parse_ip_range(ip_pattern)
+                logger.debug(f"解析后的URL列表: {urls[:5]}... (共{len(urls)}个)")
+                if not urls:
+                    logger.error(f"未生成任何扫描地址: {ip_pattern}")
+                    self.error_occurred.emit("未生成任何扫描地址，请检查输入格式")
+                    return
+                
+                # 验证生成的URL格式
+                invalid_urls = [url for url in urls if not url.startswith(('http://', 'https://'))]
+                if invalid_urls:
+                    logger.error(f"生成无效URL: {invalid_urls[:3]}... (共{len(invalid_urls)}个)")
+                    self.error_occurred.emit(f"生成{len(invalid_urls)}个无效URL，请检查输入格式")
+                    return
+                    
+            except ValueError as e:
+                logger.error(f"地址解析失败: {ip_pattern} - {str(e)}")
+                self.error_occurred.emit(f"地址解析错误: {str(e)}")
+                return
+            except Exception as e:
+                logger.error(f"地址解析异常: {ip_pattern} - {str(e)}")
+                self.error_occurred.emit(f"地址解析异常: {str(e)}")
+                return
+                
             total = len(urls)
             valid_channels = []
             
@@ -106,6 +129,7 @@ class StreamScanner(QObject):
                     url, result = result if isinstance(result, tuple) else (None, result)
                     
                     if url is None:
+                        logger.debug("跳过无效URL")
                         continue
                         
                     self._scanned_count += 1
