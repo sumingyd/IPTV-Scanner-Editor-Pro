@@ -1,6 +1,7 @@
 import re
 import sys
 import uuid
+import platform
 from pathlib import Path
 from typing import List, Dict, Optional
 from urllib.parse import urlparse
@@ -153,12 +154,121 @@ class PlaylistConverter:
 
 class PlaylistHandler:
     def __init__(self):
+        """播放列表处理器
+        功能:
+            1. 初始化配置和解析器
+            2. 加载上次的扫描地址缓存
+        """
         self.config = ConfigHandler()
         self.parser = PlaylistParser()
         self.converter = PlaylistConverter(EPGManager())
+        self._load_scan_address_cache()
+
+    def _load_scan_address_cache(self) -> None:
+        """加载扫描地址缓存
+        功能:
+            1. 检查缓存文件是否存在
+            2. 如果不存在则初始化空值并创建隐藏文件
+            3. 如果存在则读取上次扫描地址
+        """
+        self.scan_address = ''  # 默认空值
+        
+        try:
+            # 确保配置已初始化
+            if not hasattr(self.config, 'config'):
+                self.config._initialize_config()
+                
+            # 确保Scanner配置节存在
+            if 'Scanner' not in self.config.config:
+                self.config.config['Scanner'] = {}
+                
+            # 获取缓存文件路径(程序所在目录/.iptv_manager.ini)
+            cfg_path = Path.cwd() / '.iptv_manager.ini'
+            
+            # 如果文件不存在则创建空文件并设置隐藏属性
+            if not cfg_path.exists():
+                try:
+                    cfg_path.touch()
+                    if platform.system() == 'Windows':
+                        import ctypes
+                        ctypes.windll.kernel32.SetFileAttributesW(str(cfg_path), 2)
+                    else:
+                        cfg_path.chmod(0o600)
+                except Exception as e:
+                    logger.debug(f"创建缓存文件失败: {str(e)}")
+                    return
+                    
+            # 读取配置
+            self.config.config.read(cfg_path)
+            self.scan_address = self.config.config['Scanner'].get('last_scan_address', '')
+            
+        except Exception as e:
+            logger.error(f"加载扫描地址缓存失败: {str(e)}")
+
+    def _save_scan_address_cache(self, address: str) -> None:
+        """保存扫描地址到缓存
+        参数:
+            address: 要保存的扫描地址
+        功能:
+            1. 验证地址有效性
+            2. 更新内存配置
+            3. 原子性写入到隐藏配置文件
+        """
+        if not address or not isinstance(address, str):
+            return
+            
+        try:
+            # 确保配置已初始化
+            if not hasattr(self.config, 'config'):
+                self.config._initialize_config()
+                
+            # 确保Scanner配置节存在
+            if 'Scanner' not in self.config.config:
+                self.config.config['Scanner'] = {}
+                
+            # 更新内存配置
+            self.config.config['Scanner']['last_scan_address'] = address
+            
+            # 获取缓存文件路径(程序所在目录/.iptv_manager.ini)
+            cfg_path = Path.cwd() / '.iptv_manager.ini'
+            
+            # 使用临时文件确保原子性写入
+            temp_path = cfg_path.with_suffix('.tmp')
+            try:
+                # 写入临时文件
+                with open(temp_path, 'w', encoding='utf-8') as f:
+                    self.config.config.write(f)
+                
+                # 设置隐藏属性
+                if platform.system() == 'Windows':
+                    import ctypes
+                    ctypes.windll.kernel32.SetFileAttributesW(str(temp_path), 2)
+                else:
+                    temp_path.chmod(0o600)
+                
+                # 原子性替换
+                if platform.system() == 'Windows':
+                    if cfg_path.exists():
+                        cfg_path.unlink()
+                temp_path.replace(cfg_path)
+                
+            except Exception as e:
+                logger.error(f"临时文件操作失败: {str(e)}")
+                if temp_path.exists():
+                    temp_path.unlink()
+                raise
+                
+        except Exception as e:
+            logger.error(f"保存扫描地址缓存失败: {str(e)}")
 
     def save_playlist(self, channels: List[Dict], path: str) -> bool:
-        """保存播放列表到文件"""
+        """保存播放列表到文件
+        参数:
+            channels: 频道列表
+            path: 保存路径
+        返回:
+            bool: 是否保存成功
+        """
         try:
             # 参数校验
             if not channels or not isinstance(channels, list):
@@ -206,8 +316,30 @@ class PlaylistHandler:
         else:
             raise ValueError(f"不支持的格式: {ext}")
 
+    def update_scan_address(self, address: str) -> None:
+        """更新扫描地址并保存到缓存
+        参数:
+            address: 扫描地址字符串
+        """
+        if not address:
+            return
+        self.scan_address = address
+        self._save_scan_address_cache(address)
+
+    def get_scan_address(self) -> str:
+        """获取缓存的扫描地址
+        返回:
+            str: 上次使用的扫描地址
+        """
+        return self.scan_address
+
     def _format_txt(self, channels: List[Dict]) -> str:
-        """生成增强型TXT格式内容，包含所有支持的参数"""
+        """生成增强型TXT格式内容，包含所有支持的参数
+        参数:
+            channels: 频道列表
+        返回:
+            str: 格式化后的文本内容
+        """
         lines = []
         current_group = None
         
