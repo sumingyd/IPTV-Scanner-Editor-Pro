@@ -70,7 +70,6 @@ class StreamScanner(QObject):
             
             # 创建线程池，大小与并发数一致
             self._executor = ThreadPoolExecutor(max_workers=self._thread_count)
-            logger.info(f"创建线程池，线程数: {self._thread_count}")
             
             async def probe_url(url: str) -> tuple[str, Optional[Dict]]:
                 try:
@@ -86,12 +85,9 @@ class StreamScanner(QObject):
             for future in asyncio.as_completed(tasks):
                 try:
                     result = await future
-                    # 由于as_completed返回的future可能不是原始对象，无法使用index查找
-                    # 改为在任务内部返回URL和结果
                     url, result = result if isinstance(result, tuple) else (None, result)
                     
                     if url is None:
-                        logger.warning("无法获取URL关联")
                         continue
                         
                     self._scanned_count += 1
@@ -126,7 +122,7 @@ class StreamScanner(QObject):
                     status_msg = " | ".join(filter(None, status_parts))
                     self.progress_updated.emit(progress, status_msg)
                     
-                except Exception as e:
+                except Exception:
                     pass
             
             # 等待所有任务完成
@@ -138,7 +134,6 @@ class StreamScanner(QObject):
                 self.progress_updated.emit(100, f"扫描完成，耗时 {elapsed:.1f} 秒")
                 
         except Exception as e:
-            logger.exception("扫描任务异常终止")
             self.error_occurred.emit(f"扫描错误: {str(e)}")
             raise
         finally:
@@ -148,25 +143,17 @@ class StreamScanner(QObject):
         """探测单个流媒体信息"""
         try:
             loop = asyncio.get_running_loop()
-        except Exception as e:
-            logger.error(f"获取事件循环失败: {str(e)}")
+        except Exception:
             return None
             
         try:
-            # 添加详细日志记录
-            logger.debug(f"开始探测流: {url}")
             result = await loop.run_in_executor(
-                self._executor,  # 使用配置的线程池
+                self._executor,
                 self._run_ffprobe, 
                 url
             )
-            if result:
-                logger.debug(f"成功探测到流: {url} - {result}")
-            else:
-                logger.debug(f"未探测到有效流: {url}")
             return result
-        except Exception as e:
-            logger.error(f"探测流异常: {url} - {str(e)}")
+        except Exception:
             return None
         finally:
             await asyncio.sleep(0)
@@ -192,35 +179,21 @@ class StreamScanner(QObject):
             )
             
             if result.returncode != 0:
-                err_msg = result.stderr.decode().strip()
-                logger.error(f"流探测失败: {url} - {err_msg}")
                 return None
                 
             output = result.stdout.decode().strip()
             lines = [line for line in output.splitlines() if line.strip()]
-            if not lines:
-                logger.warning(f"ffprobe 输出为空: {url}")
+            if not lines or len(lines[0].split(',')) < 3:
                 return None
                 
             video_info = lines[0].split(',')
-            if len(video_info) < 3:
-                logger.warning(f"ffprobe 输出格式错误: {video_info}")
-                return None
-                
             return {
                 'codec': video_info[0],
                 'width': int(video_info[1]),
                 'height': int(video_info[2])
             }
             
-        except subprocess.TimeoutExpired:
-            logger.warning(f"流探测超时: {url}")
-            return None
-        except subprocess.CalledProcessError as e:
-            logger.error(f"ffprobe执行错误: {str(e)}")
-            return None
-        except Exception as e:
-            logger.exception(f"流探测异常: {url}")
+        except Exception:
             return None
 
     def stop_scan(self) -> None:
@@ -232,18 +205,16 @@ class StreamScanner(QObject):
         
         # 关闭线程池
         if self._executor:
-            self._executor.shutdown(wait=False)
+            self._executor.shutdown(wait=False, cancel_futures=True)
             self._executor = None
             
         if hasattr(self, 'valid_channels'):
             self.valid_channels.clear()
             
-        self._is_scanning = False
-        
         try:
             if self._scan_lock.locked():
                 self._scan_lock.release()
         except RuntimeError:
-            pass  # 忽略锁未被获取的错误
+            pass
             
         self.progress_updated.emit(0, "已停止")

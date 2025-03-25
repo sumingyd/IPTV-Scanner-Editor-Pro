@@ -788,24 +788,38 @@ class MainWindow(QtWidgets.QMainWindow):
             self.show_error("频道名称不能为空")
             return
 
+        # 立即更新模型数据
         self.model.channels[index.row()].update({
             'name': new_name,
             'group': new_group
         })
         self.model.dataChanged.emit(index, index)
         
-        # 自动跳转到下一个频道
-        next_row = index.row() + 1
-        if next_row < self.model.rowCount():
-            next_index = self.model.index(next_row, 0)
-            self.channel_list.setCurrentIndex(next_index)
-            self.on_channel_selected()  # 触发频道选择事件更新编辑框内容
+        # 处理焦点和选择逻辑
+        row_count = self.model.rowCount()
+        if row_count > 1:
+            # 多个频道时跳转到下一个
+            next_row = index.row() + 1
+            if next_row < row_count:
+                next_index = self.model.index(next_row, 0)
+                self.channel_list.setCurrentIndex(next_index)
+            else:
+                # 如果是最后一个频道，回到第一个
+                next_index = self.model.index(0, 0)
+                self.channel_list.setCurrentIndex(next_index)
+            
+            # 触发选中事件并确保编辑框获得焦点
+            self.on_channel_selected()
         else:
-            # 如果是最后一个频道，保持当前选中状态
+            # 单个频道时保持当前选中状态
             self.channel_list.setCurrentIndex(index)
         
-        # 保持编辑框焦点
+        # 自动选中编辑框中的文本
+        self.name_edit.selectAll()
+        # 确保焦点在编辑框
         self.name_edit.setFocus()
+        # 强制立即处理事件队列
+        QtWidgets.QApplication.processEvents()
 
     # 异步加载 EPG 缓存
     @pyqtSlot()
