@@ -1,6 +1,7 @@
 import asyncio
 import subprocess
 from typing import List, Dict, Optional
+from concurrent.futures import ThreadPoolExecutor
 from PyQt6 import QtWidgets
 from PyQt6.QtCore import QObject, pyqtSignal
 from utils import setup_logger
@@ -23,6 +24,8 @@ class StreamScanner(QObject):
         self._scan_lock = asyncio.Lock()  # 扫描任务锁
         self._start_time = 0  # 扫描开始时间
         self._scanned_count = 0  # 已扫描IP计数器
+        # 创建固定大小的线程池
+        self._executor = None
 
     def set_timeout(self, timeout: int) -> None:
         """设置超时时间（单位：秒）"""
@@ -65,102 +68,69 @@ class StreamScanner(QObject):
             total = len(urls)
             valid_channels = []
             
-            semaphore = asyncio.Semaphore(self._thread_count)
+            # 创建线程池，大小与并发数一致
+            self._executor = ThreadPoolExecutor(max_workers=self._thread_count)
+            logger.info(f"创建线程池，线程数: {self._thread_count}")
             
-            async def probe_with_semaphore(url: str) -> Optional[Dict]:
-                async with semaphore:
-                    await asyncio.sleep(0)
+            async def probe_url(url: str) -> tuple[str, Optional[Dict]]:
+                try:
                     result = await self._probe_stream(url)
+                    return (url, result)
+                finally:
                     await asyncio.get_event_loop().run_in_executor(None, QtWidgets.QApplication.processEvents)
-                    return result
             
-            completed = 0
-            async def process_result(url: str, result: Optional[Dict]):
-                nonlocal completed, valid_channels
-                self._scanned_count += 1  # 更新已扫描计数
-                
-                if result is not None:
-                    channel_name = f"频道 {completed + 1}"
-                    channel_info = {
-                        'name': channel_name,
-                        'url': url,
-                        'width': result['width'],
-                        'height': result['height'],
-                        'codec': result['codec'],
-                        'resolution': f"{result['width']}x{result['height']}"
-                    }
-                    valid_channels.append(channel_info)
+            # 创建所有探测任务
+            tasks = [asyncio.create_task(probe_url(url)) for url in urls]
+            
+            # 使用asyncio.as_completed处理结果
+            for future in asyncio.as_completed(tasks):
+                try:
+                    result = await future
+                    # 由于as_completed返回的future可能不是原始对象，无法使用index查找
+                    # 改为在任务内部返回URL和结果
+                    url, result = result if isinstance(result, tuple) else (None, result)
                     
-                    await asyncio.sleep(0)
-                    self.channel_found.emit(channel_info)
-                    await asyncio.sleep(0)
-                    QtWidgets.QApplication.processEvents()
-                
-                completed += 1
-                progress = int((completed / total) * 100)
-                
-                # 计算扫描速度(IP/秒)
-                elapsed = self.get_elapsed_time()
-                scan_speed = completed / elapsed if elapsed > 0 else 0
-                
-                # 计算剩余时间(秒)
-                remaining = (total - completed) / scan_speed if scan_speed > 0 else 0
-                
-                # 构建详细状态信息
-                current_ip = url.split('/')[-1].split(':')[0] if url else ""
-                status_parts = [
-                    f"进度: {completed}/{total} ({progress}%)", 
-                    f"速度: {scan_speed:.1f} IP/s",
-                    f"剩余: {int(remaining)}s",
-                    f"当前: {current_ip}",
-                    f"有效: {len(valid_channels)}"
-                ]
-                status_msg = " | ".join(filter(None, status_parts))
-                
-                self.progress_updated.emit(progress, status_msg)
-                await asyncio.sleep(0)
-                QtWidgets.QApplication.processEvents()
-
-            url_queue = asyncio.Queue()
-            for url in urls:
-                url_queue.put_nowait(url)
-
-            worker_lock = asyncio.Lock()
-
-            async def worker():
-                while self._is_scanning:
-                    async with worker_lock:
-                        try:
-                            try:
-                                url = await asyncio.wait_for(url_queue.get(), timeout=0.1)
-                            except asyncio.TimeoutError:
-                                continue
-                                
-                            try:
-                                result = await probe_with_semaphore(url)
-                                await process_result(url, result)
-                            finally:
-                                url_queue.task_done()
-                        except asyncio.CancelledError:
-                            break
-                        except Exception as e:
-                            logger.error(f"Worker error: {str(e)}")
-                            break
-
-            self._workers = []
-            for _ in range(self._thread_count):
-                worker_task = asyncio.create_task(worker())
-                self._workers.append(worker_task)
-                if not self._is_scanning:
-                    break
+                    if url is None:
+                        logger.warning("无法获取URL关联")
+                        continue
+                        
+                    self._scanned_count += 1
+                    
+                    if result is not None:
+                        channel_name = f"频道 {len(valid_channels) + 1}"
+                        channel_info = {
+                            'name': channel_name,
+                            'url': url,
+                            'width': result['width'],
+                            'height': result['height'],
+                            'codec': result['codec'],
+                            'resolution': f"{result['width']}x{result['height']}"
+                        }
+                        valid_channels.append(channel_info)
+                        self.channel_found.emit(channel_info)
+                    
+                    # 更新进度
+                    progress = int((self._scanned_count / total) * 100)
+                    elapsed = self.get_elapsed_time()
+                    scan_speed = self._scanned_count / elapsed if elapsed > 0 else 0
+                    remaining = (total - self._scanned_count) / scan_speed if scan_speed > 0 else 0
+                    
+                    current_ip = url.split('/')[-1].split(':')[0] if url else ""
+                    status_parts = [
+                        f"进度: {self._scanned_count}/{total} ({progress}%)", 
+                        f"速度: {scan_speed:.1f} IP/s",
+                        f"剩余: {int(remaining)}s",
+                        f"当前: {current_ip}",
+                        f"有效: {len(valid_channels)}"
+                    ]
+                    status_msg = " | ".join(filter(None, status_parts))
+                    self.progress_updated.emit(progress, status_msg)
+                    
+                except Exception as e:
+                    pass
             
-            try:
-                await url_queue.join()
-            finally:
-                for w in self._workers:
-                    if not w.done():
-                        w.cancel()
-                await asyncio.gather(*self._workers, return_exceptions=True)
+            # 等待所有任务完成
+            await asyncio.gather(*tasks, return_exceptions=True)
             
             if self._is_scanning:
                 elapsed = asyncio.get_event_loop().time() - self._start_time
@@ -183,7 +153,21 @@ class StreamScanner(QObject):
             return None
             
         try:
-            return await loop.run_in_executor(None, self._run_ffprobe, url)
+            # 添加详细日志记录
+            logger.debug(f"开始探测流: {url}")
+            result = await loop.run_in_executor(
+                self._executor,  # 使用配置的线程池
+                self._run_ffprobe, 
+                url
+            )
+            if result:
+                logger.debug(f"成功探测到流: {url} - {result}")
+            else:
+                logger.debug(f"未探测到有效流: {url}")
+            return result
+        except Exception as e:
+            logger.error(f"探测流异常: {url} - {str(e)}")
+            return None
         finally:
             await asyncio.sleep(0)
             
@@ -246,26 +230,14 @@ class StreamScanner(QObject):
             
         self._is_scanning = False
         
-        if hasattr(self, '_url_queue'):
-            while not self._url_queue.empty():
-                try:
-                    self._url_queue.get_nowait()
-                    self._url_queue.task_done()
-                except:
-                    break
-                    
-        if hasattr(self, '_workers'):
-            for worker in self._workers:
-                if not worker.done():
-                    worker.cancel()
-            self._workers.clear()
+        # 关闭线程池
+        if self._executor:
+            self._executor.shutdown(wait=False)
+            self._executor = None
             
         if hasattr(self, 'valid_channels'):
             self.valid_channels.clear()
             
-        self._url_queue = asyncio.Queue()
-        self._workers = []
-        self._semaphore = asyncio.Semaphore(self._thread_count)
         self._is_scanning = False
         
         try:
