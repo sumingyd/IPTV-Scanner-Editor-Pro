@@ -287,10 +287,13 @@ class StreamScanner(QObject):
         if hasattr(self, 'valid_channels'):
             self.valid_channels.clear()
             
-        try:
-            if self._scan_lock.locked():
-                self._scan_lock.release()
-        except RuntimeError:
-            pass
+        # 安全释放锁
+        if self._scan_lock.locked():
+            try:
+                # 只有锁的持有者才能释放
+                if self._scan_lock._owner == asyncio.current_task():
+                    self._scan_lock.release()
+            except (RuntimeError, AttributeError):
+                pass
             
         self.progress_updated.emit(0, "已停止")
