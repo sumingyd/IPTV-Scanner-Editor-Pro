@@ -111,7 +111,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # 初始化用户界面
     def _init_ui(self) -> None:
         """初始化用户界面"""
-        self.setWindowTitle("IPTV管理工具")
+        self.setWindowTitle("IPTV Scanner Editor Pro / IPTV 专业扫描编辑工具")
         self.resize(1200, 800)
         
         # 使用系统调色板适应深色/浅色模式
@@ -491,13 +491,13 @@ class MainWindow(QtWidgets.QMainWindow):
         about_text = f'''
         <div style="font-family: 'Microsoft YaHei', sans-serif; color: {text_color};">
             <h1 style="color: {accent_color}; text-align: center; margin-bottom: 15px; font-size: 18px;">
-                IPTV 专业扫描器
+                IPTV Scanner Editor Pro / IPTV 专业扫描编辑工具
             </h1>
             
             <div style="background-color: {card_bg}; padding: 15px; border-radius: 8px; 
                  margin-bottom: 15px; border: 1px solid {border_color};">
                 <p style="line-height: 1.6; margin: 5px 0;">
-                    <b>版本：</b> 2.1.0
+                    <b>版本：</b> 1.0.0
                 </p>
                 <p style="line-height: 1.6; margin: 5px 0;">
                     <b>编译日期：</b> {datetime.date.today().strftime("%Y-%m-%d")}

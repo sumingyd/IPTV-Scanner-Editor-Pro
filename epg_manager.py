@@ -25,7 +25,7 @@ class EPGManager:
             'main': self.config.config.get(
                 'EPG', 
                 'main_url',
-                fallback='https://epg.pw/xmltv/epg_CN.xml'
+                fallback='epg xml地址'
             ),
             'backups': [
                 url.strip() for url in 
@@ -33,8 +33,7 @@ class EPGManager:
                     'EPG',
                     'backup_urls',
                     fallback=','.join([
-                        'https://example.com/backup1.xml',
-                        'https://example.com/backup2.xml'
+                        'epg xml地址'
                     ])
                 ).split(',')
                 if url.strip()
