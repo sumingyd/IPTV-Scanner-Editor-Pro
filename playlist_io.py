@@ -1,4 +1,5 @@
 import re
+import sys
 import uuid
 from pathlib import Path
 from typing import List, Dict, Optional
@@ -164,7 +165,15 @@ class PlaylistHandler:
                 logger.error("无效的频道列表")
                 return False
                 
-            path = Path(path).resolve()
+            # 处理打包环境下的路径问题
+            if getattr(sys, 'frozen', False):
+                # 打包成exe后的处理
+                path = Path(path).absolute()
+            else:
+                # 正常Python环境处理
+                path = Path(path).resolve()
+                
+            # 确保目录存在
             path.parent.mkdir(parents=True, exist_ok=True)
             
             # 生成内容
@@ -198,7 +207,7 @@ class PlaylistHandler:
             raise ValueError(f"不支持的格式: {ext}")
 
     def _format_txt(self, channels: List[Dict]) -> str:
-        """生成TXT格式内容"""
+        """生成增强型TXT格式内容，包含所有支持的参数"""
         lines = []
         current_group = None
         
@@ -210,10 +219,19 @@ class PlaylistHandler:
                 current_group = group
                 lines.append(f"#group={current_group}")
             
+            # 获取EPG信息
+            epg_info = self.converter._get_epg_info(chan['name'])
+            
+            # 构建完整参数行
             line = (
                 f"{chan['name']} "
                 f"[{chan.get('width', 0)}x{chan.get('height', 0)}],"
-                f"{chan['url']}"
+                f"{chan['url']} "
+                f"#id={epg_info['id']} "
+                f"#logo={epg_info.get('logo', '')} "
+                f"#tvg-name={chan['name']} "
+                f"#tvg-id={epg_info['id']} "
+                f"#group-title={group}"
             )
             lines.append(line)
         
