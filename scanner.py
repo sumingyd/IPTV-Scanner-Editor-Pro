@@ -7,6 +7,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from utils import setup_logger
 from qasync import asyncSlot
 from utils import parse_ip_range
+from playlist_io import PlaylistHandler
 
 logger = setup_logger('Scanner')
 
@@ -17,11 +18,18 @@ class StreamScanner(QObject):
     error_occurred = pyqtSignal(str)           # 错误信息
 
     def __init__(self):
+        """流媒体扫描器
+        功能:
+            1. 初始化扫描参数
+            2. 加载播放列表处理器
+            3. 初始化扫描状态
+        """
         super().__init__()
         self._is_scanning = False
         self._timeout = 5  # 默认超时时间为 5 秒
         self._thread_count = 10  # 默认线程数为 10
         self._scan_lock = asyncio.Lock()  # 扫描任务锁
+        self.playlist = PlaylistHandler()  # 播放列表处理器
         self._start_time = 0  # 扫描开始时间
         self._scanned_count = 0  # 已扫描IP计数器
         # 创建固定大小的线程池
@@ -47,7 +55,17 @@ class StreamScanner(QObject):
 
     @asyncSlot()
     async def start_scan(self, ip_pattern: str) -> None:
-        """正确的异步任务启动方式"""
+        """启动扫描任务
+        参数:
+            ip_pattern: IP地址模式字符串
+        功能:
+            1. 检查是否有正在进行的扫描
+            2. 初始化扫描状态
+            3. 保存扫描地址到缓存
+            4. 开始扫描任务
+        """
+        # 保存扫描地址到缓存
+        self.playlist.update_scan_address(ip_pattern)
         async with self._scan_lock:
             if self._is_scanning:
                 self.error_occurred.emit("已有扫描任务正在进行")
@@ -159,11 +177,23 @@ class StreamScanner(QObject):
             await asyncio.sleep(0)
             
     def _run_ffprobe(self, url: str) -> Optional[Dict]:
-        """执行ffprobe命令的同步方法"""
+        """执行ffprobe命令的同步方法
+        参数:
+            url: 要探测的流媒体URL
+        返回:
+            包含视频信息的字典(codec,width,height)或None
+        功能:
+            1. 使用CREATE_NO_WINDOW标志避免弹出窗口
+            2. 严格的错误处理和日志记录
+            3. 优化超时处理
+        """
         try:
+            # 构建ffprobe命令
             cmd = [
                 'ffprobe',
-                '-v', 'error',
+                '-v', 'quiet',  # 更安静的日志级别
+                '-hide_banner',  # 隐藏banner信息
+                '-loglevel', 'fatal',  # 只显示致命错误
                 '-select_streams', 'v:0',
                 '-show_entries', 'stream=codec_name,width,height',
                 '-of', 'csv=p=0',
@@ -171,21 +201,32 @@ class StreamScanner(QObject):
                 url
             ]
             
+            # 执行命令
             result = subprocess.run(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=self._timeout
+                stdin=subprocess.DEVNULL,
+                timeout=self._timeout,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                shell=False,
+                check=False,
+                start_new_session=True
             )
             
+            # 处理结果
             if result.returncode != 0:
+                logger.debug(f"ffprobe失败: {url} - 返回码:{result.returncode}")
                 return None
                 
-            output = result.stdout.decode().strip()
+            # 解析输出
+            output = result.stdout.decode('utf-8', errors='ignore').strip()
             lines = [line for line in output.splitlines() if line.strip()]
             if not lines or len(lines[0].split(',')) < 3:
+                logger.debug(f"ffprobe输出格式错误: {url} - 输出:{output}")
                 return None
                 
+            # 提取视频信息
             video_info = lines[0].split(',')
             return {
                 'codec': video_info[0],
@@ -193,11 +234,22 @@ class StreamScanner(QObject):
                 'height': int(video_info[2])
             }
             
-        except Exception:
+        except subprocess.TimeoutExpired:
+            logger.debug(f"ffprobe超时: {url}")
+            return None
+        except Exception as e:
+            logger.debug(f"ffprobe异常: {url} - {str(e)}")
             return None
 
     def stop_scan(self) -> None:
-        """增强停止方法"""
+        """增强停止方法
+        功能:
+            1. 停止扫描任务
+            2. 清理资源
+            3. 更新UI状态
+        注意:
+            所有子进程操作都确保使用CREATE_NO_WINDOW标志
+        """
         if not self._is_scanning:
             return
             
