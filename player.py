@@ -207,6 +207,7 @@ class VLCPlayer(QtWidgets.QWidget):
                     
                 logger.debug("stop: 正在异步停止播放...")
                 await asyncio.wait_for(self._run_release_sync(), timeout=5.0)
+                self._is_active = False
                 self.state_changed.emit("播放已停止")
             except asyncio.TimeoutError:
                 logger.warning("stop: 异步释放超时，强制停止")
@@ -236,7 +237,7 @@ class VLCPlayer(QtWidgets.QWidget):
                 
             try:
                 # 使用AsyncWorker管理同步释放任务
-                worker = AsyncWorker(self._run_release_sync())
+                worker = AsyncWorker(self._release_sync)
                 worker.finished.connect(lambda: self.state_changed.emit("播放已停止"))
                 worker.error.connect(lambda e: logger.error(f"异步释放失败: {str(e)}"))
                 worker.start()
@@ -327,8 +328,11 @@ class VLCPlayer(QtWidgets.QWidget):
             try:
                 if self.media_player:
                     # 先停止播放
-                    self.media_player.stop()
-                    
+                    try:
+                        self.media_player.stop()
+                    except Exception as e:
+                        logger.debug(f"停止播放失败(尝试 {attempt+1}): {str(e)}")
+
                     # 释放媒体资源
                     media = self.media_player.get_media()
                     if media:
