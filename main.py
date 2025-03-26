@@ -366,7 +366,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.pause_btn.clicked.connect(self.player.toggle_pause)
         self.stop_btn = QtWidgets.QPushButton("停止")
         self.stop_btn.setStyleSheet(AppStyles.button_style())
-        self.stop_btn.clicked.connect(self.player.stop)
+        self.stop_btn.clicked.connect(self.stop_play)
 
         control_layout.addWidget(self.pause_btn)
         control_layout.addWidget(self.stop_btn)
@@ -796,14 +796,20 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.show_error(f"播放失败: {str(e)}")
 
-    # 统一调用播放器的停止方法
-    def stop_play(self): 
-        """统一调用播放器的停止方法"""
+    # 安全停止包装器
+    async def safe_stop(self) -> None:
+        """安全停止包装器"""
         try:
             if hasattr(self, 'player') and self.player:
-                self.player.stop()
+                await self.player.stop()
         except Exception as e:
             self.show_error(f"停止失败: {str(e)}")
+
+    # 统一调用播放器的停止方法
+    @qasync.asyncSlot()
+    async def stop_play(self): 
+        """统一调用播放器的停止方法"""
+        await self.safe_stop()
 
     # 保存频道编辑
     @pyqtSlot()
