@@ -82,7 +82,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.playlist_handler = PlaylistHandler()
         self.converter = PlaylistConverter(self.epg_manager)
         self.playlist_source = None  # 播放列表来源：None/file/scan
-        
+        # +++ 新增智能匹配相关变量 +++
+        self.old_playlist = None  # 存储旧列表数据 {url: channel_info}
+        self.match_worker = None  # 异步任务对象
         # 初始化配置缓存
         self.cache_file = Path(__file__).parent / ".iptv_manager.ini"
         self.config_cache = {}
@@ -161,10 +163,35 @@ class MainWindow(QtWidgets.QMainWindow):
         self._setup_scan_panel(self.left_splitter)
         self._setup_channel_list(self.left_splitter)
 
-        # 右侧面板
+        # 右侧面板布局（关键修正）
         self.right_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
+        self.right_splitter.setHandleWidth(10)  # 显式设置分割线宽度
+        
+        # 播放器区域（必须作为第一个直接子部件）
         self._setup_player_panel(self.right_splitter)
-        self._setup_edit_panel(self.right_splitter)
+        
+        # 底部容器（包含编辑区和功能区）
+        bottom_container = QtWidgets.QWidget()
+        bottom_container.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding
+        )
+        
+        bottom_layout = QtWidgets.QHBoxLayout(bottom_container)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # 水平分割器
+        h_splitter = QtWidgets.QSplitter(Qt.Orientation.Horizontal)
+        self._setup_edit_panel(h_splitter)
+        self._setup_match_panel(h_splitter)
+        bottom_layout.addWidget(h_splitter)
+        
+        # 添加到垂直分割器
+        self.right_splitter.addWidget(bottom_container)
+        
+        # 设置初始比例（7:3）
+        self.right_splitter.setSizes([700, 300])
+
 
         # 添加分隔线样式
         self._setup_splitter_handle(self.left_splitter)
@@ -354,10 +381,17 @@ class MainWindow(QtWidgets.QMainWindow):
     def _setup_player_panel(self, parent: QtWidgets.QSplitter) -> None:  
         """配置播放器面板"""
         player_group = QtWidgets.QGroupBox("视频播放")
+        # 关键修改1：设置正确的尺寸策略
+        player_group.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding  # 必须为Expanding
+        )
+        
         player_layout = QtWidgets.QVBoxLayout()
-
-        # 播放器控件
-        player_layout.addWidget(self.player)
+        player_layout.setContentsMargins(2, 2, 2, 2)
+        
+        # 关键修改2：添加伸缩空间
+        player_layout.addWidget(self.player, stretch=10)  # 播放器占主要空间
 
         # 控制按钮
         control_layout = QtWidgets.QHBoxLayout()
@@ -371,7 +405,7 @@ class MainWindow(QtWidgets.QMainWindow):
         control_layout.addWidget(self.pause_btn)
         control_layout.addWidget(self.stop_btn)
 
-        player_layout.addLayout(control_layout)
+        player_layout.addLayout(control_layout, stretch=1)  # 控制区占较小空间
 
         # 音量控制
         volume_layout = QtWidgets.QHBoxLayout()
@@ -384,20 +418,56 @@ class MainWindow(QtWidgets.QMainWindow):
         volume_layout.addWidget(QtWidgets.QLabel("音量："))
         volume_layout.addWidget(self.volume_slider)
 
-        player_layout.addLayout(volume_layout)
+        player_layout.addLayout(volume_layout, stretch=1)  # 音量控制占较小空间
 
         player_group.setLayout(player_layout)
-        parent.addWidget(player_group)
+        
+        # 关键修改3：确保直接添加到QSplitter
+        if isinstance(parent, QtWidgets.QSplitter):
+            parent.addWidget(player_group)
+        else:
+            layout = parent.layout() or QtWidgets.QVBoxLayout(parent)
+            layout.addWidget(player_group)
 
     # 配置编辑面板
     def _setup_edit_panel(self, parent: QtWidgets.QSplitter) -> None:  
         """配置编辑面板"""
         edit_group = QtWidgets.QGroupBox("频道编辑")
         edit_layout = QtWidgets.QFormLayout()
+        edit_layout.setRowWrapPolicy(QtWidgets.QFormLayout.RowWrapPolicy.WrapAllRows)  # 允许换行
 
+        # 增加控件间距
+        edit_layout.setVerticalSpacing(1)
+        edit_layout.setHorizontalSpacing(1)
+        edit_layout.setContentsMargins(10, 15, 10, 15)  # 增加内边距
+
+        # 频道名称输入（加大高度）
         self.name_edit = QtWidgets.QLineEdit()
+        self.name_edit.setMinimumHeight(32)  # 增加输入框高度
         self.name_edit.setPlaceholderText("输入频道名称...")
         self.name_edit.returnPressed.connect(self.save_channel_edit)  # 绑定回车键事件
+
+        # 分组选择（增加下拉框高度）
+        self.group_combo = QtWidgets.QComboBox()
+        self.group_combo.setMinimumHeight(32)
+        self.group_combo.addItems(["未分类", "央视", "卫视", "本地", "高清频道", "测试频道"])
+
+        # EPG匹配状态显示（新增）
+        self.epg_match_label = QtWidgets.QLabel("EPG状态: 未匹配")
+        self.epg_match_label.setStyleSheet("font-weight: bold;")
+        
+        # 保存按钮（加大尺寸）
+        save_btn = QtWidgets.QPushButton("保存修改")
+        save_btn.setMinimumHeight(36)  # 增加按钮高度
+        save_btn.setStyleSheet(AppStyles.button_style())
+        save_btn.clicked.connect(self.save_channel_edit)
+
+        # 布局调整
+        edit_layout.addRow("频道名称：", self.name_edit)
+        edit_layout.addRow("分组分类：", self.group_combo)
+        edit_layout.addRow(self.epg_match_label)  # 新增状态显示
+        edit_layout.addRow(QtWidgets.QLabel())  # 空行占位
+        edit_layout.addRow(save_btn)
 
         # 修复自动补全功能
         self.epg_completer = QtWidgets.QCompleter()
@@ -409,17 +479,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 绑定文本变化事件
         self.name_edit.textChanged.connect(self.on_text_changed)
-
-        self.group_combo = QtWidgets.QComboBox()
-        self.group_combo.addItems(["未分类", "央视", "卫视", "本地", "高清频道", "测试频道"])
-
-        edit_layout.addRow("频道名称：", self.name_edit)
-        edit_layout.addRow("分组分类：", self.group_combo)
-
-        save_btn = QtWidgets.QPushButton("保存修改")
-        save_btn.setStyleSheet(AppStyles.button_style())
-        save_btn.clicked.connect(self.save_channel_edit)
-        edit_layout.addRow(save_btn)
 
         edit_group.setLayout(edit_layout)
         parent.addWidget(edit_group)
@@ -625,6 +684,60 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(button_box)
         
         dialog.exec()
+
+    # 配置智能匹配功能区
+    def _setup_match_panel(self, parent_layout):
+        """添加智能匹配功能区（右侧新增区域）"""
+        match_group = QtWidgets.QGroupBox("智能匹配")
+        layout = QtWidgets.QVBoxLayout()
+        
+        # 1. 操作按钮
+        self.btn_load_old = QtWidgets.QPushButton("加载旧列表")  # 改为成员变量
+        self.btn_load_old.setStyleSheet(AppStyles.button_style())
+
+        self.btn_match = QtWidgets.QPushButton("执行自动匹配")  # 改为成员变量
+        self.btn_match.setStyleSheet(AppStyles.button_style())
+        self.btn_match.setEnabled(False)  # 现在可以正确访问
+
+        # 2. 状态显示
+        self.match_status = QtWidgets.QLabel("就绪", self)
+        self.match_progress = QtWidgets.QProgressBar(self)  # 初始化进度条
+        self.match_progress.setTextVisible(True)
+        self.match_progress.setStyleSheet(AppStyles.progress_style())  # 正确调用样式
+        
+        # 3. 高级选项
+        self.cb_override_epg = QtWidgets.QCheckBox("EPG不匹配时强制覆盖", self)
+        self.cb_auto_save = QtWidgets.QCheckBox("匹配后自动保存", self)
+        
+        # 布局
+        button_layout = QtWidgets.QHBoxLayout()
+        button_layout.addWidget(self.btn_load_old)
+        button_layout.addWidget(self.btn_match)
+        
+        layout.addLayout(button_layout)
+        layout.addWidget(QtWidgets.QLabel("匹配进度:"))
+        layout.addWidget(self.match_progress)
+        layout.addWidget(self.match_status)
+        layout.addStretch()
+        layout.addWidget(self.cb_override_epg)
+        layout.addWidget(self.cb_auto_save)
+        
+        match_group.setLayout(layout)
+        parent_layout.addWidget(match_group)
+        
+        # 信号连接
+        self.btn_load_old.clicked.connect(self.load_old_playlist)
+        self.btn_match.clicked.connect(lambda: asyncio.create_task(self.run_auto_match()))
+
+    # 更新EPG匹配状态显示
+    def update_epg_match_status(self, is_matched: bool, source: str = "EPG"):
+        """更新EPG匹配状态显示"""
+        if is_matched:
+            self.epg_match_label.setText(f"✓ {source}匹配成功")
+            self.epg_match_label.setStyleSheet("color: #4CAF50; font-weight: bold;")
+        else:
+            self.epg_match_label.setText(f"⚠ 未匹配到{source}数据")
+            self.epg_match_label.setStyleSheet("color: #FF9800; font-weight: bold;")
 
     # 连接信号与槽
     def _connect_signals(self) -> None:  
@@ -1281,6 +1394,87 @@ class MainWindow(QtWidgets.QMainWindow):
     def set_volume(self, volume: int) -> None:
         """设置音量"""
         self.player.set_volume(volume)
+
+    # +++ 新增方法：加载旧列表 +++
+    @pyqtSlot()
+    def load_old_playlist(self):
+        """加载旧播放列表文件"""
+        path, _ = QFileDialog.getOpenFileName(
+            self, "选择旧列表", "", "播放列表 (*.m3u *.m3u8 *.txt)"
+        )
+        if not path:
+            return
+        
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            if path.endswith('.txt'):
+                channels = PlaylistParser.parse_txt(content)
+            else:
+                channels = PlaylistParser.parse_m3u(content)
+            
+            # 转换为 {url: channel} 字典
+            self.old_playlist = {chan['url']: chan for chan in channels}
+            self.btn_match.setEnabled(True)
+            self.match_status.setText(f"已加载旧列表: {len(self.old_playlist)}个频道")
+        except Exception as e:
+            self.show_error(f"加载旧列表失败: {str(e)}")
+
+    # +++ 新增方法：执行自动匹配 +++
+    async def run_auto_match(self):
+        """执行自动匹配任务"""
+        if not self.old_playlist:
+            return
+        
+        total = len(self.model.channels)
+        self.match_progress.setMaximum(total)
+        self.match_progress.setValue(0)
+        
+        for row in range(total):
+            chan = self.model.channels[row]
+            
+            # 1. 匹配旧列表
+            if chan['url'] in self.old_playlist:
+                old_chan = self.old_playlist[chan['url']]
+                self._apply_match(row, old_chan, 'old')
+            
+            # 2. 匹配EPG
+            if hasattr(self, 'epg_manager'):
+                epg_name = self.epg_manager.match_channel(chan.get('name', ''))
+                if epg_name:
+                    self._apply_match(row, {'name': epg_name}, 'epg')
+            
+            # 更新进度
+            self.match_progress.setValue(row + 1)
+            self.match_status.setText(f"匹配进度: {row+1}/{total}")
+            await asyncio.sleep(0.01)  # 释放事件循环
+        
+        self.match_status.setText("匹配完成")
+        if self.cb_auto_save.isChecked():
+            self.save_playlist()
+
+    # +++ 新增方法：应用匹配结果 +++
+    def _apply_match(self, row, data, source):
+        """更新指定行的数据和颜色"""
+        index = self.model.index(row, 0)
+        chan = self.model.channels[row]
+        
+        # 确定颜色
+        if source == 'old':
+            color = QtGui.QColor(255, 255, 200)  # 浅黄：旧列表匹配
+        else:
+            is_conflict = ('old_name' in chan and data['name'] != chan['old_name'])
+            color = QtGui.QColor(255, 200, 200) if is_conflict else QtGui.QColor(200, 255, 200)
+        
+        # 保留原始名称（如果是旧列表匹配）
+        if source == 'old':
+            self.model.channels[row]['old_name'] = chan['name']
+        
+        # 更新数据
+        self.model.setData(index, data['name'], Qt.ItemDataRole.DisplayRole)
+        self.model.setData(index, color, Qt.ItemDataRole.BackgroundRole)
+        self.model.dataChanged.emit(index, index)
 
 # 程序入口
 if __name__ == "__main__":
