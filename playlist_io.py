@@ -138,18 +138,30 @@ class PlaylistConverter:
         
         entries = []
         for chan in channels:
-            epg_info = self._get_epg_info(chan['name'])
+            # 确保必要字段存在
+            if not all(k in chan for k in ['name', 'url']):
+                logger.warning(f"跳过无效频道数据: {chan}")
+                continue
+                
+            # 设置默认值
+            chan.setdefault('group', '未分类')
             
-            extinf = (
-                f'#EXTINF:-1 '
-                f'tvg-id="{epg_info["id"]}" '
-                f'tvg-name="{chan["name"]}" '
-                f'tvg-logo="{epg_info.get("logo", "")}" '
-                f'group-title="{chan["group"]}",'
-                f'{chan["name"]}\n'
-                f'{chan["url"]}'
-            )
-            entries.append(extinf)
+            try:
+                epg_info = self._get_epg_info(chan['name'])
+                
+                extinf = (
+                    f'#EXTINF:-1 '
+                    f'tvg-id="{epg_info["id"]}" '
+                    f'tvg-name="{chan["name"]}" '
+                    f'tvg-logo="{epg_info.get("logo", "")}" '
+                    f'group-title="{chan["group"]}",'
+                    f'{chan["name"]}\n'
+                    f'{chan["url"]}'
+                )
+                entries.append(extinf)
+            except Exception as e:
+                logger.error(f"生成M3U条目失败: {str(e)}")
+                continue
         
         return header.format(epg_url=self.epg.epg_sources['main']) + '\n'.join(entries)
 
@@ -211,15 +223,22 @@ class PlaylistHandler:
                 return False
                 
             # 处理打包环境下的路径问题
-            if getattr(sys, 'frozen', False):
-                # 打包成exe后的处理
-                path = Path(path).absolute()
-            else:
-                # 正常Python环境处理
-                path = Path(path).resolve()
+            try:
+                if getattr(sys, 'frozen', False):
+                    # 打包成exe后的处理
+                    path = Path(path).absolute()
+                else:
+                    # 正常Python环境处理
+                    path = Path(path).resolve()
                 
-            # 确保目录存在
-            path.parent.mkdir(parents=True, exist_ok=True)
+                # 确保目录存在
+                path.parent.mkdir(parents=True, exist_ok=True)
+                
+                # 记录完整路径用于调试
+                logger.debug(f"尝试保存到路径: {str(path)}")
+            except Exception as e:
+                logger.error(f"路径处理失败: {str(e)}")
+                raise
             
             # 生成内容
             content = self._generate_content(path.suffix, channels)
@@ -269,36 +288,37 @@ class PlaylistHandler:
         return self.scan_address
 
     def _format_txt(self, channels: List[Dict]) -> str:
-        """生成增强型TXT格式内容，包含所有支持的参数
+        """生成简化TXT格式内容
         参数:
             channels: 频道列表
         返回:
-            str: 格式化后的文本内容
+            str: 只包含频道名称、分辨率和URL的文本内容
         """
         lines = []
         current_group = None
         
         for chan in channels:
-            # 确保group字段存在，默认值为"未分类"
-            group = chan.get('group', '未分类')
+            # 确保必要字段存在
+            if not all(k in chan for k in ['name', 'url']):
+                logger.warning(f"跳过无效频道数据: {chan}")
+                continue
+                
+            # 设置默认值
+            chan.setdefault('group', '未分类')
+            chan.setdefault('width', 0)
+            chan.setdefault('height', 0)
             
+            # 处理分组标记
+            group = chan['group']
             if group != current_group:
                 current_group = group
                 lines.append(f"#group={current_group}")
             
-            # 获取EPG信息
-            epg_info = self.converter._get_epg_info(chan['name'])
-            
-            # 构建完整参数行
+            # 构建简化行(只保留名称、分辨率和URL)
             line = (
                 f"{chan['name']} "
-                f"[{chan.get('width', 0)}x{chan.get('height', 0)}],"
-                f"{chan['url']} "
-                f"#id={epg_info['id']} "
-                f"#logo={epg_info.get('logo', '')} "
-                f"#tvg-name={chan['name']} "
-                f"#tvg-id={epg_info['id']} "
-                f"#group-title={group}"
+                f"[{chan['width']}x{chan['height']}],"
+                f"{chan['url']}"
             )
             lines.append(line)
         
