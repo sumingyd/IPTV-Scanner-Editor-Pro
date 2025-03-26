@@ -168,42 +168,13 @@ class PlaylistHandler:
     def _load_scan_address_cache(self) -> None:
         """加载扫描地址缓存
         功能:
-            1. 检查配置文件是否存在
-            2. 如果不存在则初始化空值并创建隐藏文件
-            3. 如果存在则读取上次扫描地址
+            1. 使用ConfigHandler读取配置
+            2. 从.iptv_manager.ini获取扫描地址
         """
-        self.scan_address = ''  # 默认空值
-        
         try:
-            # 获取配置文件路径(程序所在目录/.iptv_manager.ini)
-            cfg_path = Path(__file__).parent / ".iptv_manager.ini"
-            
-            # 如果文件不存在则创建空文件并返回
-            if not cfg_path.exists():
-                # 确保父目录存在
-                cfg_path.parent.mkdir(parents=True, exist_ok=True)
-                # 创建空JSON文件
-                with open(cfg_path, 'w', encoding='utf-8') as f:
-                    json.dump({'scan_address': ''}, f)
-                # 设置文件隐藏属性(仅Windows)
-                if platform.system() == 'Windows':
-                    import ctypes
-                    ctypes.windll.kernel32.SetFileAttributesW(str(cfg_path), 2)
-                return
-                
-            # 读取JSON格式缓存
-            with open(cfg_path, 'r', encoding='utf-8') as f:
-                cache_data = json.load(f)
-                self.scan_address = cache_data.get('scan_address', '')
-                
-            # 设置文件隐藏属性(仅Windows)
-            if platform.system() == 'Windows':
-                import ctypes
-                ctypes.windll.kernel32.SetFileAttributesW(str(cfg_path), 2)
-            
+            self.scan_address = self.config.config['Scanner'].get('scan_address', '')
         except Exception as e:
-            logger.error(f"加载扫描地址缓存失败: {str(e)}")
-            # 确保scan_address为空字符串
+            logger.error(f"加载扫描地址失败: {str(e)}")
             self.scan_address = ''
 
     def _save_scan_address_cache(self, address: str) -> None:
@@ -212,49 +183,18 @@ class PlaylistHandler:
             address: 要保存的扫描地址
         功能:
             1. 验证地址有效性
-            2. 更新JSON配置文件
-            3. 设置文件隐藏属性
+            2. 更新.iptv_manager.ini配置
         """
         if not isinstance(address, str):
             return
             
         try:
-            # 获取配置文件路径(程序所在目录/.iptv_manager.ini)
-            cfg_path = Path(__file__).parent / ".iptv_manager.ini"
-            
-            # 确保父目录存在
-            cfg_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # 读取现有缓存或创建新缓存
-            cache_data = {'scan_address': address}
-            if cfg_path.exists():
-                try:
-                    with open(cfg_path, 'r', encoding='utf-8') as f:
-                        cache_data = json.load(f)
-                        cache_data['scan_address'] = address
-                except json.JSONDecodeError:
-                    # 如果文件损坏则创建新缓存
-                    cache_data = {'scan_address': address}
-            
-            # 使用临时文件确保原子性写入
-            temp_path = cfg_path.with_suffix('.tmp')
-            with open(temp_path, 'w', encoding='utf-8') as f:
-                json.dump(cache_data, f, ensure_ascii=False, indent=2)
-            
-            # 原子性替换文件
-            if platform.system() == 'Windows':
-                # Windows需要先删除目标文件
-                if cfg_path.exists():
-                    cfg_path.unlink()
-            temp_path.replace(cfg_path)
-                
-            # 设置文件隐藏属性(仅Windows)
-            if platform.system() == 'Windows':
-                import ctypes
-                ctypes.windll.kernel32.SetFileAttributesW(str(cfg_path), 2)
-            
+            if not self.config.config.has_section('Scanner'):
+                self.config.config.add_section('Scanner')
+            self.config.config['Scanner']['scan_address'] = address
+            self.config.save_prefs()
         except Exception as e:
-            logger.error(f"保存扫描地址缓存失败: {str(e)}")
+            logger.error(f"保存扫描地址失败: {str(e)}")
 
     def save_playlist(self, channels: List[Dict], path: str) -> bool:
         """保存播放列表到文件
