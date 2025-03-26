@@ -1208,12 +1208,17 @@ class MainWindow(QtWidgets.QMainWindow):
     def _load_cache(self) -> None:
         """加载缓存配置"""
         try:
-            with open(self.cache_file, 'r', encoding='utf-8') as f:
-                self.config_cache = json.load(f)
-            # 设置文件为隐藏属性(仅Windows)
-            if platform.system() == 'Windows':
-                import ctypes
-                ctypes.windll.kernel32.SetFileAttributesW(str(self.cache_file), 2)
+            if not self.config.config.has_section('Cache'):
+                self.config.config.add_section('Cache')
+            self.config_cache = {
+                'scan_address': self.config.config['Cache'].get('scan_address', ''),
+                'timeout': int(self.config.config['Cache'].get('timeout', '10')),
+                'thread_count': int(self.config.config['Cache'].get('thread_count', '10')),
+                'epg_main': self.config.config['Cache'].get('epg_main', ''),
+                'epg_backups': json.loads(self.config.config['Cache'].get('epg_backups', '[]')),
+                'window_geometry': self.config.config['Cache'].get('window_geometry', ''),
+                'splitter_sizes': json.loads(self.config.config['Cache'].get('splitter_sizes', '[]'))
+            }
         except Exception as e:
             logger.error(f"加载缓存失败: {str(e)}")
             self.config_cache = {}
@@ -1222,12 +1227,16 @@ class MainWindow(QtWidgets.QMainWindow):
     def _save_cache(self) -> None:
         """保存缓存配置"""
         try:
-            with open(self.cache_file, 'w', encoding='utf-8') as f:
-                json.dump(self.config_cache, f, ensure_ascii=False, indent=2)
-            # 设置文件为隐藏属性(仅Windows)
-            if platform.system() == 'Windows':
-                import ctypes
-                ctypes.windll.kernel32.SetFileAttributesW(str(self.cache_file), 2)
+            if not self.config.config.has_section('Cache'):
+                self.config.config.add_section('Cache')
+            self.config.config['Cache']['scan_address'] = self.config_cache.get('scan_address', '')
+            self.config.config['Cache']['timeout'] = str(self.config_cache.get('timeout', 10))
+            self.config.config['Cache']['thread_count'] = str(self.config_cache.get('thread_count', 10))
+            self.config.config['Cache']['epg_main'] = self.config_cache.get('epg_main', '')
+            self.config.config['Cache']['epg_backups'] = json.dumps(self.config_cache.get('epg_backups', []))
+            self.config.config['Cache']['window_geometry'] = self.config_cache.get('window_geometry', '')
+            self.config.config['Cache']['splitter_sizes'] = json.dumps(self.config_cache.get('splitter_sizes', []))
+            self.config.save_prefs()
         except Exception as e:
             logger.error(f"保存缓存失败: {str(e)}")
 
