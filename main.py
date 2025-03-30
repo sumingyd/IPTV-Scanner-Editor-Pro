@@ -5,8 +5,10 @@ import datetime
 import platform
 import sys
 import json
+import re
 from pathlib import Path
 from typing import Optional, List, Dict, Any
+import aiohttp
 
 # ================= 第三方库导入 =================
 from PyQt6 import QtCore, QtGui, QtWidgets
@@ -113,7 +115,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._connect_signals()
         self.load_config()
         
-            # 应用配置（必须在_init_ui之后调用）
+        # 应用配置（必须在_init_ui之后调用）
         self.ip_range_input.setText(self.config_cache.get('scan_address', ''))
         self.timeout_input.setValue(self.config_cache.get('timeout', 10))
         self.thread_count_input.setValue(self.config_cache.get('thread_count', 10))
@@ -552,16 +554,42 @@ class MainWindow(QtWidgets.QMainWindow):
         toolbar.addAction(epg_manage_action)
 
         # 关于
-        about_action = QAction(load_icon("icons/info.png"), "关于", self) 
-        about_action.triggered.connect(self._show_about_dialog)
+        about_action = QAction(load_icon("icons/info.png"), "关于", self)
+        about_action.triggered.connect(lambda: asyncio.create_task(self._show_about_dialog()))
         toolbar.addAction(about_action)
 
         # 添加分隔线保持布局美观
         toolbar.addSeparator()
 
+    async def _get_latest_version(self) -> str:
+        """从GitHub获取最新版本号"""
+        try:
+            # GitHub API获取最新发布版本
+            url = "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        version = data.get('tag_name', '').lstrip('v')
+                        if version:  # 确保获取到的版本号不为空
+                            return version
+                    # 如果请求失败或版本号为空，则抛出异常
+                    raise Exception(f"从GitHub获取最新版本失败，HTTP状态码: {response.status}")
+        except Exception as e:
+            logger.error(f"获取最新版本失败: {str(e)}")
+            # 返回默认版本号
+            return "2.0.0.0"
+
     # 显示关于对话框
-    def _show_about_dialog(self):
+    async def _show_about_dialog(self):
         """显示自动适应系统深浅色主题的关于对话框"""
+        # 异步获取最新版本号
+        try:
+            latest_version = await asyncio.wait_for(self._get_latest_version(), timeout=5)
+        except asyncio.TimeoutError:
+            latest_version = "2.0.0.0"
+            logger.warning("获取最新版本超时，使用默认版本号")
+        
         # 检测系统主题
         is_dark = self.palette().window().color().lightness() < 128
         
@@ -583,7 +611,10 @@ class MainWindow(QtWidgets.QMainWindow):
             <div style="background-color: {card_bg}; padding: 15px; border-radius: 8px; 
                  margin-bottom: 15px; border: 1px solid {border_color};">
                 <p style="line-height: 1.6; margin: 5px 0;">
-                    <b>版本：</b> 2.0.0.0
+                    <b>当前版本：</b> 2.0.0.0
+                </p>
+                <p style="line-height: 1.6; margin: 5px 0;">
+                    <b>最新版本：</b> {latest_version} 
                 </p>
                 <p style="line-height: 1.6; margin: 5px 0;">
                     <b>编译日期：</b> {datetime.date.today().strftime("%Y-%m-%d")}
@@ -631,6 +662,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 创建对话框
         dialog = QtWidgets.QDialog(self)
+        dialog.setWindowFlags(dialog.windowFlags() | QtCore.Qt.WindowType.WindowStaysOnTopHint)
         dialog.setWindowTitle("关于")
         dialog.setMinimumWidth(480)
         dialog.setMinimumHeight(550)
@@ -672,12 +704,11 @@ class MainWindow(QtWidgets.QMainWindow):
             icon_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(icon_label)
         
-        # 添加文本内容
-        text_label = QtWidgets.QLabel(about_text)
-        text_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        text_label.setOpenExternalLinks(True)
-        text_label.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.TextBrowserInteraction)
-        layout.addWidget(text_label)
+        # 使用QTextBrowser显示富文本内容
+        text_browser = QtWidgets.QTextBrowser()
+        text_browser.setHtml(about_text)
+        text_browser.setOpenExternalLinks(True)
+        layout.addWidget(text_browser)
         
         # 确定按钮
         button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Ok)
