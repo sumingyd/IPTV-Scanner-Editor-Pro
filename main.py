@@ -450,9 +450,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.name_edit.setPlaceholderText("输入频道名称...")
         self.name_edit.returnPressed.connect(self.save_channel_edit)  # 绑定回车键事件
 
-        # 分组选择（增加下拉框高度）
+        # 分组选择（增加下拉框高度，设置为可编辑）
         self.group_combo = QtWidgets.QComboBox()
         self.group_combo.setMinimumHeight(32)
+        self.group_combo.setEditable(True)  # 允许自定义输入
         self.group_combo.addItems(["未分类", "央视", "卫视", "本地", "高清频道", "测试频道"])
 
         # EPG匹配状态显示（新增）
