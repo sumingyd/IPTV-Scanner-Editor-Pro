@@ -261,7 +261,7 @@ class VLCPlayer(QtWidgets.QWidget):
     def force_stop(self):
         """强制停止播放(调用同步释放)"""
         try:
-            logger.warning("force_stop: 强制停止播放")
+            logger.debug("force_stop: 强制停止播放")
             self._release_sync()
         except Exception as e:
             logger.error(f"强制停止失败: {str(e)}")
