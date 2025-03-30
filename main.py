@@ -915,6 +915,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.name_edit.setText(chan.get('name', '未命名频道'))
         self.group_combo.setCurrentText(chan.get('group', '未分类'))
 
+        # 更新EPG匹配状态
+        is_matched = self.epg_manager.is_channel_matched(chan.get('name', ''))
+        self.update_epg_match_status(is_matched, "EPG")
+
+        # 如果EPG未匹配但频道名称不为空，尝试重新匹配
+        if not is_matched and chan.get('name'):
+            is_matched = self.epg_manager.is_channel_matched(chan.get('name', ''))
+            self.update_epg_match_status(is_matched, "EPG")
+
         if url := chan.get('url'):
             asyncio.create_task(self.safe_play(url))
 
@@ -1050,6 +1059,14 @@ class MainWindow(QtWidgets.QMainWindow):
         """EPG 加载成功后的处理"""
         self.statusBar().showMessage("EPG 数据加载完成")
         self.update_completer_model()  # 确保界面更新
+        # 更新当前选中频道的EPG匹配状态
+        index = self.channel_list.currentIndex()
+        if index.isValid():
+            chan = self.model.channels[index.row()]
+            is_matched = self.epg_manager.is_channel_matched(chan.get('name', ''))
+            self.update_epg_match_status(is_matched, "EPG")
+        # 刷新EPG匹配状态显示
+        self.on_channel_selected()
 
     # EPG 加载失败后的处理
     @pyqtSlot(Exception)

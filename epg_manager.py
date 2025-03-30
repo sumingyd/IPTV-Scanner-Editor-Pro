@@ -198,6 +198,12 @@ class EPGManager:
         except Exception as e:
             return []
 
+    def is_channel_matched(self, channel_name: str) -> bool:
+        """检查频道名称是否匹配EPG数据"""
+        if not channel_name or not isinstance(channel_name, str):
+            return False
+        return channel_name.lower() in self._name_index
+
     async def load_epg(self, is_refresh: bool, progress_callback: Optional[callable] = None) -> bool:
         """加载或刷新 EPG 数据"""
         try:
