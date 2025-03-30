@@ -1495,6 +1495,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
 # 程序入口
 if __name__ == "__main__":
+    # 禁用QT屏幕相关的警告
+    os.environ["QT_LOGGING_RULES"] = "qt.qpa.*=false"
     app = QtWidgets.QApplication(sys.argv)
     loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(loop)
