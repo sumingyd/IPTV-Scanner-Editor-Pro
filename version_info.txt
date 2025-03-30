@@ -18,8 +18,8 @@ VSVersionInfo(
           [
             StringStruct('CompanyName', 'sumingyd'),
             StringStruct('FileDescription', 'IPTV扫描编辑工具'),
-            StringStruct('FileVersion', '1.0.0.0'),
-            StringStruct('ProductVersion', '1.0.0.0')
+            StringStruct('FileVersion', '3.0.0.0'),
+            StringStruct('ProductVersion', '3.0.0.0')
           ]
         )
       ]
