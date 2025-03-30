@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 import hashlib
 import time
+import sys
 from pathlib import Path
 from utils import setup_logger, ConfigHandler
 
@@ -254,8 +255,18 @@ class EPGManager:
         
 class CacheManager:
     def __init__(self, cache_dir: Path):
-        self.cache_dir = cache_dir
-        self.cache_dir.mkdir(parents=True, exist_ok=True)  # 确保目录存在
+        # 打包成exe时使用sys.executable的目录作为基准路径
+        if getattr(sys, 'frozen', False):
+            base_dir = Path(sys.executable).parent
+            self.cache_dir = base_dir / "epg-xml"
+        else:
+            self.cache_dir = cache_dir
+            
+        try:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            logger.error(f"创建缓存目录失败: {self.cache_dir}, 错误: {str(e)}")
+            raise
 
     def generate_cache_key(self, url: str) -> str:
         """生成缓存文件名"""
