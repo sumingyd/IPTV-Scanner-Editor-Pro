@@ -210,11 +210,37 @@ class StreamScanner(QObject):
             1. 使用CREATE_NO_WINDOW标志避免弹出窗口
             2. 严格的错误处理和日志记录
             3. 优化超时处理
+            4. 处理打包环境下的路径问题
         """
         try:
+            # 尝试多种方式查找ffprobe路径
+            ffprobe_path = None
+            possible_paths = [
+                'ffprobe',  # 系统PATH中的ffprobe
+                './ffprobe.exe',  # 当前目录
+                './bin/ffprobe.exe',  # bin子目录
+                './ffmpeg/bin/ffprobe.exe',  # ffmpeg子目录
+            ]
+            
+            for path in possible_paths:
+                try:
+                    subprocess.run([path, '-version'], 
+                                 stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL,
+                                 creationflags=subprocess.CREATE_NO_WINDOW,
+                                 timeout=1)
+                    ffprobe_path = path
+                    break
+                except:
+                    continue
+            
+            if not ffprobe_path:
+                logger.error("无法找到ffprobe可执行文件")
+                return None
+
             # 构建ffprobe命令
             cmd = [
-                'ffprobe',
+                ffprobe_path,
                 '-v', 'quiet',  # 更安静的日志级别
                 '-hide_banner',  # 隐藏banner信息
                 '-loglevel', 'fatal',  # 只显示致命错误
@@ -262,7 +288,7 @@ class StreamScanner(QObject):
             logger.debug(f"ffprobe超时: {url}")
             return None
         except Exception as e:
-            logger.debug(f"ffprobe异常: {url} - {str(e)}")
+            logger.error(f"ffprobe异常 - 命令: {' '.join(cmd)}\n错误: {str(e)}\n路径: {ffprobe_path}")
             return None
 
     def stop_scan(self) -> None:
