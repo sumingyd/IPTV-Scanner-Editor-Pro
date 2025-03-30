@@ -732,7 +732,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_match.setEnabled(False)  # 现在可以正确访问
 
         # 2. 状态显示
-        self.match_status = QtWidgets.QLabel("就绪", self)
+        self.match_status = QtWidgets.QLabel("匹配功能未就绪 - 请先加载旧列表", self)
+        self.match_status.setStyleSheet("color: #666; font-weight: bold;")
         self.match_progress = QtWidgets.QProgressBar(self)  # 初始化进度条
         self.match_progress.setTextVisible(True)
         self.match_progress.setStyleSheet(AppStyles.progress_style())  # 正确调用样式
@@ -1466,7 +1467,8 @@ class MainWindow(QtWidgets.QMainWindow):
             # 转换为 {url: channel} 字典
             self.old_playlist = {chan['url']: chan for chan in channels}
             self.btn_match.setEnabled(True)
-            self.match_status.setText(f"已加载旧列表: {len(self.old_playlist)}个频道")
+            self.match_status.setText(f"✔ 已加载旧列表({len(self.old_playlist)}个频道) - 点击'执行自动匹配'开始匹配")
+            self.match_status.setStyleSheet("color: #4CAF50; font-weight: bold;")
         except Exception as e:
             self.show_error(f"加载旧列表失败: {str(e)}")
 
@@ -1501,7 +1503,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     
                     # 更新进度
                     self.match_progress.setValue(row + 1)
-                    self.match_status.setText(f"匹配进度: {row+1}/{total}")
+                    self.match_status.setText(f"匹配中: {row+1}/{total} ({(row+1)/total*100:.1f}%)")
                     await asyncio.sleep(0.01)  # 释放事件循环
                 except asyncio.CancelledError:
                     self.match_status.setText("匹配已取消")
@@ -1509,7 +1511,22 @@ class MainWindow(QtWidgets.QMainWindow):
                 except Exception as e:
                     logger.error(f"匹配第{row+1}行时出错: {str(e)}")
             
-            self.match_status.setText("匹配完成")
+            matched_count = sum(1 for chan in self.model.channels if 'old_name' in chan or 'epg_name' in chan)
+            # 统计匹配结果
+            old_matched = sum(1 for chan in self.model.channels if 'old_name' in chan)
+            epg_matched = sum(1 for chan in self.model.channels if 'epg_name' in chan)
+            conflict_count = sum(1 for chan in self.model.channels 
+                                if 'old_name' in chan and 'epg_name' in chan 
+                                and chan['old_name'] != chan['epg_name'])
+            
+            stats = (f"✔ 匹配完成\n"
+                    f"• 共匹配 {matched_count}/{total} 个频道\n"
+                    f"• 旧列表匹配: {old_matched}\n"
+                    f"• EPG匹配: {epg_matched}\n"
+                    f"• 冲突: {conflict_count}")
+            
+            self.match_status.setText(stats)
+            self.match_status.setStyleSheet("color: #2196F3; font-weight: bold;")
             if self.cb_auto_save.isChecked():
                 self.save_playlist()
         except asyncio.CancelledError:
