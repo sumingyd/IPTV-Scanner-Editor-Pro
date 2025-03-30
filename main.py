@@ -1424,35 +1424,50 @@ class MainWindow(QtWidgets.QMainWindow):
     # +++ 新增方法：执行自动匹配 +++
     async def run_auto_match(self):
         """执行自动匹配任务"""
-        if not self.old_playlist:
-            return
-        
-        total = len(self.model.channels)
-        self.match_progress.setMaximum(total)
-        self.match_progress.setValue(0)
-        
-        for row in range(total):
-            chan = self.model.channels[row]
+        try:
+            if not hasattr(self, 'old_playlist') or not self.old_playlist:
+                self.match_status.setText("请先加载旧列表")
+                return
             
-            # 1. 匹配旧列表
-            if chan['url'] in self.old_playlist:
-                old_chan = self.old_playlist[chan['url']]
-                self._apply_match(row, old_chan, 'old')
+            total = len(self.model.channels)
+            self.match_progress.setMaximum(total)
+            self.match_progress.setValue(0)
             
-            # 2. 匹配EPG
-            if hasattr(self, 'epg_manager'):
-                epg_name = self.epg_manager.match_channel(chan.get('name', ''))
-                if epg_name:
-                    self._apply_match(row, {'name': epg_name}, 'epg')
+            for row in range(total):
+                try:
+                    chan = self.model.channels[row]
+                    
+                    # 1. 匹配旧列表
+                    if chan['url'] in self.old_playlist:
+                        old_chan = self.old_playlist[chan['url']]
+                        self._apply_match(row, old_chan, 'old')
+                    
+                    # 2. 匹配EPG
+                    if hasattr(self, 'epg_manager'):
+                        epg_names = self.epg_manager.match_channel_name(chan.get('name', ''))
+                        if epg_names:
+                            # 更新频道名称
+                            self.model.channels[row]['name'] = epg_names[0]
+                            self._apply_match(row, {'name': epg_names[0]}, 'epg')
+                    
+                    # 更新进度
+                    self.match_progress.setValue(row + 1)
+                    self.match_status.setText(f"匹配进度: {row+1}/{total}")
+                    await asyncio.sleep(0.01)  # 释放事件循环
+                except asyncio.CancelledError:
+                    self.match_status.setText("匹配已取消")
+                    return
+                except Exception as e:
+                    logger.error(f"匹配第{row+1}行时出错: {str(e)}")
             
-            # 更新进度
-            self.match_progress.setValue(row + 1)
-            self.match_status.setText(f"匹配进度: {row+1}/{total}")
-            await asyncio.sleep(0.01)  # 释放事件循环
-        
-        self.match_status.setText("匹配完成")
-        if self.cb_auto_save.isChecked():
-            self.save_playlist()
+            self.match_status.setText("匹配完成")
+            if self.cb_auto_save.isChecked():
+                self.save_playlist()
+        except asyncio.CancelledError:
+            self.match_status.setText("匹配已取消")
+        except Exception as e:
+            self.show_error(f"自动匹配失败: {str(e)}")
+            self.match_status.setText("匹配失败")
 
     # +++ 新增方法：应用匹配结果 +++
     def _apply_match(self, row, data, source):
@@ -1463,15 +1478,17 @@ class MainWindow(QtWidgets.QMainWindow):
         # 确定颜色
         if source == 'old':
             color = QtGui.QColor(255, 255, 200)  # 浅黄：旧列表匹配
+            # 保留原始名称
+            self.model.channels[row]['old_name'] = chan['name']
+            # 更新名称
+            self.model.channels[row]['name'] = data['name']
         else:
             is_conflict = ('old_name' in chan and data['name'] != chan['old_name'])
             color = QtGui.QColor(255, 200, 200) if is_conflict else QtGui.QColor(200, 255, 200)
+            # 更新名称
+            self.model.channels[row]['name'] = data['name']
         
-        # 保留原始名称（如果是旧列表匹配）
-        if source == 'old':
-            self.model.channels[row]['old_name'] = chan['name']
-        
-        # 更新数据
+        # 更新UI
         self.model.setData(index, data['name'], Qt.ItemDataRole.DisplayRole)
         self.model.setData(index, color, Qt.ItemDataRole.BackgroundRole)
         self.model.dataChanged.emit(index, index)
