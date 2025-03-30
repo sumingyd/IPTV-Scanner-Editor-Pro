@@ -385,20 +385,28 @@ def parse_ip_range(pattern: str) -> List[str]:
                 if '-' in part:
                     if '/' in part:
                         range_part, step = part.split('/', 1)
-                        start, end = map(int, range_part.split('-'))
+                        start_str, end_str = range_part.split('-')
+                        start = int(start_str)
+                        end = int(end_str)
                         step = int(step)
+                        # 获取原始数字位数
+                        digits = len(start_str)
                     else:
-                        start, end = map(int, part.split('-'))
+                        start_str, end_str = part.split('-')
+                        start = int(start_str)
+                        end = int(end_str)
                         step = 1
+                        # 获取原始数字位数
+                        digits = len(start_str)
                     
                     # 检查 start 和 end 的有效性
                     if start > end:
                         raise ValueError(f"无效的范围: {start} > {end}")
                     if start == end:
-                        ranges.append(str(start))
+                        ranges.append(str(start).zfill(digits))
                     else:
-                        # 使用生成器表达式减少内存使用
-                        ranges.extend(str(x) for x in range(start, end + 1, step))
+                        # 使用生成器表达式减少内存使用，并补零
+                        ranges.extend(str(x).zfill(digits) for x in range(start, end + 1, step))
                 else:
                     ranges.append(part)
 
