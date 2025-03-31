@@ -235,7 +235,7 @@ class StreamScanner(QObject):
                     continue
             
             if not ffprobe_path:
-                logger.error("无法找到ffprobe可执行文件")
+                logger.error("无法找到ffprobe可执行文件，需要安装FFmpeg以获得完整功能，请访问 https://ffmpeg.org 下载")
                 return None
 
             # 构建ffprobe命令
