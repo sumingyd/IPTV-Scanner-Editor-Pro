@@ -4,4 +4,4 @@ QQ群：757694351
 
 如果你感觉好用，欢迎赞赏。
 
-![支付宝](image.png)    ![微信](image-1.png)
+![支付宝](icons\zfb.jpg)    ![微信](icons\wx.png)
