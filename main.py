@@ -1042,6 +1042,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # 隐藏无效频道
     def hide_invalid_channels(self):
+        """原始数据备份"""
+        if not hasattr(self, 'original_channels'):
+            self.original_channels = deepcopy(self.model.channels)
         """隐藏无效频道"""
         if not self.validation_results:
             QMessageBox.warning(self, "提示", "请先点击[检测有效性]")
