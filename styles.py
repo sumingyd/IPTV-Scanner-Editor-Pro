@@ -2,11 +2,13 @@ class AppStyles: #应用样式
     """样式定义类"""
     #按钮样式
     @staticmethod
-    def button_style():  
-        """按钮样式"""
+    def button_style(active=False):  
+        """按钮样式
+        :param active: 是否激活状态
+        """
         return """
         QPushButton {
-            background-color: palette(button);
+            background-color: %s;
             color: palette(buttonText);
             border: 1px solid palette(mid);
             padding: 8px 16px;
@@ -30,7 +32,7 @@ class AppStyles: #应用样式
             background-color: palette(window);
             color: palette(mid);
         }
-        """
+        """ % ("palette(highlight)" if active else "palette(button)")
     #列表样式
     @staticmethod
     def list_style():  
