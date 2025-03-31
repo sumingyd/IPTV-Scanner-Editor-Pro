@@ -78,6 +78,8 @@ class MainWindow(QtWidgets.QMainWindow):
     # 初始化
     def __init__(self):
         super().__init__()
+        self.validation_results = {}  # 保存验证结果 {url: True/False}
+        self.first_time_hide = True  # 首次点击隐藏按钮提示
         self.config = ConfigHandler()
         self.scanner = StreamScanner()
         self.epg_manager = EPGManager()
