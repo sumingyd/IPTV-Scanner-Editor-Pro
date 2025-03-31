@@ -368,7 +368,31 @@ class MainWindow(QtWidgets.QMainWindow):
         list_group = QtWidgets.QGroupBox("频道列表")
         list_layout = QtWidgets.QVBoxLayout()
 
+        # === 新增工具栏 ===
+        toolbar = QtWidgets.QHBoxLayout()
+        
+        # 有效性检测按钮
+        self.btn_validate = QtWidgets.QPushButton("检测有效性")
+        self.btn_validate.setStyleSheet(AppStyles.button_style())
+        self.btn_validate.clicked.connect(self.validate_playlist)
+        
+        # 隐藏无效项按钮
+        self.btn_hide_invalid = QtWidgets.QPushButton("隐藏无效项")
+        self.btn_hide_invalid.setStyleSheet(AppStyles.button_style())
+        self.btn_hide_invalid.clicked.connect(self.hide_invalid_channels)
+        
+        # 状态标签
+        self.filter_status_label = QtWidgets.QLabel("就绪")
+        self.filter_status_label.setStyleSheet("color: #666;")
+        
+        toolbar.addWidget(self.btn_validate)
+        toolbar.addWidget(self.btn_hide_invalid)
+        toolbar.addWidget(self.filter_status_label)
+        toolbar.addStretch()
+        list_layout.addLayout(toolbar)
+
         self.channel_list = QtWidgets.QTableView()
+       
         self.channel_list.setSelectionMode(
             QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection
         )
@@ -378,6 +402,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.model = ChannelListModel()
         self.channel_list.setModel(self.model)
         self.channel_list.setStyleSheet(AppStyles.list_style())
+        # === 新增右键菜单 ===
+        self.channel_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.channel_list.customContextMenuRequested.connect(self.show_context_menu)
         list_layout.addWidget(self.channel_list)
         list_group.setLayout(list_layout)
         parent.addWidget(list_group)
