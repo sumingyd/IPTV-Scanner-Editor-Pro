@@ -1071,6 +1071,39 @@ class MainWindow(QtWidgets.QMainWindow):
         self.channel_list.setCornerText(f"已隐藏{hidden_count}项" if hidden_count > 0 else "")
         self.filter_status_label.setText(f"显示中: {len(valid_channels)}项")
 
+    # 显示右键菜单
+    def show_context_menu(self, pos):
+        """显示右键菜单"""
+        menu = QtWidgets.QMenu()
+        
+        # 只有隐藏过才显示"恢复全部"
+        if len(self.validation_results) > len(self.model.channels):
+            menu.addAction(
+                QIcon(":/icons/restore.svg"),  # 可替换为你的图标
+                "恢复显示全部",
+                self.restore_all_channels
+            )
+        menu.addAction("复制选中URL", self.copy_selected_url)
+        menu.exec_(self.channel_list.mapToGlobal(pos))
+
+    # 恢复显示所有频道
+    def restore_all_channels(self):
+        """恢复显示所有频道（从原始数据重建模型）"""
+        if hasattr(self, 'original_channels'):  # 需要先在hide时备份原始数据
+            self.model.channels = self.original_channels
+        self.model.layoutChanged.emit()
+        self.channel_list.setCornerText("")
+        self.filter_status_label.setText("已恢复全部频道")
+
+    # 复制选中URL到剪贴板
+    def copy_selected_url(self):
+        """复制选中URL到剪贴板"""
+        index = self.channel_list.currentIndex()
+        if index.isValid():
+            url = self.model.channels[index.row()].get('url', '')
+            QtWidgets.QApplication.clipboard().setText(url)
+            self.statusBar().showMessage("已复制URL", 2000)
+
     # 保存频道编辑
     @pyqtSlot()
     def save_channel_edit(self) -> None:
