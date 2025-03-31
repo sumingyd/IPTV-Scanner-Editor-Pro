@@ -591,6 +591,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # 添加分隔线保持布局美观
         toolbar.addSeparator()
 
+    # 从GitHub获取最新版本号
     async def _get_latest_version(self) -> str:
         """从GitHub获取最新版本号"""
         try:
@@ -995,6 +996,49 @@ class MainWindow(QtWidgets.QMainWindow):
     async def stop_play(self): 
         """统一调用播放器的停止方法"""
         await self.safe_stop()
+
+    # 验证频道有效性并标记颜色
+    async def validate_playlist(self):
+        """验证频道有效性并标记颜色"""
+        if not self.model.channels:
+            self.show_error("频道列表为空")
+            return
+
+        self.btn_validate.setEnabled(False)
+        self.validation_results.clear()
+
+        for row, channel in enumerate(self.model.channels):
+            url = channel.get('url', '')
+            if not url:
+                continue
+                
+            try:
+                # 复用扫描器的检测方法
+                info = await self.scanner.check_stream(url)
+                is_valid = info['valid']
+                self.validation_results[url] = is_valid
+                
+                # 更新背景色（绿色有效/红色无效）
+                color = QtGui.QColor('#e8f5e9') if is_valid else QtGui.QColor('#ffebee')
+                for col in range(self.model.columnCount()):
+                    index = self.model.index(row, col)
+                    self.model.setData(index, color, Qt.ItemDataRole.BackgroundRole)
+                
+                # 更新分辨率信息
+                if is_valid:
+                    self.model.channels[row].update({
+                        'width': info.get('width', 0),
+                        'height': info.get('height', 0)
+                    })
+                    
+            except Exception as e:
+                logger.error(f"验证频道失败: {str(e)}")
+                self.validation_results[url] = False
+
+        valid_count = sum(self.validation_results.values())
+        total = len(self.model.channels)
+        self.filter_status_label.setText(f"有效: {valid_count}/{total}")
+        self.btn_validate.setEnabled(True)
 
     # 保存频道编辑
     @pyqtSlot()
