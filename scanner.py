@@ -69,30 +69,32 @@ class StreamScanner(QObject):
         return self._scanned_count
 
     @asyncSlot()
-    async def start_scan(self, ip_pattern: str) -> None:
-        """启动扫描任务
+    async def toggle_scan(self, ip_pattern: str) -> None:
+        """切换扫描状态
         参数:
             ip_pattern: IP地址模式字符串
         功能:
-            1. 检查是否有正在进行的扫描
-            2. 初始化扫描状态
-            3. 保存扫描地址到缓存
-            4. 开始扫描任务
+            1. 如果正在扫描则停止扫描
+            2. 如果未扫描则开始扫描
         """
-        # 保存扫描地址到缓存
-        self.playlist.update_scan_address(ip_pattern)
-        async with self._scan_lock:
-            if self._is_scanning:
-                self.error_occurred.emit("已有扫描任务正在进行")
-                return
+        if self._is_scanning:
+            self.stop_scan()
+            self.progress_updated.emit(0, "已停止")
+        else:
+            # 保存扫描地址到缓存
+            self.playlist.update_scan_address(ip_pattern)
+            async with self._scan_lock:
+                if self._is_scanning:
+                    self.error_occurred.emit("已有扫描任务正在进行")
+                    return
 
-            self._is_scanning = True
-            self._start_time = asyncio.get_event_loop().time()
-            self._scanned_count = 0  # 重置计数器
-            try:
-                await self._scan_task(ip_pattern)
-            finally:
-                self._is_scanning = False
+                self._is_scanning = True
+                self._start_time = asyncio.get_event_loop().time()
+                self._scanned_count = 0  # 重置计数器
+                try:
+                    await self._scan_task(ip_pattern)
+                finally:
+                    self._is_scanning = False
 
     async def _scan_task(self, ip_pattern: str) -> None:
         """执行扫描的核心任务"""
