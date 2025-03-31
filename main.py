@@ -1040,6 +1040,37 @@ class MainWindow(QtWidgets.QMainWindow):
         self.filter_status_label.setText(f"有效: {valid_count}/{total}")
         self.btn_validate.setEnabled(True)
 
+    # 隐藏无效频道
+    def hide_invalid_channels(self):
+        """隐藏无效频道"""
+        if not self.validation_results:
+            QMessageBox.warning(self, "提示", "请先点击[检测有效性]")
+            return
+
+        # 首次点击提示
+        if self.first_time_hide:
+            QMessageBox.information(
+                self, "提示",
+                "将隐藏所有检测为无效的频道\n"
+                "可通过右键菜单->'恢复显示全部'还原"
+            )
+            self.first_time_hide = False
+
+        # 过滤无效频道
+        valid_channels = [
+            chan for chan in self.model.channels 
+            if self.validation_results.get(chan['url'], False)
+        ]
+        
+        # 更新模型
+        self.model.channels = valid_channels
+        self.model.layoutChanged.emit()
+        
+        # 显示角标提示
+        hidden_count = len(self.validation_results) - len(valid_channels)
+        self.channel_list.setCornerText(f"已隐藏{hidden_count}项" if hidden_count > 0 else "")
+        self.filter_status_label.setText(f"显示中: {len(valid_channels)}项")
+
     # 保存频道编辑
     @pyqtSlot()
     def save_channel_edit(self) -> None:
