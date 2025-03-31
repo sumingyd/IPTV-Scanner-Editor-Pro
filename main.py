@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 import aiohttp
+from copy import deepcopy
 
 # ================= 第三方库导入 =================
 from PyQt6 import QtCore, QtGui, QtWidgets
