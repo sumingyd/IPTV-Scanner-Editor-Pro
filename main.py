@@ -383,18 +383,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.referer_input.setPlaceholderText("可选，留空不使用")
         referer_layout.addWidget(self.referer_input)
 
-        # 开始扫描按钮
-        scan_btn = QtWidgets.QPushButton("开始扫描")
-        scan_btn.setStyleSheet(AppStyles.button_style())
-        scan_btn.clicked.connect(self.start_scan)
-        # 停止扫描按钮
-        stop_btn = QtWidgets.QPushButton("停止扫描")
-        stop_btn.setStyleSheet(AppStyles.button_style())
-        stop_btn.clicked.connect(self.stop_scan)
+        # 扫描控制按钮
+        self.scan_btn = QtWidgets.QPushButton("完整扫描")
+        self.scan_btn.setStyleSheet(AppStyles.button_style())
+        self.scan_btn.clicked.connect(self.toggle_scan)
 
         button_layout = QtWidgets.QHBoxLayout()
-        button_layout.addWidget(scan_btn)
-        button_layout.addWidget(stop_btn)
+        button_layout.addWidget(self.scan_btn)
 
         scan_layout.addRow("地址格式：", QtWidgets.QLabel("示例：http://192.168.1.1:1234/rtp/10.10.[1-20].[1-20]:5002   [1-20]表示范围"))
         scan_layout.addRow("输入地址：", self.ip_range_input)
@@ -610,7 +605,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 扫描
         scan_action = QAction(load_icon("icons/scan.png"), "扫描频道", self)
-        scan_action.triggered.connect(self.start_scan)
+        scan_action.triggered.connect(self.toggle_scan)
         toolbar.addAction(scan_action)
 
         # 加载 EPG 缓存
@@ -870,58 +865,74 @@ class MainWindow(QtWidgets.QMainWindow):
         else:  # 不在播放状态
             self.pause_btn.setText("播放")
 
-    # 启动扫描任务
+    # 扫描控制切换
     @pyqtSlot()
-    def start_scan(self) -> None: 
-        """启动扫描任务"""
-        ip_range = self.ip_range_input.text().strip()
-        if not ip_range:
-            self.show_error("请输入有效的频道地址")
-            return
+    def toggle_scan(self) -> None:
+        """切换扫描状态"""
+        try:
+            ip_range = self.ip_range_input.text().strip()
             
-        # 更新配置
-        self.config_cache.update({
-            'scan_address': ip_range,
-            'timeout': self.timeout_input.value(),
-            'thread_count': self.thread_count_input.value()
-        })
-        self._save_cache()
+            if hasattr(self.scanner, '_is_scanning') and self.scanner._is_scanning:
+                self.scanner.stop_scan()
+                self.scan_btn.setText("完整扫描")
+                self.scan_btn.setStyleSheet(AppStyles.button_style())
+                self.statusBar().showMessage("扫描已停止")
+            else:
+                if not ip_range:
+                    self.show_error("请输入有效的频道地址")
+                    return
+                    
+                # 更新配置
+                self.config_cache.update({
+                    'scan_address': ip_range,
+                    'timeout': self.timeout_input.value(),
+                    'thread_count': self.thread_count_input.value()
+                })
+                self._save_cache()
 
-        # 清空现有频道列表
-        self.model.channels.clear()
-        self.model.layoutChanged.emit()
-        self.playlist_source = 'scan'  # 设置播放列表来源为扫描
+                # 清空现有频道列表
+                self.model.channels.clear()
+                self.model.layoutChanged.emit()
+                self.playlist_source = 'scan'  # 设置播放列表来源为扫描
 
-        # 显示扫描开始信息
-        timeout = self.timeout_input.value()
-        thread_count = self.thread_count_input.value()
-        self.statusBar().showMessage(
-            f"开始扫描: {ip_range} (超时: {timeout}秒, 线程数: {thread_count})"
-        )
+                # 显示扫描开始信息
+                timeout = self.timeout_input.value()
+                thread_count = self.thread_count_input.value()
+                self.statusBar().showMessage(
+                    f"开始扫描: {ip_range} (超时: {timeout}秒, 线程数: {thread_count})"
+                )
 
-        # 设置超时时间（从用户输入中获取）
-        timeout = self.timeout_input.value()
-        self.scanner.set_timeout(timeout)
+                # 设置超时时间（从用户输入中获取）
+                timeout = self.timeout_input.value()
+                self.scanner.set_timeout(timeout)
 
-        # 设置线程数（从用户输入中获取）
-        thread_count = self.thread_count_input.value()
-        self.scanner.set_thread_count(thread_count)
+                # 设置线程数（从用户输入中获取）
+                thread_count = self.thread_count_input.value()
+                self.scanner.set_thread_count(thread_count)
 
-        # 设置User-Agent和Referer
-        user_agent = self.user_agent_input.text().strip()
-        if user_agent:
-            self.scanner.set_user_agent(user_agent)
-        
-        referer = self.referer_input.text().strip()
-        if referer:
-            self.scanner.set_referer(referer)
+                # 设置User-Agent和Referer
+                user_agent = self.user_agent_input.text().strip()
+                if user_agent:
+                    self.scanner.set_user_agent(user_agent)
+                
+                referer = self.referer_input.text().strip()
+                if referer:
+                    self.scanner.set_referer(referer)
 
-        # 确保传入的是一个协程
-        self.scan_worker = AsyncWorker(self.scanner.start_scan(ip_range))
-        self.scan_worker.finished.connect(self.handle_scan_success)
-        self.scan_worker.error.connect(self.handle_scan_error)
-        self.scan_worker.cancelled.connect(self.handle_scan_cancel)
-        asyncio.create_task(self.scan_worker.run())
+                # 确保传入的是一个协程
+                self.scan_worker = AsyncWorker(self.scanner.toggle_scan(ip_range))
+                self.scan_worker.finished.connect(self.handle_scan_success)
+                self.scan_worker.error.connect(self.handle_scan_error)
+                self.scan_worker.cancelled.connect(self.handle_scan_cancel)
+                asyncio.create_task(self.scan_worker.run())
+                
+                # 更新按钮状态
+                self.scan_btn.setText("停止扫描")
+                self.scan_btn.setStyleSheet(AppStyles.button_style(active=True))
+        except Exception as e:
+            self.show_error(f"扫描控制错误: {str(e)}")
+            self.scan_btn.setText("完整扫描")
+            self.scan_btn.setStyleSheet(AppStyles.button_style())
 
     # 停止扫描任务
     @pyqtSlot()
