@@ -39,10 +39,20 @@ class StreamScanner(QObject):
         self._executor = None
         self._ffprobe_checked = False  # 是否已检查ffprobe
         self._ffprobe_available = False  # ffprobe是否可用
+        self._user_agent = None  # 自定义User-Agent
+        self._referer = None  # 自定义Referer
 
     def set_timeout(self, timeout: int) -> None:
         """设置超时时间（单位：秒）"""
         self._timeout = timeout
+
+    def set_user_agent(self, user_agent: str) -> None:
+        """设置自定义User-Agent"""
+        self._user_agent = user_agent
+
+    def set_referer(self, referer: str) -> None:
+        """设置自定义Referer"""
+        self._referer = referer
 
     def set_thread_count(self, thread_count: int) -> None:
         """设置线程数"""
@@ -232,7 +242,7 @@ class StreamScanner(QObject):
             ffprobe_path = self._find_ffprobe()
             if not ffprobe_path:
                 logger.warning("ffprobe未找到，将仅检测基本连接性")
-                return self._basic_stream_check(url)
+                return self._basic_stream_check(url, self._user_agent, self._referer)
 
             # 2. 构建ffprobe命令
             cmd = [
@@ -242,8 +252,15 @@ class StreamScanner(QObject):
                 '-show_entries', 'stream=codec_name,width,height',
                 '-of', 'json',
                 '-timeout', str(self._timeout * 1_000_000),
-                url
             ]
+            
+            # 添加User-Agent和Referer头
+            if self._user_agent:
+                cmd.extend(['-user_agent', self._user_agent])
+            if self._referer:
+                cmd.extend(['-headers', f"Referer: {self._referer}"])
+                
+            cmd.append(url)
 
             # 3. 执行命令
             result = subprocess.run(
@@ -306,7 +323,7 @@ class StreamScanner(QObject):
         except:
             return False
 
-    def _basic_stream_check(self, url: str) -> Optional[Dict]:
+    def _basic_stream_check(self, url: str, user_agent: str = None, referer: str = None) -> Optional[Dict]:
         """基本流检测（当ffprobe不可用时使用）"""
         try:
             # 使用curl进行简单HTTP检测
@@ -314,8 +331,18 @@ class StreamScanner(QObject):
             if not self._is_command_available(curl_cmd):
                 return None
                 
+            cmd = [curl_cmd, '-I', '-m', str(self._timeout)]
+            
+            # 添加User-Agent和Referer头
+            if user_agent:
+                cmd.extend(['-A', user_agent])
+            if referer:
+                cmd.extend(['-H', f"Referer: {referer}"])
+                
+            cmd.append(url)
+            
             result = subprocess.run(
-                [curl_cmd, '-I', '-m', str(self._timeout), url],
+                cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 timeout=self._timeout,

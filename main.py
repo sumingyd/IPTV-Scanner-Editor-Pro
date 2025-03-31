@@ -367,6 +367,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.thread_count_input.setValue(10)
         thread_layout.addWidget(self.thread_count_input)
 
+        # User-Agent设置
+        user_agent_layout = QtWidgets.QHBoxLayout()
+        user_agent_label = QtWidgets.QLabel("User-Agent:")
+        user_agent_layout.addWidget(user_agent_label)
+        self.user_agent_input = QtWidgets.QLineEdit()
+        self.user_agent_input.setPlaceholderText("可选，留空使用默认")
+        user_agent_layout.addWidget(self.user_agent_input)
+
+        # Referer设置
+        referer_layout = QtWidgets.QHBoxLayout()
+        referer_label = QtWidgets.QLabel("Referer:")
+        referer_layout.addWidget(referer_label)
+        self.referer_input = QtWidgets.QLineEdit()
+        self.referer_input.setPlaceholderText("可选，留空不使用")
+        referer_layout.addWidget(self.referer_input)
+
         # 开始扫描按钮
         scan_btn = QtWidgets.QPushButton("开始扫描")
         scan_btn.setStyleSheet(AppStyles.button_style())
@@ -384,6 +400,8 @@ class MainWindow(QtWidgets.QMainWindow):
         scan_layout.addRow("输入地址：", self.ip_range_input)
         scan_layout.addRow("超时时间：", timeout_layout)
         scan_layout.addRow("线程数：", thread_layout)
+        scan_layout.addRow("User-Agent：", user_agent_layout)
+        scan_layout.addRow("Referer：", referer_layout)
         scan_layout.addRow("进度：", self.scan_progress)
         scan_layout.addRow(button_layout)  # 添加按钮布局
 
@@ -888,6 +906,15 @@ class MainWindow(QtWidgets.QMainWindow):
         # 设置线程数（从用户输入中获取）
         thread_count = self.thread_count_input.value()
         self.scanner.set_thread_count(thread_count)
+
+        # 设置User-Agent和Referer
+        user_agent = self.user_agent_input.text().strip()
+        if user_agent:
+            self.scanner.set_user_agent(user_agent)
+        
+        referer = self.referer_input.text().strip()
+        if referer:
+            self.scanner.set_referer(referer)
 
         # 确保传入的是一个协程
         self.scan_worker = AsyncWorker(self.scanner.start_scan(ip_range))
