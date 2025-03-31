@@ -1,13 +1,16 @@
 import asyncio
 import subprocess
+import json
+import sys
+from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor
 from PyQt6 import QtWidgets
 from PyQt6.QtCore import QObject, pyqtSignal
+from playlist_io import PlaylistHandler
 from utils import setup_logger
 from qasync import asyncSlot
 from utils import parse_ip_range
-from playlist_io import PlaylistHandler
 
 logger = setup_logger('Scanner')
 
@@ -16,6 +19,7 @@ class StreamScanner(QObject):
     scan_finished = pyqtSignal(list)           # 有效频道列表
     channel_found = pyqtSignal(dict)           # 单个有效频道信息
     error_occurred = pyqtSignal(str)           # 错误信息
+    ffprobe_missing = pyqtSignal()             # 新增：ffprobe缺失信号
 
     def __init__(self):
         """流媒体扫描器
@@ -26,14 +30,15 @@ class StreamScanner(QObject):
         """
         super().__init__()
         self._is_scanning = False
-        self._timeout = 5  # 默认超时时间为 5 秒
-        self._thread_count = 10  # 默认线程数为 10
-        self._scan_lock = asyncio.Lock()  # 扫描任务锁
-        self.playlist = PlaylistHandler()  # 播放列表处理器
-        self._start_time = 0  # 扫描开始时间
-        self._scanned_count = 0  # 已扫描IP计数器
-        # 创建固定大小的线程池
+        self._timeout = 5
+        self._thread_count = 10
+        self._scan_lock = asyncio.Lock()
+        self.playlist = PlaylistHandler()
+        self._start_time = 0
+        self._scanned_count = 0
         self._executor = None
+        self._ffprobe_checked = False  # 是否已检查ffprobe
+        self._ffprobe_available = False  # ffprobe是否可用
 
     def set_timeout(self, timeout: int) -> None:
         """设置超时时间（单位：秒）"""
@@ -182,113 +187,148 @@ class StreamScanner(QObject):
             self._is_scanning = False
 
     async def _probe_stream(self, url: str) -> Optional[Dict]:
-        """探测单个流媒体信息"""
+        """探测单个流媒体信息（增强版）"""
         try:
+            # 首次使用时检查ffprobe可用性
+            if not self._ffprobe_checked:
+                await self._check_ffprobe()
+                self._ffprobe_checked = True
+
             loop = asyncio.get_running_loop()
-        except Exception:
-            return None
-            
-        try:
             result = await loop.run_in_executor(
                 self._executor,
                 self._run_ffprobe, 
                 url
             )
             return result
-        except Exception:
+        except Exception as e:
+            logger.error(f"探测流媒体出错: {str(e)}")
             return None
-        finally:
-            await asyncio.sleep(0)
-            
-    def _run_ffprobe(self, url: str) -> Optional[Dict]:
-        """执行ffprobe命令的同步方法
-        参数:
-            url: 要探测的流媒体URL
-        返回:
-            包含视频信息的字典(codec,width,height)或None
-        功能:
-            1. 使用CREATE_NO_WINDOW标志避免弹出窗口
-            2. 严格的错误处理和日志记录
-            3. 优化超时处理
-            4. 处理打包环境下的路径问题
-        """
-        try:
-            # 尝试多种方式查找ffprobe路径
-            ffprobe_path = None
-            possible_paths = [
-                'ffprobe',  # 系统PATH中的ffprobe
-                './ffprobe.exe',  # 当前目录
-                './bin/ffprobe.exe',  # bin子目录
-                './ffmpeg/bin/ffprobe.exe',  # ffmpeg子目录
-            ]
-            
-            for path in possible_paths:
-                try:
-                    subprocess.run([path, '-version'], 
-                                 stdout=subprocess.DEVNULL,
-                                 stderr=subprocess.DEVNULL,
-                                 creationflags=subprocess.CREATE_NO_WINDOW,
-                                 timeout=1)
-                    ffprobe_path = path
-                    break
-                except:
-                    continue
-            
-            if not ffprobe_path:
-                logger.error("无法找到ffprobe可执行文件，需要安装FFmpeg以获得完整功能，请访问 https://ffmpeg.org 下载")
-                return None
 
-            # 构建ffprobe命令
+    async def _check_ffprobe(self):
+        """检查ffprobe是否可用"""
+        try:
+            # 尝试运行ffprobe
+            proc = await asyncio.create_subprocess_exec(
+                'ffprobe', '-version',
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            await proc.wait()
+            self._ffprobe_available = proc.returncode == 0
+            
+            if not self._ffprobe_available:
+                self.ffprobe_missing.emit()
+        except Exception as e:
+            logger.warning(f"ffprobe检查失败: {str(e)}")
+            self._ffprobe_available = False
+            self.ffprobe_missing.emit()
+
+    def _run_ffprobe(self, url: str) -> Optional[Dict]:
+        """执行ffprobe命令（增强错误处理）"""
+        try:
+            # 1. 尝试查找ffprobe路径
+            ffprobe_path = self._find_ffprobe()
+            if not ffprobe_path:
+                logger.warning("ffprobe未找到，将仅检测基本连接性")
+                return self._basic_stream_check(url)
+
+            # 2. 构建ffprobe命令
             cmd = [
                 ffprobe_path,
-                '-v', 'quiet',  # 更安静的日志级别
-                '-hide_banner',  # 隐藏banner信息
-                '-loglevel', 'fatal',  # 只显示致命错误
+                '-v', 'error',
                 '-select_streams', 'v:0',
                 '-show_entries', 'stream=codec_name,width,height',
-                '-of', 'csv=p=0',
+                '-of', 'json',
                 '-timeout', str(self._timeout * 1_000_000),
                 url
             ]
-            
-            # 执行命令
+
+            # 3. 执行命令
             result = subprocess.run(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                stdin=subprocess.DEVNULL,
                 timeout=self._timeout,
                 creationflags=subprocess.CREATE_NO_WINDOW,
-                shell=False,
-                check=False,
-                start_new_session=True
+                check=False
             )
-            
-            # 处理结果
-            if result.returncode != 0:
-                logger.debug(f"ffprobe失败: {url} - 返回码:{result.returncode}")
-                return None
-                
-            # 解析输出
-            output = result.stdout.decode('utf-8', errors='ignore').strip()
-            lines = [line for line in output.splitlines() if line.strip()]
-            if not lines or len(lines[0].split(',')) < 3:
-                logger.debug(f"ffprobe输出格式错误: {url} - 输出:{output}")
-                return None
-                
-            # 提取视频信息
-            video_info = lines[0].split(',')
-            return {
-                'codec': video_info[0],
-                'width': int(video_info[1]),
-                'height': int(video_info[2])
-            }
-            
+
+            # 4. 处理结果
+            if result.returncode == 0:
+                output = json.loads(result.stdout.decode('utf-8'))
+                if 'streams' in output and len(output['streams']) > 0:
+                    stream = output['streams'][0]
+                    return {
+                        'codec': stream.get('codec_name', 'unknown'),
+                        'width': int(stream.get('width', 0)),
+                        'height': int(stream.get('height', 0)),
+                        'valid': True
+                    }
+            return None
+
         except subprocess.TimeoutExpired:
-            logger.debug(f"ffprobe超时: {url}")
+            logger.debug(f"检测超时: {url}")
             return None
         except Exception as e:
-            logger.error(f"ffprobe异常 - 命令: {' '.join(cmd)}\n错误: {str(e)}\n路径: {ffprobe_path}")
+            logger.error(f"ffprobe执行异常: {str(e)}")
+            return None
+
+    def _find_ffprobe(self) -> Optional[str]:
+        """查找ffprobe可执行文件路径"""
+        # 检查系统PATH
+        if self._is_command_available('ffprobe'):
+            return 'ffprobe'
+        
+        # 检查常见路径
+        possible_paths = [
+            'ffprobe.exe',
+            '/usr/bin/ffprobe',
+            '/usr/local/bin/ffprobe',
+            str(Path(__file__).parent / 'ffmpeg' / 'bin' / 'ffprobe.exe'),
+        ]
+        
+        for path in possible_paths:
+            if self._is_command_available(path):
+                return path
+        return None
+
+    def _is_command_available(self, cmd: str) -> bool:
+        """检查命令是否可用"""
+        try:
+            subprocess.run([cmd, '-version'],
+                         stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL,
+                         creationflags=subprocess.CREATE_NO_WINDOW,
+                         timeout=1)
+            return True
+        except:
+            return False
+
+    def _basic_stream_check(self, url: str) -> Optional[Dict]:
+        """基本流检测（当ffprobe不可用时使用）"""
+        try:
+            # 使用curl进行简单HTTP检测
+            curl_cmd = 'curl' if not sys.platform == 'win32' else 'curl.exe'
+            if not self._is_command_available(curl_cmd):
+                return None
+                
+            result = subprocess.run(
+                [curl_cmd, '-I', '-m', str(self._timeout), url],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=self._timeout,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            
+            return {
+                'codec': 'unknown',
+                'width': 0,
+                'height': 0,
+                'valid': result.returncode == 0
+            }
+        except:
             return None
 
     def stop_scan(self) -> None:

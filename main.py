@@ -94,7 +94,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # 初始化配置缓存
         self.cache_file = Path(__file__).parent / ".iptv_manager.ini"
         self.config_cache = {}
-        
+
+        # 连接ffprobe缺失信号
+        self.scanner.ffprobe_missing.connect(self.show_ffprobe_warning)
+
         # 首次启动清空缓存，非首次读取缓存
         if not self.cache_file.exists():
             self.config_cache = {
@@ -132,6 +135,30 @@ class MainWindow(QtWidgets.QMainWindow):
         self.epg_progress_updated.connect(self.update_status)
         self.player.state_changed.connect(self._handle_player_state)
         self.name_edit.installEventFilter(self)
+
+    def show_ffprobe_warning(self):
+        """显示ffprobe缺失警告"""
+        QMessageBox.warning(
+            self,
+            "功能受限",
+            "未检测到ffprobe，部分功能将受限：\n"
+            "1. 无法检测视频分辨率/编码格式\n"
+            "2. 仅能验证基本连接性\n\n"
+            "请安装FFmpeg以获得完整功能\n"
+            "下载地址: https://ffmpeg.org"
+        )
+
+    async def _async_show_warning(self, title: str, message: str) -> None:
+        """异步显示警告对话框"""
+        # 使用QMessageBox显示警告
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(QMessageBox.Icon.Warning)
+        msg_box.setWindowTitle(title)
+        msg_box.setText(message)
+        msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+        
+        # 使用exec_()并await来支持异步
+        await msg_box.exec_()
 
     # 事件过滤器处理焦点事件（最终版）
     def eventFilter(self, source, event: QtCore.QEvent) -> bool:
@@ -375,7 +402,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # 有效性检测按钮
         self.btn_validate = QtWidgets.QPushButton("检测有效性")
         self.btn_validate.setStyleSheet(AppStyles.button_style())
-        self.btn_validate.clicked.connect(self.validate_playlist)
         
         # 隐藏无效项按钮
         self.btn_hide_invalid = QtWidgets.QPushButton("隐藏无效项")
@@ -410,7 +436,7 @@ class MainWindow(QtWidgets.QMainWindow):
         list_group.setLayout(list_layout)
         parent.addWidget(list_group)
 
-    #配置播放器面板
+    # 配置播放器面板
     def _setup_player_panel(self, parent: QtWidgets.QSplitter) -> None:  
         """配置播放器面板"""
         player_group = QtWidgets.QGroupBox("视频播放")
@@ -1001,56 +1027,53 @@ class MainWindow(QtWidgets.QMainWindow):
     # 验证频道有效性并标记颜色
     async def validate_playlist(self):
         """验证频道有效性并标记颜色"""
-        # 空列表检查（放在方法最开头）
-        if not self.model.channels or len(self.model.channels) == 0:
-            # 使用QMessageBox代替print
-            QMessageBox.warning(
-                self, 
-                "列表为空",
-                "无法检测有效性：\n"
-                "1. 请先通过[扫描]或[打开列表]加载频道\n"
-                "2. 确保列表中有有效的URL"
-            )
-            return
-
         try:
+            # 空列表检查
+            if not self.model.channels:
+                QMessageBox.warning(
+                    self,
+                    "列表为空",
+                    "请先加载或扫描频道列表"
+                )
+                return
+
             self.btn_validate.setEnabled(False)
             self.validation_results.clear()
 
+            valid_count = 0
             for row, channel in enumerate(self.model.channels):
                 url = channel.get('url', '')
                 if not url:
                     continue
-                    
+
                 try:
-                    # 复用扫描器的检测方法
                     info = await self.scanner.check_stream(url)
                     is_valid = info['valid']
                     self.validation_results[url] = is_valid
                     
-                    # 更新背景色（绿色有效/红色无效）
+                    # 更新背景色
                     color = QtGui.QColor('#e8f5e9') if is_valid else QtGui.QColor('#ffebee')
                     for col in range(self.model.columnCount()):
                         index = self.model.index(row, col)
                         self.model.setData(index, color, Qt.ItemDataRole.BackgroundRole)
                     
-                    # 更新分辨率信息
+                    # 更新分辨率
                     if is_valid:
+                        valid_count += 1
                         self.model.channels[row].update({
                             'width': info.get('width', 0),
                             'height': info.get('height', 0)
                         })
-                        
+
                 except Exception as e:
                     logger.error(f"验证频道失败: {str(e)}")
                     self.validation_results[url] = False
 
-            valid_count = sum(self.validation_results.values())
-            total = len(self.model.channels)
-            self.filter_status_label.setText(f"有效: {valid_count}/{total}")
-            self.btn_validate.setEnabled(True)
+            self.filter_status_label.setText(f"有效: {valid_count}/{len(self.model.channels)}")
+
         except Exception as e:
-            logger.error(f"验证过程中出错: {str(e)}")
+            logger.error(f"验证过程出错: {str(e)}")
+            await self._async_show_warning("验证错误", f"验证过程中发生错误:\n{str(e)}")
         finally:
             self.btn_validate.setEnabled(True)
 
