@@ -380,7 +380,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # 隐藏无效项按钮
         self.btn_hide_invalid = QtWidgets.QPushButton("隐藏无效项")
         self.btn_hide_invalid.setStyleSheet(AppStyles.button_style())
-        self.btn_hide_invalid.clicked.connect(self.hide_invalid_channels)
+        self.btn_validate.clicked.connect(lambda: asyncio.create_task(self.validate_playlist()))
         
         # 状态标签
         self.filter_status_label = QtWidgets.QLabel("就绪")
@@ -1001,45 +1001,58 @@ class MainWindow(QtWidgets.QMainWindow):
     # 验证频道有效性并标记颜色
     async def validate_playlist(self):
         """验证频道有效性并标记颜色"""
-        if not self.model.channels:
-            self.show_error("频道列表为空")
+        # 空列表检查（放在方法最开头）
+        if not self.model.channels or len(self.model.channels) == 0:
+            # 使用QMessageBox代替print
+            QMessageBox.warning(
+                self, 
+                "列表为空",
+                "无法检测有效性：\n"
+                "1. 请先通过[扫描]或[打开列表]加载频道\n"
+                "2. 确保列表中有有效的URL"
+            )
             return
 
-        self.btn_validate.setEnabled(False)
-        self.validation_results.clear()
+        try:
+            self.btn_validate.setEnabled(False)
+            self.validation_results.clear()
 
-        for row, channel in enumerate(self.model.channels):
-            url = channel.get('url', '')
-            if not url:
-                continue
-                
-            try:
-                # 复用扫描器的检测方法
-                info = await self.scanner.check_stream(url)
-                is_valid = info['valid']
-                self.validation_results[url] = is_valid
-                
-                # 更新背景色（绿色有效/红色无效）
-                color = QtGui.QColor('#e8f5e9') if is_valid else QtGui.QColor('#ffebee')
-                for col in range(self.model.columnCount()):
-                    index = self.model.index(row, col)
-                    self.model.setData(index, color, Qt.ItemDataRole.BackgroundRole)
-                
-                # 更新分辨率信息
-                if is_valid:
-                    self.model.channels[row].update({
-                        'width': info.get('width', 0),
-                        'height': info.get('height', 0)
-                    })
+            for row, channel in enumerate(self.model.channels):
+                url = channel.get('url', '')
+                if not url:
+                    continue
                     
-            except Exception as e:
-                logger.error(f"验证频道失败: {str(e)}")
-                self.validation_results[url] = False
+                try:
+                    # 复用扫描器的检测方法
+                    info = await self.scanner.check_stream(url)
+                    is_valid = info['valid']
+                    self.validation_results[url] = is_valid
+                    
+                    # 更新背景色（绿色有效/红色无效）
+                    color = QtGui.QColor('#e8f5e9') if is_valid else QtGui.QColor('#ffebee')
+                    for col in range(self.model.columnCount()):
+                        index = self.model.index(row, col)
+                        self.model.setData(index, color, Qt.ItemDataRole.BackgroundRole)
+                    
+                    # 更新分辨率信息
+                    if is_valid:
+                        self.model.channels[row].update({
+                            'width': info.get('width', 0),
+                            'height': info.get('height', 0)
+                        })
+                        
+                except Exception as e:
+                    logger.error(f"验证频道失败: {str(e)}")
+                    self.validation_results[url] = False
 
-        valid_count = sum(self.validation_results.values())
-        total = len(self.model.channels)
-        self.filter_status_label.setText(f"有效: {valid_count}/{total}")
-        self.btn_validate.setEnabled(True)
+            valid_count = sum(self.validation_results.values())
+            total = len(self.model.channels)
+            self.filter_status_label.setText(f"有效: {valid_count}/{total}")
+            self.btn_validate.setEnabled(True)
+        except Exception as e:
+            logger.error(f"验证过程中出错: {str(e)}")
+        finally:
+            self.btn_validate.setEnabled(True)
 
     # 隐藏无效频道
     def hide_invalid_channels(self):
