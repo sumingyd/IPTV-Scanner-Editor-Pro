@@ -1023,6 +1023,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scan_stats_label.setText(f"扫描统计: 总数 {len(channels)} | 耗时 {elapsed:.1f}秒")
         self.detailed_stats_label.setText(f"总频道: {len(channels)} | 有效: {len(channels)} | 无效: 0 | 耗时: {elapsed:.1f}s")
         
+        # 恢复扫描按钮状态
+        self.scan_btn.setText("完整扫描")
+        self.scan_btn.setStyleSheet(AppStyles.button_style())
+        
         # 自动选择第一个频道但不自动播放
         if channels:
             first_index = self.model.index(0, 0)
