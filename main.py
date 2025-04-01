@@ -624,15 +624,10 @@ class MainWindow(QtWidgets.QMainWindow):
         save_action.triggered.connect(self.save_playlist)
         toolbar.addAction(save_action)
 
-        # 加载 EPG 缓存
+        # 加载 EPG 数据
         load_epg_action = QAction(load_icon("icons/load.png"), "加载 EPG", self)
         load_epg_action.triggered.connect(self.load_epg_cache)
         toolbar.addAction(load_epg_action)
-
-        # 更新 EPG 数据
-        refresh_epg_action = QAction(load_icon("icons/refresh.png"), "更新 EPG", self)
-        refresh_epg_action.triggered.connect(self.refresh_epg)
-        toolbar.addAction(refresh_epg_action)
 
         # EPG 管理
         epg_manage_action = QAction(load_icon("icons/settings.png"), "EPG 管理", self)
@@ -1266,33 +1261,21 @@ class MainWindow(QtWidgets.QMainWindow):
         # 强制立即处理事件队列
         QtWidgets.QApplication.processEvents()
 
-    # 异步加载 EPG 缓存
+    # 异步加载 EPG 数据
     @pyqtSlot()
     def load_epg_cache(self) -> None: 
-        """异步加载 EPG 缓存"""
-        self._start_epg_task(is_refresh=False)
-
-    # 异步更新 EPG 数据
-    @pyqtSlot()
-    def refresh_epg(self) -> None: 
-        """异步更新 EPG 数据"""
-        self._start_epg_task(is_refresh=True)
-
-    # 启动 EPG 任务
-    def _start_epg_task(self, is_refresh: bool) -> None:
-        """启动 EPG 任务"""
-        message = "正在加载 EPG 缓存..." if not is_refresh else "正在更新 EPG 数据..."
-        self.epg_progress_updated.emit(message)
-        self.scan_worker = AsyncWorker(self._async_load_epg(is_refresh))
+        """异步加载 EPG 数据"""
+        self.epg_progress_updated.emit("正在加载 EPG 数据...")
+        self.scan_worker = AsyncWorker(self._async_load_epg())
         self.scan_worker.finished.connect(self.handle_epg_load_success)
         self.scan_worker.error.connect(self.handle_epg_load_error)
-        self.scan_worker.start()  # 使用 start 方法启动任务
+        self.scan_worker.start()
 
-    # 异步加载或刷新 EPG 数据
-    async def _async_load_epg(self, is_refresh: bool) -> None: 
-        """异步加载或刷新 EPG 数据"""
+    # 异步加载 EPG 数据
+    async def _async_load_epg(self) -> None: 
+        """异步加载 EPG 数据"""
         try:
-            success = await self.epg_manager.load_epg(is_refresh, self.epg_progress_updated.emit)
+            success = await self.epg_manager.load_epg(self.epg_progress_updated.emit)
             message = "EPG 数据加载成功" if success else "EPG 数据加载失败"
             if success:
                 self.epg_progress_updated.emit("EPG 数据加载完成，正在更新界面...")
