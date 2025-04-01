@@ -1008,20 +1008,23 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QApplication.processEvents()
 
     #处理最终扫描结果
-    @pyqtSlot(list)
-    def handle_scan_results(self, channels: List[Dict]) -> None: 
+    @pyqtSlot(dict)
+    def handle_scan_results(self, result: Dict) -> None: 
         """处理最终扫描结果"""
-        elapsed = self.scanner.get_elapsed_time()
+        channels = result['channels']
+        total = result['total']
+        invalid = result['invalid']
+        elapsed = result['elapsed']
         # 显示更详细的统计信息
         stats_msg = (
-            f"扫描完成 - 总频道: {len(channels)} | "
+            f"扫描完成 - 总数: {total} | "
             f"有效: {len(channels)} | "
-            f"无效: 0 | "
+            f"无效: {invalid} | "
             f"耗时: {elapsed:.1f}秒"
         )
         self.statusBar().showMessage(stats_msg)
-        self.scan_stats_label.setText(f"扫描统计: 总数 {len(channels)} | 耗时 {elapsed:.1f}秒")
-        self.detailed_stats_label.setText(f"总频道: {len(channels)} | 有效: {len(channels)} | 无效: 0 | 耗时: {elapsed:.1f}s")
+        self.scan_stats_label.setText(f"扫描统计: 总数 {total} | 有效 {len(channels)} | 无效 {invalid} | 耗时: {elapsed:.1f}秒")
+        self.detailed_stats_label.setText(f"总数: {total} | 有效: {len(channels)} | 无效: {invalid} | 耗时: {elapsed:.1f}s")
         
         # 恢复扫描按钮状态
         self.scan_btn.setText("完整扫描")
