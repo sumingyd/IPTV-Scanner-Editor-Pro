@@ -125,6 +125,7 @@ class StreamScanner(QObject):
                 
             total = len(urls)
             valid_channels = []
+            invalid_count = 0
             
             # 创建线程池，大小与并发数一致
             self._executor = ThreadPoolExecutor(max_workers=self._thread_count)
@@ -151,7 +152,7 @@ class StreamScanner(QObject):
                         
                     self._scanned_count += 1
                     
-                    if result is not None:
+                    if result is not None and result.get('valid', True):
                         channel_name = f"频道 {len(valid_channels) + 1}"
                         channel_info = {
                             'name': channel_name,
@@ -163,6 +164,8 @@ class StreamScanner(QObject):
                         }
                         valid_channels.append(channel_info)
                         self.channel_found.emit(channel_info)
+                    else:
+                        invalid_count += 1
                     
                     # 更新进度
                     progress = int((self._scanned_count / total) * 100)
@@ -176,7 +179,8 @@ class StreamScanner(QObject):
                         f"速度: {scan_speed:.1f} IP/s",
                         f"剩余: {int(remaining)}s",
                         f"当前: {current_ip}",
-                        f"有效: {len(valid_channels)}"
+                        f"有效: {len(valid_channels)}",
+                        f"无效: {invalid_count}"
                     ]
                     status_msg = " | ".join(filter(None, status_parts))
                     self.progress_updated.emit(progress, status_msg)
@@ -189,8 +193,11 @@ class StreamScanner(QObject):
             
             if self._is_scanning:
                 elapsed = asyncio.get_event_loop().time() - self._start_time
+                # 将无效数量附加到频道列表
+                for chan in valid_channels:
+                    chan['_invalid_count'] = invalid_count
                 self.scan_finished.emit(valid_channels)
-                self.progress_updated.emit(100, f"扫描完成，耗时 {elapsed:.1f} 秒")
+                self.progress_updated.emit(100, f"扫描完成 - 有效: {len(valid_channels)} | 无效: {invalid_count} | 耗时: {elapsed:.1f}秒")
                 
         except Exception as e:
             self.error_occurred.emit(f"扫描错误: {str(e)}")

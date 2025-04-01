@@ -388,8 +388,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scan_btn.setStyleSheet(AppStyles.button_style())
         self.scan_btn.clicked.connect(self.toggle_scan)
 
+        # 扫描统计信息
+        self.scan_stats_label = QtWidgets.QLabel("扫描统计: 未开始")
+        self.scan_stats_label.setStyleSheet("color: #666; font-weight: bold;")
+        
+        # 新增详细统计信息
+        self.detailed_stats_label = QtWidgets.QLabel("总频道: 0 | 有效: 0 | 无效: 0 | 耗时: 0s")
+        self.detailed_stats_label.setStyleSheet("color: #666;")
+
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.addWidget(self.scan_btn)
+        button_layout.addWidget(self.scan_stats_label)
+        
+        stats_layout = QtWidgets.QVBoxLayout()
+        stats_layout.addWidget(self.scan_stats_label)
+        stats_layout.addWidget(self.detailed_stats_label)
 
         scan_layout.addRow("地址格式：", QtWidgets.QLabel("示例：http://192.168.1.1:1234/rtp/10.10.[1-20].[1-20]:5002   [1-20]表示范围"))
         scan_layout.addRow("输入地址：", self.ip_range_input)
@@ -399,6 +412,7 @@ class MainWindow(QtWidgets.QMainWindow):
         scan_layout.addRow("Referer：", referer_layout)
         scan_layout.addRow("进度：", self.scan_progress)
         scan_layout.addRow(button_layout)  # 添加按钮布局
+        scan_layout.addRow(stats_layout)   # 添加详细统计信息
 
         scan_group.setLayout(scan_layout)
         parent.addWidget(scan_group)
@@ -991,7 +1005,16 @@ class MainWindow(QtWidgets.QMainWindow):
     def handle_scan_results(self, channels: List[Dict]) -> None: 
         """处理最终扫描结果"""
         elapsed = self.scanner.get_elapsed_time()
-        self.statusBar().showMessage(f"扫描完成，共发现 {len(channels)} 个有效频道 - 总耗时: {elapsed:.1f}秒")
+        # 显示更详细的统计信息
+        stats_msg = (
+            f"扫描完成 - 总频道: {len(channels)} | "
+            f"有效: {len(channels)} | "
+            f"无效: 0 | "
+            f"耗时: {elapsed:.1f}秒"
+        )
+        self.statusBar().showMessage(stats_msg)
+        self.scan_stats_label.setText(f"扫描统计: 总数 {len(channels)} | 耗时 {elapsed:.1f}秒")
+        self.detailed_stats_label.setText(f"总频道: {len(channels)} | 有效: {len(channels)} | 无效: 0 | 耗时: {elapsed:.1f}s")
         
         # 自动选择第一个频道但不自动播放
         if channels:
