@@ -387,6 +387,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scan_btn = QtWidgets.QPushButton("完整扫描")
         self.scan_btn.setStyleSheet(AppStyles.button_style())
         self.scan_btn.clicked.connect(self.toggle_scan)
+        
+        # 设置按钮尺寸策略为Expanding
+        self.scan_btn.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Fixed
+        )
 
         # 扫描统计信息
         self.scan_stats_label = QtWidgets.QLabel("扫描统计: 未开始")
@@ -396,13 +402,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.detailed_stats_label = QtWidgets.QLabel("总频道: 0 | 有效: 0 | 无效: 0 | 耗时: 0s")
         self.detailed_stats_label.setStyleSheet("color: #666;")
 
-        button_layout = QtWidgets.QHBoxLayout()
-        button_layout.addWidget(self.scan_btn)
-        button_layout.addWidget(self.scan_stats_label)
+        # 使用网格布局让按钮和统计信息并排显示
+        button_stats_layout = QtWidgets.QGridLayout()
+        button_stats_layout.addWidget(self.scan_btn, 0, 0, 1, 2)  # 按钮占满前两列
+        button_stats_layout.addWidget(self.scan_stats_label, 1, 0)  # 统计信息第一行第二列
+        button_stats_layout.addWidget(self.detailed_stats_label, 1, 1)  # 详细统计第二行第二列
         
-        stats_layout = QtWidgets.QVBoxLayout()
-        stats_layout.addWidget(self.scan_stats_label)
-        stats_layout.addWidget(self.detailed_stats_label)
+        # 设置列拉伸比例
+        button_stats_layout.setColumnStretch(0, 1)
+        button_stats_layout.setColumnStretch(1, 1)
 
         scan_layout.addRow("地址格式：", QtWidgets.QLabel("示例：http://192.168.1.1:1234/rtp/10.10.[1-20].[1-20]:5002   [1-20]表示范围"))
         scan_layout.addRow("输入地址：", self.ip_range_input)
@@ -411,8 +419,7 @@ class MainWindow(QtWidgets.QMainWindow):
         scan_layout.addRow("User-Agent：", user_agent_layout)
         scan_layout.addRow("Referer：", referer_layout)
         scan_layout.addRow("进度：", self.scan_progress)
-        scan_layout.addRow(button_layout)  # 添加按钮布局
-        scan_layout.addRow(stats_layout)   # 添加详细统计信息
+        scan_layout.addRow(button_stats_layout)  # 添加按钮和统计信息布局
 
         scan_group.setLayout(scan_layout)
         parent.addWidget(scan_group)
