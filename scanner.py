@@ -16,7 +16,7 @@ logger = setup_logger('Scanner')
 
 class StreamScanner(QObject):
     progress_updated = pyqtSignal(int, str)    # 进度百分比, 状态信息
-    scan_finished = pyqtSignal(list)           # 有效频道列表
+    scan_finished = pyqtSignal(dict)           # 扫描结果字典
     channel_found = pyqtSignal(dict)           # 单个有效频道信息
     error_occurred = pyqtSignal(str)           # 错误信息
     ffprobe_missing = pyqtSignal()             # 新增：ffprobe缺失信号
@@ -196,8 +196,13 @@ class StreamScanner(QObject):
                 # 将无效数量附加到频道列表
                 for chan in valid_channels:
                     chan['_invalid_count'] = invalid_count
-                self.scan_finished.emit(valid_channels)
-                self.progress_updated.emit(100, f"扫描完成 - 有效: {len(valid_channels)} | 无效: {invalid_count} | 耗时: {elapsed:.1f}秒")
+                self.scan_finished.emit({
+                    'channels': valid_channels,
+                    'total': len(urls),
+                    'invalid': invalid_count,
+                    'elapsed': elapsed
+                })
+                self.progress_updated.emit(100, f"扫描完成 - 总数: {len(urls)} | 有效: {len(valid_channels)} | 无效: {invalid_count} | 耗时: {elapsed:.1f}秒")
                 
         except Exception as e:
             self.error_occurred.emit(f"扫描错误: {str(e)}")
