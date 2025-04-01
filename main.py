@@ -624,11 +624,6 @@ class MainWindow(QtWidgets.QMainWindow):
         save_action.triggered.connect(self.save_playlist)
         toolbar.addAction(save_action)
 
-        # 扫描
-        scan_action = QAction(load_icon("icons/scan.png"), "扫描频道", self)
-        scan_action.triggered.connect(self.toggle_scan)
-        toolbar.addAction(scan_action)
-
         # 加载 EPG 缓存
         load_epg_action = QAction(load_icon("icons/load.png"), "加载 EPG", self)
         load_epg_action.triggered.connect(self.load_epg_cache)
