@@ -326,24 +326,20 @@ def parse_ip_range(pattern: str) -> List[str]:
         pattern: 包含范围模式的URL字符串
     返回:
         所有可能的URL组合列表
-    支持格式:
-        1. 多个范围: http://192.168.50.1:20231/rtp/239.[1-20].[1-20].[1-20]:5002
-        2. 非IP部分的URL: http://150.138.8.143/00/SNM/CHANNEL[00000311-00001000]/index.m3u8
-        3. 混合格式: http://192.168.50.1:20231/rtp/239.21.[1-5].[1-255]:5002
-        4. 带步长的范围: http://192.168.50.1:20231/rtp/239.1.[1-20/2].1:5002
-    异常:
-        ValueError: 当输入格式无效或范围定义错误时抛出
+    新增功能:
+        1. 支持多范围输入（逗号分隔）
+        2. 自动检测数字位数并补零
+        3. 保留原始URL非数字部分
     示例:
-        >>> parse_ip_range("http://192.168.1.1/rtp/239.1.[1-3]:5002")
+        >>> parse_ip_range("http://example.com/ch[001-003,005-007]")
         [
-            'http://192.168.1.1/rtp/239.1.1:5002',
-            'http://192.168.1.1/rtp/239.1.2:5002',
-            'http://192.168.1.1/rtp/239.1.3:5002'
+            'http://example.com/ch001',
+            'http://example.com/ch002',
+            'http://example.com/ch003',
+            'http://example.com/ch005',
+            'http://example.com/ch006',
+            'http://example.com/ch007'
         ]
-    功能增强:
-        1. 支持多个独立范围表达式
-        2. 优化性能，减少内存使用
-        3. 更严格的输入验证
     """
     if not pattern:
         raise ValueError("频道地址不能为空")
@@ -354,97 +350,50 @@ def parse_ip_range(pattern: str) -> List[str]:
 
     # 特殊处理包含端口号的URL
     if ':' in pattern and '/' in pattern:
-        # 分割出端口号部分单独处理
         base_url, port_part = pattern.rsplit(':', 1)
         port = port_part.split('/')[-1]
-        # 仅当端口号是纯数字时才进行替换
         if port.isdigit():
-            # 保留原始端口号格式
             pattern = base_url + ':' + port_part
     
     logger.debug(f"解析前的原始模式: {pattern}")
+
+    # 使用正则表达式匹配数字范围部分
+    match = re.search(r'(\D*)(\d+)-(\d+)(\D*)', pattern)
+    if not match:
+        return [pattern]
+
+    prefix = match.group(1)
+    start_str = match.group(2)
+    end_str = match.group(3)
+    suffix = match.group(4)
     
-    # 解析每个段
-    segments = []
-    for seg in pattern.split('/'):
-        # 支持方括号和圆括号两种格式
-        if ('[' in seg and ']' in seg) or ('(' in seg and ')' in seg):
-            # 处理范围部分
-            open_char = '[' if '[' in seg else '('
-            close_char = ']' if '[' in seg else ')'
-            start_idx = seg.find(open_char)
-            end_idx = seg.find(close_char)
-            prefix = seg[:start_idx]
-            suffix = seg[end_idx + 1:]
-            range_part = seg[start_idx + 1:end_idx]
+    # 确定补零位数
+    digits = max(len(start_str), len(end_str))
+    start = int(start_str)
+    end = int(end_str)
+    
+    if start > end:
+        raise ValueError(f"起始值{start}不能大于结束值{end}")
 
-            # 解析范围
-            ranges = []
-            parts = range_part.split(',')
-            for part in parts:
-                if '-' in part:
-                    if '/' in part:
-                        range_part, step = part.split('/', 1)
-                        start_str, end_str = range_part.split('-')
-                        start = int(start_str)
-                        end = int(end_str)
-                        step = int(step)
-                        # 获取原始数字位数
-                        digits = len(start_str)
-                    else:
-                        start_str, end_str = part.split('-')
-                        start = int(start_str)
-                        end = int(end_str)
-                        step = 1
-                        # 获取原始数字位数
-                        digits = len(start_str)
-                    
-                    # 检查 start 和 end 的有效性
-                    if start > end:
-                        raise ValueError(f"无效的范围: {start} > {end}")
-                    if start == end:
-                        ranges.append(str(start).zfill(digits))
-                    else:
-                        # 使用生成器表达式减少内存使用，并补零
-                        ranges.extend(str(x).zfill(digits) for x in range(start, end + 1, step))
-                else:
-                    ranges.append(part)
-
-            # 生成所有组合(处理嵌套范围)
-            current_segments = []
-            for r in ranges:
-                # 检查当前r是否包含范围表达式
-                if ('[' in r and ']' in r) or ('(' in r and ')' in r):
-                    # 递归处理嵌套范围
-                    nested = parse_ip_range(prefix + r + suffix)
-                    current_segments.extend(nested)
-                else:
-                    # 检查当前r是否包含未解析的范围表达式
-                    if ('[' in r or ']' in r or '(' in r or ')' in r):
-                        # 递归处理不完整的范围表达式
-                        nested = parse_ip_range(prefix + r + suffix)
-                        current_segments.extend(nested)
-                    else:
-                        # 处理IP段中的范围表达式
-                        if '.' in prefix and any(c.isdigit() for c in r):
-                            # 如果是IP段，直接添加数字部分
-                            current_segments.append(prefix + r + suffix)
-                        else:
-                            # 其他情况保持原样
-                            current_segments.append(prefix + r + suffix)
-            segments.append(current_segments)
-        else:
-            segments.append([seg])
-
-    # 使用生成器表达式减少内存使用
+    # 处理多范围输入
     urls = []
-    for combo in product(*segments):
-        url = '/'.join(combo)
-        # 处理IP段中的范围表达式
-        if '[' in url or '(' in url:
-            urls.extend(parse_ip_range(url))
-        else:
-            urls.append(url)
+    ranges = pattern.split(',')
+    for r in ranges:
+        r_match = re.match(r'(\D*?)(\d+)-(\d+)(\D*)', r)
+        if r_match:
+            r_prefix = r_match.group(1)
+            r_start = int(r_match.group(2))
+            r_end = int(r_match.group(3))
+            r_suffix = r_match.group(4)
+            
+            # 生成当前范围的URL
+            for num in range(r_start, r_end + 1):
+                formatted_num = f"{num:0{digits}d}"
+                url = f"{r_prefix}{formatted_num}{r_suffix}"
+                # 保留原始协议和路径部分
+                full_url = re.sub(r'(\D*)(\d+)-(\d+)(\D*)', url, pattern, count=1)
+                urls.append(full_url)
+
     logger.debug(f"生成的URL示例: {urls[:3]}... (共{len(urls)}个)")
     return urls
 
