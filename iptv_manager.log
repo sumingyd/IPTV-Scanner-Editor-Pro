@@ -1,41 +1,56 @@
-2025-04-01 20:34:49,061 [DEBUG] Scanner:105 - 解析后的URL列表: ['http://192.168.50.1:20231/rtp/239.21.1.1:5002', 'http://192.168.50.1:20231/rtp/239.21.1.2:5002', 'http://192.168.50.1:20231/rtp/239.21.1.3:5002', 'http://192.168.50.1:20231/rtp/239.21.1.4:5002', 'http://192.168.50.1:20231/rtp/239.21.1.5:5002']... (共50个)
-2025-04-01 20:34:57,687 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.2.1:5002
-2025-04-01 20:34:57,687 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.2.2:5002
-2025-04-01 20:34:57,687 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.2.3:5002
-2025-04-01 20:34:57,688 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.2.4:5002
-2025-04-01 20:34:57,688 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.2.5:5002
-2025-04-01 20:34:57,688 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.2.6:5002
-2025-04-01 20:34:57,688 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.2.7:5002
-2025-04-01 20:34:57,688 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.2.8:5002
-2025-04-01 20:34:57,688 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.2.9:5002
-2025-04-01 20:34:57,688 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.2.10:5002
-2025-04-01 20:34:57,688 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.3.1:5002
-2025-04-01 20:34:57,689 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.3.2:5002
-2025-04-01 20:34:57,689 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.3.3:5002
-2025-04-01 20:34:57,689 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.3.4:5002
-2025-04-01 20:34:57,689 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.3.5:5002
-2025-04-01 20:34:57,689 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.3.6:5002
-2025-04-01 20:34:57,689 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.3.7:5002
-2025-04-01 20:34:57,690 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.3.8:5002
-2025-04-01 20:34:57,690 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.3.9:5002
-2025-04-01 20:34:57,690 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.3.10:5002
-2025-04-01 20:34:57,690 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.4.1:5002
-2025-04-01 20:34:57,690 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.4.2:5002
-2025-04-01 20:34:57,690 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.4.3:5002
-2025-04-01 20:34:57,690 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.4.4:5002
-2025-04-01 20:34:57,690 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.4.5:5002
-2025-04-01 20:34:57,691 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.4.6:5002
-2025-04-01 20:34:57,691 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.4.7:5002
-2025-04-01 20:34:57,691 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.4.8:5002
-2025-04-01 20:34:57,691 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.4.9:5002
-2025-04-01 20:34:57,691 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.4.10:5002
-2025-04-01 20:34:57,691 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.5.1:5002
-2025-04-01 20:34:57,691 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.5.2:5002
-2025-04-01 20:34:57,691 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.5.3:5002
-2025-04-01 20:34:57,692 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.5.4:5002
-2025-04-01 20:34:57,692 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.5.5:5002
-2025-04-01 20:34:57,692 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.5.6:5002
-2025-04-01 20:34:57,692 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.5.7:5002
-2025-04-01 20:34:57,692 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.5.8:5002
-2025-04-01 20:34:57,692 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.5.9:5002
-2025-04-01 20:34:57,692 [DEBUG] Scanner:230 - 探测任务被取消: http://192.168.50.1:20231/rtp/239.21.5.10:5002
+2025-04-01 21:25:00,274 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -o2025-04-01 21:25:10,314 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001022/index.m3u8
+2025-04-01 21:25:20,409 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://202.168.187.208:9089/tsfile/live/1003_1.m3u8
+2025-04-01 21:25:30,511 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://43.248.128.135:35455/gaoma/cctv1.m3u8
+2025-04-01 21:25:37,813 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://61.173.144.157:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
+2025-04-01 21:25:47,909 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://116.128.242.83:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
+2025-04-01 21:25:51,492 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://[2409:8087:5e00:24::1e]:6060/000000001000/5000000010000030810/1.m3u8
+2025-04-01 21:26:01,586 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000021973/1.m3u8
+2025-04-01 21:26:11,682 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226559/index.m3u8
+2025-04-01 21:26:21,777 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://[2409:8087:1a0a:df::4038]:80/ottrrs.hl.chinamobile.com/TVOD/88888888/224/3221226559/index.m3u8
+2025-04-01 21:26:31,876 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226419/index.m3u8
+2025-04-01 21:26:41,972 [INFO] Main:1131 - 正在验证频道: CCTV2 - http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001220/index.m3u8
+2025-04-01 21:26:52,068 [INFO] Main:1131 - 正在验证频道: CCTV2 - http://202.168.187.208:9089/tsfile/live/0002_1.m3u8
+2025-04-01 21:27:02,167 [INFO] Main:1131 - 正在验证频道: CCTV2 - http://117.144.58.42:35455/gaoma/cctv2.m3u8
+2025-04-01 21:27:12,263 [INFO] Main:1131 - 正在验证频道: CCTV2 - http://61.173.144.157:9901/tsfile/live/0002_1.m3u8
+2025-04-01 21:27:22,343 [INFO] Main:1131 - 正在验证频道: CCTV2 - http://61.173.144.157:9901/tsfile/live/0002_1.m3u8?key=txiptv&playlive=1&authid=0
+2025-04-01 21:27:32,440 [INFO] Main:1131 - 正在验证频道: CCTV2 - http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000012442/1.m3u8
+mber -10054 occurred
+
+2025-04-01 21:25:37,875 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://61.173.144.157:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
+2025-04-01 21:25:37,904 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 26824)检测URL: http://61.173.144.157:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
+2025-04-01 21:25:47,908 [DEBUG] Scanner:311 - 检测超时: http://61.173.144.157:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0, 错误输出: 
+2025-04-01 21:25:47,971 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://116.128.242.83:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
+2025-04-01 21:25:48,000 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 36088)检测URL: http://116.128.242.83:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
+2025-04-01 21:25:51,492 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 0)
+2025-04-01 21:25:51,552 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://[2409:8087:5e00:24::1e]:6060/000000001000/5000000010000030810/1.m3u8
+2025-04-01 21:25:51,581 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 18236)检测URL: http://[2409:8087:5e00:24::1e]:6060/000000001000/5000000010000030810/1.m3u8
+2025-04-01 21:26:01,586 [DEBUG] Scanner:311 - 检测超时: http://[2409:8087:5e00:24::1e]:6060/000000001000/5000000010000030810/1.m3u8, 错误输出: 
+2025-04-01 21:26:01,646 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000021973/1.m3u8
+2025-04-01 21:26:01,675 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 45360)检测URL: http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000021973/1.m3u8
+2025-04-01 21:26:11,680 [DEBUG] Scanner:311 - 检测超时: http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000021973/1.m3u8, 错误输出: 
+2025-04-01 21:26:11,743 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226559/index.m3u8
+2025-04-01 21:26:11,771 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 40588)检测URL: http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226559/index.m3u8
+2025-04-01 21:26:21,776 [DEBUG] Scanner:311 - 检测超时: http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226559/index.m3u8, 错误输出: 
+2025-04-01 21:26:21,840 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://[2409:8087:1a0a:df::4038]:80/ottrrs.hl.chinamobile.com/TVOD/88888888/224/3221226559/index.m3u8
+2025-04-01 21:26:21,871 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 22108)检测URL: http://[2409:8087:1a0a:df::4038]:80/ottrrs.hl.chinamobile.com/TVOD/88888888/224/3221226559/index.m3u8
+2025-04-01 21:26:31,875 [DEBUG] Scanner:311 - 检测超时: http://[2409:8087:1a0a:df::4038]:80/ottrrs.hl.chinamobile.com/TVOD/88888888/224/3221226559/index.m3u8, 错误输出: 
+2025-04-01 21:26:31,938 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226419/index.m3u8
+2025-04-01 21:26:31,967 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 39244)检测URL: http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226419/index.m3u8
+2025-04-01 21:26:41,972 [DEBUG] Scanner:311 - 检测超时: http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226419/index.m3u8, 错误输出: 
+2025-04-01 21:26:42,033 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001220/index.m3u8
+2025-04-01 21:26:42,063 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 29800)检测URL: http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001220/index.m3u8
+2025-04-01 21:26:52,067 [DEBUG] Scanner:311 - 检测超时: http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001220/index.m3u8, 错误输出: 
+2025-04-01 21:26:52,131 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://202.168.187.208:9089/tsfile/live/0002_1.m3u8
+2025-04-01 21:26:52,160 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 48088)检测URL: http://202.168.187.208:9089/tsfile/live/0002_1.m3u8
+2025-04-01 21:27:02,165 [DEBUG] Scanner:311 - 检测超时: http://202.168.187.208:9089/tsfile/live/0002_1.m3u8, 错误输出: 
+2025-04-01 21:27:02,227 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://117.144.58.42:35455/gaoma/cctv2.m3u8
+2025-04-01 21:27:02,256 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 42376)检测URL: http://117.144.58.42:35455/gaoma/cctv2.m3u8
+2025-04-01 21:27:12,261 [DEBUG] Scanner:311 - 检测超时: http://117.144.58.42:35455/gaoma/cctv2.m3u8, 错误输出: 
+2025-04-01 21:27:12,323 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://61.173.144.157:9901/tsfile/live/0002_1.m3u8
+2025-04-01 21:27:12,351 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 45860)检测URL: http://61.173.144.157:9901/tsfile/live/0002_1.m3u8
+2025-04-01 21:27:22,343 [DEBUG] Scanner:311 - 检测超时: http://61.173.144.157:9901/tsfile/live/0002_1.m3u8, 错误输出: 
+2025-04-01 21:27:22,405 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://61.173.144.157:9901/tsfile/live/0002_1.m3u8?key=txiptv&playlive=1&authid=0
+2025-04-01 21:27:22,435 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 34232)检测URL: http://61.173.144.157:9901/tsfile/live/0002_1.m3u8?key=txiptv&playlive=1&authid=0
+2025-04-01 21:27:32,440 [DEBUG] Scanner:311 - 检测超时: http://61.173.144.157:9901/tsfile/live/0002_1.m3u8?key=txiptv&playlive=1&authid=0, 错误输出: 
+2025-04-01 21:27:32,500 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000012442/1.m3u8
+2025-04-01 21:27:32,529 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 48044)检测URL: http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000012442/1.m3u8
