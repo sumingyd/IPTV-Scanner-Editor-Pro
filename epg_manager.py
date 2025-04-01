@@ -23,27 +23,13 @@ class EPGManager:
     def _init_epg_sources(self) -> None:
         """初始化EPG数据源配置"""
         self.epg_sources = {
-            'main': self.config.config.get(
-                'EPG', 
-                'main_url',
-                fallback='epg xml地址'
-            ),
+            'main': self.config.config.get('EPG', 'main_url', fallback=''),
             'backups': [
-                url.strip() for url in 
-                self.config.config.get(
-                    'EPG',
-                    'backup_urls',
-                    fallback=','.join([
-                        'epg xml地址'
-                    ])
-                ).split(',')
+                url.strip() 
+                for url in self.config.config.get('EPG', 'backup_urls', fallback='').split(',') 
                 if url.strip()
             ],
-            'cache_ttl': self.config.config.getint(
-                'EPG', 
-                'cache_ttl',
-                fallback=3600
-            )
+            'cache_ttl': self.config.config.getint('EPG', 'cache_ttl', fallback=3600)
         }
 
     async def _download_epg(self, url: str) -> Optional[bytes]:
@@ -205,47 +191,62 @@ class EPGManager:
             return False
         return channel_name.lower() in self._name_index
 
-    async def load_epg(self, is_refresh: bool, progress_callback: Optional[callable] = None) -> bool:
-        """加载或刷新 EPG 数据"""
+    async def load_epg(self, progress_callback: Optional[callable] = None) -> bool:
+        """智能加载EPG数据(优先缓存，自动更新)"""
         try:
-            if is_refresh:
-                if progress_callback:
-                    progress_callback("正在下载 EPG 数据...")
-                content = await self._download_epg(self.epg_sources['main'])
-                if not content:
-                    # 尝试备用源
-                    for backup_url in self.epg_sources['backups']:
-                        if progress_callback:
-                            progress_callback(f"正在尝试备用源: {backup_url}")
-                        content = await self._download_epg(backup_url)
-                        if content:
-                            break
-
-                if content:
-                    if progress_callback:
-                        progress_callback("正在解析 EPG 数据...")
-                    parsed_data = self._parse_xmltv(content)
-                    if parsed_data:
+            # 首先尝试从缓存加载
+            if latest_cache := self.cache_manager.get_latest_cache():
+                try:
+                    with open(latest_cache, "rb") as f:
+                        content = f.read()
+                    if parsed_data := self._parse_xmltv(content):
                         self.epg_data = parsed_data
                         if progress_callback:
-                            progress_callback("EPG 数据更新成功")
+                            progress_callback(f"从缓存加载 EPG 数据: {latest_cache.name}")
                         return True
-            else:
-                if latest_cache := self.cache_manager.get_latest_cache():
-                    try:
-                        with open(latest_cache, "rb") as f:
-                            content = f.read()
-                        if parsed_data := self._parse_xmltv(content):
-                            self.epg_data = parsed_data
-                            if progress_callback:
-                                progress_callback(f"从缓存加载 EPG 数据: {latest_cache.name}")
-                            return True
-                    except Exception as e:
+                    else:
                         if progress_callback:
-                            progress_callback(f"加载缓存文件失败: {str(e)}")
+                            progress_callback("缓存文件解析失败，尝试更新...")
+                except Exception as e:
+                    if progress_callback:
+                        progress_callback(f"加载缓存文件失败: {str(e)}，尝试更新...")
+            
+            # 检查是否设置了EPG源
+            if not self.epg_sources['main'] and not self.epg_sources['backups']:
+                if progress_callback:
+                    progress_callback("错误: 未设置EPG数据源地址")
+                return False
+            
+            if progress_callback:
+                progress_callback("正在下载 EPG 数据...")
+            
+            content = None
+            if self.epg_sources['main']:
+                content = await self._download_epg(self.epg_sources['main'])
+            
+            if not content and self.epg_sources['backups']:
+                for backup_url in self.epg_sources['backups']:
+                    if progress_callback:
+                        progress_callback(f"正在尝试备用源: {backup_url}")
+                    content = await self._download_epg(backup_url)
+                    if content:
+                        break
+
+            if content:
+                if progress_callback:
+                    progress_callback("正在解析 EPG 数据...")
+                parsed_data = self._parse_xmltv(content)
+                if parsed_data:
+                    self.epg_data = parsed_data
+                    if progress_callback:
+                        progress_callback("EPG 数据更新成功")
+                    return True
                 else:
                     if progress_callback:
-                        progress_callback("未找到缓存文件")
+                        progress_callback("EPG 数据解析失败")
+            else:
+                if progress_callback:
+                    progress_callback("所有EPG源下载失败")
             return False
         except Exception as e:
             if progress_callback:
