@@ -1102,8 +1102,24 @@ class MainWindow(QtWidgets.QMainWindow):
                 )
                 return
 
+            # 获取扫描设置参数
+            timeout = self.timeout_input.value()
+            thread_count = self.thread_count_input.value()
+            user_agent = self.user_agent_input.text().strip()
+            referer = self.referer_input.text().strip()
+
+            # 设置扫描参数
+            self.scanner.set_timeout(timeout)
+            self.scanner.set_thread_count(thread_count)
+            if user_agent:
+                self.scanner.set_user_agent(user_agent)
+            if referer:
+                self.scanner.set_referer(referer)
+
             self.btn_validate.setEnabled(False)
             self.validation_results.clear()
+            self.progress_indicator.show()  # 显示进度指示器
+            self.statusBar().showMessage("开始验证频道有效性...")
 
             valid_count = 0
             for row, channel in enumerate(self.model.channels):
@@ -1112,35 +1128,47 @@ class MainWindow(QtWidgets.QMainWindow):
                     continue
 
                 try:
-                    info = await self.scanner.check_stream(url)
-                    is_valid = info['valid']
+                    logger.info(f"正在验证频道: {channel.get('name', '未命名')} - {url}")
+                    info = await self.scanner._probe_stream(url)
+                    is_valid = info['valid'] if info else False
                     self.validation_results[url] = is_valid
                     
-                    # 更新背景色
-                    color = QtGui.QColor('#e8f5e9') if is_valid else QtGui.QColor('#ffebee')
+                    # 更新背景色和字体颜色
+                    bg_color = QtGui.QColor('#e8f5e9') if is_valid else QtGui.QColor('#ffebee')
+                    text_color = QtGui.QColor('#000000') if is_valid else QtGui.QColor('#ff0000')
+                    
                     for col in range(self.model.columnCount()):
                         index = self.model.index(row, col)
-                        self.model.setData(index, color, Qt.ItemDataRole.BackgroundRole)
+                        self.model.setData(index, bg_color, Qt.ItemDataRole.BackgroundRole)
+                        self.model.setData(index, text_color, Qt.ItemDataRole.ForegroundRole)
                     
                     # 更新分辨率
-                    if is_valid:
+                    if is_valid and info:
                         valid_count += 1
                         self.model.channels[row].update({
                             'width': info.get('width', 0),
                             'height': info.get('height', 0)
                         })
 
+                    # 强制刷新UI
+                    QtWidgets.QApplication.processEvents()
+
                 except Exception as e:
                     logger.error(f"验证频道失败: {str(e)}")
                     self.validation_results[url] = False
 
             self.filter_status_label.setText(f"有效: {valid_count}/{len(self.model.channels)}")
+            self.statusBar().showMessage(
+                f"验证完成 - 超时: {timeout}s | 线程: {thread_count} | 有效: {valid_count}/{len(self.model.channels)}"
+            )
+            logger.info(f"验证完成: 有效 {valid_count}/{len(self.model.channels)} 个频道")
 
         except Exception as e:
             logger.error(f"验证过程出错: {str(e)}")
             await self._async_show_warning("验证错误", f"验证过程中发生错误:\n{str(e)}")
         finally:
             self.btn_validate.setEnabled(True)
+            self.progress_indicator.hide()  # 隐藏进度指示器
 
     # 隐藏无效频道
     def hide_invalid_channels(self):

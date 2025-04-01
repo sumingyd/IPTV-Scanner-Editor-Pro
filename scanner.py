@@ -271,31 +271,44 @@ class StreamScanner(QObject):
                 '-show_entries', 'stream=codec_name,width,height',
                 '-of', 'json',
                 '-timeout', str(self._timeout * 1_000_000),
+                '-rw_timeout', str(self._timeout * 1_000_000),
+                '-analyzeduration', '10000000',
+                '-probesize', '10000000'
             ]
             
             # 添加User-Agent和Referer头
+            # 添加更完整的请求头设置
+            headers = []
             if self._user_agent:
-                cmd.extend(['-user_agent', self._user_agent])
+                headers.append(f"User-Agent: {self._user_agent}")
             if self._referer:
-                cmd.extend(['-headers', f"Referer: {self._referer}"])
+                headers.append(f"Referer: {self._referer}")
+            if headers:
+                cmd.extend(['-headers', '\r\n'.join(headers)])
                 
             cmd.append(url)
 
             # 3. 执行命令（使用Popen而不是run以便可以终止）
+            # 增加详细的日志记录
+            logger.debug(f"执行ffprobe命令: {' '.join(cmd)}")
             proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
+            logger.debug(f"启动ffprobe进程(PID: {proc.pid})检测URL: {url}")
 
             # 4. 等待结果或取消
             try:
                 stdout, stderr = proc.communicate(timeout=self._timeout)
+                logger.debug(f"ffprobe检测完成(返回码: {proc.returncode})")
+                if proc.returncode != 0:
+                    logger.debug(f"ffprobe错误输出: {stderr.decode('utf-8', errors='ignore')}")
             except subprocess.TimeoutExpired:
                 proc.kill()
                 stdout, stderr = proc.communicate()
-                logger.debug(f"检测超时: {url}")
+                logger.debug(f"检测超时: {url}, 错误输出: {stderr.decode('utf-8', errors='ignore')}")
                 return None
 
             # 5. 处理结果
