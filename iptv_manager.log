@@ -1,56 +1,242 @@
-2025-04-01 21:25:00,274 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -o2025-04-01 21:25:10,314 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001022/index.m3u8
-2025-04-01 21:25:20,409 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://202.168.187.208:9089/tsfile/live/1003_1.m3u8
-2025-04-01 21:25:30,511 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://43.248.128.135:35455/gaoma/cctv1.m3u8
-2025-04-01 21:25:37,813 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://61.173.144.157:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
-2025-04-01 21:25:47,909 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://116.128.242.83:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
-2025-04-01 21:25:51,492 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://[2409:8087:5e00:24::1e]:6060/000000001000/5000000010000030810/1.m3u8
-2025-04-01 21:26:01,586 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000021973/1.m3u8
-2025-04-01 21:26:11,682 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226559/index.m3u8
-2025-04-01 21:26:21,777 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://[2409:8087:1a0a:df::4038]:80/ottrrs.hl.chinamobile.com/TVOD/88888888/224/3221226559/index.m3u8
-2025-04-01 21:26:31,876 [INFO] Main:1131 - 正在验证频道: CCTV1 - http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226419/index.m3u8
-2025-04-01 21:26:41,972 [INFO] Main:1131 - 正在验证频道: CCTV2 - http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001220/index.m3u8
-2025-04-01 21:26:52,068 [INFO] Main:1131 - 正在验证频道: CCTV2 - http://202.168.187.208:9089/tsfile/live/0002_1.m3u8
-2025-04-01 21:27:02,167 [INFO] Main:1131 - 正在验证频道: CCTV2 - http://117.144.58.42:35455/gaoma/cctv2.m3u8
-2025-04-01 21:27:12,263 [INFO] Main:1131 - 正在验证频道: CCTV2 - http://61.173.144.157:9901/tsfile/live/0002_1.m3u8
-2025-04-01 21:27:22,343 [INFO] Main:1131 - 正在验证频道: CCTV2 - http://61.173.144.157:9901/tsfile/live/0002_1.m3u8?key=txiptv&playlive=1&authid=0
-2025-04-01 21:27:32,440 [INFO] Main:1131 - 正在验证频道: CCTV2 - http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000012442/1.m3u8
-mber -10054 occurred
+2025-04-02 02:40:42,581 [DEBUG] Scanner:105 - 解析后的URL列表: ['http://192.168.50.1:20231/rtp/239.21.1.1:5002', 'http://192.168.50.1:20231/rtp/239.21.1.2:5002', 'http://192.168.50.1:20231/rtp/239.21.1.3:5002', 'http://192.168.50.1:20231/rtp/239.21.1.4:5002', 'http://192.168.50.1:20231/rtp/239.21.1.5:5002']... (共50个)
+2025-04-02 02:40:44,765 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.1.2:5002
+2025-04-02 02:40:44,766 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.1.1:5002
+2025-04-02 02:40:44,766 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.1.3:5002
+2025-04-02 02:40:44,774 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.1.7:5002
+2025-04-02 02:40:44,791 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.1.6:5002
+2025-04-02 02:40:44,792 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.1.9:5002
+2025-04-02 02:40:44,793 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.1.10:5002
+2025-04-02 02:40:44,793 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.1.4:5002
+2025-04-02 02:40:44,793 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.1.5:5002
+2025-04-02 02:40:44,793 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.1.8:5002
+2025-04-02 02:40:44,838 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 34772)检测URL: http://192.168.50.1:20231/rtp/239.21.1.1:5002
+2025-04-02 02:40:44,838 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 51428)检测URL: http://192.168.50.1:20231/rtp/239.21.1.2:5002
+2025-04-02 02:40:44,838 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 46556)检测URL: http://192.168.50.1:20231/rtp/239.21.1.3:5002
+2025-04-02 02:40:44,875 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 33460)检测URL: http://192.168.50.1:20231/rtp/239.21.1.7:5002
+2025-04-02 02:40:44,925 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 29048)检测URL: http://192.168.50.1:20231/rtp/239.21.1.9:5002
+2025-04-02 02:40:44,937 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 1572)检测URL: http://192.168.50.1:20231/rtp/239.21.1.8:5002
+2025-04-02 02:40:44,937 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 54192)检测URL: http://192.168.50.1:20231/rtp/239.21.1.5:5002
+2025-04-02 02:40:44,937 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 39648)检测URL: http://192.168.50.1:20231/rtp/239.21.1.6:5002
+2025-04-02 02:40:44,938 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 51600)检测URL: http://192.168.50.1:20231/rtp/239.21.1.4:5002
+2025-04-02 02:40:44,938 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 50896)检测URL: http://192.168.50.1:20231/rtp/239.21.1.10:5002
+2025-04-02 02:40:54,843 [DEBUG] Scanner:311 - 检测超时: http://192.168.50.1:20231/rtp/239.21.1.3:5002, 错误输出: 
+2025-04-02 02:40:54,845 [DEBUG] Scanner:311 - 检测超时: http://192.168.50.1:20231/rtp/239.21.1.2:5002, 错误输出: 
+2025-04-02 02:40:54,845 [DEBUG] Scanner:311 - 检测超时: http://192.168.50.1:20231/rtp/239.21.1.1:5002, 错误输出: 
+2025-04-02 02:40:54,885 [DEBUG] Scanner:311 - 检测超时: http://192.168.50.1:20231/rtp/239.21.1.7:5002, 错误输出: 
+2025-04-02 02:40:54,931 [DEBUG] Scanner:311 - 检测超时: http://192.168.50.1:20231/rtp/239.21.1.9:5002, 错误输出: 
+2025-04-02 02:40:54,936 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.2.1:5002
+2025-04-02 02:40:54,963 [DEBUG] Scanner:311 - 检测超时: http://192.168.50.1:20231/rtp/239.21.1.6:5002, 错误输出: 
+2025-04-02 02:40:54,963 [DEBUG] Scanner:311 - 检测超时: http://192.168.50.1:20231/rtp/239.21.1.8:5002, 错误输出: 
+2025-04-02 02:40:54,963 [DEBUG] Scanner:311 - 检测超时: http://192.168.50.1:20231/rtp/239.21.1.5:5002, 错误输出: 
+2025-04-02 02:40:54,964 [DEBUG] Scanner:311 - 检测超时: http://192.168.50.1:20231/rtp/239.21.1.4:5002, 错误输出: 
+2025-04-02 02:40:54,965 [DEBUG] Scanner:311 - 检测超时: http://192.168.50.1:20231/rtp/239.21.1.10:5002, 错误输出: 
+2025-04-02 02:40:55,035 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 36932)检测URL: http://192.168.50.1:20231/rtp/239.21.2.1:5002
+2025-04-02 02:40:55,045 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.2.2:5002
+2025-04-02 02:40:55,047 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.2.3:5002
+2025-04-02 02:40:55,059 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.2.4:5002
+2025-04-02 02:40:55,106 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 21968)检测URL: http://192.168.50.1:20231/rtp/239.21.2.2:5002
+2025-04-02 02:40:55,107 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.2.5:5002
+2025-04-02 02:40:55,156 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 24416)检测URL: http://192.168.50.1:20231/rtp/239.21.2.3:5002
+2025-04-02 02:40:55,159 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 45892)检测URL: http://192.168.50.1:20231/rtp/239.21.2.4:5002
+2025-04-02 02:40:55,166 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 24884)检测URL: http://192.168.50.1:20231/rtp/239.21.2.5:5002
+2025-04-02 02:40:55,179 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.2.9:5002
+2025-04-02 02:40:55,183 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.2.6:5002
+2025-04-02 02:40:55,183 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.2.8:5002
+2025-04-02 02:40:55,183 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.2.10:5002
+2025-04-02 02:40:55,185 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.2.7:5002
+2025-04-02 02:40:55,250 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 50336)检测URL: http://192.168.50.1:20231/rtp/239.21.2.9:5002
+2025-04-02 02:40:55,272 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 6340)检测URL: http://192.168.50.1:20231/rtp/239.21.2.10:5002
+2025-04-02 02:40:55,272 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 45156)检测URL: http://192.168.50.1:20231/rtp/239.21.2.7:5002
+2025-04-02 02:40:55,272 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 19416)检测URL: http://192.168.50.1:20231/rtp/239.21.2.6:5002
+2025-04-02 02:40:55,272 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 44888)检测URL: http://192.168.50.1:20231/rtp/239.21.2.8:5002
+2025-04-02 02:41:00,174 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:00,174 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 000001d15c8f8a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.2.1:5002: I/O error
 
-2025-04-01 21:25:37,875 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://61.173.144.157:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
-2025-04-01 21:25:37,904 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 26824)检测URL: http://61.173.144.157:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
-2025-04-01 21:25:47,908 [DEBUG] Scanner:311 - 检测超时: http://61.173.144.157:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0, 错误输出: 
-2025-04-01 21:25:47,971 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://116.128.242.83:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
-2025-04-01 21:25:48,000 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 36088)检测URL: http://116.128.242.83:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
-2025-04-01 21:25:51,492 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 0)
-2025-04-01 21:25:51,552 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://[2409:8087:5e00:24::1e]:6060/000000001000/5000000010000030810/1.m3u8
-2025-04-01 21:25:51,581 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 18236)检测URL: http://[2409:8087:5e00:24::1e]:6060/000000001000/5000000010000030810/1.m3u8
-2025-04-01 21:26:01,586 [DEBUG] Scanner:311 - 检测超时: http://[2409:8087:5e00:24::1e]:6060/000000001000/5000000010000030810/1.m3u8, 错误输出: 
-2025-04-01 21:26:01,646 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000021973/1.m3u8
-2025-04-01 21:26:01,675 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 45360)检测URL: http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000021973/1.m3u8
-2025-04-01 21:26:11,680 [DEBUG] Scanner:311 - 检测超时: http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000021973/1.m3u8, 错误输出: 
-2025-04-01 21:26:11,743 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226559/index.m3u8
-2025-04-01 21:26:11,771 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 40588)检测URL: http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226559/index.m3u8
-2025-04-01 21:26:21,776 [DEBUG] Scanner:311 - 检测超时: http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226559/index.m3u8, 错误输出: 
-2025-04-01 21:26:21,840 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://[2409:8087:1a0a:df::4038]:80/ottrrs.hl.chinamobile.com/TVOD/88888888/224/3221226559/index.m3u8
-2025-04-01 21:26:21,871 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 22108)检测URL: http://[2409:8087:1a0a:df::4038]:80/ottrrs.hl.chinamobile.com/TVOD/88888888/224/3221226559/index.m3u8
-2025-04-01 21:26:31,875 [DEBUG] Scanner:311 - 检测超时: http://[2409:8087:1a0a:df::4038]:80/ottrrs.hl.chinamobile.com/TVOD/88888888/224/3221226559/index.m3u8, 错误输出: 
-2025-04-01 21:26:31,938 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226419/index.m3u8
-2025-04-01 21:26:31,967 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 39244)检测URL: http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226419/index.m3u8
-2025-04-01 21:26:41,972 [DEBUG] Scanner:311 - 检测超时: http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226419/index.m3u8, 错误输出: 
-2025-04-01 21:26:42,033 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001220/index.m3u8
-2025-04-01 21:26:42,063 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 29800)检测URL: http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001220/index.m3u8
-2025-04-01 21:26:52,067 [DEBUG] Scanner:311 - 检测超时: http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001220/index.m3u8, 错误输出: 
-2025-04-01 21:26:52,131 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://202.168.187.208:9089/tsfile/live/0002_1.m3u8
-2025-04-01 21:26:52,160 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 48088)检测URL: http://202.168.187.208:9089/tsfile/live/0002_1.m3u8
-2025-04-01 21:27:02,165 [DEBUG] Scanner:311 - 检测超时: http://202.168.187.208:9089/tsfile/live/0002_1.m3u8, 错误输出: 
-2025-04-01 21:27:02,227 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://117.144.58.42:35455/gaoma/cctv2.m3u8
-2025-04-01 21:27:02,256 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 42376)检测URL: http://117.144.58.42:35455/gaoma/cctv2.m3u8
-2025-04-01 21:27:12,261 [DEBUG] Scanner:311 - 检测超时: http://117.144.58.42:35455/gaoma/cctv2.m3u8, 错误输出: 
-2025-04-01 21:27:12,323 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://61.173.144.157:9901/tsfile/live/0002_1.m3u8
-2025-04-01 21:27:12,351 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 45860)检测URL: http://61.173.144.157:9901/tsfile/live/0002_1.m3u8
-2025-04-01 21:27:22,343 [DEBUG] Scanner:311 - 检测超时: http://61.173.144.157:9901/tsfile/live/0002_1.m3u8, 错误输出: 
-2025-04-01 21:27:22,405 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://61.173.144.157:9901/tsfile/live/0002_1.m3u8?key=txiptv&playlive=1&authid=0
-2025-04-01 21:27:22,435 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 34232)检测URL: http://61.173.144.157:9901/tsfile/live/0002_1.m3u8?key=txiptv&playlive=1&authid=0
-2025-04-01 21:27:32,440 [DEBUG] Scanner:311 - 检测超时: http://61.173.144.157:9901/tsfile/live/0002_1.m3u8?key=txiptv&playlive=1&authid=0, 错误输出: 
-2025-04-01 21:27:32,500 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000012442/1.m3u8
-2025-04-01 21:27:32,529 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 48044)检测URL: http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000012442/1.m3u8
+2025-04-02 02:41:00,236 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.3.1:5002
+2025-04-02 02:41:00,264 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 47076)检测URL: http://192.168.50.1:20231/rtp/239.21.3.1:5002
+2025-04-02 02:41:04,918 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 0)
+2025-04-02 02:41:04,987 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.3.2:5002
+2025-04-02 02:41:05,019 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 54276)检测URL: http://192.168.50.1:20231/rtp/239.21.3.2:5002
+2025-04-02 02:41:05,059 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 0)
+2025-04-02 02:41:05,059 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 0)
+2025-04-02 02:41:05,130 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 0)
+2025-04-02 02:41:05,145 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.3.3:5002
+2025-04-02 02:41:05,145 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.3.4:5002
+2025-04-02 02:41:05,230 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 53160)检测URL: http://192.168.50.1:20231/rtp/239.21.3.4:5002
+2025-04-02 02:41:05,230 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 53404)检测URL: http://192.168.50.1:20231/rtp/239.21.3.3:5002
+2025-04-02 02:41:05,251 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.3.5:5002
+2025-04-02 02:41:05,264 [DEBUG] Scanner:311 - 检测超时: http://192.168.50.1:20231/rtp/239.21.2.9:5002, 错误输出: 
+2025-04-02 02:41:05,286 [DEBUG] Scanner:311 - 检测超时: http://192.168.50.1:20231/rtp/239.21.2.8:5002, 错误输出: 
+2025-04-02 02:41:05,286 [DEBUG] Scanner:311 - 检测超时: http://192.168.50.1:20231/rtp/239.21.2.6:5002, 错误输出: 
+2025-04-02 02:41:05,311 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 23748)检测URL: http://192.168.50.1:20231/rtp/239.21.3.5:5002
+2025-04-02 02:41:05,326 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.3.6:5002
+2025-04-02 02:41:05,404 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 46332)检测URL: http://192.168.50.1:20231/rtp/239.21.3.6:5002
+2025-04-02 02:41:05,416 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.3.7:5002
+2025-04-02 02:41:05,457 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 47536)检测URL: http://192.168.50.1:20231/rtp/239.21.3.7:5002
+2025-04-02 02:41:05,461 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.3.10:5002
+2025-04-02 02:41:05,461 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.3.8:5002
+2025-04-02 02:41:05,461 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.3.9:5002
+2025-04-02 02:41:05,528 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 56452)检测URL: http://192.168.50.1:20231/rtp/239.21.3.8:5002
+2025-04-02 02:41:05,528 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 39204)检测URL: http://192.168.50.1:20231/rtp/239.21.3.10:5002
+2025-04-02 02:41:05,528 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 56016)检测URL: http://192.168.50.1:20231/rtp/239.21.3.9:5002
+2025-04-02 02:41:05,550 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:05,550 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 0000017f93258a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.3.1:5002: I/O error
+
+2025-04-02 02:41:05,613 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.4.1:5002
+2025-04-02 02:41:05,642 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 5056)检测URL: http://192.168.50.1:20231/rtp/239.21.4.1:5002
+2025-04-02 02:41:10,157 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:10,157 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 0000020a37348a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.3.2:5002: I/O error
+
+2025-04-02 02:41:10,219 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.4.2:5002
+2025-04-02 02:41:10,249 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 45460)检测URL: http://192.168.50.1:20231/rtp/239.21.4.2:5002
+2025-04-02 02:41:10,413 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:10,413 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 0000011c98758a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.3.4:5002: I/O error
+
+2025-04-02 02:41:10,413 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:10,413 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 00000187a60b8a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.3.3:5002: I/O error
+
+2025-04-02 02:41:10,487 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.4.3:5002
+2025-04-02 02:41:10,487 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.4.4:5002
+2025-04-02 02:41:10,528 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 49092)检测URL: http://192.168.50.1:20231/rtp/239.21.4.3:5002
+2025-04-02 02:41:10,528 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 47408)检测URL: http://192.168.50.1:20231/rtp/239.21.4.4:5002
+2025-04-02 02:41:10,674 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:10,674 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 000001f2735f8a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.3.5:5002: I/O error
+
+2025-04-02 02:41:10,674 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:10,675 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 0000015cc5d98a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.3.6:5002: I/O error
+
+2025-04-02 02:41:10,676 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:10,676 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 000001a11aad8a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.3.9:5002: I/O error
+
+2025-04-02 02:41:10,676 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:10,676 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 00000168c5768a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.3.7:5002: I/O error
+
+2025-04-02 02:41:10,677 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:10,677 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 0000025f60c68a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.3.10:5002: I/O error
+
+2025-04-02 02:41:10,677 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:10,677 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 00000144821f8a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.3.8:5002: I/O error
+
+2025-04-02 02:41:10,801 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.4.5:5002
+2025-04-02 02:41:10,801 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.4.8:5002
+2025-04-02 02:41:10,801 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.4.7:5002
+2025-04-02 02:41:10,802 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.4.6:5002
+2025-04-02 02:41:10,816 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.4.9:5002
+2025-04-02 02:41:10,817 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.4.10:5002
+2025-04-02 02:41:10,907 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 42480)检测URL: http://192.168.50.1:20231/rtp/239.21.4.5:5002
+2025-04-02 02:41:10,910 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 52464)检测URL: http://192.168.50.1:20231/rtp/239.21.4.7:5002
+2025-04-02 02:41:10,910 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 1732)检测URL: http://192.168.50.1:20231/rtp/239.21.4.9:5002
+2025-04-02 02:41:10,911 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 47640)检测URL: http://192.168.50.1:20231/rtp/239.21.4.8:5002
+2025-04-02 02:41:10,911 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 25568)检测URL: http://192.168.50.1:20231/rtp/239.21.4.6:5002
+2025-04-02 02:41:10,917 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 51936)检测URL: http://192.168.50.1:20231/rtp/239.21.4.10:5002
+2025-04-02 02:41:10,926 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:10,926 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 0000025feedd8a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.4.1:5002: I/O error
+
+2025-04-02 02:41:10,992 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.5.1:5002
+2025-04-02 02:41:11,022 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 45848)检测URL: http://192.168.50.1:20231/rtp/239.21.5.1:5002
+2025-04-02 02:41:15,537 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:15,537 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 0000023238278a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.4.2:5002: I/O error
+
+2025-04-02 02:41:15,596 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.5.2:5002
+2025-04-02 02:41:15,626 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 22996)检测URL: http://192.168.50.1:20231/rtp/239.21.5.2:5002
+2025-04-02 02:41:15,789 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:15,789 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 0000022a5fe28a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.4.3:5002: I/O error
+
+2025-04-02 02:41:15,789 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:15,789 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 00000295783e8a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.4.4:5002: I/O error
+
+2025-04-02 02:41:15,862 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.5.4:5002
+2025-04-02 02:41:15,862 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.5.3:5002
+2025-04-02 02:41:15,902 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 47744)检测URL: http://192.168.50.1:20231/rtp/239.21.5.4:5002
+2025-04-02 02:41:15,903 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 28656)检测URL: http://192.168.50.1:20231/rtp/239.21.5.3:5002
+2025-04-02 02:41:16,048 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:16,048 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 0000017caf288a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.4.5:5002: I/O error
+
+2025-04-02 02:41:16,048 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:16,048 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 000001af54748a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.4.7:5002: I/O error
+
+2025-04-02 02:41:16,048 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:16,048 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:16,048 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 00000232cefe8a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.4.6:5002: I/O error
+
+2025-04-02 02:41:16,048 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:16,048 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:16,049 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 000002ab021d8a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.4.10:5002: I/O error
+
+2025-04-02 02:41:16,049 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 000001ef141f8a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.4.8:5002: I/O error
+
+2025-04-02 02:41:16,049 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 000002528a2d8a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.4.9:5002: I/O error
+
+2025-04-02 02:41:16,174 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.5.6:5002
+2025-04-02 02:41:16,175 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.5.8:5002
+2025-04-02 02:41:16,180 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.5.5:5002
+2025-04-02 02:41:16,180 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.5.10:5002
+2025-04-02 02:41:16,180 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.5.7:5002
+2025-04-02 02:41:16,180 [DEBUG] Scanner:293 - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of json -timeout 10000000 -rw_timeout 10000000 -analyzeduration 10000000 -probesize 10000000 http://192.168.50.1:20231/rtp/239.21.5.9:5002
+2025-04-02 02:41:16,276 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 53940)检测URL: http://192.168.50.1:20231/rtp/239.21.5.8:5002
+2025-04-02 02:41:16,279 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 55844)检测URL: http://192.168.50.1:20231/rtp/239.21.5.6:5002
+2025-04-02 02:41:16,281 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 25624)检测URL: http://192.168.50.1:20231/rtp/239.21.5.9:5002
+2025-04-02 02:41:16,281 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 51884)检测URL: http://192.168.50.1:20231/rtp/239.21.5.7:5002
+2025-04-02 02:41:16,282 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 56500)检测URL: http://192.168.50.1:20231/rtp/239.21.5.10:5002
+2025-04-02 02:41:16,288 [DEBUG] Scanner:300 - 启动ffprobe进程(PID: 43984)检测URL: http://192.168.50.1:20231/rtp/239.21.5.5:5002
+2025-04-02 02:41:16,302 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:16,302 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 000001d5e25d8a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.5.1:5002: I/O error
+
+2025-04-02 02:41:20,908 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:20,908 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 0000025e11048a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.5.2:5002: I/O error
+
+2025-04-02 02:41:21,164 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:21,164 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 000002ce55218a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.5.3:5002: I/O error
+
+2025-04-02 02:41:21,171 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:21,171 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 000001b2433b8a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.5.4:5002: I/O error
+
+2025-04-02 02:41:21,423 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:21,424 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 0000018419928a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.5.8:5002: I/O error
+
+2025-04-02 02:41:21,424 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:21,424 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 00000169eeae8a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.5.6:5002: I/O error
+
+2025-04-02 02:41:21,424 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:21,424 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 000001a6c5538a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.5.7:5002: I/O error
+
+2025-04-02 02:41:21,424 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:21,424 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 000002468ddb8a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.5.9:5002: I/O error
+
+2025-04-02 02:41:21,425 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:21,425 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 000001658bb28a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.5.10:5002: I/O error
+
+2025-04-02 02:41:21,425 [DEBUG] Scanner:305 - ffprobe检测完成(返回码: 1)
+2025-04-02 02:41:21,425 [DEBUG] Scanner:307 - ffprobe错误输出: [http @ 0000025fafd48a00] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.5.5:5002: I/O error
+
