@@ -41,6 +41,7 @@ class StreamScanner(QObject):
         self._ffprobe_available = False  # ffprobe是否可用
         self._user_agent = None  # 自定义User-Agent
         self._referer = None  # 自定义Referer
+        self._tasks = []  # 跟踪所有扫描任务
 
     def set_timeout(self, timeout: int) -> None:
         """设置超时时间（单位：秒）"""
@@ -137,11 +138,11 @@ class StreamScanner(QObject):
                 finally:
                     await asyncio.get_event_loop().run_in_executor(None, QtWidgets.QApplication.processEvents)
             
-            # 创建所有探测任务
-            tasks = [asyncio.create_task(probe_url(url)) for url in urls]
+            # 创建所有探测任务并保存到_tasks列表
+            self._tasks = [asyncio.create_task(probe_url(url)) for url in urls]
             
             # 使用asyncio.as_completed处理结果
-            for future in asyncio.as_completed(tasks):
+            for future in asyncio.as_completed(self._tasks):
                 try:
                     result = await future
                     url, result = result if isinstance(result, tuple) else (None, result)
@@ -189,7 +190,7 @@ class StreamScanner(QObject):
                     pass
             
             # 等待所有任务完成
-            await asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.gather(*self._tasks, return_exceptions=True)
             
             if self._is_scanning:
                 elapsed = asyncio.get_event_loop().time() - self._start_time
@@ -225,6 +226,9 @@ class StreamScanner(QObject):
                 url
             )
             return result
+        except asyncio.CancelledError:
+            logger.debug(f"探测任务被取消: {url}")
+            raise
         except Exception as e:
             logger.error(f"探测流媒体出错: {str(e)}")
             return None
@@ -251,6 +255,7 @@ class StreamScanner(QObject):
 
     def _run_ffprobe(self, url: str) -> Optional[Dict]:
         """执行ffprobe命令（增强错误处理）"""
+        proc = None
         try:
             # 1. 尝试查找ffprobe路径
             ffprobe_path = self._find_ffprobe()
@@ -276,19 +281,26 @@ class StreamScanner(QObject):
                 
             cmd.append(url)
 
-            # 3. 执行命令
-            result = subprocess.run(
+            # 3. 执行命令（使用Popen而不是run以便可以终止）
+            proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=self._timeout,
-                creationflags=subprocess.CREATE_NO_WINDOW,
-                check=False
+                creationflags=subprocess.CREATE_NO_WINDOW
             )
 
-            # 4. 处理结果
-            if result.returncode == 0:
-                output = json.loads(result.stdout.decode('utf-8'))
+            # 4. 等待结果或取消
+            try:
+                stdout, stderr = proc.communicate(timeout=self._timeout)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                stdout, stderr = proc.communicate()
+                logger.debug(f"检测超时: {url}")
+                return None
+
+            # 5. 处理结果
+            if proc.returncode == 0:
+                output = json.loads(stdout.decode('utf-8'))
                 if 'streams' in output and len(output['streams']) > 0:
                     stream = output['streams'][0]
                     return {
@@ -299,12 +311,14 @@ class StreamScanner(QObject):
                     }
             return None
 
-        except subprocess.TimeoutExpired:
-            logger.debug(f"检测超时: {url}")
-            return None
         except Exception as e:
             logger.error(f"ffprobe执行异常: {str(e)}")
+            if proc and proc.poll() is None:
+                proc.kill()
             return None
+        finally:
+            if proc and proc.poll() is None:
+                proc.kill()
 
     def _find_ffprobe(self) -> Optional[str]:
         """查找ffprobe可执行文件路径"""
@@ -385,6 +399,11 @@ class StreamScanner(QObject):
             return
             
         self._is_scanning = False
+        
+        # 取消所有任务
+        for task in self._tasks:
+            if not task.done():
+                task.cancel()
         
         # 关闭线程池
         if self._executor:
