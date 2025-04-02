@@ -395,18 +395,13 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
         # 扫描统计信息
-        self.scan_stats_label = QtWidgets.QLabel("扫描统计: 未开始")
-        self.scan_stats_label.setStyleSheet("color: #666; font-weight: bold;")
-        
-        # 新增详细统计信息
         self.detailed_stats_label = QtWidgets.QLabel("总频道: 0 | 有效: 0 | 无效: 0 | 耗时: 0s")
-        self.detailed_stats_label.setStyleSheet("color: #666;")
+        self.detailed_stats_label.setStyleSheet("color: #666; font-weight: bold;")
 
         # 使用网格布局让按钮和统计信息并排显示
         button_stats_layout = QtWidgets.QGridLayout()
         button_stats_layout.addWidget(self.scan_btn, 0, 0, 1, 2)  # 按钮占满前两列
-        button_stats_layout.addWidget(self.scan_stats_label, 1, 0)  # 统计信息第一行第二列
-        button_stats_layout.addWidget(self.detailed_stats_label, 1, 1)  # 详细统计第二行第二列
+        button_stats_layout.addWidget(self.detailed_stats_label, 1, 0, 1, 2)  # 统计信息占满第二行
         
         # 设置列拉伸比例
         button_stats_layout.setColumnStretch(0, 1)
@@ -1005,16 +1000,9 @@ class MainWindow(QtWidgets.QMainWindow):
         total = result['total']
         invalid = result['invalid']
         elapsed = result['elapsed']
-        # 显示更详细的统计信息
-        stats_msg = (
-            f"扫描完成 - 总数: {total} | "
-            f"有效: {len(channels)} | "
-            f"无效: {invalid} | "
-            f"耗时: {elapsed:.1f}秒"
-        )
-        self.statusBar().showMessage(stats_msg)
-        self.scan_stats_label.setText(f"扫描统计: 总数 {total} | 有效 {len(channels)} | 无效 {invalid} | 耗时: {elapsed:.1f}秒")
+        # 更新统计信息显示
         self.detailed_stats_label.setText(f"总数: {total} | 有效: {len(channels)} | 无效: {invalid} | 耗时: {elapsed:.1f}s")
+        self.statusBar().showMessage("扫描完成")
         
         # 恢复扫描按钮状态
         self.scan_btn.setText("完整扫描")
