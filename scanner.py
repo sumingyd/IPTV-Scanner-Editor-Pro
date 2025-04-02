@@ -85,8 +85,6 @@ class StreamScanner(QObject):
             self.stop_scan()
             self.progress_updated.emit(0, "已停止")
         else:
-            # 保存扫描地址到缓存
-            self.playlist.update_scan_address(ip_pattern)
             async with self._scan_lock:
                 if self._is_scanning:
                     self.error_occurred.emit("已有扫描任务正在进行")

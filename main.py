@@ -91,27 +91,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # +++ 新增智能匹配相关变量 +++
         self.old_playlist = None  # 存储旧列表数据 {url: channel_info}
         self.match_worker = None  # 异步任务对象
-        # 初始化配置缓存
-        self.cache_file = Path(__file__).parent / ".iptv_manager.ini"
-        self.config_cache = {}
 
         # 连接ffprobe缺失信号
         self.scanner.ffprobe_missing.connect(self.show_ffprobe_warning)
-
-        # 首次启动清空缓存，非首次读取缓存
-        if not self.cache_file.exists():
-            self.config_cache = {
-                'scan_address': '',
-                'timeout': 10,
-                'thread_count': 10,
-                'epg_main': '',
-                'epg_backups': [],
-                'window_geometry': '',
-                'splitter_sizes': []
-            }
-            self._save_cache()
-        else:
-            self._load_cache()
             
         # 异步任务跟踪
         self.scan_worker: Optional[AsyncWorker] = None
@@ -122,9 +104,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.load_config()
         
         # 应用配置（必须在_init_ui之后调用）
-        self.ip_range_input.setText(self.config_cache.get('scan_address', ''))
-        self.timeout_input.setValue(self.config_cache.get('timeout', 10))
-        self.thread_count_input.setValue(self.config_cache.get('thread_count', 10))
+        scanner_address = self.config.config.get('Scanner', 'scan_address', fallback='')
+        scanner_timeout = self.config.config.getint('Scanner', 'timeout', fallback=10)
+        scanner_threads = self.config.config.getint('Scanner', 'thread_count', fallback=10)
+        
+        logger.info(f"加载Scanner配置: address={scanner_address}, timeout={scanner_timeout}, threads={scanner_threads}")
+
+        self.ip_range_input.setText(scanner_address)
+        self.timeout_input.setValue(scanner_timeout)
+        self.thread_count_input.setValue(scanner_threads)
 
         # 添加防抖定时器
         self.debounce_timer = QtCore.QTimer()
@@ -239,6 +227,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 确保状态栏显示并设置样式
         status_bar = self.statusBar()
+        
+        # 连接分隔条位置变化信号
+        self.left_splitter.splitterMoved.connect(self._save_splitter_sizes)
+        self.right_splitter.splitterMoved.connect(self._save_splitter_sizes)
         status_bar.show()
         status_bar.setStyleSheet("""
             QStatusBar {
@@ -888,13 +880,6 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.show_error("请输入有效的频道地址")
                     return
                     
-                # 更新配置
-                self.config_cache.update({
-                    'scan_address': ip_range,
-                    'timeout': self.timeout_input.value(),
-                    'thread_count': self.thread_count_input.value()
-                })
-                self._save_cache()
 
                 # 清空现有频道列表
                 self.model.channels.clear()
@@ -1413,6 +1398,48 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.show_error(f"保存文件失败: {str(e)}")
 
+    # 保存分隔条位置
+    def _save_splitter_sizes(self):
+        """保存当前分隔条位置到配置"""
+        if hasattr(self, 'left_splitter') and hasattr(self, 'right_splitter'):
+            left_sizes = self.left_splitter.sizes()
+            right_sizes = self.right_splitter.sizes()
+            logger.info(f"保存分隔条位置: left={left_sizes}, right={right_sizes}")
+            self.config.config['UserPrefs']['splitter_sizes'] = json.dumps([left_sizes, right_sizes])
+            self.config.save_prefs()
+
+    # 窗口显示事件 - 恢复分隔条位置
+    def showEvent(self, event):
+        """窗口显示后恢复分隔条位置"""
+        def restore_splitter_sizes():
+            try:
+                # 确保分隔条控件已初始化
+                if not hasattr(self, 'left_splitter') or not hasattr(self, 'right_splitter'):
+                    logger.warning("分隔条控件未初始化")
+                    return
+                
+                # 确保有保存的分隔条位置
+                if not self.config_file.get('splitter_sizes'):
+                    logger.warning("没有保存的分隔条位置")
+                    return
+                    
+                left_sizes = self.config_file['splitter_sizes'][0]
+                right_sizes = self.config_file['splitter_sizes'][1]
+                
+                # 验证尺寸数据
+                if len(left_sizes) == 2 and len(right_sizes) == 2:
+                    self.left_splitter.setSizes(left_sizes)
+                    self.right_splitter.setSizes(right_sizes)
+                    logger.info(f"成功恢复分隔条位置: left={left_sizes}, right={right_sizes}")
+                else:
+                    logger.warning(f"无效的分隔条尺寸: left={left_sizes}, right={right_sizes}")
+            except Exception as e:
+                logger.error(f"恢复分隔条位置失败: {str(e)}")
+        
+        # 延迟500ms确保所有控件完全初始化
+        QtCore.QTimer.singleShot(500, restore_splitter_sizes)
+        super().showEvent(event)
+
     # 处理关闭事件
     def closeEvent(self, event: QCloseEvent):
         async def _async_close():
@@ -1439,10 +1466,13 @@ class MainWindow(QtWidgets.QMainWindow):
                         event.ignore()
                         return
                 
-                # 4. 同步保存配置
+                # 4. 保存当前分隔条位置
+                self._save_splitter_sizes()
+                
+                # 5. 同步保存配置
                 self._save_config_sync()
                 
-                # 5. 保存窗口布局
+                # 6. 保存窗口布局
                 self.config.config['UserPrefs']['left_splitter_sizes'] = ','.join(map(str, self.left_splitter.sizes()))
                 self.config.config['UserPrefs']['right_splitter_sizes'] = ','.join(map(str, self.right_splitter.sizes()))
                 self.config.save_prefs()
@@ -1476,24 +1506,26 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.restoreGeometry(QtCore.QByteArray.fromHex(geometry.encode()))
 
             # 加载区域大小
-            if left_splitter_sizes := self.config.config.get('UserPrefs', 'left_splitter_sizes', fallback=''):
-                sizes = list(map(int, left_splitter_sizes.split(',')))
-                self.left_splitter.setSizes(sizes)
-
-            if right_splitter_sizes := self.config.config.get('UserPrefs', 'right_splitter_sizes', fallback=''):
-                sizes = list(map(int, right_splitter_sizes.split(',')))
-                self.right_splitter.setSizes(sizes)
+            if splitter_sizes := self.config.config.get('UserPrefs', 'splitter_sizes', fallback=''):
+                sizes = json.loads(splitter_sizes)
+                if len(sizes) == 2:
+                    self.left_splitter.setSizes(sizes[0])
+                    self.right_splitter.setSizes(sizes[1])
 
             # 扫描历史
-            self.ip_range_input.setText(
-                self.config.config.get('Scanner', 'last_range', fallback='')
-            )
+            scan_address = self.config.config.get('Scanner', 'scan_address', fallback='')
+            timeout = self.config.config.getint('Scanner', 'timeout', fallback=10)
+            thread_count = self.config.config.getint('Scanner', 'thread_count', fallback=10)
+            
+            logger.info(f"加载Scanner配置: address={scan_address}, timeout={timeout}, threads={thread_count}")
+            
+            self.ip_range_input.setText(scan_address)
+            self.timeout_input.setValue(timeout)
+            self.thread_count_input.setValue(thread_count)
 
             # 播放器设置
-            hardware_accel = self.config.config.get(
-                'Player', 'hardware_accel', fallback='d3d11va'
-            )
-            self.player.hw_accel = 'none'  # 硬件加速设置
+            hardware_accel = self.config.config.get('Player', 'hardware_accel', fallback='d3d11va')
+            self.player.hw_accel = hardware_accel
 
         except Exception as e:
             logger.error(f"配置加载失败: {str(e)}")
@@ -1508,9 +1540,21 @@ class MainWindow(QtWidgets.QMainWindow):
     # 同步保存配置
     def _save_config_sync(self) -> None:
         """同步保存配置"""
-        self.config.config['UserPrefs']['window_geometry'] = self.saveGeometry().toHex().data().decode()
-        self.config.config['Scanner']['last_range'] = self.ip_range_input.text()
-        self.config.save_prefs()
+        try:
+            # 保存窗口几何信息
+            self.config.config['UserPrefs']['window_geometry'] = self.saveGeometry().toHex().data().decode()
+            
+            # 保存扫描配置
+            self.config.config['Scanner']['scan_address'] = self.ip_range_input.text()
+            self.config.config['Scanner']['timeout'] = str(self.timeout_input.value())
+            self.config.config['Scanner']['thread_count'] = str(self.thread_count_input.value())
+            
+            # 保存播放器配置
+            self.config.config['Player']['hardware_accel'] = self.player.hw_accel
+            
+            self.config.save_prefs()
+        except Exception as e:
+            logger.error(f"保存配置失败: {str(e)}")
 
     # 显示错误对话框
     @pyqtSlot(str)
@@ -1591,21 +1635,21 @@ class MainWindow(QtWidgets.QMainWindow):
         # 主源设置
         main_source_label = QtWidgets.QLabel("主源 URL：")
         main_source_input = QtWidgets.QLineEdit()
-        main_source_input.setText(self.config_cache.get('epg_main', ''))
+        main_source_input.setText(self.config_file.get('epg_main', ''))
 
         # 备用源设置
         backup_sources_label = QtWidgets.QLabel("备用源 URL（多个用逗号分隔）：")
         backup_sources_input = QtWidgets.QLineEdit()
-        backup_sources_input.setText(','.join(self.config_cache.get('epg_backups', [])))
+        backup_sources_input.setText(','.join(self.config_file.get('epg_backups', [])))
 
         # 保存按钮
         save_btn = QtWidgets.QPushButton("保存")
         def save_epg_settings():
-            self.config_cache.update({
+            self.config_file.update({
                 'epg_main': main_source_input.text(),
                 'epg_backups': [url.strip() for url in backup_sources_input.text().split(',') if url.strip()]
             })
-            self._save_cache()
+            self._save_config()
             dialog.close()
             self.statusBar().showMessage("EPG 设置已保存")
         save_btn.clicked.connect(save_epg_settings)
@@ -1620,41 +1664,7 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog.setLayout(layout)
         dialog.exec()
 
-    # 加载缓存配置
-    def _load_cache(self) -> None:
-        """加载缓存配置"""
-        try:
-            if not self.config.config.has_section('Cache'):
-                self.config.config.add_section('Cache')
-            self.config_cache = {
-                'scan_address': self.config.config['Cache'].get('scan_address', ''),
-                'timeout': int(self.config.config['Cache'].get('timeout', '10')),
-                'thread_count': int(self.config.config['Cache'].get('thread_count', '10')),
-                'epg_main': self.config.config['Cache'].get('epg_main', ''),
-                'epg_backups': json.loads(self.config.config['Cache'].get('epg_backups', '[]')),
-                'window_geometry': self.config.config['Cache'].get('window_geometry', ''),
-                'splitter_sizes': json.loads(self.config.config['Cache'].get('splitter_sizes', '[]'))
-            }
-        except Exception as e:
-            logger.error(f"加载缓存失败: {str(e)}")
-            self.config_cache = {}
 
-    # 保存缓存配置
-    def _save_cache(self) -> None:
-        """保存缓存配置"""
-        try:
-            if not self.config.config.has_section('Cache'):
-                self.config.config.add_section('Cache')
-            self.config.config['Cache']['scan_address'] = self.config_cache.get('scan_address', '')
-            self.config.config['Cache']['timeout'] = str(self.config_cache.get('timeout', 10))
-            self.config.config['Cache']['thread_count'] = str(self.config_cache.get('thread_count', 10))
-            self.config.config['Cache']['epg_main'] = self.config_cache.get('epg_main', '')
-            self.config.config['Cache']['epg_backups'] = json.dumps(self.config_cache.get('epg_backups', []))
-            self.config.config['Cache']['window_geometry'] = self.config_cache.get('window_geometry', '')
-            self.config.config['Cache']['splitter_sizes'] = json.dumps(self.config_cache.get('splitter_sizes', []))
-            self.config.save_prefs()
-        except Exception as e:
-            logger.error(f"保存缓存失败: {str(e)}")
 
     # 显示全局设置对话框
     def show_settings(self) -> None:
