@@ -2,6 +2,7 @@ import asyncio
 import subprocess
 import json
 import sys
+import psutil
 from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor
@@ -42,6 +43,7 @@ class StreamScanner(QObject):
         self._user_agent = None  # 自定义User-Agent
         self._referer = None  # 自定义Referer
         self._tasks = []  # 跟踪所有扫描任务
+        self._active_processes = set()  # 跟踪所有活动的ffprobe进程
 
     def set_timeout(self, timeout: int) -> None:
         """设置超时时间（单位：秒）"""
@@ -213,25 +215,52 @@ class StreamScanner(QObject):
 
     async def _probe_stream(self, url: str) -> Optional[Dict]:
         """探测单个流媒体信息（增强版）"""
+        proc = None
         try:
             # 首次使用时检查ffprobe可用性
             if not self._ffprobe_checked:
                 await self._check_ffprobe()
                 self._ffprobe_checked = True
 
+            # 检查是否已取消
+            if not self._is_scanning:
+                raise asyncio.CancelledError("扫描已停止")
+
             loop = asyncio.get_running_loop()
-            result = await loop.run_in_executor(
+            future = loop.run_in_executor(
                 self._executor,
                 self._run_ffprobe, 
                 url
             )
-            return result
+            
+            # 添加取消回调
+            def _cancel_probe(_):
+                if proc and proc.poll() is None:
+                    proc.kill()
+            
+            future.add_done_callback(_cancel_probe)
+            
+            try:
+                result = await future
+                return result
+            except asyncio.CancelledError:
+                logger.debug("扫描任务被正常取消")
+                if proc and proc.poll() is None:
+                    proc.kill()
+                return None
         except asyncio.CancelledError:
             logger.debug(f"探测任务被取消: {url}")
+            if proc and proc.poll() is None:
+                proc.kill()
             raise
         except Exception as e:
             logger.error(f"探测流媒体出错: {str(e)}")
+            if proc and proc.poll() is None:
+                proc.kill()
             return None
+        finally:
+            if proc and proc.poll() is None:
+                proc.kill()
 
     async def _check_ffprobe(self):
         """检查ffprobe是否可用"""
@@ -257,6 +286,13 @@ class StreamScanner(QObject):
         """执行ffprobe命令（增强错误处理）"""
         proc = None
         try:
+            # 更频繁地检查取消状态
+            if not self._is_scanning:
+                raise asyncio.CancelledError("扫描已停止")
+            
+            # 检查点1 - 命令执行前
+            if not self._is_scanning:
+                raise asyncio.CancelledError("扫描已停止")
             # 1. 尝试查找ffprobe路径
             ffprobe_path = self._find_ffprobe()
             if not ffprobe_path:
@@ -298,6 +334,7 @@ class StreamScanner(QObject):
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
             logger.debug(f"启动ffprobe进程(PID: {proc.pid})检测URL: {url}")
+            self._active_processes.add(proc.pid)
 
             # 4. 等待结果或取消
             try:
@@ -411,15 +448,33 @@ class StreamScanner(QObject):
         if not self._is_scanning:
             return
             
+        logger.debug("开始停止扫描...")
         self._is_scanning = False
         
-        # 取消所有任务
+        # 取消所有任务并记录状态
+        cancelled_count = 0
         for task in self._tasks:
             if not task.done():
+                logger.debug(f"取消任务: {task.get_name()}")
                 task.cancel()
+                cancelled_count += 1
+        logger.debug(f"共取消{cancelled_count}个任务")
         
+        # 终止所有活动的ffprobe进程
+        if hasattr(self, '_active_processes') and self._active_processes:
+            logger.debug(f"终止{len(self._active_processes)}个ffprobe进程...")
+            for pid in list(self._active_processes):
+                try:
+                    proc = psutil.Process(pid)
+                    proc.terminate()
+                    logger.debug(f"已终止进程PID: {pid}")
+                except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+                    logger.debug(f"终止进程失败(PID:{pid}): {str(e)}")
+            self._active_processes.clear()
+            
         # 关闭线程池
         if self._executor:
+            logger.debug("关闭线程池...")
             self._executor.shutdown(wait=False, cancel_futures=True)
             self._executor = None
             
@@ -432,7 +487,10 @@ class StreamScanner(QObject):
                 # 只有锁的持有者才能释放
                 if self._scan_lock._owner == asyncio.current_task():
                     self._scan_lock.release()
-            except (RuntimeError, AttributeError):
+                    logger.debug("已释放扫描锁")
+            except (RuntimeError, AttributeError) as e:
+                logger.debug(f"释放锁时出错: {str(e)}")
                 pass
             
+        logger.debug("扫描已完全停止")
         self.progress_updated.emit(0, "已停止")
