@@ -134,13 +134,30 @@ class StreamScanner(QObject):
             
             async def probe_url(url: str) -> tuple[str, Optional[Dict]]:
                 try:
+                    # 增加扫描状态检查
+                    if not self._is_scanning:
+                        raise asyncio.CancelledError("扫描已停止")
                     result = await self._probe_stream(url)
                     return (url, result)
+                except asyncio.CancelledError:
+                    logger.debug(f"探测任务被正常取消: {url}")
+                    raise
+                except Exception as e:
+                    logger.error(f"探测URL出错: {url} - {str(e)}")
+                    return (url, None)
                 finally:
-                    await asyncio.get_event_loop().run_in_executor(None, QtWidgets.QApplication.processEvents)
+                    try:
+                        await asyncio.get_event_loop().run_in_executor(None, QtWidgets.QApplication.processEvents)
+                    except:
+                        pass
             
             # 创建所有探测任务并保存到_tasks列表
-            self._tasks = [asyncio.create_task(probe_url(url)) for url in urls]
+            self._tasks = []
+            for url in urls:
+                if not self._is_scanning:
+                    break
+                task = asyncio.create_task(probe_url(url), name=f"probe_{url}")
+                self._tasks.append(task)
             
             # 使用asyncio.as_completed处理结果
             for future in asyncio.as_completed(self._tasks):
@@ -164,10 +181,12 @@ class StreamScanner(QObject):
                             'codec': result['codec'],
                             'resolution': f"{result['width']}x{result['height']}"
                         }
+                        logger.info(f"发现有效频道: {channel_name} - URL: {url}")
                         valid_channels.append(channel_info)
                         self.channel_found.emit(channel_info)
                     else:
                         invalid_count += 1
+                        logger.info(f"频道无效: {url}")
                     
                     # 更新进度
                     progress = int((self._scanned_count / total) * 100)
@@ -357,12 +376,15 @@ class StreamScanner(QObject):
                 output = json.loads(stdout.decode('utf-8'))
                 if 'streams' in output and len(output['streams']) > 0:
                     stream = output['streams'][0]
-                    return {
+                    result = {
                         'codec': stream.get('codec_name', 'unknown'),
                         'width': int(stream.get('width', 0)),
                         'height': int(stream.get('height', 0)),
                         'valid': True
                     }
+                    logger.info(f"频道验证成功: {url} - 分辨率: {result['width']}x{result['height']} 编码: {result['codec']}")
+                    return result
+            logger.info(f"频道验证失败: {url} - 返回码: {proc.returncode}")
             return None
 
         except Exception as e:
