@@ -1318,7 +1318,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if hasattr(self, 'left_splitter') and hasattr(self, 'right_splitter'):
             left_sizes = self.left_splitter.sizes()
             right_sizes = self.right_splitter.sizes()
-            logger.info(f"保存分隔条位置: left={left_sizes}, right={right_sizes}")
             self.config.config['UserPrefs']['splitter_sizes'] = json.dumps([left_sizes, right_sizes])
             self.config.save_prefs()
 
