@@ -3,6 +3,7 @@ import subprocess
 import json
 import sys
 import psutil
+import time
 from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor
@@ -306,10 +307,7 @@ class StreamScanner(QObject):
                 '-select_streams', 'v:0',
                 '-show_entries', 'stream=codec_name,width,height',
                 '-of', 'json',
-                '-timeout', str(self._timeout * 1_000_000),
-                '-rw_timeout', str(self._timeout * 1_000_000),
-                '-analyzeduration', '10000000',
-                '-probesize', '10000000'
+                '-timeout', str(self._timeout * 1_000_000)
             ]
             
             # 添加User-Agent和Referer头
@@ -337,16 +335,24 @@ class StreamScanner(QObject):
             self._active_processes.add(proc.pid)
 
             # 4. 等待结果或取消
-            try:
-                stdout, stderr = proc.communicate(timeout=self._timeout)
-                logger.debug(f"ffprobe检测完成(返回码: {proc.returncode})")
-                if proc.returncode != 0:
+            # 增加重试机制
+            max_retries = 1
+            for attempt in range(max_retries + 1):
+                try:
+                    stdout, stderr = proc.communicate(timeout=self._timeout)
+                    logger.debug(f"ffprobe检测完成(返回码: {proc.returncode})")
+                    if proc.returncode == 0:
+                        break
                     logger.debug(f"ffprobe错误输出: {stderr.decode('utf-8', errors='ignore')}")
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                stdout, stderr = proc.communicate()
-                logger.debug(f"检测超时: {url}, 错误输出: {stderr.decode('utf-8', errors='ignore')}")
-                return None
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    stdout, stderr = proc.communicate()
+                    logger.debug(f"检测超时: {url}, 错误输出: {stderr.decode('utf-8', errors='ignore')}")
+                    if attempt == max_retries:
+                        return None
+                    # 重试前等待1秒
+                    time.sleep(1)
+                    continue
 
             # 5. 处理结果
             if proc.returncode == 0:
