@@ -335,7 +335,7 @@ class MainWindow(QtWidgets.QMainWindow):
         )))
         
         # 状态标签
-        self.filter_status_label = QtWidgets.QLabel("就绪")
+        self.filter_status_label = QtWidgets.QLabel("请先加载列表并点击检测有效性")
         self.filter_status_label.setStyleSheet(AppStyles.status_label_style())
         
         toolbar.addWidget(self.btn_validate)
