@@ -326,19 +326,16 @@ def parse_ip_range(pattern: str) -> List[str]:
         pattern: 包含范围模式的URL字符串
     返回:
         所有可能的URL组合列表
-    新增功能:
-        1. 支持多范围输入（逗号分隔）
-        2. 自动检测数字位数并补零
-        3. 保留原始URL非数字部分
+    增强功能:
+        1. 支持方括号范围语法 [1-5,10-15]
+        2. 支持多段范围组合（如239.21.[1-5].[1-10]）
+        3. 自动补零保持数字位数一致
     示例:
-        >>> parse_ip_range("http://example.com/ch[001-003,005-007]")
+        >>> parse_ip_range("http://192.168.1.1:20231/rtp/239.21.[1-5].[1-10]:5002")
         [
-            'http://example.com/ch001',
-            'http://example.com/ch002',
-            'http://example.com/ch003',
-            'http://example.com/ch005',
-            'http://example.com/ch006',
-            'http://example.com/ch007'
+            'http://192.168.1.1:20231/rtp/239.21.01.01:5002',
+            'http://192.168.1.1:20231/rtp/239.21.01.02:5002',
+            ... # 所有组合
         ]
     """
     if not pattern:
@@ -357,45 +354,90 @@ def parse_ip_range(pattern: str) -> List[str]:
     
     logger.debug(f"解析前的原始模式: {pattern}")
 
-    # 使用正则表达式匹配数字范围部分
-    match = re.search(r'(\D*)(\d+)-(\d+)(\D*)', pattern)
-    if not match:
+    # 匹配方括号内的多范围模式（支持嵌套）
+    range_pattern = re.compile(r'\[([^\]]+)\]')
+    matches = range_pattern.findall(pattern)
+    if not matches:
         return [pattern]
 
-    prefix = match.group(1)
-    start_str = match.group(2)
-    end_str = match.group(3)
-    suffix = match.group(4)
-    
-    # 确定补零位数
-    digits = max(len(start_str), len(end_str))
-    start = int(start_str)
-    end = int(end_str)
-    
-    if start > end:
-        raise ValueError(f"起始值{start}不能大于结束值{end}")
-
-    # 处理多范围输入
-    urls = []
-    ranges = pattern.split(',')
-    for r in ranges:
-        r_match = re.match(r'(\D*?)(\d+)-(\d+)(\D*)', r)
-        if r_match:
-            r_prefix = r_match.group(1)
-            r_start = int(r_match.group(2))
-            r_end = int(r_match.group(3))
-            r_suffix = r_match.group(4)
+    # 准备替换组件
+    replacements = []
+    for match in matches:
+        ranges = match.split(',')
+        range_options = []
+        for r in ranges:
+            if '-' not in r:
+                range_options.append(r.strip())
+                continue
+                
+            start_str, end_str = r.split('-', 1)
+            start_str = start_str.strip()
+            end_str = end_str.strip()
             
-            # 生成当前范围的URL
-            for num in range(r_start, r_end + 1):
-                formatted_num = f"{num:0{digits}d}"
-                url = f"{r_prefix}{formatted_num}{r_suffix}"
-                # 保留原始协议和路径部分
-                full_url = re.sub(r'(\D*)(\d+)-(\d+)(\D*)', url, pattern, count=1)
-                urls.append(full_url)
+            # 根据输入格式决定是否补零
+            start = int(start_str)
+            end = int(end_str)
+            
+            if start > end:
+                raise ValueError(f"无效范围 {start}-{end}，起始值不能大于结束值")
+                
+            # 如果输入有前导零则补零，否则不补
+            if start_str.startswith('0') or end_str.startswith('0'):
+                digits = max(len(start_str), len(end_str))
+                range_options.extend(
+                    [f"{num:0{digits}d}" for num in range(start, end+1)]
+                )
+            else:
+                range_options.extend(
+                    [str(num) for num in range(start, end+1)]
+                )
+        
+        replacements.append(range_options)
 
-    logger.debug(f"生成的URL示例: {urls[:3]}... (共{len(urls)}个)")
-    return urls
+    # 生成所有组合
+    parts = range_pattern.split(pattern)
+    result = [parts[0]]  # 第一个静态部分
+    
+    for i, options in enumerate(replacements):
+        temp = []
+        for r in options:
+            for s in result:
+                temp.append(s + r + parts[2*i+2])  # 拼接后续静态部分
+        result = temp
+
+    # 处理未加方括号的简单范围（兼容旧格式）
+    if not result:
+        simple_match = re.search(r'(\D*)(\d+)-(\d+)(\D*)', pattern)
+        if simple_match:
+            prefix = simple_match.group(1)
+            start_str = simple_match.group(2)
+            end_str = simple_match.group(3)
+            suffix = simple_match.group(4)
+            
+            start = int(start_str)
+            end = int(end_str)
+            
+            if start > end:
+                raise ValueError(f"无效范围 {start}-{end}，起始值不能大于结束值")
+            
+            # 如果输入有前导零则补零，否则不补
+            if start_str.startswith('0') or end_str.startswith('0'):
+                digits = max(len(start_str), len(end_str))
+                result = [
+                    f"{prefix}{num:0{digits}d}{suffix}" 
+                    for num in range(start, end+1)
+                ]
+            else:
+                result = [
+                    f"{prefix}{num}{suffix}" 
+                    for num in range(start, end+1)
+                ]
+
+    if not result:
+        raise ValueError(f"无法解析地址格式: {pattern}")
+
+    logger.debug(f"生成的URL示例: {result[:3]}... (共{len(result)}个)")
+    return result
 
 class VlcWarningFilter(logging.Filter):
     def filter(self, record):
