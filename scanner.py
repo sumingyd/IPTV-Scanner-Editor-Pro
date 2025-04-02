@@ -84,19 +84,23 @@ class StreamScanner(QObject):
         if self._is_scanning:
             self.stop_scan()
             self.progress_updated.emit(0, "已停止")
-        else:
-            async with self._scan_lock:
-                if self._is_scanning:
-                    self.error_occurred.emit("已有扫描任务正在进行")
-                    return
+            return
 
-                self._is_scanning = True
-                self._start_time = asyncio.get_event_loop().time()
-                self._scanned_count = 0  # 重置计数器
-                try:
-                    await self._scan_task(ip_pattern)
-                finally:
-                    self._is_scanning = False
+        async with self._scan_lock:
+            if self._is_scanning:
+                self.error_occurred.emit("已有扫描任务正在进行")
+                return
+
+            self._is_scanning = True
+            self._start_time = asyncio.get_event_loop().time()
+            self._scanned_count = 0  # 重置计数器
+            try:
+                await self._scan_task(ip_pattern)
+            except Exception as e:
+                logger.error(f"扫描任务异常: {str(e)}")
+                self.error_occurred.emit(f"扫描错误: {str(e)}")
+            finally:
+                self._is_scanning = False
 
     async def _scan_task(self, ip_pattern: str) -> None:
         """执行扫描的核心任务"""
@@ -162,8 +166,13 @@ class StreamScanner(QObject):
             # 使用asyncio.as_completed处理结果
             for future in asyncio.as_completed(self._tasks):
                 try:
+                    # 增加扫描状态检查
+                    if not self._is_scanning:
+                        logger.debug("扫描已停止，取消剩余任务")
+                        break
+                        
                     result = await future
-                    url, result = result if isinstance(result, tuple) else (None, result)
+                    url, result = result if  isinstance(result, tuple) else (None, result)
                     
                     if url is None:
                         logger.debug("跳过无效URL")
@@ -235,14 +244,29 @@ class StreamScanner(QObject):
         """探测单个流媒体信息（增强版）"""
         proc = None
         try:
+            logger.info(f"开始验证频道: {url}")
+            
             # 首次使用时检查ffprobe可用性
             if not self._ffprobe_checked:
+                logger.info("首次使用，检查ffprobe可用性")
                 await self._check_ffprobe()
                 self._ffprobe_checked = True
+                logger.info(f"ffprobe可用状态: {self._ffprobe_available}")
 
             # 检查是否已取消
             if not self._is_scanning:
+                logger.info("验证任务被取消(扫描状态检查)")
                 raise asyncio.CancelledError("扫描已停止")
+
+            # 再次检查扫描状态
+            if not self._is_scanning:
+                logger.info("验证任务被取消(二次状态检查)")
+                raise asyncio.CancelledError("扫描已停止")
+
+            # 确保线程池已初始化
+            if not self._executor or self._executor._shutdown:
+                logger.info("重新初始化线程池")
+                self._executor = ThreadPoolExecutor(max_workers=self._thread_count)
 
             loop = asyncio.get_running_loop()
             future = loop.run_in_executor(
@@ -250,19 +274,32 @@ class StreamScanner(QObject):
                 self._run_ffprobe, 
                 url
             )
+            logger.info(f"已提交验证任务: {url}")
             
             # 添加取消回调
             def _cancel_probe(_):
                 if proc and proc.poll() is None:
+                    logger.info(f"取消验证任务并终止进程: {url}")
                     proc.kill()
             
             future.add_done_callback(_cancel_probe)
+            logger.info(f"已添加取消回调: {url}")
             
             try:
                 result = await future
+                logger.info(f"验证任务完成: {url} - 结果: {result is not None}")
+                if result is None:
+                    logger.warning(f"频道验证失败: {url}")
+                else:
+                    logger.info(f"频道验证成功: {url} - 分辨率: {result.get('width', 0)}x{result.get('height', 0)}")
                 return result
             except asyncio.CancelledError:
-                logger.debug("扫描任务被正常取消")
+                logger.info(f"验证任务被取消: {url}")
+                if proc and proc.poll() is None:
+                    proc.kill()
+                return None
+            except Exception as e:
+                logger.error(f"验证任务异常: {url} - {str(e)}")
                 if proc and proc.poll() is None:
                     proc.kill()
                 return None
@@ -304,13 +341,15 @@ class StreamScanner(QObject):
         """执行ffprobe命令（增强错误处理）"""
         proc = None
         try:
-            # 更频繁地检查取消状态
+            # 检查点1 - 方法开始时
             if not self._is_scanning:
                 raise asyncio.CancelledError("扫描已停止")
             
-            # 检查点1 - 命令执行前
+            # 检查点2 - 命令执行前
             if not self._is_scanning:
                 raise asyncio.CancelledError("扫描已停止")
+            
+            # 检查点3 - 查找ffprobe路径后
             # 1. 尝试查找ffprobe路径
             ffprobe_path = self._find_ffprobe()
             if not ffprobe_path:
@@ -461,6 +500,117 @@ class StreamScanner(QObject):
             }
         except:
             return None
+
+    async def validate_playlist(self, playlist_data: list) -> dict:
+        """验证播放列表有效性
+        参数:
+            playlist_data: 播放列表数据 [{'name': str, 'url': str}, ...] 或 [url1, url2, ...]
+        返回:
+            {'valid': list, 'invalid': list} 有效和无效的频道列表
+        """
+        if not playlist_data:
+            self.error_occurred.emit("播放列表为空")
+            return {'valid': [], 'invalid': []}
+
+        # 处理纯URL列表的情况
+        if isinstance(playlist_data[0], str):
+            playlist_data = [{'url': url} for url in playlist_data]
+
+        logger.info("开始验证播放列表...")
+        self._is_scanning = True
+        self._start_time = asyncio.get_event_loop().time()
+        valid_channels = []
+        invalid_channels = []
+        total = len(playlist_data)
+        
+        # 初始化线程池
+        self._executor = ThreadPoolExecutor(max_workers=self._thread_count)
+        
+        try:
+            # 创建验证任务
+            self._tasks = []
+            for item in playlist_data:
+                if not self._is_scanning:
+                    logger.info("验证任务被取消")
+                    break
+                    
+                url = item.get('url', '')
+                if not url:
+                    logger.warning(f"频道缺少URL: {item.get('name', '未命名')}")
+                    invalid_channels.append(item)
+                    continue
+                    
+                logger.info(f"开始验证频道: {url}")
+                task = asyncio.create_task(
+                    self._validate_channel(item),
+                    name=f"validate_{url}"
+                )
+                self._tasks.append(task)
+            
+            # 处理验证结果
+            for future in asyncio.as_completed(self._tasks):
+                try:
+                    result = await future
+                    if result and result.get('valid', False):
+                        valid_channels.append(result)
+                        self.channel_found.emit(result)
+                        logger.info(f"频道验证成功: {result.get('url')}")
+                    else:
+                        invalid_channels.append(result)
+                        logger.info(f"频道验证失败: {result.get('url')}")
+                    
+                    # 更新进度
+                    current = len(valid_channels) + len(invalid_channels)
+                    progress = int(current / total * 100)
+                    status = f"验证中: {len(valid_channels)}有效/{len(invalid_channels)}无效 ({current}/{total})"
+                    self.progress_updated.emit(progress, status)
+                    logger.debug(f"进度更新: {status}")
+                    
+                except Exception as e:
+                    logger.error(f"验证任务异常: {str(e)}")
+                    continue
+            
+            # 验证完成
+            logger.info(f"播放列表验证完成 - 有效: {len(valid_channels)} 无效: {len(invalid_channels)}")
+            self.scan_finished.emit({
+                'channels': valid_channels,
+                'total': total,
+                'invalid': len(invalid_channels),
+                'elapsed': asyncio.get_event_loop().time() - self._start_time
+            })
+            self.progress_updated.emit(100, f"验证完成 - 有效: {len(valid_channels)} 无效: {len(invalid_channels)}")
+            
+            return {
+                'valid': valid_channels,
+                'invalid': invalid_channels
+            }
+            
+        finally:
+            self._is_scanning = False
+            if self._executor:
+                self._executor.shutdown(wait=False)
+            self._tasks = []
+
+    async def _validate_channel(self, channel_data: dict) -> dict:
+        """验证单个频道有效性"""
+        try:
+            url = channel_data.get('url', '')
+            if not url:
+                return {**channel_data, 'valid': False}
+                
+            result = await self._probe_stream(url)
+            if result and result.get('valid', False):
+                return {
+                    **channel_data,
+                    'valid': True,
+                    'width': result.get('width', 0),
+                    'height': result.get('height', 0),
+                    'codec': result.get('codec', 'unknown')
+                }
+            return {**channel_data, 'valid': False}
+        except Exception as e:
+            logger.error(f"验证频道出错: {str(e)}")
+            return {**channel_data, 'valid': False}
 
     def stop_scan(self) -> None:
         """增强停止方法

@@ -330,7 +330,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # 隐藏无效项按钮
         self.btn_hide_invalid = QtWidgets.QPushButton("隐藏无效项")
         self.btn_hide_invalid.setStyleSheet(AppStyles.button_style())
-        self.btn_validate.clicked.connect(lambda: asyncio.create_task(self.validate_playlist()))
+        self.btn_validate.clicked.connect(lambda: asyncio.create_task(self.scanner.validate_playlist(
+            [chan['url'] for chan in self.model.channels if 'url' in chan]
+        )))
         
         # 状态标签
         self.filter_status_label = QtWidgets.QLabel("就绪")
@@ -965,118 +967,6 @@ class MainWindow(QtWidgets.QMainWindow):
         """统一调用播放器的停止方法"""
         await self.safe_stop()
 
-    # 验证频道有效性并标记颜色
-    async def validate_playlist(self):
-        """验证频道有效性并标记颜色"""
-        try:
-            # 空列表检查
-            if not self.model.channels:
-                QMessageBox.warning(
-                    self,
-                    "列表为空",
-                    "请先加载或扫描频道列表"
-                )
-                return
-
-            # 获取扫描设置参数
-            timeout = self.timeout_input.value()
-            thread_count = self.thread_count_input.value()
-            user_agent = self.user_agent_input.text().strip()
-            referer = self.referer_input.text().strip()
-
-            # 设置扫描参数
-            self.scanner.set_timeout(timeout)
-            self.scanner.set_thread_count(thread_count)
-            if user_agent:
-                self.scanner.set_user_agent(user_agent)
-            if referer:
-                self.scanner.set_referer(referer)
-
-            self.btn_validate.setEnabled(False)
-            self.btn_validate.setText("验证中...")
-            self.validation_results.clear()
-            self.progress_indicator.show()  # 显示进度指示器
-            self.statusBar().showMessage("开始验证频道有效性...")
-            logger.info(f"开始验证频道有效性，共{len(self.model.channels)}个频道")
-
-            # 添加有效性列（如果不存在）
-            if "有效性" not in self.model.headers:
-                self.model.headers.append("有效性")
-                self.model.layoutChanged.emit()
-
-            valid_count = 0
-            for row, channel in enumerate(self.model.channels):
-                url = channel.get('url', '')
-                if not url:
-                    continue
-
-                try:
-                    logger.info(f"正在验证频道[{row+1}/{len(self.model.channels)}]: {channel.get('name', '未命名')} - {url}")
-                    info = await self.scanner._probe_stream(url)
-                    is_valid = info['valid'] if info else False
-                    self.validation_results[url] = is_valid
-                    
-                    # 在主线程更新UI
-                    def update_ui():
-                        # 更新背景色和字体颜色
-                        bg_color = QtGui.QColor('#e8f5e9') if is_valid else QtGui.QColor('#ffebee')
-                        text_color = QtGui.QColor('#000000') if is_valid else QtGui.QColor('#ff0000')
-                        
-                        for col in range(self.model.columnCount()):
-                            index = self.model.index(row, col)
-                            self.model.setData(index, bg_color, Qt.ItemDataRole.BackgroundRole)
-                            self.model.setData(index, text_color, Qt.ItemDataRole.ForegroundRole)
-                        
-                        # 更新有效性列
-                        if len(self.model.headers) > 4:  # 有效性列存在
-                            status_index = self.model.index(row, 4)
-                            self.model.setData(status_index, "有效" if is_valid else "无效", Qt.ItemDataRole.DisplayRole)
-                    
-                    QtCore.QMetaObject.invokeMethod(self, "update_ui", QtCore.Qt.ConnectionType.QueuedConnection)
-                    
-                    # 更新分辨率
-                    if is_valid and info:
-                        valid_count += 1
-                        self.model.channels[row].update({
-                            'width': info.get('width', 0),
-                            'height': info.get('height', 0)
-                        })
-                        logger.debug(f"频道验证成功: {url}")
-                    else:
-                        logger.debug(f"频道验证失败: {url}")
-
-                    # 更新状态栏显示当前进度
-                    progress_msg = f"验证中: {row+1}/{len(self.model.channels)} | 有效: {valid_count} | 超时: {timeout}s"
-                    self.statusBar().showMessage(progress_msg)
-                    
-                    # 更新按钮文本显示进度
-                    self.btn_validate.setText(f"验证中({row+1}/{len(self.model.channels)})")
-
-                except Exception as e:
-                    logger.error(f"验证频道失败: {str(e)}")
-                    self.validation_results[url] = False
-                    self.statusBar().showMessage(f"验证出错: {str(e)}")
-
-            self.filter_status_label.setText(f"有效: {valid_count}/{len(self.model.channels)}")
-            final_msg = f"验证完成 - 超时: {timeout}s | 线程: {thread_count} | 有效: {valid_count}/{len(self.model.channels)}"
-            self.statusBar().showMessage(final_msg)
-            logger.info(final_msg)
-
-            # 显示验证结果弹窗
-            QMessageBox.information(
-                self,
-                "验证完成",
-                final_msg
-            )
-
-        except Exception as e:
-            error_msg = f"验证过程出错: {str(e)}"
-            logger.error(error_msg)
-            await self._async_show_warning("验证错误", error_msg)
-        finally:
-            self.btn_validate.setEnabled(True)
-            self.btn_validate.setText("检测有效性")
-            self.progress_indicator.hide()  # 隐藏进度指示器
 
     # 隐藏无效频道
     def hide_invalid_channels(self):
