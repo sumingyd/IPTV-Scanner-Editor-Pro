@@ -22,6 +22,7 @@ class StreamScanner(QObject):
     channel_found = pyqtSignal(dict)           # 单个有效频道信息
     error_occurred = pyqtSignal(str)           # 错误信息
     ffprobe_missing = pyqtSignal()             # 新增：ffprobe缺失信号
+    validation_status = pyqtSignal(str)        # 新增：验证状态信息
 
     def __init__(self):
         """流媒体扫描器
@@ -510,6 +511,7 @@ class StreamScanner(QObject):
         """
         if not playlist_data:
             self.error_occurred.emit("播放列表为空")
+            self.validation_status.emit("错误: 播放列表为空")
             return {'valid': [], 'invalid': []}
 
         # 处理纯URL列表的情况
@@ -519,6 +521,7 @@ class StreamScanner(QObject):
         logger.info("开始验证播放列表...")
         self._is_scanning = True
         self._start_time = asyncio.get_event_loop().time()
+        self.validation_status.emit(f"准备检测播放列表有效性: 共 {len(playlist_data)} 个频道 (通过打开列表按钮加载列表后点击检测有效性)")
         valid_channels = []
         invalid_channels = []
         total = len(playlist_data)
@@ -578,7 +581,8 @@ class StreamScanner(QObject):
                 'invalid': len(invalid_channels),
                 'elapsed': asyncio.get_event_loop().time() - self._start_time
             })
-            self.progress_updated.emit(100, f"验证完成 - 有效: {len(valid_channels)} 无效: {len(invalid_channels)}")
+            self.validation_status.emit(f"播放列表验证完成 - 总数: {total} | 有效: {len(valid_channels)} | 无效: {len(invalid_channels)} | 耗时: {asyncio.get_event_loop().time() - self._start_time:.1f}秒")
+            self.progress_updated.emit(100, f"验证完成 - 总数: {total} | 有效: {len(valid_channels)} | 无效: {len(invalid_channels)} | 耗时: {asyncio.get_event_loop().time() - self._start_time:.1f}秒")
             
             return {
                 'valid': valid_channels,
@@ -596,10 +600,13 @@ class StreamScanner(QObject):
         try:
             url = channel_data.get('url', '')
             if not url:
+                self.validation_status.emit(f"跳过无效URL: {channel_data.get('name', '未命名')}")
                 return {**channel_data, 'valid': False}
                 
+            self.validation_status.emit(f"正在验证: {channel_data.get('name', url)}")
             result = await self._probe_stream(url)
             if result and result.get('valid', False):
+                self.validation_status.emit(f"验证成功: {channel_data.get('name', url)}")
                 return {
                     **channel_data,
                     'valid': True,
@@ -607,9 +614,11 @@ class StreamScanner(QObject):
                     'height': result.get('height', 0),
                     'codec': result.get('codec', 'unknown')
                 }
+            self.validation_status.emit(f"验证失败: {channel_data.get('name', url)}")
             return {**channel_data, 'valid': False}
         except Exception as e:
             logger.error(f"验证频道出错: {str(e)}")
+            self.validation_status.emit(f"验证异常: {channel_data.get('name', url)} - {str(e)}")
             return {**channel_data, 'valid': False}
 
     def stop_scan(self) -> None:
