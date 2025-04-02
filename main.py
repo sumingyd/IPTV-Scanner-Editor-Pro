@@ -102,17 +102,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._init_ui()
         self._connect_signals()
         self.load_config()
-        
-        # 应用配置（必须在_init_ui之后调用）
-        scanner_address = self.config.config.get('Scanner', 'scan_address', fallback='')
-        scanner_timeout = self.config.config.getint('Scanner', 'timeout', fallback=10)
-        scanner_threads = self.config.config.getint('Scanner', 'thread_count', fallback=10)
-        
-        logger.info(f"加载Scanner配置: address={scanner_address}, timeout={scanner_timeout}, threads={scanner_threads}")
-
-        self.ip_range_input.setText(scanner_address)
-        self.timeout_input.setValue(scanner_timeout)
-        self.thread_count_input.setValue(scanner_threads)
 
         # 添加防抖定时器
         self.debounce_timer = QtCore.QTimer()
@@ -145,8 +134,8 @@ class MainWindow(QtWidgets.QMainWindow):
         msg_box.setText(message)
         msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
         
-        # 使用exec_()并await来支持异步
-        await msg_box.exec_()
+        # 使用exec()并await来支持异步
+        await msg_box.exec()
 
     # 事件过滤器处理焦点事件（最终版）
     def eventFilter(self, source, event: QtCore.QEvent) -> bool:
@@ -1004,9 +993,16 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.scanner.set_referer(referer)
 
             self.btn_validate.setEnabled(False)
+            self.btn_validate.setText("验证中...")
             self.validation_results.clear()
             self.progress_indicator.show()  # 显示进度指示器
             self.statusBar().showMessage("开始验证频道有效性...")
+            logger.info(f"开始验证频道有效性，共{len(self.model.channels)}个频道")
+
+            # 添加有效性列（如果不存在）
+            if "有效性" not in self.model.headers:
+                self.model.headers.append("有效性")
+                self.model.layoutChanged.emit()
 
             valid_count = 0
             for row, channel in enumerate(self.model.channels):
@@ -1015,19 +1011,28 @@ class MainWindow(QtWidgets.QMainWindow):
                     continue
 
                 try:
-                    logger.info(f"正在验证频道: {channel.get('name', '未命名')} - {url}")
+                    logger.info(f"正在验证频道[{row+1}/{len(self.model.channels)}]: {channel.get('name', '未命名')} - {url}")
                     info = await self.scanner._probe_stream(url)
                     is_valid = info['valid'] if info else False
                     self.validation_results[url] = is_valid
                     
-                    # 更新背景色和字体颜色
-                    bg_color = QtGui.QColor('#e8f5e9') if is_valid else QtGui.QColor('#ffebee')
-                    text_color = QtGui.QColor('#000000') if is_valid else QtGui.QColor('#ff0000')
+                    # 在主线程更新UI
+                    def update_ui():
+                        # 更新背景色和字体颜色
+                        bg_color = QtGui.QColor('#e8f5e9') if is_valid else QtGui.QColor('#ffebee')
+                        text_color = QtGui.QColor('#000000') if is_valid else QtGui.QColor('#ff0000')
+                        
+                        for col in range(self.model.columnCount()):
+                            index = self.model.index(row, col)
+                            self.model.setData(index, bg_color, Qt.ItemDataRole.BackgroundRole)
+                            self.model.setData(index, text_color, Qt.ItemDataRole.ForegroundRole)
+                        
+                        # 更新有效性列
+                        if len(self.model.headers) > 4:  # 有效性列存在
+                            status_index = self.model.index(row, 4)
+                            self.model.setData(status_index, "有效" if is_valid else "无效", Qt.ItemDataRole.DisplayRole)
                     
-                    for col in range(self.model.columnCount()):
-                        index = self.model.index(row, col)
-                        self.model.setData(index, bg_color, Qt.ItemDataRole.BackgroundRole)
-                        self.model.setData(index, text_color, Qt.ItemDataRole.ForegroundRole)
+                    QtCore.QMetaObject.invokeMethod(self, "update_ui", QtCore.Qt.ConnectionType.QueuedConnection)
                     
                     # 更新分辨率
                     if is_valid and info:
@@ -1036,25 +1041,41 @@ class MainWindow(QtWidgets.QMainWindow):
                             'width': info.get('width', 0),
                             'height': info.get('height', 0)
                         })
+                        logger.debug(f"频道验证成功: {url}")
+                    else:
+                        logger.debug(f"频道验证失败: {url}")
 
-                    # 强制刷新UI
-                    QtWidgets.QApplication.processEvents()
+                    # 更新状态栏显示当前进度
+                    progress_msg = f"验证中: {row+1}/{len(self.model.channels)} | 有效: {valid_count} | 超时: {timeout}s"
+                    self.statusBar().showMessage(progress_msg)
+                    
+                    # 更新按钮文本显示进度
+                    self.btn_validate.setText(f"验证中({row+1}/{len(self.model.channels)})")
 
                 except Exception as e:
                     logger.error(f"验证频道失败: {str(e)}")
                     self.validation_results[url] = False
+                    self.statusBar().showMessage(f"验证出错: {str(e)}")
 
             self.filter_status_label.setText(f"有效: {valid_count}/{len(self.model.channels)}")
-            self.statusBar().showMessage(
-                f"验证完成 - 超时: {timeout}s | 线程: {thread_count} | 有效: {valid_count}/{len(self.model.channels)}"
+            final_msg = f"验证完成 - 超时: {timeout}s | 线程: {thread_count} | 有效: {valid_count}/{len(self.model.channels)}"
+            self.statusBar().showMessage(final_msg)
+            logger.info(final_msg)
+
+            # 显示验证结果弹窗
+            QMessageBox.information(
+                self,
+                "验证完成",
+                final_msg
             )
-            logger.info(f"验证完成: 有效 {valid_count}/{len(self.model.channels)} 个频道")
 
         except Exception as e:
-            logger.error(f"验证过程出错: {str(e)}")
-            await self._async_show_warning("验证错误", f"验证过程中发生错误:\n{str(e)}")
+            error_msg = f"验证过程出错: {str(e)}"
+            logger.error(error_msg)
+            await self._async_show_warning("验证错误", error_msg)
         finally:
             self.btn_validate.setEnabled(True)
+            self.btn_validate.setText("检测有效性")
             self.progress_indicator.hide()  # 隐藏进度指示器
 
     # 隐藏无效频道
@@ -1104,7 +1125,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.restore_all_channels
             )
         menu.addAction("复制选中URL", self.copy_selected_url)
-        menu.exec_(self.channel_list.mapToGlobal(pos))
+        menu.exec(self.channel_list.mapToGlobal(pos))
 
     # 恢复显示所有频道
     def restore_all_channels(self):
@@ -1332,13 +1353,13 @@ class MainWindow(QtWidgets.QMainWindow):
                     return
                 
                 # 确保有保存的分隔条位置
-                if not self.config_file.get('splitter_sizes'):
+                if not hasattr(self, 'config') or not self.config.config.get('UserPrefs', 'splitter_sizes', fallback=''):
                     logger.warning("没有保存的分隔条位置")
                     return
                     
                 left_sizes = self.config_file['splitter_sizes'][0]
                 right_sizes = self.config_file['splitter_sizes'][1]
-                
+            
                 # 验证尺寸数据
                 if len(left_sizes) == 2 and len(right_sizes) == 2:
                     self.left_splitter.setSizes(left_sizes)
@@ -1390,15 +1411,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.config.config['UserPrefs']['right_splitter_sizes'] = ','.join(map(str, self.right_splitter.sizes()))
                 self.config.save_prefs()
                 
-                # 6. 执行父类关闭事件
+                # 7. 执行父类关闭事件
                 super().closeEvent(event)
                 
-                # 7. 确保所有资源释放完成
+                # 8. 确保所有资源释放完成
                 if hasattr(self, 'player') and self.player:
                     self.player._release_sync()
             except Exception as e:
                 logger.error(f"关闭异常: {str(e)}")
                 event.ignore()
+            finally:
+                pass
 
         # 获取当前事件循环
         loop = asyncio.get_event_loop()
