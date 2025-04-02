@@ -170,43 +170,9 @@ class PlaylistHandler:
         """播放列表处理器
         功能:
             1. 初始化配置和解析器
-            2. 加载上次的扫描地址缓存
         """
-        self.config = ConfigHandler()
         self.parser = PlaylistParser()
         self.converter = PlaylistConverter(EPGManager())
-        self._load_scan_address_cache()
-
-    def _load_scan_address_cache(self) -> None:
-        """加载扫描地址缓存
-        功能:
-            1. 使用ConfigHandler读取配置
-            2. 从.iptv_manager.ini获取扫描地址
-        """
-        try:
-            self.scan_address = self.config.config['Scanner'].get('scan_address', '')
-        except Exception as e:
-            logger.error(f"加载扫描地址失败: {str(e)}")
-            self.scan_address = ''
-
-    def _save_scan_address_cache(self, address: str) -> None:
-        """保存扫描地址到配置文件
-        参数:
-            address: 要保存的扫描地址
-        功能:
-            1. 验证地址有效性
-            2. 更新.iptv_manager.ini配置
-        """
-        if not isinstance(address, str):
-            return
-            
-        try:
-            if not self.config.config.has_section('Scanner'):
-                self.config.config.add_section('Scanner')
-            self.config.config['Scanner']['scan_address'] = address
-            self.config.save_prefs()
-        except Exception as e:
-            logger.error(f"保存扫描地址失败: {str(e)}")
 
     def save_playlist(self, channels: List[Dict], path: str) -> bool:
         """保存播放列表到文件
@@ -271,21 +237,18 @@ class PlaylistHandler:
             raise ValueError(f"不支持的格式: {ext}")
 
     def update_scan_address(self, address: str) -> None:
-        """更新扫描地址并保存到缓存
+        """更新扫描地址
         参数:
             address: 扫描地址字符串
         """
-        if not address:
-            return
-        self.scan_address = address
-        self._save_scan_address_cache(address)
+        pass  # 配置统一由main.py管理
 
     def get_scan_address(self) -> str:
-        """获取缓存的扫描地址
+        """获取扫描地址
         返回:
-            str: 上次使用的扫描地址
+            str: 空字符串(配置统一由main.py管理)
         """
-        return self.scan_address
+        return ''
 
     def _format_txt(self, channels: List[Dict]) -> str:
         """生成简化TXT格式内容
