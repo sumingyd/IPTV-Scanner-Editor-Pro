@@ -163,16 +163,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.resize(1200, 800)
         
         # 使用系统调色板适应深色/浅色模式
-        self.setStyleSheet("""
-            QMainWindow {
-                background: palette(window);
-                border: 1px solid palette(mid);
-            }
-            QMainWindow::separator {
-                width: 1px;
-                background: palette(mid);
-            }
-        """)
+        self.setStyleSheet(AppStyles.main_window_style())
         
         # 主布局
         main_widget = QtWidgets.QWidget()
@@ -232,52 +223,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.left_splitter.splitterMoved.connect(self._save_splitter_sizes)
         self.right_splitter.splitterMoved.connect(self._save_splitter_sizes)
         status_bar.show()
-        status_bar.setStyleSheet("""
-            QStatusBar {
-                background: palette(window);
-                border-top: 1px solid palette(mid);
-                padding: 4px 12px;
-                font-size: 13px;
-                color: palette(window-text);
-                min-height: 28px;
-                border-radius: 0 0 6px 6px;
-            }
-            QStatusBar::item {
-                border: none;
-                padding: 0 8px;
-                border-radius: 3px;
-            }
-            QStatusBar::item:hover {
-                background: rgba(0,0,0,0.05);
-            }
-            QStatusBar QLabel {
-                background: transparent;
-                padding: 2px 8px;
-                font-weight: 500;
-                border-radius: 3px;
-            }
-            QStatusBar QLabel:hover {
-                background: rgba(0,0,0,0.05);
-            }
-            QStatusBar QLabel[status="error"] {
-                color: palette(highlight);
-                font-weight: bold;
-                background: rgba(255,0,0,0.1);
-                padding: 2px 10px;
-            }
-            QStatusBar QLabel[status="success"] {
-                color: palette(highlight);
-                font-weight: bold;
-                background: rgba(0,255,0,0.1);
-                padding: 2px 10px;
-            }
-            QStatusBar QLabel[status="warning"] {
-                color: palette(highlight);
-                font-weight: bold;
-                background: rgba(255,165,0,0.1);
-                padding: 2px 10px;
-            }
-        """)
+        status_bar.setStyleSheet(AppStyles.statusbar_style())
         status_bar.showMessage("程序已启动")
         
         # 添加进度指示器
@@ -285,22 +231,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress_indicator.setRange(0, 0)  # 无限循环模式
         self.progress_indicator.setTextVisible(False)
         self.progress_indicator.setFixedWidth(120)
-        self.progress_indicator.setStyleSheet("""
-            QProgressBar {
-                border: 1px solid #90CAF9;
-                border-radius: 6px;
-                background: #E3F2FD;
-                height: 16px;
-            }
-            QProgressBar::chunk {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #2196F3, stop:0.3 #42A5F5, stop:0.6 #64B5F6, stop:1 #90CAF9);
-                width: 10px;
-                margin: 1px;
-                border-radius: 4px;
-                border: 1px solid rgba(255,255,255,0.3);
-            }
-        """)
+        self.progress_indicator.setStyleSheet(AppStyles.progress_style())
         self.progress_indicator.hide()
         status_bar.addPermanentWidget(self.progress_indicator)
 
@@ -309,26 +240,9 @@ class MainWindow(QtWidgets.QMainWindow):
         """为 QSplitter 设置分隔线样式"""
         # 设置分隔线的样式表
         if splitter.orientation() == QtCore.Qt.Orientation.Vertical:
-            # 垂直分隔线：设置高度和背景颜色
-            splitter.setStyleSheet("""
-            QSplitter::handle {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #2196F3, stop:1 #42A5F5);
-                height: 4px;
-                border-radius: 2px;
-                margin: 3px 0;
-            }
-            """)
+            splitter.setStyleSheet(AppStyles.splitter_handle_style("horizontal"))
         else:
-            # 水平分隔线：设置宽度和背景颜色
-            splitter.setStyleSheet("""
-                QSplitter::handle {
-                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                        stop:0 #2196F3, stop:1 #42A5F5);
-                    width: 4px;
-                    border-radius: 2px;
-                }
-            """)
+            splitter.setStyleSheet(AppStyles.splitter_handle_style("vertical"))
 
     # 配置扫描面板
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
@@ -377,7 +291,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 扫描控制按钮
         self.scan_btn = QtWidgets.QPushButton("完整扫描")
-        self.scan_btn.setStyleSheet(AppStyles.button_style())
+        self.scan_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.scan_btn.clicked.connect(self.toggle_scan)
         
         # 设置按钮尺寸策略为Expanding
@@ -388,7 +302,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 扫描统计信息
         self.detailed_stats_label = QtWidgets.QLabel("总频道: 0 | 有效: 0 | 无效: 0 | 耗时: 0s")
-        self.detailed_stats_label.setStyleSheet("color: #666; font-weight: bold;")
+        self.detailed_stats_label.setStyleSheet(AppStyles.stats_label_style())
 
         # 使用网格布局让按钮和统计信息并排显示
         button_stats_layout = QtWidgets.QGridLayout()
@@ -422,7 +336,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # 有效性检测按钮
         self.btn_validate = QtWidgets.QPushButton("检测有效性")
-        self.btn_validate.setStyleSheet(AppStyles.button_style())
+        self.btn_validate.setStyleSheet(AppStyles.button_style(active=True))
         
         # 隐藏无效项按钮
         self.btn_hide_invalid = QtWidgets.QPushButton("隐藏无效项")
@@ -431,7 +345,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # 状态标签
         self.filter_status_label = QtWidgets.QLabel("就绪")
-        self.filter_status_label.setStyleSheet("color: #666;")
+        self.filter_status_label.setStyleSheet(AppStyles.status_label_style())
         
         toolbar.addWidget(self.btn_validate)
         toolbar.addWidget(self.btn_hide_invalid)
@@ -476,7 +390,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # 控制按钮
         control_layout = QtWidgets.QHBoxLayout()
         self.pause_btn = QtWidgets.QPushButton("播放")
-        self.pause_btn.setStyleSheet(AppStyles.button_style())
+        self.pause_btn.setStyleSheet(AppStyles.player_button_style())
         self.pause_btn.clicked.connect(self.player.toggle_pause)
         self.stop_btn = QtWidgets.QPushButton("停止")
         self.stop_btn.setStyleSheet(AppStyles.button_style())
