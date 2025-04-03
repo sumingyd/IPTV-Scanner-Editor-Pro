@@ -330,9 +330,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # 隐藏无效项按钮
         self.btn_hide_invalid = QtWidgets.QPushButton("隐藏无效项")
         self.btn_hide_invalid.setStyleSheet(AppStyles.button_style())
-        self.btn_validate.clicked.connect(lambda: asyncio.create_task(self.scanner.validate_playlist(
-            [chan['url'] for chan in self.model.channels if 'url' in chan]
-        )))
+        self.btn_validate.clicked.connect(self.toggle_validation)
         
         # 状态标签
         self.filter_status_label = QtWidgets.QLabel("请先加载列表并点击检测有效性")
@@ -1266,12 +1264,23 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # 处理关闭事件
     def closeEvent(self, event: QCloseEvent):
+        """处理窗口关闭事件"""
+        # 停止有效性检测
+        if hasattr(self.scanner, '_is_validating') and self.scanner._is_validating:
+            self.scanner.stop_scan()
+            self.btn_validate.setText("检测有效性")
+            self.btn_validate.setStyleSheet(AppStyles.button_style())
+            self.filter_status_label.setText("有效性检测已停止")
+            
         async def _async_close():
             try:
-                # 1. 先停止播放器
+                # 1. 先停止播放器和扫描器
                 if hasattr(self, 'player') and self.player:
                     self.player.force_stop()
-                
+                if hasattr(self, 'scanner') and self.scanner:
+                    await self.scanner.stop_scan()
+                    await self.scanner.cleanup()
+                    
                 # 2. 取消所有异步任务，带超时保护
                 await AsyncWorker.cancel_all(timeout=1.0)
                 
@@ -1307,11 +1316,104 @@ class MainWindow(QtWidgets.QMainWindow):
                 # 8. 确保所有资源释放完成
                 if hasattr(self, 'player') and self.player:
                     self.player._release_sync()
+                if hasattr(self, 'scanner') and self.scanner:
+                    await self.scanner.cleanup()
             except Exception as e:
                 logger.error(f"关闭异常: {str(e)}")
                 event.ignore()
-            finally:
-                pass
+
+        # 获取当前事件循环
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # 在已有事件循环中运行
+            future = asyncio.ensure_future(_async_close())
+            future.add_done_callback(lambda _: None)  # 防止未等待警告
+        else:
+            # 没有运行中的事件循环，创建新循环
+            loop.run_until_complete(_async_close())
+
+    async def toggle_validation(self):
+        """切换有效性检测状态"""
+        if hasattr(self.scanner, '_is_validating') and self.scanner._is_validating:
+            await self.scanner.stop_scan()
+            self.btn_validate.setText("检测有效性")
+            self.btn_validate.setStyleSheet(AppStyles.button_style())
+            self.filter_status_label.setText("有效性检测已停止")
+        else:
+            urls = [chan['url'] for chan in self.model.channels if 'url' in chan]
+            if not urls:
+                self.show_error("没有可检测的频道")
+                return
+            self.btn_validate.setText("停止检测")
+            self.btn_validate.setStyleSheet(AppStyles.button_style(active=True))
+            self.filter_status_label.setText("有效性检测中...")
+            try:
+                self.validation_results = await self.scanner.validate_playlist(urls)
+                self.btn_validate.setText("检测有效性")
+                self.btn_validate.setStyleSheet(AppStyles.button_style())
+                self.filter_status_label.setText(f"检测完成 - 有效: {sum(self.validation_results.values())}/{len(urls)}")
+            except asyncio.CancelledError:
+                self.btn_validate.setText("检测有效性")
+                self.btn_validate.setStyleSheet(AppStyles.button_style())
+                self.filter_status_label.setText("有效性检测已取消")
+            except Exception as e:
+                self.show_error(f"有效性检测失败: {str(e)}")
+                self.btn_validate.setText("检测有效性")
+                self.btn_validate.setStyleSheet(AppStyles.button_style())
+                self.filter_status_label.setText("有效性检测失败")
+
+    async def _async_close(self, event):
+        """异步关闭处理"""
+        try:
+            # 1. 先停止播放器、扫描器和有效性检测
+            if hasattr(self, 'player') and self.player:
+                self.player.force_stop()
+            if hasattr(self, 'scanner') and self.scanner:
+                await self.scanner.stop_scan()
+                # 确保停止有效性检测
+                if hasattr(self.scanner, '_is_validating') and self.scanner._is_validating:
+                    await self.scanner.stop_scan()
+                
+            # 2. 取消所有异步任务，带超时保护
+            await AsyncWorker.cancel_all(timeout=1.0)
+            
+            # 3. 检查是否需要保存播放列表
+            if self.playlist_source == 'file' and self.model.channels:
+                reply = QMessageBox.question(
+                    self,
+                    '保存修改',
+                    '是否保存对播放列表的修改？',
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
+                )
+                
+                if reply == QMessageBox.StandardButton.Yes:
+                    self.save_playlist()
+                elif reply == QMessageBox.StandardButton.Cancel:
+                    event.ignore()
+                    return
+            
+            # 4. 保存当前分隔条位置
+            self._save_splitter_sizes()
+            
+            # 5. 同步保存配置
+            self._save_config_sync()
+            
+            # 6. 保存窗口布局
+            self.config.config['UserPrefs']['left_splitter_sizes'] = ','.join(map(str, self.left_splitter.sizes()))
+            self.config.config['UserPrefs']['right_splitter_sizes'] = ','.join(map(str, self.right_splitter.sizes()))
+            self.config.save_prefs()
+            
+            # 7. 执行父类关闭事件
+            super().closeEvent(event)
+            
+            # 8. 确保所有资源释放完成
+            if hasattr(self, 'player') and self.player:
+                self.player._release_sync()
+            if hasattr(self, 'scanner') and self.scanner:
+                await self.scanner.cleanup()
+        except Exception as e:
+            logger.error(f"关闭异常: {str(e)}")
+            event.ignore()
 
         # 获取当前事件循环
         loop = asyncio.get_event_loop()
