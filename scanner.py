@@ -679,3 +679,31 @@ class StreamScanner(QObject):
             
         logger.debug("扫描已完全停止")
         self.progress_updated.emit(0, "已停止")
+
+    async def cleanup(self) -> None:
+        """清理所有资源"""
+        logger.debug("开始清理扫描器资源...")
+        self._is_scanning = False
+        self._is_validating = False
+        
+        # 取消所有任务
+        for task in self._tasks:
+            if not task.done():
+                task.cancel()
+        
+        # 终止所有活动进程
+        if hasattr(self, '_active_processes') and self._active_processes:
+            for pid in list(self._active_processes):
+                try:
+                    proc = psutil.Process(pid)
+                    proc.terminate()
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+            self._active_processes.clear()
+        
+        # 关闭线程池
+        if self._executor:
+            self._executor.shutdown(wait=False, cancel_futures=True)
+            self._executor = None
+        
+        logger.debug("扫描器资源清理完成")
