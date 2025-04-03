@@ -139,8 +139,8 @@ class MainWindow(QtWidgets.QMainWindow):
         msg_box.setText(message)
         msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
         
-        # 使用exec()并await来支持异步
-        await msg_box.exec()
+        # 使用asyncExec()来支持异步
+        await qasync.asyncExec(msg_box)
 
     # 事件过滤器处理焦点事件（最终版）
     def eventFilter(self, source, event: QtCore.QEvent) -> bool:
