@@ -260,6 +260,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.thread_count_input = QtWidgets.QSpinBox()
         self.thread_count_input.setRange(1, 100)
         self.thread_count_input.setValue(10)
+        self.thread_count_input.setToolTip("同时处理的频道数量，也决定批处理大小(最大50)")
         thread_layout.addWidget(self.thread_count_input)
 
         # User-Agent设置
@@ -1337,32 +1338,46 @@ class MainWindow(QtWidgets.QMainWindow):
     async def toggle_validation(self):
         """切换有效性检测状态"""
         if hasattr(self.scanner, '_is_validating') and self.scanner._is_validating:
-            await self.scanner.stop_scan()
+            try:
+                await self.scanner.stop_validation()
+                self.btn_validate.setText("检测有效性")
+                self.btn_validate.setStyleSheet(AppStyles.button_style())
+                self.filter_status_label.setText("有效性检测已停止")
+                return
+            except Exception as e:
+                self.show_error(f"停止检测失败: {str(e)}")
+                return
+
+        urls = [chan['url'] for chan in self.model.channels if 'url' in chan]
+        if not urls:
+            self.show_error("没有可检测的频道")
+            return
+            
+        self.btn_validate.setText("停止检测")
+        self.btn_validate.setStyleSheet(AppStyles.button_style(active=True))
+        self.filter_status_label.setText("有效性检测中...")
+        
+        try:
+            result = await self.scanner.validate_playlist(urls)
+            # 转换结果为{url: valid}字典
+            self.validation_results = {
+                chan['url']: chan.get('valid', False)
+                for chan in result['valid']
+            }
+            valid_count = len(result['valid'])
+            total = len(urls)
             self.btn_validate.setText("检测有效性")
             self.btn_validate.setStyleSheet(AppStyles.button_style())
-            self.filter_status_label.setText("有效性检测已停止")
-        else:
-            urls = [chan['url'] for chan in self.model.channels if 'url' in chan]
-            if not urls:
-                self.show_error("没有可检测的频道")
-                return
-            self.btn_validate.setText("停止检测")
-            self.btn_validate.setStyleSheet(AppStyles.button_style(active=True))
-            self.filter_status_label.setText("有效性检测中...")
-            try:
-                self.validation_results = await self.scanner.validate_playlist(urls)
-                self.btn_validate.setText("检测有效性")
-                self.btn_validate.setStyleSheet(AppStyles.button_style())
-                self.filter_status_label.setText(f"检测完成 - 有效: {sum(self.validation_results.values())}/{len(urls)}")
-            except asyncio.CancelledError:
-                self.btn_validate.setText("检测有效性")
-                self.btn_validate.setStyleSheet(AppStyles.button_style())
-                self.filter_status_label.setText("有效性检测已取消")
-            except Exception as e:
-                self.show_error(f"有效性检测失败: {str(e)}")
-                self.btn_validate.setText("检测有效性")
-                self.btn_validate.setStyleSheet(AppStyles.button_style())
-                self.filter_status_label.setText("有效性检测失败")
+            self.filter_status_label.setText(f"检测完成 - 有效: {valid_count}/{total}")
+        except asyncio.CancelledError:
+            self.btn_validate.setText("检测有效性")
+            self.btn_validate.setStyleSheet(AppStyles.button_style())
+            self.filter_status_label.setText("有效性检测已取消")
+        except Exception as e:
+            self.show_error(f"有效性检测失败: {str(e)}")
+            self.btn_validate.setText("检测有效性")
+            self.btn_validate.setStyleSheet(AppStyles.button_style())
+            self.filter_status_label.setText("有效性检测失败")
 
     #加载用户配置
     def load_config(self) -> None:

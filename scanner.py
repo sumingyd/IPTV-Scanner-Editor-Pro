@@ -33,8 +33,10 @@ class StreamScanner(QObject):
         """
         super().__init__()
         self._is_scanning = False
+        self._is_validating = False  # 新增验证状态标志
         self._timeout = 5
-        self._thread_count = 10
+        self._thread_count = 10  # 扫描线程数
+        self._validation_threads = 10  # 验证线程数
         self._scan_lock = asyncio.Lock()
         self.playlist = PlaylistHandler()
         self._start_time = 0
@@ -46,6 +48,7 @@ class StreamScanner(QObject):
         self._referer = None  # 自定义Referer
         self._tasks = []  # 跟踪所有扫描任务
         self._active_processes = set()  # 跟踪所有活动的ffprobe进程
+        self._batches = []  # 跟踪所有批次任务
 
     def set_timeout(self, timeout: int) -> None:
         """设置超时时间（单位：秒）"""
@@ -75,16 +78,23 @@ class StreamScanner(QObject):
 
     @asyncSlot()
     async def toggle_scan(self, ip_pattern: str) -> None:
-        """切换扫描状态
+        """切换扫描状态(增强版)
         参数:
             ip_pattern: IP地址模式字符串
         功能:
-            1. 如果正在扫描则停止扫描
+            1. 如果正在扫描则强制停止所有任务
             2. 如果未扫描则开始扫描
+        改进:
+            1. 更可靠的停止机制
+            2. 更严格的锁管理
+            3. 更完善的错误处理
         """
         if self._is_scanning:
-            self.stop_scan()
-            self.progress_updated.emit(0, "已停止")
+            # 强制停止扫描并等待完成
+            self._stop_scanning()
+            # 确保所有任务已完成
+            await asyncio.sleep(0.1)  # 给取消操作一点时间
+            self.progress_updated.emit(0, "已完全停止")
             return
 
         async with self._scan_lock:
@@ -92,20 +102,42 @@ class StreamScanner(QObject):
                 self.error_occurred.emit("已有扫描任务正在进行")
                 return
 
-            self._is_scanning = True
-            self._start_time = asyncio.get_event_loop().time()
-            self._scanned_count = 0  # 重置计数器
             try:
+                # 重置状态
+                self._is_scanning = True
+                self._start_time = asyncio.get_event_loop().time()
+                self._scanned_count = 0
+                self._tasks = []
+                self._batches = []
+                
+                # 执行扫描任务
                 await self._scan_task(ip_pattern)
+            except asyncio.CancelledError:
+                logger.debug("扫描任务被正常取消")
+                self.progress_updated.emit(0, "扫描已取消")
             except Exception as e:
                 logger.error(f"扫描任务异常: {str(e)}")
                 self.error_occurred.emit(f"扫描错误: {str(e)}")
             finally:
+                # 确保状态被重置
                 self._is_scanning = False
+                # 清理资源
+                if hasattr(self, '_executor') and self._executor:
+                    self._executor.shutdown(wait=False)
+                    self._executor = None
 
     async def _scan_task(self, ip_pattern: str) -> None:
-        """执行扫描的核心任务"""
+        """执行扫描的核心任务(增强版)
+        改进:
+            1. 更频繁的状态检查
+            2. 更可靠的取消处理
+            3. 更完善的资源清理
+        """
         try:
+            # 检查点1 - 任务开始时
+            if not self._is_scanning:
+                raise asyncio.CancelledError("扫描已停止")
+                
             try:
                 urls = parse_ip_range(ip_pattern)
                 logger.debug(f"解析后的URL列表: {urls[:5]}... (共{len(urls)}个)")
@@ -129,6 +161,10 @@ class StreamScanner(QObject):
                 logger.error(f"地址解析异常: {ip_pattern} - {str(e)}")
                 self.error_occurred.emit(f"地址解析异常: {str(e)}")
                 return
+                
+            # 检查点2 - URL解析完成后
+            if not self._is_scanning:
+                raise asyncio.CancelledError("扫描已停止")
                 
             total = len(urls)
             valid_channels = []
@@ -397,7 +433,7 @@ class StreamScanner(QObject):
             for attempt in range(max_retries + 1):
                 try:
                     stdout, stderr = proc.communicate(timeout=self._timeout)
-                    logger.debug(f"ffprobe检测完成(返回码: {proc.returncode})")
+                    logger.debug
                     if proc.returncode == 0:
                         break
                     logger.debug(f"ffprobe错误输出: {stderr.decode('utf-8', errors='ignore')}")
@@ -503,55 +539,99 @@ class StreamScanner(QObject):
             return None
 
     async def validate_playlist(self, playlist_data: list) -> dict:
-        """验证播放列表有效性(分批处理版)
+        """验证播放列表有效性(增强分批处理版)
         参数:
             playlist_data: 播放列表数据 [{'name': str, 'url': str}, ...] 或 [url1, url2, ...]
         返回:
             {'valid': list, 'invalid': list} 有效和无效的频道列表
+        优化点:
+            1. 更智能的批次大小控制
+            2. 批次间资源清理
+            3. 更细致的进度反馈
         """
-        if not playlist_data:
-            self.error_occurred.emit("播放列表为空")
-            self.validation_status.emit("错误: 播放列表为空")
+        # 检查播放列表数据有效性
+        if not playlist_data or not isinstance(playlist_data, list):
+            self.error_occurred.emit("播放列表为空或格式错误")
+            self.validation_status.emit("错误: 播放列表为空或格式错误")
             return {'valid': [], 'invalid': []}
+
+        # 更严格的状态检查 - 防止快速点击导致状态不一致
+        if self._is_validating or self._is_scanning:
+            logger.warning("已有任务正在进行")
+            self.error_occurred.emit("已有任务正在进行")
+            self.validation_status.emit("错误: 已有任务正在进行")
+            return {'valid': [], 'invalid': []}
+
+        # 原子性设置验证状态
+        self._is_validating = True
+        await asyncio.sleep(0)  # 确保状态变更立即生效
 
         # 处理纯URL列表的情况
         if isinstance(playlist_data[0], str):
             playlist_data = [{'url': url} for url in playlist_data]
 
         logger.info(f"开始验证播放列表(共{len(playlist_data)}个频道)...")
-        self._is_scanning = True
         self._start_time = asyncio.get_event_loop().time()
-        self.validation_status.emit(f"准备检测播放列表有效性: 共 {len(playlist_data)} 个频道 (通过打开列表按钮加载列表后点击检测有效性)")
+        self.validation_status.emit(f"准备检测播放列表有效性: 共 {len(playlist_data)} 个频道")
         valid_channels = []
         invalid_channels = []
         total = len(playlist_data)
         
-        # 初始化线程池
-        self._executor = ThreadPoolExecutor(max_workers=self._thread_count)
-        
         try:
-            # 分批处理(每批大小为线程数)
-            batch_size = self._thread_count
-            for batch_start in range(0, total, batch_size):
-                if not self._is_scanning:
-                    logger.info("验证任务被取消")
+            # 初始化验证线程池(确保只初始化一次)
+            if (not hasattr(self, '_executor') or self._executor is None or self._executor._shutdown or 
+                (hasattr(self._executor, '_max_workers') and self._executor._max_workers != self._validation_threads)):
+                if hasattr(self, '_executor') and self._executor:
+                    self._executor.shutdown(wait=False)
+                self._executor = ThreadPoolExecutor(max_workers=self._validation_threads)
+                logger.info(f"初始化验证线程池(线程数: {self._validation_threads})")
+            
+            # 三重检查验证状态
+            if not self._is_validating or self._is_scanning:
+                logger.warning("验证任务被取消(状态检查) - 可能由于状态冲突导致")
+                self.validation_status.emit("验证被意外取消")
+                self._is_validating = False
+                raise asyncio.CancelledError("验证已停止")
+            
+            # 动态计算批次大小(基于线程数和列表大小)
+            batch_size = min(
+                max(self._thread_count * 2, 10),  # 最小10个/批
+                min(self._thread_count * 10, 100), # 最大100个/批
+                total // 10 or 1  # 确保至少有1个批次
+            )
+            
+            processed = 0
+            while processed < total and self._is_validating:
+                # 检查是否已停止
+                if not self._is_validating:
                     break
                     
-                batch_end = min(batch_start + batch_size, total)
-                current_batch = playlist_data[batch_start:batch_end]
-                
-                # 创建当前批次的任务
+                # 准备当前批次任务
                 self._tasks = []
+                
+                # 获取当前批次数据
+                batch_end = min(processed + batch_size, total)
+                current_batch = playlist_data[processed:batch_end]
+                batch_valid = 0
                 batch_invalid = 0
+                
+                # 再次检查是否已停止
+                if not self._is_validating:
+                    break
+                
+                # 创建当前批次任务
                 for item in current_batch:
+                    # 检查是否已停止验证
+                    if not self._is_validating:
+                        logger.info("验证任务被取消(批次检查)")
+                        break
+                        
                     url = item.get('url', '')
                     if not url:
-                        logger.warning(f"频道缺少URL: {item.get('name', '未命名')}")
                         invalid_channels.append(item)
                         batch_invalid += 1
                         continue
                         
-                    logger.debug(f"开始验证频道: {url}")
                     task = asyncio.create_task(
                         self._validate_channel(item),
                         name=f"validate_{url}"
@@ -560,47 +640,81 @@ class StreamScanner(QObject):
                 
                 # 处理当前批次结果
                 for future in asyncio.as_completed(self._tasks):
+                    # 检查是否已停止验证
+                    if not self._is_validating:
+                        logger.info("验证任务被取消(任务检查)")
+                        break
+                        
                     try:
                         result = await future
                         if result and result.get('valid', False):
                             valid_channels.append(result)
                             self.channel_found.emit(result)
-                            logger.debug(f"频道验证成功: {result.get('url')}")
+                            batch_valid += 1
                         else:
                             invalid_channels.append(result)
-                            logger.debug(f"频道验证失败: {result.get('url')}")
-                    except Exception as e:
-                        logger.error(f"验证任务异常: {str(e)}")
+                            batch_invalid += 1
+                    except Exception:
                         continue
                 
                 # 更新进度
-                current = len(valid_channels) + len(invalid_channels)
-                progress = int(current / total * 100)
-                status = f"验证中: {len(valid_channels)}有效/{len(invalid_channels)}无效 ({current}/{total}) | 当前批次: {batch_start+1}-{batch_end}"
+                processed = len(valid_channels) + len(invalid_channels)
+                progress = int(processed / total * 100)
+                status = (
+                    f"验证进度: {len(valid_channels)}有效/{len(invalid_channels)}无效 ({processed}/{total}) | "
+                    f"当前批次: {batch_valid}有效/{batch_invalid}无效 | "
+                    f"验证速度: {batch_size/(asyncio.get_event_loop().time()-self._start_time):.1f}个/秒"
+                )
                 self.progress_updated.emit(progress, status)
-                logger.info(f"批次完成: {batch_start+1}-{batch_end}, {status}")
+                
+                # 清理当前批次任务
+                self._tasks = []
+                processed = batch_end
+                
+                # 短暂暂停以保持UI响应
+                await asyncio.sleep(0.1)
             
             # 验证完成
-            logger.info(f"播放列表验证完成 - 有效: {len(valid_channels)} 无效: {len(invalid_channels)}")
+            elapsed = asyncio.get_event_loop().time() - self._start_time
+            logger.info(f"播放列表验证完成 - 有效: {len(valid_channels)} 无效: {len(invalid_channels)} 耗时: {elapsed:.1f}秒")
             self.scan_finished.emit({
                 'channels': valid_channels,
                 'total': total,
                 'invalid': len(invalid_channels),
-                'elapsed': asyncio.get_event_loop().time() - self._start_time
+                'elapsed': elapsed
             })
-            self.validation_status.emit(f"播放列表验证完成 - 总数: {total} | 有效: {len(valid_channels)} | 无效: {len(invalid_channels)} | 耗时: {asyncio.get_event_loop().time() - self._start_time:.1f}秒")
-            self.progress_updated.emit(100, f"验证完成 - 总数: {total} | 有效: {len(valid_channels)} | 无效: {len(invalid_channels)} | 耗时: {asyncio.get_event_loop().time() - self._start_time:.1f}秒")
+            self.validation_status.emit(
+                f"验证完成 - 总数: {total} | "
+                f"有效: {len(valid_channels)} | "
+                f"无效: {len(invalid_channels)} | "
+                f"耗时: {elapsed:.1f}秒 | "
+                f"平均速度: {total/max(elapsed, 0.1):.1f}个/秒"
+            )
+            self.progress_updated.emit(100, 
+                f"验证完成 - 总数: {total} | "
+                f"有效: {len(valid_channels)} | "
+                f"无效: {len(invalid_channels)} | "
+                f"耗时: {elapsed:.1f}秒"
+            )
             
             return {
                 'valid': valid_channels,
                 'invalid': invalid_channels
             }
             
+        except asyncio.CancelledError:
+            logger.info("验证任务被正常取消")
+            self.validation_status.emit("验证已取消")
+            raise
+        except Exception as e:
+            logger.error(f"验证过程中发生异常: {str(e)}")
+            self.error_occurred.emit(f"验证错误: {str(e)}")
+            self.validation_status.emit(f"验证错误: {str(e)}")
         finally:
-            self._is_scanning = False
-            if self._executor:
-                self._executor.shutdown(wait=False)
+            # 仅重置验证状态，不关闭线程池(可能被其他操作使用)
+            self._is_validating = False
             self._tasks = []
+            logger.info("验证任务清理完成")
 
     async def _validate_channel(self, channel_data: dict) -> dict:
         """验证单个频道有效性"""
@@ -608,6 +722,11 @@ class StreamScanner(QObject):
             url = channel_data.get('url', '')
             if not url:
                 self.validation_status.emit(f"跳过无效URL: {channel_data.get('name', '未命名')}")
+                return {**channel_data, 'valid': False}
+                
+            # 检查是否已停止验证
+            if not self._is_validating:
+                logger.debug("验证已停止，跳过当前频道")
                 return {**channel_data, 'valid': False}
                 
             self.validation_status.emit(f"正在验证: {channel_data.get('name', url)}")
@@ -629,28 +748,165 @@ class StreamScanner(QObject):
             return {**channel_data, 'valid': False}
 
     def stop_scan(self) -> None:
-        """增强停止方法
-        功能:
-            1. 停止扫描任务
-            2. 清理资源
-            3. 更新UI状态
-        注意:
-            所有子进程操作都确保使用CREATE_NO_WINDOW标志
-        """
+        """停止IP扫描方法"""
         if not self._is_scanning:
             return
-            
-        logger.debug("开始停止扫描...")
+        logger.info("停止IP扫描请求")
         self._is_scanning = False
+        # 仅取消扫描相关任务
+        for task in self._tasks:
+            if not task.done() and task.get_name().startswith("probe_"):
+                task.cancel()
+        # 保留验证任务继续运行
+
+    async def stop_validation(self) -> None:
+        """停止有效性验证方法(增强版)
+        改进:
+            1. 更可靠的取消机制
+            2. 更彻底的资源清理
+            3. 更详细的状态跟踪
+        """
+        if not hasattr(self, '_is_validating') or not self._is_validating:
+            logger.debug("无活动验证任务可停止")
+            return
+            
+        logger.info("停止有效性验证请求")
         
-        # 取消所有任务并记录状态
+        # 原子性设置验证状态
+        self._is_validating = False
+        await asyncio.sleep(0)  # 确保状态变更立即生效
+        
+        # 获取当前事件循环
+        loop = asyncio.get_event_loop()
+        
+        # 取消所有验证任务
         cancelled_count = 0
         for task in self._tasks:
-            if not task.done():
-                logger.debug(f"取消任务: {task.get_name()}")
+            if not task.done() and task.get_name().startswith("validate_"):
                 task.cancel()
                 cancelled_count += 1
-        logger.debug(f"共取消{cancelled_count}个任务")
+                try:
+                    await task  # 等待任务处理取消
+                except asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    logger.debug(f"任务取消时出错: {str(e)}")
+        logger.info(f"已取消{cancelled_count}个验证任务")
+                
+        # 终止所有相关进程
+        if hasattr(self, '_active_processes'):
+            killed_count = 0
+            for pid in list(self._active_processes):
+                try:
+                    proc = psutil.Process(pid)
+                    if proc.is_running():
+                        proc.kill()
+                        killed_count += 1
+                        logger.debug(f"已终止进程PID: {pid}")
+                except psutil.NoSuchProcess:
+                    pass
+                except Exception as e:
+                    logger.debug(f"终止进程时出错(PID:{pid}): {str(e)}")
+            self._active_processes.clear()
+            logger.info(f"已终止{killed_count}个相关进程")
+            
+        # 清理线程池中的待处理任务
+        if hasattr(self, '_executor') and self._executor:
+            try:
+                # 取消线程池中所有待处理任务
+                for future in self._executor._futures:
+                    if not future.done():
+                        future.cancel()
+                logger.debug("已取消线程池中的待处理任务")
+            except Exception as e:
+                logger.debug(f"取消线程池任务时出错: {str(e)}")
+        
+        # 强制更新UI状态
+        self.progress_updated.emit(0, "验证已停止")
+        self.validation_status.emit("验证已完全停止")
+        
+        # 确保状态已同步
+        await asyncio.sleep(0.1)
+        logger.info("验证停止流程完成")
+
+    def _stop_scanning(self) -> None:
+        """强制停止所有操作(紧急情况使用)"""
+        logger.warning("强制停止所有操作")
+        self._is_scanning = False
+        if hasattr(self, '_is_validating'):
+            self._is_validating = False
+        
+        # 取消所有任务
+        for task in self._tasks:
+            if not task.done():
+                task.cancel()
+        
+        # 获取当前事件循环
+        loop = asyncio.get_event_loop()
+        
+        # 强制取消所有任务(包括批次和当前任务)
+        all_tasks = []
+        for batch in self._batches:
+            all_tasks.extend(batch)
+        all_tasks.extend(self._tasks)
+        
+        # 取消并等待所有任务完成
+        cancelled_count = 0
+        for task in all_tasks:
+            if not task.done():
+                task.cancel()
+                cancelled_count += 1
+                try:
+                    loop.run_until_complete(task)
+                except:
+                    pass
+        logger.debug(f"已取消{cancelled_count}个任务")
+        
+        # 强制终止所有活动进程
+        if hasattr(self, '_active_processes'):
+            for pid in list(self._active_processes):
+                try:
+                    proc = psutil.Process(pid)
+                    if proc.is_running():
+                        proc.kill()
+                        logger.debug(f"已强制终止进程PID: {pid}")
+                except:
+                    pass
+            self._active_processes.clear()
+        
+        # 强制终止所有子进程
+        try:
+            current_process = psutil.Process()
+            for child in current_process.children(recursive=True):
+                try:
+                    if child.is_running():
+                        child.kill()
+                        logger.debug(f"已强制终止子进程PID: {child.pid}")
+                except:
+                    pass
+        except:
+            pass
+            
+            # 安全关闭线程池
+            if hasattr(self, '_executor') and self._executor is not None:
+                try:
+                    self._executor.shutdown(wait=False, cancel_futures=True)
+                except Exception as e:
+                    logger.error(f"关闭线程池时出错: {str(e)}")
+                finally:
+                    self._executor = None
+                
+        # 重置状态
+        self._tasks = []
+        self._batches = []
+        
+        logger.debug("所有任务和进程已强制停止")
+        self.progress_updated.emit(0, "已完全停止")
+        self.validation_status.emit("所有任务已强制停止")
+        
+        # 强制更新UI状态
+        self.progress_updated.emit(0, "正在清理资源...")
+        self.validation_status.emit("正在清理资源...")
         
         # 终止所有活动的ffprobe进程
         if hasattr(self, '_active_processes') and self._active_processes:
@@ -658,16 +914,75 @@ class StreamScanner(QObject):
             for pid in list(self._active_processes):
                 try:
                     proc = psutil.Process(pid)
-                    proc.terminate()
-                    logger.debug(f"已终止进程PID: {pid}")
-                except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
-                    logger.debug(f"终止进程失败(PID:{pid}): {str(e)}")
+                    if proc.is_running():
+                        try:
+                            proc.terminate()
+                            try:
+                                proc.wait(timeout=0.5)
+                            except (psutil.TimeoutExpired, psutil.NoSuchProcess):
+                                try:
+                                    proc.kill()
+                                except:
+                                    pass
+                            logger.debug(f"已终止进程PID: {pid}")
+                        except psutil.NoSuchProcess:
+                            logger.debug(f"进程已终止(PID:{pid})")
+                except Exception as e:
+                    logger.debug(f"终止进程时出错(PID:{pid}): {str(e)}")
             self._active_processes.clear()
+            
+        # 强制终止所有子进程(包括残留进程)
+        try:
+            current_process = psutil.Process()
+            children = current_process.children(recursive=True)
+            for child in children:
+                try:
+                    if child.is_running():
+                        try:
+                            child.terminate()
+                            try:
+                                child.wait(timeout=0.5)
+                            except (psutil.TimeoutExpired, psutil.NoSuchProcess):
+                                try:
+                                    child.kill()
+                                except:
+                                    pass
+                            logger.debug(f"已终止子进程PID: {child.pid}")
+                        except psutil.NoSuchProcess:
+                            logger.debug(f"子进程已终止(PID:{child.pid})")
+                except Exception as e:
+                    logger.debug(f"终止子进程时出错(PID:{child.pid}): {str(e)}")
+        except Exception as e:
+            logger.error(f"终止子进程时出错: {str(e)}")
+            
+        # 强制重置UI状态
+        self.progress_updated.emit(0, "已完全停止")
+        self.validation_status.emit("验证已完全停止")
+            
+        # 强制终止所有子进程
+        try:
+            current_process = psutil.Process()
+            children = current_process.children(recursive=True)
+            for child in children:
+                try:
+                    child.terminate()
+                    try:
+                        child.wait(timeout=1)
+                    except (psutil.TimeoutExpired, psutil.NoSuchProcess):
+                        pass
+                    logger.debug(f"已终止子进程PID: {child.pid}")
+                except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+                    logger.debug(f"终止子进程失败(PID:{child.pid}): {str(e)}")
+        except Exception as e:
+            logger.error(f"终止子进程时出错: {str(e)}")
             
         # 关闭线程池
         if self._executor:
             logger.debug("关闭线程池...")
-            self._executor.shutdown(wait=False, cancel_futures=True)
+            try:
+                self._executor.shutdown(wait=False, cancel_futures=True)
+            except Exception as e:
+                logger.error(f"关闭线程池时出错: {str(e)}")
             self._executor = None
             
         if hasattr(self, 'valid_channels'):
