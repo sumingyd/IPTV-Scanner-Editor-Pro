@@ -26,6 +26,7 @@ from playlist_io import PlaylistConverter, PlaylistHandler, PlaylistParser
 from scanner import StreamScanner
 from utils import ConfigHandler, setup_logger
 from styles import AppStyles
+from validator import StreamValidator
 
 logger = setup_logger('Main') # 主程序日志器
 
@@ -83,6 +84,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.first_time_hide = True  # 首次点击隐藏按钮提示
         self.config = ConfigHandler()
         self.scanner = StreamScanner()
+        self.validator = StreamValidator()  # 新增验证器实例
         self.epg_manager = EPGManager()
         self.player = VLCPlayer()
         self.playlist_handler = PlaylistHandler()
@@ -92,8 +94,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.old_playlist = None  # 存储旧列表数据 {url: channel_info}
         self.match_worker = None  # 异步任务对象
 
-        # 连接ffprobe缺失信号
+        # 连接信号
         self.scanner.ffprobe_missing.connect(self.show_ffprobe_warning)
+        self.validator.progress_updated.connect(self.update_validation_progress)
+        self.validator.validation_finished.connect(self.on_validation_finished)
+        self.validator.error_occurred.connect(self.show_error)
             
         # 异步任务跟踪
         self.scan_worker: Optional[AsyncWorker] = None
@@ -969,19 +974,19 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     # 隐藏无效频道
-    def hide_invalid_channels(self):
+    async def hide_invalid_channels(self):
         """原始数据备份"""
         if not hasattr(self, 'original_channels'):
             self.original_channels = deepcopy(self.model.channels)
         """隐藏无效频道"""
         if not self.validation_results:
-            QMessageBox.warning(self, "提示", "请先点击[检测有效性]")
+            await self._async_show_warning("提示", "请先点击[检测有效性]")
             return
 
         # 首次点击提示
         if self.first_time_hide:
-            QMessageBox.information(
-                self, "提示",
+            await self._async_show_warning(
+                "提示",
                 "将隐藏所有检测为无效的频道\n"
                 "可通过右键菜单->'恢复显示全部'还原"
             )
@@ -1335,18 +1340,21 @@ class MainWindow(QtWidgets.QMainWindow):
             logger.error(f"关闭事件处理失败: {str(e)}")
             event.ignore()  # 出现异常时忽略关闭事件
 
+    @pyqtSlot(int, str)
+    def update_validation_progress(self, percent: int, msg: str):
+        """更新验证进度"""
+        self.filter_status_label.setText(msg)
+        if percent == 100:
+            self.btn_validate.setText("检测有效性")
+            self.btn_validate.setStyleSheet(AppStyles.button_style())
+
     async def toggle_validation(self):
         """切换有效性检测状态"""
-        if hasattr(self.scanner, '_is_validating') and self.scanner._is_validating:
-            try:
-                await self.scanner.stop_validation()
-                self.btn_validate.setText("检测有效性")
-                self.btn_validate.setStyleSheet(AppStyles.button_style())
-                self.filter_status_label.setText("有效性检测已停止")
-                return
-            except Exception as e:
-                self.show_error(f"停止检测失败: {str(e)}")
-                return
+        if self.validator.is_running():
+            await self.validator.stop_validation()
+            self.btn_validate.setText("检测有效性")
+            self.btn_validate.setChecked(False)
+            return
 
         urls = [chan['url'] for chan in self.model.channels if 'url' in chan]
         if not urls:
@@ -1355,29 +1363,30 @@ class MainWindow(QtWidgets.QMainWindow):
             
         self.btn_validate.setText("停止检测")
         self.btn_validate.setStyleSheet(AppStyles.button_style(active=True))
+        self.btn_validate.setChecked(True)
         self.filter_status_label.setText("有效性检测中...")
         
         try:
-            result = await self.scanner.validate_playlist(urls)
-            # 转换结果为{url: valid}字典
-            self.validation_results = {
-                chan['url']: chan.get('valid', False)
-                for chan in result['valid']
-            }
-            valid_count = len(result['valid'])
-            total = len(urls)
-            self.btn_validate.setText("检测有效性")
-            self.btn_validate.setStyleSheet(AppStyles.button_style())
-            self.filter_status_label.setText(f"检测完成 - 有效: {valid_count}/{total}")
-        except asyncio.CancelledError:
-            self.btn_validate.setText("检测有效性")
-            self.btn_validate.setStyleSheet(AppStyles.button_style())
-            self.filter_status_label.setText("有效性检测已取消")
+            await self.validator.validate_playlist(urls)
         except Exception as e:
             self.show_error(f"有效性检测失败: {str(e)}")
             self.btn_validate.setText("检测有效性")
             self.btn_validate.setStyleSheet(AppStyles.button_style())
-            self.filter_status_label.setText("有效性检测失败")
+            self.btn_validate.setChecked(False)
+
+    @pyqtSlot(dict)
+    def on_validation_finished(self, result: dict):
+        """处理验证完成事件"""
+        # 保存验证结果
+        self.validation_results = {
+            chan['url']: chan['valid']
+            for chan in result['valid']
+        }
+        valid_count = len(result['valid'])
+        total = result['total']
+        self.btn_validate.setText("检测有效性")
+        self.btn_validate.setStyleSheet(AppStyles.button_style())
+        self.filter_status_label.setText(f"检测完成 - 有效: {valid_count}/{total}")
 
     #加载用户配置
     def load_config(self) -> None:
@@ -1649,6 +1658,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     return
                 except Exception as e:
                     logger.error(f"匹配第{row+1}行时出错: {str(e)}")
+            
             
             matched_count = sum(1 for chan in self.model.channels if 'old_name' in chan or 'epg_name' in chan)
             # 统计匹配结果
