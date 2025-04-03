@@ -503,7 +503,7 @@ class StreamScanner(QObject):
             return None
 
     async def validate_playlist(self, playlist_data: list) -> dict:
-        """验证播放列表有效性
+        """验证播放列表有效性(分批处理版)
         参数:
             playlist_data: 播放列表数据 [{'name': str, 'url': str}, ...] 或 [url1, url2, ...]
         返回:
@@ -518,7 +518,7 @@ class StreamScanner(QObject):
         if isinstance(playlist_data[0], str):
             playlist_data = [{'url': url} for url in playlist_data]
 
-        logger.info("开始验证播放列表...")
+        logger.info(f"开始验证播放列表(共{len(playlist_data)}个频道)...")
         self._is_scanning = True
         self._start_time = asyncio.get_event_loop().time()
         self.validation_status.emit(f"准备检测播放列表有效性: 共 {len(playlist_data)} 个频道 (通过打开列表按钮加载列表后点击检测有效性)")
@@ -530,48 +530,55 @@ class StreamScanner(QObject):
         self._executor = ThreadPoolExecutor(max_workers=self._thread_count)
         
         try:
-            # 创建验证任务
-            self._tasks = []
-            for item in playlist_data:
+            # 分批处理(每批大小为线程数)
+            batch_size = self._thread_count
+            for batch_start in range(0, total, batch_size):
                 if not self._is_scanning:
                     logger.info("验证任务被取消")
                     break
                     
-                url = item.get('url', '')
-                if not url:
-                    logger.warning(f"频道缺少URL: {item.get('name', '未命名')}")
-                    invalid_channels.append(item)
-                    continue
-                    
-                logger.info(f"开始验证频道: {url}")
-                task = asyncio.create_task(
-                    self._validate_channel(item),
-                    name=f"validate_{url}"
-                )
-                self._tasks.append(task)
-            
-            # 处理验证结果
-            for future in asyncio.as_completed(self._tasks):
-                try:
-                    result = await future
-                    if result and result.get('valid', False):
-                        valid_channels.append(result)
-                        self.channel_found.emit(result)
-                        logger.info(f"频道验证成功: {result.get('url')}")
-                    else:
-                        invalid_channels.append(result)
-                        logger.info(f"频道验证失败: {result.get('url')}")
-                    
-                    # 更新进度
-                    current = len(valid_channels) + len(invalid_channels)
-                    progress = int(current / total * 100)
-                    status = f"验证中: {len(valid_channels)}有效/{len(invalid_channels)}无效 ({current}/{total})"
-                    self.progress_updated.emit(progress, status)
-                    logger.debug(f"进度更新: {status}")
-                    
-                except Exception as e:
-                    logger.error(f"验证任务异常: {str(e)}")
-                    continue
+                batch_end = min(batch_start + batch_size, total)
+                current_batch = playlist_data[batch_start:batch_end]
+                
+                # 创建当前批次的任务
+                self._tasks = []
+                batch_invalid = 0
+                for item in current_batch:
+                    url = item.get('url', '')
+                    if not url:
+                        logger.warning(f"频道缺少URL: {item.get('name', '未命名')}")
+                        invalid_channels.append(item)
+                        batch_invalid += 1
+                        continue
+                        
+                    logger.debug(f"开始验证频道: {url}")
+                    task = asyncio.create_task(
+                        self._validate_channel(item),
+                        name=f"validate_{url}"
+                    )
+                    self._tasks.append(task)
+                
+                # 处理当前批次结果
+                for future in asyncio.as_completed(self._tasks):
+                    try:
+                        result = await future
+                        if result and result.get('valid', False):
+                            valid_channels.append(result)
+                            self.channel_found.emit(result)
+                            logger.debug(f"频道验证成功: {result.get('url')}")
+                        else:
+                            invalid_channels.append(result)
+                            logger.debug(f"频道验证失败: {result.get('url')}")
+                    except Exception as e:
+                        logger.error(f"验证任务异常: {str(e)}")
+                        continue
+                
+                # 更新进度
+                current = len(valid_channels) + len(invalid_channels)
+                progress = int(current / total * 100)
+                status = f"验证中: {len(valid_channels)}有效/{len(invalid_channels)}无效 ({current}/{total}) | 当前批次: {batch_start+1}-{batch_end}"
+                self.progress_updated.emit(progress, status)
+                logger.info(f"批次完成: {batch_start+1}-{batch_end}, {status}")
             
             # 验证完成
             logger.info(f"播放列表验证完成 - 有效: {len(valid_channels)} 无效: {len(invalid_channels)}")
