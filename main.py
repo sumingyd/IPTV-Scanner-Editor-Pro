@@ -330,7 +330,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # 隐藏无效项按钮
         self.btn_hide_invalid = QtWidgets.QPushButton("隐藏无效项")
         self.btn_hide_invalid.setStyleSheet(AppStyles.button_style())
-        self.btn_validate.clicked.connect(self.toggle_validation)
+        self.btn_validate.clicked.connect(lambda: asyncio.create_task(self.toggle_validation()))
+        self.btn_hide_invalid.clicked.connect(lambda: asyncio.create_task(self.hide_invalid_channels()))
         
         # 状态标签
         self.filter_status_label = QtWidgets.QLabel("请先加载列表并点击检测有效性")
