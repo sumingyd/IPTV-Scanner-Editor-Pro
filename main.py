@@ -1470,7 +1470,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.filter_status_label.setText("有效性检测中...")
         
         try:
-            await self.validator.validate_playlist(urls)
+            # 从UI获取并发数设置并传递给验证器
+            max_workers = self.thread_count_input.value()
+            await self.validator.validate_playlist(urls, max_workers)
         except Exception as e:
             self.show_error(f"有效性检测失败: {str(e)}")
             self.btn_validate.setText("检测有效性")

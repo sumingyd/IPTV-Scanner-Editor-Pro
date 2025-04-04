@@ -34,11 +34,11 @@ class StreamValidator(QObject):
         return self._is_running
 
     @asyncSlot()
-    async def validate_playlist(self, playlist_data: Union[List[Dict], List[str]], max_workers: int = 5) -> Dict:
+    async def validate_playlist(self, playlist_data: Union[List[Dict], List[str]], max_workers: int) -> Dict:
         """验证播放列表有效性
         Args:
             playlist_data: 播放列表数据
-            max_workers: 最大并行任务数
+            max_workers: 最大并行任务数(从UI界面获取)
         """
         if not playlist_data:
             error_msg = "播放列表为空"
@@ -61,7 +61,8 @@ class StreamValidator(QObject):
         invalid_channels = []
         
         try:
-            # 创建信号量控制并发数
+            # 创建信号量控制并发数(确保在1-50之间)
+            max_workers = max(1, min(max_workers, 50))  # 限制最大50个并发
             semaphore = asyncio.Semaphore(max_workers)
             logger.info(f"验证参数 - 超时时间: {self._timeout}s, ffprobe路径: {self._ffprobe_path}, 并发数: {max_workers}")
             
