@@ -60,7 +60,7 @@ class StreamValidator(QObject):
         try:
             # 创建信号量控制并发数
             semaphore = asyncio.Semaphore(max_workers)
-            logger.info(f"验证参数 - 超时时间: {self._timeout}s, ffprobe路径: {self._ffprobe_path}")
+            logger.info(f"验证参数 - 超时时间: {self._timeout}s, ffprobe路径: {self._ffprobe_path}, 并发数: {max_workers}")
             
             async def validate_one(channel: Dict) -> Optional[Dict]:
                 async with semaphore:
@@ -78,6 +78,16 @@ class StreamValidator(QObject):
                         }
                         logger.info(f"频道验证完成: {url} - 结果: {'有效' if valid else '无效'}" + 
                                   (f", 延迟: {latency:.2f}s" if valid else ""))
+                        
+                        # 实时发射单个频道结果
+                        self.channel_validated.emit({
+                            'index': playlist_data.index(channel),
+                            'url': url,
+                            'valid': valid,
+                            'latency': latency,
+                            'progress': int((playlist_data.index(channel) + 1) / total * 100)
+                        })
+                        
                         return result
                     except Exception as e:
                         error_msg = f"验证失败: {url} - {str(e)}"
@@ -212,17 +222,32 @@ class StreamValidator(QObject):
 
     async def stop_validation(self):
         """停止验证"""
+        if not self._is_running:
+            return
+            
         self._is_running = False
         logger.info("用户请求停止验证")
+        
         # 终止所有活动的ffprobe进程
+        tasks = []
         for proc in self._active_processes:
             if proc.returncode is None:
                 try:
                     proc.terminate()
-                    await proc.wait()
-                    logger.debug(f"已终止ffprobe进程: {proc.pid}")
+                    # 显式创建等待任务
+                    task = asyncio.create_task(proc.wait())
+                    tasks.append(task)
+                    logger.debug(f"正在终止ffprobe进程: {proc.pid}")
                 except ProcessLookupError:
                     pass
+        
+        # 等待所有进程终止完成
+        if tasks:
+            done, pending = await asyncio.wait(tasks, timeout=5)
+            # 取消未完成的任务
+            for task in pending:
+                task.cancel()
+        
         self._active_processes.clear()
         self.progress_updated.emit(0, "验证已停止")
-        logger.info("验证已完全停止")
+        logger.info("验证已完全停止，共终止了{len(tasks)}个后台进程")
