@@ -202,7 +202,7 @@ class AppStyles: #应用样式
         """状态标签样式"""
         return """
         QLabel {
-            color: palette(mid);
+            color: palette(windowText);
             font-weight: bold;
         }
         """
@@ -279,7 +279,7 @@ class AppStyles: #应用样式
         """统计标签样式"""
         return """
         QLabel {
-            color: palette(mid);
+            color: palette(windowText);
             font-weight: bold;
         }
         """
