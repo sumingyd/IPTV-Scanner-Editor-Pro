@@ -4,6 +4,7 @@ import platform
 import re
 import subprocess
 from pathlib import Path
+import sys
 from typing import List, Tuple, Dict, Any
 from itertools import product
 
@@ -75,8 +76,15 @@ class ConfigHandler:
             2. 确保目录存在
             3. 设置文件隐藏属性(Windows)或权限(Linux/macOS)
         """
-        # 使用程序所在目录而不是代码目录
-        config_path = Path.cwd() / '.iptv_manager.ini'
+        # 处理打包环境
+        if getattr(sys, 'frozen', False):
+            # 打包后使用exe所在目录
+            base_path = Path(sys.executable).parent
+        else:
+            # 开发环境使用当前工作目录
+            base_path = Path.cwd()
+            
+        config_path = base_path / '.iptv_manager.ini'
         
         try:
             # 确保父目录存在
