@@ -61,8 +61,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                     return "✓" if chan['valid'] else "✗"
                 return ""
             elif index.column() == 5:  # 延迟列
-                if chan.get('valid') and 'latency' in chan:
-                    return f"{chan['latency']*1000:.0f}ms"
+                if 'latency' in chan:
+                    return f"{chan['latency']*1000:.0f}ms" if chan.get('valid') else ""
                 return ""
         elif role == Qt.ItemDataRole.UserRole:
             return self.channels[index.row()]

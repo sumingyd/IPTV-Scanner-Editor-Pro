@@ -227,11 +227,19 @@ class StreamScanner(QObject):
                                     'width': result['width'],
                                     'height': result['height'],
                                     'codec': result['codec'],
-                                    'resolution': f"{result['width']}x{result['height']}"
+                                    'resolution': f"{result['width']}x{result['height']}",
+                                    'latency': result.get('latency', 0.0)
                                 }
                                 logger.info(f"发现有效频道: {channel_name} - URL: {url}")
                                 valid_channels.append(channel_info)
-                                self.channel_found.emit(channel_info)
+                                # 发射包含完整信息的信号(确保包含延迟值)
+                                self.channel_found.emit({
+                                    'name': channel_name,
+                                    'url': url,
+                                    'width': result['width'],
+                                    'height': result['height'],
+                                    'latency': float(result.get('latency', 0.0))  # 确保转换为float类型
+                                })
                             else:
                                 invalid_count += 1
                                 logger.info(f"频道无效: {url}")
@@ -405,6 +413,7 @@ class StreamScanner(QObject):
                 '-v', 'error',
                 '-select_streams', 'v:0',
                 '-show_entries', 'stream=codec_name,width,height',
+                '-show_entries', 'format=start_time',
                 '-of', 'json',
                 '-timeout', str(self._timeout * 1_000_000)
             ]
@@ -458,13 +467,22 @@ class StreamScanner(QObject):
                 output = json.loads(stdout.decode('utf-8'))
                 if 'streams' in output and len(output['streams']) > 0:
                     stream = output['streams'][0]
+                    # 确保能正确获取延迟值
+                    latency = 0.0
+                    if 'format' in output and 'start_time' in output['format']:
+                        try:
+                            latency = float(output['format']['start_time'])
+                        except (ValueError, TypeError):
+                            latency = 0.0
+                    
                     result = {
                         'codec': stream.get('codec_name', 'unknown'),
                         'width': int(stream.get('width', 0)),
                         'height': int(stream.get('height', 0)),
-                        'valid': True
+                        'valid': True,
+                        'latency': float(latency) if latency else 0.0  # 确保转换为float类型
                     }
-                    logger.info(f"频道验证成功: {url} - 分辨率: {result['width']}x{result['height']} 编码: {result['codec']}")
+                    logger.info(f"频道验证成功: {url} - 分辨率: {result['width']}x{result['height']} 编码: {result['codec']} 延迟: {latency:.3f}s")
                     return result
             logger.info(f"频道验证失败: {url} - 返回码: {proc.returncode}")
             return None

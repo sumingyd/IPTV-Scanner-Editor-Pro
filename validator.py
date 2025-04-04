@@ -244,7 +244,7 @@ class StreamValidator(QObject):
                     except ValueError:
                         pass
             
-            return (valid, latency, width, height)
+            return (valid, float(latency) if latency else 0.0, width, height)
         except asyncio.TimeoutError:
             return (False, 0.0, 0, 0)
         finally:
