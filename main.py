@@ -1485,6 +1485,8 @@ class MainWindow(QtWidgets.QMainWindow):
         url = result['url']
         valid = result['valid']
         latency = result.get('latency', 0.0)
+        width = result.get('width', 0)
+        height = result.get('height', 0)
         
         # 更新验证结果字典
         self.validation_results[url] = valid
@@ -1494,6 +1496,9 @@ class MainWindow(QtWidgets.QMainWindow):
             if chan['url'] == url:
                 chan['valid'] = valid
                 chan['validating'] = False  # 清除正在检测状态
+                if valid:
+                    chan['width'] = width
+                    chan['height'] = height
                 if valid:
                     chan['latency'] = latency
                 
