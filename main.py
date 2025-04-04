@@ -117,6 +117,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.validator.progress_updated.connect(self.update_validation_progress)
         self.validator.validation_finished.connect(self.on_validation_finished)
         self.validator.error_occurred.connect(self.show_error)
+        self.validator.channel_validated.connect(self.on_channel_validated)
             
         # 异步任务跟踪
         self.scan_worker: Optional[AsyncWorker] = None
@@ -1444,6 +1445,29 @@ class MainWindow(QtWidgets.QMainWindow):
             self.btn_validate.setText("检测有效性")
             self.btn_validate.setStyleSheet(AppStyles.button_style())
             self.btn_validate.setChecked(False)
+
+    @pyqtSlot(dict)
+    def on_channel_validated(self, result: dict):
+        """处理单个频道的验证结果"""
+        url = result['url']
+        valid = result['valid']
+        latency = result.get('latency', 0.0)
+        
+        # 更新验证结果字典
+        self.validation_results[url] = valid
+        
+        # 查找并更新对应的频道
+        for i, chan in enumerate(self.model.channels):
+            if chan['url'] == url:
+                chan['valid'] = valid
+                chan['validating'] = False  # 清除正在检测状态
+                if valid:
+                    chan['latency'] = latency
+                
+                # 触发UI更新
+                index = self.model.index(i, 0)
+                self.model.dataChanged.emit(index, index)
+                break
 
     @pyqtSlot(dict)
     def on_validation_finished(self, result: dict):
