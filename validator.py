@@ -1,8 +1,8 @@
 import asyncio
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Optional
 from PyQt6.QtCore import QObject, pyqtSignal
 from qasync import asyncSlot
-from utils import setup_logger
+from utils import setup_logger, ConfigHandler
 import subprocess
 import os
 
@@ -18,6 +18,8 @@ class StreamValidator(QObject):
     def __init__(self):
         super().__init__()
         self._timeout = 10  # 默认超时时间(秒)
+        self.config = ConfigHandler()
+        self._timeout = self.config.config.getint('Scanner', 'timeout', fallback=10)
         self._ffprobe_path = os.path.join('ffmpeg', 'bin', 'ffprobe.exe')
         self._is_running = False
         self._active_processes = []  # 跟踪所有活动的ffprobe进程
@@ -32,11 +34,19 @@ class StreamValidator(QObject):
         return self._is_running
 
     @asyncSlot()
-    async def validate_playlist(self, playlist_data: Union[List[Dict], List[str]]) -> Dict:
-        """验证播放列表有效性"""
+    async def validate_playlist(self, playlist_data: Union[List[Dict], List[str]], max_workers: int = 5) -> Dict:
+        """验证播放列表有效性
+        Args:
+            playlist_data: 播放列表数据
+            max_workers: 最大并行任务数
+        """
         if not playlist_data:
-            self.error_occurred.emit("播放列表为空")
+            error_msg = "播放列表为空"
+            logger.error(error_msg)
+            self.error_occurred.emit(error_msg)
             return {'valid': [], 'invalid': []}
+        
+        logger.info(f"开始验证播放列表，共{len(playlist_data)}个频道，最大并发数: {max_workers}")
 
         # 处理纯URL字符串列表的情况
         if isinstance(playlist_data[0], str):
@@ -48,10 +58,41 @@ class StreamValidator(QObject):
         invalid_channels = []
         
         try:
-            for i, channel in enumerate(playlist_data):
+            # 创建信号量控制并发数
+            semaphore = asyncio.Semaphore(max_workers)
+            logger.info(f"验证参数 - 超时时间: {self._timeout}s, ffprobe路径: {self._ffprobe_path}")
+            
+            async def validate_one(channel: Dict) -> Optional[Dict]:
+                async with semaphore:
+                    url = channel.get('url', '')
+                    if not url:
+                        return {**channel, 'valid': False}
+                    
+                    try:
+                        logger.info(f"开始验证频道: {url}")
+                        valid, latency = await self._validate_channel(url)
+                        result = {
+                            **channel,
+                            'valid': valid,
+                            'latency': latency if valid else 0.0
+                        }
+                        logger.info(f"频道验证完成: {url} - 结果: {'有效' if valid else '无效'}" + 
+                                  (f", 延迟: {latency:.2f}s" if valid else ""))
+                        return result
+                    except Exception as e:
+                        error_msg = f"验证失败: {url} - {str(e)}"
+                        logger.warning(error_msg)
+                        return {**channel, 'valid': False}
+
+            # 并行验证所有频道
+            tasks = [validate_one(channel) for channel in playlist_data]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            for i, result in enumerate(results):
                 if not self._is_running:  # 检查是否被停止
                     break
                     
+                channel = playlist_data[i]
                 url = channel.get('url', '')
                 if not url:
                     invalid_channels.append({**channel, 'valid': False})
@@ -90,6 +131,8 @@ class StreamValidator(QObject):
                 'invalid': invalid_channels,
                 'total': total
             }
+            logger.info(f"播放列表验证完成 - 有效: {len(valid_channels)}, 无效: {len(invalid_channels)}, " +
+                       f"成功率: {len(valid_channels)/total*100:.1f}%")
             self.validation_finished.emit(result)
             return result
             
@@ -170,13 +213,16 @@ class StreamValidator(QObject):
     async def stop_validation(self):
         """停止验证"""
         self._is_running = False
+        logger.info("用户请求停止验证")
         # 终止所有活动的ffprobe进程
         for proc in self._active_processes:
             if proc.returncode is None:
                 try:
                     proc.terminate()
                     await proc.wait()
+                    logger.debug(f"已终止ffprobe进程: {proc.pid}")
                 except ProcessLookupError:
                     pass
         self._active_processes.clear()
         self.progress_updated.emit(0, "验证已停止")
+        logger.info("验证已完全停止")
