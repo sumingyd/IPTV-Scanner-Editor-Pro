@@ -13,6 +13,7 @@ class StreamValidator(QObject):
     progress_updated = pyqtSignal(int, str)  # 进度百分比, 状态信息
     validation_finished = pyqtSignal(dict)   # 验证结果字典
     error_occurred = pyqtSignal(str)         # 错误信息
+    channel_validated = pyqtSignal(dict)     # 单个频道验证结果
     
     def __init__(self):
         super().__init__()
@@ -66,13 +67,22 @@ class StreamValidator(QObject):
                     logger.warning(f"验证失败: {url} - {str(e)}")
                     invalid_channels.append({**channel, 'valid': False})
                 
+                # 发送单个频道验证结果
+                result = {
+                    'index': i,
+                    'url': url,
+                    'valid': valid,
+                    'latency': latency,
+                    'progress': int((i + 1) / total * 100)
+                }
+                self.channel_validated.emit(result)
+                
                 # 更新进度
-                progress = int((i + 1) / total * 100)
                 status_msg = f"验证进度: {len(valid_channels)}有效/{len(invalid_channels)}无效"
                 if valid_channels:
                     avg_latency = sum(c['latency'] for c in valid_channels) / len(valid_channels)
                     status_msg += f" | 平均延迟: {avg_latency:.2f}s"
-                self.progress_updated.emit(progress, status_msg)
+                self.progress_updated.emit(result['progress'], status_msg)
 
             # 验证完成
             result = {
