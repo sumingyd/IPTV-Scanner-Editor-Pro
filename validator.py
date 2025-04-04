@@ -45,6 +45,9 @@ class StreamValidator(QObject):
             logger.error(error_msg)
             self.error_occurred.emit(error_msg)
             return {'valid': [], 'invalid': []}
+            
+        # 确保在停止验证时能正确处理信号量
+        semaphore = None
         
         logger.info(f"开始验证播放列表，共{len(playlist_data)}个频道，最大并发数: {max_workers}")
 
@@ -96,7 +99,11 @@ class StreamValidator(QObject):
 
             # 并行验证所有频道
             tasks = [validate_one(channel) for channel in playlist_data]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+            try:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+            except asyncio.CancelledError:
+                logger.info("验证任务已被取消")
+                return {'valid': [], 'invalid': []}
             
             for i, result in enumerate(results):
                 if not self._is_running:  # 检查是否被停止
@@ -223,31 +230,79 @@ class StreamValidator(QObject):
     async def stop_validation(self):
         """停止验证"""
         if not self._is_running:
+            logger.debug("验证未运行，无需停止")
             return
             
-        self._is_running = False
         logger.info("用户请求停止验证")
+        self._is_running = False
         
-        # 终止所有活动的ffprobe进程
-        tasks = []
-        for proc in self._active_processes:
-            if proc.returncode is None:
+        try:
+            # 获取当前所有运行中的任务
+            current_task = asyncio.current_task()
+            all_tasks = [t for t in asyncio.all_tasks() if t is not current_task]
+            
+            # 优雅地取消所有相关任务
+            cancel_tasks = []
+            for task in all_tasks:
                 try:
-                    proc.terminate()
-                    # 显式创建等待任务
-                    task = asyncio.create_task(proc.wait())
-                    tasks.append(task)
-                    logger.debug(f"正在终止ffprobe进程: {proc.pid}")
-                except ProcessLookupError:
+                    if not task.done():
+                        task.cancel()
+                        cancel_tasks.append(task)
+                except Exception as e:
+                    logger.warning(f"取消任务时出错: {str(e)}")
+            
+            # 等待所有任务处理取消
+            if cancel_tasks:
+                try:
+                    await asyncio.wait(cancel_tasks, timeout=1)
+                except (asyncio.CancelledError, asyncio.TimeoutError):
                     pass
-        
-        # 等待所有进程终止完成
-        if tasks:
-            done, pending = await asyncio.wait(tasks, timeout=5)
-            # 取消未完成的任务
-            for task in pending:
-                task.cancel()
-        
-        self._active_processes.clear()
-        self.progress_updated.emit(0, "验证已停止")
-        logger.info("验证已完全停止，共终止了{len(tasks)}个后台进程")
+            
+            # 终止所有活动的ffprobe进程
+            terminate_tasks = []
+            for proc in self._active_processes[:]:  # 创建副本遍历
+                if proc.returncode is None:
+                    try:
+                        proc.terminate()
+                        # 显式创建等待任务
+                        task = asyncio.create_task(proc.wait())
+                        terminate_tasks.append(task)
+                        logger.debug(f"正在终止ffprobe进程: {proc.pid}")
+                    except ProcessLookupError:
+                        self._active_processes.remove(proc)
+            
+            # 强制终止所有进程(三重保障)
+            for proc in self._active_processes[:]:
+                if proc.returncode is None:
+                    try:
+                        proc.kill()
+                    except ProcessLookupError:
+                        pass
+                    finally:
+                        if proc in self._active_processes:
+                            self._active_processes.remove(proc)
+            
+            # 等待所有进程终止完成
+            if terminate_tasks:
+                try:
+                    done, pending = await asyncio.wait(terminate_tasks, timeout=2)
+                    # 取消未完成的任务
+                    for task in pending:
+                        task.cancel()
+                except asyncio.CancelledError:
+                    pass
+            
+            # 确保所有资源释放
+            self._active_processes.clear()
+            self._current_url = None
+            
+            # 发送停止信号
+            self.progress_updated.emit(0, "验证已停止")
+            self.validation_finished.emit({'valid': [], 'invalid': [], 'total': 0})
+            logger.info(f"验证已完全停止，共终止了{len(terminate_tasks)}个后台进程和{len(all_tasks)}个异步任务")
+            
+            # 确保事件循环处理完成
+            await asyncio.sleep(0)
+        except Exception as e:
+            logger.error(f"停止验证时发生错误: {str(e)}")
+            raise

@@ -1,50 +1,16 @@
-2025-04-04 22:21:11,058 [INFO] Validator:49 - 开始验证播放列表，共1664个频道，最大并发数: 5
-2025-04-04 22:21:11,058 [INFO] Validator:63 - 验证参数 - 超时时间: 25s, ffprobe路径: ffmpeg\bin\ffprobe.exe, 并发数: 5
-2025-04-04 22:21:11,073 [INF2025-04-04 22:21:41,055 [ERROR] Main:1384 - 关闭异常: An asyncio.Future, a coroutine or an awaitable is required
-2025-04-04 22:21:11,104 [INFO] Validator:72 - 开始验证频道: http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001022/index.m3u8
-2025-04-04 22:21:11,134 [INFO] Validator:72 - 开始验证频道: http://202.168.187.208:9089/tsfile/live/1003_1.m3u8
-2025-04-04 22:21:11,163 [INFO] Validator:72 - 开始验证频道: http://43.248.128.135:35455/gaoma/cctv1.m3u8
-2025-04-04 22:21:11,192 [INFO] Validator:72 - 开始验证频道: http://61.173.144.157:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
-2025-04-04 22:21:16,263 [INFO] Validator:79 - 频道验证完成: http://61.173.144.157:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0 - 结果: 无效
-2025-04-04 22:21:16,263 [INFO] Validator:72 - 开始验证频道: http://116.128.242.83:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
-2025-04-04 22:21:20,785 [INFO] Validator:79 - 频道验证完成: http://43.248.128.135:35455/gaoma/cctv1.m3u8 - 结果: 无效
-2025-04-04 22:21:20,785 [INFO] Validator:72 - 开始验证频道: http://[2409:8087:5e00:24::1e]:6060/000000001000/5000000010000030810/1.m3u8
-2025-04-04 22:21:21,183 [INFO] Validator:79 - 频道验证完成: http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001022/index.m3u8 - 结果: 无效
-2025-04-04 22:21:21,183 [INFO] Validator:72 - 开始验证频道: http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000021973/1.m3u8
-2025-04-04 22:21:21,216 [INFO] Validator:79 - 频道验证完成: http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001022/index.m3u8 - 结果: 无效
-2025-04-04 22:21:21,216 [INFO] Validator:72 - 开始验证频道: http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226559/index.m3u8
-2025-04-04 22:21:24,422 [INFO] Validator:79 - 频道验证完成: http://116.128.242.83:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0 - 结果: 有效, 延迟: 34411.28s
-2025-04-04 22:21:24,422 [INFO] Validator:72 - 开始验证频道: http://[2409:8087:1a0a:df::4038]:80/ottrrs.hl.chinamobile.com/TVOD/88888888/224/3221226559/index.m3u8
-2025-04-04 22:21:26,044 [INFO] Validator:79 - 频道验证完成: http://[2409:8087:5e00:24::1e]:6060/000000001000/5000000010000030810/1.m3u8 - 结果: 无效
-2025-04-04 22:21:26,044 [INFO] Validator:72 - 开始验证频道: http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226419/index.m3u8
-2025-04-04 22:21:26,404 [INFO] Validator:79 - 频道验证完成: http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226559/index.m3u8 - 结果: 无效
-2025-04-04 22:21:26,405 [INFO] Validator:72 - 开始验证频道: http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001220/index.m3u8
-2025-04-04 22:21:26,434 [INFO] Validator:79 - 频道验证完成: http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000021973/1.m3u8 - 结果: 无效
-2025-04-04 22:21:26,434 [INFO] Validator:72 - 开始验证频道: http://202.168.187.208:9089/tsfile/live/0002_1.m3u8
-2025-04-04 22:21:29,497 [INFO] Validator:79 - 频道验证完成: http://[2409:8087:1a0a:df::4038]:80/ottrrs.hl.chinamobile.com/TVOD/88888888/224/3221226559/index.m3u8 - 结果: 无效
-2025-04-04 22:21:29,499 [INFO] Validator:72 - 开始验证频道: http://117.144.58.42:35455/gaoma/cctv2.m3u8
-2025-04-04 22:21:31,210 [INFO] Validator:79 - 频道验证完成: http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226419/index.m3u8 - 结果: 无效
-2025-04-04 22:21:31,210 [INFO] Validator:72 - 开始验证频道: http://61.173.144.157:9901/tsfile/live/0002_1.m3u8
-2025-04-04 22:21:34,576 [INFO] Validator:79 - 频道验证完成: http://117.144.58.42:35455/gaoma/cctv2.m3u8 - 结果: 无效
-2025-04-04 22:21:34,576 [INFO] Validator:72 - 开始验证频道: http://61.173.144.157:9901/tsfile/live/0002_1.m3u8?key=txiptv&playlive=1&authid=0
-2025-04-04 22:21:36,291 [INFO] Validator:79 - 频道验证完成: http://61.173.144.157:9901/tsfile/live/0002_1.m3u8 - 结果: 无效
-2025-04-04 22:21:36,291 [INFO] Validator:72 - 开始验证频道: http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000012442/1.m3u8
-2025-04-04 22:21:36,507 [INFO] Validator:79 - 频道验证完成: http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001220/index.m3u8 - 结果: 无效
-2025-04-04 22:21:36,507 [INFO] Validator:72 - 开始验证频道: http://[2409:8087:1a0a:df::4038]:80/ottrrs.hl.chinamobile.com/TVOD/88888888/224/3221225588/index.m3u8
-2025-04-04 22:21:38,194 [INFO] Validator:229 - 用户请求停止验证
-2025-04-04 22:21:38,194 [DEBUG] Validator:240 - 正在终止ffprobe进程: 51132
-2025-04-04 22:21:38,195 [DEBUG] Validator:240 - 正在终止ffprobe进程: 54212
-2025-04-04 22:21:38,195 [DEBUG] Validator:240 - 正在终止ffprobe进程: 35024
-2025-04-04 22:21:38,195 [DEBUG] Validator:240 - 正在终止ffprobe进程: 23028
-2025-04-04 22:21:38,195 [DEBUG] Validator:240 - 正在终止ffprobe进程: 8556
-2025-04-04 22:21:38,201 [INFO] Validator:79 - 频道验证完成: http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000012442/1.m3u8 - 结果: 无效
-2025-04-04 22:21:38,201 [INFO] Validator:79 - 频道验证完成: http://61.173.144.157:9901/tsfile/live/0002_1.m3u8?key=txiptv&playlive=1&authid=0 - 结果: 无效
-2025-04-04 22:21:38,201 [INFO] Validator:79 - 频道验证完成: http://[2409:8087:1a0a:df::4038]:80/ottrrs.hl.chinamobile.com/TVOD/88888888/224/3221225588/index.m3u8 - 结果: 无效
-2025-04-04 22:21:38,201 [INFO] Validator:79 - 频道验证完成: http://202.168.187.208:9089/tsfile/live/0002_1.m3u8 - 结果: 无效
-2025-04-04 22:21:38,201 [INFO] Validator:72 - 开始验证频道: http://[2409:8087:1a01:df::4077]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/8/3221225588/index.m3u8
-2025-04-04 22:21:38,232 [INFO] Validator:72 - 开始验证频道: http://[2409:8087:1a01:df::7005]:80/ottrrs.hl.chinamobile.com/PLTV/2/224/3221225588/2.m3u8
-2025-04-04 22:21:38,261 [INFO] Validator:72 - 开始验证频道: http://[2409:8087:1a0a:df::404b]:80/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221225588/index.m3u8
-2025-04-04 22:21:38,290 [INFO] Validator:72 - 开始验证频道: http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001186/index.m3u8
-2025-04-04 22:21:38,320 [INFO] Validator:79 - 频道验证完成: http://202.168.187.208:9089/tsfile/live/1003_1.m3u8 - 结果: 有效, 延迟: 0.00s
-2025-04-04 22:21:38,320 [INFO] Validator:72 - 开始验证频道: http://202.168.187.208:9089/tsfile/live/0003_1.m3u8
-2025-04-04 22:21:38,353 [INFO] Validator:253 - 验证已完全停止，共终止了{len(tasks)}个后台进程
+2025-04-04 22:53:48,418 [INFO] Validator:52 - 开始验证播放列表，共1664个频道，最大并发数: 5
+2025-04-04 22:53:48,418 [INFO] Validator:66 - 验证参数 - 超时时间: 25s, ffprobe路径: ffmpeg\bin\ffprobe.exe, 并发数: 5
+2025-04-04 22:53:48,435 [INFO] Validator:75 - 开始验证频道: http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001022/index.m3u8
+2025-04-04 22:53:48,469 [INFO] Validator:75 - 开始验证频道: http://iptvrr.sh.chinamobile.com:6060/cms001/ch00000090990000001022/index.m3u8
+2025-04-04 22:53:48,499 [INFO] Validator:75 - 开始验证频道: http://202.168.187.208:9089/tsfile/live/1003_1.m3u8
+2025-04-04 22:53:48,528 [INFO] Validator:75 - 开始验证频道: http://43.248.128.135:35455/gaoma/cctv1.m3u8
+2025-04-04 22:53:48,558 [INFO] Validator:75 - 开始验证频道: http://61.173.144.157:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
+2025-04-04 22:53:50,357 [INFO] Validator:82 - 频道验证完成: http://202.168.187.208:9089/tsfile/live/1003_1.m3u8 - 结果: 有效, 延迟: 43982.91s
+2025-04-04 22:53:50,357 [INFO] Validator:75 - 开始验证频道: http://116.128.242.83:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
+2025-04-04 22:53:53,127 [INFO] Validator:82 - 频道验证完成: http://116.128.242.83:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0 - 结果: 有效, 延迟: 36361.32s
+2025-04-04 22:53:53,127 [INFO] Validator:75 - 开始验证频道: http://[2409:8087:5e00:24::1e]:6060/000000001000/5000000010000030810/1.m3u8
+2025-04-04 22:53:53,624 [INFO] Validator:82 - 频道验证完成: http://61.173.144.157:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0 - 结果: 无效
+2025-04-04 22:53:53,624 [INFO] Validator:75 - 开始验证频道: http://[2409:8087:5e00:24::1e]:6060/000000001000/1000000001000021973/1.m3u8
+2025-04-04 22:53:57,854 [INFO] Validator:236 - 用户请求停止验证
+2025-04-04 22:53:57,937 [INFO] Validator:105 - 验证任务已被取消
+2025-04-04 22:53:57,938 [INFO] Validator:302 - 验证已完全停止，共终止了0个后台进程和1673个异步任务

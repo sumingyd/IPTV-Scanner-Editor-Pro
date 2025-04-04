@@ -1343,7 +1343,37 @@ class MainWindow(QtWidgets.QMainWindow):
             if hasattr(self, 'scanner') and self.scanner:
                 stop_tasks.append(self.scanner.stop_scan())
             if hasattr(self, 'validator') and self.validator:
-                stop_tasks.append(await self.validator.stop_validation())
+                # 确保验证器完全停止
+                try:
+                    await asyncio.wait_for(self.validator.stop_validation(), timeout=3)
+                    # 额外检查并终止所有ffprobe进程
+                    for proc in self.validator._active_processes[:]:
+                        if proc.returncode is None:
+                            try:
+                                proc.kill()
+                            except ProcessLookupError:
+                                pass
+                    self.validator._active_processes.clear()
+                except asyncio.TimeoutError:
+                    logger.warning("验证器停止超时，强制终止")
+                    # 强制终止所有相关进程
+                    for proc in self.validator._active_processes[:]:
+                        if proc.returncode is None:
+                            try:
+                                proc.kill()
+                            except ProcessLookupError:
+                                pass
+                    self.validator._active_processes.clear()
+                except Exception as e:
+                    logger.error(f"停止验证器时出错: {str(e)}")
+                    # 确保无论如何都清理进程
+                    for proc in self.validator._active_processes[:]:
+                        if proc.returncode is None:
+                            try:
+                                proc.kill()
+                            except ProcessLookupError:
+                                pass
+                    self.validator._active_processes.clear()
             
             # 4. 等待所有任务完成(带超时)
             await asyncio.wait_for(asyncio.gather(*tasks, *stop_tasks), timeout=2.0)
