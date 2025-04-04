@@ -1,8 +1,8 @@
 #include "winver.h"
 
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION 3,0,0,0
-PRODUCTVERSION 3,0,0,0
+FILEVERSION 4,0,0,0
+PRODUCTVERSION 4,0,0,0
 FILEFLAGSMASK 0x3f
 FILEFLAGS 0x0
 FILEOS 0x40004
@@ -15,8 +15,8 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "sumingyd"
             VALUE "FileDescription", "IPTV扫描编辑工具"
-            VALUE "FileVersion", "3.0.0.0"
-            VALUE "ProductVersion", "3.0.0.0"
+            VALUE "FileVersion", "4.0.0.0"
+            VALUE "ProductVersion", "4.0.0.0"
         END
     END
     BLOCK "VarFileInfo"
