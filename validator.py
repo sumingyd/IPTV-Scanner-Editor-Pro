@@ -74,23 +74,42 @@ class StreamValidator(QObject):
                     
                     try:
                         logger.info(f"开始验证频道: {url}")
-                        valid, latency = await self._validate_channel(url)
+                        valid, latency, width, height = await self._validate_channel(url)
                         result = {
                             **channel,
                             'valid': valid,
-                            'latency': latency if valid else 0.0
+                            'latency': latency if valid else 0.0,
+                            'width': width,
+                            'height': height
                         }
                         logger.info(f"频道验证完成: {url} - 结果: {'有效' if valid else '无效'}" + 
-                                  (f", 延迟: {latency:.2f}s" if valid else ""))
+                                  (f", 延迟: {latency:.2f}s" if valid else "") +
+                                  (f", 分辨率: {width}x{height}" if valid and width and height else ""))
                         
                         # 实时发射单个频道结果
-                        self.channel_validated.emit({
+                        result = {
                             'index': playlist_data.index(channel),
                             'url': url,
                             'valid': valid,
                             'latency': latency,
+                            'width': width,
+                            'height': height,
                             'progress': int((playlist_data.index(channel) + 1) / total * 100)
-                        })
+                        }
+                        logger.debug(f"发射频道验证结果: {result}")
+                        # 确保分辨率数据有效时才发射
+                        if width > 0 and height > 0:
+                            self.channel_validated.emit(result)
+                        else:
+                            self.channel_validated.emit({
+                                'index': result['index'],
+                                'url': result['url'],
+                                'valid': result['valid'],
+                                'latency': result['latency'],
+                                'width': 0,
+                                'height': 0,
+                                'progress': result['progress']
+                            })
                         
                         return result
                     except Exception as e:
@@ -117,14 +136,14 @@ class StreamValidator(QObject):
                     continue
                 
                 try:
-                    valid, latency = await self._validate_channel(url)
+                    valid, latency, width, height = await self._validate_channel(url)
                     if valid:
-                        valid_channels.append({**channel, 'valid': True, 'latency': latency})
+                        valid_channels.append({**channel, 'valid': True, 'latency': latency, 'width': width, 'height': height})
                     else:
-                        invalid_channels.append({**channel, 'valid': False, 'latency': 0.0})
+                        invalid_channels.append({**channel, 'valid': False, 'latency': 0.0, 'width': 0, 'height': 0})
                 except Exception as e:
                     logger.warning(f"验证失败: {url} - {str(e)}")
-                    invalid_channels.append({**channel, 'valid': False})
+                    invalid_channels.append({**channel, 'valid': False, 'width': 0, 'height': 0})
                 
                 # 发送单个频道验证结果
                 result = {
@@ -132,6 +151,8 @@ class StreamValidator(QObject):
                     'url': url,
                     'valid': valid,
                     'latency': latency,
+                    'width': width,
+                    'height': height,
                     'progress': int((i + 1) / total * 100)
                 }
                 self.channel_validated.emit(result)
@@ -161,20 +182,20 @@ class StreamValidator(QObject):
         finally:
             self._is_running = False
 
-    async def _validate_channel(self, url: str) -> tuple[bool, float]:
-        """使用ffprobe验证单个频道并返回(是否有效, 延迟秒数)"""
+    async def _validate_channel(self, url: str) -> tuple[bool, float, int, int]:
+        """使用ffprobe验证单个频道并返回(是否有效, 延迟秒数, 宽度, 高度)"""
         self._current_url = url
         # 验证命令
         validate_cmd = [
             self._ffprobe_path,
             '-v', 'error',
             '-select_streams', 'v:0',
-            '-show_entries', 'stream=codec_name',
+            '-show_entries', 'stream=codec_name,width,height',
             '-of', 'default=noprint_wrappers=1:nokey=1',
             url
         ]
         
-        # 延迟测量命令
+        # 延迟和分辨率测量命令
         latency_cmd = [
             self._ffprobe_path,
             '-v', 'error',
@@ -192,12 +213,19 @@ class StreamValidator(QObject):
         self._active_processes.append(validate_proc)
         
         try:
-            _, stderr = await asyncio.wait_for(validate_proc.communicate(), timeout=self._timeout)
+            stdout, stderr = await asyncio.wait_for(validate_proc.communicate(), timeout=self._timeout)
             valid = validate_proc.returncode == 0
             
-            # 如果有效则测量延迟
+            # 如果有效则测量延迟和获取分辨率
             latency = 0.0
+            width = 0
+            height = 0
             if valid:
+                # 解析分辨率信息
+                output = stdout.decode().strip().split('\n')
+                if len(output) >= 3:
+                    width = int(output[1]) if output[1] else 0
+                    height = int(output[2]) if output[2] else 0
                 latency_proc = await asyncio.create_subprocess_exec(
                     *latency_cmd,
                     stdout=subprocess.PIPE,
@@ -216,9 +244,9 @@ class StreamValidator(QObject):
                     except ValueError:
                         pass
             
-            return (valid, latency)
+            return (valid, latency, width, height)
         except asyncio.TimeoutError:
-            return (False, 0.0)
+            return (False, 0.0, 0, 0)
         finally:
             self._current_url = None
             if validate_proc.returncode is None:
