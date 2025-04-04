@@ -139,8 +139,8 @@ class MainWindow(QtWidgets.QMainWindow):
         msg_box.setText(message)
         msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
         
-        # 使用asyncExec()来支持异步
-        await qasync.asyncExec(msg_box)
+        # 直接执行对话框
+        msg_box.exec()
 
     # 事件过滤器处理焦点事件（最终版）
     def eventFilter(self, source, event: QtCore.QEvent) -> bool:
@@ -979,6 +979,12 @@ class MainWindow(QtWidgets.QMainWindow):
         if not hasattr(self, 'original_channels'):
             self.original_channels = deepcopy(self.model.channels)
         """隐藏无效频道"""
+        
+        # 检查是否有正在进行的验证任务
+        if hasattr(self, 'validator') and self.validator.is_running():
+            await self._async_show_warning("提示", "有效性检测正在进行中，请等待完成")
+            return
+            
         if not self.validation_results:
             await self._async_show_warning("提示", "请先点击[检测有效性]")
             return
@@ -1002,9 +1008,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.model.channels = valid_channels
         self.model.layoutChanged.emit()
         
-        # 显示角标提示
+        # 显示隐藏数量提示
         hidden_count = len(self.validation_results) - len(valid_channels)
-        self.channel_list.setCornerText(f"已隐藏{hidden_count}项" if hidden_count > 0 else "")
+        if hidden_count > 0:
+            corner_label = QtWidgets.QLabel(f"已隐藏{hidden_count}项")
+            corner_label.setStyleSheet("color: gray; font-size: 10px;")
+            self.channel_list.setCornerWidget(corner_label)
+        else:
+            self.channel_list.setCornerWidget(None)
         self.filter_status_label.setText(f"显示中: {len(valid_channels)}项")
 
     # 显示右键菜单
@@ -1298,7 +1309,7 @@ class MainWindow(QtWidgets.QMainWindow):
             
             # 5. 检查是否需要保存播放列表
             if self.playlist_source == 'file' and self.model.channels:
-                reply = await qasync.asyncExec(QMessageBox.question)(
+                reply = await qasync.QtAsyncio.asyncExec(QMessageBox.question)(
                     self,
                     '保存修改',
                     '是否保存对播放列表的修改？',
