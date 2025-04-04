@@ -4,4 +4,4 @@ QQ群：757694351，群如果加不上，通过网址加入试试：点击链接
 
 如果你感觉好用，欢迎赞赏。
 
-![支付宝](icons\zfb.jpg)    ![微信](icons\wx.png)
+![支付宝](.\icons\zfb.jpg)    ![微信](.\icons\wx.png)
