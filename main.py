@@ -82,6 +82,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__()
         self.validation_results = {}  # 保存验证结果 {url: True/False}
         self.first_time_hide = True  # 首次点击隐藏按钮提示
+        self.is_hiding_invalid = False  # 跟踪当前是否处于隐藏无效项状态
         self.config = ConfigHandler()
         self.scanner = StreamScanner()
         self.validator = StreamValidator()  # 新增验证器实例
@@ -975,60 +976,81 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # 隐藏无效频道
     async def hide_invalid_channels(self):
-        """原始数据备份"""
-        if not hasattr(self, 'original_channels'):
-            self.original_channels = deepcopy(self.model.channels)
-        """隐藏无效频道"""
-        
+        """切换隐藏/显示无效频道状态"""
         # 检查是否有正在进行的验证任务
         if hasattr(self, 'validator') and self.validator.is_running():
-            await self._async_show_warning("提示", "有效性检测正在进行中，请等待完成")
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Warning)
+            msg_box.setWindowTitle("提示")
+            msg_box.setText("有效性检测正在进行中，请等待完成")
+            msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+            msg_box.exec()
             return
             
-        if not self.validation_results:
-            await self._async_show_warning("提示", "请先点击[检测有效性]")
+        if not hasattr(self, 'validation_results') or not self.validation_results:
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Warning)
+            msg_box.setWindowTitle("提示")
+            msg_box.setText("请先点击[检测有效性]")
+            msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+            msg_box.exec()
             return
 
-        # 首次点击提示
-        if self.first_time_hide:
-            await self._async_show_warning(
-                "提示",
-                "将隐藏所有检测为无效的频道\n"
-                "可通过右键菜单->'恢复显示全部'还原"
-            )
-            self.first_time_hide = False
+        if not hasattr(self, 'original_channels'):
+            self.original_channels = deepcopy(self.model.channels)
 
-        # 过滤无效频道
-        valid_channels = [
-            chan for chan in self.model.channels 
-            if self.validation_results.get(chan['url'], False)
-        ]
-        
-        # 更新模型
-        self.model.channels = valid_channels
-        self.model.layoutChanged.emit()
-        
-        # 显示隐藏数量提示
-        hidden_count = len(self.validation_results) - len(valid_channels)
-        if hidden_count > 0:
-            corner_label = QtWidgets.QLabel(f"已隐藏{hidden_count}项")
-            corner_label.setStyleSheet("color: gray; font-size: 10px;")
-            self.channel_list.setCornerWidget(corner_label)
-        else:
+        if self.is_hiding_invalid:
+            # 恢复显示所有频道
+            self.model.channels = self.original_channels
+            self.model.layoutChanged.emit()
             self.channel_list.setCornerWidget(None)
-        self.filter_status_label.setText(f"显示中: {len(valid_channels)}项")
+            self.filter_status_label.setText("已恢复全部频道")
+            self.btn_hide_invalid.setText("隐藏无效项")
+            self.is_hiding_invalid = False
+        else:
+            # 隐藏无效频道
+            # 首次点击提示
+            if self.first_time_hide:
+                await self._async_show_warning(
+                    "提示",
+                    "将隐藏所有检测为无效的频道\n"
+                    "再次点击按钮可恢复显示"
+                )
+                self.first_time_hide = False
+
+            # 过滤无效频道
+            valid_channels = [
+                chan for chan in self.model.channels 
+                if self.validation_results.get(chan['url'], False)
+            ]
+            
+            # 更新模型
+            self.model.channels = valid_channels
+            self.model.layoutChanged.emit()
+            
+            # 显示隐藏数量提示
+            hidden_count = len(self.validation_results) - len(valid_channels)
+            if hidden_count > 0:
+                corner_label = QtWidgets.QLabel(f"已隐藏{hidden_count}项")
+                corner_label.setStyleSheet("color: gray; font-size: 10px;")
+                self.channel_list.setCornerWidget(corner_label)
+            else:
+                self.channel_list.setCornerWidget(None)
+            self.filter_status_label.setText(f"显示中: {len(valid_channels)}项")
+            self.btn_hide_invalid.setText("取消隐藏")
+            self.is_hiding_invalid = True
 
     # 显示右键菜单
     def show_context_menu(self, pos):
         """显示右键菜单"""
         menu = QtWidgets.QMenu()
         
-        # 只有隐藏过才显示"恢复全部"
-        if len(self.validation_results) > len(self.model.channels):
+        # 根据当前状态显示不同的菜单项
+        if self.is_hiding_invalid:
             menu.addAction(
                 QIcon(":/icons/restore.svg"),  # 可替换为你的图标
                 "恢复显示全部",
-                self.restore_all_channels
+                lambda: asyncio.create_task(self.hide_invalid_channels())
             )
         menu.addAction("复制选中URL", self.copy_selected_url)
         menu.exec(self.channel_list.mapToGlobal(pos))
