@@ -1,0 +1,2 @@
+2025-04-04 13:51:54,138 [INFO] Main:1455 - 加载Scanner配置: address=http://192.168.50.1:20231/rtp/239.21.1.[1-20]:5002, timeout=25, threads=20
+2025-04-04 13:51:54,691 [ERROR] Main:1299 - 恢复分隔条位置失败: 'MainWindow' object has no attribute 'config_file'
