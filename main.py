@@ -111,6 +111,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # +++ 新增智能匹配相关变量 +++
         self.old_playlist = None  # 存储旧列表数据 {url: channel_info}
         self.match_worker = None  # 异步任务对象
+        self._is_closing = False  # 关闭标志
 
         # 连接信号
         self.scanner.ffprobe_missing.connect(self.show_ffprobe_warning)
