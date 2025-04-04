@@ -1559,12 +1559,16 @@ class MainWindow(QtWidgets.QMainWindow):
             scan_address = self.config.config.get('Scanner', 'scan_address', fallback='')
             timeout = self.config.config.getint('Scanner', 'timeout', fallback=10)
             thread_count = self.config.config.getint('Scanner', 'thread_count', fallback=10)
+            user_agent = self.config.config.get('Scanner', 'user_agent', fallback='')
+            referer = self.config.config.get('Scanner', 'referer', fallback='')
             
-            logger.info(f"加载Scanner配置: address={scan_address}, timeout={timeout}, threads={thread_count}")
+            logger.info(f"加载Scanner配置: address={scan_address}, timeout={timeout}, threads={thread_count}, user_agent={user_agent}, referer={referer}")
             
             self.ip_range_input.setText(scan_address)
             self.timeout_input.setValue(timeout)
             self.thread_count_input.setValue(thread_count)
+            self.user_agent_input.setText(user_agent)
+            self.referer_input.setText(referer)
 
             # 播放器设置
             hardware_accel = self.config.config.get('Player', 'hardware_accel', fallback='d3d11va')
@@ -1591,6 +1595,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.config.config['Scanner']['scan_address'] = self.ip_range_input.text()
             self.config.config['Scanner']['timeout'] = str(self.timeout_input.value())
             self.config.config['Scanner']['thread_count'] = str(self.thread_count_input.value())
+            self.config.config['Scanner']['user_agent'] = self.user_agent_input.text()
+            self.config.config['Scanner']['referer'] = self.referer_input.text()
             
             # 保存播放器配置
             self.config.config['Player']['hardware_accel'] = self.player.hw_accel
@@ -1671,41 +1677,52 @@ class MainWindow(QtWidgets.QMainWindow):
     # 管理 EPG 数据源
     def manage_epg(self) -> None:
         """管理 EPG 数据源"""
-        dialog = QtWidgets.QDialog(self)
-        dialog.setWindowTitle("EPG 管理")
-        layout = QtWidgets.QVBoxLayout()
+        try:
+            dialog = QtWidgets.QDialog(self)
+            dialog.setWindowTitle("EPG 管理")
+            layout = QtWidgets.QVBoxLayout()
 
-        # 主源设置
-        main_source_label = QtWidgets.QLabel("主源 URL：")
-        main_source_input = QtWidgets.QLineEdit()
-        main_source_input.setText(self.config_file.get('epg_main', ''))
+            # 主源设置
+            main_source_label = QtWidgets.QLabel("主源 URL：")
+            main_source_input = QtWidgets.QLineEdit()
+            main_source_input.setText(self.config.config.get('EPG', 'main_url', fallback=''))
 
-        # 备用源设置
-        backup_sources_label = QtWidgets.QLabel("备用源 URL（多个用逗号分隔）：")
-        backup_sources_input = QtWidgets.QLineEdit()
-        backup_sources_input.setText(','.join(self.config_file.get('epg_backups', [])))
+            # 备用源设置
+            backup_sources_label = QtWidgets.QLabel("备用源 URL（多个用逗号分隔）：")
+            backup_sources_input = QtWidgets.QLineEdit()
+            backup_sources_input.setText(self.config.config.get('EPG', 'backup_urls', fallback=''))
 
-        # 保存按钮
-        save_btn = QtWidgets.QPushButton("保存")
-        def save_epg_settings():
-            self.config_file.update({
-                'epg_main': main_source_input.text(),
-                'epg_backups': [url.strip() for url in backup_sources_input.text().split(',') if url.strip()]
-            })
-            self._save_config()
-            dialog.close()
-            self.statusBar().showMessage("EPG 设置已保存")
-        save_btn.clicked.connect(save_epg_settings)
+            # 缓存TTL设置
+            ttl_label = QtWidgets.QLabel("缓存有效期（秒）：")
+            ttl_input = QtWidgets.QSpinBox()
+            ttl_input.setRange(60, 86400)
+            ttl_input.setValue(self.config.config.getint('EPG', 'cache_ttl', fallback=3600))
 
-        # 添加到布局
-        layout.addWidget(main_source_label)
-        layout.addWidget(main_source_input)
-        layout.addWidget(backup_sources_label)
-        layout.addWidget(backup_sources_input)
-        layout.addWidget(save_btn)
+            # 保存按钮
+            save_btn = QtWidgets.QPushButton("保存")
+            def save_epg_settings():
+                self.config.config['EPG']['main_url'] = main_source_input.text()
+                self.config.config['EPG']['backup_urls'] = backup_sources_input.text()
+                self.config.config['EPG']['cache_ttl'] = str(ttl_input.value())
+                self.config.save_prefs()
+                dialog.close()
+                self.statusBar().showMessage("EPG 设置已保存")
+            save_btn.clicked.connect(save_epg_settings)
 
-        dialog.setLayout(layout)
-        dialog.exec()
+            # 添加到布局
+            layout.addWidget(main_source_label)
+            layout.addWidget(main_source_input)
+            layout.addWidget(backup_sources_label)
+            layout.addWidget(backup_sources_input)
+            layout.addWidget(ttl_label)
+            layout.addWidget(ttl_input)
+            layout.addWidget(save_btn)
+
+            dialog.setLayout(layout)
+            dialog.exec()
+        except Exception as e:
+            logger.error(f"EPG管理错误: {str(e)}")
+            self.show_error(f"EPG管理错误: {str(e)}")
 
 
 
