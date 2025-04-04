@@ -19,6 +19,7 @@ class StreamValidator(QObject):
         self._timeout = 10  # 默认超时时间(秒)
         self._ffprobe_path = os.path.join('ffmpeg', 'bin', 'ffprobe.exe')
         self._is_running = False
+        self._active_processes = []  # 跟踪所有活动的ffprobe进程
 
     def set_timeout(self, timeout: int) -> None:
         """设置验证超时时间(秒)"""
@@ -103,6 +104,7 @@ class StreamValidator(QObject):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
+        self._active_processes.append(proc)  # 跟踪新创建的进程
         
         try:
             _, stderr = await asyncio.wait_for(proc.communicate(), timeout=self._timeout)
@@ -112,8 +114,21 @@ class StreamValidator(QObject):
         finally:
             if proc.returncode is None:
                 proc.terminate()
+            try:
+                self._active_processes.remove(proc)  # 清理已完成进程
+            except ValueError:
+                pass
 
     async def stop_validation(self):
         """停止验证"""
         self._is_running = False
+        # 终止所有活动的ffprobe进程
+        for proc in self._active_processes:
+            if proc.returncode is None:
+                try:
+                    proc.terminate()
+                    await proc.wait()
+                except ProcessLookupError:
+                    pass
+        self._active_processes.clear()
         self.progress_updated.emit(0, "验证已停止")

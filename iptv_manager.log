@@ -1,3 +1,3 @@
-2025-04-04 01:29:29,723 [INFO] Main:1411 - 加载Scanner配置: address=http://192.168.50.1:20231/rtp/239.21.1.[1-20]:5002, timeout=25, threads=20
-2025-04-04 01:29:30,276 [ERROR] Main:1266 - 恢复分隔条位置失败: 'MainWindow' object has no attribute 'config_file'
-2025-04-04 01:30:18,633 [ERROR] Main:1322 - 关闭异常: object NoneType can't be used in 'await' expression
+2025-04-04 12:41:36,025 [INFO] Main:1422 - 加载Scanner配置: address=http://192.168.50.1:20231/rtp/239.21.1.[1-20]:5002, timeout=25, threads=20
+2025-04-04 12:41:36,604 [ERROR] Main:1266 - 恢复分隔条位置失败: 'MainWindow' object has no attribute 'config_file'
+2025-04-04 12:42:22,919 [ERROR] Main:1333 - 关闭异常: An asyncio.Future, a coroutine or an awaitable is required

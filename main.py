@@ -1272,21 +1272,33 @@ class MainWindow(QtWidgets.QMainWindow):
     async def _async_close(self, event: QCloseEvent):
         """异步关闭处理"""
         try:
-            # 1. 先停止播放器、扫描器和有效性检测
-            if hasattr(self, 'player') and self.player:
-                self.player.force_stop()
-            if hasattr(self, 'scanner') and self.scanner:
-                await self.scanner.stop_scan()
-                # 确保停止有效性检测
-                if hasattr(self.scanner, '_is_validating') and self.scanner._is_validating:
-                    await self.scanner.stop_scan()
-                
-            # 2. 取消所有异步任务，带超时保护
-            await AsyncWorker.cancel_all(timeout=1.0)
+            # 1. 设置关闭标志
+            self._is_closing = True
             
-            # 3. 检查是否需要保存播放列表
+            # 2. 停止所有异步任务
+            tasks = []
+            if hasattr(self, 'scan_worker') and self.scan_worker:
+                tasks.append(self.scan_worker.cancel())
+            if hasattr(self, 'play_worker') and self.play_worker:
+                tasks.append(self.play_worker.cancel())
+            if hasattr(self, 'match_worker') and self.match_worker:
+                tasks.append(self.match_worker.cancel())
+                
+            # 3. 停止所有子组件
+            stop_tasks = []
+            if hasattr(self, 'player') and self.player:
+                stop_tasks.append(self.player.force_stop())
+            if hasattr(self, 'scanner') and self.scanner:
+                stop_tasks.append(self.scanner.stop_scan())
+            if hasattr(self, 'validator') and self.validator:
+                stop_tasks.append(await self.validator.stop_validation())
+            
+            # 4. 等待所有任务完成(带超时)
+            await asyncio.wait_for(asyncio.gather(*tasks, *stop_tasks), timeout=2.0)
+            
+            # 5. 检查是否需要保存播放列表
             if self.playlist_source == 'file' and self.model.channels:
-                reply = QMessageBox.question(
+                reply = await qasync.asyncExec(QMessageBox.question)(
                     self,
                     '保存修改',
                     '是否保存对播放列表的修改？',
@@ -1299,25 +1311,24 @@ class MainWindow(QtWidgets.QMainWindow):
                     event.ignore()
                     return
             
-            # 4. 保存当前分隔条位置
+            # 6. 保存配置和布局
             self._save_splitter_sizes()
-            
-            # 5. 同步保存配置
             self._save_config_sync()
             
-            # 6. 保存窗口布局
-            self.config.config['UserPrefs']['left_splitter_sizes'] = ','.join(map(str, self.left_splitter.sizes()))
-            self.config.config['UserPrefs']['right_splitter_sizes'] = ','.join(map(str, self.right_splitter.sizes()))
-            self.config.save_prefs()
-            
-            # 7. 执行父类关闭事件
-            super().closeEvent(event)
-            
-            # 8. 确保所有资源释放完成
+            # 7. 强制释放资源
             if hasattr(self, 'player') and self.player:
                 self.player._release_sync()
             if hasattr(self, 'scanner') and self.scanner:
                 await self.scanner.cleanup()
+            if hasattr(self, 'validator') and self.validator:
+                await self.validator.stop_validation()
+            
+            # 8. 执行父类关闭事件
+            super().closeEvent(event)
+            
+            # 9. 确保事件循环停止
+            if hasattr(self, '_event_loop'):
+                self._event_loop.stop()
         except Exception as e:
             logger.error(f"关闭异常: {str(e)}")
             event.ignore()
