@@ -2,6 +2,8 @@ import vlc
 import asyncio
 import platform
 import logging
+import sys
+import os
 from typing import List
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtCore import pyqtSignal
@@ -22,6 +24,11 @@ class VLCInstanceManager:
     def get_instance(cls) -> vlc.Instance:
         if not cls._instance:
             try:
+                # 检查打包环境下的VLC路径
+                if getattr(sys, 'frozen', False):
+                    vlc_path = os.path.join(sys._MEIPASS, 'vlc')
+                    os.environ['VLC_PLUGIN_PATH'] = os.path.join(vlc_path, 'plugins')
+                
                 args = cls._generate_vlc_args()
                 cls._instance = vlc.Instance(args)
                 if not cls._instance:

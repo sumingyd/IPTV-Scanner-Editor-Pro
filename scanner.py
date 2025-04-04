@@ -299,10 +299,8 @@ class StreamScanner(QObject):
             
             # 首次使用时检查ffprobe可用性
             if not self._ffprobe_checked:
-                logger.info("首次使用，检查ffprobe可用性")
                 await self._check_ffprobe()
                 self._ffprobe_checked = True
-                logger.info(f"ffprobe可用状态: {self._ffprobe_available}")
 
             # 检查是否已取消
             if not self._is_scanning:
