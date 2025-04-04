@@ -21,8 +21,7 @@ class StreamScanner(QObject):
     scan_finished = pyqtSignal(dict)           # 扫描结果字典
     channel_found = pyqtSignal(dict)           # 单个有效频道信息
     error_occurred = pyqtSignal(str)           # 错误信息
-    ffprobe_missing = pyqtSignal()             # 新增：ffprobe缺失信号
-    validation_status = pyqtSignal(str)        # 新增：验证状态信息
+    ffprobe_missing = pyqtSignal()             # ffprobe缺失信号
 
     def __init__(self):
         """流媒体扫描器
@@ -33,10 +32,8 @@ class StreamScanner(QObject):
         """
         super().__init__()
         self._is_scanning = False
-        self._is_validating = False  # 新增验证状态标志
         self._timeout = 5
         self._thread_count = 10  # 扫描线程数
-        self._validation_threads = 10  # 验证线程数
         self._scan_lock = asyncio.Lock()
         self.playlist = PlaylistHandler()
         self._start_time = 0
@@ -633,11 +630,9 @@ class StreamScanner(QObject):
         
         logger.debug("所有任务和进程已强制停止")
         self.progress_updated.emit(0, "已完全停止")
-        self.validation_status.emit("所有任务已强制停止")
         
         # 强制更新UI状态
         self.progress_updated.emit(0, "正在清理资源...")
-        self.validation_status.emit("正在清理资源...")
         
         # 终止所有活动的ffprobe进程
         if hasattr(self, '_active_processes') and self._active_processes:
@@ -688,7 +683,6 @@ class StreamScanner(QObject):
             
         # 强制重置UI状态
         self.progress_updated.emit(0, "已完全停止")
-        self.validation_status.emit("验证已完全停止")
             
         # 强制终止所有子进程
         try:
