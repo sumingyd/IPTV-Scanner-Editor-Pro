@@ -91,7 +91,7 @@ class StreamScanner(QObject):
         """
         if self._is_scanning:
             # 强制停止扫描并等待完成
-            self._stop_scanning()
+            await self._stop_scanning()
             # 确保所有任务已完成
             await asyncio.sleep(0.1)  # 给取消操作一点时间
             self.progress_updated.emit(0, "已完全停止")
@@ -110,8 +110,9 @@ class StreamScanner(QObject):
                 self._tasks = []
                 self._batches = []
                 
-                # 执行扫描任务
-                await self._scan_task(ip_pattern)
+                # 执行扫描任务，使用shield防止取消
+                scan_task = asyncio.create_task(self._scan_task(ip_pattern))
+                await asyncio.shield(scan_task)
             except asyncio.CancelledError:
                 logger.debug("扫描任务被正常取消")
                 self.progress_updated.emit(0, "扫描已取消")
@@ -200,60 +201,68 @@ class StreamScanner(QObject):
                 task = asyncio.create_task(probe_url(url), name=f"probe_{url}")
                 self._tasks.append(task)
             
-            # 使用asyncio.as_completed处理结果
-            for future in asyncio.as_completed(self._tasks):
+            # 使用asyncio.as_completed处理结果，并确保所有future被正确处理
+            pending = set(self._tasks)
+            while pending and self._is_scanning:
                 try:
-                    # 增加扫描状态检查
-                    if not self._is_scanning:
-                        logger.debug("扫描已停止，取消剩余任务")
-                        break
-                        
-                    result = await future
-                    url, result = result if  isinstance(result, tuple) else (None, result)
+                    # 等待第一个完成的任务
+                    done, pending = await asyncio.wait(
+                        pending,
+                        return_when=asyncio.FIRST_COMPLETED
+                    )
                     
-                    if url is None:
-                        logger.debug("跳过无效URL")
-                        continue
-                        
-                    self._scanned_count += 1
+                    for future in done:
+                        try:
+                            result = await future
+                            url, result = result if isinstance(result, tuple) else (None, result)
+                            
+                            if url is None:
+                                logger.debug("跳过无效URL")
+                                continue
+                                
+                            self._scanned_count += 1
+                            
+                            if result is not None and result.get('valid', True):
+                                channel_name = f"频道 {len(valid_channels) + 1}"
+                                channel_info = {
+                                    'name': channel_name,
+                                    'url': url,
+                                    'width': result['width'],
+                                    'height': result['height'],
+                                    'codec': result['codec'],
+                                    'resolution': f"{result['width']}x{result['height']}"
+                                }
+                                logger.info(f"发现有效频道: {channel_name} - URL: {url}")
+                                valid_channels.append(channel_info)
+                                self.channel_found.emit(channel_info)
+                            else:
+                                invalid_count += 1
+                                logger.info(f"频道无效: {url}")
+                            
+                            # 更新进度
+                            progress = int((self._scanned_count / total) * 100)
+                            elapsed = self.get_elapsed_time()
+                            scan_speed = self._scanned_count / elapsed if elapsed > 0 else 0
+                            remaining = (total - self._scanned_count) / scan_speed if scan_speed > 0 else 0
+                            
+                            current_ip = url.split('/')[-1].split(':')[0] if url else ""
+                            status_parts = [
+                                f"进度: {self._scanned_count}/{total} ({progress}%)", 
+                                f"速度: {scan_speed:.1f} IP/s",
+                                f"剩余: {int(remaining)}s",
+                                f"当前: {current_ip}",
+                                f"有效: {len(valid_channels)}",
+                                f"无效: {invalid_count}"
+                            ]
+                            status_msg = " | ".join(filter(None, status_parts))
+                            self.progress_updated.emit(progress, status_msg)
+                        except asyncio.CancelledError:
+                            logger.debug("任务被取消")
+                            raise
+                except Exception as e:
+                    logger.debug(f"任务处理异常: {str(e)}")
+                    continue
                     
-                    if result is not None and result.get('valid', True):
-                        channel_name = f"频道 {len(valid_channels) + 1}"
-                        channel_info = {
-                            'name': channel_name,
-                            'url': url,
-                            'width': result['width'],
-                            'height': result['height'],
-                            'codec': result['codec'],
-                            'resolution': f"{result['width']}x{result['height']}"
-                        }
-                        logger.info(f"发现有效频道: {channel_name} - URL: {url}")
-                        valid_channels.append(channel_info)
-                        self.channel_found.emit(channel_info)
-                    else:
-                        invalid_count += 1
-                        logger.info(f"频道无效: {url}")
-                    
-                    # 更新进度
-                    progress = int((self._scanned_count / total) * 100)
-                    elapsed = self.get_elapsed_time()
-                    scan_speed = self._scanned_count / elapsed if elapsed > 0 else 0
-                    remaining = (total - self._scanned_count) / scan_speed if scan_speed > 0 else 0
-                    
-                    current_ip = url.split('/')[-1].split(':')[0] if url else ""
-                    status_parts = [
-                        f"进度: {self._scanned_count}/{total} ({progress}%)", 
-                        f"速度: {scan_speed:.1f} IP/s",
-                        f"剩余: {int(remaining)}s",
-                        f"当前: {current_ip}",
-                        f"有效: {len(valid_channels)}",
-                        f"无效: {invalid_count}"
-                    ]
-                    status_msg = " | ".join(filter(None, status_parts))
-                    self.progress_updated.emit(progress, status_msg)
-                    
-                except Exception:
-                    pass
             
             # 等待所有任务完成
             await asyncio.gather(*self._tasks, return_exceptions=True)
@@ -433,7 +442,7 @@ class StreamScanner(QObject):
             for attempt in range(max_retries + 1):
                 try:
                     stdout, stderr = proc.communicate(timeout=self._timeout)
-                    logger.debug
+                    logger.debug(f"ffprobe命令执行完成，返回码: {proc.returncode}")
                     if proc.returncode == 0:
                         break
                     logger.debug(f"ffprobe错误输出: {stderr.decode('utf-8', errors='ignore')}")
@@ -829,8 +838,9 @@ class StreamScanner(QObject):
         await asyncio.sleep(0.1)
         logger.info("验证停止流程完成")
 
-    def _stop_scanning(self) -> None:
-        """强制停止所有操作(紧急情况使用)"""
+    async def _stop_scanning(self) -> None:
+        """强制停止所有操作(紧急情况使用)
+        改为异步方法以确保协程被正确等待"""
         logger.warning("强制停止所有操作")
         self._is_scanning = False
         if hasattr(self, '_is_validating'):
@@ -857,7 +867,7 @@ class StreamScanner(QObject):
                 task.cancel()
                 cancelled_count += 1
                 try:
-                    loop.run_until_complete(task)
+                    await task
                 except:
                     pass
         logger.debug(f"已取消{cancelled_count}个任务")
