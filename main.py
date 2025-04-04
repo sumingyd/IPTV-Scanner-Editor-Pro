@@ -37,7 +37,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
     def __init__(self, data: Optional[List[Dict]] = None):
         super().__init__()
         self.channels = data if data is not None else []
-        self.headers = ["频道名称", "分辨率", "URL", "分组"]
+        self.headers = ["频道名称", "分辨率", "URL", "分组", "状态", "延迟(ms)"]
 
     # 数据处理
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
@@ -54,8 +54,25 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 return chan.get('url', '无地址')
             elif index.column() == 3:
                 return chan.get('group', '未分类')
+            elif index.column() == 4:  # 状态列
+                if 'valid' in chan:
+                    if chan.get('validating', False):
+                        return "⏳"  # 正在检测
+                    return "✓" if chan['valid'] else "✗"
+                return ""
+            elif index.column() == 5:  # 延迟列
+                if chan.get('valid') and 'latency' in chan:
+                    return f"{chan['latency']*1000:.0f}ms"
+                return ""
         elif role == Qt.ItemDataRole.UserRole:
             return self.channels[index.row()]
+        elif role == Qt.ItemDataRole.ForegroundRole:  # 设置文本颜色
+            if index.column() == 4:  # 状态列
+                if 'valid' in self.channels[index.row()]:
+                    return QtGui.QColor('#4CAF50') if self.channels[index.row()]['valid'] else QtGui.QColor('#F44336')
+        elif role == Qt.ItemDataRole.TextAlignmentRole:  # 设置对齐方式
+            if index.column() in (4, 5):  # 状态和延迟列居中
+                return Qt.AlignmentFlag.AlignCenter
         return None
 
     # 行数
@@ -1388,6 +1405,16 @@ class MainWindow(QtWidgets.QMainWindow):
     def update_validation_progress(self, percent: int, msg: str):
         """更新验证进度"""
         self.filter_status_label.setText(msg)
+        
+        # 高亮显示当前正在检测的频道
+        if hasattr(self.validator, '_current_url'):
+            for i, chan in enumerate(self.model.channels):
+                if chan.get('url') == self.validator._current_url:
+                    chan['validating'] = True
+                    index = self.model.index(i, 0)
+                    self.model.dataChanged.emit(index, index)
+                    break
+        
         if percent == 100:
             self.btn_validate.setText("检测有效性")
             self.btn_validate.setStyleSheet(AppStyles.button_style())
@@ -1421,11 +1448,30 @@ class MainWindow(QtWidgets.QMainWindow):
     @pyqtSlot(dict)
     def on_validation_finished(self, result: dict):
         """处理验证完成事件"""
-        # 保存验证结果
-        self.validation_results = {
-            chan['url']: chan['valid']
-            for chan in result['valid']
-        }
+        # 保存验证结果和延迟信息到频道数据
+        for chan in result['valid']:
+            self.validation_results[chan['url']] = chan['valid']
+            # 更新频道模型中的验证状态和延迟
+            for i, model_chan in enumerate(self.model.channels):
+                if model_chan['url'] == chan['url']:
+                    model_chan['valid'] = chan['valid']
+                    model_chan['validating'] = False  # 清除正在检测状态
+                    if chan['valid'] and 'latency' in chan:
+                        model_chan['latency'] = chan['latency']
+                    # 触发UI更新
+                    index = self.model.index(i, 0)
+                    self.model.dataChanged.emit(index, index)
+        
+        # 更新无效频道状态
+        for chan in result['invalid']:
+            for i, model_chan in enumerate(self.model.channels):
+                if model_chan['url'] == chan['url']:
+                    model_chan['valid'] = False
+                    model_chan['validating'] = False
+                    model_chan['latency'] = 0.0
+                    index = self.model.index(i, 0)
+                    self.model.dataChanged.emit(index, index)
+        
         valid_count = len(result['valid'])
         total = result['total']
         self.btn_validate.setText("检测有效性")
