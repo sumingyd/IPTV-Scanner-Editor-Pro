@@ -1327,7 +1327,10 @@ class MainWindow(QtWidgets.QMainWindow):
             # 1. 设置关闭标志
             self._is_closing = True
             
-            # 2. 停止所有异步任务
+            # 2. 保存当前UI配置到INI
+            self._save_config_sync()
+            
+            # 3. 停止所有异步任务
             tasks = []
             if hasattr(self, 'scan_worker') and self.scan_worker:
                 tasks.append(self.scan_worker.cancel())
@@ -1336,17 +1339,15 @@ class MainWindow(QtWidgets.QMainWindow):
             if hasattr(self, 'match_worker') and self.match_worker:
                 tasks.append(self.match_worker.cancel())
                 
-            # 3. 停止所有子组件
+            # 4. 停止所有子组件
             stop_tasks = []
             if hasattr(self, 'player') and self.player:
                 stop_tasks.append(self.player.force_stop())
             if hasattr(self, 'scanner') and self.scanner:
                 stop_tasks.append(self.scanner.stop_scan())
             if hasattr(self, 'validator') and self.validator:
-                # 确保验证器完全停止
                 try:
                     await asyncio.wait_for(self.validator.stop_validation(), timeout=3)
-                    # 额外检查并终止所有ffprobe进程
                     for proc in self.validator._active_processes[:]:
                         if proc.returncode is None:
                             try:
@@ -1354,19 +1355,7 @@ class MainWindow(QtWidgets.QMainWindow):
                             except ProcessLookupError:
                                 pass
                     self.validator._active_processes.clear()
-                except asyncio.TimeoutError:
-                    logger.warning("验证器停止超时，强制终止")
-                    # 强制终止所有相关进程
-                    for proc in self.validator._active_processes[:]:
-                        if proc.returncode is None:
-                            try:
-                                proc.kill()
-                            except ProcessLookupError:
-                                pass
-                    self.validator._active_processes.clear()
-                except Exception as e:
-                    logger.error(f"停止验证器时出错: {str(e)}")
-                    # 确保无论如何都清理进程
+                except Exception:
                     for proc in self.validator._active_processes[:]:
                         if proc.returncode is None:
                             try:
@@ -1375,10 +1364,11 @@ class MainWindow(QtWidgets.QMainWindow):
                                 pass
                     self.validator._active_processes.clear()
             
-            # 4. 等待所有任务完成(带超时)
-            await asyncio.wait_for(asyncio.gather(*tasks, *stop_tasks), timeout=2.0)
+            # 5. 等待所有任务完成(带超时)
+            if tasks or stop_tasks:
+                await asyncio.wait_for(asyncio.gather(*tasks, *stop_tasks), timeout=2.0)
             
-            # 5. 检查是否需要保存播放列表
+            # 6. 检查是否需要保存播放列表
             if self.playlist_source == 'file' and self.model.channels:
                 reply = await qasync.QtAsyncio.asyncExec(QMessageBox.question)(
                     self,
@@ -1393,22 +1383,19 @@ class MainWindow(QtWidgets.QMainWindow):
                     event.ignore()
                     return
             
-            # 6. 保存配置和布局
+            # 7. 保存窗口布局
             self._save_splitter_sizes()
-            self._save_config_sync()
             
-            # 7. 强制释放资源
+            # 8. 强制释放资源
             if hasattr(self, 'player') and self.player:
                 self.player._release_sync()
             if hasattr(self, 'scanner') and self.scanner:
                 await self.scanner.cleanup()
-            if hasattr(self, 'validator') and self.validator:
-                await self.validator.stop_validation()
             
-            # 8. 执行父类关闭事件
+            # 9. 执行父类关闭事件
             super().closeEvent(event)
             
-            # 9. 确保事件循环停止
+            # 10. 确保事件循环停止
             if hasattr(self, '_event_loop'):
                 self._event_loop.stop()
         except Exception as e:
@@ -1419,6 +1406,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def closeEvent(self, event: QCloseEvent):
         """处理窗口关闭事件"""
         try:
+            # 同步保存当前配置
+            self._save_config_sync()
+            
             # 获取当前事件循环
             loop = asyncio.get_event_loop()
             if loop.is_running():
@@ -1430,7 +1420,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 loop.run_until_complete(self._async_close(event))
                 event.accept()
         except Exception as e:
-            logger.error(f"关闭事件处理失败: {str(e)}")
+            logger.error(f"关闭事件处理失败: {str(e)}", exc_info=True)
             event.ignore()  # 出现异常时忽略关闭事件
 
     @pyqtSlot(int, str)
@@ -1600,10 +1590,45 @@ class MainWindow(QtWidgets.QMainWindow):
             
             # 保存播放器配置
             self.config.config['Player']['hardware_accel'] = self.player.hw_accel
+            self.config.config['Player']['volume'] = str(self.volume_slider.value())
+            
+            # 保存EPG配置（带详细日志）
+            if hasattr(self, 'epg_manager'):
+                logger.debug(f"开始保存EPG配置，epg_manager类型: {type(self.epg_manager)}")
+                if hasattr(self.epg_manager, 'main_url'):
+                    logger.debug(f"保存main_url: {self.epg_manager.main_url}")
+                    self.config.config['EPG']['main_url'] = self.epg_manager.main_url
+                    logger.info(f"EPG主URL已保存: {self.epg_manager.main_url}")
+                else:
+                    logger.warning("epg_manager没有main_url属性")
+                
+                if hasattr(self.epg_manager, 'backup_urls'):
+                    logger.debug(f"保存backup_urls: {self.epg_manager.backup_urls}")
+                    self.config.config['EPG']['backup_urls'] = ','.join(self.epg_manager.backup_urls)
+                    logger.info(f"EPG备用URL已保存: {self.epg_manager.backup_urls}")
+                else:
+                    logger.warning("epg_manager没有backup_urls属性")
+            
+            # 保存频道列表状态
+            if hasattr(self, 'model') and self.model.channels:
+                self.config.config['ChannelList']['last_count'] = str(len(self.model.channels))
+                self.config.config['ChannelList']['last_valid'] = str(sum(1 for c in self.model.channels if c.get('valid', False)))
+            
+            # 保存分隔条位置（仅在分隔条已初始化且有内容时保存）
+            if (hasattr(self, 'left_splitter') and hasattr(self, 'right_splitter') and
+                self.left_splitter.count() > 0 and self.right_splitter.count() > 0):
+                left_sizes = self.left_splitter.sizes()
+                right_sizes = self.right_splitter.sizes()
+                if left_sizes and right_sizes:  # 确保尺寸列表不为空
+                    self.config.config['UserPrefs']['splitter_sizes'] = json.dumps([left_sizes, right_sizes])
             
             self.config.save_prefs()
+            logger.info("配置已保存 - 窗口几何: %s, 扫描配置: %s, 播放器配置: %s",
+                       self.saveGeometry().toHex().data().decode()[:20] + "...",
+                       f"address={self.ip_range_input.text()}, timeout={self.timeout_input.value()}",
+                       f"hw_accel={self.player.hw_accel}, volume={self.volume_slider.value()}")
         except Exception as e:
-            logger.error(f"保存配置失败: {str(e)}")
+            logger.error(f"保存配置失败: {str(e)}", exc_info=True)
 
     # 显示错误对话框
     @pyqtSlot(str)

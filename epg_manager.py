@@ -18,17 +18,22 @@ class EPGManager:
         self.epg_data: Dict[str, Dict] = {}
         self._name_index: Dict[str, List[str]] = {}  # 频道名称倒排索引
         self.cache_manager = CacheManager(Path(__file__).parent / "epg-xml")  # 初始化缓存管理器
+        self.main_url = ''
+        self.backup_urls = []
         self._init_epg_sources()
 
     def _init_epg_sources(self) -> None:
         """初始化EPG数据源配置"""
+        self.main_url = self.config.config.get('EPG', 'main_url', fallback='')
+        self.backup_urls = [
+            url.strip() 
+            for url in self.config.config.get('EPG', 'backup_urls', fallback='').split(',') 
+            if url.strip()
+        ]
+        
         self.epg_sources = {
-            'main': self.config.config.get('EPG', 'main_url', fallback=''),
-            'backups': [
-                url.strip() 
-                for url in self.config.config.get('EPG', 'backup_urls', fallback='').split(',') 
-                if url.strip()
-            ],
+            'main': self.main_url,
+            'backups': self.backup_urls,
             'cache_ttl': self.config.config.getint('EPG', 'cache_ttl', fallback=3600)
         }
 
