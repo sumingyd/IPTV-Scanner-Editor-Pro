@@ -610,7 +610,7 @@ class MainWindow(QtWidgets.QMainWindow):
             <div style="background-color: {card_bg}; padding: 15px; border-radius: 8px; 
                  margin-bottom: 15px; border: 1px solid {border_color};">
                 <p style="line-height: 1.6; margin: 5px 0;">
-                    <b>当前版本：</b> 4.0.0.0
+                    <b>当前版本：</b> 4.0.0.1
                 </p>
                 <p style="line-height: 1.6; margin: 5px 0;">
                     <b>最新版本：</b> {latest_version} 
