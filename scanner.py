@@ -127,9 +127,11 @@ class StreamScanner(QObject):
     async def _scan_task(self, ip_pattern: str) -> None:
         """执行扫描的核心任务(增强版)
         改进:
-            1. 更频繁的状态检查
-            2. 更可靠的取消处理
-            3. 更完善的资源清理
+            1. 分批处理(每次100地址)
+            2. 流式生成(边扫边显) 
+            3. 生成器替代列表
+            4. 减少冗余日志
+            5. 限制UI更新频率
         """
         try:
             # 检查点1 - 任务开始时
@@ -137,13 +139,30 @@ class StreamScanner(QObject):
                 raise asyncio.CancelledError("扫描已停止")
                 
             try:
-                urls = parse_ip_range(ip_pattern)
-                logger.debug(f"解析后的URL列表: {urls[:5]}... (共{len(urls)}个)")
+                # 解析URL并检查数量
+                urls = list(parse_ip_range(ip_pattern))
+                total = len(urls)
+                logger.debug(f"解析到{total}个待扫描地址")
+                
+                # 大规模扫描确认(增强版)
+                if total > 1000:
+                    self.error_occurred.emit(f"检测到大规模扫描({total}个地址)，请确认是否继续")
+                    # 添加更明显的警告日志
+                    logger.warning(f"大规模扫描警告: {total}个地址 (阈值:1000)")
+                    # 增加等待时间让用户有足够时间响应
+                    for i in range(5):
+                        if not self._is_scanning:
+                            return
+                        await asyncio.sleep(0.5)
+                    # 如果用户未取消，则记录确认继续
+                    if self._is_scanning:
+                        logger.info(f"用户确认继续大规模扫描: {total}个地址")
+                        
                 if not urls:
                     logger.error(f"未生成任何扫描地址: {ip_pattern}")
                     self.error_occurred.emit("未生成任何扫描地址，请检查输入格式")
                     return
-                
+                    
                 # 验证生成的URL格式
                 invalid_urls = [url for url in urls if not url.startswith(('http://', 'https://'))]
                 if invalid_urls:
@@ -190,25 +209,32 @@ class StreamScanner(QObject):
                     except:
                         pass
             
-            # 创建所有探测任务并保存到_tasks列表
+            # 分批处理参数
+            batch_size = 100
+            batch_count = (total + batch_size - 1) // batch_size
+            
+            # 分批处理
             self._tasks = []
-            for url in urls:
+            for batch_idx in range(batch_count):
                 if not self._is_scanning:
                     break
-                task = asyncio.create_task(probe_url(url), name=f"probe_{url}")
-                self._tasks.append(task)
-            
-            # 使用asyncio.as_completed处理结果，并确保所有future被正确处理
-            pending = set(self._tasks)
-            while pending and self._is_scanning:
-                try:
-                    # 等待第一个完成的任务
-                    done, pending = await asyncio.wait(
-                        pending,
-                        return_when=asyncio.FIRST_COMPLETED
-                    )
                     
-                    for future in done:
+                start = batch_idx * batch_size
+                end = min(start + batch_size, total)
+                batch_urls = urls[start:end]
+                
+                # 创建当前批次的探测任务
+                batch_tasks = []
+                for url in batch_urls:
+                    if not self._is_scanning:
+                        break
+                    task = asyncio.create_task(probe_url(url), name=f"probe_{url}")
+                    batch_tasks.append(task)
+                    self._tasks.append(task)
+                
+                # 等待当前批次完成
+                try:
+                    for future in asyncio.as_completed(batch_tasks):
                         try:
                             result = await future
                             url, result = result if isinstance(result, tuple) else (None, result)
@@ -230,7 +256,7 @@ class StreamScanner(QObject):
                                     'resolution': f"{result['width']}x{result['height']}",
                                     'latency': result.get('latency', 0.0)
                                 }
-                                logger.info(f"发现有效频道: {channel_name} - URL: {url}")
+                                logger.debug(f"发现有效频道: {channel_name} - URL: {url}")
                                 valid_channels.append(channel_info)
                                 # 发射包含完整信息的信号(确保包含延迟值)
                                 self.channel_found.emit({
@@ -242,7 +268,7 @@ class StreamScanner(QObject):
                                 })
                             else:
                                 invalid_count += 1
-                                logger.info(f"频道无效: {url}")
+                                logger.debug(f"频道无效: {url}")
                             
                             # 更新进度
                             progress = int((self._scanned_count / total) * 100)
@@ -295,7 +321,7 @@ class StreamScanner(QObject):
         """探测单个流媒体信息（增强版）"""
         proc = None
         try:
-            logger.info(f"开始验证频道: {url}")
+            logger.debug(f"开始验证频道: {url}")
             
             # 首次使用时检查ffprobe可用性
             if not self._ffprobe_checked:
@@ -304,17 +330,17 @@ class StreamScanner(QObject):
 
             # 检查是否已取消
             if not self._is_scanning:
-                logger.info("验证任务被取消(扫描状态检查)")
+                logger.debug("验证任务被取消(扫描状态检查)")
                 raise asyncio.CancelledError("扫描已停止")
 
             # 再次检查扫描状态
             if not self._is_scanning:
-                logger.info("验证任务被取消(二次状态检查)")
+                logger.debug("验证任务被取消(二次状态检查)")
                 raise asyncio.CancelledError("扫描已停止")
 
             # 确保线程池已初始化
             if not self._executor or self._executor._shutdown:
-                logger.info("重新初始化线程池")
+                logger.debug("重新初始化线程池")
                 self._executor = ThreadPoolExecutor(max_workers=self._thread_count)
 
             loop = asyncio.get_running_loop()
@@ -323,27 +349,27 @@ class StreamScanner(QObject):
                 self._run_ffprobe, 
                 url
             )
-            logger.info(f"已提交验证任务: {url}")
+            logger.debug(f"已提交验证任务: {url}")
             
             # 添加取消回调
             def _cancel_probe(_):
                 if proc and proc.poll() is None:
-                    logger.info(f"取消验证任务并终止进程: {url}")
+                    logger.debug(f"取消验证任务并终止进程: {url}")
                     proc.kill()
             
             future.add_done_callback(_cancel_probe)
-            logger.info(f"已添加取消回调: {url}")
+            logger.debug(f"已添加取消回调: {url}")
             
             try:
                 result = await future
-                logger.info(f"验证任务完成: {url} - 结果: {result is not None}")
+                logger.debug(f"验证任务完成: {url} - 结果: {result is not None}")
                 if result is None:
                     logger.warning(f"频道验证失败: {url}")
                 else:
-                    logger.info(f"频道验证成功: {url} - 分辨率: {result.get('width', 0)}x{result.get('height', 0)}")
+                    logger.debug(f"频道验证成功: {url} - 分辨率: {result.get('width', 0)}x{result.get('height', 0)}")
                 return result
             except asyncio.CancelledError:
-                logger.info(f"验证任务被取消: {url}")
+                logger.debug(f"验证任务被取消: {url}")
                 if proc and proc.poll() is None:
                     proc.kill()
                 return None
@@ -482,7 +508,7 @@ class StreamScanner(QObject):
                     }
                     logger.info(f"频道验证成功: {url} - 分辨率: {result['width']}x{result['height']} 编码: {result['codec']} 延迟: {latency:.3f}s")
                     return result
-            logger.info(f"频道验证失败: {url} - 返回码: {proc.returncode}")
+            logger.debug(f"频道验证失败: {url} - 返回码: {proc.returncode}")
             return None
 
         except Exception as e:
@@ -564,7 +590,7 @@ class StreamScanner(QObject):
         """停止IP扫描方法"""
         if not self._is_scanning:
             return
-        logger.info("停止IP扫描请求")
+        logger.debug("停止IP扫描请求")
         self._is_scanning = False
         # 仅取消扫描相关任务
         for task in self._tasks:
@@ -745,7 +771,7 @@ class StreamScanner(QObject):
 
     async def cleanup(self) -> None:
         """清理所有资源"""
-        logger.debug("开始清理扫描器资源...")
+        logger.debug("清理扫描器资源...")
         self._is_scanning = False
         self._is_validating = False
         

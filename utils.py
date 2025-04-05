@@ -5,6 +5,7 @@ import re
 import subprocess
 from pathlib import Path
 import sys
+import time
 from typing import List, Tuple, Dict, Any
 from itertools import product
 
@@ -173,10 +174,68 @@ class EnhancedFormatter(logging.Formatter):
         fmt = f"{color}[%(levelname)s] %(message)s{self.RESET}"
         return logging.Formatter(fmt).format(record)
 
-def setup_logger(name: str) -> logging.Logger:
-    """配置跨平台日志记录器"""
+class AggregatedLogHandler(logging.Handler):
+    """聚合相似日志的处理器"""
+    def __init__(self, target_handler, threshold=5):
+        super().__init__()
+        self.target_handler = target_handler
+        self.threshold = threshold
+        self.log_cache = {}
+        self.last_flush = time.time()
+        
+    def emit(self, record):
+        key = (record.levelno, record.msg)
+        if key in self.log_cache:
+            self.log_cache[key] += 1
+        else:
+            self.log_cache[key] = 1
+            
+        # 定期刷新缓存(至少每秒一次)
+        if (time.time() - self.last_flush) >= 1.0 or len(self.log_cache) >= 10:
+            self.flush()
+            
+    def flush(self):
+        for (levelno, msg), count in self.log_cache.items():
+            if count > self.threshold:
+                record = logging.LogRecord(
+                    name='',
+                    level=levelno,
+                    pathname='',
+                    lineno=0,
+                    msg=f"[聚合日志] {msg} (共{count}次)",
+                    args=(),
+                    exc_info=None
+                )
+                self.target_handler.emit(record)
+            else:
+                for _ in range(count):
+                    record = logging.LogRecord(
+                        name='',
+                        level=levelno,
+                        pathname='',
+                        lineno=0,
+                        msg=msg,
+                        args=(),
+                        exc_info=None
+                    )
+                    self.target_handler.emit(record)
+        self.log_cache.clear()
+        self.last_flush = time.time()
+
+def setup_logger(name: str, level=logging.INFO) -> logging.Logger:
+    """配置跨平台日志记录器(增强版)
+    参数:
+        name: 日志记录器名称
+        level: 日志级别(默认为INFO)
+    功能:
+        1. 支持日志级别控制
+        2. 添加聚合日志功能
+        3. 优化日志格式
+    """
     logger = logging.getLogger(name)
-    logger.addFilter(VlcWarningFilter())  # 新增过滤器
+    logger.setLevel(level)
+    logger.addFilter(VlcWarningFilter())
+    
     if logger.hasHandlers():
         return logger
 
@@ -196,10 +255,11 @@ def setup_logger(name: str) -> logging.Logger:
     )
     file_handler.setFormatter(file_formatter)
     
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(file_handler)
+    # 添加聚合日志处理器
+    aggregated_handler = AggregatedLogHandler(file_handler)
+    logger.addHandler(aggregated_handler)
     
-    # 默认不添加控制台handler
+    # 控制台Handler(可选)
     if config.config['DEFAULT'].getboolean('console_log', False):
         console_handler = logging.StreamHandler()
         if platform.system() != 'Windows':
