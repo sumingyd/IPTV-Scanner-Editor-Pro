@@ -1,59 +1,73 @@
-2025-04-06 21:19:35,132 [DEBUG] :0 [50956:38508] - 尝试保存到路径: D:\桌面\123.m3u
-2025-04-06 21:19:41,961 [INFO] :0 [50956:38508] - 成功保存播放列表到: D:\桌面\123.m3u
-2025-04-06 21:19:41,961 [DEBUG] :0 [50956:38508] - 尝试保存到路径: D:\桌面\123.txt
-obe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries f2025-04-06 21:20:37,173 [ERROR] :0 [50956:38508] - 保存配置失败: 'ChannelList'
-2025-04-06 21:20:42,126 [ERROR] :0 [50956:38508] - 保存配置失败: 'ChannelList'
-v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.15:5002
-2025-04-06 21:18:13,128 [DEBUG] :0 [50956:62776] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.5:5002
-2025-04-06 21:18:13,129 [DEBUG] :0 [50956:62776] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.7:5002
-2025-04-06 21:18:13,129 [DEBUG] :0 [50956:62776] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.19:5002
-2025-04-06 21:18:13,130 [DEBUG] :0 [50956:62776] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.12:5002
-2025-04-06 21:18:13,130 [DEBUG] :0 [50956:62776] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.13:5002
-2025-04-06 21:18:13,135 [DEBUG] :0 [50956:62776] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.2:5002
-2025-04-06 21:18:13,135 [DEBUG] :0 [50956:62776] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.3:5002
-2025-04-06 21:18:13,135 [DEBUG] :0 [50956:62776] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.9:5002
-2025-04-06 21:18:13,135 [DEBUG] :0 [50956:62776] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.17:5002
-2025-04-06 21:18:13,136 [DEBUG] :0 [50956:62776] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.18:5002
-2025-04-06 21:18:18,453 [DEBUG] :0 [50956:71836] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.1:5002
-2025-04-06 21:18:18,453 [DEBUG] :0 [50956:71836] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.14:5002
-2025-04-06 21:18:18,453 [DEBUG] :0 [50956:71836] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.10:5002
-2025-04-06 21:18:18,453 [DEBUG] :0 [50956:71836] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.4:5002
-2025-04-06 21:18:18,453 [DEBUG] :0 [50956:71836] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.6:5002
-2025-04-06 21:18:18,453 [DEBUG] :0 [50956:71836] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.16:5002
-2025-04-06 21:18:18,453 [DEBUG] :0 [50956:71836] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.20:5002
-2025-04-06 21:18:18,453 [DEBUG] :0 [50956:71836] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.11:5002
-2025-04-06 21:18:18,453 [DEBUG] :0 [50956:71836] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.11:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '27465.171422'}}
-2025-04-06 21:18:18,581 [DEBUG] :0 [50956:58364] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.11:5002 - 27465.171422秒
-2025-04-06 21:18:18,581 [DEBUG] :0 [50956:58364] - ffprobe failed for http://192.168.50.1:20231/rtp/239.21.1.8:5002, stderr: [http @ 0000024f6c910800] Stream ends prematurely at 0, should be 18446744073709551615
-http://192.168.50.1:20231/rtp/239.21.1.8:5002: I/O error
-
-2025-04-06 21:18:18,581 [DEBUG] :0 [50956:58364] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.14:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '61922.693389'}}
-2025-04-06 21:18:18,581 [DEBUG] :0 [50956:58364] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.14:5002 - 61922.693389秒
-2025-04-06 21:18:18,581 [DEBUG] :0 [50956:58364] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.7:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '58851.822556'}}
-2025-04-06 21:18:18,581 [DEBUG] :0 [50956:58364] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.7:5002 - 58851.822556秒
-2025-04-06 21:18:18,581 [DEBUG] :0 [50956:58364] - ffprobe failed for http://192.168.50.1:20231/rtp/239.21.1.5:5002, stderr: [http @ 000002520e780800] Stream ends prematurely at 0, should be 18446744073709551615
+2025-04-06 21:33:37,162 [INFO] :0 [46216:45564] - 开始扫描IP模式: http://192.168.50.1:20231/rtp/239.21.1.[1-20]:5002
+2025-04-06 21:33:38,179 [DEBUG] :0 [46216:58456] - 创建线程池，线程数: 20
+2025-04-06 21:33:38,179 [DEBUG] :0 [46216:58456] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries f2025-04-06 21:33:57,614 [DEBUG] :0 [46216:45564] - 配置已保存
+2025-04-06 21:33:59,912 [WARNING] :0 [46216:45564] - 取消旧播放任务失败: object NoneType can't be used in 'await' expression
+2025-04-06 21:33:59,912 [DEBUG] :0 [46216:45564] - 配置已保存
+2025-04-06 21:34:02,688 [WARNING] :0 [46216:45564] - 取消旧播放任务失败: object NoneType can't be used in 'await' expression
+2025-04-06 21:34:02,688 [DEBUG] :0 [46216:45564] - 配置已保存
+2025-04-06 21:34:05,679 [WARNING] :0 [46216:45564] - 取消旧播放任务失败: object NoneType can't be used in 'await' expression
+2025-04-06 21:34:05,679 [DEBUG] :0 [46216:45564] - 配置已保存
+2025-04-06 21:35:02,774 [WARNING] :0 [46216:45564] - 取消旧播放任务失败: object NoneType can't be used in 'await' expression
+2025-04-06 21:35:02,775 [WARNING] :0 [46216:45564] - 取消旧播放任务失败: object NoneType can't be used in 'await' expression
+2025-04-06 21:35:32,560 [DEBUG] :0 [46216:45564] - 配置已保存
+2025-04-06 21:35:33,603 [DEBUG] :0 [46216:45564] - 配置已保存
+2025-04-06 21:35:33,603 [ERROR] :0 [46216:45564] - 关闭异常: An asyncio.Future, a coroutine or an awaitable is required
+robe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.9:5002
+2025-04-06 21:33:38,245 [DEBUG] :0 [46216:71168] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.2:5002
+2025-04-06 21:33:38,245 [DEBUG] :0 [46216:71168] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.12:5002
+2025-04-06 21:33:38,245 [DEBUG] :0 [46216:71168] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.6:5002
+2025-04-06 21:33:38,245 [DEBUG] :0 [46216:71168] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.3:5002
+2025-04-06 21:33:38,245 [DEBUG] :0 [46216:71168] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.5:5002
+2025-04-06 21:33:43,549 [DEBUG] :0 [46216:58456] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.17:5002
+2025-04-06 21:33:43,549 [DEBUG] :0 [46216:58456] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.14:5002
+2025-04-06 21:33:43,549 [DEBUG] :0 [46216:58456] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.18:5002
+2025-04-06 21:33:43,549 [DEBUG] :0 [46216:58456] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.16:5002
+2025-04-06 21:33:43,549 [DEBUG] :0 [46216:58456] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.15:5002
+2025-04-06 21:33:43,549 [DEBUG] :0 [46216:58456] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.11:5002
+2025-04-06 21:33:43,549 [DEBUG] :0 [46216:58456] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.19:5002
+2025-04-06 21:33:43,549 [DEBUG] :0 [46216:58456] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.20:5002
+2025-04-06 21:33:43,549 [DEBUG] :0 [46216:58456] - 执行ffprobe命令: ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=start_time -of json -timeout 25000000 http://192.168.50.1:20231/rtp/239.21.1.4:5002
+2025-04-06 21:33:43,549 [DEBUG] :0 [46216:58456] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.1:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '63149.658467'}}
+2025-04-06 21:33:43,705 [DEBUG] :0 [46216:66944] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.10:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '59829.317367'}}
+2025-04-06 21:33:43,705 [DEBUG] :0 [46216:66944] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.1:5002 - 63149.658467秒
+2025-04-06 21:33:43,705 [DEBUG] :0 [46216:66944] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.10:5002 - 59829.317367秒
+2025-04-06 21:33:43,705 [DEBUG] :0 [46216:66944] - ffprobe failed for http://192.168.50.1:20231/rtp/239.21.1.5:5002, stderr: [http @ 000002516c020800] Stream ends prematurely at 0, should be 18446744073709551615
 http://192.168.50.1:20231/rtp/239.21.1.5:5002: I/O error
 
-2025-04-06 21:18:18,581 [DEBUG] :0 [50956:58364] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.1:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '62224.818467'}}
-2025-04-06 21:18:18,581 [DEBUG] :0 [50956:58364] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.1:5002 - 62224.818467秒
-2025-04-06 21:18:18,581 [DEBUG] :0 [50956:58364] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.10:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '58904.357367'}}
-2025-04-06 21:18:18,656 [DEBUG] :0 [50956:71460] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.10:5002 - 58904.357367秒
-2025-04-06 21:18:18,656 [DEBUG] :0 [50956:71460] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.15:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '56634.128756'}}
-2025-04-06 21:18:18,656 [DEBUG] :0 [50956:71460] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.15:5002 - 56634.128756秒
-2025-04-06 21:18:18,656 [DEBUG] :0 [50956:71460] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.20:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '26783.690856'}}
-2025-04-06 21:18:18,656 [DEBUG] :0 [50956:71460] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.20:5002 - 26783.690856秒
-2025-04-06 21:18:18,656 [DEBUG] :0 [50956:71460] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.19:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '26775.214067'}}
-2025-04-06 21:18:18,656 [DEBUG] :0 [50956:71460] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.19:5002 - 26775.214067秒
-2025-04-06 21:18:18,656 [DEBUG] :0 [50956:71460] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.16:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '56785.946556'}}
-2025-04-06 21:18:18,656 [DEBUG] :0 [50956:71460] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.16:5002 - 56785.946556秒
-2025-04-06 21:18:18,656 [DEBUG] :0 [50956:71460] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.4:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '87943.866900'}}
-2025-04-06 21:18:18,813 [DEBUG] :0 [50956:32084] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.4:5002 - 87943.8669秒
-2025-04-06 21:18:18,813 [DEBUG] :0 [50956:32084] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.17:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '26781.220678'}}
-2025-04-06 21:18:18,813 [DEBUG] :0 [50956:32084] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.17:5002 - 26781.220678秒
-2025-04-06 21:18:18,813 [DEBUG] :0 [50956:32084] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.2:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '62226.910289'}}
-2025-04-06 21:18:18,814 [DEBUG] :0 [50956:32084] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.2:5002 - 62226.910289秒
-2025-04-06 21:18:18,814 [DEBUG] :0 [50956:32084] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.18:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '26783.687644'}}
-2025-04-06 21:18:18,814 [DEBUG] :0 [50956:32084] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.18:5002 - 26783.687644秒
-2025-04-06 21:18:18,814 [DEBUG] :0 [50956:32084] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.13:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '56786.066067'}}
-2025-04-06 21:18:18,814 [DEBUG] :0 [50956:32084] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.13:5002 - 56786.066067秒
-2025-04-06 21:18:18,814 [DEBUG] :0 [50956:32084] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.12:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '56786.044500'}}
+2025-04-06 21:33:43,705 [DEBUG] :0 [46216:66944] - ffprobe failed for http://192.168.50.1:20231/rtp/239.21.1.6:5002, stderr: [http @ 00000231e2e80800] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.1.6:5002: I/O error
+
+2025-04-06 21:33:43,705 [DEBUG] :0 [46216:66944] - ffprobe failed for http://192.168.50.1:20231/rtp/239.21.1.8:5002, stderr: [http @ 000001d1be840800] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.1.8:5002: I/O error
+
+2025-04-06 21:33:43,705 [DEBUG] :0 [46216:66944] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.2:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '63151.798289'}}
+2025-04-06 21:33:43,705 [DEBUG] :0 [46216:66944] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.2:5002 - 63151.798289秒
+2025-04-06 21:33:43,705 [DEBUG] :0 [46216:66944] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.7:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '59776.998556'}}
+2025-04-06 21:33:43,705 [DEBUG] :0 [46216:66944] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.7:5002 - 59776.998556秒
+2025-04-06 21:33:43,732 [DEBUG] :0 [46216:20568] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.9:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '62846.983933'}}
+2025-04-06 21:33:43,732 [DEBUG] :0 [46216:20568] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.9:5002 - 62846.983933秒
+2025-04-06 21:33:43,732 [DEBUG] :0 [46216:20568] - ffprobe failed for http://192.168.50.1:20231/rtp/239.21.1.3:5002, stderr: [http @ 0000025299c50800] Stream ends prematurely at 0, should be 18446744073709551615
+http://192.168.50.1:20231/rtp/239.21.1.3:5002: I/O error
+
+2025-04-06 21:33:43,732 [DEBUG] :0 [46216:20568] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.13:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '57710.978067'}}
+2025-04-06 21:33:43,732 [DEBUG] :0 [46216:20568] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.13:5002 - 57710.978067秒
+2025-04-06 21:33:43,732 [DEBUG] :0 [46216:20568] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.18:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '27708.599644'}}
+2025-04-06 21:33:43,732 [DEBUG] :0 [46216:20568] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.18:5002 - 27708.599644秒
+2025-04-06 21:33:43,732 [DEBUG] :0 [46216:20568] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.12:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '57710.956500'}}
+2025-04-06 21:33:43,732 [DEBUG] :0 [46216:20568] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.12:5002 - 57710.9565秒
+2025-04-06 21:33:43,732 [DEBUG] :0 [46216:20568] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.17:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '27706.156678'}}
+2025-04-06 21:33:43,855 [DEBUG] :0 [46216:44988] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.17:5002 - 27706.156678秒
+2025-04-06 21:33:43,855 [DEBUG] :0 [46216:44988] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.4:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '88868.946900'}}
+2025-04-06 21:33:43,855 [DEBUG] :0 [46216:44988] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.4:5002 - 88868.9469秒
+2025-04-06 21:33:43,855 [DEBUG] :0 [46216:44988] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.15:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '57559.280756'}}
+2025-04-06 21:33:43,855 [DEBUG] :0 [46216:44988] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.15:5002 - 57559.280756秒
+2025-04-06 21:33:43,855 [DEBUG] :0 [46216:44988] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.20:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '27708.818856'}}
+2025-04-06 21:33:43,855 [DEBUG] :0 [46216:44988] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.20:5002 - 27708.818856秒
+2025-04-06 21:33:43,855 [DEBUG] :0 [46216:44988] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.16:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '57711.050556'}}
+2025-04-06 21:33:43,855 [DEBUG] :0 [46216:44988] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.16:5002 - 57711.050556秒
+2025-04-06 21:33:43,855 [DEBUG] :0 [46216:44988] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.14:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '62847.845389'}}
+2025-04-06 21:35:33,689 [DEBUG] :0 [46216:45564] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.14:5002 - 62847.845389秒
+2025-04-06 21:35:33,689 [DEBUG] :0 [46216:45564] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.11:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '28390.347422'}}
+2025-04-06 21:35:33,689 [DEBUG] :0 [46216:45564] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.11:5002 - 28390.347422秒
+2025-04-06 21:35:33,689 [DEBUG] :0 [46216:45564] - ffprobe output for http://192.168.50.1:20231/rtp/239.21.1.19:5002: {'programs': [{'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}]}], 'stream_groups': [], 'streams': [{'codec_name': 'h264', 'width': 720, 'height': 576}], 'format': {'start_time': '27700.366067'}}
+2025-04-06 21:35:33,689 [DEBUG] :0 [46216:45564] - 计算延迟: http://192.168.50.1:20231/rtp/239.21.1.19:5002 - 27700.366067秒
