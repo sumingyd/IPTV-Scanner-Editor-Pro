@@ -224,7 +224,8 @@ class StreamValidator(QObject):
         validate_proc = await asyncio.create_subprocess_exec(
             *validate_cmd,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         self._active_processes.append(validate_proc)
             
@@ -245,7 +246,8 @@ class StreamValidator(QObject):
                 latency_proc = await asyncio.create_subprocess_exec(
                     *latency_cmd,
                     stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
+                    stderr=subprocess.PIPE,
+                    creationflags=subprocess.CREATE_NO_WINDOW
                 )
                 self._active_processes.append(latency_proc)
                 try:
