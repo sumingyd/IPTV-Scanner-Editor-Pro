@@ -1423,81 +1423,23 @@ class MainWindow(QtWidgets.QMainWindow):
         super().showEvent(event)
 
     # 处理关闭事件
+    @pyqtSlot()
     def closeEvent(self, event: QCloseEvent):
         """处理窗口关闭事件"""
-        try:
-            # 同步保存当前配置
-            self._save_config_sync()
-            
-            # 获取当前事件循环
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # 在已有事件循环中运行
-                future = asyncio.ensure_future(self._async_close(event))
-                future.add_done_callback(lambda _: event.accept())  # 完成后接受关闭事件
-            else:
-                # 没有运行中的事件循环，创建新循环
-                loop.run_until_complete(self._async_close(event))
-                event.accept()
-        except Exception as e:
-            logger.error(f"关闭事件处理失败: {str(e)}", exc_info=True)
-            event.ignore()  # 出现异常时忽略关闭事件
-
-    # 异步关闭处理
-    async def _async_close(self, event: QCloseEvent):
-        """异步关闭处理"""
         try:
             # 1. 设置关闭标志
             self._is_closing = True
             
-            # 2. 保存当前UI配置到INI
+            # 2. 停止并清理验证器资源
+            if hasattr(self, 'validator'):
+                self.validator.cleanup()
+            
+            # 3. 同步保存当前配置
             self._save_config_sync()
             
-            # 3. 停止所有异步任务
-            tasks = []
-            if hasattr(self, 'scan_worker') and self.scan_worker:
-                tasks.append(self.scan_worker.cancel())
-            
-            # 4. 停止播放器 - 调用player的force_stop方法确保同步释放资源
-            if hasattr(self, 'player') and self.player:
-                try:
-                    self.player.force_stop()
-                except Exception as e:
-                    logger.warning(f"停止播放器失败: {str(e)}")
-            
-            if hasattr(self, 'match_worker') and self.match_worker:
-                tasks.append(self.match_worker.cancel())
-                
-            # 5. 停止所有子组件
-            stop_tasks = []
-            if hasattr(self, 'scanner') and self.scanner:
-                stop_tasks.append(self.scanner.stop_scan())
-            if hasattr(self, 'validator') and self.validator:
-                try:
-                    await asyncio.wait_for(self.validator.stop_validation(), timeout=3)
-                    for proc in self.validator._active_processes[:]:
-                        if proc.returncode is None:
-                            try:
-                                proc.kill()
-                            except ProcessLookupError:
-                                pass
-                    self.validator._active_processes.clear()
-                except Exception:
-                    for proc in self.validator._active_processes[:]:
-                        if proc.returncode is None:
-                            try:
-                                proc.kill()
-                            except ProcessLookupError:
-                                pass
-                    self.validator._active_processes.clear()
-            
-            # 6. 等待所有任务完成(带超时)
-            if tasks or stop_tasks:
-                await asyncio.wait_for(asyncio.gather(*tasks, *stop_tasks), timeout=2.0)
-            
-            # 7. 检查是否需要保存播放列表
+            # 4. 检查是否需要保存播放列表
             if self.playlist_source == 'file' and self.model.channels:
-                reply = await qasync.QtAsyncio.asyncExec(QMessageBox.question)(
+                reply = QMessageBox.question(
                     self,
                     '保存修改',
                     '是否保存对播放列表的修改？',
@@ -1508,24 +1450,22 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.save_playlist()
                 elif reply == QMessageBox.StandardButton.Cancel:
                     event.ignore()
-                    return
+                    return None  # 明确返回None
             
-            # 8. 保存窗口布局
+            # 5. 保存窗口布局
             self._save_splitter_sizes()
             
-            # 9. 清理资源
-            if hasattr(self, 'scanner') and self.scanner:
-                await self.scanner.cleanup()
-            
-            # 10. 执行父类关闭事件
+            # 6. 执行父类关闭事件
             super().closeEvent(event)
             
-            # 11. 确保事件循环停止
-            if hasattr(self, '_event_loop'):
-                self._event_loop.stop()
+            # 7. 接受关闭事件
+            event.accept()
+            return None  # 明确返回None
+            
         except Exception as e:
-            logger.error(f"关闭异常: {str(e)}")
+            logger.error(f"关闭异常: {str(e)}", exc_info=True)
             event.ignore()
+
 
     # 更新验证进度
     @pyqtSlot(int, str)
@@ -1724,7 +1664,7 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             logger.error(f"保存配置失败: {str(e)}", exc_info=True)
 
-    # 统一错误和状态处理方法
+    # 显示错误对话框
     @pyqtSlot(str)
     def show_error(self, msg: str) -> None:
         """显示错误对话框"""

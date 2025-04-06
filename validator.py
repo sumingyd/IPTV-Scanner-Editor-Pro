@@ -293,7 +293,13 @@ class StreamValidator(QObject):
             # 终止所有进程
             for proc in self._active_processes[:]:
                 if proc.returncode is None:
-                    proc.terminate()
+                    try:
+                        proc.terminate()
+                        await asyncio.wait_for(proc.wait(), timeout=1)
+                        if proc.returncode is None:
+                            proc.kill()
+                    except:
+                        pass
             await asyncio.sleep(0.5)
             
             # 清理资源
@@ -305,3 +311,18 @@ class StreamValidator(QObject):
             self.validation_finished.emit({'valid': [], 'invalid': [], 'total': 0})
         except Exception as e:
             logger.error(f"停止验证出错: {str(e)}")
+
+    # 窗口关闭时清理资源
+    def cleanup(self):
+        """窗口关闭时清理资源"""
+        if self._is_running:
+            asyncio.create_task(self.stop_validation())
+        
+        # 强制终止任何剩余进程
+        for proc in self._active_processes[:]:
+            if proc.returncode is None:
+                try:
+                    proc.kill()
+                except:
+                    pass
+        self._active_processes.clear()

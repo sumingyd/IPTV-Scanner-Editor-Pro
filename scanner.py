@@ -243,8 +243,11 @@ class StreamScanner(QObject):
     async def _check_ffprobe(self) -> None:
         """检查ffprobe是否可用"""
         try:
+            ffprobe_path = self._find_ffprobe()
+            logger.debug(f"检查ffprobe可用性，路径: {ffprobe_path}")
+            
             proc = await asyncio.create_subprocess_exec(
-                'ffprobe', '-version',
+                ffprobe_path, '-version',
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 creationflags=subprocess.CREATE_NO_WINDOW
@@ -252,6 +255,7 @@ class StreamScanner(QObject):
             await proc.wait()
             self._ffprobe_available = proc.returncode == 0
             if not self._ffprobe_available:
+                logger.error(f"ffprobe不可用，路径: {ffprobe_path}, 返回码: {proc.returncode}")
                 self.ffprobe_missing.emit()
         except Exception as e:
             logger.warning(f"ffprobe检查失败: {str(e)}")
@@ -260,6 +264,10 @@ class StreamScanner(QObject):
 
     def _find_ffprobe(self) -> str:
         """查找ffprobe路径"""
+        logger.debug(f"使用ffprobe路径: {self._ffprobe_path}")
+        if not Path(self._ffprobe_path).exists():
+            logger.error(f"ffprobe文件不存在: {self._ffprobe_path}")
+            self.ffprobe_missing.emit()
         return self._ffprobe_path
 
     def stop_scan(self) -> None:
@@ -326,4 +334,4 @@ class StreamScanner(QObject):
 
     async def cleanup(self) -> None:
         """清理资源"""
-        await self._stop_scanning()
+        return await self._stop_scanning()

@@ -160,6 +160,7 @@ class VLCPlayer(QtWidgets.QWidget):
                 if self.media_player.play() == -1:
                     raise RuntimeError("播放失败")
                     
+                self._current_task = asyncio.current_task()
                 if await self._wait_for_playback():
                     return True
             except Exception as e:
@@ -349,7 +350,10 @@ class VLCPlayer(QtWidgets.QWidget):
         self._is_closing = True
         # 取消所有异步任务
         if hasattr(self, '_current_task') and self._current_task and not self._current_task.done():
-            self._current_task.cancel()
+            try:
+                self._current_task.cancel()
+            except Exception as e:
+                logger.warning(f"取消播放任务失败: {str(e)}")
         # 同步释放资源
         try:
             self.force_stop()
