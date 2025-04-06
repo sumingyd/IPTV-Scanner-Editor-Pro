@@ -1019,25 +1019,45 @@ class MainWindow(QtWidgets.QMainWindow):
             asyncio.create_task(self.safe_play(url))
 
     # 安全播放包装器
-    async def safe_play(self, url: str) -> None: 
+    async def safe_play(self, url: str) -> None:
         """安全播放包装器"""
         try:
-            # 取消旧任务
-            if hasattr(self, 'play_worker') and self.play_worker and not self.play_worker.is_finished():
-                self.play_worker.cancel()
+            # 确保只有一个播放任务运行
+            if hasattr(self, '_play_lock') and self._play_lock.locked():
+                return
                 
-            # 确保播放器已初始化
-            if not hasattr(self, 'player') or not self.player:
-                self.player = VLCPlayer()
+            if not hasattr(self, '_play_lock'):
+                self._play_lock = asyncio.Lock()
                 
-            # 创建新任务
-            self.play_worker = AsyncWorker(self.player.async_play(url))
-            self.play_worker.finished.connect(lambda: self.handle_success("播放成功", "play"))
-            self.play_worker.error.connect(lambda error: self.handle_error(error, "play"))
-            await self.play_worker.run()
-            
-            # 手动触发状态更新
-            self._handle_player_state("播放中")
+            async with self._play_lock:
+                # 取消旧任务
+                if hasattr(self, 'play_worker') and self.play_worker:
+                    try:
+                        await self.play_worker.cancel()
+                    except Exception as e:
+                        logger.warning(f"取消旧播放任务失败: {str(e)}")
+                
+                # 确保播放器已初始化
+                if not hasattr(self, 'player') or not self.player:
+                    self.player = VLCPlayer()
+                
+                # 创建新任务
+                play_task = self.player.async_play(url)
+                if play_task is None:
+                    raise ValueError("播放任务创建失败")
+                
+                self.play_worker = AsyncWorker(play_task)
+                self.play_worker.finished.connect(lambda: self.handle_success("播放成功", "play"))
+                self.play_worker.error.connect(lambda error: self.handle_error(error, "play"))
+                
+                try:
+                    await self.play_worker.run()
+                    self._handle_player_state("播放中")
+                except asyncio.CancelledError:
+                    logger.info("播放任务被取消")
+                except Exception as e:
+                    logger.error(f"播放失败: {str(e)}")
+                    raise
         except Exception as e:
             self.show_error(f"播放失败: {str(e)}")
 
@@ -1669,10 +1689,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 if hasattr(self.epg_manager, 'backup_urls'):
                     self.config.config['EPG']['backup_urls'] = ','.join(self.epg_manager.backup_urls)
             
-            # 保存频道列表状态
-            if hasattr(self, 'model') and self.model.channels:
-                self.config.config['ChannelList']['last_count'] = str(len(self.model.channels))
-                self.config.config['ChannelList']['last_valid'] = str(sum(1 for c in self.model.channels if c.get('valid', False)))
+            # 保存频道列表状态 (已移除对ChannelList的保存)
+            pass
             
             # 保存分隔条位置（仅在分隔条已初始化且有内容时保存）
             if (hasattr(self, 'left_splitter') and hasattr(self, 'right_splitter') and
