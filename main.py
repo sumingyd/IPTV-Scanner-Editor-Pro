@@ -1661,22 +1661,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self.config.config['Player']['hardware_accel'] = self.player.hw_accel
             self.config.config['Player']['volume'] = str(self.volume_slider.value())
             
-            # 保存EPG配置（带详细日志）
+            # 保存EPG配置
             if hasattr(self, 'epg_manager'):
-                logger.debug(f"开始保存EPG配置，epg_manager类型: {type(self.epg_manager)}")
                 if hasattr(self.epg_manager, 'main_url'):
-                    logger.debug(f"保存main_url: {self.epg_manager.main_url}")
                     self.config.config['EPG']['main_url'] = self.epg_manager.main_url
-                    logger.info(f"EPG主URL已保存: {self.epg_manager.main_url}")
-                else:
-                    logger.warning("epg_manager没有main_url属性")
                 
                 if hasattr(self.epg_manager, 'backup_urls'):
-                    logger.debug(f"保存backup_urls: {self.epg_manager.backup_urls}")
                     self.config.config['EPG']['backup_urls'] = ','.join(self.epg_manager.backup_urls)
-                    logger.info(f"EPG备用URL已保存: {self.epg_manager.backup_urls}")
-                else:
-                    logger.warning("epg_manager没有backup_urls属性")
             
             # 保存频道列表状态
             if hasattr(self, 'model') and self.model.channels:
@@ -1692,10 +1683,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.config.config['UserPrefs']['splitter_sizes'] = json.dumps([left_sizes, right_sizes])
             
             self.config.save_prefs()
-            logger.info("配置已保存 - 窗口几何: %s, 扫描配置: %s, 播放器配置: %s",
-                       self.saveGeometry().toHex().data().decode()[:20] + "...",
-                       f"address={self.ip_range_input.text()}, timeout={self.timeout_input.value()}",
-                       f"hw_accel={self.player.hw_accel}, volume={self.volume_slider.value()}")
+            logger.debug("配置已保存")
         except Exception as e:
             logger.error(f"保存配置失败: {str(e)}", exc_info=True)
 
