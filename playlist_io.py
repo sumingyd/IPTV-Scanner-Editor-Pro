@@ -12,6 +12,8 @@ from epg_manager import EPGManager
 logger = setup_logger('PlaylistIO')
 
 class PlaylistParser:
+
+    # 解析增强型TXT格式
     @staticmethod
     def parse_txt(content: str) -> List[Dict]:
         """解析增强型TXT格式
@@ -57,6 +59,7 @@ class PlaylistParser:
         
         return channels
 
+    # 解析增强型M3U格式
     @staticmethod
     def parse_m3u(content: str) -> List[Dict]:
         """解析增强型M3U格式
@@ -110,10 +113,12 @@ class PlaylistParser:
         return channels
 
 class PlaylistConverter:
+    # 初始化
     def __init__(self, epg_manager):
         self.epg = epg_manager
         self._cache = {}  # 频道信息缓存
 
+    # 获取EPG信息并缓存
     def _get_epg_info(self, channel_name: str) -> Dict:
         """获取EPG信息并缓存"""
         if channel_name not in self._cache:
@@ -127,6 +132,7 @@ class PlaylistConverter:
                 }
         return self._cache[channel_name]
 
+    # 转换到标准M3U格式
     def txt_to_m3u(self, channels: List[Dict]) -> str:
         """转换到标准M3U格式"""
         header = (
@@ -166,6 +172,7 @@ class PlaylistConverter:
         return header.format(epg_url=self.epg.epg_sources['main']) + '\n'.join(entries)
 
 class PlaylistHandler:
+    # 播放列表处理器
     def __init__(self):
         """播放列表处理器
         功能:
@@ -174,6 +181,7 @@ class PlaylistHandler:
         self.parser = PlaylistParser()
         self.converter = PlaylistConverter(EPGManager())
 
+    # 保存播放列表到文件
     def save_playlist(self, channels: List[Dict], path: str) -> bool:
         """保存播放列表到文件
         参数:
@@ -226,6 +234,7 @@ class PlaylistHandler:
             logger.exception(f"保存播放列表失败: {e}")
         return False
 
+    # 生成文件内容
     def _generate_content(self, ext: str, channels: List[Dict]) -> str:
         """生成文件内容"""
         ext = ext.lower()
@@ -236,20 +245,7 @@ class PlaylistHandler:
         else:
             raise ValueError(f"不支持的格式: {ext}")
 
-    def update_scan_address(self, address: str) -> None:
-        """更新扫描地址
-        参数:
-            address: 扫描地址字符串
-        """
-        pass  # 配置统一由main.py管理
-
-    def get_scan_address(self) -> str:
-        """获取扫描地址
-        返回:
-            str: 空字符串(配置统一由main.py管理)
-        """
-        return ''
-
+    # 生成简化TXT格式内容
     def _format_txt(self, channels: List[Dict]) -> str:
         """生成简化TXT格式内容
         参数:

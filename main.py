@@ -1,15 +1,13 @@
 # ================= 标准库导入 =================
+from copy import deepcopy
 import os
 import asyncio
 import datetime
-import platform
 import sys
 import json
-import re
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 import aiohttp
-from copy import deepcopy
 
 # ================= 第三方库导入 =================
 from PyQt6 import QtCore, QtGui, QtWidgets
@@ -117,7 +115,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scanner.ffprobe_missing.connect(self.show_ffprobe_warning)
         self.validator.progress_updated.connect(self.update_validation_progress)
         self.validator.validation_finished.connect(self.on_validation_finished)
-        self.validator.error_occurred.connect(self.show_error)
+        self.validator.error_occurred.connect(lambda msg: self.handle_error(Exception(msg), "validate"))
         self.validator.channel_validated.connect(self.on_channel_validated)
             
         # 异步任务跟踪
@@ -138,6 +136,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.player.state_changed.connect(self._handle_player_state)
         self.name_edit.installEventFilter(self)
 
+    # 显示ffprobe缺失警
     def show_ffprobe_warning(self):
         """显示ffprobe缺失警告"""
         QMessageBox.warning(
@@ -150,6 +149,7 @@ class MainWindow(QtWidgets.QMainWindow):
             "下载地址: https://ffmpeg.org"
         )
 
+    # 异步显示警告对话框
     async def _async_show_warning(self, title: str, message: str) -> None:
         """异步显示警告对话框"""
         # 使用QMessageBox显示警告
@@ -795,7 +795,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # 扫描控制切换
     @pyqtSlot()
-    def toggle_scan(self) -> None:
+    async def toggle_scan(self) -> None:
         """切换扫描状态"""
         try:
             ip_range = self.ip_range_input.text().strip()
@@ -805,53 +805,69 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.scan_btn.setText("完整扫描")
                 self.scan_btn.setStyleSheet(AppStyles.button_style())
                 self.statusBar().showMessage("扫描已停止")
-            else:
-                if not ip_range:
-                    self.show_error("请输入有效的频道地址")
-                    return
+                return
+
+            if not ip_range:
+                self.show_error("请输入有效的频道地址")
+                return
+                
+            # 清空现有频道列表
+            self.model.channels.clear()
+            self.model.layoutChanged.emit()
+            self.playlist_source = 'scan'  # 设置播放列表来源为扫描
+
+            # 显示扫描开始信息
+            timeout = self.timeout_input.value()
+            thread_count = self.thread_count_input.value()
+            self.statusBar().showMessage(
+                f"开始扫描: {ip_range} (超时: {timeout}秒, 线程数: {thread_count})"
+            )
+
+            # 设置超时时间（从用户输入中获取）
+            timeout = self.timeout_input.value()
+            self.scanner.set_timeout(timeout)
+
+            # 设置线程数（从用户输入中获取）
+            thread_count = self.thread_count_input.value()
+            self.scanner.set_thread_count(thread_count)
+
+            # 设置User-Agent和Referer
+            user_agent = self.user_agent_input.text().strip()
+            if user_agent:
+                self.scanner.set_user_agent(user_agent)
+            
+            referer = self.referer_input.text().strip()
+            if referer:
+                self.scanner.set_referer(referer)
+
+            # 创建扫描任务并包装为协程
+            async def scan_wrapper():
+                return await self.scanner.toggle_scan(ip_range)
+                
+            self.scan_worker = AsyncWorker(scan_wrapper())
+            self.scan_worker.finished.connect(lambda task: self._handle_scan_task(task))
+            self.scan_worker.error.connect(lambda error: self.handle_error(error, "scan"))
+            self.scan_worker.cancelled.connect(lambda: self.handle_cancel("scan"))
+            
+            # 启动扫描任务
+            asyncio.create_task(self.scan_worker.run())
+                
+            # 更新按钮状态
+            self.scan_btn.setText("停止扫描")
+            self.scan_btn.setStyleSheet(AppStyles.button_style(active=True))
+            
+            # 添加超时监控
+            async def monitor_timeout():
+                await asyncio.sleep(timeout + 5)  # 比设置的超时时间稍长
+                if hasattr(self.scanner, '_is_scanning') and self.scanner._is_scanning:
+                    self.show_error("扫描超时，请检查网络连接")
+                    self.scanner.stop_scan()
                     
-
-                # 清空现有频道列表
-                self.model.channels.clear()
-                self.model.layoutChanged.emit()
-                self.playlist_source = 'scan'  # 设置播放列表来源为扫描
-
-                # 显示扫描开始信息
-                timeout = self.timeout_input.value()
-                thread_count = self.thread_count_input.value()
-                self.statusBar().showMessage(
-                    f"开始扫描: {ip_range} (超时: {timeout}秒, 线程数: {thread_count})"
-                )
-
-                # 设置超时时间（从用户输入中获取）
-                timeout = self.timeout_input.value()
-                self.scanner.set_timeout(timeout)
-
-                # 设置线程数（从用户输入中获取）
-                thread_count = self.thread_count_input.value()
-                self.scanner.set_thread_count(thread_count)
-
-                # 设置User-Agent和Referer
-                user_agent = self.user_agent_input.text().strip()
-                if user_agent:
-                    self.scanner.set_user_agent(user_agent)
-                
-                referer = self.referer_input.text().strip()
-                if referer:
-                    self.scanner.set_referer(referer)
-
-                # 确保传入的是一个协程
-                self.scan_worker = AsyncWorker(self.scanner.toggle_scan(ip_range))
-                self.scan_worker.finished.connect(self.handle_scan_success)
-                self.scan_worker.error.connect(self.handle_scan_error)
-                self.scan_worker.cancelled.connect(self.handle_scan_cancel)
-                asyncio.create_task(self.scan_worker.run())
-                
-                # 更新按钮状态
-                self.scan_btn.setText("停止扫描")
-                self.scan_btn.setStyleSheet(AppStyles.button_style(active=True))
+            asyncio.create_task(monitor_timeout())
+            
         except Exception as e:
             self.show_error(f"扫描控制错误: {str(e)}")
+            logger.error(f"扫描控制错误: {str(e)}", exc_info=True)
             self.scan_btn.setText("完整扫描")
             self.scan_btn.setStyleSheet(AppStyles.button_style())
 
@@ -911,6 +927,14 @@ class MainWindow(QtWidgets.QMainWindow):
     @pyqtSlot(dict)
     def handle_scan_results(self, result: Dict) -> None: 
         """处理最终扫描结果"""
+        if result is None:
+            self.show_error("扫描失败: 未返回有效结果")
+            self.scan_btn.setText("完整扫描")
+            self.scan_btn.setStyleSheet(AppStyles.button_style())
+            self.statusBar().showMessage("扫描失败: 未返回有效结果")
+            logger.error("扫描失败: 扫描器返回None结果")
+            return
+            
         channels = result['channels']
         total = result['total']
         invalid = result['invalid']
@@ -968,8 +992,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 
             # 创建新任务
             self.play_worker = AsyncWorker(self.player.async_play(url))
-            self.play_worker.finished.connect(self.handle_play_success)
-            self.play_worker.error.connect(self.handle_play_error)
+            self.play_worker.finished.connect(lambda: self.handle_success("播放成功", "play"))
+            self.play_worker.error.connect(lambda error: self.handle_error(error, "play"))
             await self.play_worker.run()
             
             # 手动触发状态更新
@@ -991,7 +1015,6 @@ class MainWindow(QtWidgets.QMainWindow):
     async def stop_play(self): 
         """统一调用播放器的停止方法"""
         await self.safe_stop()
-
 
     # 隐藏无效频道
     async def hide_invalid_channels(self):
@@ -1144,17 +1167,17 @@ class MainWindow(QtWidgets.QMainWindow):
         # 强制立即处理事件队列
         QtWidgets.QApplication.processEvents()
 
-    # 异步加载 EPG 数据
+    # 异步加载 EPG 数据-用户界面入口
     @pyqtSlot()
     def load_epg_cache(self) -> None: 
         """异步加载 EPG 数据"""
         self.epg_progress_updated.emit("正在加载 EPG 数据...")
         self.scan_worker = AsyncWorker(self._async_load_epg())
         self.scan_worker.finished.connect(self.handle_epg_load_success)
-        self.scan_worker.error.connect(self.handle_epg_load_error)
+        self.scan_worker.error.connect(lambda error: self.handle_error(error, "epg"))
         self.scan_worker.start()
 
-    # 异步加载 EPG 数据
+    # 异步加载 EPG 数据-实际执行异步加载的内部方法
     async def _async_load_epg(self) -> None: 
         """异步加载 EPG 数据"""
         try:
@@ -1304,8 +1327,9 @@ class MainWindow(QtWidgets.QMainWindow):
                     logger.warning("没有保存的分隔条位置")
                     return
                     
-                left_sizes = self.config_file['splitter_sizes'][0]
-                right_sizes = self.config_file['splitter_sizes'][1]
+                sizes = json.loads(self.config.config.get('UserPrefs', 'splitter_sizes', fallback='[]'))
+                left_sizes = sizes[0]
+                right_sizes = sizes[1]
             
                 # 验证尺寸数据
                 if len(left_sizes) == 2 and len(right_sizes) == 2:
@@ -1321,6 +1345,7 @@ class MainWindow(QtWidgets.QMainWindow):
         QtCore.QTimer.singleShot(500, restore_splitter_sizes)
         super().showEvent(event)
 
+    # 异步关闭处
     async def _async_close(self, event: QCloseEvent):
         """异步关闭处理"""
         try:
@@ -1423,6 +1448,7 @@ class MainWindow(QtWidgets.QMainWindow):
             logger.error(f"关闭事件处理失败: {str(e)}", exc_info=True)
             event.ignore()  # 出现异常时忽略关闭事件
 
+    # 更新验证进度
     @pyqtSlot(int, str)
     def update_validation_progress(self, percent: int, msg: str):
         """更新验证进度"""
@@ -1441,6 +1467,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.btn_validate.setText("检测有效性")
             self.btn_validate.setStyleSheet(AppStyles.button_style())
 
+    # 切换有效性检测状态
     async def toggle_validation(self):
         """切换有效性检测状态"""
         if self.validator.is_running():
@@ -1469,6 +1496,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.btn_validate.setStyleSheet(AppStyles.button_style())
             self.btn_validate.setChecked(False)
 
+    # 处理单个频道的验证结果
     @pyqtSlot(dict)
     def on_channel_validated(self, result: dict):
         """处理单个频道的验证结果"""
@@ -1497,6 +1525,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.model.dataChanged.emit(index, index)
                 break
 
+    # 处理验证完成事件
     @pyqtSlot(dict)
     def on_validation_finished(self, result: dict):
         """处理验证完成事件"""
@@ -1530,7 +1559,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_validate.setStyleSheet(AppStyles.button_style())
         self.filter_status_label.setText(f"检测完成 - 有效: {valid_count}/{total}")
 
-    #加载用户配置
+    # 加载用户配置
     def load_config(self) -> None:
         """加载用户配置"""
         try:
@@ -1630,7 +1659,7 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             logger.error(f"保存配置失败: {str(e)}", exc_info=True)
 
-    # 显示错误对话框
+    # 统一错误和状态处理方法
     @pyqtSlot(str)
     def show_error(self, msg: str) -> None:
         """显示错误对话框"""
@@ -1642,145 +1671,136 @@ class MainWindow(QtWidgets.QMainWindow):
         """更新状态栏"""
         self.statusBar().showMessage(msg)
 
-    # 处理扫描成功结果（信号槽）
-    @pyqtSlot(object)
-    def handle_scan_success(self, result: Any) -> None:
-        elapsed = self.scanner.get_elapsed_time()
-        self.statusBar().showMessage(f"扫描完成，耗时 {elapsed:.1f} 秒")
+    # 统一处理成功结果
+    @pyqtSlot(str)
+    def handle_success(self, msg: str, action: str = "") -> None:
+        """统一处理成功操作（支持多类型）"""
+        status_map = {
+            "scan": f"扫描完成 - {msg}",
+            "play": "播放成功",
+            "match": "智能匹配完成"
+        }
+        
+        # 获取状态信息
+        final_msg = status_map.get(action, "操作成功")
+        
+        # 更新状态栏
+        self.statusBar().showMessage(final_msg)
+        
+        # 播放成功后额外操作
+        if action == "play":
+            self.pause_btn.setText("暂停")
+            self._handle_player_state("播放中")
+        
+        # 扫描成功后自动保存配置（可选）
+        if action == "scan":
+            self._save_config_sync()
 
-    # # 处理扫描错误（异常信号槽）
+    # 统一处理错误"
     @pyqtSlot(Exception)
-    def handle_scan_error(self, error: Exception) -> None:
-        self.show_error(f"扫描错误: {str(error)}")
+    def handle_error(self, error: Exception, action: str = "") -> None:
+        """增强版错误处理（带错误类型识别）"""
+        error_details = {
+            TimeoutError: {
+                "scan": "扫描超时，请检查网络或增加超时时间",
+                "play": "播放超时，流媒体服务器无响应"
+            },
+            ConnectionError: {
+                "scan": "无法连接到目标服务器",
+                "play": "播放连接失败"
+            },
+            json.JSONDecodeError: {
+                "epg": "EPG数据格式错误"
+            }
+        }
+        
+        # 获取基础错误信息
+        default_msg = f"{action}错误: {str(error)}" if action else f"错误: {str(error)}"
+        
+        # 尝试获取详细错误提示
+        error_type = type(error)
+        detail = error_details.get(error_type, {}).get(action, default_msg)
+        
+        # 显示错误
+        self.show_error(detail)
+        
+        # 特殊错误处理
+        if error_type == TimeoutError and action == "scan":
+            self.scan_btn.setText("重试扫描")
 
-    # 处理扫描取消信号（信号槽）
-    @pyqtSlot()
-    def handle_scan_cancel(self) -> None:
-        self.statusBar().showMessage("扫描已取消")
-
-    # 处理播放成功信号（信号槽） 
-    @pyqtSlot(object)
-    def handle_play_success(self, result: Any) -> None:
-        self.statusBar().showMessage("播放成功")
-
-    # 处理播放错误（异常信号槽）
-    @pyqtSlot(Exception)
-    def handle_play_error(self, error: Exception) -> None:
-        self.show_error(f"播放错误: {str(error)}")
-
-    # 显示扫描设置对话框
-    def show_scan_settings(self) -> None:
-        """显示扫描设置对话框"""
-        dialog = QtWidgets.QDialog(self)
-        dialog.setWindowTitle("扫描设置")
-        layout = QtWidgets.QVBoxLayout()
-
-        # 添加设置项
-        timeout_label = QtWidgets.QLabel("超时时间（秒）：")
-        self.timeout_input = QtWidgets.QSpinBox()
-        self.timeout_input.setRange(1, 60)
-        self.timeout_input.setValue(self.scanner._timeout)
-
-        layout.addWidget(timeout_label)
-        layout.addWidget(self.timeout_input)
-
-        # 保存按钮
-        save_btn = QtWidgets.QPushButton("保存")
-        save_btn.clicked.connect(lambda: self.save_scan_settings(dialog))
-        layout.addWidget(save_btn)
-
-        dialog.setLayout(layout)
-        dialog.exec()
-
-    # 保存扫描设置
-    def save_scan_settings(self, dialog: QtWidgets.QDialog) -> None:
-        """保存扫描设置"""
-        self.scanner._timeout = self.timeout_input.value()
-        dialog.close()
-        self.statusBar().showMessage("扫描设置已保存")
+    # 统一处理取消
+    @pyqtSlot(str)
+    def handle_cancel(self, action: str = "") -> None:
+        """统一处理取消操作"""
+        status_map = {
+            "scan": "扫描已取消",
+            "play": "播放已取消",
+            "validate": "验证已取消"
+        }
+        message = status_map.get(action, "操作已取消")
+        self.statusBar().showMessage(message)
+        # 恢复相关按钮状态
+        if action == "scan":
+            self.scan_btn.setText("完整扫描")
+            self.scan_btn.setStyleSheet(AppStyles.button_style())
 
     # 管理 EPG 数据源
     def manage_epg(self) -> None:
         """管理 EPG 数据源"""
-        try:
-            dialog = QtWidgets.QDialog(self)
-            dialog.setWindowTitle("EPG 管理")
-            layout = QtWidgets.QVBoxLayout()
-
-            # 主源设置
-            main_source_label = QtWidgets.QLabel("主源 URL：")
-            main_source_input = QtWidgets.QLineEdit()
-            main_source_input.setText(self.config.config.get('EPG', 'main_url', fallback=''))
-
-            # 备用源设置
-            backup_sources_label = QtWidgets.QLabel("备用源 URL（多个用逗号分隔）：")
-            backup_sources_input = QtWidgets.QLineEdit()
-            backup_sources_input.setText(self.config.config.get('EPG', 'backup_urls', fallback=''))
-
-            # 缓存TTL设置
-            ttl_label = QtWidgets.QLabel("缓存有效期（秒）：")
-            ttl_input = QtWidgets.QSpinBox()
-            ttl_input.setRange(60, 86400)
-            ttl_input.setValue(self.config.config.getint('EPG', 'cache_ttl', fallback=3600))
-
-            # 保存按钮
-            save_btn = QtWidgets.QPushButton("保存")
-            def save_epg_settings():
-                self.config.config['EPG']['main_url'] = main_source_input.text()
-                self.config.config['EPG']['backup_urls'] = backup_sources_input.text()
-                self.config.config['EPG']['cache_ttl'] = str(ttl_input.value())
-                self.config.save_prefs()
-                dialog.close()
-                self.statusBar().showMessage("EPG 设置已保存")
-            save_btn.clicked.connect(save_epg_settings)
-
-            # 添加到布局
-            layout.addWidget(main_source_label)
-            layout.addWidget(main_source_input)
-            layout.addWidget(backup_sources_label)
-            layout.addWidget(backup_sources_input)
-            layout.addWidget(ttl_label)
-            layout.addWidget(ttl_input)
-            layout.addWidget(save_btn)
-
-            dialog.setLayout(layout)
-            dialog.exec()
-        except Exception as e:
-            logger.error(f"EPG管理错误: {str(e)}")
-            self.show_error(f"EPG管理错误: {str(e)}")
-
-
-
-    # 显示全局设置对话框
-    def show_settings(self) -> None:
-        """显示全局设置对话框"""
         dialog = QtWidgets.QDialog(self)
-        dialog.setWindowTitle("全局设置")
+        dialog.setWindowTitle("EPG 管理")
         layout = QtWidgets.QVBoxLayout()
 
-        # 添加硬件加速设置
-        hw_accel_label = QtWidgets.QLabel("硬件加速：")
-        self.hw_accel_combo = QtWidgets.QComboBox()
-        self.hw_accel_combo.addItems(['auto', 'd3d11va', 'vaapi', 'vdpau', 'none'])
-        self.hw_accel_combo.setCurrentText(self.player.hw_accel)
+        # 主源设置
+        main_source_label = QtWidgets.QLabel("主源 URL：")
+        main_source_input = QtWidgets.QLineEdit()
+        main_source_input.setText(self.config.config.get('EPG', 'main_url', fallback=''))
 
-        layout.addWidget(hw_accel_label)
-        layout.addWidget(self.hw_accel_combo)
+        # 备用源设置
+        backup_sources_label = QtWidgets.QLabel("备用源 URL（多个用逗号分隔）：")
+        backup_sources_input = QtWidgets.QLineEdit()
+        backup_sources_input.setText(self.config.config.get('EPG', 'backup_urls', fallback=''))
+
+        # 缓存TTL设置
+        ttl_label = QtWidgets.QLabel("缓存有效期（秒）：")
+        ttl_input = QtWidgets.QSpinBox()
+        ttl_input.setRange(60, 86400)
+        ttl_input.setValue(self.config.config.getint('EPG', 'cache_ttl', fallback=3600))
 
         # 保存按钮
         save_btn = QtWidgets.QPushButton("保存")
-        save_btn.clicked.connect(lambda: self.save_global_settings(dialog))
+        save_btn.clicked.connect(lambda: self._save_epg_settings(
+            main_source_input.text(),
+            backup_sources_input.text(),
+            ttl_input.value(),
+            dialog
+        ))
+
+        # 添加到布局
+        layout.addWidget(main_source_label)
+        layout.addWidget(main_source_input)
+        layout.addWidget(backup_sources_label)
+        layout.addWidget(backup_sources_input)
+        layout.addWidget(ttl_label)
+        layout.addWidget(ttl_input)
         layout.addWidget(save_btn)
 
         dialog.setLayout(layout)
         dialog.exec()
 
-    # 保存全局设置
-    def save_global_settings(self, dialog: QtWidgets.QDialog) -> None:
-        """保存全局设置"""
-        self.player.hw_accel = self.hw_accel_combo.currentText()
-        dialog.close()
-        self.statusBar().showMessage("全局设置已保存")
+    # 保存EPG设置
+    def _save_epg_settings(self, main_url: str, backup_urls: str, ttl: int, dialog: QtWidgets.QDialog) -> None:
+        """保存EPG设置"""
+        try:
+            self.config.config['EPG']['main_url'] = main_url
+            self.config.config['EPG']['backup_urls'] = backup_urls
+            self.config.config['EPG']['cache_ttl'] = str(ttl)
+            self.config.save_prefs()
+            dialog.close()
+            self.update_status("EPG 设置已保存")
+        except Exception as e:
+            logger.error(f"EPG管理错误: {str(e)}")
+            self.show_error(f"EPG管理错误: {str(e)}")
 
     # 设置音量
     def set_volume(self, volume: int) -> None:
@@ -1817,66 +1837,72 @@ class MainWindow(QtWidgets.QMainWindow):
     # +++ 新增方法：执行自动匹配 +++
     async def run_auto_match(self):
         """执行自动匹配任务"""
+        if not hasattr(self, 'old_playlist') or not self.old_playlist:
+            self.match_status.setText("请先加载旧列表")
+            return
+
         try:
-            if not hasattr(self, 'old_playlist') or not self.old_playlist:
-                self.match_status.setText("请先加载旧列表")
-                return
+            # 创建异步任务
+            self.match_worker = AsyncWorker(self._async_auto_match())
             
-            total = len(self.model.channels)
-            self.match_progress.setMaximum(total)
-            self.match_progress.setValue(0)
+            # 连接信号
+            self.match_worker.error.connect(lambda error: self.handle_error(error, "match"))
+            self.match_worker.finished.connect(lambda: self.handle_success("匹配完成", "match"))
             
-            for row in range(total):
-                try:
-                    chan = self.model.channels[row]
-                    
-                    # 1. 匹配旧列表
-                    if chan['url'] in self.old_playlist:
-                        old_chan = self.old_playlist[chan['url']]
-                        self._apply_match(row, old_chan, 'old')
-                    
-                    # 2. 匹配EPG
-                    if hasattr(self, 'epg_manager'):
-                        epg_names = self.epg_manager.match_channel_name(chan.get('name', ''))
-                        if epg_names:
-                            # 更新频道名称
-                            self.model.channels[row]['name'] = epg_names[0]
-                            self._apply_match(row, {'name': epg_names[0]}, 'epg')
-                    
-                    # 更新进度
-                    self.match_progress.setValue(row + 1)
-                    self.match_status.setText(f"匹配中: {row+1}/{total} ({(row+1)/total*100:.1f}%)")
-                    await asyncio.sleep(0.01)  # 释放事件循环
-                except asyncio.CancelledError:
-                    self.match_status.setText("匹配已取消")
-                    return
-                except Exception as e:
-                    logger.error(f"匹配第{row+1}行时出错: {str(e)}")
+            # 启动任务
+            await self.match_worker.run()
             
-            
-            matched_count = sum(1 for chan in self.model.channels if 'old_name' in chan or 'epg_name' in chan)
-            # 统计匹配结果
-            old_matched = sum(1 for chan in self.model.channels if 'old_name' in chan)
-            epg_matched = sum(1 for chan in self.model.channels if 'epg_name' in chan)
-            conflict_count = sum(1 for chan in self.model.channels 
-                                if 'old_name' in chan and 'epg_name' in chan 
-                                and chan['old_name'] != chan['epg_name'])
-            
-            stats = (f"✔ 匹配完成\n"
-                    f"• 共匹配 {matched_count}/{total} 个频道\n"
-                    f"• 旧列表匹配: {old_matched}\n"
-                    f"• EPG匹配: {epg_matched}\n"
-                    f"• 冲突: {conflict_count}")
-            
-            self.match_status.setText(stats)
-            self.match_status.setStyleSheet("color: #2196F3; font-weight: bold;")
-            if self.cb_auto_save.isChecked():
-                self.save_playlist()
         except asyncio.CancelledError:
             self.match_status.setText("匹配已取消")
         except Exception as e:
-            self.show_error(f"自动匹配失败: {str(e)}")
-            self.match_status.setText("匹配失败")
+            logger.error(f"匹配任务异常: {str(e)}")
+            self.match_status.setText("匹配启动失败")
+
+    # 实际执行匹配的异步方法
+    async def _async_auto_match(self):
+        """实际执行匹配的异步方法"""
+        total = len(self.model.channels)
+        self.match_progress.setMaximum(total)
+        
+        for row in range(total):
+            chan = self.model.channels[row]
+            
+            # 1. 匹配旧列表
+            if chan['url'] in self.old_playlist:
+                old_chan = self.old_playlist[chan['url']]
+                self._apply_match(row, old_chan, 'old')
+            
+            # 2. 匹配EPG
+            if hasattr(self, 'epg_manager'):
+                epg_names = self.epg_manager.match_channel_name(chan.get('name', ''))
+                if epg_names:
+                    self.model.channels[row]['name'] = epg_names[0]
+                    self._apply_match(row, {'name': epg_names[0]}, 'epg')
+            
+            # 更新进度
+            self.match_progress.setValue(row + 1)
+            self.match_status.setText(f"匹配中: {row+1}/{total} ({(row+1)/total*100:.1f}%)")
+            await asyncio.sleep(0.01)  # 释放事件循环
+        
+        # 统计结果
+        matched_count = sum(1 for chan in self.model.channels if 'old_name' in chan or 'epg_name' in chan)
+        old_matched = sum(1 for chan in self.model.channels if 'old_name' in chan)
+        epg_matched = sum(1 for chan in self.model.channels if 'epg_name' in chan)
+        conflict_count = sum(1 for chan in self.model.channels 
+                            if 'old_name' in chan and 'epg_name' in chan 
+                            and chan['old_name'] != chan['epg_name'])
+        
+        stats = (f"✔ 匹配完成\n"
+                f"• 共匹配 {matched_count}/{total} 个频道\n"
+                f"• 旧列表匹配: {old_matched}\n"
+                f"• EPG匹配: {epg_matched}\n"
+                f"• 冲突: {conflict_count}")
+        
+        self.match_status.setText(stats)
+        self.match_status.setStyleSheet("color: #2196F3; font-weight: bold;")
+        
+        if self.cb_auto_save.isChecked():
+            self.save_playlist()
 
     # +++ 新增方法：应用匹配结果 +++
     def _apply_match(self, row, data, source):

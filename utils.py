@@ -11,15 +11,18 @@ from itertools import product
 
 logger = logging.getLogger('Utils')
 
+# 配置系统
 class ConfigHandler:
     _instance = None
     
+    # 确保一个类 只有一个实例
     def __new__(cls):
         if not cls._instance:
             cls._instance = super().__new__(cls)
             cls._instance._initialize_config()
         return cls._instance
     
+    #   安全初始化配置
     def _initialize_config(self) -> None:
         """安全初始化配置
         1. 创建默认配置
@@ -68,6 +71,7 @@ class ConfigHandler:
                 }
             })
 
+    # 获取跨平台配置文件路径
     def get_config_path(self) -> Path:
         """获取跨平台配置文件路径
         返回:
@@ -115,6 +119,7 @@ class ConfigHandler:
             # 回退到临时目录
             return Path('/tmp/.iptv_manager.ini') if platform.system() != 'Windows' else Path('C:/Windows/Temp/.iptv_manager.ini')
 
+    # 迁移旧版本配置
     def _migrate_old_config(self) -> None:
         """迁移旧版本配置"""
         old_path = Path.home() / '.iptv_manager.ini'
@@ -126,6 +131,7 @@ class ConfigHandler:
             except Exception as e:
                 logger.warning(f"配置迁移失败: {str(e)}")
 
+    # 安全保存配置
     def save_prefs(self) -> None:
         """安全保存配置
         功能:
@@ -157,6 +163,7 @@ class ConfigHandler:
             logger.error(f"保存配置失败: {str(e)}")
             raise
 
+# 多级颜色日志格式化器
 class EnhancedFormatter(logging.Formatter):
     """多级颜色日志格式化器"""
     
@@ -174,6 +181,7 @@ class EnhancedFormatter(logging.Formatter):
         fmt = f"{color}[%(levelname)s] %(message)s{self.RESET}"
         return logging.Formatter(fmt).format(record)
 
+#聚合相似日志的处理器
 class AggregatedLogHandler(logging.Handler):
     """聚合相似日志的处理器"""
     def __init__(self, target_handler, threshold=5):
@@ -222,6 +230,7 @@ class AggregatedLogHandler(logging.Handler):
         self.log_cache.clear()
         self.last_flush = time.time()
 
+# 配置跨平台日志记录器
 def setup_logger(name: str, level=logging.INFO) -> logging.Logger:
     """配置跨平台日志记录器(增强版)
     参数:
@@ -231,6 +240,8 @@ def setup_logger(name: str, level=logging.INFO) -> logging.Logger:
         1. 支持日志级别控制
         2. 添加聚合日志功能
         3. 优化日志格式
+        4. 增加线程/进程ID信息
+        5. 支持性能监控
     """
     logger = logging.getLogger(name)
     logger.setLevel(level)
@@ -251,7 +262,7 @@ def setup_logger(name: str, level=logging.INFO) -> logging.Logger:
         encoding='utf-8'
     )
     file_formatter = logging.Formatter(
-        '%(asctime)s [%(levelname)s] %(name)s:%(lineno)d - %(message)s'
+        '%(asctime)s [%(levelname)s] %(name)s:%(lineno)d [%(process)d:%(thread)d] - %(message)s'
     )
     file_handler.setFormatter(file_formatter)
     
@@ -280,6 +291,36 @@ def setup_logger(name: str, level=logging.INFO) -> logging.Logger:
     
     return logger
 
+# 性能监控装饰器
+def log_performance(func):
+    """性能监控装饰器"""
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        logger = logging.getLogger('Performance')
+        try:
+            result = func(*args, **kwargs)
+            elapsed = (time.time() - start_time) * 1000  # 毫秒
+            logger.info(f"{func.__name__} 耗时: {elapsed:.2f}ms")
+            return result
+        except Exception as e:
+            elapsed = (time.time() - start_time) * 1000
+            logger.error(f"{func.__name__} 执行失败(耗时: {elapsed:.2f}ms): {str(e)}")
+            raise
+    return wrapper
+
+# 记录内存使用情况
+def log_memory_usage():
+    """记录内存使用情况"""
+    import psutil
+    process = psutil.Process()
+    mem_info = process.memory_info()
+    logger = logging.getLogger('Memory')
+    logger.debug(
+        f"内存使用: RSS={mem_info.rss/1024/1024:.2f}MB, "
+        f"VMS={mem_info.vms/1024/1024:.2f}MB"
+    )
+
+# 检测显卡信息（跨平台）
 def check_gpu_driver() -> Tuple[str, str]:
     """检测显卡信息（跨平台）"""
     try:
@@ -294,6 +335,7 @@ def check_gpu_driver() -> Tuple[str, str]:
         logging.error(f"显卡检测失败: {str(e)}")
         return ('error', str(e))
 
+# Windows系统检测
 def _check_gpu_windows() -> Tuple[str, str]:
     """Windows系统检测"""
     result = subprocess.run(
@@ -316,6 +358,7 @@ def _check_gpu_windows() -> Tuple[str, str]:
             return ('intel', line.strip())
     return ('unknown', '')
 
+# Linux系统检测
 def _check_gpu_linux() -> Tuple[str, str]:
     """Linux系统检测"""
     try:
@@ -348,6 +391,7 @@ def _check_gpu_linux() -> Tuple[str, str]:
             return ('intel', lspci)
         return ('unknown', lspci)
 
+# macOS系统检测
 def _check_gpu_mac() -> Tuple[str, str]:
     """macOS系统检测"""
     result = subprocess.run(
@@ -369,6 +413,7 @@ def _check_gpu_mac() -> Tuple[str, str]:
         return ('apple', info)
     return ('unknown', info)
 
+# 验证URL格式是否合法
 def is_valid_pattern(pattern: str) -> bool:
     """验证URL格式是否合法
     参数:
@@ -388,6 +433,7 @@ def is_valid_pattern(pattern: str) -> bool:
     regex = r'^https?://[^\s]+$'
     return re.match(regex, pattern) is not None
 
+# 解析IP/URL范围模式生成所有可能的URL组合
 def parse_ip_range(pattern: str) -> List[str]:
     """解析IP/URL范围模式生成所有可能的URL组合
     参数:
@@ -507,6 +553,7 @@ def parse_ip_range(pattern: str) -> List[str]:
     logger.debug(f"生成的URL示例: {result[:3]}... (共{len(result)}个)")
     return result
 
+# 过滤 VLC 媒体播放器 的日志信息
 class VlcWarningFilter(logging.Filter):
     def filter(self, record):
         msg = record.getMessage().lower()

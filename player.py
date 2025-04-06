@@ -38,6 +38,7 @@ class VLCInstanceManager:
                 raise
         return cls._instance
     
+    # 生成VLC启动参数
     @classmethod
     def _generate_vlc_args(cls) -> List[str]:
         """生成VLC启动参数
@@ -82,6 +83,7 @@ class VLCInstanceManager:
 class VLCPlayer(QtWidgets.QWidget):
     state_changed = pyqtSignal(str)
     
+    # 初始化
     def __init__(self, parent=None):
         super().__init__(parent)
         self.config = ConfigHandler()
@@ -93,6 +95,7 @@ class VLCPlayer(QtWidgets.QWidget):
         self._init_ui()
         self._setup_connections()
 
+    # 初始化VLC
     def _init_vlc(self):
         try:
             self.media_player = VLCInstanceManager.get_instance().media_player_new()
@@ -102,6 +105,7 @@ class VLCPlayer(QtWidgets.QWidget):
             logger.error(f"初始化失败: {str(e)}")
             self.state_changed.emit("初始化失败")
 
+    # 初始化UI
     def _init_ui(self):
         self.video_frame = QtWidgets.QFrame()
         self.video_frame.setStyleSheet("""
@@ -127,6 +131,7 @@ class VLCPlayer(QtWidgets.QWidget):
         layout.addWidget(self.video_frame)
         self.setLayout(layout)
 
+    # 绑定视频到窗口
     def _bind_video_window(self):
         if not self._is_active or not self.media_player:
             return
@@ -183,78 +188,52 @@ class VLCPlayer(QtWidgets.QWidget):
             logger.error(f"暂停失败: {str(e)}")
             self._init_vlc()
 
+    # 停止播放(异步方法)
     async def stop(self) -> None:
-        """停止播放(异步方法)
-        1. 检查当前是否正在播放
-        2. 如果未播放则直接返回
-        3. 如果正在播放则调用异步释放
-        """
-        try:
-            logger.debug(f"stop: 开始停止播放 (active={self._is_active})")
-            
-            if not self._is_active:
-                logger.debug("stop: 播放器未激活，无需停止")
-                return
-                
-            if not self.media_player:
-                logger.debug("stop: media_player为None")
-                self._is_active = False
-                self.state_changed.emit("播放已停止")
-                return
-                
-            try:
-                is_playing = self.media_player.is_playing()
-                logger.debug(f"stop: 当前播放状态 - is_playing={is_playing}")
-                
-                if not is_playing:
-                    logger.debug("stop: 当前没有播放内容，无需停止")
-                    self._is_active = False
-                    self.state_changed.emit("播放已停止")
-                    return
-                    
-                logger.debug("stop: 正在异步停止播放...")
-                await asyncio.wait_for(self._run_release_sync(), timeout=5.0)
-                self._is_active = False
-                self.state_changed.emit("播放已停止")
-            except asyncio.TimeoutError:
-                logger.warning("stop: 异步释放超时，强制停止")
-                self.force_stop()
-            except Exception as e:
-                logger.error(f"stop: 播放状态检查失败 - {str(e)}")
-                self.force_stop()
-        except Exception as e:
-            logger.error(f"stop: 方法异常 - {str(e)}")
-            self.force_stop()
-
-    def async_release(self):
-        """异步释放资源(调用同步释放的异步版本)"""
-        try:
-            logger.debug("async_release: 开始异步释放资源")
-            
-            if not self._is_active:
-                logger.debug("async_release: 播放器未激活")
-                return
-                
+        """停止播放(异步方法)"""
+        if not self._is_active or not self.media_player:
             self._is_active = False
+            self.state_changed.emit("播放已停止")
+            return
             
-            if not self.media_player:
-                logger.debug("async_release: media_player为None")
+        try:
+            if not self.media_player.is_playing():
+                self._is_active = False
                 self.state_changed.emit("播放已停止")
                 return
                 
-            try:
-                # 使用AsyncWorker管理同步释放任务
-                worker = AsyncWorker(self._release_sync)
-                worker.finished.connect(lambda: self.state_changed.emit("播放已停止"))
-                worker.error.connect(lambda e: logger.error(f"异步释放失败: {str(e)}"))
-                worker.start()
-            except Exception as e:
-                logger.error(f"async_release: 内部异常 - {str(e)}")
-                self.force_stop()
+            await asyncio.wait_for(self._run_release_sync(), timeout=5.0)
+            self._is_active = False
+            self.state_changed.emit("播放已停止")
+        except asyncio.TimeoutError:
+            logger.warning("异步释放超时，强制停止")
+            self.force_stop()
         except Exception as e:
-            logger.error(f"async_release: 方法异常 - {str(e)}")
+            logger.error(f"停止播放失败: {str(e)}")
             self.force_stop()
 
+    # 异步释放资源
+    def async_release(self):
+        """异步释放资源"""
+        if not self._is_active:
+            return
+            
+        self._is_active = False
+        
+        if not self.media_player:
+            self.state_changed.emit("播放已停止")
+            return
+            
+        try:
+            worker = AsyncWorker(self._release_sync)
+            worker.finished.connect(lambda: self.state_changed.emit("播放已停止"))
+            worker.error.connect(lambda e: logger.error(f"异步释放失败: {str(e)}"))
+            worker.start()
+        except Exception as e:
+            logger.error(f"异步释放异常: {str(e)}")
+            self.force_stop()
+
+    # 在异步上下文中运行同步释放
     async def _run_release_sync(self):
         """在异步上下文中运行同步释放"""
         loop = asyncio.get_event_loop()
@@ -264,7 +243,7 @@ class VLCPlayer(QtWidgets.QWidget):
             logger.error(f"_run_release_sync失败: {str(e)}")
             raise
         
-
+    # 强制停止播放(调用同步释放)
     def force_stop(self):
         """强制停止播放(调用同步释放)"""
         try:
@@ -282,6 +261,7 @@ class VLCPlayer(QtWidgets.QWidget):
             self.media_player = None
             self._is_active = False
 
+    # 初始化信号连接
     def _setup_connections(self):
         """初始化信号连接"""
         try:
@@ -292,11 +272,12 @@ class VLCPlayer(QtWidgets.QWidget):
         except Exception as e:
             pass
 
-    
+    # 初始化管理器
     def _init_managers(self):
         """初始化管理器（关键！）"""
         VLCInstanceManager.initialize(self.config)
 
+    # 设置音量
     def set_volume(self, volume: int) -> None:
         """设置音量 (0-100)"""
         try:
@@ -308,18 +289,22 @@ class VLCPlayer(QtWidgets.QWidget):
             logger.error(f"音量设置失败: {str(e)}")
             raise
 
+    # 播放事件处理
     def _on_play(self, event):
         """播放事件处理"""
         self.state_changed.emit("正在播放...")
 
+    # 暂停事件处理
     def _on_pause(self, event):
         """暂停事件处理"""
         self.state_changed.emit("播放已暂停")
 
+    # 停止事件处理
     def _on_stop(self, event):
         """停止事件处理"""
         self.state_changed.emit("播放停止")
 
+    # 资源清理
     def __del__(self):
         """资源清理（调用同步释放）"""
         try:
@@ -328,56 +313,21 @@ class VLCPlayer(QtWidgets.QWidget):
         except Exception as e:
             logger.error(f"资源清理失败: {str(e)}")
 
+    # 同步释放资源
     def _release_sync(self):
-        """同步释放资源（用于关闭事件）"""
-        max_attempts = 3
-        for attempt in range(max_attempts):
-            try:
-                if self.media_player:
-                    # 先停止播放
-                    try:
-                        self.media_player.stop()
-                    except Exception as e:
-                        logger.debug(f"停止播放失败(尝试 {attempt+1}): {str(e)}")
-
-                    # 释放媒体资源
-                    media = self.media_player.get_media()
-                    if media:
-                        try:
-                            media.release()
-                        except Exception as e:
-                            logger.debug(f"媒体释放异常(尝试 {attempt+1}): {str(e)}")
-                    
-                    # 释放播放器
-                    try:
-                        self.media_player.release()
-                        if attempt == max_attempts - 1:
-                            logger.warning(f"资源释放不完全，已尝试{max_attempts}次")
-                    except Exception as e:
-                        logger.debug(f"播放器释放异常(尝试 {attempt+1}): {str(e)}")
-                
-                # 释放VLC实例
-                if hasattr(self, 'instance') and self.instance:
-                    try:
-                        self.instance.release()
-                    except Exception as e:
-                        logger.debug(f"实例释放异常(尝试 {attempt+1}): {str(e)}")
-                
-                # 检查是否完全释放
-                if attempt < max_attempts - 1 and (
-                    (self.media_player and not hasattr(self.media_player, 'is_released')) or
-                    (hasattr(self.media_player, 'is_released') and not self.media_player.is_released())
-                ):
-                    logger.debug(f"资源未完全释放，准备重试(尝试 {attempt+1})")
-                    continue
-                else:
-                    break
-                    
-            except Exception as e:
-                logger.error(f"同步释放失败(尝试 {attempt+1}): {str(e)}")
-                if attempt == max_attempts - 1:
-                    logger.error("资源释放最终失败")
-            finally:
-                self.media_player = None
-                if hasattr(self, 'instance'):
-                    self.instance = None
+        """同步释放资源"""
+        if not self.media_player:
+            return
+            
+        try:
+            self.media_player.stop()
+            media = self.media_player.get_media()
+            if media:
+                media.release()
+            self.media_player.release()
+        except Exception as e:
+            logger.error(f"资源释放失败: {str(e)}")
+        finally:
+            self.media_player = None
+            if hasattr(self, 'instance'):
+                self.instance = None
