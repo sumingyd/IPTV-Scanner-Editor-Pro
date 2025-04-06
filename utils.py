@@ -41,7 +41,7 @@ class ConfigHandler:
             'Player': {},
             'Scanner': {},
             'EPG': {
-                'main_url': 'https://epg.pw/xmltv/epg_CN.xml',
+                'main_url': '',
                 'cache_ttl': '3600'
             },
             'UserPrefs': {}
