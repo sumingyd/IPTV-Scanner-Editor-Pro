@@ -1498,7 +1498,7 @@ class MainWindow(QtWidgets.QMainWindow):
             
             # 9. 清理资源
             if hasattr(self, 'scanner') and self.scanner:
-                await self.scanner.cleanup()
+                await (await self.scanner.cleanup())
             
             # 10. 执行父类关闭事件
             super().closeEvent(event)
