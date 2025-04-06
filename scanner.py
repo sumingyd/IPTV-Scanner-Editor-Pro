@@ -35,6 +35,17 @@ class StreamScanner(QObject):
         self._referer = None
         self._active_tasks = set()
         self._active_processes = set()
+        
+        # 初始化ffprobe路径，与validator.py保持一致
+        from utils import ConfigHandler
+        import os
+        import sys
+        if getattr(sys, 'frozen', False):
+            self._ffprobe_path = os.path.join(sys._MEIPASS, 'ffmpeg', 'bin', 'ffprobe.exe')
+        else:
+            config = ConfigHandler()
+            self._ffprobe_path = config.config.get('Scanner', 'ffprobe_path', 
+                            fallback=os.path.join(os.path.dirname(__file__), '..', 'ffmpeg', 'bin', 'ffprobe.exe'))
 
     def set_timeout(self, timeout: int) -> None:
         self._timeout = timeout
@@ -249,47 +260,7 @@ class StreamScanner(QObject):
 
     def _find_ffprobe(self) -> str:
         """查找ffprobe路径"""
-        from utils import ConfigHandler
-        import os
-        import sys
-        
-        # 打包环境下优先使用sys._MEIPASS路径
-        if getattr(sys, 'frozen', False):
-            ffprobe_path = os.path.join(sys._MEIPASS, 'ffmpeg', 'bin', 'ffprobe.exe')
-            if os.path.exists(ffprobe_path):
-                return ffprobe_path
-        
-        # 开发环境下从配置读取或使用相对路径
-        config = ConfigHandler()
-        ffprobe_path = config.config.get('Scanner', 'ffprobe_path', 
-                        fallback=os.path.join(os.path.dirname(__file__), '..', 'ffmpeg', 'bin', 'ffprobe.exe'))
-        
-        # 检查路径是否存在
-        if os.path.exists(ffprobe_path):
-            return ffprobe_path
-            
-        # 备用路径检查
-        paths = [
-            ffprobe_path,
-            'ffprobe',
-            'ffprobe.exe',
-            str(Path(__file__).parent / 'ffmpeg' / 'bin' / 'ffprobe.exe')
-        ]
-        
-        for path in paths:
-            try:
-                subprocess.run([path, '-version'],
-                             stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL,
-                             timeout=1,
-                             creationflags=subprocess.CREATE_NO_WINDOW)
-                return path
-            except:
-                continue
-                
-        # 最后尝试系统PATH
-        self.ffprobe_missing.emit()
-        return 'ffprobe'
+        return self._ffprobe_path
 
     def stop_scan(self) -> None:
         """停止扫描"""
