@@ -249,11 +249,33 @@ class StreamScanner(QObject):
 
     def _find_ffprobe(self) -> str:
         """查找ffprobe路径"""
+        from utils import ConfigHandler
+        import os
+        import sys
+        
+        # 打包环境下优先使用sys._MEIPASS路径
+        if getattr(sys, 'frozen', False):
+            ffprobe_path = os.path.join(sys._MEIPASS, 'ffmpeg', 'bin', 'ffprobe.exe')
+            if os.path.exists(ffprobe_path):
+                return ffprobe_path
+        
+        # 开发环境下从配置读取或使用相对路径
+        config = ConfigHandler()
+        ffprobe_path = config.config.get('Scanner', 'ffprobe_path', 
+                        fallback=os.path.join(os.path.dirname(__file__), '..', 'ffmpeg', 'bin', 'ffprobe.exe'))
+        
+        # 检查路径是否存在
+        if os.path.exists(ffprobe_path):
+            return ffprobe_path
+            
+        # 备用路径检查
         paths = [
+            ffprobe_path,
             'ffprobe',
             'ffprobe.exe',
             str(Path(__file__).parent / 'ffmpeg' / 'bin' / 'ffprobe.exe')
         ]
+        
         for path in paths:
             try:
                 subprocess.run([path, '-version'],
@@ -264,7 +286,10 @@ class StreamScanner(QObject):
                 return path
             except:
                 continue
-        return 'ffprobe'  # 最后尝试系统PATH
+                
+        # 最后尝试系统PATH
+        self.ffprobe_missing.emit()
+        return 'ffprobe'
 
     def stop_scan(self) -> None:
         """停止扫描"""
