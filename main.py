@@ -486,7 +486,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self.epg_completer.setFilterMode(Qt.MatchFlag.MatchContains)  # 支持模糊匹配
         self.epg_completer.setCompletionMode(QtWidgets.QCompleter.CompletionMode.PopupCompletion)  # 显示下拉列表
         self.epg_completer.setMaxVisibleItems(10)  # 最多显示10个匹配项
+        # 禁用补全项的图标显示，避免libpng警告
+        self.epg_completer.popup().setItemDelegate(QtWidgets.QStyledItemDelegate())
+        # 彻底禁用所有输入法功能
+        self.name_edit.setAttribute(Qt.WidgetAttribute.WA_InputMethodEnabled, False)
+        # 设置最严格的输入法提示
+        self.name_edit.setInputMethodHints(Qt.InputMethodHint.ImhNone)
+        # 设置属性确保无输入法
+        self.name_edit.setProperty("inputMethodHints", Qt.InputMethodHint.ImhNone)
+        # 完全禁用补全器的输入法
+        self.epg_completer.popup().setAttribute(Qt.WidgetAttribute.WA_InputMethodEnabled, False)
+        self.epg_completer.popup().setInputMethodHints(Qt.InputMethodHint.ImhNone)
+        self.epg_completer.popup().setStyleSheet("")
+        # 设置补全器但不启用输入法
         self.name_edit.setCompleter(self.epg_completer)
+        # 强制禁用输入法上下文
+        self.name_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
+        # 确保输入法完全禁用
+        self.name_edit.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         # 绑定文本变化事件
         self.name_edit.textChanged.connect(self.on_text_changed)
