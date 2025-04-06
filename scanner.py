@@ -9,6 +9,7 @@ from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor
 from PyQt6 import QtWidgets
 from PyQt6.QtCore import QObject, pyqtSignal
+from async_utils import AsyncWorker
 from playlist_io import PlaylistHandler
 from utils import setup_logger
 from qasync import asyncSlot
@@ -16,6 +17,7 @@ from utils import parse_ip_range
 
 logger = setup_logger('Scanner')
 
+# 媒体扫描
 class StreamScanner(QObject):
     progress_updated = pyqtSignal(int, str)    # 进度百分比, 状态信息
     scan_finished = pyqtSignal(dict)           # 扫描结果字典
@@ -23,6 +25,7 @@ class StreamScanner(QObject):
     error_occurred = pyqtSignal(str)           # 错误信息
     ffprobe_missing = pyqtSignal()             # ffprobe缺失信号
 
+    # 初始化流媒体扫描器
     def __init__(self):
         """流媒体扫描器
         功能:
@@ -47,34 +50,41 @@ class StreamScanner(QObject):
         self._active_processes = set()  # 跟踪所有活动的ffprobe进程
         self._batches = []  # 跟踪所有批次任务
 
+    # 设置超时时间
     def set_timeout(self, timeout: int) -> None:
         """设置超时时间（单位：秒）"""
         self._timeout = timeout
 
+    # 设置自定义User-Agent
     def set_user_agent(self, user_agent: str) -> None:
         """设置自定义User-Agent"""
         self._user_agent = user_agent
 
+    # 设置自定义Referer
     def set_referer(self, referer: str) -> None:
         """设置自定义Referer"""
         self._referer = referer
 
+    # 设置线程数
     def set_thread_count(self, thread_count: int) -> None:
         """设置线程数"""
         self._thread_count = thread_count
 
+    # 获取扫描耗时
     def get_elapsed_time(self) -> float:
         """获取扫描耗时(秒)"""
         if not hasattr(self, '_start_time'):
             return 0.0
         return asyncio.get_event_loop().time() - self._start_time
 
+    # 获取已扫描IP数量
     def get_scanned_count(self) -> int:
         """获取已扫描IP数量"""
         return self._scanned_count
 
+    # 切换扫描状态
     @asyncSlot()
-    async def toggle_scan(self, ip_pattern: str) -> None:
+    async def toggle_scan(self, ip_pattern: str) -> asyncio.Task:
         """切换扫描状态(增强版)
         参数:
             ip_pattern: IP地址模式字符串
@@ -107,15 +117,16 @@ class StreamScanner(QObject):
                 self._tasks = []
                 self._batches = []
                 
-                # 执行扫描任务，使用shield防止取消
-                scan_task = asyncio.create_task(self._scan_task(ip_pattern))
-                await asyncio.shield(scan_task)
+                # 创建并返回扫描任务
+                return asyncio.create_task(self._scan_task(ip_pattern))
             except asyncio.CancelledError:
                 logger.debug("扫描任务被正常取消")
                 self.progress_updated.emit(0, "扫描已取消")
+                raise
             except Exception as e:
                 logger.error(f"扫描任务异常: {str(e)}")
                 self.error_occurred.emit(f"扫描错误: {str(e)}")
+                raise
             finally:
                 # 确保状态被重置
                 self._is_scanning = False
@@ -124,6 +135,7 @@ class StreamScanner(QObject):
                     self._executor.shutdown(wait=False)
                     self._executor = None
 
+    # 执行扫描的核心任务
     async def _scan_task(self, ip_pattern: str) -> None:
         """执行扫描的核心任务(增强版)
         改进:
@@ -133,51 +145,61 @@ class StreamScanner(QObject):
             4. 减少冗余日志
             5. 限制UI更新频率
         """
+        # 确保没有其他AsyncWorker任务正在运行
+        await AsyncWorker.cancel_all(timeout=1.0)
+        # 增加等待时间确保所有任务已取消
+        await asyncio.sleep(0.5)
+        # 二次检查确保没有运行中的任务
+        for _ in range(5):
+            if any(not w.is_finished() for w in AsyncWorker._active_workers):
+                await asyncio.sleep(0.1)
+            else:
+                break
+                
+        # 检查点1 - 任务开始时
+        if not self._is_scanning:
+            raise asyncio.CancelledError("扫描已停止")
+        
         try:
-            # 检查点1 - 任务开始时
-            if not self._is_scanning:
-                raise asyncio.CancelledError("扫描已停止")
-                
-            try:
-                # 解析URL并检查数量
-                urls = list(parse_ip_range(ip_pattern))
-                total = len(urls)
-                logger.debug(f"解析到{total}个待扫描地址")
-                
-                # 大规模扫描确认(增强版)
-                if total > 1000:
-                    self.error_occurred.emit(f"检测到大规模扫描({total}个地址)，请确认是否继续")
-                    # 添加更明显的警告日志
-                    logger.warning(f"大规模扫描警告: {total}个地址 (阈值:1000)")
-                    # 增加等待时间让用户有足够时间响应
-                    for i in range(5):
-                        if not self._is_scanning:
-                            return
-                        await asyncio.sleep(0.5)
-                    # 如果用户未取消，则记录确认继续
-                    if self._is_scanning:
-                        logger.info(f"用户确认继续大规模扫描: {total}个地址")
-                        
-                if not urls:
-                    logger.error(f"未生成任何扫描地址: {ip_pattern}")
-                    self.error_occurred.emit("未生成任何扫描地址，请检查输入格式")
+            # 解析URL并检查数量
+            urls = list(parse_ip_range(ip_pattern))
+        except ValueError as e:
+            logger.error(f"地址解析失败: {ip_pattern} - {str(e)}")
+            self.error_occurred.emit(f"地址解析错误: {str(e)}")
+            return
+        except Exception as e:
+            logger.error(f"地址解析异常: {ip_pattern} - {str(e)}")
+            self.error_occurred.emit(f"地址解析异常: {str(e)}")
+            return
+            
+        total = len(urls)
+        logger.debug(f"解析到{total}个待扫描地址")
+        
+        # 大规模扫描确认(增强版)
+        if total > 1000:
+            self.error_occurred.emit(f"检测到大规模扫描({total}个地址)，请确认是否继续")
+            # 添加更明显的警告日志
+            logger.warning(f"大规模扫描警告: {total}个地址 (阈值:1000)")
+            # 增加等待时间让用户有足够时间响应
+            for i in range(5):
+                if not self._is_scanning:
                     return
-                    
-                # 验证生成的URL格式
-                invalid_urls = [url for url in urls if not url.startswith(('http://', 'https://'))]
-                if invalid_urls:
-                    logger.error(f"生成无效URL: {invalid_urls[:3]}... (共{len(invalid_urls)}个)")
-                    self.error_occurred.emit(f"生成{len(invalid_urls)}个无效URL，请检查输入格式")
-                    return
-                    
-            except ValueError as e:
-                logger.error(f"地址解析失败: {ip_pattern} - {str(e)}")
-                self.error_occurred.emit(f"地址解析错误: {str(e)}")
-                return
-            except Exception as e:
-                logger.error(f"地址解析异常: {ip_pattern} - {str(e)}")
-                self.error_occurred.emit(f"地址解析异常: {str(e)}")
-                return
+                await asyncio.sleep(0.5)
+            # 如果用户未取消，则记录确认继续
+            if self._is_scanning:
+                logger.info(f"用户确认继续大规模扫描: {total}个地址")
+                
+        if not urls:
+            logger.error(f"未生成任何扫描地址: {ip_pattern}")
+            self.error_occurred.emit("未生成任何扫描地址，请检查输入格式")
+            return
+            
+        # 验证生成的URL格式
+        invalid_urls = [url for url in urls if not url.startswith(('http://', 'https://'))]
+        if invalid_urls:
+            logger.error(f"生成无效URL: {invalid_urls[:3]}... (共{len(invalid_urls)}个)")
+            self.error_occurred.emit(f"生成{len(invalid_urls)}个无效URL，请检查输入格式")
+            return
                 
             # 检查点2 - URL解析完成后
             if not self._is_scanning:
@@ -311,12 +333,8 @@ class StreamScanner(QObject):
                 })
                 self.progress_updated.emit(100, f"扫描完成 - 总数: {len(urls)} | 有效: {len(valid_channels)} | 无效: {invalid_count} | 耗时: {elapsed:.1f}秒")
                 
-        except Exception as e:
-            self.error_occurred.emit(f"扫描错误: {str(e)}")
-            raise
-        finally:
-            self._is_scanning = False
 
+    # 探测单个流媒体信息
     async def _probe_stream(self, url: str) -> Optional[Dict]:
         """探测单个流媒体信息（增强版）"""
         proc = None
@@ -392,6 +410,7 @@ class StreamScanner(QObject):
             if proc and proc.poll() is None:
                 proc.kill()
 
+    # 检查ffprobe是否可用
     async def _check_ffprobe(self):
         """检查ffprobe是否可用"""
         try:
@@ -412,6 +431,7 @@ class StreamScanner(QObject):
             self._ffprobe_available = False
             self.ffprobe_missing.emit()
 
+    # 执行ffprobe命令
     def _run_ffprobe(self, url: str) -> Optional[Dict]:
         """执行ffprobe命令（增强错误处理）"""
         proc = None
@@ -520,6 +540,7 @@ class StreamScanner(QObject):
             if proc and proc.poll() is None:
                 proc.kill()
 
+    # 查找ffprobe可执行文件路径
     def _find_ffprobe(self) -> Optional[str]:
         """查找ffprobe可执行文件路径"""
         # 检查系统PATH
@@ -539,6 +560,7 @@ class StreamScanner(QObject):
                 return path
         return None
 
+    # 检查命令是否可用
     def _is_command_available(self, cmd: str) -> bool:
         """检查命令是否可用"""
         try:
@@ -551,6 +573,7 @@ class StreamScanner(QObject):
         except:
             return False
 
+    # 基本流检测（当ffprobe不可用时使用）
     def _basic_stream_check(self, url: str, user_agent: str = None, referer: str = None) -> Optional[Dict]:
         """基本流检测（当ffprobe不可用时使用）"""
         try:
@@ -586,6 +609,7 @@ class StreamScanner(QObject):
         except:
             return None
 
+    # 停止IP扫描方法
     def stop_scan(self) -> None:
         """停止IP扫描方法"""
         if not self._is_scanning:
@@ -598,31 +622,29 @@ class StreamScanner(QObject):
                 task.cancel()
         # 保留验证任务继续运行
 
+    # 强制停止所有操作
     async def _stop_scanning(self) -> None:
-        """强制停止所有操作(紧急情况使用)
-        改为异步方法以确保协程被正确等待"""
+        """强制停止所有操作"""
         logger.warning("强制停止所有操作")
         self._is_scanning = False
-        if hasattr(self, '_is_validating'):
-            self._is_validating = False
         
         # 取消所有任务
-        for task in self._tasks:
-            if not task.done():
-                task.cancel()
+        await self._cancel_all_tasks()
         
-        # 获取当前事件循环
-        loop = asyncio.get_event_loop()
+        # 终止所有进程
+        await self._kill_all_processes()
         
-        # 强制取消所有任务(包括批次和当前任务)
-        all_tasks = []
-        for batch in self._batches:
-            all_tasks.extend(batch)
-        all_tasks.extend(self._tasks)
+        # 清理资源
+        await self._cleanup_resources()
         
-        # 取消并等待所有任务完成
+        logger.debug("扫描已完全停止")
+        self.progress_updated.emit(0, "已停止")
+
+    # 取消所有扫描任务
+    async def _cancel_all_tasks(self) -> None:
+        """取消所有扫描任务"""
         cancelled_count = 0
-        for task in all_tasks:
+        for task in self._tasks:
             if not task.done():
                 task.cancel()
                 cancelled_count += 1
@@ -631,168 +653,64 @@ class StreamScanner(QObject):
                 except:
                     pass
         logger.debug(f"已取消{cancelled_count}个任务")
-        
-        # 强制终止所有活动进程
+        self._tasks = []
+        self._batches = []
+
+    # 终止所有相关进程
+    async def _kill_all_processes(self) -> None:
+        """终止所有相关进程"""
+        # 终止活动进程
         if hasattr(self, '_active_processes'):
             for pid in list(self._active_processes):
                 try:
                     proc = psutil.Process(pid)
                     if proc.is_running():
                         proc.kill()
-                        logger.debug(f"已强制终止进程PID: {pid}")
                 except:
                     pass
             self._active_processes.clear()
         
-        # 强制终止所有子进程
+        # 终止子进程
         try:
             current_process = psutil.Process()
             for child in current_process.children(recursive=True):
                 try:
                     if child.is_running():
                         child.kill()
-                        logger.debug(f"已强制终止子进程PID: {child.pid}")
                 except:
                     pass
         except:
             pass
-            
-            # 安全关闭线程池
-            if hasattr(self, '_executor') and self._executor is not None:
-                try:
-                    self._executor.shutdown(wait=False, cancel_futures=True)
-                except Exception as e:
-                    logger.error(f"关闭线程池时出错: {str(e)}")
-                finally:
-                    self._executor = None
-                
-        # 重置状态
-        self._tasks = []
-        self._batches = []
-        
-        logger.debug("所有任务和进程已强制停止")
-        self.progress_updated.emit(0, "已完全停止")
-        
-        # 强制更新UI状态
-        self.progress_updated.emit(0, "正在清理资源...")
-        
-        # 终止所有活动的ffprobe进程
-        if hasattr(self, '_active_processes') and self._active_processes:
-            logger.debug(f"终止{len(self._active_processes)}个ffprobe进程...")
-            for pid in list(self._active_processes):
-                try:
-                    proc = psutil.Process(pid)
-                    if proc.is_running():
-                        try:
-                            proc.terminate()
-                            try:
-                                proc.wait(timeout=0.5)
-                            except (psutil.TimeoutExpired, psutil.NoSuchProcess):
-                                try:
-                                    proc.kill()
-                                except:
-                                    pass
-                            logger.debug(f"已终止进程PID: {pid}")
-                        except psutil.NoSuchProcess:
-                            logger.debug(f"进程已终止(PID:{pid})")
-                except Exception as e:
-                    logger.debug(f"终止进程时出错(PID:{pid}): {str(e)}")
-            self._active_processes.clear()
-            
-        # 强制终止所有子进程(包括残留进程)
-        try:
-            current_process = psutil.Process()
-            children = current_process.children(recursive=True)
-            for child in children:
-                try:
-                    if child.is_running():
-                        try:
-                            child.terminate()
-                            try:
-                                child.wait(timeout=0.5)
-                            except (psutil.TimeoutExpired, psutil.NoSuchProcess):
-                                try:
-                                    child.kill()
-                                except:
-                                    pass
-                            logger.debug(f"已终止子进程PID: {child.pid}")
-                        except psutil.NoSuchProcess:
-                            logger.debug(f"子进程已终止(PID:{child.pid})")
-                except Exception as e:
-                    logger.debug(f"终止子进程时出错(PID:{child.pid}): {str(e)}")
-        except Exception as e:
-            logger.error(f"终止子进程时出错: {str(e)}")
-            
-        # 强制重置UI状态
-        self.progress_updated.emit(0, "已完全停止")
-            
-        # 强制终止所有子进程
-        try:
-            current_process = psutil.Process()
-            children = current_process.children(recursive=True)
-            for child in children:
-                try:
-                    child.terminate()
-                    try:
-                        child.wait(timeout=1)
-                    except (psutil.TimeoutExpired, psutil.NoSuchProcess):
-                        pass
-                    logger.debug(f"已终止子进程PID: {child.pid}")
-                except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
-                    logger.debug(f"终止子进程失败(PID:{child.pid}): {str(e)}")
-        except Exception as e:
-            logger.error(f"终止子进程时出错: {str(e)}")
-            
+
+    # 清理所有资源
+    async def _cleanup_resources(self) -> None:
+        """清理所有资源"""
         # 关闭线程池
         if self._executor:
-            logger.debug("关闭线程池...")
             try:
                 self._executor.shutdown(wait=False, cancel_futures=True)
             except Exception as e:
                 logger.error(f"关闭线程池时出错: {str(e)}")
             self._executor = None
             
+        # 清理频道数据
         if hasattr(self, 'valid_channels'):
             self.valid_channels.clear()
             
-        # 安全释放锁
+        # 释放锁
         if self._scan_lock.locked():
             try:
-                # 只有锁的持有者才能释放
                 if self._scan_lock._owner == asyncio.current_task():
                     self._scan_lock.release()
-                    logger.debug("已释放扫描锁")
-            except (RuntimeError, AttributeError) as e:
-                logger.debug(f"释放锁时出错: {str(e)}")
+            except (RuntimeError, AttributeError):
                 pass
-            
-        logger.debug("扫描已完全停止")
-        self.progress_updated.emit(0, "已停止")
 
+    # 清理所有资源
     async def cleanup(self) -> None:
         """清理所有资源"""
         logger.debug("清理扫描器资源...")
         self._is_scanning = False
-        self._is_validating = False
-        
-        # 取消所有任务
-        for task in self._tasks:
-            if not task.done():
-                task.cancel()
-        
-        # 终止所有活动进程
-        if hasattr(self, '_active_processes') and self._active_processes:
-            for pid in list(self._active_processes):
-                try:
-                    proc = psutil.Process(pid)
-                    proc.terminate()
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    pass
-            self._active_processes.clear()
-        
-        # 关闭线程池
-        if self._executor:
-            self._executor.shutdown(wait=False, cancel_futures=True)
-            self._executor = None
-        
+        await self._cancel_all_tasks()
+        await self._kill_all_processes()
+        await self._cleanup_resources()
         logger.debug("扫描器资源清理完成")

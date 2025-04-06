@@ -8,6 +8,7 @@ import os
 
 logger = setup_logger('Validator')
 
+# 流媒体有效性验证器
 class StreamValidator(QObject):
     """流媒体有效性验证器"""
     progress_updated = pyqtSignal(int, str)  # 进度百分比, 状态信息
@@ -15,6 +16,7 @@ class StreamValidator(QObject):
     error_occurred = pyqtSignal(str)         # 错误信息
     channel_validated = pyqtSignal(dict)     # 单个频道验证结果
     
+    # 初始化
     def __init__(self):
         super().__init__()
         self._timeout = 10  # 默认超时时间(秒)
@@ -25,14 +27,17 @@ class StreamValidator(QObject):
         self._active_processes = []  # 跟踪所有活动的ffprobe进程
         self._current_url = None  # 当前正在验证的URL
 
+    # 设置验证超时时间
     def set_timeout(self, timeout: int) -> None:
         """设置验证超时时间(秒)"""
         self._timeout = timeout
 
+    # 检查验证是否在进行中
     def is_running(self) -> bool:
         """检查验证是否在进行中"""
         return self._is_running
 
+    # 验证播放列表有效性
     @asyncSlot()
     async def validate_playlist(self, playlist_data: Union[List[Dict], List[str]], max_workers: int) -> Dict:
         """验证播放列表有效性
@@ -182,27 +187,30 @@ class StreamValidator(QObject):
         finally:
             self._is_running = False
 
+    # 构建ffprobe命令
+    def _build_ffprobe_cmd(self, url: str, cmd_type: str = 'validate') -> list:
+        """构建ffprobe命令"""
+        base_cmd = [self._ffprobe_path, '-v', 'error']
+        if cmd_type == 'validate':
+            base_cmd.extend([
+                '-select_streams', 'v:0',
+                '-show_entries', 'stream=codec_name,width,height',
+                '-of', 'default=noprint_wrappers=1:nokey=1'
+            ])
+        else:  # latency
+            base_cmd.extend([
+                '-show_entries', 'format=start_time',
+                '-of', 'default=noprint_wrappers=1:nokey=1'
+            ])
+        base_cmd.append(url)
+        return base_cmd
+
+    # 使用ffprobe验证单个频道
     async def _validate_channel(self, url: str) -> tuple[bool, float, int, int]:
         """使用ffprobe验证单个频道并返回(是否有效, 延迟秒数, 宽度, 高度)"""
         self._current_url = url
-        # 验证命令
-        validate_cmd = [
-            self._ffprobe_path,
-            '-v', 'error',
-            '-select_streams', 'v:0',
-            '-show_entries', 'stream=codec_name,width,height',
-            '-of', 'default=noprint_wrappers=1:nokey=1',
-            url
-        ]
-        
-        # 延迟和分辨率测量命令
-        latency_cmd = [
-            self._ffprobe_path,
-            '-v', 'error',
-            '-show_entries', 'format=start_time',
-            '-of', 'default=noprint_wrappers=1:nokey=1',
-            url
-        ]
+        validate_cmd = self._build_ffprobe_cmd(url, 'validate')
+        latency_cmd = self._build_ffprobe_cmd(url, 'latency')
         
         # 执行验证
         validate_proc = await asyncio.create_subprocess_exec(
@@ -211,21 +219,21 @@ class StreamValidator(QObject):
             stderr=subprocess.PIPE
         )
         self._active_processes.append(validate_proc)
-        
+            
         try:
-            stdout, stderr = await asyncio.wait_for(validate_proc.communicate(), timeout=self._timeout)
+            stdout, _ = await asyncio.wait_for(validate_proc.communicate(), timeout=self._timeout)
             valid = validate_proc.returncode == 0
             
             # 如果有效则测量延迟和获取分辨率
-            latency = 0.0
-            width = 0
-            height = 0
+            width, height = 0, 0
             if valid:
                 # 解析分辨率信息
                 output = stdout.decode().strip().split('\n')
                 if len(output) >= 3:
                     width = int(output[1]) if output[1] else 0
                     height = int(output[2]) if output[2] else 0
+                
+                # 测量延迟
                 latency_proc = await asyncio.create_subprocess_exec(
                     *latency_cmd,
                     stdout=subprocess.PIPE,
@@ -234,104 +242,56 @@ class StreamValidator(QObject):
                 self._active_processes.append(latency_proc)
                 try:
                     stdout, _ = await asyncio.wait_for(latency_proc.communicate(), timeout=self._timeout)
-                    if latency_proc.returncode == 0:
-                        latency = float(stdout.decode().strip())
+                    latency = float(stdout.decode().strip()) if latency_proc.returncode == 0 else 0.0
                 finally:
-                    if latency_proc.returncode is None:
-                        latency_proc.terminate()
-                    try:
-                        self._active_processes.remove(latency_proc)
-                    except ValueError:
-                        pass
+                    await self._cleanup_process(latency_proc)
             
-            return (valid, float(latency) if latency else 0.0, width, height)
+            return (valid, latency if valid else 0.0, width, height)
         except asyncio.TimeoutError:
             return (False, 0.0, 0, 0)
         finally:
             self._current_url = None
-            if validate_proc.returncode is None:
-                validate_proc.terminate()
-            try:
-                self._active_processes.remove(validate_proc)
-            except ValueError:
-                pass
+            await self._cleanup_process(validate_proc)
 
+    # 清理进程资源
+    async def _cleanup_process(self, proc: asyncio.subprocess.Process) -> None:
+        """清理进程资源"""
+        if proc.returncode is None:
+            proc.terminate()
+        try:
+            self._active_processes.remove(proc)
+        except ValueError:
+            pass
+
+    #停止验证
     async def stop_validation(self):
         """停止验证"""
         if not self._is_running:
-            logger.debug("验证未运行，无需停止")
             return
             
-        logger.info("用户请求停止验证")
+        logger.info("停止验证中...")
         self._is_running = False
         
         try:
-            # 获取当前所有运行中的任务
+            # 取消所有任务
             current_task = asyncio.current_task()
-            all_tasks = [t for t in asyncio.all_tasks() if t is not current_task]
+            tasks = [t for t in asyncio.all_tasks() if t is not current_task]
+            for task in tasks:
+                task.cancel()
+            await asyncio.wait(tasks, timeout=1)
             
-            # 优雅地取消所有相关任务
-            cancel_tasks = []
-            for task in all_tasks:
-                try:
-                    if not task.done():
-                        task.cancel()
-                        cancel_tasks.append(task)
-                except Exception as e:
-                    logger.warning(f"取消任务时出错: {str(e)}")
-            
-            # 等待所有任务处理取消
-            if cancel_tasks:
-                try:
-                    await asyncio.wait(cancel_tasks, timeout=1)
-                except (asyncio.CancelledError, asyncio.TimeoutError):
-                    pass
-            
-            # 终止所有活动的ffprobe进程
-            terminate_tasks = []
-            for proc in self._active_processes[:]:  # 创建副本遍历
-                if proc.returncode is None:
-                    try:
-                        proc.terminate()
-                        # 显式创建等待任务
-                        task = asyncio.create_task(proc.wait())
-                        terminate_tasks.append(task)
-                        logger.debug(f"正在终止ffprobe进程: {proc.pid}")
-                    except ProcessLookupError:
-                        self._active_processes.remove(proc)
-            
-            # 强制终止所有进程(三重保障)
+            # 终止所有进程
             for proc in self._active_processes[:]:
                 if proc.returncode is None:
-                    try:
-                        proc.kill()
-                    except ProcessLookupError:
-                        pass
-                    finally:
-                        if proc in self._active_processes:
-                            self._active_processes.remove(proc)
+                    proc.terminate()
+            await asyncio.sleep(0.5)
             
-            # 等待所有进程终止完成
-            if terminate_tasks:
-                try:
-                    done, pending = await asyncio.wait(terminate_tasks, timeout=2)
-                    # 取消未完成的任务
-                    for task in pending:
-                        task.cancel()
-                except asyncio.CancelledError:
-                    pass
-            
-            # 确保所有资源释放
+            # 清理资源
             self._active_processes.clear()
             self._current_url = None
             
             # 发送停止信号
             self.progress_updated.emit(0, "验证已停止")
             self.validation_finished.emit({'valid': [], 'invalid': [], 'total': 0})
-            logger.info(f"验证已完全停止，共终止了{len(terminate_tasks)}个后台进程和{len(all_tasks)}个异步任务")
-            
-            # 确保事件循环处理完成
-            await asyncio.sleep(0)
         except Exception as e:
-            logger.error(f"停止验证时发生错误: {str(e)}")
-            raise
+            logger.error(f"停止验证出错: {str(e)}")

@@ -93,9 +93,21 @@ class AsyncWorker(QObject):
     async def run(self):
         """执行异步任务（修正版）"""
         try:
+            # 检查事件循环状态
+            loop = asyncio.get_running_loop()
+            if loop.is_closed():
+                raise RuntimeError("事件循环已关闭")
+                
+            # 检查任务状态
             if self._is_cancelled:
                 self._state = TaskState.CANCELLED
                 return
+            
+            # 确保没有其他任务正在运行
+            for worker in self.__class__._active_workers:
+                if worker != self and worker._state == TaskState.RUNNING:
+                    await worker.cancel()
+                    await asyncio.sleep(0.1)  # 给取消操作一点时间
             
             self._state = TaskState.RUNNING
             self._start_time = time.time()
@@ -122,9 +134,8 @@ class AsyncWorker(QObject):
         """启动异步任务"""
         if self._is_cancelled:
             return
-        # 使用线程池运行任务
-        runnable = AsyncRunnable(self)
-        QThreadPool.globalInstance().start(runnable)
+        # 在主事件循环中创建任务
+        self._task = asyncio.create_task(self.run())
 
     def cancel(self):
         """取消任务"""
@@ -145,18 +156,3 @@ class AsyncWorker(QObject):
         if self._start_time is None:
             return 0.0
         return time.time() - self._start_time
-
-
-class AsyncRunnable(QRunnable):
-    """用于在 QThreadPool 中运行异步任务的 Runnable"""
-    def __init__(self, worker: AsyncWorker):
-        super().__init__()
-        self.worker = worker
-
-    def run(self):
-        """在单独的线程中运行任务"""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        self.worker._task = loop.create_task(self.worker.run())
-        loop.run_until_complete(self.worker._task)
-        loop.close()
