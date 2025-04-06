@@ -2,7 +2,17 @@ import asyncio
 import logging
 import time
 from enum import Enum, auto
+from functools import wraps
 from PyQt6.QtCore import QObject, pyqtSignal, QThreadPool, QRunnable
+
+def asyncSlot():
+    """装饰器，使异步方法可以作为Qt信号槽使用"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return asyncio.ensure_future(func(*args, **kwargs))
+        return wrapper
+    return decorator
 
 class TaskState(Enum):
     PENDING = auto()
@@ -103,11 +113,21 @@ class AsyncWorker(QObject):
                 self._state = TaskState.CANCELLED
                 return
             
-            # 确保没有其他任务正在运行
-            for worker in self.__class__._active_workers:
-                if worker != self and worker._state == TaskState.RUNNING:
-                    await worker.cancel()
-                    await asyncio.sleep(0.1)  # 给取消操作一点时间
+            # 检查是否有冲突任务正在运行
+            conflicting_workers = [
+                w for w in self.__class__._active_workers
+                if w != self and w._state == TaskState.RUNNING
+            ]
+            
+            if conflicting_workers:
+                # 只取消相同类型的任务
+                if isinstance(self._coro, type(conflicting_workers[0]._coro)):
+                    for worker in conflicting_workers:
+                        await worker.cancel()
+                        await asyncio.sleep(0.1)
+                else:
+                    # 不同类型任务可以并行运行
+                    pass
             
             self._state = TaskState.RUNNING
             self._start_time = time.time()

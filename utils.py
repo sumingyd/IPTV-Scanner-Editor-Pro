@@ -231,11 +231,11 @@ class AggregatedLogHandler(logging.Handler):
         self.last_flush = time.time()
 
 # 配置跨平台日志记录器
-def setup_logger(name: str, level=logging.INFO) -> logging.Logger:
+def setup_logger(name: str, level=None) -> logging.Logger:
     """配置跨平台日志记录器(增强版)
     参数:
         name: 日志记录器名称
-        level: 日志级别(默认为INFO)
+        level: 日志级别(默认为从配置读取)
     功能:
         1. 支持日志级别控制
         2. 添加聚合日志功能
@@ -244,6 +244,12 @@ def setup_logger(name: str, level=logging.INFO) -> logging.Logger:
         5. 支持性能监控
     """
     logger = logging.getLogger(name)
+    
+    # 从配置读取日志级别
+    config = ConfigHandler()
+    log_level = config.config['DEFAULT'].get('log_level', 'INFO').upper()
+    level = getattr(logging, log_level, logging.INFO) if level is None else level
+    
     logger.setLevel(level)
     logger.addFilter(VlcWarningFilter())
     
