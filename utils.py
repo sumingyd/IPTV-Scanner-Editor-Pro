@@ -192,7 +192,21 @@ class AggregatedLogHandler(logging.Handler):
         self.last_flush = time.time()
         
     def emit(self, record):
-        key = (record.levelno, record.msg)
+        # 提取日志消息中的动态部分(如URL、数字等)并用通配符替换
+        msg = record.msg
+        if 'ffprobe output for' in msg:
+            # 聚合所有ffprobe output日志
+            key = (record.levelno, 'ffprobe output for *')
+        elif '计算延迟:' in msg:
+            # 聚合所有延迟计算日志
+            key = (record.levelno, '计算延迟: *')
+        elif '执行ffprobe命令:' in msg:
+            # 聚合所有ffprobe命令日志
+            key = (record.levelno, '执行ffprobe命令: *')
+        else:
+            # 其他日志保持原样
+            key = (record.levelno, msg)
+            
         if key in self.log_cache:
             self.log_cache[key] += 1
         else:
@@ -260,6 +274,11 @@ def setup_logger(name: str, level=None) -> logging.Logger:
     config = ConfigHandler()
     log_mode = config.config['DEFAULT'].get('log_mode', 'overwrite')
     
+    # 基础Handler配置
+    formatter = logging.Formatter(
+        '%(asctime)s [%(levelname)s] %(name)s:%(lineno)d [%(process)d:%(thread)d] - %(message)s'
+    )
+    
     # 文件Handler
     log_file = Path('iptv_manager.log').resolve()
     file_handler = logging.FileHandler(
@@ -267,23 +286,21 @@ def setup_logger(name: str, level=None) -> logging.Logger:
         mode='w' if log_mode == 'overwrite' else 'a',
         encoding='utf-8'
     )
-    file_formatter = logging.Formatter(
-        '%(asctime)s [%(levelname)s] %(name)s:%(lineno)d [%(process)d:%(thread)d] - %(message)s'
-    )
-    file_handler.setFormatter(file_formatter)
+    file_handler.setFormatter(formatter)
     
-    # 添加聚合日志处理器
+    # 添加聚合日志处理器(处理所有handler)
     aggregated_handler = AggregatedLogHandler(file_handler)
     logger.addHandler(aggregated_handler)
     
-    # 控制台Handler(可选)
+    # 控制台Handler(可选) - 也使用聚合
     if config.config['DEFAULT'].getboolean('console_log', False):
         console_handler = logging.StreamHandler()
         if platform.system() != 'Windows':
             console_handler.setFormatter(EnhancedFormatter())
         else:
             console_handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
-        logger.addHandler(console_handler)
+        aggregated_console_handler = AggregatedLogHandler(console_handler)
+        logger.addHandler(aggregated_console_handler)
 
     # 为所有Handler添加过滤器
     vlc_filter = VlcWarningFilter()
