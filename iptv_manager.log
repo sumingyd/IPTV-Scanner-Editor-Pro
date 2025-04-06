@@ -1,9 +1,15 @@
-2025-04-06 16:31:38,723 [INFO] :0 [56464:62540] - 加载Scanner配置: address=http://192.168.50.1:20231/rtp/239.21.1.[1-20]:5002, timeout=25, threads=20, user_agent=, referer=
-2025-04-06 16:31:38,723 [INFO] :0 [56464:62540] - 成功恢复分隔条位置: left=[309, 382], right=[463, 217]
-2025-04-06 16:31:43,975 [INFO] :0 [56464:62540] - EPG主URL已保存: https://epg.pw/xmltv/epg_CN.xml
-2025-04-06 16:31:44,049 [INFO] :0 [56464:62540] - EPG备用URL已保存: ['https://epg.112114.xyz/pp.xml', 'https://epg.112114.xyz/ds.xml', 'http://epg.51zmt.top:8000/e.xml']
-2025-04-06 16:31:44,049 [INFO] :0 [56464:62540] - EPG备用URL已保存: ['https://epg.112114.xyz/pp.xml', 'https://epg.112114.xyz/ds.xml', 'http://epg.51zmt.top:8000/e.xml']
-2025-04-06 16:31:44,049 [INFO] :0 [56464:62540] - 配置已保存 - 窗口几何: %s, 扫描配置: %s, 播放器配置: %s
-2025-04-06 16:31:44,049 [INFO] :0 [56464:62540] - 配置已保存 - 窗口几何: %s, 扫描配置: %s, 播放器配置: %s
-2025-04-06 16:31:44,049 [INFO] :0 [56464:62540] - EPG主URL已保存: https://epg.pw/xmltv/epg_CN.xml
-2025-04-06 16:31:44,049 [ERROR] :0 [56464:62540] - 关闭异常: An asyncio.Future, a coroutine or an awaitable is required
+2025-04-06 21:09:29,685 [INFO] :0 [1560:59700] - 加载Scanner配置: address=http://192.168.50.1:20231/rtp/239.21.1.[1-255]:5002, timeout=25, threads=20, user_agent=, referer=
+2025-04-06 21:09:29,685 [INFO] :0 [1560:59700] - 成功恢复分隔条位置: left=[310, 594], right=[608, 285]
+2025-04-06 21:09:32,070 [DEBUG] :0 [1560:59700] - 开始保存EPG配置，epg_manager类型: <class 'epg_manager.EPGManager'>
+2025-04-06 21:09:32,140 [DEBUG] :0 [1560:59700] - 保存main_url: https://epg.pw/xmltv/epg_CN.xml
+2025-04-06 21:09:32,140 [DEBUG] :0 [1560:59700] - 保存main_url: https://epg.pw/xmltv/epg_CN.xml
+2025-04-06 21:09:32,140 [INFO] :0 [1560:59700] - EPG主URL已保存: https://epg.pw/xmltv/epg_CN.xml
+2025-04-06 21:09:32,141 [INFO] :0 [1560:59700] - EPG主URL已保存: https://epg.pw/xmltv/epg_CN.xml
+2025-04-06 21:09:32,141 [DEBUG] :0 [1560:59700] - 保存backup_urls: ['https://epg.112114.xyz/pp.xml', 'https://epg.112114.xyz/ds.xml', 'http://epg.51zmt.top:8000/e.xml']
+2025-04-06 21:09:32,141 [DEBUG] :0 [1560:59700] - 保存backup_urls: ['https://epg.112114.xyz/pp.xml', 'https://epg.112114.xyz/ds.xml', 'http://epg.51zmt.top:8000/e.xml']
+2025-04-06 21:09:32,141 [INFO] :0 [1560:59700] - EPG备用URL已保存: ['https://epg.112114.xyz/pp.xml', 'https://epg.112114.xyz/ds.xml', 'http://epg.51zmt.top:8000/e.xml']
+2025-04-06 21:09:32,141 [INFO] :0 [1560:59700] - EPG备用URL已保存: ['https://epg.112114.xyz/pp.xml', 'https://epg.112114.xyz/ds.xml', 'http://epg.51zmt.top:8000/e.xml']
+2025-04-06 21:09:32,141 [INFO] :0 [1560:59700] - 配置已保存 - 窗口几何: %s, 扫描配置: %s, 播放器配置: %s
+2025-04-06 21:09:32,141 [INFO] :0 [1560:59700] - 配置已保存 - 窗口几何: %s, 扫描配置: %s, 播放器配置: %s
+2025-04-06 21:09:32,141 [DEBUG] :0 [1560:59700] - 开始保存EPG配置，epg_manager类型: <class 'epg_manager.EPGManager'>
+2025-04-06 21:09:32,141 [ERROR] :0 [1560:59700] - 关闭异常: An asyncio.Future, a coroutine or an awaitable is required

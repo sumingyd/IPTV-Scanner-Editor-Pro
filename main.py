@@ -59,8 +59,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                     return "✓" if chan['valid'] else "✗"
                 return ""
             elif index.column() == 5:  # 延迟列
-                if 'latency' in chan:
-                    return f"{chan['latency']*1000:.0f}ms" if chan.get('valid') else ""
+                if 'latency' in chan and chan['latency'] > 0:
+                    return f"{int(chan['latency']*1000)}ms"
                 return ""
         elif role == Qt.ItemDataRole.UserRole:
             return self.channels[index.row()]
@@ -307,7 +307,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # 扫描控制按钮
         self.scan_btn = QtWidgets.QPushButton("完整扫描")
         self.scan_btn.setStyleSheet(AppStyles.button_style(active=True))
-        self.scan_btn.clicked.connect(self.toggle_scan)
+        self.scan_btn.clicked.connect(lambda: asyncio.create_task(self.toggle_scan()))
         
         # 设置按钮尺寸策略为Expanding
         self.scan_btn.setSizePolicy(
@@ -856,14 +856,23 @@ class MainWindow(QtWidgets.QMainWindow):
             self.scan_btn.setText("停止扫描")
             self.scan_btn.setStyleSheet(AppStyles.button_style(active=True))
             
-            # 添加超时监控
+            # 添加带状态检查的超时监控
             async def monitor_timeout():
-                await asyncio.sleep(timeout + 5)  # 比设置的超时时间稍长
-                if hasattr(self.scanner, '_is_scanning') and self.scanner._is_scanning:
-                    self.show_error("扫描超时，请检查网络连接")
-                    self.scanner.stop_scan()
-                    
-            asyncio.create_task(monitor_timeout())
+                try:
+                    await asyncio.sleep(timeout + 5)  # 比设置的超时时间稍长
+                    if (hasattr(self.scanner, '_is_scanning') and 
+                        self.scanner._is_scanning and
+                        not self.scanner._active_tasks):  # 确保没有活跃任务
+                        self.show_error("扫描超时，请检查网络连接")
+                        self.scanner.stop_scan()
+                except asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    logger.error(f"超时监控错误: {str(e)}")
+            
+            # 创建并跟踪超时监控任务
+            self.timeout_monitor = asyncio.create_task(monitor_timeout())
+            self.timeout_monitor.add_done_callback(lambda t: t.exception() if t.exception() else None)
             
         except Exception as e:
             self.show_error(f"扫描控制错误: {str(e)}")
@@ -888,7 +897,21 @@ class MainWindow(QtWidgets.QMainWindow):
     # 执行异步扫描
     async def _async_scan(self, ip_range: str) -> None:  
         """执行异步扫描"""
-        await self.scanner.scan_task(ip_range)
+        try:
+            # 取消之前的超时监控任务
+            if hasattr(self, 'timeout_monitor') and not self.timeout_monitor.done():
+                self.timeout_monitor.cancel()
+                try:
+                    await self.timeout_monitor
+                except asyncio.CancelledError:
+                    pass
+            
+            # 执行扫描
+            await self.scanner.scan_task(ip_range)
+        finally:
+            # 确保超时监控任务被取消
+            if hasattr(self, 'timeout_monitor') and not self.timeout_monitor.done():
+                self.timeout_monitor.cancel()
 
     # 更新扫描进度
     @pyqtSlot(int, str)
@@ -923,7 +946,24 @@ class MainWindow(QtWidgets.QMainWindow):
         # 强制刷新UI
         QtWidgets.QApplication.processEvents()
 
-    #处理最终扫描结果
+    # 处理扫描任务完成
+    def _handle_scan_task(self, task: asyncio.Task) -> None:
+        """处理扫描任务完成"""
+        try:
+            if task.done():
+                if task.cancelled():
+                    self.handle_cancel("scan")
+                elif task.exception():
+                    self.handle_error(task.exception(), "scan")
+                else:
+                    result = task.result()
+                    self.handle_scan_results(result)
+            else:
+                logger.warning("Received incomplete scan task")
+        except Exception as e:
+            self.handle_error(e, "scan")
+
+    # 处理最终扫描结果
     @pyqtSlot(dict)
     def handle_scan_results(self, result: Dict) -> None: 
         """处理最终扫描结果"""
