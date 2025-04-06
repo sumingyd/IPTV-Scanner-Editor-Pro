@@ -1048,7 +1048,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 
             async with self._play_lock:
                 # 取消旧任务
-                if hasattr(self, 'play_worker') and self.play_worker:
+                if hasattr(self, 'play_worker') and self.play_worker is not None:
                     try:
                         await self.play_worker.cancel()
                     except Exception as e:

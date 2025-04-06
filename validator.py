@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from typing import List, Dict, Union, Optional
 from PyQt6.QtCore import QObject, pyqtSignal
 from qasync import asyncSlot
