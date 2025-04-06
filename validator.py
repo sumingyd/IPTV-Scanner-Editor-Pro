@@ -22,7 +22,14 @@ class StreamValidator(QObject):
         self._timeout = 10  # 默认超时时间(秒)
         self.config = ConfigHandler()
         self._timeout = self.config.config.getint('Scanner', 'timeout', fallback=10)
-        self._ffprobe_path = os.path.join('ffmpeg', 'bin', 'ffprobe.exe')
+        # 获取ffprobe路径，优先检查打包环境
+        if getattr(sys, 'frozen', False):
+            # 打包环境下使用sys._MEIPASS路径
+            self._ffprobe_path = os.path.join(sys._MEIPASS, 'ffmpeg', 'bin', 'ffprobe.exe')
+        else:
+            # 开发环境下使用配置或相对路径
+            self._ffprobe_path = self.config.config.get('Scanner', 'ffprobe_path', 
+                              fallback=os.path.join(os.path.dirname(__file__), '..', 'ffmpeg', 'bin', 'ffprobe.exe'))
         self._is_running = False
         self._active_processes = []  # 跟踪所有活动的ffprobe进程
         self._current_url = None  # 当前正在验证的URL
@@ -183,7 +190,7 @@ class StreamValidator(QObject):
         except Exception as e:
             logger.error(f"验证出错: {str(e)}")
             self.error_occurred.emit(f"验证出错: {str(e)}")
-            return {'valid': [], 'invalid': []}
+            return {'valid': [], 'invalid': [], 'total': 0}
         finally:
             self._is_running = False
 
