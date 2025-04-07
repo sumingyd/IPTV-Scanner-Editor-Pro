@@ -1,3 +1,4 @@
+from datetime import timedelta
 import vlc
 import asyncio
 import platform
@@ -129,8 +130,39 @@ class VLCPlayer(QtWidgets.QWidget):
         ))
         self.video_frame.setMinimumSize(640, 360)
         
+        # EPG节目单显示区域
+        self.epg_table = QtWidgets.QTableWidget()
+        self.epg_table.setColumnCount(4)
+        self.epg_table.setHorizontalHeaderLabels(["时间", "节目名称", "时长", "描述"])
+        self.epg_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        self.epg_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.epg_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        self.epg_table.setStyleSheet("""
+            QTableWidget {
+                background-color: #2d2d2d;
+                color: #e0e0e0;
+                border: 1px solid #444;
+                border-radius: 4px;
+                gridline-color: #444;
+            }
+            QHeaderView::section {
+                background-color: #3a3a3a;
+                padding: 5px;
+                border: none;
+            }
+            QTableWidget::item {
+                padding: 5px;
+            }
+            QTableWidget::item:selected {
+                background-color: #4a4a4a;
+            }
+        """)
+        self.epg_table.setMaximumHeight(200)
+        
+        # 主布局
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.video_frame)
+        layout.addWidget(self.epg_table)
         self.setLayout(layout)
 
     # 绑定视频到窗口
@@ -309,6 +341,10 @@ class VLCPlayer(QtWidgets.QWidget):
             event_manager.event_attach(vlc.EventType.MediaPlayerPaused, self._on_pause)
         except Exception as e:
             pass
+        
+        # 连接EPG数据更新信号
+        if hasattr(self.parent(), 'epg_updated'):
+            self.parent().epg_updated.connect(self.update_epg_display)
 
     # 初始化管理器
     def _init_managers(self):
@@ -331,6 +367,7 @@ class VLCPlayer(QtWidgets.QWidget):
     def _on_play(self, event):
         """播放事件处理"""
         self.state_changed.emit("正在播放...")
+        self.update_epg_display()
 
     # 暂停事件处理
     def _on_pause(self, event):
@@ -341,6 +378,7 @@ class VLCPlayer(QtWidgets.QWidget):
     def _on_stop(self, event):
         """停止事件处理"""
         self.state_changed.emit("播放停止")
+        self.clear_epg_display()
 
     # 窗口关闭事件处理
     def closeEvent(self, event):
@@ -398,3 +436,45 @@ class VLCPlayer(QtWidgets.QWidget):
             self.media_player = None
             if hasattr(self, 'instance'):
                 self.instance = None
+
+    # 更新EPG显示
+    def update_epg_display(self, channel_name: str = None):
+        """更新EPG节目单显示"""
+        if not hasattr(self, 'epg_table'):
+            return
+            
+        try:
+            # 获取当前播放的频道名称
+            if not channel_name and hasattr(self.parent(), 'get_current_channel'):
+                channel_name = self.parent().get_current_channel()
+                
+            if not channel_name:
+                self.clear_epg_display()
+                return
+                
+            # 从EPG管理器获取节目单
+            if hasattr(self.parent(), 'epg_manager'):
+                epg_data = self.parent().epg_manager.get_channel_epg(channel_name)
+                if not epg_data:
+                    self.clear_epg_display()
+                    return
+                    
+                # 更新表格数据
+                self.epg_table.setRowCount(len(epg_data))
+                for row, program in enumerate(epg_data):
+                    self.epg_table.setItem(row, 0, QtWidgets.QTableWidgetItem(
+                        program['start'].strftime('%H:%M')))
+                    self.epg_table.setItem(row, 1, QtWidgets.QTableWidgetItem(
+                        program['title']))
+                    self.epg_table.setItem(row, 2, QtWidgets.QTableWidgetItem(
+                        str(timedelta(seconds=program['duration']))))
+                    self.epg_table.setItem(row, 3, QtWidgets.QTableWidgetItem(
+                        program['description']))
+        except Exception as e:
+            logger.error(f"更新EPG显示失败: {str(e)}")
+
+    # 清空EPG显示
+    def clear_epg_display(self):
+        """清空EPG节目单显示"""
+        if hasattr(self, 'epg_table'):
+            self.epg_table.setRowCount(0)

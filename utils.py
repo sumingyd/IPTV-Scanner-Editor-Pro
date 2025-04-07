@@ -44,8 +44,13 @@ class ConfigHandler:
                 'main_url': '',
                 'cache_ttl': '3600'
             },
-            'UserPrefs': {}
-        })
+            'UserPrefs': {},
+            'Splitters': {  # 专门存储分隔条配置
+                'left_splitter': '300,700',  # 默认值
+                'right_splitter': '400,600',  # 默认值
+                'main_splitter': '400,600',   # 默认值
+                'h_splitter': '500,500'      # 默认值
+        }})
         
         cfg_path = self.get_config_path()
         try:
