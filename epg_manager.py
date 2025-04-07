@@ -158,6 +158,45 @@ class EPGManager:
             return False
         return channel_name.lower() in self._name_index
 
+    # 保存EPG数据到本地文件
+    def save_local_epg(self) -> bool:
+        """保存EPG数据到本地文件"""
+        try:
+            local_path = self.cache_manager.cache_dir / "local_epg.xml"
+            root = etree.Element("tv")
+            
+            # 添加所有频道
+            for chan_id, channel in self.epg_data.items():
+                chan_elem = etree.SubElement(root, "channel", id=chan_id)
+                for name in channel.get('names', []):
+                    etree.SubElement(chan_elem, "display-name").text = name
+                if icon := channel.get('icon'):
+                    etree.SubElement(chan_elem, "icon", src=icon)
+                
+                # 添加节目单
+                for prog in channel.get('programmes', []):
+                    prog_elem = etree.SubElement(
+                        root, 
+                        "programme", 
+                        channel=chan_id,
+                        start=prog['start'].strftime('%Y%m%d%H%M%S %z'),
+                        stop=prog['end'].strftime('%Y%m%d%H%M%S %z')
+                    )
+                    etree.SubElement(prog_elem, "title").text = prog['title']
+                    if desc := prog.get('description'):
+                        etree.SubElement(prog_elem, "desc").text = desc
+                    if cat := prog.get('category'):
+                        etree.SubElement(prog_elem, "category").text = cat
+            
+            # 写入文件
+            tree = etree.ElementTree(root)
+            tree.write(local_path, encoding='utf-8', xml_declaration=True, pretty_print=True)
+            logger.info(f"EPG数据已保存到本地文件: {local_path}")
+            return True
+        except Exception as e:
+            logger.error(f"保存本地EPG文件失败: {str(e)}")
+            return False
+
     # 智能加载EPG数据(优先缓存，自动更新)
     async def load_epg(self, progress_callback: Optional[callable] = None) -> bool:
         """智能加载EPG数据(优先缓存，自动更新)"""
@@ -208,6 +247,8 @@ class EPGManager:
                     self.epg_data = parsed_data
                     if progress_callback:
                         progress_callback("EPG 数据更新成功")
+                    # 更新成功后保存到本地文件
+                    self.save_local_epg()
                     return True
                 else:
                     if progress_callback:

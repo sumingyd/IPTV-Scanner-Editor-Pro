@@ -110,7 +110,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.old_playlist = None  # 存储旧列表数据 {url: channel_info}
         self.match_worker = None  # 异步任务对象
         self._is_closing = False  # 关闭标志
-
+        
         # 连接信号
         self.scanner.ffprobe_missing.connect(self.show_ffprobe_warning)
         self.validator.progress_updated.connect(self.update_validation_progress)
@@ -184,55 +184,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(main_widget)
         main_layout = QtWidgets.QHBoxLayout(main_widget)
 
-        # 创建主水平分割器
-        self.main_splitter = QtWidgets.QSplitter(Qt.Orientation.Horizontal)
-        self.main_splitter.setHandleWidth(10)  # 设置分割线宽度
-
-        # 左侧面板
-        self.left_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
-        self._setup_scan_panel(self.left_splitter)
-        self._setup_channel_list(self.left_splitter)
-
-        # 右侧面板布局
-        self.right_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
-        self.right_splitter.setHandleWidth(10)  # 显式设置分割线宽度
-        
-        # 播放器区域（必须作为第一个直接子部件）
-        self._setup_player_panel(self.right_splitter)
-        
-        # 底部容器（包含编辑区和功能区）
-        bottom_container = QtWidgets.QWidget()
-        bottom_container.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Expanding,
-            QtWidgets.QSizePolicy.Policy.Expanding
-        )
-        
-        bottom_layout = QtWidgets.QHBoxLayout(bottom_container)
-        bottom_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # 水平分割器
-        h_splitter = QtWidgets.QSplitter(Qt.Orientation.Horizontal)
-        self._setup_edit_panel(h_splitter)
-        self._setup_match_panel(h_splitter)
-        bottom_layout.addWidget(h_splitter)
-        
-        # 添加到垂直分割器
-        self.right_splitter.addWidget(bottom_container)
-        
-        # 设置初始比例（7:3）
-        self.right_splitter.setSizes([700, 300])
-
-        # 添加分隔线样式
-        self._setup_splitter_handle(self.left_splitter)
-        self._setup_splitter_handle(self.right_splitter)
-        self._setup_splitter_handle(self.main_splitter)
-
-        # 将左右分栏添加到主分割器
-        self.main_splitter.addWidget(self.left_splitter)
-        self.main_splitter.addWidget(self.right_splitter)
-
-        # 设置初始比例（3:7）
-        self.main_splitter.setSizes([300, 700])
+        # 初始化所有分隔条并设置初始比例
+        self._init_splitters()
 
         # 将主分割器添加到主布局
         main_layout.addWidget(self.main_splitter)
@@ -244,10 +197,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # 确保状态栏显示并设置样式
         status_bar = self.statusBar()
         
-        # 连接分隔条位置变化信号
-        self.left_splitter.splitterMoved.connect(self._save_splitter_sizes)
-        self.right_splitter.splitterMoved.connect(self._save_splitter_sizes)
-        self.main_splitter.splitterMoved.connect(self._save_splitter_sizes)
+        # 连接信号
         status_bar.show()
         status_bar.setStyleSheet(AppStyles.statusbar_style())
         status_bar.showMessage("程序已启动")
@@ -261,14 +211,64 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress_indicator.hide()
         status_bar.addPermanentWidget(self.progress_indicator)
 
-    # 为 QSplitter 设置分隔线样式
+    # 初始化所有分隔条控件
+    def _init_splitters(self):
+        """初始化所有分隔条控件"""
+        # 主水平分割器（左右布局）
+        self.main_splitter = QtWidgets.QSplitter(Qt.Orientation.Horizontal)
+        self.main_splitter.setHandleWidth(10)
+        self.main_splitter.setChildrenCollapsible(False)  # 防止完全折叠
+
+        # 左侧垂直分割器（扫描面板 + 频道列表）
+        self.left_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
+        self.left_splitter.setChildrenCollapsible(False)
+        self._setup_scan_panel(self.left_splitter)
+        self._setup_channel_list(self.left_splitter)
+
+        # 右侧垂直分割器（播放器 + 底部编辑区）
+        self.right_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
+        self.right_splitter.setHandleWidth(10)
+        self.right_splitter.setChildrenCollapsible(False)
+        self._setup_player_panel(self.right_splitter)
+        
+        # 底部水平分割器（编辑面板 + 匹配面板）
+        bottom_container = QtWidgets.QWidget()
+        bottom_container.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding
+        )
+        bottom_layout = QtWidgets.QHBoxLayout(bottom_container)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.h_splitter = QtWidgets.QSplitter(Qt.Orientation.Horizontal)
+        self.h_splitter.setChildrenCollapsible(False)
+        self._setup_edit_panel(self.h_splitter)
+        self._setup_match_panel(self.h_splitter)
+        bottom_layout.addWidget(self.h_splitter)
+        self.right_splitter.addWidget(bottom_container)
+
+        # 统一设置分隔条样式
+        for splitter in [self.left_splitter, self.right_splitter, 
+                        self.main_splitter, self.h_splitter]:
+            self._setup_splitter_handle(splitter)
+            splitter.setMinimumWidth(100)  # 防止拖得太窄
+            splitter.setMinimumHeight(100) # 防止拖得太扁
+
+        # 组装主界面
+        self.main_splitter.addWidget(self.left_splitter)
+        self.main_splitter.addWidget(self.right_splitter)
+
+        # 设置默认尺寸（如果load_config没有恢复保存的状态，会使用这些值）
+        self.main_splitter.setSizes([300, 700])   # 左右比例 3:7
+        self.left_splitter.setSizes([200, 400])   # 上下比例 1:2
+        self.right_splitter.setSizes([400, 200])  # 播放器较大，编辑区较小
+        self.h_splitter.setSizes([300, 300])      # 左右均分
+
+
     def _setup_splitter_handle(self, splitter: QtWidgets.QSplitter) -> None:
         """为 QSplitter 设置分隔线样式"""
-        # 设置分隔线的样式表
-        if splitter.orientation() == QtCore.Qt.Orientation.Vertical:
-            splitter.setStyleSheet(AppStyles.splitter_handle_style("horizontal"))
-        else:
-            splitter.setStyleSheet(AppStyles.splitter_handle_style("vertical"))
+        style = "horizontal" if splitter.orientation() == QtCore.Qt.Orientation.Vertical else "vertical"
+        splitter.setStyleSheet(AppStyles.splitter_handle_style(style))
 
     # 配置扫描面板
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
@@ -1257,19 +1257,59 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QApplication.processEvents()
 
     # 异步加载 EPG 数据-用户界面入口
-    @pyqtSlot()
-    def load_epg_cache(self) -> None: 
-        """异步加载 EPG 数据"""
-        self.epg_progress_updated.emit("正在加载 EPG 数据...")
-        self.scan_worker = AsyncWorker(self._async_load_epg())
-        self.scan_worker.finished.connect(self.handle_epg_load_success)
-        self.scan_worker.error.connect(lambda error: self.handle_error(error, "epg"))
-        self.scan_worker.start()
+    @qasync.asyncSlot()
+    async def load_epg_cache(self) -> None:
+        """异步加载/更新 EPG 数据"""
+        # 显示加载状态
+        self.progress_indicator.show()
+        self.epg_progress_updated.emit("EPG操作处理中...")
+        
+        try:
+            # 创建并运行异步任务
+            self.scan_worker = AsyncWorker(self._async_load_epg())
+            self.scan_worker.finished.connect(self.handle_epg_load_success)
+            self.scan_worker.error.connect(lambda error: self.handle_error(error, "epg"))
+            await self.scan_worker.run()
+        except Exception as e:
+            self.handle_error(e, "epg")
+        finally:
+            self.progress_indicator.hide()
 
     # 异步加载 EPG 数据-实际执行异步加载的内部方法
     async def _async_load_epg(self) -> None: 
         """异步加载 EPG 数据"""
         try:
+            # 检查EPG数据状态
+            if hasattr(self.epg_manager, 'epg_data') and self.epg_manager.epg_data:
+                # 已有EPG数据，异步询问用户操作
+                msg_box = QtWidgets.QMessageBox(self)
+                msg_box.setWindowTitle("EPG操作")
+                msg_box.setText("EPG数据已加载，请选择操作:")
+                msg_box.setIcon(QtWidgets.QMessageBox.Icon.Question)
+                
+                reload_btn = msg_box.addButton("重新加载", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+                update_btn = msg_box.addButton("更新数据", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+                cancel_btn = msg_box.addButton("取消", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+                
+                # 异步执行对话框
+                clicked_button = await qasync.async_dialog(msg_box)
+                
+                if clicked_button == cancel_btn:
+                    self.epg_progress_updated.emit("EPG操作已取消")
+                    return
+                elif clicked_button == reload_btn:
+                    # 清除现有数据重新加载
+                    self.epg_manager.epg_data = {}
+                    self.epg_manager._name_index = {}
+                    self.epg_progress_updated.emit("正在重新加载 EPG 数据...")
+                elif clicked_button == update_btn:
+                    # 保留现有数据更新
+                    self.epg_progress_updated.emit("正在更新 EPG 数据...")
+            else:
+                # 没有EPG数据，直接加载
+                self.epg_progress_updated.emit("正在加载 EPG 数据...")
+
+            # 执行EPG加载
             success = await self.epg_manager.load_epg(self.epg_progress_updated.emit)
             message = "EPG 数据加载成功" if success else "EPG 数据加载失败"
             if success:
@@ -1392,62 +1432,8 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.show_error(f"保存文件失败: {str(e)}")
 
-    # 保存分隔条位置
-    def _save_splitter_sizes(self):
-        """保存当前分隔条位置到配置"""
-        if (hasattr(self, 'left_splitter') and hasattr(self, 'right_splitter') 
-            and hasattr(self, 'main_splitter') and hasattr(self, 'h_splitter')):
-            left_sizes = self.left_splitter.sizes()
-            right_sizes = self.right_splitter.sizes()
-            main_sizes = self.main_splitter.sizes()
-            h_sizes = self.h_splitter.sizes()
-            self.config.config['UserPrefs']['splitter_sizes'] = json.dumps([left_sizes, right_sizes, main_sizes, h_sizes])
-            self.config.save_prefs()
-
-    # 窗口显示事件 - 恢复分隔条位置
     def showEvent(self, event):
-        """窗口显示后恢复分隔条位置"""
-        def restore_splitter_sizes():
-            try:
-                # 确保分隔条控件已初始化
-                if (not hasattr(self, 'left_splitter') or 
-                    not hasattr(self, 'right_splitter') or
-                    not hasattr(self, 'main_splitter')):
-                    logger.warning("分隔条控件未初始化")
-                    return
-                
-                # 确保有保存的分隔条位置
-                if not hasattr(self, 'config') or not self.config.config.get('UserPrefs', 'splitter_sizes', fallback=''):
-                    logger.warning("没有保存的分隔条位置")
-                    return
-                    
-                sizes = json.loads(self.config.config.get('UserPrefs', 'splitter_sizes', fallback='[]'))
-                if len(sizes) == 4:
-                    left_sizes = sizes[0]
-                    right_sizes = sizes[1]
-                    main_sizes = sizes[2]
-                    h_sizes = sizes[3]
-                    self.main_splitter.setSizes(main_sizes)
-                    self.h_splitter.setSizes(h_sizes)
-                    main_sizes = sizes[2]
-            
-                    # 验证尺寸数据
-                    if (len(left_sizes) == 2 and 
-                        len(right_sizes) == 2 and
-                        len(main_sizes) == 2):
-                        self.left_splitter.setSizes(left_sizes)
-                        self.right_splitter.setSizes(right_sizes)
-                        self.main_splitter.setSizes(main_sizes)
-                        logger.info(f"成功恢复分隔条位置: left={left_sizes}, right={right_sizes}, main={main_sizes}")
-                    else:
-                        logger.warning(f"无效的分隔条尺寸: left={left_sizes}, right={right_sizes}, main={main_sizes}")
-                else:
-                    logger.warning("保存的分隔条尺寸数量不足")
-            except Exception as e:
-                logger.error(f"恢复分隔条位置失败: {str(e)}")
-        
-        # 延迟500ms确保所有控件完全初始化
-        QtCore.QTimer.singleShot(500, restore_splitter_sizes)
+        """窗口显示事件"""
         super().showEvent(event)
 
     # 处理关闭事件
@@ -1480,10 +1466,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     event.ignore()
                     return None  # 明确返回None
             
-            # 5. 保存窗口布局
-            self._save_splitter_sizes()
-            
-            # 6. 执行父类关闭事件
+            # 5. 执行父类关闭事件
             super().closeEvent(event)
             
             # 7. 接受关闭事件
@@ -1493,7 +1476,6 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             logger.error(f"关闭异常: {str(e)}", exc_info=True)
             event.ignore()
-
 
     # 更新验证进度
     @pyqtSlot(int, str)
@@ -1614,12 +1596,30 @@ class MainWindow(QtWidgets.QMainWindow):
             if geometry := self.config.config.get('UserPrefs', 'window_geometry', fallback=''):
                 self.restoreGeometry(QtCore.QByteArray.fromHex(geometry.encode()))
 
-            # 加载区域大小
-            if splitter_sizes := self.config.config.get('UserPrefs', 'splitter_sizes', fallback=''):
-                sizes = json.loads(splitter_sizes)
-                if len(sizes) == 2:
-                    self.left_splitter.setSizes(sizes[0])
-                    self.right_splitter.setSizes(sizes[1])
+            # 恢复分隔条状态
+            if 'Splitters' in self.config.config:
+                try:
+                    if left_sizes := self.config.config['Splitters'].get('left_splitter', ''):
+                        self.left_splitter.setSizes(
+                            [int(size) for size in left_sizes.split(',') if size]
+                        )
+                    
+                    if right_sizes := self.config.config['Splitters'].get('right_splitter', ''):
+                        self.right_splitter.setSizes(
+                            [int(size) for size in right_sizes.split(',') if size]
+                        )
+                    
+                    if main_sizes := self.config.config['Splitters'].get('main_splitter', ''):
+                        self.main_splitter.setSizes(
+                            [int(size) for size in main_sizes.split(',') if size]
+                        )
+                    
+                    if h_sizes := self.config.config['Splitters'].get('h_splitter', ''):
+                        self.h_splitter.setSizes(
+                            [int(size) for size in h_sizes.split(',') if size]
+                        )
+                except Exception as e:
+                    logger.warning(f"恢复分隔条状态失败: {e}")
 
             # 扫描历史
             scan_address = self.config.config.get('Scanner', 'scan_address', fallback='')
@@ -1657,6 +1657,12 @@ class MainWindow(QtWidgets.QMainWindow):
             # 保存窗口几何信息
             self.config.config['UserPrefs']['window_geometry'] = self.saveGeometry().toHex().data().decode()
             
+            # 保存分隔条状态
+            self.config.config['Splitters']['left_splitter'] = ','.join(map(str, self.left_splitter.sizes()))
+            self.config.config['Splitters']['right_splitter'] = ','.join(map(str, self.right_splitter.sizes()))
+            self.config.config['Splitters']['main_splitter'] = ','.join(map(str, self.main_splitter.sizes()))
+            self.config.config['Splitters']['h_splitter'] = ','.join(map(str, self.h_splitter.sizes()))
+
             # 保存扫描配置
             self.config.config['Scanner']['scan_address'] = self.ip_range_input.text()
             self.config.config['Scanner']['timeout'] = str(self.timeout_input.value())
@@ -1675,17 +1681,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 
                 if hasattr(self.epg_manager, 'backup_urls'):
                     self.config.config['EPG']['backup_urls'] = ','.join(self.epg_manager.backup_urls)
-            
-            # 保存频道列表状态 (已移除对ChannelList的保存)
-            pass
-            
-            # 保存分隔条位置（仅在分隔条已初始化且有内容时保存）
-            if (hasattr(self, 'left_splitter') and hasattr(self, 'right_splitter') and
-                self.left_splitter.count() > 0 and self.right_splitter.count() > 0):
-                left_sizes = self.left_splitter.sizes()
-                right_sizes = self.right_splitter.sizes()
-                if left_sizes and right_sizes:  # 确保尺寸列表不为空
-                    self.config.config['UserPrefs']['splitter_sizes'] = json.dumps([left_sizes, right_sizes])
             
             self.config.save_prefs()
             logger.debug("配置已保存")
