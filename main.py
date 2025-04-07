@@ -184,12 +184,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(main_widget)
         main_layout = QtWidgets.QHBoxLayout(main_widget)
 
+        # 创建主水平分割器
+        self.main_splitter = QtWidgets.QSplitter(Qt.Orientation.Horizontal)
+        self.main_splitter.setHandleWidth(10)  # 设置分割线宽度
+
         # 左侧面板
         self.left_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
         self._setup_scan_panel(self.left_splitter)
         self._setup_channel_list(self.left_splitter)
 
-        # 右侧面板布局（关键修正）
+        # 右侧面板布局
         self.right_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
         self.right_splitter.setHandleWidth(10)  # 显式设置分割线宽度
         
@@ -218,13 +222,20 @@ class MainWindow(QtWidgets.QMainWindow):
         # 设置初始比例（7:3）
         self.right_splitter.setSizes([700, 300])
 
-
         # 添加分隔线样式
         self._setup_splitter_handle(self.left_splitter)
         self._setup_splitter_handle(self.right_splitter)
+        self._setup_splitter_handle(self.main_splitter)
 
-        main_layout.addWidget(self.left_splitter)
-        main_layout.addWidget(self.right_splitter)
+        # 将左右分栏添加到主分割器
+        self.main_splitter.addWidget(self.left_splitter)
+        self.main_splitter.addWidget(self.right_splitter)
+
+        # 设置初始比例（3:7）
+        self.main_splitter.setSizes([300, 700])
+
+        # 将主分割器添加到主布局
+        main_layout.addWidget(self.main_splitter)
 
         # 初始化菜单和工具栏
         self._setup_menubar()
@@ -236,6 +247,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # 连接分隔条位置变化信号
         self.left_splitter.splitterMoved.connect(self._save_splitter_sizes)
         self.right_splitter.splitterMoved.connect(self._save_splitter_sizes)
+        self.main_splitter.splitterMoved.connect(self._save_splitter_sizes)
         status_bar.show()
         status_bar.setStyleSheet(AppStyles.statusbar_style())
         status_bar.showMessage("程序已启动")
@@ -1383,10 +1395,13 @@ class MainWindow(QtWidgets.QMainWindow):
     # 保存分隔条位置
     def _save_splitter_sizes(self):
         """保存当前分隔条位置到配置"""
-        if hasattr(self, 'left_splitter') and hasattr(self, 'right_splitter'):
+        if (hasattr(self, 'left_splitter') and hasattr(self, 'right_splitter') 
+            and hasattr(self, 'main_splitter') and hasattr(self, 'h_splitter')):
             left_sizes = self.left_splitter.sizes()
             right_sizes = self.right_splitter.sizes()
-            self.config.config['UserPrefs']['splitter_sizes'] = json.dumps([left_sizes, right_sizes])
+            main_sizes = self.main_splitter.sizes()
+            h_sizes = self.h_splitter.sizes()
+            self.config.config['UserPrefs']['splitter_sizes'] = json.dumps([left_sizes, right_sizes, main_sizes, h_sizes])
             self.config.save_prefs()
 
     # 窗口显示事件 - 恢复分隔条位置
@@ -1395,7 +1410,9 @@ class MainWindow(QtWidgets.QMainWindow):
         def restore_splitter_sizes():
             try:
                 # 确保分隔条控件已初始化
-                if not hasattr(self, 'left_splitter') or not hasattr(self, 'right_splitter'):
+                if (not hasattr(self, 'left_splitter') or 
+                    not hasattr(self, 'right_splitter') or
+                    not hasattr(self, 'main_splitter')):
                     logger.warning("分隔条控件未初始化")
                     return
                 
@@ -1405,16 +1422,27 @@ class MainWindow(QtWidgets.QMainWindow):
                     return
                     
                 sizes = json.loads(self.config.config.get('UserPrefs', 'splitter_sizes', fallback='[]'))
-                left_sizes = sizes[0]
-                right_sizes = sizes[1]
+                if len(sizes) == 4:
+                    left_sizes = sizes[0]
+                    right_sizes = sizes[1]
+                    main_sizes = sizes[2]
+                    h_sizes = sizes[3]
+                    self.main_splitter.setSizes(main_sizes)
+                    self.h_splitter.setSizes(h_sizes)
+                    main_sizes = sizes[2]
             
-                # 验证尺寸数据
-                if len(left_sizes) == 2 and len(right_sizes) == 2:
-                    self.left_splitter.setSizes(left_sizes)
-                    self.right_splitter.setSizes(right_sizes)
-                    logger.info(f"成功恢复分隔条位置: left={left_sizes}, right={right_sizes}")
+                    # 验证尺寸数据
+                    if (len(left_sizes) == 2 and 
+                        len(right_sizes) == 2 and
+                        len(main_sizes) == 2):
+                        self.left_splitter.setSizes(left_sizes)
+                        self.right_splitter.setSizes(right_sizes)
+                        self.main_splitter.setSizes(main_sizes)
+                        logger.info(f"成功恢复分隔条位置: left={left_sizes}, right={right_sizes}, main={main_sizes}")
+                    else:
+                        logger.warning(f"无效的分隔条尺寸: left={left_sizes}, right={right_sizes}, main={main_sizes}")
                 else:
-                    logger.warning(f"无效的分隔条尺寸: left={left_sizes}, right={right_sizes}")
+                    logger.warning("保存的分隔条尺寸数量不足")
             except Exception as e:
                 logger.error(f"恢复分隔条位置失败: {str(e)}")
         
