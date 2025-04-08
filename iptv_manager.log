@@ -1,2 +1,0 @@
-2025-04-08 18:38:25,624 [INFO] :0 [71768:25756] - 加载Scanner配置: address=http://192.168.50.1:20231/rtp/239.21.1.[1-20]:5002, timeout=25, threads=20, user_agent=, referer=
-2025-04-08 18:38:25,624 [ERROR] :0 [71768:25756] - EPG 操作失败: 'MainWindow' object has no attribute 'btn_load_epg'
