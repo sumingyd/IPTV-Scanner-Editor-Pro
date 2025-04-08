@@ -148,27 +148,31 @@ class AppStyles: #应用样式
 
     @staticmethod
     def splitter_handle_style(orientation="horizontal"):
-        """分割线样式"""
+        """简洁圆角分割线样式
+        - 垂直分隔条(左右拖动): 细线(2px) + 圆角
+        - 水平分隔条(上下拖动): 稍粗(4px) + 圆角
+        """
         if orientation == "vertical":
             return """
             QSplitter::handle {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #2196F3, stop:1 #42A5F5);
-                height: 4px;
-                border-radius: 2px;
-                margin: 3px 0;
+                background: #42A5F5;
+                width: 2px;
+                margin: 0 1px;  /* 左右留1px间隙 */
+                border-radius: 3px;
+                border: 1px solid #64B5F6;
             }
             """
         else:
             return """
             QSplitter::handle {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #2196F3, stop:1 #42A5F5);
-                width: 4px;
-                border-radius: 2px;
+                background: #42A5F5;
+                height: 4px;
+                margin: 1px 0;  /* 上下留1px间隙 */
+                border-radius: 3px;
+                border: 1px solid #64B5F6;
             }
             """
-
+        
     @staticmethod
     def progress_style():  
         """进度条样式"""

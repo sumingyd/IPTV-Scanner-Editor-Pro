@@ -216,7 +216,6 @@ class MainWindow(QtWidgets.QMainWindow):
         """初始化所有分隔条控件"""
         # 主水平分割器（左右布局）
         self.main_splitter = QtWidgets.QSplitter(Qt.Orientation.Horizontal)
-        self.main_splitter.setHandleWidth(10)
         self.main_splitter.setChildrenCollapsible(False)  # 防止完全折叠
 
         # 左侧垂直分割器（扫描面板 + 频道列表）
@@ -227,7 +226,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 右侧垂直分割器（播放器 + 底部编辑区）
         self.right_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
-        self.right_splitter.setHandleWidth(10)
         self.right_splitter.setChildrenCollapsible(False)
         self._setup_player_panel(self.right_splitter)
         
@@ -248,11 +246,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.right_splitter.addWidget(bottom_container)
 
         # 统一设置分隔条样式
+        style_map = {
+            QtCore.Qt.Orientation.Vertical: AppStyles.splitter_handle_style("horizontal"),  # 垂直分隔条的把手是水平的
+            QtCore.Qt.Orientation.Horizontal: AppStyles.splitter_handle_style("vertical")   # 水平分隔条的把手是垂直的
+        }
+
         for splitter in [self.left_splitter, self.right_splitter, 
                         self.main_splitter, self.h_splitter]:
-            self._setup_splitter_handle(splitter)
-            splitter.setMinimumWidth(100)  # 防止拖得太窄
-            splitter.setMinimumHeight(100) # 防止拖得太扁
+            # 设置最小尺寸防止拖拽过度
+            splitter.setMinimumSize(100, 100)
+            
+            # 根据方向应用样式
+            splitter.setStyleSheet(style_map[splitter.orientation()])
+            
+            # 设置拖动把手的热区大小（可选，推荐8-10px）
+            splitter.setHandleWidth(8)
 
         # 组装主界面
         self.main_splitter.addWidget(self.left_splitter)
@@ -264,11 +272,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.right_splitter.setSizes([400, 200])  # 播放器较大，编辑区较小
         self.h_splitter.setSizes([300, 300])      # 左右均分
 
-
-    def _setup_splitter_handle(self, splitter: QtWidgets.QSplitter) -> None:
-        """为 QSplitter 设置分隔线样式"""
-        style = "horizontal" if splitter.orientation() == QtCore.Qt.Orientation.Vertical else "vertical"
-        splitter.setStyleSheet(AppStyles.splitter_handle_style(style))
 
     # 配置扫描面板
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
