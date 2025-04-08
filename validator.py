@@ -326,3 +326,39 @@ class StreamValidator(QObject):
                 except:
                     pass
         self._active_processes.clear()
+
+    # 处理单个频道的验证结果
+    def handle_channel_validation(self, result: dict):
+        """处理单个频道的验证结果"""
+        url = result['url']
+        valid = result['valid']
+        latency = result.get('latency', 0.0)
+        width = result.get('width', 0)
+        height = result.get('height', 0)
+        
+        # 返回处理后的结果
+        return {
+            'url': url,
+            'valid': valid,
+            'latency': latency,
+            'width': width,
+            'height': height
+        }
+
+    # 处理验证完成事件
+    def handle_validation_complete(self, result: dict):
+        """处理验证完成事件"""
+        valid_count = len(result['valid'])
+        total = result['total']
+        return {
+            'valid': result['valid'],
+            'invalid': result['invalid'],
+            'total': total,
+            'valid_count': valid_count,
+            'message': f"检测完成 - 有效: {valid_count}/{total}"
+        }
+
+    # 更新验证进度
+    def update_progress(self, percent: int, msg: str):
+        """更新验证进度"""
+        self.progress_updated.emit(percent, msg)

@@ -1,3 +1,4 @@
+from PyQt6 import QtWidgets
 import requests
 from lxml import etree
 from datetime import datetime, timedelta
@@ -15,7 +16,7 @@ logger = setup_logger('EPGManager')
 # EPG管理
 class EPGManager:
     # 初始化
-    def __init__(self):
+    def __init__(self, parent=None):
         self.config = ConfigHandler()
         self.epg_data: Dict[str, Dict] = {}
         self._name_index: Dict[str, List[str]] = {}  # 频道名称倒排索引
@@ -23,6 +24,35 @@ class EPGManager:
         self.main_url = ''
         self.backup_urls = []
         self._init_epg_sources()
+        
+        # EPG UI组件
+        self.parent = parent
+        self.epg_completer = None
+        self.epg_match_label = None
+        self._init_epg_ui()
+
+    # 初始化EPG UI组件
+    def _init_epg_ui(self) -> None:
+        """初始化EPG UI组件"""
+        if not self.parent:
+            return
+            
+        from PyQt6.QtCore import Qt
+        from PyQt6 import QtWidgets
+        
+        # 初始化自动补全器
+        self.epg_completer = QtWidgets.QCompleter()
+        self.epg_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.epg_completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        self.epg_completer.setCompletionMode(QtWidgets.QCompleter.CompletionMode.PopupCompletion)
+        self.epg_completer.setMaxVisibleItems(10)
+        self.epg_completer.popup().setItemDelegate(QtWidgets.QStyledItemDelegate())
+        self.epg_completer.popup().setAttribute(Qt.WidgetAttribute.WA_InputMethodEnabled, False)
+        self.epg_completer.popup().setInputMethodHints(Qt.InputMethodHint.ImhNone)
+        
+        # 初始化EPG匹配状态标签
+        self.epg_match_label = QtWidgets.QLabel("EPG状态: 未匹配")
+        self.epg_match_label.setStyleSheet("font-weight: bold;")
 
     # 初始化EPG数据源配置
     def _init_epg_sources(self) -> None:
@@ -168,6 +198,77 @@ class EPGManager:
         if not channel_name or not isinstance(channel_name, str):
             return False
         return channel_name.lower() in self._name_index
+
+    # 获取EPG匹配状态
+    def get_epg_match_status(self, channel_name: str) -> Tuple[bool, str]:
+        """获取EPG匹配状态和消息"""
+        if not channel_name or not isinstance(channel_name, str):
+            return False, "未匹配"
+        is_matched = channel_name.lower() in self._name_index
+        return is_matched, "✓ 已匹配" if is_matched else "⚠ 未匹配"
+
+    # 更新自动补全模型
+    def update_epg_completer(self, text: str) -> List[str]:
+        """根据输入文本更新自动补全模型"""
+        if not text or not isinstance(text, str):
+            return []
+            
+        matches = self.match_channel_name(text)
+        if self.epg_completer:
+            from PyQt6 import QtCore, QtWidgets
+            model = QtWidgets.QStringListModel(matches)
+            self.epg_completer.setModel(model)
+            
+        if self.epg_match_label:
+            is_matched, status = self.get_epg_match_status(text)
+            self.epg_match_label.setText(f"EPG状态: {status}")
+            color = "green" if is_matched else "red"
+            self.epg_match_label.setStyleSheet(f"color: {color}; font-weight: bold;")
+            
+        return matches
+
+    # 显示EPG管理对话框
+    def show_epg_manager_dialog(self, parent=None) -> None:
+        """显示EPG管理对话框"""
+        dialog = QtWidgets.QDialog(parent)
+        dialog.setWindowTitle("EPG 管理")
+        layout = QtWidgets.QVBoxLayout()
+
+        # 主源设置
+        main_source_label = QtWidgets.QLabel("主源 URL：")
+        main_source_input = QtWidgets.QLineEdit()
+        main_source_input.setText(self.main_url)
+
+        # 备用源设置
+        backup_sources_label = QtWidgets.QLabel("备用源 URL（多个用逗号分隔）：")
+        backup_sources_input = QtWidgets.QLineEdit()
+        backup_sources_input.setText(','.join(self.backup_urls))
+
+        # 缓存TTL设置
+        ttl_label = QtWidgets.QLabel("缓存有效期（秒）：")
+        ttl_input = QtWidgets.QSpinBox()
+        ttl_input.setRange(60, 86400)
+        ttl_input.setValue(self.epg_sources['cache_ttl'])
+
+        # 保存按钮
+        save_btn = QtWidgets.QPushButton("保存")
+        save_btn.clicked.connect(lambda: self._save_epg_settings(
+            main_source_input.text(),
+            backup_sources_input.text(),
+            ttl_input.value(),
+            dialog
+        ))
+
+        layout.addWidget(main_source_label)
+        layout.addWidget(main_source_input)
+        layout.addWidget(backup_sources_label)
+        layout.addWidget(backup_sources_input)
+        layout.addWidget(ttl_label)
+        layout.addWidget(ttl_input)
+        layout.addWidget(save_btn)
+
+        dialog.setLayout(layout)
+        dialog.exec()
 
     # 保存EPG数据到本地文件
     def save_local_epg(self) -> bool:

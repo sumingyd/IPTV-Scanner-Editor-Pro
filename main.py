@@ -89,9 +89,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
 # 主窗口
 class MainWindow(QtWidgets.QMainWindow):
-    # 定义信号（必须在类的作用域内定义）
-    epg_progress_updated = QtCore.pyqtSignal(str)  # 用于更新进度提示
-
     # 初始化
     def __init__(self):
         super().__init__()
@@ -101,7 +98,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.config = ConfigHandler()
         self.scanner = StreamScanner()
         self.validator = StreamValidator()  # 新增验证器实例
-        self.epg_manager = EPGManager()
+        self.epg_manager = EPGManager(self.config)
         self.player = VLCPlayer()
         self.playlist_handler = PlaylistHandler()
         self.converter = PlaylistConverter(self.epg_manager)
@@ -113,10 +110,6 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # 连接信号
         self.scanner.ffprobe_missing.connect(self.show_ffprobe_warning)
-        self.validator.progress_updated.connect(self.update_validation_progress)
-        self.validator.validation_finished.connect(self.on_validation_finished)
-        self.validator.error_occurred.connect(lambda msg: self.handle_error(Exception(msg), "validate"))
-        self.validator.channel_validated.connect(self.on_channel_validated)
             
         # 异步任务跟踪
         self.scan_worker: Optional[AsyncWorker] = None
@@ -129,10 +122,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # 添加防抖定时器
         self.debounce_timer = QtCore.QTimer()
         self.debounce_timer.setSingleShot(True)  # 单次触发
-        self.debounce_timer.timeout.connect(self.update_completer_model)
+        self.debounce_timer.timeout.connect(lambda: self.epg_manager.update_epg_completer(self.name_edit.text()))
 
         # 连接信号与槽
-        self.epg_progress_updated.connect(self.update_status)
         self.player.state_changed.connect(self._handle_player_state)
         self.name_edit.installEventFilter(self)
 
@@ -167,7 +159,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """事件过滤器处理焦点事件（最终版）"""
         if (source is self.name_edit and 
             event.type() == QtCore.QEvent.Type.FocusIn):
-            self.update_completer_model()
+            self.epg_manager.update_epg_completer(self.name_edit.text())
         return super().eventFilter(source, event)
 
     # 初始化用户界面
@@ -271,7 +263,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.left_splitter.setSizes([200, 400])   # 上下比例 1:2
         self.right_splitter.setSizes([400, 200])  # 播放器较大，编辑区较小
         self.h_splitter.setSizes([300, 300])      # 左右均分
-
 
     # 配置扫描面板
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
@@ -573,15 +564,6 @@ class MainWindow(QtWidgets.QMainWindow):
         save_action.triggered.connect(self.save_playlist)
         toolbar.addAction(save_action)
 
-        # 加载 EPG 数据
-        load_epg_action = QAction(load_icon("icons/load.png"), "加载 EPG", self)
-        load_epg_action.triggered.connect(self.load_epg_cache)
-        toolbar.addAction(load_epg_action)
-
-        # EPG 管理
-        epg_manage_action = QAction(load_icon("icons/settings.png"), "EPG 管理", self)
-        epg_manage_action.triggered.connect(self.manage_epg)
-        toolbar.addAction(epg_manage_action)
 
         # 关于
         about_action = QAction(load_icon("icons/info.png"), "关于", self)
@@ -793,16 +775,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_load_old.clicked.connect(self.load_old_playlist)
         self.btn_match.clicked.connect(lambda: asyncio.create_task(self.run_auto_match()))
 
-    # 更新EPG匹配状态显示
-    def update_epg_match_status(self, is_matched: bool, source: str = "EPG"):
-        """更新EPG匹配状态显示"""
-        if is_matched:
-            self.epg_match_label.setText(f"✓ {source}匹配成功")
-            self.epg_match_label.setStyleSheet("color: #4CAF50; font-weight: bold;")
-        else:
-            self.epg_match_label.setText(f"⚠ 未匹配到{source}数据")
-            self.epg_match_label.setStyleSheet("color: #FF9800; font-weight: bold;")
-
     # 连接信号与槽
     def _connect_signals(self) -> None:  
         """连接信号与槽"""
@@ -812,6 +784,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scanner.error_occurred.connect(self.show_error)
         self.channel_list.selectionModel().currentChanged.connect(self.on_channel_selected)
         self.player.state_changed.connect(self._handle_player_state)
+        
+        # 验证器信号连接
+        self.validator.progress_updated.connect(self.validator.update_progress)
+        self.validator.validation_finished.connect(self.validator.handle_validation_complete)
+        self.validator.error_occurred.connect(self.show_error)
+        self.validator.channel_validated.connect(self.validator.handle_channel_validation)
 
     # 统一处理播放状态更新
     def _handle_player_state(self, msg: str):  
@@ -1039,13 +1017,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.group_combo.setCurrentText(chan.get('group', '未分类'))
 
         # 更新EPG匹配状态
-        is_matched = self.epg_manager.is_channel_matched(chan.get('name', ''))
-        self.update_epg_match_status(is_matched, "EPG")
-
-        # 如果EPG未匹配但频道名称不为空，尝试重新匹配
-        if not is_matched and chan.get('name'):
-            is_matched = self.epg_manager.is_channel_matched(chan.get('name', ''))
-            self.update_epg_match_status(is_matched, "EPG")
+        epg_status = self.epg_manager.get_channel_status(chan.get('name', ''))
+        self.epg_match_label.setText(epg_status['message'])
+        self.epg_match_label.setStyleSheet(f"color: {epg_status['color']}; font-weight: bold;")
 
         if url := chan.get('url'):
             asyncio.create_task(self.safe_play(url))
@@ -1259,184 +1233,15 @@ class MainWindow(QtWidgets.QMainWindow):
         # 强制立即处理事件队列
         QtWidgets.QApplication.processEvents()
 
-    # 异步加载 EPG 数据-用户界面入口
-    @qasync.asyncSlot()
-    async def load_epg_cache(self) -> None:
-        """异步加载/更新 EPG 数据"""
-        # 显示加载状态
-        self.progress_indicator.show()
-        self.epg_progress_updated.emit("EPG操作处理中...")
-        
-        try:
-            # 创建并运行异步任务
-            self.scan_worker = AsyncWorker(self._async_load_epg())
-            self.scan_worker.finished.connect(self.handle_epg_load_success)
-            self.scan_worker.error.connect(lambda error: self.handle_error(error, "epg"))
-            await self.scan_worker.run()
-        except Exception as e:
-            self.handle_error(e, "epg")
-        finally:
-            self.progress_indicator.hide()
-
-    # 更新EPG按钮状态
-    def _update_epg_button_state(self, enabled: bool) -> None:
-        """根据加载状态更新EPG相关按钮状态"""
-        self.btn_load_epg.setEnabled(enabled)
-        self.btn_epg_manage.setEnabled(enabled)
-        self.btn_validate.setEnabled(enabled)
-        self.btn_hide_invalid.setEnabled(enabled)
-        
-        # 更新工具栏按钮状态
-        for action in self.toolBar().actions():
-            if action.text() in ["加载 EPG", "EPG 管理"]:
-                action.setEnabled(enabled)
-
-    # 异步加载 EPG 数据-实际执行异步加载的内部方法
-    async def _async_load_epg(self) -> None: 
-        """异步加载 EPG 数据"""
-        try:
-            # 设置加载状态
-            self._is_loading_epg = True
-            self._update_epg_button_state(False)
-            
-            # 保存原始按钮状态以便恢复
-            if not hasattr(self, '_original_button_states'):
-                self._original_button_states = {
-                    'load_epg': self.btn_load_epg.isEnabled(),
-                    'epg_manage': self.btn_epg_manage.isEnabled(),
-                    'validate': self.btn_validate.isEnabled(),
-                    'hide_invalid': self.btn_hide_invalid.isEnabled()
-                }
-            
-            # 检查EPG数据状态
-            if hasattr(self.epg_manager, 'epg_data') and self.epg_manager.epg_data:
-                # 使用事件循环处理对话框，避免阻塞
-                loop = asyncio.get_event_loop()
-                future = loop.create_future()
-                
-                def show_dialog():
-                    try:
-                        msg_box = QtWidgets.QMessageBox(self)
-                        msg_box.setWindowTitle("EPG操作")
-                        msg_box.setText("EPG数据已加载，请选择操作:")
-                        msg_box.setIcon(QtWidgets.QMessageBox.Icon.Question)
-                        
-                        reload_btn = msg_box.addButton("重新加载", QtWidgets.QMessageBox.ButtonRole.ActionRole)
-                        update_btn = msg_box.addButton("更新数据", QtWidgets.QMessageBox.ButtonRole.ActionRole)
-                        cancel_btn = msg_box.addButton("取消", QtWidgets.QMessageBox.ButtonRole.RejectRole)
-                        
-                        # 非阻塞方式显示对话框
-                        msg_box.finished.connect(lambda result: future.set_result(result))
-                        msg_box.show()
-                    except Exception as e:
-                        future.set_exception(e)
-                
-                # 在主线程中显示对话框
-                QtCore.QTimer.singleShot(0, show_dialog)
-                
-                # 等待用户选择
-                result = await future
-                
-                if result == QtWidgets.QMessageBox.ButtonRole.RejectRole:
-                    self.epg_progress_updated.emit("EPG操作已取消")
-                    self._is_loading_epg = False
-                    self._update_epg_button_state(True)
-                    return
-                elif result == QtWidgets.QMessageBox.ButtonRole.ActionRole:
-                    # 清除现有数据重新加载
-                    self.epg_manager.epg_data = {}
-                    self.epg_manager._name_index = {}
-                    self.epg_progress_updated.emit("正在重新加载 EPG 数据...")
-                else:
-                    # 保留现有数据更新
-                    self.epg_progress_updated.emit("正在更新 EPG 数据...")
-            else:
-                # 没有EPG数据，直接加载
-                self.epg_progress_updated.emit("正在加载 EPG 数据...")
-
-            # 执行EPG加载
-            success = await self.epg_manager.load_epg(self.epg_progress_updated.emit)
-            message = "EPG 数据加载成功" if success else "EPG 数据加载失败"
-            if success:
-                self.epg_progress_updated.emit("EPG 数据加载完成，正在更新界面...")
-                self.update_completer_model()
-            self.epg_progress_updated.emit(message)
-            
-            # 恢复按钮状态
-            self._is_loading_epg = False
-            if hasattr(self, '_original_button_states'):
-                # 恢复原始状态
-                self.btn_load_epg.setEnabled(self._original_button_states['load_epg'])
-                self.btn_epg_manage.setEnabled(self._original_button_states['epg_manage'])
-                self.btn_validate.setEnabled(self._original_button_states['validate'])
-                self.btn_hide_invalid.setEnabled(self._original_button_states['hide_invalid'])
-            else:
-                # 默认恢复所有按钮
-                self._update_epg_button_state(True)
-        except Exception as e:
-            logger.error(f"EPG 操作失败: {str(e)}")
-            self.epg_progress_updated.emit(f"EPG 操作失败: {str(e)}")
-
-    # EPG 加载成功后的处理
-    @pyqtSlot()
-    def handle_epg_load_success(self) -> None: 
-        """EPG 加载成功后的处理"""
-        self.statusBar().showMessage("EPG 数据加载完成")
-        self.update_completer_model()  # 确保界面更新
-        # 更新当前选中频道的EPG匹配状态
-        index = self.channel_list.currentIndex()
-        if index.isValid():
-            chan = self.model.channels[index.row()]
-            is_matched = self.epg_manager.is_channel_matched(chan.get('name', ''))
-            self.update_epg_match_status(is_matched, "EPG")
-        # 刷新EPG匹配状态显示
-        self.on_channel_selected()
-
-    # EPG 加载失败后的处理
-    @pyqtSlot(Exception)
-    def handle_epg_load_error(self, error: Exception) -> None: 
-        """EPG 加载失败后的处理"""
-        self.show_error(f"EPG 加载失败: {str(error)}")
-        self.statusBar().showMessage("EPG 加载失败")
 
     # 输入框文本变化处理
     def on_text_changed(self, text: str) -> None: 
         """输入框文本变化处理"""
-        # 立即触发补全更新
-        self.update_completer_model()
         # 启动防抖定时器（后续输入防抖）
         self.debounce_timer.start(300)
+        # 通过epg_manager更新自动补全
+        self.epg_manager.update_epg_completer(text)
 
-    # 自动补全模型更新
-    def update_completer_model(self) -> None: 
-        """自动补全模型更新"""
-        try:
-            current_text = self.name_edit.text().strip()
-            if not current_text:
-                self.epg_completer.setModel(QtCore.QStringListModel([]))
-                return
-
-            # 获取匹配的频道名称
-            names = self._get_matching_channel_names(current_text)
-            if names:
-                QtCore.QTimer.singleShot(0, lambda: 
-                    self.epg_completer.setModel(QtCore.QStringListModel(names)))
-                if self.name_edit.hasFocus():
-                    self.epg_completer.complete()
-        except Exception as e:
-            logger.error(f"自动补全异常: {str(e)}", exc_info=True)
-            self.epg_completer.setModel(QtCore.QStringListModel([]))
-
-    # 获取匹配的频道名称
-    def _get_matching_channel_names(self, text: str) -> List[str]: 
-        """获取匹配的频道名称"""
-        try:
-            raw_names = self.epg_manager.match_channel_name(text)
-            return sorted(list(set(raw_names)), key=lambda x: (len(x), x))
-        except Exception as e:
-            logger.error(f"EPG查询失败: {str(e)}")
-            return []
-    
     # 打开播放列表文件
     @pyqtSlot()
     def open_playlist(self) -> None: 
@@ -1534,25 +1339,6 @@ class MainWindow(QtWidgets.QMainWindow):
             logger.error(f"关闭异常: {str(e)}", exc_info=True)
             event.ignore()
 
-    # 更新验证进度
-    @pyqtSlot(int, str)
-    def update_validation_progress(self, percent: int, msg: str):
-        """更新验证进度"""
-        self.filter_status_label.setText(msg)
-        
-        # 高亮显示当前正在检测的频道
-        if hasattr(self.validator, '_current_url'):
-            for i, chan in enumerate(self.model.channels):
-                if chan.get('url') == self.validator._current_url:
-                    chan['validating'] = True
-                    index = self.model.index(i, 0)
-                    self.model.dataChanged.emit(index, index)
-                    break
-        
-        if percent == 100:
-            self.btn_validate.setText("检测有效性")
-            self.btn_validate.setStyleSheet(AppStyles.button_style())
-
     # 切换有效性检测状态
     async def toggle_validation(self):
         """切换有效性检测状态"""
@@ -1575,75 +1361,17 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             # 从UI获取并发数设置并传递给验证器
             max_workers = self.thread_count_input.value()
-            await self.validator.validate_playlist(urls, max_workers)
+            result = await self.validator.validate_playlist(urls, max_workers)
+            
+            # 处理验证结果
+            self.validation_results = {chan['url']: chan['valid'] for chan in result['valid'] + result['invalid']}
+            self.filter_status_label.setText(f"检测完成 - 有效: {len(result['valid'])}/{len(urls)}")
+            
         except Exception as e:
             self.show_error(f"有效性检测失败: {str(e)}")
             self.btn_validate.setText("检测有效性")
             self.btn_validate.setStyleSheet(AppStyles.button_style())
             self.btn_validate.setChecked(False)
-
-    # 处理单个频道的验证结果
-    @pyqtSlot(dict)
-    def on_channel_validated(self, result: dict):
-        """处理单个频道的验证结果"""
-        url = result['url']
-        valid = result['valid']
-        latency = result.get('latency', 0.0)
-        width = result.get('width', 0)
-        height = result.get('height', 0)
-        
-        # 更新验证结果字典
-        self.validation_results[url] = valid
-        
-        # 查找并更新对应的频道
-        for i, chan in enumerate(self.model.channels):
-            if chan['url'] == url:
-                chan['valid'] = valid
-                chan['validating'] = False  # 清除正在检测状态
-                if valid:
-                    chan['width'] = width
-                    chan['height'] = height
-                if valid:
-                    chan['latency'] = latency
-                
-                # 触发UI更新
-                index = self.model.index(i, 0)
-                self.model.dataChanged.emit(index, index)
-                break
-
-    # 处理验证完成事件
-    @pyqtSlot(dict)
-    def on_validation_finished(self, result: dict):
-        """处理验证完成事件"""
-        # 保存验证结果和延迟信息到频道数据
-        for chan in result['valid']:
-            self.validation_results[chan['url']] = chan['valid']
-            # 更新频道模型中的验证状态和延迟
-            for i, model_chan in enumerate(self.model.channels):
-                if model_chan['url'] == chan['url']:
-                    model_chan['valid'] = chan['valid']
-                    model_chan['validating'] = False  # 清除正在检测状态
-                    if chan['valid'] and 'latency' in chan:
-                        model_chan['latency'] = chan['latency']
-                    # 触发UI更新
-                    index = self.model.index(i, 0)
-                    self.model.dataChanged.emit(index, index)
-        
-        # 更新无效频道状态
-        for chan in result['invalid']:
-            for i, model_chan in enumerate(self.model.channels):
-                if model_chan['url'] == chan['url']:
-                    model_chan['valid'] = False
-                    model_chan['validating'] = False
-                    model_chan['latency'] = 0.0
-                    index = self.model.index(i, 0)
-                    self.model.dataChanged.emit(index, index)
-        
-        valid_count = len(result['valid'])
-        total = result['total']
-        self.btn_validate.setText("检测有效性")
-        self.btn_validate.setStyleSheet(AppStyles.button_style())
-        self.filter_status_label.setText(f"检测完成 - 有效: {valid_count}/{total}")
 
     # 加载用户配置
     def load_config(self) -> None:
@@ -1822,64 +1550,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if action == "scan":
             self.scan_btn.setText("完整扫描")
             self.scan_btn.setStyleSheet(AppStyles.button_style())
-
-    # 管理 EPG 数据源
-    def manage_epg(self) -> None:
-        """管理 EPG 数据源"""
-        dialog = QtWidgets.QDialog(self)
-        dialog.setWindowTitle("EPG 管理")
-        layout = QtWidgets.QVBoxLayout()
-
-        # 主源设置
-        main_source_label = QtWidgets.QLabel("主源 URL：")
-        main_source_input = QtWidgets.QLineEdit()
-        main_source_input.setText(self.config.config.get('EPG', 'main_url', fallback=''))
-
-        # 备用源设置
-        backup_sources_label = QtWidgets.QLabel("备用源 URL（多个用逗号分隔）：")
-        backup_sources_input = QtWidgets.QLineEdit()
-        backup_sources_input.setText(self.config.config.get('EPG', 'backup_urls', fallback=''))
-
-        # 缓存TTL设置
-        ttl_label = QtWidgets.QLabel("缓存有效期（秒）：")
-        ttl_input = QtWidgets.QSpinBox()
-        ttl_input.setRange(60, 86400)
-        ttl_input.setValue(self.config.config.getint('EPG', 'cache_ttl', fallback=3600))
-
-        # 保存按钮
-        save_btn = QtWidgets.QPushButton("保存")
-        save_btn.clicked.connect(lambda: self._save_epg_settings(
-            main_source_input.text(),
-            backup_sources_input.text(),
-            ttl_input.value(),
-            dialog
-        ))
-
-        # 添加到布局
-        layout.addWidget(main_source_label)
-        layout.addWidget(main_source_input)
-        layout.addWidget(backup_sources_label)
-        layout.addWidget(backup_sources_input)
-        layout.addWidget(ttl_label)
-        layout.addWidget(ttl_input)
-        layout.addWidget(save_btn)
-
-        dialog.setLayout(layout)
-        dialog.exec()
-
-    # 保存EPG设置
-    def _save_epg_settings(self, main_url: str, backup_urls: str, ttl: int, dialog: QtWidgets.QDialog) -> None:
-        """保存EPG设置"""
-        try:
-            self.config.config['EPG']['main_url'] = main_url
-            self.config.config['EPG']['backup_urls'] = backup_urls
-            self.config.config['EPG']['cache_ttl'] = str(ttl)
-            self.config.save_prefs()
-            dialog.close()
-            self.update_status("EPG 设置已保存")
-        except Exception as e:
-            logger.error(f"EPG管理错误: {str(e)}")
-            self.show_error(f"EPG管理错误: {str(e)}")
 
     # 设置音量
     def set_volume(self, volume: int) -> None:
