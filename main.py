@@ -1278,34 +1278,76 @@ class MainWindow(QtWidgets.QMainWindow):
         finally:
             self.progress_indicator.hide()
 
+    # 更新EPG按钮状态
+    def _update_epg_button_state(self, enabled: bool) -> None:
+        """根据加载状态更新EPG相关按钮状态"""
+        self.btn_load_epg.setEnabled(enabled)
+        self.btn_epg_manage.setEnabled(enabled)
+        self.btn_validate.setEnabled(enabled)
+        self.btn_hide_invalid.setEnabled(enabled)
+        
+        # 更新工具栏按钮状态
+        for action in self.toolBar().actions():
+            if action.text() in ["加载 EPG", "EPG 管理"]:
+                action.setEnabled(enabled)
+
     # 异步加载 EPG 数据-实际执行异步加载的内部方法
     async def _async_load_epg(self) -> None: 
         """异步加载 EPG 数据"""
         try:
+            # 设置加载状态
+            self._is_loading_epg = True
+            self._update_epg_button_state(False)
+            
+            # 保存原始按钮状态以便恢复
+            if not hasattr(self, '_original_button_states'):
+                self._original_button_states = {
+                    'load_epg': self.btn_load_epg.isEnabled(),
+                    'epg_manage': self.btn_epg_manage.isEnabled(),
+                    'validate': self.btn_validate.isEnabled(),
+                    'hide_invalid': self.btn_hide_invalid.isEnabled()
+                }
+            
             # 检查EPG数据状态
             if hasattr(self.epg_manager, 'epg_data') and self.epg_manager.epg_data:
-                # 已有EPG数据，异步询问用户操作
-                msg_box = QtWidgets.QMessageBox(self)
-                msg_box.setWindowTitle("EPG操作")
-                msg_box.setText("EPG数据已加载，请选择操作:")
-                msg_box.setIcon(QtWidgets.QMessageBox.Icon.Question)
+                # 使用事件循环处理对话框，避免阻塞
+                loop = asyncio.get_event_loop()
+                future = loop.create_future()
                 
-                reload_btn = msg_box.addButton("重新加载", QtWidgets.QMessageBox.ButtonRole.ActionRole)
-                update_btn = msg_box.addButton("更新数据", QtWidgets.QMessageBox.ButtonRole.ActionRole)
-                cancel_btn = msg_box.addButton("取消", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+                def show_dialog():
+                    try:
+                        msg_box = QtWidgets.QMessageBox(self)
+                        msg_box.setWindowTitle("EPG操作")
+                        msg_box.setText("EPG数据已加载，请选择操作:")
+                        msg_box.setIcon(QtWidgets.QMessageBox.Icon.Question)
+                        
+                        reload_btn = msg_box.addButton("重新加载", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+                        update_btn = msg_box.addButton("更新数据", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+                        cancel_btn = msg_box.addButton("取消", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+                        
+                        # 非阻塞方式显示对话框
+                        msg_box.finished.connect(lambda result: future.set_result(result))
+                        msg_box.show()
+                    except Exception as e:
+                        future.set_exception(e)
                 
-                # 异步执行对话框
-                clicked_button = await qasync.async_dialog(msg_box)
+                # 在主线程中显示对话框
+                QtCore.QTimer.singleShot(0, show_dialog)
                 
-                if clicked_button == cancel_btn:
+                # 等待用户选择
+                result = await future
+                
+                if result == QtWidgets.QMessageBox.ButtonRole.RejectRole:
                     self.epg_progress_updated.emit("EPG操作已取消")
+                    self._is_loading_epg = False
+                    self._update_epg_button_state(True)
                     return
-                elif clicked_button == reload_btn:
+                elif result == QtWidgets.QMessageBox.ButtonRole.ActionRole:
                     # 清除现有数据重新加载
                     self.epg_manager.epg_data = {}
                     self.epg_manager._name_index = {}
                     self.epg_progress_updated.emit("正在重新加载 EPG 数据...")
-                elif clicked_button == update_btn:
+                else:
                     # 保留现有数据更新
                     self.epg_progress_updated.emit("正在更新 EPG 数据...")
             else:
@@ -1319,6 +1361,18 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.epg_progress_updated.emit("EPG 数据加载完成，正在更新界面...")
                 self.update_completer_model()
             self.epg_progress_updated.emit(message)
+            
+            # 恢复按钮状态
+            self._is_loading_epg = False
+            if hasattr(self, '_original_button_states'):
+                # 恢复原始状态
+                self.btn_load_epg.setEnabled(self._original_button_states['load_epg'])
+                self.btn_epg_manage.setEnabled(self._original_button_states['epg_manage'])
+                self.btn_validate.setEnabled(self._original_button_states['validate'])
+                self.btn_hide_invalid.setEnabled(self._original_button_states['hide_invalid'])
+            else:
+                # 默认恢复所有按钮
+                self._update_epg_button_state(True)
         except Exception as e:
             logger.error(f"EPG 操作失败: {str(e)}")
             self.epg_progress_updated.emit(f"EPG 操作失败: {str(e)}")
@@ -1678,12 +1732,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.config.config['Player']['volume'] = str(self.volume_slider.value())
             
             # 保存EPG配置
-            if hasattr(self, 'epg_manager'):
-                if hasattr(self.epg_manager, 'main_url'):
-                    self.config.config['EPG']['main_url'] = self.epg_manager.main_url
-                
-                if hasattr(self.epg_manager, 'backup_urls'):
-                    self.config.config['EPG']['backup_urls'] = ','.join(self.epg_manager.backup_urls)
             
             self.config.save_prefs()
             logger.debug("配置已保存")

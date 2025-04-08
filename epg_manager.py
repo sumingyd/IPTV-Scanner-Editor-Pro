@@ -40,6 +40,17 @@ class EPGManager:
             'cache_ttl': self.config.config.getint('EPG', 'cache_ttl', fallback=3600)
         }
 
+    # 保存EPG数据源配置
+    def save_epg_sources(self, main_url: str, backup_urls: str, cache_ttl: int) -> None:
+        """保存EPG数据源配置"""
+        self.main_url = main_url
+        self.backup_urls = [url.strip() for url in backup_urls.split(',') if url.strip()]
+        self.epg_sources = {
+            'main': self.main_url,
+            'backups': self.backup_urls,
+            'cache_ttl': cache_ttl
+        }
+
     # 下载 EPG 数据并缓存
     async def _download_epg(self, url: str) -> Optional[bytes]:
         """下载 EPG 数据并缓存"""
