@@ -1,4 +1,4 @@
-from PyQt6 import QtWidgets
+from PyQt6 import QtWidgets, QtCore
 import requests
 from lxml import etree
 from datetime import datetime, timedelta
@@ -8,13 +8,17 @@ from urllib.parse import urlparse
 import hashlib
 import time
 import sys
+import asyncio
 from pathlib import Path
 from utils import setup_logger, ConfigHandler
 
 logger = setup_logger('EPGManager')
 
 # EPG管理
-class EPGManager:
+class EPGManager(QtCore.QObject):
+    # 定义信号
+    progress_signal = QtCore.pyqtSignal(str)
+    
     # 初始化
     def __init__(self, parent=None):
         self.config = ConfigHandler()
@@ -310,34 +314,39 @@ class EPGManager:
             return False
 
     # 智能加载EPG数据(优先缓存，自动更新)
-    async def load_epg(self, progress_callback: Optional[callable] = None) -> bool:
+    async def load_epg(self) -> bool:
         """智能加载EPG数据(优先缓存，自动更新)"""
         try:
             # 首先尝试从缓存加载
             if latest_cache := self.cache_manager.get_latest_cache():
                 try:
+                    self.progress_signal.emit("正在读取缓存...")
                     with open(latest_cache, "rb") as f:
                         content = f.read()
-                    if parsed_data := self._parse_xmltv(content):
+                    
+                    # 将XML解析放入异步任务
+                    self.progress_signal.emit("正在解析缓存数据...")
+                    parsed_data = await asyncio.get_event_loop().run_in_executor(
+                        None, 
+                        self._parse_xmltv, 
+                        content
+                    )
+                    
+                    if parsed_data:
                         self.epg_data = parsed_data
-                        if progress_callback:
-                            progress_callback(f"从缓存加载 EPG 数据: {latest_cache.name}")
+                        self.progress_signal.emit(f"从缓存加载 EPG 数据: {latest_cache.name}")
                         return True
                     else:
-                        if progress_callback:
-                            progress_callback("缓存文件解析失败，尝试更新...")
+                        self.progress_signal.emit("缓存文件解析失败，尝试更新...")
                 except Exception as e:
-                    if progress_callback:
-                        progress_callback(f"加载缓存文件失败: {str(e)}，尝试更新...")
+                    self.progress_signal.emit(f"加载缓存文件失败: {str(e)}，尝试更新...")
             
             # 检查是否设置了EPG源
             if not self.epg_sources['main'] and not self.epg_sources['backups']:
-                if progress_callback:
-                    progress_callback("错误: 未设置EPG数据源地址")
+                self.progress_signal.emit("错误: 未设置EPG数据源地址")
                 return False
             
-            if progress_callback:
-                progress_callback("正在下载 EPG 数据...")
+            self.progress_signal.emit("正在下载 EPG 数据...")
             
             content = None
             if self.epg_sources['main']:
@@ -345,33 +354,36 @@ class EPGManager:
             
             if not content and self.epg_sources['backups']:
                 for backup_url in self.epg_sources['backups']:
-                    if progress_callback:
-                        progress_callback(f"正在尝试备用源: {backup_url}")
+                    self.progress_signal.emit(f"正在尝试备用源: {backup_url}")
                     content = await self._download_epg(backup_url)
                     if content:
                         break
 
             if content:
-                if progress_callback:
-                    progress_callback("正在解析 EPG 数据...")
-                parsed_data = self._parse_xmltv(content)
+                self.progress_signal.emit("正在解析 EPG 数据...")
+                # 将XML解析放入异步任务
+                parsed_data = await asyncio.get_event_loop().run_in_executor(
+                    None, 
+                    self._parse_xmltv, 
+                    content
+                )
+                
                 if parsed_data:
                     self.epg_data = parsed_data
-                    if progress_callback:
-                        progress_callback("EPG 数据更新成功")
+                    self.progress_signal.emit("EPG 数据更新成功")
                     # 更新成功后保存到本地文件
-                    self.save_local_epg()
+                    await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        self.save_local_epg
+                    )
                     return True
                 else:
-                    if progress_callback:
-                        progress_callback("EPG 数据解析失败")
+                    self.progress_signal.emit("EPG 数据解析失败")
             else:
-                if progress_callback:
-                    progress_callback("所有EPG源下载失败")
+                self.progress_signal.emit("所有EPG源下载失败")
             return False
         except Exception as e:
-            if progress_callback:
-                progress_callback(f"EPG 操作失败: {str(e)}")
+            self.progress_signal.emit(f"EPG 操作失败: {str(e)}")
             logger.error(f"EPG 操作失败: {str(e)}")
             return False
 
