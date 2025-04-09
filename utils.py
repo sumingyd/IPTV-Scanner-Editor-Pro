@@ -11,19 +11,24 @@ from itertools import product
 
 logger = logging.getLogger('Utils')
 
-# 配置系统
+# 配置系统(单例模式)
 class ConfigHandler:
+    """配置处理器，负责管理应用程序配置"""
     _instance = None
     
-    # 确保一个类 只有一个实例
     def __new__(cls):
+        """确保单例模式"""
         if not cls._instance:
             cls._instance = super().__new__(cls)
             cls._instance._initialize_config()
         return cls._instance
     
-    #   安全初始化配置
     def _initialize_config(self) -> None:
+        """安全初始化配置
+        1. 创建默认配置
+        2. 读取现有配置文件
+        3. 迁移旧版本配置
+        """
         """安全初始化配置
         1. 创建默认配置
         2. 读取现有配置文件(如果存在)

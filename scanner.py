@@ -21,7 +21,9 @@ class StreamScanner(QObject):
     channel_found = pyqtSignal(dict)           # 单个有效频道信息
     error_occurred = pyqtSignal(str)           # 错误信息
     ffprobe_missing = pyqtSignal()             # ffprobe缺失信号
-
+    scan_started = pyqtSignal(str)             # 扫描开始信号，带扫描地址
+    scan_stopped = pyqtSignal()                # 扫描停止信号
+    stats_updated = pyqtSignal(str)            # 统计信息更新
     def __init__(self):
         super().__init__()
         self._is_scanning = False
@@ -65,6 +67,7 @@ class StreamScanner(QObject):
         if self._is_scanning:
             logger.info("正在停止扫描...")
             await self._stop_scanning()
+            self.scan_stopped.emit()
             logger.info("扫描已停止")
             return
 
@@ -75,6 +78,7 @@ class StreamScanner(QObject):
             try:
                 logger.info(f"开始扫描IP模式: {ip_pattern}")
                 self._is_scanning = True
+                self.scan_started.emit(ip_pattern)
                 self._executor = ThreadPoolExecutor(max_workers=self._thread_count)
                 self._active_tasks.clear()
                 logger.debug(f"创建线程池，线程数: {self._thread_count}")

@@ -564,6 +564,15 @@ class MainWindow(QtWidgets.QMainWindow):
         save_action.triggered.connect(self.save_playlist)
         toolbar.addAction(save_action)
 
+        # 加载 EPG 数据
+        load_epg_action = QAction(load_icon("icons/load.png"), "加载 EPG", self)
+        load_epg_action.triggered.connect(lambda: asyncio.create_task(self._load_epg_with_progress()))
+        toolbar.addAction(load_epg_action)
+
+        # EPG 管理
+        epg_manage_action = QAction(load_icon("icons/settings.png"), "EPG 管理", self)
+        epg_manage_action.triggered.connect(lambda: self.epg_manager.show_epg_manager_dialog(self))
+        toolbar.addAction(epg_manage_action)
 
         # 关于
         about_action = QAction(load_icon("icons/info.png"), "关于", self)
@@ -592,6 +601,28 @@ class MainWindow(QtWidgets.QMainWindow):
             logger.error(f"获取最新版本失败: {str(e)}")
             # 返回默认版本号
             return "2.0.0.0"
+
+    # 带进度显示的EPG加载
+    async def _load_epg_with_progress(self):
+        """带进度显示的EPG加载"""
+        self.statusBar().showMessage("正在加载EPG数据...")
+        self.progress_indicator.show()
+        
+        def update_progress(msg):
+            self.statusBar().showMessage(msg)
+            QtWidgets.QApplication.processEvents()
+            
+        try:
+            success = await self.epg_manager.load_epg()
+            if success:
+                self.statusBar().showMessage("EPG数据加载完成", 3000)
+            else:
+                self.statusBar().showMessage("EPG数据加载失败", 3000)
+        except Exception as e:
+            self.statusBar().showMessage(f"EPG加载错误: {str(e)}", 3000)
+            logger.error(f"EPG加载错误: {str(e)}")
+        finally:
+            self.progress_indicator.hide()
 
     # 显示关于对话框
     async def _show_about_dialog(self):
