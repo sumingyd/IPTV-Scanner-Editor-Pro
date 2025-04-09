@@ -6,7 +6,8 @@ import json
 from pathlib import Path
 from typing import List, Dict, Optional
 from urllib.parse import urlparse
-from utils import setup_logger, ConfigHandler
+from utils import setup_logger
+from config_manager import ConfigHandler
 from epg_manager import EPGManager
 
 logger = setup_logger('PlaylistIO')

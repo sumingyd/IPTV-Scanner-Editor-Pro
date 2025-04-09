@@ -8,7 +8,8 @@ import os
 from typing import List
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtCore import pyqtSignal
-from utils import ConfigHandler, check_gpu_driver
+from utils import check_gpu_driver
+from config_manager import ConfigHandler
 from async_utils import AsyncWorker
 
 logger = logging.getLogger('Player')
