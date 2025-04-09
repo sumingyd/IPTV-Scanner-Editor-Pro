@@ -10,7 +10,8 @@ import time
 import sys
 import asyncio
 from pathlib import Path
-from utils import setup_logger, ConfigHandler
+from logger_utils import setup_logger
+from config_manager import ConfigHandler
 
 logger = setup_logger('EPGManager')
 

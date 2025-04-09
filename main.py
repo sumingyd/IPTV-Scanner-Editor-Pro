@@ -23,7 +23,8 @@ from epg_manager import EPGManager
 from player import VLCPlayer
 from playlist_io import PlaylistConverter, PlaylistHandler, PlaylistParser
 from scanner import StreamScanner
-from utils import ConfigHandler, setup_logger
+from logger_utils import setup_logger
+from config_manager import ConfigHandler
 from styles import AppStyles
 from validator import StreamValidator
 
