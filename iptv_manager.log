@@ -1,3 +1,3 @@
-2025-04-11 04:28:23,635 [INFO] :0 [29484:24708] - 开始从GitHub获取最新版本信息: https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest
-2025-04-11 04:28:28,519 [INFO] :0 [29484:24708] - 成功获取版本信息: 5.0.0.0, 发布时间: 2025-04-06
+2025-04-11 04:39:05,180 [INFO] :0 [31320:29952] - 开始从GitHub获取最新版本信息: https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest
+2025-04-11 04:39:15,694 [INFO] :0 [31320:29952] - 成功获取版本信息: 5.0.0.0, 发布时间: 2025-04-06
 tribute 'save_prefs'
