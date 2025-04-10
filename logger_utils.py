@@ -121,8 +121,12 @@ def setup_logger(name: str, level=None) -> logging.Logger:
     
     # 从配置读取日志级别
     config = ConfigHandler()
-    log_level = config.get_config_value('DEFAULT', 'log_level', 'INFO').upper()
-    level = getattr(logging, log_level, logging.INFO) if level is None else level
+    log_level = config.get_config_value('DEFAULT', 'log_level', 'DEBUG').upper()
+    level = getattr(logging, log_level, logging.DEBUG) if level is None else level
+    
+    # 确保关于对话框的日志能被记录
+    if name == '__main__' or name.startswith('about_dialog'):
+        level = logging.DEBUG
     
     logger.setLevel(level)
     logger.addFilter(VlcWarningFilter())

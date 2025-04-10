@@ -329,3 +329,65 @@ class AppStyles: #应用样式
                 font-weight: bold;
             }
             """
+
+    @staticmethod
+    def slider_style():
+        """滑块控件样式"""
+        return """
+        QSlider {
+            min-height: 20px;
+        }
+        QSlider::groove:horizontal {
+            height: 6px;
+            background: palette(mid);
+            border-radius: 3px;
+        }
+        QSlider::handle:horizontal {
+            width: 16px;
+            height: 16px;
+            margin: -5px 0;
+            background: palette(highlight);
+            border-radius: 8px;
+            border: 1px solid palette(dark);
+        }
+        QSlider::sub-page:horizontal {
+            background: palette(highlight);
+            border-radius: 3px;
+        }
+        """
+
+    @staticmethod
+    def combo_box_style():
+        """组合框样式"""
+        return """
+        QComboBox {
+            min-height: 32px;
+            padding: 5px 10px;
+            border: 1px solid palette(mid);
+            border-radius: 4px;
+            background: palette(base);
+            color: palette(text);
+        }
+        QComboBox:hover {
+            border-color: palette(highlight);
+        }
+        QComboBox:focus {
+            border: 2px solid palette(highlight);
+            padding: 4px 9px;
+        }
+        QComboBox::drop-down {
+            border: none;
+            width: 24px;
+        }
+        QComboBox::down-arrow {
+            image: url(:/icons/down_arrow.png);
+            width: 12px;
+            height: 12px;
+        }
+        QComboBox QAbstractItemView {
+            border: 1px solid palette(mid);
+            selection-background-color: palette(highlight);
+            selection-color: palette(highlightedText);
+            background: palette(base);
+        }
+        """
