@@ -169,15 +169,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.right_splitter.setSizes([400, 200])  # 播放器较大，编辑区较小
         self.h_splitter.setSizes([300, 300])      # 左右均分
 
-    # 配置扫描面板
+    # 配置扫描面板 (已迁移到ui_builder.py)
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
         """配置扫描面板"""
-        self.ui_builder.build_scan_panel(parent)
+        pass
 
-    # 配置频道列表
+    # 配置频道列表 (已迁移到ui_builder.py)
     def _setup_channel_list(self, parent: QtWidgets.QSplitter) -> None:  
         """配置频道列表"""
-        self.ui_builder.build_channel_list(parent)
+        pass
 
     # 配置播放器面板 (已迁移到ui_builder.py)
     def _setup_player_panel(self, parent: QtWidgets.QSplitter) -> None:  
