@@ -1,4 +1,0 @@
-2025-04-09 23:51:36,727 [INFO] :0 [17004:54928] - 加载Scanner配置: address=http://192.168.50.1:20231/rtp/239.21.1.[1-20]:5002, timeout=25, threads=20, user_agent=, referer=
-2025-04-09 23:51:36,728 [ERROR] :0 [17004:54928] - EPG加载错误: super-class __init__() of type EPGManager was never called
-2025-04-09 23:51:38,541 [ERROR] :0 [17004:54928] - EPG加载错误: super-class __init__() of type EPGManager was never called
-2025-04-09 23:51:42,631 [ERROR] :0 [17004:54928] - 保存配置失败: 'ConfigHandler' object has no attribute 'save_prefs'

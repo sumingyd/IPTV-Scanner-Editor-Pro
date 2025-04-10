@@ -279,16 +279,6 @@ class AppStyles: #应用样式
         """
 
     @staticmethod
-    def stats_label_style():
-        """统计标签样式"""
-        return """
-        QLabel {
-            color: palette(windowText);
-            font-weight: bold;
-        }
-        """
-
-    @staticmethod
     def player_button_style():
         """播放器控制按钮样式"""
         return """
