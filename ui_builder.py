@@ -1,6 +1,7 @@
 import asyncio
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
+from channel_model import ChannelListModel
 from styles import AppStyles
 from pathlib import Path
 
