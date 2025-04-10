@@ -1,0 +1,3 @@
+2025-04-11 03:46:57,694 [ERROR] :0 [24708:28784] - 获取最新版本失败: 'AboutDialog' object has no attribute '_get_latest_version'
+=25, threads=20, user_agent=, referer=
+2025-04-11 03:47:04,243 [ERROR] :0 [24708:28784] - 保存配置失败: 'ConfigHandler' object has no attribute 'save_prefs'
