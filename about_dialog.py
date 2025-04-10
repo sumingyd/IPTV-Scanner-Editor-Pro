@@ -1,12 +1,11 @@
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtCore import Qt
-import aiohttp
-import styles
 import asyncio
 import datetime
-import logging
 import platform
 import sys
+
+import aiohttp
 
 from logger_utils import setup_logger
 logger = setup_logger(__name__)
@@ -158,37 +157,11 @@ class AboutDialog(QtWidgets.QDialog):
     async def show(self):
         """显示对话框并异步更新最新版本号和编译日期"""
         super().show()  # 先显示对话框
-        
-        # 初始显示当前版本
         text_label = self.findChild(QtWidgets.QLabel, "aboutTextLabel")
-        if text_label:
-            current_text = text_label.text()
-            import re
-            # 确保当前版本显示正确
-            updated_text = re.sub(
-                r'(当前版本：</b>\s*)([^<]+)', 
-                f'\\g<1>{self.current_version}', 
-                current_text
-            )
         
-        # 异步获取最新版本
         try:
             latest_version, publish_date = await asyncio.wait_for(self._get_latest_version(), timeout=5)
-            if text_label:
-                current_text = text_label.text()
-                # 更新最新版本号
-                updated_text = re.sub(
-                    r'(最新版本：</b>\s*)([^<]+)', 
-                    f'\\g<1>{latest_version}', 
-                    current_text
-                )
-                # 更新编译日期
-                updated_text = re.sub(
-                    r'(编译日期：</b>\s*)([^<]+)',
-                    f'\\g<1>{publish_date}',
-                    updated_text
-                )
-                text_label.setText(updated_text)
+            self._update_version_text(text_label, version=latest_version, date=publish_date)
         except asyncio.TimeoutError:
             logger.error("获取最新版本超时")
             self._show_version_error("(请求超时)")
@@ -196,25 +169,40 @@ class AboutDialog(QtWidgets.QDialog):
             logger.error(f"获取最新版本失败: {str(e)}", exc_info=True)
             self._show_version_error("(获取失败)")
 
-    def _show_version_error(self, error_msg):
-        """显示版本获取错误信息"""
-        text_label = self.findChild(QtWidgets.QLabel, "aboutTextLabel")
+    def _update_version_text(self, text_label, version=None, date=None, error_msg=None):
+        """更新版本号文本的公共方法"""
         if text_label:
             current_text = text_label.text()
             import re
-            # 更新版本号并添加错误信息
-            updated_text = re.sub(
-                r'(最新版本：</b>\s*)([^<]+)', 
-                f'\\g<1>{error_msg}', 
-                current_text
-            )
-            # 更新编译日期为当前日期
-            updated_text = re.sub(
-                r'(编译日期：</b>\s*)([^<]+)',
-                f'\\g<1>{datetime.date.today().strftime("%Y-%m-%d")}',
-                updated_text
-            )
-            text_label.setText(updated_text)
+            if version is not None:
+                current_text = re.sub(
+                    r'(最新版本：</b>\s*)([^<]+)', 
+                    f'\\g<1>{version}', 
+                    current_text
+                )
+            if date is not None:
+                current_text = re.sub(
+                    r'(编译日期：</b>\s*)([^<]+)',
+                    f'\\g<1>{date}',
+                    current_text
+                )
+            if error_msg is not None:
+                current_text = re.sub(
+                    r'(最新版本：</b>\s*)([^<]+)', 
+                    f'\\g<1>{error_msg}', 
+                    current_text
+                )
+                current_text = re.sub(
+                    r'(编译日期：</b>\s*)([^<]+)',
+                    f'\\g<1>{datetime.date.today().strftime("%Y-%m-%d")}',
+                    current_text
+                )
+            text_label.setText(current_text)
+
+    def _show_version_error(self, error_msg):
+        """显示版本获取错误信息"""
+        text_label = self.findChild(QtWidgets.QLabel, "aboutTextLabel")
+        self._update_version_text(text_label, error_msg=error_msg)
 
     def _on_link_activated(self, link):
         """处理链接点击事件"""
@@ -248,24 +236,8 @@ class AboutDialog(QtWidgets.QDialog):
             # 添加人工延迟让用户能看到加载动画
             await asyncio.sleep(0.5)
             latest_version, publish_date = await self._get_latest_version()
-            
             text_label = self.findChild(QtWidgets.QLabel, "aboutTextLabel")
-            if text_label:
-                current_text = text_label.text()
-                import re
-                # 更新最新版本号
-                updated_text = re.sub(
-                    r'(最新版本：</b>\s*)([^<]+)', 
-                    f'\\g<1>{latest_version}', 
-                    current_text
-                )
-                # 更新编译日期
-                updated_text = re.sub(
-                    r'(编译日期：</b>\s*)([^<]+)',
-                    f'\\g<1>{publish_date}',
-                    updated_text
-                )
-                text_label.setText(updated_text)
+            self._update_version_text(text_label, version=latest_version, date=publish_date)
         except Exception as e:
             logger.error(f"手动检查更新失败: {str(e)}", exc_info=True)
             self._show_version_error("(检查失败)")
