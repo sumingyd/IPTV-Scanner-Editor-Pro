@@ -1,3 +1,3 @@
-2025-04-11 03:46:57,694 [ERROR] :0 [24708:28784] - 获取最新版本失败: 'AboutDialog' object has no attribute '_get_latest_version'
-=25, threads=20, user_agent=, referer=
-2025-04-11 03:47:04,243 [ERROR] :0 [24708:28784] - 保存配置失败: 'ConfigHandler' object has no attribute 'save_prefs'
+2025-04-11 04:28:23,635 [INFO] :0 [29484:24708] - 开始从GitHub获取最新版本信息: https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest
+2025-04-11 04:28:28,519 [INFO] :0 [29484:24708] - 成功获取版本信息: 5.0.0.0, 发布时间: 2025-04-06
+tribute 'save_prefs'
