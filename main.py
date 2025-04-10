@@ -215,17 +215,15 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog = AboutDialog(self)
         await dialog.show()
 
-    # 配置智能匹配功能区
+    # 配置智能匹配功能区 (已迁移到ui_builder.py)
     def _setup_match_panel(self, parent_layout):
         """添加智能匹配功能区（右侧新增区域）"""
-        self.matcher = ChannelMatcher(self)
-        self.matcher.setup_match_panel(parent_layout)
+        pass
 
-    # 连接信号与槽
+    # 连接信号与槽 (已迁移到ui_builder.py)
     def _connect_signals(self) -> None:
         """连接信号与槽"""
-        self.signals = SignalConnector(self)
-        self.signals.connect_signals()
+        pass
 
     # 统一处理播放状态更新
     def _handle_player_state(self, msg: str):  
