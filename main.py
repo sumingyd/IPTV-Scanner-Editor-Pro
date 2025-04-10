@@ -189,70 +189,15 @@ class MainWindow(QtWidgets.QMainWindow):
         """配置编辑面板"""
         self.ui_builder._setup_edit_panel(parent)
 
-    # 初始化菜单栏
+    # 初始化菜单栏 (已迁移到ui_builder.py)
     def _setup_menubar(self) -> None:  
         """初始化菜单栏"""
-        menubar = self.menuBar()
+        pass
 
-        # 文件菜单
-        file_menu = menubar.addMenu("文件(&F)")
-        open_action = QAction("打开列表(&O)", self)
-        open_action.setShortcut(QKeySequence("Ctrl+O"))
-        open_action.triggered.connect(self.open_playlist)
-        file_menu.addAction(open_action)
-
-        save_action = QAction("保存列表(&S)", self)
-        save_action.setShortcut(QKeySequence("Ctrl+S"))
-        save_action.triggered.connect(self.save_playlist)
-        file_menu.addAction(save_action)
-
-        file_menu.addSeparator()
-        exit_action = QAction("退出(&X)", self)
-        exit_action.setShortcut(QKeySequence("Ctrl+Q"))
-        exit_action.triggered.connect(self.close)
-        file_menu.addAction(exit_action)
-
-    # 初始化工具栏
+    # 初始化工具栏 (已迁移到ui_builder.py)
     def _setup_toolbar(self) -> None:  
         """初始化工具栏"""
-        toolbar = self.addToolBar("主工具栏")
-        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-        toolbar.setMovable(False)
-
-        def load_icon(path: str) -> QIcon:
-            """加载图标，如果失败则返回空图标"""
-            icon_path = Path(__file__).parent / path
-            if icon_path.exists():
-                return QIcon(str(icon_path))
-            return QIcon()
-
-        # 打开列表
-        open_action = QAction(load_icon("icons/open.png"), "打开列表", self)
-        open_action.triggered.connect(self.open_playlist)
-        toolbar.addAction(open_action)
-
-        # 保存列表
-        save_action = QAction(load_icon("icons/save.png"), "保存列表", self)
-        save_action.triggered.connect(self.save_playlist)
-        toolbar.addAction(save_action)
-
-        # 加载 EPG 数据
-        load_epg_action = QAction(load_icon("icons/load.png"), "加载 EPG", self)
-        load_epg_action.triggered.connect(lambda: asyncio.create_task(self._load_epg_with_progress()))
-        toolbar.addAction(load_epg_action)
-
-        # EPG 管理
-        epg_manage_action = QAction(load_icon("icons/settings.png"), "EPG 管理", self)
-        epg_manage_action.triggered.connect(lambda: self.epg_manager.show_epg_manager_dialog(self))
-        toolbar.addAction(epg_manage_action)
-
-        # 关于
-        about_action = QAction(load_icon("icons/info.png"), "关于", self)
-        about_action.triggered.connect(lambda: asyncio.create_task(self._show_about_dialog()))
-        toolbar.addAction(about_action)
-
-        # 添加分隔线保持布局美观
-        toolbar.addSeparator()
+        pass
 
     # 从GitHub获取最新版本号
     async def _get_latest_version(self) -> str:
