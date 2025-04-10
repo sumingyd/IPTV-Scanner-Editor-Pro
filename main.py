@@ -182,12 +182,12 @@ class MainWindow(QtWidgets.QMainWindow):
     # 配置播放器面板 (已迁移到ui_builder.py)
     def _setup_player_panel(self, parent: QtWidgets.QSplitter) -> None:  
         """配置播放器面板"""
-        self.ui_builder._setup_player_panel(parent)
+        pass
 
     # 配置编辑面板 (已迁移到ui_builder.py)
     def _setup_edit_panel(self, parent: QtWidgets.QSplitter) -> None:  
         """配置编辑面板"""
-        self.ui_builder._setup_edit_panel(parent)
+        pass
 
     # 初始化菜单栏 (已迁移到ui_builder.py)
     def _setup_menubar(self) -> None:  
