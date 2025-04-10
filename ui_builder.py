@@ -221,6 +221,67 @@ class UIBuilder:
         match_group.setLayout(match_layout)
         parent.addWidget(match_group)
 
+    def _setup_scan_panel(self, parent):
+        """配置扫描面板"""
+        scan_group = QtWidgets.QGroupBox("扫描设置")
+        scan_layout = QtWidgets.QFormLayout()
+
+        self.main_window.ip_range_input = QtWidgets.QLineEdit()
+        self.main_window.scan_progress = QtWidgets.QProgressBar()
+        self.main_window.scan_progress.setStyleSheet(AppStyles.progress_style())
+
+        # IP范围输入
+        scan_layout.addRow("IP范围:", self.main_window.ip_range_input)
+        
+        # 扫描按钮
+        self.main_window.scan_btn = QtWidgets.QPushButton("完整扫描")
+        self.main_window.scan_btn.setStyleSheet(AppStyles.button_style())
+        self.main_window.scan_btn.clicked.connect(
+            lambda: asyncio.create_task(self.main_window.toggle_scan())
+        )
+        scan_layout.addRow(self.main_window.scan_btn)
+        
+        # 停止按钮
+        self.main_window.stop_btn = QtWidgets.QPushButton("停止")
+        self.main_window.stop_btn.setStyleSheet(AppStyles.button_style(active=True))
+        self.main_window.stop_btn.clicked.connect(self.main_window.stop_scan)
+        scan_layout.addRow(self.main_window.stop_btn)
+        
+        # 进度条
+        scan_layout.addRow("进度:", self.main_window.scan_progress)
+        
+        # 详细统计
+        self.main_window.detailed_stats_label = QtWidgets.QLabel("准备扫描")
+        self.main_window.detailed_stats_label.setStyleSheet(AppStyles.status_label_style())
+        scan_layout.addRow(self.main_window.detailed_stats_label)
+
+        scan_group.setLayout(scan_layout)
+        parent.addWidget(scan_group)
+
+    def _setup_channel_list(self, parent):
+        """配置频道列表"""
+        # 频道列表视图
+        self.main_window.channel_list = QtWidgets.QListView()
+        self.main_window.channel_list.setStyleSheet(AppStyles.list_view_style())
+        self.main_window.channel_list.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        self.main_window.channel_list.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        
+        # 频道模型
+        self.main_window.model = ChannelListModel()
+        self.main_window.channel_list.setModel(self.main_window.model)
+        
+        # 右键菜单
+        self.main_window.channel_list.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.main_window.channel_list.customContextMenuRequested.connect(self.main_window.show_context_menu)
+        
+        # 选中事件
+        self.main_window.channel_list.selectionModel().currentChanged.connect(
+            lambda: self.main_window.on_channel_selected()
+        )
+        
+        # 添加到布局
+        parent.addWidget(self.main_window.channel_list)
+
     def _setup_menubar(self):
         """初始化菜单栏"""
         menubar = self.main_window.menuBar()
