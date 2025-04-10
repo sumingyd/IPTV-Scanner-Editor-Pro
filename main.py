@@ -26,7 +26,12 @@ from scanner import StreamScanner
 from logger_utils import setup_logger
 from config_manager import ConfigHandler
 from styles import AppStyles
+import utils
 from validator import StreamValidator
+from ui_builder import UIBuilder
+from signals import SignalConnector
+from matcher import ChannelMatcher
+from about_dialog import AboutDialog
 
 logger = setup_logger('Main') # 主程序日志器
 
@@ -87,15 +92,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # 异步显示警告对话框
     async def _async_show_warning(self, title: str, message: str) -> None:
         """异步显示警告对话框"""
-        # 使用QMessageBox显示警告
-        msg_box = QMessageBox(self)
-        msg_box.setIcon(QMessageBox.Icon.Warning)
-        msg_box.setWindowTitle(title)
-        msg_box.setText(message)
-        msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-        
-        # 直接执行对话框
-        msg_box.exec()
+        await utils.async_show_warning(self, title, message)
 
     # 事件过滤器处理焦点事件（最终版）
     def eventFilter(self, source, event: QtCore.QEvent) -> bool:
@@ -108,43 +105,8 @@ class MainWindow(QtWidgets.QMainWindow):
     # 初始化用户界面
     def _init_ui(self) -> None:
         """初始化用户界面"""
-        self.setWindowTitle("IPTV Scanner Editor Pro / IPTV 专业扫描编辑工具")
-        self.resize(1200, 800)
-        
-        # 使用系统调色板适应深色/浅色模式
-        self.setStyleSheet(AppStyles.main_window_style())
-        
-        # 主布局
-        main_widget = QtWidgets.QWidget()
-        self.setCentralWidget(main_widget)
-        main_layout = QtWidgets.QHBoxLayout(main_widget)
-
-        # 初始化所有分隔条并设置初始比例
-        self._init_splitters()
-
-        # 将主分割器添加到主布局
-        main_layout.addWidget(self.main_splitter)
-
-        # 初始化菜单和工具栏
-        self._setup_menubar()
-        self._setup_toolbar()
-
-        # 确保状态栏显示并设置样式
-        status_bar = self.statusBar()
-        
-        # 连接信号
-        status_bar.show()
-        status_bar.setStyleSheet(AppStyles.statusbar_style())
-        status_bar.showMessage("程序已启动")
-        
-        # 添加进度指示器
-        self.progress_indicator = QtWidgets.QProgressBar()
-        self.progress_indicator.setRange(0, 0)  # 无限循环模式
-        self.progress_indicator.setTextVisible(False)
-        self.progress_indicator.setFixedWidth(120)
-        self.progress_indicator.setStyleSheet(AppStyles.progress_style())
-        self.progress_indicator.hide()
-        status_bar.addPermanentWidget(self.progress_indicator)
+        self.ui_builder = UIBuilder(self)
+        self.ui_builder.build_ui()
 
     # 初始化所有分隔条控件
     def _init_splitters(self):
@@ -210,254 +172,22 @@ class MainWindow(QtWidgets.QMainWindow):
     # 配置扫描面板
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
         """配置扫描面板"""
-        scan_group = QtWidgets.QGroupBox("扫描设置")
-        scan_layout = QtWidgets.QFormLayout()
-
-        self.ip_range_input = QtWidgets.QLineEdit()
-        self.scan_progress = QtWidgets.QProgressBar()
-        self.scan_progress.setStyleSheet(AppStyles.progress_style())
-
-        # 超时时间设置
-        timeout_layout = QtWidgets.QHBoxLayout()
-        timeout_label = QtWidgets.QLabel("设置扫描超时时间（秒）")
-        timeout_layout.addWidget(timeout_label)
-        self.timeout_input = QtWidgets.QSpinBox()
-        self.timeout_input.setRange(1, 60)
-        self.timeout_input.setValue(10)
-        self.timeout_input.setSuffix(" 秒")
-        timeout_layout.addWidget(self.timeout_input)
-        
-        # 线程数设置
-        thread_layout = QtWidgets.QHBoxLayout()
-        thread_label = QtWidgets.QLabel("设置扫描使用的线程数量")
-        thread_layout.addWidget(thread_label)
-        self.thread_count_input = QtWidgets.QSpinBox()
-        self.thread_count_input.setRange(1, 100)
-        self.thread_count_input.setValue(10)
-        self.thread_count_input.setToolTip("同时处理的频道数量，也决定批处理大小(最大50)")
-        thread_layout.addWidget(self.thread_count_input)
-
-        # User-Agent设置
-        user_agent_layout = QtWidgets.QHBoxLayout()
-        user_agent_label = QtWidgets.QLabel("User-Agent:")
-        user_agent_layout.addWidget(user_agent_label)
-        self.user_agent_input = QtWidgets.QLineEdit()
-        self.user_agent_input.setPlaceholderText("可选，留空使用默认")
-        user_agent_layout.addWidget(self.user_agent_input)
-
-        # Referer设置
-        referer_layout = QtWidgets.QHBoxLayout()
-        referer_label = QtWidgets.QLabel("Referer:")
-        referer_layout.addWidget(referer_label)
-        self.referer_input = QtWidgets.QLineEdit()
-        self.referer_input.setPlaceholderText("可选，留空不使用")
-        referer_layout.addWidget(self.referer_input)
-
-        # 扫描控制按钮
-        self.scan_btn = QtWidgets.QPushButton("完整扫描")
-        self.scan_btn.setStyleSheet(AppStyles.button_style(active=True))
-        self.scan_btn.clicked.connect(lambda: asyncio.create_task(self.toggle_scan()))
-        
-        # 设置按钮尺寸策略为Expanding
-        self.scan_btn.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Expanding,
-            QtWidgets.QSizePolicy.Policy.Fixed
-        )
-
-        # 扫描统计信息
-        self.detailed_stats_label = QtWidgets.QLabel("总频道: 0 | 有效: 0 | 无效: 0 | 耗时: 0s")
-        self.detailed_stats_label.setStyleSheet(AppStyles.stats_label_style())
-
-        # 使用网格布局让按钮和统计信息并排显示
-        button_stats_layout = QtWidgets.QGridLayout()
-        button_stats_layout.addWidget(self.scan_btn, 0, 0, 1, 2)  # 按钮占满前两列
-        button_stats_layout.addWidget(self.detailed_stats_label, 1, 0, 1, 2)  # 统计信息占满第二行
-        
-        # 设置列拉伸比例
-        button_stats_layout.setColumnStretch(0, 1)
-        button_stats_layout.setColumnStretch(1, 1)
-
-        scan_layout.addRow("地址格式：", QtWidgets.QLabel("示例：http://192.168.1.1:1234/rtp/10.10.[1-20].[1-20]:5002   [1-20]表示范围"))
-        scan_layout.addRow("输入地址：", self.ip_range_input)
-        scan_layout.addRow("超时时间：", timeout_layout)
-        scan_layout.addRow("线程数：", thread_layout)
-        scan_layout.addRow("User-Agent：", user_agent_layout)
-        scan_layout.addRow("Referer：", referer_layout)
-        scan_layout.addRow("进度：", self.scan_progress)
-        scan_layout.addRow(button_stats_layout)  # 添加按钮和统计信息布局
-
-        scan_group.setLayout(scan_layout)
-        parent.addWidget(scan_group)
+        self.ui_builder.build_scan_panel(parent)
 
     # 配置频道列表
     def _setup_channel_list(self, parent: QtWidgets.QSplitter) -> None:  
         """配置频道列表"""
-        list_group = QtWidgets.QGroupBox("频道列表")
-        list_layout = QtWidgets.QVBoxLayout()
+        self.ui_builder.build_channel_list(parent)
 
-        # === 新增工具栏 ===
-        toolbar = QtWidgets.QHBoxLayout()
-        
-        # 有效性检测按钮
-        self.btn_validate = QtWidgets.QPushButton("检测有效性")
-        self.btn_validate.setStyleSheet(AppStyles.button_style(active=True))
-        
-        # 隐藏无效项按钮
-        self.btn_hide_invalid = QtWidgets.QPushButton("隐藏无效项")
-        self.btn_hide_invalid.setStyleSheet(AppStyles.button_style())
-        self.btn_validate.clicked.connect(lambda: asyncio.create_task(self.toggle_validation()))
-        self.btn_hide_invalid.clicked.connect(lambda: asyncio.create_task(self.hide_invalid_channels()))
-        
-        # 状态标签
-        self.filter_status_label = QtWidgets.QLabel("请先加载列表并点击检测有效性")
-        self.filter_status_label.setStyleSheet(AppStyles.status_label_style())
-        
-        toolbar.addWidget(self.btn_validate)
-        toolbar.addWidget(self.btn_hide_invalid)
-        toolbar.addWidget(self.filter_status_label)
-        toolbar.addStretch()
-        list_layout.addLayout(toolbar)
-
-        self.channel_list = QtWidgets.QTableView()
-        self.channel_list.setSelectionMode(
-            QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection
-        )
-        self.channel_list.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
-        self.channel_list.horizontalHeader().setStretchLastSection(True)
-        self.channel_list.verticalHeader().setVisible(False)
-        self.model = ChannelListModel()
-        self.channel_list.setModel(self.model)
-        self.channel_list.setStyleSheet(AppStyles.list_style())
-        # === 新增右键菜单 ===
-        self.channel_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.channel_list.customContextMenuRequested.connect(self.show_context_menu)
-        list_layout.addWidget(self.channel_list)
-        list_group.setLayout(list_layout)
-        parent.addWidget(list_group)
-
-    # 配置播放器面板
+    # 配置播放器面板 (已迁移到ui_builder.py)
     def _setup_player_panel(self, parent: QtWidgets.QSplitter) -> None:  
         """配置播放器面板"""
-        player_group = QtWidgets.QGroupBox("视频播放")
-        # 关键修改1：设置正确的尺寸策略
-        player_group.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Expanding,
-            QtWidgets.QSizePolicy.Policy.Expanding  # 必须为Expanding
-        )
-        
-        player_layout = QtWidgets.QVBoxLayout()
-        player_layout.setContentsMargins(2, 2, 2, 2)
-        
-        # 关键修改2：添加伸缩空间
-        player_layout.addWidget(self.player, stretch=10)  # 播放器占主要空间
+        self.ui_builder._setup_player_panel(parent)
 
-        # 控制按钮
-        control_layout = QtWidgets.QHBoxLayout()
-        self.pause_btn = QtWidgets.QPushButton("播放")
-        self.pause_btn.setStyleSheet(AppStyles.player_button_style())
-        self.pause_btn.clicked.connect(self.player.toggle_pause)
-        self.stop_btn = QtWidgets.QPushButton("停止")
-        self.stop_btn.setStyleSheet(AppStyles.button_style())
-        self.stop_btn.clicked.connect(self.stop_play)
-
-        control_layout.addWidget(self.pause_btn)
-        control_layout.addWidget(self.stop_btn)
-
-        player_layout.addLayout(control_layout, stretch=1)  # 控制区占较小空间
-
-        # 音量控制
-        volume_layout = QtWidgets.QHBoxLayout()
-
-        self.volume_slider = QtWidgets.QSlider(Qt.Orientation.Horizontal)
-        self.volume_slider.setRange(0, 100)
-        self.volume_slider.setValue(50)  # 默认音量
-        self.volume_slider.valueChanged.connect(self.set_volume)
-
-        volume_layout.addWidget(QtWidgets.QLabel("音量："))
-        volume_layout.addWidget(self.volume_slider)
-
-        player_layout.addLayout(volume_layout, stretch=1)  # 音量控制占较小空间
-
-        player_group.setLayout(player_layout)
-        
-        # 关键修改3：确保直接添加到QSplitter
-        if isinstance(parent, QtWidgets.QSplitter):
-            parent.addWidget(player_group)
-        else:
-            layout = parent.layout() or QtWidgets.QVBoxLayout(parent)
-            layout.addWidget(player_group)
-
-    # 配置编辑面板
+    # 配置编辑面板 (已迁移到ui_builder.py)
     def _setup_edit_panel(self, parent: QtWidgets.QSplitter) -> None:  
         """配置编辑面板"""
-        edit_group = QtWidgets.QGroupBox("频道编辑")
-        edit_layout = QtWidgets.QFormLayout()
-        edit_layout.setRowWrapPolicy(QtWidgets.QFormLayout.RowWrapPolicy.WrapAllRows)  # 允许换行
-
-        # 增加控件间距
-        edit_layout.setVerticalSpacing(1)
-        edit_layout.setHorizontalSpacing(1)
-        edit_layout.setContentsMargins(10, 15, 10, 15)  # 增加内边距
-
-        # 频道名称输入（加大高度）
-        self.name_edit = QtWidgets.QLineEdit()
-        self.name_edit.setMinimumHeight(32)  # 增加输入框高度
-        self.name_edit.setPlaceholderText("输入频道名称...")
-        self.name_edit.returnPressed.connect(self.save_channel_edit)  # 绑定回车键事件
-
-        # 分组选择（增加下拉框高度，设置为可编辑）
-        self.group_combo = QtWidgets.QComboBox()
-        self.group_combo.setMinimumHeight(32)
-        self.group_combo.setEditable(True)  # 允许自定义输入
-        self.group_combo.addItems(["未分类", "央视", "卫视", "本地", "高清频道", "测试频道"])
-
-        # EPG匹配状态显示（新增）
-        self.epg_match_label = QtWidgets.QLabel("EPG状态: 未匹配")
-        self.epg_match_label.setStyleSheet("font-weight: bold;")
-        
-        # 保存按钮（加大尺寸）
-        save_btn = QtWidgets.QPushButton("保存修改")
-        save_btn.setMinimumHeight(36)  # 增加按钮高度
-        save_btn.setStyleSheet(AppStyles.button_style())
-        save_btn.clicked.connect(self.save_channel_edit)
-
-        # 布局调整
-        edit_layout.addRow("频道名称：", self.name_edit)
-        edit_layout.addRow("分组分类：", self.group_combo)
-        edit_layout.addRow(self.epg_match_label)  # 新增状态显示
-        edit_layout.addRow(QtWidgets.QLabel())  # 空行占位
-        edit_layout.addRow(save_btn)
-
-        # 修复自动补全功能
-        self.epg_completer = QtWidgets.QCompleter()
-        self.epg_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)  # 不区分大小写
-        self.epg_completer.setFilterMode(Qt.MatchFlag.MatchContains)  # 支持模糊匹配
-        self.epg_completer.setCompletionMode(QtWidgets.QCompleter.CompletionMode.PopupCompletion)  # 显示下拉列表
-        self.epg_completer.setMaxVisibleItems(10)  # 最多显示10个匹配项
-        # 禁用补全项的图标显示，避免libpng警告
-        self.epg_completer.popup().setItemDelegate(QtWidgets.QStyledItemDelegate())
-        # 彻底禁用所有输入法功能
-        self.name_edit.setAttribute(Qt.WidgetAttribute.WA_InputMethodEnabled, False)
-        # 设置最严格的输入法提示
-        self.name_edit.setInputMethodHints(Qt.InputMethodHint.ImhNone)
-        # 设置属性确保无输入法
-        self.name_edit.setProperty("inputMethodHints", Qt.InputMethodHint.ImhNone)
-        # 完全禁用补全器的输入法
-        self.epg_completer.popup().setAttribute(Qt.WidgetAttribute.WA_InputMethodEnabled, False)
-        self.epg_completer.popup().setInputMethodHints(Qt.InputMethodHint.ImhNone)
-        self.epg_completer.popup().setStyleSheet("")
-        # 设置补全器但不启用输入法
-        self.name_edit.setCompleter(self.epg_completer)
-        # 强制禁用输入法上下文
-        self.name_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
-        # 确保输入法完全禁用
-        self.name_edit.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-
-        # 绑定文本变化事件
-        self.name_edit.textChanged.connect(self.on_text_changed)
-
-        edit_group.setLayout(edit_layout)
-        parent.addWidget(edit_group)
+        self.ui_builder._setup_edit_panel(parent)
 
     # 初始化菜单栏
     def _setup_menubar(self) -> None:  
@@ -527,242 +257,30 @@ class MainWindow(QtWidgets.QMainWindow):
     # 从GitHub获取最新版本号
     async def _get_latest_version(self) -> str:
         """从GitHub获取最新版本号"""
-        try:
-            # GitHub API获取最新发布版本
-            url = "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest"
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        version = data.get('tag_name', '').lstrip('v')
-                        if version:  # 确保获取到的版本号不为空
-                            return version
-                    # 如果请求失败或版本号为空，则抛出异常
-                    raise Exception(f"从GitHub获取最新版本失败，HTTP状态码: {response.status}")
-        except Exception as e:
-            logger.error(f"获取最新版本失败: {str(e)}")
-            # 返回默认版本号
-            return "2.0.0.0"
+        return await utils.get_latest_version()
 
     # 带进度显示的EPG加载
     async def _load_epg_with_progress(self):
         """带进度显示的EPG加载"""
-        self.statusBar().showMessage("正在加载EPG数据...")
-        self.progress_indicator.show()
-        
-        def update_progress(msg):
-            self.statusBar().showMessage(msg)
-            QtWidgets.QApplication.processEvents()
-            
-        try:
-            success = await self.epg_manager.load_epg()
-            if success:
-                self.statusBar().showMessage("EPG数据加载完成", 3000)
-            else:
-                self.statusBar().showMessage("EPG数据加载失败", 3000)
-        except Exception as e:
-            self.statusBar().showMessage(f"EPG加载错误: {str(e)}", 3000)
-            logger.error(f"EPG加载错误: {str(e)}")
-        finally:
-            self.progress_indicator.hide()
+        await self.epg_manager.load_epg_with_progress(self)
 
     # 显示关于对话框
     async def _show_about_dialog(self):
-        """显示自动适应系统深浅色主题的关于对话框"""
-        # 异步获取最新版本号
-        try:
-            latest_version = await asyncio.wait_for(self._get_latest_version(), timeout=5)
-        except asyncio.TimeoutError:
-            latest_version = "2.0.0.0"
-            logger.warning("获取最新版本超时，使用默认版本号")
-        
-        # 检测系统主题
-        is_dark = self.palette().window().color().lightness() < 128
-        
-        # 动态颜色设置
-        bg_color = "#2d2d2d" if is_dark else "#ffffff"
-        text_color = "#eeeeee" if is_dark else "#333333"
-        accent_color = "#3498db"  # 主色调保持不变
-        card_bg = "#3a3a3a" if is_dark else "#f8f9fa"
-        border_color = "#444444" if is_dark else "#e0e0e0"
-        code_bg = "#454545" if is_dark else "#f0f0f0"
-        code_text = "#ffffff" if is_dark else "#333333"
-
-        about_text = f'''
-        <div style="font-family: 'Microsoft YaHei', sans-serif; color: {text_color};">
-            <h1 style="color: {accent_color}; text-align: center; margin-bottom: 15px; font-size: 18px;">
-                IPTV Scanner Editor Pro / IPTV 专业扫描编辑工具
-            </h1>
-            
-            <div style="background-color: {card_bg}; padding: 15px; border-radius: 8px; 
-                 margin-bottom: 15px; border: 1px solid {border_color};">
-                <p style="line-height: 1.6; margin: 5px 0;">
-                    <b>当前版本：</b> 5.0.0.0
-                </p>
-                <p style="line-height: 1.6; margin: 5px 0;">
-                    <b>最新版本：</b> {latest_version} 
-                </p>
-                <p style="line-height: 1.6; margin: 5px 0;">
-                    <b>编译日期：</b> {datetime.date.today().strftime("%Y-%m-%d")}
-                </p>
-                <p style="line-height: 1.6; margin: 5px 0;">
-                    <b>QT版本：</b> {QtCore.qVersion()}
-                </p>
-            </div>
-            
-            <h3 style="color: {accent_color}; border-bottom: 1px solid {border_color}; 
-                padding-bottom: 5px; font-size: 15px; margin-top: 0;">
-                功能特性
-            </h3>
-            <ul style="margin-left: 20px; line-height: 1.6; padding-left: 5px;">
-                <li>支持 HTTP/UDP/RTP/RTSP 协议检测</li>
-                <li>EPG 信息保存与加载</li>
-                <li>多线程高效扫描引擎</li>
-                <li>支持 M3U/M3U8/TXT 播放列表格式</li>
-                <li>实时流媒体可用性检测</li>
-            </ul>
-            
-            <h3 style="color: {accent_color}; border-bottom: 1px solid {border_color}; 
-                padding-bottom: 5px; font-size: 15px; margin-top: 15px;">
-                快捷键
-            </h3>
-            <ul style="margin-left: 20px; line-height: 1.6; padding-left: 5px;">
-                <li><code style="background-color: {code_bg}; color: {code_text}; 
-                    padding: 2px 5px; border-radius: 3px;">Ctrl+O</code> - 打开播放列表</li>
-                <li><code style="background-color: {code_bg}; color: {code_text};
-                    padding: 2px 5px; border-radius: 3px;">Ctrl+S</code> - 保存播放列表</li>
-                <li><code style="background-color: {code_bg}; color: {code_text};
-                    padding: 2px 5px; border-radius: 3px;">空格键</code> - 暂停/继续播放</li>
-            </ul>
-            
-            <div style="margin-top: 20px; text-align: center; font-size: 0.9em; color: {text_color}; opacity: 0.8;">
-                <p>   DeepSeek 贡献代码  </p>
-                <p>
-                    <a href="https://github.com/sumingyd/IPTV-Scanner-Editor-Pro" 
-                       style="color: {accent_color}; text-decoration: none;">GitHub 仓库</a> 
-                    | <span>作者QQ: 331874545</span>
-                </p>
-            </div>
-        </div>
-        '''
-
-        # 创建对话框
-        dialog = QtWidgets.QDialog(self)
-        dialog.setWindowFlags(dialog.windowFlags() | QtCore.Qt.WindowType.WindowStaysOnTopHint)
-        dialog.setWindowTitle("关于")
-        dialog.setMinimumWidth(480)
-        dialog.setMinimumHeight(550)
-        
-        # 设置自适应样式
-        dialog.setStyleSheet(f"""
-            QDialog {{
-                background-color: {bg_color};
-                color: {text_color};
-            }}
-            QPushButton {{
-                background-color: {accent_color};
-                color: white;
-                padding: 8px 16px;
-                border: none;
-                border-radius: 4px;
-                min-width: 80px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: #2980b9;
-            }}
-        """)
-        
-        # 主布局
-        layout = QtWidgets.QVBoxLayout(dialog)
-        layout.setContentsMargins(20, 20, 20, 15)
-        layout.setSpacing(15)
-        
-        # 添加图标
-        icon_path = str(Path(__file__).parent / "icons" / "logo.png")
-        pixmap = QtGui.QPixmap(icon_path)
-        if not pixmap.isNull():
-            pixmap = pixmap.scaled(90, 90, 
-                                 QtCore.Qt.AspectRatioMode.KeepAspectRatio,
-                                 QtCore.Qt.TransformationMode.SmoothTransformation)
-            icon_label = QtWidgets.QLabel()
-            icon_label.setPixmap(pixmap)
-            icon_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-            layout.addWidget(icon_label)
-        
-        # 使用QTextBrowser显示富文本内容
-        text_browser = QtWidgets.QTextBrowser()
-        text_browser.setHtml(about_text)
-        text_browser.setOpenExternalLinks(True)
-        layout.addWidget(text_browser)
-        
-        # 确定按钮
-        button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Ok)
-        button_box.accepted.connect(dialog.accept)
-        layout.addWidget(button_box)
-        
-        dialog.exec()
+        """显示关于对话框"""
+        dialog = AboutDialog(self)
+        await dialog.show()
 
     # 配置智能匹配功能区
     def _setup_match_panel(self, parent_layout):
         """添加智能匹配功能区（右侧新增区域）"""
-        match_group = QtWidgets.QGroupBox("智能匹配")
-        layout = QtWidgets.QVBoxLayout()
-        
-        # 1. 操作按钮
-        self.btn_load_old = QtWidgets.QPushButton("加载旧列表")  # 改为成员变量
-        self.btn_load_old.setStyleSheet(AppStyles.button_style())
-
-        self.btn_match = QtWidgets.QPushButton("执行自动匹配")  # 改为成员变量
-        self.btn_match.setStyleSheet(AppStyles.button_style())
-        self.btn_match.setEnabled(False)  # 现在可以正确访问
-
-        # 2. 状态显示
-        self.match_status = QtWidgets.QLabel("匹配功能未就绪 - 请先加载旧列表", self)
-        self.match_status.setStyleSheet("color: #666; font-weight: bold;")
-        self.match_progress = QtWidgets.QProgressBar(self)  # 初始化进度条
-        self.match_progress.setTextVisible(True)
-        self.match_progress.setStyleSheet(AppStyles.progress_style())  # 正确调用样式
-        
-        # 3. 高级选项
-        self.cb_override_epg = QtWidgets.QCheckBox("EPG不匹配时强制覆盖", self)
-        self.cb_auto_save = QtWidgets.QCheckBox("匹配后自动保存", self)
-        
-        # 布局
-        button_layout = QtWidgets.QHBoxLayout()
-        button_layout.addWidget(self.btn_load_old)
-        button_layout.addWidget(self.btn_match)
-        
-        layout.addLayout(button_layout)
-        layout.addWidget(QtWidgets.QLabel("匹配进度:"))
-        layout.addWidget(self.match_progress)
-        layout.addWidget(self.match_status)
-        layout.addStretch()
-        layout.addWidget(self.cb_override_epg)
-        layout.addWidget(self.cb_auto_save)
-        
-        match_group.setLayout(layout)
-        parent_layout.addWidget(match_group)
-        
-        # 信号连接
-        self.btn_load_old.clicked.connect(self.load_old_playlist)
-        self.btn_match.clicked.connect(lambda: asyncio.create_task(self.run_auto_match()))
+        self.matcher = ChannelMatcher(self)
+        self.matcher.setup_match_panel(parent_layout)
 
     # 连接信号与槽
-    def _connect_signals(self) -> None:  
+    def _connect_signals(self) -> None:
         """连接信号与槽"""
-        self.scanner.progress_updated.connect(self.update_progress)
-        self.scanner.scan_finished.connect(self.handle_scan_results)
-        self.scanner.channel_found.connect(self.handle_channel_found)
-        self.scanner.error_occurred.connect(self.show_error)
-        self.channel_list.selectionModel().currentChanged.connect(self.on_channel_selected)
-        self.player.state_changed.connect(self._handle_player_state)
-        
-        # 验证器信号连接
-        self.validator.progress_updated.connect(self.validator.update_progress)
-        self.validator.validation_finished.connect(self.validator.handle_validation_complete)
-        self.validator.error_occurred.connect(self.show_error)
-        self.validator.channel_validated.connect(self.validator.handle_channel_validation)
+        self.signals = SignalConnector(self)
+        self.signals.connect_signals()
 
     # 统一处理播放状态更新
     def _handle_player_state(self, msg: str):  
@@ -780,121 +298,18 @@ class MainWindow(QtWidgets.QMainWindow):
     @pyqtSlot()
     async def toggle_scan(self) -> None:
         """切换扫描状态"""
-        try:
-            ip_range = self.ip_range_input.text().strip()
-            
-            if hasattr(self.scanner, '_is_scanning') and self.scanner._is_scanning:
-                self.scanner.stop_scan()
-                self.scan_btn.setText("完整扫描")
-                self.scan_btn.setStyleSheet(AppStyles.button_style())
-                self.statusBar().showMessage("扫描已停止")
-                return
-
-            if not ip_range:
-                self.show_error("请输入有效的频道地址")
-                return
-                
-            # 清空现有频道列表
-            self.model.channels.clear()
-            self.model.layoutChanged.emit()
-            self.playlist_source = 'scan'  # 设置播放列表来源为扫描
-
-            # 显示扫描开始信息
-            timeout = self.timeout_input.value()
-            thread_count = self.thread_count_input.value()
-            self.statusBar().showMessage(
-                f"开始扫描: {ip_range} (超时: {timeout}秒, 线程数: {thread_count})"
-            )
-
-            # 设置超时时间（从用户输入中获取）
-            timeout = self.timeout_input.value()
-            self.scanner.set_timeout(timeout)
-
-            # 设置线程数（从用户输入中获取）
-            thread_count = self.thread_count_input.value()
-            self.scanner.set_thread_count(thread_count)
-
-            # 设置User-Agent和Referer
-            user_agent = self.user_agent_input.text().strip()
-            if user_agent:
-                self.scanner.set_user_agent(user_agent)
-            
-            referer = self.referer_input.text().strip()
-            if referer:
-                self.scanner.set_referer(referer)
-
-            # 创建扫描任务并包装为协程
-            async def scan_wrapper():
-                return await self.scanner.toggle_scan(ip_range)
-                
-            self.scan_worker = AsyncWorker(scan_wrapper())
-            self.scan_worker.finished.connect(lambda task: self._handle_scan_task(task))
-            self.scan_worker.error.connect(lambda error: self.handle_error(error, "scan"))
-            self.scan_worker.cancelled.connect(lambda: self.handle_cancel("scan"))
-            
-            # 启动扫描任务
-            asyncio.create_task(self.scan_worker.run())
-                
-            # 更新按钮状态
-            self.scan_btn.setText("停止扫描")
-            self.scan_btn.setStyleSheet(AppStyles.button_style(active=True))
-            
-            # 添加带状态检查的超时监控
-            async def monitor_timeout():
-                try:
-                    await asyncio.sleep(timeout + 5)  # 比设置的超时时间稍长
-                    if (hasattr(self.scanner, '_is_scanning') and 
-                        self.scanner._is_scanning and
-                        not self.scanner._active_tasks):  # 确保没有活跃任务
-                        self.show_error("扫描超时，请检查网络连接")
-                        self.scanner.stop_scan()
-                except asyncio.CancelledError:
-                    pass
-                except Exception as e:
-                    logger.error(f"超时监控错误: {str(e)}")
-            
-            # 创建并跟踪超时监控任务
-            self.timeout_monitor = asyncio.create_task(monitor_timeout())
-            self.timeout_monitor.add_done_callback(lambda t: t.exception() if t.exception() else None)
-            
-        except Exception as e:
-            self.show_error(f"扫描控制错误: {str(e)}")
-            logger.error(f"扫描控制错误: {str(e)}", exc_info=True)
-            self.scan_btn.setText("完整扫描")
-            self.scan_btn.setStyleSheet(AppStyles.button_style())
+        await self.scanner.toggle_scan_ui(self)
 
     # 停止扫描任务
     @pyqtSlot()
     def stop_scan(self) -> None: 
         """停止扫描任务"""
-        if not hasattr(self.scanner, '_is_scanning') or not self.scanner._is_scanning:
-            self.statusBar().showMessage("当前没有进行中的扫描任务")
-            return
-            
-        self.scanner.stop_scan()
-        if self.model.channels:
-            self.statusBar().showMessage(f"扫描已停止，共发现 {len(self.model.channels)} 个频道")
-        else:
-            self.statusBar().showMessage("扫描已停止，未发现有效频道")
+        self.scanner.stop_scan_ui(self)
 
     # 执行异步扫描
     async def _async_scan(self, ip_range: str) -> None:  
         """执行异步扫描"""
-        try:
-            # 取消之前的超时监控任务
-            if hasattr(self, 'timeout_monitor') and not self.timeout_monitor.done():
-                self.timeout_monitor.cancel()
-                try:
-                    await self.timeout_monitor
-                except asyncio.CancelledError:
-                    pass
-            
-            # 执行扫描
-            await self.scanner.scan_task(ip_range)
-        finally:
-            # 确保超时监控任务被取消
-            if hasattr(self, 'timeout_monitor') and not self.timeout_monitor.done():
-                self.timeout_monitor.cancel()
+        await self.scanner.async_scan_ui(self, ip_range)
 
     # 更新扫描进度
     @pyqtSlot(int, str)
@@ -1000,46 +415,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # 安全播放包装器
     async def safe_play(self, url: str) -> None:
         """安全播放包装器"""
-        try:
-            # 确保只有一个播放任务运行
-            if hasattr(self, '_play_lock') and self._play_lock.locked():
-                return
-                
-            if not hasattr(self, '_play_lock'):
-                self._play_lock = asyncio.Lock()
-                
-            async with self._play_lock:
-                # 取消旧任务
-                if hasattr(self, 'play_worker') and self.play_worker is not None:
-                    try:
-                        await self.play_worker.cancel()
-                    except Exception as e:
-                        logger.warning(f"取消旧播放任务失败: {str(e)}")
-                
-                # 确保播放器已初始化
-                if not hasattr(self, 'player') or not self.player:
-                    self.player = VLCPlayer()
-                
-                # 创建新任务
-                play_task = self.player.async_play(url)
-                if play_task is None:
-                    raise ValueError("播放任务创建失败")
-                
-                self.play_worker = AsyncWorker(play_task)
-                self.play_worker.finished.connect(lambda: self.handle_success("播放成功", "play"))
-                self.play_worker.error.connect(lambda error: self.handle_error(error, "play"))
-                
-                try:
-                    await self.play_worker.run()
-                    self._handle_player_state("播放中")
-                except asyncio.CancelledError:
-                    logger.info("播放任务被取消")
-                except Exception as e:
-                    logger.error(f"播放失败: {str(e)}")
-                    raise
-        except Exception as e:
-            self.show_error(f"播放失败: {str(e)}")
-
+        await self.player.safe_play(url, self)
     # 安全停止包装器
     async def safe_stop(self) -> None:
         """安全停止包装器"""
