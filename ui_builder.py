@@ -5,9 +5,71 @@ from channel_model import ChannelListModel
 from styles import AppStyles
 from pathlib import Path
 
+class UIManager:
+    """负责UI更新的管理器"""
+    def __init__(self, main_window):
+        self.main_window = main_window
+    
+    def update_scan_results_ui(self, result):
+        """更新扫描结果UI"""
+        # 更新频道列表模型
+        self.main_window.model.beginResetModel()
+        self.main_window.model.channels = result['channels']
+        self.main_window.model.endResetModel()
+        
+        # 更新统计信息显示
+        self.main_window.detailed_stats_label.setText(
+            f"总数: {result['total']} | 有效: {len(result['channels'])} | "
+            f"无效: {result['invalid']} | 耗时: {result['elapsed']:.1f}s"
+        )
+        self.main_window.statusBar().showMessage("扫描完成")
+        
+        # 恢复扫描按钮状态
+        self.main_window.scan_btn.setText("完整扫描")
+        self.main_window.scan_btn.setStyleSheet(AppStyles.button_style())
+        
+        # 自动选择第一个频道
+        if result['channels']:
+            first_index = self.main_window.model.index(0, 0)
+            self.main_window.channel_list.setCurrentIndex(first_index)
+            self.main_window._handle_player_state("准备播放")
+
+    def update_player_state_ui(self, msg: str) -> None:
+        """更新播放状态UI"""
+        self.main_window.statusBar().showMessage(msg)
+        # 根据播放状态更新按钮文字
+        if "播放中" in msg:
+            self.main_window.pause_btn.setText("暂停")
+        elif "暂停" in msg:
+            self.main_window.pause_btn.setText("继续")
+        else:  # 不在播放状态
+            self.main_window.pause_btn.setText("播放")
+
+    def update_status(self, msg: str) -> None:
+        """更新状态栏消息"""
+        self.main_window.statusBar().showMessage(msg)
+
+    def update_button_state(self, button, text: str, active: bool = False) -> None:
+        """更新按钮状态"""
+        button.setText(text)
+        button.setStyleSheet(AppStyles.button_style(active=active))
+
+    def show_error_message(self, title: str, message: str) -> None:
+        """显示错误消息对话框"""
+        QtWidgets.QMessageBox.critical(self.main_window, title, message)
+
+    def show_success_message(self, title: str, message: str) -> None:
+        """显示成功消息对话框"""
+        QtWidgets.QMessageBox.information(self.main_window, title, message)
+
+    def update_progress(self, progress_bar, value: int) -> None:
+        """更新进度条"""
+        progress_bar.setValue(value)
+
 class UIBuilder:
     def __init__(self, main_window):
         self.main_window = main_window
+        self.ui_manager = UIManager(main_window)
 
     def build_ui(self):
         self._init_ui()

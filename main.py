@@ -235,24 +235,24 @@ class MainWindow(QtWidgets.QMainWindow):
     # 统一处理播放状态更新
     def _handle_player_state(self, msg: str):  
         """统一处理播放状态更新"""
-        self.statusBar().showMessage(msg)
-        # 根据播放状态更新按钮文字
-        if "播放中" in msg:
-            self.pause_btn.setText("暂停")
-        elif "暂停" in msg:
-            self.pause_btn.setText("继续")
-        else:  # 不在播放状态
-            self.pause_btn.setText("播放")
+        self.ui_builder.ui_manager.update_player_state_ui(msg)
 
     # 扫描控制切换
     @pyqtSlot()
     async def toggle_scan(self) -> None:
         """切换扫描状态"""
         ip_range = self.ip_range_input.text()
+        timeout = self.timeout_input.value()
+        thread_count = self.thread_count_input.value()
+        
         # 强制处理事件队列确保UI更新
         QtWidgets.QApplication.processEvents()
-        # 立即执行扫描任务
-        task = await self.scanner.toggle_scan(ip_range)
+        # 立即执行扫描任务，传递超时和线程数参数
+        task = await self.scanner.toggle_scan(
+            ip_range,
+            timeout=timeout,
+            thread_count=thread_count
+        )
         # 确保任务立即启动
         if task:
             await asyncio.sleep(0)  # 让出控制权确保任务启动
@@ -272,9 +272,8 @@ class MainWindow(QtWidgets.QMainWindow):
     @pyqtSlot(int, str)
     def update_progress(self, percent: int, msg: str) -> None: 
         """更新扫描进度"""
-        self.scan_progress.setValue(percent)
-        # 直接显示scanner.py传递的详细状态信息
-        self.statusBar().showMessage(msg)
+        self.ui_builder.ui_manager.update_progress(percent)
+        self.ui_builder.ui_manager.update_status(msg)
         # 标记当前处于扫描状态
         self._last_scan_status = msg
 
@@ -284,10 +283,8 @@ class MainWindow(QtWidgets.QMainWindow):
         """处理单个频道发现"""
         # 检查是否已存在相同URL的频道
         if not any(c['url'] == channel['url'] for c in self.model.channels):
-            # 在主线程中执行UI更新
-            QtCore.QMetaObject.invokeMethod(self, "_add_channel", 
-                QtCore.Qt.ConnectionType.QueuedConnection,
-                QtCore.Q_ARG(dict, channel))
+            # 通过UIManager添加频道
+            self.ui_builder.ui_manager.add_channel(channel)
 
     #实际添加频道的槽函数
     @pyqtSlot(dict)
@@ -324,37 +321,22 @@ class MainWindow(QtWidgets.QMainWindow):
         """处理最终扫描结果"""
         if result is None:
             self.show_error("扫描失败: 未返回有效结果")
-            self.scan_btn.setText("完整扫描")
-            self.scan_btn.setStyleSheet(AppStyles.button_style())
-            self.statusBar().showMessage("扫描失败: 未返回有效结果")
+            self.ui_builder.ui_manager.update_button_state("scan_btn", "完整扫描", False)
+            self.ui_builder.ui_manager.update_status("扫描失败: 未返回有效结果")
             logger.error("扫描失败: 扫描器返回None结果")
             return
             
-        channels = result['channels']
-        total = result['total']
-        invalid = result['invalid']
-        elapsed = result['elapsed']
-        # 更新统计信息显示
-        self.detailed_stats_label.setText(f"总数: {total} | 有效: {len(channels)} | 无效: {invalid} | 耗时: {elapsed:.1f}s")
-        self.statusBar().showMessage("扫描完成")
+        # 通过UIManager更新UI
+        self.ui_builder.ui_manager.update_scan_results_ui(result)
         
-        # 恢复扫描按钮状态
-        self.scan_btn.setText("完整扫描")
-        self.scan_btn.setStyleSheet(AppStyles.button_style())
-        
-        # 自动选择第一个频道但不自动播放
-        if channels:
-            first_index = self.model.index(0, 0)
-            self.channel_list.setCurrentIndex(first_index)
-            # 手动触发状态更新
-            self._handle_player_state("准备播放")
+        # 标记播放列表来源为扫描
+        self.playlist_source = 'scan'
 
     @pyqtSlot()
     def _on_scan_stopped(self) -> None:
         """处理扫描停止信号"""
-        self.scan_btn.setText("完整扫描")
-        self.scan_btn.setStyleSheet(AppStyles.button_style())
-        self.statusBar().showMessage("扫描已停止")
+        self.ui_builder.ui_manager.update_button_state("scan_btn", "完整扫描", False)
+        self.ui_builder.ui_manager.update_status("扫描已停止")
         logger.info("扫描已停止")
 
     # 处理频道选择事件
@@ -812,13 +794,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def show_error(self, msg: str) -> None:
         """显示错误对话框"""
         logger.error(f"显示错误对话框: {msg}")
-        QMessageBox.critical(self, "操作错误", msg)
+        self.ui_builder.ui_manager.show_error_message("操作错误", msg)
 
     # 更新状态栏
     @pyqtSlot(str)
     def update_status(self, msg: str) -> None:
         """更新状态栏"""
-        self.statusBar().showMessage(msg)
+        self.ui_builder.ui_manager.update_status(msg)
 
     # 统一处理成功结果
     @pyqtSlot(str)
@@ -833,12 +815,12 @@ class MainWindow(QtWidgets.QMainWindow):
         # 获取状态信息
         final_msg = status_map.get(action, "操作成功")
         
-        # 更新状态栏
-        self.statusBar().showMessage(final_msg)
+        # 通过UIManager更新状态栏
+        self.ui_builder.ui_manager.update_status(final_msg)
         
         # 播放成功后额外操作
         if action == "play":
-            self.pause_btn.setText("暂停")
+            self.ui_builder.ui_manager.update_button_state("pause_btn", "暂停", True)
             self._handle_player_state("播放中")
         
         # 扫描成功后自动保存配置（可选）

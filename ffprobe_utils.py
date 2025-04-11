@@ -5,6 +5,8 @@ import subprocess
 import json
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
+
+import psutil
 from utils import setup_logger, ConfigHandler
 
 logger = setup_logger('FFProbe')
