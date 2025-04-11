@@ -147,7 +147,7 @@ def setup_logger(name: str, level=None) -> logging.Logger:
     log_file = Path('iptv_manager.log').resolve()
     file_handler = logging.FileHandler(
         log_file,
-        mode='w' if log_mode == 'overwrite' else 'a',
+        mode='a',  # 强制使用追加模式，确保日志按时间顺序记录
         encoding='utf-8'
     )
     file_handler.setFormatter(formatter)
