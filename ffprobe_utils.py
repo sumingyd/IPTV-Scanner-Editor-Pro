@@ -121,6 +121,26 @@ class FFProbeHelper:
                 proc.kill()
             self._active_processes.discard(proc.pid)
     
+    async def check_available(self) -> bool:
+        """检查ffprobe是否可用"""
+        try:
+            # 执行简单的-help命令测试ffprobe可用性
+            proc = await asyncio.create_subprocess_exec(
+                self._ffprobe_path,
+                '-help',
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=2
+            )
+            return proc.returncode == 0
+        except Exception as e:
+            logger.error(f"检查ffprobe可用性失败: {str(e)}")
+            return False
+
     async def cleanup(self):
         """清理所有活动进程"""
         for pid in list(self._active_processes):
