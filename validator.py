@@ -1,11 +1,9 @@
 import asyncio
-import sys
 from typing import List, Dict, Union, Optional
 from PyQt6.QtCore import QObject, pyqtSignal
 from qasync import asyncSlot
-from utils import setup_logger, ConfigHandler
-import subprocess
-import os
+from utils import setup_logger
+from ffprobe_utils import FFProbeHelper
 
 logger = setup_logger('Validator')
 
@@ -17,22 +15,10 @@ class StreamValidator(QObject):
     error_occurred = pyqtSignal(str)         # 错误信息
     channel_validated = pyqtSignal(dict)     # 单个频道验证结果
     
-    # 初始化
     def __init__(self):
         super().__init__()
-        self._timeout = 10  # 默认超时时间(秒)
-        self.config = ConfigHandler()
-        self._timeout = self.config.config.getint('Scanner', 'timeout', fallback=10)
-        # 获取ffprobe路径，优先检查打包环境
-        if getattr(sys, 'frozen', False):
-            # 打包环境下使用sys._MEIPASS路径
-            self._ffprobe_path = os.path.join(sys._MEIPASS, 'ffmpeg', 'bin', 'ffprobe.exe')
-        else:
-            # 开发环境下使用配置或相对路径
-            self._ffprobe_path = self.config.config.get('Scanner', 'ffprobe_path', 
-                              fallback=os.path.join(os.path.dirname(__file__), '..', 'ffmpeg', 'bin', 'ffprobe.exe'))
+        self.ffprobe = FFProbeHelper()
         self._is_running = False
-        self._active_processes = []  # 跟踪所有活动的ffprobe进程
         self._current_url = None  # 当前正在验证的URL
 
     # 设置验证超时时间
@@ -195,83 +181,17 @@ class StreamValidator(QObject):
         finally:
             self._is_running = False
 
-    # 构建ffprobe命令
-    def _build_ffprobe_cmd(self, url: str, cmd_type: str = 'validate') -> list:
-        """构建ffprobe命令"""
-        base_cmd = [self._ffprobe_path, '-v', 'error']
-        if cmd_type == 'validate':
-            base_cmd.extend([
-                '-select_streams', 'v:0',
-                '-show_entries', 'stream=codec_name,width,height',
-                '-of', 'default=noprint_wrappers=1:nokey=1'
-            ])
-        else:  # latency
-            base_cmd.extend([
-                '-show_entries', 'format=start_time',
-                '-of', 'default=noprint_wrappers=1:nokey=1'
-            ])
-        base_cmd.append(url)
-        return base_cmd
-
-    # 使用ffprobe验证单个频道
     async def _validate_channel(self, url: str) -> tuple[bool, float, int, int]:
         """使用ffprobe验证单个频道并返回(是否有效, 延迟秒数, 宽度, 高度)"""
         self._current_url = url
-        validate_cmd = self._build_ffprobe_cmd(url, 'validate')
-        latency_cmd = self._build_ffprobe_cmd(url, 'latency')
-        
-        # 执行验证
-        validate_proc = await asyncio.create_subprocess_exec(
-            *validate_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            creationflags=subprocess.CREATE_NO_WINDOW
-        )
-        self._active_processes.append(validate_proc)
-            
         try:
-            stdout, _ = await asyncio.wait_for(validate_proc.communicate(), timeout=self._timeout)
-            valid = validate_proc.returncode == 0
-            
-            # 如果有效则测量延迟和获取分辨率
-            width, height = 0, 0
-            if valid:
-                # 解析分辨率信息
-                output = stdout.decode().strip().split('\n')
-                if len(output) >= 3:
-                    width = int(output[1]) if output[1] else 0
-                    height = int(output[2]) if output[2] else 0
-                
-                # 测量延迟
-                latency_proc = await asyncio.create_subprocess_exec(
-                    *latency_cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    creationflags=subprocess.CREATE_NO_WINDOW
-                )
-                self._active_processes.append(latency_proc)
-                try:
-                    stdout, _ = await asyncio.wait_for(latency_proc.communicate(), timeout=self._timeout)
-                    latency = float(stdout.decode().strip()) if latency_proc.returncode == 0 else 0.0
-                finally:
-                    await self._cleanup_process(latency_proc)
-            
-            return (valid, latency if valid else 0.0, width, height)
-        except asyncio.TimeoutError:
+            valid, latency, width, height = await self.ffprobe.probe_stream(url)
+            return (valid, latency, width, height)
+        except Exception as e:
+            logger.error(f"验证频道失败: {url} - {str(e)}")
             return (False, 0.0, 0, 0)
         finally:
             self._current_url = None
-            await self._cleanup_process(validate_proc)
-
-    # 清理进程资源
-    async def _cleanup_process(self, proc: asyncio.subprocess.Process) -> None:
-        """清理进程资源"""
-        if proc.returncode is None:
-            proc.terminate()
-        try:
-            self._active_processes.remove(proc)
-        except ValueError:
-            pass
 
     #停止验证
     async def stop_validation(self):
