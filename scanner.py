@@ -21,6 +21,7 @@ class StreamScanner(QObject):
     scan_started = pyqtSignal(str)             # 扫描开始信号，带扫描地址
     scan_stopped = pyqtSignal()                # 扫描停止信号
     stats_updated = pyqtSignal(str)            # 统计信息更新
+    
     def __init__(self):
         super().__init__()
         logger.info("初始化StreamScanner")
@@ -38,10 +39,12 @@ class StreamScanner(QObject):
         logger.debug(f"初始化完成: timeout={self._timeout}, thread_count={self._thread_count}")
         
         self.ffprobe = FFProbeHelper()
+        self.ffprobe.set_timeout(self._timeout)
 
     def set_timeout(self, timeout: int) -> None:
         logger.info(f"设置超时时间: {timeout}s")
         self._timeout = timeout
+        self.ffprobe.set_timeout(timeout)
 
     def set_user_agent(self, user_agent: str) -> None:
         logger.debug(f"设置User-Agent: {user_agent}")
@@ -56,8 +59,13 @@ class StreamScanner(QObject):
         self._thread_count = thread_count
 
     @asyncSlot()
-    async def toggle_scan(self, ip_pattern: str) -> asyncio.Task:
-        """切换扫描状态"""
+    async def toggle_scan(self, ip_pattern: str, timeout: int = None, thread_count: int = None) -> asyncio.Task:
+        """切换扫描状态
+        Args:
+            ip_pattern: 扫描地址模式
+            timeout: 超时时间(秒)
+            thread_count: 线程数
+        """
         logger.info(f"切换扫描状态, 当前状态: {'扫描中' if self._is_scanning else '空闲'}")
         if self._is_scanning:
             logger.info("正在停止扫描...")
@@ -72,10 +80,19 @@ class StreamScanner(QObject):
                 return
 
             try:
-                logger.info(f"开始扫描IP模式: {ip_pattern}")
+                # 应用传入参数
+                if timeout is not None:
+                    self.set_timeout(timeout)
+                if thread_count is not None:
+                    self.set_thread_count(thread_count)
+
+                logger.info(f"开始扫描IP模式: {ip_pattern} (超时: {self._timeout}s, 线程: {self._thread_count})")
                 self._is_scanning = True
                 self.scan_started.emit(ip_pattern)
-                self._executor = ThreadPoolExecutor(max_workers=self._thread_count)
+                # 确保线程数在合理范围内(1-50)
+                actual_threads = max(1, min(self._thread_count, 50))
+                self._executor = ThreadPoolExecutor(max_workers=actual_threads)
+                logger.debug(f"实际使用的线程数: {thread_count}")
                 self._active_tasks.clear()
                 logger.debug(f"创建线程池，线程数: {self._thread_count}, 超时: {self._timeout}s")
 
@@ -145,11 +162,14 @@ class StreamScanner(QObject):
                         invalid_count += 1
                         logger.debug(f"无效URL: {url}")
                     
-                    # 更新进度
-                    progress = int((i + len(results)) / total * 100)
-                    status = f"进度: {i + len(results)}/{total} | 有效: {len(valid_channels)} | 无效: {invalid_count}"
-                    self.progress_updated.emit(progress, status)
-                    logger.debug(f"进度更新: {progress}% - {status}")
+                    # 每处理完一个批次更新一次进度
+                    current_count = i + len(results)
+                    if current_count % 10 == 0 or current_count == total:
+                        progress = int(current_count / total * 100)
+                        status = f"总频道: {total} | 有效: {len(valid_channels)} | 无效: {invalid_count}"
+                        self.progress_updated.emit(progress, "")  # 进度条只需要百分比
+                        self.stats_updated.emit(status)  # 状态标签显示详细信息
+                        logger.debug(f"进度更新: {progress}% - {status}")
 
             if self._is_scanning:
                 elapsed = time.time() - start_time
