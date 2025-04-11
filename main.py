@@ -249,7 +249,13 @@ class MainWindow(QtWidgets.QMainWindow):
     async def toggle_scan(self) -> None:
         """切换扫描状态"""
         ip_range = self.ip_range_input.text()
-        await self.scanner.toggle_scan(ip_range)
+        # 强制处理事件队列确保UI更新
+        QtWidgets.QApplication.processEvents()
+        # 立即执行扫描任务
+        task = await self.scanner.toggle_scan(ip_range)
+        # 确保任务立即启动
+        if task:
+            await asyncio.sleep(0)  # 让出控制权确保任务启动
 
     # 停止扫描任务
     @pyqtSlot()
@@ -342,6 +348,14 @@ class MainWindow(QtWidgets.QMainWindow):
             self.channel_list.setCurrentIndex(first_index)
             # 手动触发状态更新
             self._handle_player_state("准备播放")
+
+    @pyqtSlot()
+    def _on_scan_stopped(self) -> None:
+        """处理扫描停止信号"""
+        self.scan_btn.setText("完整扫描")
+        self.scan_btn.setStyleSheet(AppStyles.button_style())
+        self.statusBar().showMessage("扫描已停止")
+        logger.info("扫描已停止")
 
     # 处理频道选择事件
     @pyqtSlot()
@@ -614,7 +628,10 @@ class MainWindow(QtWidgets.QMainWindow):
             # 1. 设置关闭标志
             self._is_closing = True
             
-            # 2. 停止并清理验证器资源
+            # 2. 强制停止所有扫描任务
+            self.scanner.stop_scan(force=True)
+            
+            # 3. 停止并清理验证器资源
             if hasattr(self, 'validator'):
                 self.validator.cleanup()
             
@@ -633,13 +650,13 @@ class MainWindow(QtWidgets.QMainWindow):
                     event.ignore()
                     return None  # 明确返回None
             
-            # 4. 同步保存当前配置
+            # 5. 同步保存当前配置
             self._save_config_sync()
             
-            # 5. 执行父类关闭事件
+            # 6. 执行父类关闭事件
             super().closeEvent(event)
             
-            # 6. 接受关闭事件
+            # 7. 接受关闭事件
             event.accept()
             logger.info("窗口关闭完成")
             return None  # 明确返回None

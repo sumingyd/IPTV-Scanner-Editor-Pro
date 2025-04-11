@@ -23,6 +23,7 @@ class SignalConnector:
         self.main_window.scanner.scan_finished.connect(self.main_window.handle_scan_results)
         self.main_window.scanner.channel_found.connect(self.main_window.handle_channel_found)
         self.main_window.scanner.error_occurred.connect(self.main_window.show_error)
+        self.main_window.scanner.scan_stopped.connect(self.main_window._on_scan_stopped)
         
         # 列表选择信号
         self.main_window.channel_list.selectionModel().currentChanged.connect(

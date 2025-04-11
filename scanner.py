@@ -73,7 +73,7 @@ class StreamScanner(QObject):
         logger.info(f"切换扫描状态, 当前状态: {'扫描中' if self._is_scanning else '空闲'}")
         if self._is_scanning:
             logger.info("正在停止扫描...")
-            await self._stop_scanning()
+            await self.stop_scan()
             self.scan_stopped.emit()
             logger.info("扫描已停止")
             return
@@ -90,14 +90,7 @@ class StreamScanner(QObject):
                 self._executor = ThreadPoolExecutor(max_workers=self._thread_count)
                 self._active_tasks.clear()
                 logger.debug(f"创建线程池，线程数: {self._thread_count}, 超时: {self._timeout}s")
-            except Exception as e:
-                error_msg = f"扫描启动失败: {str(e)}"
-                logger.error(error_msg, exc_info=True)
-                self.error_occurred.emit(error_msg)
-                self._is_scanning = False
-                logger.error("扫描启动失败，状态已重置")
-                raise
-                
+
                 # 解析IP范围
                 urls = list(parse_ip_range(ip_pattern))
                 logger.debug(f"解析IP范围完成，生成URL数量: {len(urls)}")
@@ -105,6 +98,7 @@ class StreamScanner(QObject):
                     error_msg = "未生成任何扫描地址"
                     logger.error(error_msg)
                     self.error_occurred.emit(error_msg)
+                    self._is_scanning = False
                     return
 
                 # 创建扫描任务
@@ -320,68 +314,43 @@ class StreamScanner(QObject):
             self.ffprobe_missing.emit()
         return self._ffprobe_path
 
-    def stop_scan(self) -> None:
-        """停止扫描"""
+    async def stop_scan(self, force: bool = False) -> None:
+        """停止扫描
+        Args:
+            force: 是否强制立即停止(会直接kill进程)
+        """
         if not self._is_scanning:
             return
             
         self._is_scanning = False
-        for task in self._active_tasks:
-            if not task.done():
-                task.cancel()
-
-    async def _stop_scanning(self) -> None:
-        """停止所有扫描任务并清理资源"""
-        logger.info("开始停止扫描任务...")
-        self.stop_scan()
         
         # 终止所有子进程
-        logger.debug(f"正在终止 {len(self._active_processes)} 个子进程")
+        logger.info(f"正在停止扫描(force={force})...")
         for pid in list(self._active_processes):
             try:
                 proc = psutil.Process(pid)
-                if proc.is_running():
-                    try:
-                        logger.debug(f"终止进程 PID: {pid}")
-                        proc.terminate()
-                        await asyncio.sleep(0.1)
-                        if proc.is_running():
-                            logger.debug(f"强制终止进程 PID: {pid}")
-                            proc.kill()
-                    except Exception as e:
-                        logger.warning(f"终止进程时出错 PID: {pid}, 错误: {str(e)}")
+                if force:
+                    proc.kill()
+                else:
+                    proc.terminate()
+                    await asyncio.sleep(0.1)
+                    if proc.is_running():
+                        proc.kill()
             except psutil.NoSuchProcess:
-                logger.debug(f"进程已不存在 PID: {pid}")
+                pass
         self._active_processes.clear()
         
         # 取消所有异步任务
-        logger.debug(f"正在取消 {len(self._active_tasks)} 个异步任务")
-        tasks = list(self._active_tasks)
-        for task in tasks:
+        for task in list(self._active_tasks):
             if not task.done():
-                logger.debug(f"取消任务: {task}")
                 task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    logger.debug("任务已取消")
-                except Exception as e:
-                    logger.warning(f"取消任务时出错: {str(e)}", exc_info=True)
         self._active_tasks.clear()
         
         # 关闭线程池
         if self._executor:
-            try:
-                logger.debug("正在关闭线程池...")
-                self._executor.shutdown(wait=False, cancel_futures=True)
-                logger.debug("线程池已关闭")
-            except Exception as e:
-                logger.warning(f"关闭线程池时出错: {str(e)}")
+            self._executor.shutdown(wait=not force, cancel_futures=True)
             self._executor = None
-        
-        # 确保状态重置
-        self._is_scanning = False
 
     async def cleanup(self) -> None:
         """清理资源"""
-        return await self._stop_scanning()
+        await self.stop_scan()
