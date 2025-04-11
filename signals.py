@@ -1,5 +1,16 @@
-from PyQt6.QtCore import pyqtSlot
+from PyQt6.QtCore import pyqtSignal, pyqtSlot, QObject
 from async_utils import AsyncWorker
+
+class AppSignals(QObject):
+    """应用全局信号定义"""
+    scan_started = pyqtSignal()
+    scan_finished = pyqtSignal(list)
+    validation_started = pyqtSignal() 
+    validation_finished = pyqtSignal(dict)
+    epg_update_started = pyqtSignal()
+    epg_update_finished = pyqtSignal()
+    player_state_changed = pyqtSignal(int)
+    channel_selected = pyqtSignal(object)
 
 class SignalConnector:
     def __init__(self, main_window):

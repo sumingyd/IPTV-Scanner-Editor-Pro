@@ -9,6 +9,7 @@ from typing import List
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtCore import pyqtSignal
 from utils import check_gpu_driver
+from signals import AppSignals
 from config_manager import ConfigHandler
 from async_utils import AsyncWorker
 
@@ -83,11 +84,10 @@ class VLCInstanceManager:
 
 
 class VLCPlayer(QtWidgets.QWidget):
-    state_changed = pyqtSignal(str)
-    
     # 初始化
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.signals = parent.signals if hasattr(parent, 'signals') else AppSignals()
         self.config = ConfigHandler()
         VLCInstanceManager.initialize(self.config)
         self.media_player = None
@@ -107,7 +107,7 @@ class VLCPlayer(QtWidgets.QWidget):
             QtCore.QTimer.singleShot(100, self._bind_video_window)
         except Exception as e:
             logger.error(f"初始化失败: {str(e)}")
-            self.state_changed.emit("初始化失败")
+            self.signals.player_state_changed.emit("初始化失败")
 
     # 初始化UI
     def _init_ui(self):
@@ -216,10 +216,10 @@ class VLCPlayer(QtWidgets.QWidget):
         try:
             if self.media_player.is_playing():
                 self.media_player.pause()
-                self.state_changed.emit("已暂停")
+                self.signals.player_state_changed.emit("已暂停")
             else:
                 self.media_player.play()
-                self.state_changed.emit("播放中")
+                self.signals.player_state_changed.emit("播放中")
         except Exception as e:
             logger.error(f"暂停失败: {str(e)}")
             self._init_vlc()
@@ -230,25 +230,25 @@ class VLCPlayer(QtWidgets.QWidget):
         async with self._release_lock:
             if not self._is_active or not self.media_player or not hasattr(self.media_player, 'is_playing'):
                 self._is_active = False
-                self.state_changed.emit("播放已停止")
+                self.signals.player_state_changed.emit("播放已停止")
                 return
                 
             try:
                 if not self.media_player.is_playing():
                     self._is_active = False
-                    self.state_changed.emit("播放已停止")
+                    self.signals.player_state_changed.emit("播放已停止")
                     return
                     
                 # 双重检查锁内状态
                 if not self.media_player or not hasattr(self.media_player, 'is_playing'):
                     self._is_active = False
-                    self.state_changed.emit("播放已停止")
+                    self.signals.player_state_changed.emit("播放已停止")
                     return
                     
                 await asyncio.wait_for(self._run_release_sync(), timeout=5.0)
                 
                 self._is_active = False
-                self.state_changed.emit("播放已停止")
+                self.signals.player_state_changed.emit("播放已停止")
             except asyncio.TimeoutError:
                 logger.warning("异步释放超时，强制停止")
                 self.force_stop()
@@ -268,17 +268,17 @@ class VLCPlayer(QtWidgets.QWidget):
         self._is_active = False
         
         if not self.media_player:
-            self.state_changed.emit("播放已停止")
+            self.signals.player_state_changed.emit("播放已停止")
             return
             
         try:
             # 创建worker前检查对象有效性
             if not self.media_player or not hasattr(self.media_player, 'is_playing'):
-                self.state_changed.emit("播放已停止")
+                self.signals.player_state_changed.emit("播放已停止")
                 return
                 
             worker = AsyncWorker(self._release_sync)
-            worker.finished.connect(lambda: self.state_changed.emit("播放已停止"))
+            worker.finished.connect(lambda: self.signals.player_state_changed.emit("播放已停止"))
             worker.error.connect(lambda e: logger.error(f"异步释放失败: {str(e)}"))
             worker.start()
         except Exception as e:
@@ -330,7 +330,7 @@ class VLCPlayer(QtWidgets.QWidget):
         finally:
             self.media_player = None
             self._is_active = False
-            self.state_changed.emit("播放已强制停止")
+            self.signals.player_state_changed.emit("播放已强制停止")
 
     # 初始化信号连接
     def _setup_connections(self):
@@ -367,18 +367,18 @@ class VLCPlayer(QtWidgets.QWidget):
     # 播放事件处理
     def _on_play(self, event):
         """播放事件处理"""
-        self.state_changed.emit("正在播放...")
+        self.signals.player_state_changed.emit("正在播放...")
         self.update_epg_display()
 
     # 暂停事件处理
     def _on_pause(self, event):
         """暂停事件处理"""
-        self.state_changed.emit("播放已暂停")
+        self.signals.player_state_changed.emit("播放已暂停")
 
     # 停止事件处理
     def _on_stop(self, event):
         """停止事件处理"""
-        self.state_changed.emit("播放停止")
+        self.signals.player_state_changed.emit("播放停止")
         self.clear_epg_display()
 
     # 窗口关闭事件处理

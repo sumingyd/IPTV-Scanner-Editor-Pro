@@ -15,6 +15,7 @@ from PyQt6.QtCore import Qt, QModelIndex, pyqtSlot
 from PyQt6.QtGui import QAction, QIcon, QKeySequence, QCloseEvent
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
 import qasync
+from signals import AppSignals
 
 # ================= 本地模块导入 =================
 from async_utils import AsyncWorker
@@ -40,6 +41,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # 初始化
     def __init__(self):
         super().__init__()
+        logger.info("主窗口初始化开始")
         self.validation_results = {}  # 保存验证结果 {url: True/False}
         self.first_time_hide = True  # 首次点击隐藏按钮提示
         self.is_hiding_invalid = False  # 跟踪当前是否处于隐藏无效项状态
@@ -50,11 +52,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.player = VLCPlayer()
         self.playlist_handler = PlaylistHandler()
         self.converter = PlaylistConverter(self.epg_manager)
+        self.matcher = ChannelMatcher(self.epg_manager, self)  # 初始化匹配器
         self.playlist_source = None  # 播放列表来源：None/file/scan
         # +++ 新增智能匹配相关变量 +++
         self.old_playlist = None  # 存储旧列表数据 {url: channel_info}
         self.match_worker = None  # 异步任务对象
         self._is_closing = False  # 关闭标志
+        
+        # 初始化应用信号
+        self.signals = AppSignals(self)  # 传入self作为parent
         
         # 连接信号
         self.scanner.ffprobe_missing.connect(self.show_ffprobe_warning)
@@ -65,7 +71,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._init_ui()
         self._connect_signals()
-        self.load_config()
 
         # 添加防抖定时器
         self.debounce_timer = QtCore.QTimer()
@@ -73,12 +78,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.debounce_timer.timeout.connect(lambda: self.epg_manager.update_epg_completer(self.name_edit.text()))
 
         # 连接信号与槽
-        self.player.state_changed.connect(self._handle_player_state)
+        self.signals.player_state_changed.connect(self._handle_player_state)
         self.name_edit.installEventFilter(self)
 
     # 显示ffprobe缺失警
     def show_ffprobe_warning(self):
         """显示ffprobe缺失警告"""
+        logger.warning("检测到ffprobe缺失，部分功能将受限")
         QMessageBox.warning(
             self,
             "功能受限",
@@ -92,6 +98,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # 异步显示警告对话框
     async def _async_show_warning(self, title: str, message: str) -> None:
         """异步显示警告对话框"""
+        logger.info(f"显示警告对话框 - {title}: {message}")
         await utils.async_show_warning(self, title, message)
 
     # 事件过滤器处理焦点事件（最终版）
@@ -241,7 +248,8 @@ class MainWindow(QtWidgets.QMainWindow):
     @pyqtSlot()
     async def toggle_scan(self) -> None:
         """切换扫描状态"""
-        await self.scanner.toggle_scan_ui(self)
+        ip_range = self.ip_range_input.text()
+        await self.scanner.toggle_scan(ip_range)
 
     # 停止扫描任务
     @pyqtSlot()
@@ -525,7 +533,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # 强制立即处理事件队列
         QtWidgets.QApplication.processEvents()
 
-
     # 输入框文本变化处理
     def on_text_changed(self, text: str) -> None: 
         """输入框文本变化处理"""
@@ -538,6 +545,7 @@ class MainWindow(QtWidgets.QMainWindow):
     @pyqtSlot()
     def open_playlist(self) -> None: 
         """打开播放列表文件"""
+        logger.info("开始打开播放列表文件")
         path, _ = QFileDialog.getOpenFileName(
             self,
             "打开播放列表",
@@ -560,14 +568,17 @@ class MainWindow(QtWidgets.QMainWindow):
             self.model.channels = channels
             self.model.layoutChanged.emit()
             self.statusBar().showMessage(f"已加载列表：{Path(path).name}")
+            logger.info(f"成功加载播放列表: {Path(path).name}, 共{len(channels)}个频道")
             self.playlist_source = 'file'  # 设置播放列表来源为文件
         except Exception as e:
+            logger.error(f"打开播放列表失败: {str(e)}", exc_info=True)
             self.show_error(f"打开文件失败: {str(e)}")
     
     # 保存播放列表文件
     @pyqtSlot()
     def save_playlist(self) -> None: 
         """保存播放列表文件"""
+        logger.info("开始保存播放列表")
         path, _ = QFileDialog.getSaveFileName(
             self,
             "保存播放列表",
@@ -581,19 +592,24 @@ class MainWindow(QtWidgets.QMainWindow):
             success = self.playlist_handler.save_playlist(self.model.channels, path)
             if success:
                 self.statusBar().showMessage(f"列表已保存至：{path}")
+                logger.info(f"播放列表已保存至: {path}, 共{len(self.model.channels)}个频道")
             else:
                 self.show_error("保存失败，请检查文件路径")
         except Exception as e:
+            logger.error(f"保存播放列表失败: {str(e)}", exc_info=True)
             self.show_error(f"保存文件失败: {str(e)}")
 
     def showEvent(self, event):
         """窗口显示事件"""
         super().showEvent(event)
+        # 窗口显示后加载配置
+        self.load_config()
 
     # 处理关闭事件
     @pyqtSlot()
     def closeEvent(self, event: QCloseEvent):
         """处理窗口关闭事件"""
+        logger.info("开始处理窗口关闭事件")
         try:
             # 1. 设置关闭标志
             self._is_closing = True
@@ -602,10 +618,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if hasattr(self, 'validator'):
                 self.validator.cleanup()
             
-            # 3. 同步保存当前配置
-            self._save_config_sync()
-            
-            # 4. 检查是否需要保存播放列表
+            # 3. 检查是否需要保存播放列表
             if self.playlist_source == 'file' and self.model.channels:
                 reply = QMessageBox.question(
                     self,
@@ -620,11 +633,15 @@ class MainWindow(QtWidgets.QMainWindow):
                     event.ignore()
                     return None  # 明确返回None
             
+            # 4. 同步保存当前配置
+            self._save_config_sync()
+            
             # 5. 执行父类关闭事件
             super().closeEvent(event)
             
-            # 7. 接受关闭事件
+            # 6. 接受关闭事件
             event.accept()
+            logger.info("窗口关闭完成")
             return None  # 明确返回None
             
         except Exception as e:
@@ -634,6 +651,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # 切换有效性检测状态
     async def toggle_validation(self):
         """切换有效性检测状态"""
+        logger.info("开始切换有效性检测状态")
         if self.validator.is_running():
             await self.validator.stop_validation()
             self.btn_validate.setText("检测有效性")
@@ -642,6 +660,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         urls = [chan['url'] for chan in self.model.channels if 'url' in chan]
         if not urls:
+            logger.warning("尝试检测有效性但无可用频道")
             self.show_error("没有可检测的频道")
             return
             
@@ -660,6 +679,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.filter_status_label.setText(f"检测完成 - 有效: {len(result['valid'])}/{len(urls)}")
             
         except Exception as e:
+            logger.error(f"有效性检测失败: {str(e)}", exc_info=True)
             self.show_error(f"有效性检测失败: {str(e)}")
             self.btn_validate.setText("检测有效性")
             self.btn_validate.setStyleSheet(AppStyles.button_style())
@@ -668,55 +688,65 @@ class MainWindow(QtWidgets.QMainWindow):
     # 加载用户配置
     def load_config(self) -> None:
         """加载用户配置"""
+        logger.debug("开始加载用户配置")
+        logger.info("开始加载应用配置...")
         try:
             # 窗口布局
-            if geometry := self.config.config.get('UserPrefs', 'window_geometry', fallback=''):
+            window_prefs = self.config.get_window_prefs()
+            if geometry := window_prefs['geometry']:
                 self.restoreGeometry(QtCore.QByteArray.fromHex(geometry.encode()))
+                logger.debug("恢复窗口几何布局")
 
             # 恢复分隔条状态
-            if 'Splitters' in self.config.config:
-                try:
-                    if left_sizes := self.config.config['Splitters'].get('left_splitter', ''):
-                        self.left_splitter.setSizes(
-                            [int(size) for size in left_sizes.split(',') if size]
-                        )
-                    
-                    if right_sizes := self.config.config['Splitters'].get('right_splitter', ''):
-                        self.right_splitter.setSizes(
-                            [int(size) for size in right_sizes.split(',') if size]
-                        )
-                    
-                    if main_sizes := self.config.config['Splitters'].get('main_splitter', ''):
-                        self.main_splitter.setSizes(
-                            [int(size) for size in main_sizes.split(',') if size]
-                        )
-                    
-                    if h_sizes := self.config.config['Splitters'].get('h_splitter', ''):
-                        self.h_splitter.setSizes(
-                            [int(size) for size in h_sizes.split(',') if size]
-                        )
-                except Exception as e:
-                    logger.warning(f"恢复分隔条状态失败: {e}")
+            try:
+                splitters = window_prefs['splitters']
+                if left_sizes := splitters['left']:
+                    self.left_splitter.setSizes(
+                        [int(size) for size in left_sizes.split(',') if size]
+                    )
+                    logger.debug(f"恢复左侧分隔条状态: {left_sizes}")
+                
+                if right_sizes := splitters['right']:
+                    self.right_splitter.setSizes(
+                        [int(size) for size in right_sizes.split(',') if size]
+                    )
+                    logger.debug(f"恢复右侧分隔条状态: {right_sizes}")
+                
+                if main_sizes := splitters['main']:
+                    self.main_splitter.setSizes(
+                        [int(size) for size in main_sizes.split(',') if size]
+                    )
+                    logger.debug(f"恢复主分隔条状态: {main_sizes}")
+                
+                if h_sizes := splitters['h']:
+                    self.h_splitter.setSizes(
+                        [int(size) for size in h_sizes.split(',') if size]
+                    )
+                    logger.debug(f"恢复水平分隔条状态: {h_sizes}")
+            except Exception as e:
+                logger.warning(f"恢复分隔条状态失败: {e}")
 
-            # 扫描历史
-            scan_address = self.config.config.get('Scanner', 'scan_address', fallback='')
-            timeout = self.config.config.getint('Scanner', 'timeout', fallback=10)
-            thread_count = self.config.config.getint('Scanner', 'thread_count', fallback=10)
-            user_agent = self.config.config.get('Scanner', 'user_agent', fallback='')
-            referer = self.config.config.get('Scanner', 'referer', fallback='')
+            # 扫描配置
+            scanner_prefs = self.config.get_scanner_prefs()
+            logger.info(f"加载Scanner配置: {scanner_prefs}")
             
-            logger.info(f"加载Scanner配置: address={scan_address}, timeout={timeout}, threads={thread_count}, user_agent={user_agent}, referer={referer}")
-            
-            self.ip_range_input.setText(scan_address)
-            self.timeout_input.setValue(timeout)
-            self.thread_count_input.setValue(thread_count)
-            self.user_agent_input.setText(user_agent)
-            self.referer_input.setText(referer)
+            self.ip_range_input.setText(scanner_prefs['address'])
+            self.timeout_input.setValue(scanner_prefs['timeout'])
+            self.thread_count_input.setValue(scanner_prefs['thread_count'])
+            self.user_agent_input.setText(scanner_prefs['user_agent'])
+            self.referer_input.setText(scanner_prefs['referer'])
+            logger.debug("扫描配置已应用到UI")
 
             # 播放器设置
-            hardware_accel = self.config.config.get('Player', 'hardware_accel', fallback='d3d11va')
-            self.player.hw_accel = hardware_accel
+            player_prefs = self.config.get_player_prefs()
+            self.player.hw_accel = player_prefs['hardware_accel']
+            self.volume_slider.setValue(player_prefs['volume'])
+            logger.debug(f"播放器设置已加载: 硬件加速={player_prefs['hardware_accel']}, 音量={player_prefs['volume']}")
 
+            logger.info("应用配置加载完成")
+            logger.debug(f"窗口布局: {window_prefs}")
+            logger.debug(f"扫描配置: {scanner_prefs}")
+            logger.debug(f"播放器配置: {player_prefs}")
         except Exception as e:
             logger.error(f"配置加载失败: {str(e)}")
 
@@ -730,6 +760,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # 同步保存配置
     def _save_config_sync(self) -> None:
         """同步保存配置"""
+        logger.debug("开始同步保存配置")
         try:
             prefs = {
                 'window': {
@@ -763,6 +794,7 @@ class MainWindow(QtWidgets.QMainWindow):
     @pyqtSlot(str)
     def show_error(self, msg: str) -> None:
         """显示错误对话框"""
+        logger.error(f"显示错误对话框: {msg}")
         QMessageBox.critical(self, "操作错误", msg)
 
     # 更新状态栏
@@ -800,6 +832,7 @@ class MainWindow(QtWidgets.QMainWindow):
     @pyqtSlot(Exception)
     def handle_error(self, error: Exception, action: str = "") -> None:
         """增强版错误处理（带错误类型识别）"""
+        logger.error(f"处理{action}错误: {str(error)}", exc_info=True)
         error_details = {
             TimeoutError: {
                 "scan": "扫描超时，请检查网络或增加超时时间",
@@ -849,7 +882,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """设置音量"""
         self.player.set_volume(volume)
 
-    # +++ 新增方法：加载旧列表 +++
+    # +++ 加载旧列表 +++
     @pyqtSlot()
     def load_old_playlist(self):
         """加载旧播放列表文件"""
@@ -868,107 +901,50 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 channels = PlaylistParser.parse_m3u(content)
             
-            # 转换为 {url: channel} 字典
-            self.old_playlist = {chan['url']: chan for chan in channels}
+            # 转换为 {url: channel} 字典并传递给matcher
+            self.matcher.load_old_playlist({chan['url']: chan for chan in channels})
             self.btn_match.setEnabled(True)
-            self.match_status.setText(f"✔ 已加载旧列表({len(self.old_playlist)}个频道) - 点击'执行自动匹配'开始匹配")
+            self.match_status.setText(f"✔ 已加载旧列表({len(channels)}个频道) - 点击'执行自动匹配'开始匹配")
             self.match_status.setStyleSheet("color: #4CAF50; font-weight: bold;")
         except Exception as e:
             self.show_error(f"加载旧列表失败: {str(e)}")
 
-    # +++ 新增方法：执行自动匹配 +++
+    # +++ 执行自动匹配 +++
     async def run_auto_match(self):
-        """执行自动匹配任务"""
-        if not hasattr(self, 'old_playlist') or not self.old_playlist:
-            self.match_status.setText("请先加载旧列表")
-            return
-
+        """执行自动匹配任务(中转层)
+        
+        设计说明：
+        1. 负责连接matcher信号与UI组件
+        2. 处理匹配结果的UI更新
+        3. 统一错误处理和状态管理
+        4. 不包含具体匹配逻辑(在matcher.py中实现)
+        """
         try:
-            # 创建异步任务
-            self.match_worker = AsyncWorker(self._async_auto_match())
+            # 连接matcher信号到UI组件
+            self.matcher.match_progress.connect(self.match_progress.setValue)
+            self.matcher.match_status.connect(self.match_status.setText)
+            self.matcher.match_finished.connect(
+                lambda: self.handle_success("匹配完成", "match"))
+            self.matcher.error_occurred.connect(
+                lambda msg: self.show_error(f"匹配错误: {msg}"))
             
-            # 连接信号
-            self.match_worker.error.connect(lambda error: self.handle_error(error, "match"))
-            self.match_worker.finished.connect(lambda: self.handle_success("匹配完成", "match"))
+            # 执行匹配(具体实现在matcher.py)
+            await self.matcher.auto_match(self.model.channels)
             
-            # 启动任务
-            await self.match_worker.run()
+            # 更新UI颜色
+            for row in range(len(self.model.channels)):
+                index = self.model.index(row, 0)
+                color = self.matcher.get_match_color(self.model.channels[row])
+                if color:
+                    self.model.setData(index, color, Qt.ItemDataRole.BackgroundRole)
             
-        except asyncio.CancelledError:
-            self.match_status.setText("匹配已取消")
+            # 自动保存(如果勾选)
+            if self.cb_auto_save.isChecked():
+                self.save_playlist()
+                
         except Exception as e:
             logger.error(f"匹配任务异常: {str(e)}")
             self.match_status.setText("匹配启动失败")
-
-    # 实际执行匹配的异步方法
-    async def _async_auto_match(self):
-        """实际执行匹配的异步方法"""
-        total = len(self.model.channels)
-        self.match_progress.setMaximum(total)
-        
-        for row in range(total):
-            chan = self.model.channels[row]
-            
-            # 1. 匹配旧列表
-            if chan['url'] in self.old_playlist:
-                old_chan = self.old_playlist[chan['url']]
-                self._apply_match(row, old_chan, 'old')
-            
-            # 2. 匹配EPG
-            if hasattr(self, 'epg_manager'):
-                epg_names = self.epg_manager.match_channel_name(chan.get('name', ''))
-                if epg_names:
-                    self.model.channels[row]['name'] = epg_names[0]
-                    self._apply_match(row, {'name': epg_names[0]}, 'epg')
-            
-            # 更新进度
-            self.match_progress.setValue(row + 1)
-            self.match_status.setText(f"匹配中: {row+1}/{total} ({(row+1)/total*100:.1f}%)")
-            await asyncio.sleep(0.01)  # 释放事件循环
-        
-        # 统计结果
-        matched_count = sum(1 for chan in self.model.channels if 'old_name' in chan or 'epg_name' in chan)
-        old_matched = sum(1 for chan in self.model.channels if 'old_name' in chan)
-        epg_matched = sum(1 for chan in self.model.channels if 'epg_name' in chan)
-        conflict_count = sum(1 for chan in self.model.channels 
-                            if 'old_name' in chan and 'epg_name' in chan 
-                            and chan['old_name'] != chan['epg_name'])
-        
-        stats = (f"✔ 匹配完成\n"
-                f"• 共匹配 {matched_count}/{total} 个频道\n"
-                f"• 旧列表匹配: {old_matched}\n"
-                f"• EPG匹配: {epg_matched}\n"
-                f"• 冲突: {conflict_count}")
-        
-        self.match_status.setText(stats)
-        self.match_status.setStyleSheet("color: #2196F3; font-weight: bold;")
-        
-        if self.cb_auto_save.isChecked():
-            self.save_playlist()
-
-    # +++ 新增方法：应用匹配结果 +++
-    def _apply_match(self, row, data, source):
-        """更新指定行的数据和颜色"""
-        index = self.model.index(row, 0)
-        chan = self.model.channels[row]
-        
-        # 确定颜色
-        if source == 'old':
-            color = QtGui.QColor(255, 255, 200)  # 浅黄：旧列表匹配
-            # 保留原始名称
-            self.model.channels[row]['old_name'] = chan['name']
-            # 更新名称
-            self.model.channels[row]['name'] = data['name']
-        else:
-            is_conflict = ('old_name' in chan and data['name'] != chan['old_name'])
-            color = QtGui.QColor(255, 200, 200) if is_conflict else QtGui.QColor(200, 255, 200)
-            # 更新名称
-            self.model.channels[row]['name'] = data['name']
-        
-        # 更新UI
-        self.model.setData(index, data['name'], Qt.ItemDataRole.DisplayRole)
-        self.model.setData(index, color, Qt.ItemDataRole.BackgroundRole)
-        self.model.dataChanged.emit(index, index)
 
 # 程序入口
 if __name__ == "__main__":

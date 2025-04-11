@@ -122,7 +122,6 @@ class ConfigHandler:
 
             self.save_config()
         except Exception as e:
-            print(f"保存偏好设置失败: {str(e)}")
             raise
 
     def get_config_value(self, section: str, key: str, default=None):
@@ -131,3 +130,32 @@ class ConfigHandler:
             return self.config.get(section, key, fallback=default)
         except Exception:
             return default
+
+    def get_window_prefs(self) -> dict:
+        """获取窗口偏好设置"""
+        return {
+            'geometry': self.config.get('UserPrefs', 'window_geometry', fallback=''),
+            'splitters': {
+                'left': self.config.get('Splitters', 'left_splitter', fallback=''),
+                'right': self.config.get('Splitters', 'right_splitter', fallback=''),
+                'main': self.config.get('Splitters', 'main_splitter', fallback=''),
+                'h': self.config.get('Splitters', 'h_splitter', fallback='')
+            }
+        }
+
+    def get_scanner_prefs(self) -> dict:
+        """获取扫描器偏好设置"""
+        return {
+            'address': self.config.get('Scanner', 'scan_address', fallback=''),
+            'timeout': self.config.getint('Scanner', 'timeout', fallback=10),
+            'thread_count': self.config.getint('Scanner', 'thread_count', fallback=10),
+            'user_agent': self.config.get('Scanner', 'user_agent', fallback=''),
+            'referer': self.config.get('Scanner', 'referer', fallback='')
+        }
+
+    def get_player_prefs(self) -> dict:
+        """获取播放器偏好设置"""
+        return {
+            'hardware_accel': self.config.get('Player', 'hardware_accel', fallback='d3d11va'),
+            'volume': self.config.getint('Player', 'volume', fallback=50)
+        }

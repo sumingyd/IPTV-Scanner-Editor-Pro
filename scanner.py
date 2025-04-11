@@ -26,6 +26,7 @@ class StreamScanner(QObject):
     stats_updated = pyqtSignal(str)            # 统计信息更新
     def __init__(self):
         super().__init__()
+        logger.info("初始化StreamScanner")
         self._is_scanning = False
         self._timeout = 5
         self._thread_count = 10
@@ -37,6 +38,7 @@ class StreamScanner(QObject):
         self._referer = None
         self._active_tasks = set()
         self._active_processes = set()
+        logger.debug(f"初始化完成: timeout={self._timeout}, thread_count={self._thread_count}")
         
         # 初始化ffprobe路径，与validator.py保持一致
         from utils import ConfigHandler
@@ -50,20 +52,25 @@ class StreamScanner(QObject):
                             fallback=os.path.join(os.path.dirname(__file__), '..', 'ffmpeg', 'bin', 'ffprobe.exe'))
 
     def set_timeout(self, timeout: int) -> None:
+        logger.info(f"设置超时时间: {timeout}s")
         self._timeout = timeout
 
     def set_user_agent(self, user_agent: str) -> None:
+        logger.debug(f"设置User-Agent: {user_agent}")
         self._user_agent = user_agent
 
     def set_referer(self, referer: str) -> None:
+        logger.debug(f"设置Referer: {referer}")
         self._referer = referer
 
     def set_thread_count(self, thread_count: int) -> None:
+        logger.info(f"设置线程数: {thread_count}")
         self._thread_count = thread_count
 
     @asyncSlot()
     async def toggle_scan(self, ip_pattern: str) -> asyncio.Task:
         """切换扫描状态"""
+        logger.info(f"切换扫描状态, 当前状态: {'扫描中' if self._is_scanning else '空闲'}")
         if self._is_scanning:
             logger.info("正在停止扫描...")
             await self._stop_scanning()
@@ -73,6 +80,7 @@ class StreamScanner(QObject):
 
         async with self._scan_lock:
             if self._is_scanning:
+                logger.debug("扫描已在运行中，忽略重复启动")
                 return
 
             try:
@@ -81,43 +89,62 @@ class StreamScanner(QObject):
                 self.scan_started.emit(ip_pattern)
                 self._executor = ThreadPoolExecutor(max_workers=self._thread_count)
                 self._active_tasks.clear()
-                logger.debug(f"创建线程池，线程数: {self._thread_count}")
+                logger.debug(f"创建线程池，线程数: {self._thread_count}, 超时: {self._timeout}s")
+            except Exception as e:
+                error_msg = f"扫描启动失败: {str(e)}"
+                logger.error(error_msg, exc_info=True)
+                self.error_occurred.emit(error_msg)
+                self._is_scanning = False
+                logger.error("扫描启动失败，状态已重置")
+                raise
                 
                 # 解析IP范围
                 urls = list(parse_ip_range(ip_pattern))
+                logger.debug(f"解析IP范围完成，生成URL数量: {len(urls)}")
                 if not urls:
-                    self.error_occurred.emit("未生成任何扫描地址")
+                    error_msg = "未生成任何扫描地址"
+                    logger.error(error_msg)
+                    self.error_occurred.emit(error_msg)
                     return
 
                 # 创建扫描任务
                 task = asyncio.create_task(self._run_scan(urls))
                 self._active_tasks.add(task)
                 task.add_done_callback(lambda t: self._active_tasks.discard(t))
+                logger.debug(f"创建扫描任务，当前活动任务数: {len(self._active_tasks)}")
                 
+                logger.info("扫描任务已启动")
                 return task
             except Exception as e:
                 error_msg = f"扫描启动失败: {str(e)}"
                 logger.error(error_msg, exc_info=True)
                 self.error_occurred.emit(error_msg)
                 self._is_scanning = False
+                logger.error("扫描启动失败，状态已重置")
                 raise
 
     async def _run_scan(self, urls: List[str]) -> None:
         """执行扫描任务"""
         start_time = time.time()
+        logger.info(f"开始执行扫描任务，URL总数: {len(urls)}")
         try:
             total = len(urls)
             valid_channels = []
             invalid_count = 0
+            logger.debug(f"初始状态: valid={len(valid_channels)}, invalid={invalid_count}")
             
             # 分批处理
             batch_size = min(100, max(10, self._thread_count * 2))
+            logger.debug(f"使用批量处理，每批大小: {batch_size}")
             for i in range(0, total, batch_size):
                 if not self._is_scanning:
+                    logger.info("扫描被手动停止，中止处理")
                     break
                     
                 batch = urls[i:i + batch_size]
+                logger.debug(f"处理批次 {i//batch_size + 1}/{total//batch_size + 1}, 当前进度: {i}/{total}")
                 results = await self._process_batch(batch)
+                logger.debug(f"批次处理完成，结果数: {len(results)}")
                 
                 for url, result in results:
                     if result:
@@ -131,60 +158,78 @@ class StreamScanner(QObject):
                         }
                         valid_channels.append(channel)
                         self.channel_found.emit(channel)
+                        logger.debug(f"发现有效频道: {url}, 分辨率: {result.get('width')}x{result.get('height')}")
                     else:
                         invalid_count += 1
+                        logger.debug(f"无效URL: {url}")
                     
                     # 更新进度
                     progress = int((i + len(results)) / total * 100)
                     status = f"进度: {i + len(results)}/{total} | 有效: {len(valid_channels)} | 无效: {invalid_count}"
                     self.progress_updated.emit(progress, status)
+                    logger.debug(f"进度更新: {progress}% - {status}")
 
             if self._is_scanning:
+                elapsed = time.time() - start_time
                 self.scan_finished.emit({
                     'channels': valid_channels,
                     'total': total,
                     'invalid': invalid_count,
-                    'elapsed': time.time() - start_time
+                    'elapsed': elapsed
                 })
+                logger.info(f"扫描完成 - 有效: {len(valid_channels)}/{total}, 耗时: {elapsed:.2f}s")
         finally:
             self._is_scanning = False
             if self._executor:
+                logger.debug("关闭线程池")
                 self._executor.shutdown(wait=False)
                 self._executor = None
+            logger.debug("扫描任务清理完成")
 
     async def _process_batch(self, batch: List[str]) -> List[tuple]:
         """处理一批URL"""
         tasks = []
+        logger.debug(f"开始处理批次，URL数量: {len(batch)}")
         for url in batch:
             if not self._is_scanning:
+                logger.debug("扫描被停止，中止批次处理")
                 break
             task = asyncio.create_task(self._probe_stream(url))
             self._active_tasks.add(task)
             task.add_done_callback(lambda t: self._active_tasks.discard(t))
             tasks.append(task)
+            logger.debug(f"创建探测任务: {url}")
         
-        return await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        logger.debug(f"批次处理完成，结果数: {len(results)}")
+        return results
 
     async def _probe_stream(self, url: str) -> Optional[Dict]:
         """探测单个流媒体"""
         try:
             if not self._is_scanning:
+                logger.debug("扫描已停止，跳过探测")
                 return None
                 
             # 检查ffprobe可用性
             if not self._ffprobe_available:
+                logger.debug("ffprobe未验证，开始检查")
                 await self._check_ffprobe()
+                if not self._ffprobe_available:
+                    logger.warning("ffprobe不可用，仅能进行基本连接检测")
                 
             # 执行探测
+            logger.debug(f"开始探测流媒体: {url}")
             loop = asyncio.get_running_loop()
             result = await loop.run_in_executor(
                 self._executor,
                 self._run_probe,
                 url
             )
+            logger.debug(f"探测完成: {url}, 结果: {result is not None}")
             return (url, result)
         except Exception as e:
-            logger.error(f"探测失败: {url} - {str(e)}")
+            logger.error(f"探测失败: {url} - {str(e)}", exc_info=True)
             return (url, None)
 
     def _run_probe(self, url: str) -> Optional[Dict]:
@@ -202,6 +247,7 @@ class StreamScanner(QObject):
                 url
             ]
             logger.debug(f"执行ffprobe命令: {' '.join(cmd)}")
+            logger.debug(f"探测参数: timeout={self._timeout}s, user_agent={self._user_agent}, referer={self._referer}")
             
             proc = subprocess.Popen(
                 cmd,
