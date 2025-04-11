@@ -20,6 +20,7 @@ class StreamValidator(QObject):
         self.ffprobe = FFProbeHelper()
         self._is_running = False
         self._current_url = None  # 当前正在验证的URL
+        self._active_processes = []  # 跟踪所有活动进程
 
     # 设置验证超时时间
     def set_timeout(self, timeout: int) -> None:
@@ -238,14 +239,16 @@ class StreamValidator(QObject):
         if self._is_running:
             asyncio.create_task(self.stop_validation())
         
-        # 强制终止任何剩余进程
-        for proc in self._active_processes[:]:
-            if proc.returncode is None:
-                try:
-                    proc.kill()
-                except:
-                    pass
-        self._active_processes.clear()
+        # 安全清理进程资源
+        if hasattr(self, '_active_processes'):
+            # 强制终止任何剩余进程
+            for proc in self._active_processes[:]:
+                if proc and proc.returncode is None:
+                    try:
+                        proc.kill()
+                    except:
+                        pass
+            self._active_processes.clear()
 
     # 处理单个频道的验证结果
     def handle_channel_validation(self, result: dict):

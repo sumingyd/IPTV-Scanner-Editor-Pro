@@ -13,26 +13,42 @@ class UIManager:
     def update_scan_results_ui(self, result):
         """更新扫描结果UI"""
         # 更新频道列表模型
-        self.main_window.model.beginResetModel()
-        self.main_window.model.channels = result['channels']
-        self.main_window.model.endResetModel()
+        self._update_channel_model(result['channels'])
         
         # 更新统计信息显示
-        self.main_window.detailed_stats_label.setText(
-            f"总数: {result['total']} | 有效: {len(result['channels'])} | "
-            f"无效: {result['invalid']} | 耗时: {result['elapsed']:.1f}s"
+        self._update_stats_display(
+            result['total'],
+            len(result['channels']),
+            result['invalid'],
+            result['elapsed']
         )
-        self.main_window.statusBar().showMessage("扫描完成")
         
-        # 恢复扫描按钮状态
-        self.main_window.scan_btn.setText("完整扫描")
-        self.main_window.scan_btn.setStyleSheet(AppStyles.button_style())
+        # 更新状态和按钮
+        self.update_status("扫描完成")
+        self.update_button_state(self.main_window.scan_btn, "完整扫描")
         
         # 自动选择第一个频道
         if result['channels']:
-            first_index = self.main_window.model.index(0, 0)
-            self.main_window.channel_list.setCurrentIndex(first_index)
+            self._select_first_channel()
             self.main_window._handle_player_state("准备播放")
+
+    def _update_channel_model(self, channels):
+        """更新频道列表模型"""
+        self.main_window.model.beginResetModel()
+        self.main_window.model.channels = channels
+        self.main_window.model.endResetModel()
+
+    def _update_stats_display(self, total, valid, invalid, elapsed):
+        """更新统计信息显示"""
+        self.main_window.detailed_stats_label.setText(
+            f"总数: {total} | 有效: {valid} | "
+            f"无效: {invalid} | 耗时: {elapsed:.1f}s"
+        )
+
+    def _select_first_channel(self):
+        """自动选择第一个频道"""
+        first_index = self.main_window.model.index(0, 0)
+        self.main_window.channel_list.setCurrentIndex(first_index)
 
     def update_player_state_ui(self, msg: str) -> None:
         """更新播放状态UI"""

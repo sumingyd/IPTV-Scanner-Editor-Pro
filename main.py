@@ -602,23 +602,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.load_config()
 
     # 处理关闭事件
-    @pyqtSlot()
-    def closeEvent(self, event: QCloseEvent):
+    @qasync.asyncClose
+    async def closeEvent(self, event: QCloseEvent):
         """处理窗口关闭事件"""
         logger.info("开始处理窗口关闭事件")
+        self._is_closing = True
+        
         try:
-            # 1. 设置关闭标志
-            self._is_closing = True
+            # 1. 停止所有扫描任务
+            if hasattr(self, 'scanner') and self.scanner.is_scanning():
+                await self.scanner.stop_scan(force=True)
             
-            # 2. 强制停止所有扫描任务
-            self.scanner.stop_scan(force=True)
-            
-            # 3. 停止并清理验证器资源
+            # 2. 清理验证器资源
             if hasattr(self, 'validator'):
                 self.validator.cleanup()
             
             # 3. 检查是否需要保存播放列表
-            if self.playlist_source == 'file' and self.model.channels:
+            if hasattr(self, 'playlist_source') and self.playlist_source == 'file' and hasattr(self, 'model') and self.model.channels:
                 reply = QMessageBox.question(
                     self,
                     '保存修改',
@@ -626,22 +626,24 @@ class MainWindow(QtWidgets.QMainWindow):
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
                 )
                 
-                if reply == QMessageBox.StandardButton.Yes:
-                    self.save_playlist()
-                elif reply == QMessageBox.StandardButton.Cancel:
+                if reply == QMessageBox.StandardButton.Cancel:
                     event.ignore()
-                    return None  # 明确返回None
+                    return
+                elif reply == QMessageBox.StandardButton.Yes:
+                    self.save_playlist()
             
-            # 5. 同步保存当前配置
-            self._save_config_sync()
+            # 4. 同步保存配置
+            if hasattr(self, '_save_config_sync'):
+                self._save_config_sync()
             
-            # 6. 执行父类关闭事件
+            # 5. 清理播放器资源
+            if hasattr(self, 'player'):
+                self.player.force_stop()
+            
+            # 6. 最后调用父类关闭事件
             super().closeEvent(event)
-            
-            # 7. 接受关闭事件
             event.accept()
             logger.info("窗口关闭完成")
-            return None  # 明确返回None
             
         except Exception as e:
             logger.error(f"关闭异常: {str(e)}", exc_info=True)

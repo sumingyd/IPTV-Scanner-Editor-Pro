@@ -36,6 +36,7 @@ class StreamScanner(QObject):
         self._referer = None
         self._active_tasks = set()
         self._active_processes = set()
+        self._ffprobe_checked = False
         logger.debug(f"初始化完成: timeout={self._timeout}, thread_count={self._thread_count}")
         
         self.ffprobe = FFProbeHelper()
@@ -206,6 +207,23 @@ class StreamScanner(QObject):
         logger.debug(f"批次处理完成，结果数: {len(results)}")
         return results
 
+    async def _check_ffprobe(self) -> bool:
+        """检查ffprobe是否可用"""
+        if self._ffprobe_checked:
+            return self._ffprobe_available
+            
+        try:
+            self._ffprobe_available = await self.ffprobe.check_available()
+            if not self._ffprobe_available:
+                self.ffprobe_missing.emit()
+            self._ffprobe_checked = True
+            return self._ffprobe_available
+        except Exception as e:
+            logger.error(f"检查ffprobe失败: {str(e)}")
+            self._ffprobe_available = False
+            self.ffprobe_missing.emit()
+            return False
+
     async def _probe_stream(self, url: str) -> Optional[Dict]:
         """探测单个流媒体"""
         try:
@@ -214,7 +232,7 @@ class StreamScanner(QObject):
                 return None
                 
             # 检查ffprobe可用性
-            if not self._ffprobe_available:
+            if not self._ffprobe_checked:
                 logger.debug("ffprobe未验证，开始检查")
                 await self._check_ffprobe()
                 if not self._ffprobe_available:
@@ -292,3 +310,7 @@ class StreamScanner(QObject):
     async def cleanup(self) -> None:
         """清理资源"""
         await self.stop_scan()
+
+    def is_scanning(self) -> bool:
+        """返回当前扫描状态"""
+        return self._is_scanning
