@@ -954,6 +954,12 @@ if __name__ == "__main__":
     loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(loop)
 
+    # 清空日志文件
+    log_file = Path('iptv_manager.log')
+    if log_file.exists():
+        with open(log_file, 'w', encoding='utf-8') as f:
+            f.truncate()
+
     main_window = MainWindow()
     main_window.show()
 
