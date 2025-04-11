@@ -1,10 +1,6 @@
 import asyncio
-import subprocess
-import json
-import sys
 import psutil
 import time
-from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor
 from PyQt6 import QtWidgets
@@ -12,6 +8,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from async_utils import AsyncWorker, asyncSlot
 from playlist_io import PlaylistHandler
 from utils import setup_logger, parse_ip_range
+from ffprobe_utils import FFProbeHelper
 
 logger = setup_logger('Scanner')
 
@@ -40,16 +37,7 @@ class StreamScanner(QObject):
         self._active_processes = set()
         logger.debug(f"初始化完成: timeout={self._timeout}, thread_count={self._thread_count}")
         
-        # 初始化ffprobe路径，与validator.py保持一致
-        from utils import ConfigHandler
-        import os
-        import sys
-        if getattr(sys, 'frozen', False):
-            self._ffprobe_path = os.path.join(sys._MEIPASS, 'ffmpeg', 'bin', 'ffprobe.exe')
-        else:
-            config = ConfigHandler()
-            self._ffprobe_path = config.config.get('Scanner', 'ffprobe_path', 
-                            fallback=os.path.join(os.path.dirname(__file__), '..', 'ffmpeg', 'bin', 'ffprobe.exe'))
+        self.ffprobe = FFProbeHelper()
 
     def set_timeout(self, timeout: int) -> None:
         logger.info(f"设置超时时间: {timeout}s")
@@ -229,90 +217,20 @@ class StreamScanner(QObject):
     def _run_probe(self, url: str) -> Optional[Dict]:
         """执行实际的探测命令"""
         try:
-            # 使用ffprobe探测流媒体信息
-            cmd = [
-                self._find_ffprobe(),
-                '-v', 'error',
-                '-select_streams', 'v:0',
-                '-show_entries', 'stream=codec_name,width,height',
-                '-show_entries', 'format=start_time',
-                '-of', 'json',
-                '-timeout', str(self._timeout * 1_000_000),
-                url
-            ]
-            logger.debug(f"执行ffprobe命令: {' '.join(cmd)}")
-            logger.debug(f"探测参数: timeout={self._timeout}s, user_agent={self._user_agent}, referer={self._referer}")
-            
-            proc = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                creationflags=subprocess.CREATE_NO_WINDOW
+            valid, latency, width, height = asyncio.run(
+                self.ffprobe.probe_stream(url)
             )
-            self._active_processes.add(proc.pid)
-            
-            try:
-                stdout, stderr = proc.communicate(timeout=self._timeout)
-                if proc.returncode == 0:
-                    data = json.loads(stdout.decode('utf-8'))
-                    logger.debug(f"ffprobe output for {url}: {data}")
-                    if data.get('streams'):
-                        start_time = data.get('format', {}).get('start_time')
-                        if start_time is None:
-                            logger.debug(f"ffprobe未返回start_time: {url}")
-                            latency = 0.0
-                        else:
-                            latency = float(start_time)
-                            logger.debug(f"计算延迟: {url} - {latency}秒")
-                        return {
-                            'codec': data['streams'][0].get('codec_name', 'unknown'),
-                            'width': int(data['streams'][0].get('width', 0)),
-                            'height': int(data['streams'][0].get('height', 0)),
-                            'latency': latency,
-                            'valid': True
-                        }
-                    else:
-                        logger.debug(f"No streams found in ffprobe output for {url}")
-                else:
-                    logger.debug(f"ffprobe failed for {url}, stderr: {stderr.decode('utf-8')}")
-            finally:
-                if proc.poll() is None:
-                    proc.kill()
-                self._active_processes.discard(proc.pid)
-                
-        except Exception:
-            pass
-        return None
-
-    async def _check_ffprobe(self) -> None:
-        """检查ffprobe是否可用"""
-        try:
-            ffprobe_path = self._find_ffprobe()
-            logger.debug(f"检查ffprobe可用性，路径: {ffprobe_path}")
-            
-            proc = await asyncio.create_subprocess_exec(
-                ffprobe_path, '-version',
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                creationflags=subprocess.CREATE_NO_WINDOW
-            )
-            await proc.wait()
-            self._ffprobe_available = proc.returncode == 0
-            if not self._ffprobe_available:
-                logger.error(f"ffprobe不可用，路径: {ffprobe_path}, 返回码: {proc.returncode}")
-                self.ffprobe_missing.emit()
+            if valid:
+                return {
+                    'codec': 'unknown',  # 新版本不再返回codec信息
+                    'width': width,
+                    'height': height,
+                    'latency': latency,
+                    'valid': True
+                }
         except Exception as e:
-            logger.warning(f"ffprobe检查失败: {str(e)}")
-            self._ffprobe_available = False
-            self.ffprobe_missing.emit()
-
-    def _find_ffprobe(self) -> str:
-        """查找ffprobe路径"""
-        logger.debug(f"使用ffprobe路径: {self._ffprobe_path}")
-        if not Path(self._ffprobe_path).exists():
-            logger.error(f"ffprobe文件不存在: {self._ffprobe_path}")
-            self.ffprobe_missing.emit()
-        return self._ffprobe_path
+            logger.error(f"探测流媒体失败: {url} - {str(e)}")
+        return None
 
     async def stop_scan(self, force: bool = False) -> None:
         """停止扫描
