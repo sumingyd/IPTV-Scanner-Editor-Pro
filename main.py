@@ -731,29 +731,30 @@ class MainWindow(QtWidgets.QMainWindow):
     def _save_config_sync(self) -> None:
         """同步保存配置"""
         try:
-            # 保存窗口几何信息
-            self.config.config['UserPrefs']['window_geometry'] = self.saveGeometry().toHex().data().decode()
+            prefs = {
+                'window': {
+                    'geometry': self.saveGeometry().toHex().data().decode(),
+                    'splitters': {
+                        'left': self.left_splitter.sizes(),
+                        'right': self.right_splitter.sizes(),
+                        'main': self.main_splitter.sizes(),
+                        'h': self.h_splitter.sizes()
+                    }
+                },
+                'scanner': {
+                    'address': self.ip_range_input.text(),
+                    'timeout': self.timeout_input.value(),
+                    'thread_count': self.thread_count_input.value(),
+                    'user_agent': self.user_agent_input.text(),
+                    'referer': self.referer_input.text()
+                },
+                'player': {
+                    'hardware_accel': self.player.hw_accel,
+                    'volume': self.volume_slider.value()
+                }
+            }
             
-            # 保存分隔条状态
-            self.config.config['Splitters']['left_splitter'] = ','.join(map(str, self.left_splitter.sizes()))
-            self.config.config['Splitters']['right_splitter'] = ','.join(map(str, self.right_splitter.sizes()))
-            self.config.config['Splitters']['main_splitter'] = ','.join(map(str, self.main_splitter.sizes()))
-            self.config.config['Splitters']['h_splitter'] = ','.join(map(str, self.h_splitter.sizes()))
-
-            # 保存扫描配置
-            self.config.config['Scanner']['scan_address'] = self.ip_range_input.text()
-            self.config.config['Scanner']['timeout'] = str(self.timeout_input.value())
-            self.config.config['Scanner']['thread_count'] = str(self.thread_count_input.value())
-            self.config.config['Scanner']['user_agent'] = self.user_agent_input.text()
-            self.config.config['Scanner']['referer'] = self.referer_input.text()
-            
-            # 保存播放器配置
-            self.config.config['Player']['hardware_accel'] = self.player.hw_accel
-            self.config.config['Player']['volume'] = str(self.volume_slider.value())
-            
-            # 保存EPG配置
-            
-            self.config.save_prefs()
+            self.config.save_prefs(prefs)
             logger.debug("配置已保存")
         except Exception as e:
             logger.error(f"保存配置失败: {str(e)}", exc_info=True)
