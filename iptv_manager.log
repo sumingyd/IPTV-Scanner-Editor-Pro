@@ -1,3 +1,2 @@
-2025-04-11 04:39:05,180 [INFO] :0 [31320:29952] - 开始从GitHub获取最新版本信息: https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest
-2025-04-11 04:39:15,694 [INFO] :0 [31320:29952] - 成功获取版本信息: 5.0.0.0, 发布时间: 2025-04-06
-tribute 'save_prefs'
+2025-04-11 11:17:25,920 [INFO] :0 [30860:27124] - 加载Scanner配置: address=http://192.168.50.1:20231/rtp/239.21.1.[1-20]:5002, timeout=25, threads=20, user_agent=, referer=
+2025-04-11 11:17:25,921 [DEBUG] :0 [30860:27124] - 配置已保存

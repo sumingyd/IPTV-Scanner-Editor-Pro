@@ -54,6 +54,77 @@ class ConfigHandler:
         except Exception as e:
             print(f"保存配置文件失败: {str(e)}")
 
+    def save_prefs(self, prefs: dict) -> None:
+        """保存用户偏好设置
+        Args:
+            prefs: 包含所有偏好设置的字典，结构为:
+                {
+                    'window': {
+                        'geometry': str,
+                        'splitters': {
+                            'left': list[int],
+                            'right': list[int], 
+                            'main': list[int],
+                            'h': list[int]
+                        }
+                    },
+                    'scanner': {
+                        'address': str,
+                        'timeout': int,
+                        'thread_count': int,
+                        'user_agent': str,
+                        'referer': str
+                    },
+                    'player': {
+                        'hardware_accel': str,
+                        'volume': int
+                    }
+                }
+        """
+        try:
+            # 保存窗口几何信息
+            if 'window' in prefs:
+                if 'geometry' in prefs['window']:
+                    self.config['UserPrefs']['window_geometry'] = prefs['window']['geometry']
+                
+                if 'splitters' in prefs['window']:
+                    splitters = prefs['window']['splitters']
+                    if 'left' in splitters:
+                        self.config['Splitters']['left_splitter'] = ','.join(map(str, splitters['left']))
+                    if 'right' in splitters:
+                        self.config['Splitters']['right_splitter'] = ','.join(map(str, splitters['right']))
+                    if 'main' in splitters:
+                        self.config['Splitters']['main_splitter'] = ','.join(map(str, splitters['main']))
+                    if 'h' in splitters:
+                        self.config['Splitters']['h_splitter'] = ','.join(map(str, splitters['h']))
+
+            # 保存扫描配置
+            if 'scanner' in prefs:
+                scanner = prefs['scanner']
+                if 'address' in scanner:
+                    self.config['Scanner']['scan_address'] = scanner['address']
+                if 'timeout' in scanner:
+                    self.config['Scanner']['timeout'] = str(scanner['timeout'])
+                if 'thread_count' in scanner:
+                    self.config['Scanner']['thread_count'] = str(scanner['thread_count'])
+                if 'user_agent' in scanner:
+                    self.config['Scanner']['user_agent'] = scanner['user_agent']
+                if 'referer' in scanner:
+                    self.config['Scanner']['referer'] = scanner['referer']
+
+            # 保存播放器配置
+            if 'player' in prefs:
+                player = prefs['player']
+                if 'hardware_accel' in player:
+                    self.config['Player']['hardware_accel'] = player['hardware_accel']
+                if 'volume' in player:
+                    self.config['Player']['volume'] = str(player['volume'])
+
+            self.save_config()
+        except Exception as e:
+            print(f"保存偏好设置失败: {str(e)}")
+            raise
+
     def get_config_value(self, section: str, key: str, default=None):
         """获取配置值"""
         try:
