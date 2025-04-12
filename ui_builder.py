@@ -82,6 +82,33 @@ class UIManager:
         """更新进度条"""
         progress_bar.setValue(value)
 
+    def update_channel_selection_ui(self, channel: dict) -> None:
+        """更新频道选择时的UI"""
+        self.main_window.name_edit.setText(channel.get('name', '未命名频道'))
+        self.main_window.group_combo.setCurrentText(channel.get('group', '未分类'))
+        
+        # 更新EPG匹配状态
+        epg_status = self.main_window.epg_manager.get_channel_status(channel.get('name', ''))
+        self.main_window.epg_match_label.setText(epg_status['message'])
+        self.main_window.epg_match_label.setStyleSheet(f"color: {epg_status['color']}; font-weight: bold;")
+
+    def update_text_input_ui(self, text: str) -> None:
+        """处理文本输入相关UI"""
+        self.main_window.debounce_timer.start(300)
+        self.main_window.epg_manager.update_epg_completer(text)
+
+    def update_validation_ui(self, is_validating: bool, valid_count: int = 0, total: int = 0) -> None:
+        """更新验证状态UI"""
+        if is_validating:
+            self.main_window.btn_validate.setText("停止检测")
+            self.main_window.btn_validate.setStyleSheet(AppStyles.button_style(active=True))
+            self.main_window.filter_status_label.setText("有效性检测中...")
+        else:
+            self.main_window.btn_validate.setText("检测有效性")
+            self.main_window.btn_validate.setStyleSheet(AppStyles.button_style())
+            if valid_count > 0:
+                self.main_window.filter_status_label.setText(f"检测完成 - 有效: {valid_count}/{total}")
+
     def add_channel(self, channel: dict) -> None:
         """添加单个频道到列表"""
         self.main_window.model.beginInsertRows(

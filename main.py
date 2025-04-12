@@ -261,13 +261,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         chan = self.model.channels[index.row()]
-        self.name_edit.setText(chan.get('name', '未命名频道'))
-        self.group_combo.setCurrentText(chan.get('group', '未分类'))
-
-        # 更新EPG匹配状态
-        epg_status = self.epg_manager.get_channel_status(chan.get('name', ''))
-        self.epg_match_label.setText(epg_status['message'])
-        self.epg_match_label.setStyleSheet(f"color: {epg_status['color']}; font-weight: bold;")
+        self.ui_builder.ui_manager.update_channel_selection_ui(chan)
 
         if url := chan.get('url'):
             asyncio.create_task(self.safe_play(url))
@@ -445,10 +439,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # 输入框文本变化处理
     def on_text_changed(self, text: str) -> None: 
         """输入框文本变化处理"""
-        # 启动防抖定时器（后续输入防抖）
-        self.debounce_timer.start(300)
-        # 通过epg_manager更新自动补全
-        self.epg_manager.update_epg_completer(text)
+        self.ui_builder.ui_manager.update_text_input_ui(text)
 
     # 打开播放列表文件
     @pyqtSlot()
@@ -568,8 +559,7 @@ class MainWindow(QtWidgets.QMainWindow):
         logger.info("开始切换有效性检测状态")
         if self.validator.is_running():
             await self.validator.stop_validation()
-            self.btn_validate.setText("检测有效性")
-            self.btn_validate.setChecked(False)
+            self.ui_builder.ui_manager.update_validation_ui(False)
             return
 
         urls = [chan['url'] for chan in self.model.channels if 'url' in chan]
@@ -578,10 +568,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.show_error("没有可检测的频道")
             return
             
-        self.btn_validate.setText("停止检测")
-        self.btn_validate.setStyleSheet(AppStyles.button_style(active=True))
-        self.btn_validate.setChecked(True)
-        self.filter_status_label.setText("有效性检测中...")
+        self.ui_builder.ui_manager.update_validation_ui(True)
         
         try:
             # 从UI获取并发数设置并传递给验证器
@@ -590,7 +577,7 @@ class MainWindow(QtWidgets.QMainWindow):
             
             # 处理验证结果
             self.validation_results = {chan['url']: chan['valid'] for chan in result['valid'] + result['invalid']}
-            self.filter_status_label.setText(f"检测完成 - 有效: {len(result['valid'])}/{len(urls)}")
+            self.ui_builder.ui_manager.update_validation_ui(False, len(result['valid']), len(urls))
             
         except Exception as e:
             logger.error(f"有效性检测失败: {str(e)}", exc_info=True)
