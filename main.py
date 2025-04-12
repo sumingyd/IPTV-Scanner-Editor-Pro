@@ -45,8 +45,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.validation_results = {}  # 保存验证结果 {url: True/False}
         self.first_time_hide = True  # 首次点击隐藏按钮提示
         self.is_hiding_invalid = False  # 跟踪当前是否处于隐藏无效项状态
-        self.config = ConfigHandler()
-        self.scanner = StreamScanner()
+        try:
+            self.config = ConfigHandler()
+            self.scanner = StreamScanner(self.config)
+        except Exception as e:
+            logger.error(f"配置初始化失败: {str(e)}")
+            raise RuntimeError("配置系统初始化失败，请检查配置文件") from e
         self.validator = StreamValidator()  # 新增验证器实例
         self.epg_manager = EPGManager(self.config)
         self.player = VLCPlayer()
@@ -70,7 +74,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.play_worker: Optional[AsyncWorker] = None
 
         self._init_ui()
-        self._connect_signals()
+        self.signal_connector = SignalConnector(self)
+        self.signal_connector.connect_signals()
 
         # 添加防抖定时器
         self.debounce_timer = QtCore.QTimer()
