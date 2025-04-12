@@ -78,6 +78,25 @@ class UIManager:
         """显示成功消息对话框"""
         QtWidgets.QMessageBox.information(self.main_window, title, message)
 
+    def handle_success(self, msg: str, action: str = "") -> None:
+        """统一处理成功操作（支持多类型）"""
+        status_map = {
+            "scan": f"扫描完成 - {msg}",
+            "play": "播放成功",
+            "match": "智能匹配完成"
+        }
+        
+        # 获取状态信息
+        final_msg = status_map.get(action, "操作成功")
+        
+        # 更新状态栏
+        self.update_status(final_msg)
+        
+        # 播放成功后额外操作
+        if action == "play":
+            self.update_button_state(self.main_window.pause_btn, "暂停", True)
+            self.update_player_state_ui("播放中")
+
     def update_progress(self, progress_bar, value: int) -> None:
         """更新进度条"""
         progress_bar.setValue(value)
@@ -556,7 +575,11 @@ class UIBuilder:
 
         # 加载 EPG 数据
         load_epg_action = QtGui.QAction(load_icon("icons/load.png"), "加载 EPG", self.main_window)
-        load_epg_action.triggered.connect(lambda: asyncio.create_task(self.main_window._load_epg_with_progress()))
+        load_epg_action.triggered.connect(lambda: asyncio.create_task(
+            self.main_window._load_epg_with_progress(
+                QtWidgets.QApplication.keyboardModifiers() & Qt.KeyboardModifier.ShiftModifier
+            )
+        ))
         toolbar.addAction(load_epg_action)
 
         # EPG 管理

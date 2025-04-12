@@ -52,7 +52,7 @@ class MainWindow(QtWidgets.QMainWindow):
             logger.error(f"配置初始化失败: {str(e)}")
             raise RuntimeError("配置系统初始化失败，请检查配置文件") from e
         self.validator = StreamValidator()  # 新增验证器实例
-        self.epg_manager = EPGManager(self.config)
+        self.epg_manager = EPGManager(self)  # 传入MainWindow作为parent
         self.player = VLCPlayer()
         self.playlist_handler = PlaylistHandler()
         self.converter = PlaylistConverter(self.epg_manager)
@@ -120,21 +120,73 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui_builder = UIBuilder(self)
         self.ui_builder.build_ui()
 
-    # 从GitHub获取最新版本号
-    async def _get_latest_version(self) -> str:
-        """从GitHub获取最新版本号"""
-        return await utils.get_latest_version()
-
-    # 带进度显示的EPG加载
-    async def _load_epg_with_progress(self):
-        """带进度显示的EPG加载"""
-        await self.epg_manager.load_epg_with_progress(self)
 
     # 显示关于对话框
     async def _show_about_dialog(self):
         """显示关于对话框"""
         dialog = AboutDialog(self)
         await dialog.show()
+
+    # EPG加载中转方法(连接UI与EPGManager)
+    async def _load_epg_with_progress(self, force_refresh: bool) -> None:
+        """
+        EPG加载中转方法
+        职责：
+        1. 连接UI层与EPGManager
+        2. 添加日志记录
+        3. 统一错误处理
+        4. 支持强制刷新功能
+        5. 确保UI更新在主线程执行
+        
+        参数:
+            force_refresh: 是否强制从网络刷新EPG数据
+            
+        设计改进：
+        - 使用QTimer确保UI更新在主线程
+        - 优化日志记录时序
+        - 添加加载状态跟踪
+        """
+        try:
+            # 在主线程记录开始日志
+            QtCore.QTimer.singleShot(0, lambda: logger.info(
+                f"EPG加载中转开始 - 强制刷新: {force_refresh}"
+            ))
+            
+            # 使用信号槽机制确保UI更新在主线程
+            self.epg_manager.progress_signal.connect(
+                lambda msg: QtCore.QTimer.singleShot(0, 
+                    lambda: self.ui_builder.ui_manager.update_status(msg))
+            )
+            
+            # 添加加载状态跟踪
+            self._epg_loading = True
+            QtCore.QTimer.singleShot(0, 
+                lambda: self.ui_builder.ui_manager.update_status("EPG加载中..."))
+            
+            # 调用EPGManager加载方法
+            result = await self.epg_manager.load_epg_with_progress(self, force_refresh)
+            
+            # 在主线程记录完成日志
+            QtCore.QTimer.singleShot(0, lambda: logger.info(
+                f"EPG加载中转完成 - 结果: {result}"
+            ))
+            
+            # 更新UI状态
+            QtCore.QTimer.singleShot(0, lambda: (
+                self.ui_builder.ui_manager.update_status(
+                    "EPG加载完成" if result else "EPG加载失败"),
+                setattr(self, '_epg_loading', False)
+            ))
+            
+            return result
+        except Exception as e:
+            # 错误处理也在主线程执行
+            QtCore.QTimer.singleShot(0, lambda: (
+                logger.error(f"EPG加载中转失败: {str(e)}"),
+                self.ui_builder.ui_manager.show_error_message("EPG加载错误", str(e)),
+                setattr(self, '_epg_loading', False)
+            ))
+            raise
 
     # 连接信号与槽
     def _connect_signals(self) -> None:
@@ -709,31 +761,6 @@ class MainWindow(QtWidgets.QMainWindow):
         """更新状态栏"""
         self.ui_builder.ui_manager.update_status(msg)
 
-    # 统一处理成功结果
-    @pyqtSlot(str)
-    def handle_success(self, msg: str, action: str = "") -> None:
-        """统一处理成功操作（支持多类型）"""
-        status_map = {
-            "scan": f"扫描完成 - {msg}",
-            "play": "播放成功",
-            "match": "智能匹配完成"
-        }
-        
-        # 获取状态信息
-        final_msg = status_map.get(action, "操作成功")
-        
-        # 通过UIManager更新状态栏
-        self.ui_builder.ui_manager.update_status(final_msg)
-        
-        # 播放成功后额外操作
-        if action == "play":
-            self.ui_builder.ui_manager.update_button_state("pause_btn", "暂停", True)
-            self._handle_player_state("播放中")
-        
-        # 扫描成功后自动保存配置（可选）
-        if action == "scan":
-            self._save_config_sync()
-
     # 统一处理错误"
     @pyqtSlot(Exception)
     def handle_error(self, error: Exception, action: str = "") -> None:
@@ -830,7 +857,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.matcher.match_progress.connect(self.match_progress.setValue)
             self.matcher.match_status.connect(self.match_status.setText)
             self.matcher.match_finished.connect(
-                lambda: self.handle_success("匹配完成", "match"))
+                lambda: self.ui_builder.ui_manager.handle_success("匹配完成", "match"))
             self.matcher.error_occurred.connect(
                 lambda msg: self.show_error(f"匹配错误: {msg}"))
             
@@ -854,6 +881,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
 # 程序入口
 if __name__ == "__main__":
+    # 检查是否已有实例运行
+    from PyQt6.QtWidgets import QApplication
+    if QApplication.instance() is not None:
+        sys.exit(0)
+
     # 禁用QT屏幕相关的警告
     os.environ["QT_LOGGING_RULES"] = "qt.qpa.*=false"
     app = QtWidgets.QApplication(sys.argv)
