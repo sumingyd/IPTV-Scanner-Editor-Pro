@@ -115,97 +115,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui_builder = UIBuilder(self)
         self.ui_builder.build_ui()
 
-    # 初始化所有分隔条控件
-    def _init_splitters(self):
-        """初始化所有分隔条控件"""
-        # 主水平分割器（左右布局）
-        self.main_splitter = QtWidgets.QSplitter(Qt.Orientation.Horizontal)
-        self.main_splitter.setChildrenCollapsible(False)  # 防止完全折叠
-
-        # 左侧垂直分割器（扫描面板 + 频道列表）
-        self.left_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
-        self.left_splitter.setChildrenCollapsible(False)
-        self._setup_scan_panel(self.left_splitter)
-        self._setup_channel_list(self.left_splitter)
-
-        # 右侧垂直分割器（播放器 + 底部编辑区）
-        self.right_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
-        self.right_splitter.setChildrenCollapsible(False)
-        self._setup_player_panel(self.right_splitter)
-        
-        # 底部水平分割器（编辑面板 + 匹配面板）
-        bottom_container = QtWidgets.QWidget()
-        bottom_container.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Expanding,
-            QtWidgets.QSizePolicy.Policy.Expanding
-        )
-        bottom_layout = QtWidgets.QHBoxLayout(bottom_container)
-        bottom_layout.setContentsMargins(0, 0, 0, 0)
-        
-        self.h_splitter = QtWidgets.QSplitter(Qt.Orientation.Horizontal)
-        self.h_splitter.setChildrenCollapsible(False)
-        self._setup_edit_panel(self.h_splitter)
-        self._setup_match_panel(self.h_splitter)
-        bottom_layout.addWidget(self.h_splitter)
-        self.right_splitter.addWidget(bottom_container)
-
-        # 统一设置分隔条样式
-        style_map = {
-            QtCore.Qt.Orientation.Vertical: AppStyles.splitter_handle_style("horizontal"),  # 垂直分隔条的把手是水平的
-            QtCore.Qt.Orientation.Horizontal: AppStyles.splitter_handle_style("vertical")   # 水平分隔条的把手是垂直的
-        }
-
-        for splitter in [self.left_splitter, self.right_splitter, 
-                        self.main_splitter, self.h_splitter]:
-            # 设置最小尺寸防止拖拽过度
-            splitter.setMinimumSize(100, 100)
-            
-            # 根据方向应用样式
-            splitter.setStyleSheet(style_map[splitter.orientation()])
-            
-            # 设置拖动把手的热区大小（可选，推荐8-10px）
-            splitter.setHandleWidth(8)
-
-        # 组装主界面
-        self.main_splitter.addWidget(self.left_splitter)
-        self.main_splitter.addWidget(self.right_splitter)
-
-        # 设置默认尺寸（如果load_config没有恢复保存的状态，会使用这些值）
-        self.main_splitter.setSizes([300, 700])   # 左右比例 3:7
-        self.left_splitter.setSizes([200, 400])   # 上下比例 1:2
-        self.right_splitter.setSizes([400, 200])  # 播放器较大，编辑区较小
-        self.h_splitter.setSizes([300, 300])      # 左右均分
-
-    # 配置扫描面板 (已迁移到ui_builder.py)
-    def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
-        """配置扫描面板"""
-        pass
-
-    # 配置频道列表 (已迁移到ui_builder.py)
-    def _setup_channel_list(self, parent: QtWidgets.QSplitter) -> None:  
-        """配置频道列表"""
-        pass
-
-    # 配置播放器面板 (已迁移到ui_builder.py)
-    def _setup_player_panel(self, parent: QtWidgets.QSplitter) -> None:  
-        """配置播放器面板"""
-        pass
-
-    # 配置编辑面板 (已迁移到ui_builder.py)
-    def _setup_edit_panel(self, parent: QtWidgets.QSplitter) -> None:  
-        """配置编辑面板"""
-        pass
-
-    # 初始化菜单栏 (已迁移到ui_builder.py)
-    def _setup_menubar(self) -> None:  
-        """初始化菜单栏"""
-        pass
-
-    # 初始化工具栏 (已迁移到ui_builder.py)
-    def _setup_toolbar(self) -> None:  
-        """初始化工具栏"""
-        pass
-
     # 从GitHub获取最新版本号
     async def _get_latest_version(self) -> str:
         """从GitHub获取最新版本号"""
@@ -222,15 +131,29 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog = AboutDialog(self)
         await dialog.show()
 
-    # 配置智能匹配功能区 (已迁移到ui_builder.py)
-    def _setup_match_panel(self, parent_layout):
-        """添加智能匹配功能区（右侧新增区域）"""
-        pass
-
-    # 连接信号与槽 (已迁移到ui_builder.py)
+    # 连接信号与槽
     def _connect_signals(self) -> None:
         """连接信号与槽"""
-        pass
+        # 连接扫描器信号
+        self.scanner.progress_updated.connect(
+            lambda p, msg: (
+                self.ui_builder.ui_manager.update_progress(self.scan_progress, p),
+                self.ui_builder.ui_manager.update_status(msg)
+            )
+        )
+        self.scanner.scan_finished.connect(self.handle_scan_results)
+        self.scanner.channel_found.connect(self.handle_channel_found)
+        self.scanner.error_occurred.connect(self.show_error)
+        self.scanner.scan_stopped.connect(self._on_scan_stopped)
+        self.scanner.scan_started.connect(
+            lambda ip: (
+                self.ui_builder.ui_manager.update_button_state(self.scan_btn, "停止扫描", True),
+                self.ui_builder.ui_manager.update_status(f"开始扫描: {ip}")
+            )
+        )
+        self.scanner.stats_updated.connect(
+            lambda stats: self.ui_builder.ui_manager.update_status(stats)
+        )
 
     # 统一处理播放状态更新
     def _handle_player_state(self, msg: str):  
@@ -257,16 +180,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if task:
             await asyncio.sleep(0)  # 让出控制权确保任务启动
 
-    # 停止扫描任务
-    @pyqtSlot()
-    def stop_scan(self) -> None: 
-        """停止扫描任务"""
-        self.scanner.stop_scan_ui(self)
-
-    # 执行异步扫描
-    async def _async_scan(self, ip_range: str) -> None:  
-        """执行异步扫描"""
-        await self.scanner.async_scan_ui(self, ip_range)
 
     # 更新扫描进度
     @pyqtSlot(int, str)
@@ -335,7 +248,7 @@ class MainWindow(QtWidgets.QMainWindow):
     @pyqtSlot()
     def _on_scan_stopped(self) -> None:
         """处理扫描停止信号"""
-        self.ui_builder.ui_manager.update_button_state("scan_btn", "完整扫描", False)
+        self.ui_builder.ui_manager.update_button_state(self.scan_btn, "完整扫描", False)
         self.ui_builder.ui_manager.update_status("扫描已停止")
         logger.info("扫描已停止")
 
