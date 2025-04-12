@@ -22,12 +22,10 @@ class StreamScanner(QObject):
     scan_stopped = pyqtSignal()                # 扫描停止信号
     stats_updated = pyqtSignal(str)            # 统计信息更新
     
-    def __init__(self):
+    def __init__(self, config_manager):
         super().__init__()
         logger.info("初始化StreamScanner")
         self._is_scanning = False
-        self._timeout = 5
-        self._thread_count = 10
         self._scan_lock = asyncio.Lock()
         self.playlist = PlaylistHandler()
         self._executor = None
@@ -37,7 +35,29 @@ class StreamScanner(QObject):
         self._active_tasks = set()
         self._active_processes = set()
         self._ffprobe_checked = False
-        logger.debug(f"初始化完成: timeout={self._timeout}, thread_count={self._thread_count}")
+        
+        if not config_manager:
+            raise ValueError("config_manager参数不能为空")
+            
+        # 从配置管理器获取扫描器配置
+        scanner_prefs = config_manager.get_scanner_prefs()
+        self._timeout = scanner_prefs['timeout']
+        self._thread_count = scanner_prefs['thread_count']
+        
+        # 参数验证
+        if self._timeout <= 0:
+            logger.warning(f"无效超时时间{self._timeout}s，重置为10s")
+            self._timeout = 10
+            
+        if self._thread_count <= 0:
+            logger.warning(f"无效线程数{self._thread_count}，重置为10")
+            self._thread_count = 10
+            
+        # 设置User-Agent和Referer
+        self._user_agent = scanner_prefs['user_agent']
+        self._referer = scanner_prefs['referer']
+            
+        logger.debug(f"初始化完成: timeout={self._timeout}s, thread_count={self._thread_count}")
         
         self.ffprobe = FFProbeHelper()
         self.ffprobe.set_timeout(self._timeout)
@@ -133,37 +153,51 @@ class StreamScanner(QObject):
             invalid_count = 0
             logger.debug(f"初始状态: valid={len(valid_channels)}, invalid={invalid_count}")
             
-            # 逐个处理URL
-            for i, url in enumerate(urls):
+            # 根据线程数确定批次大小
+            batch_size = self._thread_count
+            for batch_start in range(0, total, batch_size):
                 if not self._is_scanning:
                     logger.info("扫描被手动停止，中止处理")
                     break
                 
-                # 处理单个URL
-                result = await self._probe_stream(url)
+                batch_end = min(batch_start + batch_size, total)
+                batch = urls[batch_start:batch_end]
                 
-                if result:
-                    url, probe_result = result
-                    if probe_result:
-                        channel = {
-                            'name': f"频道 {len(valid_channels) + 1}",
-                            'url': url,
-                            'width': probe_result.get('width', 0),
-                            'height': probe_result.get('height', 0),
-                            'latency': probe_result.get('latency', 0.0),
-                            'valid': probe_result.get('valid', False)
-                        }
-                        valid_channels.append(channel)
-                        self.channel_found.emit(channel)
-                        logger.debug(f"发现有效频道: {url}, 分辨率: {probe_result.get('width')}x{probe_result.get('height')}")
-                    else:
+                # 并发处理当前批次
+                results = await asyncio.gather(
+                    *(self._probe_stream(url) for url in batch),
+                    return_exceptions=True
+                )
+                
+                # 处理结果
+                for result in results:
+                    if isinstance(result, Exception):
+                        logger.error(f"扫描出错: {str(result)}")
                         invalid_count += 1
-                        logger.debug(f"无效URL: {url}")
+                        continue
+                        
+                    if result:
+                        url, probe_result = result
+                        if probe_result:
+                            channel = {
+                                'name': f"频道 {len(valid_channels) + 1}",
+                                'url': url,
+                                'width': probe_result.get('width', 0),
+                                'height': probe_result.get('height', 0),
+                                'latency': probe_result.get('latency', 0.0),
+                                'valid': probe_result.get('valid', False)
+                            }
+                            valid_channels.append(channel)
+                            self.channel_found.emit(channel)
+                            logger.debug(f"发现有效频道: {url}, 分辨率: {probe_result.get('width')}x{probe_result.get('height')}")
+                        else:
+                            invalid_count += 1
+                            logger.debug(f"无效URL: {url}")
                 
                 # 实时更新进度和状态
-                progress = int((i + 1) / total * 100)
+                progress = int(batch_end / total * 100)
                 status = f"总频道: {total} | 有效: {len(valid_channels)} | 无效: {invalid_count}"
-                self.progress_updated.emit(progress, f"正在扫描: {url}")
+                self.progress_updated.emit(progress, f"正在扫描批次 {batch_start+1}-{batch_end}")
                 self.stats_updated.emit(status)
                 logger.debug(f"进度更新: {progress}% - {status}")
 
