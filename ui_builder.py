@@ -82,6 +82,18 @@ class UIManager:
         """更新进度条"""
         progress_bar.setValue(value)
 
+    def add_channel(self, channel: dict) -> None:
+        """添加单个频道到列表"""
+        self.main_window.model.beginInsertRows(
+            QtCore.QModelIndex(),
+            len(self.main_window.model.channels),
+            len(self.main_window.model.channels)
+        )
+        self.main_window.model.channels.append(channel)
+        self.main_window.model.endInsertRows()
+        # 强制刷新UI
+        QtWidgets.QApplication.processEvents()
+
 class UIBuilder:
     def __init__(self, main_window):
         self.main_window = main_window
@@ -173,10 +185,6 @@ class UIBuilder:
         self.main_window.left_splitter.setSizes([200, 400])
         self.main_window.right_splitter.setSizes([400, 200])
         self.main_window.h_splitter.setSizes([300, 300])
-
-    def _setup_channel_list(self, parent):
-        """配置频道列表"""
-        # ... (频道列表代码)
 
     def _setup_player_panel(self, parent: QtWidgets.QSplitter) -> None:  
         """配置播放器面板"""

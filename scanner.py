@@ -133,44 +133,39 @@ class StreamScanner(QObject):
             invalid_count = 0
             logger.debug(f"初始状态: valid={len(valid_channels)}, invalid={invalid_count}")
             
-            # 分批处理
-            batch_size = min(100, max(10, self._thread_count * 2))
-            logger.debug(f"使用批量处理，每批大小: {batch_size}")
-            for i in range(0, total, batch_size):
+            # 逐个处理URL
+            for i, url in enumerate(urls):
                 if not self._is_scanning:
                     logger.info("扫描被手动停止，中止处理")
                     break
-                    
-                batch = urls[i:i + batch_size]
-                logger.debug(f"处理批次 {i//batch_size + 1}/{total//batch_size + 1}, 当前进度: {i}/{total}")
-                results = await self._process_batch(batch)
-                logger.debug(f"批次处理完成，结果数: {len(results)}")
                 
-                for url, result in results:
-                    if result:
+                # 处理单个URL
+                result = await self._probe_stream(url)
+                
+                if result:
+                    url, probe_result = result
+                    if probe_result:
                         channel = {
                             'name': f"频道 {len(valid_channels) + 1}",
                             'url': url,
-                            'width': result.get('width', 0),
-                            'height': result.get('height', 0),
-                            'latency': result.get('latency', 0.0),
-                            'valid': result.get('valid', False)
+                            'width': probe_result.get('width', 0),
+                            'height': probe_result.get('height', 0),
+                            'latency': probe_result.get('latency', 0.0),
+                            'valid': probe_result.get('valid', False)
                         }
                         valid_channels.append(channel)
                         self.channel_found.emit(channel)
-                        logger.debug(f"发现有效频道: {url}, 分辨率: {result.get('width')}x{result.get('height')}")
+                        logger.debug(f"发现有效频道: {url}, 分辨率: {probe_result.get('width')}x{probe_result.get('height')}")
                     else:
                         invalid_count += 1
                         logger.debug(f"无效URL: {url}")
-                    
-                    # 每处理完一个批次更新一次进度
-                    current_count = i + len(results)
-                    if current_count % 10 == 0 or current_count == total:
-                        progress = int(current_count / total * 100)
-                        status = f"总频道: {total} | 有效: {len(valid_channels)} | 无效: {invalid_count}"
-                        self.progress_updated.emit(progress, "")  # 进度条只需要百分比
-                        self.stats_updated.emit(status)  # 状态标签显示详细信息
-                        logger.debug(f"进度更新: {progress}% - {status}")
+                
+                # 实时更新进度和状态
+                progress = int((i + 1) / total * 100)
+                status = f"总频道: {total} | 有效: {len(valid_channels)} | 无效: {invalid_count}"
+                self.progress_updated.emit(progress, f"正在扫描: {url}")
+                self.stats_updated.emit(status)
+                logger.debug(f"进度更新: {progress}% - {status}")
 
             if self._is_scanning:
                 elapsed = time.time() - start_time
