@@ -128,48 +128,13 @@ class AppStyles:
         """
 
     @staticmethod
-    def epg_sidebar_style():
+    def epg_style() -> str:
         return """
-            QWidget#epg_sidebar {
-                background: rgba(40, 40, 45, 220);
-                border-left: 1px solid #555;
+            QTableWidget {
+                font-size: 12px;
+                alternate-background-color: #f0f0f0;
             }
-            QLabel#epg_title {
-                color: #4a7eff;
-                font-size: 16px;
-                font-weight: bold;
-                padding-bottom: 8px;
-                border-bottom: 1px solid #555;
-            }
-            QListWidget#epg_list {
-                background: transparent;
-                border: none;
-                font-size: 13px;
-                outline: 0;
-            }
-            QListWidget#epg_list::item {
-                padding: 8px;
-                border-bottom: 1px solid #333;
-                color: #ddd;
-            }
-            QListWidget#epg_list::item:selected {
-                background: rgba(74, 126, 255, 150);
-                color: white;
-            }
-            QPushButton#epg_toggle_btn {
-                background: rgba(50, 50, 50, 150);
-                color: white;
-                border: none;
-                font-weight: bold;
-                min-width: 20px;
-                max-width: 20px;
-            }
-            QPushButton#epg_nav_btn {
-                background: rgba(70, 70, 70, 150);
-                color: white;
-                border: none;
-                min-width: 30px;
-                max-width: 30px;
-                min-height: 25px;
+            QTableWidget::item {
+                padding: 5px;
             }
         """

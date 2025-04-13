@@ -147,44 +147,68 @@ class UIBuilder:
         else:
             self._drag_start_pos = None
 
-    def _setup_player_panel(self, parent: QtWidgets.QSplitter) -> None:  
-        """配置播放器面板"""
+    def _setup_player_panel(self, parent: QtWidgets.QSplitter) -> None:
         player_group = QtWidgets.QGroupBox("视频播放")
-        player_group.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Expanding,
-            QtWidgets.QSizePolicy.Policy.Expanding
-        )
-        
-        player_layout = QtWidgets.QVBoxLayout()
+        player_layout = QtWidgets.QHBoxLayout()  # 主水平布局
         player_layout.setContentsMargins(2, 2, 2, 2)
         
-        # 播放器占位
+        # 左侧播放器区域 (占3/4宽度)
+        player_left = QtWidgets.QWidget()
+        left_layout = QtWidgets.QVBoxLayout()
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # 播放器主体
         self.main_window.player = QtWidgets.QWidget()
-        player_layout.addWidget(self.main_window.player, stretch=10)
+        left_layout.addWidget(self.main_window.player, stretch=10)  # 大部分空间给播放器
 
-        # 控制按钮
-        control_layout = QtWidgets.QHBoxLayout()
+        # 控制按钮区域
+        control_container = QtWidgets.QWidget()
+        control_layout = QtWidgets.QVBoxLayout()
+        control_layout.setContentsMargins(0, 5, 0, 5)
+        
+        # 播放/停止按钮行
+        btn_row = QtWidgets.QHBoxLayout()
         self.main_window.pause_btn = QtWidgets.QPushButton("播放")
         self.main_window.pause_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.main_window.stop_btn = QtWidgets.QPushButton("停止")
         self.main_window.stop_btn.setStyleSheet(AppStyles.button_style())
-
-        control_layout.addWidget(self.main_window.pause_btn)
-        control_layout.addWidget(self.main_window.stop_btn)
-
-        player_layout.addLayout(control_layout, stretch=1)
-
-        # 音量控制
-        volume_layout = QtWidgets.QHBoxLayout()
+        btn_row.addWidget(self.main_window.pause_btn)
+        btn_row.addWidget(self.main_window.stop_btn)
+        
+        # 音量控制行
+        volume_row = QtWidgets.QHBoxLayout()
         self.main_window.volume_slider = QtWidgets.QSlider(Qt.Orientation.Horizontal)
         self.main_window.volume_slider.setRange(0, 100)
         self.main_window.volume_slider.setValue(50)
-
-        volume_layout.addWidget(QtWidgets.QLabel("音量："))
-        volume_layout.addWidget(self.main_window.volume_slider)
-
-        player_layout.addLayout(volume_layout, stretch=1)
-
+        volume_row.addWidget(QtWidgets.QLabel("音量："))
+        volume_row.addWidget(self.main_window.volume_slider)
+        
+        # 添加到控制区域
+        control_layout.addLayout(btn_row)
+        control_layout.addLayout(volume_row)
+        control_container.setLayout(control_layout)
+        
+        # 将控制区域添加到左侧布局
+        left_layout.addWidget(control_container, stretch=1)
+        player_left.setLayout(left_layout)
+        player_layout.addWidget(player_left, stretch=3)  # 左侧占3/4
+        
+        # 右侧EPG节目单区域 (占1/4宽度)
+        self.main_window.epg_panel = QtWidgets.QWidget()
+        self.main_window.epg_panel.setMinimumWidth(300)
+        epg_layout = QtWidgets.QVBoxLayout()
+        
+        # EPG标题和时间轴
+        self.main_window.epg_title = QtWidgets.QLabel("当前节目单")
+        self.main_window.epg_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.main_window.epg_timeline = QtWidgets.QScrollArea()
+        
+        epg_layout.addWidget(self.main_window.epg_title)
+        epg_layout.addWidget(self.main_window.epg_timeline)
+        self.main_window.epg_panel.setLayout(epg_layout)
+        
+        player_layout.addWidget(self.main_window.epg_panel, stretch=1)  # 右侧占1/4
+        
         player_group.setLayout(player_layout)
         parent.addWidget(player_group)
 
