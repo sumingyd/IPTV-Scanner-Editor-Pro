@@ -429,22 +429,40 @@ class UIBuilder:
         toolbar = self.main_window.addToolBar("主工具栏")
         toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
         toolbar.setMovable(False)
+        toolbar.setIconSize(QtCore.QSize(24, 24))  # 设置合适的图标大小
 
-        def load_icon(path: str) -> QtGui.QIcon:
-            """加载图标"""
-            icon_path = Path(__file__).parent / path
-            if icon_path.exists():
-                return QtGui.QIcon(str(icon_path))
-            return QtGui.QIcon()
+        # 使用emoji作为文本的工具栏按钮
+        def create_action(emoji, text, tooltip=None):
+            """创建带有emoji文本的动作"""
+            action = QtGui.QAction(f"{emoji} {text}", self.main_window)
+            if tooltip:
+                action.setToolTip(tooltip)
+            return action
 
-        # 工具栏按钮
-        open_action = QtGui.QAction(load_icon("icons/open.png"), "打开列表", self.main_window)
-        save_action = QtGui.QAction(load_icon("icons/save.png"), "保存列表", self.main_window)
-        refresh_action = QtGui.QAction(load_icon("icons/refresh.png"), "刷新", self.main_window)
-        
+        # 主要功能按钮
+        open_action = create_action("📂", "打开列表", "打开IPTV列表文件")
+        save_action = create_action("💾", "保存列表", "保存当前列表到文件")
+        refresh_epg_action = create_action("🔄", "刷新EPG", "重新获取EPG节目信息")
+        epg_manager_action = create_action("📺", "EPG管理", "管理EPG源和设置")
+        about_action = create_action("ℹ️", "关于", "关于本程序")
+
+        # 添加分隔符
+        toolbar.addSeparator()
+
+        # 添加按钮到工具栏
         toolbar.addAction(open_action)
         toolbar.addAction(save_action)
-        toolbar.addAction(refresh_action)
+        toolbar.addAction(refresh_epg_action)
+        toolbar.addAction(epg_manager_action)
+        toolbar.addAction(about_action)
+        
+
+        # 连接信号槽（根据你的实际功能需要添加）
+        # open_action.triggered.connect(self.open_list)
+        # save_action.triggered.connect(self.save_list)
+        # refresh_epg_action.triggered.connect(self.refresh_epg)
+        # epg_manager_action.triggered.connect(self.manage_epg)
+        # about_action.triggered.connect(self.show_about)
 
         
 class AndroidSplitterHandle(QtWidgets.QWidget):
