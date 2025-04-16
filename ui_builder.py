@@ -3,18 +3,24 @@ from PyQt6.QtCore import Qt
 from channel_model import ChannelListModel
 from styles import AppStyles
 from pathlib import Path
+from log_manager import LogManager
 
 class UIBuilder:
     def __init__(self, main_window):
         self.main_window = main_window
+        self.logger = LogManager()
+        self.logger.info("UI构建器初始化完成")
 
     def build_ui(self):
+        self.logger.info("开始构建UI界面")
         self._init_ui()
         self._setup_menubar()
         self._setup_toolbar()
+        self.logger.info("UI界面构建完成")
 
     def _init_ui(self):
         """初始化用户界面"""
+        self.logger.info("初始化主窗口UI")
         self.main_window.setWindowTitle("IPTV Scanner Editor Pro / IPTV 专业扫描编辑工具")
         self.main_window.resize(1200, 800)
         self.main_window.setStyleSheet(AppStyles.main_window_style())
@@ -293,6 +299,7 @@ class UIBuilder:
 
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
         """配置扫描面板"""
+        self.logger.info("初始化扫描面板")
         scan_group = QtWidgets.QGroupBox("扫描设置")
         scan_layout = QtWidgets.QFormLayout()
 
@@ -365,6 +372,7 @@ class UIBuilder:
 
     def _setup_channel_list(self, parent: QtWidgets.QSplitter) -> None:  
         """配置频道列表"""
+        self.logger.info("初始化频道列表")
         list_group = QtWidgets.QGroupBox("频道列表")
         list_layout = QtWidgets.QVBoxLayout()
 

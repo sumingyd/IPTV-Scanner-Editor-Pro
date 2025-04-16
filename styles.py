@@ -1,6 +1,12 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
+from log_manager import LogManager
 
 class AppStyles:
+    @staticmethod
+    def _init_logger():
+        logger = LogManager()
+        logger.info("应用样式初始化完成")
+        return logger
     @staticmethod
     def main_window_style() -> str:
         return """

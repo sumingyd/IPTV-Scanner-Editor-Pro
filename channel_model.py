@@ -1,12 +1,15 @@
 from PyQt6 import QtCore, QtGui
 from typing import List, Dict, Any
+from log_manager import LogManager
 
 class ChannelListModel(QtCore.QAbstractTableModel):
     """频道列表数据模型"""
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.logger = LogManager()
         self.channels: List[Dict[str, Any]] = []
         self.headers = ["频道名称", "分辨率", "URL", "分组", "状态", "延迟(ms)"]
+        self.logger.info("频道列表模型初始化完成")
 
     def rowCount(self, parent=QtCore.QModelIndex()) -> int:
         """返回行数(频道数量)"""
@@ -19,6 +22,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
     def data(self, index: QtCore.QModelIndex, role: int = QtCore.Qt.ItemDataRole.DisplayRole):
         """返回单元格数据"""
         if not index.isValid() or not (0 <= index.row() < len(self.channels)):
+            self.logger.debug(f"无效的索引请求: row={index.row()}, column={index.column()}")
             return None
 
         channel = self.channels[index.row()]
