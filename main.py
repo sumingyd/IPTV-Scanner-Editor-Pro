@@ -50,6 +50,16 @@ class MainWindow(QtWidgets.QMainWindow):
         # 连接扫描按钮
         self.ui.main_window.scan_btn.clicked.connect(self._on_scan_clicked)
         
+        # 连接菜单栏动作
+        for action in self.ui.main_window.menuBar().actions():
+            if action.text().startswith("打开列表"):
+                action.triggered.connect(self._open_list)
+            elif action.text().startswith("保存列表"):
+                action.triggered.connect(self._save_list)
+        
+        # 连接频道列表双击事件
+        self.ui.main_window.channel_list.doubleClicked.connect(self._play_selected_channel)
+        
         # 连接有效性检测按钮
         self.ui.main_window.btn_validate.clicked.connect(self._on_validate_clicked)
         
@@ -74,7 +84,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_scan_clicked(self):
         """处理扫描按钮点击事件"""
-        if self.scanner.stop_event.is_set():
+        if self.scanner.is_scanning():
+            # 停止扫描
+            self.scanner.stop_scan()
+            self.ui.main_window.scan_btn.setText("完整扫描")
+            self.logger.info("扫描已停止")
+        else:
             # 检查地址是否为空
             url = self.ui.main_window.ip_range_input.text()
             if not url.strip():
@@ -87,10 +102,6 @@ class MainWindow(QtWidgets.QMainWindow):
             threads = self.ui.main_window.thread_count_input.value()
             self.scanner.start_scan(url, threads, timeout)
             self.ui.main_window.scan_btn.setText("停止扫描")
-        else:
-            # 停止扫描
-            self.scanner.stop_scan()
-            self.ui.main_window.scan_btn.setText("完整扫描")
 
     def _validate_all_channels(self, timeout: int, threads: int):
         """验证所有频道的有效性"""
@@ -130,6 +141,25 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         stats_thread.start()
 
+    def _open_list(self):
+        """打开列表文件"""
+        if not hasattr(self, 'list_manager'):
+            from list_manager import ListManager
+            self.list_manager = ListManager(self.ui.main_window.model)
+            
+        if self.list_manager.open_list(self):
+            # 更新UI状态
+            self.ui.main_window.btn_hide_invalid.setEnabled(False)
+            self.ui.main_window.btn_validate.setEnabled(True)
+
+    def _save_list(self):
+        """保存列表文件"""
+        if not hasattr(self, 'list_manager'):
+            from list_manager import ListManager
+            self.list_manager = ListManager(self.ui.main_window.model)
+            
+        self.list_manager.save_list(self)
+
     def _on_validate_clicked(self):
         """处理有效性检测按钮点击事件"""
         if not self.ui.main_window.model.rowCount():
@@ -142,6 +172,8 @@ class MainWindow(QtWidgets.QMainWindow):
             threads = self.ui.main_window.thread_count_input.value()
             self._validate_all_channels(timeout, threads)
             self.ui.main_window.btn_validate.setText("停止检测")
+            # 检测开始后启用隐藏无效项按钮
+            self.ui.main_window.btn_hide_invalid.setEnabled(True)
         else:
             # 停止检测
             self.scanner.stop_scan()
@@ -155,6 +187,22 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.ui.main_window.model.show_all()
             self.ui.main_window.btn_hide_invalid.setText("隐藏无效项")
+
+    def _play_selected_channel(self, index):
+        """播放选中的频道"""
+        if not index.isValid():
+            return
+            
+        channel = self.ui.main_window.model.get_channel(index.row())
+        if not channel['valid']:
+            self.logger.warning("无法播放无效频道")
+            return
+            
+        if not hasattr(self, 'player_controller'):
+            from player_controller import PlayerController
+            self.player_controller = PlayerController(self.ui.main_window.player)
+            
+        self.player_controller.play(channel['url'], channel['name'])
 
     def _on_channel_found(self, channel_info):
         """处理发现有效频道事件"""

@@ -118,10 +118,9 @@ class ScannerController(QObject):
         validator = StreamValidator()
         result = validator.validate_stream(url, timeout=self.timeout)
         
-        # 生成频道名称 (线程名-序号)
+        # 生成频道名称 (线程编号)
         thread_num = int(threading.current_thread().name.split('-')[-1]) + 1
-        channel_num = self.stats['valid'] + 1
-        channel_name = f"频道-{thread_num}-{channel_num}"
+        channel_name = f"频道-{thread_num}"
         
         # 添加分辨率信息
         if result.get('resolution'):
@@ -138,6 +137,10 @@ class ScannerController(QObject):
             'error': result['error']
         }
         
+    def is_scanning(self):
+        """检查是否正在扫描"""
+        return len(self.workers) > 0 and not self.stop_event.is_set()
+
     def _update_stats(self):
         """更新统计信息线程"""
         while not self.stop_event.is_set() and any(w.is_alive() for w in self.workers):
