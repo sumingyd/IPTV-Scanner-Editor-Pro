@@ -12,6 +12,7 @@ class PlayerController(QObject):
         self.video_widget = video_widget
         self.instance = None
         self.player = None
+        self.is_playing = False
         self._init_player()
 
     def _init_player(self):
@@ -51,6 +52,7 @@ class PlayerController(QObject):
             media = self.instance.media_new(url)
             self.player.set_media(media)
             self.player.play()
+            self.is_playing = True
             self.logger.info(f"正在播放: {channel_name}")
             return True
         except Exception as e:
@@ -67,6 +69,9 @@ class PlayerController(QObject):
         """切换暂停/播放状态"""
         if self.player:
             self.player.pause()
+            self.is_playing = not self.is_playing
+            return self.is_playing
+        return False
 
     def stop(self):
         """停止播放"""

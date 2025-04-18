@@ -160,12 +160,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_pause_clicked(self):
         """处理暂停/播放按钮点击"""
-        self.player_controller.toggle_pause()
-        self.logger.debug("切换播放/暂停状态")
+        is_playing = self.player_controller.toggle_pause()
+        self.ui.main_window.pause_btn.setText("暂停" if is_playing else "播放")
+        self.logger.debug(f"切换播放状态: {'播放' if is_playing else '暂停'}")
 
     def _on_stop_clicked(self):
         """处理停止按钮点击"""
         self.player_controller.stop()
+        self.ui.main_window.pause_btn.setText("播放")
         self.logger.debug("停止播放")
 
     def _open_list(self):
@@ -233,7 +235,8 @@ class MainWindow(QtWidgets.QMainWindow):
             from player_controller import PlayerController
             self.player_controller = PlayerController(self.ui.main_window.player)
             
-        self.player_controller.play(channel['url'], channel['name'])
+        if self.player_controller.play(channel['url'], channel['name']):
+            self.ui.main_window.pause_btn.setText("暂停")
 
     def _on_channel_found(self, channel_info):
         """处理发现有效频道事件"""
