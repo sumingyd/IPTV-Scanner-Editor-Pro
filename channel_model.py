@@ -62,3 +62,28 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         if not index.isValid():
             return QtCore.Qt.ItemFlag.NoItemFlags
         return QtCore.Qt.ItemFlag.ItemIsEnabled | QtCore.Qt.ItemFlag.ItemIsSelectable
+
+    def get_channel(self, index: int) -> Dict[str, Any]:
+        """根据索引获取频道信息"""
+        if 0 <= index < len(self.channels):
+            return self.channels[index]
+        return {}
+
+    def add_channel(self, channel_info: Dict[str, Any]):
+        """添加频道到模型"""
+        self.beginInsertRows(QtCore.QModelIndex(), len(self.channels), len(self.channels))
+        self.channels.append(channel_info)
+        self.endInsertRows()
+
+    def hide_invalid(self):
+        """隐藏无效频道"""
+        self.beginResetModel()
+        self.channels = [c for c in self.channels if c.get('valid', True)]
+        self.endResetModel()
+
+    def show_all(self):
+        """显示所有频道"""
+        self.beginResetModel()
+        # 这里需要从数据源重新加载所有频道
+        # 暂时留空，需要后续实现完整的数据源管理
+        self.endResetModel()
