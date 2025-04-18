@@ -22,7 +22,14 @@ class UIBuilder:
         """初始化用户界面"""
         self.logger.info("初始化主窗口UI")
         self.main_window.setWindowTitle("IPTV Scanner Editor Pro / IPTV 专业扫描编辑工具")
-        self.main_window.resize(1200, 800)
+        
+        # 加载保存的窗口大小
+        width, height, _ = self.main_window.config.load_window_layout()
+        self.main_window.resize(width, height)
+        
+        # 连接窗口大小变化信号
+        self.main_window.resizeEvent = lambda e: self._on_window_resize(e)
+        
         self.main_window.setStyleSheet(AppStyles.main_window_style())
         
         # 主布局
@@ -45,6 +52,20 @@ class UIBuilder:
         self.main_window.progress_indicator.setStyleSheet(AppStyles.progress_style())
         self.main_window.progress_indicator.hide()
         status_bar.addPermanentWidget(self.main_window.progress_indicator)
+
+    def _on_window_resize(self, event):
+        """处理窗口大小变化事件"""
+        try:
+            size = self.main_window.size()
+            dividers = [
+                *self.main_window.main_splitter.sizes(),
+                *self.main_window.left_splitter.sizes(),
+                *self.main_window.right_splitter.sizes(),
+                *self.main_window.h_splitter.sizes()
+            ]
+            event.accept()
+        except Exception as e:
+            pass
 
     def _init_splitters(self):
         """初始化所有分隔条控件"""
@@ -83,11 +104,19 @@ class UIBuilder:
         self.main_window.main_splitter.addWidget(self.main_window.left_splitter)
         self.main_window.main_splitter.addWidget(self.main_window.right_splitter)
 
-        # 设置默认尺寸
-        self.main_window.main_splitter.setSizes([400, 600])
-        self.main_window.left_splitter.setSizes([250, 450])
-        self.main_window.right_splitter.setSizes([400, 200])
-        self.main_window.h_splitter.setSizes([300, 300])
+        # 加载保存的分隔条位置
+        _, _, dividers = self.main_window.config.load_window_layout()
+        if dividers and len(dividers) >= 8:
+            self.main_window.main_splitter.setSizes(dividers[:2])
+            self.main_window.left_splitter.setSizes(dividers[2:4])
+            self.main_window.right_splitter.setSizes(dividers[4:6])
+            self.main_window.h_splitter.setSizes(dividers[6:8])
+        else:
+            # 设置默认尺寸
+            self.main_window.main_splitter.setSizes([400, 600])
+            self.main_window.left_splitter.setSizes([250, 450])
+            self.main_window.right_splitter.setSizes([400, 200])
+            self.main_window.h_splitter.setSizes([300, 300])
 
     def _setup_custom_splitter(self, splitter):
         splitter.setChildrenCollapsible(False)
@@ -150,6 +179,16 @@ class UIBuilder:
                 sizes[1] = total - sizes[0]
             
             splitter.setSizes(sizes)
+            
+            # 保存分隔条位置
+            size = self.main_window.size()
+            dividers = [
+                *self.main_window.main_splitter.sizes(),
+                *self.main_window.left_splitter.sizes(),
+                *self.main_window.right_splitter.sizes(),
+                *self.main_window.h_splitter.sizes()
+            ]
+            self.main_window.config.save_window_layout(size.width(), size.height(), dividers)
         else:
             self._drag_start_pos = None
 
@@ -316,6 +355,15 @@ class UIBuilder:
         self.main_window.timeout_input.setValue(10)
         self.main_window.timeout_input.setSuffix(" 秒")
         timeout_layout.addWidget(self.main_window.timeout_input)
+        self.main_window.timeout_input.valueChanged.connect(
+            lambda: self.main_window.config.save_network_settings(
+                self.main_window.ip_range_input.text(),
+                self.main_window.timeout_input.value(),
+                self.main_window.thread_count_input.value(),
+                self.main_window.user_agent_input.text(),
+                self.main_window.referer_input.text()
+            )
+        )
         
         # 线程数设置
         thread_layout = QtWidgets.QHBoxLayout()
@@ -325,6 +373,15 @@ class UIBuilder:
         self.main_window.thread_count_input.setRange(1, 100)
         self.main_window.thread_count_input.setValue(10)
         thread_layout.addWidget(self.main_window.thread_count_input)
+        self.main_window.thread_count_input.valueChanged.connect(
+            lambda: self.main_window.config.save_network_settings(
+                self.main_window.ip_range_input.text(),
+                self.main_window.timeout_input.value(),
+                self.main_window.thread_count_input.value(),
+                self.main_window.user_agent_input.text(),
+                self.main_window.referer_input.text()
+            )
+        )
 
         # User-Agent设置
         user_agent_layout = QtWidgets.QHBoxLayout()
@@ -333,6 +390,15 @@ class UIBuilder:
         self.main_window.user_agent_input = QtWidgets.QLineEdit()
         self.main_window.user_agent_input.setPlaceholderText("可选，留空使用默认")
         user_agent_layout.addWidget(self.main_window.user_agent_input)
+        self.main_window.user_agent_input.textChanged.connect(
+            lambda: self.main_window.config.save_network_settings(
+                self.main_window.ip_range_input.text(),
+                self.main_window.timeout_input.value(),
+                self.main_window.thread_count_input.value(),
+                self.main_window.user_agent_input.text(),
+                self.main_window.referer_input.text()
+            )
+        )
 
         # Referer设置
         referer_layout = QtWidgets.QHBoxLayout()
@@ -341,6 +407,15 @@ class UIBuilder:
         self.main_window.referer_input = QtWidgets.QLineEdit()
         self.main_window.referer_input.setPlaceholderText("可选，留空不使用")
         referer_layout.addWidget(self.main_window.referer_input)
+        self.main_window.referer_input.textChanged.connect(
+            lambda: self.main_window.config.save_network_settings(
+                self.main_window.ip_range_input.text(),
+                self.main_window.timeout_input.value(),
+                self.main_window.thread_count_input.value(),
+                self.main_window.user_agent_input.text(),
+                self.main_window.referer_input.text()
+            )
+        )
 
         # 扫描控制按钮
         self.main_window.scan_btn = QtWidgets.QPushButton("完整扫描")
