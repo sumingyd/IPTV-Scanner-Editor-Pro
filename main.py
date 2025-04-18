@@ -18,11 +18,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui = UIBuilder(self)
         self.ui.build_ui()
         
+        # 初始化控制器
+        self.scanner = ScannerController(self.ui.main_window.model)
+        from player_controller import PlayerController
+        from list_manager import ListManager
+        self.player_controller = PlayerController(self.ui.main_window.player)
+        self.list_manager = ListManager(self.ui.main_window.model)
+        
         # UI构建完成后加载配置
         self._load_config()
-        
-        # 初始化扫描控制器
-        self.scanner = ScannerController(self.ui.main_window.model)
         
         # 连接信号槽
         self._connect_signals()
@@ -56,6 +60,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 action.triggered.connect(self._open_list)
             elif action.text().startswith("保存列表"):
                 action.triggered.connect(self._save_list)
+                
+        # 连接播放控制信号
+        self.ui.main_window.volume_slider.valueChanged.connect(
+            self._on_volume_changed)
+        self.ui.main_window.pause_btn.clicked.connect(
+            self._on_pause_clicked)
+        self.ui.main_window.stop_btn.clicked.connect(
+            self._on_stop_clicked)
         
         # 连接频道列表双击事件
         self.ui.main_window.channel_list.doubleClicked.connect(self._play_selected_channel)
@@ -141,24 +153,43 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         stats_thread.start()
 
+    def _on_volume_changed(self, value):
+        """处理音量滑块变化"""
+        self.player_controller.set_volume(value)
+        self.logger.debug(f"音量设置为: {value}")
+
+    def _on_pause_clicked(self):
+        """处理暂停/播放按钮点击"""
+        self.player_controller.toggle_pause()
+        self.logger.debug("切换播放/暂停状态")
+
+    def _on_stop_clicked(self):
+        """处理停止按钮点击"""
+        self.player_controller.stop()
+        self.logger.debug("停止播放")
+
     def _open_list(self):
         """打开列表文件"""
-        if not hasattr(self, 'list_manager'):
-            from list_manager import ListManager
-            self.list_manager = ListManager(self.ui.main_window.model)
-            
-        if self.list_manager.open_list(self):
-            # 更新UI状态
-            self.ui.main_window.btn_hide_invalid.setEnabled(False)
-            self.ui.main_window.btn_validate.setEnabled(True)
+        try:
+            if self.list_manager.open_list(self):
+                # 更新UI状态
+                self.ui.main_window.btn_hide_invalid.setEnabled(False)
+                self.ui.main_window.btn_validate.setEnabled(True)
+                return True
+            return False
+        except Exception as e:
+            self.logger.error(f"打开列表失败: {e}")
+            return False
 
     def _save_list(self):
         """保存列表文件"""
-        if not hasattr(self, 'list_manager'):
-            from list_manager import ListManager
-            self.list_manager = ListManager(self.ui.main_window.model)
-            
-        self.list_manager.save_list(self)
+        try:
+            if self.list_manager.save_list(self):
+                return True
+            return False
+        except Exception as e:
+            self.logger.error(f"保存列表失败: {e}")
+            return False
 
     def _on_validate_clicked(self):
         """处理有效性检测按钮点击事件"""

@@ -15,17 +15,29 @@ class ListManager:
             "",
             "M3U文件 (*.m3u *.m3u8);;文本文件 (*.txt);;所有文件 (*)"
         )
-        if file_path:
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                self.model.load_from_file(content)
-                self.logger.info(f"成功加载列表文件: {file_path}")
-                return True
-            except Exception as e:
-                self.logger.error(f"加载列表文件失败: {e}")
+        if not file_path:
+            self.logger.debug("用户取消选择文件")
+            return False
+            
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            if not content.strip():
+                self.logger.warning("文件内容为空")
                 return False
-        return False
+                
+            success = self.model.load_from_file(content)
+            if success:
+                self.logger.info(f"成功加载列表文件: {file_path}")
+                self.logger.debug(f"加载频道数: {self.model.rowCount()}")
+            else:
+                self.logger.warning("文件格式可能不正确")
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"加载列表文件失败: {str(e)}")
+            return False
 
     def save_list(self, parent=None):
         """保存列表文件"""

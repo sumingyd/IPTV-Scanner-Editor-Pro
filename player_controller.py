@@ -17,12 +17,26 @@ class PlayerController(QObject):
     def _init_player(self):
         """初始化VLC播放器"""
         try:
-            self.instance = vlc.Instance()
+            # 禁用VLC控制台输出
+            vlc_args = [
+                '--no-xlib', 
+                '--quiet',
+                '--no-stats',
+                '--no-video-title-show'
+            ]
+            self.instance = vlc.Instance(vlc_args)
             self.player = self.instance.media_player_new()
+            
+            # 设置硬件加速
             if sys.platform.startswith('win'):
                 self.player.set_hwnd(self.video_widget.winId())
+                self.player.video_set_format("RV32", 0, 0, 0)
             else:
                 self.player.set_xwindow(self.video_widget.winId())
+                
+            # 设置初始音量
+            self.player.audio_set_volume(50)
+            
         except Exception as e:
             self.logger.error(f"播放器初始化失败: {e}")
             self.play_error.emit(str(e))
@@ -43,6 +57,16 @@ class PlayerController(QObject):
             self.logger.error(f"播放失败: {e}")
             self.play_error.emit(str(e))
             return False
+            
+    def set_volume(self, volume):
+        """设置音量(0-100)"""
+        if self.player:
+            self.player.audio_set_volume(volume)
+            
+    def toggle_pause(self):
+        """切换暂停/播放状态"""
+        if self.player:
+            self.player.pause()
 
     def stop(self):
         """停止播放"""
