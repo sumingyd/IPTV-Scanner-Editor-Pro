@@ -540,12 +540,9 @@ class UIBuilder:
         toolbar.addAction(about_action)
         
 
-        # 连接信号槽（根据你的实际功能需要添加）
-        # open_action.triggered.connect(self.open_list)
-        # save_action.triggered.connect(self.save_list)
-        # refresh_epg_action.triggered.connect(self.refresh_epg)
-        # epg_manager_action.triggered.connect(self.manage_epg)
-        # about_action.triggered.connect(self.show_about)
+        # 连接信号槽
+        open_action.triggered.connect(lambda: self.main_window._open_list())
+        save_action.triggered.connect(lambda: self.main_window._save_list())
 
         
 class AndroidSplitterHandle(QtWidgets.QWidget):

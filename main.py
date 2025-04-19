@@ -1,4 +1,4 @@
-from PyQt6 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore, QtGui
 import time
 import threading
 from ui_builder import UIBuilder
@@ -50,7 +50,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.main_window.thread_count_input.setValue(5)
 
     def _connect_signals(self):
-        """连接扫描控制器的信号和槽"""
+        """连接所有信号和槽"""
         # 连接扫描按钮
         self.ui.main_window.scan_btn.clicked.connect(self._on_scan_clicked)
         
@@ -59,6 +59,13 @@ class MainWindow(QtWidgets.QMainWindow):
             if action.text().startswith("打开列表"):
                 action.triggered.connect(self._open_list)
             elif action.text().startswith("保存列表"):
+                action.triggered.connect(self._save_list)
+                
+        # 连接工具栏按钮
+        for action in self.ui.main_window.findChildren(QtGui.QAction):
+            if "打开列表" in action.text():
+                action.triggered.connect(self._open_list)
+            elif "保存列表" in action.text():
                 action.triggered.connect(self._save_list)
                 
         # 连接播放控制信号
@@ -173,24 +180,39 @@ class MainWindow(QtWidgets.QMainWindow):
     def _open_list(self):
         """打开列表文件"""
         try:
-            if self.list_manager.open_list(self):
-                # 更新UI状态
+            self.logger.debug("开始打开列表流程...")
+            result = self.list_manager.open_list(self)
+            if result:
+                self.logger.debug("成功打开列表，更新UI状态...")
                 self.ui.main_window.btn_hide_invalid.setEnabled(False)
                 self.ui.main_window.btn_validate.setEnabled(True)
+                self.ui.main_window.statusBar().showMessage("列表加载成功", 3000)
                 return True
-            return False
+            else:
+                self.logger.warning("打开列表失败")
+                self.ui.main_window.statusBar().showMessage("打开列表失败", 3000)
+                return False
         except Exception as e:
-            self.logger.error(f"打开列表失败: {e}")
+            self.logger.error(f"打开列表失败: {e}", exc_info=True)
+            self.ui.main_window.statusBar().showMessage(f"打开列表失败: {str(e)}", 3000)
             return False
 
     def _save_list(self):
         """保存列表文件"""
         try:
-            if self.list_manager.save_list(self):
+            self.logger.debug("开始保存列表流程...")
+            result = self.list_manager.save_list(self)
+            if result:
+                self.logger.info("列表保存成功")
+                self.ui.main_window.statusBar().showMessage("列表保存成功", 3000)
                 return True
-            return False
+            else:
+                self.logger.warning("列表保存失败")
+                self.ui.main_window.statusBar().showMessage("列表保存失败", 3000)
+                return False
         except Exception as e:
-            self.logger.error(f"保存列表失败: {e}")
+            self.logger.error(f"保存列表失败: {e}", exc_info=True)
+            self.ui.main_window.statusBar().showMessage(f"保存列表失败: {str(e)}", 3000)
             return False
 
     def _on_validate_clicked(self):
