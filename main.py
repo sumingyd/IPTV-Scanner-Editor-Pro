@@ -1,6 +1,7 @@
 from PyQt6 import QtWidgets, QtCore, QtGui
 import time
 import threading
+from channel_model import ChannelListModel
 from ui_builder import UIBuilder
 from config_manager import ConfigManager
 from log_manager import LogManager
