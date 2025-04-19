@@ -1,17 +1,90 @@
-2025-04-20 02:25:18 - INFO - UI构建器初始化完成
-2025-04-20 02:25:18 - INFO - 开始构建UI界面
-2025-04-20 02:25:18 - INFO - 初始化主窗口UI
-2025-04-20 02:25:18 - INFO - 初始化扫描面板
-2025-04-20 02:25:18 - INFO - 初始化频道列表
-2025-04-20 02:25:18 - INFO - 频道列表模型初始化完成
-2025-04-20 02:25:18 - INFO - UI界面构建完成
-2025-04-20 02:25:27 - DEBUG - 开始打开列表流程...
-2025-04-20 02:25:27 - DEBUG - 尝试打开文件对话框...
-2025-04-20 02:25:35 - DEBUG - 选择的文件路径: D:/桌面/all520.m3u
-2025-04-20 02:25:35 - DEBUG - 尝试读取文件内容...
-2025-04-20 02:25:35 - DEBUG - 读取到文件内容长度: 316676
-2025-04-20 02:25:35 - DEBUG - 尝试解析文件内容...
-2025-04-20 02:25:35 - INFO - 成功加载列表文件: D:/桌面/all520.m3u
-2025-04-20 02:25:35 - DEBUG - 加载频道数: 1675
-2025-04-20 02:25:35 - DEBUG - 成功打开列表，更新UI状态...
-2025-04-20 02:25:54 - INFO - 扫描已停止
+2025-04-20 02:39:34 - INFO - UI构建器初始化完成
+2025-04-20 02:39:34 - INFO - 开始构建UI界面
+2025-04-20 02:39:34 - INFO - 初始化主窗口UI
+2025-04-20 02:39:34 - INFO - 初始化扫描面板
+2025-04-20 02:39:34 - INFO - 初始化频道列表
+2025-04-20 02:39:34 - INFO - 频道列表模型初始化完成
+2025-04-20 02:39:34 - INFO - UI界面构建完成
+2025-04-20 02:39:38 - INFO - 开始解析范围URL: http://192.168.50.1:20231/rtp/239.21.1.[1-20]:5002
+2025-04-20 02:39:38 - INFO - 生成 20 个URL
+2025-04-20 02:39:38 - INFO - 开始扫描 20 个URL，使用 13 个线程
+2025-04-20 02:39:44 - DEBUG - 工作线程 ScannerWorker-2 退出
+2025-04-20 02:39:44 - DEBUG - 工作线程 ScannerWorker-12 退出
+2025-04-20 02:39:44 - DEBUG - 工作线程 ScannerWorker-3 退出
+2025-04-20 02:39:44 - DEBUG - 工作线程 ScannerWorker-11 退出
+2025-04-20 02:39:44 - DEBUG - 工作线程 ScannerWorker-6 退出
+2025-04-20 02:39:44 - DEBUG - 工作线程 ScannerWorker-9 退出
+2025-04-20 02:39:49 - DEBUG - 工作线程 ScannerWorker-0 退出
+2025-04-20 02:39:49 - DEBUG - 工作线程 ScannerWorker-10 退出
+2025-04-20 02:39:49 - DEBUG - 工作线程 ScannerWorker-5 退出
+2025-04-20 02:39:49 - DEBUG - 工作线程 ScannerWorker-1 退出
+2025-04-20 02:39:49 - DEBUG - 工作线程 ScannerWorker-8 退出
+2025-04-20 02:39:49 - DEBUG - 工作线程 ScannerWorker-4 退出
+2025-04-20 02:39:49 - DEBUG - 工作线程 ScannerWorker-7 退出
+2025-04-20 02:39:49 - INFO - 扫描统计线程退出
+2025-04-20 02:39:49 - INFO - 扫描完成
+2025-04-20 02:39:56 - DEBUG - 开始打开列表流程...
+2025-04-20 02:39:56 - DEBUG - 尝试打开文件对话框...
+2025-04-20 02:40:04 - DEBUG - 选择的文件路径: D:/桌面/all520.m3u
+2025-04-20 02:40:04 - DEBUG - 尝试读取文件内容...
+2025-04-20 02:40:04 - DEBUG - 读取到文件内容长度: 316676
+2025-04-20 02:40:04 - DEBUG - 尝试解析文件内容...
+2025-04-20 02:40:04 - INFO - 成功加载列表文件: D:/桌面/all520.m3u
+2025-04-20 02:40:04 - DEBUG - 加载频道数: 1675
+2025-04-20 02:40:04 - DEBUG - 成功打开列表，更新UI状态...
+2025-04-20 02:40:10 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:17 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:17 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:17 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:17 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:17 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:17 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:17 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:17 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:17 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:17 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:17 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:17 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:22 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:22 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:29 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:29 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:29 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:29 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:29 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:29 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:29 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:29 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:29 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:29 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:29 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:32 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:34 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:34 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:41 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:41 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:42 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:42 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:42 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:42 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:42 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:42 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:42 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:42 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:44 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:46 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:46 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:46 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:47 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:49 - INFO - 有效性验证已停止
+2025-04-20 02:40:49 - INFO - 扫描统计线程退出
+2025-04-20 02:40:53 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:54 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:54 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:54 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:54 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:54 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:54 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:54 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:54 - ERROR - 验证线程错误: too many values to unpack (expected 2)
+2025-04-20 02:40:56 - INFO - 程序退出前配置已保存

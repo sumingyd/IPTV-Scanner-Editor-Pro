@@ -16,11 +16,16 @@ class ScannerController(QObject):
     scan_completed = pyqtSignal()
     stats_updated = pyqtSignal(dict)  # 统计信息
     
+    # 在类定义中声明信号
+    channel_validated = pyqtSignal(int, bool, int)  # index, valid, latency
+
     def __init__(self, model: ChannelListModel):
         super().__init__()
         self.logger = LogManager()
         self.model = model
         self.url_parser = URLRangeParser()
+        self.is_validating = False
+        self.stats_lock = threading.Lock()
         self.worker_queue = queue.Queue()
         self.stop_event = threading.Event()
         self.workers = []
@@ -81,6 +86,72 @@ class ScannerController(QObject):
         """停止扫描"""
         self.stop_event.set()
         self.logger.info("扫描已停止")
+
+    def start_validation(self, model, threads, timeout):
+        """开始有效性验证"""
+        self.is_validating = True
+        self.stop_event.clear()
+        self.timeout = timeout
+        
+        # 初始化统计信息
+        self.stats = {
+            'total': model.rowCount(),
+            'valid': 0,
+            'invalid': 0,
+            'start_time': time.time(),
+            'elapsed': 0
+        }
+        
+        # 填充任务队列
+        for i in range(model.rowCount()):
+            channel = model.get_channel(i)
+            self.worker_queue.put((channel['url'], i))  # 同时传递索引
+            
+        # 创建工作线程
+        self.workers = []
+        for i in range(threads):
+            worker = threading.Thread(
+                target=self._validation_worker,
+                name=f"ValidationWorker-{i}",
+                daemon=True
+            )
+            worker.start()
+            self.workers.append(worker)
+            
+        # 启动统计更新线程
+        stats_thread = threading.Thread(
+            target=self._update_stats,
+            name="ValidationStatsUpdater",
+            daemon=True
+        )
+        stats_thread.start()
+
+    def stop_validation(self):
+        """停止有效性验证"""
+        self.stop_event.set()
+        self.is_validating = False
+        self.logger.info("有效性验证已停止")
+
+    def _validation_worker(self):
+        """有效性验证工作线程"""
+        while not self.stop_event.is_set():
+            try:
+                url, index = self.worker_queue.get_nowait()
+                valid, latency = self._check_channel(url)
+                
+                # 更新模型
+                self.channel_validated.emit(index, valid, latency)
+                
+                # 更新统计
+                with self.stats_lock:
+                    if valid:
+                        self.stats['valid'] += 1
+                    else:
+                        self.stats['invalid'] += 1
+            except queue.Empty:
+                break
+            except Exception as e:
+                self.logger.error(f"验证线程错误: {e}")
         
     def _worker(self):
         """工作线程函数"""
@@ -90,52 +161,49 @@ class ScannerController(QObject):
             except queue.Empty:
                 break
                 
-            # 检测URL有效性
-            channel_info = self._validate_url(url)
-            
-            # 更新统计信息
-            with threading.Lock():
-                if channel_info.get('valid', False):
-                    self.stats['valid'] += 1
-                else:
-                    self.stats['invalid'] += 1
-                    
-            # 只发送有效频道并更新UI
-            if channel_info['valid']:
-                self.channel_found.emit(channel_info)
+            try:
+                # 检测URL有效性
+                valid, latency, resolution = self._check_channel(url)
                 
-            # 更新进度
-            self.progress_updated.emit(
-                self.stats['valid'] + self.stats['invalid'],
-                self.stats['total']
-            )
+                # 生成频道信息
+                channel_info = {
+                    'url': url,
+                    'name': f"频道-{threading.current_thread().name.split('-')[-1]}",
+                    'valid': valid,
+                    'latency': latency,
+                    'resolution': resolution,
+                    'status': '有效' if valid else '无效'
+                }
+                
+                # 更新统计信息
+                with threading.Lock():
+                    if valid:
+                        self.stats['valid'] += 1
+                    else:
+                        self.stats['invalid'] += 1
+                        
+                # 只发送有效频道并更新UI
+                if valid:
+                    self.channel_found.emit(channel_info)
+                    
+                # 更新进度
+                self.progress_updated.emit(
+                    self.stats['valid'] + self.stats['invalid'],
+                    self.stats['total']
+                )
+            except Exception as e:
+                self.logger.error(f"工作线程错误: {e}")
             
         self.logger.debug(f"工作线程 {threading.current_thread().name} 退出")
         
-    def _validate_url(self, url: str) -> Dict:
-        """验证URL有效性"""
+    def _check_channel(self, url: str) -> tuple:
+        """检查频道有效性
+        返回: (valid: bool, latency: int, resolution: str)
+        """
         from validator import StreamValidator
         validator = StreamValidator()
         result = validator.validate_stream(url, timeout=self.timeout)
-        
-        # 生成频道名称 (线程编号)
-        thread_num = int(threading.current_thread().name.split('-')[-1]) + 1
-        channel_name = f"频道-{thread_num}"
-        
-        # 添加分辨率信息
-        if result.get('resolution'):
-            channel_name = f"{channel_name} ({result['resolution']})"
-            
-        return {
-            'url': url,
-            'name': channel_name,
-            'valid': result['valid'],
-            'latency': result['latency'],
-            'resolution': result['resolution'],
-            'codec': result['codec'],
-            'bitrate': result['bitrate'],
-            'error': result['error']
-        }
+        return result['valid'], result['latency'], result.get('resolution', '')
         
     def is_scanning(self):
         """检查是否正在扫描"""

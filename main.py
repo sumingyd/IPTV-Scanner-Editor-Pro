@@ -233,18 +233,37 @@ class MainWindow(QtWidgets.QMainWindow):
             self.logger.warning("请先加载列表")
             return
             
-        if self.scanner.stop_event.is_set():
-            # 开始检测
+        if not hasattr(self.scanner, 'is_validating') or not self.scanner.is_validating:
+            # 开始有效性检测
             timeout = self.ui.main_window.timeout_input.value()
             threads = self.ui.main_window.thread_count_input.value()
-            self._validate_all_channels(timeout, threads)
+            self.scanner.start_validation(
+                self.ui.main_window.model,
+                threads,
+                timeout
+            )
             self.ui.main_window.btn_validate.setText("停止检测")
-            # 检测开始后启用隐藏无效项按钮
             self.ui.main_window.btn_hide_invalid.setEnabled(True)
+            
+            # 连接验证结果信号
+            self.scanner.channel_validated.connect(self._on_channel_validated)
         else:
-            # 停止检测
-            self.scanner.stop_scan()
+            # 停止有效性检测
+            self.scanner.stop_validation()
             self.ui.main_window.btn_validate.setText("检测有效性")
+            
+    def _on_channel_validated(self, index, valid, latency):
+        """处理频道验证结果"""
+        channel = self.ui.main_window.model.get_channel(index)
+        channel['valid'] = valid
+        channel['latency'] = latency
+        channel['status'] = '有效' if valid else '无效'
+        
+        # 通知模型更新
+        self.ui.main_window.model.dataChanged.emit(
+            self.ui.main_window.model.index(index, 0),
+            self.ui.main_window.model.index(index, self.ui.main_window.model.columnCount() - 1)
+        )
 
     def _on_hide_invalid_clicked(self):
         """处理隐藏无效项按钮点击事件"""
