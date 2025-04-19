@@ -49,8 +49,15 @@ class LogManager:
     def warning(self, message):
         self.logger.warning(message)
         
-    def error(self, message):
-        self.logger.error(message)
+    def error(self, message, exc_info=False):
+        """记录错误日志
+        :param message: 错误消息
+        :param exc_info: 是否记录异常信息
+        """
+        if exc_info:
+            self.logger.error(message, exc_info=True)
+        else:
+            self.logger.error(message)
         
     def critical(self, message):
         self.logger.critical(message)

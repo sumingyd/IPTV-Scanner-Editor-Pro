@@ -87,3 +87,22 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         # 这里需要从数据源重新加载所有频道
         # 暂时留空，需要后续实现完整的数据源管理
         self.endResetModel()
+
+    def load_from_file(self, content: str) -> bool:
+        """从文件内容加载频道列表"""
+        try:
+            self.beginResetModel()
+            # 简单实现，实际需要解析M3U/TXT格式
+            lines = content.splitlines()
+            for line in lines:
+                if line.strip() and not line.startswith('#'):
+                    self.channels.append({
+                        'name': line.strip(),
+                        'url': line.strip(),
+                        'valid': True
+                    })
+            self.endResetModel()
+            return True
+        except Exception as e:
+            self.logger.error(f"加载频道列表失败: {str(e)}")
+            return False

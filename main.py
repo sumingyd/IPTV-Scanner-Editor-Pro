@@ -52,10 +52,18 @@ class MainWindow(QtWidgets.QMainWindow):
     def _connect_signals(self):
         """连接所有信号和槽"""
         # 连接扫描按钮
+        try:
+            self.ui.main_window.scan_btn.clicked.disconnect()
+        except:
+            pass
         self.ui.main_window.scan_btn.clicked.connect(self._on_scan_clicked)
         
         # 连接菜单栏动作
         for action in self.ui.main_window.menuBar().actions():
+            try:
+                action.triggered.disconnect()
+            except:
+                pass
             if action.text().startswith("打开列表"):
                 action.triggered.connect(self._open_list)
             elif action.text().startswith("保存列表"):
@@ -63,6 +71,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 
         # 连接工具栏按钮
         for action in self.ui.main_window.findChildren(QtGui.QAction):
+            try:
+                action.triggered.disconnect()
+            except:
+                pass
             if "打开列表" in action.text():
                 action.triggered.connect(self._open_list)
             elif "保存列表" in action.text():
