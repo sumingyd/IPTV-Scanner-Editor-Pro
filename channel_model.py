@@ -38,7 +38,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             elif col == 3:  # 分组
                 return channel.get('group', '未分类')
             elif col == 4:  # 状态
-                return '有效' if channel.get('valid', True) else '无效'
+                return channel.get('status', '待检测')
             elif col == 5:  # 延迟(ms)
                 return str(channel.get('latency', ''))
         elif role == QtCore.Qt.ItemDataRole.TextAlignmentRole:
@@ -92,17 +92,47 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         """从文件内容加载频道列表"""
         try:
             self.beginResetModel()
-            # 简单实现，实际需要解析M3U/TXT格式
+            self.channels = []
             lines = content.splitlines()
+            current_channel = None
+            
             for line in lines:
-                if line.strip() and not line.startswith('#'):
-                    self.channels.append({
-                        'name': line.strip(),
-                        'url': line.strip(),
-                        'valid': True
-                    })
+                line = line.strip()
+                if not line:
+                    continue
+                    
+                # 处理M3U文件头
+                if line == "#EXTM3U":
+                    continue
+                    
+                # 处理EXTINF行
+                if line.startswith("#EXTINF:"):
+                    parts = line.split(",", 1)
+                    if len(parts) > 1:
+                        name = parts[1].strip()
+                        # 尝试提取分组信息
+                        group = "未分类"
+                        if "group-title=" in line:
+                            group_start = line.find("group-title=") + 12
+                            group_end = line.find('"', group_start)
+                            if group_end > group_start:
+                                group = line[group_start:group_end]
+                        current_channel = {
+                            'name': name,
+                            'group': group,
+                            'valid': False,  # 初始状态为待检测
+                            'status': '待检测'
+                        }
+                    continue
+                    
+                # 处理URL行
+                if line and not line.startswith("#") and current_channel:
+                    current_channel['url'] = line
+                    self.channels.append(current_channel)
+                    current_channel = None
+            
             self.endResetModel()
             return True
         except Exception as e:
-            self.logger.error(f"加载频道列表失败: {str(e)}")
+            self.logger.error(f"加载频道列表失败: {str(e)}", exc_info=True)
             return False
