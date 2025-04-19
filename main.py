@@ -6,6 +6,7 @@ from ui_builder import UIBuilder
 from config_manager import ConfigManager
 from log_manager import LogManager
 from scanner_controller import ScannerController
+from styles import AppStyles
 import sys
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -22,7 +23,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # 初始化模型并设置回调
         self.model = ChannelListModel()
         self.model.update_status_label = self._update_validate_status
-        self.ui.channel_list.setModel(self.model)
+        self.ui.main_window.channel_list.setModel(self.model)
         
         # 初始化控制器
         self.scanner = ScannerController(self.model)
@@ -258,6 +259,9 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             self.ui.main_window.btn_validate.setText("停止检测")
             self.ui.main_window.btn_hide_invalid.setEnabled(True)
+            self.ui.main_window.btn_hide_invalid.setStyleSheet(
+                AppStyles.button_style(active=True)
+            )
             
             # 连接验证结果信号
             self.scanner.channel_validated.connect(self._on_channel_validated)
@@ -315,15 +319,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.main_window.btn_validate.setText("检测有效性")
         self.logger.info("扫描完成")
 
-    def _update_stats_display(self, stats):
+    def _update_stats_display(self, stats_data):
         """更新统计信息显示"""
-        elapsed = time.strftime("%H:%M:%S", time.gmtime(stats['elapsed']))
-        self.ui.main_window.detailed_stats_label.setText(
-            f"总数: {stats['total']} | "
-            f"有效: {stats['valid']} | "
-            f"无效: {stats['invalid']} | "
-            f"耗时: {elapsed}"
-        )
+        if stats_data.get('is_validation', False):
+            # 更新检测有效性统计标签
+            self.ui.main_window.validate_stats_label.setText(stats_data['text'])
+        else:
+            # 更新扫描统计信息
+            stats = stats_data.get('stats', {})
+            elapsed = time.strftime("%H:%M:%S", time.gmtime(stats.get('elapsed', 0)))
+            self.ui.main_window.detailed_stats_label.setText(
+                f"总数: {stats.get('total', 0)} | "
+                f"有效: {stats.get('valid', 0)} | "
+                f"无效: {stats.get('invalid', 0)} | "
+                f"耗时: {elapsed}"
+            )
 
     def save_before_exit(self):
         """程序退出前保存所有配置"""

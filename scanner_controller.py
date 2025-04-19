@@ -213,7 +213,21 @@ class ScannerController(QObject):
         """更新统计信息线程"""
         while not self.stop_event.is_set() and any(w.is_alive() for w in self.workers):
             self.stats['elapsed'] = time.time() - self.stats['start_time']
-            self.stats_updated.emit(self.stats)
+            
+            # 区分扫描和验证的统计更新
+            if self.is_validating:
+                # 验证统计信息
+                stats_text = (
+                    f"总数: {self.stats['total']} | "
+                    f"有效: {self.stats['valid']} | "
+                    f"无效: {self.stats['invalid']} | "
+                    f"耗时: {time.strftime('%H:%M:%S', time.gmtime(self.stats['elapsed']))}"
+                )
+                self.stats_updated.emit({'text': stats_text, 'is_validation': True})
+            else:
+                # 扫描统计信息
+                self.stats_updated.emit({'text': '', 'is_validation': False, 'stats': self.stats})
+            
             time.sleep(0.5)
             
         # 扫描完成

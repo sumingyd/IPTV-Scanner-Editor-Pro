@@ -48,6 +48,10 @@ class AppStyles:
                 background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
                     stop: 0 #5a8eff, stop: 1 #4a7eff);
             }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
         """
         
         if active:
