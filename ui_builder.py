@@ -43,7 +43,11 @@ class UIBuilder:
         status_bar = self.main_window.statusBar()
         status_bar.show()
         status_bar.setStyleSheet(AppStyles.statusbar_style())
-        status_bar.showMessage("程序已启动")
+        # 状态栏统计信息
+        self.main_window.scan_status_label = QtWidgets.QLabel("扫描: 0/0")
+        self.main_window.validate_status_label = QtWidgets.QLabel("检测: 0/0")
+        status_bar.addPermanentWidget(self.main_window.scan_status_label)
+        status_bar.addPermanentWidget(self.main_window.validate_status_label)
         
         self.main_window.progress_indicator = QtWidgets.QProgressBar()
         self.main_window.progress_indicator.setRange(0, 0)
@@ -216,7 +220,8 @@ class UIBuilder:
         self.main_window.pause_btn = QtWidgets.QPushButton("播放")
         self.main_window.pause_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.main_window.stop_btn = QtWidgets.QPushButton("停止")
-        self.main_window.stop_btn.setStyleSheet(AppStyles.button_style())
+        self.main_window.stop_btn.setStyleSheet(AppStyles.button_style(active=False))
+        self.main_window.stop_btn.setEnabled(False)
         btn_row.addWidget(self.main_window.pause_btn)
         btn_row.addWidget(self.main_window.stop_btn)
         
@@ -284,7 +289,8 @@ class UIBuilder:
         # 保存按钮
         save_btn = QtWidgets.QPushButton("保存修改")
         save_btn.setMinimumHeight(36)
-        save_btn.setStyleSheet(AppStyles.button_style())
+        save_btn.setStyleSheet(AppStyles.button_style(active=False))
+        save_btn.setEnabled(False)
 
         # 布局
         edit_layout.addRow("频道名称：", self.main_window.name_edit)
@@ -303,10 +309,11 @@ class UIBuilder:
         
         # 操作按钮
         self.main_window.btn_load_old = QtWidgets.QPushButton("加载旧列表")
-        self.main_window.btn_load_old.setStyleSheet(AppStyles.button_style())
+        self.main_window.btn_load_old.setStyleSheet(AppStyles.button_style(active=True))
 
         self.main_window.btn_match = QtWidgets.QPushButton("执行自动匹配")
-        self.main_window.btn_match.setStyleSheet(AppStyles.button_style())
+        self.main_window.btn_match.setStyleSheet(AppStyles.button_style(active=False))
+        self.main_window.btn_match.setEnabled(False)
         self.main_window.btn_match.setEnabled(False)
 
         # 状态显示
@@ -460,15 +467,16 @@ class UIBuilder:
         
         # 隐藏无效项按钮
         self.main_window.btn_hide_invalid = QtWidgets.QPushButton("隐藏无效项")
-        self.main_window.btn_hide_invalid.setStyleSheet(AppStyles.button_style())
+        self.main_window.btn_hide_invalid.setStyleSheet(AppStyles.button_style(active=False))
+        self.main_window.btn_hide_invalid.setEnabled(False)
         
-        # 状态标签
-        self.main_window.filter_status_label = QtWidgets.QLabel("请先加载列表并点击检测有效性")
-        self.main_window.filter_status_label.setStyleSheet(AppStyles.status_label_style())
+        # 检测统计标签
+        self.main_window.validate_stats_label = QtWidgets.QLabel("请先加载列表")
+        self.main_window.validate_stats_label.setStyleSheet(AppStyles.status_label_style())
         
         toolbar.addWidget(self.main_window.btn_validate)
         toolbar.addWidget(self.main_window.btn_hide_invalid)
-        toolbar.addWidget(self.main_window.filter_status_label)
+        toolbar.addWidget(self.main_window.validate_stats_label)
         toolbar.addStretch()
         list_layout.addLayout(toolbar)
 

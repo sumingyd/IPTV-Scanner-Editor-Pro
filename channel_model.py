@@ -10,6 +10,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         self.channels: List[Dict[str, Any]] = []
         self.headers = ["频道名称", "分辨率", "URL", "分组", "状态", "延迟(ms)"]
         self.logger.info("频道列表模型初始化完成")
+        
+        # 状态标签更新回调
+        self.update_status_label = None
 
     def rowCount(self, parent=QtCore.QModelIndex()) -> int:
         """返回行数(频道数量)"""
@@ -46,6 +49,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         elif role == QtCore.Qt.ItemDataRole.BackgroundRole:
             if not channel.get('valid', True):
                 return QtGui.QColor('#ffdddd')  # 无效项背景色
+        elif role == QtCore.Qt.ItemDataRole.ForegroundRole:
+            if not channel.get('valid', True):
+                return QtGui.QColor('#333333')  # 无效项文字颜色
+            elif channel.get('status') == '待检测':
+                return QtGui.QColor('#333333')  # 待检测文字颜色
         return None
 
     def headerData(self, section: int, orientation: QtCore.Qt.Orientation,
@@ -77,6 +85,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
     def hide_invalid(self):
         """隐藏无效频道"""
+        if not hasattr(self, '_original_channels'):
+            self._original_channels = self.channels.copy()
         self.beginResetModel()
         self.channels = [c for c in self.channels if c.get('valid', True)]
         self.endResetModel()
@@ -84,8 +94,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
     def show_all(self):
         """显示所有频道"""
         self.beginResetModel()
-        # 这里需要从数据源重新加载所有频道
-        # 暂时留空，需要后续实现完整的数据源管理
+        # 重新加载所有频道数据
+        if hasattr(self, '_original_channels'):
+            self.channels = self._original_channels.copy()
         self.endResetModel()
 
     def load_from_file(self, content: str) -> bool:
@@ -95,6 +106,10 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             self.channels = []
             lines = content.splitlines()
             current_channel = None
+            
+            # 通知UI更新状态标签
+            if hasattr(self, 'update_status_label'):
+                self.update_status_label("请点击检测有效性按钮")
             
             for line in lines:
                 line = line.strip()

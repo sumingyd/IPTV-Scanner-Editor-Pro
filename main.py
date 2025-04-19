@@ -18,18 +18,31 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui = UIBuilder(self)
         self.ui.build_ui()
         
+        # 初始化模型并设置回调
+        self.model = ChannelListModel()
+        self.model.update_status_label = self._update_validate_status
+        self.ui.channel_list.setModel(self.model)
+        
         # 初始化控制器
-        self.scanner = ScannerController(self.ui.main_window.model)
+        self.scanner = ScannerController(self.model)
         from player_controller import PlayerController
         from list_manager import ListManager
         self.player_controller = PlayerController(self.ui.main_window.player)
-        self.list_manager = ListManager(self.ui.main_window.model)
+        self.list_manager = ListManager(self.model)
         
         # UI构建完成后加载配置
         self._load_config()
         
         # 连接信号槽
         self._connect_signals()
+
+    def _update_validate_status(self, message):
+        """更新有效性检测状态标签"""
+        self.ui.main_window.validate_stats_label.setText(message)
+        if message == "请点击检测有效性按钮":
+            self.ui.main_window.validate_stats_label.setStyleSheet("color: #666;")
+        else:
+            self.ui.main_window.validate_stats_label.setStyleSheet("color: #333;")
 
     def _load_config(self):
         """加载保存的配置到UI"""
