@@ -143,7 +143,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.main_window.statusBar().showMessage("请输入扫描地址", 3000)
                 return
                 
-            # 开始扫描
+            # 开始扫描前清空列表
+            self.model.clear()
             timeout = self.ui.main_window.timeout_input.value()
             threads = self.ui.main_window.thread_count_input.value()
             self.scanner.start_scan(url, threads, timeout)
