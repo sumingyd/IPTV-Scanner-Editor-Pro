@@ -137,7 +137,7 @@ class ScannerController(QObject):
         while not self.stop_event.is_set():
             try:
                 url, index = self.worker_queue.get_nowait()
-                valid, latency = self._check_channel(url)
+                valid, latency, resolution = self._check_channel(url)
                 
                 # 更新模型
                 self.channel_validated.emit(index, valid, latency)
