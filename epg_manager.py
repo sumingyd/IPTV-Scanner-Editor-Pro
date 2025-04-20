@@ -23,6 +23,7 @@ class EPGManager:
             self.config_manager.save_epg_config(self.epg_config)
             
         self.epg_data: Dict[str, EPGChannel] = {}  # channel_id -> EPGChannel
+        self._name_index: Dict[str, List[str]] = {}  # channel_name -> List[channel_id]
         self.loaded = False
 
     def download_epg(self, force_update=False) -> bool:
@@ -104,112 +105,102 @@ class EPGManager:
         
         return False
 
-    def load_epg_data(self) -> bool:
-        """加载EPG数据到内存"""
+    def load_epg_data(self, progress_signal=None, finished_signal=None) -> None:
+        """异步加载EPG数据到内存(事件驱动模式)"""
+        from PyQt6.QtCore import QThread, pyqtSignal
+        from queue import Queue
+        
+        class EPGParserThread(QThread):
+            progress = pyqtSignal(float)
+            finished = pyqtSignal(bool)
+            
+            def __init__(self, file_path):
+                super().__init__()
+                self.file_path = file_path
+                self.queue = Queue()
+                self.running = True
+                
+            def run(self):
+                try:
+                    # 分块读取文件
+                    chunk_size = 1024 * 1024  # 1MB
+                    with open(self.file_path, 'rb') as f:
+                        while self.running:
+                            chunk = f.read(chunk_size)
+                            if not chunk:
+                                break
+                            self.queue.put(chunk)
+                            self.progress.emit(f.tell() / os.path.getsize(self.file_path))
+                            
+                    # 解析XML
+                    import lxml.etree as ET
+                    parser = ET.XMLParser(recover=True, encoding='utf-8')
+                    
+                    # 流式解析
+                    context = ET.iterparse(self.queue, events=('start', 'end'), parser=parser)
+                    self.epg_data = {}
+                    self._name_index = {}
+                    
+                    for event, elem in context:
+                        if not self.running:
+                            break
+                            
+                        if event == 'start' and elem.tag == 'channel':
+                            channel_id = elem.get('id')
+                            if channel_id:
+                                names = [e.text for e in elem.xpath('display-name') if e.text]
+                                self.epg_data[channel_id] = EPGChannel(
+                                    id=channel_id,
+                                    name=names[0] if names else channel_id,
+                                    programs=[]
+                                )
+                                for name in names:
+                                    self._name_index.setdefault(name.lower(), []).append(channel_id)
+                                
+                        elif event == 'end' and elem.tag == 'programme':
+                            try:
+                                channel_id = elem.get('channel')
+                                if channel_id in self.epg_data:
+                                    self.epg_data[channel_id].programs.append(EPGProgram(
+                                        channel_id=channel_id,
+                                        title=elem.xpath('title/text()')[0] if elem.xpath('title/text()') else '',
+                                        start_time=elem.get('start'),
+                                        end_time=elem.get('stop'),
+                                        description=elem.xpath('desc/text()')[0] if elem.xpath('desc/text()') else ''
+                                    ))
+                            except Exception as e:
+                                logger.warning(f"解析节目出错: {str(e)}")
+                            finally:
+                                elem.clear()
+                                
+                    self.loaded = True
+                    self.finished.emit(True)
+                    
+                except Exception as e:
+                    logger.error(f"EPG解析失败: {str(e)}")
+                    self.finished.emit(False)
+                    
+            def stop(self):
+                self.running = False
+                
         if not self.epg_config:
-            return False
+            if finished_signal:
+                finished_signal.emit(False)
+            return
 
         local_file = self.epg_config.local_file
         if not os.path.exists(local_file):
             logger.warning(f"EPG文件不存在: {local_file}")
-            return False
+            if finished_signal:
+                finished_signal.emit(False)
+            return
 
-        try:
-            # 先读取文件内容
-            with open(local_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            # 清理和修复XML内容
-            content = content.strip()
-            
-            # 1. 确保有XML声明
-            if not content.startswith('<?xml'):
-                content = '<?xml version="1.0" encoding="UTF-8"?>\n' + content
-            
-            # 2. 深度清理和验证XML内容
-            # 移除非法控制字符
-            content = ''.join(char for char in content if ord(char) >= 32 or char in '\n\r\t')
-            
-            # 修复常见的XML格式问题
-            content = content.replace('&', '&')  # 正确转义特殊字符
-            content = content.replace('<', '<')  # 转义未闭合标签
-            content = content.replace('>', '>')  # 转义未闭合标签
-            content = content.replace(']]>', ']]>')  # 处理CDATA结束符
-            
-            # 移除BOM字符(如果存在)
-            if content.startswith('\ufeff'):
-                content = content[1:]
-                
-            # 验证XML基本结构
-            if not ('<?xml' in content and '<tv' in content and '</tv>' in content):
-                logger.error("EPG文件缺少必要的XML结构")
-                return False
-            
-            # 3. 分块解析XML内容
-            try:
-                # 先尝试完整解析
-                root = ET.fromstring(content)
-            except ET.ParseError as e:
-                logger.warning(f"完整解析失败({self.epg_config.local_file})，尝试分块解析: {str(e)}")
-                # 分块处理XML内容
-                chunks = []
-                current_chunk = []
-                for line in content.split('\n'):
-                    try:
-                        # 尝试解析当前行
-                        ET.fromstring(f"<root>{line}</root>")
-                        current_chunk.append(line)
-                    except ET.ParseError:
-                        if current_chunk:
-                            chunks.append('\n'.join(current_chunk))
-                            current_chunk = []
-                
-                if current_chunk:
-                    chunks.append('\n'.join(current_chunk))
-                
-                # 尝试解析有效块
-                valid_data = []
-                for chunk in chunks:
-                    try:
-                        root = ET.fromstring(f"<root>{chunk}</root>")
-                        valid_data.append(chunk)
-                    except ET.ParseError:
-                        logger.warning(f"忽略无效XML块: {chunk[:50]}...")
-                
-                if not valid_data:
-                    logger.error("没有找到有效的XML数据块")
-                    return False
-                
-                content = '<?xml version="1.0" encoding="UTF-8"?>\n<tv>\n' + \
-                         '\n'.join(valid_data) + '\n</tv>'
-                root = ET.fromstring(content)
-            
-            # 解析XML数据（简化版，实际需要根据EPG XML格式调整）
-            for channel_elem in root.findall('.//channel'):
-                channel_id = channel_elem.get('id')
-                name = channel_elem.findtext('display-name')
-                
-                programs = []
-                for program_elem in root.findall(f'.//programme[@channel="{channel_id}"]'):
-                    programs.append(EPGProgram(
-                        channel_id=channel_id,
-                        title=program_elem.findtext('title'),
-                        start_time=program_elem.get('start'),
-                        end_time=program_elem.get('stop'),
-                        description=program_elem.findtext('desc', '')
-                    ))
-                
-                self.epg_data[channel_id] = EPGChannel(
-                    id=channel_id,
-                    name=name,
-                    programs=programs
-                )
-            
-            self.loaded = True
-            return True
-        except Exception as e:
-            logger.error(f"解析EPG数据失败: {str(e)}")
-            return False
+        self.parser_thread = EPGParserThread(local_file)
+        if progress_signal:
+            self.parser_thread.progress.connect(progress_signal)
+        if finished_signal:
+            self.parser_thread.finished.connect(finished_signal)
+        self.parser_thread.start()
 
     def get_channel_programs(self, channel_id: str) -> Optional[List[EPGProgram]]:
         """获取指定频道的节目单"""

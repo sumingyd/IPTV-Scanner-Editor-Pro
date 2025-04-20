@@ -84,3 +84,30 @@ class PlayerController(QObject):
             self.player.release()
         if self.instance:
             self.instance.release()
+
+    def play_channel(self, channel):
+        """播放指定频道(允许任何状态)
+        Args:
+            channel: 可以是Channel对象或包含'url'和'name'键的字典
+        """
+        if not channel:
+            self.logger.warning("无法播放空频道")
+            return False
+            
+        # 处理字典或对象类型的channel
+        url = channel.get('url') if isinstance(channel, dict) else getattr(channel, 'url', None)
+        name = channel.get('name') if isinstance(channel, dict) else getattr(channel, 'name', '未知频道')
+        
+        if not url:
+            self.logger.warning(f"频道[{name}]没有有效的URL")
+            return False
+            
+        self.logger.info(f"尝试播放频道: {name} (URL: {url})")
+        try:
+            result = self.play(url, name)
+            if not result:
+                self.logger.warning(f"播放失败: {url} (状态码: {self.player.get_state().value if self.player else 'N/A'})")
+            return result
+        except Exception as e:
+            self.logger.error(f"播放异常: {str(e)}")
+            return False
