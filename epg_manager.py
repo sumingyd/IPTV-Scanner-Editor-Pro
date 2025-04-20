@@ -289,8 +289,11 @@ class EPGManager(QThread):
             if os.path.getsize(temp_file) < 1024:
                 raise ValueError("生成的EPG文件过小，可能存在问题")
 
-            os.replace(temp_file, local_file)
-            logger.success("EPG合并完成")
+            # 使用绝对路径确保文件操作正确
+            abs_temp = os.path.abspath(temp_file)
+            abs_local = os.path.abspath(local_file)
+            os.replace(abs_temp, abs_local)
+            logger.info("EPG合并完成")
             return True
         except Exception as e:
             logger.error(f"写入EPG文件失败: {str(e)}")
@@ -370,42 +373,48 @@ class EPGManager(QThread):
             try:
                 tree = parse(self.epg_config.local_file)
                 root = tree.getroot()
-                context = ET.iterwalk(root, events=('start', 'end'))
+                # 兼容旧Python版本的遍历方式
+                context = ET.iterparse(self.epg_config.local_file, events=('start', 'end'))
             except Exception as e:
                 logger.error(f"EPG文件解析初始化失败: {str(e)}")
                 return False
                 
-            for event, elem in context:
-                if event == 'start' and elem.tag == 'channel':
-                    channel_id = elem.get('id')
-                    if channel_id:
-                        names = [e.text for e in elem.xpath('display-name') if e.text]
-                        self.epg_data[channel_id] = EPGChannel(
-                            id=channel_id,
-                            name=names[0] if names else channel_id,
-                            programs=[]
-                        )
-                        for name in names:
-                            self._name_index.setdefault(name.lower(), []).append(channel_id)
-                        
-                elif event == 'end' and elem.tag == 'programme':
-                    try:
-                        channel_id = elem.get('channel')
-                        if channel_id in self.epg_data:
-                            self.epg_data[channel_id].programs.append(EPGProgram(
-                                channel_id=channel_id,
-                                title=elem.xpath('title/text()')[0] if elem.xpath('title/text()') else '',
-                                start_time=elem.get('start'),
-                                end_time=elem.get('stop'),
-                                description=elem.xpath('desc/text()')[0] if elem.xpath('desc/text()') else ''
-                            ))
-                    except Exception as e:
-                        logger.warning(f"解析节目出错: {str(e)}")
-                    finally:
-                        elem.clear()
-            
-            self.loaded = True
-            return True
+            # 手动控制解析上下文
+            try:
+                for event, elem in context:
+                    if event == 'start' and elem.tag == 'channel':
+                        channel_id = elem.get('id')
+                        if channel_id:
+                            names = [e.text for e in elem.findall('display-name') if e.text]
+                            self.epg_data[channel_id] = EPGChannel(
+                                id=channel_id,
+                                name=names[0] if names else channel_id,
+                                programs=[]
+                            )
+                            for name in names:
+                                self._name_index.setdefault(name.lower(), []).append(channel_id)
+                            
+                    elif event == 'end' and elem.tag == 'programme':
+                        try:
+                            channel_id = elem.get('channel')
+                            if channel_id in self.epg_data:
+                                self.epg_data[channel_id].programs.append(EPGProgram(
+                                    channel_id=channel_id,
+                                title=elem.find('title').text if elem.find('title') is not None else '',
+                                    start_time=elem.get('start'),
+                                    end_time=elem.get('stop'),
+                                    description=elem.find('desc').text if elem.find('desc') is not None else ''
+                                ))
+                        except Exception as e:
+                            logger.warning(f"解析节目出错: {str(e)}")
+                        finally:
+                            elem.clear()
+                
+                self.loaded = True
+                return True
+            except Exception as e:
+                logger.error(f"EPG解析过程中发生错误: {str(e)}")
+                return False
             
         except ET.XMLSyntaxError as e:
             logger.error(f"EPG文件格式错误: {str(e)}\n文件路径: {self.epg_config.local_file}")
