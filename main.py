@@ -8,7 +8,7 @@ from config_manager import ConfigManager
 from log_manager import LogManager
 from scanner_controller import ScannerController
 from styles import AppStyles
-from epg_ui import EPGManagementDialog
+from epg_ui import EPGManagementDialog, EPGProgramWidget
 import sys
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -357,6 +357,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_refresh_epg_clicked(self):
         """处理刷新EPG按钮点击事件"""
+        self.logger.info("用户点击刷新EPG按钮")
         try:
             # 检查是否按住Shift键(强制刷新)
             force_update = QtWidgets.QApplication.keyboardModifiers() == QtCore.Qt.KeyboardModifier.ShiftModifier
@@ -382,8 +383,11 @@ class MainWindow(QtWidgets.QMainWindow):
             # 在后台线程中执行EPG刷新
             def refresh_task():
                 try:
-                    if self.epg_manager.refresh_epg(force_update=force_update):
-                        self.logger.info("EPG刷新成功")
+                    # 调用EPG刷新并等待完成
+                    self.epg_manager.refresh_epg(force_update=force_update)
+                    if self.epg_manager.wait(5000):  # 等待5秒
+                        if self.epg_manager.isFinished() and self.epg_manager.result:
+                            self.logger.info("EPG刷新成功")
                         # 在主线程更新UI
                         signals.update_status.emit("EPG状态: 已加载")
                         # 更新自动补全数据
@@ -441,58 +445,15 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.main_window.epg_timeline.setWidget(QtWidgets.QLabel("没有可用的节目信息"))
             return
             
-            self.logger.info(f"找到 {len(programs)} 个节目")
+        self.logger.info(f"找到 {len(programs)} 个节目")
         
-        # 在后台线程中构建UI
-        def build_epg_ui():
-            try:
-                # 创建节目单容器
-                container = QtWidgets.QWidget()
-                layout = QtWidgets.QVBoxLayout()
-                
-                # 添加标题
-                self.ui.main_window.epg_title.setText(f"{channel['name']} 节目单")
-                
-                # 添加每个节目项
-                for program in programs:
-                    # 格式化时间
-                    start_time = program.start_time[:2] + ":" + program.start_time[2:4]
-                    end_time = program.end_time[:2] + ":" + program.end_time[2:4]
-                    
-                    # 创建节目项
-                    item = QtWidgets.QGroupBox(f"{start_time} - {end_time}")
-                    item_layout = QtWidgets.QVBoxLayout()
-                    item_layout.addWidget(QtWidgets.QLabel(f"<b>{program.title}</b>"))
-                    if program.description:
-                        item_layout.addWidget(QtWidgets.QLabel(program.description))
-                    item.setLayout(item_layout)
-                    layout.addWidget(item)
-                
-                # 添加滚动条
-                container.setLayout(layout)
-                scroll = QtWidgets.QScrollArea()
-                scroll.setWidget(container)
-                scroll.setWidgetResizable(True)
-                
-                # 在主线程更新UI
-                QtCore.QMetaObject.invokeMethod(
-                    self.ui.main_window.epg_timeline,
-                    'setWidget',
-                    QtCore.Qt.ConnectionType.QueuedConnection,
-                    QtCore.Q_ARG(QtWidgets.QWidget, scroll))
-                
-                self.logger.info(f"频道 {channel['name']} 节目单更新完成")
-            except Exception as e:
-                self.logger.error(f"构建EPG UI失败: {str(e)}")
-
-        # 启动后台线程
-        thread = QtCore.QThread()
-        worker = QtCore.QObject()
-        worker.moveToThread(thread)
-        thread.started.connect(build_epg_ui)
-        thread.finished.connect(thread.deleteLater)
-        thread.finished.connect(worker.deleteLater)
-        thread.start()
+        # 创建EPG节目单控件
+        epg_widget = EPGProgramWidget()
+        epg_widget.update_programs(channel['name'], programs)
+        
+        # 更新UI
+        self.ui.main_window.epg_title.setText(f"{channel['name']} 节目单")
+        self.ui.main_window.epg_timeline.setWidget(epg_widget)
 
     def _on_epg_manager_clicked(self):
         """处理EPG管理按钮点击事件"""
@@ -517,6 +478,16 @@ class MainWindow(QtWidgets.QMainWindow):
     def save_before_exit(self):
         """程序退出前保存所有配置"""
         try:
+            # 停止EPGManager线程
+            if hasattr(self, 'epg_manager') and self.epg_manager.isRunning():
+                self.epg_manager.quit()
+                self.epg_manager.wait(1000)  # 等待1秒让线程退出
+                
+            # 停止EPG UI线程
+            if hasattr(self, 'epg_ui_thread') and self.epg_ui_thread.isRunning():
+                self.epg_ui_thread.quit()
+                self.epg_ui_thread.wait(500)  # 等待0.5秒让线程退出
+            
             # 保存窗口布局
             size = self.size()
             dividers = [

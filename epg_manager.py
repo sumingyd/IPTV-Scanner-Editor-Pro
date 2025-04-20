@@ -1,82 +1,161 @@
 import os
+import traceback
 import requests
 import time
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Optional
 from dataclasses import asdict
+from PyQt6.QtCore import QThread, pyqtSignal
 from epg_model import EPGConfig, EPGChannel, EPGProgram, EPGSource
 from config_manager import ConfigManager
 from log_manager import LogManager
+
 logger = LogManager()
 
-class EPGManager:
+class EPGManager(QThread):
+    progress = pyqtSignal(float, str)  # 进度百分比, 状态消息
+    finished = pyqtSignal(bool)  # 是否成功
+    
     def __init__(self, config_manager: ConfigManager):
+        super().__init__()
         self.config_manager = config_manager
-        # 确保EPG配置正确加载，如果不存在则创建默认配置
         self.epg_config = self.config_manager.load_epg_config()
-        if not self.epg_config.sources:
-            # 添加默认EPG源
-            self.epg_config.sources.append(EPGSource(
-                url="http://example.com/epg.xml",
-                is_primary=True
-            ))
-            self.config_manager.save_epg_config(self.epg_config)
-            
-        self.epg_data: Dict[str, EPGChannel] = {}  # channel_id -> EPGChannel
-        self._name_index: Dict[str, List[str]] = {}  # channel_name -> List[channel_id]
+        self.epg_data: Dict[str, EPGChannel] = {}
+        self._name_index: Dict[str, List[str]] = {}
         self.loaded = False
-
-    def download_epg(self, force_update=False) -> bool:
-        """下载EPG XML文件"""
-        if not self.epg_config:
-            logger.error("EPG配置未加载")
-            return False
-
-        local_file = self.epg_config.local_file
-        if os.path.exists(local_file) and not force_update:
-            logger.info(f"使用本地EPG文件: {local_file}")
+        self._operation = None  # 'update' or 'load'
+        self._result = False  # 操作结果
+        
+    @property
+    def result(self) -> bool:
+        """获取操作结果"""
+        return self._result
+        
+    def get_result(self) -> bool:
+        """获取操作结果(兼容旧方法)"""
+        return self._result
+        
+    def refresh_epg(self, force_update=False, is_init=False):
+        """启动EPG刷新流程
+        Args:
+            force_update: 是否强制更新
+            is_init: 是否为初始化加载(不显示警告)
+        """
+        if self.isRunning():
+            if not is_init:
+                logger.warning("EPG操作正在进行中，忽略本次请求")
+            return
+            
+        self._operation = 'update' if force_update else 'load'
+        logger.info(f"准备启动EPG操作: {self._operation}")
+        self.start()
+        
+    def run(self):
+        """执行EPG操作的主线程方法"""
+        op_id = str(int(time.time() * 1000))[-6:]  # 生成6位操作ID
+        try:
+            logger.info(f"[{op_id}] 开始EPG操作: {self._operation}")
+            
+            if self._operation == 'update':
+                result = self._update_epg(op_id)
+            elif self._operation == 'load':
+                result = self._load_epg(op_id)
+            else:
+                raise ValueError(f"[{op_id}] 未知的EPG操作类型: {self._operation}")
+                
+            if result:
+                logger.info(f"[{op_id}] EPG操作成功: {self._operation}")
+                self.finished.emit(True)
+            else:
+                raise Exception(f"[{op_id}] EPG操作未完成")
+                
+        except Exception as e:
+            logger.error(f"[{op_id}] EPG操作失败: {str(e)}")
+            logger.error(f"[{op_id}] 详细错误信息:\n{traceback.format_exc()}")
+            self.finished.emit(False)
+            
+    def _update_epg(self, op_id: str) -> bool:
+        """更新EPG数据流程"""
+        self.progress.emit(0, f"[{op_id}] 开始更新EPG数据...")
+        
+        # 1. 下载EPG数据
+        self.progress.emit(0.3, "正在下载EPG数据...")
+        if not self._download_epg():
+            raise Exception("EPG下载失败")
+            
+        # 2. 解析EPG数据
+        self.progress.emit(0.7, "正在解析EPG数据...")
+        if not self._parse_epg():
+            raise Exception("EPG解析失败")
+            
+        self.progress.emit(1.0, "EPG更新完成")
+        
+    def _load_epg(self, op_id: str) -> bool:
+        """加载EPG数据流程"""
+        self.progress.emit(0, f"[{op_id}] 开始加载EPG数据...")
+        
+        try:
+            # 1. 检查本地文件
+            local_file = self.epg_config.local_file
+            if not os.path.exists(local_file):
+                raise FileNotFoundError(f"[{op_id}] EPG文件不存在: {local_file}")
+            if not os.access(local_file, os.R_OK):
+                raise PermissionError(f"[{op_id}] 无读取权限: {local_file}")
+                
+            # 2. 解析EPG数据
+            self.progress.emit(0.5, "正在解析EPG数据...")
+            parse_result = self._parse_epg()
+            if not parse_result:
+                raise Exception(f"[{op_id}] EPG解析失败")
+                
+            self.progress.emit(1.0, "EPG加载完成")
             return True
-
+            
+        except Exception as e:
+            logger.error(f"[{op_id}] 加载EPG失败: {str(e)}")
+            raise
+        
+    def _download_epg(self) -> bool:
+        """下载EPG文件"""
+        local_file = self.epg_config.local_file
+        logger.info(f"开始下载EPG, 保存路径: {local_file}")
+        logger.info(f"合并模式: {self.epg_config.merge_sources}")
+        
         # 如果是合并模式，下载并合并所有源
         if self.epg_config.merge_sources:
             merged_data = None
             for source in self.epg_config.sources:
-                # 添加重试机制
-                for attempt in range(3):
+                for attempt in range(3):  # 重试3次
                     try:
-                        # 增加请求头模拟浏览器访问
                         headers = {
                             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                             'Accept': 'text/xml,application/xml'
                         }
-                        # 增加重试间隔(3秒)
-                        time.sleep(3 * attempt)
-                        response = requests.get(source.url, headers=headers, timeout=(10, 30))
+                        time.sleep(5 * (attempt + 1))  # 重试间隔
+                        response = requests.get(source.url, headers=headers, timeout=30)
                         if response.status_code == 200:
                             content = response.text
-                            # 确保XML声明在开头
                             if '<?xml' in content:
                                 content = content[content.index('<?xml'):]
-                            # 提取XML内容部分(去掉声明)
                             xml_content = content[content.index('?>')+2:] if '?>' in content else content
                             if merged_data is None:
                                 merged_data = f'<?xml version="1.0" encoding="UTF-8"?>\n<merged_epg>\n{xml_content}'
                             else:
                                 merged_data += f'\n{xml_content}'
                             break
-                    except requests.exceptions.RequestException as e:
+                    except Exception as e:
                         if attempt == 2:
-                            logger.error(f"EPG下载最终失败: {str(e)}")
+                            logger.error(f"EPG源[{source.url}]下载失败: {str(e)}")
                             return False
-                        logger.warning(f"EPG下载尝试 {attempt+1} 失败: {str(e)}")
-                
+                        logger.warning(f"EPG源[{source.url}]下载尝试{attempt+1}失败: {str(e)}\n{traceback.format_exc()}")
+            
             if merged_data:
                 try:
                     with open(local_file, 'w', encoding='utf-8') as f:
-                        f.write(merged_data)
+                        f.write(merged_data + '\n</merged_epg>')
                     return True
-                except IOError as e:
-                    logger.error(f"写入EPG文件失败: {str(e)}")
+                except Exception as e:
+                    logger.error(f"写入合并EPG文件失败: {str(e)}")
                     return False
         else:
             # 只下载主EPG源
@@ -86,179 +165,102 @@ class EPGManager:
                     try:
                         response = requests.get(primary_source.url, timeout=30)
                         if response.status_code == 200:
-                            content = response.text
-                            # 确保XML声明在开头
-                            if '<?xml' in content:
-                                content = content[content.index('<?xml'):]
-                            try:
-                                with open(local_file, 'w', encoding='utf-8') as f:
-                                    f.write(content)
-                                return True
-                            except IOError as e:
-                                logger.error(f"写入EPG文件失败: {str(e)}")
-                                return False
-                    except requests.exceptions.RequestException as e:
+                            with open(local_file, 'w', encoding='utf-8') as f:
+                                f.write(response.text)
+                            return True
+                    except Exception as e:
                         if attempt == 2:
-                            logger.error(f"主EPG源下载最终失败: {str(e)}")
+                            logger.error(f"主EPG源下载失败: {str(e)}")
                             return False
-                        logger.warning(f"主EPG源下载尝试 {attempt+1} 失败: {str(e)}")
-        
+                        logger.warning(f"主EPG源下载尝试{attempt+1}失败: {str(e)}\n{traceback.format_exc()}")
         return False
-
-    def load_epg_data(self, progress_signal=None, finished_signal=None) -> None:
-        """异步加载EPG数据到内存(事件驱动模式)"""
-        from PyQt6.QtCore import QThread, pyqtSignal
-        from queue import Queue
         
-        class EPGParserThread(QThread):
-            progress = pyqtSignal(float)
-            finished = pyqtSignal(bool)
+    def _parse_epg(self) -> bool:
+        """解析EPG文件"""
+        try:
+            import lxml.etree as ET
+            self.epg_data = {}
+            self._name_index = {}
             
-            def __init__(self, file_path):
-                super().__init__()
-                self.file_path = file_path
-                self.queue = Queue()
-                self.running = True
-                
-            def run(self):
-                try:
-                    # 分块读取文件
-                    chunk_size = 1024 * 1024  # 1MB
-                    with open(self.file_path, 'rb') as f:
-                        while self.running:
-                            chunk = f.read(chunk_size)
-                            if not chunk:
-                                break
-                            self.queue.put(chunk)
-                            self.progress.emit(f.tell() / os.path.getsize(self.file_path))
-                            
-                    # 解析XML
-                    import lxml.etree as ET
-                    parser = ET.XMLParser(recover=True, encoding='utf-8')
-                    
-                    # 流式解析
-                    context = ET.iterparse(self.queue, events=('start', 'end'), parser=parser)
-                    self.epg_data = {}
-                    self._name_index = {}
-                    
-                    for event, elem in context:
-                        if not self.running:
-                            break
-                            
-                        if event == 'start' and elem.tag == 'channel':
-                            channel_id = elem.get('id')
-                            if channel_id:
-                                names = [e.text for e in elem.xpath('display-name') if e.text]
-                                self.epg_data[channel_id] = EPGChannel(
-                                    id=channel_id,
-                                    name=names[0] if names else channel_id,
-                                    programs=[]
-                                )
-                                for name in names:
-                                    self._name_index.setdefault(name.lower(), []).append(channel_id)
-                                
-                        elif event == 'end' and elem.tag == 'programme':
-                            try:
-                                channel_id = elem.get('channel')
-                                if channel_id in self.epg_data:
-                                    self.epg_data[channel_id].programs.append(EPGProgram(
-                                        channel_id=channel_id,
-                                        title=elem.xpath('title/text()')[0] if elem.xpath('title/text()') else '',
-                                        start_time=elem.get('start'),
-                                        end_time=elem.get('stop'),
-                                        description=elem.xpath('desc/text()')[0] if elem.xpath('desc/text()') else ''
-                                    ))
-                            except Exception as e:
-                                logger.warning(f"解析节目出错: {str(e)}")
-                            finally:
-                                elem.clear()
-                                
-                    self.loaded = True
-                    self.finished.emit(True)
-                    
-                except Exception as e:
-                    logger.error(f"EPG解析失败: {str(e)}")
-                    self.finished.emit(False)
-                    
-            def stop(self):
-                self.running = False
-                
-        if not self.epg_config:
-            if finished_signal:
-                finished_signal.emit(False)
-            return
-
-        local_file = self.epg_config.local_file
-        if not os.path.exists(local_file):
-            logger.warning(f"EPG文件不存在: {local_file}")
-            if finished_signal:
-                finished_signal.emit(False)
-            return
-
-        self.parser_thread = EPGParserThread(local_file)
-        if progress_signal:
-            self.parser_thread.progress.connect(progress_signal)
-        if finished_signal:
-            self.parser_thread.finished.connect(finished_signal)
-        self.parser_thread.start()
-
-    def get_channel_programs(self, channel_id: str) -> Optional[List[EPGProgram]]:
-        """获取指定频道的节目单"""
+            context = ET.iterparse(self.epg_config.local_file, events=('start', 'end'), recover=True)
+            
+            for event, elem in context:
+                if event == 'start' and elem.tag == 'channel':
+                    channel_id = elem.get('id')
+                    if channel_id:
+                        names = [e.text for e in elem.xpath('display-name') if e.text]
+                        self.epg_data[channel_id] = EPGChannel(
+                            id=channel_id,
+                            name=names[0] if names else channel_id,
+                            programs=[]
+                        )
+                        for name in names:
+                            self._name_index.setdefault(name.lower(), []).append(channel_id)
+                        
+                elif event == 'end' and elem.tag == 'programme':
+                    try:
+                        channel_id = elem.get('channel')
+                        if channel_id in self.epg_data:
+                            self.epg_data[channel_id].programs.append(EPGProgram(
+                                channel_id=channel_id,
+                                title=elem.xpath('title/text()')[0] if elem.xpath('title/text()') else '',
+                                start_time=elem.get('start'),
+                                end_time=elem.get('stop'),
+                                description=elem.xpath('desc/text()')[0] if elem.xpath('desc/text()') else ''
+                            ))
+                    except Exception as e:
+                        logger.warning(f"解析节目出错: {str(e)}")
+                    finally:
+                        elem.clear()
+            
+            self.loaded = True
+            return True
+            
+        except ET.XMLSyntaxError as e:
+            logger.error(f"EPG文件格式错误: {str(e)}\n文件路径: {self.epg_config.local_file}")
+            try:
+                with open(self.epg_config.local_file, 'rb') as f:
+                    logger.error(f"文件开头内容(hex): {f.read(100).hex()}")
+            except Exception as e:
+                logger.error(f"无法读取文件内容: {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"EPG解析失败: {str(e)}")
+            return False
+            
+    def get_channel_programs(self, channel_name: str) -> Optional[List[EPGProgram]]:
+        """获取频道节目单(支持模糊匹配)
+        Args:
+            channel_name: 频道名称(支持模糊匹配)
+        """
         if not self.loaded:
-            if not self.load_epg_data():
-                return None
-        
-        channel = self.epg_data.get(channel_id)
-        return channel.programs if channel else None
+            return None
+            
+        # 1. 尝试精确匹配(不区分大小写)
+        normalized_name = channel_name.lower().strip()
+        for name, ids in self._name_index.items():
+            if name == normalized_name:
+                channel = self.epg_data.get(ids[0])
+                return channel.programs if channel else []
+                
+        # 2. 尝试包含匹配(频道名称包含在EPG名称中)
+        for name, ids in self._name_index.items():
+            if normalized_name in name or name in normalized_name:
+                channel = self.epg_data.get(ids[0])
+                return channel.programs if channel else []
+                
+        # 3. 尝试部分匹配(去除空格和特殊字符后匹配)
+        clean_name = ''.join(c for c in normalized_name if c.isalnum())
+        for name, ids in self._name_index.items():
+            clean_epg_name = ''.join(c for c in name if c.isalnum())
+            if clean_name in clean_epg_name or clean_epg_name in clean_name:
+                channel = self.epg_data.get(ids[0])
+                return channel.programs if channel else []
+                
+        return None
 
     def get_channel_names(self) -> List[str]:
-        """获取所有频道名称"""
+        """获取所有频道名称列表"""
         if not self.loaded:
-            if not self.load_epg_data():
-                return []
-        
-        return [channel.name for channel in self.epg_data.values()]
-
-    def refresh_epg(self, force_update=False) -> bool:
-        """刷新EPG数据
-        Args:
-            force_update: True表示强制下载更新，False表示优先使用本地文件
-        Returns:
-            bool: 是否成功加载EPG数据
-        """
-        operation = "强制刷新" if force_update else "刷新"
-        logger.info(f"开始EPG刷新操作: {operation} (本地文件: {self.epg_config.local_file})")
-        
-        # 检查本地文件是否存在
-        file_exists = os.path.exists(self.epg_config.local_file)
-        logger.info(f"本地EPG文件状态: {'存在' if file_exists else '不存在'}")
-        
-        # 处理逻辑:
-        # 1. 如果强制刷新 -> 直接下载更新
-        # 2. 如果非强制刷新:
-        #    a. 文件存在 -> 加载本地文件
-        #    b. 文件不存在 -> 下载更新
-        
-        if force_update:
-            logger.info("强制刷新模式，直接下载EPG数据...")
-            if self.download_epg(force_update=True):
-                logger.info("EPG数据下载完成，开始解析...")
-                return self.load_epg_data()
-        else:
-            if file_exists:
-                logger.info("优先加载本地EPG文件...")
-                if self.load_epg_data():
-                    logger.info("成功从本地文件加载EPG数据")
-                    return True
-                logger.warning("本地EPG文件加载失败，尝试下载更新...")
-            
-            logger.info("开始下载EPG数据...")
-            if self.download_epg(force_update=True):
-                logger.info("EPG数据下载完成，开始解析...")
-                if self.load_epg_data():
-                    logger.info("EPG数据加载成功")
-                    return True
-                logger.error("EPG数据解析失败")
-        
-        logger.error("EPG刷新操作失败")
-        return False
+            return []
+        return list(self._name_index.keys())

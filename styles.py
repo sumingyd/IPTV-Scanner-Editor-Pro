@@ -172,3 +172,47 @@ class AppStyles:
                 padding: 5px 10px;
             }
         """
+
+    @staticmethod
+    def epg_program_style() -> str:
+        """EPG节目单样式"""
+        return """
+            /* 节目单容器样式 */
+            QWidget#epg_container {
+                background: transparent;
+            }
+            
+            /* 普通节目项样式 */
+            QGroupBox.epg_program {
+                border: 1px solid #444;
+                border-radius: 4px;
+                margin-top: 5px;
+                margin-bottom: 5px;
+                padding: 5px;
+            }
+            
+            /* 当前播放节目样式 */
+            QGroupBox.epg_program_current {
+                border: 2px solid #4CAF50;
+                background: rgba(76, 175, 80, 0.1);
+            }
+            
+            /* 节目标题样式 */
+            QLabel.epg_title {
+                margin: 2px;
+                font-weight: bold;
+            }
+            
+            /* 当前播放节目标题样式 */
+            QLabel.epg_title_current {
+                margin: 2px;
+                font-weight: bold;
+                color: #4CAF50;
+            }
+            
+            /* 节目描述样式 */
+            QLabel.epg_desc {
+                margin: 2px;
+                word-wrap: break-word;
+            }
+        """
