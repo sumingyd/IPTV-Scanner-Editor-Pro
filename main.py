@@ -361,13 +361,16 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_refresh_epg_clicked(self):
         """处理刷新EPG按钮点击事件"""
         try:
+            # 检查是否按住Shift键(强制刷新)
+            force_update = QtWidgets.QApplication.keyboardModifiers() == QtCore.Qt.KeyboardModifier.ShiftModifier
+            
             # 显示进度指示器
             self.ui.main_window.progress_indicator.show()
             
             # 在后台线程中执行EPG刷新
             def refresh_task():
                 try:
-                    if self.epg_manager.refresh_epg(force_update=True):
+                    if self.epg_manager.refresh_epg(force_update=force_update):
                         self.logger.info("EPG刷新成功")
                         # 更新EPG状态标签
                         self.ui.main_window.epg_match_label.setText("EPG状态: 已加载")

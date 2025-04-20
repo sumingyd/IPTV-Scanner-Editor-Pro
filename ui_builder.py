@@ -9,14 +9,23 @@ class UIBuilder:
     def __init__(self, main_window):
         self.main_window = main_window
         self.logger = LogManager()
-        self.logger.info("UI构建器初始化完成")
+        self._ui_initialized = False
+        self._model_initialized = False
 
     def build_ui(self):
-        self.logger.info("开始构建UI界面")
-        self._init_ui()
-        self._setup_menubar()
-        self._setup_toolbar()
-        self.logger.info("UI界面构建完成")
+        if not self._ui_initialized:
+            self.logger.info("开始构建UI界面")
+            self._init_ui()
+            self._setup_menubar()
+            self._setup_toolbar()
+            self.logger.info("UI界面构建完成")
+            self._ui_initialized = True
+
+    def _setup_channel_list(self, parent: QtWidgets.QSplitter) -> None:  
+        """配置频道列表"""
+        if not self._model_initialized:
+            self.logger.info("初始化频道列表")
+            self._model_initialized = True
 
     def _init_ui(self):
         """初始化用户界面"""
@@ -551,6 +560,18 @@ class UIBuilder:
         # 连接信号槽
         open_action.triggered.connect(lambda: self.main_window._open_list())
         save_action.triggered.connect(lambda: self.main_window._save_list())
+        refresh_epg_action.triggered.connect(lambda: self.main_window.epg_manager.refresh_epg(force_update=False))
+        epg_manager_action.triggered.connect(self._show_epg_manager)
+
+    def _show_epg_manager(self):
+        """显示EPG管理对话框"""
+        from epg_ui import EPGManagementDialog
+        dialog = EPGManagementDialog(
+            self.main_window,
+            self.main_window.config_manager,
+            lambda config: self.main_window.config_manager.save_epg_config(config)
+        )
+        dialog.exec()
 
         
 class AndroidSplitterHandle(QtWidgets.QWidget):
