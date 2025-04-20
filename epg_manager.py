@@ -1,3 +1,4 @@
+from copy import deepcopy
 import os
 import traceback
 import requests
@@ -86,9 +87,29 @@ class EPGManager(QThread):
         # 2. 解析EPG数据
         self.progress.emit(0.7, "正在解析EPG数据...")
         if not self._parse_epg():
-            raise Exception("EPG解析失败")
+            # 解析失败时尝试回退到旧版本
+            backup_file = self.epg_config.local_file + ".bak"
+            if os.path.exists(backup_file):
+                logger.warning(f"[{op_id}] 解析失败，尝试回退到备份文件")
+                try:
+                    os.replace(backup_file, self.epg_config.local_file)
+                    if not self._parse_epg():
+                        raise Exception("EPG解析失败且回退失败")
+                except Exception as e:
+                    raise Exception(f"EPG解析失败且回退失败: {str(e)}")
+            else:
+                raise Exception("EPG解析失败且无备份文件")
+            
+        # 3. 备份成功解析的文件
+        try:
+            import shutil
+            backup_file = self.epg_config.local_file + ".bak"
+            shutil.copy2(self.epg_config.local_file, backup_file)
+        except Exception as e:
+            logger.warning(f"[{op_id}] 无法创建EPG备份文件: {str(e)}")
             
         self.progress.emit(1.0, "EPG更新完成")
+        return True
         
     def _load_epg(self, op_id: str) -> bool:
         """加载EPG数据流程"""
@@ -116,74 +137,244 @@ class EPGManager(QThread):
             raise
         
     def _download_epg(self) -> bool:
-        """下载EPG文件"""
+        """下载EPG文件（修复版）"""
         local_file = self.epg_config.local_file
-        logger.info(f"开始下载EPG, 保存路径: {local_file}")
+        logger.info(f"开始下载EPG，保存路径: {local_file}")
         logger.info(f"合并模式: {self.epg_config.merge_sources}")
         
-        # 如果是合并模式，下载并合并所有源
-        if self.epg_config.merge_sources:
-            merged_data = None
-            for source in self.epg_config.sources:
-                for attempt in range(3):  # 重试3次
-                    try:
-                        headers = {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                            'Accept': 'text/xml,application/xml'
-                        }
-                        time.sleep(5 * (attempt + 1))  # 重试间隔
-                        response = requests.get(source.url, headers=headers, timeout=30)
-                        if response.status_code == 200:
-                            content = response.text
-                            if '<?xml' in content:
-                                content = content[content.index('<?xml'):]
-                            xml_content = content[content.index('?>')+2:] if '?>' in content else content
-                            if merged_data is None:
-                                merged_data = f'<?xml version="1.0" encoding="UTF-8"?>\n<merged_epg>\n{xml_content}'
-                            else:
-                                merged_data += f'\n{xml_content}'
-                            break
-                    except Exception as e:
-                        if attempt == 2:
-                            logger.error(f"EPG源[{source.url}]下载失败: {str(e)}")
-                            return False
-                        logger.warning(f"EPG源[{source.url}]下载尝试{attempt+1}失败: {str(e)}\n{traceback.format_exc()}")
-            
-            if merged_data:
-                try:
-                    with open(local_file, 'w', encoding='utf-8') as f:
-                        f.write(merged_data + '\n</merged_epg>')
-                    return True
-                except Exception as e:
-                    logger.error(f"写入合并EPG文件失败: {str(e)}")
-                    return False
-        else:
-            # 只下载主EPG源
-            primary_source = next((s for s in self.epg_config.sources if s.is_primary), None)
-            if primary_source:
-                for attempt in range(3):
-                    try:
-                        response = requests.get(primary_source.url, timeout=30)
-                        if response.status_code == 200:
-                            with open(local_file, 'w', encoding='utf-8') as f:
-                                f.write(response.text)
-                            return True
-                    except Exception as e:
-                        if attempt == 2:
-                            logger.error(f"主EPG源下载失败: {str(e)}")
-                            return False
-                        logger.warning(f"主EPG源下载尝试{attempt+1}失败: {str(e)}\n{traceback.format_exc()}")
-        return False
+        # 确保目录存在（增强路径处理）
+        epg_dir = os.path.dirname(os.path.abspath(local_file))
+        if not os.path.exists(epg_dir):
+            try:
+                os.makedirs(epg_dir, exist_ok=True)
+                logger.info(f"创建EPG目录: {epg_dir}")
+            except Exception as e:
+                logger.error(f"无法创建EPG目录: {epg_dir}, 错误: {str(e)}")
+                return False
         
+        temp_file = local_file + ".tmp"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/xml,application/xml'
+        }
+
+        try:
+            if self.epg_config.merge_sources:
+                return self._download_merged_epg(local_file, temp_file, headers)
+            else:
+                return self._download_single_epg(local_file, temp_file, headers)
+        except Exception as e:
+            logger.error(f"EPG下载过程发生未捕获异常: {str(e)}\n{traceback.format_exc()}")
+            return False
+
+    def _download_merged_epg(self, local_file, temp_file, headers):
+        """处理合并模式下载"""
+        merged_data = {}  # 正确初始化字典
+        ns = {'tv': 'http://www.xmltv.org/xmltv.dtd'}  # 添加命名空间处理
+
+        for source in self.epg_config.sources:
+            for attempt in range(3):
+                try:
+                    time.sleep(5 * (attempt + 1))
+                    logger.debug(f"尝试下载源 [{source.url}] (第{attempt+1}次)")
+                    
+                    # 添加headers和stream参数（关键修复）
+                    with requests.get(source.url, headers=headers, timeout=30, stream=True) as response:
+                        response.raise_for_status()
+                        content = response.text
+
+                        # 增强XML验证
+                        if not content.strip():
+                            raise ValueError("空响应内容")
+                        if '<?xml' not in content:
+                            content = '<?xml version="1.0" encoding="UTF-8"?>\n' + content
+
+                        # 使用defusedxml防御XML攻击
+                        from defusedxml.ElementTree import fromstring
+                        root = fromstring(content)
+                        
+                        # 处理带命名空间的元素
+                        channels = root.findall('.//tv:channel', namespaces=ns) or root.findall('channel')
+                        programmes = root.findall('.//tv:programme', namespaces=ns) or root.findall('programme')
+
+                        # 合并频道数据
+                        for channel in channels:
+                            self._merge_channel_data(merged_data, channel)
+                        
+                        # 合并节目数据
+                        for programme in programmes:
+                            self._merge_programme_data(merged_data, programme)
+
+                        logger.info(f"成功合并源 [{source.url}]")
+                        break
+
+                except Exception as e:
+                    logger.warning(f"源 [{source.url}] 下载失败 (尝试 {attempt+1}/3): {str(e)}")
+                    if attempt == 2:
+                        logger.error(f"最终无法下载源 [{source.url}]，已跳过")
+                    continue
+
+        return self._write_merged_epg(merged_data, local_file, temp_file)
+
+    def _merge_channel_data(self, merged_data, channel):
+        """合并频道数据"""
+        channel_id = channel.get('id')
+        if not channel_id:
+            return
+
+        # 深拷贝频道元素
+        channel_copy = ET.Element('channel', attrib=channel.attrib)
+        for elem in channel:
+            channel_copy.append(deepcopy(elem))
+
+        if channel_id not in merged_data:
+            merged_data[channel_id] = {
+                'channel': channel_copy,
+                'programmes': []
+            }
+        else:
+            # 合并display-name
+            existing_names = {e.text for e in merged_data[channel_id]['channel'].findall('display-name')}
+            for name_elem in channel_copy.findall('display-name'):
+                if name_elem.text not in existing_names:
+                    merged_data[channel_id]['channel'].append(deepcopy(name_elem))
+
+    def _merge_programme_data(self, merged_data, programme):
+        """合并节目数据"""
+        channel_id = programme.get('channel')
+        if not channel_id or channel_id not in merged_data:
+            return
+
+        # 节目去重逻辑
+        prog_key = (
+            programme.get('start'),
+            programme.get('stop'),
+            programme.find('title').text if programme.find('title') is not None else None
+        )
+
+        # 检查重复节目
+        existing_progs = merged_data[channel_id]['programmes']
+        for existing in existing_progs:
+            existing_key = (
+                existing.get('start'),
+                existing.get('stop'),
+                existing.find('title').text if existing.find('title') is not None else None
+            )
+            if existing_key == prog_key:
+                return
+
+        # 添加新节目
+        merged_data[channel_id]['programmes'].append(deepcopy(programme))
+
+    def _write_merged_epg(self, merged_data, local_file, temp_file):
+        """写入合并后的EPG文件"""
+        try:
+            # 创建XML树
+            root = ET.Element('tv')
+            for data in merged_data.values():
+                root.append(data['channel'])
+                for prog in data['programmes']:
+                    root.append(prog)
+
+            # 美化XML格式
+            ET.indent(root)
+            
+            # 使用正确的编码写入
+            with open(temp_file, 'wb') as f:
+                f.write(b'<?xml version="1.0" encoding="UTF-8"?>\n')
+                tree = ET.ElementTree(root)
+                tree.write(f, encoding='utf-8', xml_declaration=False)
+
+            # 验证文件有效性
+            if os.path.getsize(temp_file) < 1024:
+                raise ValueError("生成的EPG文件过小，可能存在问题")
+
+            os.replace(temp_file, local_file)
+            logger.success("EPG合并完成")
+            return True
+        except Exception as e:
+            logger.error(f"写入EPG文件失败: {str(e)}")
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+            return False
+
+    def _download_single_epg(self, local_file, temp_file, headers):
+        """处理单源下载"""
+        primary_source = next((s for s in self.epg_config.sources if s.is_primary), None)
+        if not primary_source:
+            logger.error("未配置主EPG源")
+            return False
+
+        for attempt in range(3):
+            try:
+                time.sleep(5 * attempt)
+                with requests.get(primary_source.url, headers=headers, timeout=30, stream=True) as response:
+                    response.raise_for_status()
+                    
+                    # 流式写入文件
+                    total_size = 0
+                    with open(temp_file, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                total_size += len(chunk)
+                                if total_size > 1024 * 1024 * 100:  # 限制100MB
+                                    raise ValueError("文件大小超过安全限制")
+
+                    # 验证XML有效性
+                    try:
+                        with open(temp_file, 'r', encoding='utf-8') as f:
+                            ET.parse(f)
+                    except ET.ParseError:
+                        raise ValueError("下载内容不是有效的XML格式")
+
+                    os.replace(temp_file, local_file)
+                    logger.info(f"EPG下载成功 ({primary_source.url})")
+                    return True
+
+            except Exception as e:
+                logger.warning(f"主源下载失败 (尝试 {attempt+1}/3): {str(e)}")
+                if attempt == 2:
+                    logger.error("所有下载尝试失败")
+                    return False
+
+        return False
+
+    def indent(elem, level=0):
+        """美化XML输出"""
+        i = "\n" + level*"  "
+        if len(elem):
+            if not elem.text or not elem.text.strip():
+                elem.text = i + "  "
+            if not elem.tail or not elem.tail.strip():
+                elem.tail = i
+            for elem in elem:
+                ET.indent(elem, level+1)
+            if not elem.tail or not elem.tail.strip():
+                elem.tail = i
+        else:
+            if level and (not elem.tail or not elem.tail.strip()):
+                elem.tail = i
+
     def _parse_epg(self) -> bool:
         """解析EPG文件"""
         try:
-            import lxml.etree as ET
+            # 使用标准库xml.etree.ElementTree进行安全解析
+            import xml.etree.ElementTree as ET
+            from defusedxml.ElementTree import parse
+            
             self.epg_data = {}
             self._name_index = {}
             
-            context = ET.iterparse(self.epg_config.local_file, events=('start', 'end'), recover=True)
-            
+            # 使用defusedxml防御XML攻击
+            try:
+                tree = parse(self.epg_config.local_file)
+                root = tree.getroot()
+                context = ET.iterwalk(root, events=('start', 'end'))
+            except Exception as e:
+                logger.error(f"EPG文件解析初始化失败: {str(e)}")
+                return False
+                
             for event, elem in context:
                 if event == 'start' and elem.tag == 'channel':
                     channel_id = elem.get('id')

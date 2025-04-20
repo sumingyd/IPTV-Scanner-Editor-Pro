@@ -37,6 +37,14 @@ class EPGProgramWidget(QtWidgets.QScrollArea):
             if item.widget():
                 item.widget().deleteLater()
         
+        # 如果没有节目数据，显示提示信息
+        if not programs:
+            no_program = QtWidgets.QLabel(f"频道 {channel_name} 无节目数据")
+            no_program.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            no_program.setStyleSheet("color: #999; font-size: 14px;")
+            self.layout.addWidget(no_program)
+            return
+            
         # 获取当前日期和时间
         current_date = time.strftime("%Y%m%d")
         current_time = time.strftime("%H%M")

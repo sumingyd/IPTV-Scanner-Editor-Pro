@@ -416,18 +416,28 @@ class MainWindow(QtWidgets.QMainWindow):
                 finally:
                     signals.finished.emit()
 
-            # 启动线程并管理生命周期
+            # 如果已有线程在运行，先停止它
+            if hasattr(self, 'epg_thread') and self.epg_thread.isRunning():
+                self.epg_thread.quit()
+                self.epg_thread.wait(1000)
+            
+            # 创建新的线程和worker
             self.epg_thread = QtCore.QThread()
             self.epg_worker = QtCore.QObject()
             self.epg_worker.moveToThread(self.epg_thread)
+            
+            # 连接信号
             self.epg_thread.started.connect(refresh_task)
             
-            # 线程结束时自动删除
+            # 线程结束时自动清理
             self.epg_thread.finished.connect(self.epg_thread.deleteLater)
             self.epg_thread.finished.connect(self.epg_worker.deleteLater)
             
             # 启动线程
             self.epg_thread.start()
+            
+            # 确保线程在窗口关闭时退出
+            self.destroyed.connect(lambda: self.epg_thread.quit() if hasattr(self, 'epg_thread') and self.epg_thread else None)
             
         except Exception as e:
             self.logger.error(f"EPG刷新异常: {e}")
@@ -445,18 +455,27 @@ class MainWindow(QtWidgets.QMainWindow):
         """更新EPG节目单显示"""
         if not hasattr(self, 'epg_manager') or not self.epg_manager:
             self.logger.warning("EPG管理器未初始化")
+            self.ui.main_window.epg_title.setText(f"{channel['name']} - EPG未初始化")
+            self.ui.main_window.epg_timeline.setWidget(QtWidgets.QLabel("EPG管理器未初始化"))
             return
             
         self.logger.info(f"开始加载频道 {channel['name']} 的节目单...")
-        programs = self.epg_manager.get_channel_programs(channel['name'])
-        
-        if not programs:
-            self.logger.info(f"频道 {channel['name']} 无节目数据")
-            self.ui.main_window.epg_title.setText(f"{channel['name']} - 无节目数据")
-            self.ui.main_window.epg_timeline.setWidget(QtWidgets.QLabel("没有可用的节目信息"))
-            return
+        try:
+            programs = self.epg_manager.get_channel_programs(channel['name'])
+            self.logger.debug(f"获取到节目数据: {len(programs) if programs else 0}条")
             
-        self.logger.info(f"找到 {len(programs)} 个节目")
+            if not programs:
+                self.logger.info(f"频道 {channel['name']} 无节目数据")
+                self.ui.main_window.epg_title.setText(f"{channel['name']} - 无节目数据")
+                self.ui.main_window.epg_timeline.setWidget(QtWidgets.QLabel("没有可用的节目信息"))
+                return
+                
+            self.logger.info(f"找到 {len(programs)} 个节目")
+        except Exception as e:
+            self.logger.error(f"获取节目数据出错: {e}")
+            self.ui.main_window.epg_title.setText(f"{channel['name']} - 获取节目数据出错")
+            self.ui.main_window.epg_timeline.setWidget(QtWidgets.QLabel(f"获取节目数据出错: {str(e)}"))
+            return
         
         # 创建EPG节目单控件
         epg_widget = EPGProgramWidget()
@@ -492,12 +511,14 @@ class MainWindow(QtWidgets.QMainWindow):
             # 停止EPGManager线程
             if hasattr(self, 'epg_manager') and self.epg_manager.isRunning():
                 self.epg_manager.quit()
-                self.epg_manager.wait(1000)  # 等待1秒让线程退出
+                if not self.epg_manager.wait(2000):  # 等待2秒让线程退出
+                    self.epg_manager.terminate()
                 
             # 停止EPG UI线程
-            if hasattr(self, 'epg_ui_thread') and self.epg_ui_thread.isRunning():
-                self.epg_ui_thread.quit()
-                self.epg_ui_thread.wait(500)  # 等待0.5秒让线程退出
+            if hasattr(self, 'epg_thread') and self.epg_thread.isRunning():
+                self.epg_thread.quit()
+                if not self.epg_thread.wait(1000):  # 等待1秒让线程退出
+                    self.epg_thread.terminate()
             
             # 保存窗口布局
             size = self.size()
