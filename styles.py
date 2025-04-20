@@ -75,41 +75,58 @@ class AppStyles:
 
 
     @staticmethod
-    def statusbar_style() -> str:
+    def epg_program_style():
         return """
-            QStatusBar {
-                background-color: palette(base);
-                border-top: 1px solid palette(mid);
-                padding: 2px;
-            }
-            QStatusBar QLabel {
-                color: palette(text);
-            }
+        #epg_container {
+            background-color: #f5f5f5;
+            border: none;
+        }
+        #epg_container_widget {
+            background-color: #f5f5f5;
+        }
+        #epg_program {
+            background-color: white;
+            border-bottom: 1px solid #eee;
+            padding: 8px;
+        }
+        #epg_program_current {
+            background-color: #e6f7ff;
+            border-bottom: 2px solid #1890ff;
+            padding: 8px;
+        }
+        #epg_title {
+            color: #333;
+            font-size: 14px;
+        }
+        #epg_title_current {
+            color: #1890ff;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        #epg_time {
+            color: #666;
+            font-size: 12px;
+        }
+        #epg_time_current {
+            color: #1890ff;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        QPushButton:enabled {
+            background-color: #1890ff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+        QPushButton:disabled {
+            background-color: #d9d9d9;
+            color: #999;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
         """
-
-    @staticmethod
-    def progress_style() -> str:
-        return """
-            QProgressBar {
-                border: 1px solid palette(mid);
-                border-radius: 3px;
-                text-align: center;
-                background-color: palette(base);
-                color: palette(text);
-            }
-            QProgressBar::chunk {
-                background-color: palette(highlight);
-                width: 10px;
-            }
-        """
-
-    @staticmethod
-    def splitter_handle_style() -> str:
-        return """
-                    QSplitter::handle {
-                        background: transparent;
-                    }
-                """
 
     @staticmethod
     def list_style() -> str:
@@ -125,6 +142,22 @@ class AppStyles:
                 padding: 4px;
                 border: 1px solid palette(mid);
                 color: palette(windowText);
+            }
+        """
+
+    @staticmethod
+    def statusbar_style() -> str:
+        """状态栏样式(跟随系统深色/浅色模式)"""
+        return """
+            QStatusBar {
+                background-color: palette(window);
+                color: palette(windowText);
+                border-top: 1px solid palette(mid);
+                padding: 2px;
+                font-size: 12px;
+            }
+            QStatusBar::item {
+                border: none;
             }
         """
 
@@ -146,6 +179,22 @@ class AppStyles:
             }
             QTableWidget::item {
                 padding: 5px;
+            }
+        """
+
+    @staticmethod
+    def progress_style() -> str:
+        """进度条样式"""
+        return """
+            QProgressBar {
+                border: 1px solid #ccc;
+                border-radius: 3px;
+                text-align: center;
+                height: 20px;
+            }
+            QProgressBar::chunk {
+                background-color: #1890ff;
+                width: 10px;
             }
         """
 

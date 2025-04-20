@@ -1,4 +1,5 @@
 import time
+import datetime
 from PyQt6 import QtWidgets, QtCore
 from config_manager import ConfigManager
 from epg_model import EPGConfig, EPGSource
@@ -6,51 +7,118 @@ from styles import AppStyles
 from typing import List
 from epg_model import EPGProgram
 
-class EPGProgramWidget(QtWidgets.QWidget):
+class EPGProgramWidget(QtWidgets.QScrollArea):
     """EPG节目单控件"""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("epg_container")
         self.setStyleSheet(AppStyles.epg_program_style())
+        self.setWidgetResizable(True)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        
+        # 主容器
+        self.container = QtWidgets.QWidget()
+        self.container.setObjectName("epg_container_widget")
+        self.setWidget(self.container)
         
         self.layout = QtWidgets.QVBoxLayout()
-        self.layout.setContentsMargins(5, 5, 5, 5)
-        self.layout.setSpacing(5)
-        self.setLayout(self.layout)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(2)
+        self.container.setLayout(self.layout)
+        
+        # 当前节目索引
+        self.current_program_index = -1
         
     def update_programs(self, channel_name: str, programs: List[EPGProgram]):
-        # 调试输出节目数据
-        print(f"更新节目单 - 频道: {channel_name}")
-        for i, program in enumerate(programs):
-            print(f"节目{i+1}: {program.title} | 开始: {program.start_time} | 结束: {program.end_time} | 描述: {program.description}")
         """更新节目单显示"""
         # 清空现有内容
         while self.layout.count():
             item = self.layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
-                
-        # 添加标题
-        title = QtWidgets.QLabel(f"{channel_name} 节目单")
-        title.setStyleSheet("font-size: 16px; font-weight: bold;")
-        self.layout.addWidget(title)
         
-        # 获取当前时间
+        # 获取当前日期和时间
+        current_date = time.strftime("%Y%m%d")
         current_time = time.strftime("%H%M")
         
-        # 添加每个节目项
-        for program in programs:
-            self._add_program_item(program, current_time)
-            
-    def _add_program_item(self, program: EPGProgram, current_time: str):
-        """添加单个节目项"""
-        # 调试输出原始时间数据
-        print(f"原始时间数据 - start: {program.start_time}, end: {program.end_time}")
+        # 获取前一天日期
+        prev_date = (datetime.datetime.strptime(current_date, "%Y%m%d") - 
+                    datetime.timedelta(days=1)).strftime("%Y%m%d")
         
-        # 格式化时间 (处理多种时间格式)
+        # 过滤出当天和前一天的跨日节目
+        today_programs = [
+            p for p in programs 
+            if (p.start_time.startswith(current_date) or 
+                (len(p.start_time) >= 8 and p.start_time[:8] == current_date) or
+                (p.start_time.startswith(prev_date) and 
+                 len(p.end_time) >= 8 and 
+                 p.end_time[:8] == current_date))
+        ]
+        
+        # 添加每个节目项
+        for i, program in enumerate(today_programs):
+            self._add_program_item(program, current_time, i)
+            
+        # 确保UI更新完成
+        QtCore.QTimer.singleShot(100, self._highlight_current_program)
+        
+    def _highlight_current_program(self):
+        """高亮并滚动到当前节目"""
+        if self.current_program_index >= 0:
+            try:
+                # 获取当前节目项
+                current_item = self.layout.itemAt(self.current_program_index).widget()
+                if not current_item:
+                    return
+                
+                # 强制更新UI
+                self.container.update()
+                self.container.updateGeometry()
+                
+                # 确保样式表应用
+                current_item.setStyleSheet("""
+                    QWidget#epg_program_current {
+                        background-color: #e6f7ff;
+                        border: 2px solid #1890ff;
+                        border-radius: 4px;
+                    }
+                    QLabel#epg_title_current {
+                        color: #1890ff;
+                        font-weight: bold;
+                    }
+                    QLabel#epg_time_current {
+                        color: #1890ff;
+                        font-weight: bold;
+                    }
+                """)
+                # 确保布局已完成
+                QtWidgets.QApplication.processEvents()
+                
+                # 计算滚动位置
+                item_pos = current_item.pos().y()
+                scroll_pos = item_pos - int((self.height() - current_item.height()) / 2)
+                
+                # 执行滚动
+                scroll_bar = self.verticalScrollBar()
+                scroll_bar.setValue(scroll_pos)
+                
+                # 强制重绘
+                current_item.update()
+                self.update()
+            except Exception:
+                pass
+            
+    def _add_program_item(self, program: EPGProgram, current_time: str, index: int):
+        """添加单个节目项"""
+        # 格式化时间 (处理完整时间戳格式和多种时间格式)
         def format_time(time_str):
             if not time_str:
                 return "00:00"
+            
+            # 处理完整时间戳格式 "20250418004200 +0000"
+            if len(time_str) >= 14 and time_str[8:10].isdigit() and time_str[10:12].isdigit():
+                return f"{time_str[8:10]}:{time_str[10:12]}"
+            
             # 处理HH:MM:SS格式
             if ':' in time_str:
                 parts = time_str.split(':')
@@ -67,38 +135,93 @@ class EPGProgramWidget(QtWidgets.QWidget):
         start_time = format_time(program.start_time)
         end_time = format_time(program.end_time)
         
-        # 创建节目项
-        item = QtWidgets.QGroupBox(f"{start_time} - {end_time}")
+        # 创建节目项容器
+        item = QtWidgets.QWidget()
         item.setObjectName("epg_program")
         
-        # 如果是当前播放的节目，高亮显示 (比较时间字符串)
+        # 判断是否是当前节目
         is_current = False
         try:
-            # 转换为分钟数比较
-            current_min = int(current_time[:2]) * 60 + int(current_time[2:4])
-            start_min = int(program.start_time[:2]) * 60 + int(program.start_time[2:4])
-            end_min = int(program.end_time[:2]) * 60 + int(program.end_time[2:4])
-            is_current = (current_min >= start_min and current_min < end_min)
-        except:
-            # 如果转换失败，使用字符串比较
-            is_current = (current_time >= program.start_time and 
-                         current_time < program.end_time)
-        if is_current:
-            item.setObjectName("epg_program_current")
+            # 获取当前时间(分钟数)
+            current_hh = int(current_time[:2])
+            current_mm = int(current_time[2:4])
+            current_min = current_hh * 60 + current_mm
             
-        item_layout = QtWidgets.QVBoxLayout()
+            # 解析节目开始时间
+            start_time_str = program.start_time
+            if len(start_time_str) >= 14:  # 完整时间戳格式 "20250418004200 +0000"
+                start_hh = int(start_time_str[8:10])
+                start_mm = int(start_time_str[10:12])
+            elif ':' in start_time_str:  # HH:MM:SS格式
+                parts = start_time_str.split(':')
+                start_hh = int(parts[0])
+                start_mm = int(parts[1])
+            else:  # HHMMSS或HHMM格式
+                start_hh = int(start_time_str[:2])
+                start_mm = int(start_time_str[2:4])
+            start_min = start_hh * 60 + start_mm
+            
+            # 解析节目结束时间
+            end_time_str = program.end_time
+            if len(end_time_str) >= 14:  # 完整时间戳格式
+                end_hh = int(end_time_str[8:10])
+                end_mm = int(end_time_str[10:12])
+            elif ':' in end_time_str:  # HH:MM:SS格式
+                parts = end_time_str.split(':')
+                end_hh = int(parts[0])
+                end_mm = int(parts[1])
+            else:  # HHMMSS或HHMM格式
+                end_hh = int(end_time_str[:2])
+                end_mm = int(end_time_str[2:4])
+            end_min = end_hh * 60 + end_mm
+            
+            # 比较时间范围(处理跨日节目和系统时间跨日)
+            if end_min < start_min:  # 节目跨日
+                is_current = (current_min >= start_min or 
+                            current_min < end_min or
+                            (current_min < end_min and current_min < 1440))
+            else:  # 非跨日节目
+                if current_min < 1440:  # 系统时间未跨日
+                    is_current = (current_min >= start_min and current_min < end_min)
+                else:  # 系统时间跨日
+                    is_current = False
+        except Exception as e:
+            print(f"时间解析错误: {e}")
+            import traceback
+            traceback.print_exc()
+            is_current = False
         
-        # 添加标题
+        if is_current:
+            self.current_program_index = index
+            item.setObjectName("epg_program_current")
+        
+        # 使用水平布局
+        item_layout = QtWidgets.QHBoxLayout()
+        item_layout.setContentsMargins(5, 5, 5, 5)
+        item_layout.setSpacing(10)
+        
+        # 左侧时间区域
+        time_widget = QtWidgets.QWidget()
+        time_layout = QtWidgets.QVBoxLayout()
+        time_layout.setSpacing(2)
+        
+        start_label = QtWidgets.QLabel(start_time)
+        start_label.setObjectName("epg_time_current" if is_current else "epg_time")
+        time_layout.addWidget(start_label)
+        
+        end_label = QtWidgets.QLabel(end_time)
+        end_label.setObjectName("epg_time_current" if is_current else "epg_time")
+        time_layout.addWidget(end_label)
+        
+        time_widget.setLayout(time_layout)
+        item_layout.addWidget(time_widget, stretch=1)
+        
+        # 右侧节目名称
         title_label = QtWidgets.QLabel(f"<b>{program.title}</b>")
         title_label.setObjectName("epg_title_current" if is_current else "epg_title")
-        item_layout.addWidget(title_label)
+        title_label.setWordWrap(True)
+        item_layout.addWidget(title_label, stretch=3)
         
-        # 添加描述
-        if program.description:
-            desc_label = QtWidgets.QLabel(program.description)
-            desc_label.setObjectName("epg_desc")
-            item_layout.addWidget(desc_label)
-            
         item.setLayout(item_layout)
         self.layout.addWidget(item)
 

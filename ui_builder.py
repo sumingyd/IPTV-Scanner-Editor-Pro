@@ -256,14 +256,21 @@ class UIBuilder:
         self.main_window.epg_panel = QtWidgets.QWidget()
         self.main_window.epg_panel.setMinimumWidth(300)
         epg_layout = QtWidgets.QVBoxLayout()
+        epg_layout.setContentsMargins(0, 0, 0, 0)
+        epg_layout.setSpacing(0)
         
         # EPG标题和时间轴
         self.main_window.epg_title = QtWidgets.QLabel("当前节目单")
         self.main_window.epg_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.main_window.epg_timeline = QtWidgets.QScrollArea()
+        self.main_window.epg_timeline.setWidgetResizable(True)
+        self.main_window.epg_timeline.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding
+        )
         
         epg_layout.addWidget(self.main_window.epg_title)
-        epg_layout.addWidget(self.main_window.epg_timeline)
+        epg_layout.addWidget(self.main_window.epg_timeline, stretch=1)
         self.main_window.epg_panel.setLayout(epg_layout)
         
         player_layout.addWidget(self.main_window.epg_panel, stretch=1)  # 右侧占1/4
