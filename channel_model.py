@@ -18,6 +18,12 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         """返回行数(频道数量)"""
         return len(self.channels)
 
+    def clear(self):
+        """清空频道列表"""
+        self.beginResetModel()
+        self.channels = []
+        self.endResetModel()
+
     def columnCount(self, parent=QtCore.QModelIndex()) -> int:
         """返回列数"""
         return len(self.headers)

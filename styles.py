@@ -148,3 +148,27 @@ class AppStyles:
                 padding: 5px;
             }
         """
+
+    @staticmethod
+    def dialog_style() -> str:
+        return """
+            QDialog {
+                background-color: palette(window);
+                color: palette(windowText);
+            }
+            QDialog QGroupBox {
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 15px;
+            }
+            QDialog QLineEdit {
+                padding: 5px;
+                border: 1px solid #ccc;
+                border-radius: 3px;
+            }
+            QDialog QPushButton {
+                min-width: 80px;
+                padding: 5px 10px;
+            }
+        """

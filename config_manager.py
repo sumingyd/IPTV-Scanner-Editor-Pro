@@ -1,5 +1,6 @@
 import configparser
 import os
+from epg_model import EPGSource, EPGConfig
 
 class ConfigManager:
     def __init__(self, config_file='config.ini'):
@@ -75,3 +76,60 @@ class ConfigManager:
         if not self.config.has_section(section):
             self.config.add_section(section)
         self.config.set(section, key, value)
+
+    def save_epg_config(self, epg_config):
+        """保存EPG配置"""
+        # 清除旧的EPG配置
+        if self.config.has_section('EPG'):
+            self.config.remove_section('EPG')
+        
+        # 添加新的EPG配置
+        self.config.add_section('EPG')
+        self.set_value('EPG', 'merge_sources', '1' if epg_config.merge_sources else '0')
+        self.set_value('EPG', 'local_file', epg_config.local_file)
+        
+        # 保存主EPG源
+        primary_sources = [s for s in epg_config.sources if s.is_primary]
+        if primary_sources:
+            self.set_value('EPG', 'primary_url', primary_sources[0].url)
+        
+        # 保存备用EPG源（按顺序保存）
+        secondary_sources = [s for s in epg_config.sources if not s.is_primary]
+        for i, source in enumerate(secondary_sources):
+            self.set_value('EPG', f'secondary_{i}_url', source.url)
+        
+        return self.save_config()
+
+    def load_epg_config(self):
+        """加载EPG配置"""
+        if not self.config.has_section('EPG'):
+            return EPGConfig(
+                sources=[],
+                merge_sources=False,
+                local_file='epg.xml'
+            )
+            
+        sources = []
+        # 加载主EPG源
+        primary_url = self.get_value('EPG', 'primary_url')
+        if primary_url:
+            sources.append(EPGSource(url=primary_url, is_primary=True))
+        
+        # 加载备用EPG源
+        i = 0
+        while True:
+            url = self.get_value('EPG', f'secondary_{i}_url')
+            if url is None:  # 明确检查None而不是隐式bool转换
+                break
+            sources.append(EPGSource(url=url))
+            i += 1
+        
+        # 处理合并选项
+        merge_val = self.get_value('EPG', 'merge_sources')
+        merge_sources = merge_val == '1' if merge_val is not None else False
+        
+        return EPGConfig(
+            sources=sources,
+            merge_sources=merge_sources,
+            local_file=self.get_value('EPG', 'local_file', 'epg.xml')
+        )

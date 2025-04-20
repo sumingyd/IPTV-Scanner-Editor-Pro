@@ -2,11 +2,13 @@ from PyQt6 import QtWidgets, QtCore, QtGui
 import time
 import threading
 from channel_model import ChannelListModel
+from epg_manager import EPGManager
 from ui_builder import UIBuilder
 from config_manager import ConfigManager
 from log_manager import LogManager
 from scanner_controller import ScannerController
 from styles import AppStyles
+from epg_ui import EPGManagementDialog
 import sys
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -15,6 +17,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # 初始化配置和日志管理器
         self.config = ConfigManager()
         self.logger = LogManager()
+        
+        # 初始化EPG管理器
+        from epg_manager import EPGManager
+        self.epg_manager = EPGManager(self.config)
         
         # 构建UI
         self.ui = UIBuilder(self)
@@ -35,6 +41,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # UI构建完成后加载配置
         self._load_config()
         
+        # 初始化频道名称自动补全
+        self._setup_name_autocomplete()
+        
         # 连接信号槽
         self._connect_signals()
 
@@ -45,6 +54,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.main_window.validate_stats_label.setStyleSheet("color: #666;")
         else:
             self.ui.main_window.validate_stats_label.setStyleSheet("color: #333;")
+
+    def _setup_name_autocomplete(self):
+        """设置频道名称自动补全"""
+        completer = QtWidgets.QCompleter()
+        completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
+        completer.setFilterMode(QtCore.Qt.MatchFlag.MatchContains)
+        self.ui.main_window.name_edit.setCompleter(completer)
 
     def _load_config(self):
         """加载保存的配置到UI"""
@@ -94,6 +110,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 action.triggered.connect(self._open_list)
             elif "保存列表" in action.text():
                 action.triggered.connect(self._save_list)
+            elif "刷新EPG" in action.text():
+                action.triggered.connect(self._on_refresh_epg_clicked)
+            elif "EPG管理" in action.text():
+                action.triggered.connect(self._on_epg_manager_clicked)
                 
         # 连接播放控制信号
         self.ui.main_window.volume_slider.valueChanged.connect(
@@ -309,6 +329,8 @@ class MainWindow(QtWidgets.QMainWindow):
             
         if self.player_controller.play(channel['url'], channel['name']):
             self.ui.main_window.pause_btn.setText("暂停")
+            self.current_channel = channel
+            self._update_epg_display(channel)
 
     def _on_channel_found(self, channel_info):
         """处理发现有效频道事件"""
@@ -335,6 +357,106 @@ class MainWindow(QtWidgets.QMainWindow):
                 f"无效: {stats.get('invalid', 0)} | "
                 f"耗时: {elapsed}"
             )
+
+    def _on_refresh_epg_clicked(self):
+        """处理刷新EPG按钮点击事件"""
+        try:
+            # 显示进度指示器
+            self.ui.main_window.progress_indicator.show()
+            
+            # 在后台线程中执行EPG刷新
+            def refresh_task():
+                try:
+                    if self.epg_manager.refresh_epg(force_update=True):
+                        self.logger.info("EPG刷新成功")
+                        # 更新EPG状态标签
+                        self.ui.main_window.epg_match_label.setText("EPG状态: 已加载")
+                        # 更新自动补全数据
+                        channel_names = self.epg_manager.get_channel_names()
+                        completer = self.ui.main_window.name_edit.completer()
+                        if completer and channel_names:
+                            model = completer.model()
+                            if model:
+                                model.setStringList(channel_names)
+                        # 更新当前播放频道的节目单
+                        if hasattr(self, 'current_channel'):
+                            self._update_epg_display(self.current_channel)
+                    else:
+                        self.logger.warning("EPG刷新失败")
+                        self.ui.main_window.epg_match_label.setText("EPG状态: 刷新失败")
+                except Exception as e:
+                    self.logger.error(f"EPG刷新出错: {e}")
+                    self.ui.main_window.epg_match_label.setText("EPG状态: 刷新出错")
+                finally:
+                    # 隐藏进度指示器
+                    self.ui.main_window.progress_indicator.hide()
+
+            threading.Thread(target=refresh_task, daemon=True).start()
+            
+        except Exception as e:
+            self.logger.error(f"EPG刷新异常: {e}")
+            self.ui.main_window.epg_match_label.setText("EPG状态: 刷新异常")
+
+    def _update_epg_display(self, channel):
+        """更新EPG节目单显示"""
+        if not hasattr(self, 'epg_manager') or not self.epg_manager:
+            return
+            
+        programs = self.epg_manager.get_channel_programs(channel['name'])
+        if not programs:
+            # 无节目数据
+            self.ui.main_window.epg_title.setText(f"{channel['name']} - 无节目数据")
+            self.ui.main_window.epg_timeline.setWidget(QtWidgets.QLabel("没有可用的节目信息"))
+            return
+            
+        # 创建节目单容器
+        container = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout()
+        
+        # 添加标题
+        self.ui.main_window.epg_title.setText(f"{channel['name']} 节目单")
+        
+        # 添加每个节目项
+        for program in programs:
+            # 格式化时间
+            start_time = program.start_time[:2] + ":" + program.start_time[2:4]
+            end_time = program.end_time[:2] + ":" + program.end_time[2:4]
+            
+            # 创建节目项
+            item = QtWidgets.QGroupBox(f"{start_time} - {end_time}")
+            item_layout = QtWidgets.QVBoxLayout()
+            item_layout.addWidget(QtWidgets.QLabel(f"<b>{program.title}</b>"))
+            if program.description:
+                item_layout.addWidget(QtWidgets.QLabel(program.description))
+            item.setLayout(item_layout)
+            layout.addWidget(item)
+        
+        # 添加滚动条
+        container.setLayout(layout)
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidget(container)
+        scroll.setWidgetResizable(True)
+        self.ui.main_window.epg_timeline.setWidget(scroll)
+
+    def _on_epg_manager_clicked(self):
+        """处理EPG管理按钮点击事件"""
+        dialog = EPGManagementDialog(self, self.config, self._save_epg_config)
+        dialog.exec()
+
+    def _save_epg_config(self, epg_config):
+        """保存EPG配置回调"""
+        try:
+            if self.config.save_epg_config(epg_config):
+                self.logger.info("EPG配置保存成功")
+                # 重新初始化EPG管理器
+                self.epg_manager = EPGManager(self.config)
+                return True
+            else:
+                self.logger.warning("EPG配置保存失败")
+                return False
+        except Exception as e:
+            self.logger.error(f"保存EPG配置出错: {e}")
+            return False
 
     def save_before_exit(self):
         """程序退出前保存所有配置"""
