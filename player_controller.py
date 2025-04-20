@@ -5,6 +5,7 @@ from log_manager import LogManager
 
 class PlayerController(QObject):
     play_error = pyqtSignal(str)
+    play_state_changed = pyqtSignal(bool)  # True=播放中, False=停止
     
     def __init__(self, video_widget):
         super().__init__()
@@ -53,6 +54,7 @@ class PlayerController(QObject):
             self.player.set_media(media)
             self.player.play()
             self.is_playing = True
+            self.play_state_changed.emit(True)
             self.logger.info(f"正在播放: {channel_name}")
             return True
         except Exception as e:
@@ -77,6 +79,8 @@ class PlayerController(QObject):
         """停止播放"""
         if self.player:
             self.player.stop()
+            self.is_playing = False
+            self.play_state_changed.emit(False)
 
     def release(self):
         """释放播放器资源"""

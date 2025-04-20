@@ -123,6 +123,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.main_window.stop_btn.clicked.connect(
             self._on_stop_clicked)
         
+        # 连接播放状态变化信号
+        self.player_controller.play_state_changed.connect(
+            self._on_play_state_changed)
+        
         # 连接频道列表双击事件
         self.ui.main_window.channel_list.doubleClicked.connect(self._play_selected_channel)
         
@@ -224,6 +228,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.player_controller.stop()
         self.ui.main_window.pause_btn.setText("播放")
         self.logger.debug("停止播放")
+
+    def _on_play_state_changed(self, is_playing):
+        """处理播放状态变化"""
+        self.ui.main_window.stop_btn.setEnabled(is_playing)
+        self.ui.main_window.stop_btn.setStyleSheet(
+            AppStyles.button_style(active=is_playing)
+        )
 
     def _open_list(self):
         """打开列表文件"""
