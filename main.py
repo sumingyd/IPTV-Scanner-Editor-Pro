@@ -82,6 +82,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _connect_signals(self):
         """连接所有信号和槽"""
+        # 连接频道列表选择信号
+        self.ui.main_window.channel_list.selectionModel().selectionChanged.connect(
+            self._on_channel_selected
+        )
+        
         # 连接扫描按钮
         try:
             self.ui.main_window.scan_btn.clicked.disconnect()
@@ -302,6 +307,23 @@ class MainWindow(QtWidgets.QMainWindow):
             self.scanner.stop_validation()
             self.ui.main_window.btn_validate.setText("检测有效性")
             
+    def _on_channel_selected(self):
+        """处理频道选择事件"""
+        selected = self.ui.main_window.channel_list.selectedIndexes()
+        if not selected:
+            return
+            
+        # 获取选中的频道
+        row = selected[0].row()
+        channel = self.model.get_channel(row)
+        
+        # 更新编辑框
+        self.ui.main_window.name_edit.setText(channel.get('name', ''))
+        self.ui.main_window.group_combo.setCurrentText(channel.get('group', '未分类'))
+        
+        # 启用保存按钮
+        self.ui.main_window.edit_panel.findChild(QtWidgets.QPushButton, "save_btn").setEnabled(True)
+
     def _on_channel_validated(self, index, valid, latency):
         """处理频道验证结果"""
         channel = self.ui.main_window.model.get_channel(index)

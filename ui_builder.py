@@ -287,16 +287,25 @@ class UIBuilder:
         edit_layout.setHorizontalSpacing(5)
         edit_layout.setContentsMargins(10, 15, 10, 15)
 
-        # 频道名称输入
+        # 频道名称输入(带自动补全)
         self.main_window.name_edit = QtWidgets.QLineEdit()
         self.main_window.name_edit.setMinimumHeight(32)
         self.main_window.name_edit.setPlaceholderText("输入频道名称...")
+        
+        # 名称自动补全
+        name_completer = QtWidgets.QCompleter()
+        name_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        name_completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        self.main_window.name_edit.setCompleter(name_completer)
 
-        # 分组选择
+        # 分组选择(带自动补全)
         self.main_window.group_combo = QtWidgets.QComboBox()
         self.main_window.group_combo.setMinimumHeight(32)
         self.main_window.group_combo.setEditable(True)
-        self.main_window.group_combo.addItems(["未分类", "央视", "卫视", "本地", "高清频道", "测试频道"])
+        group_completer = QtWidgets.QCompleter()
+        group_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        group_completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        self.main_window.group_combo.setCompleter(group_completer)
 
         # EPG匹配状态显示
         self.main_window.epg_match_label = QtWidgets.QLabel("EPG状态: 未匹配")

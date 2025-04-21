@@ -13,6 +13,10 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         
         # 状态标签更新回调
         self.update_status_label = None
+        
+        # 频道名称和分组缓存(用于自动补全)
+        self._name_cache = set()
+        self._group_cache = set()
 
     def rowCount(self, parent=QtCore.QModelIndex()) -> int:
         """返回行数(频道数量)"""
@@ -105,11 +109,21 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             self.channels = self._original_channels.copy()
         self.endResetModel()
 
+    def get_name_suggestions(self) -> List[str]:
+        """获取频道名称建议列表"""
+        return sorted(self._name_cache)
+
+    def get_group_suggestions(self) -> List[str]:
+        """获取分组建议列表"""
+        return sorted(self._group_cache)
+
     def load_from_file(self, content: str) -> bool:
         """从文件内容加载频道列表"""
         try:
             self.beginResetModel()
             self.channels = []
+            self._name_cache = set()
+            self._group_cache = set()
             lines = content.splitlines()
             current_channel = None
             
@@ -150,6 +164,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 if line and not line.startswith("#") and current_channel:
                     current_channel['url'] = line
                     self.channels.append(current_channel)
+                    # 更新名称和分组缓存
+                    if 'name' in current_channel:
+                        self._name_cache.add(current_channel['name'])
+                    if 'group' in current_channel:
+                        self._group_cache.add(current_channel['group'])
                     current_channel = None
             
             self.endResetModel()
