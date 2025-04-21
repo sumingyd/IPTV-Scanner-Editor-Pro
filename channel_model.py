@@ -116,6 +116,10 @@ class ChannelListModel(QtCore.QAbstractTableModel):
     def get_group_suggestions(self) -> List[str]:
         """获取分组建议列表"""
         return sorted(self._group_cache)
+        
+    def get_all_channel_names(self) -> List[str]:
+        """获取所有频道名称列表"""
+        return sorted(self._name_cache)
 
     def load_from_file(self, content: str) -> bool:
         """从文件内容加载频道列表"""
