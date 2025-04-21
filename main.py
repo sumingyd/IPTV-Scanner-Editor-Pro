@@ -375,6 +375,7 @@ class MainWindow(QtWidgets.QMainWindow):
             
             # 显示进度指示器
             self.ui.main_window.progress_indicator.show()
+            self.ui.main_window.epg_match_label.setText("EPG状态: 正在刷新...")
             
             # 创建信号对象用于线程间通信
             class RefreshSignals(QtCore.QObject):
@@ -395,21 +396,39 @@ class MainWindow(QtWidgets.QMainWindow):
             def refresh_task():
                 try:
                     # 调用EPG刷新并等待完成
-                    self.epg_manager.refresh_epg(force_update=force_update)
-                    if self.epg_manager.wait(5000):  # 等待5秒
-                        if self.epg_manager.isFinished() and self.epg_manager.result:
-                            self.logger.info("EPG刷新成功")
-                        # 在主线程更新UI
-                        signals.update_status.emit("EPG状态: 已加载")
-                        # 更新自动补全数据
-                        channel_names = self.epg_manager.get_channel_names()
-                        signals.update_completer.emit(channel_names)
-                        # 更新当前播放频道的节目单
-                        if hasattr(self, 'current_channel'):
-                            signals.update_epg_display.emit(self.current_channel)
+                    success = self.epg_manager.refresh_epg(force_update=force_update)
+                    if not success:
+                        self.logger.warning("EPG刷新启动失败")
+                        signals.update_status.emit("EPG状态: 刷新启动失败")
+                        return
+                        
+                    # 等待线程完成
+                    while not self.epg_manager.isFinished():
+                        QtCore.QCoreApplication.processEvents()
+                        
+                    # 检查EPG操作状态
+                    if hasattr(self.epg_manager, 'last_operation_status'):
+                        if self.epg_manager.last_operation_status:
+                            self.logger.info("EPG操作成功")
+                            signals.update_status.emit("EPG状态: 已加载")
+                        else:
+                            self.logger.warning("EPG操作失败")
+                            signals.update_status.emit("EPG状态: 操作失败")
                     else:
-                        self.logger.warning("EPG刷新失败")
-                        signals.update_status.emit("EPG状态: 刷新失败")
+                        # 回退到检查result
+                        if self.epg_manager.result:
+                            self.logger.info("EPG刷新成功")
+                            signals.update_status.emit("EPG状态: 已加载")
+                        else:
+                            self.logger.warning("EPG刷新失败")
+                            signals.update_status.emit("EPG状态: 刷新失败")
+                        
+                    # 更新自动补全数据
+                    channel_names = self.epg_manager.get_channel_names()
+                    signals.update_completer.emit(channel_names)
+                    # 更新当前播放频道的节目单
+                    if hasattr(self, 'current_channel'):
+                        signals.update_epg_display.emit(self.current_channel)
                 except Exception as e:
                     self.logger.error(f"EPG刷新出错: {e}")
                     signals.update_status.emit("EPG状态: 刷新出错")
