@@ -1,4 +1,5 @@
 from copy import deepcopy
+from io import BytesIO
 import os
 import traceback
 import requests
@@ -135,41 +136,20 @@ class EPGManager(QThread):
             if not download_success:
                 logger.warning("部分EPG源下载失败，将继续处理可用数据")
             
-            # 确保至少有一个有效的EPG文件存在
+            # 检查EPG文件是否存在
             if not os.path.exists(self.epg_config.local_file):
-                if os.path.exists(self.epg_config.local_file + ".bak"):
-                    logger.info("使用备份EPG文件继续处理")
-                    os.replace(self.epg_config.local_file + ".bak", self.epg_config.local_file)
-                else:
-                    logger.warning("没有可用的EPG文件，将尝试继续处理")
-                    return True  # 即使没有文件也返回True，不中断流程
+                logger.warning("没有可用的EPG文件，将尝试继续处理")
+                return True  # 即使没有文件也返回True，不中断流程
         except Exception as e:
             logger.error(f"EPG下载过程中发生错误: {str(e)}")
             # 不抛出异常，继续执行
             
-        # 2. 解析EPG数据
-        self.progress.emit(0.7, "正在解析EPG数据...")
-        if not self._parse_epg():
-            # 解析失败时尝试回退到旧版本
-            backup_file = self.epg_config.local_file + ".bak"
-            if os.path.exists(backup_file):
-                logger.warning(f"[{op_id}] 解析失败，尝试回退到备份文件")
-                try:
-                    os.replace(backup_file, self.epg_config.local_file)
-                    if not self._parse_epg():
-                        raise Exception("EPG解析失败且回退失败")
-                except Exception as e:
-                    raise Exception(f"EPG解析失败且回退失败: {str(e)}")
-            else:
-                raise Exception("EPG解析失败且无备份文件")
+            # 2. 解析EPG数据
+            self.progress.emit(0.7, "正在解析EPG数据...")
+            if not self._parse_epg():
+                raise Exception("EPG解析失败")
             
-        # 3. 备份成功解析的文件
-        try:
-            import shutil
-            backup_file = self.epg_config.local_file + ".bak"
-            shutil.copy2(self.epg_config.local_file, backup_file)
-        except Exception as e:
-            logger.warning(f"[{op_id}] 无法创建EPG备份文件: {str(e)}")
+        # 不再创建备份文件
             
         self.progress.emit(1.0, "EPG更新完成")
         return True
@@ -254,39 +234,107 @@ class EPGManager(QThread):
                     # 添加headers和stream参数（关键修复）
                     with requests.get(source.url, headers=headers, timeout=30, stream=True) as response:
                         response.raise_for_status()
-                        content = response.text
+                        # 强制获取原始字节内容并记录响应头
+                        content = response.content
+                        logger.debug(f"原始响应内容前100字节(hex): {content[:100].hex()}")
+                        logger.debug(f"响应头: {response.headers}")
+                        # 尝试从Content-Type获取编码
+                        content_type = response.headers.get('Content-Type', '')
+                        if 'charset=' in content_type:
+                            declared_encoding = content_type.split('charset=')[1].split(';')[0].strip().lower()
+                            logger.debug(f"从Content-Type检测到声明编码: {declared_encoding}")
 
                         # 增强XML验证和编码处理
                         if not content.strip():
                             raise ValueError("空响应内容")
                             
-                        # 检测并统一编码为UTF-8
-                        try:
-                            if isinstance(content, bytes):
-                                # 尝试常见编码
-                                for encoding in ['utf-8-sig', 'gb18030', 'gbk', 'gb2312', 'big5']:
-                                    try:
-                                        test_content = content.decode(encoding)
-                                        # 验证解码后的内容是否包含有效XML字符
-                                        if any(c in test_content for c in '<>?/') and '<?xml' in test_content:
-                                            content = test_content
-                                            logger.debug(f"成功检测到编码: {encoding}")
-                                            break
-                                    except UnicodeDecodeError:
-                                        continue
-                                else:
-                                    content = content.decode('utf-8', errors='replace')
-                                    logger.warning("无法确定编码，使用UTF-8替换模式")
+                        # 增强编码检测和转换
+                        def detect_encoding(content):
+                            # 记录原始内容前100字节用于调试
+                            sample = content[:100] if isinstance(content, bytes) else content[:100].encode('latin1')
+                            logger.debug(f"编码检测样本(hex): {sample.hex()}")
                             
-                            # 强制转换为UTF-8并验证
-                            utf8_content = content.encode('utf-8', errors='strict').decode('utf-8')
+                            # 先检查BOM标记
+                            if isinstance(content, bytes):
+                                if content.startswith(b'\xef\xbb\xbf'):
+                                    logger.debug("检测到UTF-8 BOM标记")
+                                    return 'utf-8-sig'
+                                elif content.startswith(b'\xff\xfe'):
+                                    logger.debug("检测到UTF-16 LE BOM标记")
+                                    return 'utf-16-le'
+                                elif content.startswith(b'\xfe\xff'):
+                                    logger.debug("检测到UTF-16 BE BOM标记") 
+                                    return 'utf-16-be'
+                            
+                            # 尝试常见中文编码(按可能性排序)
+                            encodings = ['utf-8', 'gb18030', 'gbk', 'gb2312', 'big5', 'utf-16']
+                            for enc in encodings:
+                                try:
+                                    test = content.decode(enc) if isinstance(content, bytes) else content.encode('latin1').decode(enc)
+                                    # 严格验证是否为有效XML
+                                    if '<?xml' in test and any(c in test for c in '<>?/'):
+                                        logger.debug(f"成功检测到编码: {enc}")
+                                        return enc
+                                except Exception as e:
+                                    logger.debug(f"编码{enc}检测失败: {str(e)}")
+                                    continue
+                            logger.warning("无法确定内容编码")
+                            return None
+                            
+                        # 检测编码 - 优先使用Content-Type中声明的编码
+                        detected_enc = None
+                        if 'declared_encoding' in locals() and declared_encoding:
+                            try:
+                                # 先尝试使用声明的编码
+                                test_content = content.decode(declared_encoding)
+                                if '<?xml' in test_content:
+                                    detected_enc = declared_encoding
+                                    logger.debug(f"使用Content-Type声明的编码: {declared_encoding}")
+                            except Exception as e:
+                                logger.debug(f"Content-Type声明的编码{declared_encoding}无效: {str(e)}")
+                        
+                        # 如果声明编码无效，则自动检测
+                        if not detected_enc:
+                            detected_enc = detect_encoding(content)
+                            if detected_enc:
+                                logger.debug(f"自动检测到编码: {detected_enc}")
+                        
+                        if detected_enc:
+                            content = content.decode(detected_enc) if isinstance(content, bytes) else content
+                        else:
+                            # 使用chardet作为后备方案
+                            try:
+                                import chardet
+                                result = chardet.detect(content if isinstance(content, bytes) else content.encode('latin1'))
+                                if result['confidence'] > 0.8:
+                                    content = content.decode(result['encoding']) if isinstance(content, bytes) else content
+                                    logger.debug(f"使用chardet检测到编码: {result['encoding']}")
+                                else:
+                                    raise ValueError("编码检测置信度不足")
+                            except:
+                                # 最终回退方案
+                                content = content.decode('utf-8', errors='replace') if isinstance(content, bytes) else content
+                                logger.warning("无法确定编码，使用UTF-8替换模式")
+                        
+                        # 统一转换为UTF-8并验证
+                        try:
+                            utf8_content = content.encode('utf-8').decode('utf-8')
                             if '<?xml' not in utf8_content:
                                 raise ValueError("无效的XML内容")
+                            
+                            # 额外验证文本内容是否包含乱码
+                            if any(ord(c) > 127 and not c.isprintable() for c in utf8_content):
+                                raise ValueError("检测到可能的乱码字符")
+                                
                             content = utf8_content
                         except Exception as e:
-                            logger.error(f"编码转换严重错误: {str(e)}")
-                            content = content.decode('utf-8', errors='replace') if isinstance(content, bytes) else content
-                            logger.warning("使用替换模式继续处理")
+                            logger.error(f"UTF-8转换失败: {str(e)}")
+                            # 尝试修复乱码
+                            try:
+                                content = content.encode('utf-8', errors='replace').decode('utf-8')
+                                logger.warning("已替换无效字符继续处理")
+                            except:
+                                raise
                             
                         if '<?xml' not in content:
                             content = '<?xml version="1.0" encoding="UTF-8"?>\n' + content
@@ -344,9 +392,15 @@ class EPGManager(QThread):
         if not channel_id:
             return
 
-        # 深拷贝频道元素
+        # 深拷贝频道元素并确保文本编码正确
         channel_copy = ET.Element('channel', attrib=channel.attrib)
         for elem in channel:
+            # 确保文本编码正确
+            if elem.text:
+                try:
+                    elem.text.encode('utf-8').decode('utf-8')
+                except UnicodeError:
+                    elem.text = elem.text.encode('utf-8', errors='replace').decode('utf-8')
             channel_copy.append(deepcopy(elem))
 
         if channel_id not in merged_data:
@@ -385,8 +439,15 @@ class EPGManager(QThread):
             if existing_key == prog_key:
                 return
 
-        # 添加新节目
-        merged_data[channel_id]['programmes'].append(deepcopy(programme))
+        # 添加新节目并确保文本编码正确
+        prog_copy = deepcopy(programme)
+        for elem in prog_copy:
+            if elem.text:
+                try:
+                    elem.text.encode('utf-8').decode('utf-8')
+                except UnicodeError:
+                    elem.text = elem.text.encode('utf-8', errors='replace').decode('utf-8')
+        merged_data[channel_id]['programmes'].append(prog_copy)
 
     def _write_merged_epg(self, merged_data, local_file, temp_file):
         """写入合并后的EPG文件"""
@@ -407,9 +468,15 @@ class EPGManager(QThread):
                 f.write(b'\xef\xbb\xbf')
                 # 写入XML声明
                 f.write(b'<?xml version="1.0" encoding="UTF-8"?>\n')
-                # 写入XML内容
-                tree = ET.ElementTree(root)
-                tree.write(f, encoding='utf-8', xml_declaration=False)
+                # 写入XML内容，确保保留原始编码
+                xml_content = ET.tostring(root, encoding='utf-8', xml_declaration=False)
+                # 验证内容是否包含乱码
+                try:
+                    xml_content.decode('utf-8')
+                except UnicodeDecodeError:
+                    logger.warning("检测到合并内容中的编码问题，尝试修复")
+                    xml_content = xml_content.decode('utf-8', errors='replace').encode('utf-8')
+                f.write(xml_content)
                 
             # 二次验证编码
             try:
@@ -505,12 +572,24 @@ class EPGManager(QThread):
             self.epg_data = {}
             self._name_index = {}
             
-            # 使用defusedxml防御XML攻击
+            # 使用defusedxml防御XML攻击并处理编码
             try:
-                tree = parse(self.epg_config.local_file)
+                # 先读取文件内容并验证编码
+                with open(self.epg_config.local_file, 'rb') as f:
+                    content = f.read()
+                
+                # 验证是否为有效UTF-8
+                try:
+                    content.decode('utf-8')
+                except UnicodeDecodeError:
+                    logger.warning("EPG文件不是有效的UTF-8编码，尝试修复")
+                    content = content.decode('utf-8', errors='replace').encode('utf-8')
+                
+                # 解析XML
+                tree = parse(BytesIO(content))
                 root = tree.getroot()
                 # 兼容旧Python版本的遍历方式
-                context = ET.iterparse(self.epg_config.local_file, events=('start', 'end'))
+                context = ET.iterparse(BytesIO(content), events=('start', 'end'))
             except Exception as e:
                 logger.error(f"EPG文件解析初始化失败: {str(e)}")
                 return False
