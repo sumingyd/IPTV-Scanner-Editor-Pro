@@ -315,6 +315,7 @@ class MainWindow(QtWidgets.QMainWindow):
             
         # 获取选中的频道
         row = selected[0].row()
+        self.current_channel_index = row
         channel = self.model.get_channel(row)
         
         # 更新编辑框
@@ -322,7 +323,33 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.main_window.group_combo.setCurrentText(channel.get('group', '未分类'))
         
         # 启用保存按钮
-        self.ui.main_window.edit_panel.findChild(QtWidgets.QPushButton, "save_btn").setEnabled(True)
+        save_btn = self.ui.main_window.edit_panel.findChild(QtWidgets.QPushButton)
+        if save_btn:
+            save_btn.setEnabled(True)
+            save_btn.clicked.connect(self._on_save_clicked)
+
+    def _on_save_clicked(self):
+        """处理保存按钮点击事件"""
+        if not hasattr(self, 'current_channel_index'):
+            return
+            
+        # 获取编辑后的数据
+        name = self.ui.main_window.name_edit.text()
+        group = self.ui.main_window.group_combo.currentText()
+        
+        # 更新频道数据
+        channel = self.model.get_channel(self.current_channel_index)
+        channel['name'] = name
+        channel['group'] = group
+        
+        # 通知模型更新
+        self.model.dataChanged.emit(
+            self.model.index(self.current_channel_index, 0),
+            self.model.index(self.current_channel_index, self.model.columnCount() - 1)
+        )
+        
+        # 更新自动补全数据
+        self._update_name_completer(self.model.get_all_channel_names())
 
     def _on_channel_validated(self, index, valid, latency):
         """处理频道验证结果"""
