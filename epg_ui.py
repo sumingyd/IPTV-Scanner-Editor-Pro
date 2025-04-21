@@ -45,30 +45,56 @@ class EPGProgramWidget(QtWidgets.QScrollArea):
             self.layout.addWidget(no_program)
             return
             
-        # 获取当前日期和时间
-        current_date = time.strftime("%Y%m%d")
+        # 获取当前时间
         current_time = time.strftime("%H%M")
         
-        # 获取前一天日期
-        prev_date = (datetime.datetime.strptime(current_date, "%Y%m%d") - 
-                    datetime.timedelta(days=1)).strftime("%Y%m%d")
+        # 按日期分组节目
+        date_groups = {}
+        for program in programs:
+            # 提取日期部分
+            date_str = program.start_time[:8] if len(program.start_time) >= 8 else "00000000"
+            
+            # 格式化日期显示
+            try:
+                date = datetime.datetime.strptime(date_str, "%Y%m%d").strftime("%Y年%m月%d日")
+            except:
+                date = "未知日期"
+                
+            if date not in date_groups:
+                date_groups[date] = []
+            date_groups[date].append(program)
         
-        # 过滤出当天和前一天的跨日节目
-        today_programs = [
-            p for p in programs 
-            if (p.start_time.startswith(current_date) or 
-                (len(p.start_time) >= 8 and p.start_time[:8] == current_date) or
-                (p.start_time.startswith(prev_date) and 
-                 len(p.end_time) >= 8 and 
-                 p.end_time[:8] == current_date))
-        ]
+        # 按日期排序
+        sorted_dates = sorted(date_groups.keys())
         
         # 添加每个节目项
-        for i, program in enumerate(today_programs):
-            self._add_program_item(program, current_time, i)
+        program_index = 0
+        for date in sorted_dates:
+            # 添加日期标题
+            date_label = QtWidgets.QLabel(f"<b>{date}</b>")
+            date_label.setStyleSheet("""
+                QLabel {
+                    color: #666;
+                    font-size: 14px;
+                    padding: 5px;
+                    border-bottom: 1px solid #eee;
+                }
+            """)
+            self.layout.addWidget(date_label)
             
-        # 确保UI更新完成
-        QtCore.QTimer.singleShot(100, self._highlight_current_program)
+            # 添加该日期的所有节目
+            for program in date_groups[date]:
+                self._add_program_item(program, current_time, program_index)
+                program_index += 1
+            
+        # 确保UI更新完成并高亮当前节目
+        def highlight_after_layout():
+            self._highlight_current_program()
+            # 强制重绘确保高亮效果
+            self.container.update()
+            self.update()
+            
+        QtCore.QTimer.singleShot(100, highlight_after_layout)
         
     def _highlight_current_program(self):
         """高亮并滚动到当前节目"""

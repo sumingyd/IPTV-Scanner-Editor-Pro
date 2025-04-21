@@ -304,7 +304,7 @@ class EPGManager(QThread):
                         else:
                             # 使用chardet作为后备方案
                             try:
-                                import chardet
+                                import chardet # type: ignore
                                 result = chardet.detect(content if isinstance(content, bytes) else content.encode('latin1'))
                                 if result['confidence'] > 0.8:
                                     content = content.decode(result['encoding']) if isinstance(content, bytes) else content
@@ -644,34 +644,57 @@ class EPGManager(QThread):
             return False
             
     def get_channel_programs(self, channel_name: str) -> Optional[List[EPGProgram]]:
-        """获取频道节目单(支持模糊匹配)
+        """获取频道节目单(增强版模糊匹配)
         Args:
-            channel_name: 频道名称(支持模糊匹配)
+            channel_name: 频道名称
         """
         if not self.loaded:
+            logger.warning("EPG数据未加载")
             return None
             
-        # 1. 尝试精确匹配(不区分大小写)
         normalized_name = channel_name.lower().strip()
-        for name, ids in self._name_index.items():
-            if name == normalized_name:
-                channel = self.epg_data.get(ids[0])
-                return channel.programs if channel else []
-                
-        # 2. 尝试包含匹配(频道名称包含在EPG名称中)
+        logger.debug(f"开始查找频道: {normalized_name}")
+        
+        # 1. 精确匹配(不区分大小写)
+        if normalized_name in self._name_index:
+            logger.debug(f"精确匹配到频道: {normalized_name}")
+            channel = self.epg_data.get(self._name_index[normalized_name][0])
+            return channel.programs if channel else []
+            
+        # 2. 包含匹配(双向)
         for name, ids in self._name_index.items():
             if normalized_name in name or name in normalized_name:
+                logger.debug(f"包含匹配到频道: {name} (原始: {normalized_name})")
                 channel = self.epg_data.get(ids[0])
                 return channel.programs if channel else []
                 
-        # 3. 尝试部分匹配(去除空格和特殊字符后匹配)
+        # 3. 相似度匹配(去除特殊字符)
         clean_name = ''.join(c for c in normalized_name if c.isalnum())
         for name, ids in self._name_index.items():
             clean_epg_name = ''.join(c for c in name if c.isalnum())
+            # 双向包含匹配
             if clean_name in clean_epg_name or clean_epg_name in clean_name:
+                logger.debug(f"相似度匹配到频道: {name} (原始: {normalized_name})")
                 channel = self.epg_data.get(ids[0])
                 return channel.programs if channel else []
                 
+        # 4. 尝试匹配频道ID
+        for channel_id, channel in self.epg_data.items():
+            if normalized_name == channel_id.lower():
+                logger.debug(f"匹配到频道ID: {channel_id}")
+                return channel.programs
+                
+        # 5. 最后尝试: 检查是否频道名称被包含在某个EPG名称中
+        for name, ids in self._name_index.items():
+            parts = name.split()
+            for part in parts:
+                if part == normalized_name:
+                    logger.debug(f"部分匹配到频道: {name} (部分: {part})")
+                    channel = self.epg_data.get(ids[0])
+                    return channel.programs if channel else []
+                    
+        logger.warning(f"未找到匹配的频道: {normalized_name}")
+        logger.debug(f"可用频道: {list(self._name_index.keys())}")
         return None
 
     def get_channel_names(self) -> List[str]:

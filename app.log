@@ -1,42 +1,7 @@
-2025-04-22 01:58:37 - INFO - 开始构建UI界面
-2025-04-22 01:58:37 - INFO - 初始化主窗口UI
-2025-04-22 01:58:37 - INFO - 初始化扫描面板
-2025-04-22 01:58:37 - INFO - 初始化频道列表
-2025-04-22 01:58:37 - INFO - 频道列表模型初始化完成
-2025-04-22 01:58:38 - INFO - UI界面构建完成
-2025-04-22 01:58:38 - INFO - 频道列表模型初始化完成
-2025-04-22 01:58:47 - INFO - 用户点击刷新EPG按钮
-2025-04-22 01:58:47 - DEBUG - refresh_epg调用时间: 1745258327.0343094
-2025-04-22 01:58:47 - INFO - 准备启动EPG操作: update
-2025-04-22 01:58:47 - DEBUG - EPG线程启动时间: 1745258327.0343094, 耗时: 0.000s
-2025-04-22 01:58:47 - INFO - [327037] 开始EPG操作: update
-2025-04-22 01:58:47 - INFO - 开始下载EPG，保存路径: epg.xml
-2025-04-22 01:58:47 - INFO - 合并模式: True
-2025-04-22 01:58:47 - INFO - 开始合并模式下载，共3个源
-2025-04-22 01:58:52 - INFO - 尝试下载源 [https://epg.pw/xmltv/epg_CN.xml] (第1次)
-2025-04-22 01:58:53 - DEBUG - 原始响应内容前100字节(hex): 3c3f786d6c2076657273696f6e3d27312e302720656e636f64696e673d275554462d38273f3e0a3c747620646174653d223230323530343138303830303032202b30303030222067656e657261746f722d696e666f2d6e616d653d226570672e70772220
-2025-04-22 01:58:53 - DEBUG - 响应头: {'Date': 'Mon, 21 Apr 2025 17:58:51 GMT', 'Content-Type': 'text/xml; charset=utf-8', 'Transfer-Encoding': 'chunked', 'Connection': 'keep-alive', 'Cf-Ray': '933ec59e1f58858b-HKG', 'Server': 'cloudflare', 'Last-Modified': 'Fri, 18 Apr 2025 00:03:36 GMT', 'Vary': 'Accept-Encoding', 'Etag': 'W/"680196d8-5943a7"', 'Content-Encoding': 'gzip', 'Access-Control-Allow-Origin': '*', 'Eleme': 'EXPIRED from epg.pw', 'Cf-Cache-Status': 'HIT', 'Age': '7084', 'Report-To': '{"endpoints":[{"url":"https:\\/\\/a.nel.cloudflare.com\\/report\\/v4?s=L177NBdCjHYgmPDNlvxWGcU2xgsITP76nlLr2QVfaxrnZh33iaLrLiFGmCNMXf7lIEQ%2BY4Ai4MWYL86%2FXDx%2F9y5uXtxfxnLOKx%2FQNsHxfwNLkujStmJ1uJ4%3D"}],"group":"cf-nel","max_age":604800}', 'Nel': '{"success_fraction":0,"report_to":"cf-nel","max_age":604800}', 'alt-svc': 'h3=":443"; ma=86400', 'server-timing': 'cfL4;desc="?proto=TCP&rtt=633&min_rtt=597&rtt_var=250&sent=4&recv=6&lost=0&retrans=0&sent_bytes=2374&recv_bytes=882&delivery_rate=4850921&cwnd=251&unsent_bytes=0&cid=cfce24a0bed543f6&ts=131&x=0"'}
-2025-04-22 01:58:53 - DEBUG - 从Content-Type检测到声明编码: utf-8
-2025-04-22 01:58:53 - DEBUG - 使用Content-Type声明的编码: utf-8
-2025-04-22 01:58:53 - ERROR - UTF-8转换失败: 检测到可能的乱码字符
-2025-04-22 01:58:53 - WARNING - 已替换无效字符继续处理
-2025-04-22 01:58:54 - INFO - 成功下载并解析源 [https://epg.pw/xmltv/epg_CN.xml]
-2025-04-22 01:58:59 - INFO - 尝试下载源 [https://epg.112114.xyz/pp.xml] (第1次)
-2025-04-22 01:59:01 - DEBUG - 原始响应内容前100字节(hex): 3c3f786d6c2076657273696f6e3d22312e302220656e636f64696e673d225554462d38223f3e0a3c747620696e666f2d6e616d653d22627920737061726b202220696e666f2d75726c3d2268747470733a2f2f6570672e3131323131342e78797a223e0a
-2025-04-22 01:59:01 - DEBUG - 响应头: {'Date': 'Mon, 21 Apr 2025 17:58:59 GMT', 'Content-Type': 'text/xml', 'Transfer-Encoding': 'chunked', 'Connection': 'keep-alive', 'Content-Encoding': 'gzip', 'Cf-Ray': '933ec5ccda3b0865-HKG', 'Last-Modified': 'Mon, 21 Apr 2025 17:45:12 GMT', 'Etag': 'W/"68068428-2476e1"', 'Expires': 'Mon, 21 Apr 2025 18:02:52 GMT', 'Cache-Control': 'max-age=300', 'Cf-Cache-Status': 'HIT', 'Age': '67', 'Report-To': '{"endpoints":[{"url":"https:\\/\\/a.nel.cloudflare.com\\/report\\/v4?s=YuQRob0PKsrtWN%2FbvJD1YcrCtPZ8VbUGZTbTXT%2FYTCj8Zeizhps8kOKWwBSuF3E4lEXtU14GHFvj14ELlxQvw0tBGuROdNX3o13U754pOzet19ZkaCkbtRDARSzhWKHYqQ%3D%3D"}],"group":"cf-nel","max_age":604800}', 'Nel': '{"success_fraction":0,"report_to":"cf-nel","max_age":604800}', 'Vary': 'Accept-Encoding', 'Server': 'cloudflare', 'alt-svc': 'h3=":443"; ma=86400', 'server-timing': 'cfL4;desc="?proto=TCP&rtt=711&min_rtt=590&rtt_var=308&sent=4&recv=6&lost=0&retrans=0&sent_bytes=2838&recv_bytes=880&delivery_rate=4908474&cwnd=251&unsent_bytes=0&cid=807408312c4fc852&ts=353&x=0"'}
-2025-04-22 01:59:01 - DEBUG - 使用Content-Type声明的编码: utf-8
-2025-04-22 01:59:01 - ERROR - UTF-8转换失败: 检测到可能的乱码字符
-2025-04-22 01:59:01 - WARNING - 已替换无效字符继续处理
-2025-04-22 01:59:01 - INFO - 成功下载并解析源 [https://epg.112114.xyz/pp.xml]
-2025-04-22 01:59:06 - INFO - 尝试下载源 [http://epg.51zmt.top:8000/e.xml] (第1次)
-2025-04-22 01:59:08 - DEBUG - 原始响应内容前100字节(hex): 3c3f786d6c2076657273696f6e3d22312e302220656e636f64696e673d225554462d38223f3e0a3c21444f43545950452074762053595354454d2022687474703a2f2f6170692e746f7272656e742d74762e72752f786d6c74762e647464223e0a3c7476
-2025-04-22 01:59:08 - DEBUG - 响应头: {'Connection': 'close', 'Transfer-Encoding': 'chunked', 'Content-Encoding': 'gzip', 'Content-Type': 'text/xml', 'Date': 'Mon, 21 Apr 2025 17:59:06 GMT', 'Etag': 'W/"68067ba0-1ea339"', 'Last-Modified': 'Mon, 21 Apr 2025 17:08:48 GMT', 'Server': 'nginx/1.27.1'}
-2025-04-22 01:59:08 - DEBUG - 使用Content-Type声明的编码: utf-8
-2025-04-22 01:59:08 - ERROR - UTF-8转换失败: 检测到可能的乱码字符
-2025-04-22 01:59:08 - WARNING - 已替换无效字符继续处理
-2025-04-22 01:59:09 - INFO - 成功下载并解析源 [http://epg.51zmt.top:8000/e.xml]
-2025-04-22 01:59:09 - INFO - EPG合并完成
-2025-04-22 01:59:09 - INFO - EPG合并完成，共合并1395个频道
-2025-04-22 01:59:09 - INFO - [327037] EPG操作成功: update
-2025-04-22 01:59:09 - INFO - EPG操作成功
-2025-04-22 01:59:57 - INFO - 程序退出前配置已保存
+2025-04-22 02:17:29 - INFO - 开始构建UI界面
+2025-04-22 02:17:29 - INFO - 初始化主窗口UI
+2025-04-22 02:17:29 - INFO - 初始化扫描面板
+2025-04-22 02:17:29 - INFO - 初始化频道列表
+2025-04-22 02:17:29 - INFO - 频道列表模型初始化完成
+2025-04-22 02:17:29 - INFO - UI界面构建完成
+2025-04-22 02:17:29 - INFO - 频道列表模型初始化完成
