@@ -376,6 +376,9 @@ class MainWindow(QtWidgets.QMainWindow):
             # 显示进度指示器
             self.ui.main_window.progress_indicator.show()
             self.ui.main_window.epg_match_label.setText("EPG状态: 正在刷新...")
+        finally:
+            # 确保进度指示器被隐藏
+            self.ui.main_window.progress_indicator.hide()
             
             # 创建信号对象用于线程间通信
             class RefreshSignals(QtCore.QObject):
@@ -452,15 +455,27 @@ class MainWindow(QtWidgets.QMainWindow):
             self.epg_thread.finished.connect(self.epg_thread.deleteLater)
             self.epg_thread.finished.connect(self.epg_worker.deleteLater)
             
-            # 启动线程
-            self.epg_thread.start()
-            
-            # 确保线程在窗口关闭时退出
-            self.destroyed.connect(lambda: self.epg_thread.quit() if hasattr(self, 'epg_thread') and self.epg_thread else None)
-            
-        except Exception as e:
-            self.logger.error(f"EPG刷新异常: {e}")
-            self.ui.main_window.epg_match_label.setText("EPG状态: 刷新异常")
+            # 启动线程并确保资源释放
+            try:
+                self.epg_thread.start()
+            except RuntimeError as e:
+                self.logger.error(f"EPG线程启动失败: {e}")
+                self.ui.main_window.epg_match_label.setText("EPG状态: 启动失败")
+                self.epg_thread.quit()
+                self.epg_thread.wait(1000)
+                return
+            except Exception as e:
+                self.logger.error(f"EPG线程未知错误: {e}")
+                self.ui.main_window.epg_match_label.setText("EPG状态: 未知错误")
+                self.epg_thread.quit()
+                self.epg_thread.wait(1000)
+                return
+
+    def closeEvent(self, event):
+        if hasattr(self, 'epg_thread') and self.epg_thread and self.epg_thread.isRunning():
+            self.epg_thread.quit()
+            self.epg_thread.wait()
+        event.accept()
 
     def _update_name_completer(self, channel_names):
         """更新频道名称自动补全数据"""
