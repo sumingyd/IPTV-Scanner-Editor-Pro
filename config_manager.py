@@ -4,10 +4,16 @@ from epg_model import EPGSource, EPGConfig
 
 class ConfigManager:
     def __init__(self, config_file='config.ini'):
-        self.config_file = os.path.abspath(os.path.join(os.path.dirname(__file__), config_file))
+        # 使用程序所在目录存放配置文件
+        import sys
+        if getattr(sys, 'frozen', False):
+            # 打包成exe的情况
+            config_dir = os.path.dirname(sys.executable)
+        else:
+            # 开发环境
+            config_dir = os.path.dirname(__file__)
+        self.config_file = os.path.join(config_dir, config_file)
         self.config = configparser.ConfigParser()
-        if not os.path.exists(os.path.dirname(self.config_file)):
-            os.makedirs(os.path.dirname(self.config_file))
         # 初始化时立即加载已有配置
         self.load_config()
         
