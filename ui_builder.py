@@ -333,41 +333,57 @@ class UIBuilder:
         match_group = QtWidgets.QGroupBox("智能匹配")
         layout = QtWidgets.QVBoxLayout()
         
-        # 操作按钮
-        self.main_window.btn_load_old = QtWidgets.QPushButton("加载旧列表")
-        self.main_window.btn_load_old.setStyleSheet(AppStyles.button_style(active=True))
-
-        self.main_window.btn_match = QtWidgets.QPushButton("执行自动匹配")
-        self.main_window.btn_match.setStyleSheet(AppStyles.button_style(active=False))
-        self.main_window.btn_match.setEnabled(False)
-        self.main_window.btn_match.setEnabled(False)
-
-        # 状态显示
-        self.main_window.match_status = QtWidgets.QLabel("匹配功能未就绪 - 请先加载旧列表")
-        self.main_window.match_status.setStyleSheet("color: #666; font-weight: bold;")
-        self.main_window.match_progress = QtWidgets.QProgressBar()
-        self.main_window.match_progress.setTextVisible(True)
-        self.main_window.match_progress.setStyleSheet(AppStyles.progress_style())
-        
-        # 高级选项
-        self.main_window.cb_override_epg = QtWidgets.QCheckBox("EPG不匹配时强制覆盖")
-        self.main_window.cb_auto_save = QtWidgets.QCheckBox("匹配后自动保存")
-        
-        # 布局
-        button_layout = QtWidgets.QHBoxLayout()
-        button_layout.addWidget(self.main_window.btn_load_old)
-        button_layout.addWidget(self.main_window.btn_match)
-        
-        layout.addLayout(button_layout)
-        layout.addWidget(QtWidgets.QLabel("匹配进度:"))
-        layout.addWidget(self.main_window.match_progress)
-        layout.addWidget(self.main_window.match_status)
-        layout.addStretch()
-        layout.addWidget(self.main_window.cb_override_epg)
-        layout.addWidget(self.main_window.cb_auto_save)
+        self._setup_match_buttons(layout)
+        self._setup_match_progress(layout)
+        self._setup_match_options(layout)
         
         match_group.setLayout(layout)
         parent.addWidget(match_group)
+
+    def _setup_match_buttons(self, layout):
+        """设置匹配操作按钮"""
+        button_layout = QtWidgets.QHBoxLayout()
+        
+        # 加载旧列表按钮
+        self.main_window.btn_load_old = QtWidgets.QPushButton("加载旧列表")
+        self.main_window.btn_load_old.setStyleSheet(AppStyles.button_style(active=True))
+        
+        # 执行匹配按钮
+        self.main_window.btn_match = QtWidgets.QPushButton("执行自动匹配")
+        self.main_window.btn_match.setStyleSheet(AppStyles.button_style(active=False))
+        self.main_window.btn_match.setEnabled(False)
+        
+        button_layout.addWidget(self.main_window.btn_load_old)
+        button_layout.addWidget(self.main_window.btn_match)
+        layout.addLayout(button_layout)
+
+    def _setup_match_progress(self, layout):
+        """设置匹配进度显示"""
+        # 匹配进度标签
+        layout.addWidget(QtWidgets.QLabel("匹配进度:"))
+        
+        # 进度条
+        self.main_window.match_progress = QtWidgets.QProgressBar()
+        self.main_window.match_progress.setTextVisible(True)
+        self.main_window.match_progress.setStyleSheet(AppStyles.progress_style())
+        layout.addWidget(self.main_window.match_progress)
+        
+        # 状态标签
+        self.main_window.match_status = QtWidgets.QLabel("匹配功能未就绪 - 请先加载旧列表")
+        self.main_window.match_status.setStyleSheet("color: #666; font-weight: bold;")
+        layout.addWidget(self.main_window.match_status)
+        
+        layout.addStretch()
+
+    def _setup_match_options(self, layout):
+        """设置匹配高级选项"""
+        # EPG覆盖选项
+        self.main_window.cb_override_epg = QtWidgets.QCheckBox("EPG不匹配时强制覆盖")
+        layout.addWidget(self.main_window.cb_override_epg)
+        
+        # 自动保存选项
+        self.main_window.cb_auto_save = QtWidgets.QCheckBox("匹配后自动保存")
+        layout.addWidget(self.main_window.cb_auto_save)
 
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
         """配置扫描面板"""
