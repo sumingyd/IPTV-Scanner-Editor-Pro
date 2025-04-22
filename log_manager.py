@@ -15,7 +15,15 @@ class LogManager:
         if self._initialized:
             return
             
-        self.log_file = os.path.join(os.path.dirname(__file__), log_file)
+        # 使用程序所在目录存放日志文件
+        import sys
+        if getattr(sys, 'frozen', False):
+            # 打包成exe的情况
+            log_dir = os.path.dirname(sys.executable)
+        else:
+            # 开发环境
+            log_dir = os.path.dirname(__file__)
+        self.log_file = os.path.join(log_dir, log_file)
         self.logger = logging.getLogger('IPTVLogger')
         self.logger.setLevel(logging.DEBUG)
         
