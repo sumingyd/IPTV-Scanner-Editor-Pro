@@ -1,3 +1,4 @@
+import asyncio
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 from channel_model import ChannelListModel
@@ -590,11 +591,12 @@ class UIBuilder:
         toolbar.addAction(about_action)
         
 
-        # 连接信号槽
-        open_action.triggered.connect(lambda: self.main_window._open_list())
-        save_action.triggered.connect(lambda: self.main_window._save_list())
-        refresh_epg_action.triggered.connect(lambda: self.main_window.epg_manager.refresh_epg(force_update=False))
-        epg_manager_action.triggered.connect(self._show_epg_manager)
+    def _show_about_dialog(self):
+        """显示关于对话框"""
+        from about_dialog import AboutDialog
+        dialog = AboutDialog(
+            self.main_window)
+        dialog.exec()
 
     def _show_epg_manager(self):
         """显示EPG管理对话框"""

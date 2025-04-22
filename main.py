@@ -121,6 +121,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 action.triggered.connect(self._on_refresh_epg_clicked)
             elif "EPG管理" in action.text():
                 action.triggered.connect(self._on_epg_manager_clicked)
+            elif "关于" in action.text():
+                action.triggered.connect(self._on_about_clicked)
                 
         # 连接播放控制信号
         self.ui.main_window.volume_slider.valueChanged.connect(
@@ -577,6 +579,42 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog = EPGManagementDialog(self, self.config, self._save_epg_config)
         dialog.exec()
 
+    def _on_about_clicked(self):
+        """处理关于按钮点击事件"""
+        try:
+            from about_dialog import AboutDialog
+            self.logger.info("正在创建关于对话框...")
+            
+            # 确保在主线程中创建对话框
+            dialog = AboutDialog(self)
+            dialog.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
+            
+            # 确保事件循环正确处理
+            def show_dialog():
+                try:
+                    self.logger.debug("显示关于对话框")
+                    dialog.show()
+                except Exception as e:
+                    self.logger.error(f"显示对话框出错: {e}")
+            
+            # 使用定时器确保UI更新
+            QtCore.QTimer.singleShot(0, show_dialog)
+            
+        except ImportError as e:
+            self.logger.error(f"导入AboutDialog失败: {e}")
+            QtWidgets.QMessageBox.critical(
+                self,
+                "错误",
+                "无法加载关于对话框模块"
+            )
+        except Exception as e:
+            self.logger.error(f"显示关于对话框失败: {e}")
+            QtWidgets.QMessageBox.critical(
+                self,
+                "错误", 
+                f"无法显示关于对话框: {str(e)}"
+            )
+
     def _save_epg_config(self, epg_config):
         """保存EPG配置回调"""
         try:
@@ -630,13 +668,22 @@ class MainWindow(QtWidgets.QMainWindow):
             self.logger.error(f"保存退出配置失败: {e}")
 
 def main():
+    # 设置事件循环策略为Windows策略(兼容性更好)
+    if sys.platform == "win32":
+        import asyncio
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    
+    # 创建应用实例
     app = QtWidgets.QApplication(sys.argv)
+    
+    # 创建主窗口
     window = MainWindow()
     window.show()
     
     # 确保程序退出前保存所有配置
     app.aboutToQuit.connect(window.save_before_exit)
     
+    # 启动事件循环
     sys.exit(app.exec())
 
 if __name__ == "__main__":
