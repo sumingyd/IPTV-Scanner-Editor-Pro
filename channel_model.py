@@ -121,6 +121,33 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         """获取所有频道名称列表"""
         return sorted(self._name_cache)
 
+    def to_m3u(self) -> str:
+        """将频道列表转换为M3U格式字符串"""
+        lines = ["#EXTM3U"]
+        for channel in self.channels:
+            # EXTINF行 - 包含所有标准M3U标签
+            extinf = (
+                f"#EXTINF:-1 "
+                f"tvg-id=\"{channel.get('tvg_id', '')}\" "
+                f"tvg-name=\"{channel.get('name', '未命名')}\" "
+                f"tvg-logo=\"{channel.get('logo', '')}\" "
+                f"group-title=\"{channel.get('group', '未分类')}\" "
+                f"tvg-language=\"{channel.get('language', '')}\" "
+                f"tvg-country=\"{channel.get('country', '')}\" "
+                f",{channel.get('name', '未命名')}"
+            )
+            lines.append(extinf)
+            
+            # 添加其他扩展属性
+            if channel.get('resolution'):
+                lines.append(f"#EXTVLCOPT:video-resolution={channel.get('resolution')}")
+            if channel.get('latency'):
+                lines.append(f"#EXTVLCOPT:network-caching={channel.get('latency')}")
+            
+            # URL行
+            lines.append(channel.get('url', ''))
+        return "\n".join(lines)
+
     def load_from_file(self, content: str) -> bool:
         """从文件内容加载频道列表"""
         try:
