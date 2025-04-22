@@ -1,18 +1,7 @@
-2025-04-22 23:31:53 - INFO - 开始构建UI界面
-2025-04-22 23:31:53 - INFO - 初始化主窗口UI
-2025-04-22 23:31:53 - INFO - 初始化扫描面板
-2025-04-22 23:31:53 - INFO - 初始化频道列表
-2025-04-22 23:31:53 - INFO - 频道列表模型初始化完成
-2025-04-22 23:31:53 - INFO - UI界面构建完成
-2025-04-22 23:31:53 - INFO - 频道列表模型初始化完成
-2025-04-22 23:31:57 - INFO - 正在创建关于对话框...
-2025-04-22 23:31:57 - DEBUG - 显示关于对话框
-2025-04-22 23:31:57 - INFO - 显示关于对话框，开始版本检测流程
-2025-04-22 23:31:57 - DEBUG - 设置初始版本文本为'检测中...'
-2025-04-22 23:31:57 - INFO - 启动版本检测定时器，100ms后执行
-2025-04-22 23:31:57 - DEBUG - 定时器触发，开始版本检测
-2025-04-22 23:31:57 - INFO - 从GitHub获取最新版本: https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest
-2025-04-22 23:31:58 - INFO - GitHub API响应状态: 200
-2025-04-22 23:31:58 - DEBUG - GitHub API响应数据: {'url': 'https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/210617839', 'assets_url': 'https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/210617839/assets', 'upload_url': 'https://uploads.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/210617839/assets{?name,label}', 'html_url': 'https://github.com/sumingyd/IPTV-Scanner-Editor-Pro/releases/tag/5.0.0.0', 'id': 210617839, 'author': {'login': 'sumingyd', 'id': 45293856, 'node_id': 'MDQ6VXNlcjQ1MjkzODU2', 'avatar_url': 'https://avatars.githubusercontent.com/u/45293856?v=4', 'gravatar_id': '', 'url': 'https://api.github.com/users/sumingyd', 'html_url': 'https://github.com/sumingyd', 'followers_url': 'https://api.github.com/users/sumingyd/followers', 'following_url': 'https://api.github.com/users/sumingyd/following{/other_user}', 'gists_url': 'https://api.github.com/users/sumingyd/gists{/gist_id}', 'starred_url': 'https://api.github.com/users/sumingyd/starred{/owner}{/repo}', 'subscriptions_url': 'https://api.github.com/users/sumingyd/subscriptions', 'organizations_url': 'https://api.github.com/users/sumingyd/orgs', 'repos_url': 'https://api.github.com/users/sumingyd/repos', 'events_url': 'https://api.github.com/users/sumingyd/events{/privacy}', 'received_events_url': 'https://api.github.com/users/sumingyd/received_events', 'type': 'User', 'user_view_type': 'public', 'site_admin': False}, 'node_id': 'RE_kwDOOKon_s4MjcXv', 'tag_name': '5.0.0.0', 'target_commitish': 'main', 'name': '5.0.0.0', 'draft': False, 'prerelease': False, 'created_at': '2025-04-06T18:22:09Z', 'published_at': '2025-04-06T18:28:14Z', 'assets': [{'url': 'https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/assets/244028967', 'id': 244028967, 'node_id': 'RA_kwDOOKon_s4Oi5Yn', 'name': 'IPTV.exe', 'label': '', 'uploader': {'login': 'sumingyd', 'id': 45293856, 'node_id': 'MDQ6VXNlcjQ1MjkzODU2', 'avatar_url': 'https://avatars.githubusercontent.com/u/45293856?v=4', 'gravatar_id': '', 'url': 'https://api.github.com/users/sumingyd', 'html_url': 'https://github.com/sumingyd', 'followers_url': 'https://api.github.com/users/sumingyd/followers', 'following_url': 'https://api.github.com/users/sumingyd/following{/other_user}', 'gists_url': 'https://api.github.com/users/sumingyd/gists{/gist_id}', 'starred_url': 'https://api.github.com/users/sumingyd/starred{/owner}{/repo}', 'subscriptions_url': 'https://api.github.com/users/sumingyd/subscriptions', 'organizations_url': 'https://api.github.com/users/sumingyd/orgs', 'repos_url': 'https://api.github.com/users/sumingyd/repos', 'events_url': 'https://api.github.com/users/sumingyd/events{/privacy}', 'received_events_url': 'https://api.github.com/users/sumingyd/received_events', 'type': 'User', 'user_view_type': 'public', 'site_admin': False}, 'content_type': 'application/json; charset=utf-8', 'state': 'uploaded', 'size': 357071060, 'download_count': 132, 'created_at': '2025-04-06T18:28:15Z', 'updated_at': '2025-04-06T18:29:20Z', 'browser_download_url': 'https://github.com/sumingyd/IPTV-Scanner-Editor-Pro/releases/download/5.0.0.0/IPTV.exe'}], 'tarball_url': 'https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/tarball/5.0.0.0', 'zipball_url': 'https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/zipball/5.0.0.0', 'body': '**Full Changelog**: https://github.com/sumingyd/IPTV-Scanner-Editor-Pro/compare/4.0.0.1...5.0.0.0'}
-2025-04-22 23:31:58 - INFO - 获取到最新版本: 5.0.0.0, 发布时间: 2025-04-06
-2025-04-22 23:41:41 - INFO - 程序退出前配置已保存
+2025-04-22 23:43:48 - INFO - 开始构建UI界面
+2025-04-22 23:43:48 - INFO - 初始化主窗口UI
+2025-04-22 23:43:48 - INFO - 初始化扫描面板
+2025-04-22 23:43:48 - INFO - 初始化频道列表
+2025-04-22 23:43:48 - INFO - 频道列表模型初始化完成
+2025-04-22 23:43:48 - INFO - UI界面构建完成
+2025-04-22 23:43:48 - INFO - 频道列表模型初始化完成

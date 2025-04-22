@@ -17,7 +17,6 @@ class UIBuilder:
         if not self._ui_initialized:
             self.logger.info("开始构建UI界面")
             self._init_ui()
-            self._setup_menubar()
             self._setup_toolbar()
             self.logger.info("UI界面构建完成")
             self._ui_initialized = True
