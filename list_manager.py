@@ -65,8 +65,13 @@ class ListManager:
                 self.logger.debug("用户取消保存文件")
                 return False
                 
-            self.logger.debug("生成M3U内容...")
-            content = self.model.to_m3u()
+            self.logger.debug("根据文件类型生成内容...")
+            if file_path.lower().endswith('.txt'):
+                content = self.model.to_txt()
+                # 添加TXT文件头信息
+                content = f"# IPTV频道列表\n# 共 {self.model.rowCount()} 个频道\n\n{content}"
+            else:
+                content = self.model.to_m3u()
             self.logger.debug(f"生成内容长度: {len(content)}")
             
             if not content.strip():
