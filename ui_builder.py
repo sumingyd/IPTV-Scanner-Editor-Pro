@@ -311,18 +311,19 @@ class UIBuilder:
         self.main_window.epg_match_label = QtWidgets.QLabel("EPG状态: 未匹配")
         self.main_window.epg_match_label.setStyleSheet("font-weight: bold;")
         
-        # 保存按钮
-        save_btn = QtWidgets.QPushButton("保存修改")
-        save_btn.setMinimumHeight(36)
-        save_btn.setStyleSheet(AppStyles.button_style(active=False))
-        save_btn.setEnabled(False)
+        # 保存按钮 - 作为窗口属性
+        self.main_window.save_channel_btn = QtWidgets.QPushButton("保存修改")
+        self.main_window.save_channel_btn.setObjectName("save_channel_btn")
+        self.main_window.save_channel_btn.setMinimumHeight(36)
+        self.main_window.save_channel_btn.setStyleSheet(AppStyles.button_style(active=False))
+        self.main_window.save_channel_btn.setEnabled(False)
 
         # 布局
         edit_layout.addRow("频道名称：", self.main_window.name_edit)
         edit_layout.addRow("分组分类：", self.main_window.group_combo)
         edit_layout.addRow(self.main_window.epg_match_label)
         edit_layout.addRow(QtWidgets.QLabel())
-        edit_layout.addRow(save_btn)
+        edit_layout.addRow(self.main_window.save_channel_btn)
 
         edit_group.setLayout(edit_layout)
         parent.addWidget(edit_group)

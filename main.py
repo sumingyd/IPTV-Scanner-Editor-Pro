@@ -60,6 +60,8 @@ class MainWindow(QtWidgets.QMainWindow):
         completer = QtWidgets.QCompleter()
         completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
         completer.setFilterMode(QtCore.Qt.MatchFlag.MatchContains)
+        model = QtCore.QStringListModel()
+        completer.setModel(model)
         self.ui.main_window.name_edit.setCompleter(completer)
 
     def _load_config(self):
@@ -322,11 +324,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.main_window.name_edit.setText(channel.get('name', ''))
         self.ui.main_window.group_combo.setCurrentText(channel.get('group', '未分类'))
         
-        # 启用保存按钮
-        save_btn = self.ui.main_window.edit_panel.findChild(QtWidgets.QPushButton)
-        if save_btn:
-            save_btn.setEnabled(True)
-            save_btn.clicked.connect(self._on_save_clicked)
+        # 直接访问保存按钮对象
+        self.ui.main_window.save_channel_btn.setEnabled(True)
+        try:
+            self.ui.main_window.save_channel_btn.clicked.disconnect()  # 先断开所有连接
+        except:
+            pass
+        self.ui.main_window.save_channel_btn.clicked.connect(self._on_save_clicked)
 
     def _on_save_clicked(self):
         """处理保存按钮点击事件"""
