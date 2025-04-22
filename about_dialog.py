@@ -19,7 +19,7 @@ class AboutDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.current_version = self.CURRENT_VERSION
-        self.setWindowTitle("关于 IPTV Scanner Editor Pro New")
+        self.setWindowTitle("关于 IPTV Scanner Editor Pro")
         self._init_ui()
 
     # 样式常量
