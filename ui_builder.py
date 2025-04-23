@@ -292,11 +292,17 @@ class UIBuilder:
         self.main_window.name_edit.setMinimumHeight(32)
         self.main_window.name_edit.setPlaceholderText("输入频道名称...")
         
-        # 名称自动补全
-        name_completer = QtWidgets.QCompleter()
+        # 名称自动补全(使用EPG频道名)
+        name_completer = QtWidgets.QCompleter(self.main_window.epg_manager.get_channel_names())
         name_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         name_completer.setFilterMode(Qt.MatchFlag.MatchContains)
         self.main_window.name_edit.setCompleter(name_completer)
+        
+        # 编辑框载入时自动全选文本
+        self.main_window.name_edit.focusInEvent = self._handle_name_edit_focus
+        
+        # 回车键处理
+        self.main_window.name_edit.returnPressed.connect(self._handle_enter_press)
 
         # 分组选择(带自动补全)
         self.main_window.group_combo = QtWidgets.QComboBox()
@@ -315,8 +321,11 @@ class UIBuilder:
         self.main_window.save_channel_btn = QtWidgets.QPushButton("保存修改")
         self.main_window.save_channel_btn.setObjectName("save_channel_btn")
         self.main_window.save_channel_btn.setMinimumHeight(36)
-        self.main_window.save_channel_btn.setStyleSheet(AppStyles.button_style(active=False))
-        self.main_window.save_channel_btn.setEnabled(False)
+        self.main_window.save_channel_btn.setStyleSheet(AppStyles.button_style(active=True))
+        self.main_window.save_channel_btn.setEnabled(True)
+        
+        # 文本变化时更新按钮状态
+        self.main_window.name_edit.textChanged.connect(self._update_save_button_state)
 
         # 布局
         edit_layout.addRow("频道名称：", self.main_window.name_edit)
@@ -537,6 +546,79 @@ class UIBuilder:
         list_layout.addWidget(self.main_window.channel_list)
         list_group.setLayout(list_layout)
         parent.addWidget(list_group)
+
+    def _update_save_button_state(self):
+        """更新保存按钮状态"""
+        has_text = bool(self.main_window.name_edit.text())
+        self.main_window.save_channel_btn.setEnabled(has_text)
+        self.main_window.save_channel_btn.setStyleSheet(
+            AppStyles.button_style(active=has_text)
+        )
+
+    def _handle_enter_press(self):
+        """处理回车键按下事件"""
+        if self.main_window.save_channel_btn.isEnabled():
+            # 模拟点击保存按钮
+            self.main_window.save_channel_btn.click()
+            
+            # 重新初始化自动补全
+            name_completer = QtWidgets.QCompleter(self.main_window.epg_manager.get_channel_names())
+            name_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+            name_completer.setFilterMode(Qt.MatchFlag.MatchContains)
+            self.main_window.name_edit.setCompleter(name_completer)
+            
+            # 延迟执行导航
+            QtCore.QTimer.singleShot(100, self._navigate_to_next_channel)
+
+    def _handle_name_edit_focus(self, event):
+        """处理编辑框焦点事件"""
+        QtWidgets.QLineEdit.focusInEvent(self.main_window.name_edit, event)
+        self.main_window.name_edit.selectAll()
+
+    def _navigate_to_next_channel(self):
+        """导航到下一个频道并自动播放"""
+        selection = self.main_window.channel_list.selectionModel()
+        if not selection.hasSelection():
+            return
+            
+        current_row = selection.currentIndex().row()
+        row_count = self.main_window.model.rowCount()
+        
+        # 导航到下一行
+        if current_row < row_count - 1:
+            next_index = self.main_window.model.index(current_row + 1, 0)
+            self.main_window.channel_list.setCurrentIndex(next_index)
+            self.main_window.channel_list.selectRow(current_row + 1)
+            # 载入频道名并自动全选
+            self.main_window.name_edit.setText(self.main_window.model.data(next_index))
+            self.main_window.name_edit.selectAll()
+            # 重新设置自动补全数据源
+            name_completer = QtWidgets.QCompleter(self.main_window.epg_manager.get_channel_names())
+            name_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+            name_completer.setFilterMode(Qt.MatchFlag.MatchContains)
+            self.main_window.name_edit.setCompleter(name_completer)
+            # 播放当前选中的频道
+            current_index = self.main_window.channel_list.currentIndex()
+            channel_data = {
+                'url': self.main_window.model.data(self.main_window.model.index(current_index.row(), 2)),  # URL在第2列
+                'name': self.main_window.model.data(current_index)
+            }
+            self.main_window.player_controller.play_channel(channel_data)
+        else:
+            # 已经是最后一行，回到第一行
+            first_index = self.main_window.model.index(0, 0)
+            self.main_window.channel_list.setCurrentIndex(first_index)
+            self.main_window.channel_list.selectRow(0)
+            # 载入频道名并自动全选
+            self.main_window.name_edit.setText(self.main_window.model.data(first_index))
+            self.main_window.name_edit.selectAll()
+            # 播放当前选中的频道
+            current_index = self.main_window.channel_list.currentIndex()
+            channel_data = {
+                'url': self.main_window.model.data(self.main_window.model.index(current_index.row(), 2)),  # URL在第2列
+                'name': self.main_window.model.data(current_index)
+            }
+            self.main_window.player_controller.play_channel(channel_data)
 
     def _setup_menubar(self):
         """初始化菜单栏"""
