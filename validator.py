@@ -47,7 +47,8 @@ class StreamValidator:
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                universal_newlines=True
+                universal_newlines=True,
+                creationflags=subprocess.CREATE_NO_WINDOW
             )
             
             # 等待命令完成
@@ -64,6 +65,7 @@ class StreamValidator:
             # 解析输出
             if process.returncode == 0:
                 result['valid'] = True
+                width = height = None
                 for line in stdout.splitlines():
                     if 'width=' in line:
                         width = line.split('=')[1]
@@ -74,7 +76,7 @@ class StreamValidator:
                     elif 'bit_rate=' in line:
                         result['bitrate'] = line.split('=')[1]
                 
-                if width and height:
+                if width is not None and height is not None:
                     result['resolution'] = f"{width}x{height}"
             else:
                 result['error'] = stderr.strip()
