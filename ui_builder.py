@@ -32,8 +32,8 @@ class UIBuilder:
         self.logger.info("初始化主窗口UI")
         self.main_window.setWindowTitle("IPTV Scanner Editor Pro / IPTV 专业扫描编辑工具")
         
-        # 加载保存的窗口大小
-        width, height, _ = self.main_window.config.load_window_layout()
+        # 加载保存的窗口布局
+        width, height, dividers = self.main_window.config.load_window_layout()
         self.main_window.resize(width, height)
         
         # 连接窗口大小变化信号
@@ -47,6 +47,14 @@ class UIBuilder:
         main_layout = QtWidgets.QHBoxLayout(main_widget)
         self._init_splitters()
         main_layout.addWidget(self.main_window.main_splitter)
+
+        # 强制应用布局设置
+        if dividers and len(dividers) >= 8:
+            self.logger.info(f"恢复分割器布局: {dividers}")
+            self.main_window.main_splitter.setSizes(dividers[:2])
+            self.main_window.left_splitter.setSizes(dividers[2:4])
+            self.main_window.right_splitter.setSizes(dividers[4:6])
+            self.main_window.h_splitter.setSizes(dividers[6:8])
 
         # 状态栏
         status_bar = self.main_window.statusBar()
@@ -70,21 +78,52 @@ class UIBuilder:
         """处理窗口大小变化事件"""
         try:
             size = self.main_window.size()
+            # 保存当前分割器状态
             dividers = [
                 *self.main_window.main_splitter.sizes(),
                 *self.main_window.left_splitter.sizes(),
                 *self.main_window.right_splitter.sizes(),
                 *self.main_window.h_splitter.sizes()
             ]
+            
+            # 如果EPG面板是收起状态，强制保持右侧收起
+            if not self.main_window.epg_toggle_btn.isChecked():
+                self.main_window.main_splitter.setSizes([size.width(), 0])
+            
+            # 保存窗口布局
+            self.main_window.config.save_window_layout(size.width(), size.height(), dividers)
             event.accept()
+            
+            # 强制更新布局
+            QtCore.QTimer.singleShot(50, lambda: [
+                self.main_window.main_splitter.update(),
+                self.main_window.main_splitter.updateGeometry()
+            ])
         except Exception as e:
-            pass
+            self.logger.error(f"窗口大小变化处理错误: {str(e)}")
 
     def _init_splitters(self):
         """初始化所有分隔条控件"""
         # 主水平分割器（左右布局）
         self.main_window.main_splitter = QtWidgets.QSplitter(Qt.Orientation.Horizontal)
+        self.main_window.main_splitter.setChildrenCollapsible(True)  # 允许子部件收起
+        self.main_window.main_splitter.setHandleWidth(10)  # 设置足够大的手柄宽度
+        self.main_window.main_splitter.setOpaqueResize(True)  # 实时更新分割器位置
         self._setup_custom_splitter(self.main_window.main_splitter)
+        
+        # 强制设置初始比例(完全收起右侧)
+        self.main_window.main_splitter.setSizes([800, 0])
+        self.main_window.main_splitter.update()
+        self.main_window.main_splitter.updateGeometry()
+        
+        # 延迟再次设置确保生效
+        QtCore.QTimer.singleShot(100, lambda: [
+            self.main_window.main_splitter.setSizes([800, 0]),
+            self.main_window.main_splitter.update(),
+            self.main_window.main_splitter.updateGeometry(),
+            self.main_window.main_splitter.parent().update(),
+            self.main_window.main_splitter.parent().updateGeometry()
+        ])
         
         # 左侧垂直分割器（扫描面板 + 频道列表）
         self.main_window.left_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical) 
@@ -206,9 +245,12 @@ class UIBuilder:
             self._drag_start_pos = None
 
     def _setup_player_panel(self, parent: QtWidgets.QSplitter) -> None:
+        """配置播放器面板"""
+        self.logger.info("初始化播放器面板")
         player_group = QtWidgets.QGroupBox("视频播放")
-        player_layout = QtWidgets.QHBoxLayout()  # 主水平布局
+        player_layout = QtWidgets.QHBoxLayout()
         player_layout.setContentsMargins(2, 2, 2, 2)
+        player_layout.setSpacing(5)
         
         # 左侧播放器区域 (占3/4宽度)
         player_left = QtWidgets.QWidget()
@@ -252,40 +294,59 @@ class UIBuilder:
         player_left.setLayout(left_layout)
         player_layout.addWidget(player_left, stretch=3)  # 左侧占3/4
         
-        # 右侧EPG节目单区域 (占1/4宽度)
+        # 右侧EPG节目单区域 (独立布局)
         self.main_window.epg_panel = QtWidgets.QWidget()
-        self.main_window.epg_panel.setMinimumWidth(300)
+        self.main_window.epg_panel.setFixedWidth(300)  # 固定宽度
         epg_layout = QtWidgets.QVBoxLayout()
         epg_layout.setContentsMargins(0, 0, 0, 0)
         epg_layout.setSpacing(0)
         
-        # EPG标题和时间轴
+        # EPG容器(包含标题和内容)
+        self.main_window.epg_container = QtWidgets.QWidget()
+        self.main_window.epg_container.setLayout(QtWidgets.QVBoxLayout())
+        self.main_window.epg_container.layout().setContentsMargins(0, 0, 0, 0)
+        
+        # 标题栏(仅包含标题)
+        self.main_window.epg_header = QtWidgets.QWidget()
+        header_layout = QtWidgets.QHBoxLayout(self.main_window.epg_header)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        
         self.main_window.epg_title = QtWidgets.QLabel("当前节目单")
         self.main_window.epg_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.main_window.epg_timeline = QtWidgets.QScrollArea()
-        self.main_window.epg_timeline.setWidgetResizable(True)
-        self.main_window.epg_timeline.setSizePolicy(
+        header_layout.addWidget(self.main_window.epg_title)
+        
+        # EPG内容区域
+        self.main_window.epg_content = QtWidgets.QScrollArea()
+        self.main_window.epg_content.setWidgetResizable(True)
+        self.main_window.epg_content.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding,
             QtWidgets.QSizePolicy.Policy.Expanding
         )
-        # 设置当前节目高亮样式
-        self.main_window.epg_timeline.setStyleSheet("""
-            QScrollArea {
-                border: none;
-            }
-            QLabel.current-program {
-                background-color: #4a90e2;
-                color: white;
-                padding: 2px 5px;
-                border-radius: 3px;
-            }
-        """)
         
-        epg_layout.addWidget(self.main_window.epg_title)
-        epg_layout.addWidget(self.main_window.epg_timeline, stretch=1)
+        # 添加标题和内容到容器
+        self.main_window.epg_container.layout().addWidget(self.main_window.epg_header)
+        self.main_window.epg_container.layout().addWidget(self.main_window.epg_content)
+        
+        # 将收起按钮移到播放器控制区域
+        self.main_window.epg_toggle_btn = QtWidgets.QPushButton("◀")
+        self.main_window.epg_toggle_btn.setFixedWidth(20)
+        self.main_window.epg_toggle_btn.setCheckable(True)
+        self.main_window.epg_toggle_btn.setChecked(True)
+        
+        # 添加到控制按钮行
+        btn_row.addWidget(self.main_window.epg_toggle_btn)
+        
+        # 初始化EPG面板状态(默认展开)
+        self._toggle_epg_panel(True)
+        
+        # 连接收起按钮信号
+        self.main_window.epg_toggle_btn.toggled.connect(self._toggle_epg_panel)
+        
+        epg_layout.addWidget(self.main_window.epg_container, stretch=1)
         self.main_window.epg_panel.setLayout(epg_layout)
         
-        player_layout.addWidget(self.main_window.epg_panel, stretch=1)  # 右侧占1/4
+        # 使用独立的布局管理EPG面板
+        player_layout.addWidget(self.main_window.epg_panel)
         
         player_group.setLayout(player_layout)
         parent.addWidget(player_group)
@@ -707,6 +768,38 @@ class UIBuilder:
         exit_action = QtGui.QAction("退出(&X)", self.main_window)
         exit_action.setShortcut(QtGui.QKeySequence("Ctrl+Q"))
         file_menu.addAction(exit_action)
+
+    def _toggle_epg_panel(self, checked):
+        """切换EPG节目单区域显示状态"""
+        # 更新按钮图标方向(▶表示面板收起，◀表示面板展开)
+        self.main_window.epg_toggle_btn.setText("◀" if checked else "▶")
+        
+        # 确保分割器已初始化
+        if not hasattr(self.main_window, 'right_splitter'):
+            self.logger.error("right_splitter未初始化")
+            return
+            
+        # 固定高度调整，不影响宽度
+        if checked:
+            # 显示EPG面板 - 固定高度200px
+            self.main_window.right_splitter.setSizes([400, 200])
+            self.main_window.epg_content.setVisible(True)
+            self.main_window.epg_header.layout().setAlignment(Qt.AlignmentFlag.AlignTop)
+        else:
+            # 收起EPG面板 - 保持播放器高度不变
+            self.main_window.right_splitter.setSizes([600, 0])
+            self.main_window.epg_content.setVisible(False)
+            self.main_window.epg_header.layout().setAlignment(Qt.AlignmentFlag.AlignCenter)
+            
+        # 确保按钮始终可见
+        self.main_window.epg_toggle_btn.show()
+        
+        # 最小化布局更新
+        def update_layout():
+            self.main_window.epg_panel.setVisible(checked)
+            self.main_window.epg_panel.updateGeometry()
+            
+        QtCore.QTimer.singleShot(50, update_layout)
 
     def _setup_toolbar(self):
         """初始化工具栏"""

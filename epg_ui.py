@@ -7,28 +7,44 @@ from styles import AppStyles
 from typing import List
 from epg_model import EPGProgram
 
-class EPGProgramWidget(QtWidgets.QScrollArea):
+class EPGProgramWidget(QtWidgets.QWidget):
     """EPG节目单控件"""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("epg_container")
         self.setStyleSheet(AppStyles.epg_program_style())
-        self.setWidgetResizable(True)
-        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        
+        # 创建主布局
+        self.main_layout = QtWidgets.QVBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
+        
+        # 创建滚动区域
+        self.scroll_area = QtWidgets.QScrollArea()
+        self.scroll_area.setObjectName("epg_scroll_area")
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        
+        # 初始化容器
+        self.container = QtWidgets.QWidget()
+        self.container.setObjectName("epg_container_widget")
+        self.scroll_area.setWidget(self.container)
+        
+        # 节目列表布局
+        self.program_layout = QtWidgets.QVBoxLayout()
+        self.program_layout.setContentsMargins(0, 0, 0, 0)
+        self.program_layout.setSpacing(2)
+        self.container.setLayout(self.program_layout)
+        
+        # 添加滚动区域到主布局
+        self.main_layout.addWidget(self.scroll_area)
         
         # 直接使用全局logger
         import logging
         self.logger = logging.getLogger('IPTVLogger')
         
-        # 主容器
-        self.container = QtWidgets.QWidget()
-        self.container.setObjectName("epg_container_widget")
-        self.setWidget(self.container)
-        
-        self.layout = QtWidgets.QVBoxLayout()
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setSpacing(2)
-        self.container.setLayout(self.layout)
+        # 当前节目索引
+        self.current_program_index = -1
         
         # 当前节目索引
         self.current_program_index = -1
@@ -36,8 +52,8 @@ class EPGProgramWidget(QtWidgets.QScrollArea):
     def update_programs(self, channel_name: str, programs: List[EPGProgram]):
         """更新节目单显示"""
         # 清空现有内容
-        while self.layout.count():
-            item = self.layout.takeAt(0)
+        while self.program_layout.count():
+            item = self.program_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
         
@@ -46,7 +62,7 @@ class EPGProgramWidget(QtWidgets.QScrollArea):
             no_program = QtWidgets.QLabel(f"频道 {channel_name} 无节目数据")
             no_program.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             no_program.setStyleSheet("color: #999; font-size: 14px;")
-            self.layout.addWidget(no_program)
+            self.program_layout.addWidget(no_program)
             return
             
         # 获取当前时间
@@ -85,7 +101,7 @@ class EPGProgramWidget(QtWidgets.QScrollArea):
                     border-bottom: 1px solid #eee;
                 }
             """)
-            self.layout.addWidget(date_label)
+            self.program_layout.addWidget(date_label)
             
             # 添加该日期的所有节目
             for program in date_groups[date]:
@@ -266,8 +282,8 @@ class EPGProgramWidget(QtWidgets.QScrollArea):
             is_current = False
         
         # 重置所有可能的高亮项
-        for i in range(self.layout.count()):
-            item = self.layout.itemAt(i).widget()
+        for i in range(self.program_layout.count()):
+            item = self.program_layout.itemAt(i).widget()
             if item and item.objectName() == "epg_program_current":
                 item.setObjectName("epg_program")
                 for child in item.findChildren(QtWidgets.QLabel):
@@ -309,7 +325,7 @@ class EPGProgramWidget(QtWidgets.QScrollArea):
             title_label.setObjectName("epg_title_current")
             start_label.setObjectName("epg_time_current")
         
-        self.layout.addWidget(item)
+        self.program_layout.addWidget(item)
         return item  # 确保返回创建的item对象
 
 class EPGManagementDialog(QtWidgets.QDialog):

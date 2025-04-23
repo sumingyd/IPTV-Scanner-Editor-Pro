@@ -573,7 +573,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # 更新UI
         self.ui.main_window.epg_title.setText(f"{channel['name']} 节目单")
-        self.ui.main_window.epg_timeline.setWidget(epg_widget)
+        self.ui.main_window.epg_content.setWidget(epg_widget)
 
     def _on_epg_manager_clicked(self):
         """处理EPG管理按钮点击事件"""
