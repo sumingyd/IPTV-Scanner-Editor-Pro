@@ -268,6 +268,18 @@ class UIBuilder:
             QtWidgets.QSizePolicy.Policy.Expanding,
             QtWidgets.QSizePolicy.Policy.Expanding
         )
+        # 设置当前节目高亮样式
+        self.main_window.epg_timeline.setStyleSheet("""
+            QScrollArea {
+                border: none;
+            }
+            QLabel.current-program {
+                background-color: #4a90e2;
+                color: white;
+                padding: 2px 5px;
+                border-radius: 3px;
+            }
+        """)
         
         epg_layout.addWidget(self.main_window.epg_title)
         epg_layout.addWidget(self.main_window.epg_timeline, stretch=1)
@@ -604,6 +616,63 @@ class UIBuilder:
                 'name': self.main_window.model.data(current_index)
             }
             self.main_window.player_controller.play_channel(channel_data)
+            
+            # 延迟执行高亮，确保EPG节目单已加载
+            QtCore.QTimer.singleShot(500, lambda: self._highlight_current_program(channel_data))
+            
+            # 高亮并滚动到当前节目
+            self.logger.info(f"正在处理频道: {channel_data['name']}")
+            
+            if not hasattr(self.main_window, 'epg_widget'):
+                self.logger.warning("epg_widget属性不存在")
+                return
+                
+            if not self.main_window.epg_widget:
+                self.logger.warning("epg_widget未初始化")
+                return
+                
+            # 清除之前的高亮
+            for child in self.main_window.epg_widget.findChildren(QtWidgets.QLabel):
+                if 'current-program' in child.property('class'):
+                    child.setProperty('class', '')
+                    child.style().unpolish(child)
+                    child.style().polish(child)
+            
+            # 查找并高亮当前节目(模糊匹配)
+            current_channel = channel_data['name'].lower()
+            best_match = None
+            best_score = 0
+            
+            labels = self.main_window.epg_widget.findChildren(QtWidgets.QLabel)
+            self.logger.info(f"找到{len(labels)}个EPG节目标签")
+            
+            for child in labels:
+                epg_channel = child.text().lower()
+                self.logger.debug(f"比较频道: {current_channel} vs {epg_channel}")
+                
+                # 简单相似度计算
+                score = sum(1 for a, b in zip(current_channel, epg_channel) if a == b)
+                if score > best_score or (score == best_score and len(epg_channel) < len(child.text())):
+                    best_match = child
+                    best_score = score
+            
+            if best_match:
+                self.logger.info(f"最佳匹配: {best_match.text()} (匹配度: {best_score}/{len(current_channel)})")
+                if best_score >= len(current_channel)//2:  # 至少匹配一半字符
+                    best_match.setProperty('class', 'current-program')
+                    best_match.style().unpolish(best_match)
+                    best_match.style().polish(best_match)
+                    
+                    # 滚动到可见区域中心
+                    scroll_bar = self.main_window.epg_timeline.verticalScrollBar()
+                    widget_pos = best_match.mapTo(self.main_window.epg_timeline, QtCore.QPoint(0, 0))
+                    scroll_pos = widget_pos.y() - self.main_window.epg_timeline.height()//2 + best_match.height()//2
+                    scroll_bar.setValue(scroll_pos)
+                    self.logger.info(f"已滚动到位置: {scroll_pos}")
+                else:
+                    self.logger.warning("匹配度不足，未高亮显示")
+            else:
+                self.logger.warning("未找到匹配的EPG节目")
         else:
             # 已经是最后一行，回到第一行
             first_index = self.main_window.model.index(0, 0)

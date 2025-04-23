@@ -393,7 +393,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.player_controller.play_channel(channel):
             self.ui.main_window.pause_btn.setText("暂停")
             self.current_channel = channel
-            self._update_epg_display(channel)
+            # 延迟执行确保播放器初始化完成
+            QtCore.QTimer.singleShot(500, lambda: self._update_epg_display(channel))
 
     def _on_channel_found(self, channel_info):
         """处理发现有效频道事件"""

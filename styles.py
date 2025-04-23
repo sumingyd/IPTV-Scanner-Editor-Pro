@@ -7,6 +7,7 @@ class AppStyles:
         logger = LogManager()
         logger.info("应用样式初始化完成")
         return logger
+
     @staticmethod
     def main_window_style() -> str:
         return """
@@ -73,59 +74,46 @@ class AppStyles:
             return base_style + active_style
         return base_style
 
-
     @staticmethod
     def epg_program_style():
+        """EPG节目单样式(适配深色/浅色模式)"""
         return """
-        #epg_container {
-            background-color: #f5f5f5;
-            border: none;
-        }
-        #epg_container_widget {
-            background-color: #f5f5f5;
-        }
-        #epg_program {
-            background-color: white;
-            border-bottom: 1px solid #eee;
-            padding: 8px;
-        }
-        #epg_program_current {
-            background-color: #e6f7ff;
-            border-bottom: 2px solid #1890ff;
-            padding: 8px;
-        }
-        #epg_title {
-            color: #333;
-            font-size: 14px;
-        }
-        #epg_title_current {
-            color: #1890ff;
-            font-size: 14px;
-            font-weight: bold;
-        }
-        #epg_time {
-            color: #666;
-            font-size: 12px;
-        }
-        #epg_time_current {
-            color: #1890ff;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        QPushButton:enabled {
-            background-color: #1890ff;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-        }
-        QPushButton:disabled {
-            background-color: #d9d9d9;
-            color: #999;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-        }
+            QScrollArea#epg_container {
+                background-color: palette(base);
+                border: none;
+            }
+            QWidget#epg_container_widget {
+                background-color: palette(base);
+            }
+            QWidget#epg_program {
+                background-color: palette(base);
+                border-bottom: 1px solid palette(mid);
+                padding: 8px;
+            }
+            QWidget#epg_program_current {
+                background-color: palette(highlight);
+                border-bottom: 1px solid palette(mid);
+                padding: 8px;
+                margin: 0;
+            }
+            QLabel#epg_title {
+                color: palette(text);
+                font-size: 14px;
+            }
+            QLabel#epg_title_current {
+                color: white;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            QLabel#epg_time {
+                color: palette(placeholderText);
+                font-size: 12px;
+            }
+            QLabel#epg_time_current {
+                color: white;
+                font-weight: bold;
+                font-size: 12px;
+            }
         """
 
     @staticmethod
@@ -195,73 +183,5 @@ class AppStyles:
             QProgressBar::chunk {
                 background-color: #1890ff;
                 width: 10px;
-            }
-        """
-
-    @staticmethod
-    def dialog_style() -> str:
-        return """
-            QDialog {
-                background-color: palette(window);
-                color: palette(windowText);
-            }
-            QDialog QGroupBox {
-                border: 1px solid #ccc;
-                border-radius: 5px;
-                margin-top: 10px;
-                padding-top: 15px;
-            }
-            QDialog QLineEdit {
-                padding: 5px;
-                border: 1px solid #ccc;
-                border-radius: 3px;
-            }
-            QDialog QPushButton {
-                min-width: 80px;
-                padding: 5px 10px;
-            }
-        """
-
-    @staticmethod
-    def epg_program_style() -> str:
-        """EPG节目单样式"""
-        return """
-            /* 节目单容器样式 */
-            QWidget#epg_container {
-                background: transparent;
-            }
-            
-            /* 普通节目项样式 */
-            QGroupBox.epg_program {
-                border: 1px solid #444;
-                border-radius: 4px;
-                margin-top: 5px;
-                margin-bottom: 5px;
-                padding: 5px;
-            }
-            
-            /* 当前播放节目样式 */
-            QGroupBox.epg_program_current {
-                border: 2px solid #4CAF50;
-                background: rgba(76, 175, 80, 0.1);
-            }
-            
-            /* 节目标题样式 */
-            QLabel.epg_title {
-                margin: 2px;
-                font-weight: bold;
-            }
-            
-            /* 当前播放节目标题样式 */
-            QLabel.epg_title_current {
-                margin: 2px;
-                font-weight: bold;
-                color: #4CAF50;
-            }
-            
-            /* 节目描述样式 */
-            QLabel.epg_desc {
-                margin: 2px;
-                word-wrap: break-word;
             }
         """
