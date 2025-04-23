@@ -616,6 +616,13 @@ class UIBuilder:
         self.main_window.channel_list.setModel(self.main_window.model)
         self.main_window.channel_list.setStyleSheet(AppStyles.list_style())
         
+        # 启用拖放排序功能
+        self.main_window.channel_list.setDragEnabled(True)
+        self.main_window.channel_list.setAcceptDrops(True)
+        self.main_window.channel_list.setDragDropOverwriteMode(False)
+        self.main_window.channel_list.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.InternalMove)
+        self.main_window.channel_list.setDefaultDropAction(QtCore.Qt.DropAction.MoveAction)
+        
         list_layout.addWidget(self.main_window.channel_list)
         list_group.setLayout(list_layout)
         parent.addWidget(list_group)
