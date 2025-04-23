@@ -79,7 +79,64 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         """返回项标志"""
         if not index.isValid():
             return QtCore.Qt.ItemFlag.NoItemFlags
-        return QtCore.Qt.ItemFlag.ItemIsEnabled | QtCore.Qt.ItemFlag.ItemIsSelectable
+        return (QtCore.Qt.ItemFlag.ItemIsEnabled | 
+                QtCore.Qt.ItemFlag.ItemIsSelectable |
+                QtCore.Qt.ItemFlag.ItemIsDragEnabled |
+                QtCore.Qt.ItemFlag.ItemIsDropEnabled)
+                
+    def supportedDropActions(self) -> QtCore.Qt.DropAction:
+        """支持的拖放操作"""
+        return QtCore.Qt.DropAction.MoveAction
+        
+    def mimeTypes(self) -> List[str]:
+        """支持的MIME类型"""
+        return ['application/x-channel-row']
+        
+    def mimeData(self, indexes: List[QtCore.QModelIndex]) -> QtCore.QMimeData:
+        """创建拖放数据"""
+        mime_data = QtCore.QMimeData()
+        mime_data.setData('application/x-channel-row', 
+                         str(indexes[0].row()).encode())
+        return mime_data
+        
+    def dropMimeData(self, data: QtCore.QMimeData, action: QtCore.Qt.DropAction,
+                    row: int, column: int, parent: QtCore.QModelIndex) -> bool:
+        """处理拖放数据"""
+        if not data.hasFormat('application/x-channel-row'):
+            return False
+            
+        if action == QtCore.Qt.DropAction.IgnoreAction:
+            return True
+            
+        # 获取拖动源行
+        source_row = int(data.data('application/x-channel-row').data().decode())
+        
+        # 计算目标行
+        if row == -1:
+            if parent.isValid():
+                row = parent.row()
+            else:
+                row = self.rowCount()
+                
+        # 移动行
+        self.moveRow(source_row, row)
+        return True
+        
+    def moveRow(self, source_row: int, target_row: int) -> bool:
+        """移动行到新位置"""
+        if source_row == target_row or not (0 <= source_row < len(self.channels)):
+            return False
+            
+        # 确保目标行在有效范围内
+        target_row = min(max(0, target_row), len(self.channels))
+        
+        self.beginResetModel()
+        channel = self.channels.pop(source_row)
+        if target_row > source_row:
+            target_row -= 1
+        self.channels.insert(target_row, channel)
+        self.endResetModel()
+        return True
 
     def get_channel(self, index: int) -> Dict[str, Any]:
         """根据索引获取频道信息"""
