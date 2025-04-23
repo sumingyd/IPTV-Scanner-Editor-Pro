@@ -120,11 +120,10 @@ class AboutDialog(QtWidgets.QDialog):
                         <li>支持从多个源下载EPG数据，自动处理编码问题</li>
                         <li>智能合并处理重复节目信息，保留不重复的节目名称</li>
                         <li>提供节目查询和模糊匹配功能，支持频道名称模糊搜索</li>
-                        <li>加载后可在频道编辑中选择关联节目，自动匹配EPG信息</li>
+                        <li>加载后可在频道编辑中匹配频道名，用于编辑频道名</li>
                         <li>按住Shift点击刷新可强制更新EPG数据(忽略本地缓存)</li>
-                        <li>支持EPG数据本地缓存(epg.xml)和自动更新</li>
+                        <li>支持EPG数据本地缓存(epg.xml)</li>
                         <li>自动处理XML格式错误和编码问题，确保数据可用性</li>
-                        <li>支持EPG源优先级设置，主备源自动切换</li>
                     </ul>
                 </li>
                 <li><b>频道扫描</b>：
@@ -141,20 +140,14 @@ class AboutDialog(QtWidgets.QDialog):
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
                         <li>支持频道分组管理，自定义分组名称</li>
                         <li>批量检测频道有效性(延迟、分辨率)</li>
-                        <li>支持频道排序和筛选(按名称、有效性等)</li>
-                        <li>右键菜单提供快捷操作(播放、编辑、检测等)</li>
                         <li>支持拖拽调整频道顺序</li>
-                        <li>自动保存频道列表变更</li>
                     </ul>
                 </li>
                 <li><b>频道编辑</b>：
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
-                        <li>添加/删除/修改频道基本信息(名称、URL、分组等)</li>
+                        <li>修改频道基本信息(名称、分组)</li>
                         <li>支持批量导入/导出频道数据(M3U/TXT格式)</li>
-                        <li>支持EPG节目信息自动匹配和手动关联</li>
-                        <li>频道有效性状态实时显示</li>
-                        <li>支持频道备注信息添加</li>
-                        <li>快捷键支持(Enter保存, Esc取消等)</li>
+                        <li>快捷键支持(Enter保存修改并编辑下一个频道)</li>
                     </ul>
                 </li>
                 <li><b>播放控制</b>：
@@ -162,9 +155,6 @@ class AboutDialog(QtWidgets.QDialog):
                         <li>基于VLC的高性能播放引擎，支持硬件加速</li>
                         <li>音量控制(0-100)和静音功能</li>
                         <li>暂停/继续播放控制</li>
-                        <li>自动重连机制，网络中断后尝试恢复</li>
-                        <li>播放状态实时显示</li>
-                        <li>支持全屏播放和窗口模式切换</li>
                     </ul>
                 </li>
                 <li><b>配置管理</b>：
@@ -179,9 +169,8 @@ class AboutDialog(QtWidgets.QDialog):
                 <li><b>操作方式</b>：
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
                         <li>Shift+点击刷新: 强制更新EPG数据</li>
-                        <li>右键菜单: 频道快捷操作</li>
                         <li>双击频道: 立即播放</li>
-                        <li>Enter键: 确认编辑/保存</li>
+                        <li>Enter键: 确认编辑并进行下一个频道的编辑</li>
                         <li>Esc键: 取消操作/关闭窗口</li>
                         <li>拖拽: 调整频道顺序/分组</li>
                     </ul>
