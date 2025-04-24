@@ -12,9 +12,9 @@ logger = LogManager()
 
 class AboutDialog(QtWidgets.QDialog):
     # 版本配置
-    CURRENT_VERSION = "6.0.0.0"  # 当前版本号(手动修改这里)
+    CURRENT_VERSION = "7.0.0.0"  # 当前版本号(手动修改这里)
     DEFAULT_VERSION = None  # 将从GitHub获取最新版本
-    BUILD_DATE = "2025-04-22"  # 更新为当前日期
+    BUILD_DATE = "2025-04-24"  # 更新为当前日期
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -47,24 +47,23 @@ class AboutDialog(QtWidgets.QDialog):
         """初始化UI组件"""
         theme = self.DARK_THEME if self.palette().window().color().lightness() < 128 else self.LIGHT_THEME
 
-        text_label = QtWidgets.QLabel()
-        text_label.setObjectName("aboutTextLabel")
-        text_label.setTextFormat(Qt.TextFormat.RichText)
-        text_label.setText(self._get_about_html(theme))
-        text_label.setWordWrap(True)
-        text_label.setOpenExternalLinks(True)
+        text_browser = QtWidgets.QTextBrowser()
+        text_browser.setObjectName("aboutTextBrowser")
+        text_browser.setHtml(self._get_about_html(theme))
+        text_browser.setOpenExternalLinks(True)
+        text_browser.setOpenLinks(False)
+        text_browser.anchorClicked.connect(self._on_link_activated)
 
         close_btn = QtWidgets.QPushButton("关闭")
         close_btn.clicked.connect(self.close)
 
         layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(text_label)
+        layout.addWidget(text_browser)
         layout.addWidget(close_btn, 0, Qt.AlignmentFlag.AlignCenter)
         
         self.setLayout(layout)
         self.setMinimumWidth(500)
         self.setMinimumHeight(580)
-        text_label.linkActivated.connect(self._on_link_activated)
         
         self.setStyleSheet(f"""
             QDialog {{
@@ -182,7 +181,8 @@ class AboutDialog(QtWidgets.QDialog):
                 <p>
                     <a href="https://github.com/sumingyd/IPTV-Scanner-Editor-Pro" 
                        style="color: {self.ACCENT_COLOR}; text-decoration: none;">GitHub 仓库</a> 
-                    | <a href="javascript:void(0)" style="color: {self.ACCENT_COLOR}; text-decoration: none;" id="checkUpdate">在线更新</a>
+                    | <a href="javascript:void(0)" style="color: {self.ACCENT_COLOR}; text-decoration: none;" 
+                       onclick="window.pywebview.api.handle_update_click()">在线更新</a>
                 </p>
                 <p style="font-size: 0.8em; margin-top: 10px;">
                     系统信息: Python {sys.version.split()[0]}, {platform.system()} {platform.release()}
@@ -194,23 +194,32 @@ class AboutDialog(QtWidgets.QDialog):
     def show(self):
         """显示对话框并异步更新最新版本号"""
         logger.info("显示关于对话框，开始版本检测流程")
-        super().show()
-        text_label = self.findChild(QtWidgets.QLabel, "aboutTextLabel")
-        if not text_label:
-            logger.error("未找到关于文本标签")
+        text_browser = self.findChild(QtWidgets.QTextBrowser, "aboutTextBrowser")
+        if not text_browser:
+            logger.error("未找到关于文本浏览器")
             return
             
-        logger.debug("设置初始版本文本为'检测中...'")
-        self._update_version_text(text_label, version="检测中...")
+        # 先显示对话框
+        super().show()
+        QtWidgets.QApplication.processEvents()
         
-        # 使用QTimer延迟执行版本检查，避免阻塞UI
-        logger.info("启动版本检测定时器，100ms后执行")
-        QtCore.QTimer.singleShot(100, lambda: (
-            logger.debug("定时器触发，开始版本检测"),
-            self._check_version_async(text_label)
-        ))
+        # 延迟100ms确保对话框完全显示后再设置文本
+        def set_initial_text():
+            logger.debug("设置初始版本文本为'检测中...'")
+            # 直接使用原始HTML内容替换，避免toHtml()可能的问题
+            original_html = self._get_about_html(self.DARK_THEME if self.palette().window().color().lightness() < 128 else self.LIGHT_THEME)
+            initial_html = original_html.replace(
+                '<span id="latestVersion"></span>', 
+                '<span id="latestVersion">检测中...</span>'
+            )
+            text_browser.setHtml(initial_html)
+            
+            # 再延迟100ms开始版本检查
+            QtCore.QTimer.singleShot(100, lambda: self._check_version_async(text_browser))
+            
+        QtCore.QTimer.singleShot(100, set_initial_text)
         
-    def _check_version_async(self, text_label):
+    def _check_version_async(self, text_browser):
         """异步检查版本"""
         try:
             loop = asyncio.new_event_loop()
@@ -219,8 +228,10 @@ class AboutDialog(QtWidgets.QDialog):
                 asyncio.wait_for(self._get_latest_version(), timeout=5)
             )
             if latest_version and latest_version not in ("请求超时", "获取失败"):
-                self._update_version_text(text_label, version=latest_version, date=publish_date)
+                logger.info(f"准备更新界面显示版本: {latest_version}")
+                self._update_version_text(text_browser, version=latest_version)
             else:
+                logger.warning(f"版本检查失败: {latest_version}")
                 self._show_version_error(latest_version)
         except asyncio.TimeoutError:
             logger.error("获取最新版本超时")
@@ -231,43 +242,105 @@ class AboutDialog(QtWidgets.QDialog):
         finally:
             loop.close()
 
-    def _update_version_text(self, text_label, version=None, date=None, error_msg=None):
+    def _update_version_text(self, text_browser, version=None, date=None, error_msg=None):
         """更新版本号文本"""
-        if text_label:
-            current_text = text_label.text()
-            import re
-            if version is not None:
-                current_text = re.sub(
-                    r'(最新版本：</b>\s*)([^<]+)', 
-                    f'\\g<1>{version}', 
-                    current_text
+        if text_browser:
+            logger.debug(f"开始更新版本文本，version={version}, error_msg={error_msg}")
+            
+            # 获取当前HTML
+            current_html = text_browser.toHtml()
+            logger.debug(f"当前HTML内容: {current_html}")
+            
+            # 确定要设置的内容
+            content = version if version is not None else error_msg
+            
+            if content is not None:
+                # 方法1: 直接重建整个HTML
+                theme = self.DARK_THEME if self.palette().window().color().lightness() < 128 else self.LIGHT_THEME
+                full_html = self._get_about_html(theme).replace(
+                    '<span id="latestVersion"></span>',
+                    f'<span id="latestVersion">{content}</span>'
                 )
-            if error_msg is not None:
-                current_text = re.sub(
-                    r'(最新版本：</b>\s*)([^<]+)', 
-                    f'\\g<1>{error_msg}', 
-                    current_text
-                )
-            text_label.setText(current_text)
+                text_browser.setHtml(full_html)
+                
+                # 强制刷新界面
+                text_browser.repaint()
+                QtWidgets.QApplication.processEvents()
+                
+                # 验证更新是否成功
+                updated_html = text_browser.toHtml()
+                if content not in updated_html:
+                    logger.error("方法1更新失败，尝试方法2")
+                    
+                    # 方法2: 使用JavaScript直接修改DOM
+                    script = f"""
+                        var elem = document.getElementById('latestVersion');
+                        if (elem) {{
+                            elem.innerHTML = '{content}';
+                            console.log('成功更新版本号');
+                        }} else {{
+                            console.error('未找到latestVersion元素');
+                        }}
+                    """
+                    text_browser.page().runJavaScript(script)
+                    
+                    # 再次验证
+                    updated_html = text_browser.toHtml()
+                    if content not in updated_html:
+                        logger.error("方法2也失败，尝试方法3")
+                        
+                        # 方法3: 使用QTimer延迟执行
+                        QtCore.QTimer.singleShot(100, lambda: (
+                            text_browser.setHtml(full_html),
+                            text_browser.repaint(),
+                            QtWidgets.QApplication.processEvents()
+                        ))
+            else:
+                logger.warning("未提供版本号或错误信息")
 
     def _show_version_error(self, error_msg):
         """显示版本获取错误信息"""
-        text_label = self.findChild(QtWidgets.QLabel, "aboutTextLabel")
-        self._update_version_text(text_label, error_msg=error_msg)
+        text_browser = self.findChild(QtWidgets.QTextBrowser, "aboutTextBrowser")
+        self._update_version_text(text_browser, error_msg=error_msg)
 
     def _on_link_activated(self, link):
         """处理链接点击事件"""
         if link == "javascript:void(0)":
             logger.info("在线更新按钮被点击")
-            loop = asyncio.get_event_loop()
-            task = loop.create_task(self._perform_online_update())
-            QtWidgets.QApplication.processEvents()
-            loop.run_until_complete(task)
-        elif link.startswith("http"):
+            try:
+                # 确保有事件循环
+                loop = asyncio.get_event_loop()
+                if loop.is_closed():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                
+                # 显示点击反馈
+                QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
+                QtWidgets.QApplication.processEvents()
+                
+                # 启动更新任务
+                task = loop.create_task(self._perform_online_update())
+                loop.run_until_complete(task)
+                
+            except Exception as e:
+                logger.error(f"更新按钮点击处理失败: {str(e)}", exc_info=True)
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "更新错误",
+                    f"无法启动更新流程: {str(e)}"
+                )
+            finally:
+                QtWidgets.QApplication.restoreOverrideCursor()
+                QtWidgets.QApplication.processEvents()
+                
+        elif link.toString().startswith("http"):
             QtGui.QDesktopServices.openUrl(QtCore.QUrl(link))
 
     async def _perform_online_update(self):
         """执行在线更新"""
+        max_retries = 3
+        retry_delay = 1  # 秒
+        
         progress = QtWidgets.QProgressDialog("正在检查更新...", "取消", 0, 0, self)
         progress.setWindowTitle("在线更新")
         progress.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
@@ -276,47 +349,78 @@ class AboutDialog(QtWidgets.QDialog):
         progress.show()
         QtWidgets.QApplication.processEvents()
 
-        try:
-            # 1. 获取最新版本信息
-            progress.setLabelText("正在获取版本信息...")
-            version, date, download_url = await self._get_latest_version()
-            
-            if not download_url:
-                raise Exception("未找到下载链接")
+        for attempt in range(max_retries):
+            try:
+                # 1. 获取最新版本信息
+                progress.setLabelText(f"正在获取版本信息(第{attempt+1}次尝试)...")
+                version, date, download_url = await self._get_latest_version()
                 
-            # 2. 下载更新包
-            progress.setLabelText("正在下载更新...")
-            async with aiohttp.ClientSession() as session:
-                async with session.get(download_url) as response:
-                    if response.status != 200:
-                        raise Exception(f"下载失败: HTTP {response.status}")
-                        
-                    # 3. 保存更新文件
-                    update_file = "update.zip"
-                    with open(update_file, "wb") as f:
-                        while True:
-                            chunk = await response.content.read(1024)
-                            if not chunk:
-                                break
-                            f.write(chunk)
+                if not download_url:
+                    raise Exception("未找到下载链接")
+                    
+                # 2. 下载更新包
+                progress.setLabelText(f"正在下载更新(第{attempt+1}次尝试)...")
+                progress.setRange(0, 0)  # 不确定进度模式
+                
+                # 设置下载超时和重试
+                timeout = aiohttp.ClientTimeout(total=30)
+                connector = aiohttp.TCPConnector(force_close=True)
+                
+                async with aiohttp.ClientSession(
+                    timeout=timeout,
+                    connector=connector,
+                    headers={'User-Agent': 'IPTV-Scanner-Editor-Pro'}
+                ) as session:
+                    try:
+                        async with session.get(download_url) as response:
+                            if response.status != 200:
+                                raise Exception(f"下载失败: HTTP {response.status}")
+                                
+                            # 获取文件大小用于进度显示
+                            file_size = int(response.headers.get('Content-Length', 0))
+                            progress.setRange(0, file_size)
+                            progress.setValue(0)
                             
-            # 4. 提示用户重启应用完成更新
-            progress.setLabelText("更新下载完成，请重启应用")
-            QtWidgets.QMessageBox.information(
-                self, 
-                "更新完成",
-                f"已下载版本 {version} 的更新包，请重启应用完成更新"
-            )
-            
-        except Exception as e:
-            logger.error(f"在线更新失败: {str(e)}")
-            QtWidgets.QMessageBox.critical(
-                self,
-                "更新失败",
-                f"在线更新失败: {str(e)}"
-            )
-        finally:
-            progress.close()
+                            # 3. 保存更新文件(包含版本号)
+                            update_file = f"IPTV-Scanner-Editor-Pro-{version}.exe"
+                            with open(update_file, "wb") as f:
+                                downloaded = 0
+                                async for chunk in response.content.iter_chunked(8192):
+                                    f.write(chunk)
+                                    downloaded += len(chunk)
+                                    progress.setValue(downloaded)
+                                    QtWidgets.QApplication.processEvents()
+                                    
+                        # 4. 提示用户重启应用完成更新
+                        progress.setLabelText("更新下载完成，请重启应用")
+                        QtWidgets.QMessageBox.information(
+                            self, 
+                            "更新完成",
+                            f"已下载版本 {version} 的更新包，请重启应用完成更新"
+                        )
+                        return  # 成功完成，退出循环
+                        
+                    except aiohttp.ClientError as e:
+                        logger.error(f"下载失败(第{attempt+1}次): {str(e)}")
+                        if attempt < max_retries - 1:
+                            await asyncio.sleep(retry_delay * (attempt + 1))
+                            continue
+                        raise
+                        
+            except Exception as e:
+                logger.error(f"在线更新失败(第{attempt+1}次): {str(e)}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delay * (attempt + 1))
+                    continue
+                    
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "更新失败",
+                    f"在线更新失败: {str(e)}\n\n请检查网络连接或稍后再试。"
+                )
+                break
+                
+        progress.close()
             
     async def _check_update(self):
         """手动检查更新"""
@@ -341,29 +445,68 @@ class AboutDialog(QtWidgets.QDialog):
 
     async def _get_latest_version(self):
         """从GitHub获取最新版本信息"""
-        try:
-            url = "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest"
-            logger.info(f"从GitHub获取最新版本: {url}")
-            
-            # 设置更长的超时时间
-            timeout = aiohttp.ClientTimeout(total=10)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(url) as response:
-                    logger.info(f"GitHub API响应状态: {response.status}")
-                    if response.status == 200:
-                        data = await response.json()
-                        logger.debug(f"GitHub API响应数据: {data}")
-                        version = data.get('tag_name', '').lstrip('v')
-                        publish_date = data.get('published_at', '').split('T')[0]
-                        download_url = data.get('assets', [{}])[0].get('browser_download_url', '')
-                        if version and publish_date:
-                            logger.info(f"获取到最新版本: {version}, 发布时间: {publish_date}")
-                            self.DEFAULT_VERSION = version
-                            return (version, publish_date, download_url)
-                    raise Exception(f"HTTP状态码: {response.status}")
-        except asyncio.TimeoutError:
-            logger.error("获取最新版本超时")
-            return ("请求超时", datetime.date.today().strftime("%Y-%m-%d"), "")
-        except Exception as e:
-            logger.error(f"获取版本失败: {str(e)}", exc_info=True)
-            return ("获取失败", datetime.date.today().strftime("%Y-%m-%d"), "")
+        max_retries = 3
+        retry_delay = 1  # 秒
+        
+        for attempt in range(max_retries):
+            try:
+                url = "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest"
+                logger.info(f"尝试获取最新版本(第{attempt+1}次): {url}")
+                
+                # 设置超时和代理
+                timeout = aiohttp.ClientTimeout(total=15)
+                connector = aiohttp.TCPConnector(force_close=True)
+                
+                # 添加User-Agent和Accept头
+                headers = {
+                    'User-Agent': 'IPTV-Scanner-Editor-Pro',
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+                
+                async with aiohttp.ClientSession(
+                    timeout=timeout,
+                    connector=connector,
+                    headers=headers
+                ) as session:
+                    try:
+                        async with session.get(url) as response:
+                            logger.info(f"GitHub API响应状态: {response.status}")
+                            if response.status == 200:
+                                data = await response.json()
+                                logger.debug(f"GitHub API响应数据: {data}")
+                                version = data.get('tag_name', '').lstrip('v')
+                                publish_date = data.get('published_at', '').split('T')[0]
+                                download_url = data.get('assets', [{}])[0].get('browser_download_url', '')
+                                if version and publish_date:
+                                    logger.info(f"获取到最新版本: {version}, 发布时间: {publish_date}")
+                                    self.DEFAULT_VERSION = version
+                                    return (version, publish_date, download_url)
+                            elif response.status == 403:
+                                # GitHub API限制
+                                reset_time = response.headers.get('X-RateLimit-Reset')
+                                if reset_time:
+                                    reset_time = datetime.datetime.fromtimestamp(int(reset_time))
+                                    return (f"API限制(重置时间: {reset_time})", 
+                                            datetime.date.today().strftime("%Y-%m-%d"), "")
+                                return ("API请求受限", datetime.date.today().strftime("%Y-%m-%d"), "")
+                            raise Exception(f"HTTP状态码: {response.status}")
+                    except aiohttp.ClientError as e:
+                        logger.error(f"网络请求错误: {str(e)}")
+                        if attempt < max_retries - 1:
+                            await asyncio.sleep(retry_delay * (attempt + 1))
+                            continue
+                        raise
+            except asyncio.TimeoutError:
+                logger.error("获取最新版本超时")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delay * (attempt + 1))
+                    continue
+                return ("请求超时", datetime.date.today().strftime("%Y-%m-%d"), "")
+            except Exception as e:
+                logger.error(f"获取版本失败: {str(e)}", exc_info=True)
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delay * (attempt + 1))
+                    continue
+                return ("获取失败", datetime.date.today().strftime("%Y-%m-%d"), "")
+        
+        return ("网络错误", datetime.date.today().strftime("%Y-%m-%d"), "")
