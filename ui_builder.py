@@ -623,6 +623,10 @@ class UIBuilder:
         self.main_window.channel_list.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.InternalMove)
         self.main_window.channel_list.setDefaultDropAction(QtCore.Qt.DropAction.MoveAction)
         
+        # 添加右键菜单
+        self.main_window.channel_list.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.main_window.channel_list.customContextMenuRequested.connect(self._show_channel_context_menu)
+        
         list_layout.addWidget(self.main_window.channel_list)
         list_group.setLayout(list_layout)
         parent.addWidget(list_group)
@@ -807,6 +811,46 @@ class UIBuilder:
             self.main_window.epg_panel.updateGeometry()
             
         QtCore.QTimer.singleShot(50, update_layout)
+
+    def _show_channel_context_menu(self, pos):
+        """显示频道列表的右键菜单"""
+        index = self.main_window.channel_list.indexAt(pos)
+        if not index.isValid():
+            return
+            
+        menu = QtWidgets.QMenu()
+        
+        # 添加删除频道菜单项
+        delete_action = QtGui.QAction("删除频道", self.main_window)
+        delete_action.triggered.connect(lambda: self._delete_selected_channel(index))
+        menu.addAction(delete_action)
+        
+        # 显示菜单
+        menu.exec(self.main_window.channel_list.viewport().mapToGlobal(pos))
+        
+    def _delete_selected_channel(self, index):
+        """删除选中的频道"""
+        if not index.isValid():
+            return
+            
+        # 确认删除
+        reply = QtWidgets.QMessageBox.question(
+            self.main_window,
+            "确认删除",
+            "确定要删除这个频道吗?",
+            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No
+        )
+        
+        if reply == QtWidgets.QMessageBox.StandardButton.Yes:
+            # 从模型中删除行
+            self.main_window.model.removeRow(index.row())
+            self.logger.info(f"已删除频道: 行 {index.row()}")
+            
+            # 更新状态标签
+            if hasattr(self.main_window, 'validate_status_label'):
+                self.main_window.validate_status_label.setText(
+                    f"检测: {self.main_window.model.rowCount()}/0"
+                )
 
     def _setup_toolbar(self):
         """初始化工具栏"""
