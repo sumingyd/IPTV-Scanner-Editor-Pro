@@ -26,6 +26,9 @@ class UIBuilder:
         if not self._model_initialized:
             self.logger.info("初始化频道列表")
             self._model_initialized = True
+            # 模型初始化后强制更新按钮状态
+            if hasattr(self.main_window, 'btn_load_old'):
+                self._update_load_button_state()
 
     def _init_ui(self):
         """初始化用户界面"""
@@ -429,7 +432,17 @@ class UIBuilder:
         
         # 加载旧列表按钮
         self.main_window.btn_load_old = QtWidgets.QPushButton("加载旧列表")
-        self.main_window.btn_load_old.setStyleSheet(AppStyles.button_style(active=True))
+        self.main_window.btn_load_old.clicked.connect(self._load_old_list)
+        
+        # 强制初始状态更新
+        self._update_load_button_state()
+        
+        # 监听模型变化信号
+        if hasattr(self.main_window, 'model') and self.main_window.model:
+            self.main_window.model.dataChanged.connect(self._update_load_button_state)
+            self.main_window.model.rowsInserted.connect(self._update_load_button_state)
+            self.main_window.model.rowsRemoved.connect(self._update_load_button_state)
+            self.main_window.model.modelReset.connect(self._update_load_button_state)
         
         # 执行匹配按钮
         self.main_window.btn_match = QtWidgets.QPushButton("执行自动匹配")
@@ -439,6 +452,57 @@ class UIBuilder:
         button_layout.addWidget(self.main_window.btn_load_old)
         button_layout.addWidget(self.main_window.btn_match)
         layout.addLayout(button_layout)
+
+    def _update_load_button_state(self, *args):
+        """更新加载按钮状态"""
+        try:
+            # 检查模型是否存在
+            if not hasattr(self.main_window, 'model'):
+                return
+                
+            # 检查按钮是否存在
+            if not hasattr(self.main_window, 'btn_load_old'):
+                return
+                
+            # 获取当前行数
+            row_count = self.main_window.model.rowCount()
+            
+            # 更新按钮状态
+            has_channels = row_count > 0
+            self.main_window.btn_load_old.setStyleSheet(AppStyles.button_style(active=has_channels))
+            self.main_window.btn_load_old.setEnabled(has_channels)
+            
+            # 强制刷新样式和布局
+            self.main_window.btn_load_old.style().unpolish(self.main_window.btn_load_old)
+            self.main_window.btn_load_old.style().polish(self.main_window.btn_load_old)
+            self.main_window.btn_load_old.update()
+        except Exception as e:
+            self.logger.error(f"更新按钮状态出错: {str(e)}")
+
+    def _load_old_list(self):
+        """加载旧列表处理函数"""
+        try:
+            # 弹出文件选择对话框
+            file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+                self.main_window,
+                "选择旧列表文件",
+                "",
+                "M3U文件 (*.m3u);;所有文件 (*)"
+            )
+            
+            if file_path:
+                # 调用主窗口的加载方法
+                self.main_window.load_old_list(file_path)
+                self.main_window.match_status.setText("旧列表加载完成")
+                self.main_window.btn_match.setEnabled(True)
+                
+                # 强制更新按钮状态
+                self._update_load_button_state()
+                # 确保UI立即更新
+                QtCore.QCoreApplication.processEvents()
+        except Exception as e:
+            self.logger.error(f"加载旧列表失败: {str(e)}")
+            self.main_window.match_status.setText(f"加载失败: {str(e)}")
 
     def _setup_match_progress(self, layout):
         """设置匹配进度显示"""
