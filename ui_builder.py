@@ -104,6 +104,9 @@ class UIBuilder:
 
     def _init_splitters(self):
         """初始化所有分隔条控件"""
+        # 加载保存的分隔条位置
+        _, _, dividers = self.main_window.config.load_window_layout()
+        
         # 主水平分割器（左右布局）
         self.main_window.main_splitter = QtWidgets.QSplitter(Qt.Orientation.Horizontal)
         self.main_window.main_splitter.setChildrenCollapsible(True)  # 允许子部件收起
@@ -111,19 +114,12 @@ class UIBuilder:
         self.main_window.main_splitter.setOpaqueResize(True)  # 实时更新分割器位置
         self._setup_custom_splitter(self.main_window.main_splitter)
         
-        # 强制设置初始比例(完全收起右侧)
-        self.main_window.main_splitter.setSizes([800, 0])
-        self.main_window.main_splitter.update()
-        self.main_window.main_splitter.updateGeometry()
-        
-        # 延迟再次设置确保生效
-        QtCore.QTimer.singleShot(100, lambda: [
-            self.main_window.main_splitter.setSizes([800, 0]),
-            self.main_window.main_splitter.update(),
-            self.main_window.main_splitter.updateGeometry(),
-            self.main_window.main_splitter.parent().update(),
-            self.main_window.main_splitter.parent().updateGeometry()
-        ])
+        # 仅在未加载保存布局时设置默认值
+        if not (dividers and len(dividers) >= 8):
+            # 设置更合理的默认尺寸(基于窗口当前大小)
+            width = self.main_window.width()
+            height = self.main_window.height()
+            self.main_window.main_splitter.setSizes([int(width*0.7), int(width*0.3)])
         
         # 左侧垂直分割器（扫描面板 + 频道列表）
         self.main_window.left_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical) 
@@ -164,11 +160,13 @@ class UIBuilder:
             self.main_window.right_splitter.setSizes(dividers[4:6])
             self.main_window.h_splitter.setSizes(dividers[6:8])
         else:
-            # 设置默认尺寸
-            self.main_window.main_splitter.setSizes([400, 600])
-            self.main_window.left_splitter.setSizes([250, 450])
-            self.main_window.right_splitter.setSizes([400, 200])
-            self.main_window.h_splitter.setSizes([300, 300])
+            # 设置更合理的默认尺寸(基于窗口当前大小)
+            width = self.main_window.width()
+            height = self.main_window.height()
+            self.main_window.main_splitter.setSizes([int(width*0.4), int(width*0.6)])
+            self.main_window.left_splitter.setSizes([int(height*0.4), int(height*0.6)])
+            self.main_window.right_splitter.setSizes([int(height*0.7), int(height*0.3)])
+            self.main_window.h_splitter.setSizes([int(width*0.5), int(width*0.5)])
 
     def _setup_custom_splitter(self, splitter):
         splitter.setChildrenCollapsible(False)
@@ -296,7 +294,6 @@ class UIBuilder:
         
         # 右侧EPG节目单区域 (独立布局)
         self.main_window.epg_panel = QtWidgets.QWidget()
-        self.main_window.epg_panel.setFixedWidth(300)  # 固定宽度
         epg_layout = QtWidgets.QVBoxLayout()
         epg_layout.setContentsMargins(0, 0, 0, 0)
         epg_layout.setSpacing(0)
@@ -794,15 +791,19 @@ class UIBuilder:
             self.logger.error("right_splitter未初始化")
             return
             
-        # 固定高度调整，不影响宽度
+        # 获取当前总高度
+        total_height = self.main_window.right_splitter.height()
+        
         if checked:
-            # 显示EPG面板 - 固定高度200px
-            self.main_window.right_splitter.setSizes([400, 200])
+            # 显示EPG面板 - 动态分配高度(播放器占70%，EPG占30%)
+            player_height = int(total_height * 0.7)
+            epg_height = total_height - player_height
+            self.main_window.right_splitter.setSizes([player_height, epg_height])
             self.main_window.epg_content.setVisible(True)
             self.main_window.epg_header.layout().setAlignment(Qt.AlignmentFlag.AlignTop)
         else:
-            # 收起EPG面板 - 保持播放器高度不变
-            self.main_window.right_splitter.setSizes([600, 0])
+            # 收起EPG面板 - 全部空间给播放器
+            self.main_window.right_splitter.setSizes([total_height, 0])
             self.main_window.epg_content.setVisible(False)
             self.main_window.epg_header.layout().setAlignment(Qt.AlignmentFlag.AlignCenter)
             
