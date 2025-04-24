@@ -7,10 +7,11 @@ class PlayerController(QObject):
     play_error = pyqtSignal(str)
     play_state_changed = pyqtSignal(bool)  # True=播放中, False=停止
     
-    def __init__(self, video_widget):
+    def __init__(self, video_widget, channel_model=None):
         super().__init__()
         self.logger = LogManager()
         self.video_widget = video_widget
+        self.channel_model = channel_model
         self.instance = None
         self.player = None
         self.is_playing = False
@@ -109,7 +110,11 @@ class PlayerController(QObject):
         self.logger.info(f"尝试播放频道: {name} (URL: {url})")
         try:
             result = self.play(url, name)
-            if not result:
+            if result:
+                # 播放成功，标记频道为有效
+                if hasattr(self, 'channel_model') and self.channel_model:
+                    self.channel_model.set_channel_valid(url, True)
+            else:
                 self.logger.warning(f"播放失败: {url} (状态码: {self.player.get_state().value if self.player else 'N/A'})")
             return result
         except Exception as e:

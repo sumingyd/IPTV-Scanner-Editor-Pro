@@ -35,7 +35,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scanner = ScannerController(self.model)
         from player_controller import PlayerController
         from list_manager import ListManager
-        self.player_controller = PlayerController(self.ui.main_window.player)
+        self.player_controller = PlayerController(self.ui.main_window.player, self.model)
         self.list_manager = ListManager(self.model)
         
         # UI构建完成后加载配置

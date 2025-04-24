@@ -323,6 +323,10 @@ class UIBuilder:
             QtWidgets.QSizePolicy.Policy.Expanding
         )
         
+        # 创建EPG时间线控件
+        self.main_window.epg_timeline = QtWidgets.QScrollArea()
+        self.main_window.epg_timeline.setWidgetResizable(True)
+        
         # 添加标题和内容到容器
         self.main_window.epg_container.layout().addWidget(self.main_window.epg_header)
         self.main_window.epg_container.layout().addWidget(self.main_window.epg_content)
