@@ -946,6 +946,7 @@ class UIBuilder:
         toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
         toolbar.setMovable(False)
         toolbar.setIconSize(QtCore.QSize(24, 24))  # 设置合适的图标大小
+        toolbar.setStyleSheet(AppStyles.toolbar_button_style())
 
         # 使用emoji作为文本的工具栏按钮
         def create_action(emoji, text, tooltip=None):

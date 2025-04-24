@@ -185,3 +185,25 @@ class AppStyles:
                 width: 10px;
             }
         """
+
+    @staticmethod
+    def toolbar_button_style() -> str:
+        """工具栏按钮样式(emoji+文字)"""
+        return """
+            QToolButton {
+                border: none;
+                padding: 2px 5px;
+                margin: 1px;
+                background: transparent;
+                min-width: 60px;
+                min-height: 30px;
+                color: palette(windowText);
+            }
+            QToolButton:hover {
+                color: palette(highlight);
+            }
+            QToolButton:pressed {
+                color: palette(highlightedText);
+                background: palette(highlight);
+            }
+        """
