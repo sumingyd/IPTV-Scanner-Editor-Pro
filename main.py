@@ -255,6 +255,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.main_window.btn_hide_invalid.setEnabled(False)
                 self.ui.main_window.btn_validate.setEnabled(True)
                 self.ui.main_window.statusBar().showMessage("列表加载成功", 3000)
+                
+                # 强制触发模型重置信号
+                self.model.modelReset.emit()
+                # 立即更新按钮状态
+                self.ui._update_load_button_state()
                 return True
             else:
                 self.logger.warning("打开列表失败")
