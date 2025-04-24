@@ -218,6 +218,30 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             lines.append(line)
         return "\n".join(lines)
 
+    def removeRow(self, row: int, parent=QtCore.QModelIndex()) -> bool:
+        """删除指定行"""
+        if not (0 <= row < len(self.channels)):
+            return False
+            
+        # 获取要删除的频道信息
+        channel = self.channels[row]
+        
+        # 通知视图即将删除行
+        self.beginRemoveRows(parent, row, row)
+        
+        # 从列表中移除
+        self.channels.pop(row)
+        
+        # 更新名称和分组缓存
+        if 'name' in channel:
+            self._name_cache.discard(channel['name'])
+        if 'group' in channel:
+            self._group_cache.discard(channel['group'])
+            
+        # 完成删除操作
+        self.endRemoveRows()
+        return True
+
     def load_from_file(self, content: str) -> bool:
         """从文件内容加载频道列表"""
         try:
