@@ -84,6 +84,46 @@ class ListManager:
             self.logger.error(f"加载旧列表失败: {str(e)}", exc_info=True)
             return None
 
+    def load_m3u(self, file_path):
+        """加载M3U格式的旧列表文件"""
+        return self.load_old_list(file_path)
+
+    def match_channels(self, old_channels, current_model, progress_callback=None):
+        """匹配新旧频道列表"""
+        try:
+            self.logger.info("开始匹配新旧频道列表")
+            matched_count = 0
+            
+            for i, old_ch in enumerate(old_channels):
+                for j in range(current_model.rowCount()):
+                    current_ch = current_model.get_channel(j)
+                    # 根据URL匹配
+                    if old_ch.get('url') == current_ch.get('url'):
+                        matched_count += 1
+                        # 更新当前频道信息
+                        current_ch.update({
+                            'name': old_ch.get('name', current_ch.get('name')),
+                            'group': old_ch.get('group', current_ch.get('group')),
+                            'tvg_id': old_ch.get('tvg_id', current_ch.get('tvg_id', '')),
+                            'logo': old_ch.get('logo', current_ch.get('logo', '')),
+                            'language': old_ch.get('language', current_ch.get('language', '')),
+                            'country': old_ch.get('country', current_ch.get('country', ''))
+                        })
+                        # 通知模型更新
+                        index = current_model.index(j, 0)
+                        current_model.dataChanged.emit(index, index)
+                
+                # 更新进度
+                if progress_callback:
+                    progress_callback(i + 1, len(old_channels))
+            
+            self.logger.info(f"匹配完成: {matched_count}/{len(old_channels)} 个频道")
+            return matched_count
+            
+        except Exception as e:
+            self.logger.error(f"匹配频道失败: {str(e)}", exc_info=True)
+            return 0
+
     def save_list(self, parent=None):
         """保存列表文件"""
         try:

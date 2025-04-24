@@ -421,7 +421,14 @@ class UIBuilder:
         
         self._setup_match_buttons(layout)
         self._setup_match_progress(layout)
+        
+        # 匹配状态标签 (紧贴进度条下方)
+        self.match_status_label = QtWidgets.QLabel("匹配状态: 等待操作")
+        self.match_status_label.setStyleSheet("")  # 清除任何自定义样式
+        layout.addWidget(self.match_status_label)
+        
         self._setup_match_options(layout)
+        
         
         match_group.setLayout(layout)
         parent.addWidget(match_group)
@@ -448,6 +455,7 @@ class UIBuilder:
         self.main_window.btn_match = QtWidgets.QPushButton("执行自动匹配")
         self.main_window.btn_match.setStyleSheet(AppStyles.button_style(active=False))
         self.main_window.btn_match.setEnabled(False)
+        self.main_window.btn_match.clicked.connect(self._on_match_clicked)
         
         button_layout.addWidget(self.main_window.btn_load_old)
         button_layout.addWidget(self.main_window.btn_match)
@@ -483,6 +491,9 @@ class UIBuilder:
         """加载旧列表处理函数"""
         try:
             # 弹出文件选择对话框
+            self.match_status_label.setText("正在选择旧列表文件...")
+            QtCore.QCoreApplication.processEvents()
+            
             file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
                 self.main_window,
                 "选择旧列表文件",
@@ -491,10 +502,27 @@ class UIBuilder:
             )
             
             if file_path:
-                # 调用主窗口的加载方法
-                self.main_window.load_old_list(file_path)
-                self.main_window.match_status.setText("旧列表加载完成")
+                self.match_status_label.setText("正在加载旧列表...")
+                QtCore.QCoreApplication.processEvents()
+                
+                # 调用主窗口的加载方法(不自动匹配)
+                self.main_window.old_channels = self.main_window.list_manager.load_old_list(file_path)
+                
+                # 更新状态显示
+                loaded_count = len(self.main_window.old_channels)
+                current_count = self.main_window.model.rowCount()
+                matched_count = self.main_window.list_manager.count_matched_channels(
+                    self.main_window.old_channels,
+                    self.main_window.model
+                )
+                self.match_status_label.setText(
+                    f"匹配状态: 已加载 {loaded_count} 个频道\n"
+                    f"当前列表: {current_count} 个频道\n"
+                    f"初步匹配: {matched_count} 个频道\n"
+                    "点击'执行自动匹配'按钮开始精确匹配"
+                )
                 self.main_window.btn_match.setEnabled(True)
+                self.main_window.btn_match.setStyleSheet(AppStyles.button_style(active=True))
                 
                 # 强制更新按钮状态
                 self._update_load_button_state()
@@ -502,7 +530,7 @@ class UIBuilder:
                 QtCore.QCoreApplication.processEvents()
         except Exception as e:
             self.logger.error(f"加载旧列表失败: {str(e)}")
-            self.main_window.match_status.setText(f"加载失败: {str(e)}")
+            self.match_status_label.setText(f"加载失败: {str(e)}")
 
     def _setup_match_progress(self, layout):
         """设置匹配进度显示"""
@@ -514,13 +542,6 @@ class UIBuilder:
         self.main_window.match_progress.setTextVisible(True)
         self.main_window.match_progress.setStyleSheet(AppStyles.progress_style())
         layout.addWidget(self.main_window.match_progress)
-        
-        # 状态标签
-        self.main_window.match_status = QtWidgets.QLabel("匹配功能未就绪 - 请先加载旧列表")
-        self.main_window.match_status.setStyleSheet("color: #666; font-weight: bold;")
-        layout.addWidget(self.main_window.match_status)
-        
-        layout.addStretch()
 
     def _setup_match_options(self, layout):
         """设置匹配高级选项"""
@@ -970,6 +991,36 @@ class UIBuilder:
             lambda config: self.main_window.config_manager.save_epg_config(config)
         )
         dialog.exec()
+
+    def _on_match_clicked(self):
+        """处理执行自动匹配按钮点击事件"""
+        if not hasattr(self.main_window, 'old_channels') or not self.main_window.old_channels:
+            self.match_status_label.setText("匹配状态: 请先加载旧列表")
+            return
+            
+        # 显示匹配进度
+        self.main_window.match_progress.setRange(0, len(self.main_window.old_channels))
+        self.main_window.match_progress.setValue(0)
+        self.match_status_label.setText("匹配状态: 正在匹配...")
+        
+        # 定义进度回调函数
+        def update_progress(current, total):
+            self.main_window.match_progress.setValue(current)
+            QtCore.QCoreApplication.processEvents()
+        
+        # 调用list_manager执行匹配
+        matched_count = self.main_window.list_manager.match_channels(
+            self.main_window.old_channels,
+            self.main_window.model,
+            update_progress
+        )
+        
+        # 更新状态显示
+        self.match_status_label.setText(f"匹配状态: 完成 ({matched_count}/{len(self.main_window.old_channels)} 个频道)")
+        
+        # 如果启用了自动保存，则保存列表
+        if self.main_window.cb_auto_save.isChecked():
+            self.main_window._save_list()
 
         
 class AndroidSplitterHandle(QtWidgets.QWidget):
