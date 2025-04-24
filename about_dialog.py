@@ -140,6 +140,7 @@ class AboutDialog(QtWidgets.QDialog):
                         <li>支持频道分组管理，自定义分组名称</li>
                         <li>批量检测频道有效性(延迟、分辨率)</li>
                         <li>支持拖拽调整频道顺序</li>
+                        <li>支持右键删除选定频道</li>
                     </ul>
                 </li>
                 <li><b>频道编辑</b>：
@@ -169,6 +170,7 @@ class AboutDialog(QtWidgets.QDialog):
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
                         <li>Shift+点击刷新: 强制更新EPG数据</li>
                         <li>双击频道: 立即播放</li>
+                        <li>鼠标右键: 删除频道</li>
                         <li>Enter键: 确认编辑并进行下一个频道的编辑</li>
                         <li>Esc键: 取消操作/关闭窗口</li>
                         <li>拖拽: 调整频道顺序/分组</li>
@@ -249,7 +251,6 @@ class AboutDialog(QtWidgets.QDialog):
             
             # 获取当前HTML
             current_html = text_browser.toHtml()
-            logger.debug(f"当前HTML内容: {current_html}")
             
             # 确定要设置的内容
             content = version if version is not None else error_msg
@@ -267,34 +268,12 @@ class AboutDialog(QtWidgets.QDialog):
                 text_browser.repaint()
                 QtWidgets.QApplication.processEvents()
                 
-                # 验证更新是否成功
-                updated_html = text_browser.toHtml()
-                if content not in updated_html:
-                    logger.error("方法1更新失败，尝试方法2")
-                    
-                    # 方法2: 使用JavaScript直接修改DOM
-                    script = f"""
-                        var elem = document.getElementById('latestVersion');
-                        if (elem) {{
-                            elem.innerHTML = '{content}';
-                            console.log('成功更新版本号');
-                        }} else {{
-                            console.error('未找到latestVersion元素');
-                        }}
-                    """
-                    text_browser.page().runJavaScript(script)
-                    
-                    # 再次验证
-                    updated_html = text_browser.toHtml()
-                    if content not in updated_html:
-                        logger.error("方法2也失败，尝试方法3")
-                        
-                        # 方法3: 使用QTimer延迟执行
-                        QtCore.QTimer.singleShot(100, lambda: (
-                            text_browser.setHtml(full_html),
-                            text_browser.repaint(),
-                            QtWidgets.QApplication.processEvents()
-                        ))
+                # 使用QTimer延迟执行确保更新
+                QtCore.QTimer.singleShot(100, lambda: (
+                    text_browser.setHtml(full_html),
+                    text_browser.repaint(),
+                    QtWidgets.QApplication.processEvents()
+                ))
             else:
                 logger.warning("未提供版本号或错误信息")
 
