@@ -266,8 +266,25 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.main_window.statusBar().showMessage("打开列表失败", 3000)
                 return False
         except Exception as e:
-            self.logger.error(f"打开列表失败: {e}", exc_info=True)
+            self.logger.error(f"打开列表失败: {str(e)}", exc_info=True)
             self.ui.main_window.statusBar().showMessage(f"打开列表失败: {str(e)}", 3000)
+            return False
+
+    def load_old_list(self, file_path):
+        """加载旧列表文件到内存"""
+        try:
+            self.logger.info(f"开始加载旧列表: {file_path}")
+            channels = self.list_manager.load_old_list(file_path)
+            if channels:
+                self.logger.info(f"旧列表加载成功，共{len(channels)}个频道")
+                # 将频道数据存储在内存中，供后续使用
+                self.old_channels = channels
+                return True
+            else:
+                self.logger.warning("旧列表加载失败")
+                return False
+        except Exception as e:
+            self.logger.error(f"加载旧列表失败: {str(e)}", exc_info=True)
             return False
 
     def _save_list(self):
