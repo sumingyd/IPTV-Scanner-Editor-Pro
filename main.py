@@ -50,10 +50,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _update_validate_status(self, message):
         """更新有效性检测状态标签"""
         self.ui.main_window.validate_stats_label.setText(message)
-        if message == "请点击检测有效性按钮":
-            self.ui.main_window.validate_stats_label.setStyleSheet("color: #666;")
-        else:
-            self.ui.main_window.validate_stats_label.setStyleSheet("color: #333;")
+        message == "请点击检测有效性按钮"
 
     def _setup_name_autocomplete(self):
         """设置频道名称自动补全"""

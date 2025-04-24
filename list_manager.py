@@ -124,6 +124,21 @@ class ListManager:
             self.logger.error(f"匹配频道失败: {str(e)}", exc_info=True)
             return 0
 
+    def count_matched_channels(self, old_channels, current_model):
+        """统计已匹配的频道数量"""
+        try:
+            matched_count = 0
+            for old_ch in old_channels:
+                for j in range(current_model.rowCount()):
+                    current_ch = current_model.get_channel(j)
+                    if old_ch.get('url') == current_ch.get('url'):
+                        matched_count += 1
+                        break
+            return matched_count
+        except Exception as e:
+            self.logger.error(f"统计匹配频道失败: {str(e)}", exc_info=True)
+            return 0
+
     def save_list(self, parent=None):
         """保存列表文件"""
         try:
