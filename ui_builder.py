@@ -392,7 +392,6 @@ class UIBuilder:
 
         # EPG匹配状态显示
         self.main_window.epg_match_label = QtWidgets.QLabel("EPG状态: 未匹配")
-        self.main_window.epg_match_label.setStyleSheet("font-weight: bold;")
         
         # 保存按钮 - 作为窗口属性
         self.main_window.save_channel_btn = QtWidgets.QPushButton("保存修改")
@@ -424,7 +423,6 @@ class UIBuilder:
         
         # 匹配状态标签 (紧贴进度条下方)
         self.match_status_label = QtWidgets.QLabel("匹配状态: 等待操作")
-        self.match_status_label.setStyleSheet("")  # 清除任何自定义样式
         layout.addWidget(self.match_status_label)
         
         self._setup_match_options(layout)
@@ -439,6 +437,7 @@ class UIBuilder:
         
         # 加载旧列表按钮
         self.main_window.btn_load_old = QtWidgets.QPushButton("加载旧列表")
+        self.main_window.btn_load_old.setFixedHeight(36)
         self.main_window.btn_load_old.clicked.connect(self._load_old_list)
         
         # 强制初始状态更新
@@ -453,6 +452,7 @@ class UIBuilder:
         
         # 执行匹配按钮
         self.main_window.btn_match = QtWidgets.QPushButton("执行自动匹配")
+        self.main_window.btn_match.setFixedHeight(36)
         self.main_window.btn_match.setStyleSheet(AppStyles.button_style(active=False))
         self.main_window.btn_match.setEnabled(False)
         self.main_window.btn_match.clicked.connect(self._on_match_clicked)
@@ -516,10 +516,7 @@ class UIBuilder:
                     self.main_window.model
                 )
                 self.match_status_label.setText(
-                    f"匹配状态: 已加载 {loaded_count} 个频道\n"
-                    f"当前列表: {current_count} 个频道\n"
-                    f"初步匹配: {matched_count} 个频道\n"
-                    "点击'执行自动匹配'按钮开始精确匹配"
+                    f"匹配状态: 已加载 {loaded_count} 个频道 (当前列表: {current_count} 个)"
                 )
                 self.main_window.btn_match.setEnabled(True)
                 self.main_window.btn_match.setStyleSheet(AppStyles.button_style(active=True))
@@ -637,10 +634,10 @@ class UIBuilder:
         # 扫描控制按钮
         self.main_window.scan_btn = QtWidgets.QPushButton("完整扫描")
         self.main_window.scan_btn.setStyleSheet(AppStyles.button_style(active=True))
+        self.main_window.scan_btn.setFixedHeight(36)
         
         # 扫描统计信息
         self.main_window.detailed_stats_label = QtWidgets.QLabel("总频道: 0 | 有效: 0 | 无效: 0 | 耗时: 0s")
-        self.main_window.detailed_stats_label.setStyleSheet(AppStyles.status_label_style())
 
         # 使用网格布局让按钮和统计信息并排显示
         button_stats_layout = QtWidgets.QGridLayout()
@@ -674,15 +671,16 @@ class UIBuilder:
         # 有效性检测按钮
         self.main_window.btn_validate = QtWidgets.QPushButton("检测有效性")
         self.main_window.btn_validate.setStyleSheet(AppStyles.button_style(active=True))
+        self.main_window.btn_validate.setFixedHeight(36)
         
         # 隐藏无效项按钮
         self.main_window.btn_hide_invalid = QtWidgets.QPushButton("隐藏无效项")
         self.main_window.btn_hide_invalid.setStyleSheet(AppStyles.button_style(active=False))
+        self.main_window.btn_hide_invalid.setFixedHeight(36)
         self.main_window.btn_hide_invalid.setEnabled(False)
         
         # 检测统计标签
         self.main_window.validate_stats_label = QtWidgets.QLabel("请先加载列表")
-        self.main_window.validate_stats_label.setStyleSheet(AppStyles.status_label_style())
         
         toolbar.addWidget(self.main_window.btn_validate)
         toolbar.addWidget(self.main_window.btn_hide_invalid)
@@ -1006,6 +1004,7 @@ class UIBuilder:
         # 定义进度回调函数
         def update_progress(current, total):
             self.main_window.match_progress.setValue(current)
+            self.match_status_label.setText(f"匹配状态: 正在匹配 ({current}/{total})")
             QtCore.QCoreApplication.processEvents()
         
         # 调用list_manager执行匹配
@@ -1016,7 +1015,7 @@ class UIBuilder:
         )
         
         # 更新状态显示
-        self.match_status_label.setText(f"匹配状态: 完成 ({matched_count}/{len(self.main_window.old_channels)} 个频道)")
+        self.match_status_label.setText(f"匹配状态: 匹配完成 ({matched_count} 个)")
         
         # 如果启用了自动保存，则保存列表
         if self.main_window.cb_auto_save.isChecked():
