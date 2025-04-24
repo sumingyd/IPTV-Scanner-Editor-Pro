@@ -49,6 +49,41 @@ class ListManager:
             self.logger.error(f"加载列表文件失败: {str(e)}", exc_info=True)
             return False
 
+    def load_old_list(self, file_path):
+        """加载旧列表文件到内存"""
+        try:
+            self.logger.debug(f"开始加载旧列表: {file_path}")
+            
+            if not file_path:
+                self.logger.warning("文件路径为空")
+                return None
+                
+            self.logger.debug("尝试读取文件内容...")
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            self.logger.debug(f"读取到文件内容长度: {len(content)}")
+            
+            if not content.strip():
+                self.logger.warning("文件内容为空")
+                return None
+                
+            self.logger.debug("尝试解析文件内容...")
+            channels = self.model.parse_file_content(content)
+            if channels:
+                self.logger.info(f"成功解析旧列表: {file_path}")
+                self.logger.debug(f"解析频道数: {len(channels)}")
+                return channels
+            else:
+                self.logger.warning("文件格式可能不正确")
+                return None
+                
+        except PermissionError as e:
+            self.logger.error(f"权限不足: {str(e)}")
+            return None
+        except Exception as e:
+            self.logger.error(f"加载旧列表失败: {str(e)}", exc_info=True)
+            return None
+
     def save_list(self, parent=None):
         """保存列表文件"""
         try:

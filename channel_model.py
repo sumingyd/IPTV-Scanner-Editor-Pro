@@ -254,19 +254,14 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 return True
         return False
 
-    def load_from_file(self, content: str) -> bool:
-        """从文件内容加载频道列表"""
+    def parse_file_content(self, content: str) -> List[Dict[str, Any]]:
+        """解析文件内容并返回频道列表"""
         try:
-            self.beginResetModel()
-            self.channels = []
-            self._name_cache = set()
-            self._group_cache = set()
+            channels = []
+            name_cache = set()
+            group_cache = set()
             lines = content.splitlines()
             current_channel = None
-            
-            # 通知UI更新状态标签
-            if hasattr(self, 'update_status_label'):
-                self.update_status_label("请点击检测有效性按钮")
             
             for line in lines:
                 line = line.strip()
@@ -300,13 +295,38 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 # 处理URL行
                 if line and not line.startswith("#") and current_channel:
                     current_channel['url'] = line
-                    self.channels.append(current_channel)
+                    channels.append(current_channel)
                     # 更新名称和分组缓存
                     if 'name' in current_channel:
-                        self._name_cache.add(current_channel['name'])
+                        name_cache.add(current_channel['name'])
                     if 'group' in current_channel:
-                        self._group_cache.add(current_channel['group'])
+                        group_cache.add(current_channel['group'])
                     current_channel = None
+            
+            return channels
+        except Exception as e:
+            self.logger.error(f"解析文件内容失败: {str(e)}", exc_info=True)
+            return None
+
+    def load_from_file(self, content: str) -> bool:
+        """从文件内容加载频道列表"""
+        try:
+            self.beginResetModel()
+            self.channels = []
+            self._name_cache = set()
+            self._group_cache = set()
+            
+            channels = self.parse_file_content(content)
+            if channels is None:
+                return False
+                
+            self.channels = channels
+            self._name_cache = set(c['name'] for c in channels if 'name' in c)
+            self._group_cache = set(c['group'] for c in channels if 'group' in c)
+            
+            # 通知UI更新状态标签
+            if hasattr(self, 'update_status_label'):
+                self.update_status_label("请点击检测有效性按钮")
             
             self.endResetModel()
             return True
