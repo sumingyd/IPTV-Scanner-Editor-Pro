@@ -242,6 +242,18 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         self.endRemoveRows()
         return True
 
+    def set_channel_valid(self, url: str, valid: bool = True) -> bool:
+        """设置频道的有效性状态"""
+        for i, channel in enumerate(self.channels):
+            if channel.get('url') == url:
+                self.channels[i]['valid'] = valid
+                self.channels[i]['status'] = '有效' if valid else '无效'
+                # 通知视图更新
+                index = self.index(i, 0)
+                self.dataChanged.emit(index, index)
+                return True
+        return False
+
     def load_from_file(self, content: str) -> bool:
         """从文件内容加载频道列表"""
         try:
