@@ -97,8 +97,11 @@ class ListManager:
             for i, old_ch in enumerate(old_channels):
                 for j in range(current_model.rowCount()):
                     current_ch = current_model.get_channel(j)
-                    # 根据URL匹配
-                    if old_ch.get('url') == current_ch.get('url'):
+                    # 规范化URL后比较
+                    old_url = old_ch.get('url', '').strip().lower()
+                    current_url = current_ch.get('url', '').strip().lower()
+                    if old_url and current_url and old_url == current_url:
+                        self.logger.debug(f"匹配成功: {old_url} == {current_url}")
                         matched_count += 1
                         # 更新当前频道信息
                         current_ch.update({
@@ -131,7 +134,9 @@ class ListManager:
             for old_ch in old_channels:
                 for j in range(current_model.rowCount()):
                     current_ch = current_model.get_channel(j)
-                    if old_ch.get('url') == current_ch.get('url'):
+                    old_url = old_ch.get('url', '').strip().lower()
+                    current_url = current_ch.get('url', '').strip().lower()
+                    if old_url and current_url and old_url == current_url:
                         matched_count += 1
                         break
             return matched_count
