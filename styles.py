@@ -207,3 +207,32 @@ class AppStyles:
                 background: palette(highlight);
             }
         """
+
+    @staticmethod
+    def dialog_style() -> str:
+        """对话框通用样式"""
+        return """
+            QDialog {
+                background-color: palette(window);
+                color: palette(windowText);
+                border: 1px solid palette(mid);
+            }
+            QDialog QLabel {
+                color: palette(windowText);
+            }
+            QDialog QPushButton {
+                min-width: 80px;
+                padding: 5px;
+            }
+            QDialog QGroupBox {
+                border: 1px solid palette(mid);
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 15px;
+            }
+            QDialog QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """
