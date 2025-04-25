@@ -499,8 +499,14 @@ class MainWindow(QtWidgets.QMainWindow):
                             self.logger.info("EPG操作成功")
                             signals.update_status.emit("EPG状态: 已加载")
                         else:
-                            self.logger.warning("EPG操作失败")
-                            signals.update_status.emit("EPG状态: 操作失败")
+                            if not self.config.epg_sources:
+                                self.logger.warning("EPG操作失败: 未配置EPG源")
+                            else:
+                                self.logger.warning("EPG操作失败: 本地无EPG数据")
+                            if not self.config.epg_sources:
+                                signals.update_status.emit("EPG状态: 未配置EPG源，请先添加EPG源")
+                            else:
+                                signals.update_status.emit("EPG状态: 本地无EPG数据，请先获取EPG数据")
                     else:
                         # 回退到检查result
                         if self.epg_manager.result:
