@@ -425,6 +425,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.main_window.scan_btn.setText("完整扫描")
         self.ui.main_window.btn_validate.setText("检测有效性")
         self.logger.info("扫描完成")
+        # 扫描完成后强制更新"加载旧列表"按钮状态
+        self.ui._update_load_button_state()
 
     def _update_stats_display(self, stats_data):
         """更新统计信息显示"""
