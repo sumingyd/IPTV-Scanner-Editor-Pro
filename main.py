@@ -257,6 +257,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.model.modelReset.emit()
                 # 立即更新按钮状态
                 self.ui._update_load_button_state()
+                # 重置智能匹配区域状态
+                self.ui.main_window.match_status_label.setText("智能匹配状态: 等待操作")
+                self.ui.main_window.match_progress.setValue(0)
                 return True
             else:
                 self.logger.warning("打开列表失败")
@@ -427,6 +430,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.logger.info("扫描完成")
         # 扫描完成后强制更新"加载旧列表"按钮状态
         self.ui._update_load_button_state()
+        # 重置智能匹配区域状态
+        self.ui.main_window.match_status_label.setText("智能匹配状态: 等待操作")
+        self.ui.main_window.match_progress.setValue(0)
 
     def _update_stats_display(self, stats_data):
         """更新统计信息显示"""
