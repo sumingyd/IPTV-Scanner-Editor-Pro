@@ -376,11 +376,12 @@ class MainWindow(QtWidgets.QMainWindow):
         # 更新自动补全数据
         self._update_name_completer(self.model.get_all_channel_names())
 
-    def _on_channel_validated(self, index, valid, latency):
+    def _on_channel_validated(self, index, valid, latency, resolution):
         """处理频道验证结果"""
         channel = self.ui.main_window.model.get_channel(index)
         channel['valid'] = valid
         channel['latency'] = latency
+        channel['resolution'] = resolution
         channel['status'] = '有效' if valid else '无效'
         
         # 通知模型更新

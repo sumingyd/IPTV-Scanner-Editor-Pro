@@ -292,6 +292,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         }
                     continue
                     
+                # 处理分辨率标签
+                if line.startswith("#EXTVLCOPT:video-resolution=") and current_channel:
+                    resolution = line.split("=")[1].strip()
+                    current_channel['resolution'] = resolution
+                    
                 # 处理URL行
                 if line and not line.startswith("#") and current_channel:
                     current_channel['url'] = line
