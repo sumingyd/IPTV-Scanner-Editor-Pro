@@ -17,7 +17,7 @@ class ScannerController(QObject):
     stats_updated = pyqtSignal(dict)  # 统计信息
     
     # 在类定义中声明信号
-    channel_validated = pyqtSignal(int, bool, int)  # index, valid, latency
+    channel_validated = pyqtSignal(int, bool, int, str)  # index, valid, latency, resolution
 
     def __init__(self, model: ChannelListModel):
         super().__init__()
@@ -140,7 +140,7 @@ class ScannerController(QObject):
                 valid, latency, resolution = self._check_channel(url)
                 
                 # 更新模型
-                self.channel_validated.emit(index, valid, latency)
+                self.channel_validated.emit(index, valid, latency, resolution)
                 
                 # 更新统计
                 with self.stats_lock:
