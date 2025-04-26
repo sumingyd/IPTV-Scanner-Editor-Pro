@@ -12,9 +12,9 @@ logger = LogManager()
 
 class AboutDialog(QtWidgets.QDialog):
     # 版本配置
-    CURRENT_VERSION = "8.0.0.0"  # 当前版本号(手动修改这里)
+    CURRENT_VERSION = "9.0.0.0"  # 当前版本号(手动修改这里)
     DEFAULT_VERSION = None  # 将从GitHub获取最新版本
-    BUILD_DATE = "2025-04-25"  # 更新为当前日期
+    BUILD_DATE = "2025-04-27"  # 更新为当前日期
     
     def __init__(self, parent=None):
         super().__init__(parent)
