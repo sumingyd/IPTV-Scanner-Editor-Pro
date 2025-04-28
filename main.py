@@ -20,7 +20,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # 初始化EPG管理器
         from epg_manager import EPGManager
-        self.epg_manager = EPGManager(self.config)
+        self.epg_manager = EPGManager(self.config, self)
         
         # 构建UI
         self.ui = UIBuilder(self)
@@ -656,7 +656,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.config.save_epg_config(epg_config):
                 self.logger.info("EPG配置保存成功")
                 # 重新初始化EPG管理器
-                self.epg_manager = EPGManager(self.config)
+                self.epg_manager = EPGManager(self.config, self)
                 return True
             else:
                 self.logger.warning("EPG配置保存失败")

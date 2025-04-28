@@ -18,9 +18,10 @@ class EPGManager(QThread):
     progress = pyqtSignal(float, str)  # 进度百分比, 状态消息
     finished = pyqtSignal(bool)  # 是否成功
     
-    def __init__(self, config_manager: ConfigManager):
+    def __init__(self, config_manager: ConfigManager, main_window=None):
         super().__init__()
         self.config_manager = config_manager
+        self.main_window = main_window
         try:
             self.epg_config = self.config_manager.load_epg_config()
             if not self.epg_config:
@@ -156,6 +157,9 @@ class EPGManager(QThread):
         
     def _load_epg(self, op_id: str) -> bool:
         """加载EPG数据流程"""
+        # 确保有更新状态的方法
+        if hasattr(self.main_window, 'update_epg_status'):
+            self.main_window.update_epg_status(False)  # 先重置为未加载状态
         self.progress.emit(0, f"[{op_id}] 开始加载EPG数据...")
         
         try:
@@ -172,6 +176,9 @@ class EPGManager(QThread):
             if not parse_result:
                 raise Exception(f"[{op_id}] EPG解析失败")
                 
+            # 加载成功，更新状态
+            if hasattr(self.main_window, 'update_epg_status'):
+                self.main_window.update_epg_status(True)
             self.progress.emit(1.0, "EPG加载完成")
             return True
             
