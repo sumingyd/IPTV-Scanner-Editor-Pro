@@ -1,5 +1,6 @@
 import subprocess
 import time
+import json
 from typing import Dict, Optional
 from log_manager import LogManager
 
@@ -34,10 +35,11 @@ class StreamValidator:
             # 构建ffprobe命令
             cmd = [
                 'ffprobe',
-                '-v', 'error',
-                '-select_streams', 'v:0',
-                '-show_entries', 'stream=codec_name,width,height,bit_rate',
-                '-of', 'default=noprint_wrappers=1',
+                '-v', 'quiet',
+                '-print_format', 'json',
+                '-show_format',
+                '-show_streams',
+                '-show_programs',
                 '-timeout', str(timeout * 1000000),  # 微秒
                 url
             ]
@@ -65,19 +67,30 @@ class StreamValidator:
             # 解析输出
             if process.returncode == 0:
                 result['valid'] = True
-                width = height = None
-                for line in stdout.splitlines():
-                    if 'width=' in line:
-                        width = line.split('=')[1]
-                    elif 'height=' in line:
-                        height = line.split('=')[1]
-                    elif 'codec_name=' in line:
-                        result['codec'] = line.split('=')[1]
-                    elif 'bit_rate=' in line:
-                        result['bitrate'] = line.split('=')[1]
                 
-                if width is not None and height is not None:
-                    result['resolution'] = f"{width}x{height}"
+                try:
+                    data = json.loads(stdout)
+                    self.logger.debug(f"ffprobe JSON输出: {data}")
+                    
+                    # 从programs获取频道名
+                    if 'programs' in data and len(data['programs']) > 0:
+                        program = data['programs'][0]
+                        if 'tags' in program and 'service_name' in program['tags']:
+                            result['service_name'] = program['tags']['service_name']
+                            self.logger.info(f"从JSON获取频道名: {result['service_name']}")
+                    
+                    # 从streams获取分辨率等信息
+                    if 'streams' in data and len(data['streams']) > 0:
+                        stream = data['streams'][0]
+                        if 'width' in stream and 'height' in stream:
+                            result['resolution'] = f"{stream['width']}x{stream['height']}"
+                        if 'codec_name' in stream:
+                            result['codec'] = stream['codec_name']
+                        if 'bit_rate' in stream:
+                            result['bitrate'] = stream['bit_rate']
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"JSON解析失败: {str(e)}")
+                    result['error'] = "无法解析ffprobe输出"
             else:
                 result['error'] = stderr.strip()
                 
