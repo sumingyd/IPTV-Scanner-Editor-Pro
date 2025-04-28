@@ -15,16 +15,13 @@ class UIBuilder:
 
     def build_ui(self):
         if not self._ui_initialized:
-            self.logger.info("开始构建UI界面")
             self._init_ui()
             self._setup_toolbar()
-            self.logger.info("UI界面构建完成")
             self._ui_initialized = True
 
     def _setup_channel_list(self, parent: QtWidgets.QSplitter) -> None:  
         """配置频道列表"""
         if not self._model_initialized:
-            self.logger.info("初始化频道列表")
             self._model_initialized = True
             # 模型初始化后强制更新按钮状态
             if hasattr(self.main_window, 'btn_load_old'):
@@ -32,7 +29,6 @@ class UIBuilder:
 
     def _init_ui(self):
         """初始化用户界面"""
-        self.logger.info("初始化主窗口UI")
         self.main_window.setWindowTitle("IPTV Scanner Editor Pro / IPTV 专业扫描编辑工具")
         
         # 加载保存的窗口布局
@@ -53,7 +49,6 @@ class UIBuilder:
 
         # 强制应用布局设置
         if dividers and len(dividers) >= 8:
-            self.logger.info(f"恢复分割器布局: {dividers}")
             self.main_window.main_splitter.setSizes(dividers[:2])
             self.main_window.left_splitter.setSizes(dividers[2:4])
             self.main_window.right_splitter.setSizes(dividers[4:6])
@@ -259,7 +254,6 @@ class UIBuilder:
 
     def _setup_player_panel(self, parent: QtWidgets.QSplitter) -> None:
         """配置播放器面板"""
-        self.logger.info("初始化播放器面板")
         player_group = QtWidgets.QGroupBox("视频播放")
         player_layout = QtWidgets.QHBoxLayout()
         player_layout.setContentsMargins(2, 2, 2, 2)
@@ -673,7 +667,6 @@ class UIBuilder:
 
     def _setup_channel_list(self, parent: QtWidgets.QSplitter) -> None:  
         """配置频道列表"""
-        self.logger.info("初始化频道列表")
         list_group = QtWidgets.QGroupBox("频道列表")
         list_layout = QtWidgets.QVBoxLayout()
 
@@ -708,8 +701,10 @@ class UIBuilder:
         self.main_window.channel_list.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.main_window.channel_list.horizontalHeader().setStretchLastSection(True)
         self.main_window.channel_list.verticalHeader().setVisible(False)
-        self.main_window.model = ChannelListModel()
-        self.main_window.channel_list.setModel(self.main_window.model)
+        if not hasattr(self.main_window, 'model') or not self.main_window.model:
+            self.main_window.model = ChannelListModel()
+            self.main_window.model.update_status_label = self.main_window._update_validate_status
+            self.main_window.channel_list.setModel(self.main_window.model)
         self.main_window.channel_list.setStyleSheet(AppStyles.list_style())
         
         # 设置列宽
@@ -855,7 +850,6 @@ class UIBuilder:
             
             for child in labels:
                 epg_channel = child.text().lower()
-                self.logger.debug(f"比较频道: {current_channel} vs {epg_channel}")
                 
                 # 简单相似度计算
                 score = sum(1 for a, b in zip(current_channel, epg_channel) if a == b)

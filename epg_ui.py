@@ -133,12 +133,9 @@ class EPGProgramWidget(QtWidgets.QWidget):
                 for idx, item, program in self.program_items:
                     if idx == self.current_program_index:
                         current_item = item
-                        self.logger.debug(f"找到要高亮的节目: {program.title}, 指针={id(item)}")
                         break
                 
                 if not current_item:
-                    self.logger.error(f"未找到索引{self.current_program_index}对应的节目项")
-                    self.logger.debug(f"当前program_items列表:")
                     for idx, item, program in self.program_items:
                         self.logger.debug(f"索引={idx}, 标题={program.title}, 指针={id(item)}")
                     return

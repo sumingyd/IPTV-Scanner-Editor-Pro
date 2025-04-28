@@ -9,7 +9,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         self.logger = LogManager()
         self.channels: List[Dict[str, Any]] = []
         self.headers = ["频道名称", "分辨率", "URL", "分组", "状态", "延迟(ms)"]
-        self.logger.info("频道列表模型初始化完成")
         
         # 状态标签更新回调
         self.update_status_label = None
@@ -35,7 +34,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
     def data(self, index: QtCore.QModelIndex, role: int = QtCore.Qt.ItemDataRole.DisplayRole):
         """返回单元格数据"""
         if not index.isValid() or not (0 <= index.row() < len(self.channels)):
-            self.logger.debug(f"无效的索引请求: row={index.row()}, column={index.column()}")
             return None
 
         channel = self.channels[index.row()]
