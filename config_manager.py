@@ -1,6 +1,8 @@
 import configparser
 import os
 from epg_model import EPGSource, EPGConfig
+from log_manager import LogManager
+logger = LogManager()
 
 class ConfigManager:
     def __init__(self, config_file='config.ini'):
@@ -60,8 +62,13 @@ class ConfigManager:
         
     def load_config(self):
         if os.path.exists(self.config_file):
-            self.config.read(self.config_file)
-            return True
+            try:
+                self.config.read(self.config_file)
+                return True
+            except Exception as e:
+                logger.error(f"配置管理-加载配置文件失败: {str(e)}", exc_info=True)
+                return False
+        logger.warning(f"配置管理-配置文件不存在: {self.config_file}")
         return False
         
     def save_config(self):
@@ -70,6 +77,7 @@ class ConfigManager:
                 self.config.write(f)
             return True
         except Exception as e:
+            logger.error(f"配置管理-保存配置文件失败: {str(e)}", exc_info=True)
             return False
             
     def get_value(self, section, key, default=None):
