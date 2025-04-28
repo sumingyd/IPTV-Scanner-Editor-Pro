@@ -237,10 +237,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def _open_list(self):
         """打开列表文件"""
         try:
-            self.logger.debug("开始打开列表流程...")
             result = self.list_manager.open_list(self)
             if result:
-                self.logger.debug("成功打开列表，更新UI状态...")
                 self.ui.main_window.btn_hide_invalid.setEnabled(False)
                 self.ui.main_window.btn_validate.setEnabled(True)
                 self.ui.main_window.statusBar().showMessage("列表加载成功", 3000)
@@ -265,10 +263,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def load_old_list(self, file_path):
         """加载旧列表文件到内存"""
         try:
-            self.logger.info(f"开始加载旧列表: {file_path}")
             channels = self.list_manager.load_old_list(file_path)
             if channels:
-                self.logger.info(f"旧列表加载成功，共{len(channels)}个频道")
                 # 将频道数据存储在内存中，供后续使用
                 self.old_channels = channels
                 return True
@@ -282,7 +278,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def _save_list(self):
         """保存列表文件"""
         try:
-            self.logger.debug("开始保存列表流程...")
             result = self.list_manager.save_list(self)
             if result:
                 self.logger.info("列表保存成功")
@@ -575,13 +570,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.main_window.epg_timeline.setWidget(QtWidgets.QLabel("EPG管理器未初始化"))
             return
             
-        self.logger.info(f"开始加载频道 {channel['name']} 的节目单...")
         try:
             programs = self.epg_manager.get_channel_programs(channel['name'])
-            self.logger.debug(f"获取到节目数据: {len(programs) if programs else 0}条")
             
             if not programs:
-                self.logger.info(f"频道 {channel['name']} 无节目数据")
                 self.ui.main_window.epg_title.setText(f"{channel['name']} - 无节目数据")
                 self.ui.main_window.epg_timeline.setWidget(QtWidgets.QLabel("没有可用的节目信息"))
                 return
@@ -610,7 +602,6 @@ class MainWindow(QtWidgets.QMainWindow):
         """处理关于按钮点击事件"""
         try:
             from about_dialog import AboutDialog
-            self.logger.info("正在创建关于对话框...")
             
             # 确保在主线程中创建对话框
             dialog = AboutDialog(self)
@@ -619,7 +610,6 @@ class MainWindow(QtWidgets.QMainWindow):
             # 确保事件循环正确处理
             def show_dialog():
                 try:
-                    self.logger.debug("显示关于对话框")
                     dialog.show()
                 except Exception as e:
                     self.logger.error(f"显示对话框出错: {e}")
