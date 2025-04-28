@@ -24,14 +24,13 @@ class ListManager:
                 content = f.read()
             
             if not content.strip():
-                self.logger.warning("文件内容为空")
                 return False
                 
             success = self.model.load_from_file(content)
             if success:
                 return True
             else:
-                self.logger.warning("文件格式可能不正确")
+                self.logger.warning("LIST-文件格式可能不正确")
                 return False
                 
         except PermissionError as e:
@@ -51,14 +50,13 @@ class ListManager:
                 content = f.read()
             
             if not content.strip():
-                self.logger.warning("文件内容为空")
                 return None
                 
             channels = self.model.parse_file_content(content)
             if channels:
                 return channels
             else:
-                self.logger.warning("文件格式可能不正确")
+                self.logger.warning("LIST-文件格式可能不正确")
                 return None
                 
         except PermissionError as e:
