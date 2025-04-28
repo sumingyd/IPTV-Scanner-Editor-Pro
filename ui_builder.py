@@ -700,6 +700,45 @@ class UIBuilder:
         self.main_window.channel_list.setModel(self.main_window.model)
         self.main_window.channel_list.setStyleSheet(AppStyles.list_style())
         
+        # 设置列宽
+        header = self.main_window.channel_list.horizontalHeader()
+        header.setStretchLastSection(False)  # 禁用最后列自动拉伸
+        header.setMinimumSectionSize(30)  # 最小列宽
+        header.setMaximumSectionSize(1000)  # 最大列宽
+        
+        # 初始设置：URL列优先占用空间
+        header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        
+        # 其他列自适应内容
+        for i in range(header.count()):
+            if i != 2:  # 跳过URL列
+                header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        
+        # 强制延迟列严格按内容宽度
+        header.setSectionResizeMode(5, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        
+        # 定义列宽调整函数
+        def adjust_columns():
+            if self.main_window.model.rowCount() > 0:
+                # 有数据时：URL列自适应且占用多余空间
+                header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Interactive)
+                # 延迟列严格按内容宽度
+                header.setSectionResizeMode(5, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+                # 其他列自适应内容
+                for i in range(header.count()):
+                    if i not in (2, 5):  # 跳过URL列和延迟列
+                        header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+            else:
+                # 无数据时：URL列自动拉伸
+                header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Stretch)
+
+        # 监听数据变化重新计算布局
+        self.main_window.model.dataChanged.connect(lambda: header.resizeSections())
+        self.main_window.model.dataChanged.connect(adjust_columns)
+        self.main_window.model.rowsInserted.connect(adjust_columns)
+        self.main_window.model.rowsRemoved.connect(adjust_columns)
+        self.main_window.model.modelReset.connect(adjust_columns)
+        
         # 启用拖放排序功能
         self.main_window.channel_list.setDragEnabled(True)
         self.main_window.channel_list.setAcceptDrops(True)

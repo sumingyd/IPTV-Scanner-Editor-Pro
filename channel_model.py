@@ -146,9 +146,24 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
     def add_channel(self, channel_info: Dict[str, Any]):
         """添加频道到模型"""
-        self.beginInsertRows(QtCore.QModelIndex(), len(self.channels), len(self.channels))
-        self.channels.append(channel_info)
-        self.endInsertRows()
+        # 检查是否已存在相同URL的频道
+        existing_index = -1
+        for i, channel in enumerate(self.channels):
+            if channel.get('url') == channel_info.get('url'):
+                existing_index = i
+                break
+                
+        if existing_index >= 0:
+            # 更新现有频道信息
+            self.channels[existing_index].update(channel_info)
+            # 通知视图更新
+            index = self.index(existing_index, 0)
+            self.dataChanged.emit(index, index)
+        else:
+            # 添加新频道
+            self.beginInsertRows(QtCore.QModelIndex(), len(self.channels), len(self.channels))
+            self.channels.append(channel_info)
+            self.endInsertRows()
 
     def hide_invalid(self):
         """隐藏无效频道"""

@@ -30,6 +30,11 @@ class ScannerController(QObject):
         self.stop_event = threading.Event()
         self.workers = []
         self.timeout = 10  # 默认超时时间
+        self.channel_counter = 0
+        self.counter_lock = threading.Lock()
+        
+        # 确保信号连接
+        self.channel_found.connect(self.model.add_channel)
         self.stats = {
             'total': 0,
             'valid': 0,
@@ -163,12 +168,22 @@ class ScannerController(QObject):
                 
             try:
                 # 检测URL有效性
-                valid, latency, resolution = self._check_channel(url)
+                valid, latency, resolution, result = self._check_channel(url)
                 
-                # 生成频道信息
+                # 记录频道名获取情况
+                service_name = result.get('service_name')
+                if service_name:
+                    self.logger.info(f"从URL {url} 获取到频道名: {service_name}")
+                    channel_name = service_name
+                else:
+                    # 使用URL最后部分作为默认名称
+                    default_name = url.split('/')[-1].split('?')[0]
+                    self.logger.warning(f"URL {url} 未获取到频道名，使用默认名称: {default_name}")
+                    channel_name = default_name
+                
                 channel_info = {
                     'url': url,
-                    'name': f"频道-{threading.current_thread().name.split('-')[-1]}",
+                    'name': channel_name,
                     'valid': valid,
                     'latency': latency,
                     'resolution': resolution,
@@ -198,12 +213,12 @@ class ScannerController(QObject):
         
     def _check_channel(self, url: str) -> tuple:
         """检查频道有效性
-        返回: (valid: bool, latency: int, resolution: str)
+        返回: (valid: bool, latency: int, resolution: str, result: dict)
         """
         from validator import StreamValidator
         validator = StreamValidator()
         result = validator.validate_stream(url, timeout=self.timeout)
-        return result['valid'], result['latency'], result.get('resolution', '')
+        return result['valid'], result['latency'], result.get('resolution', ''), result
         
     def is_scanning(self):
         """检查是否正在扫描"""
@@ -233,6 +248,9 @@ class ScannerController(QObject):
         # 扫描完成
         if not self.stop_event.is_set():
             self.scan_completed.emit()
+            # 重置扫描状态
+            self.stop_event.clear()
+            self.workers = []
             
         self.logger.info("扫描统计线程退出")
 
