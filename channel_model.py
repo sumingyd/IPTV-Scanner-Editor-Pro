@@ -1,12 +1,12 @@
 from PyQt6 import QtCore, QtGui
 from typing import List, Dict, Any
 from log_manager import LogManager
+logger = LogManager()
 
 class ChannelListModel(QtCore.QAbstractTableModel):
     """频道列表数据模型"""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.logger = LogManager()
         self.channels: List[Dict[str, Any]] = []
         self.headers = ["频道名称", "分辨率", "URL", "分组", "状态", "延迟(ms)"]
         
@@ -323,7 +323,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             
             return channels
         except Exception as e:
-            self.logger.error(f"解析文件内容失败: {str(e)}", exc_info=True)
+            logger.error(f"频道模型-解析文件内容失败: {str(e)}", exc_info=True)
             return None
 
     def load_from_file(self, content: str) -> bool:
@@ -349,5 +349,5 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             self.endResetModel()
             return True
         except Exception as e:
-            self.logger.error(f"加载频道列表失败: {str(e)}", exc_info=True)
+            logger.error(f"频道模型-加载频道列表失败: {str(e)}", exc_info=True)
             return False
