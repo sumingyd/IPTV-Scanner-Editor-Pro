@@ -23,10 +23,8 @@ class ListManager:
                 self.logger.debug("用户取消选择文件")
                 return False
                 
-            self.logger.debug("尝试读取文件内容...")
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
-            self.logger.debug(f"读取到文件内容长度: {len(content)}")
             
             if not content.strip():
                 self.logger.warning("文件内容为空")

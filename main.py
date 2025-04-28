@@ -26,12 +26,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui = UIBuilder(self)
         self.ui.build_ui()
         
-        # 初始化模型并设置回调
-        self.model = ChannelListModel()
-        self.model.update_status_label = self._update_validate_status
-        self.ui.main_window.channel_list.setModel(self.model)
-        
-        # 初始化控制器
+        # 初始化控制器(确保模型已由UIBuilder初始化)
         self.scanner = ScannerController(self.model)
         from player_controller import PlayerController
         from list_manager import ListManager
@@ -221,19 +216,16 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_volume_changed(self, value):
         """处理音量滑块变化"""
         self.player_controller.set_volume(value)
-        self.logger.debug(f"音量设置为: {value}")
 
     def _on_pause_clicked(self):
         """处理暂停/播放按钮点击"""
         is_playing = self.player_controller.toggle_pause()
         self.ui.main_window.pause_btn.setText("暂停" if is_playing else "播放")
-        self.logger.debug(f"切换播放状态: {'播放' if is_playing else '暂停'}")
 
     def _on_stop_clicked(self):
         """处理停止按钮点击"""
         self.player_controller.stop()
         self.ui.main_window.pause_btn.setText("播放")
-        self.logger.debug("停止播放")
 
     def _on_play_state_changed(self, is_playing):
         """处理播放状态变化"""
