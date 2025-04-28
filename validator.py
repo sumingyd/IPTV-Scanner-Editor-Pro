@@ -70,14 +70,12 @@ class StreamValidator:
                 
                 try:
                     data = json.loads(stdout)
-                    self.logger.debug(f"ffprobe JSON输出: {data}")
                     
                     # 从programs获取频道名
                     if 'programs' in data and len(data['programs']) > 0:
                         program = data['programs'][0]
                         if 'tags' in program and 'service_name' in program['tags']:
                             result['service_name'] = program['tags']['service_name']
-                            self.logger.info(f"从JSON获取频道名: {result['service_name']}")
                     
                     # 从streams获取分辨率等信息
                     if 'streams' in data and len(data['streams']) > 0:
@@ -99,21 +97,3 @@ class StreamValidator:
             result['error'] = str(e)
             
         return result
-
-
-if __name__ == "__main__":
-    # 测试代码
-    validator = StreamValidator()
-    
-    test_urls = [
-        "http://example.com/stream.m3u8",  # 无效URL
-        "rtmp://live.example.com/live/stream",  # 可能有效的RTMP
-        "http://192.168.1.1:5000/stream.ts"  # 本地测试流
-    ]
-    
-    for url in test_urls:
-        print(f"\n检测URL: {url}")
-        result = validator.validate_stream(url, timeout=5)
-        print("结果:")
-        for k, v in result.items():
-            print(f"{k}: {v}")
