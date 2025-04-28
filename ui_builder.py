@@ -558,7 +558,6 @@ class UIBuilder:
 
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
         """配置扫描面板"""
-        self.logger.info("初始化扫描面板")
         scan_group = QtWidgets.QGroupBox("扫描设置")
         scan_layout = QtWidgets.QFormLayout()
 
@@ -846,7 +845,6 @@ class UIBuilder:
             best_score = 0
             
             labels = self.main_window.epg_widget.findChildren(QtWidgets.QLabel)
-            self.logger.info(f"找到{len(labels)}个EPG节目标签")
             
             for child in labels:
                 epg_channel = child.text().lower()
@@ -858,7 +856,6 @@ class UIBuilder:
                     best_score = score
             
             if best_match:
-                self.logger.info(f"最佳匹配: {best_match.text()} (匹配度: {best_score}/{len(current_channel)})")
                 if best_score >= len(current_channel)//2:  # 至少匹配一半字符
                     best_match.setProperty('class', 'current-program')
                     best_match.style().unpolish(best_match)
@@ -869,7 +866,6 @@ class UIBuilder:
                     widget_pos = best_match.mapTo(self.main_window.epg_timeline, QtCore.QPoint(0, 0))
                     scroll_pos = widget_pos.y() - self.main_window.epg_timeline.height()//2 + best_match.height()//2
                     scroll_bar.setValue(scroll_pos)
-                    self.logger.info(f"已滚动到位置: {scroll_pos}")
                 else:
                     self.logger.warning("匹配度不足，未高亮显示")
             else:
