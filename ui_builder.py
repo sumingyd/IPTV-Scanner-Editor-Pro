@@ -63,11 +63,23 @@ class UIBuilder:
         status_bar = self.main_window.statusBar()
         status_bar.show()
         status_bar.setStyleSheet(AppStyles.statusbar_style())
-        # 状态栏统计信息
-        self.main_window.scan_status_label = QtWidgets.QLabel("扫描: 0/0")
-        self.main_window.validate_status_label = QtWidgets.QLabel("检测: 0/0")
-        status_bar.addPermanentWidget(self.main_window.scan_status_label)
-        status_bar.addPermanentWidget(self.main_window.validate_status_label)
+        # EPG状态显示（添加到左侧）
+        self.main_window.epg_status_label = QtWidgets.QLabel(
+            "EPG状态：未加载（EPG未加载状态下，扫描时无法尝试匹配正确频道名，频道编辑时无法给出匹配的准确频道名待选列表）"
+        )
+        status_bar.addWidget(self.main_window.epg_status_label)  # 默认添加到左侧
+        
+        # 添加更新EPG状态的方法
+        def update_epg_status(loaded=False):
+            if loaded:
+                self.main_window.epg_status_label.setText("EPG状态：已加载（可自动匹配频道名）")
+            else:
+                self.main_window.epg_status_label.setText(
+                    "EPG状态：未加载（EPG未加载状态下，扫描时无法尝试匹配正确频道名，频道编辑时无法给出匹配的准确频道名待选列表）"
+                )
+        
+        # 将更新方法暴露给主窗口
+        self.main_window.update_epg_status = update_epg_status
         
         self.main_window.progress_indicator = QtWidgets.QProgressBar()
         self.main_window.progress_indicator.setRange(0, 0)
