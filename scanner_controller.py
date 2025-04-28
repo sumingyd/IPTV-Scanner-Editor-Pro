@@ -208,8 +208,6 @@ class ScannerController(QObject):
                 )
             except Exception as e:
                 self.logger.error(f"工作线程错误: {e}")
-            
-        self.logger.debug(f"工作线程 {threading.current_thread().name} 退出")
         
     def _check_channel(self, url: str) -> tuple:
         """检查频道有效性
@@ -251,45 +249,3 @@ class ScannerController(QObject):
             # 重置扫描状态
             self.stop_event.clear()
             self.workers = []
-            
-        self.logger.info("扫描统计线程退出")
-
-
-if __name__ == "__main__":
-    # 测试代码
-    from PyQt6.QtWidgets import QApplication
-    import sys
-    
-    app = QApplication(sys.argv)
-    
-    class TestModel:
-        def __init__(self):
-            self.channels = []
-            
-        def add_channel(self, channel):
-            self.channels.append(channel)
-            print(f"添加频道: {channel['name']} - {channel['url']}")
-    
-    model = TestModel()
-    controller = ScannerController(model)
-    
-    def on_progress(current, total):
-        print(f"进度: {current}/{total}")
-        
-    def on_channel(channel):
-        model.add_channel(channel)
-        
-    def on_complete():
-        print("扫描完成")
-        
-    controller.progress_updated.connect(on_progress)
-    controller.channel_found.connect(on_channel)
-    controller.scan_completed.connect(on_complete)
-    
-    # 测试扫描
-    controller.start_scan("http://192.168.1.1/rtp/239.1.1.[1-10]:5002", 3)
-    
-    # 运行5秒后停止
-    threading.Timer(5, controller.stop_scan).start()
-    
-    sys.exit(app.exec())
