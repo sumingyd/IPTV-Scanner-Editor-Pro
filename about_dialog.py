@@ -195,10 +195,8 @@ class AboutDialog(QtWidgets.QDialog):
 
     def show(self):
         """显示对话框并异步更新最新版本号"""
-        logger.info("显示关于对话框，开始版本检测流程")
         text_browser = self.findChild(QtWidgets.QTextBrowser, "aboutTextBrowser")
         if not text_browser:
-            logger.error("未找到关于文本浏览器")
             return
             
         # 先显示对话框
@@ -207,7 +205,6 @@ class AboutDialog(QtWidgets.QDialog):
         
         # 延迟100ms确保对话框完全显示后再设置文本
         def set_initial_text():
-            logger.debug("设置初始版本文本为'检测中...'")
             # 直接使用原始HTML内容替换，避免toHtml()可能的问题
             original_html = self._get_about_html(self.DARK_THEME if self.palette().window().color().lightness() < 128 else self.LIGHT_THEME)
             initial_html = original_html.replace(
@@ -230,16 +227,12 @@ class AboutDialog(QtWidgets.QDialog):
                 asyncio.wait_for(self._get_latest_version(), timeout=5)
             )
             if latest_version and latest_version not in ("请求超时", "获取失败"):
-                logger.info(f"准备更新界面显示版本: {latest_version}")
                 self._update_version_text(text_browser, version=latest_version)
             else:
-                logger.warning(f"版本检查失败: {latest_version}")
                 self._show_version_error(latest_version)
         except asyncio.TimeoutError:
-            logger.error("获取最新版本超时")
             self._show_version_error("(请求超时)")
         except Exception as e:
-            logger.error(f"获取最新版本失败: {str(e)}")
             self._show_version_error("(获取失败)")
         finally:
             loop.close()
@@ -247,8 +240,6 @@ class AboutDialog(QtWidgets.QDialog):
     def _update_version_text(self, text_browser, version=None, date=None, error_msg=None):
         """更新版本号文本"""
         if text_browser:
-            logger.debug(f"开始更新版本文本，version={version}, error_msg={error_msg}")
-            
             # 获取当前HTML
             current_html = text_browser.toHtml()
             
@@ -274,8 +265,6 @@ class AboutDialog(QtWidgets.QDialog):
                     text_browser.repaint(),
                     QtWidgets.QApplication.processEvents()
                 ))
-            else:
-                logger.warning("未提供版本号或错误信息")
 
     def _show_version_error(self, error_msg):
         """显示版本获取错误信息"""
@@ -285,7 +274,6 @@ class AboutDialog(QtWidgets.QDialog):
     def _on_link_activated(self, link):
         """处理链接点击事件"""
         if link == "javascript:void(0)":
-            logger.info("在线更新按钮被点击")
             try:
                 # 确保有事件循环
                 loop = asyncio.get_event_loop()
@@ -302,7 +290,7 @@ class AboutDialog(QtWidgets.QDialog):
                 loop.run_until_complete(task)
                 
             except Exception as e:
-                logger.error(f"更新按钮点击处理失败: {str(e)}", exc_info=True)
+                logger.error(f"关于对话框-更新按钮点击处理失败: {str(e)}", exc_info=True)
                 QtWidgets.QMessageBox.critical(
                     self,
                     "更新错误",
@@ -380,14 +368,14 @@ class AboutDialog(QtWidgets.QDialog):
                         return  # 成功完成，退出循环
                         
                     except aiohttp.ClientError as e:
-                        logger.error(f"下载失败(第{attempt+1}次): {str(e)}")
+                        logger.error(f"关于对话框-下载失败(第{attempt+1}次): {str(e)}")
                         if attempt < max_retries - 1:
                             await asyncio.sleep(retry_delay * (attempt + 1))
                             continue
                         raise
                         
             except Exception as e:
-                logger.error(f"在线更新失败(第{attempt+1}次): {str(e)}")
+                logger.error(f"关于对话框-在线更新失败(第{attempt+1}次): {str(e)}")
                 if attempt < max_retries - 1:
                     await asyncio.sleep(retry_delay * (attempt + 1))
                     continue
@@ -430,7 +418,6 @@ class AboutDialog(QtWidgets.QDialog):
         for attempt in range(max_retries):
             try:
                 url = "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest"
-                logger.info(f"尝试获取最新版本(第{attempt+1}次): {url}")
                 
                 # 设置超时和代理
                 timeout = aiohttp.ClientTimeout(total=15)
@@ -449,15 +436,12 @@ class AboutDialog(QtWidgets.QDialog):
                 ) as session:
                     try:
                         async with session.get(url) as response:
-                            logger.info(f"GitHub API响应状态: {response.status}")
                             if response.status == 200:
                                 data = await response.json()
-                                logger.debug(f"GitHub API响应数据: {data}")
                                 version = data.get('tag_name', '').lstrip('v')
                                 publish_date = data.get('published_at', '').split('T')[0]
                                 download_url = data.get('assets', [{}])[0].get('browser_download_url', '')
                                 if version and publish_date:
-                                    logger.info(f"获取到最新版本: {version}, 发布时间: {publish_date}")
                                     self.DEFAULT_VERSION = version
                                     return (version, publish_date, download_url)
                             elif response.status == 403:
@@ -482,7 +466,7 @@ class AboutDialog(QtWidgets.QDialog):
                     continue
                 return ("请求超时", datetime.date.today().strftime("%Y-%m-%d"), "")
             except Exception as e:
-                logger.error(f"获取版本失败: {str(e)}", exc_info=True)
+                logger.error(f"关于对话框-获取版本失败: {str(e)}", exc_info=True)
                 if attempt < max_retries - 1:
                     await asyncio.sleep(retry_delay * (attempt + 1))
                     continue
