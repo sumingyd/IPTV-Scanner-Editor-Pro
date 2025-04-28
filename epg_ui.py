@@ -39,9 +39,9 @@ class EPGProgramWidget(QtWidgets.QWidget):
         # 添加滚动区域到主布局
         self.main_layout.addWidget(self.scroll_area)
         
-        # 直接使用全局logger
-        import logging
-        self.logger = logging.getLogger('IPTVLogger')
+        # 使用全局logger
+        from log_manager import LogManager
+        self.logger = LogManager()
         
         # 当前节目索引
         self.current_program_index = -1
@@ -125,7 +125,7 @@ class EPGProgramWidget(QtWidgets.QWidget):
             try:
                 # 检查索引是否有效
                 if self.current_program_index >= len(self.program_items):
-                    self.logger.error(f"索引{self.current_program_index}超出范围(最大{len(self.program_items)-1})")
+                    self.logger.error(f"EPG UI-索引{self.current_program_index}超出范围(最大{len(self.program_items)-1})")
                     return
                 
                 # 从保存的节目项列表中获取当前节目项
@@ -137,10 +137,10 @@ class EPGProgramWidget(QtWidgets.QWidget):
                 
                 if not current_item:
                     for idx, item, program in self.program_items:
-                        self.logger.debug(f"索引={idx}, 标题={program.title}, 指针={id(item)}")
+                        self.logger.debug(f"EPG UI-索引={idx}, 标题={program.title}, 指针={id(item)}")
                     return
                 if not current_item:
-                    self.logger.debug(f"高亮失败: 未找到索引{self.current_program_index}对应的节目项")
+                    self.logger.debug(f"EPG UI-高亮失败: 未找到索引{self.current_program_index}对应的节目项")
                     return
                 
                 # 强制更新UI
