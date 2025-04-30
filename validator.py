@@ -171,11 +171,8 @@ class StreamValidator:
                         # 其他类型转换为字符串
                         else:
                             result['service_name'] = str(service_name)
-                        
-                except Exception as e:
-                    self.logger.error(f"处理service_name时出错: {str(e)}")
-                    result['service_name'] = "未知频道"
                     
+                    # 确保service_name字段存在
                     if 'service_name' not in result:
                         self.logger.debug("未找到service_name字段")
                         result['service_name'] = "未知频道"
