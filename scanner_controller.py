@@ -91,6 +91,10 @@ class ScannerController(QObject):
     def stop_scan(self):
         """停止扫描"""
         self.stop_event.set()
+        for worker in self.workers:
+            if worker.is_alive():
+                worker.join(timeout=1)
+        self.workers = []
         self.logger.info("扫描已停止")
 
     def start_validation(self, model, threads, timeout):
@@ -190,20 +194,23 @@ class ScannerController(QObject):
                             channel_name = channel_name[:-len(suffix)]
                             break
                     
-                    # 不再尝试匹配EPG中的频道名，直接使用原始名称
+                    # 使用新的映射函数获取标准频道名
+                    from channel_mappings import get_standard_name
+                    channel_name = get_standard_name(channel_name)
                 else:
-                    # 使用URL最后部分作为默认名称
-                    default_name = url.split('/')[-1].split('?')[0]
+                    # 使用RTP地址部分作为默认名称
+                    if '/rtp/' in url:
+                        default_name = url.split('/rtp/')[-1].split('?')[0]
+                    else:
+                        default_name = url.split('/')[-1].split('?')[0]
                     self.logger.warning(f"URL {url} 未获取到频道名，使用默认名称: {default_name}")
                     
-                    # 尝试使用URL路径进行映射
+                    # 尝试使用默认名称进行映射
                     try:
-                        from channel_mappings import SPECIAL_MAPPINGS
-                        # 提取URL的关键部分用于映射
-                        url_key = url.split('//')[-1].split('/')[0]  # 获取域名部分
-                        if url_key in SPECIAL_MAPPINGS:
-                            channel_name = SPECIAL_MAPPINGS[url_key]
-                            self.logger.info(f"通过URL映射找到频道名: {url_key} -> {channel_name}")
+                        from channel_mappings import get_standard_name
+                        channel_name = get_standard_name(default_name)
+                        if channel_name != default_name:
+                            self.logger.info(f"通过映射找到频道名: {default_name} -> {channel_name}")
                         else:
                             channel_name = default_name
                     except Exception as e:
@@ -253,28 +260,36 @@ class ScannerController(QObject):
 
     def _update_stats(self):
         """更新统计信息线程"""
-        while not self.stop_event.is_set() and any(w.is_alive() for w in self.workers):
-            self.stats['elapsed'] = time.time() - self.stats['start_time']
-            
-            # 区分扫描和验证的统计更新
-            if self.is_validating:
-                # 验证统计信息
-                stats_text = (
-                    f"总数: {self.stats['total']} | "
-                    f"有效: {self.stats['valid']} | "
-                    f"无效: {self.stats['invalid']} | "
-                    f"耗时: {time.strftime('%H:%M:%S', time.gmtime(self.stats['elapsed']))}"
-                )
-                self.stats_updated.emit({'text': stats_text, 'is_validation': True})
-            else:
-                # 扫描统计信息
-                self.stats_updated.emit({'text': '', 'is_validation': False, 'stats': self.stats})
-            
-            time.sleep(0.5)
-            
-        # 扫描完成
-        if not self.stop_event.is_set():
-            self.scan_completed.emit()
+        try:
+            while not self.stop_event.is_set() and any(w.is_alive() for w in self.workers):
+                try:
+                    self.stats['elapsed'] = time.time() - self.stats['start_time']
+                    
+                    # 区分扫描和验证的统计更新
+                    if self.is_validating:
+                        # 验证统计信息
+                        stats_text = (
+                            f"总数: {self.stats['total']} | "
+                            f"有效: {self.stats['valid']} | "
+                            f"无效: {self.stats['invalid']} | "
+                            f"耗时: {time.strftime('%H:%M:%S', time.gmtime(self.stats['elapsed']))}"
+                        )
+                        self.stats_updated.emit({'text': stats_text, 'is_validation': True})
+                    else:
+                        # 扫描统计信息
+                        self.stats_updated.emit({'text': '', 'is_validation': False, 'stats': self.stats})
+                    
+                    time.sleep(0.5)
+                except RuntimeError:
+                    break
+                
+            # 扫描完成
+            if not self.stop_event.is_set():
+                try:
+                    self.scan_completed.emit()
+                except RuntimeError:
+                    pass
+        finally:
             # 重置扫描状态
-            self.stop_event.clear()
+            self.stop_event.set()
             self.workers = []

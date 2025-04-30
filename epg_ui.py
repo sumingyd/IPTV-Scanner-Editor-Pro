@@ -162,12 +162,20 @@ class EPGProgramWidget(QtWidgets.QWidget):
                 # 确保布局已完成
                 QtWidgets.QApplication.processEvents()
                 
+                # 确保UI更新完成
+                QtWidgets.QApplication.processEvents()
+                
+                # 获取正确的滚动条对象
+                scroll_bar = self.scroll_area.verticalScrollBar()
+                
                 # 计算滚动位置
-                item_pos = current_item.pos().y()
-                scroll_pos = item_pos - int((self.height() - current_item.height()) / 2)
+                item_pos = current_item.mapTo(self.scroll_area, QtCore.QPoint(0, 0)).y()
+                scroll_pos = item_pos - int((self.scroll_area.height() - current_item.height()) / 2)
+                
+                # 确保滚动位置在有效范围内
+                scroll_pos = max(0, min(scroll_pos, scroll_bar.maximum()))
                 
                 # 执行滚动
-                scroll_bar = self.verticalScrollBar()
                 scroll_bar.setValue(scroll_pos)
                 
                 # 强制重绘
