@@ -19,10 +19,11 @@ class ScannerController(QObject):
     # 在类定义中声明信号
     channel_validated = pyqtSignal(int, bool, int, str)  # index, valid, latency, resolution
 
-    def __init__(self, model: ChannelListModel):
+    def __init__(self, model: ChannelListModel, epg_manager=None):
         super().__init__()
         self.logger = LogManager()
         self.model = model
+        self.epg_manager = epg_manager
         self.url_parser = URLRangeParser()
         self.is_validating = False
         self.stats_lock = threading.Lock()
@@ -170,16 +171,44 @@ class ScannerController(QObject):
                 # 检测URL有效性
                 valid, latency, resolution, result = self._check_channel(url)
                 
-                # 记录频道名获取情况
-                service_name = result.get('service_name')
+                # 处理频道名
+                service_name = None
+                if result and 'service_name' in result:
+                    service_name = result['service_name']
+                    if isinstance(service_name, bytes):
+                        # 直接使用原始字节数据作为唯一标识
+                        service_name = str(service_name)
+                    elif not isinstance(service_name, str):
+                        service_name = str(service_name)
                 if service_name:
-                    self.logger.info(f"从URL {url} 获取到频道名: {service_name}")
+                    self.logger.info(f"从URL {url} 获取到原始频道名: {service_name}")
+                    # 去除末尾的清晰度后缀
                     channel_name = service_name
+                    suffixes = ['-SD', '-HD', '-FHD', '-4K', '-8K', 'SD', 'HD', 'FHD', '4K', '8K']
+                    for suffix in suffixes:
+                        if channel_name.endswith(suffix):
+                            channel_name = channel_name[:-len(suffix)]
+                            break
+                    
+                    # 不再尝试匹配EPG中的频道名，直接使用原始名称
                 else:
                     # 使用URL最后部分作为默认名称
                     default_name = url.split('/')[-1].split('?')[0]
                     self.logger.warning(f"URL {url} 未获取到频道名，使用默认名称: {default_name}")
-                    channel_name = default_name
+                    
+                    # 尝试使用URL路径进行映射
+                    try:
+                        from channel_mappings import SPECIAL_MAPPINGS
+                        # 提取URL的关键部分用于映射
+                        url_key = url.split('//')[-1].split('/')[0]  # 获取域名部分
+                        if url_key in SPECIAL_MAPPINGS:
+                            channel_name = SPECIAL_MAPPINGS[url_key]
+                            self.logger.info(f"通过URL映射找到频道名: {url_key} -> {channel_name}")
+                        else:
+                            channel_name = default_name
+                    except Exception as e:
+                        self.logger.warning(f"URL映射失败: {str(e)}")
+                        channel_name = default_name
                 
                 channel_info = {
                     'url': url,
