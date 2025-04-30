@@ -27,7 +27,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.build_ui()
         
         # 初始化控制器(确保模型已由UIBuilder初始化)
-        self.scanner = ScannerController(self.model)
+        self.scanner = ScannerController(self.model, self.epg_manager)
         from player_controller import PlayerController
         from list_manager import ListManager
         self.player_controller = PlayerController(self.ui.main_window.player, self.model)
@@ -159,7 +159,6 @@ class MainWindow(QtWidgets.QMainWindow):
             # 停止扫描
             self.scanner.stop_scan()
             self.ui.main_window.scan_btn.setText("完整扫描")
-            self.logger.info("扫描已停止")
         else:
             # 检查地址是否为空
             url = self.ui.main_window.ip_range_input.text()

@@ -662,6 +662,18 @@ class EPGManager(QThread):
         normalized_name = channel_name.lower().strip()
         logger.debug(f"开始查找频道: {normalized_name}")
         
+        # 0. 先检查channel_mappings中的特殊映射
+        try:
+            from channel_mappings import SPECIAL_MAPPINGS
+            if normalized_name in SPECIAL_MAPPINGS:
+                mapped_name = SPECIAL_MAPPINGS[normalized_name].lower()
+                if mapped_name in self._name_index:
+                    logger.debug(f"通过特殊映射匹配到频道: {normalized_name} -> {mapped_name}")
+                    channel = self.epg_data.get(self._name_index[mapped_name][0])
+                    return channel.programs if channel else []
+        except Exception as e:
+            logger.warning(f"加载channel_mappings失败: {str(e)}")
+        
         # 1. 精确匹配(不区分大小写)
         if normalized_name in self._name_index:
             logger.debug(f"精确匹配到频道: {normalized_name}")

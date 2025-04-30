@@ -276,7 +276,8 @@ class UIBuilder:
         # 播放/停止按钮行
         btn_row = QtWidgets.QHBoxLayout()
         self.main_window.pause_btn = QtWidgets.QPushButton("播放")
-        self.main_window.pause_btn.setStyleSheet(AppStyles.button_style(active=True))
+        self.main_window.pause_btn.setStyleSheet(AppStyles.button_style(active=False))
+        self.main_window.pause_btn.setEnabled(False)
         self.main_window.stop_btn = QtWidgets.QPushButton("停止")
         self.main_window.stop_btn.setStyleSheet(AppStyles.button_style(active=False))
         self.main_window.stop_btn.setEnabled(False)
@@ -403,8 +404,8 @@ class UIBuilder:
         self.main_window.save_channel_btn = QtWidgets.QPushButton("保存修改")
         self.main_window.save_channel_btn.setObjectName("save_channel_btn")
         self.main_window.save_channel_btn.setMinimumHeight(36)
-        self.main_window.save_channel_btn.setStyleSheet(AppStyles.button_style(active=True))
-        self.main_window.save_channel_btn.setEnabled(True)
+        self.main_window.save_channel_btn.setStyleSheet(AppStyles.button_style(active=False))
+        self.main_window.save_channel_btn.setEnabled(False)
         
         # 文本变化时更新按钮状态
         self.main_window.name_edit.textChanged.connect(self._update_save_button_state)
@@ -738,12 +739,20 @@ class UIBuilder:
                 # 无数据时：URL列自动拉伸
                 header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Stretch)
 
-        # 监听数据变化重新计算布局
+        # 监听数据变化重新计算布局和更新按钮状态
+        def update_buttons():
+            has_channels = self.main_window.model.rowCount() > 0
+            self.main_window.pause_btn.setEnabled(has_channels)
+            self.main_window.pause_btn.setStyleSheet(AppStyles.button_style(active=has_channels))
+            self.main_window.save_channel_btn.setEnabled(has_channels and bool(self.main_window.name_edit.text()))
+            self.main_window.save_channel_btn.setStyleSheet(AppStyles.button_style(active=has_channels and bool(self.main_window.name_edit.text())))
+            adjust_columns()
+
         self.main_window.model.dataChanged.connect(lambda: header.resizeSections())
-        self.main_window.model.dataChanged.connect(adjust_columns)
-        self.main_window.model.rowsInserted.connect(adjust_columns)
-        self.main_window.model.rowsRemoved.connect(adjust_columns)
-        self.main_window.model.modelReset.connect(adjust_columns)
+        self.main_window.model.dataChanged.connect(update_buttons)
+        self.main_window.model.rowsInserted.connect(update_buttons)
+        self.main_window.model.rowsRemoved.connect(update_buttons)
+        self.main_window.model.modelReset.connect(update_buttons)
         
         # 启用拖放排序功能
         self.main_window.channel_list.setDragEnabled(True)
