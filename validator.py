@@ -10,6 +10,50 @@ class StreamValidator:
     def __init__(self):
         self.logger = LogManager()
         
+    def _get_ffprobe_path(self):
+        """获取ffprobe路径"""
+        import os
+        import sys
+        
+        # 记录所有尝试的路径
+        tried_paths = []
+        
+        # 1. 尝试从打包后的路径查找
+        if getattr(sys, 'frozen', False):
+            base_path = os.path.dirname(sys.executable)
+            exe_path = os.path.join(base_path, 'ffmpeg', 'bin', 'ffprobe.exe')
+            tried_paths.append(f"打包路径: {exe_path}")
+            if os.path.exists(exe_path):
+                self.logger.debug(f"使用打包路径的ffprobe: {exe_path}")
+                return exe_path
+        
+        # 2. 尝试从开发环境路径查找
+        dev_path = os.path.join(os.path.dirname(__file__), 'ffmpeg', 'bin', 'ffprobe.exe')
+        tried_paths.append(f"开发路径: {dev_path}")
+        if os.path.exists(dev_path):
+            self.logger.debug(f"使用开发路径的ffprobe: {dev_path}")
+            return dev_path
+            
+        # 3. 尝试从系统PATH查找
+        try:
+            from shutil import which
+            path = which('ffprobe')
+            tried_paths.append(f"系统PATH查找")
+            if path:
+                self.logger.debug(f"使用系统PATH找到的ffprobe: {path}")
+                return path
+        except ImportError:
+            tried_paths.append("无法导入shutil.which")
+            pass
+            
+        # 记录所有尝试过的路径
+        self.logger.warning(
+            "无法找到ffprobe，尝试了以下路径:\n" + 
+            "\n".join(tried_paths) +
+            "\n将尝试直接调用'ffprobe'"
+        )
+        return 'ffprobe'  # 最后尝试直接调用
+
     def validate_stream(self, url: str, timeout: int = 10) -> Dict:
         """验证视频流有效性
         
@@ -21,6 +65,7 @@ class StreamValidator:
             Dict: 包含检测结果的字典
         """
         start_time = time.time()
+        ffprobe_path = self._get_ffprobe_path()
         result = {
             'url': url,
             'valid': False,
@@ -32,9 +77,9 @@ class StreamValidator:
         }
         
         try:
-            # 构建ffprobe命令 - 恢复频道名参数
+            # 构建ffprobe命令
             cmd = [
-                'ffprobe',
+                ffprobe_path,
                 '-v', 'quiet',
                 '-print_format', 'json',
                 '-show_format',
