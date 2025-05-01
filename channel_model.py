@@ -193,18 +193,22 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
     def to_m3u(self) -> str:
         """将频道列表转换为M3U格式字符串"""
+        from channel_mappings import get_channel_info
         lines = ["#EXTM3U"]
         for channel in self.channels:
+            # 获取频道信息(包含logo地址)
+            channel_info = get_channel_info(channel.get('name', ''))
+            
             # EXTINF行 - 包含所有标准M3U标签
             extinf = (
                 f"#EXTINF:-1 "
                 f"tvg-id=\"{channel.get('tvg_id', '')}\" "
-                f"tvg-name=\"{channel.get('name', '未命名')}\" "
-                f"tvg-logo=\"{channel.get('logo', '')}\" "
+                f"tvg-name=\"{channel_info['standard_name']}\" "
+                f"tvg-logo=\"{channel_info.get('logo_url', channel.get('logo', ''))}\" "
                 f"group-title=\"{channel.get('group', '未分类')}\" "
                 f"tvg-language=\"{channel.get('language', '')}\" "
                 f"tvg-country=\"{channel.get('country', '')}\" "
-                f",{channel.get('name', '未命名')}"
+                f",{channel_info['standard_name']}"
             )
             lines.append(extinf)
             

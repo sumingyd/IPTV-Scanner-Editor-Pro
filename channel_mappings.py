@@ -8,16 +8,28 @@ DEFAULT_REMOTE_URL = "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Ed
 # 本地映射文件路径
 LOCAL_MAPPING_FILE = "local_channel_mappings.txt"
 
-def parse_mapping_line(line: str) -> Dict[str, List[str]]:
-    """解析单行映射规则"""
+def parse_mapping_line(line: str) -> Dict[str, dict]:
+    """解析单行映射规则
+    新格式: 标准名称 = "原始名称1" "原始名称2" = logo地址
+    """
     if '=' not in line:
         return {}
     
-    standard_name, raw_names = line.split('=', 1)
-    standard_name = standard_name.strip()
-    raw_names = [name.strip('"\' ') for name in raw_names.split()]
+    parts = [p.strip() for p in line.split('=', 2)]
+    standard_name = parts[0]
     
-    return {standard_name: raw_names}
+    # 解析原始名称列表
+    raw_names = [name.strip('"\' ') for name in parts[1].split()]
+    
+    # 解析logo地址(如果有)
+    logo_url = parts[2] if len(parts) > 2 else None
+    
+    return {
+        standard_name: {
+            'raw_names': raw_names,
+            'logo_url': logo_url if logo_url and logo_url.lower() not in ['', 'none', 'null'] else None
+        }
+    }
 
 def load_mappings_from_file(file_path: str) -> Dict[str, List[str]]:
     """从文件加载映射规则"""
@@ -59,12 +71,17 @@ def load_remote_mappings() -> Dict[str, List[str]]:
         logger.error(f"加载远程映射失败: {e}, 使用本地映射")
         return {}
 
-def create_reverse_mappings(mappings: Dict[str, List[str]]) -> Dict[str, str]:
-    """创建反向映射字典"""
+def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
+    """创建反向映射字典
+    返回格式: {raw_name: {'standard_name': str, 'logo_url': str}}
+    """
     reverse_mappings = {}
-    for standard_name, raw_names in mappings.items():
-        for raw_name in raw_names:
-            reverse_mappings[raw_name] = standard_name
+    for standard_name, data in mappings.items():
+        for raw_name in data['raw_names']:
+            reverse_mappings[raw_name] = {
+                'standard_name': standard_name,
+                'logo_url': data['logo_url']
+            }
     return reverse_mappings
 
 # 加载映射规则
@@ -77,12 +94,12 @@ combined_mappings = {**local_mappings, **remote_mappings}
 # 创建反向映射
 REVERSE_MAPPINGS = create_reverse_mappings(combined_mappings)
 
-def get_standard_name(raw_name: str) -> str:
-    """获取标准化频道名
-    优先使用远程映射，其次使用本地映射
+def get_channel_info(raw_name: str) -> dict:
+    """获取频道信息(标准名称和logo地址)
+    返回格式: {'standard_name': str, 'logo_url': str}
     """
     if not raw_name or raw_name.isspace():
-        return ""
+        return {'standard_name': '', 'logo_url': None}
     
     # 标准化输入名称
     normalized_name = raw_name.strip().lower()
@@ -90,20 +107,20 @@ def get_standard_name(raw_name: str) -> str:
     # 先检查远程映射
     try:
         reverse_remote = create_reverse_mappings(remote_mappings)
-        for raw_pattern, standard_name in reverse_remote.items():
+        for raw_pattern, info in reverse_remote.items():
             if normalized_name == raw_pattern.strip().lower():
-                return standard_name
+                return info
     except Exception as e:
         LogManager().error(f"远程映射查找失败: {e}")
         
     # 再检查本地映射
     try:
         reverse_local = create_reverse_mappings(local_mappings)
-        for raw_pattern, standard_name in reverse_local.items():
+        for raw_pattern, info in reverse_local.items():
             if normalized_name == raw_pattern.strip().lower():
-                return standard_name
+                return info
     except Exception as e:
         LogManager().error(f"本地映射查找失败: {e}")
         
     # 都没有匹配则返回原始名称
-    return raw_name
+    return {'standard_name': raw_name, 'logo_url': None}

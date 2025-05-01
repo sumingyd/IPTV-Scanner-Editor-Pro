@@ -1,196 +1,196 @@
 # 频道名映射文件
-# 格式: 标准名称 = "原始名称1" "原始名称2" "原始名称3"
+# 格式: 标准名称 = "原始名称1" "原始名称2" = logo地址
 
 
-CCTV-1 综合 = "CCTV1" "cctv-1" "CCTV-1"
-CCTV-2 财经 = "CCTV2"
-CCTV-3 综艺 = "CCTV3"
-CCTV-4 (亚洲) = "CCTV4"
-CCTV-4 (欧洲) = "239.21.2.28:5002"
-CCTV-4 (美洲) = "239.21.2.29:5002"
-CCTV-5 体育 = "CCTV5"
+CCTV-1 综合 = "CCTV1" "cctv-1" "CCTV-1" =
+CCTV-2 财经 = "CCTV2" =
+CCTV-3 综艺 = "CCTV3" =
+CCTV-4 (亚洲) = "CCTV4" =
+CCTV-4 (欧洲) = "239.21.2.28:5002" =
+CCTV-4 (美洲) = "239.21.2.29:5002" =
+CCTV-5 体育 = "CCTV5" =
 CCTV-5+
-CCTV-6 电影 = "CCTV6"
-CCTV-7 国防军事 = "CCTV7"
-CCTV-8 电视剧 = "CCTV8"
-CCTV-9 纪录 = "CCTV9"
-CCTV-10 科教 = "CCTV10"
-CCTV-11 戏曲 = "CCTV11"
-CCTV-12 社会与法 = "CCTV12"
-CCTV-13 新闻 = "CCTV13"
-CCTV-14 少儿 = "CCTV14"
-CCTV-15 音乐 = "CCTV15"
+CCTV-6 电影 = "CCTV6" =
+CCTV-7 国防军事 = "CCTV7" =
+CCTV-8 电视剧 = "CCTV8" =
+CCTV-9 纪录 = "CCTV9" =
+CCTV-10 科教 = "CCTV10" =
+CCTV-11 戏曲 = "CCTV11" =
+CCTV-12 社会与法 = "CCTV12" =
+CCTV-13 新闻 = "CCTV13" =
+CCTV-14 少儿 = "CCTV14" =
+CCTV-15 音乐 = "CCTV15" =
 CCTV-16
 CCTV-17
-cctv 中视购物 = "239.21.1.100:5002"
+cctv 中视购物 = "239.21.1.100:5002" =
 
-CETV-1 = "CETV-1"
-CETV-2 = "CETV2"
-CETV-4 = "cetv-4"
+CETV-1 = "CETV-1" =
+CETV-2 = "CETV2" =
+CETV-4 = "cetv-4" =
 
-CGTN = "CGTN"
-CGTN纪录 = "239.21.2.31:5002"
-CGTN西语 = "239.21.2.32:5002"
-CGTN法语 = "239.21.2.33:5002"
-CGTN阿语 = "239.21.2.34:5002"
-CGTN俄语 = "239.21.2.35:5002"
+CGTN = "CGTN" =
+CGTN纪录 = "239.21.2.31:5002" =
+CGTN西语 = "239.21.2.32:5002" =
+CGTN法语 = "239.21.2.33:5002" =
+CGTN阿语 = "239.21.2.34:5002" =
+CGTN俄语 = "239.21.2.35:5002" =
 
-北京卫视 = "239.21.1.20:5002" "BEIJING"
-安徽卫视 = "239.21.1.21:5002"
-湖南卫视 = "239.21.1.18:5002"
-浙江卫视 = "239.21.1.17:5002" "ZHEJIANG"
-江苏卫视 = "239.21.1.19:5002" "JIANGSU"
-四川卫视 = "SICHUAN" "�Ĵ�����"
-海南卫视 = "HAINAN" "239.21.1.31:5002"
-厦门卫视 = "239.21.2.6:5002"
-三沙卫视 = "239.21.2.9:5002"
-甘肃卫视 = "GanSu" "239.21.1.47:5002"
-东方卫视 = "239.21.1.23:5002" "SHANGHAI"
-深圳卫视 = "239.21.1.25:5002" "SHENZHEN"
-广东卫视 = "�㶫����" "GuangDong"
-广西卫视 = "GuangXi"
-辽宁卫视 = "239.21.1.27:5002"
-黑龙江卫视 = "239.21.1.28:5002" "HEILONGJIANG"
-东南卫视 = "239.21.1.29:5002" "FUJIAN"
-陕西卫视 = "239.21.1.30:5002"
-河北卫视 = "hubei-sd-dianxin" "�ӱ�����"
-山西卫视 = "239.21.1.33:5002"
-江西卫视 = "239.21.1.36:5002"
-河南卫视 = "HENAN" "239.21.1.38:5002"
-吉林卫视 = "��������" "JILIN"
-内蒙古卫视 = "239.21.1.41:5002"
-贵州卫视 = "239.21.1.42:5002"
-宁夏卫视 = "239.21.1.44:5002"
-新疆卫视 = "新疆"
-西藏卫视 = "西藏"
-青海卫视 = "QingHai"
-山东卫视 = "山东卫视" "SDTV-HD-DianXin"
-云南卫视 = "YunNan"
+北京卫视 = "239.21.1.20:5002" "BEIJING" =
+安徽卫视 = "239.21.1.21:5002" =
+湖南卫视 = "239.21.1.18:5002" =
+浙江卫视 = "239.21.1.17:5002" "ZHEJIANG" =
+江苏卫视 = "239.21.1.19:5002" "JIANGSU" =
+四川卫视 = "SICHUAN" "�Ĵ�����" =
+海南卫视 = "HAINAN" "239.21.1.31:5002" =
+厦门卫视 = "239.21.2.6:5002" =
+三沙卫视 = "239.21.2.9:5002" =
+甘肃卫视 = "GanSu" "239.21.1.47:5002" =
+东方卫视 = "239.21.1.23:5002" "SHANGHAI" =
+深圳卫视 = "239.21.1.25:5002" "SHENZHEN" =
+广东卫视 = "�㶫����" "GuangDong" =
+广西卫视 = "GuangXi" =
+辽宁卫视 = "239.21.1.27:5002" =
+黑龙江卫视 = "239.21.1.28:5002" "HEILONGJIANG" =
+东南卫视 = "239.21.1.29:5002" "FUJIAN" =
+陕西卫视 = "239.21.1.30:5002" =
+河北卫视 = "hubei-sd-dianxin" "�ӱ�����" =
+山西卫视 = "239.21.1.33:5002" =
+江西卫视 = "239.21.1.36:5002" =
+河南卫视 = "HENAN" "239.21.1.38:5002" =
+吉林卫视 = "��������" "JILIN" =
+内蒙古卫视 = "239.21.1.41:5002" =
+贵州卫视 = "239.21.1.42:5002" =
+宁夏卫视 = "239.21.1.44:5002" =
+新疆卫视 = "新疆" =
+西藏卫视 = "西藏" =
+青海卫视 = "QingHai" =
+山东卫视 = "山东卫视" "SDTV-HD-DianXin" =
+云南卫视 = "YunNan" =
 
-嘉佳卡通 = "239.21.2.5:5002"
-优漫卡通 = "优漫卡通"
-哈哈炫动 = "239.21.1.51:5002"
-新动漫 = "239.21.2.93:5002"
-重温经典影视 = "Kan-shandong"
-都市剧场 = "增值-dushijuchang"
-华数精彩影视 = "jingcaiyingshi"
-动漫秀场 = "??-dongmanxiuchang"
-优优宝贝 = "增值-youyoubaobei"
-魅力足球 = "增值-meilizuqiu"
-武术视界 = "增值-wushushijie"
-快乐垂钓 = "增值-kuailechuidiao"
-先锋乒羽 = "增值-xianfengpingyu"
-四海钓鱼 = "增值-sihaidiaoyu"
-梨园频道 = "增值-liyuan"
-金色学堂 = "增值-jinsexuetang"
-生活时尚 = "增值-shenghuoshishang"
-乐游 = "增值-leyou"
-法治天地 = "增值-fazhitiandi"
-游戏风云 = "增值-youxifengyun"
-东方财经 = "增值-dongfangcaijing"
-文物宝库 = "增值-wenwubaoku"
-茶 = "增值-cha"
-书画 = "增值-shuhua"
-车迷 = "增值-chemi"
-家庭理财 = "增值-jiatinglicai"
-中国交通 = "zhongguo-jiaotong"
-环球旅游 = "增值-huanqiulvyou"
-中华体彩 = "增值-zhonghuatechan"
-海洋频道 = "Bravo Inc."
-卡酷少儿 = "BeiJing-KAKU"
-金鹰卡通 = "䡵乡渭䭁呏乇"
-喜剧影院 = "239.21.1.122:5002"
-动作影院 = "239.21.1.123:5002"
-热播剧场 = "239.21.1.128:5002"
-IPTV经典电影 = "239.21.1.124:5002"
-IPTV少儿动画 = "239.21.1.125:5002"
-IPTV相声小品 = "239.21.1.126:5002"
-IPTV魅力时尚 = "239.21.1.129:5002"
-财富天下 = "CFTX"
-CHC家庭影院 = "CHC-jiatingyinyuan"
-CHC高清电影 = "CHC-gaoqingdianying"
-CHC动作电影 = "CHC-dongzuo"
+嘉佳卡通 = "239.21.2.5:5002" =
+优漫卡通 = "优漫卡通" =
+哈哈炫动 = "239.21.1.51:5002" =
+新动漫 = "239.21.2.93:5002" =
+重温经典影视 = "Kan-shandong" =
+都市剧场 = "增值-dushijuchang" =
+华数精彩影视 = "jingcaiyingshi" =
+动漫秀场 = "??-dongmanxiuchang" =
+优优宝贝 = "增值-youyoubaobei" =
+魅力足球 = "增值-meilizuqiu" =
+武术视界 = "增值-wushushijie" =
+快乐垂钓 = "增值-kuailechuidiao" =
+先锋乒羽 = "增值-xianfengpingyu" =
+四海钓鱼 = "增值-sihaidiaoyu" =
+梨园频道 = "增值-liyuan" =
+金色学堂 = "增值-jinsexuetang" =
+生活时尚 = "增值-shenghuoshishang" =
+乐游 = "增值-leyou" =
+法治天地 = "增值-fazhitiandi" =
+游戏风云 = "增值-youxifengyun" =
+东方财经 = "增值-dongfangcaijing" =
+文物宝库 = "增值-wenwubaoku" =
+茶 = "增值-cha" =
+书画 = "增值-shuhua" =
+车迷 = "增值-chemi" =
+家庭理财 = "增值-jiatinglicai" =
+中国交通 = "zhongguo-jiaotong" =
+环球旅游 = "增值-huanqiulvyou" =
+中华体彩 = "增值-zhonghuatechan" =
+海洋频道 = "Bravo Inc." =
+卡酷少儿 = "BeiJing-KAKU" =
+金鹰卡通 = "䡵乡渭䭁呏乇" =
+喜剧影院 = "239.21.1.122:5002" =
+动作影院 = "239.21.1.123:5002" =
+热播剧场 = "239.21.1.128:5002" =
+IPTV经典电影 = "239.21.1.124:5002" =
+IPTV少儿动画 = "239.21.1.125:5002" =
+IPTV相声小品 = "239.21.1.126:5002" =
+IPTV魅力时尚 = "239.21.1.129:5002" =
+财富天下 = "CFTX" =
+CHC家庭影院 = "CHC-jiatingyinyuan" =
+CHC高清电影 = "CHC-gaoqingdianying" =
+CHC动作电影 = "CHC-dongzuo" =
 
-山东齐鲁 = "齐鲁" "SDQiLu-HD-DianXin"
-山东公共 = "公共"
-山东综艺 = "ZongYi"
-山东生活 = "生活"
-山东影视 = "影视"
-山东体育 = "体育"
-山东农科 = "农科"
-山东少儿 = "少儿"
-山东教育卫视 = "239.21.1.101:5002"
-山东购物 = "SDGouWu-HD-H264"
+山东齐鲁 = "齐鲁" "SDQiLu-HD-DianXin" =
+山东公共 = "公共" =
+山东综艺 = "ZongYi" =
+山东生活 = "生活" =
+山东影视 = "影视" =
+山东体育 = "体育" =
+山东农科 = "农科" =
+山东少儿 = "少儿" =
+山东教育卫视 = "239.21.1.101:5002" =
+山东购物 = "SDGouWu-HD-H264" =
 
-济南综合 = "239.21.1.62:5002"
-济南都市 = "239.21.1.63:5002"
-济南生活 = "239.21.1.64:5002"
-济南体育 = "239.21.1.65:5002"
-济南娱乐 = "239.21.1.66:5002"
-济南少儿 = "239.21.1.68:5002"
-济南新闻 = "JINAN-XINWEN济南高清"
-济南教育 = "JINAN-JIAOYU济南教育高清"
-青岛QTV-1 = QTV-1
-青岛QTV-2 = QTV-2
-青岛QTV-3 = QTV-3
-青岛QTV-4 = QTV-4
-青岛QTV-5 = QTV-5
-青岛QTV-6 = QTV-6
-德州新闻 = "dezhou-xinwen"
-德州生活 = "dezhou-jingjishenghuo"
-菏泽-1 = "heze-1"
-菏泽-2 = "heze-2"
-济宁综合 = "jining-zonghe"
-济宁公共 = "jining-gonggong"
-济宁高新 = "jining-gaoxin"
-潍坊新闻 = "weifang-1"
-潍坊生活 = "weifang-2"
-潍坊影视 = "weifang-3"
-潍坊文旅 = "weifang-4"
-潍坊高新 = "weifang-gaoxin"
-日照科教 = "rizhao-kejiao"
-日照新闻 = "rizhao-xinwen"
-日照公共 = "rizhao-gonggong"
-东营新闻 = "dongying-xinwen"
-东营公共 = "dongying-gonggong"
-淄博文旅 = "zibo-wenlv"
-淄博新闻 = "zibo-xinwen"
-淄博民生 = "zibo-minsheng"
-烟台新闻 = "yantai-xinwen"
-烟台公共 = "yantai-gonggong"
-滨州新闻 = "binzhou-xinwen"
-滨州民生 = "binzhou-minsheng"
+济南综合 = "239.21.1.62:5002" =
+济南都市 = "239.21.1.63:5002" =
+济南生活 = "239.21.1.64:5002" =
+济南体育 = "239.21.1.65:5002" =
+济南娱乐 = "239.21.1.66:5002" =
+济南少儿 = "239.21.1.68:5002" =
+济南新闻 = "JINAN-XINWEN济南高清" =
+济南教育 = "JINAN-JIAOYU济南教育高清" =
+青岛QTV-1 = QTV-1 =
+青岛QTV-2 = QTV-2 =
+青岛QTV-3 = QTV-3 =
+青岛QTV-4 = QTV-4 =
+青岛QTV-5 = QTV-5 =
+青岛QTV-6 = QTV-6 =
+德州新闻 = "dezhou-xinwen" =
+德州生活 = "dezhou-jingjishenghuo" =
+菏泽-1 = "heze-1" =
+菏泽-2 = "heze-2" =
+济宁综合 = "jining-zonghe" =
+济宁公共 = "jining-gonggong" =
+济宁高新 = "jining-gaoxin" =
+潍坊新闻 = "weifang-1" =
+潍坊生活 = "weifang-2" =
+潍坊影视 = "weifang-3" =
+潍坊文旅 = "weifang-4" =
+潍坊高新 = "weifang-gaoxin" =
+日照科教 = "rizhao-kejiao" =
+日照新闻 = "rizhao-xinwen" =
+日照公共 = "rizhao-gonggong" =
+东营新闻 = "dongying-xinwen" =
+东营公共 = "dongying-gonggong" =
+淄博文旅 = "zibo-wenlv" =
+淄博新闻 = "zibo-xinwen" =
+淄博民生 = "zibo-minsheng" =
+烟台新闻 = "yantai-xinwen" =
+烟台公共 = "yantai-gonggong" =
+滨州新闻 = "binzhou-xinwen" =
+滨州民生 = "binzhou-minsheng" =
 
-牟平综合 = "muping-xinwen"
-牟平生活 = "muping-shenghuo"
-梁山综合 = "liangshan"
-安丘综合 = "anqiu-zonghe"
-单县综合 = "shanxian-zonghe"
-蒙阴综合 = "mengyin"
-陵城综合 = "lingcheng"
-昌邑综合 = "changyi-xinwen"
-宁津综合 = "ningjin-zonghe"
-长岛综合 = "changdao"
-商河综合 = "shanghe"
-蓬莱综合 = "penglai"
-黄岛综合 = "huangdao-xinwen"
-黄岛生活 = "huangdao-shenghuo"
-高密综合 = "gaomi-xinwen"
-胶州综合 = "jiaozhou"
-东阿综合 = "donge"
-临朐综合 = "linqu-xinwen"
-兰陵公共 = "lanling-gonggong"
-海阳综合 = "haiyang-zonghe" "海阳综合电信用"
-海阳综合 = "haiyang-zongyi"
-莒南综合 = "junan-zonghe"
-沂水科教 = "yishui-1"
-沂水生活 = "yishui-2"
-嘉祥新闻 = "jiaxiang-xinwen"
-夏津综合 = "xiajin-zonghe"
-夏津公共 = "xiajin-gonggong"
-桓台 = "huantai"
-长清综合 = "changqing"
-沂源综合 = "yiyuan"
-崂山 = "239.21.1.122:5002"
-临清综合 = "239.21.1.123:5002"
-临邑 = "linyi(dezhou)"
+牟平综合 = "muping-xinwen" =
+牟平生活 = "muping-shenghuo" =
+梁山综合 = "liangshan" =
+安丘综合 = "anqiu-zonghe" =
+单县综合 = "shanxian-zonghe" =
+蒙阴综合 = "mengyin" =
+陵城综合 = "lingcheng" =
+昌邑综合 = "changyi-xinwen" =
+宁津综合 = "ningjin-zonghe" =
+长岛综合 = "changdao" =
+商河综合 = "shanghe" =
+蓬莱综合 = "penglai" =
+黄岛综合 = "huangdao-xinwen" =
+黄岛生活 = "huangdao-shenghuo" =
+高密综合 = "gaomi-xinwen" =
+胶州综合 = "jiaozhou" =
+东阿综合 = "donge" =
+临朐综合 = "linqu-xinwen" =
+兰陵公共 = "lanling-gonggong" =
+海阳综合 = "haiyang-zonghe" "海阳综合电信用" =
+海阳综合 = "haiyang-zongyi" =
+莒南综合 = "junan-zonghe" =
+沂水科教 = "yishui-1" =
+沂水生活 = "yishui-2" =
+嘉祥新闻 = "jiaxiang-xinwen" =
+夏津综合 = "xiajin-zonghe" =
+夏津公共 = "xiajin-gonggong" =
+桓台 = "huantai" =
+长清综合 = "changqing" =
+沂源综合 = "yiyuan" =
+崂山 = "239.21.1.122:5002" =
+临清综合 = "239.21.1.123:5002" =
+临邑 = "linyi(dezhou)" =
