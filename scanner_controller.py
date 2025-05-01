@@ -194,24 +194,26 @@ class ScannerController(QObject):
                             channel_name = channel_name[:-len(suffix)]
                             break
                     
-                    # 使用新的映射函数获取标准频道名
-                    from channel_mappings import get_standard_name
-                    channel_name = get_standard_name(channel_name)
+                    # 使用映射函数获取标准频道名
+                    from channel_mappings import get_channel_info
+                    channel_info = get_channel_info(channel_name)
+                    channel_name = channel_info['standard_name']
                 elif service_name == "未知频道":
                     # 如果ffprobe返回"未知频道"，则从URL提取名称
                     default_name = self._extract_channel_name_from_url(url)
                     self.logger.warning(f"URL {url} 获取到无效频道名，使用提取的名称: {default_name}")
-                    channel_name = get_standard_name(default_name)
+                    from channel_mappings import get_channel_info
+                    channel_info = get_channel_info(default_name)
+                    channel_name = channel_info['standard_name']
                 else:
                     # 从URL提取默认名称，支持多种协议格式
                     default_name = self._extract_channel_name_from_url(url)
                     self.logger.warning(f"URL {url} 未获取到频道名，使用提取的名称: {default_name}")
                     
                     # 使用默认名称并应用映射
-                    from channel_mappings import get_standard_name
-                    channel_name = get_standard_name(default_name)
-                    if channel_name == default_name:  # 如果映射未生效
-                        channel_name = default_name  # 保持原始名称
+                    from channel_mappings import get_channel_info
+                    channel_info = get_channel_info(default_name)
+                    channel_name = channel_info['standard_name']
                 
                 # 最终确定频道名
                 final_name = channel_name
@@ -258,9 +260,17 @@ class ScannerController(QObject):
             
             # HTTP/HTTPS地址提取
             if url_lower.startswith(('http://', 'https://')):
-                # 提取主机名+路径作为唯一标识
-                parsed = url.split('://')[1]
-                return parsed.split('?')[0].split('#')[0].strip()
+                # 提取具体频道地址部分，忽略范围地址
+                if '[' in url and ']' in url:  # 如果是范围地址
+                    # 提取具体频道编号部分
+                    base_url = url.split('[')[0]
+                    channel_part = url.split('[')[1].split(']')[0]
+                    if '-' in channel_part:  # 如果是范围
+                        return base_url.split('/')[-1]  # 返回基础频道名
+                    else:  # 如果是具体频道
+                        return channel_part
+                else:  # 普通URL
+                    return url.split('/')[-1].split('?')[0].split('#')[0].strip()
             
             # 默认提取URL最后部分
             return url.split('/')[-1].split('?')[0].split('#')[0].strip()

@@ -84,9 +84,18 @@ def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
             }
     return reverse_mappings
 
-# 加载映射规则
-local_mappings = load_mappings_from_file(LOCAL_MAPPING_FILE)
+# 加载映射规则 - 先尝试远程，失败后尝试本地
 remote_mappings = load_remote_mappings()
+local_mappings = load_mappings_from_file(LOCAL_MAPPING_FILE)
+
+# 记录加载状态
+logger = LogManager()
+if remote_mappings:
+    logger.info("成功加载远程映射规则")
+elif local_mappings:
+    logger.warning("远程映射加载失败，使用本地映射")
+else:
+    logger.error("远程和本地映射都不可用，将跳过频道名映射")
 
 # 合并映射规则(远程优先)
 combined_mappings = {**local_mappings, **remote_mappings}

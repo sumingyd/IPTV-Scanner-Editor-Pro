@@ -24,14 +24,12 @@ class StreamValidator:
             exe_path = os.path.join(base_path, 'ffmpeg', 'bin', 'ffprobe.exe')
             tried_paths.append(f"打包路径: {exe_path}")
             if os.path.exists(exe_path):
-                self.logger.debug(f"使用打包路径的ffprobe: {exe_path}")
                 return exe_path
         
         # 2. 尝试从开发环境路径查找
         dev_path = os.path.join(os.path.dirname(__file__), 'ffmpeg', 'bin', 'ffprobe.exe')
         tried_paths.append(f"开发路径: {dev_path}")
         if os.path.exists(dev_path):
-            self.logger.debug(f"使用开发路径的ffprobe: {dev_path}")
             return dev_path
             
         # 3. 尝试从系统PATH查找
@@ -40,7 +38,6 @@ class StreamValidator:
             path = which('ffprobe')
             tried_paths.append(f"系统PATH查找")
             if path:
-                self.logger.debug(f"使用系统PATH找到的ffprobe: {path}")
                 return path
         except ImportError:
             tried_paths.append("无法导入shutil.which")
@@ -192,9 +189,9 @@ class StreamValidator:
                                                     decoded = byte_data.decode(detected['encoding'])
                                                     result['service_name'] = decoded
                                         except ImportError:
-                                            self.logger.debug("chardet模块不可用，跳过自动编码探测")
+                                            self.logger.info("chardet模块不可用，跳过自动编码探测")
                                         except Exception as e:
-                                            self.logger.debug(f"自动探测失败: {str(e)}")
+                                            self.logger.info(f"自动探测失败: {str(e)}")
                                     
                                     # 所有尝试失败，保留原始字符串
                                     if 'service_name' not in result:
@@ -219,7 +216,7 @@ class StreamValidator:
                     
                     # 确保service_name字段存在
                     if 'service_name' not in result:
-                        self.logger.debug("未找到service_name字段")
+                        self.logger.info("未找到service_name字段")
                         result['service_name'] = "未知频道"
                     
                     # 从streams获取分辨率等信息
