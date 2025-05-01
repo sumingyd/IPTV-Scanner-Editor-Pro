@@ -12,9 +12,9 @@ logger = LogManager()
 
 class AboutDialog(QtWidgets.QDialog):
     # 版本配置
-    CURRENT_VERSION = "9.0.0.0"  # 当前版本号(手动修改这里)
+    CURRENT_VERSION = "10.0.0.0"  # 当前版本号(手动修改这里)
     DEFAULT_VERSION = None  # 将从GitHub获取最新版本
-    BUILD_DATE = "2025-04-27"  # 更新为当前日期
+    BUILD_DATE = "2025-05-01"  # 更新为当前日期
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -148,6 +148,13 @@ class AboutDialog(QtWidgets.QDialog):
                         <li>修改频道基本信息(名称、分组)</li>
                         <li>支持批量导入/导出频道数据(M3U/TXT格式)</li>
                         <li>快捷键支持(Enter保存修改并编辑下一个频道)</li>
+                    </ul>
+                </li>
+                <li><b>频道名和LOGO映射</b>：
+                    <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
+                        <li>频道会尝试获取频道名并通过映射文件匹配频道名和LOGO映射</li>
+                        <li>频道名的映射文件在仓库，可以直接去仓库提交修改，已增加适合你的</li>
+                        <li>频道的logo可以直接在仓库提交上传到logo文件夹</li>
                     </ul>
                 </li>
                 <li><b>播放控制</b>：
