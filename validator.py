@@ -150,29 +150,34 @@ class StreamValidator:
         }
         
         try:
-            # 先进行简单连接测试
-            if url.startswith(('http://', 'https://')):
-                import requests
-                try:
-                    response = requests.head(url, timeout=timeout/2)
-                    if response.status_code < 400:
-                        result['valid'] = True
-                except requests.exceptions.RequestException as e:
-                    result['error'] = f"连接失败: {str(e)}"
-                    return result
+            # 对于组播地址或组播转单播地址，直接使用ffprobe验证
+            if (url.startswith(('rtp://', 'udp://', 'rtsp://')) or 
+                ('/rtp/' in url.lower() or '/udp/' in url.lower() or '/rtsp/' in url.lower())):
+                result['valid'] = True
             else:
-                # 对于非HTTP协议，直接尝试连接
-                try:
-                    import socket
-                    from urllib.parse import urlparse
-                    parsed = urlparse(url)
-                    host = parsed.hostname
-                    port = parsed.port or 80
-                    with socket.create_connection((host, port), timeout=timeout/2):
-                        result['valid'] = True
-                except Exception as e:
-                    result['error'] = f"连接失败: {str(e)}"
-                    return result
+                # 其他URL进行简单连接测试
+                if url.startswith(('http://', 'https://')):
+                    import requests
+                    try:
+                        response = requests.head(url, timeout=timeout/2)
+                        if response.status_code < 400:
+                            result['valid'] = True
+                    except requests.exceptions.RequestException as e:
+                        result['error'] = f"连接失败: {str(e)}"
+                        return result
+                else:
+                    # 对于其他非HTTP协议，直接尝试连接
+                    try:
+                        import socket
+                        from urllib.parse import urlparse
+                        parsed = urlparse(url)
+                        host = parsed.hostname
+                        port = parsed.port or 80
+                        with socket.create_connection((host, port), timeout=timeout/2):
+                            result['valid'] = True
+                    except Exception as e:
+                        result['error'] = f"连接失败: {str(e)}"
+                        return result
             
             # 如果连接成功，再获取详细信息
             if result['valid']:
@@ -315,9 +320,16 @@ class StreamValidator:
                             else:
                                 result['service_name'] = str(service_name)
                         
-                        # 确保service_name字段存在
+                        # 确保service_name字段存在并处理清晰度后缀
                         if 'service_name' not in result:
                             result['service_name'] = "未知频道"
+                        else:
+                            # 去除清晰度后缀
+                            suffixes = ['-SD', '-HD', '-FHD', '-4K', '-8K', 'SD', 'HD', 'FHD', '4K', '8K']
+                            for suffix in suffixes:
+                                if result['service_name'].endswith(suffix):
+                                    result['service_name'] = result['service_name'][:-len(suffix)]
+                                    break
                         
                         # 从streams获取分辨率等信息
                         if 'streams' in data and len(data['streams']) > 0:
@@ -338,10 +350,15 @@ class StreamValidator:
             self.logger.error(f"检测流 {url} 时出错: {str(e)}")
             result['error'] = str(e)
             
-        # 如果ffprobe检测通过但仍有疑问，使用VLC二次验证
-        if result['valid'] and result.get('error') is None:
-            if not self._validate_with_vlc(url):
-                result['valid'] = False
-                result['error'] = "VLC验证失败"
+            # 对于组播和组播转单播URL，跳过VLC验证
+            is_multicast = url.startswith(('rtp://', 'udp://', 'rtsp://'))
+            is_proxied_multicast = any(x in url.lower() for x in ['/rtp/', '/udp/', '/rtsp/'])
+            
+            if not (is_multicast or is_proxied_multicast):
+                # 其他URL使用VLC二次验证
+                if result['valid'] and result.get('error') is None:
+                    if not self._validate_with_vlc(url):
+                        result['valid'] = False
+                        result['error'] = "VLC验证失败"
             
         return result
