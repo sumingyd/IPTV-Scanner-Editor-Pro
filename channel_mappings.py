@@ -5,8 +5,26 @@ from log_manager import LogManager
 
 # 默认远程URL
 DEFAULT_REMOTE_URL = "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/local_channel_mappings.txt"
-# 本地映射文件路径
-LOCAL_MAPPING_FILE = "local_channel_mappings.txt"
+def _get_local_mapping_path() -> str:
+    """获取本地映射文件路径，处理开发环境和打包环境"""
+    import os
+    import sys
+    
+    # 1. 尝试从打包后的路径查找
+    if getattr(sys, 'frozen', False):
+        base_path = os.path.dirname(sys.executable)
+        exe_path = os.path.join(base_path, 'local_channel_mappings.txt')
+        if os.path.exists(exe_path):
+            return exe_path
+    
+    # 2. 尝试从开发环境路径查找
+    dev_path = os.path.join(os.path.dirname(__file__), 'local_channel_mappings.txt')
+    if os.path.exists(dev_path):
+        return dev_path
+        
+    # 3. 尝试当前目录
+    current_path = 'local_channel_mappings.txt'
+    return current_path
 
 def parse_mapping_line(line: str) -> Dict[str, dict]:
     """解析单行映射规则
@@ -86,7 +104,7 @@ def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
 
 # 加载映射规则 - 先尝试远程，失败后尝试本地
 remote_mappings = load_remote_mappings()
-local_mappings = load_mappings_from_file(LOCAL_MAPPING_FILE)
+local_mappings = load_mappings_from_file(_get_local_mapping_path())
 
 # 记录加载状态
 logger = LogManager()
