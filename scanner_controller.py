@@ -184,7 +184,7 @@ class ScannerController(QObject):
                         service_name = str(service_name)
                     elif not isinstance(service_name, str):
                         service_name = str(service_name)
-                if service_name:
+                if service_name and service_name != "未知频道":
                     self.logger.info(f"从URL {url} 获取到原始频道名: {service_name}")
                     # 去除末尾的清晰度后缀
                     channel_name = service_name
@@ -197,29 +197,28 @@ class ScannerController(QObject):
                     # 使用新的映射函数获取标准频道名
                     from channel_mappings import get_standard_name
                     channel_name = get_standard_name(channel_name)
+                elif service_name == "未知频道":
+                    # 如果ffprobe返回"未知频道"，则从URL提取名称
+                    default_name = self._extract_channel_name_from_url(url)
+                    self.logger.warning(f"URL {url} 获取到无效频道名，使用提取的名称: {default_name}")
+                    channel_name = get_standard_name(default_name)
                 else:
-                    # 使用RTP地址部分作为默认名称
-                    if '/rtp/' in url:
-                        default_name = url.split('/rtp/')[-1].split('?')[0]
-                    else:
-                        default_name = url.split('/')[-1].split('?')[0]
-                    self.logger.warning(f"URL {url} 未获取到频道名，使用默认名称: {default_name}")
+                    # 从URL提取默认名称，支持多种协议格式
+                    default_name = self._extract_channel_name_from_url(url)
+                    self.logger.warning(f"URL {url} 未获取到频道名，使用提取的名称: {default_name}")
                     
-                    # 尝试使用默认名称进行映射
-                    try:
-                        from channel_mappings import get_standard_name
-                        channel_name = get_standard_name(default_name)
-                        if channel_name != default_name:
-                            self.logger.info(f"通过映射找到频道名: {default_name} -> {channel_name}")
-                        else:
-                            channel_name = default_name
-                    except Exception as e:
-                        self.logger.warning(f"URL映射失败: {str(e)}")
-                        channel_name = default_name
+                    # 使用默认名称并应用映射
+                    from channel_mappings import get_standard_name
+                    channel_name = get_standard_name(default_name)
+                    if channel_name == default_name:  # 如果映射未生效
+                        channel_name = default_name  # 保持原始名称
+                
+                # 最终确定频道名
+                final_name = channel_name
                 
                 channel_info = {
                     'url': url,
-                    'name': channel_name,
+                    'name': final_name if final_name else channel_name,
                     'valid': valid,
                     'latency': latency,
                     'resolution': resolution,
@@ -245,6 +244,30 @@ class ScannerController(QObject):
             except Exception as e:
                 self.logger.error(f"工作线程错误: {e}")
         
+    def _extract_channel_name_from_url(self, url: str) -> str:
+        """从URL提取频道名，支持多种协议格式"""
+        try:
+            # 标准化URL为小写
+            url_lower = url.lower()
+            
+            # 组播地址提取
+            for proto in ['rtp', 'stp', 'udp', 'rtsp']:
+                proto_prefix = f'/{proto}/'
+                if proto_prefix in url_lower:
+                    return url.split(proto_prefix)[1].split('?')[0].split('#')[0].strip()
+            
+            # HTTP/HTTPS地址提取
+            if url_lower.startswith(('http://', 'https://')):
+                # 提取主机名+路径作为唯一标识
+                parsed = url.split('://')[1]
+                return parsed.split('?')[0].split('#')[0].strip()
+            
+            # 默认提取URL最后部分
+            return url.split('/')[-1].split('?')[0].split('#')[0].strip()
+        except Exception as e:
+            self.logger.error(f"提取频道名失败: {e}")
+            return url  # 如果提取失败，返回完整URL
+
     def _check_channel(self, url: str) -> tuple:
         """检查频道有效性
         返回: (valid: bool, latency: int, resolution: str, result: dict)

@@ -71,12 +71,39 @@ def create_reverse_mappings(mappings: Dict[str, List[str]]) -> Dict[str, str]:
 local_mappings = load_mappings_from_file(LOCAL_MAPPING_FILE)
 remote_mappings = load_remote_mappings()
 
-# 合并映射规则(本地优先)
-combined_mappings = {**remote_mappings, **local_mappings}
+# 合并映射规则(远程优先)
+combined_mappings = {**local_mappings, **remote_mappings}
 
 # 创建反向映射
 REVERSE_MAPPINGS = create_reverse_mappings(combined_mappings)
 
 def get_standard_name(raw_name: str) -> str:
-    """获取标准化频道名"""
-    return REVERSE_MAPPINGS.get(raw_name, raw_name)
+    """获取标准化频道名
+    优先使用远程映射，其次使用本地映射
+    """
+    if not raw_name or raw_name.isspace():
+        return ""
+    
+    # 标准化输入名称
+    normalized_name = raw_name.strip().lower()
+    
+    # 先检查远程映射
+    try:
+        reverse_remote = create_reverse_mappings(remote_mappings)
+        for raw_pattern, standard_name in reverse_remote.items():
+            if normalized_name == raw_pattern.strip().lower():
+                return standard_name
+    except Exception as e:
+        LogManager().error(f"远程映射查找失败: {e}")
+        
+    # 再检查本地映射
+    try:
+        reverse_local = create_reverse_mappings(local_mappings)
+        for raw_pattern, standard_name in reverse_local.items():
+            if normalized_name == raw_pattern.strip().lower():
+                return standard_name
+    except Exception as e:
+        LogManager().error(f"本地映射查找失败: {e}")
+        
+    # 都没有匹配则返回原始名称
+    return raw_name
