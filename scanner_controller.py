@@ -64,14 +64,14 @@ class ScannerController(QObject):
         if referer:
             StreamValidator.headers['Referer'] = referer
             
-        # 解析URL范围
-        urls = self.url_parser.parse_url(base_url)
-        if not urls:
+        # 解析URL范围并保存到实例变量
+        self.urls = self.url_parser.parse_url(base_url)
+        if not self.urls:
             self.logger.warning("没有可扫描的URL")
             return
             
         self.stats = {
-            'total': len(urls),
+            'total': len(self.urls),
             'valid': 0,
             'invalid': 0,
             'start_time': time.time(),
@@ -79,7 +79,7 @@ class ScannerController(QObject):
         }
         
         # 填充任务队列
-        for url in urls:
+        for url in self.urls:
             self.worker_queue.put(url)
             
         # 创建工作线程
@@ -101,7 +101,7 @@ class ScannerController(QObject):
         )
         stats_thread.start()
         
-        self.logger.info(f"开始扫描 {len(urls)} 个URL，使用 {thread_count} 个线程")
+        self.logger.info(f"开始扫描 {len(self.urls)} 个URL，使用 {thread_count} 个线程")
         
     def stop_scan(self):
         """停止扫描"""
@@ -187,100 +187,116 @@ class ScannerController(QObject):
                 break
                 
             try:
-                # 检测URL有效性
+                # 核心验证：只要获取到分辨率就视为有效
                 valid, latency, resolution, result = self._check_channel(url)
+                valid = bool(resolution)  # 只要有分辨率就视为有效
                 
-                # 处理频道名
-                service_name = None
-                if result and 'service_name' in result:
-                    service_name = result['service_name']
-                    if isinstance(service_name, bytes):
-                        # 直接使用原始字节数据作为唯一标识
-                        service_name = str(service_name)
-                    elif not isinstance(service_name, str):
-                        service_name = str(service_name)
+                # 获取原始频道名
+                raw_name = result.get('service_name', '') if result else ''
+                if not raw_name or raw_name == "未知频道":
+                    raw_name = self._extract_channel_name_from_url(url)
+                    # 确保不是index.m3u8等无效名称
+                    if raw_name.lower() in ['index.m3u8', 'playlist.m3u8']:
+                        # 直接使用URL中的CHANNEL编号部分
+                        if 'CHANNEL' in url and '/index.m3u8' in url:
+                            raw_name = url.split('CHANNEL')[1].split('/')[0]
+                            if raw_name.isdigit():
+                                raw_name = f"CHANNEL{raw_name}"
                 
-                # 从URL提取具体频道编号
-                if '[' in url and ']' in url:  # 如果是范围URL
-                    # 提取具体频道编号部分
-                    channel_part = url.split('[')[1].split(']')[0]
-                    if '-' in channel_part:  # 如果是范围
-                        # 从URL中提取实际编号部分
-                        # 例如: http://.../CHANNEL00000001/... 中的00000001
-                        url_parts = url.split('/')
-                        for part in url_parts:
-                            if part.startswith('CHANNEL') and len(part) > 7:
-                                channel_num = part[7:]  # 去掉CHANNEL前缀
-                                channel_name = f"CHANNEL{channel_num}"
-                                break
-                        else:  # 如果没有找到CHANNELxxx格式
-                            channel_num = channel_part.split('-')[0]
-                            channel_name = f"CHANNEL{channel_num.zfill(8)}"
-                    else:  # 如果是具体频道
-                        channel_name = channel_part
-                elif service_name and service_name != "未知频道":
-                    self.logger.info(f"从URL {url} 获取到原始频道名: {service_name}")
-                    # 去除末尾的清晰度后缀
-                    channel_name = service_name
+                # 处理清晰度后缀
+                channel_name = raw_name
+                if channel_name:  # 非空才处理
                     suffixes = ['-SD', '-HD', '-FHD', '-4K', '-8K', 'SD', 'HD', 'FHD', '4K', '8K']
                     for suffix in suffixes:
                         if channel_name.endswith(suffix):
                             channel_name = channel_name[:-len(suffix)]
                             break
-                elif service_name == "未知频道":
-                    # 如果ffprobe返回"未知频道"，则从URL提取名称
-                    channel_name = self._extract_channel_name_from_url(url)
-                else:
-                    # 从URL提取默认名称
-                    channel_name = self._extract_channel_name_from_url(url)
                 
-                # 使用映射函数获取标准频道名
-                from channel_mappings import get_channel_info
-                channel_info = get_channel_info(channel_name)
-                final_name = channel_info['standard_name']
+                # 频道名映射处理（仅在频道有效时处理）
+                from channel_mappings import get_channel_info, REVERSE_MAPPINGS
+                mapped_info = None
+                final_name = channel_name
                 
+                if valid:  # 只在频道有效时处理映射
+                    self.logger.debug(f"开始映射处理 - 原始名称: {channel_name}")
+                    self.logger.debug(f"当前映射规则数量: {len(REVERSE_MAPPINGS)}")
+                    
+                    mapped_info = get_channel_info(channel_name)
+                    if mapped_info and mapped_info.get('standard_name'):
+                        final_name = mapped_info['standard_name']
+                        self.logger.info(f"频道名映射: {channel_name} -> {final_name}")
+                        self.logger.debug(f"映射详情: {mapped_info}")
+                
+                # 构建完整频道信息
                 channel_info = {
                     'url': url,
-                    'name': final_name if final_name else channel_name,
+                    'name': final_name,  # 最终显示的名称
+                    'raw_name': raw_name,  # 原始获取的名称
                     'valid': valid,
                     'latency': latency,
                     'resolution': resolution,
-                    'status': '有效' if valid else '无效'
+                    'status': '有效' if valid else '无效',
+                    'group': result.get('group', '未分类'),
+                    'logo_url': mapped_info.get('logo_url') if mapped_info else None
                 }
                 
-                # 更新统计信息
-                with threading.Lock():
+                # 更新统计信息 (使用stats_lock确保线程安全)
+                with self.stats_lock:
                     if valid:
+                        # 原子操作：先计数再emit
                         self.stats['valid'] += 1
+                        # 强制刷新统计
+                        self.stats_updated.emit({
+                            'text': f"总数: {self.stats['total']} | 有效: {self.stats['valid']} | 无效: {self.stats['invalid']}",
+                            'is_validation': False,
+                            'stats': self.stats
+                        })
+                        # 最后emit频道信息
+                        self.channel_found.emit(channel_info)
                     else:
                         self.stats['invalid'] += 1
+                    # 固定总数
+                    self.stats['total'] = len(self.urls)
                         
-                # 只发送有效频道到UI
-                if valid:
-                    # 确保使用解析后的具体URL
-                    channel_info['url'] = url
-                    
-                    # 从URL中提取频道编号 (格式: CHANNEL00000001)
-                    # 示例URL: http://150.138.8.143/00/SNM/CHANNEL00000001/index.m3u8
-                    try:
-                        # 确保URL格式正确
-                        if 'CHANNEL' in url and '/index.m3u8' in url:
-                            channel_num = url.split('CHANNEL')[1].split('/')[0]
-                            if channel_num.isdigit():
-                                channel_info['name'] = f"CHANNEL{channel_num}"
-                            else:
-                                raise ValueError("无效的频道编号格式")
+                # 处理所有验证结果
+                # 确保使用解析后的具体URL
+                channel_info['url'] = url
+                
+                # 从URL中提取频道编号 (格式: CHANNEL00000001)
+                # 示例URL: http://150.138.8.143/00/SNM/CHANNEL00000001/index.m3u8
+                try:
+                    # 处理组播转单播URL格式 (如http://.../rtp/239.21.1.1:5002)
+                    if '/rtp/' in url.lower() or '/udp/' in url.lower() or '/rtsp/' in url.lower():
+                        # 优先使用ffprobe获取的频道名
+                        if 'service_name' in result and result['service_name'] != "未知频道":
+                            channel_info['name'] = result['service_name']
                         else:
-                            raise ValueError("URL格式不符合预期")
-                    except Exception as e:
-                        # 如果提取失败，使用URL最后部分作为频道名
+                            # 提取组播地址部分作为频道名
+                            channel_info['name'] = url.split('/')[-1].split('?')[0].split('#')[0]
+                    # 处理CHANNEL格式URL
+                    elif 'CHANNEL' in url and '/index.m3u8' in url:
+                        channel_num = url.split('CHANNEL')[1].split('/')[0]
+                        if channel_num.isdigit():
+                            channel_info['name'] = f"CHANNEL{channel_num}"
+                        else:
+                            raise ValueError("无效的频道编号格式")
+                    # 其他URL格式
+                    else:
+                        # 使用URL最后部分作为频道名
                         channel_info['name'] = url.split('/')[-1].split('?')[0].split('#')[0]
-                        self.logger.warning(f"从URL提取频道编号失败({e})，使用默认名称: {channel_info['name']}")
-                    
-                    # 添加分组信息
-                    channel_info['group'] = '未分类'
+                except Exception as e:
+                    # 如果提取失败，使用URL最后部分作为频道名
+                    channel_info['name'] = url.split('/')[-1].split('?')[0].split('#')[0]
+                    self.logger.warning(f"从URL提取频道编号失败({e})，使用默认名称: {channel_info['name']}")
+                
+                # 添加分组信息
+                channel_info['group'] = '未分类'
+                
+                # 仅记录有效频道信息
+                if valid:
                     self.channel_found.emit(channel_info)
                     self.logger.info(f"添加有效频道: {channel_info['name']} - {url}")
+                    self.logger.debug(f"频道详情: {channel_info}")
                     
                 # 更新进度
                 self.progress_updated.emit(
