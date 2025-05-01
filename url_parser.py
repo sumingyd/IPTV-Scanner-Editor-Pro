@@ -57,23 +57,3 @@ class URLRangeParser:
             ranges.append((start, end, full_match))
         return ranges
 
-
-if __name__ == "__main__":
-    # 测试代码
-    parser = URLRangeParser()
-    test_urls = [
-        "http://192.168.50.1:20231/rtp/239.21.1.[1-100]:5002",
-        "http://192.168.50.1:20231/rtp/239.21.[1-20].[1-100]:5002",
-        "http://150.138.8.143/00/SNM/CHANNEL0000[0005-0345]/index.m3u8",
-        "http://150.138.8.143/00/SNM/CHANNEL[00000001-99000000]/index.m3u8"
-    ]
-    
-    for url in test_urls:
-        print(f"\n解析URL: {url}")
-        results = parser.parse_url(url)
-        print(f"生成 {len(results)} 个URL")
-        if len(results) <= 10:
-            for r in results:
-                print(r)
-        else:
-            print(f"前5个示例: {results[:5]} ... {results[-5:]}")
