@@ -12,7 +12,7 @@ logger = LogManager()
 
 class AboutDialog(QtWidgets.QDialog):
     # 版本配置
-    CURRENT_VERSION = "10.0.0.0"  # 当前版本号(手动修改这里)
+    CURRENT_VERSION = "11.0.0.0"  # 当前版本号(手动修改这里)
     DEFAULT_VERSION = None  # 将从GitHub获取最新版本
     BUILD_DATE = "2025-05-01"  # 更新为当前日期
     
@@ -153,7 +153,7 @@ class AboutDialog(QtWidgets.QDialog):
                 <li><b>频道名和LOGO映射</b>：
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
                         <li>频道会尝试获取频道名并通过映射文件匹配频道名和LOGO映射</li>
-                        <li>频道名的映射文件在仓库，可以直接去仓库提交修改，已增加适合你的</li>
+                        <li>频道名的映射文件在仓库，可以直接去仓库提交修改，以增加适合你的</li>
                         <li>频道的logo可以直接在仓库提交上传到logo文件夹</li>
                     </ul>
                 </li>
