@@ -44,10 +44,25 @@ class ScannerController(QObject):
             'elapsed': 0
         }
         
-    def start_scan(self, base_url: str, thread_count: int = 10, timeout: int = 10):
-        """开始扫描"""
+    def start_scan(self, base_url: str, thread_count: int = 10, timeout: int = 10, user_agent: str = None, referer: str = None):
+        """开始扫描
+        Args:
+            base_url: 基础URL
+            thread_count: 线程数
+            timeout: 每个线程的超时时间(秒)
+            user_agent: 请求头中的User-Agent
+            referer: 请求头中的Referer
+        """
         if self.stop_event.is_set():
             self.stop_event.clear()
+            
+        # 设置验证器参数
+        from validator import StreamValidator
+        StreamValidator.timeout = timeout
+        if user_agent:
+            StreamValidator.headers['User-Agent'] = user_agent
+        if referer:
+            StreamValidator.headers['Referer'] = referer
             
         # 解析URL范围
         urls = self.url_parser.parse_url(base_url)
@@ -184,7 +199,26 @@ class ScannerController(QObject):
                         service_name = str(service_name)
                     elif not isinstance(service_name, str):
                         service_name = str(service_name)
-                if service_name and service_name != "未知频道":
+                
+                # 从URL提取具体频道编号
+                if '[' in url and ']' in url:  # 如果是范围URL
+                    # 提取具体频道编号部分
+                    channel_part = url.split('[')[1].split(']')[0]
+                    if '-' in channel_part:  # 如果是范围
+                        # 从URL中提取实际编号部分
+                        # 例如: http://.../CHANNEL00000001/... 中的00000001
+                        url_parts = url.split('/')
+                        for part in url_parts:
+                            if part.startswith('CHANNEL') and len(part) > 7:
+                                channel_num = part[7:]  # 去掉CHANNEL前缀
+                                channel_name = f"CHANNEL{channel_num}"
+                                break
+                        else:  # 如果没有找到CHANNELxxx格式
+                            channel_num = channel_part.split('-')[0]
+                            channel_name = f"CHANNEL{channel_num.zfill(8)}"
+                    else:  # 如果是具体频道
+                        channel_name = channel_part
+                elif service_name and service_name != "未知频道":
                     self.logger.info(f"从URL {url} 获取到原始频道名: {service_name}")
                     # 去除末尾的清晰度后缀
                     channel_name = service_name
@@ -193,30 +227,17 @@ class ScannerController(QObject):
                         if channel_name.endswith(suffix):
                             channel_name = channel_name[:-len(suffix)]
                             break
-                    
-                    # 使用映射函数获取标准频道名
-                    from channel_mappings import get_channel_info
-                    channel_info = get_channel_info(channel_name)
-                    channel_name = channel_info['standard_name']
                 elif service_name == "未知频道":
                     # 如果ffprobe返回"未知频道"，则从URL提取名称
-                    default_name = self._extract_channel_name_from_url(url)
-                    self.logger.warning(f"URL {url} 获取到无效频道名，使用提取的名称: {default_name}")
-                    from channel_mappings import get_channel_info
-                    channel_info = get_channel_info(default_name)
-                    channel_name = channel_info['standard_name']
+                    channel_name = self._extract_channel_name_from_url(url)
                 else:
-                    # 从URL提取默认名称，支持多种协议格式
-                    default_name = self._extract_channel_name_from_url(url)
-                    self.logger.warning(f"URL {url} 未获取到频道名，使用提取的名称: {default_name}")
-                    
-                    # 使用默认名称并应用映射
-                    from channel_mappings import get_channel_info
-                    channel_info = get_channel_info(default_name)
-                    channel_name = channel_info['standard_name']
+                    # 从URL提取默认名称
+                    channel_name = self._extract_channel_name_from_url(url)
                 
-                # 最终确定频道名
-                final_name = channel_name
+                # 使用映射函数获取标准频道名
+                from channel_mappings import get_channel_info
+                channel_info = get_channel_info(channel_name)
+                final_name = channel_info['standard_name']
                 
                 channel_info = {
                     'url': url,
@@ -234,9 +255,32 @@ class ScannerController(QObject):
                     else:
                         self.stats['invalid'] += 1
                         
-                # 只发送有效频道并更新UI
+                # 只发送有效频道到UI
                 if valid:
+                    # 确保使用解析后的具体URL
+                    channel_info['url'] = url
+                    
+                    # 从URL中提取频道编号 (格式: CHANNEL00000001)
+                    # 示例URL: http://150.138.8.143/00/SNM/CHANNEL00000001/index.m3u8
+                    try:
+                        # 确保URL格式正确
+                        if 'CHANNEL' in url and '/index.m3u8' in url:
+                            channel_num = url.split('CHANNEL')[1].split('/')[0]
+                            if channel_num.isdigit():
+                                channel_info['name'] = f"CHANNEL{channel_num}"
+                            else:
+                                raise ValueError("无效的频道编号格式")
+                        else:
+                            raise ValueError("URL格式不符合预期")
+                    except Exception as e:
+                        # 如果提取失败，使用URL最后部分作为频道名
+                        channel_info['name'] = url.split('/')[-1].split('?')[0].split('#')[0]
+                        self.logger.warning(f"从URL提取频道编号失败({e})，使用默认名称: {channel_info['name']}")
+                    
+                    # 添加分组信息
+                    channel_info['group'] = '未分类'
                     self.channel_found.emit(channel_info)
+                    self.logger.info(f"添加有效频道: {channel_info['name']} - {url}")
                     
                 # 更新进度
                 self.progress_updated.emit(
