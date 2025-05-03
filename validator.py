@@ -1,6 +1,8 @@
 import subprocess
 import time
 import json
+import sys
+import os
 from typing import Dict, Optional
 from log_manager import LogManager
 
@@ -9,35 +11,6 @@ class StreamValidator:
     
     def __init__(self):
         self.logger = LogManager()
-        self.vlc_timeout = 10  # VLC验证超时时间(秒)
-        
-    def _get_vlc_path(self):
-        """获取VLC路径"""
-        import os
-        import sys
-        
-        # 1. 尝试从打包后的路径查找
-        if getattr(sys, 'frozen', False):
-            base_path = os.path.dirname(sys.executable)
-            exe_path = os.path.join(base_path, 'vlc', 'vlc.exe')
-            if os.path.exists(exe_path):
-                return exe_path
-        
-        # 2. 尝试从开发环境路径查找
-        dev_path = os.path.join(os.path.dirname(__file__), 'vlc', 'vlc.exe')
-        if os.path.exists(dev_path):
-            return dev_path
-            
-        # 3. 尝试从系统PATH查找
-        try:
-            from shutil import which
-            path = which('vlc')
-            if path:
-                return path
-        except ImportError:
-            pass
-            
-        return 'vlc'  # 最后尝试直接调用
 
     def _get_ffprobe_path(self):
         """获取ffprobe路径"""
@@ -80,65 +53,15 @@ class StreamValidator:
         )
         return 'ffprobe'  # 最后尝试直接调用
 
-    def _validate_with_vlc(self, url: str) -> bool:
-        """使用VLC验证流是否可播放"""
-        try:
-            vlc_path = self._get_vlc_path()
-            cmd = [
-                vlc_path,
-                '-I', 'dummy',  # 无界面模式
-                '--play-and-exit',  # 播放后退出
-                '--no-video-title-show',  # 不显示标题
-                '--no-stats',  # 不显示统计信息
-                '--no-snapshot-preview',  # 不显示截图预览
-                '--quiet',  # 静默模式
-                '--no-qt-error-dialogs',  # 不显示错误对话框
-                '--no-qt-privacy-ask',  # 不显示隐私询问
-                '--no-qt-video-autoresize',  # 不自动调整视频大小
-                '--no-embedded-video',  # 不嵌入视频
-                '--no-xlib',  # 禁用Xlib
-                '--no-video',  # 禁用视频输出
-                '--no-audio',  # 禁用音频输出
-                '--no-osd',  # 禁用屏幕显示
-                '--no-spu',  # 禁用字幕
-                '--no-loop',  # 禁用循环
-                '--no-repeat',  # 禁用重复
-                '--no-random',  # 禁用随机播放
-                '--no-sout-video',  # 禁用视频流输出
-                '--no-sout-audio',  # 禁用音频流输出
-                '--no-sout-spu',  # 禁用字幕流输出
-                '--no-interact',  # 禁用交互
-                url
-            ]
-            
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                creationflags=subprocess.CREATE_NO_WINDOW
-            )
-            
-            try:
-                _, _ = process.communicate(timeout=self.vlc_timeout)
-                return process.returncode == 0
-            except subprocess.TimeoutExpired:
-                process.kill()
-                return False
-        except Exception as e:
-            self.logger.warning(f"VLC验证失败: {str(e)}")
-            return False
+    def _is_multicast_url(self, url: str) -> bool:
+        """判断是否为组播地址"""
+        url_lower = url.lower()
+        # 包含/rtp/、/udp/、/rtsp/或以rtp://、udp://、rtsp://开头的URL视为组播
+        return (url_lower.startswith(('rtp://', 'udp://', 'rtsp://')) or
+                any(x in url_lower for x in ['/rtp/', '/udp/', '/rtsp/']))
 
-    def validate_stream(self, url: str, timeout: int = 10) -> Dict:
-        """验证视频流有效性
-        
-        Args:
-            url: 要检测的流地址
-            timeout: 超时时间(秒)
-            
-        Returns:
-            Dict: 包含检测结果的字典
-        """
-        start_time = time.time()
+    def _validate_unicast(self, url: str, timeout: int) -> Dict:
+        """验证单播流"""
         result = {
             'url': url,
             'valid': False,
@@ -150,36 +73,31 @@ class StreamValidator:
         }
         
         try:
-            # 对于组播地址或组播转单播地址，直接使用ffprobe验证
-            if (url.startswith(('rtp://', 'udp://', 'rtsp://')) or 
-                ('/rtp/' in url.lower() or '/udp/' in url.lower() or '/rtsp/' in url.lower())):
-                result['valid'] = True
+            # HTTP/HTTPS连接测试
+            if url.startswith(('http://', 'https://')):
+                import requests
+                try:
+                    response = requests.head(url, timeout=timeout/2)
+                    if response.status_code < 400:
+                        result['valid'] = True
+                except requests.exceptions.RequestException as e:
+                    result['error'] = f"连接失败: {str(e)}"
+                    return result
             else:
-                # 其他URL进行简单连接测试
-                if url.startswith(('http://', 'https://')):
-                    import requests
-                    try:
-                        response = requests.head(url, timeout=timeout/2)
-                        if response.status_code < 400:
-                            result['valid'] = True
-                    except requests.exceptions.RequestException as e:
-                        result['error'] = f"连接失败: {str(e)}"
-                        return result
-                else:
-                    # 对于其他非HTTP协议，直接尝试连接
-                    try:
-                        import socket
-                        from urllib.parse import urlparse
-                        parsed = urlparse(url)
-                        host = parsed.hostname
-                        port = parsed.port or 80
-                        with socket.create_connection((host, port), timeout=timeout/2):
-                            result['valid'] = True
-                    except Exception as e:
-                        result['error'] = f"连接失败: {str(e)}"
-                        return result
-            
-            # 如果连接成功，再获取详细信息
+                # 其他协议连接测试
+                try:
+                    import socket
+                    from urllib.parse import urlparse
+                    parsed = urlparse(url)
+                    host = parsed.hostname
+                    port = parsed.port or 80
+                    with socket.create_connection((host, port), timeout=timeout/2):
+                        result['valid'] = True
+                except Exception as e:
+                    result['error'] = f"连接失败: {str(e)}"
+                    return result
+
+            # 获取流信息
             if result['valid']:
                 ffprobe_path = self._get_ffprobe_path()
                 cmd = [
@@ -191,174 +109,249 @@ class StreamValidator:
                     '-show_programs',
                     url
                 ]
-                
-                # 执行命令
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    universal_newlines=False,  # 禁用自动解码
-                    creationflags=subprocess.CREATE_NO_WINDOW
-                )
-                
-                # 等待命令完成
-                try:
-                    stdout_bytes, stderr_bytes = process.communicate(timeout=timeout)
-                    # 尝试UTF-8解码，失败则尝试GBK
-                    try:
-                        stdout = stdout_bytes.decode('utf-8', errors='replace')
-                    except UnicodeDecodeError:
-                        stdout = stdout_bytes.decode('gbk', errors='replace')
-                    try:
-                        stderr = stderr_bytes.decode('utf-8', errors='replace')
-                    except UnicodeDecodeError:
-                        stderr = stderr_bytes.decode('gbk', errors='replace')
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    result['error'] = '检测超时'
-                    return result
-                
-            # 计算延迟
-            result['latency'] = int((time.time() - start_time) * 1000)
+                result.update(self._run_ffprobe(cmd, timeout))
             
-            # 解析输出
-            if result['valid']:
-                if process.returncode == 0:
-                    try:
-                        data = json.loads(stdout)
-                        
-                        # 尝试从不同位置获取频道名
-                        service_name = None
-                        
-                        # 1. 首先尝试从programs获取
-                        if 'programs' in data and len(data['programs']) > 0:
-                            program = data['programs'][0]
-                            if 'tags' in program and 'service_name' in program['tags']:
-                                service_name = program['tags']['service_name']
-                        
-                        # 2. 如果没找到，尝试从streams获取
-                        if not service_name and 'streams' in data and len(data['streams']) > 0:
-                            for stream in data['streams']:
-                                if 'tags' in stream and 'service_name' in stream['tags']:
-                                    service_name = stream['tags']['service_name']
-                                    break
-                        
-                        # 3. 如果还是没找到，尝试从format获取
-                        if not service_name and 'format' in data and 'tags' in data['format'] and 'service_name' in data['format']['tags']:
-                            service_name = data['format']['tags']['service_name']
-                        
-                        # 处理获取到的service_name
-                        if service_name is not None:
-                            try:
-                                # 处理字符串类型的service_name
-                                if isinstance(service_name, str):
-                                    # 优先尝试直接处理原始字符串
-                                    result['service_name'] = service_name
-                                    
-                                    # 如果包含乱码字符，尝试修复
-                                    if any(c in service_name for c in ['', '?', '¿']):
-                                        # 精简编码列表，优先中文编码
-                                        encodings = [
-                                            'gb18030',     # 首选中文编码
-                                            'gbk',         # 次选
-                                            'big5',        # 繁体中文
-                                            'utf-8',       # Unicode
-                                            'latin1'       # 最后尝试
-                                        ]
-                                        
-                                        # 尝试直接解码原始字符串
-                                        for encoding in encodings:
-                                            try:
-                                                decoded = service_name.encode('raw_unicode_escape').decode(encoding)
-                                                if not any(c in decoded for c in ['', '?', '¿']):  # 检查常见乱码字符
-                                                    result['service_name'] = decoded
-                                                    break
-                                            except Exception as e:
-                                                continue
-                                        
-                                        # 如果直接解码失败，尝试自动探测(仅在chardet可用时)
-                                        if 'service_name' not in result or any(c in result['service_name'] for c in ['', '?', '¿']):
-                                            try:
-                                                import chardet
-                                                # 获取原始字节数据
-                                                if isinstance(service_name, str):
-                                                    byte_data = service_name.encode('raw_unicode_escape')
-                                                else:
-                                                    byte_data = service_name
-                                                
-                                                # 探测编码但限制为中文相关编码
-                                                detected = chardet.detect(byte_data)
-                                                if detected['confidence'] > 0.7:  # 置信度高于70%
-                                                    # 只使用中文相关编码
-                                                    chinese_encodings = ['gbk', 'gb18030', 'big5', 'utf-8', 'utf-16']
-                                                    if detected['encoding'].lower() in chinese_encodings:
-                                                        decoded = byte_data.decode(detected['encoding'])
-                                                        result['service_name'] = decoded
-                                            except ImportError:
-                                                self.logger.info("chardet模块不可用，跳过自动编码探测")
-                                            except Exception as e:
-                                                self.logger.info(f"自动探测失败: {str(e)}")
-                                        
-                                        # 所有尝试失败，保留原始字符串
-                                        if 'service_name' not in result:
-                                            result['service_name'] = service_name
-                                            self.logger.warning(f"无法解码service_name: {service_name}")
-                            except Exception as e:
-                                self.logger.error(f"处理service_name时发生异常: {str(e)}")
-                                result['service_name'] = service_name
-                            
-                            # 处理bytes类型
-                            if isinstance(service_name, bytes):
-                                try:
-                                    result['service_name'] = service_name.decode('utf-8')
-                                except UnicodeDecodeError:
-                                    try:
-                                        result['service_name'] = service_name.decode('gbk', errors='replace')
-                                    except UnicodeDecodeError:
-                                        result['service_name'] = service_name.decode('latin1', errors='replace')
-                            # 其他类型转换为字符串
-                            else:
-                                result['service_name'] = str(service_name)
-                        
-                        # 确保service_name字段存在并处理清晰度后缀
-                        if 'service_name' not in result:
-                            result['service_name'] = "未知频道"
-                        else:
-                            # 去除清晰度后缀
-                            suffixes = ['-SD', '-HD', '-FHD', '-4K', '-8K', 'SD', 'HD', 'FHD', '4K', '8K']
-                            for suffix in suffixes:
-                                if result['service_name'].endswith(suffix):
-                                    result['service_name'] = result['service_name'][:-len(suffix)]
-                                    break
-                        
-                        # 从streams获取分辨率等信息
-                        if 'streams' in data and len(data['streams']) > 0:
-                            stream = data['streams'][0]
-                            if 'width' in stream and 'height' in stream:
-                                result['resolution'] = f"{stream['width']}x{stream['height']}"
-                            if 'codec_name' in stream:
-                                result['codec'] = stream['codec_name']
-                            if 'bit_rate' in stream:
-                                result['bitrate'] = stream['bit_rate']
-                    except json.JSONDecodeError as e:
-                        self.logger.error(f"JSON解析失败: {str(e)}")
-                        result['error'] = "无法解析ffprobe输出"
-            else:
-                result['error'] = stderr.strip()
-                
         except Exception as e:
-            self.logger.error(f"检测流 {url} 时出错: {str(e)}")
             result['error'] = str(e)
             
-            # 对于组播和组播转单播URL，跳过VLC验证
-            is_multicast = url.startswith(('rtp://', 'udp://', 'rtsp://'))
-            is_proxied_multicast = any(x in url.lower() for x in ['/rtp/', '/udp/', '/rtsp/'])
+        return result
+
+    def _validate_multicast(self, url: str, timeout: int) -> Dict:
+        """验证组播流"""
+        result = {
+            'url': url,
+            'valid': False,
+            'latency': None,
+            'resolution': None,
+            'codec': None,
+            'bitrate': None,
+            'error': None
+        }
+        
+        try:
+            # 直接使用ffprobe获取流信息
+            ffprobe_path = self._get_ffprobe_path()
+            # 使用与手动执行完全相同的参数，但保留获取频道名所需的-show_programs
+            cmd = [
+                ffprobe_path,
+                '-v', 'quiet',
+                '-print_format', 'json',
+                '-show_format',
+                '-show_streams',
+                '-show_programs',
+                url
+            ]
+            probe_result = self._run_ffprobe(cmd, timeout)
+            result.update(probe_result)
             
-            if not (is_multicast or is_proxied_multicast):
-                # 其他URL使用VLC二次验证
-                if result['valid'] and result.get('error') is None:
-                    if not self._validate_with_vlc(url):
-                        result['valid'] = False
-                        result['error'] = "VLC验证失败"
+            # 如果没获取到分辨率但获取到了其他信息，尝试从错误输出中提取
+            if not result.get('resolution') and probe_result.get('error'):
+                # 尝试从错误信息中提取分辨率
+                error = probe_result['error']
+                if 'Video:' in error:
+                    import re
+                    match = re.search(r'(\d{3,4}x\d{3,4})', error)
+                    if match:
+                        result['resolution'] = match.group(1)
+            
+            # 基于分辨率判断有效性
+            result['valid'] = bool(result.get('resolution'))
+            
+            # 记录详细的探测信息
+            self.logger.debug(f"组播流探测结果: {probe_result}")
+            
+        except Exception as e:
+            result['error'] = str(e)
             
         return result
+
+    def _run_ffprobe(self, cmd: list, timeout: int) -> Dict:
+        """执行ffprobe命令并解析结果"""
+        result = {}
+        start_time = time.time()
+        
+        # 记录执行的ffprobe命令和时间戳
+        self.logger.debug(f"[{time.strftime('%H:%M:%S')}] 开始执行ffprobe命令: {' '.join(cmd)}")
+        
+        # 在Windows上需要处理特殊字符
+        if sys.platform == 'win32':
+            cmd = [arg.replace('^', '^^').replace('&', '^&') for arg in cmd]
+        
+        # 设置环境变量和工作目录
+        env = os.environ.copy()
+        env['PATH'] = os.path.dirname(self._get_ffprobe_path()) + os.pathsep + env['PATH']
+        
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=False,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            shell=True if sys.platform == 'win32' else False,
+            env=env,
+            cwd=os.path.dirname(self._get_ffprobe_path())
+        )
+        
+        try:
+            # 记录命令开始执行时间
+            exec_start = time.time()
+            stdout_bytes, stderr_bytes = process.communicate(timeout=timeout)
+            exec_end = time.time()
+            
+            stdout = stdout_bytes.decode('utf-8', errors='replace')
+            stderr = stderr_bytes.decode('utf-8', errors='replace')
+            
+            # 记录完整的ffprobe输出和执行时间
+            self.logger.debug(f"[{time.strftime('%H:%M:%S')}] ffprobe执行耗时: {exec_end-exec_start:.3f}秒")
+            self.logger.debug(f"[{time.strftime('%H:%M:%S')}] ffprobe stdout: {stdout}")
+            self.logger.debug(f"[{time.strftime('%H:%M:%S')}] ffprobe stderr: {stderr}")
+            
+            if process.returncode == 0:
+                try:
+                    data = json.loads(stdout)
+                    result.update(self._parse_ffprobe_output(data))
+                except json.JSONDecodeError:
+                    # 如果JSON解析失败，尝试从stderr提取信息
+                    result['error'] = stderr.strip()
+                    if not result['error']:
+                        result['error'] = '无法解析ffprobe输出'
+            else:
+                result['error'] = stderr.strip()
+                if not result['error']:
+                    result['error'] = f"ffprobe返回错误代码: {process.returncode}"
+                
+        except subprocess.TimeoutExpired:
+            process.kill()
+            result['error'] = '检测超时'
+        except Exception as e:
+            result['error'] = str(e)
+            
+        result['latency'] = int((time.time() - start_time) * 1000)
+        return result
+
+    def _parse_ffprobe_output(self, data: Dict) -> Dict:
+        """解析ffprobe输出"""
+        result = {}
+        
+        # 获取频道名
+        service_name = None
+        if 'programs' in data and data['programs']:
+            program = data['programs'][0]
+            if 'tags' in program and 'service_name' in program['tags']:
+                service_name = program['tags']['service_name']
+        elif 'streams' in data and data['streams']:
+            for stream in data['streams']:
+                if 'tags' in stream and 'service_name' in stream['tags']:
+                    service_name = stream['tags']['service_name']
+                    break
+        elif 'format' in data and 'tags' in data['format'] and 'service_name' in data['format']['tags']:
+            service_name = data['format']['tags']['service_name']
+            
+        if service_name:
+            result['service_name'] = self._clean_channel_name(service_name)
+        else:
+            result['service_name'] = "未知频道"
+
+        # 获取分辨率
+        if 'streams' in data and data['streams']:
+            stream = next((s for s in data['streams'] if s.get('codec_type') == 'video'), data['streams'][0])
+            if 'width' in stream and 'height' in stream:
+                result['resolution'] = f"{stream['width']}x{stream['height']}"
+            elif 'coded_width' in stream and 'coded_height' in stream:
+                result['resolution'] = f"{stream['coded_width']}x{stream['coded_height']}"
+            else:
+                result['resolution'] = "未知分辨率"
+                
+            if 'codec_name' in stream:
+                result['codec'] = stream['codec_name']
+            if 'bit_rate' in stream:
+                result['bitrate'] = stream['bit_rate']
+                
+        return result
+
+    def _clean_channel_name(self, name: str) -> str:
+        """清理频道名"""
+        if not name:
+            return "未知频道"
+            
+        # 去除清晰度后缀
+        suffixes = ['-SD', '-HD', '-FHD', '-4K', '-8K', 'SD', 'HD', 'FHD', '4K', '8K']
+        for suffix in suffixes:
+            if name.endswith(suffix):
+                name = name[:-len(suffix)]
+                break
+        return name
+
+    def validate_stream(self, url: str, timeout: int = 10) -> Dict:
+        """验证视频流有效性
+        
+        Args:
+            url: 要检测的流地址
+            timeout: 超时时间(秒)
+            
+        Returns:
+            Dict: 包含检测结果的字典，包含以下字段：
+                - url: 原始URL
+                - valid: 是否有效(基于分辨率判断)
+                - latency: 延迟(毫秒)
+                - resolution: 分辨率
+                - codec: 视频编码
+                - bitrate: 比特率
+                - service_name: 频道名称(原始)
+                - error: 错误信息(如果有)
+        """
+        # 统一结果结构
+        result = {
+            'url': url,
+            'valid': False,
+            'latency': None,
+            'resolution': None,
+            'codec': None,
+            'bitrate': None,
+            'service_name': None,
+            'error': None
+        }
+        
+        try:
+            # 区分组播和单播处理
+            is_multicast = self._is_multicast_url(url)
+            self.logger.debug(f"URL检测结果 - 地址: {url}, 类型: {'组播' if is_multicast else '单播'}")
+            
+            if is_multicast:
+                probe_result = self._validate_multicast(url, timeout)
+            else:
+                probe_result = self._validate_unicast(url, timeout)
+            
+            # 合并结果
+            result.update(probe_result)
+            
+            # 统一有效性判断标准：基于分辨率
+            result['valid'] = bool(result.get('resolution'))
+            
+            # 确保频道名存在
+            if not result.get('service_name'):
+                result['service_name'] = self._extract_channel_name_from_url(url)
+                
+        except Exception as e:
+            result['error'] = str(e)
+            self.logger.error(f"验证流 {url} 时出错: {e}")
+            
+        return result
+
+    def _extract_channel_name_from_url(self, url: str) -> str:
+        """从URL提取默认频道名"""
+        try:
+            # 组播地址处理
+            if any(x in url.lower() for x in ['/rtp/', '/udp/', '/rtsp/']):
+                return url.split('/')[-1].split('?')[0].split('#')[0]
+            
+            # HTTP单播地址处理
+            if 'CHANNEL' in url and '/index.m3u8' in url:
+                channel_part = url.split('CHANNEL')[1].split('/')[0]
+                if channel_part.isdigit():
+                    return f"CHANNEL{channel_part}"
+            
+            # 默认处理
+            return url.split('/')[-1].split('?')[0].split('#')[0]
+        except Exception:
+            return "未知频道"
