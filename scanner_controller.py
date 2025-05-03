@@ -218,21 +218,20 @@ class ScannerController(QObject):
                 else:
                     self.logger.debug(f"跳过无效频道: {channel_info['name']} - {url}")
                 
-                # 更新进度和统计信息 (使用stats_lock确保线程安全)
+                # 更新统计信息 (使用stats_lock确保线程安全)
                 with self.stats_lock:
+                    if valid:
+                        self.stats['valid'] += 1
+                    else:
+                        self.stats['invalid'] += 1
+                    
                     # 更新进度
                     self.progress_updated.emit(
                         self.stats['valid'] + self.stats['invalid'],
                         self.stats['total']
                     )
-                self.logger.debug(f"频道详情: {channel_info}")
                 
-                # 更新进度
-                with self.stats_lock:
-                    self.progress_updated.emit(
-                        self.stats['valid'] + self.stats['invalid'],
-                        self.stats['total']
-                    )
+                self.logger.debug(f"频道详情: {channel_info}")
             except Exception as e:
                 self.logger.error(f"工作线程错误: {e}")
         
