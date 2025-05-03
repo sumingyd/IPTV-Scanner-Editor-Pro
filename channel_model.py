@@ -291,22 +291,39 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                     
                 # 处理EXTINF行
                 if line.startswith("#EXTINF:"):
-                    parts = line.split(",", 1)
-                    if len(parts) > 1:
-                        name = parts[1].strip()
-                        # 尝试提取分组信息
-                        group = "未分类"
-                        if "group-title=" in line:
-                            group_start = line.find("group-title=") + 12
-                            group_end = line.find('"', group_start)
-                            if group_end > group_start:
-                                group = line[group_start:group_end]
+                    # 找到最后一个逗号作为频道名分隔符
+                    last_comma = line.rfind(",")
+                    if last_comma > 0:
+                        # 分割属性部分和频道名称部分
+                        attrs_part = line[8:last_comma].strip()  # 去掉#EXTINF:
+                        name = line[last_comma+1:].strip()
+                        
+                        # 处理带引号的频道名
+                        if name.startswith('"') and name.endswith('"'):
+                            name = name[1:-1]
+                        
+                        # 初始化频道信息
                         current_channel = {
                             'name': name,
-                            'group': group,
-                            'valid': False,  # 初始状态为待检测
+                            'group': "未分类",
+                            'tvg_id': "",
+                            'logo': "",
+                            'valid': False,
                             'status': '待检测'
                         }
+                        
+                        # 解析各个属性
+                        attrs = attrs_part.split()
+                        for attr in attrs:
+                            if "=" in attr:
+                                key, value = attr.split("=", 1)
+                                value = value.strip('"')
+                                if key == "group-title":
+                                    current_channel['group'] = value
+                                elif key == "tvg-id":
+                                    current_channel['tvg_id'] = value
+                                elif key == "tvg-logo":
+                                    current_channel['logo'] = value
                     continue
                     
                 # 处理分辨率标签

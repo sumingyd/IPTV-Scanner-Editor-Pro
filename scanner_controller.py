@@ -173,9 +173,18 @@ class ScannerController(QObject):
         while not self.stop_event.is_set():
             try:
                 url, index = self.worker_queue.get_nowait()
-                valid, latency, resolution = self._check_channel(url)
                 
-                # 更新模型
+                # 添加小延迟减少CPU占用
+                time.sleep(0.01)
+                
+                result = self._check_channel(url)
+                
+                # 从结果中提取必要信息
+                valid = result['valid']
+                latency = result['latency']
+                resolution = result.get('resolution', '')
+                
+                # 批量更新模型，减少信号发射频率
                 self.channel_validated.emit(index, valid, latency, resolution)
                 
                 # 更新统计 (仅在_worker中更新，避免重复统计)
@@ -186,9 +195,11 @@ class ScannerController(QObject):
                         else:
                             self.stats['invalid'] += 1
             except queue.Empty:
+                time.sleep(0.1)  # 队列空时稍作等待
                 break
             except Exception as e:
                 self.logger.error(f"验证线程错误: {e}")
+                time.sleep(0.1)  # 出错后稍作等待
         
     def _worker(self):
         """工作线程函数"""
@@ -199,8 +210,11 @@ class ScannerController(QObject):
                 break
                 
             try:
-                # 调用验证器获取完整结果
-                valid, latency, resolution, result = self._check_channel(url)
+                # 调用验证器获取完整结果并解构
+                result = self._check_channel(url)
+                valid = result['valid']
+                latency = result['latency']
+                resolution = result.get('resolution', '')
                 
                 # 构建频道信息
                 channel_info = self._build_channel_info(url, valid, latency, resolution, result)
@@ -318,14 +332,13 @@ class ScannerController(QObject):
         self.logger.debug(f"构建频道信息: {channel_info}")
         return channel_info
 
-    def _check_channel(self, url: str) -> tuple:
+    def _check_channel(self, url: str) -> dict:
         """检查频道有效性
-        返回: (valid: bool, latency: int, resolution: str, result: dict)
+        返回: 包含检测结果的完整字典
         """
         from validator import StreamValidator
         validator = StreamValidator()
-        result = validator.validate_stream(url, timeout=self.timeout)
-        return result['valid'], result['latency'], result.get('resolution', ''), result
+        return validator.validate_stream(url, timeout=self.timeout)
         
     def is_scanning(self):
         """检查是否正在扫描"""
