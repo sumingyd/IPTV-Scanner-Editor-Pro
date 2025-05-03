@@ -4,7 +4,7 @@
 
 CCTV-1 综合 = "CCTV1" "cctv-1" "CCTV-1" "CHANNEL00000001" =
 CCTV-2 财经 = "CCTV2" =
-CCTV-3 综艺 = "CCTV3" =
+CCTV-3 综艺 = "CCTV3" "CHANNEL00000003" =
 CCTV-4 (亚洲) = "CCTV4" =
 CCTV-4 (欧洲) = "239.21.2.28:5002" =
 CCTV-4 (美洲) = "239.21.2.29:5002" =

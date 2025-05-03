@@ -329,14 +329,32 @@ class StreamValidator:
             result['valid'] = bool(result.get('resolution'))
             
             # 确保频道名存在
-            if not result.get('service_name'):
-                result['service_name'] = self._extract_channel_name_from_url(url)
+            original_name = result.get('service_name') or self._extract_channel_name_from_url(url)
+            self.logger.debug(f"原始频道名: {original_name} (URL: {url})")
+            
+            # 应用频道名映射(无论单播还是组播)
+            mapped_name = self._apply_channel_mapping(original_name)
+            if mapped_name != original_name:
+                self.logger.info(f"频道名映射成功: {original_name} -> {mapped_name}")
+            else:
+                self.logger.debug(f"未找到频道名映射: {original_name}")
+            result['service_name'] = mapped_name
                 
         except Exception as e:
             result['error'] = str(e)
             self.logger.error(f"验证流 {url} 时出错: {e}")
             
         return result
+
+    def _apply_channel_mapping(self, channel_name: str) -> str:
+        """应用频道名映射(使用channel_mappings.py提供的功能)"""
+        try:
+            from channel_mappings import get_channel_info
+            info = get_channel_info(channel_name)
+            return info.get('standard_name', channel_name)
+        except Exception as e:
+            self.logger.warning(f"应用频道名映射失败: {str(e)}")
+            return channel_name
 
     def _extract_channel_name_from_url(self, url: str) -> str:
         """从URL提取默认频道名"""
