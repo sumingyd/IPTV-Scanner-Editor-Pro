@@ -125,13 +125,13 @@ class StreamValidator:
             'resolution': None,
             'codec': None,
             'bitrate': None,
-            'error': None
+            'error': None,
+            'service_name': None
         }
         
         try:
             # 直接使用ffprobe获取流信息
             ffprobe_path = self._get_ffprobe_path()
-            # 使用与手动执行完全相同的参数，但保留获取频道名所需的-show_programs
             cmd = [
                 ffprobe_path,
                 '-v', 'quiet',
@@ -142,11 +142,18 @@ class StreamValidator:
                 url
             ]
             probe_result = self._run_ffprobe(cmd, timeout)
+            
+            # 解析ffprobe输出获取service_name
+            if 'programs' in probe_result and probe_result['programs']:
+                program = probe_result['programs'][0]
+                if 'tags' in program and 'service_name' in program['tags']:
+                    result['service_name'] = program['tags']['service_name']
+            
+            # 更新其他结果
             result.update(probe_result)
             
             # 如果没获取到分辨率但获取到了其他信息，尝试从错误输出中提取
             if not result.get('resolution') and probe_result.get('error'):
-                # 尝试从错误信息中提取分辨率
                 error = probe_result['error']
                 if 'Video:' in error:
                     import re
@@ -158,7 +165,7 @@ class StreamValidator:
             result['valid'] = bool(result.get('resolution'))
             
             # 记录详细的探测信息
-            self.logger.debug(f"组播流探测结果: {probe_result}")
+            self.logger.debug(f"组播流探测结果: {result}")
             
         except Exception as e:
             result['error'] = str(e)
@@ -200,11 +207,7 @@ class StreamValidator:
             
             stdout = stdout_bytes.decode('utf-8', errors='replace')
             stderr = stderr_bytes.decode('utf-8', errors='replace')
-            
-            # 记录完整的ffprobe输出和执行时间
-            self.logger.debug(f"[{time.strftime('%H:%M:%S')}] ffprobe执行耗时: {exec_end-exec_start:.3f}秒")
-            self.logger.debug(f"[{time.strftime('%H:%M:%S')}] ffprobe stdout: {stdout}")
-            self.logger.debug(f"[{time.strftime('%H:%M:%S')}] ffprobe stderr: {stderr}")
+
             
             if process.returncode == 0:
                 try:
@@ -313,32 +316,38 @@ class StreamValidator:
         }
         
         try:
-            # 区分组播和单播处理
+            # 统一处理所有流类型
             is_multicast = self._is_multicast_url(url)
             self.logger.debug(f"URL检测结果 - 地址: {url}, 类型: {'组播' if is_multicast else '单播'}")
             
+            # 执行流验证
             if is_multicast:
                 probe_result = self._validate_multicast(url, timeout)
+                # 组播流优先使用ffprobe获取的service_name
+                if probe_result.get('service_name'):
+                    result['service_name'] = probe_result['service_name']
+                else:
+                    # 如果ffprobe没获取到，再从URL提取
+                    result['service_name'] = self._extract_channel_name_from_url(url)
             else:
                 probe_result = self._validate_unicast(url, timeout)
+                # 单播流从URL提取原始名
+                result['service_name'] = self._extract_channel_name_from_url(url)
             
-            # 合并结果
+            # 合并其他结果
+            probe_result.pop('service_name', None)
             result.update(probe_result)
+            
+            # 应用频道名映射
+            mapped_name = self._apply_channel_mapping(result['service_name'])
+            if mapped_name != result['service_name']:
+                self.logger.info(f"频道名映射成功: {result['service_name']} -> {mapped_name}")
+                result['service_name'] = mapped_name
             
             # 统一有效性判断标准：基于分辨率
             result['valid'] = bool(result.get('resolution'))
             
-            # 确保频道名存在
-            original_name = result.get('service_name') or self._extract_channel_name_from_url(url)
-            self.logger.debug(f"原始频道名: {original_name} (URL: {url})")
-            
-            # 应用频道名映射(无论单播还是组播)
-            mapped_name = self._apply_channel_mapping(original_name)
-            if mapped_name != original_name:
-                self.logger.info(f"频道名映射成功: {original_name} -> {mapped_name}")
-            else:
-                self.logger.debug(f"未找到频道名映射: {original_name}")
-            result['service_name'] = mapped_name
+            self.logger.debug(f"最终频道名: {result['service_name']}")
                 
         except Exception as e:
             result['error'] = str(e)
@@ -364,12 +373,22 @@ class StreamValidator:
                 return url.split('/')[-1].split('?')[0].split('#')[0]
             
             # HTTP单播地址处理
-            if 'CHANNEL' in url and '/index.m3u8' in url:
-                channel_part = url.split('CHANNEL')[1].split('/')[0]
-                if channel_part.isdigit():
-                    return f"CHANNEL{channel_part}"
+            if 'CHANNEL' in url:
+                # 处理/index.m3u8格式
+                if '/index.m3u8' in url:
+                    channel_part = url.split('CHANNEL')[1].split('/')[0]
+                    if channel_part.isdigit():
+                        return f"CHANNEL{channel_part}"
+                # 处理直接CHANNEL数字格式
+                else:
+                    import re
+                    match = re.search(r'CHANNEL(\d+)', url)
+                    if match:
+                        return f"CHANNEL{match.group(1)}"
             
             # 默认处理
-            return url.split('/')[-1].split('?')[0].split('#')[0]
-        except Exception:
+            name = url.split('/')[-1].split('?')[0].split('#')[0]
+            return name if name else "未知频道"
+        except Exception as e:
+            self.logger.warning(f"提取频道名失败: {str(e)} (URL: {url})")
             return "未知频道"

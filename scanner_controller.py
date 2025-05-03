@@ -106,11 +106,22 @@ class ScannerController(QObject):
     def stop_scan(self):
         """停止扫描"""
         self.stop_event.set()
+        
+        # 清空任务队列
+        while not self.worker_queue.empty():
+            try:
+                self.worker_queue.get_nowait()
+            except queue.Empty:
+                break
+                
+        # 等待工作线程结束
         for worker in self.workers:
             if worker.is_alive():
-                worker.join(timeout=1)
+                worker.join(timeout=0.5)
+                
         self.workers = []
-        self.logger.info("扫描已停止")
+        self.worker_queue = queue.Queue()  # 创建新的空队列
+        self.logger.info("扫描已完全停止，任务队列已清空")
 
     def start_validation(self, model, threads, timeout):
         """开始有效性验证"""
@@ -194,8 +205,18 @@ class ScannerController(QObject):
                 # 构建频道信息
                 channel_info = self._build_channel_info(url, valid, latency, resolution, result)
                 
-                # 处理所有频道信息 (无论有效与否)
-                self.channel_found.emit(channel_info)
+                # 确保频道信息已构建完成
+                if 'name' not in channel_info:
+                    channel_info['name'] = channel_info.get('raw_name', self._extract_channel_name_from_url(url))
+                if 'group' not in channel_info:
+                    channel_info['group'] = '未分类'
+                
+                # 只在频道有效时添加到列表
+                if valid:
+                    self.channel_found.emit(channel_info)
+                    self.logger.info(f"添加有效频道: {channel_info['name']} - {url}")
+                else:
+                    self.logger.debug(f"跳过无效频道: {channel_info['name']} - {url}")
                 
                 # 更新进度和统计信息 (使用stats_lock确保线程安全)
                 with self.stats_lock:
@@ -204,43 +225,6 @@ class ScannerController(QObject):
                         self.stats['valid'] + self.stats['invalid'],
                         self.stats['total']
                     )
-                        
-                # 处理所有验证结果
-                # 确保使用解析后的具体URL
-                channel_info['url'] = url
-                
-                # 从URL中提取频道编号 (格式: CHANNEL00000001)
-                # 示例URL: http://150.138.8.143/00/SNM/CHANNEL00000001/index.m3u8
-                try:
-                    # 处理组播转单播URL格式 (如http://.../rtp/239.21.1.1:5002)
-                    if any(x in url.lower() for x in ['/rtp/', '/udp/', '/rtsp/']):
-                        # 组播频道名处理逻辑已在上面的统一流程中完成
-                        # 这里只需要确保使用正确的名称
-                        if 'name' not in channel_info:
-                            channel_info['name'] = channel_info.get('raw_name', url.split('/')[-1])
-                    # 处理CHANNEL格式URL
-                    elif 'CHANNEL' in url and '/index.m3u8' in url:
-                        channel_num = url.split('CHANNEL')[1].split('/')[0]
-                        if channel_num.isdigit():
-                            channel_info['name'] = f"CHANNEL{channel_num}"
-                        else:
-                            raise ValueError("无效的频道编号格式")
-                    # 其他URL格式
-                    else:
-                        # 使用URL最后部分作为频道名
-                        channel_info['name'] = url.split('/')[-1].split('?')[0].split('#')[0]
-                except Exception as e:
-                    # 如果提取失败，使用URL最后部分作为频道名
-                    channel_info['name'] = url.split('/')[-1].split('?')[0].split('#')[0]
-                    self.logger.warning(f"从URL提取频道编号失败({e})，使用默认名称: {channel_info['name']}")
-                
-                # 添加分组信息
-                channel_info['group'] = '未分类'
-                
-                # 记录所有频道信息
-                self.channel_found.emit(channel_info)
-                status = "有效" if valid else "无效"
-                self.logger.info(f"添加频道({status}): {channel_info['name']} - {url}")
                 self.logger.debug(f"频道详情: {channel_info}")
                 
                 # 更新进度
@@ -308,31 +292,32 @@ class ScannerController(QObject):
 
     def _build_channel_info(self, url: str, valid: bool, latency: int, resolution: str, result: dict) -> dict:
         """构建完整的频道信息字典"""
-        # 获取原始频道名
-        raw_name = result.get('service_name', '')
-        if not raw_name or raw_name == "未知频道":
-            raw_name = self._extract_channel_name_from_url(url)
+        # 使用validator返回的service_name作为最终名称
+        final_name = result.get('service_name', '')
+        if not final_name or final_name == "未知频道":
+            final_name = self._extract_channel_name_from_url(url)
         
-        # 只要有分辨率就视为有效
-        is_valid = bool(resolution)
-        
-        # 处理频道名称映射
+        # 应用频道名映射
         from channel_mappings import get_channel_info
-        mapped_info = get_channel_info(raw_name) if is_valid else None
-        final_name = mapped_info['standard_name'] if mapped_info and mapped_info.get('standard_name') else raw_name
+        mapped_info = get_channel_info(final_name) if valid else None
+        if mapped_info and mapped_info.get('standard_name'):
+            final_name = mapped_info['standard_name']
+            self.logger.debug(f"应用频道名映射: {result.get('service_name', '')} -> {final_name}")
         
         # 构建频道信息字典
-        return {
+        channel_info = {
             'url': url,
-            'name': final_name,
-            'raw_name': raw_name,
-            'valid': is_valid,
+            'name': mapped_info.get('standard_name', final_name) if mapped_info else final_name,  # 确保使用映射后的名称
+            'raw_name': result.get('service_name', final_name),  # 保留原始名
+            'valid': bool(resolution),
             'latency': latency,
             'resolution': resolution,
-            'status': '有效' if is_valid else '无效',
+            'status': '有效' if resolution else '无效',
             'group': '未分类',
             'logo_url': mapped_info.get('logo_url') if mapped_info else None
         }
+        self.logger.debug(f"构建频道信息: {channel_info}")
+        return channel_info
 
     def _check_channel(self, url: str) -> tuple:
         """检查频道有效性
