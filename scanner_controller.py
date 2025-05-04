@@ -167,7 +167,8 @@ class ScannerController(QObject):
                 
                 if not self.is_validating:
                     with self.stats_lock:
-                        if valid:
+                        # 统计所有被检测的频道，无论是否映射成功
+                        if resolution:  # 有分辨率表示有效
                             self.stats['valid'] += 1
                         else:
                             self.stats['invalid'] += 1
