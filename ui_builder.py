@@ -958,13 +958,27 @@ class UIBuilder:
             
         menu = QtWidgets.QMenu()
         
+        # 获取选中频道的URL
+        url = self.main_window.model.data(self.main_window.model.index(index.row(), 2))  # URL在第2列
+        
         # 添加删除频道菜单项
         delete_action = QtGui.QAction("删除频道", self.main_window)
         delete_action.triggered.connect(lambda: self._delete_selected_channel(index))
         menu.addAction(delete_action)
         
+        # 添加复制URL菜单项
+        copy_url_action = QtGui.QAction("复制URL", self.main_window)
+        copy_url_action.triggered.connect(lambda: self._copy_channel_url(url))
+        menu.addAction(copy_url_action)
+        
         # 显示菜单
         menu.exec(self.main_window.channel_list.viewport().mapToGlobal(pos))
+        
+    def _copy_channel_url(self, url):
+        """复制频道URL到剪贴板"""
+        clipboard = QtWidgets.QApplication.clipboard()
+        clipboard.setText(url)
+        self.logger.info(f"已复制URL: {url}")
         
     def _delete_selected_channel(self, index):
         """删除选中的频道"""
