@@ -1,4 +1,5 @@
 import subprocess
+import threading
 import time
 import json
 import sys
@@ -9,8 +10,24 @@ from log_manager import LogManager
 class StreamValidator:
     """使用ffprobe检测视频流有效性"""
     
+    _active_processes = []
+    _process_lock = threading.Lock()
+
     def __init__(self):
         self.logger = LogManager()
+        self._current_process = None
+
+    @classmethod
+    def terminate_all(cls):
+        """终止所有活动的验证进程"""
+        with cls._process_lock:
+            for process in cls._active_processes:
+                try:
+                    if process.poll() is None:  # 检查进程是否仍在运行
+                        process.kill()
+                except:
+                    pass
+            cls._active_processes = []
 
     def _get_ffprobe_path(self):
         """获取ffprobe路径"""
@@ -167,6 +184,11 @@ class StreamValidator:
             cwd=os.path.dirname(self._get_ffprobe_path())
         )
         
+        # 跟踪活动进程
+        with self._process_lock:
+            self._active_processes.append(process)
+        self._current_process = process
+        
         try:
             # 记录命令开始执行时间
             exec_start = time.time()
@@ -198,6 +220,12 @@ class StreamValidator:
             result['error'] = str(e)
             
         result['latency'] = int((time.time() - start_time) * 1000)
+        
+        # 清理已完成进程
+        with self._process_lock:
+            if process in self._active_processes:
+                self._active_processes.remove(process)
+                
         return result
 
     def _parse_ffprobe_output(self, data: Dict) -> Dict:
