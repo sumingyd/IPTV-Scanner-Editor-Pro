@@ -12,9 +12,9 @@ logger = LogManager()
 
 class AboutDialog(QtWidgets.QDialog):
     # 版本配置
-    CURRENT_VERSION = "13.0.0.0"  # 当前版本号(手动修改这里)
+    CURRENT_VERSION = "14.0.0.0"  # 当前版本号(手动修改这里)
     DEFAULT_VERSION = None  # 将从GitHub获取最新版本
-    BUILD_DATE = "2025-05-04"  # 更新为当前日期
+    BUILD_DATE = "2025-05-05"  # 更新为当前日期
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -90,7 +90,7 @@ class AboutDialog(QtWidgets.QDialog):
         return f'''
         <div style="font-family: 'Microsoft YaHei', sans-serif; color: {theme['text']};">
             <h1 style="color: {self.ACCENT_COLOR}; text-align: center; margin-bottom: 15px; font-size: 18px;">
-                IPTV Scanner Editor Pro New / IPTV 专业扫描编辑工具(新版)
+                IPTV Scanner Editor Pro / IPTV 专业扫描编辑工具
             </h1>
             
             <div style="background-color: {theme['card']}; padding: 15px; border-radius: 8px; 
@@ -186,7 +186,7 @@ class AboutDialog(QtWidgets.QDialog):
             </ul>
             
             <div style="margin-top: 20px; text-align: center; font-size: 0.9em; color: {theme['text']}; opacity: 0.8;">
-                <p>© 2025 IPTV Scanner Editor Pro New 版权所有</p>
+                <p>© 2025 IPTV Scanner Editor Pro 版权所有</p>
                 <p>
                     <a href="https://github.com/sumingyd/IPTV-Scanner-Editor-Pro" 
                        style="color: {self.ACCENT_COLOR}; text-decoration: none;">GitHub 仓库</a> 
