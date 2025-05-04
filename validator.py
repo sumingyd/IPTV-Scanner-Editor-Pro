@@ -72,45 +72,19 @@ class StreamValidator:
             'error': None
         }
         
+        # 直接使用ffprobe获取流信息
+        ffprobe_path = self._get_ffprobe_path()
+        cmd = [
+            ffprobe_path,
+            '-v', 'quiet',
+            '-print_format', 'json',
+            '-show_format',
+            '-show_streams',
+            '-show_programs',
+            url
+        ]
         try:
-            # HTTP/HTTPS连接测试
-            if url.startswith(('http://', 'https://')):
-                import requests
-                try:
-                    response = requests.head(url, timeout=timeout/2)
-                    if response.status_code < 400:
-                        result['valid'] = True
-                except requests.exceptions.RequestException as e:
-                    result['error'] = f"连接失败: {str(e)}"
-                    return result
-            else:
-                # 其他协议连接测试
-                try:
-                    import socket
-                    from urllib.parse import urlparse
-                    parsed = urlparse(url)
-                    host = parsed.hostname
-                    port = parsed.port or 80
-                    with socket.create_connection((host, port), timeout=timeout/2):
-                        result['valid'] = True
-                except Exception as e:
-                    result['error'] = f"连接失败: {str(e)}"
-                    return result
-
-            # 获取流信息
-            if result['valid']:
-                ffprobe_path = self._get_ffprobe_path()
-                cmd = [
-                    ffprobe_path,
-                    '-v', 'quiet',
-                    '-print_format', 'json',
-                    '-show_format',
-                    '-show_streams',
-                    '-show_programs',
-                    url
-                ]
-                result.update(self._run_ffprobe(cmd, timeout))
-            
+            result.update(self._run_ffprobe(cmd, timeout))
         except Exception as e:
             result['error'] = str(e)
             
@@ -164,9 +138,6 @@ class StreamValidator:
             # 基于分辨率判断有效性
             result['valid'] = bool(result.get('resolution'))
             
-            # 记录详细的探测信息
-            self.logger.debug(f"组播流探测结果: {result}")
-            
         except Exception as e:
             result['error'] = str(e)
             
@@ -176,10 +147,7 @@ class StreamValidator:
         """执行ffprobe命令并解析结果"""
         result = {}
         start_time = time.time()
-        
-        # 记录执行的ffprobe命令和时间戳
-        self.logger.debug(f"[{time.strftime('%H:%M:%S')}] 开始执行ffprobe命令: {' '.join(cmd)}")
-        
+
         # 在Windows上需要处理特殊字符
         if sys.platform == 'win32':
             cmd = [arg.replace('^', '^^').replace('&', '^&') for arg in cmd]
@@ -285,11 +253,12 @@ class StreamValidator:
                 break
         return name
 
-    def validate_stream(self, url: str, timeout: int = 10) -> Dict:
+    def validate_stream(self, url: str, raw_channel_name: str = None, timeout: int = 10) -> Dict:
         """验证视频流有效性
         
         Args:
             url: 要检测的流地址
+            raw_channel_name: 从URL提取的原始频道名
             timeout: 超时时间(秒)
             
         Returns:
@@ -300,7 +269,7 @@ class StreamValidator:
                 - resolution: 分辨率
                 - codec: 视频编码
                 - bitrate: 比特率
-                - service_name: 频道名称(原始)
+                - service_name: 频道名称(仅从流中提取)
                 - error: 错误信息(如果有)
         """
         # 统一结果结构
@@ -314,81 +283,27 @@ class StreamValidator:
             'service_name': None,
             'error': None
         }
-        
-        try:
-            # 统一处理所有流类型
-            is_multicast = self._is_multicast_url(url)
-            self.logger.debug(f"URL检测结果 - 地址: {url}, 类型: {'组播' if is_multicast else '单播'}")
             
+        try:
             # 执行流验证
+            is_multicast = self._is_multicast_url(url)
             if is_multicast:
                 probe_result = self._validate_multicast(url, timeout)
                 # 组播流优先使用ffprobe获取的service_name
                 if probe_result.get('service_name'):
                     result['service_name'] = probe_result['service_name']
-                else:
-                    # 如果ffprobe没获取到，再从URL提取
-                    result['service_name'] = self._extract_channel_name_from_url(url)
             else:
                 probe_result = self._validate_unicast(url, timeout)
-                # 单播流从URL提取原始名
-                result['service_name'] = self._extract_channel_name_from_url(url)
             
             # 合并其他结果
             probe_result.pop('service_name', None)
             result.update(probe_result)
             
-            # 应用频道名映射
-            mapped_name = self._apply_channel_mapping(result['service_name'])
-            if mapped_name != result['service_name']:
-                self.logger.info(f"频道名映射成功: {result['service_name']} -> {mapped_name}")
-                result['service_name'] = mapped_name
-            
             # 统一有效性判断标准：基于分辨率
             result['valid'] = bool(result.get('resolution'))
-            
-            self.logger.debug(f"最终频道名: {result['service_name']}")
                 
         except Exception as e:
             result['error'] = str(e)
             self.logger.error(f"验证流 {url} 时出错: {e}")
             
         return result
-
-    def _apply_channel_mapping(self, channel_name: str) -> str:
-        """应用频道名映射(使用channel_mappings.py提供的功能)"""
-        try:
-            from channel_mappings import get_channel_info
-            info = get_channel_info(channel_name)
-            return info.get('standard_name', channel_name)
-        except Exception as e:
-            self.logger.warning(f"应用频道名映射失败: {str(e)}")
-            return channel_name
-
-    def _extract_channel_name_from_url(self, url: str) -> str:
-        """从URL提取默认频道名"""
-        try:
-            # 组播地址处理
-            if any(x in url.lower() for x in ['/rtp/', '/udp/', '/rtsp/']):
-                return url.split('/')[-1].split('?')[0].split('#')[0]
-            
-            # HTTP单播地址处理
-            if 'CHANNEL' in url:
-                # 处理/index.m3u8格式
-                if '/index.m3u8' in url:
-                    channel_part = url.split('CHANNEL')[1].split('/')[0]
-                    if channel_part.isdigit():
-                        return f"CHANNEL{channel_part}"
-                # 处理直接CHANNEL数字格式
-                else:
-                    import re
-                    match = re.search(r'CHANNEL(\d+)', url)
-                    if match:
-                        return f"CHANNEL{match.group(1)}"
-            
-            # 默认处理
-            name = url.split('/')[-1].split('?')[0].split('#')[0]
-            return name if name else "未知频道"
-        except Exception as e:
-            self.logger.warning(f"提取频道名失败: {str(e)} (URL: {url})")
-            return "未知频道"
