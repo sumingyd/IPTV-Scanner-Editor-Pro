@@ -59,8 +59,6 @@ class URLRangeParser:
         urls = generate_combinations(url_parts, ranges_info)
         
         self.logger.info(f"生成 {len(urls)} 个URL")
-        for i, url in enumerate(urls, 1):
-            self.logger.debug(f"URL {i}/{len(urls)}: {url}")
         return urls
         
     def has_range(self, url: str) -> bool:
