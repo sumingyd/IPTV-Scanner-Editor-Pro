@@ -28,7 +28,8 @@ class ScannerController(QObject):
         self.url_parser = URLRangeParser()
         self.is_validating = False
         self.stats_lock = threading.Lock()
-        self.worker_queue = queue.Queue()
+        self.scan_queue = queue.Queue()  # 扫描专用队列
+        self.validation_queue = queue.Queue()  # 验证专用队列
         self.stop_event = threading.Event()
         self.workers = []
         self.timeout = 10  # 默认超时时间
@@ -70,8 +71,10 @@ class ScannerController(QObject):
             'elapsed': 0
         }
         
+        # 清空队列并放入扫描URL
+        self.scan_queue = queue.Queue()
         for url in self.urls:
-            self.worker_queue.put(url)
+            self.scan_queue.put(url)
             
         self.workers = []
         for i in range(thread_count):
@@ -96,9 +99,9 @@ class ScannerController(QObject):
         """停止扫描"""
         self.stop_event.set()
         
-        while not self.worker_queue.empty():
+        while not self.validation_queue.empty():
             try:
-                self.worker_queue.get_nowait()
+                self.validation_queue.get_nowait()
             except queue.Empty:
                 break
                 
@@ -126,7 +129,7 @@ class ScannerController(QObject):
         
         for i in range(model.rowCount()):
             channel = model.get_channel(i)
-            self.worker_queue.put((channel['url'], i))
+            self.validation_queue.put((channel['url'], i))
             
         self.workers = []
         for i in range(threads):
@@ -151,9 +154,9 @@ class ScannerController(QObject):
         self.is_validating = False
         
         # 清空任务队列
-        while not self.worker_queue.empty():
+        while not self.validation_queue.empty():
             try:
-                self.worker_queue.get_nowait()
+                self.validation_queue.get_nowait()
             except queue.Empty:
                 break
                 
@@ -174,7 +177,7 @@ class ScannerController(QObject):
         """有效性验证工作线程"""
         while not self.stop_event.is_set():
             try:
-                url, index = self.worker_queue.get_nowait()
+                url, index = self.validation_queue.get_nowait()
                 time.sleep(0.01)
                 
                 result = self._check_channel(url)
@@ -182,20 +185,30 @@ class ScannerController(QObject):
                 latency = result['latency']
                 resolution = result.get('resolution', '')
                 
-                # 记录验证结果日志
-                channel_name = result.get('service_name', extract_channel_name_from_url(url))
+                # 记录验证结果日志 - 使用模型中的频道名
+                channel = self.model.get_channel(index)
+                channel_name = channel.get('name', extract_channel_name_from_url(url))
                 log_msg = f"有效性验证 - 频道: {channel_name}, URL: {url}, 状态: {'有效' if valid else '无效'}, 延迟: {latency}ms, 分辨率: {resolution}"
                 self.logger.info(log_msg)
                 
-                self.channel_validated.emit(index, valid, latency, resolution)
+                # 更新模型状态但不立即刷新视图
+                self.model.set_channel_valid(url, valid)
                 
-                if not self.is_validating:
-                    with self.stats_lock:
-                        # 统计所有被检测的频道，无论是否映射成功
-                        if resolution:  # 有分辨率表示有效
-                            self.stats['valid'] += 1
-                        else:
-                            self.stats['invalid'] += 1
+                # 每10次更新批量刷新一次视图
+                if index % 10 == 0:
+                    from PyQt6.QtCore import QTimer
+                    QTimer.singleShot(0, self.model.update_view)
+                
+                # 使用QTimer延迟发射信号
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(0, lambda: self.channel_validated.emit(index, valid, latency, resolution))
+                
+                with self.stats_lock:
+                    # 统计所有被检测的频道，无论是否映射成功
+                    if resolution:  # 有分辨率表示有效
+                        self.stats['valid'] += 1
+                    else:
+                        self.stats['invalid'] += 1
             except queue.Empty:
                 time.sleep(0.1)
                 break
@@ -207,7 +220,7 @@ class ScannerController(QObject):
         """工作线程函数"""
         while not self.stop_event.is_set():
             try:
-                url = self.worker_queue.get_nowait()
+                url = self.scan_queue.get_nowait()
             except queue.Empty:
                 break
                 
@@ -227,11 +240,10 @@ class ScannerController(QObject):
                 
                 # 记录完整的频道信息，无论有效与否
                 log_msg = f"频道信息 - 原始名: {channel_info['raw_name']}, 映射名: {channel_info['name']}, URL: {url}, 状态: {'有效' if valid else '无效'}"
+                # 实时添加有效频道并记录日志
                 if valid:
                     self.channel_found.emit(channel_info)
-                    self.logger.info(log_msg)
-                else:
-                    self.logger.info(log_msg)
+                self.logger.info(log_msg)
                 
                 with self.stats_lock:
                     if valid:
