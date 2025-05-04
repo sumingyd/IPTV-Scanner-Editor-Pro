@@ -149,7 +149,26 @@ class ScannerController(QObject):
         """停止有效性验证"""
         self.stop_event.set()
         self.is_validating = False
-        self.logger.info("有效性验证已停止")
+        
+        # 清空任务队列
+        while not self.worker_queue.empty():
+            try:
+                self.worker_queue.get_nowait()
+            except queue.Empty:
+                break
+                
+        # 终止所有验证进程
+        from validator import StreamValidator
+        StreamValidator.terminate_all()
+                
+        # 立即终止工作线程
+        for worker in self.workers:
+            if worker.is_alive():
+                worker.join(timeout=0.1)
+                
+        self.workers = []
+        self.worker_queue = queue.Queue()
+        self.logger.info("有效性验证已立即停止，所有进程已终止")
 
     def _validation_worker(self):
         """有效性验证工作线程"""
@@ -162,6 +181,11 @@ class ScannerController(QObject):
                 valid = result['valid']
                 latency = result['latency']
                 resolution = result.get('resolution', '')
+                
+                # 记录验证结果日志
+                channel_name = result.get('service_name', extract_channel_name_from_url(url))
+                log_msg = f"有效性验证 - 频道: {channel_name}, URL: {url}, 状态: {'有效' if valid else '无效'}, 延迟: {latency}ms, 分辨率: {resolution}"
+                self.logger.info(log_msg)
                 
                 self.channel_validated.emit(index, valid, latency, resolution)
                 
