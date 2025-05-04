@@ -1,10 +1,91 @@
 import requests
 import os
+import re
 from typing import Dict, List
 from log_manager import LogManager
 
 # 默认远程URL
 DEFAULT_REMOTE_URL = "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/local_channel_mappings.txt"
+
+def extract_channel_name_from_url(url: str) -> str:
+    """从URL提取频道名，支持多种协议格式"""
+    try:
+        # 标准化URL为小写
+        url_lower = url.lower()
+        
+        # 组播地址提取 - 保留完整组播地址作为频道名
+        for proto in ['rtp', 'stp', 'udp', 'rtsp']:
+            proto_prefix = f'/{proto}/'
+            if proto_prefix in url_lower:
+                full_addr = url.split(proto_prefix)[1].split('?')[0].split('#')[0].strip()
+                return full_addr
+        
+        # 处理单播URL中的频道ID模式
+        if '/channel' in url_lower:
+            import re
+            match = re.search(r'/channel(\d+)/', url_lower)
+            if match:
+                return f"CHANNEL{match.group(1)}"
+        
+        # 处理PLTV/数字/数字/数字/index.m3u8模式
+        if '/pltv/' in url_lower and '/index.m3u8' in url_lower:
+            import re
+            match = re.search(r'/pltv/(\d+)/(\d+)/(\d+)/', url_lower)
+            if match:
+                return f"PLTV_{match.group(3)}"
+
+        # 处理数字ID.smil/.smail格式
+        if url_lower.endswith(('.smil', '.smail')):
+            import re
+            match = re.search(r'/(\d+)\.(smil|smail)$', url_lower)
+            if match:
+                return match.group(1)
+        
+        # HTTP/HTTPS地址提取
+        if url_lower.startswith(('http://', 'https://')):
+            # 移除查询参数和片段标识符
+            clean_url = url.split('?')[0].split('#')[0]
+            parts = [p for p in clean_url.split('/') if p]  # 过滤空部分
+            
+            # 1. 优先提取路径中的数字ID - 检查所有部分
+            for part in parts:
+                # 先尝试直接匹配纯数字
+                if part.isdigit():
+                    return part
+                # 尝试从混合字符串中提取数字
+                digits = ''.join(filter(str.isdigit, part))
+                if digits:
+                    return digits
+            
+            # 2. 处理特殊文件名情况
+            for i in range(len(parts)):
+                part = parts[i]
+                if part in ['playlist.m3u8', 'index.m3u8']:
+                    # 尝试从整个URL路径中提取数字ID
+                    for p in parts:
+                        if p.isdigit():
+                            return p
+                    # 如果没有数字，返回前一部分
+                    prev_part = parts[i-1] if i > 0 else part
+                    # 检查前一部分是否是数字ID
+                    if prev_part.isdigit():
+                        return prev_part
+                    return prev_part
+            
+            # 3. 处理类似3221225530这样的长数字ID
+            last_part = parts[-1]
+            if last_part.isdigit() and len(last_part) >= 6:  # 长数字ID
+                return last_part
+            
+            # 4. 最后处理默认情况
+            return parts[-1].split('.')[0] if '.' in parts[-1] else parts[-1]
+        
+        # 默认提取URL最后部分
+        return url.split('/')[-1].split('?')[0].split('#')[0].strip()
+    except Exception as e:
+        LogManager().error(f"提取频道名失败: {e}")
+        return url  # 如果提取失败，返回完整URL
+
 def _get_local_mapping_path() -> str:
     """获取本地映射文件路径，处理开发环境和打包环境"""
     import os
