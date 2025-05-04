@@ -265,11 +265,15 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             if channel.get('url') == url:
                 self.channels[i]['valid'] = valid
                 self.channels[i]['status'] = '有效' if valid else '无效'
-                # 通知视图更新
-                index = self.index(i, 0)
-                self.dataChanged.emit(index, index)
                 return True
         return False
+
+    def update_view(self):
+        """批量更新视图"""
+        if self.channels:
+            top_left = self.index(0, 0)
+            bottom_right = self.index(len(self.channels)-1, len(self.headers)-1)
+            self.dataChanged.emit(top_left, bottom_right)
 
     def parse_file_content(self, content: str) -> List[Dict[str, Any]]:
         """解析文件内容并返回频道列表"""
