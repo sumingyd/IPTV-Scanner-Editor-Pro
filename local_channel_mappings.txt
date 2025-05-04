@@ -2,7 +2,7 @@
 # 格式: 标准名称 = "原始名称1" "原始名称2" = logo地址
 
 
-CCTV-1 综合 = "CCTV1" "cctv-1" "CCTV-1" "CHANNEL00000001" =
+CCTV-1 综合 = "CCTV1" "cctv-1" "CCTV-1" "CHANNEL00000001" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV1.png
 CCTV-2 财经 = "CCTV2" =
 CCTV-3 综艺 = "CCTV3" "CHANNEL00000003" =
 CCTV-4 (亚洲) = "CCTV4" =
