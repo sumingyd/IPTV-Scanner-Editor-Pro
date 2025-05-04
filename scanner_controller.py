@@ -275,7 +275,10 @@ class ScannerController(QObject):
                     else:  # 如果是具体频道
                         return channel_part
                 else:  # 普通URL
-                    return url.split('/')[-1].split('?')[0].split('#')[0].strip()
+                    parts = url.split('/')
+                    if parts[-1] == 'index.m3u8' and len(parts) > 1:
+                        return parts[-2]  # 返回倒数第二部分作为频道名
+                    return parts[-1].split('?')[0].split('#')[0].strip()
             
             # 默认提取URL最后部分
             return url.split('/')[-1].split('?')[0].split('#')[0].strip()
