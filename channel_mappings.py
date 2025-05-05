@@ -121,7 +121,7 @@ def parse_mapping_line(line: str) -> Dict[str, dict]:
     raw_names = [name.strip('"\' ') for name in parts[1].split()]
     
     # 解析logo地址(如果有)
-    logo_url = parts[2] if len(parts) > 2 else None
+    logo_url = parts[2].strip('"\' ') if len(parts) > 2 else None
     
     return {
         standard_name: {
@@ -206,29 +206,47 @@ def get_channel_info(raw_name: str) -> dict:
     """获取频道信息(标准名称和logo地址)
     返回格式: {'standard_name': str, 'logo_url': str}
     """
+    logger = LogManager()
     if not raw_name or raw_name.isspace():
+        logger.debug(f"get_channel_info: 空频道名输入")
         return {'standard_name': '', 'logo_url': None}
     
     # 标准化输入名称
     normalized_name = raw_name.strip().lower()
+    logger.debug(f"get_channel_info: 查找频道 '{raw_name}' (标准化: '{normalized_name}')")
     
-    # 先检查远程映射
+    # 1. 先检查远程映射(原始名称)
     try:
         reverse_remote = create_reverse_mappings(remote_mappings)
         for raw_pattern, info in reverse_remote.items():
             if normalized_name == raw_pattern.strip().lower():
+                logger.debug(f"从远程映射找到匹配: {raw_pattern} -> {info}")
                 return info
     except Exception as e:
-        LogManager().error(f"远程映射查找失败: {e}")
+        logger.error(f"远程映射查找失败: {e}")
         
-    # 再检查本地映射
+    # 2. 再检查本地映射(原始名称)
     try:
         reverse_local = create_reverse_mappings(local_mappings)
         for raw_pattern, info in reverse_local.items():
             if normalized_name == raw_pattern.strip().lower():
+                logger.debug(f"从本地映射找到匹配: {raw_pattern} -> {info}")
                 return info
     except Exception as e:
-        LogManager().error(f"本地映射查找失败: {e}")
+        logger.error(f"本地映射查找失败: {e}")
+        
+    # 3. 检查标准名称映射(如果输入的是标准名称)
+    try:
+        for standard_name, info in combined_mappings.items():
+            if normalized_name == standard_name.strip().lower():
+                logger.debug(f"从标准名称找到匹配: {standard_name} -> {info}")
+                return {
+                    'standard_name': standard_name,
+                    'logo_url': info['logo_url']
+                }
+    except Exception as e:
+        logger.error(f"标准名称查找失败: {e}")
         
     # 都没有匹配则返回原始名称
+    logger.debug(f"没有找到匹配的映射，返回原始名称")
     return {'standard_name': raw_name, 'logo_url': None}
