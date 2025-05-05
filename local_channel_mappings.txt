@@ -8,6 +8,7 @@ CCTV-3 综艺 = "CCTV3" "CHANNEL00000003" =
 CCTV-4 (亚洲) = "CCTV4" =
 CCTV-4 (欧洲) = "239.21.2.28:5002" =
 CCTV-4 (美洲) = "239.21.2.29:5002" =
+CCTV-4K = "CCTV "
 CCTV-5 体育 = "CCTV5" =
 CCTV-5+ 体育赛事 = "CCTV5+" =
 CCTV-6 电影 = "CCTV6" =
@@ -22,7 +23,7 @@ CCTV-14 少儿 = "CCTV14" =
 CCTV-15 音乐 = "CCTV15" =
 CCTV-16
 CCTV-17 农业农村 = "zoucheng-xinwen" =
-cctv 中视购物 = "239.21.1.100:5002" =
+CCTV-中视购物 = "239.21.1.100:5002" =
 
 ##########    CETV    ##########
 CETV-1 = "CETV-1" =
@@ -39,6 +40,9 @@ CGTN俄语 = "239.21.2.35:5002" =
 
 ##########    卫视    ##########
 北京卫视 = "239.21.1.20:5002" "BEIJING" =
+北京卫视-4K = "BRIJING-4K-25P" =
+兵团卫视 = "兵团" =
+重庆卫视 = "CHONGQING" =
 安徽卫视 = "239.21.1.21:5002" "ANHUI-UD" =
 湖南卫视 = "239.21.1.18:5002" "HUNAN" =
 湖北卫视 = ""HUBEI"" =
@@ -46,7 +50,7 @@ CGTN俄语 = "239.21.2.35:5002" =
 江苏卫视 = "239.21.1.19:5002" "JIANGSU" =
 四川卫视 = "SICHUAN" "�Ĵ�����" =
 海南卫视 = "HAINAN" "239.21.1.31:5002" =
-厦门卫视 = "239.21.2.6:5002" =
+厦门卫视 = "239.21.2.6:5002" "XM" =
 三沙卫视 = "239.21.2.9:5002" =
 甘肃卫视 = "GanSu" "239.21.1.47:5002" =
 东方卫视 = "239.21.1.23:5002" "SHANGHAI" =
@@ -68,9 +72,20 @@ CGTN俄语 = "239.21.2.35:5002" =
 新疆卫视 = "新疆" =
 西藏卫视 = "西藏" =
 青海卫视 = "QingHai" =
-山东卫视 = "山东卫视" "SDTV-HD-DianXin" =
+山东卫视 = "山东卫视" "SDTV-HD-DianXin" "239.21.2.157:5002" "239.21.2.158:5002"=
 云南卫视 = "YunNan" =
 天津卫视 = "TIANJIN" =
+农林卫视 = "239.21.1.235:5002" =
+延边卫视 = "239.21.2.137:5002" =
+凤凰卫视 = "凤凰卫视-fenghuang" =
+凤凰香港 = "凤凰香港-fenghuang" =
+凤凰资讯 = "凤凰资讯-fenghuang" =
+新加坡新闻 = "新加坡新闻-xinjiapo" =
+澳门卫视 = "澳门卫视-aomen" =
+法兰西 = "法兰西-falanxi" =
+NHK世界台 = "NHK" =
+欧洲新闻 = "欧洲新闻-OUZHOUXINWEN" =
+阿里郎 = "阿里郎-alilang" =
 
 ##########    特色频道    ##########
 嘉佳卡通 = "239.21.2.5:5002" =
@@ -123,6 +138,9 @@ CHC动作电影 = "CHC-dongzuo" =
 金鹰纪实 = "HUNAN-JISHI" "239.21.1.196:5002" =
 纪实科教 = "BeiJing-JISHI" "239.21.1.194:5002" =
 综合测试 = "239.21.1.203:5002" =
+汽摩 = "QiMo" =
+求索纪录 = "QiuSuoJiLu " =
+生态环保 = "239.21.2.160:5002" =
 
 ##########    山东频道    ##########
 山东齐鲁 = "齐鲁" "SDQiLu-HD-DianXin" =
@@ -137,6 +155,8 @@ CHC动作电影 = "CHC-dongzuo" =
 山东教育卫视 = "239.21.1.101:5002" "SHANDONG-JIAOYU" =
 山东购物 = "SDGouWu-HD-H264" =
 山东新闻 = "SDXinWen-HD-H264" =
+山东经济广播 = "239.21.2.148:5002" =
+山东交通广播 = "239.21.2.151:5002" =
 
 ##########    市级频道    ##########
 济南综合 = "239.21.1.62:5002" =
@@ -182,6 +202,10 @@ CHC动作电影 = "CHC-dongzuo" =
 烟台经济 = "yantai-jingji"
 滨州新闻 = "binzhou-xinwen" =
 滨州民生 = "binzhou-minsheng" =
+聊城综合 = "liaocheng-zonghe" =
+聊城民生 = "liaocheng-minsheng" =
+威海新闻 = "weihai-xinwen" =
+威海生活 = "weihai-jingjishenghuo" =
 
 ##########    县级频道   ##########
 牟平综合 = "muping-xinwen" =
@@ -202,9 +226,11 @@ CHC动作电影 = "CHC-dongzuo" =
 胶州综合 = "jiaozhou" =
 东阿综合 = "donge" =
 临朐综合 = "linqu-xinwen" =
+兰陵综合 = "lanling-zonghe"
 兰陵公共 = "lanling-gonggong" =
 海阳综合 = "haiyang-zonghe" "海阳综合电信用" =
-海阳综合 = "haiyang-zongyi" =
+海阳综艺 = "haiyang-zongyi" =
+莒县综合 = "juxian-zonghe" =
 莒南综合 = "junan-zonghe" =
 沂水科教 = "yishui-1" =
 沂水生活 = "yishui-2" =
@@ -214,21 +240,64 @@ CHC动作电影 = "CHC-dongzuo" =
 桓台综合 = "huantai" =
 长清综合 = "changqing" =
 沂源综合 = "yiyuan" =
-崂山综合 = "239.21.1.122:5002" =
-临清综合 = "239.21.1.123:5002" =
+崂山综合 = "laoshan" =
 临邑综合 = "linyi(dezhou)" =
 宁阳综合 = "ningyang-1" =
 宁阳生活 = "ningyang-2" =
 淄川新闻 = "zichuan-xinwen" =
 文登综合 = "wendeng" =
 寿光综合 = "shouguang-xinwen" =
+寿光蔬菜 = "shouguang-shucai" =
 惠民综合 = "huimin" =
 邹城新闻 = "zoucheng-xinwen" =
 济阳综合 = "jiyang" =
 广饶新闻 = "guangrao-xinwen" =
 岚山综合 = "lanshan" =
 新泰新闻 = "xintai-xinwen" =
+新泰乡村 = "xintai-xiangcun" =
 莘县综合 = "shenxian" =
 无棣综合 = "wudi" =
 巨野新闻 = "juye-xinwen" =
 东平综合 = "dongping" =
+邹平综合 = "zouping" =
+诸城综合 = "zhucheng" =
+茌平综合 = "chiping" =
+乳山综合 = "rushan" =
+平阴综合 = "pingyin" =
+兖州新闻 = "yanzhou" =
+曲阜新闻 = "qufu-xinwen" =
+沾化综合 = "zhanhua" =
+荣成综合 = "rongcheng" =
+平度综合 = "pingdu-PDTV-1" =
+栖霞综合 = "qixia" =
+齐河综合 = "qihe" =
+青州综合 = "qingzhou-zonghe" =
+青州文旅 = "qingzhou-wenlv" =
+武城综合 = "wucheng-xinwen" =
+禹城综合 = "yucheng-zonghe" =
+禹城综艺 = "yucheng-zongyi" =
+平原综合 = "pingyuan" =
+定陶综合 = "dingtao" =
+昌乐综合 = "changle" =
+东明综合 = "dongming" =
+莱西综合 = "laixi" =
+冠县综合 = "guanxian" =
+郓城综合 = "yuncheng" =
+阳信综合 = "yangxin" =
+临清综合 = "linqing-zonghe" =
+历城综合 = "licheng" =
+鱼台新闻 = "yutai-xinwen" =
+鱼台生活 = "yutai-shenghuo" =
+河东综合 = "hedong-zonghe" =
+张店综合 = "zhangdian" =
+岱岳综合 = "daiyue" =
+高青综合 = "gaoqing-zonghe" =
+鄄城综合 = "juancheng-zonghe" =
+任城综合 = "RenCHENG-1" =
+任城生活 = "RenCheng-2" =
+招远综合 = "zhaoyuan-zonghe" =
+龙口综合 = "longkou-zonghe" =
+泰山综合 = "taishan" =
+周村新闻 = "ZHOUCUN-XINWEN" =
+临沭综合 = "linshu" =
+肥城综合 = "feicheng" =
