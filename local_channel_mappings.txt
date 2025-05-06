@@ -2,27 +2,27 @@
 # 格式: 标准名称 = "原始名称1" "原始名称2" = logo地址
 
 ##########    央视频道    ##########
-CCTV-1 综合 = "CCTV1" "cctv-1" "CCTV-1" "CHANNEL00000001" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV1.png
-CCTV-2 财经 = "CCTV2" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV2.png
-CCTV-3 综艺 = "CCTV3" "CHANNEL00000003" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV3.png
-CCTV-4 (亚洲) = "CCTV4" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV4.png
-CCTV-4 (欧洲) = "239.21.2.28:5002" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV4欧洲.png
-CCTV-4 (美洲) = "239.21.2.29:5002" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV4美洲.png
-CCTV-4K = "CCTV " = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV4K.png
-CCTV-5 体育 = "CCTV5" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV5.png
-CCTV-5+ 体育赛事 = "CCTV5+" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV5+.png
-CCTV-6 电影 = "CCTV6" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV6.png
-CCTV-7 国防军事 = "CCTV7" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV7.png
-CCTV-8 电视剧 = "CCTV8" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV8.png
-CCTV-9 纪录 = "CCTV9" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV9.png
-CCTV-10 科教 = "CCTV10" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV10.png
-CCTV-11 戏曲 = "CCTV11" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV11.png
-CCTV-12 社会与法 = "CCTV12" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV12.png
-CCTV-13 新闻 = "CCTV13" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV13.png
-CCTV-14 少儿 = "CCTV14" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV14.png
-CCTV-15 音乐 = "CCTV15" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV15.png
+CCTV-1 综合 = "CCTV1" "cctv-1" "CCTV-1" "CHANNEL00000001" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV1.png
+CCTV-2 财经 = "CCTV2" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV2.png
+CCTV-3 综艺 = "CCTV3" "CHANNEL00000003" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV3.png
+CCTV-4 (亚洲) = "CCTV4" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV4.png
+CCTV-4 (欧洲) = "239.21.2.28:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV4欧洲.png
+CCTV-4 (美洲) = "239.21.2.29:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV4美洲.png
+CCTV-4K = "CCTV " = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV4K.png
+CCTV-5 体育 = "CCTV5" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV5.png
+CCTV-5+ 体育赛事 = "CCTV5+" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV5+.png
+CCTV-6 电影 = "CCTV6" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV6.png
+CCTV-7 国防军事 = "CCTV7" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV7.png
+CCTV-8 电视剧 = "CCTV8" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV8.png
+CCTV-9 纪录 = "CCTV9" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV9.png
+CCTV-10 科教 = "CCTV10" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV10.png
+CCTV-11 戏曲 = "CCTV11" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV11.png
+CCTV-12 社会与法 = "CCTV12" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV12.png
+CCTV-13 新闻 = "CCTV13" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV13.png
+CCTV-14 少儿 = "CCTV14" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV14.png
+CCTV-15 音乐 = "CCTV15" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV15.png
 CCTV-16
-CCTV-17 农业农村 = "zoucheng-xinwen" "CCTV17"= https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CCTV17.png
+CCTV-17 农业农村 = "zoucheng-xinwen" "CCTV17"= https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV17.png
 CCTV-中视购物 = "239.21.1.100:5002" =
 
 ##########    CETV    ##########
@@ -31,183 +31,188 @@ CETV-2 = "CETV2" =
 CETV-4 = "cetv-4" =
 
 ##########    CGTN    ##########
-CGTN = "CGTN" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CGTN.png
-CGTN纪录 = "239.21.2.31:5002" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CGTN纪录.png
-CGTN西语 = "239.21.2.32:5002" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CGTN西语.png
-CGTN法语 = "239.21.2.33:5002" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CGTN法语.png
-CGTN阿语 = "239.21.2.34:5002" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CGTN阿语.png
-CGTN俄语 = "239.21.2.35:5002" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/CGTN俄语.png
+CGTN = "CGTN" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN.png
+CGTN纪录 = "239.21.2.31:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN纪录.png
+CGTN西语 = "239.21.2.32:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN西语.png
+CGTN法语 = "239.21.2.33:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN法语.png
+CGTN阿语 = "239.21.2.34:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN阿语.png
+CGTN俄语 = "239.21.2.35:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN俄语.png
 
 ##########    卫视    ##########
-北京卫视 = "239.21.1.20:5002" "BEIJING" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/北京卫视.png
+安徽卫视 = "239.21.1.21:5002" "ANHUI-UD" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/安徽卫视.png
+北京卫视 = "239.21.1.20:5002" "BEIJING" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京卫视.png
 北京卫视-4K = "BRIJING-4K-25P" =
 兵团卫视 = "兵团" = 
-重庆卫视 = "CHONGQING" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/重庆卫视.png
-安徽卫视 = "239.21.1.21:5002" "ANHUI-UD" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/安徽卫视.png
-湖南卫视 = "239.21.1.18:5002" "HUNAN" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/湖南卫视.png
-湖北卫视 = ""HUBEI"" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/湖北卫视.png
-浙江卫视 = "239.21.1.17:5002" "ZHEJIANG" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/浙江卫视.png
-江苏卫视 = "239.21.1.19:5002" "JIANGSU" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/江苏卫视.png
-四川卫视 = "SICHUAN" "�Ĵ�����" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/四川卫视.png
-海南卫视 = "HAINAN" "239.21.1.31:5002" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/海南卫视.png
-厦门卫视 = "239.21.2.6:5002" "XM" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/厦门卫视.png
-三沙卫视 = "239.21.2.9:5002" = 
-甘肃卫视 = "GanSu" "239.21.1.47:5002" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/甘肃卫视.png
-东方卫视 = "239.21.1.23:5002" "SHANGHAI" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/东方卫视.png
-深圳卫视 = "239.21.1.25:5002" "SHENZHEN" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/深圳卫视.png
-广东卫视 = "�㶫����" "GuangDong" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/广东卫视.png
-广西卫视 = "GuangXi" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/广西卫视.png
-辽宁卫视 = "239.21.1.27:5002" "LIAONING" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/辽宁卫视.png
-黑龙江卫视 = "239.21.1.28:5002" "HEILONGJIANG" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/黑龙江卫视.png
-东南卫视 = "239.21.1.29:5002" "FUJIAN" = https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/main/img/东南卫视.png
-陕西卫视 = "239.21.1.30:5002" = 
-河北卫视 = "hubei-sd-dianxin" "�ӱ�����" "HEBEI" =
-山西卫视 = "239.21.1.33:5002" =
-江西卫视 = "239.21.1.36:5002" "JIANGXI" =
-河南卫视 = "HENAN" "239.21.1.38:5002" =
-吉林卫视 = "��������" "JILIN" =
-内蒙古卫视 = "239.21.1.41:5002" =
-贵州卫视 = "239.21.1.42:5002" "GUIZHOU" =
-宁夏卫视 = "239.21.1.44:5002" =
-新疆卫视 = "新疆" =
-西藏卫视 = "西藏" =
-青海卫视 = "QingHai" =
-山东卫视 = "山东卫视" "SDTV-HD-DianXin" "239.21.2.157:5002" "239.21.2.158:5002"=
-云南卫视 = "YunNan" =
-天津卫视 = "TIANJIN" =
-农林卫视 = "239.21.1.235:5002" =
-延边卫视 = "239.21.2.137:5002" =
+东方卫视 = "239.21.1.23:5002" "SHANGHAI" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/东方卫视.png
+东南卫视 = "239.21.1.29:5002" "FUJIAN" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/东南卫视.png
 凤凰卫视 = "凤凰卫视-fenghuang" =
 凤凰香港 = "凤凰香港-fenghuang" =
 凤凰资讯 = "凤凰资讯-fenghuang" =
+甘肃卫视 = "GanSu" "239.21.1.47:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/甘肃卫视.png
+广东卫视 = "�㶫����" "GuangDong" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东卫视.png
+广西卫视 = "GuangXi" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广西卫视.png
+贵州卫视 = "239.21.1.42:5002" "GUIZHOU" =
+海南卫视 = "HAINAN" "239.21.1.31:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/海南卫视.png
+河北卫视 = "hubei-sd-dianxin" "�ӱ�����" "HEBEI" =
+河南卫视 = "HENAN" "239.21.1.38:5002" =
+黑龙江卫视 = "239.21.1.28:5002" "HEILONGJIANG" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/黑龙江卫视.png
+湖北卫视 = ""HUBEI"" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖北卫视.png
+湖南卫视 = "239.21.1.18:5002" "HUNAN" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南卫视.png
+吉林卫视 = "��������" "JILIN" =
+江苏卫视 = "239.21.1.19:5002" "JIANGSU" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏卫视.png
+江西卫视 = "239.21.1.36:5002" "JIANGXI" =
+辽宁卫视 = "239.21.1.27:5002" "LIAONING" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/辽宁卫视.png
+内蒙古卫视 = "239.21.1.41:5002" =
+宁夏卫视 = "239.21.1.44:5002" =
+农林卫视 = "239.21.1.235:5002" =
+青海卫视 = "QingHai" =
+三沙卫视 = "239.21.2.9:5002" = 
+厦门卫视 = "239.21.2.6:5002" "XM" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/厦门卫视.png
+山东卫视 = "山东卫视" "SDTV-HD-DianXin" "239.21.2.157:5002" "239.21.2.158:5002"=
+山西卫视 = "239.21.1.33:5002" =
+陕西卫视 = "239.21.1.30:5002" = 
+深圳卫视 = "239.21.1.25:5002" "SHENZHEN" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/深圳卫视.png
+四川卫视 = "SICHUAN" "�Ĵ�����" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川卫视.png
+天津卫视 = "TIANJIN" =
+西藏卫视 = "西藏" =
+新疆卫视 = "新疆" =
+延边卫视 = "239.21.2.137:5002" =
+云南卫视 = "YunNan" =
+浙江卫视 = "239.21.1.17:5002" "ZHEJIANG" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江卫视.png
+重庆卫视 = "CHONGQING" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/重庆卫视.png
+
 
 ##########    国际频道    ##########
-新加坡新闻 = "新加坡新闻-xinjiapo" =
+NHK世界台 = "NHK" =
+阿里郎 = "阿里郎-alilang" =
 澳门卫视 = "澳门卫视-aomen" =
 法兰西 = "法兰西-falanxi" =
-NHK世界台 = "NHK" =
 欧洲新闻 = "欧洲新闻-OUZHOUXINWEN" =
-阿里郎 = "阿里郎-alilang" =
+新加坡新闻 = "新加坡新闻-xinjiapo" =
+
 
 ##########    特色频道    ##########
-嘉佳卡通 = "239.21.2.5:5002" =
-优漫卡通 = "优漫卡通" =
-哈哈炫动 = "239.21.1.51:5002" =
-新动漫 = "239.21.2.93:5002" =
-重温经典影视 = "Kan-shandong" =
-都市剧场 = "增值-dushijuchang" =
-华数精彩影视 = "jingcaiyingshi" =
-动漫秀场 = "??-dongmanxiuchang" =
-优优宝贝 = "增值-youyoubaobei" =
-魅力足球 = "增值-meilizuqiu" =
-武术视界 = "增值-wushushijie" =
-快乐垂钓 = "增值-kuailechuidiao" =
-先锋乒羽 = "增值-xianfengpingyu" =
-四海钓鱼 = "增值-sihaidiaoyu" =
-梨园频道 = "增值-liyuan" =
-金色学堂 = "增值-jinsexuetang" =
-生活时尚 = "增值-shenghuoshishang" =
-乐游 = "增值-leyou" =
-法治天地 = "增值-fazhitiandi" =
-游戏风云 = "增值-youxifengyun" =
-东方财经 = "增值-dongfangcaijing" =
-文物宝库 = "增值-wenwubaoku" =
-茶 = "增值-cha" =
-书画 = "增值-shuhua" =
-车迷 = "增值-chemi" =
-家庭理财 = "增值-jiatinglicai" =
-中国交通 = "zhongguo-jiaotong" =
-环球旅游 = "增值-huanqiulvyou" =
-中华体彩 = "增值-zhonghuatechan" =
-海洋频道 = "Bravo Inc." =
-卡酷少儿 = "BeiJing-KAKU" =
-金鹰卡通 = "䡵乡渭䭁呏乇" =
-喜剧影院 = "239.21.1.122:5002" =
-动作影院 = "239.21.1.123:5002" =
-热播剧场 = "239.21.1.128:5002" =
+CHC动作电影 = "CHC-dongzuo" =
+CHC高清电影 = "CHC-gaoqingdianying" =
+CHC家庭影院 = "CHC-jiatingyinyuan" =
 IPTV经典电影 = "239.21.1.124:5002" =
+IPTV魅力时尚 = "239.21.1.129:5002" =
 IPTV少儿动画 = "239.21.1.125:5002" =
 IPTV相声小品 = "239.21.1.126:5002" =
-IPTV魅力时尚 = "239.21.1.129:5002" =
 财富天下 = "CFTX" =
-CHC家庭影院 = "CHC-jiatingyinyuan" =
-CHC高清电影 = "CHC-gaoqingdianying" =
-CHC动作电影 = "CHC-dongzuo" =
-墨宝 = "239.21.1.130:5002" =
+茶 = "增值-cha" =
+车迷 = "增值-chemi" =
+东方财经 = "增值-dongfangcaijing" =
+动漫秀场 = "??-dongmanxiuchang" =
+动作影院 = "239.21.1.123:5002" =
+都市剧场 = "增值-dushijuchang" =
+法治天地 = "增值-fazhitiandi" =
 光影 = "239.21.1.131:5002" =
-美人 = "239.21.1.132:5002" =
-天下足球 = "239.21.1.162:5002" =
-金鹰纪实 = "HUNAN-JISHI" "239.21.1.196:5002" =
+哈哈炫动 = "239.21.1.51:5002" =
+海洋频道 = "Bravo Inc." =
+华数精彩影视 = "jingcaiyingshi" =
+环球旅游 = "增值-huanqiulvyou" =
 纪实科教 = "BeiJing-JISHI" "239.21.1.194:5002" =
-综合测试 = "239.21.1.203:5002" =
+家庭理财 = "增值-jiatinglicai" =
+嘉佳卡通 = "239.21.2.5:5002" =
+金色学堂 = "增值-jinsexuetang" =
+金鹰纪实 = "HUNAN-JISHI" "239.21.1.196:5002" =
+金鹰卡通 = "䡵乡渭䭁呏乇" =
+卡酷少儿 = "BeiJing-KAKU" =
+快乐垂钓 = "增值-kuailechuidiao" =
+乐游 = "增值-leyou" =
+梨园频道 = "增值-liyuan" =
+美人 = "239.21.1.132:5002" =
+魅力足球 = "增值-meilizuqiu" =
+墨宝 = "239.21.1.130:5002" =
 汽摩 = "QiMo" =
 求索纪录 = "QiuSuoJiLu " =
+热播剧场 = "239.21.1.128:5002" =
+生活时尚 = "增值-shenghuoshishang" =
 生态环保 = "239.21.2.160:5002" =
+书画 = "增值-shuhua" =
+四海钓鱼 = "增值-sihaidiaoyu" =
+天下足球 = "239.21.1.162:5002" =
+文物宝库 = "增值-wenwubaoku" =
+武术视界 = "增值-wushushijie" =
+喜剧影院 = "239.21.1.122:5002" =
+先锋乒羽 = "增值-xianfengpingyu" =
+新动漫 = "239.21.2.93:5002" =
+优漫卡通 = "优漫卡通" =
+优优宝贝 = "增值-youyoubaobei" =
+游戏风云 = "增值-youxifengyun" =
+中国交通 = "zhongguo-jiaotong" =
+中华体彩 = "增值-zhonghuatechan" =
+重温经典影视 = "Kan-shandong" =
+综合测试 = "239.21.1.203:5002" =
+
 
 ##########    山东频道    ##########
-山东齐鲁 = "齐鲁" "SDQiLu-HD-DianXin" =
 山东公共 = "公共" =
-山东综艺 = "ZongYi" "SDZongYiHD-H264"=
-山东生活 = "生活" "SDShengHhuo-HD-H264"=
-山东影视 = "影视" =
-山东体育 = "体育" "SDTiYu-HD-264" =
-山东农科 = "农科" "SDNongKe-HD-H264" =
-山东少儿 = "少儿" "SDShaoEr-HD-H264" =
-山东文旅 = "SDWenLv-HD-H264" =
-山东教育卫视 = "239.21.1.101:5002" "SHANDONG-JIAOYU" =
 山东购物 = "SDGouWu-HD-H264" =
-山东新闻 = "SDXinWen-HD-H264" =
-山东经济广播 = "239.21.2.148:5002" =
 山东交通广播 = "239.21.2.151:5002" =
+山东教育卫视 = "239.21.1.101:5002" "SHANDONG-JIAOYU" =
+山东经济广播 = "239.21.2.148:5002" =
+山东农科 = "农科" "SDNongKe-HD-H264" =
+山东齐鲁 = "齐鲁" "SDQiLu-HD-DianXin" =
+山东少儿 = "少儿" "SDShaoEr-HD-H264" =
+山东生活 = "生活" "SDShengHhuo-HD-H264"=
+山东体育 = "体育" "SDTiYu-HD-264" =
+山东文旅 = "SDWenLv-HD-H264" =
+山东新闻 = "SDXinWen-HD-H264" =
+山东影视 = "影视" =
+山东综艺 = "ZongYi" "SDZongYiHD-H264"=
+
 
 ##########    市级及以下频道    ##########
-济南综合 = "239.21.1.62:5002" =
+滨州民生 = "binzhou-minsheng" =
+滨州新闻 = "binzhou-xinwen" =
+德州生活 = "dezhou-jingjishenghuo" =
+德州新闻 = "dezhou-xinwen" =
+东营公共 = "dongying-gonggong" =
+东营新闻 = "dongying-xinwen" =
+菏泽-1 = "heze-1" =
+菏泽-2 = "heze-2" =
 济南都市 = "239.21.1.63:5002" =
-济南生活 = "239.21.1.64:5002" =
-济南体育 = "239.21.1.65:5002" =
-济南娱乐 = "239.21.1.66:5002" =
-济南少儿 = "239.21.1.68:5002" =
-济南新闻 = "JINAN-XINWEN济南高清" =
 济南教育 = "JINAN-JIAOYU济南教育高清" =
 济南鲁中 = "jinan-luzhong" =
+济南少儿 = "239.21.1.68:5002" =
+济南生活 = "239.21.1.64:5002" =
+济南体育 = "239.21.1.65:5002" =
+济南新闻 = "JINAN-XINWEN济南高清" =
+济南娱乐 = "239.21.1.66:5002" =
+济南综合 = "239.21.1.62:5002" =
+济宁高新 = "jining-gaoxin" =
+济宁公共 = "jining-gonggong" =
+济宁生活 = "jining-shenghuo" =
+济宁综合 = "jining-zonghe" =
+聊城民生 = "liaocheng-minsheng" =
+聊城综合 = "liaocheng-zonghe" =
 青岛QTV-1 = QTV-1 =
 青岛QTV-2 = QTV-2 =
 青岛QTV-3 = QTV-3 =
 青岛QTV-4 = QTV-4 =
 青岛QTV-5 = QTV-5 =
 青岛QTV-6 = QTV-6 =
-德州新闻 = "dezhou-xinwen" =
-德州生活 = "dezhou-jingjishenghuo" =
-菏泽-1 = "heze-1" =
-菏泽-2 = "heze-2" =
-济宁综合 = "jining-zonghe" =
-济宁公共 = "jining-gonggong" =
-济宁高新 = "jining-gaoxin" =
-济宁生活 = "jining-shenghuo" =
-潍坊新闻 = "weifang-1" =
-潍坊生活 = "weifang-2" =
-潍坊影视 = "weifang-3" =
-潍坊文旅 = "weifang-4" =
-潍坊高新 = "weifang-gaoxin" =
+日照公共 = "rizhao-gonggong" =
 日照科教 = "rizhao-kejiao" =
 日照新闻 = "rizhao-xinwen" =
-日照公共 = "rizhao-gonggong" =
-东营新闻 = "dongying-xinwen" =
-东营公共 = "dongying-gonggong" =
+威海生活 = "weihai-jingjishenghuo" =
+威海新闻 = "weihai-xinwen" =
+潍坊高新 = "weifang-gaoxin" =
+潍坊生活 = "weifang-2" =
+潍坊文旅 = "weifang-4" =
+潍坊新闻 = "weifang-1" =
+潍坊影视 = "weifang-3" =
+烟台公共 = "yantai-gonggong" =
+烟台经济 = "yantai-jingji"
+烟台新闻 = "yantai-xinwen" =
+烟台影视 = "yantai-yingshi" =
+淄博民生 = "zibo-minsheng" =
 淄博文旅 = "zibo-wenlv" =
 淄博新闻 = "zibo-xinwen" =
-淄博民生 = "zibo-minsheng" =
 淄博影视 = "zibo-yingshi" =
-烟台新闻 = "yantai-xinwen" =
-烟台公共 = "yantai-gonggong" =
-烟台影视 = "yantai-yingshi" =
-烟台经济 = "yantai-jingji"
-滨州新闻 = "binzhou-xinwen" =
-滨州民生 = "binzhou-minsheng" =
-聊城综合 = "liaocheng-zonghe" =
-聊城民生 = "liaocheng-minsheng" =
-威海新闻 = "weihai-xinwen" =
-威海生活 = "weihai-jingjishenghuo" =
+
 
 ##########    县级频道   ##########
 ##########      济南     ##########
