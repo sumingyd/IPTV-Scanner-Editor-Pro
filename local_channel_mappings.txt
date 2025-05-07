@@ -2,44 +2,45 @@
 # 格式: 标准名称 = "原始名称1" "原始名称2" = logo地址
 
 ##########    央视频道    ##########
-CCTV-1 综合 = "CCTV1" "cctv-1" "CCTV-1" "CHANNEL00000001" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV1.png
-CCTV-2 财经 = "CCTV2" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV2.png
-CCTV-3 综艺 = "CCTV3" "CHANNEL00000003" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV3.png
-CCTV-4 (亚洲) = "CCTV4" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV4.png
-CCTV-4 (欧洲) = "239.21.2.28:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV4欧洲.png
-CCTV-4 (美洲) = "239.21.2.29:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV4美洲.png
-CCTV-4K = "CCTV " = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV4K.png
-CCTV-5 体育 = "CCTV5" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV5.png
-CCTV-5+ 体育赛事 = "CCTV5+" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV5+.png
-CCTV-6 电影 = "CCTV6" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV6.png
-CCTV-7 国防军事 = "CCTV7" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV7.png
-CCTV-8 电视剧 = "CCTV8" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV8.png
-CCTV-9 纪录 = "CCTV9" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV9.png
-CCTV-10 科教 = "CCTV10" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV10.png
-CCTV-11 戏曲 = "CCTV11" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV11.png
-CCTV-12 社会与法 = "CCTV12" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV12.png
-CCTV-13 新闻 = "CCTV13" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV13.png
-CCTV-14 少儿 = "CCTV14" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV14.png
-CCTV-15 音乐 = "CCTV15" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV15.png
-CCTV-16
-CCTV-17 农业农村 = "zoucheng-xinwen" "CCTV17"= https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV17.png
+CCTV-1 综合 = "CCTV1" "cctv-1" "CCTV-1" "CHANNEL00000001" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV1.png
+CCTV-2 财经 = "CCTV2" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV2.png
+CCTV-3 综艺 = "CCTV3" "CHANNEL00000003" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV3.png
+CCTV-4 (亚洲) = "CCTV4" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4.png
+CCTV-4 (欧洲) = "239.21.2.28:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4欧洲.png
+CCTV-4 (美洲) = "239.21.2.29:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4美洲.png
+CCTV-4K = "CCTV " = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4K.png
+CCTV-5 体育 = "CCTV5" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV5.png
+CCTV-5+ 体育赛事 = "CCTV5+" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV5+.png
+CCTV-6 电影 = "CCTV6" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV6.png
+CCTV-7 国防军事 = "CCTV7" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV7.png
+CCTV-8 电视剧 = "CCTV8" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV8.png
+CCTV-9 纪录 = "CCTV9" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV9.png
+CCTV-10 科教 = "CCTV10" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV10.png
+CCTV-11 戏曲 = "CCTV11" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV11.png
+CCTV-12 社会与法 = "CCTV12" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV12.png
+CCTV-13 新闻 = "CCTV13" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV13.png
+CCTV-14 少儿 = "CCTV14" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV14.png
+CCTV-15 音乐 = "CCTV15" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV15.png
+CCTV-16 奥林匹克 = = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV16.png
+CCTV-17 农业农村 = "zoucheng-xinwen" "CCTV17"= https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV17.png
 CCTV-中视购物 = "239.21.1.100:5002" =
 
 ##########    CETV    ##########
-CETV-1 = "CETV-1" =
-CETV-2 = "CETV2" =
-CETV-4 = "cetv-4" =
+CETV-1 = "CETV-1" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV1.png
+CETV-2 = "CETV2" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV2.png
+CETV-3 = = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV3.png
+CETV-4 = "cetv-4" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV4.png
 
 ##########    CGTN    ##########
-CGTN = "CGTN" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN.png
-CGTN纪录 = "239.21.2.31:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN纪录.png
-CGTN西语 = "239.21.2.32:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN西语.png
-CGTN法语 = "239.21.2.33:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN法语.png
-CGTN阿语 = "239.21.2.34:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN阿语.png
-CGTN俄语 = "239.21.2.35:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN俄语.png
+CGTN = "CGTN" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN.png
+CGTN纪录 = "239.21.2.31:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN纪录.png
+CGTN西语 = "239.21.2.32:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN西语.png
+CGTN法语 = "239.21.2.33:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN法语.png
+CGTN阿语 = "239.21.2.34:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN阿语.png
+CGTN俄语 = "239.21.2.35:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN俄语.png
 
 ##########    卫视    ##########
-安徽卫视 = "239.21.1.21:5002" "ANHUI-UD" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/安徽卫视.png
+安徽卫视 = "239.21.1.21:5002" "ANHUI-UD" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/安徽/安徽卫视2.png
 北京卫视 = "239.21.1.20:5002" "BEIJING" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京卫视.png
 北京卫视-4K = "BRIJING-4K-25P" =
 兵团卫视 = "兵团" = 
