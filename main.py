@@ -344,26 +344,83 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_save_clicked(self):
         """处理保存按钮点击事件"""
-        if not hasattr(self, 'current_channel_index'):
-            return
+        try:
+            # 检查当前选中频道
+            if not hasattr(self, 'current_channel_index'):
+                self.logger.warning("保存失败: 未选中频道")
+                self.ui.main_window.statusBar().showMessage("请先选择要编辑的频道", 3000)
+                return
+                
+            # 检查模型是否有效
+            if not hasattr(self, 'model') or not self.model:
+                self.logger.error("保存失败: 频道模型未初始化")
+                self.ui.main_window.statusBar().showMessage("系统错误: 频道模型未初始化", 3000)
+                return
+                
+            # 检查EPG组件状态
+            epg_status = "正常"
+            if not hasattr(self, 'epg_manager'):
+                epg_status = "EPG管理器未初始化"
+            elif not hasattr(self.epg_manager, 'is_loaded'):
+                epg_status = "EPG数据未加载"
+            self.logger.debug(f"EPG状态: {epg_status}")
             
-        # 获取编辑后的数据
-        name = self.ui.main_window.name_edit.text()
-        group = self.ui.main_window.group_combo.currentText()
-        
-        # 更新频道数据
-        channel = self.model.get_channel(self.current_channel_index)
-        channel['name'] = name
-        channel['group'] = group
-        
-        # 通知模型更新
-        self.model.dataChanged.emit(
-            self.model.index(self.current_channel_index, 0),
-            self.model.index(self.current_channel_index, self.model.columnCount() - 1)
-        )
-        
-        # 更新自动补全数据
-        self._update_name_completer(self.model.get_all_channel_names())
+            # 获取并验证编辑数据
+            name = self.ui.main_window.name_edit.text().strip()
+            group = self.ui.main_window.group_combo.currentText().strip()
+            
+            if not name:
+                self.logger.warning("保存失败: 频道名不能为空")
+                self.ui.main_window.statusBar().showMessage("频道名不能为空", 3000)
+                return
+                
+            # 获取并验证频道数据
+            try:
+                channel = self.model.get_channel(self.current_channel_index)
+                if not channel or not isinstance(channel, dict):
+                    raise ValueError("无效的频道数据")
+                    
+                # 创建频道数据副本
+                new_channel = channel.copy()
+                new_channel['name'] = name
+                new_channel['group'] = group
+                
+                # 验证新数据
+                if not all(key in new_channel for key in ['name', 'group', 'url']):
+                    raise ValueError("频道数据不完整")
+                    
+                # 安全更新频道数据
+                try:
+                    self.model.update_channel(self.current_channel_index, new_channel)
+                    
+                    # 通知模型更新
+                    self.model.dataChanged.emit(
+                        self.model.index(self.current_channel_index, 0),
+                        self.model.index(self.current_channel_index, self.model.columnCount() - 1)
+                    )
+                    
+                    # 更新自动补全数据
+                    self._update_name_completer(self.model.get_all_channel_names())
+                    
+                    self.logger.info(f"成功保存频道修改: {name} (原名称: {channel.get('name', '无')})")
+                    self.ui.main_window.statusBar().showMessage("保存成功", 2000)
+                    
+                except Exception as update_error:
+                    self.logger.error(f"更新频道数据失败: {str(update_error)}", exc_info=True)
+                    raise ValueError("更新频道数据时出错")
+                    
+            except Exception as channel_error:
+                self.logger.error(f"处理频道数据时出错: {str(channel_error)}", exc_info=True)
+                self.ui.main_window.statusBar().showMessage(f"保存失败: {str(channel_error)}", 3000)
+                return
+                
+        except Exception as e:
+            self.logger.critical(f"保存操作发生严重错误: {str(e)}", exc_info=True)
+            QtWidgets.QMessageBox.critical(
+                self.ui.main_window,
+                "保存错误",
+                f"保存操作发生严重错误:\n{str(e)}\n请检查日志获取详细信息"
+            )
 
     def _on_channel_validated(self, index, valid, latency, resolution):
         """处理频道验证结果"""
