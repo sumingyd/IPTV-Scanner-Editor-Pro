@@ -138,9 +138,9 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 文物宝库 = "增值-wenwubaoku" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/文物宝库.png
 武术世界 = "增值-wushushijie" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/武术世界.png
 先锋乒羽 = "增值-xianfengpingyu" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/先锋乒羽.png
-新动漫 = "239.21.2.93:5002" "xindongman-AS" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/辽宁/新动漫.png
+新动漫 = "239.21.2.93:5002" "xindongman-AS" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/辽宁/新动漫2.png
 优漫卡通 = "优漫卡通" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/优漫卡通2.png
-优优宝贝 = "增值-youyoubaobei" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/优优宝贝.png
+优优宝贝 = "增值-youyoubaobei" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/优优宝贝2.png
 游戏风云 = "增值-youxifengyun" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/游戏风云.png
 中国交通 = "zhongguo-jiaotong" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/公安部/中国交通3.png
 中华特产 = "增值-zhonghuatechan" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/中华特产.png
@@ -173,7 +173,7 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 菏泽-1 = "heze-1" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽.png
 菏泽-2 = "heze-2" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽.png
 济南都市 = "239.21.1.63:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南都市.png
-济南教育 = "JINAN-JIAOYU济南教育高清" =
+济南教育 = "JINAN-JIAOYU济南教育高清" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南教育.png
 济南鲁中 = "jinan-luzhong" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南鲁中.png
 济南少儿 = "239.21.1.68:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南少儿.png
 济南生活 = "239.21.1.64:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南生活.png
@@ -199,10 +199,10 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 威海生活 = "weihai-jingjishenghuo" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海.png
 威海新闻 = "weihai-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海.png
 潍坊高新 = "weifang-gaoxin" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊高新.png
-潍坊生活 = "weifang-2" =
-潍坊文旅 = "weifang-4" =
+潍坊生活 = "weifang-2" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊生活.png
+潍坊文旅 = "weifang-4" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊文旅.png
 潍坊新闻 = "weifang-1" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊新闻.png
-潍坊影视 = "weifang-3" =
+潍坊影视 = "weifang-3" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊影视.png
 烟台公共 = "yantai-gonggong" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png
 烟台经济 = "yantai-jingji" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png
 烟台新闻 = "yantai-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png
@@ -214,118 +214,126 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 
 
 ##########    县级频道   ##########
+
 ##########      济南     ##########
-商河综合 = "shanghe" =
-平阴综合 = "pingyin" =
-济阳综合 = "jiyang" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济阳.png
-长清综合 = "changqing" =
-历城综合 = "licheng" =
+商河综合 = "shanghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南商河.png
+平阴综合 = "pingyin" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南平阴.png
+济阳综合 = "jiyang" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南济阳.png
+长清综合 = "changqing" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南长清.png
+历城综合 = "licheng" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南历城.png
+
 ##########      聊城     ##########
+莘县综合 = "shenxian" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城莘县.png
+茌平综合 = "chiping" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城茌平.png
+冠县综合 = "guanxian" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城冠县.png
+东阿综合 = "donge" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城东阿.png
+临清综合 = "linqing-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城临清.png
+
 ##########      滨州     ##########
+惠民综合 = "huimin" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州惠民.png
+无棣综合 = "wudi" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州无棣.png
+沾化综合 = "zhanhua" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州沾化.png
+邹平综合 = "zouping" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州邹平.png
+阳信综合 = "yangxin" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州阳信.png
+
 ##########      泰安     ##########
-##########      日照     ##########
-##########      枣庄     ##########
-##########      菏泽     ##########
-##########      德州     ##########
-##########      威海     ##########
-##########      东营     ##########
-##########      淄博     ##########
-##########      临沂     ##########
-##########      济宁     ##########
-##########      潍坊     ##########
-##########      烟台     ##########
-##########      青岛     ##########
-##########      莱芜     ##########
-牟平综合 = "muping-xinwen" =
-牟平生活 = "muping-shenghuo" =
-梁山综合 = "liangshan" =
-安丘综合 = "anqiu-zonghe" =
-单县综合 = "shanxian-zonghe" =
-蒙阴综合 = "mengyin" =
-陵城综合 = "lingcheng" =
-昌邑综合 = "changyi-xinwen" =
-宁津综合 = "ningjin-zonghe" =
-长岛综合 = "changdao" =
-
-蓬莱综合 = "penglai" =
-黄岛综合 = "huangdao-xinwen" =
-黄岛生活 = "huangdao-shenghuo" =
-高密综合 = "gaomi-xinwen" =
-胶州综合 = "jiaozhou" =
-东阿综合 = "donge" =
-临朐综合 = "linqu-xinwen" =
-兰陵综合 = "lanling-zonghe"
-兰陵公共 = "lanling-gonggong" =
-海阳综合 = "haiyang-zonghe" "海阳综合电信用" =
-海阳综艺 = "haiyang-zongyi" =
-莒县综合 = "juxian-zonghe" =
-莒南综合 = "junan-zonghe" =
-沂水科教 = "yishui-1" =
-沂水生活 = "yishui-2" =
-嘉祥新闻 = "jiaxiang-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/嘉祥.png
-夏津综合 = "xiajin-zonghe" =
-夏津公共 = "xiajin-gonggong" =
-桓台综合 = "huantai" =
-
-沂源综合 = "yiyuan" =
-崂山综合 = "laoshan" =
-临邑综合 = "linyi(dezhou)" =
+新泰新闻 = "xintai-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安新泰.png
+新泰乡村 = "xintai-xiangcun" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安新泰.png
+东平综合 = "dongping" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安东平.png
 宁阳综合 = "ningyang-1" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/宁阳.png
 宁阳生活 = "ningyang-2" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/宁阳.png
-淄川新闻 = "zichuan-xinwen" =
-文登综合 = "wendeng" =
-寿光综合 = "shouguang-xinwen" =
-寿光蔬菜 = "shouguang-shucai" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/寿光蔬菜.png
-惠民综合 = "huimin" =
-邹城新闻 = "zoucheng-xinwen" =
-
-广饶新闻 = "guangrao-xinwen" =
-岚山综合 = "lanshan" =
-新泰新闻 = "xintai-xinwen" =
-新泰乡村 = "xintai-xiangcun" =
-莘县综合 = "shenxian" =
-无棣综合 = "wudi" =
-巨野新闻 = "juye-xinwen" =
-东平综合 = "dongping" =
-邹平综合 = "zouping" =
-诸城综合 = "zhucheng" =
-茌平综合 = "chiping" =
-乳山综合 = "rushan" =
-
-兖州新闻 = "yanzhou" =
-曲阜新闻 = "qufu-xinwen" =
-沾化综合 = "zhanhua" =
-荣成综合 = "rongcheng" =
-平度综合 = "pingdu-PDTV-1" =
-栖霞综合 = "qixia" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/栖霞.png
-齐河综合 = "qihe" =
-青州综合 = "qingzhou-zonghe" =
-青州文旅 = "qingzhou-wenlv" =
-武城综合 = "wucheng-xinwen" =
-禹城综合 = "yucheng-zonghe" =
-禹城综艺 = "yucheng-zongyi" =
-平原综合 = "pingyuan" =
-定陶综合 = "dingtao" =
-昌乐综合 = "changle" =
-东明综合 = "dongming" =
-莱西综合 = "laixi" =
-冠县综合 = "guanxian" =
-郓城综合 = "yuncheng" =
-阳信综合 = "yangxin" =
-临清综合 = "linqing-zonghe" =
-
-鱼台新闻 = "yutai-xinwen" =
-鱼台生活 = "yutai-shenghuo" =
-河东综合 = "hedong-zonghe" =
-张店综合 = "zhangdian" =
-岱岳综合 = "daiyue" =
-高青综合 = "gaoqing-zonghe" =
-鄄城综合 = "juancheng-zonghe" =
-任城综合 = "RenCHENG-1" =
-任城生活 = "RenCheng-2" =
-招远综合 = "zhaoyuan-zonghe" =
-龙口综合 = "longkou-zonghe" =
-泰山综合 = "taishan" =
-周村新闻 = "ZHOUCUN-XINWEN" =
-临沭综合 = "linshu" =
+岱岳综合 = "daiyue" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安岱岳.png
+泰山综合 = "taishan" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安泰山.png
 肥城综合 = "feicheng" =
+
+##########      日照     ##########
+莒县综合 = "juxian-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照莒县.png
+岚山综合 = "lanshan" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照岚山.png
+
+##########      菏泽     ##########
+定陶综合 = "dingtao" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽定陶.png
+巨野新闻 = "juye-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽巨野.png
+东明综合 = "dongming" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽东明.png
+郓城综合 = "yuncheng" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽郓城.png
+单县综合 = "shanxian-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽单县.png
+鄄城综合 = "juancheng-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽鄄城.png
+
+##########      德州     ##########
+夏津综合 = "xiajin-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州夏津.png
+夏津公共 = "xiajin-gonggong" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州夏津.png
+武城综合 = "wucheng-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州武城.png
+禹城综合 = "yucheng-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州禹城.png
+禹城综艺 = "yucheng-zongyi" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州禹城.png
+齐河综合 = "qihe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州齐河.png
+平原综合 = "pingyuan" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州平原.png
+陵城综合 = "lingcheng" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州陵城.png
+宁津综合 = "ningjin-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州宁津.png
+临邑综合 = "linyi(dezhou)" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州临邑.png
+
+##########      威海     ##########
+荣成综合 = "rongcheng" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海荣成.png
+文登综合 = "wendeng" =
+乳山综合 = "rushan" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海乳山.png
+
+##########      东营     ##########
+广饶新闻 = "guangrao-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/东营广饶.png
+
+##########      淄博     ##########
+桓台综合 = "huantai" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博桓台.png
+沂源综合 = "yiyuan" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博沂源.png
+淄川新闻 = "zichuan-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博淄川.png
+张店综合 = "zhangdian" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博张店.png
+高青综合 = "gaoqing-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博高青.png
+周村新闻 = "ZHOUCUN-XINWEN" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博周村.png
+
+##########      临沂     ##########
+兰陵综合 = "lanling-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂兰陵.png
+兰陵公共 = "lanling-gonggong" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂兰陵.png
+蒙阴综合 = "mengyin" = 
+莒南综合 = "junan-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂莒南.png
+沂水科教 = "yishui-1" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂沂水.png
+沂水生活 = "yishui-2" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂沂水.png
+河东综合 = "hedong-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂河东.png
+临沭综合 = "linshu" =
+
+##########      济宁     ##########
+曲阜新闻 = "qufu-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁曲阜.png
+兖州新闻 = "yanzhou" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁兖州.png
+邹城新闻 = "zoucheng-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁邹城.png
+梁山综合 = "liangshan" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁梁山.png
+嘉祥新闻 = "jiaxiang-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁嘉祥.png
+鱼台新闻 = "yutai-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁鱼台.png
+鱼台生活 = "yutai-shenghuo" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁鱼台.png
+任城综合 = "RenCHENG-1" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁任城.png
+任城生活 = "RenCheng-2" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁任城.png
+
+##########      潍坊     ##########
+安丘综合 = "anqiu-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊安丘.png
+昌乐综合 = "changle" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊昌乐.png
+昌邑综合 = "changyi-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊昌邑.png
+青州综合 = "qingzhou-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊青州.png
+青州文旅 = "qingzhou-wenlv" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊青州.png
+寿光蔬菜 = "shouguang-shucai" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊寿光.png
+寿光综合 = "shouguang-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊寿光.png
+诸城综合 = "zhucheng" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊诸城.png
+高密综合 = "gaomi-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊高密.png
+临朐综合 = "linqu-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊临朐.png
+
+##########      烟台     ##########
+栖霞综合 = "qixia" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台栖霞.png
+牟平综合 = "muping-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台牟平.png
+牟平生活 = "muping-shenghuo" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台牟平.png
+长岛综合 = "changdao" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台长岛.png
+蓬莱综合 = "penglai" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台蓬莱.png
+海阳综合 = "haiyang-zonghe" "海阳综合电信用" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台海阳.png
+海阳综艺 = "haiyang-zongyi" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台海阳.png
+招远综合 = "zhaoyuan-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台招远.png
+龙口综合 = "longkou-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台龙口.png
+
+##########      青岛     ##########
+莱西综合 = "laixi" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛莱西.png
+崂山综合 = "laoshan" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛崂山.png
+平度综合 = "pingdu-PDTV-1" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛平度.png
+黄岛综合 = "huangdao-xinwen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛黄岛.png
+黄岛生活 = "huangdao-shenghuo" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛黄岛.png
+胶州综合 = "jiaozhou" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛胶州.png
