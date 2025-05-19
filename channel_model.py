@@ -274,6 +274,27 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 return True
         return False
 
+    def update_channel(self, index: int, new_channel: Dict[str, Any]) -> bool:
+        """更新指定索引的频道数据"""
+        if not (0 <= index < len(self.channels)):
+            return False
+            
+        # 更新频道数据
+        self.channels[index].update(new_channel)
+        
+        # 更新名称和分组缓存
+        if 'name' in new_channel:
+            self._name_cache.add(new_channel['name'])
+        if 'group' in new_channel:
+            self._group_cache.add(new_channel['group'])
+            
+        # 通知视图更新
+        self.dataChanged.emit(
+            self.index(index, 0),
+            self.index(index, self.columnCount() - 1)
+        )
+        return True
+
     def update_view(self):
         """批量更新视图"""
         if self.channels:
