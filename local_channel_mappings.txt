@@ -42,7 +42,7 @@ CGTN俄语 = "239.21.2.35:5002" = https://raw.githubusercontent.com/sumingyd/IPT
 ##########    卫视    ##########
 安徽卫视 = "239.21.1.21:5002" "ANHUI-UD" "CHANNEL00000328" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/安徽/安徽卫视2.png
 北京卫视 = "239.21.1.20:5002" "BEIJING" "CHANNEL00000019" "CHANNEL00000302" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视.png
-北京卫视-4K = "BRIJING-4K-25P" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视4K.png
+北京卫视-4K = "BRIJING-4K-25P" "BEIJING-4K-50P" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视4K.png
 兵团卫视 = "兵团" "CHANNEL00000071" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/兵团卫视2.png
 东方卫视 = "239.21.1.23:5002" "SHANGHAI" "CHANNEL00000022" "CHANNEL00000309" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方卫视1.png
 东南卫视 = "239.21.1.29:5002" "FUJIAN" "CHANNEL00000028" "CHANNEL00000310" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/福建/东南卫视2.png
