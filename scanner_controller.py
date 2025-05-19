@@ -236,7 +236,6 @@ class ScannerController(QObject):
                     
                 # 确保频道信息包含必要字段
                 channel_info.setdefault('name', channel_info.get('raw_name', extract_channel_name_from_url(url)))
-                channel_info.setdefault('group', '未分类')
                 
                 # 只记录有效频道信息
                 if valid:
@@ -299,7 +298,7 @@ class ScannerController(QObject):
                 'latency': latency,
                 'resolution': resolution,
                 'status': '有效' if resolution else '无效',
-                'group': '未分类',
+                'group': mapped_info.get('group_name', '未分类') if mapped_info else '未分类',
                 'logo_url': mapped_info.get('logo_url') if mapped_info else None
             }
             return channel_info
