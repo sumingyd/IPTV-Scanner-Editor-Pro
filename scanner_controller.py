@@ -238,12 +238,11 @@ class ScannerController(QObject):
                 channel_info.setdefault('name', channel_info.get('raw_name', extract_channel_name_from_url(url)))
                 channel_info.setdefault('group', '未分类')
                 
-                # 记录完整的频道信息，无论有效与否
-                log_msg = f"频道信息 - 原始名: {channel_info['raw_name']}, 映射名: {channel_info['name']}, URL: {url}, 状态: {'有效' if valid else '无效'}"
-                # 实时添加有效频道并记录日志
+                # 只记录有效频道信息
                 if valid:
+                    log_msg = f"有效频道 - 原始名: {channel_info['raw_name']}, 映射名: {channel_info['name']}, 分组: {channel_info['group']}, URL: {url}"
                     self.channel_found.emit(channel_info)
-                self.logger.info(log_msg)
+                    self.logger.info(log_msg)
                 
                 with self.stats_lock:
                     if valid:
