@@ -684,11 +684,29 @@ class UIBuilder:
         self.main_window.btn_hide_invalid.setFixedHeight(36)
         self.main_window.btn_hide_invalid.setEnabled(False)
         
+        # 分辨率过滤单选按钮组
+        resolution_group = QtWidgets.QButtonGroup()
+        self.main_window.rb_all = QtWidgets.QRadioButton("全部")
+        self.main_window.rb_hd = QtWidgets.QRadioButton("高清")
+        self.main_window.rb_sd = QtWidgets.QRadioButton("标清")
+        resolution_group.addButton(self.main_window.rb_all)
+        resolution_group.addButton(self.main_window.rb_hd)
+        resolution_group.addButton(self.main_window.rb_sd)
+        self.main_window.rb_all.setChecked(True)
+        
+        # 连接信号
+        self.main_window.rb_all.toggled.connect(self._filter_by_resolution)
+        self.main_window.rb_hd.toggled.connect(self._filter_by_resolution)
+        self.main_window.rb_sd.toggled.connect(self._filter_by_resolution)
+        
         # 检测统计标签
         self.main_window.validate_stats_label = QtWidgets.QLabel("请先加载列表")
         
         toolbar.addWidget(self.main_window.btn_validate)
         toolbar.addWidget(self.main_window.btn_hide_invalid)
+        toolbar.addWidget(self.main_window.rb_all)
+        toolbar.addWidget(self.main_window.rb_hd)
+        toolbar.addWidget(self.main_window.rb_sd)
         toolbar.addWidget(self.main_window.validate_stats_label)
         toolbar.addStretch()
         list_layout.addLayout(toolbar)
@@ -707,8 +725,13 @@ class UIBuilder:
             self.main_window.channel_list.setModel(self.main_window.model)
         self.main_window.channel_list.setStyleSheet(AppStyles.list_style())
         
-        # 设置列宽
+        # 设置表头排序功能
         header = self.main_window.channel_list.horizontalHeader()
+        header.setSectionsClickable(True)  # 允许点击表头
+        header.setSortIndicatorShown(True)  # 显示排序指示器
+        header.sectionClicked.connect(self._handle_header_click)  # 连接点击事件
+        
+        # 设置列宽
         header.setStretchLastSection(False)  # 禁用最后列自动拉伸
         header.setMinimumSectionSize(30)  # 最小列宽
         header.setMaximumSectionSize(1000)  # 最大列宽
@@ -950,6 +973,27 @@ class UIBuilder:
             
         QtCore.QTimer.singleShot(50, update_layout)
 
+    def _handle_header_click(self, logical_index):
+        """处理表头点击事件，实现排序切换"""
+        header = self.main_window.channel_list.horizontalHeader()
+        
+        # 获取当前排序状态
+        current_order = header.sortIndicatorOrder()
+        current_section = header.sortIndicatorSection()
+        
+        # 如果点击的是当前排序列，则切换排序顺序
+        if current_section == logical_index:
+            new_order = QtCore.Qt.SortOrder.DescendingOrder if current_order == QtCore.Qt.SortOrder.AscendingOrder else QtCore.Qt.SortOrder.AscendingOrder
+        else:
+            # 点击新列，默认升序
+            new_order = QtCore.Qt.SortOrder.AscendingOrder
+        
+        # 先设置表头指示器
+        header.setSortIndicator(logical_index, new_order)
+        
+        # 执行排序
+        self.main_window.model.sort(logical_index, new_order)
+
     def _show_channel_context_menu(self, pos):
         """显示频道列表的右键菜单"""
         index = self.main_window.channel_list.indexAt(pos)
@@ -1044,6 +1088,26 @@ class UIBuilder:
         dialog = AboutDialog(
             self.main_window)
         dialog.exec()
+
+    def _filter_by_resolution(self, checked):
+        """根据分辨率过滤频道列表"""
+        if not checked:
+            return
+            
+        if not hasattr(self.main_window, 'model'):
+            return
+            
+        # 保存原始频道数据
+        if not hasattr(self.main_window.model, '_original_channels'):
+            self.main_window.model._original_channels = self.main_window.model.channels.copy()
+            
+        # 根据选择过滤频道
+        if self.main_window.rb_all.isChecked():
+            self.main_window.model.show_all()
+        elif self.main_window.rb_hd.isChecked():
+            self.main_window.model.filter_by_resolution(min_width=1920, min_height=1080)
+        elif self.main_window.rb_sd.isChecked():
+            self.main_window.model.filter_by_resolution(max_width=1919, max_height=1079)
 
     def _show_epg_manager(self):
         """显示EPG管理对话框"""

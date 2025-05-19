@@ -171,6 +171,47 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         self.channels = [c for c in self.channels if c.get('valid', True)]
         self.endResetModel()
 
+    def filter_by_resolution(self, min_width=None, min_height=None, max_width=None, max_height=None):
+        """根据分辨率过滤频道列表"""
+        self.beginResetModel()
+        
+        if not hasattr(self, '_original_channels'):
+            self._original_channels = self.channels.copy()
+            
+        def parse_resolution(res_str):
+            """解析分辨率字符串为宽高元组"""
+            if not res_str:
+                return (0, 0)
+            try:
+                parts = res_str.lower().split('x')
+                if len(parts) == 2:
+                    return (int(parts[0]), int(parts[1]))
+                return (0, 0)
+            except:
+                return (0, 0)
+                
+        filtered = []
+        for channel in self._original_channels:
+            res = channel.get('resolution', '')
+            width, height = parse_resolution(res)
+            
+            # 检查分辨率是否符合条件
+            match = True
+            if min_width is not None and width < min_width:
+                match = False
+            if min_height is not None and height < min_height:
+                match = False
+            if max_width is not None and width > max_width:
+                match = False
+            if max_height is not None and height > max_height:
+                match = False
+                
+            if match:
+                filtered.append(channel)
+                
+        self.channels = filtered
+        self.endResetModel()
+
     def show_all(self):
         """显示所有频道"""
         self.beginResetModel()
@@ -377,6 +418,32 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         except Exception as e:
             logger.error(f"频道模型-解析文件内容失败: {str(e)}", exc_info=True)
             return None
+
+    def sort(self, column: int, order: QtCore.Qt.SortOrder = QtCore.Qt.SortOrder.AscendingOrder) -> None:
+        """根据指定列排序频道列表"""
+        self.layoutAboutToBeChanged.emit()
+        
+        # 定义排序键函数
+        def get_key(channel):
+            if column == 0:  # 频道名称
+                return channel.get('name', '').lower()
+            elif column == 1:  # 分辨率
+                return channel.get('resolution', '')
+            elif column == 2:  # URL
+                return channel.get('url', '')
+            elif column == 3:  # 分组
+                return '' if channel is None else (channel.get('group') or '').lower()
+            elif column == 4:  # 状态
+                return channel.get('status', '')
+            elif column == 5:  # 延迟
+                return int(channel.get('latency', 0))
+            return ''
+            
+        # 执行排序
+        reverse = (order == QtCore.Qt.SortOrder.DescendingOrder)
+        self.channels.sort(key=get_key, reverse=reverse)
+        
+        self.layoutChanged.emit()
 
     def load_from_file(self, content: str) -> bool:
         """从文件内容加载频道列表"""
