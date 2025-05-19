@@ -109,12 +109,12 @@ def _get_local_mapping_path() -> str:
 
 def parse_mapping_line(line: str) -> Dict[str, dict]:
     """解析单行映射规则
-    新格式: 标准名称 = "原始名称1" "原始名称2" = logo地址
+    新格式: 标准名称 = "原始名称1" "原始名称2" = logo地址 = 分组名
     """
     if '=' not in line:
         return {}
     
-    parts = [p.strip() for p in line.split('=', 2)]
+    parts = [p.strip() for p in line.split('=', 3)]
     standard_name = parts[0]
     
     # 解析原始名称列表
@@ -123,10 +123,14 @@ def parse_mapping_line(line: str) -> Dict[str, dict]:
     # 解析logo地址(如果有)
     logo_url = parts[2].strip('"\' ') if len(parts) > 2 else None
     
+    # 解析分组名(如果有)
+    group_name = parts[3].strip('"\' ') if len(parts) > 3 else None
+    
     return {
         standard_name: {
             'raw_names': raw_names,
-            'logo_url': logo_url if logo_url and logo_url.lower() not in ['', 'none', 'null'] else None
+            'logo_url': logo_url if logo_url and logo_url.lower() not in ['', 'none', 'null'] else None,
+            'group_name': group_name if group_name and group_name.lower() not in ['', 'none', 'null'] else None
         }
     }
 
@@ -172,14 +176,15 @@ def load_remote_mappings() -> Dict[str, List[str]]:
 
 def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
     """创建反向映射字典
-    返回格式: {raw_name: {'standard_name': str, 'logo_url': str}}
+    返回格式: {raw_name: {'standard_name': str, 'logo_url': str, 'group_name': str}}
     """
     reverse_mappings = {}
     for standard_name, data in mappings.items():
         for raw_name in data['raw_names']:
             reverse_mappings[raw_name] = {
                 'standard_name': standard_name,
-                'logo_url': data['logo_url']
+                'logo_url': data['logo_url'],
+                'group_name': data.get('group_name')
             }
     return reverse_mappings
 
@@ -203,8 +208,8 @@ combined_mappings = {**local_mappings, **remote_mappings}
 REVERSE_MAPPINGS = create_reverse_mappings(combined_mappings)
 
 def get_channel_info(raw_name: str) -> dict:
-    """获取频道信息(标准名称和logo地址)
-    返回格式: {'standard_name': str, 'logo_url': str}
+    """获取频道信息(标准名称、logo地址和分组名)
+    返回格式: {'standard_name': str, 'logo_url': str, 'group_name': str}
     """
     logger = LogManager()
     if not raw_name or raw_name.isspace():
