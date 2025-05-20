@@ -5,6 +5,7 @@ from channel_model import ChannelListModel
 from styles import AppStyles
 from pathlib import Path
 from log_manager import LogManager
+from channel_mappings import save_to_excel
 
 class UIBuilder:
     def __init__(self, main_window):
@@ -932,10 +933,23 @@ class UIBuilder:
         save_action.setShortcut(QtGui.QKeySequence("Ctrl+S"))
         file_menu.addAction(save_action)
 
+        # Excel导入导出菜单项
+        import_excel_action = QtGui.QAction("导入Excel(&I)", self.main_window)
+        import_excel_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+I"))
+        file_menu.addAction(import_excel_action)
+
+        export_excel_action = QtGui.QAction("导出Excel(&E)", self.main_window)
+        export_excel_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+E"))
+        file_menu.addAction(export_excel_action)
+
         file_menu.addSeparator()
         exit_action = QtGui.QAction("退出(&X)", self.main_window)
         exit_action.setShortcut(QtGui.QKeySequence("Ctrl+Q"))
         file_menu.addAction(exit_action)
+
+        # 连接Excel导入导出信号
+        import_excel_action.triggered.connect(self._import_excel)
+        export_excel_action.triggered.connect(self._export_excel)
 
     def _toggle_epg_panel(self, checked):
         """切换EPG节目单区域显示状态"""
@@ -1067,6 +1081,8 @@ class UIBuilder:
         # 主要功能按钮
         open_action = create_action("📂", "打开列表", "打开IPTV列表文件")
         save_action = create_action("💾", "保存列表", "保存当前列表到文件")
+        import_excel_action = create_action("📥", "导入Excel", "从Excel文件导入频道列表")
+        export_excel_action = create_action("📤", "导出Excel", "导出频道列表到Excel文件")
         refresh_epg_action = create_action("🔄", "刷新EPG", "重新获取EPG节目信息")
         epg_manager_action = create_action("📺", "EPG管理", "管理EPG源和设置")
         about_action = create_action("ℹ️", "关于", "关于本程序")
@@ -1077,9 +1093,15 @@ class UIBuilder:
         # 添加按钮到工具栏
         toolbar.addAction(open_action)
         toolbar.addAction(save_action)
+        toolbar.addAction(import_excel_action)
+        toolbar.addAction(export_excel_action)
         toolbar.addAction(refresh_epg_action)
         toolbar.addAction(epg_manager_action)
         toolbar.addAction(about_action)
+
+        # 连接Excel导入导出信号
+        import_excel_action.triggered.connect(self._import_excel)
+        export_excel_action.triggered.connect(self._export_excel)
         
 
     def _show_about_dialog(self):
@@ -1088,6 +1110,85 @@ class UIBuilder:
         dialog = AboutDialog(
             self.main_window)
         dialog.exec()
+
+    def _import_excel(self):
+        """导入Excel文件"""
+        try:
+            file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+                self.main_window,
+                "选择Excel文件",
+                "",
+                "Excel文件 (*.xlsx *.xls);;所有文件 (*)"
+            )
+            
+            if file_path:
+                # 读取Excel文件内容
+                excel_data = self.main_window.channel_mappings.load_from_excel(file_path)
+                if excel_data:
+                    # 解析Excel内容并更新频道列表
+                    # 这里需要调用主窗口的方法来处理Excel数据
+                    self.main_window._handle_excel_import(excel_data)
+        except Exception as e:
+            self.logger.error(f"导入Excel失败: {str(e)}")
+            QtWidgets.QMessageBox.critical(
+                self.main_window,
+                "导入错误",
+                f"导入Excel文件失败: {str(e)}"
+            )
+
+    def _export_excel(self):
+        """导出到Excel文件"""
+        try:
+            if not hasattr(self.main_window, 'model') or self.main_window.model.rowCount() == 0:
+                QtWidgets.QMessageBox.warning(
+                    self.main_window,
+                    "导出警告",
+                    "没有频道数据可导出"
+                )
+                return
+                
+            file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+                self.main_window,
+                "保存Excel文件",
+                "",
+                "Excel文件 (*.xlsx);;所有文件 (*)"
+            )
+            
+            if file_path:
+                # 确保文件扩展名正确
+                if not file_path.lower().endswith(('.xlsx', '.xls')):
+                    file_path += '.xlsx'
+                
+                # 获取当前频道数据
+                channels = []
+                for row in range(self.main_window.model.rowCount()):
+                    channel = {
+                        'name': self.main_window.model.data(self.main_window.model.index(row, 0)),
+                        'url': self.main_window.model.data(self.main_window.model.index(row, 2)),
+                        'group': self.main_window.model.data(self.main_window.model.index(row, 1)),
+                        'logo': self.main_window.model.data(self.main_window.model.index(row, 3)),
+                        'valid': self.main_window.model.data(self.main_window.model.index(row, 4)),
+                        'delay': self.main_window.model.data(self.main_window.model.index(row, 5))
+                    }
+                    channels.append(channel)
+                
+                # 调用主窗口方法生成Excel数据
+                excel_data = self.main_window._generate_excel_data()
+                
+                # 保存Excel文件
+                if excel_data and save_to_excel(file_path, excel_data):
+                    QtWidgets.QMessageBox.information(
+                        self.main_window,
+                        "导出成功",
+                        f"频道列表已成功导出到: {file_path}"
+                    )
+        except Exception as e:
+            self.logger.error(f"导出Excel失败: {str(e)}")
+            QtWidgets.QMessageBox.critical(
+                self.main_window,
+                "导出错误",
+                f"导出Excel文件失败: {str(e)}"
+            )
 
     def _filter_by_resolution(self, checked):
         """根据分辨率过滤频道列表"""
