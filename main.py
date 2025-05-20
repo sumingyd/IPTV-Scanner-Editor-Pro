@@ -392,13 +392,15 @@ class MainWindow(QtWidgets.QMainWindow):
             # 写入数据行
             for i in range(self.model.rowCount()):
                 channel = self.model.get_channel(i)
+                from channel_mappings import get_channel_info
+                channel_info = get_channel_info(channel.get('name', ''))
                 ws.append([
                     channel.get('name', ''),
                     channel.get('url', ''),
                     channel.get('group', '未分类'),
-                    channel.get('logo', ''),
+                    channel_info.get('logo_url') or channel.get('logo', ''),
                     channel.get('valid', False),
-                    channel.get('delay', 0.0),
+                    channel.get('latency', 0.0) if channel.get('latency') else 0.0,
                     channel.get('resolution', ''),
                     channel.get('status', '')
                 ])
