@@ -282,6 +282,106 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             lines.append(line)
         return "\n".join(lines)
 
+    def to_excel(self) -> bytes:
+        """将频道列表转换为Excel文件字节流"""
+        from openpyxl import Workbook
+        from openpyxl.styles import Font
+        from io import BytesIO
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "频道列表"
+        
+        # 表头
+        headers = ["频道名称", "分辨率", "URL", "分组", "状态", "延迟(ms)", "Logo", "TVG ID", "语言", "国家"]
+        ws.append(headers)
+        
+        # 设置表头样式
+        for cell in ws[1]:
+            cell.font = Font(bold=True)
+        
+        # 添加数据行
+        for channel in self.channels:
+            row = [
+                channel.get('name', ''),
+                channel.get('resolution', ''),
+                channel.get('url', ''),
+                channel.get('group', ''),
+                channel.get('status', ''),
+                channel.get('latency', ''),
+                channel.get('logo', ''),
+                channel.get('tvg_id', ''),
+                channel.get('language', ''),
+                channel.get('country', '')
+            ]
+            ws.append(row)
+        
+        # 自动调整列宽
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = (max_length + 2) * 1.2
+            ws.column_dimensions[column].width = adjusted_width
+        
+        # 保存到字节流
+        output = BytesIO()
+        wb.save(output)
+        return output.getvalue()
+
+    def parse_excel_content(self, content: bytes) -> List[Dict[str, Any]]:
+        """解析Excel文件内容并返回频道列表"""
+        from openpyxl import load_workbook
+        from io import BytesIO
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            channels = []
+            wb = load_workbook(filename=BytesIO(content))
+            ws = wb.active
+            
+            # 获取表头映射
+            headers = []
+            for cell in ws[1]:
+                headers.append(cell.value.lower() if cell.value else '')
+            
+            # 处理数据行
+            for row in ws.iter_rows(min_row=2):
+                channel = {}
+                for idx, cell in enumerate(row):
+                    if idx >= len(headers):
+                        break
+                    if headers[idx] and cell.value:
+                        channel[headers[idx]] = cell.value
+                
+                # 确保有必要的字段
+                if '频道名称' in channel and 'url' in channel:
+                    # 标准化字段名
+                    standardized = {
+                        'name': channel.get('频道名称', ''),
+                        'resolution': channel.get('分辨率', ''),
+                        'url': channel.get('url', ''),
+                        'group': channel.get('分组', '未分类'),
+                        'status': '待检测',
+                        'valid': False,
+                        'logo': channel.get('logo', ''),
+                        'tvg_id': channel.get('tvg id', ''),
+                        'language': channel.get('语言', ''),
+                        'country': channel.get('国家', '')
+                    }
+                    channels.append(standardized)
+            
+            return channels
+        except Exception as e:
+            logger.error(f"解析Excel内容失败: {str(e)}", exc_info=True)
+            return None
+
     def removeRow(self, row: int, parent=QtCore.QModelIndex()) -> bool:
         """删除指定行"""
         if not (0 <= row < len(self.channels)):
