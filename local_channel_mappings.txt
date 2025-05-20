@@ -42,7 +42,7 @@ CGTN俄语 = "239.21.2.35:5002" = https://raw.githubusercontent.com/sumingyd/IPT
 ##########    卫视    ##########
 安徽卫视 = "239.21.1.21:5002" "ANHUI-UD" "CHANNEL00000328" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/安徽/安徽卫视2.png = 卫视
 北京卫视 = "239.21.1.20:5002" "BEIJING" "BEIJING-HD" "CHANNEL00000019" "CHANNEL00000302" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视.png = 卫视
-北京卫视-4K = "BRIJING-4K-25P" "BEIJING-4K-50P" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视4K.png = 卫视
+北京卫视-4K = "BRIJING-4K-25P" "BEIJING-4K-50P" "239.21.2.172:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视4K.png = 卫视
 兵团卫视 = "兵团" "CHANNEL00000071" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/兵团卫视2.png = 卫视
 东方卫视 = "239.21.1.23:5002" "SHANGHAI" "SHANGHAI-HD" "CHANNEL00000022" "CHANNEL00000309" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方卫视1.png = 卫视
 东南卫视 = "239.21.1.29:5002" "FUJIAN" "FUJIAN-HD" "CHANNEL00000028" "CHANNEL00000310" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/福建/东南卫视2.png = 卫视
@@ -112,7 +112,7 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 法治天地 = "增值-fazhitiandi" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/法治天地3.png = 特色频道
 光影 = "239.21.1.131:5002" =  = 特色频道
 哈哈炫动 = "239.21.1.51:5002" "CHANNEL00000050" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/哈哈炫动2.png = 特色频道
-海洋频道 = "Bravo Inc." = = 特色频道
+海洋频道 = "Bravo Inc." = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/海洋频道.png = 特色频道
 精彩影视 = "jingcaiyingshi" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/精彩影视.png = 特色频道
 环球旅游 = "增值-huanqiulvyou" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/环球旅游.png = 特色频道
 纪实科教 = "BeiJing-JISHI" "239.21.1.194:5002" "CHANNEL00000332" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/纪实科教.png = 特色频道
