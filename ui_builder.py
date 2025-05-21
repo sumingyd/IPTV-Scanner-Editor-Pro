@@ -79,9 +79,6 @@ class UIBuilder:
                 *self.main_window.h_splitter.sizes()
             ]
             
-            # 保持右侧收起状态
-            self.main_window.main_splitter.setSizes([size.width(), 0])
-            
             # 保存窗口布局
             self.main_window.config.save_window_layout(size.width(), size.height(), dividers)
             event.accept()
@@ -111,7 +108,8 @@ class UIBuilder:
             # 设置更合理的默认尺寸(基于窗口当前大小)
             width = self.main_window.width()
             height = self.main_window.height()
-            self.main_window.main_splitter.setSizes([int(width*0.7), int(width*0.3)])
+            # 移除EPG区域后，右侧只保留播放区域，所以给更多空间
+            self.main_window.main_splitter.setSizes([int(width*0.4), int(width*0.6)])
         
         # 左侧垂直分割器（扫描面板 + 频道列表）
         self.main_window.left_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical) 
