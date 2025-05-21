@@ -2,13 +2,11 @@ from PyQt6 import QtWidgets, QtCore, QtGui
 import time
 import threading
 from channel_model import ChannelListModel
-from epg_manager import EPGManager
 from ui_builder import UIBuilder
 from config_manager import ConfigManager
 from log_manager import LogManager
 from scanner_controller import ScannerController
 from styles import AppStyles
-from epg_ui import EPGManagementDialog, EPGProgramWidget
 import sys
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -18,16 +16,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.config = ConfigManager()
         self.logger = LogManager()
         
-        # 初始化EPG管理器
-        from epg_manager import EPGManager
-        self.epg_manager = EPGManager(self.config, self)
-        
         # 构建UI
         self.ui = UIBuilder(self)
         self.ui.build_ui()
         
         # 初始化控制器(确保模型已由UIBuilder初始化)
-        self.scanner = ScannerController(self.model, self.epg_manager)
+        self.scanner = ScannerController(self.model)
         from player_controller import PlayerController
         from list_manager import ListManager
         self.player_controller = PlayerController(self.ui.main_window.player, self.model)
@@ -36,8 +30,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # UI构建完成后加载配置
         self._load_config()
         
-        # 初始化频道名称自动补全
-        self._setup_name_autocomplete()
         
         # 连接信号槽
         self._connect_signals()
@@ -46,15 +38,6 @@ class MainWindow(QtWidgets.QMainWindow):
         """更新有效性检测状态标签"""
         self.ui.main_window.validate_stats_label.setText(message)
         message == "请点击检测有效性按钮"
-
-    def _setup_name_autocomplete(self):
-        """设置频道名称自动补全"""
-        completer = QtWidgets.QCompleter()
-        completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
-        completer.setFilterMode(QtCore.Qt.MatchFlag.MatchContains)
-        model = QtCore.QStringListModel()
-        completer.setModel(model)
-        self.ui.main_window.name_edit.setCompleter(completer)
 
     def _load_config(self):
         """加载保存的配置到UI"""
@@ -87,17 +70,6 @@ class MainWindow(QtWidgets.QMainWindow):
         except:
             pass
         self.ui.main_window.scan_btn.clicked.connect(self._on_scan_clicked)
-        
-        # 连接菜单栏动作
-        for action in self.ui.main_window.menuBar().actions():
-            try:
-                action.triggered.disconnect()
-            except:
-                pass
-            if action.text().startswith("打开列表"):
-                action.triggered.connect(self._open_list)
-            elif action.text().startswith("保存列表"):
-                action.triggered.connect(self._save_list)
                 
         # 连接工具栏按钮
         for action in self.ui.main_window.findChildren(QtGui.QAction):
@@ -109,10 +81,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 action.triggered.connect(self._open_list)
             elif "保存列表" in action.text():
                 action.triggered.connect(self._save_list)
-            elif "刷新EPG" in action.text():
-                action.triggered.connect(self._on_refresh_epg_clicked)
-            elif "EPG管理" in action.text():
-                action.triggered.connect(self._on_epg_manager_clicked)
             elif "关于" in action.text():
                 action.triggered.connect(self._on_about_clicked)
                 
@@ -495,167 +463,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 f"耗时: {elapsed}"
             )
 
-    def _on_refresh_epg_clicked(self):
-        """处理刷新EPG按钮点击事件"""
-        self.logger.info("用户点击刷新EPG按钮")
-        try:
-            # 检查是否按住Shift键(强制刷新)
-            force_update = QtWidgets.QApplication.keyboardModifiers() == QtCore.Qt.KeyboardModifier.ShiftModifier
-            
-            # 显示进度指示器
-            self.ui.main_window.progress_indicator.show()
-            self.ui.main_window.epg_match_label.setText("EPG状态: 正在刷新...")
-        finally:
-            # 确保进度指示器被隐藏
-            self.ui.main_window.progress_indicator.hide()
-            
-            # 创建信号对象用于线程间通信
-            class RefreshSignals(QtCore.QObject):
-                update_status = QtCore.pyqtSignal(str)
-                update_completer = QtCore.pyqtSignal(list)
-                update_epg_display = QtCore.pyqtSignal(dict)
-                finished = QtCore.pyqtSignal()
-                
-            signals = RefreshSignals()
-            
-            # 连接信号槽
-            signals.update_status.connect(self.ui.main_window.epg_match_label.setText)
-            signals.update_completer.connect(self._update_name_completer)
-            signals.update_epg_display.connect(lambda _: self._update_epg_display(self.current_channel))
-            signals.finished.connect(self.ui.main_window.progress_indicator.hide)
-            
-            # 在后台线程中执行EPG刷新
-            def refresh_task():
-                try:
-                    # 调用EPG刷新并等待完成
-                    success = self.epg_manager.refresh_epg(force_update=force_update)
-                    if not success:
-                        self.logger.warning("EPG刷新启动失败")
-                        signals.update_status.emit("EPG状态: 刷新启动失败")
-                        return
-                        
-                    # 等待线程完成
-                    while not self.epg_manager.isFinished():
-                        QtCore.QCoreApplication.processEvents()
-                        
-                    # 检查EPG操作状态
-                    if hasattr(self.epg_manager, 'last_operation_status'):
-                        if self.epg_manager.last_operation_status:
-                            self.logger.info("EPG操作成功")
-                            signals.update_status.emit("EPG状态: 已加载")
-                        else:
-                            if not self.config.epg_sources:
-                                self.logger.warning("EPG操作失败: 未配置EPG源")
-                            else:
-                                self.logger.warning("EPG操作失败: 本地无EPG数据")
-                            if not self.config.epg_sources:
-                                signals.update_status.emit("EPG状态: 未配置EPG源，请先添加EPG源")
-                            else:
-                                signals.update_status.emit("EPG状态: 本地无EPG数据，请先获取EPG数据")
-                    else:
-                        # 回退到检查result
-                        if self.epg_manager.result:
-                            self.logger.info("EPG刷新成功")
-                            signals.update_status.emit("EPG状态: 已加载")
-                        else:
-                            self.logger.warning("EPG刷新失败")
-                            signals.update_status.emit("EPG状态: 刷新失败")
-                        
-                    # 更新自动补全数据
-                    channel_names = self.epg_manager.get_channel_names()
-                    signals.update_completer.emit(channel_names)
-                    # 更新当前播放频道的节目单
-                    if hasattr(self, 'current_channel'):
-                        signals.update_epg_display.emit(self.current_channel)
-                except Exception as e:
-                    self.logger.error(f"EPG刷新出错: {e}")
-                    signals.update_status.emit("EPG状态: 刷新出错")
-                finally:
-                    signals.finished.emit()
-
-            # 如果已有线程在运行，先停止它
-            if hasattr(self, 'epg_thread') and self.epg_thread.isRunning():
-                self.epg_thread.quit()
-                self.epg_thread.wait(1000)
-            
-            # 创建新的线程和worker
-            self.epg_thread = QtCore.QThread()
-            self.epg_worker = QtCore.QObject()
-            self.epg_worker.moveToThread(self.epg_thread)
-            
-            # 连接信号
-            self.epg_thread.started.connect(refresh_task)
-            
-            # 线程结束时自动清理
-            self.epg_thread.finished.connect(self.epg_thread.deleteLater)
-            self.epg_thread.finished.connect(self.epg_worker.deleteLater)
-            
-            # 启动线程并确保资源释放
-            try:
-                self.epg_thread.start()
-            except RuntimeError as e:
-                self.logger.error(f"EPG线程启动失败: {e}")
-                self.ui.main_window.epg_match_label.setText("EPG状态: 启动失败")
-                self.epg_thread.quit()
-                self.epg_thread.wait(1000)
-                return
-            except Exception as e:
-                self.logger.error(f"EPG线程未知错误: {e}")
-                self.ui.main_window.epg_match_label.setText("EPG状态: 未知错误")
-                self.epg_thread.quit()
-                self.epg_thread.wait(1000)
-                return
-
-    def closeEvent(self, event):
-        if hasattr(self, 'epg_thread') and self.epg_thread and self.epg_thread.isRunning():
-            self.epg_thread.quit()
-            self.epg_thread.wait()
-        event.accept()
-
-    def _update_name_completer(self, channel_names):
-        """更新频道名称自动补全数据"""
-        completer = self.ui.main_window.name_edit.completer()
-        if completer and channel_names:
-            model = completer.model()
-            if model:
-                model.setStringList(channel_names)
-
-    def _update_epg_display(self, channel):
-        """更新EPG节目单显示"""
-        if not hasattr(self, 'epg_manager') or not self.epg_manager:
-            self.logger.warning("EPG管理器未初始化")
-            self.ui.main_window.epg_title.setText(f"{channel['name']} - EPG未初始化")
-            self.ui.main_window.epg_timeline.setWidget(QtWidgets.QLabel("EPG管理器未初始化"))
-            return
-            
-        try:
-            programs = self.epg_manager.get_channel_programs(channel['name'])
-            
-            if not programs:
-                self.ui.main_window.epg_title.setText(f"{channel['name']} - 无节目数据")
-                self.ui.main_window.epg_timeline.setWidget(QtWidgets.QLabel("没有可用的节目信息"))
-                return
-                
-            self.logger.info(f"找到 {len(programs)} 个节目")
-        except Exception as e:
-            self.logger.error(f"获取节目数据出错: {e}")
-            self.ui.main_window.epg_title.setText(f"{channel['name']} - 获取节目数据出错")
-            self.ui.main_window.epg_timeline.setWidget(QtWidgets.QLabel(f"获取节目数据出错: {str(e)}"))
-            return
-        
-        # 创建EPG节目单控件
-        epg_widget = EPGProgramWidget()
-        epg_widget.update_programs(channel['name'], programs)
-        
-        # 更新UI
-        self.ui.main_window.epg_title.setText(f"{channel['name']} 节目单")
-        self.ui.main_window.epg_content.setWidget(epg_widget)
-
-    def _on_epg_manager_clicked(self):
-        """处理EPG管理按钮点击事件"""
-        dialog = EPGManagementDialog(self, self.config, self._save_epg_config)
-        dialog.exec()
-
     def _on_about_clicked(self):
         """处理关于按钮点击事件"""
         try:
@@ -690,36 +497,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 f"无法显示关于对话框: {str(e)}"
             )
 
-    def _save_epg_config(self, epg_config):
-        """保存EPG配置回调"""
-        try:
-            if self.config.save_epg_config(epg_config):
-                self.logger.info("EPG配置保存成功")
-                # 重新初始化EPG管理器
-                self.epg_manager = EPGManager(self.config, self)
-                return True
-            else:
-                self.logger.warning("EPG配置保存失败")
-                return False
-        except Exception as e:
-            self.logger.error(f"保存EPG配置出错: {e}")
-            return False
-
     def save_before_exit(self):
         """程序退出前保存所有配置"""
         try:
-            # 停止EPGManager线程
-            if hasattr(self, 'epg_manager') and self.epg_manager.isRunning():
-                self.epg_manager.quit()
-                if not self.epg_manager.wait(2000):  # 等待2秒让线程退出
-                    self.epg_manager.terminate()
-                
-            # 停止EPG UI线程
-            if hasattr(self, 'epg_thread') and self.epg_thread.isRunning():
-                self.epg_thread.quit()
-                if not self.epg_thread.wait(1000):  # 等待1秒让线程退出
-                    self.epg_thread.terminate()
-            
+           
             # 保存窗口布局
             size = self.size()
             dividers = [
