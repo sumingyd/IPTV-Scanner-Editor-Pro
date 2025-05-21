@@ -58,23 +58,6 @@ class UIBuilder:
         status_bar = self.main_window.statusBar()
         status_bar.show()
         status_bar.setStyleSheet(AppStyles.statusbar_style())
-        # EPG状态显示（添加到左侧）
-        self.main_window.epg_status_label = QtWidgets.QLabel(
-            "EPG状态：未加载（EPG未加载状态下，扫描时无法尝试匹配正确频道名，频道编辑时无法给出匹配的准确频道名待选列表）"
-        )
-        status_bar.addWidget(self.main_window.epg_status_label)  # 默认添加到左侧
-        
-        # 添加更新EPG状态的方法
-        def update_epg_status(loaded=False):
-            if loaded:
-                self.main_window.epg_status_label.setText("EPG状态：已加载（可自动匹配频道名）")
-            else:
-                self.main_window.epg_status_label.setText(
-                    "EPG状态：未加载（EPG未加载状态下，扫描时无法尝试匹配正确频道名，频道编辑时无法给出匹配的准确频道名待选列表）"
-                )
-        
-        # 将更新方法暴露给主窗口
-        self.main_window.update_epg_status = update_epg_status
         
         self.main_window.progress_indicator = QtWidgets.QProgressBar()
         self.main_window.progress_indicator.setRange(0, 0)
@@ -96,9 +79,8 @@ class UIBuilder:
                 *self.main_window.h_splitter.sizes()
             ]
             
-            # 如果EPG面板是收起状态，强制保持右侧收起
-            if not self.main_window.epg_toggle_btn.isChecked():
-                self.main_window.main_splitter.setSizes([size.width(), 0])
+            # 保持右侧收起状态
+            self.main_window.main_splitter.setSizes([size.width(), 0])
             
             # 保存窗口布局
             self.main_window.config.save_window_layout(size.width(), size.height(), dividers)
@@ -302,62 +284,6 @@ class UIBuilder:
         player_left.setLayout(left_layout)
         player_layout.addWidget(player_left, stretch=3)  # 左侧占3/4
         
-        # 右侧EPG节目单区域 (独立布局)
-        self.main_window.epg_panel = QtWidgets.QWidget()
-        epg_layout = QtWidgets.QVBoxLayout()
-        epg_layout.setContentsMargins(0, 0, 0, 0)
-        epg_layout.setSpacing(0)
-        
-        # EPG容器(包含标题和内容)
-        self.main_window.epg_container = QtWidgets.QWidget()
-        self.main_window.epg_container.setLayout(QtWidgets.QVBoxLayout())
-        self.main_window.epg_container.layout().setContentsMargins(0, 0, 0, 0)
-        
-        # 标题栏(仅包含标题)
-        self.main_window.epg_header = QtWidgets.QWidget()
-        header_layout = QtWidgets.QHBoxLayout(self.main_window.epg_header)
-        header_layout.setContentsMargins(0, 0, 0, 0)
-        
-        self.main_window.epg_title = QtWidgets.QLabel("当前节目单")
-        self.main_window.epg_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        header_layout.addWidget(self.main_window.epg_title)
-        
-        # EPG内容区域
-        self.main_window.epg_content = QtWidgets.QScrollArea()
-        self.main_window.epg_content.setWidgetResizable(True)
-        self.main_window.epg_content.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Expanding,
-            QtWidgets.QSizePolicy.Policy.Expanding
-        )
-        
-        # 创建EPG时间线控件
-        self.main_window.epg_timeline = QtWidgets.QScrollArea()
-        self.main_window.epg_timeline.setWidgetResizable(True)
-        
-        # 添加标题和内容到容器
-        self.main_window.epg_container.layout().addWidget(self.main_window.epg_header)
-        self.main_window.epg_container.layout().addWidget(self.main_window.epg_content)
-        
-        # 将收起按钮移到播放器控制区域
-        self.main_window.epg_toggle_btn = QtWidgets.QPushButton("◀")
-        self.main_window.epg_toggle_btn.setFixedWidth(20)
-        self.main_window.epg_toggle_btn.setCheckable(True)
-        self.main_window.epg_toggle_btn.setChecked(True)
-        
-        # 添加到控制按钮行
-        btn_row.addWidget(self.main_window.epg_toggle_btn)
-        
-        # 初始化EPG面板状态(默认展开)
-        self._toggle_epg_panel(True)
-        
-        # 连接收起按钮信号
-        self.main_window.epg_toggle_btn.toggled.connect(self._toggle_epg_panel)
-        
-        epg_layout.addWidget(self.main_window.epg_container, stretch=1)
-        self.main_window.epg_panel.setLayout(epg_layout)
-        
-        # 使用独立的布局管理EPG面板
-        player_layout.addWidget(self.main_window.epg_panel)
         
         player_group.setLayout(player_layout)
         parent.addWidget(player_group)
@@ -371,16 +297,10 @@ class UIBuilder:
         edit_layout.setHorizontalSpacing(5)
         edit_layout.setContentsMargins(10, 15, 10, 15)
 
-        # 频道名称输入(带自动补全)
+        # 频道名称输入
         self.main_window.name_edit = QtWidgets.QLineEdit()
         self.main_window.name_edit.setMinimumHeight(32)
         self.main_window.name_edit.setPlaceholderText("输入频道名称...")
-        
-        # 名称自动补全(使用EPG频道名)
-        name_completer = QtWidgets.QCompleter(self.main_window.epg_manager.get_channel_names())
-        name_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        name_completer.setFilterMode(Qt.MatchFlag.MatchContains)
-        self.main_window.name_edit.setCompleter(name_completer)
         
         # 编辑框载入时自动全选文本
         self.main_window.name_edit.focusInEvent = self._handle_name_edit_focus
@@ -397,9 +317,6 @@ class UIBuilder:
         group_completer.setFilterMode(Qt.MatchFlag.MatchContains)
         self.main_window.group_combo.setCompleter(group_completer)
 
-        # EPG匹配状态显示
-        self.main_window.epg_match_label = QtWidgets.QLabel("EPG状态: 未匹配")
-        
         # 保存按钮 - 作为窗口属性
         self.main_window.save_channel_btn = QtWidgets.QPushButton("保存修改")
         self.main_window.save_channel_btn.setObjectName("save_channel_btn")
@@ -413,7 +330,6 @@ class UIBuilder:
         # 布局
         edit_layout.addRow("频道名称：", self.main_window.name_edit)
         edit_layout.addRow("分组分类：", self.main_window.group_combo)
-        edit_layout.addRow(self.main_window.epg_match_label)
         edit_layout.addRow(QtWidgets.QLabel())
         edit_layout.addRow(self.main_window.save_channel_btn)
 
@@ -549,10 +465,6 @@ class UIBuilder:
 
     def _setup_match_options(self, layout):
         """设置匹配高级选项"""
-        # EPG覆盖选项
-        self.main_window.cb_override_epg = QtWidgets.QCheckBox("EPG不匹配时强制覆盖")
-        layout.addWidget(self.main_window.cb_override_epg)
-        
         # 自动保存选项
         self.main_window.cb_auto_save = QtWidgets.QCheckBox("匹配后自动保存")
         layout.addWidget(self.main_window.cb_auto_save)
@@ -783,12 +695,6 @@ class UIBuilder:
             # 模拟点击保存按钮
             self.main_window.save_channel_btn.click()
             
-            # 重新初始化自动补全
-            name_completer = QtWidgets.QCompleter(self.main_window.epg_manager.get_channel_names())
-            name_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-            name_completer.setFilterMode(Qt.MatchFlag.MatchContains)
-            self.main_window.name_edit.setCompleter(name_completer)
-            
             # 延迟执行导航
             QtCore.QTimer.singleShot(100, self._navigate_to_next_channel)
 
@@ -814,11 +720,6 @@ class UIBuilder:
             # 载入频道名并自动全选
             self.main_window.name_edit.setText(self.main_window.model.data(next_index))
             self.main_window.name_edit.selectAll()
-            # 重新设置自动补全数据源
-            name_completer = QtWidgets.QCompleter(self.main_window.epg_manager.get_channel_names())
-            name_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-            name_completer.setFilterMode(Qt.MatchFlag.MatchContains)
-            self.main_window.name_edit.setCompleter(name_completer)
             # 播放当前选中的频道
             current_index = self.main_window.channel_list.currentIndex()
             channel_data = {
@@ -827,58 +728,7 @@ class UIBuilder:
             }
             self.main_window.player_controller.play_channel(channel_data)
             
-            # 延迟执行高亮，确保EPG节目单已加载
-            QtCore.QTimer.singleShot(500, lambda: self._highlight_current_program(channel_data))
-            
-            # 高亮并滚动到当前节目
             self.logger.info(f"正在处理频道: {channel_data['name']}")
-            
-            if not hasattr(self.main_window, 'epg_widget'):
-                self.logger.warning("epg_widget属性不存在")
-                return
-                
-            if not self.main_window.epg_widget:
-                self.logger.warning("epg_widget未初始化")
-                return
-                
-            # 清除之前的高亮
-            for child in self.main_window.epg_widget.findChildren(QtWidgets.QLabel):
-                if 'current-program' in child.property('class'):
-                    child.setProperty('class', '')
-                    child.style().unpolish(child)
-                    child.style().polish(child)
-            
-            # 查找并高亮当前节目(模糊匹配)
-            current_channel = channel_data['name'].lower()
-            best_match = None
-            best_score = 0
-            
-            labels = self.main_window.epg_widget.findChildren(QtWidgets.QLabel)
-            
-            for child in labels:
-                epg_channel = child.text().lower()
-                
-                # 简单相似度计算
-                score = sum(1 for a, b in zip(current_channel, epg_channel) if a == b)
-                if score > best_score or (score == best_score and len(epg_channel) < len(child.text())):
-                    best_match = child
-                    best_score = score
-            
-            if best_match:
-                if best_score >= len(current_channel)//2:  # 至少匹配一半字符
-                    best_match.setProperty('class', 'current-program')
-                    best_match.style().unpolish(best_match)
-                    best_match.style().polish(best_match)
-                    
-                    # 滚动到可见区域中心
-                    scroll_bar = self.main_window.epg_timeline.verticalScrollBar()
-                    widget_pos = best_match.mapTo(self.main_window.epg_timeline, QtCore.QPoint(0, 0))
-                    scroll_pos = widget_pos.y() - self.main_window.epg_timeline.height()//2 + best_match.height()//2
-                    scroll_bar.setValue(scroll_pos)
-                else:
-                    self.logger.warning("匹配度不足，未高亮显示")
-            else:
-                self.logger.warning("未找到匹配的EPG节目")
         else:
             # 已经是最后一行，回到第一行
             first_index = self.main_window.model.index(0, 0)
@@ -894,61 +744,6 @@ class UIBuilder:
                 'name': self.main_window.model.data(current_index)
             }
             self.main_window.player_controller.play_channel(channel_data)
-
-    def _setup_menubar(self):
-        """初始化菜单栏"""
-        menubar = self.main_window.menuBar()
-
-        # 文件菜单
-        file_menu = menubar.addMenu("文件(&F)")
-        open_action = QtGui.QAction("打开列表(&O)", self.main_window)
-        open_action.setShortcut(QtGui.QKeySequence("Ctrl+O"))
-        file_menu.addAction(open_action)
-
-        save_action = QtGui.QAction("保存列表(&S)", self.main_window)
-        save_action.setShortcut(QtGui.QKeySequence("Ctrl+S"))
-        file_menu.addAction(save_action)
-
-        file_menu.addSeparator()
-        exit_action = QtGui.QAction("退出(&X)", self.main_window)
-        exit_action.setShortcut(QtGui.QKeySequence("Ctrl+Q"))
-        file_menu.addAction(exit_action)
-
-    def _toggle_epg_panel(self, checked):
-        """切换EPG节目单区域显示状态"""
-        # 更新按钮图标方向(▶表示面板收起，◀表示面板展开)
-        self.main_window.epg_toggle_btn.setText("◀" if checked else "▶")
-        
-        # 确保分割器已初始化
-        if not hasattr(self.main_window, 'right_splitter'):
-            self.logger.error("right_splitter未初始化")
-            return
-            
-        # 获取当前总高度
-        total_height = self.main_window.right_splitter.height()
-        
-        if checked:
-            # 显示EPG面板 - 动态分配高度(播放器占70%，EPG占30%)
-            player_height = int(total_height * 0.7)
-            epg_height = total_height - player_height
-            self.main_window.right_splitter.setSizes([player_height, epg_height])
-            self.main_window.epg_content.setVisible(True)
-            self.main_window.epg_header.layout().setAlignment(Qt.AlignmentFlag.AlignTop)
-        else:
-            # 收起EPG面板 - 全部空间给播放器
-            self.main_window.right_splitter.setSizes([total_height, 0])
-            self.main_window.epg_content.setVisible(False)
-            self.main_window.epg_header.layout().setAlignment(Qt.AlignmentFlag.AlignCenter)
-            
-        # 确保按钮始终可见
-        self.main_window.epg_toggle_btn.show()
-        
-        # 最小化布局更新
-        def update_layout():
-            self.main_window.epg_panel.setVisible(checked)
-            self.main_window.epg_panel.updateGeometry()
-            
-        QtCore.QTimer.singleShot(50, update_layout)
 
     def _show_channel_context_menu(self, pos):
         """显示频道列表的右键菜单"""
@@ -1035,8 +830,6 @@ class UIBuilder:
         # 主要功能按钮
         open_action = create_action("📂", "打开列表", "打开IPTV列表文件")
         save_action = create_action("💾", "保存列表", "保存当前列表到文件")
-        refresh_epg_action = create_action("🔄", "刷新EPG", "重新获取EPG节目信息")
-        epg_manager_action = create_action("📺", "EPG管理", "管理EPG源和设置")
         about_action = create_action("ℹ️", "关于", "关于本程序")
 
         # 添加分隔符
@@ -1045,8 +838,6 @@ class UIBuilder:
         # 添加按钮到工具栏
         toolbar.addAction(open_action)
         toolbar.addAction(save_action)
-        toolbar.addAction(refresh_epg_action)
-        toolbar.addAction(epg_manager_action)
         toolbar.addAction(about_action)
 
     def _show_about_dialog(self):
@@ -1056,15 +847,6 @@ class UIBuilder:
             self.main_window)
         dialog.exec()
 
-    def _show_epg_manager(self):
-        """显示EPG管理对话框"""
-        from epg_ui import EPGManagementDialog
-        dialog = EPGManagementDialog(
-            self.main_window,
-            self.main_window.config_manager,
-            lambda config: self.main_window.config_manager.save_epg_config(config)
-        )
-        dialog.exec()
 
     def _on_match_clicked(self):
         """处理执行自动匹配按钮点击事件"""
