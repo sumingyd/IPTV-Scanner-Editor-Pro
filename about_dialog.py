@@ -12,9 +12,9 @@ logger = LogManager()
 
 class AboutDialog(QtWidgets.QDialog):
     # 版本配置
-    CURRENT_VERSION = "15.0.0.0"  # 当前版本号(手动修改这里)
+    CURRENT_VERSION = "16.0.0.0"  # 当前版本号(手动修改这里)
     DEFAULT_VERSION = None  # 将从GitHub获取最新版本
-    BUILD_DATE = "2025-05-05"  # 更新为当前日期
+    BUILD_DATE = "2025-05-22"  # 更新为当前日期
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -114,73 +114,36 @@ class AboutDialog(QtWidgets.QDialog):
                 主要功能说明
             </h3>
             <ul style="margin-left: 20px; line-height: 1.6; padding-left: 5px;">
-                <li><b>EPG管理</b>：
-                    <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
-                        <li>支持从多个源下载EPG数据，自动处理编码问题</li>
-                        <li>智能合并处理重复节目信息，保留不重复的节目名称</li>
-                        <li>提供节目查询和模糊匹配功能，支持频道名称模糊搜索</li>
-                        <li>加载后可在频道编辑中匹配频道名，用于编辑频道名</li>
-                        <li>按住Shift点击刷新可强制更新EPG数据(忽略本地缓存)</li>
-                        <li>支持EPG数据本地缓存(epg.xml)</li>
-                        <li>自动处理XML格式错误和编码问题，确保数据可用性</li>
-                    </ul>
-                </li>
                 <li><b>频道扫描</b>：
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
-                        <li>多线程扫描URL范围(如239.1.1.[1-255]:5002)</li>
-                        <li>自动检测频道有效性，返回延迟和分辨率信息</li>
-                        <li>实时显示扫描进度和统计信息</li>
+                        <li>设定范围地址进行扫描(如239.1.1.[1-255]:5002)，列出范围内有效频道</li>
+                        <li>支持单播、组播、流链接，支持包含多个范围的地址</li>
                         <li>支持自定义扫描超时时间和线程数</li>
-                        <li>扫描过程中可随时暂停/停止</li>
-                        <li>自动过滤无效频道，只保留有效结果</li>
+                    </ul>
+                </li>
+                <li><b>有效性检测</b>：
+                    <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
+                        <li>打开一个下载的播放列表，批量检测频道有效性</li>
                     </ul>
                 </li>
                 <li><b>频道管理</b>：
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
-                        <li>支持频道分组管理，自定义分组名称</li>
-                        <li>批量检测频道有效性(延迟、分辨率)</li>
                         <li>支持拖拽调整频道顺序</li>
-                        <li>支持右键删除选定频道</li>
-                    </ul>
-                </li>
-                <li><b>频道编辑</b>：
-                    <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
-                        <li>修改频道基本信息(名称、分组)</li>
-                        <li>支持批量导入/导出频道数据(M3U/TXT格式)</li>
-                        <li>快捷键支持(Enter保存修改并编辑下一个频道)</li>
-                    </ul>
-                </li>
-                <li><b>频道名和LOGO映射</b>：
-                    <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
-                        <li>频道会尝试获取频道名并通过映射文件匹配频道名和LOGO映射</li>
-                        <li>频道名的映射文件在仓库，可以直接去仓库提交修改，以增加适合你的</li>
+                        <li>支持右键删除选定频道、复制频道名及URL</li>
+                        <li>频道会尝试获取频道名并通过映射文件匹配频道名、LOGO、分组</li>
+                        <li>频道名的映射文件在仓库，可以直接去仓库提交修改</li>
                         <li>频道的logo可以直接在仓库提交上传到logo文件夹</li>
                     </ul>
                 </li>
-                <li><b>播放控制</b>：
+                <li><b>视频播放</b>：
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
-                        <li>基于VLC的高性能播放引擎，支持硬件加速</li>
-                        <li>音量控制(0-100)和静音功能</li>
-                        <li>暂停/继续播放控制</li>
+                        <li>双击频道列表可直接播放当前频道</li>
                     </ul>
                 </li>
                 <li><b>配置管理</b>：
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
-                        <li>自动保存窗口布局、大小和分割位置</li>
-                        <li>网络设置保存(超时、线程数、User-Agent等)</li>
-                        <li>EPG配置保存(源地址、合并选项等)</li>
                         <li>配置文件(config.ini)自动保存在程序目录</li>
                         <li>日志文件(app.log)自动轮转，最大5MB保留3个</li>
-                    </ul>
-                </li>
-                <li><b>操作方式</b>：
-                    <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
-                        <li>Shift+点击刷新: 强制更新EPG数据</li>
-                        <li>双击频道: 立即播放</li>
-                        <li>鼠标右键: 删除频道</li>
-                        <li>Enter键: 确认编辑并进行下一个频道的编辑</li>
-                        <li>Esc键: 取消操作/关闭窗口</li>
-                        <li>拖拽: 调整频道顺序/分组</li>
                     </ul>
                 </li>
             </ul>
