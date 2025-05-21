@@ -958,18 +958,24 @@ class UIBuilder:
             
         menu = QtWidgets.QMenu()
         
-        # 获取选中频道的URL
+        # 获取选中频道的URL和名称
         url = self.main_window.model.data(self.main_window.model.index(index.row(), 2))  # URL在第2列
+        name = self.main_window.model.data(self.main_window.model.index(index.row(), 0))  # 名称在第0列
         
-        # 添加删除频道菜单项
-        delete_action = QtGui.QAction("删除频道", self.main_window)
-        delete_action.triggered.connect(lambda: self._delete_selected_channel(index))
-        menu.addAction(delete_action)
+        # 添加复制频道名菜单项
+        copy_name_action = QtGui.QAction("复制频道名", self.main_window)
+        copy_name_action.triggered.connect(lambda: self._copy_channel_name(name))
+        menu.addAction(copy_name_action)
         
         # 添加复制URL菜单项
         copy_url_action = QtGui.QAction("复制URL", self.main_window)
         copy_url_action.triggered.connect(lambda: self._copy_channel_url(url))
         menu.addAction(copy_url_action)
+        
+        # 添加删除频道菜单项
+        delete_action = QtGui.QAction("删除频道", self.main_window)
+        delete_action.triggered.connect(lambda: self._delete_selected_channel(index))
+        menu.addAction(delete_action)
         
         # 显示菜单
         menu.exec(self.main_window.channel_list.viewport().mapToGlobal(pos))
@@ -979,6 +985,12 @@ class UIBuilder:
         clipboard = QtWidgets.QApplication.clipboard()
         clipboard.setText(url)
         self.logger.info(f"已复制URL: {url}")
+        
+    def _copy_channel_name(self, name):
+        """复制频道名到剪贴板"""
+        clipboard = QtWidgets.QApplication.clipboard()
+        clipboard.setText(name)
+        self.logger.info(f"已复制频道名: {name}")
         
     def _delete_selected_channel(self, index):
         """删除选中的频道"""
