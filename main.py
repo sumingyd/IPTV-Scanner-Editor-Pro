@@ -10,9 +10,6 @@ from scanner_controller import ScannerController
 from styles import AppStyles
 from epg_ui import EPGManagementDialog, EPGProgramWidget
 import sys
-import openpyxl
-from openpyxl.utils import get_column_letter
-from typing import List, Dict
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -20,10 +17,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # 初始化配置和日志管理器
         self.config = ConfigManager()
         self.logger = LogManager()
-        
-        # 初始化频道映射
-        from channel_mappings import REVERSE_MAPPINGS
-        self.channel_mappings = REVERSE_MAPPINGS
         
         # 初始化EPG管理器
         from epg_manager import EPGManager
@@ -116,10 +109,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 action.triggered.connect(self._open_list)
             elif "保存列表" in action.text():
                 action.triggered.connect(self._save_list)
-            elif "导入Excel" in action.text():
-                action.triggered.connect(self.ui._import_excel)
-            elif "导出Excel" in action.text():
-                action.triggered.connect(self.ui._export_excel)
             elif "刷新EPG" in action.text():
                 action.triggered.connect(self._on_refresh_epg_clicked)
             elif "EPG管理" in action.text():
@@ -247,26 +236,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _open_list(self):
         """打开列表文件"""
         try:
-            # 获取打开文件路径
-            file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
-                self,
-                "打开频道列表",
-                "",
-                "Excel文件 (*.xlsx);;文本文件 (*.txt);;所有文件 (*)"
-            )
-            
-            if not file_path:
-                return False
-                
-            # 根据文件扩展名选择打开方式
-            if file_path.lower().endswith('.xlsx'):
-                # 读取Excel文件
-                with open(file_path, 'rb') as f:
-                    excel_data = f.read()
-                result = self._handle_excel_import(excel_data)
-            else:
-                # 打开文本文件
-                result = self.list_manager.open_list(self, file_path)
+            result = self.list_manager.open_list(self)
                 
             if result:
                 self.ui.main_window.btn_hide_invalid.setEnabled(False)
@@ -305,164 +275,18 @@ class MainWindow(QtWidgets.QMainWindow):
             self.logger.error(f"加载旧列表失败: {str(e)}", exc_info=True)
             return False
 
-    def _handle_excel_import(self, excel_data: bytes) -> bool:
-        """处理Excel导入数据"""
-        try:
-            # 创建临时文件
-            import tempfile
-            with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp:
-                tmp.write(excel_data)
-                tmp_path = tmp.name
-            
-            # 加载Excel文件
-            wb = openpyxl.load_workbook(tmp_path)
-            ws = wb.active
-            
-            # 读取表头
-            headers = [cell.value for cell in ws[1]]
-            
-            # 确定各字段位置
-            col_map = {}
-            for idx, header in enumerate(headers, 1):
-                if header:
-                    header_lower = str(header).lower()
-                    if 'name' in header_lower:
-                        col_map['name'] = idx
-                    elif 'url' in header_lower:
-                        col_map['url'] = idx
-                    elif 'group' in header_lower:
-                        col_map['group'] = idx
-                    elif 'logo' in header_lower:
-                        col_map['logo'] = idx
-                    elif 'valid' in header_lower:
-                        col_map['valid'] = idx
-                    elif 'delay' in header_lower:
-                        col_map['delay'] = idx
-            
-            # 检查必要字段
-            if 'name' not in col_map or 'url' not in col_map:
-                self.logger.error("Excel缺少必要列: 名称或URL")
-                return False
-            
-            # 读取数据行
-            channels = []
-            for row in ws.iter_rows(min_row=2, values_only=True):
-                if not any(row):  # 跳过空行
-                    continue
-                
-                channel = {
-                    'name': str(row[col_map['name']-1]) if col_map.get('name') else '',
-                    'url': str(row[col_map['url']-1]) if col_map.get('url') else '',
-                    'group': str(row[col_map.get('group', 0)-1]) if col_map.get('group') else '未分类',
-                    'logo': str(row[col_map.get('logo', 0)-1]) if col_map.get('logo') else None,
-                    'valid': bool(row[col_map.get('valid', 0)-1]) if col_map.get('valid') else False,
-                    'delay': float(row[col_map.get('delay', 0)-1]) if col_map.get('delay') else 0.0
-                }
-                channels.append(channel)
-            
-            # 更新频道列表
-            self.model.clear()
-            for channel in channels:
-                self.model.add_channel(channel)
-            
-            # 删除临时文件
-            import os
-            os.unlink(tmp_path)
-            
-            self.logger.info(f"成功导入 {len(channels)} 个频道")
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"导入Excel失败: {str(e)}", exc_info=True)
-            return False
-
-    def _generate_excel_data(self) -> bytes:
-        """生成Excel格式的频道数据"""
-        try:
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            
-            # 写入表头
-            headers = [
-                "频道名称", "URL", "分组", "Logo路径", 
-                "有效性", "延迟(秒)", "分辨率", "状态"
-            ]
-            ws.append(headers)
-            
-            # 写入数据行
-            for i in range(self.model.rowCount()):
-                channel = self.model.get_channel(i)
-                from channel_mappings import get_channel_info
-                channel_info = get_channel_info(channel.get('name', ''))
-                ws.append([
-                    channel.get('name', ''),
-                    channel.get('url', ''),
-                    channel.get('group', '未分类'),
-                    channel_info.get('logo_url') or channel.get('logo', ''),
-                    channel.get('valid', False),
-                    channel.get('latency', 0.0) if channel.get('latency') else 0.0,
-                    channel.get('resolution', ''),
-                    channel.get('status', '')
-                ])
-            
-            # 调整列宽
-            for col in ws.columns:
-                max_length = 0
-                column = col[0].column_letter
-                for cell in col:
-                    try:
-                        if len(str(cell.value)) > max_length:
-                            max_length = len(str(cell.value))
-                    except:
-                        pass
-                adjusted_width = (max_length + 2) * 1.2
-                ws.column_dimensions[column].width = adjusted_width
-            
-            # 保存到内存
-            from io import BytesIO
-            buffer = BytesIO()
-            wb.save(buffer)
-            buffer.seek(0)
-            return buffer.getvalue()
-            
-        except Exception as e:
-            self.logger.error(f"生成Excel数据失败: {str(e)}", exc_info=True)
-            raise
-
     def _save_list(self):
         """保存列表文件"""
         try:
-            # 获取保存文件路径
-            file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
-                self,
-                "保存频道列表",
-                "",
-                "Excel文件 (*.xlsx);;文本文件 (*.txt);;所有文件 (*)"
-            )
-            
-            if not file_path:
-                return False
-                
-            # 根据文件扩展名选择保存方式
-            if file_path.lower().endswith('.xlsx'):
-                # 保存为Excel格式
-                excel_data = self._generate_excel_data()
-                with open(file_path, 'wb') as f:
-                    f.write(excel_data)
-                self.logger.info("Excel列表保存成功")
-                self.ui.main_window.statusBar().showMessage("Excel列表保存成功", 3000)
+            result = self.list_manager.save_list(self)
+            if result:
+                self.logger.info("列表保存成功")
+                self.ui.main_window.statusBar().showMessage("列表保存成功", 3000)
                 return True
             else:
-                # 保存为文本格式
-                result = self.list_manager.save_list(self, file_path)
-                if result:
-                    self.logger.info("列表保存成功")
-                    self.ui.main_window.statusBar().showMessage("列表保存成功", 3000)
-                    return True
-                else:
-                    self.logger.warning("列表保存失败")
-                    self.ui.main_window.statusBar().showMessage("列表保存失败", 3000)
-                    return False
+                self.logger.warning("列表保存失败")
+                self.ui.main_window.statusBar().showMessage("列表保存失败", 3000)
+                return False
                     
         except Exception as e:
             self.logger.error(f"保存列表失败: {e}", exc_info=True)
