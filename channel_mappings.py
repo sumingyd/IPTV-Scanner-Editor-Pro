@@ -1,4 +1,3 @@
-from typing import Optional
 import requests
 import os
 import re
@@ -271,41 +270,3 @@ def get_channel_info(raw_name: str) -> dict:
     # 都没有匹配则返回原始名称
     logger.debug(f"没有找到匹配的映射，返回原始名称")
     return {'standard_name': raw_name, 'logo_url': None}
-
-def save_to_file(file_path: str, content: str) -> bool:
-    """保存内容到文件"""
-    try:
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(content)
-        return True
-    except Exception as e:
-        LogManager().error(f"保存文件失败: {str(e)}", exc_info=True)
-        return False
-
-def load_from_file(file_path: str) -> Optional[str]:
-    """从文件加载内容"""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return f.read()
-    except Exception as e:
-        LogManager().error(f"加载文件失败: {str(e)}", exc_info=True)
-        return None
-
-def save_to_excel(file_path: str, content: bytes) -> bool:
-    """保存Excel文件"""
-    try:
-        with open(file_path, 'wb') as f:
-            f.write(content)
-        return True
-    except Exception as e:
-        LogManager().error(f"保存Excel文件失败: {str(e)}", exc_info=True)
-        return False
-
-def load_from_excel(file_path: str) -> Optional[bytes]:
-    """加载Excel文件"""
-    try:
-        with open(file_path, 'rb') as f:
-            return f.read()
-    except Exception as e:
-        LogManager().error(f"加载Excel文件失败: {str(e)}", exc_info=True)
-        return None
