@@ -75,48 +75,6 @@ class AppStyles:
         return base_style
 
     @staticmethod
-    def epg_program_style():
-        """EPG节目单样式(适配深色/浅色模式)"""
-        return """
-            QScrollArea#epg_container {
-                background-color: palette(base);
-                border: none;
-            }
-            QWidget#epg_container_widget {
-                background-color: palette(base);
-            }
-            QWidget#epg_program {
-                background-color: palette(base);
-                border-bottom: 1px solid palette(mid);
-                padding: 8px;
-            }
-            QWidget#epg_program_current {
-                background-color: palette(highlight);
-                border-bottom: 1px solid palette(mid);
-                padding: 8px;
-                margin: 0;
-            }
-            QLabel#epg_title {
-                color: palette(text);
-                font-size: 14px;
-            }
-            QLabel#epg_title_current {
-                color: white;
-                font-weight: bold;
-                font-size: 14px;
-            }
-            QLabel#epg_time {
-                color: palette(placeholderText);
-                font-size: 12px;
-            }
-            QLabel#epg_time_current {
-                color: white;
-                font-weight: bold;
-                font-size: 12px;
-            }
-        """
-
-    @staticmethod
     def list_style() -> str:
         return """
             QTableView {
@@ -155,18 +113,6 @@ class AppStyles:
             QLabel {
                 color: palette(windowText);
                 font-weight: bold;
-            }
-        """
-
-    @staticmethod
-    def epg_style() -> str:
-        return """
-            QTableWidget {
-                font-size: 12px;
-                alternate-background-color: #f0f0f0;
-            }
-            QTableWidget::item {
-                padding: 5px;
             }
         """
 
