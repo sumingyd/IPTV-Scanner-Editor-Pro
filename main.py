@@ -326,15 +326,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.logger.error("保存失败: 频道模型未初始化")
                 self.ui.main_window.statusBar().showMessage("系统错误: 频道模型未初始化", 3000)
                 return
-                
-            # 检查EPG组件状态
-            epg_status = "正常"
-            if not hasattr(self, 'epg_manager'):
-                epg_status = "EPG管理器未初始化"
-            elif not hasattr(self.epg_manager, 'is_loaded'):
-                epg_status = "EPG数据未加载"
-            self.logger.debug(f"EPG状态: {epg_status}")
-            
+
             # 获取并验证编辑数据
             name = self.ui.main_window.name_edit.text().strip()
             group = self.ui.main_window.group_combo.currentText().strip()
@@ -426,11 +418,9 @@ class MainWindow(QtWidgets.QMainWindow):
             from player_controller import PlayerController
             self.player_controller = PlayerController(self.ui.main_window.player)
             
-        if self.player_controller.play_channel(channel):
-            self.ui.main_window.pause_btn.setText("暂停")
-            self.current_channel = channel
-            # 延迟执行确保播放器初始化完成
-            QtCore.QTimer.singleShot(500, lambda: self._update_epg_display(channel))
+            if self.player_controller.play_channel(channel):
+                self.ui.main_window.pause_btn.setText("暂停")
+                self.current_channel = channel
 
     def _on_channel_found(self, channel_info):
         """处理发现有效频道事件"""

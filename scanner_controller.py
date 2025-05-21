@@ -20,11 +20,10 @@ class ScannerController(QObject):
     # 在类定义中声明信号
     channel_validated = pyqtSignal(int, bool, int, str)  # index, valid, latency, resolution
 
-    def __init__(self, model: ChannelListModel, epg_manager=None):
+    def __init__(self, model: ChannelListModel):
         super().__init__()
         self.logger = LogManager()
         self.model = model
-        self.epg_manager = epg_manager
         self.url_parser = URLRangeParser()
         self.is_validating = False
         self.stats_lock = threading.Lock()
