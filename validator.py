@@ -273,13 +273,8 @@ class StreamValidator:
         if not name:
             return "未知频道"
             
-        # 去除清晰度后缀
-        suffixes = ['-SD', '-HD', '-FHD', '-4K', '-8K', 'SD', 'HD', 'FHD', '4K', '8K']
-        for suffix in suffixes:
-            if name.endswith(suffix):
-                name = name[:-len(suffix)]
-                break
-        return name
+        # 不再去除清晰度后缀，保持原始名称
+        return name.strip()
 
     def validate_stream(self, url: str, raw_channel_name: str = None, timeout: int = 10) -> Dict:
         """验证视频流有效性

@@ -117,8 +117,20 @@ def parse_mapping_line(line: str) -> Dict[str, dict]:
     parts = [p.strip() for p in line.split('=', 3)]
     standard_name = parts[0]
     
-    # 解析原始名称列表
-    raw_names = [name.strip('"\' ') for name in parts[1].split()]
+    # 解析原始名称列表 - 保留引号内的原始空格
+    import shlex
+    raw_names = []
+    try:
+        # 使用shlex处理带引号的字符串
+        parsed = shlex.split(parts[1])
+        for name in parsed:
+            # 只去除最外层的引号，保留内部空格
+            if (name.startswith('"') and name.endswith('"')) or (name.startswith("'") and name.endswith("'")):
+                name = name[1:-1]
+            raw_names.append(name)
+    except:
+        # 如果解析失败，回退到原始方法
+        raw_names = [name.strip('"\' ') for name in parts[1].split()]
     
     # 解析logo地址(如果有)
     logo_url = parts[2].strip('"\' ') if len(parts) > 2 else None
@@ -216,7 +228,7 @@ def get_channel_info(raw_name: str) -> dict:
         logger.debug(f"get_channel_info: 空频道名输入")
         return {'standard_name': '', 'logo_url': None}
     
-    # 标准化输入名称
+    # 标准化输入名称 - 保留原始空格，仅去除首尾空格并转换为小写
     normalized_name = raw_name.strip().lower()
     logger.debug(f"get_channel_info: 查找频道 '{raw_name}' (标准化: '{normalized_name}')")
     
@@ -224,7 +236,8 @@ def get_channel_info(raw_name: str) -> dict:
     try:
         reverse_remote = create_reverse_mappings(remote_mappings)
         for raw_pattern, info in reverse_remote.items():
-            if normalized_name == raw_pattern.strip().lower():
+            normalized_pattern = re.sub(r'\s+', ' ', raw_pattern.strip()).lower()
+            if normalized_name == normalized_pattern:
                 logger.debug(f"从远程映射找到匹配: {raw_pattern} -> {info}")
                 return info
     except Exception as e:
@@ -234,7 +247,8 @@ def get_channel_info(raw_name: str) -> dict:
     try:
         reverse_local = create_reverse_mappings(local_mappings)
         for raw_pattern, info in reverse_local.items():
-            if normalized_name == raw_pattern.strip().lower():
+            normalized_pattern = re.sub(r'\s+', ' ', raw_pattern.strip()).lower()
+            if normalized_name == normalized_pattern:
                 logger.debug(f"从本地映射找到匹配: {raw_pattern} -> {info}")
                 return info
     except Exception as e:
@@ -243,7 +257,8 @@ def get_channel_info(raw_name: str) -> dict:
     # 3. 检查标准名称映射(如果输入的是标准名称)
     try:
         for standard_name, info in combined_mappings.items():
-            if normalized_name == standard_name.strip().lower():
+            normalized_standard = re.sub(r'\s+', ' ', standard_name.strip()).lower()
+            if normalized_name == normalized_standard:
                 logger.debug(f"从标准名称找到匹配: {standard_name} -> {info}")
                 return {
                     'standard_name': standard_name,
