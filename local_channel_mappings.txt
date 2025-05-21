@@ -27,7 +27,7 @@ CCTV-中视购物 = "239.21.1.100:5002" = https://raw.githubusercontent.com/sumi
 
 ##########    CETV    ##########
 CETV-1 = "CETV-1" "CETV-1HD" "CHANNEL00000076" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV1.png = CETV
-CETV-2 = "CETV2" "CETV2SD" "CHANNEL00000077" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV2.png = CETV
+CETV-2 = "CETV2" "CETV2SD" "239.21.2.8:5002" "CHANNEL00000077" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV2.png = CETV
 CETV-3 = = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV3.png = CETV
 CETV-4 = "cetv-4" "CHANNEL00000070" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV4.png = CETV
 
@@ -103,7 +103,7 @@ IPTV热播剧场 = "239.21.1.128:5002" = https://raw.githubusercontent.com/sumin
 IPTV少儿动画 = "239.21.1.125:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png = 特色频道
 IPTV喜剧影院 = "239.21.1.122:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png = 特色频道
 IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png = 特色频道
-财富天下 = "CFTX" "CFTXSD" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/财富天下.png = 特色频道
+财富天下 = "CFTX" "CFTXSD" "239.21.1.127:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/财富天下.png = 特色频道
 茶 = "增值-cha" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/茶频道.png = 特色频道
 车迷 = "增值-chemi" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/车迷频道.png = 特色频道
 东方财经 = "增值-dongfangcaijing" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方财经.png = 特色频道
