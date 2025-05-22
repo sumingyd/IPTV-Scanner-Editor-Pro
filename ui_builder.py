@@ -23,9 +23,6 @@ class UIBuilder:
         """配置频道列表"""
         if not self._model_initialized:
             self._model_initialized = True
-            # 模型初始化后强制更新按钮状态
-            if hasattr(self.main_window, 'btn_load_old'):
-                self._update_load_button_state()
 
     def _init_ui(self):
         """初始化用户界面"""
@@ -37,7 +34,6 @@ class UIBuilder:
         
         # 连接窗口大小变化信号
         self.main_window.resizeEvent = lambda e: self._on_window_resize(e)
-        
         self.main_window.setStyleSheet(AppStyles.main_window_style())
         
         # 主布局
@@ -48,11 +44,9 @@ class UIBuilder:
         main_layout.addWidget(self.main_window.main_splitter)
 
         # 强制应用布局设置
-        if dividers and len(dividers) >= 8:
+        if dividers and len(dividers) >= 2:
             self.main_window.main_splitter.setSizes(dividers[:2])
             self.main_window.left_splitter.setSizes(dividers[2:4])
-            self.main_window.right_splitter.setSizes(dividers[4:6])
-            self.main_window.h_splitter.setSizes(dividers[6:8])
 
         # 状态栏
         status_bar = self.main_window.statusBar()
@@ -75,8 +69,6 @@ class UIBuilder:
             dividers = [
                 *self.main_window.main_splitter.sizes(),
                 *self.main_window.left_splitter.sizes(),
-                *self.main_window.right_splitter.sizes(),
-                *self.main_window.h_splitter.sizes()
             ]
             
             # 保存窗口布局
@@ -116,46 +108,27 @@ class UIBuilder:
         self._setup_scan_panel(self.main_window.left_splitter)
         self._setup_channel_list(self.main_window.left_splitter)
 
-        # 右侧垂直分割器（播放器 + 底部编辑区）
-        self.main_window.right_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
-        self._setup_custom_splitter(self.main_window.right_splitter)
-        self._setup_player_panel(self.main_window.right_splitter)
-        
-        # 底部水平分割器（编辑面板 + 匹配面板）
-        bottom_container = QtWidgets.QWidget()
-        bottom_container.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Expanding,
-            QtWidgets.QSizePolicy.Policy.Expanding
-        )
-        bottom_layout = QtWidgets.QHBoxLayout(bottom_container)
-        bottom_layout.setContentsMargins(0, 0, 0, 0)
-        
-        self.main_window.h_splitter = QtWidgets.QSplitter(Qt.Orientation.Horizontal)
-        self._setup_custom_splitter(self.main_window.h_splitter)
-        self._setup_edit_panel(self.main_window.h_splitter)
-        self._setup_match_panel(self.main_window.h_splitter)
-        bottom_layout.addWidget(self.main_window.h_splitter)
-        self.main_window.right_splitter.addWidget(bottom_container)
+        # 右侧播放器面板
+        right_container = QtWidgets.QWidget()
+        self._setup_player_panel(right_container)
 
         # 组装主界面
         self.main_window.main_splitter.addWidget(self.main_window.left_splitter)
-        self.main_window.main_splitter.addWidget(self.main_window.right_splitter)
+        self.main_window.main_splitter.addWidget(right_container)
 
         # 加载保存的分隔条位置
         _, _, dividers = self.main_window.config.load_window_layout()
-        if dividers and len(dividers) >= 8:
+        if dividers and len(dividers) >= 2:
             self.main_window.main_splitter.setSizes(dividers[:2])
             self.main_window.left_splitter.setSizes(dividers[2:4])
-            self.main_window.right_splitter.setSizes(dividers[4:6])
-            self.main_window.h_splitter.setSizes(dividers[6:8])
+
         else:
             # 设置更合理的默认尺寸(基于窗口当前大小)
             width = self.main_window.width()
             height = self.main_window.height()
             self.main_window.main_splitter.setSizes([int(width*0.4), int(width*0.6)])
             self.main_window.left_splitter.setSizes([int(height*0.4), int(height*0.6)])
-            self.main_window.right_splitter.setSizes([int(height*0.7), int(height*0.3)])
-            self.main_window.h_splitter.setSizes([int(width*0.5), int(width*0.5)])
+
 
     def _setup_custom_splitter(self, splitter):
         splitter.setChildrenCollapsible(False)
@@ -224,247 +197,49 @@ class UIBuilder:
             dividers = [
                 *self.main_window.main_splitter.sizes(),
                 *self.main_window.left_splitter.sizes(),
-                *self.main_window.right_splitter.sizes(),
-                *self.main_window.h_splitter.sizes()
             ]
             self.main_window.config.save_window_layout(size.width(), size.height(), dividers)
         else:
             self._drag_start_pos = None
 
-    def _setup_player_panel(self, parent: QtWidgets.QSplitter) -> None:
+    def _setup_player_panel(self, parent: QtWidgets.QWidget) -> None:
         """配置播放器面板"""
         player_group = QtWidgets.QGroupBox("视频播放")
-        player_layout = QtWidgets.QHBoxLayout()
+        player_layout = QtWidgets.QVBoxLayout()
         player_layout.setContentsMargins(2, 2, 2, 2)
         player_layout.setSpacing(5)
         
-        # 左侧播放器区域 (占3/4宽度)
-        player_left = QtWidgets.QWidget()
-        left_layout = QtWidgets.QVBoxLayout()
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        
         # 播放器主体
         self.main_window.player = QtWidgets.QWidget()
-        left_layout.addWidget(self.main_window.player, stretch=10)  # 大部分空间给播放器
+        player_layout.addWidget(self.main_window.player, stretch=10)  # 大部分空间给播放器
 
         # 控制按钮区域
-        control_container = QtWidgets.QWidget()
-        control_layout = QtWidgets.QVBoxLayout()
+        control_layout = QtWidgets.QHBoxLayout()
         control_layout.setContentsMargins(0, 5, 0, 5)
         
-        # 播放/停止按钮行
-        btn_row = QtWidgets.QHBoxLayout()
+        # 播放/停止按钮
         self.main_window.pause_btn = QtWidgets.QPushButton("播放")
         self.main_window.pause_btn.setStyleSheet(AppStyles.button_style(active=False))
         self.main_window.pause_btn.setEnabled(False)
         self.main_window.stop_btn = QtWidgets.QPushButton("停止")
         self.main_window.stop_btn.setStyleSheet(AppStyles.button_style(active=False))
         self.main_window.stop_btn.setEnabled(False)
-        btn_row.addWidget(self.main_window.pause_btn)
-        btn_row.addWidget(self.main_window.stop_btn)
         
-        # 音量控制行
-        volume_row = QtWidgets.QHBoxLayout()
+        # 音量控制
         self.main_window.volume_slider = QtWidgets.QSlider(Qt.Orientation.Horizontal)
         self.main_window.volume_slider.setRange(0, 100)
         self.main_window.volume_slider.setValue(50)
-        volume_row.addWidget(QtWidgets.QLabel("音量："))
-        volume_row.addWidget(self.main_window.volume_slider)
         
-        # 添加到控制区域
-        control_layout.addLayout(btn_row)
-        control_layout.addLayout(volume_row)
-        control_container.setLayout(control_layout)
+        control_layout.addWidget(self.main_window.pause_btn)
+        control_layout.addWidget(self.main_window.stop_btn)
+        control_layout.addWidget(QtWidgets.QLabel("音量："))
+        control_layout.addWidget(self.main_window.volume_slider)
         
-        # 将控制区域添加到左侧布局
-        left_layout.addWidget(control_container, stretch=1)
-        player_left.setLayout(left_layout)
-        player_layout.addWidget(player_left, stretch=3)  # 左侧占3/4
-        
-        
+        player_layout.addLayout(control_layout)
         player_group.setLayout(player_layout)
-        parent.addWidget(player_group)
+        parent.setLayout(QtWidgets.QVBoxLayout())
+        parent.layout().addWidget(player_group)
 
-    def _setup_edit_panel(self, parent: QtWidgets.QSplitter) -> None:  
-        """配置编辑面板"""
-        edit_group = QtWidgets.QGroupBox("频道编辑")
-        edit_layout = QtWidgets.QFormLayout()
-        edit_layout.setRowWrapPolicy(QtWidgets.QFormLayout.RowWrapPolicy.WrapAllRows)
-        edit_layout.setVerticalSpacing(5)
-        edit_layout.setHorizontalSpacing(5)
-        edit_layout.setContentsMargins(10, 15, 10, 15)
-
-        # 频道名称输入
-        self.main_window.name_edit = QtWidgets.QLineEdit()
-        self.main_window.name_edit.setMinimumHeight(32)
-        self.main_window.name_edit.setPlaceholderText("输入频道名称...")
-        
-        # 编辑框载入时自动全选文本
-        self.main_window.name_edit.focusInEvent = self._handle_name_edit_focus
-        
-        # 回车键处理
-        self.main_window.name_edit.returnPressed.connect(self._handle_enter_press)
-
-        # 分组选择(带自动补全)
-        self.main_window.group_combo = QtWidgets.QComboBox()
-        self.main_window.group_combo.setMinimumHeight(32)
-        self.main_window.group_combo.setEditable(True)
-        group_completer = QtWidgets.QCompleter()
-        group_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        group_completer.setFilterMode(Qt.MatchFlag.MatchContains)
-        self.main_window.group_combo.setCompleter(group_completer)
-
-        # 保存按钮 - 作为窗口属性
-        self.main_window.save_channel_btn = QtWidgets.QPushButton("保存修改")
-        self.main_window.save_channel_btn.setObjectName("save_channel_btn")
-        self.main_window.save_channel_btn.setMinimumHeight(36)
-        self.main_window.save_channel_btn.setStyleSheet(AppStyles.button_style(active=False))
-        self.main_window.save_channel_btn.setEnabled(False)
-        
-        # 文本变化时更新按钮状态
-        self.main_window.name_edit.textChanged.connect(self._update_save_button_state)
-
-        # 布局
-        edit_layout.addRow("频道名称：", self.main_window.name_edit)
-        edit_layout.addRow("分组分类：", self.main_window.group_combo)
-        edit_layout.addRow(QtWidgets.QLabel())
-        edit_layout.addRow(self.main_window.save_channel_btn)
-
-        edit_group.setLayout(edit_layout)
-        parent.addWidget(edit_group)
-
-    def _setup_match_panel(self, parent):
-        """配置智能匹配面板"""
-        match_group = QtWidgets.QGroupBox("智能匹配")
-        layout = QtWidgets.QVBoxLayout()
-        
-        self._setup_match_buttons(layout)
-        self._setup_match_progress(layout)
-        
-        # 匹配状态标签 (紧贴进度条下方)
-        self.match_status_label = QtWidgets.QLabel("匹配状态: 等待操作")
-        layout.addWidget(self.match_status_label)
-        
-        self._setup_match_options(layout)
-        
-        
-        match_group.setLayout(layout)
-        parent.addWidget(match_group)
-
-    def _setup_match_buttons(self, layout):
-        """设置匹配操作按钮"""
-        button_layout = QtWidgets.QHBoxLayout()
-        
-        # 加载旧列表按钮
-        self.main_window.btn_load_old = QtWidgets.QPushButton("加载旧列表")
-        self.main_window.btn_load_old.setFixedHeight(36)
-        self.main_window.btn_load_old.clicked.connect(self._load_old_list)
-        
-        # 强制初始状态更新
-        self._update_load_button_state()
-        
-        # 监听模型变化信号
-        if hasattr(self.main_window, 'model') and self.main_window.model:
-            self.main_window.model.dataChanged.connect(self._update_load_button_state)
-            self.main_window.model.rowsInserted.connect(self._update_load_button_state)
-            self.main_window.model.rowsRemoved.connect(self._update_load_button_state)
-            self.main_window.model.modelReset.connect(self._update_load_button_state)
-        
-        # 执行匹配按钮
-        self.main_window.btn_match = QtWidgets.QPushButton("执行自动匹配")
-        self.main_window.btn_match.setFixedHeight(36)
-        self.main_window.btn_match.setStyleSheet(AppStyles.button_style(active=False))
-        self.main_window.btn_match.setEnabled(False)
-        self.main_window.btn_match.clicked.connect(self._on_match_clicked)
-        
-        button_layout.addWidget(self.main_window.btn_load_old)
-        button_layout.addWidget(self.main_window.btn_match)
-        layout.addLayout(button_layout)
-
-    def _update_load_button_state(self, *args):
-        """更新加载按钮状态"""
-        try:
-            # 检查模型是否存在
-            if not hasattr(self.main_window, 'model'):
-                return
-                
-            # 检查按钮是否存在
-            if not hasattr(self.main_window, 'btn_load_old'):
-                return
-                
-            # 获取当前行数
-            row_count = self.main_window.model.rowCount()
-            
-            # 更新按钮状态
-            has_channels = row_count > 0
-            self.main_window.btn_load_old.setStyleSheet(AppStyles.button_style(active=has_channels))
-            self.main_window.btn_load_old.setEnabled(has_channels)
-            
-            # 强制刷新样式和布局
-            self.main_window.btn_load_old.style().unpolish(self.main_window.btn_load_old)
-            self.main_window.btn_load_old.style().polish(self.main_window.btn_load_old)
-            self.main_window.btn_load_old.update()
-        except Exception as e:
-            self.logger.error(f"更新按钮状态出错: {str(e)}")
-
-    def _load_old_list(self):
-        """加载旧列表处理函数"""
-        try:
-            # 弹出文件选择对话框
-            self.match_status_label.setText("正在选择旧列表文件...")
-            QtCore.QCoreApplication.processEvents()
-            
-            file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
-                self.main_window,
-                "选择旧列表文件",
-                "",
-                "M3U文件 (*.m3u);;所有文件 (*)"
-            )
-            
-            if file_path:
-                self.match_status_label.setText("正在加载旧列表...")
-                QtCore.QCoreApplication.processEvents()
-                
-                # 调用主窗口的加载方法(不自动匹配)
-                self.main_window.old_channels = self.main_window.list_manager.load_old_list(file_path)
-                
-                # 更新状态显示
-                loaded_count = len(self.main_window.old_channels)
-                current_count = self.main_window.model.rowCount()
-                matched_count = self.main_window.list_manager.count_matched_channels(
-                    self.main_window.old_channels,
-                    self.main_window.model
-                )
-                self.match_status_label.setText(
-                    f"匹配状态: 已加载 {loaded_count} 个频道 (当前列表: {current_count} 个)"
-                )
-                self.main_window.btn_match.setEnabled(True)
-                self.main_window.btn_match.setStyleSheet(AppStyles.button_style(active=True))
-                
-                # 强制更新按钮状态
-                self._update_load_button_state()
-                # 确保UI立即更新
-                QtCore.QCoreApplication.processEvents()
-        except Exception as e:
-            self.logger.error(f"加载旧列表失败: {str(e)}")
-            self.match_status_label.setText(f"加载失败: {str(e)}")
-
-    def _setup_match_progress(self, layout):
-        """设置匹配进度显示"""
-        # 匹配进度标签
-        layout.addWidget(QtWidgets.QLabel("匹配进度:"))
-        
-        # 进度条
-        self.main_window.match_progress = QtWidgets.QProgressBar()
-        self.main_window.match_progress.setTextVisible(True)
-        self.main_window.match_progress.setStyleSheet(AppStyles.progress_style())
-        layout.addWidget(self.main_window.match_progress)
-
-    def _setup_match_options(self, layout):
-        """设置匹配高级选项"""
-        # 自动保存选项
-        self.main_window.cb_auto_save = QtWidgets.QCheckBox("匹配后自动保存")
-        layout.addWidget(self.main_window.cb_auto_save)
 
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
         """配置扫描面板"""
@@ -678,69 +453,6 @@ class UIBuilder:
         list_group.setLayout(list_layout)
         parent.addWidget(list_group)
 
-    def _update_save_button_state(self):
-        """更新保存按钮状态"""
-        has_text = bool(self.main_window.name_edit.text())
-        self.main_window.save_channel_btn.setEnabled(has_text)
-        self.main_window.save_channel_btn.setStyleSheet(
-            AppStyles.button_style(active=has_text)
-        )
-
-    def _handle_enter_press(self):
-        """处理回车键按下事件"""
-        if self.main_window.save_channel_btn.isEnabled():
-            # 模拟点击保存按钮
-            self.main_window.save_channel_btn.click()
-            
-            # 延迟执行导航
-            QtCore.QTimer.singleShot(100, self._navigate_to_next_channel)
-
-    def _handle_name_edit_focus(self, event):
-        """处理编辑框焦点事件"""
-        QtWidgets.QLineEdit.focusInEvent(self.main_window.name_edit, event)
-        self.main_window.name_edit.selectAll()
-
-    def _navigate_to_next_channel(self):
-        """导航到下一个频道并自动播放"""
-        selection = self.main_window.channel_list.selectionModel()
-        if not selection.hasSelection():
-            return
-            
-        current_row = selection.currentIndex().row()
-        row_count = self.main_window.model.rowCount()
-        
-        # 导航到下一行
-        if current_row < row_count - 1:
-            next_index = self.main_window.model.index(current_row + 1, 0)
-            self.main_window.channel_list.setCurrentIndex(next_index)
-            self.main_window.channel_list.selectRow(current_row + 1)
-            # 载入频道名并自动全选
-            self.main_window.name_edit.setText(self.main_window.model.data(next_index))
-            self.main_window.name_edit.selectAll()
-            # 播放当前选中的频道
-            current_index = self.main_window.channel_list.currentIndex()
-            channel_data = {
-                'url': self.main_window.model.data(self.main_window.model.index(current_index.row(), 2)),  # URL在第2列
-                'name': self.main_window.model.data(current_index)
-            }
-            self.main_window.player_controller.play_channel(channel_data)
-            
-            self.logger.info(f"正在处理频道: {channel_data['name']}")
-        else:
-            # 已经是最后一行，回到第一行
-            first_index = self.main_window.model.index(0, 0)
-            self.main_window.channel_list.setCurrentIndex(first_index)
-            self.main_window.channel_list.selectRow(0)
-            # 载入频道名并自动全选
-            self.main_window.name_edit.setText(self.main_window.model.data(first_index))
-            self.main_window.name_edit.selectAll()
-            # 播放当前选中的频道
-            current_index = self.main_window.channel_list.currentIndex()
-            channel_data = {
-                'url': self.main_window.model.data(self.main_window.model.index(current_index.row(), 2)),  # URL在第2列
-                'name': self.main_window.model.data(current_index)
-            }
-            self.main_window.player_controller.play_channel(channel_data)
 
     def _show_channel_context_menu(self, pos):
         """显示频道列表的右键菜单"""
@@ -844,37 +556,6 @@ class UIBuilder:
             self.main_window)
         dialog.exec()
 
-
-    def _on_match_clicked(self):
-        """处理执行自动匹配按钮点击事件"""
-        if not hasattr(self.main_window, 'old_channels') or not self.main_window.old_channels:
-            self.match_status_label.setText("匹配状态: 请先加载旧列表")
-            return
-            
-        # 显示匹配进度
-        self.main_window.match_progress.setRange(0, len(self.main_window.old_channels))
-        self.main_window.match_progress.setValue(0)
-        self.match_status_label.setText("匹配状态: 正在匹配...")
-        
-        # 定义进度回调函数
-        def update_progress(current, total):
-            self.main_window.match_progress.setValue(current)
-            self.match_status_label.setText(f"匹配状态: 正在匹配 ({current}/{total})")
-            QtCore.QCoreApplication.processEvents()
-        
-        # 调用list_manager执行匹配
-        matched_count = self.main_window.list_manager.match_channels(
-            self.main_window.old_channels,
-            self.main_window.model,
-            update_progress
-        )
-        
-        # 更新状态显示
-        self.match_status_label.setText(f"匹配状态: 匹配完成 ({matched_count} 个)")
-        
-        # 如果启用了自动保存，则保存列表
-        if self.main_window.cb_auto_save.isChecked():
-            self.main_window._save_list()
 
         
 class AndroidSplitterHandle(QtWidgets.QWidget):

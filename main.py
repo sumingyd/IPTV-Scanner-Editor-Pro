@@ -215,9 +215,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.model.modelReset.emit()
                 # 立即更新按钮状态
                 self.ui._update_load_button_state()
-                # 重置智能匹配区域状态
-                self.ui.match_status_label.setText("智能匹配状态: 等待操作")
-                self.ui.main_window.match_progress.setValue(0)
                 return True
             else:
                 self.logger.warning("打开列表失败")
@@ -226,21 +223,6 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.logger.error(f"打开列表失败: {str(e)}", exc_info=True)
             self.ui.main_window.statusBar().showMessage(f"打开列表失败: {str(e)}", 3000)
-            return False
-
-    def load_old_list(self, file_path):
-        """加载旧列表文件到内存"""
-        try:
-            channels = self.list_manager.load_old_list(file_path)
-            if channels:
-                # 将频道数据存储在内存中，供后续使用
-                self.old_channels = channels
-                return True
-            else:
-                self.logger.warning("旧列表加载失败")
-                return False
-        except Exception as e:
-            self.logger.error(f"加载旧列表失败: {str(e)}", exc_info=True)
             return False
 
     def _save_list(self):
@@ -298,91 +280,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # 获取选中的频道
         row = selected[0].row()
         self.current_channel_index = row
-        channel = self.model.get_channel(row)
-        
-        # 更新编辑框
-        self.ui.main_window.name_edit.setText(channel.get('name', ''))
-        self.ui.main_window.group_combo.setCurrentText(channel.get('group', '未分类'))
-        
-        # 直接访问保存按钮对象
-        self.ui.main_window.save_channel_btn.setEnabled(True)
-        try:
-            self.ui.main_window.save_channel_btn.clicked.disconnect()  # 先断开所有连接
-        except:
-            pass
-        self.ui.main_window.save_channel_btn.clicked.connect(self._on_save_clicked)
 
-    def _on_save_clicked(self):
-        """处理保存按钮点击事件"""
-        try:
-            # 检查当前选中频道
-            if not hasattr(self, 'current_channel_index'):
-                self.logger.warning("保存失败: 未选中频道")
-                self.ui.main_window.statusBar().showMessage("请先选择要编辑的频道", 3000)
-                return
-                
-            # 检查模型是否有效
-            if not hasattr(self, 'model') or not self.model:
-                self.logger.error("保存失败: 频道模型未初始化")
-                self.ui.main_window.statusBar().showMessage("系统错误: 频道模型未初始化", 3000)
-                return
-
-            # 获取并验证编辑数据
-            name = self.ui.main_window.name_edit.text().strip()
-            group = self.ui.main_window.group_combo.currentText().strip()
-            
-            if not name:
-                self.logger.warning("保存失败: 频道名不能为空")
-                self.ui.main_window.statusBar().showMessage("频道名不能为空", 3000)
-                return
-                
-            # 获取并验证频道数据
-            try:
-                channel = self.model.get_channel(self.current_channel_index)
-                if not channel or not isinstance(channel, dict):
-                    raise ValueError("无效的频道数据")
-                    
-                # 创建频道数据副本
-                new_channel = channel.copy()
-                new_channel['name'] = name
-                new_channel['group'] = group
-                
-                # 验证新数据
-                if not all(key in new_channel for key in ['name', 'group', 'url']):
-                    raise ValueError("频道数据不完整")
-                    
-                # 安全更新频道数据
-                try:
-                    self.model.update_channel(self.current_channel_index, new_channel)
-                    
-                    # 通知模型更新
-                    self.model.dataChanged.emit(
-                        self.model.index(self.current_channel_index, 0),
-                        self.model.index(self.current_channel_index, self.model.columnCount() - 1)
-                    )
-                    
-                    # 更新自动补全数据
-                    self._update_name_completer(self.model.get_all_channel_names())
-                    
-                    self.logger.info(f"成功保存频道修改: {name} (原名称: {channel.get('name', '无')})")
-                    self.ui.main_window.statusBar().showMessage("保存成功", 2000)
-                    
-                except Exception as update_error:
-                    self.logger.error(f"更新频道数据失败: {str(update_error)}", exc_info=True)
-                    raise ValueError("更新频道数据时出错")
-                    
-            except Exception as channel_error:
-                self.logger.error(f"处理频道数据时出错: {str(channel_error)}", exc_info=True)
-                self.ui.main_window.statusBar().showMessage(f"保存失败: {str(channel_error)}", 3000)
-                return
-                
-        except Exception as e:
-            self.logger.critical(f"保存操作发生严重错误: {str(e)}", exc_info=True)
-            QtWidgets.QMessageBox.critical(
-                self.ui.main_window,
-                "保存错误",
-                f"保存操作发生严重错误:\n{str(e)}\n请检查日志获取详细信息"
-            )
 
     def _on_channel_validated(self, index, valid, latency, resolution):
         """处理频道验证结果"""
@@ -496,8 +394,6 @@ class MainWindow(QtWidgets.QMainWindow):
             dividers = [
                 *self.ui.main_window.main_splitter.sizes(),
                 *self.ui.main_window.left_splitter.sizes(),
-                *self.ui.main_window.right_splitter.sizes(),
-                *self.ui.main_window.h_splitter.sizes()
             ]
             self.config.save_window_layout(size.width(), size.height(), dividers)
             
