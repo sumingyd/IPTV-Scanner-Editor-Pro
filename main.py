@@ -213,8 +213,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 
                 # 强制触发模型重置信号
                 self.model.modelReset.emit()
-                # 立即更新按钮状态
-                self.ui._update_load_button_state()
                 return True
             else:
                 self.logger.warning("打开列表失败")
@@ -311,14 +309,19 @@ class MainWindow(QtWidgets.QMainWindow):
             return
             
         channel = self.ui.main_window.model.get_channel(index.row())
+        if not channel or not channel.get('url'):
+            return
             
-        if not hasattr(self, 'player_controller'):
+        if not hasattr(self, 'player_controller') or not self.player_controller:
             from player_controller import PlayerController
-            self.player_controller = PlayerController(self.ui.main_window.player)
+            self.player_controller = PlayerController(
+                self.ui.main_window.player,
+                self.model
+            )
             
-            if self.player_controller.play_channel(channel):
-                self.ui.main_window.pause_btn.setText("暂停")
-                self.current_channel = channel
+        if self.player_controller.play_channel(channel):
+            self.ui.main_window.pause_btn.setText("暂停")
+            self.current_channel = channel
 
     def _on_channel_found(self, channel_info):
         """处理发现有效频道事件"""
@@ -329,11 +332,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.main_window.scan_btn.setText("完整扫描")
         self.ui.main_window.btn_validate.setText("检测有效性")
         self.logger.info("扫描完成")
-        # 扫描完成后强制更新"加载旧列表"按钮状态
-        self.ui._update_load_button_state()
-        # 重置智能匹配区域状态
-        self.ui.match_status_label.setText("智能匹配状态: 等待操作")
-        self.ui.main_window.match_progress.setValue(0)
 
     def _update_stats_display(self, stats_data):
         """更新统计信息显示"""

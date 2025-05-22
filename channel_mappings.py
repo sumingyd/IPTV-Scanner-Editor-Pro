@@ -225,12 +225,10 @@ def get_channel_info(raw_name: str) -> dict:
     """
     logger = LogManager()
     if not raw_name or raw_name.isspace():
-        logger.debug(f"get_channel_info: 空频道名输入")
         return {'standard_name': '', 'logo_url': None}
     
     # 标准化输入名称 - 保留原始空格，仅去除首尾空格并转换为小写
     normalized_name = raw_name.strip().lower()
-    logger.debug(f"get_channel_info: 查找频道 '{raw_name}' (标准化: '{normalized_name}')")
     
     # 1. 先检查远程映射(原始名称)
     try:
