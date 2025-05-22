@@ -274,6 +274,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
     def from_excel(self, file_path: str) -> bool:
         """从Excel文件加载频道列表"""
+        wb = None
         try:
             from openpyxl import load_workbook
             wb = load_workbook(file_path)
@@ -284,32 +285,48 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             self._name_cache = set()
             self._group_cache = set()
             
-            # 跳过表头行
+            # 检查表头是否匹配
+            headers = [cell.value for cell in ws[1]]
+            expected_headers = ["频道名称", "URL", "分组", "Logo地址", "分辨率", "状态", "延迟(ms)"]
+            if headers != expected_headers:
+                logger.warning(f"Excel表头不匹配，期望: {expected_headers}，实际: {headers}")
+            
+            # 处理数据行
             for row in ws.iter_rows(min_row=2, values_only=True):
-                if not row[0]:  # 跳过空行
+                if not row or not row[0]:  # 跳过空行
                     continue
                     
-                channel = {
-                    'name': row[0],
-                    'url': row[1],
-                    'group': row[2] if len(row) > 2 and row[2] else '未分类',
-                    'logo_url': row[3] if len(row) > 3 and row[3] else '',
-                    'logo': row[3] if len(row) > 3 and row[3] else '',
-                    'resolution': row[4] if len(row) > 4 and row[4] else '',
-                    'status': row[5] if len(row) > 5 and row[5] else '待检测',
-                    'latency': row[6] if len(row) > 6 and row[6] else '',
-                    'valid': False
-                }
-                
-                self.channels.append(channel)
-                self._name_cache.add(channel['name'])
-                self._group_cache.add(channel['group'])
+                try:
+                    channel = {
+                        'name': str(row[0]) if row[0] else '未命名',
+                        'url': str(row[1]) if row[1] else '',
+                        'group': str(row[2]) if len(row) > 2 and row[2] else '未分类',
+                        'logo_url': str(row[3]) if len(row) > 3 and row[3] else '',
+                        'logo': str(row[3]) if len(row) > 3 and row[3] else '',
+                        'resolution': str(row[4]) if len(row) > 4 and row[4] else '',
+                        'status': str(row[5]) if len(row) > 5 and row[5] else '待检测',
+                        'latency': str(row[6]) if len(row) > 6 and row[6] else '',
+                        'valid': False
+                    }
+                    
+                    self.channels.append(channel)
+                    self._name_cache.add(channel['name'])
+                    self._group_cache.add(channel['group'])
+                    logger.debug(f"成功加载频道: {channel['name']}")
+                except Exception as e:
+                    logger.error(f"处理Excel行失败: {row}, 错误: {str(e)}")
+                    continue
             
             self.endResetModel()
+            logger.info(f"成功从Excel加载 {len(self.channels)} 个频道")
             return True
         except Exception as e:
             logger.error(f"加载Excel文件失败: {str(e)}", exc_info=True)
             return False
+        finally:
+            if wb:
+                wb.close()
+                logger.debug("已释放Excel文件资源")
 
     def removeRow(self, row: int, parent=QtCore.QModelIndex()) -> bool:
         """删除指定行"""
