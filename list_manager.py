@@ -14,19 +14,22 @@ class ListManager:
                 parent,
                 "打开列表文件", 
                 "",
-                "M3U文件 (*.m3u *.m3u8);;文本文件 (*.txt);;所有文件 (*)"
+                "M3U文件 (*.m3u *.m3u8);;文本文件 (*.txt);;Excel文件 (*.xlsx);;所有文件 (*)"
             )
             
             if not file_path:
                 return False
                 
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            if not content.strip():
-                return False
+            if file_path.lower().endswith('.xlsx'):
+                success = self.model.from_excel(file_path)
+            else:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
                 
-            success = self.model.load_from_file(content)
+                if not content.strip():
+                    return False
+                    
+                success = self.model.load_from_file(content)
             if success:
                 return True
             else:
@@ -47,7 +50,7 @@ class ListManager:
                 parent,
                 "保存列表文件",
                 "",
-                "M3U文件 (*.m3u);;文本文件 (*.txt);;所有文件 (*)"
+                "M3U文件 (*.m3u);;文本文件 (*.txt);;Excel文件 (*.xlsx);;所有文件 (*)"
             )
             
             if not file_path:
@@ -56,15 +59,16 @@ class ListManager:
             if file_path.lower().endswith('.txt'):
                 content = self.model.to_txt()
                 content = f"# IPTV频道列表\n# 共 {self.model.rowCount()} 个频道\n\n{content}"
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+            elif file_path.lower().endswith('.xlsx'):
+                success = self.model.to_excel(file_path)
+                if not success:
+                    return False
             else:
                 content = self.model.to_m3u()
-            
-            if not content.strip():
-                self.logger.warning("没有内容可保存")
-                return False
-                
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(content)
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
                 
             return True
             

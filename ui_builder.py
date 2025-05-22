@@ -428,8 +428,6 @@ class UIBuilder:
             has_channels = self.main_window.model.rowCount() > 0
             self.main_window.pause_btn.setEnabled(has_channels)
             self.main_window.pause_btn.setStyleSheet(AppStyles.button_style(active=has_channels))
-            self.main_window.save_channel_btn.setEnabled(has_channels and bool(self.main_window.name_edit.text()))
-            self.main_window.save_channel_btn.setStyleSheet(AppStyles.button_style(active=has_channels and bool(self.main_window.name_edit.text())))
             adjust_columns()
 
         self.main_window.model.dataChanged.connect(lambda: header.resizeSections())

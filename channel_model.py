@@ -8,7 +8,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.channels: List[Dict[str, Any]] = []
-        self.headers = ["频道名称", "分辨率", "URL", "分组", "状态", "延迟(ms)"]
+        self.headers = ["频道名称", "分辨率", "URL", "分组", "Logo地址", "状态", "延迟(ms)"]
         
         # 状态标签更新回调
         self.update_status_label = None
@@ -48,9 +48,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 return channel.get('url', '')
             elif col == 3:  # 分组
                 return channel.get('group', '未分类')
-            elif col == 4:  # 状态
+            elif col == 4:  # Logo地址
+                return channel.get('logo_url', channel.get('logo', ''))
+            elif col == 5:  # 状态
                 return channel.get('status', '待检测')
-            elif col == 5:  # 延迟(ms)
+            elif col == 6:  # 延迟(ms)
                 return str(channel.get('latency', ''))
         elif role == QtCore.Qt.ItemDataRole.TextAlignmentRole:
             return QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignLeft
@@ -236,10 +238,78 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         """将频道列表转换为TXT格式字符串"""
         lines = []
         for channel in self.channels:
-            # 简单格式: 频道名称,URL
-            line = f"{channel.get('name', '未命名')},{channel.get('url', '')}"
+            # 格式: 频道名称,URL,分组,Logo地址,状态,延迟
+            line = f"{channel.get('name', '未命名')},{channel.get('url', '')},{channel.get('group', '未分类')},{channel.get('status', '待检测')},{channel.get('latency', '')}"
             lines.append(line)
         return "\n".join(lines)
+
+    def to_excel(self, file_path: str) -> bool:
+        """将频道列表保存为Excel文件"""
+        try:
+            from openpyxl import Workbook
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "频道列表"
+            
+            # 写入表头
+            ws.append(["频道名称", "URL", "分组", "Logo地址", "分辨率", "状态", "延迟(ms)"])
+            
+            # 写入数据
+            for channel in self.channels:
+                ws.append([
+                    channel.get('name', '未命名'),
+                    channel.get('url', ''),
+                    channel.get('group', '未分类'),
+                    channel.get('logo_url', channel.get('logo', '')),
+                    channel.get('resolution', ''),
+                    channel.get('status', '待检测'),
+                    channel.get('latency', '')
+                ])
+            
+            wb.save(file_path)
+            return True
+        except Exception as e:
+            logger.error(f"保存Excel文件失败: {str(e)}", exc_info=True)
+            return False
+
+    def from_excel(self, file_path: str) -> bool:
+        """从Excel文件加载频道列表"""
+        try:
+            from openpyxl import load_workbook
+            wb = load_workbook(file_path)
+            ws = wb.active
+            
+            self.beginResetModel()
+            self.channels = []
+            self._name_cache = set()
+            self._group_cache = set()
+            
+            # 跳过表头行
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                if not row[0]:  # 跳过空行
+                    continue
+                    
+                channel = {
+                    'name': row[0],
+                    'url': row[1],
+                    'group': row[2] if len(row) > 2 and row[2] else '未分类',
+                    'logo_url': row[3] if len(row) > 3 and row[3] else '',
+                    'logo': row[3] if len(row) > 3 and row[3] else '',
+                    'resolution': row[4] if len(row) > 4 and row[4] else '',
+                    'status': row[5] if len(row) > 5 and row[5] else '待检测',
+                    'latency': row[6] if len(row) > 6 and row[6] else '',
+                    'valid': False
+                }
+                
+                self.channels.append(channel)
+                self._name_cache.add(channel['name'])
+                self._group_cache.add(channel['group'])
+            
+            self.endResetModel()
+            return True
+        except Exception as e:
+            logger.error(f"加载Excel文件失败: {str(e)}", exc_info=True)
+            return False
 
     def removeRow(self, row: int, parent=QtCore.QModelIndex()) -> bool:
         """删除指定行"""
@@ -310,6 +380,10 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             group_cache = set()
             lines = content.splitlines()
             current_channel = None
+            
+            # 检查是否是Excel文件
+            if content.startswith(b'PK\x03\x04'):  # Excel文件头
+                return self.from_excel(content)
             
             for line in lines:
                 line = line.strip()
