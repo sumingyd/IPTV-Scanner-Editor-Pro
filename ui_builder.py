@@ -102,15 +102,21 @@ class UIBuilder:
             height = self.main_window.height()
             self.main_window.main_splitter.setSizes([int(width*0.4), int(width*0.6)])
         
-        # 左侧垂直分割器（扫描面板 + 频道列表）
+        # 左侧垂直分割器（视频播放 + 扫描设置）
         self.main_window.left_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical) 
         self._setup_custom_splitter(self.main_window.left_splitter)
+        
+        # 视频播放面板放在左侧上方
+        video_container = QtWidgets.QWidget()
+        self._setup_player_panel(video_container)
+        self.main_window.left_splitter.addWidget(video_container)
+        
+        # 扫描设置面板放在左侧下方
         self._setup_scan_panel(self.main_window.left_splitter)
-        self._setup_channel_list(self.main_window.left_splitter)
 
-        # 右侧播放器面板
+        # 右侧频道列表面板
         right_container = QtWidgets.QWidget()
-        self._setup_player_panel(right_container)
+        self._setup_channel_list(right_container)
 
         # 组装主界面
         self.main_window.main_splitter.addWidget(self.main_window.left_splitter)
@@ -245,6 +251,8 @@ class UIBuilder:
         """配置扫描面板"""
         scan_group = QtWidgets.QGroupBox("扫描设置")
         scan_layout = QtWidgets.QFormLayout()
+        scan_layout.setContentsMargins(5, 5, 5, 5)  # 统一设置边距
+        scan_layout.setSpacing(5)  # 统一设置间距
 
         self.main_window.ip_range_input = QtWidgets.QLineEdit()
         self.main_window.scan_progress = QtWidgets.QProgressBar()
@@ -349,10 +357,12 @@ class UIBuilder:
         scan_group.setLayout(scan_layout)
         parent.addWidget(scan_group)
 
-    def _setup_channel_list(self, parent: QtWidgets.QSplitter) -> None:  
+    def _setup_channel_list(self, parent) -> None:  
         """配置频道列表"""
         list_group = QtWidgets.QGroupBox("频道列表")
         list_layout = QtWidgets.QVBoxLayout()
+        list_layout.setContentsMargins(5, 5, 5, 5)  # 与扫描设置区域完全一致的边距
+        list_layout.setSpacing(5)  # 与扫描设置区域完全一致的间距
 
         # 工具栏
         toolbar = QtWidgets.QHBoxLayout()
@@ -449,7 +459,13 @@ class UIBuilder:
         
         list_layout.addWidget(self.main_window.channel_list)
         list_group.setLayout(list_layout)
-        parent.addWidget(list_group)
+
+        if isinstance(parent, QtWidgets.QSplitter):
+            parent.addWidget(list_group)
+        else:
+            parent.setLayout(QtWidgets.QVBoxLayout())
+            parent.layout().setContentsMargins(0, 0, 0, 0)  # 移除容器布局的额外边距
+            parent.layout().addWidget(list_group)
 
 
     def _show_channel_context_menu(self, pos):
