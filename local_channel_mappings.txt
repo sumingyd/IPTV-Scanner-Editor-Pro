@@ -76,7 +76,7 @@ CGTN俄语 = "239.21.2.35:5002" "CHANNEL00000357" = https://raw.githubuserconten
 山西卫视 = "239.21.1.33:5002" "CHANNEL00000032" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山西/山西卫视3.png = 卫视
 陕西卫视 = "239.21.1.30:5002" "CHANNEL00000029" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/陕西/陕西卫视3.png = 卫视
 深圳卫视 = "239.21.1.25:5002" "SHENZHEN" "SHENZHEN-HD" "CHANNEL00000024" "CHANNEL00000308" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视2.png = 卫视
-深圳卫视-4K = "SHENZHEN-4K" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视2.png = 卫视
+深圳卫视-4K = "SHENZHEN-4K" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视4K.png = 卫视
 四川卫视 = "SICHUAN" "SICHUAN-HD" "�Ĵ�����" "CHANNEL00000348" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川/四川卫视3.png = 卫视
 天津卫视 = "TIANJIN" "TIANJIN-HD" "CHANNEL00000021" "CHANNEL00000327" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/天津/天津卫视3.png = 卫视
 西藏卫视 = "西藏" "CHANNEL00000045" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/西藏/西藏卫视2.png = 卫视
