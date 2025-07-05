@@ -47,9 +47,10 @@ class ScannerController(QObject):
         
     def start_scan(self, base_url: str, thread_count: int = 10, timeout: int = 10, user_agent: str = None, referer: str = None):
         """开始扫描"""
-        if self.stop_event.is_set():
-            self.stop_event.clear()
-            
+        # 确保停止之前的扫描
+        self.stop_scan()
+        self.stop_event.clear()
+        
         from validator import StreamValidator
         StreamValidator.timeout = timeout
         if user_agent:
@@ -57,23 +58,36 @@ class ScannerController(QObject):
         if referer:
             StreamValidator.headers['Referer'] = referer
             
-        self.urls = self.url_parser.parse_url(base_url)
-        if not self.urls:
-            self.logger.warning("没有可扫描的URL")
-            return
-            
+        # 初始化统计信息
         self.stats = {
-            'total': len(self.urls),
+            'total': 0,  # 初始为0，由填充线程动态更新
             'valid': 0,
             'invalid': 0,
             'start_time': time.time(),
             'elapsed': 0
         }
         
-        # 清空队列并放入扫描URL
+        # 初始化队列和生成器
         self.scan_queue = queue.Queue()
-        for url in self.urls:
-            self.scan_queue.put(url)
+        self.url_generator = self.url_parser.parse_url(base_url)
+        
+        # 预填充第一批URL
+        try:
+            first_batch = next(self.url_generator)
+            for url in first_batch:
+                self.scan_queue.put(url)
+            self.stats['total'] = len(first_batch)
+        except StopIteration:
+            self.logger.warning("没有可扫描的URL")
+            return
+            
+        # 启动队列填充线程
+        self.filler_thread = threading.Thread(
+            target=self._fill_queue,
+            name="QueueFiller",
+            daemon=True
+        )
+        self.filler_thread.start()
             
         self.workers = []
         for i in range(thread_count):
@@ -92,7 +106,7 @@ class ScannerController(QObject):
         )
         stats_thread.start()
         
-        self.logger.info(f"开始扫描 {len(self.urls)} 个URL，使用 {thread_count} 个线程")
+        self.logger.info(f"开始扫描URL，使用 {thread_count} 个线程")
         
     def stop_scan(self):
         """停止扫描"""
@@ -312,6 +326,30 @@ class ScannerController(QObject):
         validator = StreamValidator()
         return validator.validate_stream(url, raw_channel_name=raw_channel_name, timeout=self.timeout)
         
+    def _fill_queue(self):
+        """动态填充扫描队列"""
+        try:
+            for batch in self.url_generator:
+                if self.stop_event.is_set():
+                    break
+                    
+                with self.stats_lock:
+                    self.stats['total'] += len(batch)
+                    
+                for url in batch:
+                    if self.stop_event.is_set():
+                        break
+                    self.scan_queue.put(url)
+                    
+                # 保持队列适度填充，避免内存占用过高
+                while self.scan_queue.qsize() > 10000 and not self.stop_event.is_set():
+                    time.sleep(0.1)
+                    
+        except Exception as e:
+            self.logger.error(f"队列填充线程错误: {e}")
+        finally:
+            self.logger.info("URL生成完成，队列填充结束")
+
     def is_scanning(self):
         """检查是否正在扫描"""
         return len(self.workers) > 0 and not self.stop_event.is_set()
