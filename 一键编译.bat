@@ -8,7 +8,6 @@ pyinstaller --onefile --windowed --icon=logo.ico ^
 --add-data "vlc/plugins/*;vlc/plugins" ^
 --add-data "ffmpeg/bin/*;ffmpeg/bin" ^
 --add-data "ffmpeg/presets/*;ffmpeg/presets" ^
---add-data "local_channel_mappings.txt;." ^
 --paths "C:\Users\sm\AppData\Local\Programs\Python\Python312\Lib\site-packages" ^
 --hidden-import python-vlc ^
 --hidden-import ffmpeg ^
