@@ -86,27 +86,6 @@ def extract_channel_name_from_url(url: str) -> str:
         LogManager().error(f"提取频道名失败: {e}")
         return url  # 如果提取失败，返回完整URL
 
-def _get_local_mapping_path() -> str:
-    """获取本地映射文件路径，处理开发环境和打包环境"""
-    import os
-    import sys
-    
-    # 1. 尝试从打包后的路径查找
-    if getattr(sys, 'frozen', False):
-        base_path = os.path.dirname(sys.executable)
-        exe_path = os.path.join(base_path, 'local_channel_mappings.txt')
-        if os.path.exists(exe_path):
-            return exe_path
-    
-    # 2. 尝试从开发环境路径查找
-    dev_path = os.path.join(os.path.dirname(__file__), 'local_channel_mappings.txt')
-    if os.path.exists(dev_path):
-        return dev_path
-        
-    # 3. 尝试当前目录
-    current_path = 'local_channel_mappings.txt'
-    return current_path
-
 def parse_mapping_line(line: str) -> Dict[str, dict]:
     """解析单行映射规则
     新格式: 标准名称 = "原始名称1" "原始名称2" = logo地址 = 分组名
@@ -200,21 +179,18 @@ def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
             }
     return reverse_mappings
 
-# 加载映射规则 - 先尝试远程，失败后尝试本地
+# 加载远程映射规则
 remote_mappings = load_remote_mappings()
-local_mappings = load_mappings_from_file(_get_local_mapping_path())
 
 # 记录加载状态
 logger = LogManager()
 if remote_mappings:
     logger.info("成功加载远程映射规则")
-elif local_mappings:
-    logger.warning("远程映射加载失败，使用本地映射")
 else:
-    logger.error("远程和本地映射都不可用，将跳过频道名映射")
+    logger.error("远程映射加载失败，将跳过频道名映射")
 
-# 合并映射规则(远程优先)
-combined_mappings = {**local_mappings, **remote_mappings}
+# 使用远程映射
+combined_mappings = remote_mappings
 
 # 创建反向映射
 REVERSE_MAPPINGS = create_reverse_mappings(combined_mappings)
@@ -230,7 +206,7 @@ def get_channel_info(raw_name: str) -> dict:
     # 标准化输入名称 - 保留原始空格，仅去除首尾空格并转换为小写
     normalized_name = raw_name.strip().lower()
     
-    # 1. 先检查远程映射(原始名称)
+    # 检查远程映射(原始名称)
     try:
         reverse_remote = create_reverse_mappings(remote_mappings)
         for raw_pattern, info in reverse_remote.items():
@@ -241,18 +217,7 @@ def get_channel_info(raw_name: str) -> dict:
     except Exception as e:
         logger.error(f"远程映射查找失败: {e}")
         
-    # 2. 再检查本地映射(原始名称)
-    try:
-        reverse_local = create_reverse_mappings(local_mappings)
-        for raw_pattern, info in reverse_local.items():
-            normalized_pattern = re.sub(r'\s+', ' ', raw_pattern.strip()).lower()
-            if normalized_name == normalized_pattern:
-                logger.debug(f"从本地映射找到匹配: {raw_pattern} -> {info}")
-                return info
-    except Exception as e:
-        logger.error(f"本地映射查找失败: {e}")
-        
-    # 3. 检查标准名称映射(如果输入的是标准名称)
+    # 检查标准名称映射(如果输入的是标准名称)
     try:
         for standard_name, info in combined_mappings.items():
             normalized_standard = re.sub(r'\s+', ' ', standard_name.strip()).lower()
