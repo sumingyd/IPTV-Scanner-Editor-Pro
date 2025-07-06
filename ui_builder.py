@@ -378,11 +378,18 @@ class UIBuilder:
         self.main_window.btn_hide_invalid.setFixedHeight(36)
         self.main_window.btn_hide_invalid.setEnabled(False)
         
+        # 智能排序按钮
+        self.main_window.btn_smart_sort = QtWidgets.QPushButton("智能排序")
+        self.main_window.btn_smart_sort.setStyleSheet(AppStyles.button_style(active=False))
+        self.main_window.btn_smart_sort.setFixedHeight(36)
+        self.main_window.btn_smart_sort.setEnabled(False)
+        
         # 检测统计标签
         self.main_window.validate_stats_label = QtWidgets.QLabel("请先加载列表")
         
         toolbar.addWidget(self.main_window.btn_validate)
         toolbar.addWidget(self.main_window.btn_hide_invalid)
+        toolbar.addWidget(self.main_window.btn_smart_sort)
         toolbar.addWidget(self.main_window.validate_stats_label)
         toolbar.addStretch()
         list_layout.addLayout(toolbar)
