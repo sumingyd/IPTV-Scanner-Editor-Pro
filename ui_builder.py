@@ -417,13 +417,9 @@ class UIBuilder:
         header.setMinimumSectionSize(30)  # 最小列宽
         header.setMaximumSectionSize(1000)  # 最大列宽
         
-        # 初始设置：URL列优先占用空间
-        header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Stretch)
-        
-        # 其他列自适应内容
+        # 初始设置：所有列自适应内容
         for i in range(header.count()):
-            if i != 2:  # 跳过URL列
-                header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+            header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         
         # 强制延迟列严格按内容宽度
         header.setSectionResizeMode(5, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
