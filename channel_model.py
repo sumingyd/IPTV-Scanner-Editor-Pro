@@ -430,6 +430,47 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             except:
                 return 0
 
+        def get_cctv_number(name):
+            """解析CCTV频道编号"""
+            if not name:
+                return 999
+                
+            # 定义精确的频道顺序
+            cctv_order = [
+                'CCTV-1 综合',
+                'CCTV-2 财经',
+                'CCTV-3 综艺',
+                'CCTV-4 (亚洲)',
+                'CCTV-4 (欧洲)',
+                'CCTV-4 (美洲)',
+                'CCTV-5 体育',
+                'CCTV-5+ 体育赛事',
+                'CCTV-6 电影',
+                'CCTV-7 国防军事',
+                'CCTV-8 电视剧',
+                'CCTV-9 纪录',
+                'CCTV-10 科教',
+                'CCTV-11 戏曲',
+                'CCTV-12 社会与法',
+                'CCTV-13 新闻',
+                'CCTV-14 少儿',
+                'CCTV-15 音乐',
+                'CCTV-16 奥林匹克',
+                'CCTV-17 农业农村',
+                'CCTV-4K 超高清',
+                'CCTV-8K 超高清',
+                'CCTV-中视购物',
+                '央广购物'
+            ]
+            
+            # 查找频道在顺序列表中的位置
+            for i, channel_name in enumerate(cctv_order):
+                if channel_name in name:  # 部分匹配
+                    return i
+                    
+            # 非CCTV频道或未匹配的频道
+            return 999
+
         def get_group_priority(group):
             """获取组名优先级"""
             if not group:
@@ -447,6 +488,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         self.channels.sort(key=lambda x: (
             get_resolution_value(x.get('resolution', '')) < hd_threshold,  # False(高分辨率)在前
             get_group_priority(x.get('group', '')),  # 按组优先级
+            get_cctv_number(x.get('name', '')) if '央视频道' in x.get('group', '') else 0,  # CCTV频道特殊排序
             x.get('name', '')  # 按频道名称字母顺序
         ))
         
