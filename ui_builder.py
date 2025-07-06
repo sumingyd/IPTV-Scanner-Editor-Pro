@@ -53,6 +53,10 @@ class UIBuilder:
         status_bar.show()
         status_bar.setStyleSheet(AppStyles.statusbar_style())
         
+        # 添加远程映射状态标签
+        self.main_window.mapping_status_label = QtWidgets.QLabel()
+        status_bar.addWidget(self.main_window.mapping_status_label)
+        
         self.main_window.progress_indicator = QtWidgets.QProgressBar()
         self.main_window.progress_indicator.setRange(0, 0)
         self.main_window.progress_indicator.setTextVisible(False)
@@ -60,6 +64,13 @@ class UIBuilder:
         self.main_window.progress_indicator.setStyleSheet(AppStyles.progress_style())
         self.main_window.progress_indicator.hide()
         status_bar.addPermanentWidget(self.main_window.progress_indicator)
+        
+        # 初始化时显示映射状态
+        from channel_mappings import remote_mappings
+        if remote_mappings:
+            self.main_window.mapping_status_label.setText("远程映射已加载")
+        else:
+            self.main_window.mapping_status_label.setText("远程映射加载失败")
 
     def _on_window_resize(self, event):
         """处理窗口大小变化事件"""
