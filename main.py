@@ -332,6 +332,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.main_window.scan_btn.setText("完整扫描")
         self.ui.main_window.btn_validate.setText("检测有效性")
         self.logger.info("扫描完成")
+        
+        # 启用智能排序按钮
+        self.ui.main_window.btn_smart_sort.setEnabled(True)
+        self.ui.main_window.btn_smart_sort.setStyleSheet(
+            AppStyles.button_style(active=True)
+        )
 
     def _update_stats_display(self, stats_data):
         """更新统计信息显示"""
