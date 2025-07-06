@@ -8,7 +8,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.channels: List[Dict[str, Any]] = []
-        self.headers = ["频道名称", "分辨率", "URL", "分组", "Logo地址", "状态", "延迟(ms)"]
+        self.headers = ["序号", "频道名称", "分辨率", "URL", "分组", "Logo地址", "状态", "延迟(ms)"]
         
         # 状态标签更新回调
         self.update_status_label = None
@@ -40,19 +40,21 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         col = index.column()
 
         if role == QtCore.Qt.ItemDataRole.DisplayRole:
-            if col == 0:  # 频道名称
+            if col == 0:  # 序号
+                return str(index.row() + 1)
+            elif col == 1:  # 频道名称
                 return channel.get('name', '未命名')
-            elif col == 1:  # 分辨率
+            elif col == 2:  # 分辨率
                 return channel.get('resolution', '')
-            elif col == 2:  # URL
+            elif col == 3:  # URL
                 return channel.get('url', '')
-            elif col == 3:  # 分组
+            elif col == 4:  # 分组
                 return channel.get('group', '未分类')
-            elif col == 4:  # Logo地址
+            elif col == 5:  # Logo地址
                 return channel.get('logo_url', channel.get('logo', ''))
-            elif col == 5:  # 状态
+            elif col == 6:  # 状态
                 return channel.get('status', '待检测')
-            elif col == 6:  # 延迟(ms)
+            elif col == 7:  # 延迟(ms)
                 return str(channel.get('latency', ''))
         elif role == QtCore.Qt.ItemDataRole.TextAlignmentRole:
             return QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignLeft
@@ -73,7 +75,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             return None
         if orientation == QtCore.Qt.Orientation.Horizontal:
             return self.headers[section]
-        return str(section + 1)
+        return str(section + 1) if section > 0 else ""  # 序号列不显示行号
 
     def flags(self, index: QtCore.QModelIndex) -> QtCore.Qt.ItemFlag:
         """返回项标志"""
