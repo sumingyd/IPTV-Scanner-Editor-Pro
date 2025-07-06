@@ -53,7 +53,7 @@ CGTN俄语 = "239.21.2.35:5002" "CHANNEL00000357" = https://raw.githubuserconten
 凤凰资讯 = "凤凰资讯-fenghuang" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰资讯.png = 卫视
 甘肃卫视 = "GanSu" "GanSu-HD" "239.21.1.47:5002" "CHANNEL00000349" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/甘肃/甘肃卫视2.png = 卫视
 广东卫视 = "�㶫����" "GuangDong" "GuangDong-HD" "CHANNEL00000025" "CHANNEL00000307" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/广东卫视2.png = 卫视
-广东卫视-4K = "GUANGDONG-4k" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/广东卫视4K.png = 卫视
+广东卫视-4K = "GUANGDONG-4k" "广东卫视4K" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/广东卫视4K.png = 卫视
 广西卫视 = "GuangXi" "GuangXi-HD" "CHANNEL00000038" "CHANNEL00000368" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广西/广西卫视2.png = 卫视
 贵州卫视 = "239.21.1.42:5002" "GUIZHOU" "GUIZHOU-HD" "CHANNEL00000041" "CHANNEL00000329" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/贵州/贵州卫视3.png = 卫视
 海南卫视 = "HAINAN" "HAINAN-HD" "239.21.1.31:5002" "CHANNEL00000347" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/海南/海南卫视3.png = 卫视
@@ -72,11 +72,11 @@ CGTN俄语 = "239.21.2.35:5002" "CHANNEL00000357" = https://raw.githubuserconten
 青海卫视 = "QingHai" "QingHai-HD" "CHANNEL00000042" "CHANNEL00000366" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/青海/青海卫视2.png = 卫视
 三沙卫视 = "239.21.2.9:5002" "CHANNEL00000078" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/海南/三沙卫视3.png = 卫视
 厦门卫视 = "239.21.2.6:5002" "XM" "XMSD" "CHANNEL00000075" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/福建/厦门卫视3.png = 卫视
-山东卫视 = "山东卫视" "SDTV-HD-DianXin" "239.21.2.157:5002" "239.21.2.158:5002" "CHANNEL00001068" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东卫视3.png = 卫视
+山东卫视 = "山东卫视" "SDTV-HD-DianXin" "239.21.2.158:5002" "CHANNEL00001068" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东卫视3.png = 卫视
 山西卫视 = "239.21.1.33:5002" "CHANNEL00000032" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山西/山西卫视3.png = 卫视
 陕西卫视 = "239.21.1.30:5002" "CHANNEL00000029" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/陕西/陕西卫视3.png = 卫视
 深圳卫视 = "239.21.1.25:5002" "SHENZHEN" "SHENZHEN-HD" "CHANNEL00000024" "CHANNEL00000308" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视2.png = 卫视
-深圳卫视-4K = "SHENZHEN-4K" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视4K.png = 卫视
+深圳卫视-4K = "SHENZHEN-4K" "深圳卫视4K" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视4K.png = 卫视
 四川卫视 = "SICHUAN" "SICHUAN-HD" "�Ĵ�����" "CHANNEL00000348" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川/四川卫视3.png = 卫视
 天津卫视 = "TIANJIN" "TIANJIN-HD" "CHANNEL00000021" "CHANNEL00000327" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/天津/天津卫视3.png = 卫视
 西藏卫视 = "西藏" "CHANNEL00000045" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/西藏/西藏卫视2.png = 卫视
@@ -312,7 +312,7 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 鱼台生活 = "yutai-shenghuo" "CHANNEL00001108" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁鱼台.png = 济宁
 任城综合 = "RenCHENG-1" "CHANNEL00001111" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁任城.png = 济宁
 任城生活 = "RenCheng-2" "CHANNEL00001112" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁任城.png = 济宁
-汶上综合 = "CHANNEL00001116" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁汶上.png = 济宁
+汶上综合 = "CHANNEL00001116" "wenshang-zonghe" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁汶上.png = 济宁
 
 ##########      潍坊     ##########
 安丘综合 = "anqiu-zonghe" "CHANNEL00001015" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊安丘.png = 潍坊

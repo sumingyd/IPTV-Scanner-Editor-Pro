@@ -389,6 +389,69 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             bottom_right = self.index(len(self.channels)-1, len(self.headers)-1)
             self.dataChanged.emit(top_left, bottom_right)
 
+    def sort_channels(self):
+        """智能排序频道列表"""
+        # 定义组名优先级顺序
+        group_priority = {
+            '央视频道': 0,
+            'CETV': 1,
+            'CGTN': 2,
+            '卫视': 3,
+            '国际频道': 4,
+            '特色频道': 5,
+            '山东频道': 6,
+            '市级频道': 7,
+            '滨州': 8,
+            '德州': 9,
+            '东营': 10,
+            '菏泽': 11,
+            '济南': 12,
+            '济宁': 13,
+            '聊城': 14,
+            '临沂': 15,
+            '青岛': 16,
+            '日照': 17,
+            '泰安': 18,
+            '威海': 19,
+            '潍坊': 20,
+            '烟台': 21,
+            '淄博': 22
+        }
+
+        def get_resolution_value(resolution):
+            """解析分辨率字符串，返回宽度值"""
+            if not resolution:
+                return 0
+            try:
+                parts = resolution.split('x')
+                if len(parts) == 2:
+                    return int(parts[0]) * int(parts[1])  # 返回像素总数
+                return 0
+            except:
+                return 0
+
+        def get_group_priority(group):
+            """获取组名优先级"""
+            if not group:
+                return len(group_priority) + 1  # 未分类的组放在最后
+            for key in group_priority:
+                if key in group:  # 部分匹配
+                    return group_priority[key]
+            return len(group_priority) + 1  # 未匹配的组放在最后
+
+        # 开始排序
+        self.beginResetModel()
+        
+        # 先按分辨率分组(1920x1080及以上为一组)
+        hd_threshold = 1920 * 1080
+        self.channels.sort(key=lambda x: (
+            get_resolution_value(x.get('resolution', '')) < hd_threshold,  # False(高分辨率)在前
+            get_group_priority(x.get('group', '')),  # 按组优先级
+            x.get('name', '')  # 按频道名称字母顺序
+        ))
+        
+        self.endResetModel()
+
     def parse_file_content(self, content: str) -> List[Dict[str, Any]]:
         """解析文件内容并返回频道列表"""
         try:

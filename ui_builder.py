@@ -380,9 +380,12 @@ class UIBuilder:
         
         # 智能排序按钮
         self.main_window.btn_smart_sort = QtWidgets.QPushButton("智能排序")
-        self.main_window.btn_smart_sort.setStyleSheet(AppStyles.button_style(active=False))
+        self.main_window.btn_smart_sort.setStyleSheet(AppStyles.button_style(active=True))
         self.main_window.btn_smart_sort.setFixedHeight(36)
-        self.main_window.btn_smart_sort.setEnabled(False)
+        self.main_window.btn_smart_sort.setEnabled(True)
+        self.main_window.btn_smart_sort.clicked.connect(
+            lambda: self.main_window.model.sort_channels()
+        )
         
         # 检测统计标签
         self.main_window.validate_stats_label = QtWidgets.QLabel("请先加载列表")
