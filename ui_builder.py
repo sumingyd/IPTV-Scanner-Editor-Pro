@@ -606,21 +606,29 @@ class UIBuilder:
         self.main_window.channel_url_edit = QtWidgets.QLineEdit()
         self.main_window.channel_url_edit.setPlaceholderText("输入频道URL")
         
-        # 保存按钮
-        self.main_window.save_channel_btn = QtWidgets.QPushButton("保存频道")
-        self.main_window.save_channel_btn.setStyleSheet(AppStyles.button_style(active=True))
-        self.main_window.save_channel_btn.setFixedHeight(36)
+        # 修改频道按钮
+        self.main_window.edit_channel_btn = QtWidgets.QPushButton("修改频道")
+        self.main_window.edit_channel_btn.setStyleSheet(AppStyles.button_style(active=True))
+        self.main_window.edit_channel_btn.setFixedHeight(36)
+        self.main_window.edit_channel_btn.setEnabled(False)
+        
+        # 添加频道按钮
+        self.main_window.add_channel_btn = QtWidgets.QPushButton("添加频道")
+        self.main_window.add_channel_btn.setStyleSheet(AppStyles.button_style(active=True))
+        self.main_window.add_channel_btn.setFixedHeight(36)
         
         # 按钮布局
         button_layout = QtWidgets.QHBoxLayout()
-        button_layout.addStretch()
-        button_layout.addWidget(self.main_window.save_channel_btn)
+        button_layout.addWidget(self.main_window.edit_channel_btn)
+        button_layout.addSpacing(10)
+        button_layout.addWidget(self.main_window.add_channel_btn)
         
         # 添加到布局
         edit_layout.addRow("频道名称:", self.main_window.channel_name_edit)
         edit_layout.addRow("频道分组:", self.main_window.channel_group_edit)
         edit_layout.addRow("LOGO地址:", self.main_window.channel_logo_edit)
         edit_layout.addRow("频道URL:", self.main_window.channel_url_edit)
+        edit_layout.addRow(QtWidgets.QLabel("操作:"))
         edit_layout.addRow(button_layout)
         
         edit_group.setLayout(edit_layout)
