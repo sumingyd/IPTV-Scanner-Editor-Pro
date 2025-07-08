@@ -80,6 +80,7 @@ class UIBuilder:
             dividers = [
                 *self.main_window.main_splitter.sizes(),
                 *self.main_window.left_splitter.sizes(),
+                *self.main_window.channel_splitter.sizes(),
             ]
             
             # 保存窗口布局
@@ -96,15 +97,18 @@ class UIBuilder:
 
     def _init_splitters(self):
         """初始化所有分隔条控件"""
+        # 先初始化所有分割器
+        self.main_window.main_splitter = QtWidgets.QSplitter(Qt.Orientation.Horizontal)
+        self.main_window.left_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
+        self.main_window.channel_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
+        
+        # 设置分割器属性
+        self._setup_custom_splitter(self.main_window.main_splitter)
+        self._setup_custom_splitter(self.main_window.left_splitter)
+        self._setup_custom_splitter(self.main_window.channel_splitter)
+        
         # 加载保存的分隔条位置
         _, _, dividers = self.main_window.config.load_window_layout()
-        
-        # 主水平分割器（左右布局）
-        self.main_window.main_splitter = QtWidgets.QSplitter(Qt.Orientation.Horizontal)
-        self.main_window.main_splitter.setChildrenCollapsible(True)  # 允许子部件收起
-        self.main_window.main_splitter.setHandleWidth(10)  # 设置足够大的手柄宽度
-        self.main_window.main_splitter.setOpaqueResize(True)  # 实时更新分割器位置
-        self._setup_custom_splitter(self.main_window.main_splitter)
         
         # 仅在未加载保存布局时设置默认值
         if not (dividers and len(dividers) >= 8):
@@ -113,9 +117,10 @@ class UIBuilder:
             height = self.main_window.height()
             self.main_window.main_splitter.setSizes([int(width*0.4), int(width*0.6)])
         
-        # 左侧垂直分割器（视频播放 + 扫描设置）
-        self.main_window.left_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical) 
+        # 设置分割器属性
+        self._setup_custom_splitter(self.main_window.main_splitter)
         self._setup_custom_splitter(self.main_window.left_splitter)
+        self._setup_custom_splitter(self.main_window.channel_splitter)
         
         # 视频播放面板放在左侧上方
         video_container = QtWidgets.QWidget()
@@ -132,12 +137,16 @@ class UIBuilder:
         # 组装主界面
         self.main_window.main_splitter.addWidget(self.main_window.left_splitter)
         self.main_window.main_splitter.addWidget(right_container)
-
+        
         # 加载保存的分隔条位置
         _, _, dividers = self.main_window.config.load_window_layout()
-        if dividers and len(dividers) >= 2:
+        if dividers and len(dividers) >= 6:
+            # 确保所有分割器都已初始化后再设置位置
             self.main_window.main_splitter.setSizes(dividers[:2])
             self.main_window.left_splitter.setSizes(dividers[2:4])
+            # 延迟设置channel_splitter确保UI完全初始化
+            QtCore.QTimer.singleShot(100, lambda: 
+                self.main_window.channel_splitter.setSizes(dividers[4:6]))
 
         else:
             # 设置更合理的默认尺寸(基于窗口当前大小)
@@ -148,7 +157,11 @@ class UIBuilder:
 
 
     def _setup_custom_splitter(self, splitter):
+        if hasattr(splitter, '_custom_handle_installed'):
+            return
+            
         splitter.setChildrenCollapsible(False)
+        splitter._custom_handle_installed = True
         
         # 必须设置足够大的handle宽度
         handle_size = 10
@@ -162,6 +175,9 @@ class UIBuilder:
             return
             
         handle = splitter.handle(1)
+        if handle.findChild(QtWidgets.QWidget) is not None:
+            return
+            
         handle.setStyleSheet("background: transparent;")
         
         # 创建并添加自定义手柄
@@ -214,6 +230,7 @@ class UIBuilder:
             dividers = [
                 *self.main_window.main_splitter.sizes(),
                 *self.main_window.left_splitter.sizes(),
+                *self.main_window.channel_splitter.sizes(),
             ]
             self.main_window.config.save_window_layout(size.width(), size.height(), dividers)
         else:
@@ -370,10 +387,15 @@ class UIBuilder:
 
     def _setup_channel_list(self, parent) -> None:  
         """配置频道列表"""
+        # 使用类成员变量保存分割器引用
+        self.main_window.channel_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
+        self._setup_custom_splitter(self.main_window.channel_splitter)
+        
+        # 频道列表区域
         list_group = QtWidgets.QGroupBox("频道列表")
         list_layout = QtWidgets.QVBoxLayout()
-        list_layout.setContentsMargins(5, 5, 5, 5)  # 与扫描设置区域完全一致的边距
-        list_layout.setSpacing(5)  # 与扫描设置区域完全一致的间距
+        list_layout.setContentsMargins(5, 5, 5, 5)
+        list_layout.setSpacing(5)
 
         # 工具栏
         toolbar = QtWidgets.QHBoxLayout()
@@ -477,12 +499,22 @@ class UIBuilder:
         list_layout.addWidget(self.main_window.channel_list)
         list_group.setLayout(list_layout)
 
+        # 添加频道列表到分割器
+        list_group.setLayout(list_layout)
+        self.main_window.channel_splitter.addWidget(list_group)
+        
+        # 添加频道编辑区域
+        edit_group = self._setup_channel_edit(self.main_window.channel_splitter)
+        
         if isinstance(parent, QtWidgets.QSplitter):
-            parent.addWidget(list_group)
+            parent.addWidget(self.main_window.channel_splitter)
         else:
             parent.setLayout(QtWidgets.QVBoxLayout())
-            parent.layout().setContentsMargins(0, 0, 0, 0)  # 移除容器布局的额外边距
-            parent.layout().addWidget(list_group)
+            parent.layout().setContentsMargins(0, 0, 0, 0)
+            parent.layout().addWidget(self.main_window.channel_splitter)
+        
+        # 设置默认分割比例
+        self.main_window.channel_splitter.setSizes([int(self.main_window.height()*0.7), int(self.main_window.height()*0.3)])
 
 
     def _show_channel_context_menu(self, pos):
@@ -550,6 +582,50 @@ class UIBuilder:
                 self.main_window.validate_status_label.setText(
                     f"检测: {self.main_window.model.rowCount()}/0"
                 )
+
+    def _setup_channel_edit(self, parent) -> QtWidgets.QWidget:
+        """配置频道编辑区域"""
+        edit_group = QtWidgets.QGroupBox("频道编辑")
+        edit_layout = QtWidgets.QFormLayout()
+        edit_layout.setContentsMargins(5, 5, 5, 5)
+        edit_layout.setSpacing(5)
+        
+        # 频道名称输入
+        self.main_window.channel_name_edit = QtWidgets.QLineEdit()
+        self.main_window.channel_name_edit.setPlaceholderText("输入频道名称")
+        
+        # 频道分组输入
+        self.main_window.channel_group_edit = QtWidgets.QLineEdit()
+        self.main_window.channel_group_edit.setPlaceholderText("输入频道分组")
+        
+        # LOGO地址输入
+        self.main_window.channel_logo_edit = QtWidgets.QLineEdit()
+        self.main_window.channel_logo_edit.setPlaceholderText("输入LOGO地址")
+        
+        # 频道URL输入
+        self.main_window.channel_url_edit = QtWidgets.QLineEdit()
+        self.main_window.channel_url_edit.setPlaceholderText("输入频道URL")
+        
+        # 保存按钮
+        self.main_window.save_channel_btn = QtWidgets.QPushButton("保存频道")
+        self.main_window.save_channel_btn.setStyleSheet(AppStyles.button_style(active=True))
+        self.main_window.save_channel_btn.setFixedHeight(36)
+        
+        # 按钮布局
+        button_layout = QtWidgets.QHBoxLayout()
+        button_layout.addStretch()
+        button_layout.addWidget(self.main_window.save_channel_btn)
+        
+        # 添加到布局
+        edit_layout.addRow("频道名称:", self.main_window.channel_name_edit)
+        edit_layout.addRow("频道分组:", self.main_window.channel_group_edit)
+        edit_layout.addRow("LOGO地址:", self.main_window.channel_logo_edit)
+        edit_layout.addRow("频道URL:", self.main_window.channel_url_edit)
+        edit_layout.addRow(button_layout)
+        
+        edit_group.setLayout(edit_layout)
+        parent.addWidget(edit_group)
+        return edit_group
 
     def _setup_toolbar(self):
         """初始化工具栏"""
