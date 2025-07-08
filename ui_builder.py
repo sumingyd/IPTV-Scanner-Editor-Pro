@@ -616,6 +616,7 @@ class UIBuilder:
         self.main_window.add_channel_btn = QtWidgets.QPushButton("添加频道")
         self.main_window.add_channel_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.main_window.add_channel_btn.setFixedHeight(36)
+        self.main_window.add_channel_btn.clicked.connect(self._add_channel)
         
         # 按钮布局
         button_layout = QtWidgets.QHBoxLayout()
@@ -670,6 +671,41 @@ class UIBuilder:
         dialog = AboutDialog(
             self.main_window)
         dialog.exec()
+
+    def _add_channel(self):
+        """添加新频道到列表"""
+        name = self.main_window.channel_name_edit.text().strip()
+        url = self.main_window.channel_url_edit.text().strip()
+        
+        if not name or not url:
+            QtWidgets.QMessageBox.warning(
+                self.main_window,
+                "输入错误",
+                "频道名称和URL不能为空",
+                QtWidgets.QMessageBox.StandardButton.Ok
+            )
+            return
+            
+        group = self.main_window.channel_group_edit.text().strip()
+        logo = self.main_window.channel_logo_edit.text().strip()
+        
+        # 添加到模型
+        channel_info = {
+            'name': name,
+            'group': group if group else "未分组",
+            'url': url,
+            'logo': logo if logo else "",
+            'valid': True,
+            'latency': 0,
+            'status': '待检测'
+        }
+        self.main_window.model.add_channel(channel_info)
+        
+        # 清空输入框
+        self.main_window.channel_name_edit.clear()
+        self.main_window.channel_group_edit.clear()
+        self.main_window.channel_logo_edit.clear()
+        self.main_window.channel_url_edit.clear()
 
 
         
