@@ -592,25 +592,30 @@ class UIBuilder:
         
         # 频道名称输入
         self.main_window.channel_name_edit = QtWidgets.QLineEdit()
-        self.main_window.channel_name_edit.setPlaceholderText("输入频道名称")
+        self.main_window.channel_name_edit.setPlaceholderText("输入频道名称 (必填)")
+        self.main_window.channel_name_edit.setToolTip("输入频道的名称，如'CCTV-1 综合'")
         
         # 频道分组输入
         self.main_window.channel_group_edit = QtWidgets.QLineEdit()
-        self.main_window.channel_group_edit.setPlaceholderText("输入频道分组")
+        self.main_window.channel_group_edit.setPlaceholderText("输入频道分组 (可选)")
+        self.main_window.channel_group_edit.setToolTip("输入频道所属分组，如'央视频道'")
         
         # LOGO地址输入
         self.main_window.channel_logo_edit = QtWidgets.QLineEdit()
-        self.main_window.channel_logo_edit.setPlaceholderText("输入LOGO地址")
+        self.main_window.channel_logo_edit.setPlaceholderText("输入LOGO地址 (可选)")
+        self.main_window.channel_logo_edit.setToolTip("输入频道LOGO图片的URL地址")
         
         # 频道URL输入
         self.main_window.channel_url_edit = QtWidgets.QLineEdit()
-        self.main_window.channel_url_edit.setPlaceholderText("输入频道URL")
+        self.main_window.channel_url_edit.setPlaceholderText("输入频道URL (必填)")
+        self.main_window.channel_url_edit.setToolTip("输入频道的播放地址，如'http://example.com/stream.m3u8'")
         
         # 修改频道按钮
         self.main_window.edit_channel_btn = QtWidgets.QPushButton("修改频道")
         self.main_window.edit_channel_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.main_window.edit_channel_btn.setFixedHeight(36)
         self.main_window.edit_channel_btn.setEnabled(False)
+        self.main_window.edit_channel_btn.setToolTip("修改当前选中的频道信息")
         self.main_window.edit_channel_btn.clicked.connect(self._edit_channel)
         
         # 监听列表选择变化
@@ -622,6 +627,7 @@ class UIBuilder:
         self.main_window.add_channel_btn = QtWidgets.QPushButton("添加频道")
         self.main_window.add_channel_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.main_window.add_channel_btn.setFixedHeight(36)
+        self.main_window.add_channel_btn.setToolTip("添加新频道到列表")
         self.main_window.add_channel_btn.clicked.connect(self._add_channel)
         
         # 按钮布局

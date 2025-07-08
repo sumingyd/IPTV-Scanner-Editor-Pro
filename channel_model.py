@@ -1,6 +1,7 @@
 from PyQt6 import QtCore, QtGui
 from typing import List, Dict, Any
 from log_manager import LogManager
+from styles import AppStyles
 logger = LogManager()
 
 class ChannelListModel(QtCore.QAbstractTableModel):
