@@ -63,9 +63,12 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 return QtGui.QColor('#ffdddd')  # 无效项背景色
         elif role == QtCore.Qt.ItemDataRole.ForegroundRole:
             if not channel.get('valid', True):
-                return QtGui.QColor('#333333')  # 无效项文字颜色
+                return QtGui.QColor('#ff6666')  # 无效项文字颜色(红色)
             elif channel.get('status') == '待检测':
-                return QtGui.QColor('#333333')  # 待检测文字颜色
+                return QtGui.QColor('#999999')  # 待检测文字颜色(灰色)
+            else:
+                # 根据主题返回适当颜色
+                return QtGui.QColor(AppStyles.text_color())  # 使用styles中定义的主题文字颜色
         return None
 
     def headerData(self, section: int, orientation: QtCore.Qt.Orientation,
