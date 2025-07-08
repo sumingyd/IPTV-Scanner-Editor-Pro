@@ -611,6 +611,12 @@ class UIBuilder:
         self.main_window.edit_channel_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.main_window.edit_channel_btn.setFixedHeight(36)
         self.main_window.edit_channel_btn.setEnabled(False)
+        self.main_window.edit_channel_btn.clicked.connect(self._edit_channel)
+        
+        # 监听列表选择变化
+        self.main_window.channel_list.selectionModel().selectionChanged.connect(
+            self._on_selection_changed
+        )
         
         # 添加频道按钮
         self.main_window.add_channel_btn = QtWidgets.QPushButton("添加频道")
@@ -671,6 +677,67 @@ class UIBuilder:
         dialog = AboutDialog(
             self.main_window)
         dialog.exec()
+
+    def _on_selection_changed(self):
+        """处理列表选择变化"""
+        selection = self.main_window.channel_list.selectionModel().selectedRows()
+        if selection:
+            # 获取选中频道数据
+            channel = self.main_window.model.get_channel(selection[0].row())
+            
+            # 填充到编辑区
+            self.main_window.channel_name_edit.setText(channel.get('name', ''))
+            self.main_window.channel_group_edit.setText(channel.get('group', ''))
+            self.main_window.channel_logo_edit.setText(channel.get('logo', ''))
+            self.main_window.channel_url_edit.setText(channel.get('url', ''))
+            
+            # 启用修改按钮
+            self.main_window.edit_channel_btn.setEnabled(True)
+        else:
+            # 清空编辑区
+            self.main_window.channel_name_edit.clear()
+            self.main_window.channel_group_edit.clear()
+            self.main_window.channel_logo_edit.clear()
+            self.main_window.channel_url_edit.clear()
+            
+            # 禁用修改按钮
+            self.main_window.edit_channel_btn.setEnabled(False)
+
+    def _edit_channel(self):
+        """修改选中频道"""
+        selection = self.main_window.channel_list.selectionModel().selectedRows()
+        if not selection:
+            return
+            
+        # 获取编辑后的数据
+        channel_info = {
+            'name': self.main_window.channel_name_edit.text().strip(),
+            'group': self.main_window.channel_group_edit.text().strip(),
+            'logo': self.main_window.channel_logo_edit.text().strip(),
+            'url': self.main_window.channel_url_edit.text().strip()
+        }
+        
+        # 验证必填字段
+        if not channel_info['name'] or not channel_info['url']:
+            QtWidgets.QMessageBox.warning(
+                self.main_window,
+                "输入错误",
+                "频道名称和URL不能为空",
+                QtWidgets.QMessageBox.StandardButton.Ok
+            )
+            return
+            
+        # 更新模型数据
+        self.main_window.model.update_channel(selection[0].row(), channel_info)
+        
+        # 清空编辑区
+        self.main_window.channel_name_edit.clear()
+        self.main_window.channel_group_edit.clear()
+        self.main_window.channel_logo_edit.clear()
+        self.main_window.channel_url_edit.clear()
+        
+        # 禁用修改按钮
+        self.main_window.edit_channel_btn.setEnabled(False)
 
     def _add_channel(self):
         """添加新频道到列表"""
