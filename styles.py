@@ -182,3 +182,18 @@ class AppStyles:
                 padding: 0 3px;
             }
         """
+
+    @staticmethod
+    def text_color() -> QtGui.QColor:
+        """返回主题文字颜色(自动适应深色/浅色模式)"""
+        # 获取系统调色板
+        palette = QtGui.QGuiApplication.palette()
+        # 计算背景亮度来判断深浅色模式
+        bg_color = palette.color(QtGui.QPalette.ColorRole.Window)
+        is_dark = bg_color.lightness() < 128
+        
+        # 深色模式返回浅色，浅色模式返回深色
+        if is_dark:
+            return QtGui.QColor('#f0f0f0')  # 浅灰色
+        else:
+            return QtGui.QColor('#333333')  # 深灰色
