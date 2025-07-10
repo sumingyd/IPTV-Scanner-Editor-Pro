@@ -62,14 +62,20 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         elif role == QtCore.Qt.ItemDataRole.BackgroundRole:
             if not channel.get('valid', True):
                 return QtGui.QColor('#ffdddd')  # 无效项背景色
-        elif role == QtCore.Qt.ItemDataRole.ForegroundRole:
-            if not channel.get('valid', True):
-                return QtGui.QColor('#ff6666')  # 无效项文字颜色(红色)
-            elif channel.get('status') == '待检测':
-                return QtGui.QColor('#999999')  # 待检测文字颜色(灰色)
-            else:
-                # 根据主题返回适当颜色
-                return QtGui.QColor(AppStyles.text_color())  # 使用styles中定义的主题文字颜色
+            elif role == QtCore.Qt.ItemDataRole.ForegroundRole:
+                if not channel.get('valid', True):
+                    return QtGui.QColor('#ff6666')  # 无效项文字颜色(红色)
+                elif channel.get('status') == '待检测':
+                    return QtGui.QColor('#999999')  # 待检测文字颜色(灰色)
+                else:
+                    # 根据主题返回适当颜色
+                    return QtGui.QColor(AppStyles.text_color())  # 使用styles中定义的主题文字颜色
+            
+            # 数据加载完成后自动调整列宽
+            if role == QtCore.Qt.ItemDataRole.DisplayRole and index.column() == 0:
+                view = self.parent()
+                if view and hasattr(view, 'resizeColumnsToContents'):
+                    view.resizeColumnsToContents()
         return None
 
     def headerData(self, section: int, orientation: QtCore.Qt.Orientation,
@@ -601,6 +607,12 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 self.update_status_label("请点击检测有效性按钮")
             
             self.endResetModel()
+            
+            # 数据加载完成后调整列宽
+            view = self.parent()
+            if view and hasattr(view, 'resizeColumnsToContents'):
+                view.resizeColumnsToContents()
+                
             return True
         except Exception as e:
             logger.error(f"频道模型-加载频道列表失败: {str(e)}", exc_info=True)
