@@ -444,40 +444,24 @@ class UIBuilder:
             self.main_window.channel_list.setModel(self.main_window.model)
         self.main_window.channel_list.setStyleSheet(AppStyles.list_style())
         
-        # 设置列宽
+        # 设置列宽自适应
         header = self.main_window.channel_list.horizontalHeader()
         header.setStretchLastSection(False)  # 禁用最后列自动拉伸
         header.setMinimumSectionSize(30)  # 最小列宽
         header.setMaximumSectionSize(1000)  # 最大列宽
         
-        # 初始设置：所有列自适应内容
+        # 所有列始终自适应内容
         for i in range(header.count()):
             header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         
-        # 强制延迟列严格按内容宽度
-        header.setSectionResizeMode(5, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-        
-        # 定义列宽调整函数
-        def adjust_columns():
-            if self.main_window.model.rowCount() > 0:
-                # 有数据时：URL列自适应且占用多余空间
-                header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Interactive)
-                # 延迟列严格按内容宽度
-                header.setSectionResizeMode(5, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-                # 其他列自适应内容
-                for i in range(header.count()):
-                    if i not in (2, 5):  # 跳过URL列和延迟列
-                        header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-            else:
-                # 无数据时：URL列自动拉伸
-                header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        # 数据变化时自动调整列宽
+        self.main_window.model.dataChanged.connect(lambda: header.resizeSections())
 
         # 监听数据变化重新计算布局和更新按钮状态
         def update_buttons():
             has_channels = self.main_window.model.rowCount() > 0
             self.main_window.pause_btn.setEnabled(has_channels)
             self.main_window.pause_btn.setStyleSheet(AppStyles.button_style(active=has_channels))
-            adjust_columns()
 
         self.main_window.model.dataChanged.connect(lambda: header.resizeSections())
         self.main_window.model.dataChanged.connect(update_buttons)

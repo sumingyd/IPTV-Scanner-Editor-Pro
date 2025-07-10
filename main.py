@@ -338,6 +338,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.main_window.btn_smart_sort.setStyleSheet(
             AppStyles.button_style(active=True)
         )
+        
+        # 扫描完成后调整列宽
+        if hasattr(self.ui.main_window, 'channel_list'):
+            header = self.ui.main_window.channel_list.horizontalHeader()
+            header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
     def _update_stats_display(self, stats_data):
         """更新统计信息显示"""

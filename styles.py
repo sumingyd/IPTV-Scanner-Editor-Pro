@@ -83,11 +83,26 @@ class AppStyles:
                 selection-background-color: palette(highlight);
                 selection-color: palette(highlightedText);
             }
+            QHeaderView {
+                background-color: palette(button);
+            }
             QHeaderView::section {
                 background-color: palette(button);
                 padding: 4px;
                 border: 1px solid palette(mid);
                 color: palette(windowText);
+            }
+            QHeaderView::section:first {
+                min-width: 50px;  /* 序号列最小宽度 */
+            }
+            QHeaderView::section:nth-child(2) {
+                min-width: 150px; /* 频道名称列最小宽度 */
+            }
+            QHeaderView::section:nth-child(3) {
+                min-width: 80px;  /* 分辨率列最小宽度 */
+            }
+            QHeaderView::section:nth-child(4) {
+                min-width: 200px; /* URL列最小宽度 */
             }
         """
 
