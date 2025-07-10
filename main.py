@@ -428,12 +428,87 @@ def main():
     # 创建应用实例
     app = QtWidgets.QApplication(sys.argv)
     
-    # 创建主窗口
+    # 创建精美的启动画面
+    splash = QtWidgets.QSplashScreen()
+    splash.setFixedSize(400, 300)
+    splash.setStyleSheet("""
+        QSplashScreen {
+            background: qlineargradient(
+                x1:0, y1:0, x2:1, y2:1,
+                stop:0 #1e5799, 
+                stop:1 #2989d8
+            );
+            border-radius: 10px;
+        }
+        QLabel {
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            font-family: "Microsoft YaHei";
+        }
+    """)
+    
+    # 主布局
+    layout = QtWidgets.QVBoxLayout(splash)
+    layout.setContentsMargins(20, 20, 20, 20)
+    layout.setSpacing(20)
+    
+    # 添加加载动画
+    movie = QtGui.QMovie("icons/loading.gif")
+    movie.setScaledSize(QtCore.QSize(64, 64))
+    loading_anim = QtWidgets.QLabel(splash)
+    loading_anim.setMovie(movie)
+    loading_anim.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+    layout.addWidget(loading_anim)
+    movie.start()
+    
+    # 添加加载文字
+    loading_text = QtWidgets.QLabel("正在加载，请稍候...", splash)
+    loading_text.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+    layout.addWidget(loading_text)
+    
+    # 添加版本信息(从about_dialog.py获取)
+    from about_dialog import AboutDialog
+    version = QtWidgets.QLabel(f"版本 {AboutDialog.CURRENT_VERSION}", splash)
+    version.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+    version.setStyleSheet("font-size: 12px; color: rgba(255,255,255,0.7);")
+    layout.addWidget(version)
+    
+    splash.setLayout(layout)
+    
+    splash.show()
+    app.processEvents()  # 立即显示启动画面
+    
+    # 在主线程创建主窗口
     window = MainWindow()
-    window.show()
+    
+    # 在后台线程执行耗时初始化
+    class InitWorker(QtCore.QObject):
+        finished = QtCore.pyqtSignal()
+        
+        def run(self):
+            # 这里可以执行耗时初始化操作
+            time.sleep(0.5)  # 模拟耗时操作
+            self.finished.emit()
+    
+    worker = InitWorker()
+    worker_thread = QtCore.QThread()
+    worker.moveToThread(worker_thread)
+    worker.finished.connect(worker_thread.quit)
+    worker_thread.started.connect(worker.run)
+    worker_thread.finished.connect(lambda: (
+        window.show(),
+        splash.finish(window)
+    ))
+    worker_thread.start()
+    
+    # 保存主窗口引用
+    app.main_window = window
     
     # 确保程序退出前保存所有配置
-    app.aboutToQuit.connect(window.save_before_exit)
+    app.aboutToQuit.connect(lambda: (
+        app.main_window.save_before_exit() if hasattr(app, 'main_window') else None
+    ))
     
     # 启动事件循环
     sys.exit(app.exec())
