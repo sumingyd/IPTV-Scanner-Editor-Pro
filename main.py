@@ -204,9 +204,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def _open_list(self):
         """打开列表文件"""
         try:
-            result = self.list_manager.open_list(self)
+            success, error_msg = self.list_manager.open_list(self)
                 
-            if result:
+            if success:
                 self.ui.main_window.btn_hide_invalid.setEnabled(False)
                 self.ui.main_window.btn_validate.setEnabled(True)
                 self.ui.main_window.statusBar().showMessage("列表加载成功", 3000)
@@ -215,12 +215,13 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.model.modelReset.emit()
                 return True
             else:
-                self.logger.warning("打开列表失败")
-                self.ui.main_window.statusBar().showMessage("打开列表失败", 3000)
+                self.logger.warning(f"打开列表失败: {error_msg}")
+                self.ui.main_window.statusBar().showMessage(f"打开列表失败: {error_msg}", 3000)
                 return False
         except Exception as e:
-            self.logger.error(f"打开列表失败: {str(e)}", exc_info=True)
-            self.ui.main_window.statusBar().showMessage(f"打开列表失败: {str(e)}", 3000)
+            error_msg = f"打开列表失败: {str(e)}"
+            self.logger.error(error_msg, exc_info=True)
+            self.ui.main_window.statusBar().showMessage(error_msg, 3000)
             return False
 
     def _save_list(self):

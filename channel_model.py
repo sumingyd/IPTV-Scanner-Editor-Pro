@@ -62,14 +62,15 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         elif role == QtCore.Qt.ItemDataRole.BackgroundRole:
             if not channel.get('valid', True):
                 return QtGui.QColor('#ffdddd')  # 无效项背景色
-            elif role == QtCore.Qt.ItemDataRole.ForegroundRole:
-                if not channel.get('valid', True):
-                    return QtGui.QColor('#ff6666')  # 无效项文字颜色(红色)
-                elif channel.get('status') == '待检测':
-                    return QtGui.QColor('#999999')  # 待检测文字颜色(灰色)
-                else:
-                    # 根据主题返回适当颜色
-                    return QtGui.QColor(AppStyles.text_color())  # 使用styles中定义的主题文字颜色
+            else:
+                return QtGui.QColor(AppStyles.table_bg_color())  # 使用styles中定义的表格背景色
+        elif role == QtCore.Qt.ItemDataRole.ForegroundRole:
+            if not channel.get('valid', True):
+                return QtGui.QColor('#ff6666')  # 无效项文字颜色(红色)
+            elif channel.get('status') == '待检测':
+                return QtGui.QColor('#999999')  # 待检测文字颜色(灰色)
+            else:
+                return QtGui.QColor(AppStyles.text_color())  # 使用styles中定义的主题文字颜色
             
             # 数据加载完成后自动调整列宽
             if role == QtCore.Qt.ItemDataRole.DisplayRole and index.column() == 0:
@@ -559,9 +560,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             lines = content.splitlines()
             current_channel = None
             
-            # 检查是否是Excel文件
-            if content.startswith(b'PK\x03\x04'):  # Excel文件头
-                return self.from_excel(content)
+            # Excel文件现在由list_manager.py处理
+            # 这里只处理文本内容
             
             for line in lines:
                 line = line.strip()
