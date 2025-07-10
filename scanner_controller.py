@@ -5,6 +5,7 @@ from typing import List, Dict
 from url_parser import URLRangeParser
 from log_manager import LogManager
 from channel_model import ChannelListModel
+from PyQt6 import QtCore
 from PyQt6.QtCore import pyqtSignal, QObject
 from channel_mappings import extract_channel_name_from_url
 
@@ -229,6 +230,41 @@ class ScannerController(QObject):
                 self.logger.error(f"验证线程错误: {e}")
                 time.sleep(0.1)
         
+    def __init__(self, model: ChannelListModel):
+        super().__init__()
+        self.logger = LogManager()
+        self.model = model
+        self.url_parser = URLRangeParser()
+        self.is_validating = False
+        self.stats_lock = threading.Lock()
+        self.scan_queue = queue.Queue()  # 扫描专用队列
+        self.validation_queue = queue.Queue()  # 验证专用队列
+        self.stop_event = threading.Event()
+        self.workers = []
+        self.timeout = 10  # 默认超时时间
+        self.channel_counter = 0
+        self.counter_lock = threading.Lock()
+        
+        # 批量更新相关属性
+        self._batch_channels = []
+        self._batch_size = 50  # 每50个频道批量更新一次
+        self._batch_timer = QtCore.QTimer()
+        self._batch_timer.setInterval(500)  # 500ms更新一次
+        self._batch_timer.timeout.connect(self._flush_batch_channels)
+        self._batch_timer.start()
+
+    def _flush_batch_channels(self):
+        """批量发送频道数据"""
+        if not self._batch_channels:
+            return
+            
+        # 批量发送频道数据
+        channels = self._batch_channels.copy()
+        self._batch_channels.clear()
+        
+        # 使用单个信号发送所有频道
+        self.channel_found.emit({'batch': True, 'channels': channels})
+        
     def _worker(self):
         """工作线程函数"""
         while not self.stop_event.is_set():
@@ -253,8 +289,13 @@ class ScannerController(QObject):
                 # 只记录有效频道信息
                 if valid:
                     log_msg = f"有效频道 - 原始名: {channel_info['raw_name']}, 映射名: {channel_info['name']}, 分组: {channel_info['group']}, URL: {url}"
-                    self.channel_found.emit(channel_info)
                     self.logger.info(log_msg)
+                    
+                    # 添加到批量缓存
+                    with self.counter_lock:
+                        self._batch_channels.append(channel_info)
+                        if len(self._batch_channels) >= self._batch_size:
+                            self._flush_batch_channels()
                 
                 with self.stats_lock:
                     if valid:
@@ -262,13 +303,18 @@ class ScannerController(QObject):
                     else:
                         self.stats['invalid'] += 1
                     
-                    self.progress_updated.emit(
-                        self.stats['valid'] + self.stats['invalid'],
-                        self.stats['total']
-                    )
+                    # 控制进度更新频率
+                    if (self.stats['valid'] + self.stats['invalid']) % 10 == 0:
+                        self.progress_updated.emit(
+                            self.stats['valid'] + self.stats['invalid'],
+                            self.stats['total']
+                        )
                 
             except Exception as e:
                 self.logger.error(f"工作线程错误: {e}")
+        
+        # 工作线程结束时刷新剩余频道
+        self._flush_batch_channels()
         
     def _update_progress(self, valid: bool):
         """更新扫描进度"""
