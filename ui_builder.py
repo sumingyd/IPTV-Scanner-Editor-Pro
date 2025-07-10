@@ -454,8 +454,11 @@ class UIBuilder:
         for i in range(header.count()):
             header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         
-        # 数据变化时自动调整列宽
-        self.main_window.model.dataChanged.connect(lambda: header.resizeSections())
+        # 使用定时器控制列宽调整频率
+        self._resize_timer = QtCore.QTimer()
+        self._resize_timer.setSingleShot(True)
+        self._resize_timer.setInterval(500)  # 500ms延迟
+        self._resize_timer.timeout.connect(header.resizeSections)
 
         # 监听数据变化重新计算布局和更新按钮状态
         def update_buttons():
@@ -463,7 +466,8 @@ class UIBuilder:
             self.main_window.pause_btn.setEnabled(has_channels)
             self.main_window.pause_btn.setStyleSheet(AppStyles.button_style(active=has_channels))
 
-        self.main_window.model.dataChanged.connect(lambda: header.resizeSections())
+        # 使用批量更新机制
+        self.main_window.model.dataChanged.connect(lambda: self._resize_timer.start())
         self.main_window.model.dataChanged.connect(update_buttons)
         self.main_window.model.rowsInserted.connect(update_buttons)
         self.main_window.model.rowsRemoved.connect(update_buttons)
