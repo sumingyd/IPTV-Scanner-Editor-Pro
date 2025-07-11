@@ -16,9 +16,40 @@ class MainWindow(QtWidgets.QMainWindow):
         self.config = ConfigManager()
         self.logger = LogManager()
         
+        # 确保在主线程创建
+        if QtCore.QThread.currentThread() != self.thread():
+            QtCore.QMetaObject.invokeMethod(self, "__init__", QtCore.Qt.ConnectionType.BlockingQueuedConnection)
+            return
+            
         # 构建UI
         self.ui = UIBuilder(self)
         self.ui.build_ui()
+        
+        # 用于管理所有定时器
+        self._timers = []
+        
+        # 确保所有定时器在主线程创建
+        QtCore.QTimer.singleShot(0, self._init_timers)
+        
+    def _init_timers(self):
+        """在主线程初始化所有定时器"""
+        # 添加UI刷新定时器
+        refresh_timer = QtCore.QTimer(self)
+        refresh_timer.timeout.connect(lambda: None)
+        refresh_timer.start(50)
+        self._timers.append(refresh_timer)
+        
+        # 添加其他需要的定时器...
+        
+    def _stop_all_timers(self):
+        """安全停止所有定时器"""
+        for timer in self._timers:
+            if timer.isActive():
+                if QtCore.QThread.currentThread() == timer.thread():
+                    timer.stop()
+                else:
+                    QtCore.QMetaObject.invokeMethod(timer, "stop", QtCore.Qt.ConnectionType.QueuedConnection)
+        self._timers.clear()
         
         # 初始化控制器(确保模型已由UIBuilder初始化)
         self.scanner = ScannerController(self.model)
@@ -395,6 +426,21 @@ class MainWindow(QtWidgets.QMainWindow):
                 f"无法显示关于对话框: {str(e)}"
             )
 
+    def init_background_tasks(self):
+        """在后台线程执行的初始化任务"""
+        # 加载配置等耗时操作
+        self._load_config()
+        
+        # 初始化控制器
+        self.scanner = ScannerController(self.model)
+        from player_controller import PlayerController
+        from list_manager import ListManager
+        self.player_controller = PlayerController(self.ui.main_window.player, self.model)
+        self.list_manager = ListManager(self.model)
+        
+        # 连接信号槽
+        self._connect_signals()
+
     def save_before_exit(self):
         """程序退出前保存所有配置"""
         try:
@@ -428,90 +474,131 @@ def main():
     # 创建应用实例
     app = QtWidgets.QApplication(sys.argv)
     
-    # 创建精美的启动画面
+    # 先立即显示简单启动画面
     splash = QtWidgets.QSplashScreen()
     splash.setFixedSize(400, 300)
+    splash.show()
+    app.processEvents()
+    
+    # 快速设置基本样式
     splash.setStyleSheet("""
-        QSplashScreen {
-            background: qlineargradient(
-                x1:0, y1:0, x2:1, y2:1,
-                stop:0 #1e5799, 
-                stop:1 #2989d8
-            );
-            border-radius: 10px;
-        }
-        QLabel {
-            color: white;
-            font-size: 18px;
-            font-weight: bold;
-            font-family: "Microsoft YaHei";
-        }
+        background: qlineargradient(
+            x1:0, y1:0, x2:1, y2:1,
+            stop:0 #1e5799,
+            stop:1 #2989d8
+        );
+        border-radius: 10px;
     """)
     
-    # 主布局
-    layout = QtWidgets.QVBoxLayout(splash)
-    layout.setContentsMargins(20, 20, 20, 20)
-    layout.setSpacing(20)
+    # 在主线程创建主窗口(空壳)
+    window = MainWindow()
+    window.hide()
     
-    # 添加加载动画
-    movie = QtGui.QMovie("icons/loading.gif")
-    movie.setScaledSize(QtCore.QSize(64, 64))
-    loading_anim = QtWidgets.QLabel(splash)
-    loading_anim.setMovie(movie)
-    loading_anim.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-    layout.addWidget(loading_anim)
-    movie.start()
+    # 创建容器widget用于动画
+    container = QtWidgets.QWidget()
+    container.setFixedSize(400, 300)
+    
+    # 添加动态logo
+    logo = QtWidgets.QLabel(container)
+    logo.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+    logo.setStyleSheet("""
+        color: white;
+        font-size: 48px;
+        font-weight: bold;
+    """)
+    logo.setText("IPTV")
+    logo.setGeometry(100, 50, 200, 100)
     
     # 添加加载文字
-    loading_text = QtWidgets.QLabel("正在加载，请稍候...", splash)
+    loading_text = QtWidgets.QLabel("正在加载...", container)
     loading_text.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-    layout.addWidget(loading_text)
+    loading_text.setStyleSheet("""
+        color: white;
+        font-size: 18px;
+        font-weight: bold;
+    """)
+    loading_text.setGeometry(0, 180, 400, 30)
     
-    # 添加版本信息(从about_dialog.py获取)
+    # 添加版本号
     from about_dialog import AboutDialog
-    version = QtWidgets.QLabel(f"版本 {AboutDialog.CURRENT_VERSION}", splash)
+    version = QtWidgets.QLabel(f"版本 {AboutDialog.CURRENT_VERSION}", container)
     version.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-    version.setStyleSheet("font-size: 12px; color: rgba(255,255,255,0.7);")
-    layout.addWidget(version)
+    version.setStyleSheet("""
+        color: rgba(255,255,255,0.7);
+        font-size: 12px;
+    """)
+    version.setGeometry(0, 260, 400, 20)
     
-    splash.setLayout(layout)
+    # 添加进度条
+    progress = QtWidgets.QProgressBar(container)
+    progress.setRange(0, 0)
+    progress.setTextVisible(False)
+    progress.setStyleSheet("""
+        QProgressBar {
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 5px;
+            background: rgba(0,0,0,0.2);
+            min-width: 300px;
+            max-width: 300px;
+            height: 10px;
+        }
+        QProgressBar::chunk {
+            background: rgba(255,255,255,0.7);
+            border-radius: 5px;
+        }
+    """)
+    progress.setGeometry(50, 220, 300, 10)
     
-    splash.show()
-    app.processEvents()  # 立即显示启动画面
+    # 添加logo动画
+    logo_anim = QtCore.QPropertyAnimation(logo, b"geometry")
+    logo_anim.setDuration(800)
+    logo_anim.setLoopCount(-1)
+    logo_anim.setKeyValueAt(0, QtCore.QRect(100, 50, 200, 100))
+    logo_anim.setKeyValueAt(0.5, QtCore.QRect(100, 40, 200, 100))
+    logo_anim.setKeyValueAt(1, QtCore.QRect(100, 50, 200, 100))
+    logo_anim.start()
     
-    # 在主线程创建主窗口
-    window = MainWindow()
+    # 将容器设置到splash
+    splash.setPixmap(container.grab())
     
-    # 在后台线程执行耗时初始化
-    class InitWorker(QtCore.QObject):
-        finished = QtCore.pyqtSignal()
+    # 使用定时器延迟加载后台任务
+    def init_app():
+        # 初始化后台任务
+        window.init_background_tasks()
         
-        def run(self):
-            # 这里可以执行耗时初始化操作
-            time.sleep(0.5)  # 模拟耗时操作
-            self.finished.emit()
-    
-    worker = InitWorker()
-    worker_thread = QtCore.QThread()
-    worker.moveToThread(worker_thread)
-    worker.finished.connect(worker_thread.quit)
-    worker_thread.started.connect(worker.run)
-    worker_thread.finished.connect(lambda: (
-        window.show(),
+        # 显示主窗口
+        window.show()
         splash.finish(window)
-    ))
-    worker_thread.start()
+        setattr(app, 'main_window', window)
     
-    # 保存主窗口引用
-    app.main_window = window
+    # 使用单次定时器延迟初始化
+    QtCore.QTimer.singleShot(100, init_app)
     
-    # 确保程序退出前保存所有配置
-    app.aboutToQuit.connect(lambda: (
-        app.main_window.save_before_exit() if hasattr(app, 'main_window') else None
-    ))
+    # 在主线程创建主窗口(空壳)
+    window = MainWindow()
+    window.hide()
+    
+    # 使用定时器延迟加载后台任务
+    def init_app():
+        # 初始化后台任务
+        window.init_background_tasks()
+        
+        # 显示主窗口
+        window.show()
+        splash.finish(window)
+        setattr(app, 'main_window', window)
+    
+    # 使用单次定时器延迟初始化
+    QtCore.QTimer.singleShot(100, init_app)
+    
+    # 确保程序退出前保存配置
+    def cleanup():
+        if hasattr(app, 'main_window'):
+            app.main_window.save_before_exit()
+    
+    app.aboutToQuit.connect(cleanup)
     
     # 启动事件循环
     sys.exit(app.exec())
-
 if __name__ == "__main__":
     main()
