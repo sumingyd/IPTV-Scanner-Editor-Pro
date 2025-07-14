@@ -7,6 +7,8 @@ from config_manager import ConfigManager
 from log_manager import LogManager
 from scanner_controller import ScannerController
 from styles import AppStyles
+from player_controller import PlayerController
+from list_manager import ListManager
 import sys
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -17,10 +19,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.logger = LogManager()
         
         # 确保在主线程创建
-        if QtCore.QThread.currentThread() != self.thread():
-            QtCore.QMetaObject.invokeMethod(self, "__init__", QtCore.Qt.ConnectionType.BlockingQueuedConnection)
-            return
-            
+        
         # 构建UI
         self.ui = UIBuilder(self)
         self.ui.build_ui()
@@ -34,10 +33,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def _init_timers(self):
         """在主线程初始化所有定时器"""
         # 添加UI刷新定时器
-        refresh_timer = QtCore.QTimer(self)
-        refresh_timer.timeout.connect(lambda: None)
-        refresh_timer.start(50)
-        self._timers.append(refresh_timer)
+        # refresh_timer = QtCore.QTimer(self)
+        # refresh_timer.timeout.connect(lambda: None)
+        # refresh_timer.start(50)
+        # self._timers.append(refresh_timer)
         
         # 添加其他需要的定时器...
         
@@ -51,12 +50,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     QtCore.QMetaObject.invokeMethod(timer, "stop", QtCore.Qt.ConnectionType.QueuedConnection)
         self._timers.clear()
         
-        # 初始化控制器(确保模型已由UIBuilder初始化)
-        self.scanner = ScannerController(self.model)
-        from player_controller import PlayerController
-        from list_manager import ListManager
-        self.player_controller = PlayerController(self.ui.main_window.player, self.model)
-        self.list_manager = ListManager(self.model)
+        # 初始化控制器
+        self.init_controllers()
         
         # UI构建完成后加载配置
         self._load_config()
@@ -64,6 +59,13 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # 连接信号槽
         self._connect_signals()
+
+    def init_controllers(self):
+        """初始化所有控制器"""
+        self.scanner = ScannerController(self.model)
+        self.player_controller = PlayerController(self.ui.main_window.player, self.model)
+        self.list_manager = ListManager(self.model)
+        
 
     def _update_validate_status(self, message):
         """更新有效性检测状态标签"""
@@ -428,18 +430,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def init_background_tasks(self):
         """在后台线程执行的初始化任务"""
-        # 加载配置等耗时操作
+        print(">> 后台任务开始")
         self._load_config()
-        
-        # 初始化控制器
-        self.scanner = ScannerController(self.model)
-        from player_controller import PlayerController
-        from list_manager import ListManager
-        self.player_controller = PlayerController(self.ui.main_window.player, self.model)
-        self.list_manager = ListManager(self.model)
-        
-        # 连接信号槽
-        self._connect_signals()
+        print(">> 后台任务结束")
 
     def save_before_exit(self):
         """程序退出前保存所有配置"""
@@ -465,140 +458,161 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.logger.error(f"保存退出配置失败: {e}")
 
+from PyQt6 import QtWidgets, QtCore, QtGui
+from about_dialog import AboutDialog  # 引入版本号
+
+class LoadingScreen(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.setFixedSize(400, 300)
+        self.setWindowFlags(
+            QtCore.Qt.WindowType.FramelessWindowHint |
+            QtCore.Qt.WindowType.WindowStaysOnTopHint
+        )
+
+        # 设置整体背景为渐变色
+        self.setStyleSheet("""
+            QWidget {
+                background-color: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:1,
+                    stop:0 #1e5799,
+                    stop:1 #2989d8
+                );
+            }
+        """)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
+
+        # LOGO 标签
+        self.logo = QtWidgets.QLabel("IPTV")
+        self.logo.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.logo.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 48px;
+                font-weight: bold;
+                background: transparent;
+            }
+        """)
+        layout.addWidget(self.logo)
+
+        # 加载文字
+        self.loading_text = QtWidgets.QLabel("正在加载…")
+        self.loading_text.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.loading_text.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 18px;
+                background: transparent;
+            }
+        """)
+        layout.addWidget(self.loading_text)
+
+        # 进度条
+        self.progress = QtWidgets.QProgressBar()
+        self.progress.setRange(0, 100)
+        self.progress.setValue(0)
+        self.progress.setTextVisible(False)
+        self.progress.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                border-radius: 5px;
+                background: rgba(0, 0, 0, 0.2);
+                height: 10px;
+            }
+            QProgressBar::chunk {
+                background: rgba(255, 255, 255, 0.7);
+                border-radius: 5px;
+            }
+        """)
+        layout.addWidget(self.progress)
+
+        # 版本号
+        self.version = QtWidgets.QLabel(f"版本 {AboutDialog.CURRENT_VERSION}")
+        self.version.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.version.setStyleSheet("""
+            QLabel {
+                color: rgba(255,255,255,0.7);
+                font-size: 12px;
+                background: transparent;
+            }
+        """)
+        layout.addWidget(self.version)
+
+        # 动画：LOGO 上下浮动
+        self._anim = QtCore.QPropertyAnimation(self.logo, b"geometry")
+        self._anim.setDuration(800)
+        self._anim.setLoopCount(-1)
+        self._anim.setKeyValueAt(0, QtCore.QRect(100, 50, 200, 100))
+        self._anim.setKeyValueAt(0.5, QtCore.QRect(100, 40, 200, 100))
+        self._anim.setKeyValueAt(1, QtCore.QRect(100, 50, 200, 100))
+        self._anim.start()
+
 def main():
-    # 设置事件循环策略为Windows策略(兼容性更好)
     if sys.platform == "win32":
         import asyncio
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    
-    # 创建应用实例
+
     app = QtWidgets.QApplication(sys.argv)
-    
-    # 先立即显示简单启动画面
-    splash = QtWidgets.QSplashScreen()
-    splash.setFixedSize(400, 300)
-    splash.show()
+
+    loading_screen = LoadingScreen()
+    loading_screen.show()
     app.processEvents()
-    
-    # 快速设置基本样式
-    splash.setStyleSheet("""
-        background: qlineargradient(
-            x1:0, y1:0, x2:1, y2:1,
-            stop:0 #1e5799,
-            stop:1 #2989d8
-        );
-        border-radius: 10px;
-    """)
-    
-    # 在主线程创建主窗口(空壳)
+
+    def fake_progress():
+        val = 0
+        while val < 95:
+            val += 1
+            time.sleep(0.02)
+            QtCore.QMetaObject.invokeMethod(
+                loading_screen.progress, "setValue",
+                QtCore.Qt.ConnectionType.QueuedConnection,
+                QtCore.Q_ARG(int, val)
+            )
+
+    threading.Thread(target=fake_progress, daemon=True).start()
+
     window = MainWindow()
     window.hide()
-    
-    # 创建容器widget用于动画
-    container = QtWidgets.QWidget()
-    container.setFixedSize(400, 300)
-    
-    # 添加动态logo
-    logo = QtWidgets.QLabel(container)
-    logo.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-    logo.setStyleSheet("""
-        color: white;
-        font-size: 48px;
-        font-weight: bold;
-    """)
-    logo.setText("IPTV")
-    logo.setGeometry(100, 50, 200, 100)
-    
-    # 添加加载文字
-    loading_text = QtWidgets.QLabel("正在加载...", container)
-    loading_text.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-    loading_text.setStyleSheet("""
-        color: white;
-        font-size: 18px;
-        font-weight: bold;
-    """)
-    loading_text.setGeometry(0, 180, 400, 30)
-    
-    # 添加版本号
-    from about_dialog import AboutDialog
-    version = QtWidgets.QLabel(f"版本 {AboutDialog.CURRENT_VERSION}", container)
-    version.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-    version.setStyleSheet("""
-        color: rgba(255,255,255,0.7);
-        font-size: 12px;
-    """)
-    version.setGeometry(0, 260, 400, 20)
-    
-    # 添加进度条
-    progress = QtWidgets.QProgressBar(container)
-    progress.setRange(0, 0)
-    progress.setTextVisible(False)
-    progress.setStyleSheet("""
-        QProgressBar {
-            border: 1px solid rgba(255,255,255,0.3);
-            border-radius: 5px;
-            background: rgba(0,0,0,0.2);
-            min-width: 300px;
-            max-width: 300px;
-            height: 10px;
-        }
-        QProgressBar::chunk {
-            background: rgba(255,255,255,0.7);
-            border-radius: 5px;
-        }
-    """)
-    progress.setGeometry(50, 220, 300, 10)
-    
-    # 添加logo动画
-    logo_anim = QtCore.QPropertyAnimation(logo, b"geometry")
-    logo_anim.setDuration(800)
-    logo_anim.setLoopCount(-1)
-    logo_anim.setKeyValueAt(0, QtCore.QRect(100, 50, 200, 100))
-    logo_anim.setKeyValueAt(0.5, QtCore.QRect(100, 40, 200, 100))
-    logo_anim.setKeyValueAt(1, QtCore.QRect(100, 50, 200, 100))
-    logo_anim.start()
-    
-    # 将容器设置到splash
-    splash.setPixmap(container.grab())
-    
-    # 使用定时器延迟加载后台任务
-    def init_app():
-        # 初始化后台任务
+    app.processEvents()
+
+    def init_background():
+        # 后台线程：只执行耗时非GUI逻辑
         window.init_background_tasks()
-        
-        # 显示主窗口
-        window.show()
-        splash.finish(window)
-        setattr(app, 'main_window', window)
-    
-    # 使用单次定时器延迟初始化
-    QtCore.QTimer.singleShot(100, init_app)
-    
-    # 在主线程创建主窗口(空壳)
-    window = MainWindow()
-    window.hide()
-    
-    # 使用定时器延迟加载后台任务
-    def init_app():
-        # 初始化后台任务
-        window.init_background_tasks()
-        
-        # 显示主窗口
-        window.show()
-        splash.finish(window)
-        setattr(app, 'main_window', window)
-    
-    # 使用单次定时器延迟初始化
-    QtCore.QTimer.singleShot(100, init_app)
-    
-    # 确保程序退出前保存配置
+
+        # 回主线程：完成UI相关逻辑（控制器 + 信号连接 + 显示）
+        def finish_ui_setup():
+            try:
+                print(">> 初始化控制器")
+                window.init_controllers()
+                print(">> 初始化信号")
+                window._connect_signals()
+                print(">> 设置进度条为100")
+                loading_screen.progress.setValue(100)
+
+                def close_and_show():
+                    print(">> 正在关闭加载动画并显示主窗口")
+                    loading_screen.close()
+                    window.show()
+
+                QtCore.QTimer.singleShot(200, close_and_show)
+            except Exception as e:
+                print(f"[异常] UI 初始化失败: {e}")
+
+    threading.Thread(target=init_background, daemon=True).start()
+
     def cleanup():
         if hasattr(app, 'main_window'):
             app.main_window.save_before_exit()
-    
     app.aboutToQuit.connect(cleanup)
-    
-    # 启动事件循环
+
+    setattr(app, 'main_window', window)
+
     sys.exit(app.exec())
+
+
 if __name__ == "__main__":
     main()
