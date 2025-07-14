@@ -430,9 +430,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def init_background_tasks(self):
         """在后台线程执行的初始化任务"""
-        print(">> 后台任务开始")
         self._load_config()
-        print(">> 后台任务结束")
 
     def save_before_exit(self):
         """程序退出前保存所有配置"""
@@ -551,6 +549,17 @@ class LoadingScreen(QtWidgets.QWidget):
         self._anim.setKeyValueAt(1, QtCore.QRect(100, 50, 200, 100))
         self._anim.start()
 
+    def start_ui_init(self):
+        """进度条完成后触发UI初始化"""
+        QtCore.QMetaObject.invokeMethod(
+            self, "close",
+            QtCore.Qt.ConnectionType.QueuedConnection
+        )
+        QtCore.QMetaObject.invokeMethod(
+            window, "show",
+            QtCore.Qt.ConnectionType.QueuedConnection
+        )
+
 def main():
     if sys.platform == "win32":
         import asyncio
@@ -564,14 +573,18 @@ def main():
 
     def fake_progress():
         val = 0
-        while val < 95:
+        while val < 100:
             val += 1
-            time.sleep(0.02)
+            time.sleep(0.3)  # 进一步减慢进度条速度
             QtCore.QMetaObject.invokeMethod(
                 loading_screen.progress, "setValue",
                 QtCore.Qt.ConnectionType.QueuedConnection,
                 QtCore.Q_ARG(int, val)
             )
+        # 进度条完成后才触发UI初始化
+        QtCore.QMetaObject.invokeMethod(
+            loading_screen, "start_ui_init",
+            QtCore.Qt.ConnectionType.QueuedConnection)
 
     threading.Thread(target=fake_progress, daemon=True).start()
 
@@ -579,30 +592,55 @@ def main():
     window.hide()
     app.processEvents()
 
-    def init_background():
-        # 后台线程：只执行耗时非GUI逻辑
-        window.init_background_tasks()
-
-        # 回主线程：完成UI相关逻辑（控制器 + 信号连接 + 显示）
-        def finish_ui_setup():
+    class BackgroundWorker(QtCore.QObject):
+        finished = QtCore.pyqtSignal()
+        
+        def run(self):
             try:
-                print(">> 初始化控制器")
-                window.init_controllers()
-                print(">> 初始化信号")
-                window._connect_signals()
-                print(">> 设置进度条为100")
-                loading_screen.progress.setValue(100)
+                # 后台线程：只执行耗时非GUI逻辑
+                window.init_background_tasks()
+                self.finished.emit()
+            except Exception as e:
+                print(f"[异常] 后台初始化失败: {e}")
+                # 直接显示主窗口作为后备方案
+                QtCore.QMetaObject.invokeMethod(window, "showNormal", QtCore.Qt.ConnectionType.QueuedConnection)
+                QtCore.QMetaObject.invokeMethod(loading_screen, "close", QtCore.Qt.ConnectionType.QueuedConnection)
 
-                def close_and_show():
-                    print(">> 正在关闭加载动画并显示主窗口")
+    def finish_ui_setup():
+        try:
+            window.init_controllers()
+            window._connect_signals()
+            loading_screen.progress.setValue(100)
+
+            def close_and_show():
+                try:
                     loading_screen.close()
                     window.show()
+                    window.raise_()
+                    window.activateWindow()
+                except Exception as e:
+                    # 强制显示主窗口
+                    window.showNormal()
+                    window.activateWindow()
 
-                QtCore.QTimer.singleShot(200, close_and_show)
-            except Exception as e:
-                print(f"[异常] UI 初始化失败: {e}")
+            # 确保在主线程执行
+            QtCore.QTimer.singleShot(200, close_and_show)
+        except Exception as e:
+            print(f"[异常] UI 初始化失败: {e}")
+            # 无论如何都尝试显示主窗口
+            window.showNormal()
+            loading_screen.close()
 
-    threading.Thread(target=init_background, daemon=True).start()
+    # 创建并启动后台线程
+    worker = BackgroundWorker()
+    thread = QtCore.QThread()
+    worker.moveToThread(thread)
+    thread.started.connect(worker.run)
+    worker.finished.connect(thread.quit)
+    worker.finished.connect(worker.deleteLater)
+    thread.finished.connect(thread.deleteLater)
+    worker.finished.connect(lambda: QtCore.QTimer.singleShot(0, finish_ui_setup))
+    thread.start()
 
     def cleanup():
         if hasattr(app, 'main_window'):
