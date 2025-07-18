@@ -181,6 +181,7 @@ __pycache__/
 # 缓存和数据
 epg_cache/
 *.log
+*.ini
 
 # 环境
 venv/
