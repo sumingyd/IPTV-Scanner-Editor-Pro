@@ -362,12 +362,18 @@ class UIBuilder:
         self.main_window.scan_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.main_window.scan_btn.setFixedHeight(36)
         
+        # 新增直接生成列表按钮
+        self.main_window.generate_btn = QtWidgets.QPushButton("直接生成列表")
+        self.main_window.generate_btn.setStyleSheet(AppStyles.button_style(active=True))
+        self.main_window.generate_btn.setFixedHeight(36)
+        
         # 扫描统计信息
         self.main_window.detailed_stats_label = QtWidgets.QLabel("总频道: 0 | 有效: 0 | 无效: 0 | 耗时: 0s")
 
         # 使用网格布局让按钮和统计信息并排显示
         button_stats_layout = QtWidgets.QGridLayout()
-        button_stats_layout.addWidget(self.main_window.scan_btn, 0, 0, 1, 2)
+        button_stats_layout.addWidget(self.main_window.scan_btn, 0, 0, 1, 1)
+        button_stats_layout.addWidget(self.main_window.generate_btn, 0, 1, 1, 1)
         button_stats_layout.addWidget(self.main_window.detailed_stats_label, 1, 0, 1, 2)
         
         button_stats_layout.setColumnStretch(0, 1)

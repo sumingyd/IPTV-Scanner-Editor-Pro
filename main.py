@@ -9,6 +9,7 @@ from scanner_controller import ScannerController
 from styles import AppStyles
 from player_controller import PlayerController
 from list_manager import ListManager
+from url_parser import URLRangeParser
 import sys
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -137,6 +138,9 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # 连接隐藏无效项按钮
         self.ui.main_window.btn_hide_invalid.clicked.connect(self._on_hide_invalid_clicked)
+        
+        # 连接直接生成列表按钮
+        self.ui.main_window.generate_btn.clicked.connect(self._on_generate_clicked)
         
         # 进度更新信号
         self.scanner.progress_updated.connect(
@@ -327,6 +331,39 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.main_window.model.index(index, 0),
             self.ui.main_window.model.index(index, self.ui.main_window.model.columnCount() - 1)
         )
+
+    def _on_generate_clicked(self):
+        """处理直接生成列表按钮点击事件"""
+        # 获取输入地址
+        url = self.ui.main_window.ip_range_input.text()
+        if not url.strip():
+            self.logger.warning("请输入生成地址")
+            self.ui.main_window.statusBar().showMessage("请输入生成地址", 3000)
+            return
+            
+        # 清空当前列表
+        self.model.clear()
+        
+        # 使用扫描器的URL生成器生成地址
+        url_parser = URLRangeParser()
+        url_generator = url_parser.parse_url(url)
+        
+        # 添加生成的地址到列表
+        count = 0
+        for batch in url_generator:
+            for url in batch:
+                channel = {
+                    'name': f"生成频道-{count+1}",
+                    'group': "生成频道",
+                    'url': url,
+                    'valid': False,
+                    'latency': 0,
+                    'status': '未检测'
+                }
+                self.model.add_channel(channel)
+                count += 1
+                
+        self.ui.main_window.statusBar().showMessage(f"已生成 {count} 个频道", 3000)
 
     def _on_hide_invalid_clicked(self):
         """处理隐藏无效项按钮点击事件"""
@@ -550,6 +587,7 @@ class LoadingScreen(QtWidgets.QWidget):
         self._anim.setKeyValueAt(1, QtCore.QRect(100, 50, 200, 100))
         self._anim.start()
 
+    @QtCore.pyqtSlot()
     def start_ui_init(self):
         """进度条完成后触发UI初始化"""
         if self.main_window:
