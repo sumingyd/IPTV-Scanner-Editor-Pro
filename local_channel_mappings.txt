@@ -93,9 +93,8 @@ NHK世界台 = "NHK" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-E
 阿里郎 = "阿里郎-alilang" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/韩国/阿里郎.png = 国际频道
 澳门电视台 = "澳门卫视-aomen" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/澳门/澳门电视台.png = 国际频道
 法兰西 = "法兰西-falanxi" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/法兰西/法兰西.png = 国际频道
-欧洲新闻 = "欧洲新闻-OUZHOUXINWEN" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/欧洲/欧洲新闻.png = 国际频道
+欧洲新闻 = "欧洲新闻-OUZHOUXINWEN" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/德国/DW德国之声.png = 国际频道
 新加坡新闻 = "新加坡新闻-xinjiapo" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新加坡/新加坡新闻.png = 国际频道
-
 
 ##########    特色频道    ##########
 CHC动作电影 = "CHC-dongzuo" "CHANNEL00002030" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC动作电影.png = 特色频道
