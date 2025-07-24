@@ -1,3 +1,4 @@
+from curses import window
 from PyQt6 import QtWidgets, QtCore, QtGui
 import time
 import threading
