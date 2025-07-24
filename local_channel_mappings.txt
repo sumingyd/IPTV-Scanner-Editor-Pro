@@ -149,7 +149,7 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 优优宝贝 = "增值-youyoubaobei" "CHANNEL00000641" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/优优宝贝2.png = 特色频道
 游戏风云 = "增值-youxifengyun" "CHANNEL00002024" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/游戏风云.png = 特色频道
 中国交通 = "zhongguo-jiaotong" "CHANNEL00000073" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/公安部/中国交通3.png = 特色频道
-中华特产 = "zhuanxian-zhonghuatechan" "CHANNEL00000642" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/中华特产.png = 特色频道
+中华特产 = "zhuanxian-zhonghuatechan" "增值-zhonghuatechan" "CHANNEL00000642" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/中华特产.png = 特色频道
 重温经典影视 = "Kan-shandong" "CHANNEL00000364" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/央视/重温经典影视.png = 特色频道
 综合测试 = "239.21.1.203:5002" = = 特色频道
 已停用 = "239.21.2.26:5002" = = 特色频道
@@ -186,7 +186,7 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 济南少儿 = "标清济南少儿-jinanshaoer" "CHANNEL00000067" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南少儿.png = 市级频道
 济南生活 = "标清济南生活-jinanshenghuo" "CHANNEL00000063" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南生活.png = 市级频道
 济南体育 = "标清济南文旅-jinanwenlv" "CHANNEL00000064" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南文旅体育.png = 市级频道
-济南新闻 = "标清济南新闻-jinanxinwen" "CHANNEL00000061" "CHANNEL00000312" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南新闻.png = 市级频道
+济南新闻 = "标清济南新闻-jinanxinwen" "JINAN-XINWEN济南高清" "CHANNEL00000061" "CHANNEL00000312" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南新闻.png = 市级频道
 济南娱乐 = "标清济南娱乐-jinanyule" "CHANNEL00000065" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南娱乐.png = 市级频道
 济南综合 = "239.21.1.62:5002" "CHANNEL00004000" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南新闻综合.png = 市级频道
 济宁高新 = "jining-gaoxin" "CHANNEL00001101" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png = 市级频道
