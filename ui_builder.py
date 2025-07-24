@@ -514,8 +514,8 @@ class UIBuilder:
         menu = QtWidgets.QMenu()
         
         # 获取选中频道的URL和名称
-        url = self.main_window.model.data(self.main_window.model.index(index.row(), 2))  # URL在第2列
-        name = self.main_window.model.data(self.main_window.model.index(index.row(), 0))  # 名称在第0列
+        url = self.main_window.model.data(self.main_window.model.index(index.row(), 3))  # URL在第3列
+        name = self.main_window.model.data(self.main_window.model.index(index.row(), 1))  # 名称在第1列
         
         # 添加复制频道名菜单项
         copy_name_action = QtGui.QAction("复制频道名", self.main_window)
