@@ -5,6 +5,7 @@ __pycache__/
 
 # C extensions
 *.so
+*.ini
 
 # Distribution / packaging
 .Python
@@ -187,3 +188,4 @@ epg_cache/
 venv/
 .env
 iptv_manager.log
+.ini
