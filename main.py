@@ -1,4 +1,3 @@
-from curses import window
 from PyQt6 import QtWidgets, QtCore, QtGui
 import time
 import threading
@@ -461,8 +460,9 @@ from PyQt6 import QtWidgets, QtCore, QtGui
 from about_dialog import AboutDialog  # 引入版本号
 
 class LoadingScreen(QtWidgets.QWidget):
-    def __init__(self):
+    def __init__(self, main_window=None):
         super().__init__()
+        self.main_window = main_window
 
         self.setFixedSize(400, 300)
         self.setWindowFlags(
@@ -552,14 +552,9 @@ class LoadingScreen(QtWidgets.QWidget):
 
     def start_ui_init(self):
         """进度条完成后触发UI初始化"""
-        QtCore.QMetaObject.invokeMethod(
-            self, "close",
-            QtCore.Qt.ConnectionType.QueuedConnection
-        )
-        QtCore.QMetaObject.invokeMethod(
-            window, "show",
-            QtCore.Qt.ConnectionType.QueuedConnection
-        )
+        if self.main_window:
+            self.close()
+            self.main_window.show()
 
 def main():
     if sys.platform == "win32":
@@ -568,7 +563,8 @@ def main():
 
     app = QtWidgets.QApplication(sys.argv)
 
-    loading_screen = LoadingScreen()
+    window = MainWindow()
+    loading_screen = LoadingScreen(window)
     loading_screen.show()
     app.processEvents()
 
@@ -589,7 +585,7 @@ def main():
 
     threading.Thread(target=fake_progress, daemon=True).start()
 
-    window = MainWindow()
+    # window已在前面创建
     window.hide()
     app.processEvents()
 
