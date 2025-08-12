@@ -45,7 +45,7 @@ CGTN俄语 = "239.21.2.35:5002" "CHANNEL00000357" = https://raw.githubuserconten
 ##########    卫视    ##########
 安徽卫视 = "239.21.1.21:5002" "ANHUI-UD" "CHANNEL00000328" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/安徽/安徽卫视2.png = 卫视
 北京卫视 = "239.21.1.20:5002" "BEIJING" "BEIJING-HD" "CHANNEL00000019" "CHANNEL00000302" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视.png = 卫视
-北京卫视-4K = "BRIJING-4K-25P" "BEIJING-4K-50P" "239.21.2.172:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视4K.png = 卫视
+北京卫视-4K = "BRIJING-4K-25P" "BEIJING-4K-50P" "239.21.2.172:5002" "苏超25P" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视4K.png = 卫视
 兵团卫视 = "标清兵团-bingtuan" "CHANNEL00000071" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/兵团卫视2.png = 卫视
 东方卫视 = "239.21.1.23:5002" "SHANGHAI" "SHANGHAI-HD" "CHANNEL00000022" "CHANNEL00000309" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方卫视1.png = 卫视
 东南卫视 = "239.21.1.29:5002" "FUJIAN" "FUJIAN-HD" "CHANNEL00000028" "CHANNEL00000310" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/福建/东南卫视2.png = 卫视
@@ -138,7 +138,7 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 生活时尚 = "增值-shenghuoshishang" "CHANNEL00002019" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/生活时尚.png = 特色频道
 生态环境 = "239.21.2.160:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/生态环境.png = 特色频道
 书画 = "增值-shuhua" "CHANNEL00000651" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/书画.png = 特色频道
-四海钓鱼 = "增值-sihaidiaoyu" "CHANNEL00000640" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/四海钓鱼.png = 特色频道
+四海钓鱼 = "增值-sihaidiaoyu" "CHANNEL00000640" "增值-sihaidiaoyuHD" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/四海钓鱼.png = 特色频道
 天下足球 = "239.21.1.162:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/天下足球.png = 特色频道
 文物宝库 = "增值-wenwubaoku" "CHANNEL00000658" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/文物宝库.png = 特色频道
 武术世界 = "增值-wushushijie" "CHANNEL00000657" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/武术世界.png = 特色频道
