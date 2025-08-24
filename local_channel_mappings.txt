@@ -4,12 +4,12 @@
 ##########    央视频道    ##########
 CCTV-1 综合 = "CCTV1" "cctv-1" "CCTV-1" "CCTV1-SD" "CCTV1-HD" "CHANNEL00000001" "CHANNEL00000311" "CHANNEL00004003" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV1.png = 央视频道
 CCTV-2 财经 = "CCTV2" "CCTV2-HD" "CHANNEL00000317" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV2.png = 央视频道
-CCTV-3 综艺 = "CCTV3" "CCTV3-HD" "CHANNEL00000003" "CHANNEL00000359" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV3.png = 央视频道
+CCTV-3 综艺 = "239.21.2.45:5002" "CCTV3" "CCTV3-HD" "CHANNEL00000003" "CHANNEL00000359" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV3.png = 央视频道
 CCTV-4 (亚洲) = "CCTV4" "CCTV4-HD" "CHANNEL00000320" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4.png = 央视频道
 CCTV-4 (欧洲) = "239.21.2.28:5002" "CHANNEL00000350" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4欧洲.png = 央视频道
 CCTV-4 (美洲) = "239.21.2.29:5002" "CHANNEL00000351" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4美洲.png = 央视频道
 CCTV-4K 超高清 = "CCTV " "CCTV 4K" "239.21.2.152:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4K.png = 央视频道
-CCTV-5 体育 = "CCTV5" "CCTV5-HD" "CHANNEL00000360" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV5.png = 央视频道
+CCTV-5 体育 = "239.21.2.46:5002" "CCTV5" "CCTV5-HD" "CHANNEL00000360" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV5.png = 央视频道
 CCTV-5+ 体育赛事 = "CCTV5+" "CCTV5+-HD" "CHANNEL00000316" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV5+.png = 央视频道
 CCTV-6 电影 = "CCTV6" "CCTV6-HD" "CHANNEL00000006" "CHANNEL00000361" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV6.png = 央视频道
 CCTV-7 国防军事 = "CCTV7" "CCTV7-HD" "CHANNEL00000318" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV7.png = 央视频道
@@ -58,9 +58,9 @@ CGTN俄语 = "239.21.2.35:5002" "CHANNEL00000357" = https://raw.githubuserconten
 广西卫视 = "GuangXi" "GuangXi-HD" "CHANNEL00000038" "CHANNEL00000368" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广西/广西卫视2.png = 卫视
 贵州卫视 = "239.21.1.42:5002" "GUIZHOU" "GUIZHOU-HD" "CHANNEL00000041" "CHANNEL00000329" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/贵州/贵州卫视3.png = 卫视
 海南卫视 = "HAINAN" "HAINAN-HD" "239.21.1.31:5002" "CHANNEL00000347" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/海南/海南卫视3.png = 卫视
-河北卫视 = "�ӱ�����" "HEBEI" "HEBEI-HD" "CHANNEL00000034" "CHANNEL00000330" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河北/河北卫视3.png = 卫视
+河北卫视 = "239.21.1.168:5002" "�ӱ�����" "HEBEI" "HEBEI-HD" "CHANNEL00000034" "CHANNEL00000330" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河北/河北卫视3.png = 卫视
 河南卫视 = "HENAN" "HENAN-HD" "239.21.1.38:5002" "CHANNEL00000037" "CHANNEL00000358" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/河南卫视3.png = 卫视
-黑龙江卫视 = "239.21.1.28:5002" "HEILONGJIANG" "HEILONGJIANG-HD" "CHANNEL00000027" "CHANNEL00000306" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/黑龙江/黑龙江卫视1.png = 卫视
+黑龙江卫视 = "239.21.1.91:5002" "239.21.1.28:5002" "HEILONGJIANG" "HEILONGJIANG-HD" "CHANNEL00000027" "CHANNEL00000306" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/黑龙江/黑龙江卫视1.png = 卫视
 湖北卫视 = ""HUBEI"" "HUBEI-HD" "hubei-sd-dianxin" "CHANNEL00000031" "CHANNEL00000325" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖北/湖北卫视2.png = 卫视
 湖南卫视 = "239.21.1.18:5002" "HUNAN" "HUNAN-HD" "CHANNEL00000324" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/湖南卫视1.png = 卫视
 吉林卫视 = "��������" "JILIN" "JILIN-HD" "CHANNEL00000036" "CHANNEL00000363" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/吉林/吉林卫视3.png = 卫视
@@ -141,12 +141,13 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 四海钓鱼 = "增值-sihaidiaoyu" "CHANNEL00000640" "增值-sihaidiaoyuHD" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/四海钓鱼.png = 特色频道
 天下足球 = "239.21.1.162:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/天下足球.png = 特色频道
 文物宝库 = "增值-wenwubaoku" "CHANNEL00000658" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/文物宝库.png = 特色频道
-武术世界 = "增值-wushushijie" "CHANNEL00000657" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/武术世界.png = 特色频道
+武术世界 = "239.21.2.96:5002" "增值-wushushijie" "CHANNEL00000657" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/武术世界.png = 特色频道
 先锋乒羽 = "增值-xianfengpingyu" "CHANNEL00000650" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/先锋乒羽.png = 特色频道
 新动漫 = "239.21.2.93:5002" "xindongman-AS" "CHANNEL00000659" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/辽宁/新动漫2.png = 特色频道
 优漫卡通 = "标清优漫卡通-youman" "CHANNEL00000049" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/优漫卡通2.png = 特色频道
 优优宝贝 = "增值-youyoubaobei" "CHANNEL00000641" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/优优宝贝2.png = 特色频道
 游戏风云 = "增值-youxifengyun" "CHANNEL00002024" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/游戏风云.png = 特色频道
+苏超联赛 = "苏超25帧" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/苏超联赛.png = 特色频道
 中国交通 = "zhongguo-jiaotong" "CHANNEL00000073" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/公安部/中国交通3.png = 特色频道
 中华特产 = "zhuanxian-zhonghuatechan" "增值-zhonghuatechan" "CHANNEL00000642" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/中华特产.png = 特色频道
 重温经典影视 = "Kan-shandong" "CHANNEL00000364" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/央视/重温经典影视.png = 特色频道
@@ -191,7 +192,7 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 济宁高新 = "jining-gaoxin" "CHANNEL00001101" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png = 市级频道
 济宁公共 = "jining-gonggong" "CHANNEL00000241" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png = 市级频道
 济宁生活 = "jining-shenghuo" "CHANNEL00000239" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png = 市级频道
-济宁综合 = "jining-zonghe" "jining-zongheHD" "CHANNEL00000240" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png = 市级频道
+济宁综合 = "239.21.2.19:5002" "jining-zonghe" "jining-zongheHD" "CHANNEL00000240" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png = 市级频道
 聊城民生 = "liaocheng-minsheng" "CHANNEL00000251" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城.png = 市级频道
 聊城综合 = "liaocheng-zonghe" "CHANNEL00000250" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城.png = 市级频道
 青岛QTV-1 = "QTV-1" "CHANNEL00000500" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV1.png = 市级频道
@@ -211,7 +212,7 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 潍坊新闻 = "weifang-1" "CHANNEL00000215" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊新闻.png = 市级频道
 潍坊影视 = "weifang-3" "CHANNEL00000217" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊影视.png = 市级频道
 烟台公共 = "yantai-gonggong" "CHANNEL00000281" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png = 市级频道
-烟台经济 = "yantai-jingji" "CHANNEL00000282" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png = 市级频道
+烟台经济 = "239.21.1.205:5002" "yantai-jingji" "CHANNEL00000282" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png = 市级频道
 烟台新闻 = "yantai-xinwen" "CHANNEL00000280" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png = 市级频道
 烟台影视 = "yantai-yingshi" "CHANNEL00000283" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png = 市级频道
 淄博民生 = "zibo-minsheng" "CHANNEL00000294" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博民生.png = 市级频道
@@ -229,9 +230,9 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 
 ##########      聊城     ##########
 莘县综合 = "shenxian" "CHANNEL00001047" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城莘县.png = 聊城
-茌平综合 = "chiping" "CHANNEL00001048" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城茌平.png = 聊城
+茌平综合 = "239.21.1.219:5002" "chiping" "CHANNEL00001048" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城茌平.png = 聊城
 冠县综合 = "guanxian" "CHANNEL00001040" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城冠县.png = 聊城
-东阿综合 = "donge" "CHANNEL00001093" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城东阿.png = 聊城
+东阿综合 = "239.21.2.61:5002" "donge" "CHANNEL00001093" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城东阿.png = 聊城
 临清综合 = "linqing-zonghe" "CHANNEL00001103" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城临清.png = 聊城
 
 ##########      滨州     ##########
@@ -269,7 +270,7 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 武城综合 = "wucheng-xinwen" "CHANNEL00001059" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州武城.png = 德州
 武城综艺 = "CHANNEL00001060" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州武城.png = 德州
 禹城综合 = "yucheng-zonghe" "CHANNEL00001061" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州禹城.png = 德州
-禹城综艺 = "yucheng-zongyi" "CHANNEL00001062" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州禹城.png = 德州
+禹城综艺 = "239.21.1.242:5002" "yucheng-zongyi" "CHANNEL00001062" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州禹城.png = 德州
 齐河综合 = "qihe" "CHANNEL00001056" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州齐河.png = 德州
 平原综合 = "pingyuan" "CHANNEL00001064" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州平原.png = 德州
 陵城综合 = "lingcheng" "CHANNEL00001082" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州陵城.png = 德州
@@ -334,7 +335,7 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 长岛综合 = "changdao" "CHANNEL00001090" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台长岛.png = 烟台
 蓬莱综合 = "penglai" "CHANNEL00001088" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台蓬莱.png = 烟台
 海阳综合 = "haiyang-zonghe" "海阳综合电信用" "CHANNEL00001091" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台海阳.png = 烟台
-海阳综艺 = "haiyang-zongyi" "CHANNEL00001092" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台海阳.png = 烟台
+海阳综艺 = "239.21.2.65:5002" "haiyang-zongyi" "CHANNEL00001092" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台海阳.png = 烟台
 招远综合 = "zhaoyuan-zonghe" "CHANNEL00001113" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台招远.png = 烟台
 龙口综合 = "longkou-zonghe" "CHANNEL00001005" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台龙口.png = 烟台
 
@@ -343,5 +344,5 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 崂山综合 = "laoshan" "CHANNEL00001022" "CHANNEL00001075" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛崂山.png = 青岛
 平度综合 = "pingdu-PDTV-1" "CHANNEL00001054" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛平度.png = 青岛
 黄岛综合 = "huangdao-xinwen" "CHANNEL00001086" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛黄岛.png = 青岛
-黄岛生活 = "huangdao-shenghuo" "CHANNEL00001087" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛黄岛.png = 青岛
+黄岛生活 = "239.21.2.58:5002" "huangdao-shenghuo" "CHANNEL00001087" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛黄岛.png = 青岛
 胶州综合 = "jiaozhou" "CHANNEL00001074" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛胶州.png = 青岛
