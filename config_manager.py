@@ -59,6 +59,15 @@ class ConfigManager:
             'referer': self.get_value('Network', 'referer', '')
         }
         
+    def save_language_settings(self, language_code):
+        """保存语言设置"""
+        self.set_value('Language', 'current_language', language_code)
+        return self.save_config()
+        
+    def load_language_settings(self):
+        """加载语言设置"""
+        return self.get_value('Language', 'current_language', 'zh')
+        
     def load_config(self):
         if os.path.exists(self.config_file):
             try:

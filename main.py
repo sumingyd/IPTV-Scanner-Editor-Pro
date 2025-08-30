@@ -10,6 +10,7 @@ from styles import AppStyles
 from player_controller import PlayerController
 from list_manager import ListManager
 from url_parser import URLRangeParser
+from language_manager import LanguageManager
 import sys
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -18,6 +19,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # 初始化配置和日志管理器
         self.config = ConfigManager()
         self.logger = LogManager()
+        
+        # 初始化语言管理器（确保在UI构建前可用）
+        self.language_manager = LanguageManager()
+        self.language_manager.load_available_languages()
         
         # 确保在主线程创建
         
@@ -85,8 +90,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.main_window.user_agent_input.setText(settings['user_agent'])
             if settings['referer']:
                 self.ui.main_window.referer_input.setText(settings['referer'])
+            
+            # 加载语言设置
+            language_code = self.config.load_language_settings()
+            if hasattr(self, 'language_manager'):
+                if self.language_manager.set_language(language_code):
+                    self.language_manager.update_ui_texts(self)
+                    
         except Exception as e:
-            self.logger.error(f"加载网络设置失败: {e}")
+            self.logger.error(f"加载配置失败: {e}")
             # 设置默认值
             self.ui.main_window.timeout_input.setValue(10)
             self.ui.main_window.thread_count_input.setValue(5)
@@ -105,18 +117,7 @@ class MainWindow(QtWidgets.QMainWindow):
             pass
         self.ui.main_window.scan_btn.clicked.connect(self._on_scan_clicked)
                 
-        # 连接工具栏按钮
-        for action in self.ui.main_window.findChildren(QtGui.QAction):
-            try:
-                action.triggered.disconnect()
-            except:
-                pass
-            if "打开列表" in action.text():
-                action.triggered.connect(self._open_list)
-            elif "保存列表" in action.text():
-                action.triggered.connect(self._save_list)
-            elif "关于" in action.text():
-                action.triggered.connect(self._on_about_clicked)
+        # 工具栏按钮现在在UI构建器中直接连接信号，不需要在这里手动连接
                 
         # 连接播放控制信号
         self.ui.main_window.volume_slider.valueChanged.connect(
@@ -468,6 +469,11 @@ class MainWindow(QtWidgets.QMainWindow):
     def init_background_tasks(self):
         """在后台线程执行的初始化任务"""
         self._load_config()
+        
+        # 加载保存的语言设置
+        language_code = self.config.load_language_settings()
+        if hasattr(self, 'language_manager') and self.language_manager.set_language(language_code):
+            self.language_manager.update_ui_texts(self)
 
     def save_before_exit(self):
         """程序退出前保存所有配置"""
@@ -489,6 +495,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.main_window.user_agent_input.text(),
                 self.ui.main_window.referer_input.text()
             )
+            
+            # 保存语言设置
+            if hasattr(self, 'language_manager'):
+                self.config.save_language_settings(self.language_manager.current_language)
+                
             self.logger.info("程序退出前配置已保存")
         except Exception as e:
             self.logger.error(f"保存退出配置失败: {e}")
