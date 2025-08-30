@@ -5,6 +5,8 @@ from channel_model import ChannelListModel
 from styles import AppStyles
 from pathlib import Path
 from log_manager import LogManager
+from language_manager import LanguageManager
+import functools
 
 class UIBuilder:
     def __init__(self, main_window):
@@ -239,6 +241,7 @@ class UIBuilder:
     def _setup_player_panel(self, parent: QtWidgets.QWidget) -> None:
         """配置播放器面板"""
         player_group = QtWidgets.QGroupBox("视频播放")
+        self.main_window.player_group = player_group  # 设置为属性以便语言管理器访问
         player_layout = QtWidgets.QVBoxLayout()
         player_layout.setContentsMargins(2, 2, 2, 2)
         player_layout.setSpacing(5)
@@ -266,7 +269,9 @@ class UIBuilder:
         
         control_layout.addWidget(self.main_window.pause_btn)
         control_layout.addWidget(self.main_window.stop_btn)
-        control_layout.addWidget(QtWidgets.QLabel("音量："))
+        volume_label = QtWidgets.QLabel("音量：")
+        self.main_window.volume_label = volume_label  # 设置为属性以便语言管理器访问
+        control_layout.addWidget(volume_label)
         control_layout.addWidget(self.main_window.volume_slider)
         
         player_layout.addLayout(control_layout)
@@ -278,6 +283,7 @@ class UIBuilder:
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
         """配置扫描面板"""
         scan_group = QtWidgets.QGroupBox("扫描设置")
+        self.main_window.scan_group = scan_group  # 设置为属性以便语言管理器访问
         scan_layout = QtWidgets.QFormLayout()
         scan_layout.setContentsMargins(5, 5, 5, 5)  # 统一设置边距
         scan_layout.setSpacing(5)  # 统一设置间距
@@ -289,6 +295,7 @@ class UIBuilder:
         # 超时时间设置
         timeout_layout = QtWidgets.QHBoxLayout()
         timeout_label = QtWidgets.QLabel("设置扫描超时时间（秒）")
+        self.main_window.timeout_label = timeout_label  # 设置为属性以便语言管理器访问
         timeout_layout.addWidget(timeout_label)
         self.main_window.timeout_input = QtWidgets.QSpinBox()
         self.main_window.timeout_input.setRange(1, 60)
@@ -308,6 +315,7 @@ class UIBuilder:
         # 线程数设置
         thread_layout = QtWidgets.QHBoxLayout()
         thread_label = QtWidgets.QLabel("设置扫描使用的线程数量")
+        self.main_window.thread_count_label = thread_label  # 设置为属性以便语言管理器访问
         thread_layout.addWidget(thread_label)
         self.main_window.thread_count_input = QtWidgets.QSpinBox()
         self.main_window.thread_count_input.setRange(1, 100)
@@ -326,6 +334,7 @@ class UIBuilder:
         # User-Agent设置
         user_agent_layout = QtWidgets.QHBoxLayout()
         user_agent_label = QtWidgets.QLabel("User-Agent:")
+        self.main_window.user_agent_label = user_agent_label  # 设置为属性以便语言管理器访问
         user_agent_layout.addWidget(user_agent_label)
         self.main_window.user_agent_input = QtWidgets.QLineEdit()
         self.main_window.user_agent_input.setPlaceholderText("可选，留空使用默认")
@@ -343,6 +352,7 @@ class UIBuilder:
         # Referer设置
         referer_layout = QtWidgets.QHBoxLayout()
         referer_label = QtWidgets.QLabel("Referer:")
+        self.main_window.referer_label = referer_label  # 设置为属性以便语言管理器访问
         referer_layout.addWidget(referer_label)
         self.main_window.referer_input = QtWidgets.QLineEdit()
         self.main_window.referer_input.setPlaceholderText("可选，留空不使用")
@@ -379,13 +389,21 @@ class UIBuilder:
         button_stats_layout.setColumnStretch(0, 1)
         button_stats_layout.setColumnStretch(1, 1)
 
-        scan_layout.addRow("地址格式：", QtWidgets.QLabel("示例：http://192.168.1.1:1234/rtp/10.10.[1-20].[1-20]:5002   [1-20]表示范围"))
-        scan_layout.addRow("输入地址：", self.main_window.ip_range_input)
+        address_format_label = QtWidgets.QLabel("地址格式：")
+        self.main_window.address_format_label = address_format_label  # 设置为属性以便语言管理器访问
+        address_example_label = QtWidgets.QLabel("示例：http://192.168.1.1:1234/rtp/10.10.[1-20].[1-20]:5002   [1-20]表示范围")
+        self.main_window.address_example_label = address_example_label  # 设置为属性以便语言管理器访问
+        scan_layout.addRow(address_format_label, address_example_label)
+        input_address_label = QtWidgets.QLabel("输入地址：")
+        self.main_window.input_address_label = input_address_label  # 设置为属性以便语言管理器访问
+        scan_layout.addRow(input_address_label, self.main_window.ip_range_input)
         scan_layout.addRow("超时时间：", timeout_layout)
         scan_layout.addRow("线程数：", thread_layout)
         scan_layout.addRow("User-Agent：", user_agent_layout)
         scan_layout.addRow("Referer：", referer_layout)
-        scan_layout.addRow("进度：", self.main_window.scan_progress)
+        progress_label = QtWidgets.QLabel("进度：")
+        self.main_window.progress_label = progress_label  # 设置为属性以便语言管理器访问
+        scan_layout.addRow(progress_label, self.main_window.scan_progress)
         scan_layout.addRow(button_stats_layout)
 
         scan_group.setLayout(scan_layout)
@@ -399,6 +417,7 @@ class UIBuilder:
         
         # 频道列表区域
         list_group = QtWidgets.QGroupBox("频道列表")
+        self.main_window.list_group = list_group  # 设置为属性以便语言管理器访问
         list_layout = QtWidgets.QVBoxLayout()
         list_layout.setContentsMargins(5, 5, 5, 5)
         list_layout.setSpacing(5)
@@ -580,6 +599,7 @@ class UIBuilder:
     def _setup_channel_edit(self, parent) -> QtWidgets.QWidget:
         """配置频道编辑区域"""
         edit_group = QtWidgets.QGroupBox("频道编辑")
+        self.main_window.edit_group = edit_group  # 设置为属性以便语言管理器访问
         edit_layout = QtWidgets.QFormLayout()
         edit_layout.setContentsMargins(5, 5, 5, 5)
         edit_layout.setSpacing(5)
@@ -631,11 +651,25 @@ class UIBuilder:
         button_layout.addWidget(self.main_window.add_channel_btn)
         
         # 添加到布局
-        edit_layout.addRow("频道名称:", self.main_window.channel_name_edit)
-        edit_layout.addRow("频道分组:", self.main_window.channel_group_edit)
-        edit_layout.addRow("LOGO地址:", self.main_window.channel_logo_edit)
-        edit_layout.addRow("频道URL:", self.main_window.channel_url_edit)
-        edit_layout.addRow(QtWidgets.QLabel("操作:"))
+        channel_name_label = QtWidgets.QLabel("频道名称:")
+        self.main_window.channel_name_label = channel_name_label  # 设置为属性以便语言管理器访问
+        edit_layout.addRow(channel_name_label, self.main_window.channel_name_edit)
+        
+        channel_group_label = QtWidgets.QLabel("频道分组:")
+        self.main_window.channel_group_label = channel_group_label  # 设置为属性以便语言管理器访问
+        edit_layout.addRow(channel_group_label, self.main_window.channel_group_edit)
+        
+        logo_address_label = QtWidgets.QLabel("LOGO地址:")
+        self.main_window.logo_address_label = logo_address_label  # 设置为属性以便语言管理器访问
+        edit_layout.addRow(logo_address_label, self.main_window.channel_logo_edit)
+        
+        channel_url_label = QtWidgets.QLabel("频道URL:")
+        self.main_window.channel_url_label = channel_url_label  # 设置为属性以便语言管理器访问
+        edit_layout.addRow(channel_url_label, self.main_window.channel_url_edit)
+        
+        operation_label = QtWidgets.QLabel("操作:")
+        self.main_window.operation_label = operation_label  # 设置为属性以便语言管理器访问
+        edit_layout.addRow(operation_label)
         edit_layout.addRow(button_layout)
         
         edit_group.setLayout(edit_layout)
@@ -658,10 +692,47 @@ class UIBuilder:
                 action.setToolTip(tooltip)
             return action
 
-        # 主要功能按钮
+        # 主要功能按钮 - 在创建时直接连接信号
         open_action = create_action("📂", "打开列表", "打开IPTV列表文件")
+        open_action.triggered.connect(self.main_window._open_list)
+        
         save_action = create_action("💾", "保存列表", "保存当前列表到文件")
+        save_action.triggered.connect(self.main_window._save_list)
+        
+        # 使用QToolButton并手动连接菜单项点击事件
+        language_button = QtWidgets.QToolButton(self.main_window)
+        language_button.setText("🌐 语言")
+        language_button.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
+        language_button.setStyleSheet(AppStyles.toolbar_button_style())
+        
+        # 创建语言菜单
+        language_menu = QtWidgets.QMenu("语言", self.main_window)
+        language_button.setMenu(language_menu)
+        
+        # 加载可用语言
+        if not hasattr(self.main_window, 'language_manager') or not self.main_window.language_manager:
+            self.main_window.language_manager = LanguageManager()
+            # 确保新创建的语言管理器也加载可用语言
+            self.main_window.language_manager.load_available_languages()
+        available_languages = self.main_window.language_manager.available_languages
+        
+        # 添加语言选项并直接连接信号
+        for lang_code, lang_info in available_languages.items():
+            lang_action = QtGui.QAction(lang_info['display_name'], self.main_window)
+            lang_action.setData(lang_code)
+            # 直接连接信号，不使用functools.partial
+            lang_action.triggered.connect(lambda checked, code=lang_code: self._change_language(code))
+            language_menu.addAction(lang_action)
+            self.logger.info(f"添加语言选项: {lang_code} - {lang_info['display_name']}")
+        
+        self.logger.info(f"语言菜单包含 {language_menu.actions().__len__()} 个动作")
+        
+        # 创建QWidgetAction来包装QToolButton
+        language_action = QtWidgets.QWidgetAction(self.main_window)
+        language_action.setDefaultWidget(language_button)
+        
         about_action = create_action("ℹ️", "关于", "关于本程序")
+        about_action.triggered.connect(self.main_window._on_about_clicked)
 
         # 添加分隔符
         toolbar.addSeparator()
@@ -669,7 +740,23 @@ class UIBuilder:
         # 添加按钮到工具栏
         toolbar.addAction(open_action)
         toolbar.addAction(save_action)
+        toolbar.addAction(language_action)
         toolbar.addAction(about_action)
+        
+    def _change_language(self, lang_code):
+        """切换语言"""
+        self.logger.info(f"尝试切换语言到: {lang_code}")
+        print(f"DEBUG: 尝试切换语言到: {lang_code}")  # 添加控制台输出
+        if self.main_window.language_manager.set_language(lang_code):
+            # 保存语言设置
+            self.main_window.config.save_language_settings(lang_code)
+            # 更新UI文本
+            self.main_window.language_manager.update_ui_texts(self.main_window)
+            self.logger.info(f"语言已切换到: {lang_code}")
+            print(f"DEBUG: 语言已切换到: {lang_code}")  # 添加控制台输出
+        else:
+            self.logger.warning(f"语言切换失败: {lang_code}")
+            print(f"DEBUG: 语言切换失败: {lang_code}")  # 添加控制台输出
 
     def _show_about_dialog(self):
         """显示关于对话框"""
