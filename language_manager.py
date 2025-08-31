@@ -101,20 +101,36 @@ class LanguageManager:
                 main_window.address_example_label.setText(self.tr('address_example', 'Address Example'))
             if hasattr(main_window, 'input_address_label'):
                 main_window.input_address_label.setText(self.tr('input_address', 'Input Address'))
-            if hasattr(main_window, 'timeout_label'):
-                main_window.timeout_label.setText(self.tr('timeout', 'Timeout'))
+            if hasattr(main_window, 'timeout_description_label'):
+                main_window.timeout_description_label.setText(self.tr('timeout_description', 'Set scan timeout (seconds)'))
             if hasattr(main_window, 'thread_count_label'):
-                main_window.thread_count_label.setText(self.tr('thread_count', 'Thread Count'))
+                main_window.thread_count_label.setText(self.tr('thread_count_description', 'Set number of scan threads'))
             if hasattr(main_window, 'user_agent_label'):
                 main_window.user_agent_label.setText(self.tr('user_agent', 'User-Agent'))
             if hasattr(main_window, 'referer_label'):
                 main_window.referer_label.setText(self.tr('referer', 'Referer'))
             if hasattr(main_window, 'progress_label'):
                 main_window.progress_label.setText(self.tr('progress', 'Progress'))
+            if hasattr(main_window, 'timeout_row_label'):
+                main_window.timeout_row_label.setText(self.tr('timeout', 'Timeout') + "：")
+            if hasattr(main_window, 'thread_row_label'):
+                main_window.thread_row_label.setText(self.tr('thread_count', 'Thread Count') + "：")
+            if hasattr(main_window, 'user_agent_row_label'):
+                main_window.user_agent_row_label.setText(self.tr('user_agent', 'User-Agent') + "：")
+            if hasattr(main_window, 'referer_row_label'):
+                main_window.referer_row_label.setText(self.tr('referer', 'Referer') + "：")
             if hasattr(main_window, 'scan_btn'):
                 main_window.scan_btn.setText(self.tr('full_scan', 'Full Scan'))
             if hasattr(main_window, 'generate_btn'):
                 main_window.generate_btn.setText(self.tr('generate_list', 'Generate List'))
+            if hasattr(main_window, 'detailed_stats_label'):
+                # 详细统计标签需要动态更新，这里只设置初始文本
+                main_window.detailed_stats_label.setText(
+                    f"{self.tr('total_channels', 'Total Channels')}: 0 | "
+                    f"{self.tr('valid', 'Valid')}: 0 | "
+                    f"{self.tr('invalid', 'Invalid')}: 0 | "
+                    f"{self.tr('time_elapsed', 'Time Elapsed')}: 0s"
+                )
             
             # 更新频道列表区域
             if hasattr(main_window, 'list_group'):
@@ -125,6 +141,8 @@ class LanguageManager:
                 main_window.btn_hide_invalid.setText(self.tr('hide_invalid', 'Hide Invalid'))
             if hasattr(main_window, 'btn_smart_sort'):
                 main_window.btn_smart_sort.setText(self.tr('smart_sort', 'Smart Sort'))
+            if hasattr(main_window, 'validate_stats_label'):
+                main_window.validate_stats_label.setText(self.tr('please_load_list', 'Please load list first'))
             
             # 更新频道编辑区域
             if hasattr(main_window, 'edit_group'):
@@ -141,6 +159,20 @@ class LanguageManager:
                 main_window.edit_channel_btn.setText(self.tr('edit_channel', 'Edit Channel'))
             if hasattr(main_window, 'add_channel_btn'):
                 main_window.add_channel_btn.setText(self.tr('add_channel', 'Add Channel'))
+            if hasattr(main_window, 'operation_label'):
+                main_window.operation_label.setText(self.tr('operation', 'Operation') + ":")
+            
+            # 更新工具栏按钮文本
+            if hasattr(main_window, 'open_action'):
+                main_window.open_action.setText(f"📂 {self.tr('open_list', 'Open List')}")
+            if hasattr(main_window, 'save_action'):
+                main_window.save_action.setText(f"💾 {self.tr('save_list', 'Save List')}")
+            if hasattr(main_window, 'language_button'):
+                main_window.language_button.setText(f"🌐 {self.tr('language', 'Language')}")
+            if hasattr(main_window, 'language_menu'):
+                main_window.language_menu.setTitle(self.tr('language', 'Language'))
+            if hasattr(main_window, 'about_action'):
+                main_window.about_action.setText(f"ℹ️ {self.tr('about', 'About')}")
             
             # 更新占位符文本
             if hasattr(main_window, 'channel_name_edit'):
@@ -163,6 +195,10 @@ class LanguageManager:
                 main_window.user_agent_input.setPlaceholderText(self.tr('optional_default', 'Optional, use default if empty'))
             if hasattr(main_window, 'referer_input'):
                 main_window.referer_input.setPlaceholderText(self.tr('optional_not_used', 'Optional, not used if empty'))
+            
+            # 更新频道列表表头
+            if hasattr(main_window, 'model') and main_window.model:
+                main_window.model.set_language_manager(self)
             
             logger.info(f"UI文本已更新到语言: {self.current_language}")
             

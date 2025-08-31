@@ -164,7 +164,13 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.scanner.is_scanning():
             # 停止扫描
             self.scanner.stop_scan()
-            self.ui.main_window.scan_btn.setText("完整扫描")
+            # 使用语言管理器设置完整扫描按钮文本
+            if hasattr(self, 'language_manager') and self.language_manager:
+                self.ui.main_window.scan_btn.setText(
+                    self.language_manager.tr('full_scan', 'Full Scan')
+                )
+            else:
+                self.ui.main_window.scan_btn.setText("完整扫描")
         else:
             # 检查地址是否为空
             url = self.ui.main_window.ip_range_input.text()
@@ -178,7 +184,13 @@ class MainWindow(QtWidgets.QMainWindow):
             timeout = self.ui.main_window.timeout_input.value()
             threads = self.ui.main_window.thread_count_input.value()
             self.scanner.start_scan(url, threads, timeout)
-            self.ui.main_window.scan_btn.setText("停止扫描")
+            # 使用语言管理器设置停止扫描按钮文本
+            if hasattr(self, 'language_manager') and self.language_manager:
+                self.ui.main_window.scan_btn.setText(
+                    self.language_manager.tr('stop_scan', 'Stop Scan')
+                )
+            else:
+                self.ui.main_window.scan_btn.setText("停止扫描")
 
     def _validate_all_channels(self, timeout: int, threads: int):
         """验证所有频道的有效性"""
@@ -225,12 +237,29 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_pause_clicked(self):
         """处理暂停/播放按钮点击"""
         is_playing = self.player_controller.toggle_pause()
-        self.ui.main_window.pause_btn.setText("暂停" if is_playing else "播放")
+        # 使用语言管理器设置暂停/播放按钮文本
+        if hasattr(self, 'language_manager') and self.language_manager:
+            if is_playing:
+                self.ui.main_window.pause_btn.setText(
+                    self.language_manager.tr('pause', 'Pause')
+                )
+            else:
+                self.ui.main_window.pause_btn.setText(
+                    self.language_manager.tr('play', 'Play')
+                )
+        else:
+            self.ui.main_window.pause_btn.setText("暂停" if is_playing else "播放")
 
     def _on_stop_clicked(self):
         """处理停止按钮点击"""
         self.player_controller.stop()
-        self.ui.main_window.pause_btn.setText("播放")
+        # 使用语言管理器设置播放按钮文本
+        if hasattr(self, 'language_manager') and self.language_manager:
+            self.ui.main_window.pause_btn.setText(
+                self.language_manager.tr('play', 'Play')
+            )
+        else:
+            self.ui.main_window.pause_btn.setText("播放")
 
     def _on_play_state_changed(self, is_playing):
         """处理播放状态变化"""
@@ -392,7 +421,13 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             
         if self.player_controller.play_channel(channel):
-            self.ui.main_window.pause_btn.setText("暂停")
+            # 使用语言管理器设置暂停按钮文本
+            if hasattr(self, 'language_manager') and self.language_manager:
+                self.ui.main_window.pause_btn.setText(
+                    self.language_manager.tr('pause', 'Pause')
+                )
+            else:
+                self.ui.main_window.pause_btn.setText("暂停")
             self.current_channel = channel
 
     def _on_channel_found(self, channel_info):
@@ -425,12 +460,27 @@ class MainWindow(QtWidgets.QMainWindow):
             # 更新扫描统计信息
             stats = stats_data.get('stats', {})
             elapsed = time.strftime("%H:%M:%S", time.gmtime(stats.get('elapsed', 0)))
-            self.ui.main_window.detailed_stats_label.setText(
-                f"总数: {stats.get('total', 0)} | "
-                f"有效: {stats.get('valid', 0)} | "
-                f"无效: {stats.get('invalid', 0)} | "
-                f"耗时: {elapsed}"
-            )
+            
+            # 使用语言管理器翻译统计标签
+            if hasattr(self, 'language_manager') and self.language_manager:
+                total_text = self.language_manager.tr('total_channels', 'Total Channels')
+                valid_text = self.language_manager.tr('valid', 'Valid')
+                invalid_text = self.language_manager.tr('invalid', 'Invalid')
+                time_text = self.language_manager.tr('time_elapsed', 'Time Elapsed')
+                
+                self.ui.main_window.detailed_stats_label.setText(
+                    f"{total_text}: {stats.get('total', 0)} | "
+                    f"{valid_text}: {stats.get('valid', 0)} | "
+                    f"{invalid_text}: {stats.get('invalid', 0)} | "
+                    f"{time_text}: {elapsed}"
+                )
+            else:
+                self.ui.main_window.detailed_stats_label.setText(
+                    f"总数: {stats.get('total', 0)} | "
+                    f"有效: {stats.get('valid', 0)} | "
+                    f"无效: {stats.get('invalid', 0)} | "
+                    f"耗时: {elapsed}"
+                )
 
     def _on_about_clicked(self):
         """处理关于按钮点击事件"""

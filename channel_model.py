@@ -17,6 +17,15 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         # 频道名称和分组缓存(用于自动补全)
         self._name_cache = set()
         self._group_cache = set()
+        
+        # 语言管理器引用
+        self._language_manager = None
+
+    def set_language_manager(self, language_manager):
+        """设置语言管理器"""
+        self._language_manager = language_manager
+        # 通知视图更新表头
+        self.headerDataChanged.emit(QtCore.Qt.Orientation.Horizontal, 0, len(self.headers) - 1)
 
     def rowCount(self, parent=QtCore.QModelIndex()) -> int:
         """返回行数(频道数量)"""
@@ -85,7 +94,26 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         if role != QtCore.Qt.ItemDataRole.DisplayRole:
             return None
         if orientation == QtCore.Qt.Orientation.Horizontal:
-            return self.headers[section]
+            # 使用语言管理器翻译表头
+            header_text = self.headers[section]
+            if hasattr(self, '_language_manager') and self._language_manager:
+                if header_text == "序号":
+                    return self._language_manager.tr('serial_number', 'No.')
+                elif header_text == "频道名称":
+                    return self._language_manager.tr('channel_name', 'Channel Name')
+                elif header_text == "分辨率":
+                    return self._language_manager.tr('resolution', 'Resolution')
+                elif header_text == "URL":
+                    return self._language_manager.tr('channel_url', 'Channel URL')
+                elif header_text == "分组":
+                    return self._language_manager.tr('channel_group', 'Channel Group')
+                elif header_text == "Logo地址":
+                    return self._language_manager.tr('logo_address', 'Logo Address')
+                elif header_text == "状态":
+                    return self._language_manager.tr('status', 'Status')
+                elif header_text == "延迟(ms)":
+                    return self._language_manager.tr('latency_ms', 'Latency(ms)')
+            return header_text
         return str(section + 1) if section > 0 else ""  # 序号列不显示行号
 
     def flags(self, index: QtCore.QModelIndex) -> QtCore.Qt.ItemFlag:
