@@ -26,6 +26,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         self._language_manager = language_manager
         # 通知视图更新表头
         self.headerDataChanged.emit(QtCore.Qt.Orientation.Horizontal, 0, len(self.headers) - 1)
+        # 强制刷新整个视图以确保表头更新
+        self.dataChanged.emit(
+            self.index(0, 0),
+            self.index(self.rowCount() - 1 if self.rowCount() > 0 else 0, self.columnCount() - 1)
+        )
 
     def rowCount(self, parent=QtCore.QModelIndex()) -> int:
         """返回行数(频道数量)"""
@@ -104,9 +109,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 elif header_text == "分辨率":
                     return self._language_manager.tr('resolution', 'Resolution')
                 elif header_text == "URL":
-                    return self._language_manager.tr('channel_url', 'Channel URL')
+                    return self._language_manager.tr('channel_url', 'URL')
                 elif header_text == "分组":
-                    return self._language_manager.tr('channel_group', 'Channel Group')
+                    return self._language_manager.tr('channel_group', 'Group')
                 elif header_text == "Logo地址":
                     return self._language_manager.tr('logo_address', 'Logo Address')
                 elif header_text == "状态":

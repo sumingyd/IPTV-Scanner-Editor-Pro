@@ -2,13 +2,14 @@
 chcp 65001 > nul
 set PYTHONUTF8=1
 pyinstaller --onefile --windowed --icon=logo.ico ^
---add-data "icons/*;icons" ^
---add-data "ffmpeg/*;ffmpeg" ^
---add-data "vlc/*;vlc" ^
---add-data "vlc/plugins/*;vlc/plugins" ^
---add-data "ffmpeg/bin/*;ffmpeg/bin" ^
---add-data "ffmpeg/presets/*;ffmpeg/presets" ^
---add-data "locales/*;locales" ^
+--add-data "icons/*:icons" ^
+--add-data "ffmpeg/*:ffmpeg" ^
+--add-data "vlc/*:vlc" ^
+--add-data "vlc/plugins/*:vlc/plugins" ^
+--add-data "ffmpeg/bin/*:ffmpeg/bin" ^
+--add-data "ffmpeg/presets/*:ffmpeg/presets" ^
+--add-data "locales/zh.json:locales" ^
+--add-data "locales/en.json:locales" ^
 --paths "C:\Users\sm\AppData\Local\Programs\Python\Python312\Lib\site-packages" ^
 --hidden-import python-vlc ^
 --hidden-import ffmpeg ^
