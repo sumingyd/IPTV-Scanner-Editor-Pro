@@ -20,12 +20,26 @@ class LanguageManager:
             # 首先尝试从打包后的路径查找
             import sys
             if getattr(sys, 'frozen', False):
-                # 打包后的路径
+                # 打包后的路径 - 尝试多个可能的路径
                 base_path = os.path.dirname(sys.executable)
+                
+                # 尝试1: 可执行文件同目录下的locales文件夹
                 locales_path = os.path.join(base_path, 'locales')
                 if os.path.exists(locales_path):
                     self.locales_dir = locales_path
                     logger.info(f"使用打包后的语言目录: {locales_path}")
+                else:
+                    # 尝试2: _MEIPASS临时解压目录 (PyInstaller运行时)
+                    if hasattr(sys, '_MEIPASS'):
+                        meipass_locales = os.path.join(sys._MEIPASS, 'locales')
+                        if os.path.exists(meipass_locales):
+                            self.locales_dir = meipass_locales
+                            logger.info(f"使用_MEIPASS语言目录: {meipass_locales}")
+                    # 尝试3: 当前工作目录下的locales文件夹
+                    cwd_locales = os.path.join(os.getcwd(), 'locales')
+                    if os.path.exists(cwd_locales):
+                        self.locales_dir = cwd_locales
+                        logger.info(f"使用当前工作目录语言目录: {cwd_locales}")
             
             if not os.path.exists(self.locales_dir):
                 # 如果目录不存在，尝试创建
@@ -40,27 +54,155 @@ class LanguageManager:
             json_files = glob.glob(os.path.join(self.locales_dir, '*.json'))
             logger.info(f"找到语言文件: {json_files}")
             
-            for json_file in json_files:
-                lang_code = Path(json_file).stem
-                try:
-                    with open(json_file, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                        # 获取语言的显示名称
-                        display_name = data.get('language_name', lang_code)
-                        self.available_languages[lang_code] = {
-                            'file': json_file,
-                            'display_name': display_name,
-                            'data': data
-                        }
-                        logger.info(f"成功加载语言: {lang_code} ({display_name})")
-                except Exception as e:
-                    logger.error(f"加载语言文件失败 {json_file}: {str(e)}")
+            # 如果没有找到文件，尝试从打包资源中加载
+            if not json_files and getattr(sys, 'frozen', False):
+                logger.warning("未找到语言文件，尝试从打包资源加载")
+                # 尝试加载内置的语言文件
+                self._load_builtin_languages()
+            else:
+                for json_file in json_files:
+                    lang_code = Path(json_file).stem
+                    try:
+                        with open(json_file, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                            # 获取语言的显示名称
+                            display_name = data.get('language_name', lang_code)
+                            self.available_languages[lang_code] = {
+                                'file': json_file,
+                                'display_name': display_name,
+                                'data': data
+                            }
+                            logger.info(f"成功加载语言: {lang_code} ({display_name})")
+                    except Exception as e:
+                        logger.error(f"加载语言文件失败 {json_file}: {str(e)}")
                     
         except Exception as e:
             logger.error(f"扫描语言文件失败: {str(e)}")
             
         logger.info(f"可用语言: {list(self.available_languages.keys())}")
         return self.available_languages
+
+    def _load_builtin_languages(self):
+        """加载内置的语言文件（用于打包环境）"""
+        try:
+            # 内置的语言文件数据
+            builtin_languages = {
+                'zh': {
+                    'language_name': '中文',
+                    'app_title': 'IPTV扫描编辑器专业版',
+                    'video_playback': '视频播放',
+                    'play': '播放',
+                    'pause': '暂停',
+                    'stop': '停止',
+                    'volume': '音量',
+                    'scan_settings': '扫描设置',
+                    'address_format': '地址格式',
+                    'address_example': '地址示例',
+                    'input_address': '输入地址',
+                    'timeout_description': '设置扫描超时时间（秒）',
+                    'thread_count_description': '设置扫描线程数',
+                    'user_agent': 'User-Agent',
+                    'referer': 'Referer',
+                    'progress': '进度',
+                    'timeout': '超时',
+                    'thread_count': '线程数',
+                    'full_scan': '完整扫描',
+                    'stop_scan': '停止扫描',
+                    'generate_list': '生成列表',
+                    'total_channels': '总数',
+                    'valid': '有效',
+                    'invalid': '无效',
+                    'time_elapsed': '耗时',
+                    'channel_list': '频道列表',
+                    'validate_effectiveness': '检测有效性',
+                    'hide_invalid': '隐藏无效项',
+                    'smart_sort': '智能排序',
+                    'please_load_list': '请先加载列表',
+                    'channel_edit': '频道编辑',
+                    'channel_name': '频道名称',
+                    'channel_group': '频道分组',
+                    'logo_address': 'Logo地址',
+                    'channel_url': '频道URL',
+                    'edit_channel': '编辑频道',
+                    'add_channel': '添加频道',
+                    'operation': '操作',
+                    'open_list': '打开列表',
+                    'save_list': '保存列表',
+                    'language': '语言',
+                    'about': '关于',
+                    'required': '必填',
+                    'optional': '可选',
+                    'optional_default': '可选，为空使用默认值',
+                    'optional_not_used': '可选，为空不使用',
+                    'serial_number': '序号',
+                    'resolution': '分辨率',
+                    'status': '状态',
+                    'latency_ms': '延迟(ms)'
+                },
+                'en': {
+                    'language_name': 'English',
+                    'app_title': 'IPTV Scanner Editor Pro',
+                    'video_playback': 'Video Playback',
+                    'play': 'Play',
+                    'pause': 'Pause',
+                    'stop': 'Stop',
+                    'volume': 'Volume',
+                    'scan_settings': 'Scan Settings',
+                    'address_format': 'Address Format',
+                    'address_example': 'Address Example',
+                    'input_address': 'Input Address',
+                    'timeout_description': 'Set scan timeout (seconds)',
+                    'thread_count_description': 'Set number of scan threads',
+                    'user_agent': 'User-Agent',
+                    'referer': 'Referer',
+                    'progress': 'Progress',
+                    'timeout': 'Timeout',
+                    'thread_count': 'Thread Count',
+                    'full_scan': 'Full Scan',
+                    'stop_scan': 'Stop Scan',
+                    'generate_list': 'Generate List',
+                    'total_channels': 'Total Channels',
+                    'valid': 'Valid',
+                    'invalid': 'Invalid',
+                    'time_elapsed': 'Time Elapsed',
+                    'channel_list': 'Channel List',
+                    'validate_effectiveness': 'Validate Effectiveness',
+                    'hide_invalid': 'Hide Invalid',
+                    'smart_sort': 'Smart Sort',
+                    'please_load_list': 'Please load list first',
+                    'channel_edit': 'Channel Edit',
+                    'channel_name': 'Channel Name',
+                    'channel_group': 'Channel Group',
+                    'logo_address': 'Logo Address',
+                    'channel_url': 'Channel URL',
+                    'edit_channel': 'Edit Channel',
+                    'add_channel': 'Add Channel',
+                    'operation': 'Operation',
+                    'open_list': 'Open List',
+                    'save_list': 'Save List',
+                    'language': 'Language',
+                    'about': 'About',
+                    'required': 'Required',
+                    'optional': 'Optional',
+                    'optional_default': 'Optional, use default if empty',
+                    'optional_not_used': 'Optional, not used if empty',
+                    'serial_number': 'No.',
+                    'resolution': 'Resolution',
+                    'status': 'Status',
+                    'latency_ms': 'Latency(ms)'
+                }
+            }
+            
+            for lang_code, data in builtin_languages.items():
+                self.available_languages[lang_code] = {
+                    'file': f'builtin:{lang_code}',
+                    'display_name': data.get('language_name', lang_code),
+                    'data': data
+                }
+                logger.info(f"成功加载内置语言: {lang_code}")
+                
+        except Exception as e:
+            logger.error(f"加载内置语言失败: {str(e)}")
     
     def set_language(self, lang_code):
         """设置当前语言"""
@@ -217,6 +359,18 @@ class LanguageManager:
             # 更新频道列表表头
             if hasattr(main_window, 'model') and main_window.model:
                 main_window.model.set_language_manager(self)
+            
+            # 更新映射状态标签
+            if hasattr(main_window, 'mapping_status_label'):
+                from channel_mappings import remote_mappings
+                if remote_mappings:
+                    main_window.mapping_status_label.setText(
+                        self.tr('mapping_loaded', 'Remote mapping loaded')
+                    )
+                else:
+                    main_window.mapping_status_label.setText(
+                        self.tr('mapping_failed', 'Remote mapping load failed')
+                    )
             
             logger.info(f"UI文本已更新到语言: {self.current_language}")
             
