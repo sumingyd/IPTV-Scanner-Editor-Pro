@@ -58,5 +58,13 @@
   "name_url_required": "Channel name and URL cannot be empty",
   "copy_channel_name": "Copy Channel Name",
   "copy_url": "Copy URL",
-  "delete_channel": "Delete Channel"
+  "delete_channel": "Delete Channel",
+  "timeout_description": "Set scan timeout (seconds)",
+  "thread_count_description": "Set number of scan threads",
+  "operation": "Operation",
+  "serial_number": "No.",
+  "resolution": "Resolution",
+  "status": "Status",
+  "latency_ms": "Latency(ms)",
+  "stop_scan": "Stop Scan"
 }

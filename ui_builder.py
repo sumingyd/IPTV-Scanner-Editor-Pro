@@ -70,9 +70,13 @@ class UIBuilder:
         # 初始化时显示映射状态
         from channel_mappings import remote_mappings
         if remote_mappings:
-            self.main_window.mapping_status_label.setText("远程映射已加载")
+            self.main_window.mapping_status_label.setText(
+                self.main_window.language_manager.tr('mapping_loaded', 'Remote mapping loaded')
+            )
         else:
-            self.main_window.mapping_status_label.setText("远程映射加载失败")
+            self.main_window.mapping_status_label.setText(
+                self.main_window.language_manager.tr('mapping_failed', 'Remote mapping load failed')
+            )
 
     def _on_window_resize(self, event):
         """处理窗口大小变化事件"""
@@ -295,7 +299,7 @@ class UIBuilder:
         # 超时时间设置
         timeout_layout = QtWidgets.QHBoxLayout()
         timeout_label = QtWidgets.QLabel("设置扫描超时时间（秒）")
-        self.main_window.timeout_label = timeout_label  # 设置为属性以便语言管理器访问
+        self.main_window.timeout_description_label = timeout_label  # 设置为属性以便语言管理器访问
         timeout_layout.addWidget(timeout_label)
         self.main_window.timeout_input = QtWidgets.QSpinBox()
         self.main_window.timeout_input.setRange(1, 60)
@@ -379,6 +383,7 @@ class UIBuilder:
         
         # 扫描统计信息
         self.main_window.detailed_stats_label = QtWidgets.QLabel("总频道: 0 | 有效: 0 | 无效: 0 | 耗时: 0s")
+        self.main_window.detailed_stats_label = self.main_window.detailed_stats_label  # 设置为属性以便语言管理器访问
 
         # 使用网格布局让按钮和统计信息并排显示
         button_stats_layout = QtWidgets.QGridLayout()
@@ -397,10 +402,20 @@ class UIBuilder:
         input_address_label = QtWidgets.QLabel("输入地址：")
         self.main_window.input_address_label = input_address_label  # 设置为属性以便语言管理器访问
         scan_layout.addRow(input_address_label, self.main_window.ip_range_input)
-        scan_layout.addRow("超时时间：", timeout_layout)
-        scan_layout.addRow("线程数：", thread_layout)
-        scan_layout.addRow("User-Agent：", user_agent_layout)
-        scan_layout.addRow("Referer：", referer_layout)
+        timeout_row_label = QtWidgets.QLabel("超时时间：")
+        self.main_window.timeout_row_label = timeout_row_label  # 设置为属性以便语言管理器访问
+        scan_layout.addRow(timeout_row_label, timeout_layout)
+        
+        thread_row_label = QtWidgets.QLabel("线程数：")
+        self.main_window.thread_row_label = thread_row_label  # 设置为属性以便语言管理器访问
+        scan_layout.addRow(thread_row_label, thread_layout)
+        user_agent_row_label = QtWidgets.QLabel("User-Agent：")
+        self.main_window.user_agent_row_label = user_agent_row_label  # 设置为属性以便语言管理器访问
+        scan_layout.addRow(user_agent_row_label, user_agent_layout)
+        
+        referer_row_label = QtWidgets.QLabel("Referer：")
+        self.main_window.referer_row_label = referer_row_label  # 设置为属性以便语言管理器访问
+        scan_layout.addRow(referer_row_label, referer_layout)
         progress_label = QtWidgets.QLabel("进度：")
         self.main_window.progress_label = progress_label  # 设置为属性以便语言管理器访问
         scan_layout.addRow(progress_label, self.main_window.scan_progress)
@@ -447,6 +462,7 @@ class UIBuilder:
         
         # 检测统计标签
         self.main_window.validate_stats_label = QtWidgets.QLabel("请先加载列表")
+        self.main_window.validate_stats_label = self.main_window.validate_stats_label  # 设置为属性以便语言管理器访问
         
         toolbar.addWidget(self.main_window.btn_validate)
         toolbar.addWidget(self.main_window.btn_hide_invalid)
@@ -466,6 +482,9 @@ class UIBuilder:
         if not hasattr(self.main_window, 'model') or not self.main_window.model:
             self.main_window.model = ChannelListModel()
             self.main_window.model.update_status_label = self.main_window._update_validate_status
+            # 设置语言管理器
+            if hasattr(self.main_window, 'language_manager') and self.main_window.language_manager:
+                self.main_window.model.set_language_manager(self.main_window.language_manager)
             self.main_window.channel_list.setModel(self.main_window.model)
         self.main_window.channel_list.setStyleSheet(AppStyles.list_style())
         
@@ -693,21 +712,21 @@ class UIBuilder:
             return action
 
         # 主要功能按钮 - 在创建时直接连接信号
-        open_action = create_action("📂", "打开列表", "打开IPTV列表文件")
-        open_action.triggered.connect(self.main_window._open_list)
+        self.main_window.open_action = create_action("📂", "打开列表", "打开IPTV列表文件")
+        self.main_window.open_action.triggered.connect(self.main_window._open_list)
         
-        save_action = create_action("💾", "保存列表", "保存当前列表到文件")
-        save_action.triggered.connect(self.main_window._save_list)
+        self.main_window.save_action = create_action("💾", "保存列表", "保存当前列表到文件")
+        self.main_window.save_action.triggered.connect(self.main_window._save_list)
         
         # 使用QToolButton并手动连接菜单项点击事件
-        language_button = QtWidgets.QToolButton(self.main_window)
-        language_button.setText("🌐 语言")
-        language_button.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
-        language_button.setStyleSheet(AppStyles.toolbar_button_style())
+        self.main_window.language_button = QtWidgets.QToolButton(self.main_window)
+        self.main_window.language_button.setText("🌐 语言")
+        self.main_window.language_button.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.main_window.language_button.setStyleSheet(AppStyles.toolbar_button_style())
         
         # 创建语言菜单
-        language_menu = QtWidgets.QMenu("语言", self.main_window)
-        language_button.setMenu(language_menu)
+        self.main_window.language_menu = QtWidgets.QMenu("语言", self.main_window)
+        self.main_window.language_button.setMenu(self.main_window.language_menu)
         
         # 加载可用语言
         if not hasattr(self.main_window, 'language_manager') or not self.main_window.language_manager:
@@ -722,26 +741,26 @@ class UIBuilder:
             lang_action.setData(lang_code)
             # 直接连接信号，不使用functools.partial
             lang_action.triggered.connect(lambda checked, code=lang_code: self._change_language(code))
-            language_menu.addAction(lang_action)
+            self.main_window.language_menu.addAction(lang_action)
             self.logger.info(f"添加语言选项: {lang_code} - {lang_info['display_name']}")
         
-        self.logger.info(f"语言菜单包含 {language_menu.actions().__len__()} 个动作")
+        self.logger.info(f"语言菜单包含 {self.main_window.language_menu.actions().__len__()} 个动作")
         
         # 创建QWidgetAction来包装QToolButton
         language_action = QtWidgets.QWidgetAction(self.main_window)
-        language_action.setDefaultWidget(language_button)
+        language_action.setDefaultWidget(self.main_window.language_button)
         
-        about_action = create_action("ℹ️", "关于", "关于本程序")
-        about_action.triggered.connect(self.main_window._on_about_clicked)
+        self.main_window.about_action = create_action("ℹ️", "关于", "关于本程序")
+        self.main_window.about_action.triggered.connect(self.main_window._on_about_clicked)
 
         # 添加分隔符
         toolbar.addSeparator()
 
         # 添加按钮到工具栏
-        toolbar.addAction(open_action)
-        toolbar.addAction(save_action)
+        toolbar.addAction(self.main_window.open_action)
+        toolbar.addAction(self.main_window.save_action)
         toolbar.addAction(language_action)
-        toolbar.addAction(about_action)
+        toolbar.addAction(self.main_window.about_action)
         
     def _change_language(self, lang_code):
         """切换语言"""
