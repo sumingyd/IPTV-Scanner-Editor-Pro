@@ -66,5 +66,9 @@
   "resolution": "分辨率",
   "status": "状态",
   "latency_ms": "延迟(ms)",
-  "stop_scan": "停止扫描"
+  "stop_scan": "停止扫描",
+  "ffprobe_parse_error": "无法解析ffprobe输出",
+  "validation_timeout": "检测超时",
+  "unknown_channel": "未知频道",
+  "unknown_resolution": "未知分辨率"
 }

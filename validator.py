@@ -6,6 +6,7 @@ import sys
 import os
 from typing import Dict, Optional
 from log_manager import LogManager
+from language_manager import LanguageManager
 
 class StreamValidator:
     """使用ffprobe检测视频流有效性"""
@@ -16,6 +17,9 @@ class StreamValidator:
     def __init__(self):
         self.logger = LogManager()
         self._current_process = None
+        # 初始化语言管理器
+        self.language_manager = LanguageManager()
+        self.language_manager.load_available_languages()
 
     @classmethod
     def terminate_all(cls):
@@ -207,7 +211,8 @@ class StreamValidator:
                     # 如果JSON解析失败，尝试从stderr提取信息
                     result['error'] = stderr.strip()
                     if not result['error']:
-                        result['error'] = '无法解析ffprobe输出'
+                        # 使用语言管理器设置错误消息
+                        result['error'] = self.language_manager.tr('ffprobe_parse_error', 'Failed to parse ffprobe output')
             else:
                 result['error'] = stderr.strip()
                 if not result['error']:
@@ -215,7 +220,8 @@ class StreamValidator:
                 
         except subprocess.TimeoutExpired:
             process.kill()
-            result['error'] = '检测超时'
+            # 使用语言管理器设置超时错误消息
+            result['error'] = self.language_manager.tr('validation_timeout', 'Validation timeout')
         except Exception as e:
             result['error'] = str(e)
             
@@ -249,7 +255,8 @@ class StreamValidator:
         if service_name:
             result['service_name'] = self._clean_channel_name(service_name)
         else:
-            result['service_name'] = "未知频道"
+            # 使用语言管理器设置未知频道消息
+            result['service_name'] = self.language_manager.tr('unknown_channel', 'Unknown Channel')
 
         # 获取分辨率
         if 'streams' in data and data['streams']:
@@ -259,7 +266,8 @@ class StreamValidator:
             elif 'coded_width' in stream and 'coded_height' in stream:
                 result['resolution'] = f"{stream['coded_width']}x{stream['coded_height']}"
             else:
-                result['resolution'] = "未知分辨率"
+                # 使用语言管理器设置未知分辨率消息
+                result['resolution'] = self.language_manager.tr('unknown_resolution', 'Unknown Resolution')
                 
             if 'codec_name' in stream:
                 result['codec'] = stream['codec_name']
@@ -271,7 +279,8 @@ class StreamValidator:
     def _clean_channel_name(self, name: str) -> str:
         """清理频道名"""
         if not name:
-            return "未知频道"
+            # 使用语言管理器设置未知频道消息
+            return self.language_manager.tr('unknown_channel', 'Unknown Channel')
             
         # 不再去除清晰度后缀，保持原始名称
         return name.strip()
