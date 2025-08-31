@@ -672,15 +672,25 @@ def main():
         while val < 100:
             val += 1
             time.sleep(0.3)  # 进一步减慢进度条速度
-            QtCore.QMetaObject.invokeMethod(
-                loading_screen.progress, "setValue",
-                QtCore.Qt.ConnectionType.QueuedConnection,
-                QtCore.Q_ARG(int, val)
-            )
+            try:
+                QtCore.QMetaObject.invokeMethod(
+                    loading_screen.progress, "setValue",
+                    QtCore.Qt.ConnectionType.QueuedConnection,
+                    QtCore.Q_ARG(int, val)
+                )
+            except RuntimeError:
+                # 如果进度条已被删除，则退出循环
+                break
         # 进度条完成后才触发UI初始化
-        QtCore.QMetaObject.invokeMethod(
-            loading_screen, "start_ui_init",
-            QtCore.Qt.ConnectionType.QueuedConnection)
+        try:
+            QtCore.QMetaObject.invokeMethod(
+                loading_screen, "start_ui_init",
+                QtCore.Qt.ConnectionType.QueuedConnection)
+        except RuntimeError:
+            # 如果加载屏幕已被删除，则直接显示主窗口
+            QtCore.QMetaObject.invokeMethod(
+                window, "show",
+                QtCore.Qt.ConnectionType.QueuedConnection)
 
     threading.Thread(target=fake_progress, daemon=True).start()
 

@@ -728,14 +728,13 @@ class UIBuilder:
         self.main_window.language_menu = QtWidgets.QMenu("语言", self.main_window)
         self.main_window.language_button.setMenu(self.main_window.language_menu)
         
-        # 加载可用语言
+        # 确保语言管理器已初始化并加载可用语言
         if not hasattr(self.main_window, 'language_manager') or not self.main_window.language_manager:
             self.main_window.language_manager = LanguageManager()
-            # 确保新创建的语言管理器也加载可用语言
-            self.main_window.language_manager.load_available_languages()
-        available_languages = self.main_window.language_manager.available_languages
+        self.main_window.language_manager.load_available_languages()
         
         # 添加语言选项并直接连接信号
+        available_languages = self.main_window.language_manager.available_languages
         for lang_code, lang_info in available_languages.items():
             lang_action = QtGui.QAction(lang_info['display_name'], self.main_window)
             lang_action.setData(lang_code)
@@ -744,7 +743,7 @@ class UIBuilder:
             self.main_window.language_menu.addAction(lang_action)
             self.logger.info(f"添加语言选项: {lang_code} - {lang_info['display_name']}")
         
-        self.logger.info(f"语言菜单包含 {self.main_window.language_menu.actions().__len__()} 个动作")
+        self.logger.info(f"语言菜单包含 {len(self.main_window.language_menu.actions())} 个动作")
         
         # 创建QWidgetAction来包装QToolButton
         language_action = QtWidgets.QWidgetAction(self.main_window)
@@ -762,20 +761,39 @@ class UIBuilder:
         toolbar.addAction(language_action)
         toolbar.addAction(self.main_window.about_action)
         
+        # 立即刷新语言菜单显示
+        self.main_window.language_menu.aboutToShow.connect(self._refresh_language_menu)
+        
+    def _refresh_language_menu(self):
+        """刷新语言菜单，确保在打包环境中也能正确显示"""
+        # 清空现有菜单项
+        self.main_window.language_menu.clear()
+        
+        # 重新加载可用语言
+        self.main_window.language_manager.load_available_languages()
+        available_languages = self.main_window.language_manager.available_languages
+        
+        # 重新添加语言选项
+        for lang_code, lang_info in available_languages.items():
+            lang_action = QtGui.QAction(lang_info['display_name'], self.main_window)
+            lang_action.setData(lang_code)
+            lang_action.triggered.connect(lambda checked, code=lang_code: self._change_language(code))
+            self.main_window.language_menu.addAction(lang_action)
+            self.logger.info(f"刷新语言选项: {lang_code} - {lang_info['display_name']}")
+        
+        self.logger.info(f"语言菜单已刷新，包含 {len(self.main_window.language_menu.actions())} 个动作")
+
     def _change_language(self, lang_code):
         """切换语言"""
         self.logger.info(f"尝试切换语言到: {lang_code}")
-        print(f"DEBUG: 尝试切换语言到: {lang_code}")  # 添加控制台输出
         if self.main_window.language_manager.set_language(lang_code):
             # 保存语言设置
             self.main_window.config.save_language_settings(lang_code)
             # 更新UI文本
             self.main_window.language_manager.update_ui_texts(self.main_window)
             self.logger.info(f"语言已切换到: {lang_code}")
-            print(f"DEBUG: 语言已切换到: {lang_code}")  # 添加控制台输出
         else:
             self.logger.warning(f"语言切换失败: {lang_code}")
-            print(f"DEBUG: 语言切换失败: {lang_code}")  # 添加控制台输出
 
     def _show_about_dialog(self):
         """显示关于对话框"""

@@ -17,13 +17,29 @@ class LanguageManager:
         """加载所有可用的语言文件"""
         self.available_languages = {}
         try:
+            # 首先尝试从打包后的路径查找
+            import sys
+            if getattr(sys, 'frozen', False):
+                # 打包后的路径
+                base_path = os.path.dirname(sys.executable)
+                locales_path = os.path.join(base_path, 'locales')
+                if os.path.exists(locales_path):
+                    self.locales_dir = locales_path
+                    logger.info(f"使用打包后的语言目录: {locales_path}")
+            
             if not os.path.exists(self.locales_dir):
-                os.makedirs(self.locales_dir)
-                logger.warning(f"语言目录不存在，已创建: {self.locales_dir}")
+                # 如果目录不存在，尝试创建
+                try:
+                    os.makedirs(self.locales_dir)
+                    logger.warning(f"语言目录不存在，已创建: {self.locales_dir}")
+                except:
+                    logger.error(f"无法创建语言目录: {self.locales_dir}")
                 return self.available_languages
             
             # 查找所有json语言文件
             json_files = glob.glob(os.path.join(self.locales_dir, '*.json'))
+            logger.info(f"找到语言文件: {json_files}")
+            
             for json_file in json_files:
                 lang_code = Path(json_file).stem
                 try:
@@ -36,12 +52,14 @@ class LanguageManager:
                             'display_name': display_name,
                             'data': data
                         }
+                        logger.info(f"成功加载语言: {lang_code} ({display_name})")
                 except Exception as e:
                     logger.error(f"加载语言文件失败 {json_file}: {str(e)}")
                     
         except Exception as e:
             logger.error(f"扫描语言文件失败: {str(e)}")
             
+        logger.info(f"可用语言: {list(self.available_languages.keys())}")
         return self.available_languages
     
     def set_language(self, lang_code):
