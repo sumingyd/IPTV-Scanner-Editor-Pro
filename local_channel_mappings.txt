@@ -147,7 +147,7 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 优漫卡通 = "标清优漫卡通-youman" "CHANNEL00000049" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/优漫卡通2.png = 特色频道
 优优宝贝 = "增值-youyoubaobei" "CHANNEL00000641" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/优优宝贝2.png = 特色频道
 游戏风云 = "增值-youxifengyun" "CHANNEL00002024" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/游戏风云.png = 特色频道
-苏超联赛 = "苏超25帧" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/苏超联赛.png = 特色频道
+苏超联赛-4K = "苏超25帧" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/苏超联赛.png = 特色频道
 中国交通 = "zhongguo-jiaotong" "CHANNEL00000073" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/公安部/中国交通3.png = 特色频道
 中华特产 = "zhuanxian-zhonghuatechan" "增值-zhonghuatechan" "CHANNEL00000642" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/中华特产.png = 特色频道
 重温经典影视 = "Kan-shandong" "CHANNEL00000364" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/央视/重温经典影视.png = 特色频道
