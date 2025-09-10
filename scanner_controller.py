@@ -303,18 +303,25 @@ class ScannerController(QObject):
                     else:
                         self.stats['invalid'] += 1
                     
-                    # 控制进度更新频率
-                    if (self.stats['valid'] + self.stats['invalid']) % 10 == 0:
-                        self.progress_updated.emit(
-                            self.stats['valid'] + self.stats['invalid'],
-                            self.stats['total']
-                        )
+                    current = self.stats['valid'] + self.stats['invalid']
+                    total = self.stats['total']
+                    
+                    # 控制进度更新频率 - 每10个频道或最后一个频道时更新
+                    if current % 10 == 0 or current == total:
+                        self.progress_updated.emit(current, total)
                 
             except Exception as e:
                 self.logger.error(f"工作线程错误: {e}")
         
         # 工作线程结束时刷新剩余频道
         self._flush_batch_channels()
+        
+        # 确保发送最终的进度更新
+        with self.stats_lock:
+            current = self.stats['valid'] + self.stats['invalid']
+            total = self.stats['total']
+            if current < total:
+                self.progress_updated.emit(total, total)
         
     def _update_progress(self, valid: bool):
         """更新扫描进度"""
