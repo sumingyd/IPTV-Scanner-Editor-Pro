@@ -219,7 +219,7 @@ class ScannerController(QObject):
                 
                 with self.stats_lock:
                     # 统计所有被检测的频道，无论是否映射成功
-                    if resolution:  # 有分辨率表示有效
+                    if valid:  # 使用valid字段判断有效性
                         self.stats['valid'] += 1
                     else:
                         self.stats['invalid'] += 1
@@ -353,10 +353,10 @@ class ScannerController(QObject):
                 'url': url,
                 'name': mapped_name,
                 'raw_name': raw_name,
-                'valid': bool(resolution),
+                'valid': valid,
                 'latency': latency,
-                'resolution': resolution,
-                'status': '有效' if resolution else '无效',
+                'resolution': resolution if resolution else '',
+                'status': '有效' if valid else '无效',
                 'group': mapped_info.get('group_name', '未分类') if mapped_info else '未分类',
                 'logo_url': mapped_info.get('logo_url') if mapped_info else None
             }

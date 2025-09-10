@@ -9,10 +9,13 @@ from log_manager import LogManager
 from language_manager import LanguageManager
 
 class StreamValidator:
-    """使用ffprobe检测视频流有效性"""
+    """使用ffmpeg检测视频流有效性"""
     
     _active_processes = []
     _process_lock = threading.Lock()
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
 
     def __init__(self):
         self.logger = LogManager()
@@ -32,6 +35,48 @@ class StreamValidator:
                 except:
                     pass
             cls._active_processes = []
+
+
+    def _get_ffmpeg_path(self):
+        """获取ffmpeg路径"""
+        import os
+        import sys
+        
+        # 记录所有尝试的路径
+        tried_paths = []
+        
+        # 1. 尝试从打包后的路径查找
+        if getattr(sys, 'frozen', False):
+            base_path = os.path.dirname(sys.executable)
+            exe_path = os.path.join(base_path, 'ffmpeg', 'bin', 'ffmpeg.exe')
+            tried_paths.append(f"打包路径: {exe_path}")
+            if os.path.exists(exe_path):
+                return exe_path
+        
+        # 2. 尝试从开发环境路径查找
+        dev_path = os.path.join(os.path.dirname(__file__), 'ffmpeg', 'bin', 'ffmpeg.exe')
+        tried_paths.append(f"开发路径: {dev_path}")
+        if os.path.exists(dev_path):
+            return dev_path
+            
+        # 3. 尝试从系统PATH查找
+        try:
+            from shutil import which
+            path = which('ffmpeg')
+            tried_paths.append(f"系统PATH查找")
+            if path:
+                return path
+        except ImportError:
+            tried_paths.append("无法导入shutil.which")
+            pass
+            
+        # 记录所有尝试过的路径
+        self.logger.warning(
+            "无法找到ffmpeg，尝试了以下路径:\n" + 
+            "\n".join(tried_paths) +
+            "\n将尝试直接调用'ffmpeg'"
+        )
+        return 'ffmpeg'  # 最后尝试直接调用
 
     def _get_ffprobe_path(self):
         """获取ffprobe路径"""
@@ -81,19 +126,124 @@ class StreamValidator:
         return (url_lower.startswith(('rtp://', 'udp://', 'rtsp://')) or
                 any(x in url_lower for x in ['/rtp/', '/udp/', '/rtsp/']))
 
-    def _validate_unicast(self, url: str, timeout: int) -> Dict:
-        """验证单播流"""
+
+    def _clean_channel_name(self, name: str) -> str:
+        """清理频道名"""
+        if not name:
+            # 不使用语言管理器，直接返回空字符串
+            return ''
+            
+        # 不再去除清晰度后缀，保持原始名称
+        return name.strip()
+
+    def _build_ffmpeg_command(self, url: str, duration: float = 3.0) -> list:
+        """构建ffmpeg命令"""
+        ffmpeg_path = self._get_ffmpeg_path()
+        cmd = [
+            ffmpeg_path,
+            '-v', 'error',
+            '-timeout', '5000000',  # 5秒超时
+            '-t', str(duration),    # 拉取时长
+            '-i', url,
+            '-f', 'null',           # 输出到空设备
+            '-'
+        ]
+        
+        # 添加headers
+        if hasattr(self, 'headers') and self.headers:
+            for key, value in self.headers.items():
+                if value:
+                    cmd.extend(['-headers', f'{key}: {value}'])
+        
+        return cmd
+
+    def _run_ffmpeg_test(self, url: str, timeout: int, max_retries: int = 2) -> Dict:
+        """运行ffmpeg测试流有效性"""
         result = {
-            'url': url,
             'valid': False,
             'latency': None,
-            'resolution': None,
-            'codec': None,
-            'bitrate': None,
-            'error': None
+            'error': None,
+            'retries': 0
         }
         
-        # 直接使用ffprobe获取流信息
+        start_time = time.time()
+        
+        for attempt in range(max_retries + 1):
+            result['retries'] = attempt
+            cmd = self._build_ffmpeg_command(url, min(3.0, timeout / 2))
+            
+            # 在Windows上需要处理特殊字符
+            if sys.platform == 'win32':
+                cmd = [arg.replace('^', '^^').replace('&', '^&') for arg in cmd]
+            
+            # 设置环境变量和工作目录
+            env = os.environ.copy()
+            env['PATH'] = os.path.dirname(self._get_ffmpeg_path()) + os.pathsep + env['PATH']
+            
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=False,
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
+                shell=False,
+                env=env,
+                cwd=os.path.dirname(self._get_ffmpeg_path())
+            )
+            
+            # 跟踪活动进程
+            with self._process_lock:
+                self._active_processes.append(process)
+            self._current_process = process
+            
+            try:
+                # 记录命令开始执行时间
+                exec_start = time.time()
+                stdout_bytes, stderr_bytes = process.communicate(timeout=timeout)
+                exec_end = time.time()
+                
+                stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''
+                stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
+
+                if process.returncode == 0:
+                    # ffmpeg成功拉取流
+                    result['valid'] = True
+                    result['latency'] = int((exec_end - exec_start) * 1000)
+                    break
+                else:
+                    # ffmpeg失败，记录错误信息
+                    error_output = stderr.strip() or stdout.strip()
+                    if error_output:
+                        result['error'] = error_output
+                    else:
+                        result['error'] = f"ffmpeg返回错误代码: {process.returncode}"
+                    
+                    # 如果不是最后一次尝试，等待一下再重试
+                    if attempt < max_retries:
+                        time.sleep(0.5)
+                        
+            except subprocess.TimeoutExpired:
+                process.kill()
+                result['error'] = "拉流超时"
+                # 超时不重试
+                break
+            except Exception as e:
+                result['error'] = str(e)
+                # 其他异常不重试
+                break
+            finally:
+                # 清理已完成进程
+                with self._process_lock:
+                    if process in self._active_processes:
+                        self._active_processes.remove(process)
+        
+        result['latency'] = result.get('latency', int((time.time() - start_time) * 1000))
+        return result
+
+    def _run_ffprobe(self, url: str, timeout: int) -> Dict:
+        """执行ffprobe命令获取流详细信息"""
+        result = {}
+        
         ffprobe_path = self._get_ffprobe_path()
         cmd = [
             ffprobe_path,
@@ -104,71 +254,7 @@ class StreamValidator:
             '-show_programs',
             url
         ]
-        try:
-            result.update(self._run_ffprobe(cmd, timeout))
-        except Exception as e:
-            result['error'] = str(e)
-            
-        return result
-
-    def _validate_multicast(self, url: str, timeout: int) -> Dict:
-        """验证组播流"""
-        result = {
-            'url': url,
-            'valid': False,
-            'latency': None,
-            'resolution': None,
-            'codec': None,
-            'bitrate': None,
-            'error': None,
-            'service_name': None
-        }
         
-        try:
-            # 直接使用ffprobe获取流信息
-            ffprobe_path = self._get_ffprobe_path()
-            cmd = [
-                ffprobe_path,
-                '-v', 'quiet',
-                '-print_format', 'json',
-                '-show_format',
-                '-show_streams',
-                '-show_programs',
-                url
-            ]
-            probe_result = self._run_ffprobe(cmd, timeout)
-            
-            # 解析ffprobe输出获取service_name
-            if 'programs' in probe_result and probe_result['programs']:
-                program = probe_result['programs'][0]
-                if 'tags' in program and 'service_name' in program['tags']:
-                    result['service_name'] = program['tags']['service_name']
-            
-            # 更新其他结果
-            result.update(probe_result)
-            
-            # 如果没获取到分辨率但获取到了其他信息，尝试从错误输出中提取
-            if not result.get('resolution') and probe_result.get('error'):
-                error = probe_result['error']
-                if 'Video:' in error:
-                    import re
-                    match = re.search(r'(\d{3,4}x\d{3,4})', error)
-                    if match:
-                        result['resolution'] = match.group(1)
-            
-            # 基于分辨率判断有效性
-            result['valid'] = bool(result.get('resolution'))
-            
-        except Exception as e:
-            result['error'] = str(e)
-            
-        return result
-
-    def _run_ffprobe(self, cmd: list, timeout: int) -> Dict:
-        """执行ffprobe命令并解析结果"""
-        result = {}
-        start_time = time.time()
-
         # 在Windows上需要处理特殊字符
         if sys.platform == 'win32':
             cmd = [arg.replace('^', '^^').replace('&', '^&') for arg in cmd]
@@ -194,43 +280,29 @@ class StreamValidator:
         self._current_process = process
         
         try:
-            # 记录命令开始执行时间
-            exec_start = time.time()
             stdout_bytes, stderr_bytes = process.communicate(timeout=timeout)
-            exec_end = time.time()
-            
             stdout = stdout_bytes.decode('utf-8', errors='replace')
             stderr = stderr_bytes.decode('utf-8', errors='replace')
 
-            
             if process.returncode == 0:
                 try:
                     data = json.loads(stdout)
                     result.update(self._parse_ffprobe_output(data))
                 except json.JSONDecodeError:
-                    # 如果JSON解析失败，尝试从stderr提取信息
                     result['error'] = stderr.strip()
-                    if not result['error']:
-                        # 使用语言管理器设置错误消息
-                        result['error'] = self.language_manager.tr('ffprobe_parse_error', 'Failed to parse ffprobe output')
             else:
                 result['error'] = stderr.strip()
-                if not result['error']:
-                    result['error'] = f"ffprobe返回错误代码: {process.returncode}"
                 
         except subprocess.TimeoutExpired:
             process.kill()
-            # 使用语言管理器设置超时错误消息
-            result['error'] = self.language_manager.tr('validation_timeout', 'Validation timeout')
+            result['error'] = "ffprobe超时"
         except Exception as e:
             result['error'] = str(e)
-            
-        result['latency'] = int((time.time() - start_time) * 1000)
-        
-        # 清理已完成进程
-        with self._process_lock:
-            if process in self._active_processes:
-                self._active_processes.remove(process)
+        finally:
+            # 清理已完成进程
+            with self._process_lock:
+                if process in self._active_processes:
+                    self._active_processes.remove(process)
                 
         return result
 
@@ -255,7 +327,6 @@ class StreamValidator:
         if service_name:
             result['service_name'] = self._clean_channel_name(service_name)
         else:
-            # 不使用语言管理器，直接返回空字符串，让扫描控制器从URL提取名称
             result['service_name'] = ''
 
         # 获取分辨率
@@ -266,8 +337,7 @@ class StreamValidator:
             elif 'coded_width' in stream and 'coded_height' in stream:
                 result['resolution'] = f"{stream['coded_width']}x{stream['coded_height']}"
             else:
-                # 使用语言管理器设置未知分辨率消息
-                result['resolution'] = self.language_manager.tr('unknown_resolution', 'Unknown Resolution')
+                result['resolution'] = ''
                 
             if 'codec_name' in stream:
                 result['codec'] = stream['codec_name']
@@ -275,15 +345,6 @@ class StreamValidator:
                 result['bitrate'] = stream['bit_rate']
                 
         return result
-
-    def _clean_channel_name(self, name: str) -> str:
-        """清理频道名"""
-        if not name:
-            # 不使用语言管理器，直接返回空字符串
-            return ''
-            
-        # 不再去除清晰度后缀，保持原始名称
-        return name.strip()
 
     def validate_stream(self, url: str, raw_channel_name: str = None, timeout: int = 10) -> Dict:
         """验证视频流有效性
@@ -296,43 +357,50 @@ class StreamValidator:
         Returns:
             Dict: 包含检测结果的字典，包含以下字段：
                 - url: 原始URL
-                - valid: 是否有效(基于分辨率判断)
+                - valid: 是否有效
                 - latency: 延迟(毫秒)
+                - error: 错误信息(如果有)
+                - retries: 重试次数
+                - service_name: 频道名称(从流中提取)
                 - resolution: 分辨率
                 - codec: 视频编码
                 - bitrate: 比特率
-                - service_name: 频道名称(仅从流中提取)
-                - error: 错误信息(如果有)
         """
         # 统一结果结构
         result = {
             'url': url,
             'valid': False,
             'latency': None,
+            'error': None,
+            'retries': 0,
+            'service_name': None,
             'resolution': None,
             'codec': None,
-            'bitrate': None,
-            'service_name': None,
-            'error': None
+            'bitrate': None
         }
             
         try:
-            # 执行流验证
-            is_multicast = self._is_multicast_url(url)
-            if is_multicast:
-                probe_result = self._validate_multicast(url, timeout)
-                # 组播流优先使用ffprobe获取的service_name
+            # 执行ffmpeg流验证
+            test_result = self._run_ffmpeg_test(url, timeout, max_retries=1)
+            
+            # 合并结果
+            result.update(test_result)
+            
+            # 如果流有效，使用ffprobe获取详细信息
+            if result['valid']:
+                probe_result = self._run_ffprobe(url, timeout)
+                
+                # 优先使用ffprobe获取的service_name
                 if probe_result.get('service_name'):
                     result['service_name'] = probe_result['service_name']
-            else:
-                probe_result = self._validate_unicast(url, timeout)
+                
+                # 合并其他详细信息
+                result.update({k: v for k, v in probe_result.items() if k not in ['service_name', 'error']})
             
-            # 合并其他结果
-            probe_result.pop('service_name', None)
-            result.update(probe_result)
-            
-            # 统一有效性判断标准：基于分辨率
-            result['valid'] = bool(result.get('resolution'))
+            # 如果没获取到service_name，从URL提取
+            if not result.get('service_name'):
+                from channel_mappings import extract_channel_name_from_url
+                result['service_name'] = extract_channel_name_from_url(url)
                 
         except Exception as e:
             result['error'] = str(e)
