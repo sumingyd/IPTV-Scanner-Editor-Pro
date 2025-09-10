@@ -134,7 +134,7 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 魅力足球 = "增值-meilizuqiu" "CHANNEL00002021" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/魅力足球2.png = 特色频道
 墨宝 = "239.21.1.130:5002" = = 特色频道
 汽摩 = "QiMo" "CHANNEL00000711" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/重庆/汽摩.png = 特色频道
-求索纪录 = "QiuSuoJiLu " "QiuSuoJiLu HD" "CHANNEL00000667" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/求索纪录.png = 特色频道
+求索纪录 = "QiuSuoJiLu " "QiuSuoJiLu HD" "CHANNEL00000667" "239.21.2.159:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/求索纪录.png = 特色频道
 生活时尚 = "增值-shenghuoshishang" "CHANNEL00002019" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/生活时尚.png = 特色频道
 生态环境 = "239.21.2.160:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/生态环境.png = 特色频道
 书画 = "增值-shuhua" "CHANNEL00000651" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/书画.png = 特色频道
@@ -324,7 +324,7 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 青州文旅 = "qingzhou-wenlv" "CHANNEL00001057" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊青州.png = 潍坊
 寿光蔬菜 = "shouguang-shucai" "CHANNEL00001045" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊寿光.png = 潍坊
 寿光综合 = "shouguang-xinwen" "CHANNEL00000702" "CHANNEL00001000" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊寿光.png = 潍坊
-诸城综合 = "zhucheng" "CHANNEL00001004" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊诸城.png = 潍坊
+诸城综合 = "zhucheng" "CHANNEL00001004" "239.21.1.217:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊诸城.png = 潍坊
 高密综合 = "gaomi-xinwen" "CHANNEL00001089" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊高密.png = 潍坊
 临朐综合 = "linqu-xinwen" "CHANNEL00001085" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊临朐.png = 潍坊
 
