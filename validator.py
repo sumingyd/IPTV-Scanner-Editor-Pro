@@ -255,8 +255,8 @@ class StreamValidator:
         if service_name:
             result['service_name'] = self._clean_channel_name(service_name)
         else:
-            # 使用语言管理器设置未知频道消息
-            result['service_name'] = self.language_manager.tr('unknown_channel', 'Unknown Channel')
+            # 不使用语言管理器，直接返回空字符串，让扫描控制器从URL提取名称
+            result['service_name'] = ''
 
         # 获取分辨率
         if 'streams' in data and data['streams']:
@@ -279,8 +279,8 @@ class StreamValidator:
     def _clean_channel_name(self, name: str) -> str:
         """清理频道名"""
         if not name:
-            # 使用语言管理器设置未知频道消息
-            return self.language_manager.tr('unknown_channel', 'Unknown Channel')
+            # 不使用语言管理器，直接返回空字符串
+            return ''
             
         # 不再去除清晰度后缀，保持原始名称
         return name.strip()
