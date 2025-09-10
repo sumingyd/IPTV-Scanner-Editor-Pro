@@ -341,7 +341,7 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 
 ##########      青岛     ##########
 莱西综合 = "laixi" "CHANNEL00001067" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛莱西.png = 青岛
-崂山综合 = "laoshan" "CHANNEL00001022" "CHANNEL00001075" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛崂山.png = 青岛
+崂山综合 = "laoshan" "CHANNEL00001022" "CHANNEL00001075" "239.21.1.223:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛崂山.png = 青岛
 平度综合 = "pingdu-PDTV-1" "CHANNEL00001054" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛平度.png = 青岛
 黄岛综合 = "huangdao-xinwen" "CHANNEL00001086" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛黄岛.png = 青岛
 黄岛生活 = "239.21.2.58:5002" "huangdao-shenghuo" "CHANNEL00001087" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛黄岛.png = 青岛
