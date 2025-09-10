@@ -341,7 +341,7 @@ class ScannerController(QObject):
         try:
             # 获取原始频道名
             raw_name = result.get('service_name', '') or extract_channel_name_from_url(url)
-            if raw_name == "未知频道":
+            if not raw_name or raw_name == "未知频道":
                 raw_name = extract_channel_name_from_url(url)
             
             # 获取映射信息
