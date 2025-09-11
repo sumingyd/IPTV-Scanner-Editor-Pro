@@ -59,13 +59,20 @@ class UIBuilder:
         self.main_window.mapping_status_label = QtWidgets.QLabel()
         status_bar.addWidget(self.main_window.mapping_status_label)
         
+        # 添加进度条到状态栏右下角（显示实际进度）
         self.main_window.progress_indicator = QtWidgets.QProgressBar()
-        self.main_window.progress_indicator.setRange(0, 0)
-        self.main_window.progress_indicator.setTextVisible(False)
+        self.main_window.progress_indicator.setRange(0, 100)
+        self.main_window.progress_indicator.setValue(0)
+        self.main_window.progress_indicator.setTextVisible(True)
         self.main_window.progress_indicator.setFixedWidth(120)
         self.main_window.progress_indicator.setStyleSheet(AppStyles.progress_style())
         self.main_window.progress_indicator.hide()
         status_bar.addPermanentWidget(self.main_window.progress_indicator)
+        
+        # 添加统计信息标签到状态栏右下角（统一用于扫描和有效性检测）
+        self.main_window.stats_label = QtWidgets.QLabel("")
+        self.main_window.stats_label.setStyleSheet("color: #666; padding: 0 5px;")
+        status_bar.addPermanentWidget(self.main_window.stats_label)
         
         # 初始化时显示映射状态
         from channel_mappings import remote_mappings
@@ -293,8 +300,6 @@ class UIBuilder:
         scan_layout.setSpacing(5)  # 统一设置间距
 
         self.main_window.ip_range_input = QtWidgets.QLineEdit()
-        self.main_window.scan_progress = QtWidgets.QProgressBar()
-        self.main_window.scan_progress.setStyleSheet(AppStyles.progress_style())
 
         # 超时时间设置
         timeout_layout = QtWidgets.QHBoxLayout()
@@ -381,18 +386,11 @@ class UIBuilder:
         self.main_window.generate_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.main_window.generate_btn.setFixedHeight(36)
         
-        # 扫描统计信息
-        self.main_window.detailed_stats_label = QtWidgets.QLabel("总频道: 0 | 有效: 0 | 无效: 0 | 耗时: 0s")
-        self.main_window.detailed_stats_label = self.main_window.detailed_stats_label  # 设置为属性以便语言管理器访问
-
-        # 使用网格布局让按钮和统计信息并排显示
-        button_stats_layout = QtWidgets.QGridLayout()
-        button_stats_layout.addWidget(self.main_window.scan_btn, 0, 0, 1, 1)
-        button_stats_layout.addWidget(self.main_window.generate_btn, 0, 1, 1, 1)
-        button_stats_layout.addWidget(self.main_window.detailed_stats_label, 1, 0, 1, 2)
-        
-        button_stats_layout.setColumnStretch(0, 1)
-        button_stats_layout.setColumnStretch(1, 1)
+        # 使用水平布局让按钮并排显示
+        button_layout = QtWidgets.QHBoxLayout()
+        button_layout.addWidget(self.main_window.scan_btn)
+        button_layout.addWidget(self.main_window.generate_btn)
+        button_layout.addStretch()
 
         address_format_label = QtWidgets.QLabel("地址格式：")
         self.main_window.address_format_label = address_format_label  # 设置为属性以便语言管理器访问
@@ -416,10 +414,7 @@ class UIBuilder:
         referer_row_label = QtWidgets.QLabel("Referer：")
         self.main_window.referer_row_label = referer_row_label  # 设置为属性以便语言管理器访问
         scan_layout.addRow(referer_row_label, referer_layout)
-        progress_label = QtWidgets.QLabel("进度：")
-        self.main_window.progress_label = progress_label  # 设置为属性以便语言管理器访问
-        scan_layout.addRow(progress_label, self.main_window.scan_progress)
-        scan_layout.addRow(button_stats_layout)
+        scan_layout.addRow(button_layout)
 
         scan_group.setLayout(scan_layout)
         parent.addWidget(scan_group)
@@ -460,14 +455,9 @@ class UIBuilder:
             lambda: self.main_window.model.sort_channels()
         )
         
-        # 检测统计标签
-        self.main_window.validate_stats_label = QtWidgets.QLabel("请先加载列表")
-        self.main_window.validate_stats_label = self.main_window.validate_stats_label  # 设置为属性以便语言管理器访问
-        
         toolbar.addWidget(self.main_window.btn_validate)
         toolbar.addWidget(self.main_window.btn_hide_invalid)
         toolbar.addWidget(self.main_window.btn_smart_sort)
-        toolbar.addWidget(self.main_window.validate_stats_label)
         toolbar.addStretch()
         list_layout.addLayout(toolbar)
 

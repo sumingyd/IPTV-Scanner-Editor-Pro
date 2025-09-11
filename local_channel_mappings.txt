@@ -289,7 +289,7 @@ IPTV相声小品 = "239.21.1.126:5002" = https://raw.githubusercontent.com/sumin
 桓台综合 = "huantai" "CHANNEL00001020" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博桓台.png = 淄博
 沂源综合 = "yiyuan" "CHANNEL00001002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博沂源.png = 淄博
 淄川新闻 = "zichuan-xinwen" "CHANNEL00001007" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博淄川.png = 淄博
-张店综合 = "zhangdian" "CHANNEL00001012" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博张店.png = 淄博
+张店综合 = "zhangdian" "CHANNEL00001012" "239.21.2.138:5002" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博张店.png = 淄博
 高青综合 = "gaoqing-zonghe" "CHANNEL00001023" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博高青.png = 淄博
 周村新闻 = "ZHOUCUN-XINWEN" "CHANNEL00001019" = https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博周村.png = 淄博
 

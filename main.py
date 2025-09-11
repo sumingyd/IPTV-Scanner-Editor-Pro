@@ -74,9 +74,9 @@ class MainWindow(QtWidgets.QMainWindow):
         
 
     def _update_validate_status(self, message):
-        """更新有效性检测状态标签"""
-        self.ui.main_window.validate_stats_label.setText(message)
-        message == "请点击检测有效性按钮"
+        """更新有效性检测状态标签（不再使用，保留方法兼容性）"""
+        # 此方法已不再使用，统一使用状态栏的统计标签
+        pass
 
     def _load_config(self):
         """加载保存的配置到UI"""
@@ -143,11 +143,26 @@ class MainWindow(QtWidgets.QMainWindow):
         # 连接直接生成列表按钮
         self.ui.main_window.generate_btn.clicked.connect(self._on_generate_clicked)
         
-        # 进度更新信号
+        # 进度更新信号 - 更新状态栏的进度条
+        def update_progress_bars(cur, total):
+            progress_value = int(cur / total * 100) if total > 0 else 0
+            self.ui.main_window.progress_indicator.setValue(progress_value)
+            
+        self.scanner.progress_updated.connect(update_progress_bars)
+        
+        # 扫描开始时显示状态栏进度条
         self.scanner.progress_updated.connect(
-            lambda cur, total: self.ui.main_window.scan_progress.setValue(
-                int(cur / total * 100) if total > 0 else 0
-            )
+            lambda cur, total: self.ui.main_window.progress_indicator.show() if total > 0 else None
+        )
+        
+        # 扫描完成时隐藏状态栏进度条
+        self.scanner.scan_completed.connect(
+            lambda: self.ui.main_window.progress_indicator.hide()
+        )
+        
+        # 有效性检测完成时也隐藏状态栏进度条
+        self.scanner.scan_completed.connect(
+            lambda: self.ui.main_window.progress_indicator.hide()
         )
         
         # 频道发现信号
@@ -452,35 +467,32 @@ class MainWindow(QtWidgets.QMainWindow):
             header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
     def _update_stats_display(self, stats_data):
-        """更新统计信息显示"""
-        if stats_data.get('is_validation', False):
-            # 更新检测有效性统计标签
-            self.ui.main_window.validate_stats_label.setText(stats_data['text'])
-        else:
-            # 更新扫描统计信息
-            stats = stats_data.get('stats', {})
-            elapsed = time.strftime("%H:%M:%S", time.gmtime(stats.get('elapsed', 0)))
+        """更新统计信息显示（统一使用状态栏的统计标签）"""
+        stats = stats_data.get('stats', {})
+        elapsed = time.strftime("%H:%M:%S", time.gmtime(stats.get('elapsed', 0)))
+        
+        # 使用语言管理器翻译统计标签
+        if hasattr(self, 'language_manager') and self.language_manager:
+            total_text = self.language_manager.tr('total_channels', 'Total Channels')
+            valid_text = self.language_manager.tr('valid', 'Valid')
+            invalid_text = self.language_manager.tr('invalid', 'Invalid')
+            time_text = self.language_manager.tr('time_elapsed', 'Time Elapsed')
             
-            # 使用语言管理器翻译统计标签
-            if hasattr(self, 'language_manager') and self.language_manager:
-                total_text = self.language_manager.tr('total_channels', 'Total Channels')
-                valid_text = self.language_manager.tr('valid', 'Valid')
-                invalid_text = self.language_manager.tr('invalid', 'Invalid')
-                time_text = self.language_manager.tr('time_elapsed', 'Time Elapsed')
-                
-                self.ui.main_window.detailed_stats_label.setText(
-                    f"{total_text}: {stats.get('total', 0)} | "
-                    f"{valid_text}: {stats.get('valid', 0)} | "
-                    f"{invalid_text}: {stats.get('invalid', 0)} | "
-                    f"{time_text}: {elapsed}"
-                )
-            else:
-                self.ui.main_window.detailed_stats_label.setText(
-                    f"总数: {stats.get('total', 0)} | "
-                    f"有效: {stats.get('valid', 0)} | "
-                    f"无效: {stats.get('invalid', 0)} | "
-                    f"耗时: {elapsed}"
-                )
+            # 更新状态栏的统一统计标签
+            self.ui.main_window.stats_label.setText(
+                f"{total_text}: {stats.get('total', 0)} | "
+                f"{valid_text}: {stats.get('valid', 0)} | "
+                f"{invalid_text}: {stats.get('invalid', 0)} | "
+                f"{time_text}: {elapsed}"
+            )
+        else:
+            # 更新状态栏的统一统计标签
+            self.ui.main_window.stats_label.setText(
+                f"总数: {stats.get('total', 0)} | "
+                f"有效: {stats.get('valid', 0)} | "
+                f"无效: {stats.get('invalid', 0)} | "
+                f"耗时: {elapsed}"
+            )
 
     def _on_about_clicked(self):
         """处理关于按钮点击事件"""
@@ -661,6 +673,20 @@ def main():
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     app = QtWidgets.QApplication(sys.argv)
+    
+    # 设置应用程序字体，避免Fixedsys字体缺失警告
+    font = app.font()
+    if sys.platform == "win32":
+        # Windows系统使用微软雅黑字体
+        font.setFamily("Microsoft YaHei")
+    elif sys.platform == "darwin":
+        # macOS系统使用系统默认字体
+        font.setFamily(".AppleSystemUIFont")
+    else:
+        # Linux系统使用DejaVu Sans字体
+        font.setFamily("DejaVu Sans")
+    
+    app.setFont(font)
 
     window = MainWindow()
     loading_screen = LoadingScreen(window)

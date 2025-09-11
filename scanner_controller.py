@@ -223,6 +223,14 @@ class ScannerController(QObject):
                         self.stats['valid'] += 1
                     else:
                         self.stats['invalid'] += 1
+                    
+                    # 发送进度更新信号
+                    current = self.stats['valid'] + self.stats['invalid']
+                    total = self.stats['total']
+                    
+                    # 控制进度更新频率 - 每10个频道或最后一个频道时更新
+                    if current % 10 == 0 or current == total:
+                        self.progress_updated.emit(current, total)
             except queue.Empty:
                 time.sleep(0.1)
                 break
