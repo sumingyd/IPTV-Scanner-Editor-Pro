@@ -379,17 +379,18 @@ class UIBuilder:
         # 扫描控制按钮
         self.main_window.scan_btn = QtWidgets.QPushButton("完整扫描")
         self.main_window.scan_btn.setStyleSheet(AppStyles.button_style(active=True))
-        self.main_window.scan_btn.setFixedHeight(36)
+        self.main_window.scan_btn.setMinimumHeight(36)
         
         # 新增直接生成列表按钮
         self.main_window.generate_btn = QtWidgets.QPushButton("直接生成列表")
         self.main_window.generate_btn.setStyleSheet(AppStyles.button_style(active=True))
-        self.main_window.generate_btn.setFixedHeight(36)
+        self.main_window.generate_btn.setMinimumHeight(36)
         
-        # 使用水平布局让按钮并排显示
+        # 使用水平布局让按钮并排显示，自适应宽度
         button_layout = QtWidgets.QHBoxLayout()
-        button_layout.addWidget(self.main_window.scan_btn)
-        button_layout.addWidget(self.main_window.generate_btn)
+        button_layout.addWidget(self.main_window.scan_btn, 1)  # 1表示拉伸因子
+        button_layout.addSpacing(10)  # 添加间距
+        button_layout.addWidget(self.main_window.generate_btn, 1)  # 1表示拉伸因子
         button_layout.addStretch()
 
         address_format_label = QtWidgets.QLabel("地址格式：")
