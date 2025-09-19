@@ -675,18 +675,23 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     
     # 设置应用程序字体，避免Fixedsys字体缺失警告
-    font = app.font()
-    if sys.platform == "win32":
-        # Windows系统使用微软雅黑字体
-        font.setFamily("Microsoft YaHei")
-    elif sys.platform == "darwin":
-        # macOS系统使用系统默认字体
-        font.setFamily(".AppleSystemUIFont")
-    else:
-        # Linux系统使用DejaVu Sans字体
-        font.setFamily("DejaVu Sans")
+    # 使用简单直接的方法设置默认字体
+    font_family = "Microsoft YaHei"  # 默认使用微软雅黑
     
+    # 创建并设置字体
+    font = QtGui.QFont(font_family)
+    font.setPointSize(9)  # 设置合适的字号
+    
+    # 设置应用程序默认字体
     app.setFont(font)
+    
+    # 同时设置样式表确保所有控件使用相同字体
+    app.setStyleSheet(f"""
+        QWidget {{
+            font-family: "{font_family}";
+            font-size: 9pt;
+        }}
+    """)
 
     window = MainWindow()
     loading_screen = LoadingScreen(window)
