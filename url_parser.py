@@ -7,9 +7,38 @@ class URLRangeParser:
     
     def __init__(self):
         self.logger = LogManager()
-        # 增强版正则，支持复杂路径中的范围表达式
+        # 增强版正则，支持复杂路径中的范围表达式，排除IPv6地址
+        # 匹配格式: [数字-数字]，但不匹配IPv6地址中的方括号
         self.range_pattern = re.compile(r'\[(\d+)-(\d+)\]')
         self.multi_range_pattern = re.compile(r'(?:\[(\d+)-(\d+)\])+')
+        # IPv6地址正则，用于识别和排除IPv6地址
+        self.ipv6_pattern = re.compile(r'\[[a-fA-F0-9:]+(?:%[a-zA-Z0-9_]+)?\]')
+        
+    def has_range(self, url: str) -> bool:
+        """检查URL是否包含范围表达式，排除IPv6地址"""
+        # 先找到所有IPv6地址
+        ipv6_addresses = self.ipv6_pattern.findall(url)
+        
+        # 找到所有范围表达式
+        range_matches = list(self.range_pattern.finditer(url))
+        
+        # 过滤掉在IPv6地址内部的范围表达式
+        valid_ranges = []
+        for match in range_matches:
+            match_start, match_end = match.span()
+            is_inside_ipv6 = False
+            
+            for ipv6_match in self.ipv6_pattern.finditer(url):
+                ipv6_start, ipv6_end = ipv6_match.span()
+                # 如果范围表达式完全在IPv6地址内部，则排除
+                if ipv6_start <= match_start and match_end <= ipv6_end:
+                    is_inside_ipv6 = True
+                    break
+            
+            if not is_inside_ipv6:
+                valid_ranges.append(match)
+        
+        return len(valid_ranges) > 0
         
     def parse_url(self, url: str, batch_size: int = 10000) -> Generator[List[str], None, None]:
         """解析带范围的URL，分批生成URL列表"""
@@ -106,10 +135,6 @@ class URLRangeParser:
             if i >= 2:  # 只显示前3个批次
                 print("...")
                 break
-        
-    def has_range(self, url: str) -> bool:
-        """检查URL是否包含范围表达式"""
-        return bool(self.multi_range_pattern.search(url))
         
     def _find_all_ranges(self, url: str) -> List[Tuple[int, int, str]]:
         """查找URL中所有的范围表达式，返回(start, end, full_match)列表"""
