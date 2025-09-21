@@ -704,24 +704,34 @@ def main():
             val += 1
             time.sleep(0.3)  # 进一步减慢进度条速度
             try:
-                QtCore.QMetaObject.invokeMethod(
-                    loading_screen.progress, "setValue",
-                    QtCore.Qt.ConnectionType.QueuedConnection,
-                    QtCore.Q_ARG(int, val)
-                )
+                # 检查对象是否仍然存在
+                if hasattr(loading_screen, 'progress') and loading_screen.progress is not None:
+                    QtCore.QMetaObject.invokeMethod(
+                        loading_screen.progress, "setValue",
+                        QtCore.Qt.ConnectionType.QueuedConnection,
+                        QtCore.Q_ARG(int, val)
+                    )
+                else:
+                    break
             except RuntimeError:
                 # 如果进度条已被删除，则退出循环
                 break
         # 进度条完成后才触发UI初始化
         try:
-            QtCore.QMetaObject.invokeMethod(
-                loading_screen, "start_ui_init",
-                QtCore.Qt.ConnectionType.QueuedConnection)
+            # 检查对象是否仍然存在
+            if hasattr(loading_screen, 'start_ui_init') and loading_screen is not None:
+                QtCore.QMetaObject.invokeMethod(
+                    loading_screen, "start_ui_init",
+                    QtCore.Qt.ConnectionType.QueuedConnection)
         except RuntimeError:
             # 如果加载屏幕已被删除，则直接显示主窗口
-            QtCore.QMetaObject.invokeMethod(
-                window, "show",
-                QtCore.Qt.ConnectionType.QueuedConnection)
+            try:
+                if window is not None:
+                    QtCore.QMetaObject.invokeMethod(
+                        window, "show",
+                        QtCore.Qt.ConnectionType.QueuedConnection)
+            except RuntimeError:
+                pass  # 如果窗口也被删除了，就什么都不做
 
     threading.Thread(target=fake_progress, daemon=True).start()
 
