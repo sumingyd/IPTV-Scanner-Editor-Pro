@@ -4,8 +4,8 @@ import re
 from typing import Dict, List
 from log_manager import LogManager
 
-# 默认远程URL
-DEFAULT_REMOTE_URL = "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/local_channel_mappings.txt"
+# 默认远程URL - 优先使用CSV格式，如果不存在则尝试TXT格式
+DEFAULT_REMOTE_URL = "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/local_channel_mappings.csv"
 
 def extract_channel_name_from_url(url: str) -> str:
     """从URL提取频道名，支持多种协议格式"""
@@ -174,11 +174,24 @@ def load_remote_mappings() -> Dict[str, dict]:
         except AttributeError:
             remote_url = DEFAULT_REMOTE_URL
         
+        # 先尝试CSV格式
         response = requests.get(remote_url, timeout=10)
+        if response.status_code == 404:
+            # 如果CSV格式不存在，尝试TXT格式（向后兼容）
+            txt_url = remote_url.replace('.csv', '.txt')
+            logger.info(f"CSV映射文件不存在，尝试TXT格式: {txt_url}")
+            response = requests.get(txt_url, timeout=10)
+        
         response.raise_for_status()
         
+        # 根据文件扩展名确定格式
+        if remote_url.endswith('.csv') or response.url.endswith('.csv'):
+            file_ext = '.csv'
+        else:
+            file_ext = '.txt'
+        
         # 创建临时文件保存远程内容
-        temp_file = "remote_mappings.tmp"
+        temp_file = f"remote_mappings{file_ext}"
         with open(temp_file, 'w', encoding='utf-8') as f:
             f.write(response.text)
         
