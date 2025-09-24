@@ -27,17 +27,18 @@ CGTN俄语,"239.21.2.35:5002,CHANNEL00000357",https://raw.githubusercontent.com/
 沂南综合,CHANNEL00001096​,,临沂
 ########## 卫视 ##########,,,
 安徽卫视,"239.21.1.21:5002,ANHUI-UD,CHANNEL00000328",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/安徽/安徽卫视2.png,卫视
-北京卫视,"239.21.1.20:5002,BEIJING,BEIJING-HD,CHANNEL00000019,CHANNEL00000302",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视.png,卫视
+北京卫视,"239.21.1.20:5002,BEIJING,BEIJING-HD,CHANNEL00000019,CHANNEL00000302,CHANNEL40000001",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视.png,卫视
 北京卫视-4K,"BRIJING-4K-25P,BEIJING-4K-50P,239.21.2.172:5002,苏超25P",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视4K.png,卫视
 兵团卫视,"标清兵团-bingtuan,CHANNEL00000071",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/兵团卫视2.png,卫视
 东方卫视,"239.21.1.23:5002,SHANGHAI,SHANGHAI-HD,CHANNEL00000022,CHANNEL00000309",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方卫视1.png,卫视
+东方卫视-4K,"CHANNEL40000009",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方卫视4K.png,卫视
 东南卫视,"239.21.1.29:5002,FUJIAN,FUJIAN-HD,CHANNEL00000028,CHANNEL00000310",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/福建/东南卫视2.png,卫视
 凤凰卫视,"凤凰卫视-fenghuang,CHANNEL00000380",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰卫视.png,卫视
 凤凰香港,凤凰香港-fenghuang,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰香港.png,卫视
 凤凰资讯,凤凰资讯-fenghuang,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰资讯.png,卫视
 甘肃卫视,"GanSu,GanSu-HD,239.21.1.47:5002,CHANNEL00000349",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/甘肃/甘肃卫视2.png,卫视
 广东卫视,"�㶫����,GuangDong,GuangDong-HD,CHANNEL00000025,CHANNEL00000307",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/广东卫视2.png,卫视
-广东卫视-4K,"239.21.2.173:5002,GUANGDONG-4k,广东卫视4K",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/广东卫视4K.png,卫视
+广东卫视-4K,"239.21.2.173:5002,GUANGDONG-4k,广东卫视4K,CHANNEL40000003",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/广东卫视4K.png,卫视
 广西卫视,"GuangXi,GuangXi-HD,CHANNEL00000038,CHANNEL00000368",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广西/广西卫视2.png,卫视
 贵州卫视,"python main.py,239.21.1.42:5002,GUIZHOU,GUIZHOU-HD,CHANNEL00000041,CHANNEL00000329",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/贵州/贵州卫视3.png,卫视
 海南卫视,"HAINAN,HAINAN-HD,239.21.1.31:5002,CHANNEL00000347",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/海南/海南卫视3.png,卫视
@@ -46,8 +47,10 @@ CGTN俄语,"239.21.2.35:5002,CHANNEL00000357",https://raw.githubusercontent.com/
 黑龙江卫视,"239.21.1.91:5002,239.21.1.28:5002,HEILONGJIANG,HEILONGJIANG-HD,CHANNEL00000027,CHANNEL00000306",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/黑龙江/黑龙江卫视1.png,卫视
 湖北卫视,"HUBEI,HUBEI-HD,hubei-sd-dianxin,CHANNEL00000031,CHANNEL00000325",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖北/湖北卫视2.png,卫视
 湖南卫视,"239.21.1.18:5002,HUNAN,HUNAN-HD,CHANNEL00000324",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/湖南卫视1.png,卫视
+湖南卫视-4K,"CHANNEL40000006",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/湖南卫视4K.png,卫视
 吉林卫视,"239.21.2.49:5002,��������,JILIN,JILIN-HD,CHANNEL00000036,CHANNEL00000363",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/吉林/吉林卫视3.png,卫视
 江苏卫视,"239.21.1.19:5002,JIANGSU,JIANGSU-HD,CHANNEL00000018,CHANNEL00000304",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/江苏卫视3.png,卫视
+江苏卫视4K,"CHANNEL40000007",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/江苏卫视4K.png,卫视
 江西卫视,"239.21.1.36:5002,JIANGXI,JIANGXI-HD,CHANNEL00000035,CHANNEL00000335",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江西/江西卫视2.png,卫视
 辽宁卫视,"239.21.1.27:5002,LIAONING,LIAONING-HD,CHANNEL00000026,CHANNEL00000326",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/辽宁/辽宁卫视2.png,卫视
 内蒙古卫视,"标清内蒙-neimeng,CHANNEL00000040",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/内蒙古/内蒙古卫视2.png,卫视
@@ -57,18 +60,20 @@ CGTN俄语,"239.21.2.35:5002,CHANNEL00000357",https://raw.githubusercontent.com/
 三沙卫视,"239.21.2.9:5002,CHANNEL00000078",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/海南/三沙卫视3.png,卫视
 厦门卫视,"239.21.2.6:5002,XM,XMSD,CHANNEL00000075",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/福建/厦门卫视3.png,卫视
 山东卫视,"山东卫视,SDTV-HD-DianXin,239.21.2.158:5002,CHANNEL00001068,CHANNEL00000301​",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东卫视3.png,卫视
-山东卫视-4K,山东shandong-4K-25P,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东卫视4K.png,卫视
+山东卫视-4K,"山东shandong-4K-25P.CHANNEL40000005",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东卫视4K.png,卫视
 山西卫视,"标清山西-shanxi,CHANNEL00000032",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山西/山西卫视3.png,卫视
 陕西卫视,"标清陕西-shanxi,CHANNEL00000029",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/陕西/陕西卫视3.png,卫视
 深圳卫视,"239.21.1.25:5002,SHENZHEN,SHENZHEN-HD,CHANNEL00000024,CHANNEL00000308",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视2.png,卫视
-深圳卫视-4K,"shenzhen-4K-25P,239.21.2.174:5002,深圳卫视4K",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视4K.png,卫视
+深圳卫视-4K,"shenzhen-4K-25P,239.21.2.174:5002,深圳卫视4K,CHANNEL40000004",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视4K.png,卫视
 四川卫视,"SICHUAN,SICHUAN-HD,�Ĵ�����,CHANNEL00000348",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川/四川卫视3.png,卫视
+四川卫视-4K,"CHANNEL40000010",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川/四川卫视4K.png,卫视
 天津卫视,"TIANJIN,TIANJIN-HD,CHANNEL00000021,CHANNEL00000327",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/天津/天津卫视3.png,卫视
 西藏卫视,"标清西藏-xizang,CHANNEL00000045,CHANNEL00000392​",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/西藏/西藏卫视2.png,卫视
 新疆卫视,"标清新疆-xinjiang,CHANNEL00000044,CHANNEL00000393",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/新疆卫视2.png,卫视
 延边卫视,"标清延边-yanbian,CHANNEL00000668",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/吉林/延边卫视.png,卫视
 云南卫视,"YunNan,YunNan-HD,CHANNEL00000039,CHANNEL00000367",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/云南/云南卫视3.png,卫视
 浙江卫视,"239.21.1.17:5002,ZHEJIANG,ZHEJIANG-HD,CHANNEL00000016,CHANNEL00000305",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/浙江卫视2.png,卫视
+浙江卫视-4K,"CHANNEL40000008",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/浙江卫视4K.png,卫视
 重庆卫视,"CHONGQING,CHONGQING-HD,CHANNEL00000341",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/重庆/重庆卫视3.png,卫视
 ########## 国际频道 ##########,,,
 NHK世界台,NHK,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/日本/NHK世界台.png,国际频道
