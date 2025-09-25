@@ -285,7 +285,7 @@ IPTV相声小品,239.21.1.126:5002,https://raw.githubusercontent.com/sumingyd/IP
 金鹰纪实,"HUNAN-JISHI,HUNAN-JISHI-HD,239.21.1.196:5002,CHANNEL00000334",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/金鹰纪实.png,特色频道
 金鹰卡通,"䡵乡渭䭁呏乇,CHANNEL00000047,CHANNEL00002027",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/金鹰卡通.png,特色频道
 卡酷少儿,"BeiJing-KAKU,CHANNEL00000048,CHANNEL00000661",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/卡酷少儿.png,特色频道
-快乐垂钓,"增值-kuailechuidiao,CHANNEL00000648",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/快乐垂钓.png,特色频道
+快乐垂钓,"增值-kuailechuidiao,CHANNEL00000648,239.21.2.97:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/快乐垂钓.png,特色频道
 乐游,"增值-leyou,CHANNEL00002016",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/乐游.png,特色频道
 梨园,"增值-liyuan,CHANNEL00000656",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/梨园频道.png,特色频道
 美人,239.21.1.132:5002,,特色频道
@@ -327,7 +327,7 @@ IPTV相声小品,239.21.1.126:5002,https://raw.githubusercontent.com/sumingyd/IP
 东明综合,"dongming,CHANNEL00001065,239.21.1.246:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽东明.png,菏泽
 郓城综合,"yuncheng,CHANNEL00001041,CHANNEL00001084",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽郓城.png,菏泽
 单县综合,"shanxian-zonghe,CHANNEL00001079",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽单县.png,菏泽
-鄄城综合,juancheng-zonghe,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽鄄城.png,菏泽
+鄄城综合,"juancheng-zonghe,239.21.2.141:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽鄄城.png,菏泽
 ########## 青岛 ##########,,,
 莱西综合,"laixi,CHANNEL00001067",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛莱西.png,青岛
 崂山综合,"laoshan,CHANNEL00001022,CHANNEL00001075,239.21.1.223:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛崂山.png,青岛
