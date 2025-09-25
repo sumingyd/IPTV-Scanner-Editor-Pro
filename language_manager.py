@@ -15,6 +15,10 @@ class LanguageManager:
         
     def load_available_languages(self):
         """加载所有可用的语言文件"""
+        # 如果已经加载过，直接返回缓存结果
+        if hasattr(self, '_languages_loaded') and self._languages_loaded:
+            return self.available_languages
+            
         self.available_languages = {}
         try:
             # 首先尝试从打包后的路径查找
@@ -48,6 +52,7 @@ class LanguageManager:
                     logger.warning(f"语言目录不存在，已创建: {self.locales_dir}")
                 except:
                     logger.error(f"无法创建语言目录: {self.locales_dir}")
+                self._languages_loaded = True
                 return self.available_languages
             
             # 查找所有json语言文件
@@ -80,6 +85,7 @@ class LanguageManager:
             logger.error(f"扫描语言文件失败: {str(e)}")
             
         logger.info(f"可用语言: {list(self.available_languages.keys())}")
+        self._languages_loaded = True
         return self.available_languages
 
     def _load_builtin_languages(self):

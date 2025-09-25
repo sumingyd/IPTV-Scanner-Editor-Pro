@@ -56,9 +56,13 @@ class MainWindow(QtWidgets.QMainWindow):
                     QtCore.QMetaObject.invokeMethod(timer, "stop", QtCore.Qt.ConnectionType.QueuedConnection)
         self._timers.clear()
         
+        # 初始化模型（必须在UI构建后）
+        self.model = ChannelListModel(self.ui.main_window.channel_list)
+        self.ui.main_window.channel_list.setModel(self.model)
+        
         # 初始化控制器
         self.init_controllers()
-        
+
         # UI构建完成后加载配置
         self._load_config()
         
