@@ -80,9 +80,13 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 if hasattr(self.parent(), 'ui') and hasattr(self.parent().ui, 'logo_cache'):
                     if logo_url in self.parent().ui.logo_cache:
                         return self.parent().ui.logo_cache[logo_url]
+                    else:
+                        # 如果不在缓存中，返回占位符图标
+                        pixmap = QtGui.QPixmap(24, 24)
+                        pixmap.fill(QtGui.QColor('#cccccc'))
+                        return QtGui.QIcon(pixmap)
                 else:
                     # 如果没有UI层，返回一个占位符图标
-                    # 创建一个简单的占位符图标
                     pixmap = QtGui.QPixmap(24, 24)
                     pixmap.fill(QtGui.QColor('#cccccc'))
                     return QtGui.QIcon(pixmap)

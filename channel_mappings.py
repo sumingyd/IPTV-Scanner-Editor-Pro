@@ -244,30 +244,48 @@ def get_channel_info(raw_name: str) -> dict:
     # 标准化输入名称 - 保留原始空格，仅去除首尾空格并转换为小写
     normalized_name = raw_name.strip().lower()
     
-    # 检查远程映射(原始名称)
+    # 如果原始名称为空，直接返回
+    if not normalized_name:
+        return {'standard_name': raw_name, 'logo_url': None}
+    
+    # 检查远程映射(原始名称) - 使用精确匹配
     try:
         reverse_remote = create_reverse_mappings(remote_mappings)
         for raw_pattern, info in reverse_remote.items():
+            # 跳过空的原始模式
+            if not raw_pattern or raw_pattern.isspace():
+                continue
+                
             normalized_pattern = re.sub(r'\s+', ' ', raw_pattern.strip()).lower()
+            
+            # 精确匹配（必须完全一致）
             if normalized_name == normalized_pattern:
-                logger.debug(f"从远程映射找到匹配: {raw_pattern} -> {info}")
+                logger.debug(f"从远程映射找到精确匹配: {raw_pattern} -> {info['standard_name']}")
                 return info
+                
     except Exception as e:
         logger.error(f"远程映射查找失败: {e}")
         
     # 检查标准名称映射(如果输入的是标准名称)
     try:
         for standard_name, info in combined_mappings.items():
+            # 跳过空的标准名称
+            if not standard_name or standard_name.isspace():
+                continue
+                
             normalized_standard = re.sub(r'\s+', ' ', standard_name.strip()).lower()
+            
+            # 精确匹配（必须完全一致）
             if normalized_name == normalized_standard:
-                logger.debug(f"从标准名称找到匹配: {standard_name} -> {info}")
+                logger.debug(f"从标准名称找到精确匹配: {standard_name}")
                 return {
                     'standard_name': standard_name,
                     'logo_url': info['logo_url']
                 }
+                
     except Exception as e:
         logger.error(f"标准名称查找失败: {e}")
         
     # 都没有匹配则返回原始名称
-    logger.debug(f"没有找到匹配的映射，返回原始名称")
+    logger.debug(f"没有找到匹配的映射，返回原始名称: {raw_name}")
     return {'standard_name': raw_name, 'logo_url': None}
