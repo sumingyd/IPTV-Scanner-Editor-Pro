@@ -768,9 +768,13 @@ class UIBuilder:
         # 清空现有菜单项
         self.main_window.language_menu.clear()
         
-        # 重新加载可用语言
-        self.main_window.language_manager.load_available_languages()
+        # 使用已加载的语言列表，避免重复加载
         available_languages = self.main_window.language_manager.available_languages
+        
+        # 如果语言列表为空，则加载一次
+        if not available_languages:
+            self.main_window.language_manager.load_available_languages()
+            available_languages = self.main_window.language_manager.available_languages
         
         # 重新添加语言选项
         for lang_code, lang_info in available_languages.items():
@@ -778,9 +782,9 @@ class UIBuilder:
             lang_action.setData(lang_code)
             lang_action.triggered.connect(lambda checked, code=lang_code: self._change_language(code))
             self.main_window.language_menu.addAction(lang_action)
-            self.logger.info(f"刷新语言选项: {lang_code} - {lang_info['display_name']}")
+            self.logger.debug(f"添加语言选项: {lang_code} - {lang_info['display_name']}")
         
-        self.logger.info(f"语言菜单已刷新，包含 {len(self.main_window.language_menu.actions())} 个动作")
+        self.logger.debug(f"语言菜单已刷新，包含 {len(self.main_window.language_menu.actions())} 个动作")
 
     def _change_language(self, lang_code):
         """切换语言"""

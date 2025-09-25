@@ -65,7 +65,7 @@ CGTN俄语,"239.21.2.35:5002,CHANNEL00000357",https://raw.githubusercontent.com/
 深圳卫视,"239.21.1.25:5002,SHENZHEN,SHENZHEN-HD,CHANNEL00000024,CHANNEL00000308",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视2.png,卫视
 深圳卫视-4K,"shenzhen-4K-25P,239.21.2.174:5002,深圳卫视4K,CHANNEL40000004",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视4K.png,卫视
 四川卫视,"SICHUAN,SICHUAN-HD,�Ĵ�����,CHANNEL00000348",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川/四川卫视3.png,卫视
-四川卫视-4K,"CHANNEL40000010,SiChuan-4K-25P",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川/四川卫视4K.png,卫视
+四川卫视-4K,"CHANNEL40000010,SiChuan-4K-25P,239.21.2.185:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川/四川卫视4K.png,卫视
 天津卫视,"TIANJIN,TIANJIN-HD,CHANNEL00000021,CHANNEL00000327,239.21.1.165:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/天津/天津卫视3.png,卫视
 西藏卫视,"标清西藏-xizang,CHANNEL00000045,CHANNEL00000392​",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/西藏/西藏卫视2.png,卫视
 新疆卫视,"标清新疆-xinjiang,CHANNEL00000044,CHANNEL00000393",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/新疆卫视2.png,卫视
@@ -231,7 +231,7 @@ CCTV-中视购物,239.21.1.100:5002,https://raw.githubusercontent.com/sumingyd/I
 ########## 滨州 ##########,,,
 惠民综合,"huimin,CHANNEL00001009",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州惠民.png,滨州
 无棣综合,"wudi,CHANNEL00001024",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州无棣.png,滨州
-沾化综合,"zhanhua,CHANNEL00001035",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州沾化.png,滨州
+沾化综合,"zhanhua,CHANNEL00001035,239.21.1.226:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州沾化.png,滨州
 邹平综合,"zouping,CHANNEL00001058",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州邹平.png,滨州
 阳信综合,"yangxin,CHANNEL00001036",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州阳信.png,滨州
 ########## 潍坊 ##########,,,
@@ -278,7 +278,7 @@ IPTV相声小品,239.21.1.126:5002,https://raw.githubusercontent.com/sumingyd/IP
 海洋频道,"Bravo Inc.,CHANNEL00000662",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/海洋频道.png,特色频道
 精彩影视,"jingcaiyingshi,CHANNEL00002012",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/精彩影视.png,特色频道
 环球旅游,"增值-huanqiulvyou,CHANNEL00000643",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/环球旅游.png,特色频道
-纪实科教,"BeiJing-JISHI,239.21.1.194:5002,CHANNEL00000332",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/纪实科教.png,特色频道
+纪实科教,"BeiJing-JISHI,239.21.1.194:5002,CHANNEL00000332,239.21.1.172:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/纪实科教.png,特色频道
 家庭理财,"增值-jiatinglicai,CHANNEL00000654",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/辽宁/家庭理财.png,特色频道
 嘉佳卡通,"239.21.2.5:5002,CHANNEL00000074",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/嘉佳卡通.png,特色频道
 金色学堂,"增值-jinsexuetang,CHANNEL00002018",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/金色学堂.png,特色频道
@@ -318,7 +318,7 @@ IPTV相声小品,239.21.1.126:5002,https://raw.githubusercontent.com/sumingyd/IP
 ########## 聊城 ##########,,,
 莘县综合,"shenxian,CHANNEL00001047",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城莘县.png,聊城
 茌平综合,"239.21.1.219:5002,chiping,CHANNEL00001048",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城茌平.png,聊城
-冠县综合,"guanxian,CHANNEL00001040",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城冠县.png,聊城
+冠县综合,"guanxian,CHANNEL00001040,239.21.2.149:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城冠县.png,聊城
 东阿综合,"239.21.2.61:5002,donge,CHANNEL00001093",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城东阿.png,聊城
 临清综合,"linqing-zonghe,CHANNEL00001103,239.21.2.123:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城临清.png,聊城
 ########## 菏泽 ##########,,,
