@@ -1,4 +1,5 @@
 from PyQt6 import QtCore, QtGui
+import os
 from typing import List, Dict, Any
 from log_manager import LogManager
 from styles import AppStyles
@@ -55,7 +56,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         col = index.column()
 
         if role == QtCore.Qt.ItemDataRole.DisplayRole:
-            if col == 0:  # 序号
+            if col == 0:  # 序号 - 只显示序号，图片通过装饰角色显示
                 return str(index.row() + 1)
             elif col == 1:  # 频道名称
                 return channel.get('name', '未命名')
@@ -71,6 +72,23 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 return channel.get('status', '待检测')
             elif col == 7:  # 延迟(ms)
                 return str(channel.get('latency', ''))
+        elif role == QtCore.Qt.ItemDataRole.DecorationRole and col == 0:  # 序号列显示Logo图片
+            # 获取Logo地址
+            logo_url = channel.get('logo_url', channel.get('logo', ''))
+            if logo_url and logo_url.startswith(('http://', 'https://')):
+                # 检查UI层是否已经缓存了这个Logo
+                if hasattr(self.parent(), 'ui') and hasattr(self.parent().ui, 'logo_cache'):
+                    if logo_url in self.parent().ui.logo_cache:
+                        return self.parent().ui.logo_cache[logo_url]
+                else:
+                    # 如果没有UI层，返回一个占位符图标
+                    # 创建一个简单的占位符图标
+                    pixmap = QtGui.QPixmap(24, 24)
+                    pixmap.fill(QtGui.QColor('#cccccc'))
+                    return QtGui.QIcon(pixmap)
+            
+            # 如果没有Logo或不是网络地址，返回空图标
+            return None
         elif role == QtCore.Qt.ItemDataRole.TextAlignmentRole:
             return QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignLeft
         elif role == QtCore.Qt.ItemDataRole.BackgroundRole:

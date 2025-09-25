@@ -1,6 +1,7 @@
 import asyncio
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
+from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from channel_model import ChannelListModel
 from styles import AppStyles
 from pathlib import Path
@@ -14,6 +15,10 @@ class UIBuilder:
         self.logger = LogManager()
         self._ui_initialized = False
         self._model_initialized = False
+        # 网络图片管理器
+        self.network_manager = QNetworkAccessManager()
+        self.logo_cache = {}  # 缓存已下载的Logo图片
+        self.pending_requests = {}  # 正在进行的请求
 
     def build_ui(self):
         if not self._ui_initialized:
@@ -508,6 +513,9 @@ class UIBuilder:
         self.main_window.model.rowsRemoved.connect(update_buttons)
         self.main_window.model.modelReset.connect(update_buttons)
         
+        # 监听数据变化，异步加载网络Logo
+        self.main_window.model.dataChanged.connect(self._load_network_logos)
+        
         # 启用拖放排序功能
         self.main_window.channel_list.setDragEnabled(True)
         self.main_window.channel_list.setAcceptDrops(True)
@@ -888,6 +896,117 @@ class UIBuilder:
         self.main_window.channel_group_edit.clear()
         self.main_window.channel_logo_edit.clear()
         self.main_window.channel_url_edit.clear()
+
+    def _load_network_logos(self):
+        """异步加载网络Logo图片"""
+        if not hasattr(self.main_window, 'model') or not self.main_window.model:
+            return
+            
+        # 遍历所有频道，检查是否有网络Logo需要加载
+        for row in range(self.main_window.model.rowCount()):
+            channel = self.main_window.model.get_channel(row)
+            logo_url = channel.get('logo_url', channel.get('logo', ''))
+            
+            # 只处理网络Logo地址
+            if logo_url and logo_url.startswith(('http://', 'https://')):
+                # 检查是否已经在缓存中
+                if logo_url in self.logo_cache:
+                    continue
+                    
+                # 检查是否已经在请求中
+                if logo_url in self.pending_requests:
+                    continue
+                    
+                # 立即显示占位符图标，然后异步加载实际图片
+                self._show_placeholder_icon(row, logo_url)
+                
+                # 发起网络请求
+                self._download_logo(logo_url, row)
+
+    def _show_placeholder_icon(self, row, logo_url):
+        """显示占位符图标，并立即更新UI"""
+        try:
+            # 创建一个简单的占位符图标
+            pixmap = QtGui.QPixmap(24, 24)
+            pixmap.fill(QtGui.QColor('#cccccc'))
+            placeholder_icon = QtGui.QIcon(pixmap)
+            
+            # 临时缓存占位符图标
+            self.logo_cache[logo_url] = placeholder_icon
+            
+            # 立即更新UI
+            index = self.main_window.model.index(row, 0)
+            self.main_window.model.dataChanged.emit(index, index)
+            
+            self.logger.debug(f"显示占位符图标: {logo_url}")
+        except Exception as e:
+            self.logger.debug(f"显示占位符图标失败: {logo_url}, {e}")
+
+    def _download_logo(self, logo_url, row):
+        """下载Logo图片"""
+        try:
+            request = QNetworkRequest(QtCore.QUrl(logo_url))
+            request.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
+            
+            # 发起请求
+            reply = self.network_manager.get(request)
+            self.pending_requests[logo_url] = reply
+            
+            # 连接完成信号
+            reply.finished.connect(lambda: self._on_logo_downloaded(reply, logo_url, row))
+            
+        except Exception as e:
+            self.logger.debug(f"Logo下载请求失败: {logo_url}, {e}")
+
+    def _on_logo_downloaded(self, reply, logo_url, row):
+        """Logo下载完成处理"""
+        try:
+            if reply.error() == QNetworkReply.NetworkError.NoError:
+                # 读取图片数据
+                data = reply.readAll()
+                pixmap = QtGui.QPixmap()
+                if pixmap.loadFromData(data):
+                    # 等比缩放图片，保持宽高比，最大高度为24像素
+                    original_size = pixmap.size()
+                    if original_size.height() > 0:
+                        # 计算缩放比例，保持宽高比
+                        scale_factor = 24.0 / original_size.height()
+                        new_width = int(original_size.width() * scale_factor)
+                        new_height = 24
+                        
+                        # 如果宽度超过100像素，限制最大宽度
+                        if new_width > 100:
+                            scale_factor = 100.0 / original_size.width()
+                            new_width = 100
+                            new_height = int(original_size.height() * scale_factor)
+                        
+                        scaled_pixmap = pixmap.scaled(new_width, new_height, 
+                                                    QtCore.Qt.AspectRatioMode.KeepAspectRatio, 
+                                                    QtCore.Qt.TransformationMode.SmoothTransformation)
+                        icon = QtGui.QIcon(scaled_pixmap)
+                        
+                        # 缓存图片
+                        self.logo_cache[logo_url] = icon
+                        
+                        # 更新UI
+                        index = self.main_window.model.index(row, 0)
+                        self.main_window.model.dataChanged.emit(index, index)
+                        
+                        self.logger.debug(f"Logo下载成功: {logo_url}, 原始尺寸: {original_size.width()}x{original_size.height()}, 缩放后: {new_width}x{new_height}")
+                    else:
+                        self.logger.debug(f"Logo图片高度为0: {logo_url}")
+                else:
+                    self.logger.debug(f"Logo图片格式不支持: {logo_url}")
+            else:
+                self.logger.debug(f"Logo下载失败: {logo_url}, 错误: {reply.errorString()}")
+                
+        except Exception as e:
+            self.logger.debug(f"Logo处理异常: {logo_url}, {e}")
+        finally:
+            # 清理请求
+            if logo_url in self.pending_requests:
+                del self.pending_requests[logo_url]
+            reply.deleteLater()
 
 
         
