@@ -35,7 +35,7 @@ CGTN俄语,"239.21.2.35:5002,CHANNEL00000357",https://raw.githubusercontent.com/
 凤凰卫视,"凤凰卫视-fenghuang,CHANNEL00000380,239.21.2.163:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰卫视.png,卫视
 凤凰香港,凤凰香港-fenghuang,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰香港.png,卫视
 凤凰资讯,凤凰资讯-fenghuang,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰资讯.png,卫视
-甘肃卫视,"GanSu,GanSu-HD,239.21.1.47:5002,CHANNEL00000349",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/甘肃/甘肃卫视2.png,卫视
+甘肃卫视,"GanSu,GanSu-HD,239.21.1.47:5002,CHANNEL00000349,239.21.2.22:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/甘肃/甘肃卫视2.png,卫视
 广东卫视,"�㶫����,GuangDong,GuangDong-HD,CHANNEL00000025,CHANNEL00000307,239.21.2.157:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/广东卫视2.png,卫视
 广东卫视-4K,"239.21.2.173:5002,GUANGDONG-4k,广东卫视4K,CHANNEL40000003,GuangDong-4K-25P",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/广东卫视4K.png,卫视
 广西卫视,"GuangXi,GuangXi-HD,CHANNEL00000038,CHANNEL00000368",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广西/广西卫视2.png,卫视
@@ -66,13 +66,13 @@ CGTN俄语,"239.21.2.35:5002,CHANNEL00000357",https://raw.githubusercontent.com/
 深圳卫视-4K,"shenzhen-4K-25P,239.21.2.174:5002,深圳卫视4K,CHANNEL40000004",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视4K.png,卫视
 四川卫视,"SICHUAN,SICHUAN-HD,�Ĵ�����,CHANNEL00000348",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川/四川卫视3.png,卫视
 四川卫视-4K,"CHANNEL40000010,SiChuan-4K-25P",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川/四川卫视4K.png,卫视
-天津卫视,"TIANJIN,TIANJIN-HD,CHANNEL00000021,CHANNEL00000327",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/天津/天津卫视3.png,卫视
+天津卫视,"TIANJIN,TIANJIN-HD,CHANNEL00000021,CHANNEL00000327,239.21.1.165:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/天津/天津卫视3.png,卫视
 西藏卫视,"标清西藏-xizang,CHANNEL00000045,CHANNEL00000392​",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/西藏/西藏卫视2.png,卫视
 新疆卫视,"标清新疆-xinjiang,CHANNEL00000044,CHANNEL00000393",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/新疆卫视2.png,卫视
 延边卫视,"标清延边-yanbian,CHANNEL00000668",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/吉林/延边卫视.png,卫视
 云南卫视,"YunNan,YunNan-HD,CHANNEL00000039,CHANNEL00000367",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/云南/云南卫视3.png,卫视
 浙江卫视,"239.21.1.17:5002,ZHEJIANG,ZHEJIANG-HD,CHANNEL00000016,CHANNEL00000305",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/浙江卫视2.png,卫视
-浙江卫视-4K,"CHANNEL40000008,ZheJiang-4K-25P",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/浙江卫视4K.png,卫视
+浙江卫视-4K,"CHANNEL40000008,ZheJiang-4K-25P,239.21.2.182:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/浙江卫视4K.png,卫视
 重庆卫视,"CHONGQING,CHONGQING-HD,CHANNEL00000341",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/重庆/重庆卫视3.png,卫视
 ########## 国际频道 ##########,,,
 NHK世界台,NHK,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/日本/NHK世界台.png,国际频道
@@ -91,7 +91,7 @@ CCTV-4 (美洲),"239.21.2.29:5002,CHANNEL00000351",https://raw.githubusercontent
 CCTV-4K 超高清,"CCTV ,CCTV 4K,239.21.2.152:5002,CHANNEL00000382",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4K.png,央视频道
 CCTV-5 体育,"239.21.2.46:5002,CCTV5,CCTV5-HD,CHANNEL00000360",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV5.png,央视频道
 CCTV-5+ 体育赛事,"CCTV5+,CCTV5+-HD,CHANNEL00000316",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV5+.png,央视频道
-CCTV-6 电影,"CCTV6,CCTV6-HD,CHANNEL00000006,CHANNEL00000361",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV6.png,央视频道
+CCTV-6 电影,"CCTV6,CCTV6-HD,CHANNEL00000006,CHANNEL00000361,239.21.2.47:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV6.png,央视频道
 CCTV-7 国防军事,"CCTV7,CCTV7-HD,CHANNEL00000318,239.21.1.152:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV7.png,央视频道
 CCTV-8 电视剧,"CCTV8,CCTV8-HD,CHANNEL00000008,CHANNEL00000362",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV8.png,央视频道
 CCTV-9 纪录,"CCTV9,CCTV9-HD,CHANNEL00000319",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV9.png,央视频道
@@ -215,7 +215,7 @@ CCTV-中视购物,239.21.1.100:5002,https://raw.githubusercontent.com/sumingyd/I
 兖州新闻,"yanzhou,CHANNEL00001051",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁兖州.png,济宁
 邹城综合,"zoucheng-xinwen,CHANNEL00001038",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁邹城.png,济宁
 梁山综合,liangshan,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁梁山.png,济宁
-嘉祥综合,"jiaxiang-xinwen,CHANNEL00001016",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁嘉祥.png,济宁
+嘉祥综合,"jiaxiang-xinwen,CHANNEL00001016,239.21.2.84:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁嘉祥.png,济宁
 鱼台综合,"yutai-xinwen,CHANNEL00001107",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁鱼台.png,济宁
 鱼台生活,"yutai-shenghuo,CHANNEL00001108",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁鱼台.png,济宁
 任城综合,"RenCHENG-1,CHANNEL00001111",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁任城.png,济宁
@@ -320,7 +320,7 @@ IPTV相声小品,239.21.1.126:5002,https://raw.githubusercontent.com/sumingyd/IP
 茌平综合,"239.21.1.219:5002,chiping,CHANNEL00001048",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城茌平.png,聊城
 冠县综合,"guanxian,CHANNEL00001040",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城冠县.png,聊城
 东阿综合,"239.21.2.61:5002,donge,CHANNEL00001093",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城东阿.png,聊城
-临清综合,"linqing-zonghe,CHANNEL00001103",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城临清.png,聊城
+临清综合,"linqing-zonghe,CHANNEL00001103,239.21.2.123:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城临清.png,聊城
 ########## 菏泽 ##########,,,
 定陶综合,"dingtao,CHANNEL00001063",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽定陶.png,菏泽
 巨野新闻,"juye-xinwen,CHANNEL00001046",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽巨野.png,菏泽
