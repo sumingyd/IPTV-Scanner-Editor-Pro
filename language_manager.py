@@ -32,19 +32,19 @@ class LanguageManager:
                 locales_path = os.path.join(base_path, 'locales')
                 if os.path.exists(locales_path):
                     self.locales_dir = locales_path
-                    logger.info(f"使用打包后的语言目录: {locales_path}")
+                    logger.debug(f"使用打包后的语言目录: {locales_path}")
                 else:
                     # 尝试2: _MEIPASS临时解压目录 (PyInstaller运行时)
                     if hasattr(sys, '_MEIPASS'):
                         meipass_locales = os.path.join(sys._MEIPASS, 'locales')
                         if os.path.exists(meipass_locales):
                             self.locales_dir = meipass_locales
-                            logger.info(f"使用_MEIPASS语言目录: {meipass_locales}")
+                            logger.debug(f"使用_MEIPASS语言目录: {meipass_locales}")
                     # 尝试3: 当前工作目录下的locales文件夹
                     cwd_locales = os.path.join(os.getcwd(), 'locales')
                     if os.path.exists(cwd_locales):
                         self.locales_dir = cwd_locales
-                        logger.info(f"使用当前工作目录语言目录: {cwd_locales}")
+                        logger.debug(f"使用当前工作目录语言目录: {cwd_locales}")
             
             if not os.path.exists(self.locales_dir):
                 # 如果目录不存在，尝试创建
@@ -58,11 +58,11 @@ class LanguageManager:
             
             # 查找所有json语言文件
             json_files = glob.glob(os.path.join(self.locales_dir, '*.json'))
-            logger.info(f"找到语言文件: {json_files}")
+            logger.debug(f"找到语言文件: {json_files}")
             
             # 如果没有找到文件，尝试从打包资源中加载
             if not json_files and getattr(sys, 'frozen', False):
-                logger.warning("未找到语言文件，尝试从打包资源加载")
+                logger.debug("未找到语言文件，尝试从打包资源加载")
                 # 尝试加载内置的语言文件
                 self._load_builtin_languages()
             else:
@@ -78,14 +78,14 @@ class LanguageManager:
                                 'display_name': display_name,
                                 'data': data
                             }
-                            logger.info(f"成功加载语言: {lang_code} ({display_name})")
+                            logger.debug(f"成功加载语言: {lang_code} ({display_name})")
                     except Exception as e:
                         logger.error(f"加载语言文件失败 {json_file}: {str(e)}")
                     
         except Exception as e:
             logger.error(f"扫描语言文件失败: {str(e)}")
             
-        logger.info(f"可用语言: {list(self.available_languages.keys())}")
+        logger.debug(f"可用语言: {list(self.available_languages.keys())}")
         self._languages_loaded = True
         return self.available_languages
 

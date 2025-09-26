@@ -75,11 +75,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         elif role == QtCore.Qt.ItemDataRole.DecorationRole and col == 0:  # 序号列显示Logo图片
             # 获取Logo地址
             logo_url = channel.get('logo_url', channel.get('logo', ''))
-            logger.debug(f"频道 {index.row()}: {channel.get('name', '未命名')} - Logo URL: {logo_url}")
             
             if logo_url and logo_url.startswith(('http://', 'https://')):
-                logger.debug(f"检测到网络Logo: {logo_url}")
-                
                 # 尝试查找UI层
                 ui_instance = None
                 
@@ -88,7 +85,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 while parent_widget:
                     if hasattr(parent_widget, 'ui') and hasattr(parent_widget.ui, 'logo_cache'):
                         ui_instance = parent_widget.ui
-                        logger.debug(f"通过父对象链找到UI层: {type(parent_widget)}")
                         break
                     parent_widget = parent_widget.parent()
                 
@@ -100,28 +96,21 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         for widget in app.allWidgets():
                             if hasattr(widget, 'ui') and hasattr(widget.ui, 'logo_cache'):
                                 ui_instance = widget.ui
-                                logger.debug(f"通过全局查找找到UI层: {type(widget)}")
                                 break
                 
                 if ui_instance and hasattr(ui_instance, 'logo_cache'):
-                    logger.debug(f"UI层存在，检查缓存: {logo_url in ui_instance.logo_cache}")
                     if logo_url in ui_instance.logo_cache:
-                        logger.debug(f"Logo在缓存中: {logo_url}")
                         return ui_instance.logo_cache[logo_url]
                     else:
                         # 如果不在缓存中，返回占位符图标
-                        logger.debug(f"Logo不在缓存中，返回占位符: {logo_url}")
-                        pixmap = QtGui.QPixmap(24, 24)
+                        pixmap = QtGui.QPixmap(36, 36)  # 从24增大到36
                         pixmap.fill(QtGui.QColor('#cccccc'))
                         return QtGui.QIcon(pixmap)
                 else:
                     # 如果没有UI层，返回一个占位符图标
-                    logger.debug(f"UI层不存在，返回占位符: {logo_url}")
-                    pixmap = QtGui.QPixmap(24, 24)
+                    pixmap = QtGui.QPixmap(36, 36)  # 从24增大到36
                     pixmap.fill(QtGui.QColor('#cccccc'))
                     return QtGui.QIcon(pixmap)
-            else:
-                logger.debug(f"无网络Logo或Logo地址无效: {logo_url}")
             
             # 如果没有Logo或不是网络地址，返回空图标
             return None

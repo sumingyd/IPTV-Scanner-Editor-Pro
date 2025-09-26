@@ -746,9 +746,9 @@ class UIBuilder:
             # 直接连接信号，不使用functools.partial
             lang_action.triggered.connect(lambda checked, code=lang_code: self._change_language(code))
             self.main_window.language_menu.addAction(lang_action)
-            self.logger.info(f"添加语言选项: {lang_code} - {lang_info['display_name']}")
+            self.logger.debug(f"添加语言选项: {lang_code} - {lang_info['display_name']}")
         
-        self.logger.info(f"语言菜单包含 {len(self.main_window.language_menu.actions())} 个动作")
+        self.logger.debug(f"语言菜单包含 {len(self.main_window.language_menu.actions())} 个动作")
         
         # 创建QWidgetAction来包装QToolButton
         language_action = QtWidgets.QWidgetAction(self.main_window)
@@ -911,16 +911,16 @@ class UIBuilder:
         """异步加载网络Logo图片"""
         # 防止无限循环
         if self._loading_logos:
-            self.logger.debug("UI层: Logo加载正在进行中，跳过本次调用")
             return
             
         if not hasattr(self.main_window, 'model') or not self.main_window.model:
-            self.logger.debug("UI层: 模型未初始化，跳过Logo加载")
             return
             
         self._loading_logos = True
         try:
-            self.logger.debug(f"UI层: 开始加载网络Logo，频道数量: {self.main_window.model.rowCount()}")
+            # 只记录开始加载的简要信息
+            if self.main_window.model.rowCount() > 0:
+                self.logger.debug(f"开始加载网络Logo，共 {self.main_window.model.rowCount()} 个频道")
             
             # 遍历所有频道，检查是否有网络Logo需要加载
             for row in range(self.main_window.model.rowCount()):
@@ -929,16 +929,12 @@ class UIBuilder:
                 
                 # 只处理网络Logo地址
                 if logo_url and logo_url.startswith(('http://', 'https://')):
-                    self.logger.debug(f"UI层: 频道 {row}: {channel.get('name', '未命名')} - Logo URL: {logo_url}")
-                    
                     # 检查是否已经在缓存中
                     if logo_url in self.logo_cache:
-                        self.logger.debug(f"UI层: Logo已在缓存中: {logo_url}")
                         continue
                         
                     # 检查是否已经在请求中
                     if logo_url in self.pending_requests:
-                        self.logger.debug(f"UI层: Logo已在请求中: {logo_url}")
                         continue
                         
                     # 立即显示占位符图标，然后异步加载实际图片
@@ -946,15 +942,12 @@ class UIBuilder:
                     
                     # 发起网络请求
                     self._download_logo(logo_url, row)
-                else:
-                    self.logger.debug(f"UI层: 频道 {row}: {channel.get('name', '未命名')} - 无网络Logo")
                     
             # 强制刷新视图以确保Logo显示
             if self.main_window.model.rowCount() > 0:
                 top_left = self.main_window.model.index(0, 0)
                 bottom_right = self.main_window.model.index(self.main_window.model.rowCount() - 1, 0)
                 self.main_window.model.dataChanged.emit(top_left, bottom_right)
-                self.logger.debug("UI层: 已强制刷新视图")
         finally:
             self._loading_logos = False
 
@@ -1006,16 +999,12 @@ class UIBuilder:
                     
                     # 只处理网络Logo地址
                     if logo_url and logo_url.startswith(('http://', 'https://')):
-                        self.logger.debug(f"UI层: 新增频道 {row}: {channel.get('name', '未命名')} - Logo URL: {logo_url}")
-                        
                         # 检查是否已经在缓存中
                         if logo_url in self.logo_cache:
-                            self.logger.debug(f"UI层: Logo已在缓存中: {logo_url}")
                             continue
                             
                         # 检查是否已经在请求中
                         if logo_url in self.pending_requests:
-                            self.logger.debug(f"UI层: Logo已在请求中: {logo_url}")
                             continue
                             
                         # 立即显示占位符图标，然后异步加载实际图片
@@ -1034,18 +1023,18 @@ class UIBuilder:
                 data = reply.readAll()
                 pixmap = QtGui.QPixmap()
                 if pixmap.loadFromData(data):
-                    # 等比缩放图片，保持宽高比，最大高度为24像素
+                    # 等比缩放图片，保持宽高比，增大Logo尺寸到36像素
                     original_size = pixmap.size()
                     if original_size.height() > 0:
                         # 计算缩放比例，保持宽高比
-                        scale_factor = 24.0 / original_size.height()
+                        scale_factor = 36.0 / original_size.height()  # 从24增大到36
                         new_width = int(original_size.width() * scale_factor)
-                        new_height = 24
+                        new_height = 36  # 从24增大到36
                         
-                        # 如果宽度超过100像素，限制最大宽度
-                        if new_width > 100:
-                            scale_factor = 100.0 / original_size.width()
-                            new_width = 100
+                        # 如果宽度超过120像素，限制最大宽度
+                        if new_width > 120:  # 从100增大到120
+                            scale_factor = 120.0 / original_size.width()
+                            new_width = 120
                             new_height = int(original_size.height() * scale_factor)
                         
                         scaled_pixmap = pixmap.scaled(new_width, new_height, 
@@ -1060,7 +1049,8 @@ class UIBuilder:
                         index = self.main_window.model.index(row, 0)
                         self.main_window.model.dataChanged.emit(index, index)
                         
-                        self.logger.debug(f"Logo下载成功: {logo_url}, 原始尺寸: {original_size.width()}x{original_size.height()}, 缩放后: {new_width}x{new_height}")
+                        # 只记录成功信息，不记录详细尺寸
+                        self.logger.debug(f"Logo下载成功: {logo_url}")
                     else:
                         self.logger.debug(f"Logo图片高度为0: {logo_url}")
                 else:

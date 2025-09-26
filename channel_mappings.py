@@ -4,6 +4,9 @@ import re
 from typing import Dict, List
 from log_manager import LogManager
 
+# 创建全局日志管理器实例
+logger = LogManager()
+
 # 默认远程URL - 优先使用CSV格式，如果不存在则尝试TXT格式
 DEFAULT_REMOTE_URL = "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/local_channel_mappings.csv"
 
@@ -83,7 +86,7 @@ def extract_channel_name_from_url(url: str) -> str:
         # 默认提取URL最后部分
         return url.split('/')[-1].split('?')[0].split('#')[0].strip()
     except Exception as e:
-        LogManager().error(f"提取频道名失败: {e}")
+        logger.error(f"提取频道名失败: {e}")
         return url  # 如果提取失败，返回完整URL
 
 def parse_mapping_line(line: str) -> Dict[str, dict]:
@@ -160,12 +163,11 @@ def load_mappings_from_file(file_path: str) -> Dict[str, dict]:
                     if line and not line.startswith('#'):
                         mappings.update(parse_mapping_line(line))
     except Exception as e:
-        LogManager().error(f"加载映射文件 {file_path} 失败: {e}")
+        logger.error(f"加载映射文件 {file_path} 失败: {e}")
     return mappings
 
 def load_remote_mappings() -> Dict[str, dict]:
     """加载远程映射规则"""
-    logger = LogManager()
     try:
         from config_manager import ConfigManager
         config = ConfigManager()
@@ -174,31 +176,53 @@ def load_remote_mappings() -> Dict[str, dict]:
         except AttributeError:
             remote_url = DEFAULT_REMOTE_URL
         
-        # 先尝试CSV格式
-        response = requests.get(remote_url, timeout=10)
-        if response.status_code == 404:
-            # 如果CSV格式不存在，尝试TXT格式（向后兼容）
-            txt_url = remote_url.replace('.csv', '.txt')
-            logger.info(f"CSV映射文件不存在，尝试TXT格式: {txt_url}")
-            response = requests.get(txt_url, timeout=10)
-        
-        response.raise_for_status()
-        
-        # 根据文件扩展名确定格式
-        if remote_url.endswith('.csv') or response.url.endswith('.csv'):
-            file_ext = '.csv'
-        else:
-            file_ext = '.txt'
-        
-        # 创建临时文件保存远程内容
-        temp_file = f"remote_mappings{file_ext}"
-        with open(temp_file, 'w', encoding='utf-8') as f:
-            f.write(response.text)
-        
-        # 从临时文件加载映射
-        mappings = load_mappings_from_file(temp_file)
-        os.remove(temp_file)
-        return mappings
+        # 增加重试机制和SSL错误处理
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                # 先尝试CSV格式
+                response = requests.get(remote_url, timeout=10, verify=False)  # 临时禁用SSL验证
+                if response.status_code == 404:
+                    # 如果CSV格式不存在，尝试TXT格式（向后兼容）
+                    txt_url = remote_url.replace('.csv', '.txt')
+                    logger.info(f"CSV映射文件不存在，尝试TXT格式: {txt_url}")
+                    response = requests.get(txt_url, timeout=10, verify=False)
+                
+                response.raise_for_status()
+                
+                # 根据文件扩展名确定格式
+                if remote_url.endswith('.csv') or response.url.endswith('.csv'):
+                    file_ext = '.csv'
+                else:
+                    file_ext = '.txt'
+                
+                # 创建临时文件保存远程内容
+                temp_file = f"remote_mappings{file_ext}"
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    f.write(response.text)
+                
+                # 从临时文件加载映射
+                mappings = load_mappings_from_file(temp_file)
+                os.remove(temp_file)
+                logger.info(f"成功加载远程映射规则，共 {len(mappings)} 条映射")
+                return mappings
+                
+            except requests.exceptions.SSLError as e:
+                logger.warning(f"SSL错误 (尝试 {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(2)  # 等待2秒后重试
+                else:
+                    raise e
+            except Exception as e:
+                logger.error(f"加载远程映射失败 (尝试 {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(2)  # 等待2秒后重试
+                else:
+                    raise e
+                    
+        return {}  # 所有重试都失败
     except Exception as e:
         logger.error(f"加载远程映射失败: {e}, 使用本地映射")
         return {}
@@ -221,7 +245,6 @@ def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
 remote_mappings = load_remote_mappings()
 
 # 记录加载状态
-logger = LogManager()
 if remote_mappings:
     logger.info("成功加载远程映射规则")
 else:
@@ -237,7 +260,6 @@ def get_channel_info(raw_name: str) -> dict:
     """获取频道信息(标准名称、logo地址和分组名)
     返回格式: {'standard_name': str, 'logo_url': str, 'group_name': str}
     """
-    logger = LogManager()
     if not raw_name or raw_name.isspace():
         return {'standard_name': '', 'logo_url': None}
     
