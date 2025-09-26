@@ -33,7 +33,7 @@ CGTN俄语,"239.21.2.35:5002,CHANNEL00000357",https://raw.githubusercontent.com/
 东方卫视-4K,"CHANNEL40000009,ShangHai-4K-25P,239.21.2.184:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方卫视4K.png,卫视
 东南卫视,"239.21.1.29:5002,FUJIAN,FUJIAN-HD,CHANNEL00000028,CHANNEL00000310",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/福建/东南卫视2.png,卫视
 凤凰卫视,"凤凰卫视-fenghuang,CHANNEL00000380,239.21.2.163:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰卫视.png,卫视
-凤凰香港,凤凰香港-fenghuang,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰香港.png,卫视
+凤凰香港,"凤凰香港-fenghuang,239.21.2.164:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰香港.png,卫视
 凤凰资讯,凤凰资讯-fenghuang,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰资讯.png,卫视
 甘肃卫视,"GanSu,GanSu-HD,239.21.1.47:5002,CHANNEL00000349,239.21.2.22:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/甘肃/甘肃卫视2.png,卫视
 广东卫视,"�㶫����,GuangDong,GuangDong-HD,CHANNEL00000025,CHANNEL00000307,239.21.2.157:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/广东卫视2.png,卫视
@@ -226,7 +226,7 @@ CCTV-中视购物,239.21.1.100:5002,https://raw.githubusercontent.com/sumingyd/I
 沂源综合,"yiyuan,CHANNEL00001002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博沂源.png,淄博
 淄川新闻,"zichuan-xinwen,CHANNEL00001007",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博淄川.png,淄博
 张店综合,"zhangdian,CHANNEL00001012,239.21.2.138:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博张店.png,淄博
-高青综合,"gaoqing-zonghe,CHANNEL00001023",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博高青.png,淄博
+高青综合,"gaoqing-zonghe,CHANNEL00001023,239.21.2.140:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博高青.png,淄博
 周村新闻,"ZHOUCUN-XINWEN,CHANNEL00001019",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博周村.png,淄博
 ########## 滨州 ##########,,,
 惠民综合,"huimin,CHANNEL00001009",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州惠民.png,滨州
@@ -270,7 +270,7 @@ IPTV相声小品,239.21.1.126:5002,https://raw.githubusercontent.com/sumingyd/IP
 茶频道,"增值-cha,CHANNEL00000649",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/茶频道.png,特色频道
 车迷,"增值-chemi,CHANNEL00000645",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/车迷频道.png,特色频道
 东方财经,"增值-dongfangcaijing,CHANNEL00002025",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方财经.png,特色频道
-动漫秀场,"??-dongmanxiuchang,CHANNEL00002000",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/动漫秀场.png,特色频道
+动漫秀场,"??-dongmanxiuchang,CHANNEL00002000,239.21.2.92:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/动漫秀场.png,特色频道
 都市剧场,"增值-dushijuchang,CHANNEL00002022",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/都市剧场.png,特色频道
 法治天地,"增值-fazhitiandi,CHANNEL00002010",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/法治天地3.png,特色频道
 光影,239.21.1.131:5002,,特色频道

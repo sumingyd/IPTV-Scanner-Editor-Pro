@@ -85,10 +85,18 @@ class PlayerController(QObject):
 
     def release(self):
         """释放播放器资源"""
-        if self.player:
-            self.player.release()
-        if self.instance:
-            self.instance.release()
+        try:
+            if self.player:
+                self.player.stop()
+                self.player.release()
+                self.player = None
+            if self.instance:
+                self.instance.release()
+                self.instance = None
+            self.is_playing = False
+            self.logger.info("播放器资源已释放")
+        except Exception as e:
+            self.logger.error(f"释放播放器资源失败: {e}")
 
     def play_channel(self, channel):
         """播放指定频道(允许任何状态)

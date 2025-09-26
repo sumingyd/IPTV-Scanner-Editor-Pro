@@ -4,6 +4,7 @@ import time
 import json
 import sys
 import os
+import urllib.parse
 from typing import Dict, Optional
 from log_manager import LogManager
 from language_manager import LanguageManager
@@ -141,15 +142,40 @@ class StreamValidator:
         # 不再去除清晰度后缀，保持原始名称
         return name.strip()
 
+    def _optimize_url_for_network(self, url: str) -> str:
+        """优化URL以提高网络请求效率"""
+        try:
+            parsed = urllib.parse.urlparse(url)
+            
+            # 如果是HTTP/HTTPS协议，添加连接优化参数
+            if parsed.scheme in ['http', 'https']:
+                # 添加连接复用参数
+                if '?' in url:
+                    url += '&reuse=1&timeout=5'
+                else:
+                    url += '?reuse=1&timeout=5'
+            
+            return url
+        except Exception:
+            return url
+
     def _build_ffmpeg_command(self, url: str, duration: float = 3.0) -> list:
         """构建ffmpeg命令"""
         ffmpeg_path = self._get_ffmpeg_path()
+        
+        # 优化URL
+        optimized_url = self._optimize_url_for_network(url)
+        
         cmd = [
             ffmpeg_path,
             '-v', 'error',
             '-timeout', '5000000',  # 5秒超时
             '-t', str(duration),    # 拉取时长
-            '-i', url,
+            '-reconnect', '1',      # 启用重连
+            '-reconnect_at_eof', '1',  # 在EOF时重连
+            '-reconnect_streamed', '1',  # 流式重连
+            '-reconnect_delay_max', '2',  # 最大重连延迟
+            '-i', optimized_url,
             '-f', 'null',           # 输出到空设备
             '-'
         ]
