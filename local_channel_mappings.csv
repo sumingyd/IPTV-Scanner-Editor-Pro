@@ -80,7 +80,7 @@ NHK世界台,NHK,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-
 澳门Macau,"澳门卫视-aomen,239.21.2.167:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/澳门/澳门电视台.png,国际频道
 法兰西,"法兰西-falanxi,239.21.2.168:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/法兰西/法兰西.png,国际频道
 欧洲新闻,"欧洲新闻-OUZHOUXINWEN,239.21.2.169:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/德国/DW德国之声.png,国际频道
-新加坡新闻,新加坡新闻-xinjiapo,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新加坡/新加坡新闻.png,国际频道
+新加坡新闻,"新加坡新闻-xinjiapo,239.21.2.165:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新加坡/新加坡新闻.png,国际频道
 ########## 央视频道 ##########,,,
 CCTV-1 综合,"CCTV1,cctv-1,CCTV-1,CCTV1-SD,CCTV1-HD,CHANNEL00000001,CHANNEL00000311,CHANNEL00004003",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV1.png,央视频道
 CCTV-2 财经,"CCTV2,CCTV2-HD,CHANNEL00000317",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV2.png,央视频道
@@ -240,7 +240,7 @@ CCTV-中视购物,239.21.1.100:5002,https://raw.githubusercontent.com/sumingyd/I
 昌邑综合,"changyi-xinwen,CHANNEL00001083",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊昌邑.png,潍坊
 青州综合,"qingzhou-zonghe,CHANNEL00001042",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊青州.png,潍坊
 青州文化旅游,"qingzhou-wenlv,CHANNEL00001057,239.21.1.231:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊青州.png,潍坊
-寿光蔬菜,"shouguang-shucai,CHANNEL00001045",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊寿光.png,潍坊
+寿光蔬菜,"shouguang-shucai,CHANNEL00001045,239.21.1.218:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊寿光.png,潍坊
 寿光综合,"shouguang-xinwen,CHANNEL00000702,CHANNEL00001000",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊寿光.png,潍坊
 诸城综合,"zhucheng,CHANNEL00001004,239.21.1.217:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊诸城.png,潍坊
 高密综合,"gaomi-xinwen,CHANNEL00001089",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊高密.png,潍坊
@@ -331,7 +331,7 @@ IPTV相声小品,239.21.1.126:5002,https://raw.githubusercontent.com/sumingyd/IP
 ########## 青岛 ##########,,,
 莱西综合,"laixi,CHANNEL00001067",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛莱西.png,青岛
 崂山综合,"laoshan,CHANNEL00001022,CHANNEL00001075,239.21.1.223:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛崂山.png,青岛
-平度综合,"pingdu-PDTV-1,CHANNEL00001054",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛平度.png,青岛
+平度综合,"pingdu-PDTV-1,CHANNEL00001054,239.21.1.228:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛平度.png,青岛
 黄岛综合,"huangdao-xinwen,CHANNEL00001086",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛黄岛.png,青岛
 黄岛生活,"239.21.2.58:5002,huangdao-shenghuo,CHANNEL00001087",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛黄岛.png,青岛
 胶州综合,"jiaozhou,CHANNEL00001074,239.21.2.60:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛胶州.png,青岛
