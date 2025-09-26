@@ -27,10 +27,6 @@ class LogManager:
         self.logger = logging.getLogger('IPTVLogger')
         self.logger.setLevel(logging.DEBUG)
         
-        # 清空现有日志文件
-        with open(self.log_file, 'w', encoding='utf-8') as f:
-            pass
-            
         # 确保只有一个handler
         if not self.logger.handlers:
             handler = RotatingFileHandler(
@@ -38,7 +34,7 @@ class LogManager:
                 maxBytes=max_bytes,
                 backupCount=backup_count,
                 encoding='utf-8',
-                mode='w'
+                mode='a'  # 改为追加模式，不清空历史日志
             )
             handler.setFormatter(logging.Formatter(
                 '%(asctime)s - %(levelname)s - %(message)s',

@@ -182,9 +182,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scanner.stats_updated.connect(self._update_stats_display)
 
     def _on_scan_clicked(self):
-        """处理扫描按钮点击事件"""
+        """处理扫描按钮点击事件 - 使用QTimer避免UI阻塞"""
         if self.scanner.is_scanning():
-            # 停止扫描
+            # 停止扫描 - 立即响应
             self.scanner.stop_scan()
             # 使用语言管理器设置完整扫描按钮文本
             if hasattr(self, 'language_manager') and self.language_manager:
@@ -201,18 +201,23 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.main_window.statusBar().showMessage("请输入扫描地址", 3000)
                 return
                 
-            # 开始扫描前清空列表
-            self.model.clear()
-            timeout = self.ui.main_window.timeout_input.value()
-            threads = self.ui.main_window.thread_count_input.value()
-            self.scanner.start_scan(url, threads, timeout)
-            # 使用语言管理器设置停止扫描按钮文本
-            if hasattr(self, 'language_manager') and self.language_manager:
-                self.ui.main_window.scan_btn.setText(
-                    self.language_manager.tr('stop_scan', 'Stop Scan')
-                )
-            else:
-                self.ui.main_window.scan_btn.setText("停止扫描")
+            # 使用QTimer延迟执行扫描，避免UI阻塞
+            QtCore.QTimer.singleShot(0, lambda: self._start_scan_delayed(url))
+            
+    def _start_scan_delayed(self, url):
+        """延迟启动扫描，避免UI阻塞"""
+        # 开始扫描前清空列表
+        self.model.clear()
+        timeout = self.ui.main_window.timeout_input.value()
+        threads = self.ui.main_window.thread_count_input.value()
+        self.scanner.start_scan(url, threads, timeout)
+        # 使用语言管理器设置停止扫描按钮文本
+        if hasattr(self, 'language_manager') and self.language_manager:
+            self.ui.main_window.scan_btn.setText(
+                self.language_manager.tr('stop_scan', 'Stop Scan')
+            )
+        else:
+            self.ui.main_window.scan_btn.setText("停止扫描")
 
     def _validate_all_channels(self, timeout: int, threads: int):
         """验证所有频道的有效性"""

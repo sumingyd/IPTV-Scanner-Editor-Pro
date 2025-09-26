@@ -1,10 +1,25 @@
 import configparser
 import os
+import threading
 from log_manager import LogManager
 logger = LogManager()
 
 class ConfigManager:
+    _instance = None
+    _lock = threading.Lock()
+    
+    def __new__(cls, config_file='config.ini'):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._initialized = False
+        return cls._instance
+        
     def __init__(self, config_file='config.ini'):
+        if self._initialized:
+            return
+            
         # 使用程序所在目录存放配置文件
         import sys
         if getattr(sys, 'frozen', False):
@@ -15,8 +30,10 @@ class ConfigManager:
             config_dir = os.path.dirname(__file__)
         self.config_file = os.path.join(config_dir, config_file)
         self.config = configparser.ConfigParser()
+        self._lock = threading.Lock()
         # 初始化时立即加载已有配置
         self.load_config()
+        self._initialized = True
         
     def save_window_layout(self, width, height, dividers):
         """保存窗口布局"""

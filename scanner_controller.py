@@ -113,7 +113,9 @@ class ScannerController(QObject):
                         self.progress_updated.emit(current, total)
                 
             except Exception as e:
-                self.logger.error(f"工作线程错误: {e}")
+                self.logger.error(f"工作线程错误: {e}", exc_info=True)
+                # 继续处理下一个URL，不中断线程
+                continue
         
         # 工作线程结束时刷新剩余频道
         self._flush_batch_channels()
@@ -277,19 +279,33 @@ class ScannerController(QObject):
         """停止扫描"""
         self.stop_event.set()
         
+        # 清空扫描队列
+        while not self.scan_queue.empty():
+            try:
+                self.scan_queue.get_nowait()
+            except queue.Empty:
+                break
+                
+        # 清空验证队列
         while not self.validation_queue.empty():
             try:
                 self.validation_queue.get_nowait()
             except queue.Empty:
                 break
                 
+        # 终止所有工作线程
         for worker in self.workers:
             if worker.is_alive():
                 worker.join(timeout=0.5)
                 
         self.workers = []
-        self.worker_queue = queue.Queue()
-        self.logger.info("扫描已完全停止，任务队列已清空")
+        self._batch_channels.clear()
+        
+        # 停止批量更新定时器
+        if hasattr(self, '_batch_timer') and self._batch_timer.isActive():
+            self._batch_timer.stop()
+                
+        self.logger.info("扫描已完全停止，所有资源已清理")
 
     def start_validation(self, model, threads, timeout):
         """开始有效性验证"""
@@ -399,8 +415,10 @@ class ScannerController(QObject):
                 time.sleep(0.1)
                 break
             except Exception as e:
-                self.logger.error(f"验证线程错误: {e}")
+                self.logger.error(f"验证线程错误: {e}", exc_info=True)
                 time.sleep(0.1)
+                # 继续处理下一个任务，不中断线程
+                continue
 
     def _update_stats(self):
         """更新统计信息线程"""
