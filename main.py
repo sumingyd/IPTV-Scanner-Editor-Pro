@@ -60,6 +60,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.model = ChannelListModel(self.ui.main_window.channel_list)
         self.ui.main_window.channel_list.setModel(self.model)
         
+        # 设置模型的父对象为主窗口，确保可以访问UI层的方法
+        self.model.setParent(self)
+        
         # 初始化控制器
         self.init_controllers()
 

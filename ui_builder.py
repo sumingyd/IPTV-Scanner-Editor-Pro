@@ -19,6 +19,8 @@ class UIBuilder:
         self.network_manager = QNetworkAccessManager()
         self.logo_cache = {}  # 缓存已下载的Logo图片
         self.pending_requests = {}  # 正在进行的请求
+        # 防止Logo加载无限循环的标志
+        self._loading_logos = False
 
     def build_ui(self):
         if not self._ui_initialized:
@@ -513,8 +515,12 @@ class UIBuilder:
         self.main_window.model.rowsRemoved.connect(update_buttons)
         self.main_window.model.modelReset.connect(update_buttons)
         
-        # 监听数据变化，异步加载网络Logo
-        self.main_window.model.dataChanged.connect(self._load_network_logos)
+        # 监听数据变化，异步加载网络Logo（只针对新增的行）
+        self.main_window.model.rowsInserted.connect(self._load_single_channel_logo)
+        self.main_window.model.modelReset.connect(self._load_network_logos)
+        
+        # 立即触发一次Logo加载
+        QtCore.QTimer.singleShot(100, self._load_network_logos)
         
         # 启用拖放排序功能
         self.main_window.channel_list.setDragEnabled(True)
@@ -903,29 +909,54 @@ class UIBuilder:
 
     def _load_network_logos(self):
         """异步加载网络Logo图片"""
-        if not hasattr(self.main_window, 'model') or not self.main_window.model:
+        # 防止无限循环
+        if self._loading_logos:
+            self.logger.debug("UI层: Logo加载正在进行中，跳过本次调用")
             return
             
-        # 遍历所有频道，检查是否有网络Logo需要加载
-        for row in range(self.main_window.model.rowCount()):
-            channel = self.main_window.model.get_channel(row)
-            logo_url = channel.get('logo_url', channel.get('logo', ''))
+        if not hasattr(self.main_window, 'model') or not self.main_window.model:
+            self.logger.debug("UI层: 模型未初始化，跳过Logo加载")
+            return
             
-            # 只处理网络Logo地址
-            if logo_url and logo_url.startswith(('http://', 'https://')):
-                # 检查是否已经在缓存中
-                if logo_url in self.logo_cache:
-                    continue
-                    
-                # 检查是否已经在请求中
-                if logo_url in self.pending_requests:
-                    continue
-                    
-                # 立即显示占位符图标，然后异步加载实际图片
-                self._show_placeholder_icon(row, logo_url)
+        self._loading_logos = True
+        try:
+            self.logger.debug(f"UI层: 开始加载网络Logo，频道数量: {self.main_window.model.rowCount()}")
+            
+            # 遍历所有频道，检查是否有网络Logo需要加载
+            for row in range(self.main_window.model.rowCount()):
+                channel = self.main_window.model.get_channel(row)
+                logo_url = channel.get('logo_url', channel.get('logo', ''))
                 
-                # 发起网络请求
-                self._download_logo(logo_url, row)
+                # 只处理网络Logo地址
+                if logo_url and logo_url.startswith(('http://', 'https://')):
+                    self.logger.debug(f"UI层: 频道 {row}: {channel.get('name', '未命名')} - Logo URL: {logo_url}")
+                    
+                    # 检查是否已经在缓存中
+                    if logo_url in self.logo_cache:
+                        self.logger.debug(f"UI层: Logo已在缓存中: {logo_url}")
+                        continue
+                        
+                    # 检查是否已经在请求中
+                    if logo_url in self.pending_requests:
+                        self.logger.debug(f"UI层: Logo已在请求中: {logo_url}")
+                        continue
+                        
+                    # 立即显示占位符图标，然后异步加载实际图片
+                    self._show_placeholder_icon(row, logo_url)
+                    
+                    # 发起网络请求
+                    self._download_logo(logo_url, row)
+                else:
+                    self.logger.debug(f"UI层: 频道 {row}: {channel.get('name', '未命名')} - 无网络Logo")
+                    
+            # 强制刷新视图以确保Logo显示
+            if self.main_window.model.rowCount() > 0:
+                top_left = self.main_window.model.index(0, 0)
+                bottom_right = self.main_window.model.index(self.main_window.model.rowCount() - 1, 0)
+                self.main_window.model.dataChanged.emit(top_left, bottom_right)
+                self.logger.debug("UI层: 已强制刷新视图")
+        finally:
+            self._loading_logos = False
 
     def _show_placeholder_icon(self, row, logo_url):
         """显示占位符图标，并立即更新UI"""
@@ -950,7 +981,6 @@ class UIBuilder:
         """下载Logo图片"""
         try:
             request = QNetworkRequest(QtCore.QUrl(logo_url))
-            request.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
             
             # 发起请求
             reply = self.network_manager.get(request)
@@ -961,6 +991,40 @@ class UIBuilder:
             
         except Exception as e:
             self.logger.debug(f"Logo下载请求失败: {logo_url}, {e}")
+
+    def _load_single_channel_logo(self, parent, first, last):
+        """只加载新增频道的Logo"""
+        if self._loading_logos:
+            return
+            
+        self._loading_logos = True
+        try:
+            for row in range(first, last + 1):
+                if row < self.main_window.model.rowCount():
+                    channel = self.main_window.model.get_channel(row)
+                    logo_url = channel.get('logo_url', channel.get('logo', ''))
+                    
+                    # 只处理网络Logo地址
+                    if logo_url and logo_url.startswith(('http://', 'https://')):
+                        self.logger.debug(f"UI层: 新增频道 {row}: {channel.get('name', '未命名')} - Logo URL: {logo_url}")
+                        
+                        # 检查是否已经在缓存中
+                        if logo_url in self.logo_cache:
+                            self.logger.debug(f"UI层: Logo已在缓存中: {logo_url}")
+                            continue
+                            
+                        # 检查是否已经在请求中
+                        if logo_url in self.pending_requests:
+                            self.logger.debug(f"UI层: Logo已在请求中: {logo_url}")
+                            continue
+                            
+                        # 立即显示占位符图标，然后异步加载实际图片
+                        self._show_placeholder_icon(row, logo_url)
+                        
+                        # 发起网络请求
+                        self._download_logo(logo_url, row)
+        finally:
+            self._loading_logos = False
 
     def _on_logo_downloaded(self, reply, logo_url, row):
         """Logo下载完成处理"""
