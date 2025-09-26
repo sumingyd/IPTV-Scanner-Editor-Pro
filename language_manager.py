@@ -17,6 +17,7 @@ class LanguageManager:
         """加载所有可用的语言文件"""
         # 如果已经加载过，直接返回缓存结果
         if hasattr(self, '_languages_loaded') and self._languages_loaded:
+            logger.debug("语言文件已加载，直接返回缓存")
             return self.available_languages
             
         self.available_languages = {}
