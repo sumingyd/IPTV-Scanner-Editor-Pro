@@ -21,10 +21,11 @@ class ScannerController(QObject):
     # 在类定义中声明信号
     channel_validated = pyqtSignal(int, bool, int, str)  # index, valid, latency, resolution
 
-    def __init__(self, model: ChannelListModel):
+    def __init__(self, model: ChannelListModel, main_window=None):
         super().__init__()
         self.logger = LogManager()
         self.model = model
+        self.main_window = main_window
         self.url_parser = URLRangeParser()
         self.is_validating = False
         self.stats_lock = threading.Lock()
@@ -36,6 +37,14 @@ class ScannerController(QObject):
         self.channel_counter = 0
         self.counter_lock = threading.Lock()
         
+        # 批量更新相关属性
+        self._batch_channels = []
+        self._batch_size = 50  # 每50个频道批量更新一次
+        self._batch_timer = QtCore.QTimer()
+        self._batch_timer.setInterval(500)  # 500ms更新一次
+        self._batch_timer.timeout.connect(self._flush_batch_channels)
+        self._batch_timer.start()
+        
         # 确保信号连接
         self.channel_found.connect(self.model.add_channel)
         self.stats = {
@@ -45,7 +54,162 @@ class ScannerController(QObject):
             'start_time': 0,
             'elapsed': 0
         }
+
+    def _flush_batch_channels(self):
+        """批量发送频道数据"""
+        if not self._batch_channels:
+            return
+            
+        # 批量发送频道数据
+        channels = self._batch_channels.copy()
+        self._batch_channels.clear()
         
+        # 使用单个信号发送所有频道
+        self.channel_found.emit({'batch': True, 'channels': channels})
+        
+    def _worker(self):
+        """工作线程函数"""
+        while not self.stop_event.is_set():
+            try:
+                url = self.scan_queue.get_nowait()
+            except queue.Empty:
+                break
+                
+            try:
+                result = self._check_channel(url)
+                valid = result['valid']
+                latency = result['latency']
+                resolution = result.get('resolution', '')
+                
+                channel_info = self._build_channel_info(url, valid, latency, resolution, result)
+                if not channel_info:
+                    continue
+                    
+                # 确保频道信息包含必要字段
+                channel_info.setdefault('name', channel_info.get('raw_name', extract_channel_name_from_url(url)))
+                
+                # 只记录有效频道信息
+                if valid:
+                    log_msg = f"有效频道 - 原始名: {channel_info['raw_name']}, 映射名: {channel_info['name']}, 分组: {channel_info['group']}, URL: {url}"
+                    self.logger.info(log_msg)
+                    
+                    # 添加到批量缓存
+                    with self.counter_lock:
+                        self._batch_channels.append(channel_info)
+                        if len(self._batch_channels) >= self._batch_size:
+                            self._flush_batch_channels()
+                
+                with self.stats_lock:
+                    if valid:
+                        self.stats['valid'] += 1
+                    else:
+                        self.stats['invalid'] += 1
+                    
+                    current = self.stats['valid'] + self.stats['invalid']
+                    total = self.stats['total']
+                    
+                    # 控制进度更新频率 - 每10个频道或最后一个频道时更新
+                    if current % 10 == 0 or current == total:
+                        self.progress_updated.emit(current, total)
+                
+            except Exception as e:
+                self.logger.error(f"工作线程错误: {e}")
+        
+        # 工作线程结束时刷新剩余频道
+        self._flush_batch_channels()
+        
+        # 确保发送最终的进度更新
+        with self.stats_lock:
+            current = self.stats['valid'] + self.stats['invalid']
+            total = self.stats['total']
+            if current < total:
+                self.progress_updated.emit(total, total)
+        
+    def _update_progress(self, valid: bool):
+        """更新扫描进度"""
+        with self.stats_lock:
+            if valid:
+                self.stats['valid'] += 1
+            else:
+                self.stats['invalid'] += 1
+            
+            self.progress_updated.emit(
+                self.stats['valid'] + self.stats['invalid'],
+                self.stats['total']
+            )
+
+    def _process_valid_channel(self, channel_info: dict):
+        """处理有效频道"""
+        self.model.add_channel(channel_info)
+        self.logger.info(f"添加有效频道: {channel_info['name']}")
+
+    def _build_channel_info(self, url: str, valid: bool, latency: int, resolution: str, result: dict) -> dict:
+        """构建完整的频道信息字典"""
+        from channel_mappings import get_channel_info
+        
+        try:
+            # 获取原始频道名
+            raw_name = result.get('service_name', '') or extract_channel_name_from_url(url)
+            if not raw_name or raw_name == "未知频道":
+                raw_name = extract_channel_name_from_url(url)
+            
+            # 获取映射信息
+            mapped_info = get_channel_info(raw_name) if valid else None
+            mapped_name = mapped_info.get('standard_name', raw_name) if mapped_info else raw_name
+            
+            # 构建频道信息
+            channel_info = {
+                'url': url,
+                'name': mapped_name,
+                'raw_name': raw_name,
+                'valid': valid,
+                'latency': latency,
+                'resolution': resolution if resolution else '',
+                'status': '有效' if valid else '无效',
+                'group': mapped_info.get('group_name', '未分类') if mapped_info else '未分类',
+                'logo_url': mapped_info.get('logo_url') if mapped_info else None
+            }
+            return channel_info
+            
+        except Exception as e:
+            self.logger.error(f"构建频道信息失败: {e}")
+            return None
+
+    def _check_channel(self, url: str, raw_channel_name: str = None) -> dict:
+        """检查频道有效性"""
+        from validator import StreamValidator
+        # 使用主窗口的语言管理器（如果可用）
+        validator = StreamValidator(self.main_window)
+        return validator.validate_stream(url, raw_channel_name=raw_channel_name, timeout=self.timeout)
+        
+    def _fill_queue(self):
+        """动态填充扫描队列"""
+        try:
+            for batch in self.url_generator:
+                if self.stop_event.is_set():
+                    break
+                    
+                with self.stats_lock:
+                    self.stats['total'] += len(batch)
+                    
+                for url in batch:
+                    if self.stop_event.is_set():
+                        break
+                    self.scan_queue.put(url)
+                    
+                # 保持队列适度填充，避免内存占用过高
+                while self.scan_queue.qsize() > 10000 and not self.stop_event.is_set():
+                    time.sleep(0.1)
+                    
+        except Exception as e:
+            self.logger.error(f"队列填充线程错误: {e}")
+        finally:
+            self.logger.info("URL生成完成，队列填充结束")
+
+    def is_scanning(self):
+        """检查是否正在扫描"""
+        return len(self.workers) > 0 and not self.stop_event.is_set()
+
     def start_scan(self, base_url: str, thread_count: int = 10, timeout: int = 10, user_agent: str = None, referer: str = None):
         """开始扫描"""
         # 确保停止之前的扫描
@@ -237,183 +401,6 @@ class ScannerController(QObject):
             except Exception as e:
                 self.logger.error(f"验证线程错误: {e}")
                 time.sleep(0.1)
-        
-    def __init__(self, model: ChannelListModel):
-        super().__init__()
-        self.logger = LogManager()
-        self.model = model
-        self.url_parser = URLRangeParser()
-        self.is_validating = False
-        self.stats_lock = threading.Lock()
-        self.scan_queue = queue.Queue()  # 扫描专用队列
-        self.validation_queue = queue.Queue()  # 验证专用队列
-        self.stop_event = threading.Event()
-        self.workers = []
-        self.timeout = 10  # 默认超时时间
-        self.channel_counter = 0
-        self.counter_lock = threading.Lock()
-        
-        # 批量更新相关属性
-        self._batch_channels = []
-        self._batch_size = 50  # 每50个频道批量更新一次
-        self._batch_timer = QtCore.QTimer()
-        self._batch_timer.setInterval(500)  # 500ms更新一次
-        self._batch_timer.timeout.connect(self._flush_batch_channels)
-        self._batch_timer.start()
-
-    def _flush_batch_channels(self):
-        """批量发送频道数据"""
-        if not self._batch_channels:
-            return
-            
-        # 批量发送频道数据
-        channels = self._batch_channels.copy()
-        self._batch_channels.clear()
-        
-        # 使用单个信号发送所有频道
-        self.channel_found.emit({'batch': True, 'channels': channels})
-        
-    def _worker(self):
-        """工作线程函数"""
-        while not self.stop_event.is_set():
-            try:
-                url = self.scan_queue.get_nowait()
-            except queue.Empty:
-                break
-                
-            try:
-                result = self._check_channel(url)
-                valid = result['valid']
-                latency = result['latency']
-                resolution = result.get('resolution', '')
-                
-                channel_info = self._build_channel_info(url, valid, latency, resolution, result)
-                if not channel_info:
-                    continue
-                    
-                # 确保频道信息包含必要字段
-                channel_info.setdefault('name', channel_info.get('raw_name', extract_channel_name_from_url(url)))
-                
-                # 只记录有效频道信息
-                if valid:
-                    log_msg = f"有效频道 - 原始名: {channel_info['raw_name']}, 映射名: {channel_info['name']}, 分组: {channel_info['group']}, URL: {url}"
-                    self.logger.info(log_msg)
-                    
-                    # 添加到批量缓存
-                    with self.counter_lock:
-                        self._batch_channels.append(channel_info)
-                        if len(self._batch_channels) >= self._batch_size:
-                            self._flush_batch_channels()
-                
-                with self.stats_lock:
-                    if valid:
-                        self.stats['valid'] += 1
-                    else:
-                        self.stats['invalid'] += 1
-                    
-                    current = self.stats['valid'] + self.stats['invalid']
-                    total = self.stats['total']
-                    
-                    # 控制进度更新频率 - 每10个频道或最后一个频道时更新
-                    if current % 10 == 0 or current == total:
-                        self.progress_updated.emit(current, total)
-                
-            except Exception as e:
-                self.logger.error(f"工作线程错误: {e}")
-        
-        # 工作线程结束时刷新剩余频道
-        self._flush_batch_channels()
-        
-        # 确保发送最终的进度更新
-        with self.stats_lock:
-            current = self.stats['valid'] + self.stats['invalid']
-            total = self.stats['total']
-            if current < total:
-                self.progress_updated.emit(total, total)
-        
-    def _update_progress(self, valid: bool):
-        """更新扫描进度"""
-        with self.stats_lock:
-            if valid:
-                self.stats['valid'] += 1
-            else:
-                self.stats['invalid'] += 1
-            
-            self.progress_updated.emit(
-                self.stats['valid'] + self.stats['invalid'],
-                self.stats['total']
-            )
-
-    def _process_valid_channel(self, channel_info: dict):
-        """处理有效频道"""
-        self.model.add_channel(channel_info)
-        self.logger.info(f"添加有效频道: {channel_info['name']}")
-
-    def _build_channel_info(self, url: str, valid: bool, latency: int, resolution: str, result: dict) -> dict:
-        """构建完整的频道信息字典"""
-        from channel_mappings import get_channel_info
-        
-        try:
-            # 获取原始频道名
-            raw_name = result.get('service_name', '') or extract_channel_name_from_url(url)
-            if not raw_name or raw_name == "未知频道":
-                raw_name = extract_channel_name_from_url(url)
-            
-            # 获取映射信息
-            mapped_info = get_channel_info(raw_name) if valid else None
-            mapped_name = mapped_info.get('standard_name', raw_name) if mapped_info else raw_name
-            
-            # 构建频道信息
-            channel_info = {
-                'url': url,
-                'name': mapped_name,
-                'raw_name': raw_name,
-                'valid': valid,
-                'latency': latency,
-                'resolution': resolution if resolution else '',
-                'status': '有效' if valid else '无效',
-                'group': mapped_info.get('group_name', '未分类') if mapped_info else '未分类',
-                'logo_url': mapped_info.get('logo_url') if mapped_info else None
-            }
-            return channel_info
-            
-        except Exception as e:
-            self.logger.error(f"构建频道信息失败: {e}")
-            return None
-
-    def _check_channel(self, url: str, raw_channel_name: str = None) -> dict:
-        """检查频道有效性"""
-        from validator import StreamValidator
-        validator = StreamValidator()
-        return validator.validate_stream(url, raw_channel_name=raw_channel_name, timeout=self.timeout)
-        
-    def _fill_queue(self):
-        """动态填充扫描队列"""
-        try:
-            for batch in self.url_generator:
-                if self.stop_event.is_set():
-                    break
-                    
-                with self.stats_lock:
-                    self.stats['total'] += len(batch)
-                    
-                for url in batch:
-                    if self.stop_event.is_set():
-                        break
-                    self.scan_queue.put(url)
-                    
-                # 保持队列适度填充，避免内存占用过高
-                while self.scan_queue.qsize() > 10000 and not self.stop_event.is_set():
-                    time.sleep(0.1)
-                    
-        except Exception as e:
-            self.logger.error(f"队列填充线程错误: {e}")
-        finally:
-            self.logger.info("URL生成完成，队列填充结束")
-
-    def is_scanning(self):
-        """检查是否正在扫描"""
-        return len(self.workers) > 0 and not self.stop_event.is_set()
 
     def _update_stats(self):
         """更新统计信息线程"""

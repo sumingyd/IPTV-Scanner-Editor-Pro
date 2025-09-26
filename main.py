@@ -75,7 +75,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def init_controllers(self):
         """初始化所有控制器"""
-        self.scanner = ScannerController(self.model)
+        self.scanner = ScannerController(self.model, self)
         self.player_controller = PlayerController(self.ui.main_window.player, self.model)
         self.list_manager = ListManager(self.model)
         

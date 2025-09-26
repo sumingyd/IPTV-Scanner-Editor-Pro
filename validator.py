@@ -17,12 +17,17 @@ class StreamValidator:
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
 
-    def __init__(self):
+    def __init__(self, main_window=None):
         self.logger = LogManager()
         self._current_process = None
-        # 初始化语言管理器
-        self.language_manager = LanguageManager()
-        self.language_manager.load_available_languages()
+        # 使用主窗口的语言管理器，避免重复加载
+        self.main_window = main_window
+        if main_window and hasattr(main_window, 'language_manager'):
+            self.language_manager = main_window.language_manager
+        else:
+            # 如果没有传入主窗口，创建独立的语言管理器（用于独立测试）
+            self.language_manager = LanguageManager()
+            self.language_manager.load_available_languages()
 
     @classmethod
     def terminate_all(cls):
