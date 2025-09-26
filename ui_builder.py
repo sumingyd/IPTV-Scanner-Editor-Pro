@@ -733,10 +733,10 @@ class UIBuilder:
         self.main_window.language_menu = QtWidgets.QMenu("语言", self.main_window)
         self.main_window.language_button.setMenu(self.main_window.language_menu)
         
-        # 确保语言管理器已初始化并加载可用语言
+        # 使用主窗口的语言管理器，避免重复加载
         if not hasattr(self.main_window, 'language_manager') or not self.main_window.language_manager:
-            self.main_window.language_manager = LanguageManager()
-        self.main_window.language_manager.load_available_languages()
+            self.logger.warning("语言管理器未初始化，跳过工具栏语言设置")
+            return
         
         # 添加语言选项并直接连接信号
         available_languages = self.main_window.language_manager.available_languages
