@@ -100,5 +100,8 @@
   "search_all_fields": "Search All Fields",
   "search_standard_name_only": "Search Standard Name Only",
   "search_raw_name_only": "Search Raw Name Only",
-  "search_group_only": "Search Group Only"
+  "search_group_only": "Search Group Only",
+  "warning": "Warning",
+  "select_mapping_to_edit": "Please select a mapping to edit",
+  "select_mapping_to_delete": "Please select a mapping to delete"
 }

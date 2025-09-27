@@ -604,8 +604,8 @@ class UIBuilder:
         # 确认删除
         reply = QtWidgets.QMessageBox.question(
             self.main_window,
-            "确认删除",
-            "确定要删除这个频道吗?",
+            self.main_window.language_manager.tr('confirm_delete', 'Confirm Delete'),
+            self.main_window.language_manager.tr('delete_channel_confirm', 'Are you sure you want to delete this channel?'),
             QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No
         )
         
@@ -860,8 +860,8 @@ class UIBuilder:
         if not channel_info['name'] or not channel_info['url']:
             QtWidgets.QMessageBox.warning(
                 self.main_window,
-                "输入错误",
-                "频道名称和URL不能为空",
+                self.main_window.language_manager.tr('input_error', 'Input Error'),
+                self.main_window.language_manager.tr('name_url_required', 'Channel name and URL cannot be empty'),
                 QtWidgets.QMessageBox.StandardButton.Ok
             )
             return
@@ -886,8 +886,8 @@ class UIBuilder:
         if not name or not url:
             QtWidgets.QMessageBox.warning(
                 self.main_window,
-                "输入错误",
-                "频道名称和URL不能为空",
+                self.main_window.language_manager.tr('input_error', 'Input Error'),
+                self.main_window.language_manager.tr('name_url_required', 'Channel name and URL cannot be empty'),
                 QtWidgets.QMessageBox.StandardButton.Ok
             )
             return

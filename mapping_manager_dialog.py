@@ -352,7 +352,10 @@ class MappingManagerDialog(QtWidgets.QDialog):
         """编辑选中的映射"""
         selected_rows = self.mapping_table.selectionModel().selectedRows()
         if not selected_rows:
-            QtWidgets.QMessageBox.warning(self, "警告", "请选择要编辑的映射")
+            QtWidgets.QMessageBox.warning(self, 
+                self.language_manager.tr('warning', 'Warning'), 
+                self.language_manager.tr('select_mapping_to_edit', 'Please select a mapping to edit')
+            )
             return
             
         row = selected_rows[0].row()
@@ -380,7 +383,10 @@ class MappingManagerDialog(QtWidgets.QDialog):
         """删除选中的映射"""
         selected_rows = self.mapping_table.selectionModel().selectedRows()
         if not selected_rows:
-            QtWidgets.QMessageBox.warning(self, "警告", "请选择要删除的映射")
+            QtWidgets.QMessageBox.warning(self, 
+                self.language_manager.tr('warning', 'Warning'), 
+                self.language_manager.tr('select_mapping_to_delete', 'Please select a mapping to delete')
+            )
             return
             
         row = selected_rows[0].row()
