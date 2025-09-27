@@ -13,9 +13,10 @@ if "%PYTHON_PATH%"=="" (
 echo 使用Python路径: %PYTHON_PATH%
 
 pyinstaller --onefile --windowed --icon=logo.ico ^
---add-data "icons/*:icons" ^
 --add-data "locales/zh.json:locales" ^
 --add-data "locales/en.json:locales" ^
+--add-data "logo.ico:." ^
+--add-data "logo.png:." ^
 --paths "%PYTHON_PATH%\Lib\site-packages" ^
 --paths "." ^
 --hidden-import python-vlc ^

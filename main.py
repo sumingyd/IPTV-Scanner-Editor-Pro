@@ -1,6 +1,7 @@
 from PyQt6 import QtWidgets, QtCore, QtGui
 import time
 import threading
+import os
 from channel_model import ChannelListModel
 from ui_builder import UIBuilder
 from config_manager import ConfigManager
@@ -29,6 +30,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # 构建UI
         self.ui = UIBuilder(self)
         self.ui.build_ui()
+        
+        # 设置窗口图标
+        if os.path.exists('logo.ico'):
+            self.setWindowIcon(QtGui.QIcon('logo.ico'))
         
         # 用于管理所有定时器
         self._timers = []
