@@ -758,8 +758,7 @@ class UIBuilder:
         self.main_window.about_action.triggered.connect(self.main_window._on_about_clicked)
         
         # 添加映射管理器按钮
-        mapping_text = self.main_window.language_manager.tr('mapping_manager', 'Channel Mapping Manager')
-        self.main_window.mapping_action = create_action("🗺️", mapping_text, "管理频道映射规则")
+        self.main_window.mapping_action = create_action("🗺️", "映射管理", "管理频道映射规则")
         self.main_window.mapping_action.triggered.connect(self.main_window._on_mapping_clicked)
 
         # 添加分隔符

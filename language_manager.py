@@ -344,6 +344,8 @@ class LanguageManager:
                 main_window.language_menu.setTitle(self.tr('language', 'Language'))
             if hasattr(main_window, 'about_action'):
                 main_window.about_action.setText(f"ℹ️ {self.tr('about', 'About')}")
+            if hasattr(main_window, 'mapping_action'):
+                main_window.mapping_action.setText(f"🗺️ {self.tr('mapping_manager', 'Channel Mapping Manager')}")
             
             # 更新占位符文本
             if hasattr(main_window, 'channel_name_edit'):
