@@ -284,6 +284,7 @@ class ScannerController(QObject):
         )
         self.filler_thread.start()
             
+        # 使用用户设置的线程数，但添加资源管理机制
         self.workers = []
         for i in range(thread_count):
             worker = threading.Thread(
@@ -301,7 +302,7 @@ class ScannerController(QObject):
         )
         stats_thread.start()
         
-        self.logger.info(f"开始扫描URL，使用 {thread_count} 个线程")
+        self.logger.info(f"开始扫描URL，使用 {thread_count} 个线程，超时时间: {timeout}秒")
         
     def stop_scan(self):
         """停止扫描"""
