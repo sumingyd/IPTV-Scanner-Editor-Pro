@@ -83,8 +83,14 @@ class MappingManagerDialog(QtWidgets.QDialog):
         self.search_input.setPlaceholderText("搜索频道名...")
         self.search_input.textChanged.connect(self.filter_mappings)
         
+        # 搜索选项
+        self.search_options = QtWidgets.QComboBox()
+        self.search_options.currentTextChanged.connect(self.filter_mappings)
+        
         search_layout.addWidget(QtWidgets.QLabel("搜索:"))
         search_layout.addWidget(self.search_input)
+        search_layout.addWidget(QtWidgets.QLabel("搜索范围:"))
+        search_layout.addWidget(self.search_options)
         search_layout.addStretch()
         
         layout.addLayout(search_layout)
@@ -248,29 +254,79 @@ class MappingManagerDialog(QtWidgets.QDialog):
         """加载映射建议"""
         self.suggestion_table.setRowCount(0)
         
-        # 这里可以添加智能建议逻辑
-        # 暂时显示一个示例
-        self.suggestion_table.insertRow(0)
-        self.suggestion_table.setItem(0, 0, QtWidgets.QTableWidgetItem("示例原始名称"))
-        self.suggestion_table.setItem(0, 1, QtWidgets.QTableWidgetItem("示例映射名称"))
-        self.suggestion_table.setItem(0, 2, QtWidgets.QTableWidgetItem("高"))
+        # 使用分析得到的建议数据
+        if not hasattr(self, 'suggestion_mappings') or not self.suggestion_mappings:
+            # 如果没有建议数据，显示提示信息
+            self.suggestion_table.insertRow(0)
+            self.suggestion_table.setItem(0, 0, QtWidgets.QTableWidgetItem("暂无建议"))
+            self.suggestion_table.setItem(0, 1, QtWidgets.QTableWidgetItem("请先进行扫描并点击'刷新建议'"))
+            self.suggestion_table.setItem(0, 2, QtWidgets.QTableWidgetItem("-"))
+            return
         
-        # 添加操作按钮
-        apply_btn = QtWidgets.QPushButton("应用")
-        apply_btn.clicked.connect(lambda: self.apply_suggestion(0))
-        self.suggestion_table.setCellWidget(0, 3, apply_btn)
+        # 显示真实的建议数据
+        row = 0
+        for suggestion in self.suggestion_mappings:
+            self.suggestion_table.insertRow(row)
+            
+            # 原始名称
+            self.suggestion_table.setItem(row, 0, QtWidgets.QTableWidgetItem(suggestion['raw_name']))
+            
+            # 建议映射
+            self.suggestion_table.setItem(row, 1, QtWidgets.QTableWidgetItem(suggestion['suggested_mapping']))
+            
+            # 置信度
+            confidence = suggestion['confidence']
+            if confidence >= 0.8:
+                confidence_text = "高"
+            elif confidence >= 0.5:
+                confidence_text = "中"
+            else:
+                confidence_text = "低"
+            self.suggestion_table.setItem(row, 2, QtWidgets.QTableWidgetItem(f"{confidence_text} ({confidence:.1%})"))
+            
+            # 操作按钮
+            apply_btn = QtWidgets.QPushButton("应用")
+            apply_btn.clicked.connect(lambda checked, r=row: self.apply_suggestion(r))
+            self.suggestion_table.setCellWidget(row, 3, apply_btn)
+            
+            row += 1
+        
+        # 调整列宽
+        self.suggestion_table.resizeColumnsToContents()
         
     def filter_mappings(self):
         """过滤映射列表"""
         search_text = self.search_input.text().lower()
+        search_option = self.search_options.currentText()
         
         for row in range(self.mapping_table.rowCount()):
             should_show = False
-            for col in range(self.mapping_table.columnCount()):
-                item = self.mapping_table.item(row, col)
-                if item and search_text in item.text().lower():
-                    should_show = True
-                    break
+            
+            if not search_text:  # 如果没有搜索文本，显示所有行
+                should_show = True
+            else:
+                if search_option == "搜索所有字段":
+                    # 搜索所有列
+                    for col in range(self.mapping_table.columnCount()):
+                        item = self.mapping_table.item(row, col)
+                        if item and search_text in item.text().lower():
+                            should_show = True
+                            break
+                elif search_option == "仅搜索标准名称":
+                    # 只搜索标准名称列（第0列）
+                    item = self.mapping_table.item(row, 0)
+                    if item and search_text in item.text().lower():
+                        should_show = True
+                elif search_option == "仅搜索原始名称":
+                    # 只搜索原始名称列（第1列）
+                    item = self.mapping_table.item(row, 1)
+                    if item and search_text in item.text().lower():
+                        should_show = True
+                elif search_option == "仅搜索分组":
+                    # 只搜索分组列（第2列）
+                    item = self.mapping_table.item(row, 2)
+                    if item and search_text in item.text().lower():
+                        should_show = True
                     
             self.mapping_table.setRowHidden(row, not should_show)
             
@@ -346,29 +402,57 @@ class MappingManagerDialog(QtWidgets.QDialog):
         QtWidgets.QMessageBox.information(self, "成功", "远程映射缓存已刷新")
         
     def export_mappings(self):
-        """导出用户映射到文件"""
+        """导出用户映射到CSV文件"""
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "导出用户映射", "user_mappings.json", "JSON文件 (*.json)"
+            self, "导出用户映射", "user_mappings.csv", "CSV文件 (*.csv)"
         )
         
         if file_path:
             try:
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    json.dump(mapping_manager.user_mappings, f, ensure_ascii=False, indent=2)
+                import csv
+                with open(file_path, 'w', encoding='utf-8-sig', newline='') as f:
+                    writer = csv.writer(f)
+                    # 写入表头
+                    writer.writerow(['standard_name', 'raw_names', 'logo_url', 'group_name'])
+                    
+                    # 写入数据
+                    for standard_name, mapping_data in mapping_manager.user_mappings.items():
+                        raw_names = ','.join(mapping_data.get('raw_names', []))
+                        logo_url = mapping_data.get('logo_url', '')
+                        group_name = mapping_data.get('group_name', '')
+                        writer.writerow([standard_name, raw_names, logo_url, group_name])
+                        
                 QtWidgets.QMessageBox.information(self, "成功", f"用户映射已导出到: {file_path}")
             except Exception as e:
                 QtWidgets.QMessageBox.critical(self, "错误", f"导出失败: {str(e)}")
                 
     def import_mappings(self):
-        """从文件导入用户映射"""
+        """从CSV文件导入用户映射"""
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "导入用户映射", "", "JSON文件 (*.json)"
+            self, "导入用户映射", "", "CSV文件 (*.csv)"
         )
         
         if file_path:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    imported_mappings = json.load(f)
+                import csv
+                imported_mappings = {}
+                
+                with open(file_path, 'r', encoding='utf-8-sig') as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        standard_name = row.get('standard_name', '').strip()
+                        if not standard_name:
+                            continue
+                            
+                        raw_names = [name.strip() for name in row.get('raw_names', '').split(',') if name.strip()]
+                        logo_url = row.get('logo_url', '').strip()
+                        group_name = row.get('group_name', '').strip()
+                        
+                        imported_mappings[standard_name] = {
+                            'raw_names': raw_names,
+                            'logo_url': logo_url if logo_url else None,
+                            'group_name': group_name if group_name else None
+                        }
                 
                 # 合并映射
                 mapping_manager.user_mappings.update(imported_mappings)
@@ -377,7 +461,7 @@ class MappingManagerDialog(QtWidgets.QDialog):
                 mapping_manager.reverse_mappings = mapping_manager.create_reverse_mappings(mapping_manager.combined_mappings)
                 
                 self.load_user_mappings()
-                QtWidgets.QMessageBox.information(self, "成功", f"用户映射已从文件导入")
+                QtWidgets.QMessageBox.information(self, "成功", f"用户映射已从CSV文件导入")
             except Exception as e:
                 QtWidgets.QMessageBox.critical(self, "错误", f"导入失败: {str(e)}")
                 
@@ -399,34 +483,111 @@ class MappingManagerDialog(QtWidgets.QDialog):
     def analyze_fingerprints(self):
         """分析不稳定的映射"""
         unstable_mappings = []
+        suggestion_mappings = []
         
+        # 分析指纹数据，找出不稳定的映射
         for fingerprint_id, data in mapping_manager.channel_fingerprints.items():
-            if data.get('count', 0) >= 3:
-                # 这里可以添加更复杂的分析逻辑
-                unstable_mappings.append({
-                    'raw_name': data.get('raw_name', ''),
-                    'mapped_name': data.get('mapped_name', ''),
-                    'count': data.get('count', 0)
-                })
+            count = data.get('count', 0)
+            raw_name = data.get('raw_name', '')
+            mapped_name = data.get('mapped_name', '')
+            
+            if count >= 3:
+                # 检查这个原始名称是否有多个不同的映射
+                same_raw_mappings = []
+                for fp_id, fp_data in mapping_manager.channel_fingerprints.items():
+                    if fp_data.get('raw_name') == raw_name and fp_data.get('mapped_name') != raw_name:
+                        same_raw_mappings.append(fp_data)
                 
+                # 如果同一个原始名称有多个不同的映射，说明不稳定
+                if len(same_raw_mappings) > 1:
+                    # 找出最频繁的映射
+                    mapping_counts = {}
+                    for mapping in same_raw_mappings:
+                        mapped_name = mapping.get('mapped_name', '')
+                        mapping_counts[mapped_name] = mapping_counts.get(mapped_name, 0) + mapping.get('count', 0)
+                    
+                    # 按出现次数排序
+                    sorted_mappings = sorted(mapping_counts.items(), key=lambda x: x[1], reverse=True)
+                    
+                    if len(sorted_mappings) > 1:
+                        # 有多个不同的映射，说明不稳定
+                        unstable_mappings.append({
+                            'raw_name': raw_name,
+                            'mappings': sorted_mappings,
+                            'total_count': count
+                        })
+                
+                # 如果映射名称与原始名称不同，且出现次数较多，可以作为建议
+                if mapped_name != raw_name and count >= 2:
+                    suggestion_mappings.append({
+                        'raw_name': raw_name,
+                        'suggested_mapping': mapped_name,
+                        'confidence': min(count / 10.0, 1.0),  # 置信度基于出现次数
+                        'count': count
+                    })
+                
+        # 显示分析结果
         if unstable_mappings:
             message = "发现以下可能不稳定的映射:\n\n"
             for mapping in unstable_mappings:
-                message += f"{mapping['raw_name']} -> {mapping['mapped_name']} (出现{mapping['count']}次)\n"
+                message += f"频道: {mapping['raw_name']}\n"
+                message += "可能的映射:\n"
+                for mapped_name, count in mapping['mappings'][:3]:  # 显示前3个
+                    message += f"  - {mapped_name} (出现{count}次)\n"
+                message += "\n"
                 
             QtWidgets.QMessageBox.information(self, "不稳定映射分析", message)
         else:
             QtWidgets.QMessageBox.information(self, "分析结果", "未发现明显不稳定的映射")
+        
+        # 将建议映射保存到实例变量中，供映射建议选项卡使用
+        self.suggestion_mappings = suggestion_mappings
             
     def refresh_suggestions(self):
         """刷新映射建议"""
+        # 重新分析指纹数据以获取最新的建议
+        self.analyze_fingerprints()
+        
+        # 加载建议到表格
         self.load_suggestions()
-        QtWidgets.QMessageBox.information(self, "成功", "映射建议已刷新")
+        
+        if self.suggestion_mappings:
+            QtWidgets.QMessageBox.information(self, "成功", f"已生成 {len(self.suggestion_mappings)} 条映射建议")
+        else:
+            QtWidgets.QMessageBox.information(self, "提示", "暂无映射建议，请先进行扫描以收集数据")
         
     def apply_suggestion(self, row_index):
         """应用映射建议"""
-        # 这里可以实现应用建议的逻辑
-        QtWidgets.QMessageBox.information(self, "提示", "应用建议功能待实现")
+        if not hasattr(self, 'suggestion_mappings') or row_index >= len(self.suggestion_mappings):
+            QtWidgets.QMessageBox.warning(self, "错误", "无法应用此建议")
+            return
+        
+        suggestion = self.suggestion_mappings[row_index]
+        raw_name = suggestion['raw_name']
+        suggested_mapping = suggestion['suggested_mapping']
+        
+        # 确认应用建议
+        reply = QtWidgets.QMessageBox.question(
+            self,
+            "确认应用建议",
+            f"确定要将 '{raw_name}' 映射到 '{suggested_mapping}' 吗？",
+            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No
+        )
+        
+        if reply == QtWidgets.QMessageBox.StandardButton.Yes:
+            # 应用映射建议
+            mapping_manager.add_user_mapping(raw_name, suggested_mapping)
+            
+            # 从建议列表中移除已应用的项
+            self.suggestion_mappings.pop(row_index)
+            
+            # 重新加载建议列表
+            self.load_suggestions()
+            
+            # 重新加载用户映射列表
+            self.load_user_mappings()
+            
+            QtWidgets.QMessageBox.information(self, "成功", f"已应用映射建议: {raw_name} -> {suggested_mapping}")
     
     def update_ui_texts(self):
         """更新UI文本到当前语言"""
@@ -450,6 +611,16 @@ class MappingManagerDialog(QtWidgets.QDialog):
             
             # 更新用户映射管理选项卡
             self.search_input.setPlaceholderText(self.language_manager.tr('search_channel_name', 'Search channel name...'))
+            
+            # 更新搜索选项
+            self.search_options.clear()
+            self.search_options.addItems([
+                self.language_manager.tr('search_all_fields', 'Search All Fields'),
+                self.language_manager.tr('search_standard_name_only', 'Search Standard Name Only'),
+                self.language_manager.tr('search_raw_name_only', 'Search Raw Name Only'),
+                self.language_manager.tr('search_group_only', 'Search Group Only')
+            ])
+            
             self.mapping_table.setHorizontalHeaderLabels([
                 self.language_manager.tr('standard_name', 'Standard Name'),
                 self.language_manager.tr('raw_name', 'Raw Name'),

@@ -95,5 +95,9 @@
   "analyze_unstable_mappings": "分析不稳定映射",
   "suggested_mapping": "建议映射",
   "confidence": "置信度",
-  "refresh_suggestions": "刷新建议"
+  "refresh_suggestions": "刷新建议",
+  "search_all_fields": "搜索所有字段",
+  "search_standard_name_only": "仅搜索标准名称",
+  "search_raw_name_only": "仅搜索原始名称",
+  "search_group_only": "仅搜索分组"
 }
