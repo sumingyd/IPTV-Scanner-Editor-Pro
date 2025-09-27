@@ -1,5 +1,5 @@
 {
-  "timestamp": 1758979116.7547507,
+  "timestamp": 1758997099.4943905,
   "mappings": {
     "CETV-1": {
       "raw_names": [
@@ -120,7 +120,8 @@
     "蒙阴综合": {
       "raw_names": [
         "mengyin",
-        "CHANNEL00001031"
+        "CHANNEL00001031",
+        "239.21.2.23:5002"
       ],
       "logo_url": null,
       "group_name": "临沂"
@@ -167,7 +168,7 @@
     },
     "沂南综合": {
       "raw_names": [
-        "CHANNEL00001096​"
+        "CHANNEL00001096?"
       ],
       "logo_url": null,
       "group_name": "临沂"
@@ -279,7 +280,7 @@
     },
     "广东卫视": {
       "raw_names": [
-        "�㶫����",
+        "??????",
         "GuangDong",
         "GuangDong-HD",
         "CHANNEL00000025",
@@ -335,7 +336,7 @@
     "河北卫视": {
       "raw_names": [
         "239.21.1.168:5002",
-        "�ӱ�����",
+        "???????",
         "HEBEI",
         "HEBEI-HD",
         "CHANNEL00000034",
@@ -350,7 +351,8 @@
         "HENAN-HD",
         "239.21.1.38:5002",
         "CHANNEL00000037",
-        "CHANNEL00000358"
+        "CHANNEL00000358",
+        "239.21.2.37:5002"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/河南卫视3.png",
       "group_name": "卫视"
@@ -400,7 +402,7 @@
     "吉林卫视": {
       "raw_names": [
         "239.21.2.49:5002",
-        "��������",
+        "????????",
         "JILIN",
         "JILIN-HD",
         "CHANNEL00000036",
@@ -463,7 +465,7 @@
       "raw_names": [
         "标清宁夏-ningxia",
         "CHANNEL00000043",
-        "CHANNEL00000395​"
+        "CHANNEL00000395?"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/宁夏/宁夏卫视2.png",
       "group_name": "卫视"
@@ -510,7 +512,7 @@
         "SDTV-HD-DianXin",
         "239.21.2.158:5002",
         "CHANNEL00001068",
-        "CHANNEL00000301​"
+        "CHANNEL00000301?"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东卫视3.png",
       "group_name": "卫视"
@@ -566,7 +568,7 @@
       "raw_names": [
         "SICHUAN",
         "SICHUAN-HD",
-        "�Ĵ�����",
+        "???????",
         "CHANNEL00000348",
         "239.21.2.15:5002"
       ],
@@ -597,7 +599,7 @@
       "raw_names": [
         "标清西藏-xizang",
         "CHANNEL00000045",
-        "CHANNEL00000392​"
+        "CHANNEL00000392?"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/西藏/西藏卫视2.png",
       "group_name": "卫视"
@@ -606,7 +608,8 @@
       "raw_names": [
         "标清新疆-xinjiang",
         "CHANNEL00000044",
-        "CHANNEL00000393"
+        "CHANNEL00000393",
+        "xinjiang-hd"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/新疆卫视2.png",
       "group_name": "卫视"
@@ -723,7 +726,8 @@
       "raw_names": [
         "CCTV2",
         "CCTV2-HD",
-        "CHANNEL00000317"
+        "CHANNEL00000317",
+        "239.21.1.151:5002"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV2.png",
       "group_name": "央视频道"
@@ -847,7 +851,8 @@
       "raw_names": [
         "CCTV11",
         "CCTV11-HD",
-        "CHANNEL00000344"
+        "CHANNEL00000344",
+        "239.21.2.2:5002"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV11.png",
       "group_name": "央视频道"
@@ -981,7 +986,7 @@
         "齐鲁",
         "SDQiLu-HD-DianXin",
         "CHANNEL00000052",
-        "CHANNEL00000313​"
+        "CHANNEL00000313?"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东齐鲁.png",
       "group_name": "山东频道"
@@ -990,7 +995,8 @@
       "raw_names": [
         "少儿",
         "SDShaoEr-HD-H264",
-        "CHANNEL00000340"
+        "CHANNEL00000340",
+        "239.21.1.208:5002"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东少儿.png",
       "group_name": "山东频道"
@@ -1010,7 +1016,7 @@
         "SDTiYu-HD-264",
         "CHANNEL00000057",
         "CHANNEL00000315",
-        "CHANNEL00000400​"
+        "CHANNEL00000400?"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东体育.png",
       "group_name": "山东频道"
@@ -1028,7 +1034,7 @@
       "raw_names": [
         "SDXinWen-HD-H264",
         "公共",
-        "CHANNEL00000314​"
+        "CHANNEL00000314?"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东新闻.png",
       "group_name": "山东频道"
@@ -1233,14 +1239,14 @@
     },
     "临沂综合": {
       "raw_names": [
-        "CHANNEL00000120​"
+        "CHANNEL00000120?"
       ],
       "logo_url": null,
       "group_name": "市级频道"
     },
     "临沂公共": {
       "raw_names": [
-        "CHANNEL00000256​"
+        "CHANNEL00000256?"
       ],
       "logo_url": null,
       "group_name": "市级频道"
@@ -1261,7 +1267,7 @@
     },
     "泰安综合": {
       "raw_names": [
-        "CHANNEL00000269​"
+        "CHANNEL00000269?"
       ],
       "logo_url": null,
       "group_name": "市级频道"
@@ -1416,7 +1422,8 @@
     "烟台影视": {
       "raw_names": [
         "yantai-yingshi",
-        "CHANNEL00000283"
+        "CHANNEL00000283",
+        "239.21.1.204:5002"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png",
       "group_name": "市级频道"
@@ -1582,7 +1589,7 @@
     },
     "微山综合": {
       "raw_names": [
-        "CHANNEL00001078​"
+        "CHANNEL00001078?"
       ],
       "logo_url": null,
       "group_name": "枣庄"
@@ -2048,7 +2055,8 @@
     "CHC影迷电影": {
       "raw_names": [
         "CHANNEL00002029",
-        "CHC-gaoqingdianying"
+        "CHC-gaoqingdianying",
+        "239.21.2.127:5002"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC影迷电影.png",
       "group_name": "特色频道"
@@ -2246,7 +2254,7 @@
     },
     "金鹰卡通": {
       "raw_names": [
-        "䡵乡渭䭁呏乇",
+        "?乡渭?�重�",
         "CHANNEL00000047",
         "CHANNEL00002027"
       ],
@@ -2274,7 +2282,8 @@
     "乐游": {
       "raw_names": [
         "增值-leyou",
-        "CHANNEL00002016"
+        "CHANNEL00002016",
+        "239.21.2.104:5002"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/乐游.png",
       "group_name": "特色频道"
@@ -2447,7 +2456,7 @@
         "增值-zhonghuatechan",
         "CHANNEL00000642",
         "CHANNEL00000672",
-        "CHANNEL00000672​"
+        "CHANNEL00000672?"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/中华特产.png",
       "group_name": "特色频道"
@@ -2455,7 +2464,8 @@
     "重温经典影视": {
       "raw_names": [
         "Kan-shandong",
-        "CHANNEL00000364"
+        "CHANNEL00000364",
+        "239.21.2.77:5002"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/央视/重温经典影视.png",
       "group_name": "特色频道"
@@ -2477,28 +2487,28 @@
     },
     "红色影视": {
       "raw_names": [
-        "CHANNEL00001097​"
+        "CHANNEL00001097?"
       ],
       "logo_url": null,
       "group_name": "特色频道"
     },
     "劲爆体育": {
       "raw_names": [
-        "CHANNEL00002026​​"
+        "CHANNEL00002026??"
       ],
       "logo_url": null,
       "group_name": "特色频道"
     },
     "智慧康养": {
       "raw_names": [
-        "CHANNEL00002031​​"
+        "CHANNEL00002031??"
       ],
       "logo_url": null,
       "group_name": "特色频道"
     },
     "热血剧场": {
       "raw_names": [
-        "CHANNEL00002032​"
+        "CHANNEL00002032?"
       ],
       "logo_url": null,
       "group_name": "特色频道"
@@ -2600,7 +2610,8 @@
     "莱西综合": {
       "raw_names": [
         "laixi",
-        "CHANNEL00001067"
+        "CHANNEL00001067",
+        "239.21.1.247:5002"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛莱西.png",
       "group_name": "青岛"
