@@ -188,8 +188,8 @@ class StreamValidator:
         
         return cmd
 
-    def _run_ffmpeg_test(self, url: str, timeout: int, max_retries: int = 2) -> Dict:
-        """运行ffmpeg测试流有效性"""
+    def _run_ffmpeg_test(self, url: str, timeout: int, max_retries: int = 3) -> Dict:
+        """运行ffmpeg测试流有效性，支持智能重试"""
         result = {
             'valid': False,
             'latency': None,
@@ -198,10 +198,18 @@ class StreamValidator:
         }
         
         start_time = time.time()
+        remaining_time = timeout
         
-        for attempt in range(max_retries + 1):
+        # 动态调整重试次数，确保总时间不超过超时时间
+        actual_retries = min(max_retries, max(1, timeout // 2))  # 至少重试1次，最多不超过超时时间的一半
+        
+        for attempt in range(actual_retries + 1):
             result['retries'] = attempt
-            cmd = self._build_ffmpeg_command(url, min(3.0, timeout / 2))
+            
+            # 动态调整拉流时长，随着重试次数增加而减少
+            pull_duration = max(1.0, min(5.0, remaining_time / (actual_retries - attempt + 1)))
+            
+            cmd = self._build_ffmpeg_command(url, pull_duration)
             
             # 在Windows上需要处理特殊字符
             if sys.platform == 'win32':
@@ -230,8 +238,12 @@ class StreamValidator:
             try:
                 # 记录命令开始执行时间
                 exec_start = time.time()
-                stdout_bytes, stderr_bytes = process.communicate(timeout=timeout)
+                stdout_bytes, stderr_bytes = process.communicate(timeout=remaining_time)
                 exec_end = time.time()
+                
+                # 更新剩余时间
+                elapsed = exec_end - exec_start
+                remaining_time -= elapsed
                 
                 stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''
                 stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
@@ -239,7 +251,8 @@ class StreamValidator:
                 if process.returncode == 0:
                     # ffmpeg成功拉取流
                     result['valid'] = True
-                    result['latency'] = int((exec_end - exec_start) * 1000)
+                    result['latency'] = int(elapsed * 1000)
+                    self.logger.debug(f"流验证成功: {url} (尝试 {attempt+1}/{actual_retries+1}, 耗时: {elapsed:.2f}s)")
                     break
                 else:
                     # ffmpeg失败，记录错误信息
@@ -249,17 +262,32 @@ class StreamValidator:
                     else:
                         result['error'] = f"ffmpeg返回错误代码: {process.returncode}"
                     
+                    self.logger.debug(f"流验证失败: {url} (尝试 {attempt+1}/{actual_retries+1}, 错误: {result['error']})")
+                    
                     # 如果不是最后一次尝试，等待一下再重试
-                    if attempt < max_retries:
-                        time.sleep(0.5)
+                    if attempt < actual_retries and remaining_time > 1.0:
+                        # 动态等待时间，随着重试次数增加而增加
+                        wait_time = min(1.0, remaining_time * 0.2)
+                        time.sleep(wait_time)
+                        remaining_time -= wait_time
                         
             except subprocess.TimeoutExpired:
                 process.kill()
-                result['error'] = "拉流超时"
-                # 超时不重试
-                break
+                result['error'] = f"拉流超时 (剩余时间: {remaining_time:.1f}s)"
+                self.logger.debug(f"流验证超时: {url} (尝试 {attempt+1}/{actual_retries+1})")
+                
+                # 更新剩余时间
+                remaining_time = max(0, remaining_time - pull_duration)
+                
+                # 如果还有剩余时间且不是最后一次尝试，继续重试
+                if attempt < actual_retries and remaining_time > 1.0:
+                    continue
+                else:
+                    break
             except Exception as e:
                 result['error'] = str(e)
+                self.logger.debug(f"流验证异常: {url} (尝试 {attempt+1}/{actual_retries+1}, 异常: {e})")
+                
                 # 其他异常不重试
                 break
             finally:
@@ -411,8 +439,8 @@ class StreamValidator:
         }
             
         try:
-            # 执行ffmpeg流验证
-            test_result = self._run_ffmpeg_test(url, timeout, max_retries=1)
+            # 执行ffmpeg流验证，使用智能重试机制
+            test_result = self._run_ffmpeg_test(url, timeout, max_retries=3)
             
             # 合并结果
             result.update(test_result)
