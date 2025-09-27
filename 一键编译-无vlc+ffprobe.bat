@@ -3,12 +3,14 @@ chcp 65001 > nul
 set PYTHONUTF8=1
 
 REM 自动检测Python路径
-for /f "tokens=2 delims==" %%I in ('python -c "import sys; print(sys.prefix)"') do set PYTHON_PATH=%%I
-if "%PYTHON_PATH%"=="" (
-    echo 错误: 未找到Python环境
+python -c "import sys; print(sys.prefix)" >nul 2>&1
+if errorlevel 1 (
+    echo 错误: 未找到Python环境或Python不可用
     pause
     exit /b 1
 )
+
+for /f "tokens=*" %%I in ('python -c "import sys; print(sys.prefix)"') do set PYTHON_PATH=%%I
 
 echo 使用Python路径: %PYTHON_PATH%
 
