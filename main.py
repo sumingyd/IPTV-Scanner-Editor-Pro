@@ -539,6 +539,40 @@ class MainWindow(QtWidgets.QMainWindow):
                 "错误", 
                 f"无法显示关于对话框: {str(e)}"
             )
+            
+    def _on_mapping_clicked(self):
+        """处理映射管理按钮点击事件"""
+        try:
+            from mapping_manager_dialog import MappingManagerDialog
+            
+            # 确保在主线程中创建对话框
+            dialog = MappingManagerDialog(self)
+            dialog.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
+            
+            # 确保事件循环正确处理
+            def show_dialog():
+                try:
+                    dialog.exec()
+                except Exception as e:
+                    self.logger.error(f"显示映射管理器出错: {e}")
+            
+            # 使用定时器确保UI更新
+            QtCore.QTimer.singleShot(0, show_dialog)
+            
+        except ImportError as e:
+            self.logger.error(f"导入MappingManagerDialog失败: {e}")
+            QtWidgets.QMessageBox.critical(
+                self,
+                "错误",
+                "无法加载映射管理器模块"
+            )
+        except Exception as e:
+            self.logger.error(f"显示映射管理器失败: {e}")
+            QtWidgets.QMessageBox.critical(
+                self,
+                "错误", 
+                f"无法显示映射管理器: {str(e)}"
+            )
 
     def init_background_tasks(self):
         """在后台线程执行的初始化任务"""

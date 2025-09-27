@@ -287,7 +287,11 @@ class LanguageManager:
             if hasattr(main_window, 'referer_row_label'):
                 main_window.referer_row_label.setText(self.tr('referer', 'Referer') + "：")
             if hasattr(main_window, 'scan_btn'):
-                main_window.scan_btn.setText(self.tr('full_scan', 'Full Scan'))
+                # 根据扫描状态设置正确的按钮文本
+                if hasattr(main_window, 'scanner') and main_window.scanner.is_scanning():
+                    main_window.scan_btn.setText(self.tr('stop_scan', 'Stop Scan'))
+                else:
+                    main_window.scan_btn.setText(self.tr('full_scan', 'Full Scan'))
             if hasattr(main_window, 'generate_btn'):
                 main_window.generate_btn.setText(self.tr('generate_list', 'Generate List'))
             if hasattr(main_window, 'detailed_stats_label'):
@@ -369,8 +373,8 @@ class LanguageManager:
             
             # 更新映射状态标签
             if hasattr(main_window, 'mapping_status_label'):
-                from channel_mappings import remote_mappings
-                if remote_mappings:
+                from channel_mappings import mapping_manager
+                if mapping_manager.remote_mappings:
                     main_window.mapping_status_label.setText(
                         self.tr('mapping_loaded', 'Remote mapping loaded')
                     )
