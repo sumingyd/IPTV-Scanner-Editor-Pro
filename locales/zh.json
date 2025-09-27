@@ -101,5 +101,8 @@
   "search_all_fields": "搜索所有字段",
   "search_standard_name_only": "仅搜索标准名称",
   "search_raw_name_only": "仅搜索原始名称",
-  "search_group_only": "仅搜索分组"
+  "search_group_only": "仅搜索分组",
+  "warning": "警告",
+  "select_mapping_to_edit": "请选择要编辑的映射",
+  "select_mapping_to_delete": "请选择要删除的映射"
 }
