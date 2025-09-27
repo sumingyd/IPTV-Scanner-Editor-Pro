@@ -94,5 +94,9 @@
   "analyze_unstable_mappings": "Analyze Unstable Mappings",
   "suggested_mapping": "Suggested Mapping",
   "confidence": "Confidence",
-  "refresh_suggestions": "Refresh Suggestions"
+  "refresh_suggestions": "Refresh Suggestions",
+  "search_all_fields": "Search All Fields",
+  "search_standard_name_only": "Search Standard Name Only",
+  "search_raw_name_only": "Search Raw Name Only",
+  "search_group_only": "Search Group Only"
 }
