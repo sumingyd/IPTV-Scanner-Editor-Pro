@@ -1,7 +1,11 @@
 import requests
 import os
 import re
-from typing import Dict, List
+import json
+import hashlib
+import time
+import threading
+from typing import Dict, List, Optional
 from log_manager import LogManager
 
 # 创建全局日志管理器实例
@@ -9,6 +13,347 @@ logger = LogManager()
 
 # 默认远程URL - 优先使用CSV格式，如果不存在则尝试TXT格式
 DEFAULT_REMOTE_URL = "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/local_channel_mappings.csv"
+
+# 本地缓存文件路径
+CACHE_FILE = "channel_mappings_cache.json"
+USER_MAPPINGS_FILE = "user_channel_mappings.json"
+CHANNEL_FINGERPRINT_FILE = "channel_fingerprints.json"
+
+def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
+    """创建反向映射字典
+    返回格式: {raw_name: {'standard_name': str, 'logo_url': str, 'group_name': str}}
+    """
+    reverse_mappings = {}
+    for standard_name, data in mappings.items():
+        for raw_name in data['raw_names']:
+            reverse_mappings[raw_name] = {
+                'standard_name': standard_name,
+                'logo_url': data['logo_url'],
+                'group_name': data.get('group_name')
+            }
+    return reverse_mappings
+
+def load_remote_mappings() -> Dict[str, dict]:
+    """加载远程映射规则"""
+    try:
+        from config_manager import ConfigManager
+        config = ConfigManager()
+        try:
+            remote_url = config.get('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
+        except AttributeError:
+            remote_url = DEFAULT_REMOTE_URL
+        
+        # 增加重试机制和SSL错误处理
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                # 先尝试CSV格式
+                response = requests.get(remote_url, timeout=10, verify=False)  # 临时禁用SSL验证
+                if response.status_code == 404:
+                    # 如果CSV格式不存在，尝试TXT格式（向后兼容）
+                    txt_url = remote_url.replace('.csv', '.txt')
+                    logger.info(f"CSV映射文件不存在，尝试TXT格式: {txt_url}")
+                    response = requests.get(txt_url, timeout=10, verify=False)
+                
+                response.raise_for_status()
+                
+                # 根据文件扩展名确定格式
+                if remote_url.endswith('.csv') or response.url.endswith('.csv'):
+                    file_ext = '.csv'
+                else:
+                    file_ext = '.txt'
+                
+                # 创建临时文件保存远程内容
+                temp_file = f"remote_mappings{file_ext}"
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    f.write(response.text)
+                
+                # 从临时文件加载映射
+                mappings = load_mappings_from_file(temp_file)
+                os.remove(temp_file)
+                logger.info(f"成功加载远程映射规则，共 {len(mappings)} 条映射")
+                return mappings
+                
+            except requests.exceptions.SSLError as e:
+                logger.warning(f"SSL错误 (尝试 {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(2)  # 等待2秒后重试
+                else:
+                    raise e
+            except Exception as e:
+                logger.error(f"加载远程映射失败 (尝试 {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(2)  # 等待2秒后重试
+                else:
+                    raise e
+                    
+        return {}  # 所有重试都失败
+    except Exception as e:
+        logger.error(f"加载远程映射失败: {e}, 使用本地映射")
+        return {}
+
+
+class ChannelMappingManager:
+    """频道映射管理器，包含本地缓存、频道指纹、智能学习和用户自定义映射功能"""
+    
+    def __init__(self):
+        self.logger = LogManager()
+        self.cache_file = CACHE_FILE
+        self.user_mappings_file = USER_MAPPINGS_FILE
+        self.fingerprint_file = CHANNEL_FINGERPRINT_FILE
+        self.cache_lock = threading.Lock()
+        self.user_mappings_lock = threading.Lock()
+        self.fingerprint_lock = threading.Lock()
+        
+        # 加载各种映射数据
+        self.remote_mappings = self._load_cached_mappings()
+        self.user_mappings = self._load_user_mappings()
+        self.channel_fingerprints = self._load_channel_fingerprints()
+        
+        # 组合所有映射
+        self.combined_mappings = self._combine_mappings()
+        self.reverse_mappings = create_reverse_mappings(self.combined_mappings)
+    
+    def _load_cached_mappings(self) -> Dict[str, dict]:
+        """加载缓存的远程映射规则"""
+        try:
+            if os.path.exists(self.cache_file):
+                with open(self.cache_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    # 检查缓存是否过期（24小时）
+                    if time.time() - data.get('timestamp', 0) < 24 * 3600:
+                        self.logger.info(f"从缓存加载远程映射规则，共 {len(data.get('mappings', {}))} 条映射")
+                        return data.get('mappings', {})
+        except Exception as e:
+            self.logger.error(f"加载缓存映射失败: {e}")
+        
+        # 缓存不存在或已过期，重新加载远程映射
+        return self._load_and_cache_remote_mappings()
+    
+    def _load_and_cache_remote_mappings(self) -> Dict[str, dict]:
+        """加载远程映射并缓存到本地"""
+        mappings = load_remote_mappings()
+        
+        # 缓存到本地文件
+        try:
+            with self.cache_lock:
+                cache_data = {
+                    'timestamp': time.time(),
+                    'mappings': mappings
+                }
+                with open(self.cache_file, 'w', encoding='utf-8') as f:
+                    json.dump(cache_data, f, ensure_ascii=False, indent=2)
+                self.logger.info(f"远程映射已缓存到本地，共 {len(mappings)} 条映射")
+        except Exception as e:
+            self.logger.error(f"缓存远程映射失败: {e}")
+        
+        return mappings
+    
+    def _load_user_mappings(self) -> Dict[str, dict]:
+        """加载用户自定义映射规则"""
+        try:
+            if os.path.exists(self.user_mappings_file):
+                with open(self.user_mappings_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            self.logger.error(f"加载用户映射失败: {e}")
+        return {}
+    
+    def _save_user_mappings(self):
+        """保存用户自定义映射规则"""
+        try:
+            with self.user_mappings_lock:
+                with open(self.user_mappings_file, 'w', encoding='utf-8') as f:
+                    json.dump(self.user_mappings, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            self.logger.error(f"保存用户映射失败: {e}")
+    
+    def _load_channel_fingerprints(self) -> Dict[str, dict]:
+        """加载频道指纹数据"""
+        try:
+            if os.path.exists(self.fingerprint_file):
+                with open(self.fingerprint_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            self.logger.error(f"加载频道指纹失败: {e}")
+        return {}
+    
+    def _save_channel_fingerprints(self):
+        """保存频道指纹数据"""
+        try:
+            with self.fingerprint_lock:
+                with open(self.fingerprint_file, 'w', encoding='utf-8') as f:
+                    json.dump(self.channel_fingerprints, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            self.logger.error(f"保存频道指纹失败: {e}")
+    
+    def _combine_mappings(self) -> Dict[str, dict]:
+        """组合远程映射和用户自定义映射（用户映射优先级更高）"""
+        combined = self.remote_mappings.copy()
+        combined.update(self.user_mappings)
+        return combined
+    
+    def add_user_mapping(self, raw_name: str, standard_name: str, logo_url: str = None, group_name: str = None):
+        """添加用户自定义映射"""
+        if standard_name not in self.user_mappings:
+            self.user_mappings[standard_name] = {
+                'raw_names': [],
+                'logo_url': logo_url,
+                'group_name': group_name
+            }
+        
+        if raw_name not in self.user_mappings[standard_name]['raw_names']:
+            self.user_mappings[standard_name]['raw_names'].append(raw_name)
+        
+        # 更新组合映射和反向映射
+        self.combined_mappings = self._combine_mappings()
+        self.reverse_mappings = create_reverse_mappings(self.combined_mappings)
+        
+        # 保存用户映射
+        self._save_user_mappings()
+        
+        self.logger.info(f"添加用户映射: {raw_name} -> {standard_name}")
+    
+    def remove_user_mapping(self, standard_name: str):
+        """移除用户自定义映射"""
+        if standard_name in self.user_mappings:
+            del self.user_mappings[standard_name]
+            self.combined_mappings = self._combine_mappings()
+            self.reverse_mappings = create_reverse_mappings(self.combined_mappings)
+            self._save_user_mappings()
+            self.logger.info(f"移除用户映射: {standard_name}")
+    
+    def create_channel_fingerprint(self, url: str, channel_info: dict) -> str:
+        """创建频道指纹"""
+        # 使用URL和频道信息创建唯一指纹
+        fingerprint_data = {
+            'url': url,
+            'service_name': channel_info.get('service_name', ''),
+            'resolution': channel_info.get('resolution', ''),
+            'codec': channel_info.get('codec', ''),
+            'bitrate': channel_info.get('bitrate', '')
+        }
+        
+        # 生成MD5哈希作为指纹
+        fingerprint_str = json.dumps(fingerprint_data, sort_keys=True)
+        return hashlib.md5(fingerprint_str.encode()).hexdigest()
+    
+    def learn_from_scan_result(self, url: str, raw_name: str, channel_info: dict, mapped_name: str):
+        """从扫描结果中学习并完善映射规则"""
+        fingerprint = self.create_channel_fingerprint(url, channel_info)
+        
+        # 记录指纹与映射关系
+        if fingerprint not in self.channel_fingerprints:
+            self.channel_fingerprints[fingerprint] = {
+                'raw_name': raw_name,
+                'mapped_name': mapped_name,
+                'url': url,
+                'last_seen': time.time(),
+                'count': 1
+            }
+        else:
+            self.channel_fingerprints[fingerprint]['count'] += 1
+            self.channel_fingerprints[fingerprint]['last_seen'] = time.time()
+        
+        # 如果某个指纹频繁出现但映射不稳定，建议用户添加映射
+        if self.channel_fingerprints[fingerprint]['count'] >= 3:
+            current_mapped = self.channel_fingerprints[fingerprint]['mapped_name']
+            if current_mapped != mapped_name:
+                self.logger.warning(f"频道映射不稳定: {raw_name} -> {current_mapped} vs {mapped_name}")
+        
+        self._save_channel_fingerprints()
+    
+    def get_channel_info(self, raw_name: str, url: str = None, channel_info: dict = None) -> dict:
+        """获取频道信息，支持智能学习和指纹匹配"""
+        if not raw_name or raw_name.isspace():
+            return {'standard_name': '', 'logo_url': None}
+        
+        # 标准化输入名称
+        normalized_name = raw_name.strip().lower()
+        
+        if not normalized_name:
+            return {'standard_name': raw_name, 'logo_url': None}
+        
+        # 1. 首先检查精确匹配
+        result = self._get_exact_match(normalized_name)
+        if result['standard_name'] != raw_name:  # 如果找到了映射
+            # 记录学习数据
+            if url and channel_info:
+                self.learn_from_scan_result(url, raw_name, channel_info, result['standard_name'])
+            return result
+        
+        # 2. 如果没有精确匹配，尝试指纹匹配
+        if url and channel_info:
+            fingerprint = self.create_channel_fingerprint(url, channel_info)
+            if fingerprint in self.channel_fingerprints:
+                mapped_name = self.channel_fingerprints[fingerprint]['mapped_name']
+                if mapped_name != raw_name:
+                    self.logger.info(f"通过指纹匹配找到映射: {raw_name} -> {mapped_name}")
+                    return {'standard_name': mapped_name, 'logo_url': None}
+            
+            # 记录当前映射关系用于学习
+            self.learn_from_scan_result(url, raw_name, channel_info, raw_name)
+        
+        # 3. 返回原始名称
+        self.logger.debug(f"没有找到匹配的映射，返回原始名称: {raw_name}")
+        return {'standard_name': raw_name, 'logo_url': None}
+    
+    def _get_exact_match(self, normalized_name: str) -> dict:
+        """精确匹配映射规则"""
+        # 检查反向映射
+        try:
+            for raw_pattern, info in self.reverse_mappings.items():
+                if not raw_pattern or raw_pattern.isspace():
+                    continue
+                normalized_pattern = re.sub(r'\s+', ' ', raw_pattern.strip()).lower()
+                if normalized_name == normalized_pattern:
+                    self.logger.debug(f"找到精确匹配: {raw_pattern} -> {info['standard_name']}")
+                    return info
+        except Exception as e:
+            self.logger.error(f"反向映射查找失败: {e}")
+        
+        # 检查标准名称映射
+        try:
+            for standard_name, info in self.combined_mappings.items():
+                if not standard_name or standard_name.isspace():
+                    continue
+                normalized_standard = re.sub(r'\s+', ' ', standard_name.strip()).lower()
+                if normalized_name == normalized_standard:
+                    self.logger.debug(f"从标准名称找到精确匹配: {standard_name}")
+                    return {
+                        'standard_name': standard_name,
+                        'logo_url': info['logo_url'],
+                        'group_name': info.get('group_name')
+                    }
+        except Exception as e:
+            self.logger.error(f"标准名称查找失败: {e}")
+        
+        return {'standard_name': normalized_name, 'logo_url': None}
+    
+    def get_mapping_suggestions(self, raw_name: str) -> List[str]:
+        """获取映射建议"""
+        suggestions = []
+        
+        # 基于指纹历史记录提供建议
+        for fingerprint, data in self.channel_fingerprints.items():
+            if data['raw_name'] == raw_name and data['mapped_name'] != raw_name:
+                suggestions.append(data['mapped_name'])
+        
+        # 去重并返回
+        return list(set(suggestions))
+    
+    def refresh_cache(self):
+        """刷新远程映射缓存"""
+        self.remote_mappings = self._load_and_cache_remote_mappings()
+        self.combined_mappings = self._combine_mappings()
+        self.reverse_mappings = create_reverse_mappings(self.combined_mappings)
+        self.logger.info("远程映射缓存已刷新")
+
+
+# 创建全局映射管理器实例
+mapping_manager = ChannelMappingManager()
 
 def extract_channel_name_from_url(url: str) -> str:
     """从URL提取频道名，支持多种协议格式"""
@@ -166,148 +511,16 @@ def load_mappings_from_file(file_path: str) -> Dict[str, dict]:
         logger.error(f"加载映射文件 {file_path} 失败: {e}")
     return mappings
 
-def load_remote_mappings() -> Dict[str, dict]:
-    """加载远程映射规则"""
-    try:
-        from config_manager import ConfigManager
-        config = ConfigManager()
-        try:
-            remote_url = config.get('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
-        except AttributeError:
-            remote_url = DEFAULT_REMOTE_URL
-        
-        # 增加重试机制和SSL错误处理
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                # 先尝试CSV格式
-                response = requests.get(remote_url, timeout=10, verify=False)  # 临时禁用SSL验证
-                if response.status_code == 404:
-                    # 如果CSV格式不存在，尝试TXT格式（向后兼容）
-                    txt_url = remote_url.replace('.csv', '.txt')
-                    logger.info(f"CSV映射文件不存在，尝试TXT格式: {txt_url}")
-                    response = requests.get(txt_url, timeout=10, verify=False)
-                
-                response.raise_for_status()
-                
-                # 根据文件扩展名确定格式
-                if remote_url.endswith('.csv') or response.url.endswith('.csv'):
-                    file_ext = '.csv'
-                else:
-                    file_ext = '.txt'
-                
-                # 创建临时文件保存远程内容
-                temp_file = f"remote_mappings{file_ext}"
-                with open(temp_file, 'w', encoding='utf-8') as f:
-                    f.write(response.text)
-                
-                # 从临时文件加载映射
-                mappings = load_mappings_from_file(temp_file)
-                os.remove(temp_file)
-                logger.info(f"成功加载远程映射规则，共 {len(mappings)} 条映射")
-                return mappings
-                
-            except requests.exceptions.SSLError as e:
-                logger.warning(f"SSL错误 (尝试 {attempt + 1}/{max_retries}): {e}")
-                if attempt < max_retries - 1:
-                    import time
-                    time.sleep(2)  # 等待2秒后重试
-                else:
-                    raise e
-            except Exception as e:
-                logger.error(f"加载远程映射失败 (尝试 {attempt + 1}/{max_retries}): {e}")
-                if attempt < max_retries - 1:
-                    import time
-                    time.sleep(2)  # 等待2秒后重试
-                else:
-                    raise e
-                    
-        return {}  # 所有重试都失败
-    except Exception as e:
-        logger.error(f"加载远程映射失败: {e}, 使用本地映射")
-        return {}
 
-def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
-    """创建反向映射字典
-    返回格式: {raw_name: {'standard_name': str, 'logo_url': str, 'group_name': str}}
-    """
-    reverse_mappings = {}
-    for standard_name, data in mappings.items():
-        for raw_name in data['raw_names']:
-            reverse_mappings[raw_name] = {
-                'standard_name': standard_name,
-                'logo_url': data['logo_url'],
-                'group_name': data.get('group_name')
-            }
-    return reverse_mappings
-
-# 加载远程映射规则
-remote_mappings = load_remote_mappings()
-
-# 记录加载状态
-if remote_mappings:
-    logger.info("成功加载远程映射规则")
-else:
-    logger.error("远程映射加载失败，将跳过频道名映射")
-
-# 使用远程映射
-combined_mappings = remote_mappings
-
-# 创建反向映射
-REVERSE_MAPPINGS = create_reverse_mappings(combined_mappings)
 
 def get_channel_info(raw_name: str) -> dict:
     """获取频道信息(标准名称、logo地址和分组名)
     返回格式: {'standard_name': str, 'logo_url': str, 'group_name': str}
     """
-    if not raw_name or raw_name.isspace():
-        return {'standard_name': '', 'logo_url': None}
-    
-    # 标准化输入名称 - 保留原始空格，仅去除首尾空格并转换为小写
-    normalized_name = raw_name.strip().lower()
-    
-    # 如果原始名称为空，直接返回
-    if not normalized_name:
-        return {'standard_name': raw_name, 'logo_url': None}
-    
-    # 检查远程映射(原始名称) - 使用精确匹配
-    try:
-        reverse_remote = create_reverse_mappings(remote_mappings)
-        for raw_pattern, info in reverse_remote.items():
-            # 跳过空的原始模式
-            if not raw_pattern or raw_pattern.isspace():
-                continue
-                
-            normalized_pattern = re.sub(r'\s+', ' ', raw_pattern.strip()).lower()
-            
-            # 精确匹配（必须完全一致）
-            if normalized_name == normalized_pattern:
-                logger.debug(f"从远程映射找到精确匹配: {raw_pattern} -> {info['standard_name']}")
-                return info
-                
-    except Exception as e:
-        logger.error(f"远程映射查找失败: {e}")
-        
-    # 检查标准名称映射(如果输入的是标准名称)
-    try:
-        for standard_name, info in combined_mappings.items():
-            # 跳过空的标准名称
-            if not standard_name or standard_name.isspace():
-                continue
-                
-            normalized_standard = re.sub(r'\s+', ' ', standard_name.strip()).lower()
-            
-            # 精确匹配（必须完全一致）
-            if normalized_name == normalized_standard:
-                logger.debug(f"从标准名称找到精确匹配: {standard_name}")
-                return {
-                    'standard_name': standard_name,
-                    'logo_url': info['logo_url']
-                }
-                
-    except Exception as e:
-        logger.error(f"标准名称查找失败: {e}")
-        
-    # 都没有匹配则返回原始名称
-    logger.debug(f"没有找到匹配的映射，返回原始名称: {raw_name}")
-    return {'standard_name': raw_name, 'logo_url': None}
+    # 使用新的映射管理器
+    return mapping_manager.get_channel_info(raw_name)
+
+# 兼容性函数，保持原有接口
+def get_channel_info_legacy(raw_name: str) -> dict:
+    """旧版获取频道信息函数，保持向后兼容"""
+    return mapping_manager.get_channel_info(raw_name)

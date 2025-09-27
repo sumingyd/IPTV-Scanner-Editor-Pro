@@ -82,8 +82,8 @@ class UIBuilder:
         status_bar.addPermanentWidget(self.main_window.stats_label)
         
         # 初始化时显示映射状态
-        from channel_mappings import remote_mappings
-        if remote_mappings:
+        from channel_mappings import mapping_manager
+        if mapping_manager.remote_mappings:
             self.main_window.mapping_status_label.setText(
                 self.main_window.language_manager.tr('mapping_loaded', 'Remote mapping loaded')
             )
@@ -756,6 +756,10 @@ class UIBuilder:
         
         self.main_window.about_action = create_action("ℹ️", "关于", "关于本程序")
         self.main_window.about_action.triggered.connect(self.main_window._on_about_clicked)
+        
+        # 添加映射管理器按钮
+        self.main_window.mapping_action = create_action("🗺️", "映射管理", "管理频道映射规则")
+        self.main_window.mapping_action.triggered.connect(self.main_window._on_mapping_clicked)
 
         # 添加分隔符
         toolbar.addSeparator()
@@ -764,6 +768,7 @@ class UIBuilder:
         toolbar.addAction(self.main_window.open_action)
         toolbar.addAction(self.main_window.save_action)
         toolbar.addAction(language_action)
+        toolbar.addAction(self.main_window.mapping_action)
         toolbar.addAction(self.main_window.about_action)
         
         # 立即刷新语言菜单显示

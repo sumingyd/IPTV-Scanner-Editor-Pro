@@ -147,7 +147,7 @@ class ScannerController(QObject):
 
     def _build_channel_info(self, url: str, valid: bool, latency: int, resolution: str, result: dict) -> dict:
         """构建完整的频道信息字典"""
-        from channel_mappings import get_channel_info
+        from channel_mappings import mapping_manager, extract_channel_name_from_url
         
         try:
             # 获取原始频道名
@@ -155,8 +155,15 @@ class ScannerController(QObject):
             if not raw_name or raw_name == "未知频道":
                 raw_name = extract_channel_name_from_url(url)
             
-            # 获取映射信息
-            mapped_info = get_channel_info(raw_name) if valid else None
+            # 获取映射信息（使用新的映射管理器，支持智能学习和指纹匹配）
+            channel_info_for_fingerprint = {
+                'service_name': result.get('service_name', ''),
+                'resolution': resolution,
+                'codec': result.get('codec', ''),
+                'bitrate': result.get('bitrate', '')
+            }
+            
+            mapped_info = mapping_manager.get_channel_info(raw_name, url, channel_info_for_fingerprint) if valid else None
             mapped_name = mapped_info.get('standard_name', raw_name) if mapped_info else raw_name
             
             # 构建频道信息
@@ -169,13 +176,34 @@ class ScannerController(QObject):
                 'resolution': resolution if resolution else '',
                 'status': '有效' if valid else '无效',
                 'group': mapped_info.get('group_name', '未分类') if mapped_info else '未分类',
-                'logo_url': mapped_info.get('logo_url') if mapped_info else None
+                'logo_url': mapped_info.get('logo_url') if mapped_info else None,
+                'fingerprint': mapping_manager.create_channel_fingerprint(url, channel_info_for_fingerprint) if valid else None
             }
+            
+            # 记录详细的映射信息用于调试
+            if valid:
+                if mapped_name != raw_name:
+                    self.logger.info(f"频道映射成功: {raw_name} -> {mapped_name}")
+                else:
+                    self.logger.debug(f"频道未映射，使用原始名称: {raw_name}")
+                    
             return channel_info
             
         except Exception as e:
-            self.logger.error(f"构建频道信息失败: {e}")
-            return None
+            self.logger.error(f"构建频道信息失败: {e}", exc_info=True)
+            # 返回基本的频道信息，即使映射失败
+            return {
+                'url': url,
+                'name': extract_channel_name_from_url(url),
+                'raw_name': extract_channel_name_from_url(url),
+                'valid': valid,
+                'latency': latency,
+                'resolution': resolution if resolution else '',
+                'status': '有效' if valid else '无效',
+                'group': '未分类',
+                'logo_url': None,
+                'error': str(e)
+            }
 
     def _check_channel(self, url: str, raw_channel_name: str = None) -> dict:
         """检查频道有效性"""
@@ -456,7 +484,8 @@ class ScannerController(QObject):
                 except RuntimeError:
                     break
                 
-            if not self.stop_event.is_set():
+            # 只有当确实有扫描或验证任务完成时才发射完成信号
+            if not self.stop_event.is_set() and (self.stats['total'] > 0 or self.is_validating):
                 try:
                     self.scan_completed.emit()
                 except RuntimeError:
