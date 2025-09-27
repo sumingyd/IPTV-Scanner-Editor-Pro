@@ -87,9 +87,12 @@ class MappingManagerDialog(QtWidgets.QDialog):
         self.search_options = QtWidgets.QComboBox()
         self.search_options.currentTextChanged.connect(self.filter_mappings)
         
-        search_layout.addWidget(QtWidgets.QLabel("搜索:"))
+        self.search_label = QtWidgets.QLabel("搜索:")
+        self.search_scope_label = QtWidgets.QLabel("搜索范围:")
+        
+        search_layout.addWidget(self.search_label)
         search_layout.addWidget(self.search_input)
-        search_layout.addWidget(QtWidgets.QLabel("搜索范围:"))
+        search_layout.addWidget(self.search_scope_label)
         search_layout.addWidget(self.search_options)
         search_layout.addStretch()
         
@@ -611,6 +614,10 @@ class MappingManagerDialog(QtWidgets.QDialog):
             
             # 更新用户映射管理选项卡
             self.search_input.setPlaceholderText(self.language_manager.tr('search_channel_name', 'Search channel name...'))
+            
+            # 更新搜索标签
+            self.search_label.setText(self.language_manager.tr('search', 'Search') + ":")
+            self.search_scope_label.setText(self.language_manager.tr('search_scope', 'Search Scope') + ":")
             
             # 更新搜索选项
             self.search_options.clear()

@@ -95,6 +95,8 @@
   "suggested_mapping": "Suggested Mapping",
   "confidence": "Confidence",
   "refresh_suggestions": "Refresh Suggestions",
+  "search": "Search",
+  "search_scope": "Search Scope",
   "search_all_fields": "Search All Fields",
   "search_standard_name_only": "Search Standard Name Only",
   "search_raw_name_only": "Search Raw Name Only",
