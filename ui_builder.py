@@ -566,6 +566,13 @@ class UIBuilder:
         url = self.main_window.model.data(self.main_window.model.index(index.row(), 3))  # URL在第3列
         name = self.main_window.model.data(self.main_window.model.index(index.row(), 1))  # 名称在第1列
         
+        # 添加重新获取信息菜单项
+        refresh_info_action = QtGui.QAction("重新获取信息", self.main_window)
+        refresh_info_action.triggered.connect(lambda: self._refresh_channel_info(index))
+        menu.addAction(refresh_info_action)
+        
+        menu.addSeparator()
+        
         # 添加复制频道名菜单项
         copy_name_action = QtGui.QAction("复制频道名", self.main_window)
         copy_name_action.triggered.connect(lambda: self._copy_channel_name(name))
@@ -575,6 +582,8 @@ class UIBuilder:
         copy_url_action = QtGui.QAction("复制URL", self.main_window)
         copy_url_action.triggered.connect(lambda: self._copy_channel_url(url))
         menu.addAction(copy_url_action)
+        
+        menu.addSeparator()
         
         # 添加删除频道菜单项
         delete_action = QtGui.QAction("删除频道", self.main_window)
@@ -596,6 +605,87 @@ class UIBuilder:
         clipboard.setText(name)
         self.logger.info(f"已复制频道名: {name}")
         
+    def _refresh_channel_info(self, index):
+        """重新获取选中频道的详细信息"""
+        if not index.isValid():
+            return
+            
+        try:
+            # 获取当前频道的URL
+            url = self.main_window.model.data(self.main_window.model.index(index.row(), 3))  # URL在第3列
+            current_channel = self.main_window.model.get_channel(index.row())
+            
+            if not url:
+                QtWidgets.QMessageBox.warning(
+                    self.main_window,
+                    "错误",
+                    "无法获取频道URL",
+                    QtWidgets.QMessageBox.StandardButton.Ok
+                )
+                return
+            
+            # 显示进度提示
+            self.main_window.statusBar().showMessage("正在重新获取频道信息...")
+            
+            # 使用扫描器的_check_channel方法重新验证频道
+            from validator import StreamValidator
+            validator = StreamValidator(self.main_window)
+            result = validator.validate_stream(url, timeout=self.main_window.timeout_input.value())
+            
+            # 构建新的频道信息
+            from channel_mappings import mapping_manager, extract_channel_name_from_url
+            
+            # 获取原始频道名
+            raw_name = result.get('service_name', '') or extract_channel_name_from_url(url)
+            if not raw_name or raw_name == "未知频道":
+                raw_name = extract_channel_name_from_url(url)
+            
+            # 获取映射信息
+            channel_info_for_fingerprint = {
+                'service_name': result.get('service_name', ''),
+                'resolution': result.get('resolution', ''),
+                'codec': result.get('codec', ''),
+                'bitrate': result.get('bitrate', '')
+            }
+            
+            mapped_info = mapping_manager.get_channel_info(raw_name, url, channel_info_for_fingerprint) if result['valid'] else None
+            mapped_name = mapped_info.get('standard_name', raw_name) if mapped_info else raw_name
+            
+            # 构建新的频道信息
+            new_channel_info = {
+                'url': url,
+                'name': mapped_name,
+                'raw_name': raw_name,
+                'valid': result['valid'],
+                'latency': result['latency'],
+                'resolution': result.get('resolution', ''),
+                'status': '有效' if result['valid'] else '无效',
+                'group': mapped_info.get('group_name', '未分类') if mapped_info else '未分类',
+                'logo_url': mapped_info.get('logo_url') if mapped_info else None,
+                'fingerprint': mapping_manager.create_channel_fingerprint(url, channel_info_for_fingerprint) if result['valid'] else None
+            }
+            
+            # 保留原有的自定义字段（如用户手动设置的logo等）
+            if 'logo' in current_channel and current_channel['logo']:
+                new_channel_info['logo'] = current_channel['logo']
+            
+            # 更新模型中的频道信息
+            self.main_window.model.update_channel(index.row(), new_channel_info)
+            
+            # 显示成功消息
+            self.main_window.statusBar().showMessage(f"频道信息已更新: {mapped_name}", 3000)
+            self.logger.info(f"重新获取频道信息成功: {raw_name} -> {mapped_name}")
+            
+        except Exception as e:
+            self.logger.error(f"重新获取频道信息失败: {e}", exc_info=True)
+            QtWidgets.QMessageBox.critical(
+                self.main_window,
+                "错误",
+                f"重新获取频道信息失败: {str(e)}",
+                QtWidgets.QMessageBox.StandardButton.Ok
+            )
+            self.main_window.statusBar().showMessage("重新获取频道信息失败", 3000)
+            
     def _delete_selected_channel(self, index):
         """删除选中的频道"""
         if not index.isValid():
