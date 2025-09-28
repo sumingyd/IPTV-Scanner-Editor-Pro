@@ -178,6 +178,12 @@ __pycache__/
 *.pyc
 *.pyo
 *.log
+*.log.1
+*.log.2
+*.log.3
+channel_fingerprints.json
+channel_mappings_cache.json
+config.ini
 
 # 缓存和数据
 epg_cache/
