@@ -733,18 +733,20 @@ class UIBuilder:
                 self.main_window.progress_indicator.hide()
             
             # 显示成功消息
-            self.main_window.statusBar().showMessage(f"频道信息已更新: {mapped_name}", 3000)
+            self.main_window.statusBar().showMessage(f"频道信息已更新: {raw_name} -> {mapped_name}", 3000)
             self.logger.info(f"重新获取频道信息成功: {raw_name} -> {mapped_name}")
             
-            # 强制刷新视图以显示新的Logo
-            self.main_window.model.dataChanged.emit(
-                self.main_window.model.index(index.row(), 0),
-                self.main_window.model.index(index.row(), self.main_window.model.columnCount() - 1)
-            )
+            # 强制刷新整个视图，确保所有列都更新
+            top_left = self.main_window.model.index(index.row(), 0)
+            bottom_right = self.main_window.model.index(index.row(), self.main_window.model.columnCount() - 1)
+            self.main_window.model.dataChanged.emit(top_left, bottom_right)
             
             # 重新加载Logo（如果是网络Logo）
             if new_channel_info.get('logo_url') and new_channel_info['logo_url'].startswith(('http://', 'https://')):
                 self._load_single_channel_logo_async(index.row())
+                
+            # 强制刷新UI，确保立即显示更新
+            self.main_window.channel_list.viewport().update()
                 
         except Exception as e:
             self.logger.error(f"完成频道刷新失败: {e}", exc_info=True)
