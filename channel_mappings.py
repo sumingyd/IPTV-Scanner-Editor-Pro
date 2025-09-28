@@ -291,7 +291,13 @@ class ChannelMappingManager:
                 mapped_name = self.channel_fingerprints[fingerprint]['mapped_name']
                 if mapped_name != raw_name:
                     self.logger.info(f"通过指纹匹配找到映射: {raw_name} -> {mapped_name}")
-                    return {'standard_name': mapped_name, 'logo_url': None}
+                    # 通过指纹匹配找到映射后，再次尝试获取完整的频道信息
+                    fingerprint_result = self._get_exact_match(mapped_name.lower())
+                    if fingerprint_result['standard_name'] != mapped_name:  # 如果找到了完整映射
+                        return fingerprint_result
+                    else:
+                        # 如果没有找到完整映射，返回基本映射信息
+                        return {'standard_name': mapped_name, 'logo_url': None}
             
             # 记录当前映射关系用于学习
             self.learn_from_scan_result(url, raw_name, channel_info, raw_name)

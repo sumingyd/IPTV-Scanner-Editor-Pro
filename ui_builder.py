@@ -606,85 +606,183 @@ class UIBuilder:
         self.logger.info(f"已复制频道名: {name}")
         
     def _refresh_channel_info(self, index):
-        """重新获取选中频道的详细信息"""
+        """重新获取选中频道的详细信息（异步执行）"""
         if not index.isValid():
             return
             
+        # 获取当前频道的URL和名称
+        url = self.main_window.model.data(self.main_window.model.index(index.row(), 3))  # URL在第3列
+        current_name = self.main_window.model.data(self.main_window.model.index(index.row(), 1))  # 名称在第1列
+        
+        if not url:
+            QtWidgets.QMessageBox.warning(
+                self.main_window,
+                "错误",
+                "无法获取频道URL",
+                QtWidgets.QMessageBox.StandardButton.Ok
+            )
+            return
+        
+        # 显示进度条和状态信息
+        self.main_window.progress_indicator.show()
+        self.main_window.progress_indicator.setValue(0)
+        self.main_window.statusBar().showMessage(f"正在重新获取频道信息: {current_name}")
+        
+        # 使用QThreadPool异步执行验证任务
+        from PyQt6.QtCore import QRunnable, QThreadPool, pyqtSlot
+        from validator import StreamValidator
+        from channel_mappings import mapping_manager, extract_channel_name_from_url
+        
+        class RefreshChannelTask(QRunnable):
+            def __init__(self, ui_builder, index, url, current_name, timeout):
+                super().__init__()
+                self.ui_builder = ui_builder
+                self.index = index
+                self.url = url
+                self.current_name = current_name
+                self.timeout = timeout
+                
+            @pyqtSlot()
+            def run(self):
+                try:
+                    # 更新进度：开始验证
+                    self.ui_builder._update_refresh_progress(25, "正在验证流媒体...")
+                    
+                    # 执行流媒体验证
+                    validator = StreamValidator(self.ui_builder.main_window)
+                    result = validator.validate_stream(self.url, timeout=self.timeout)
+                    
+                    # 更新进度：正在处理映射
+                    self.ui_builder._update_refresh_progress(50, "正在处理频道映射...")
+                    
+                    # 获取原始频道名
+                    raw_name = result.get('service_name', '') or extract_channel_name_from_url(self.url)
+                    if not raw_name or raw_name == "未知频道":
+                        raw_name = extract_channel_name_from_url(self.url)
+                    
+                    # 获取映射信息
+                    channel_info_for_fingerprint = {
+                        'service_name': result.get('service_name', ''),
+                        'resolution': result.get('resolution', ''),
+                        'codec': result.get('codec', ''),
+                        'bitrate': result.get('bitrate', '')
+                    }
+                    
+                    mapped_info = mapping_manager.get_channel_info(raw_name, self.url, channel_info_for_fingerprint) if result['valid'] else None
+                    mapped_name = mapped_info.get('standard_name', raw_name) if mapped_info else raw_name
+                    
+                    # 更新进度：构建频道信息
+                    self.ui_builder._update_refresh_progress(75, "正在更新频道信息...")
+                    
+                    # 获取当前频道信息以保留自定义设置
+                    current_channel = self.ui_builder.main_window.model.get_channel(self.index.row())
+                    
+                    # 构建新的频道信息
+                    new_channel_info = {
+                        'url': self.url,
+                        'name': mapped_name,
+                        'raw_name': raw_name,
+                        'valid': result['valid'],
+                        'latency': result['latency'],
+                        'resolution': result.get('resolution', ''),
+                        'status': '有效' if result['valid'] else '无效',
+                        'group': mapped_info.get('group_name', '未分类') if mapped_info else '未分类',
+                        'logo_url': mapped_info.get('logo_url') if mapped_info else None,
+                        'fingerprint': mapping_manager.create_channel_fingerprint(self.url, channel_info_for_fingerprint) if result['valid'] else None
+                    }
+                    
+                    # 保留原有的自定义字段
+                    if 'logo' in current_channel and current_channel['logo']:
+                        new_channel_info['logo'] = current_channel['logo']
+                    
+                    # 更新进度：完成更新
+                    self.ui_builder._update_refresh_progress(100, "频道信息更新完成")
+                    
+                    # 在主线程中更新UI
+                    QtCore.QTimer.singleShot(0, lambda: self.ui_builder._finish_refresh_channel(
+                        self.index, new_channel_info, mapped_name, raw_name
+                    ))
+                    
+                except Exception as e:
+                    self.ui_builder.logger.error(f"重新获取频道信息失败: {e}", exc_info=True)
+                    # 在主线程中显示错误
+                    QtCore.QTimer.singleShot(0, lambda: self.ui_builder._handle_refresh_error(str(e)))
+        
+        # 创建并启动异步任务
+        task = RefreshChannelTask(self, index, url, current_name, self.main_window.timeout_input.value())
+        QThreadPool.globalInstance().start(task)
+        
+    def _update_refresh_progress(self, value, message):
+        """更新刷新进度（线程安全）"""
+        QtCore.QTimer.singleShot(0, lambda: self._update_progress_ui(value, message))
+        
+    def _update_progress_ui(self, value, message):
+        """在主线程中更新进度UI"""
+        if hasattr(self.main_window, 'progress_indicator'):
+            self.main_window.progress_indicator.setValue(value)
+            self.main_window.statusBar().showMessage(f"{message}")
+            
+    def _finish_refresh_channel(self, index, new_channel_info, mapped_name, raw_name):
+        """完成频道信息刷新"""
         try:
-            # 获取当前频道的URL
-            url = self.main_window.model.data(self.main_window.model.index(index.row(), 3))  # URL在第3列
-            current_channel = self.main_window.model.get_channel(index.row())
-            
-            if not url:
-                QtWidgets.QMessageBox.warning(
-                    self.main_window,
-                    "错误",
-                    "无法获取频道URL",
-                    QtWidgets.QMessageBox.StandardButton.Ok
-                )
-                return
-            
-            # 显示进度提示
-            self.main_window.statusBar().showMessage("正在重新获取频道信息...")
-            
-            # 使用扫描器的_check_channel方法重新验证频道
-            from validator import StreamValidator
-            validator = StreamValidator(self.main_window)
-            result = validator.validate_stream(url, timeout=self.main_window.timeout_input.value())
-            
-            # 构建新的频道信息
-            from channel_mappings import mapping_manager, extract_channel_name_from_url
-            
-            # 获取原始频道名
-            raw_name = result.get('service_name', '') or extract_channel_name_from_url(url)
-            if not raw_name or raw_name == "未知频道":
-                raw_name = extract_channel_name_from_url(url)
-            
-            # 获取映射信息
-            channel_info_for_fingerprint = {
-                'service_name': result.get('service_name', ''),
-                'resolution': result.get('resolution', ''),
-                'codec': result.get('codec', ''),
-                'bitrate': result.get('bitrate', '')
-            }
-            
-            mapped_info = mapping_manager.get_channel_info(raw_name, url, channel_info_for_fingerprint) if result['valid'] else None
-            mapped_name = mapped_info.get('standard_name', raw_name) if mapped_info else raw_name
-            
-            # 构建新的频道信息
-            new_channel_info = {
-                'url': url,
-                'name': mapped_name,
-                'raw_name': raw_name,
-                'valid': result['valid'],
-                'latency': result['latency'],
-                'resolution': result.get('resolution', ''),
-                'status': '有效' if result['valid'] else '无效',
-                'group': mapped_info.get('group_name', '未分类') if mapped_info else '未分类',
-                'logo_url': mapped_info.get('logo_url') if mapped_info else None,
-                'fingerprint': mapping_manager.create_channel_fingerprint(url, channel_info_for_fingerprint) if result['valid'] else None
-            }
-            
-            # 保留原有的自定义字段（如用户手动设置的logo等）
-            if 'logo' in current_channel and current_channel['logo']:
-                new_channel_info['logo'] = current_channel['logo']
-            
             # 更新模型中的频道信息
             self.main_window.model.update_channel(index.row(), new_channel_info)
+            
+            # 隐藏进度条
+            if hasattr(self.main_window, 'progress_indicator'):
+                self.main_window.progress_indicator.hide()
             
             # 显示成功消息
             self.main_window.statusBar().showMessage(f"频道信息已更新: {mapped_name}", 3000)
             self.logger.info(f"重新获取频道信息成功: {raw_name} -> {mapped_name}")
             
-        except Exception as e:
-            self.logger.error(f"重新获取频道信息失败: {e}", exc_info=True)
-            QtWidgets.QMessageBox.critical(
-                self.main_window,
-                "错误",
-                f"重新获取频道信息失败: {str(e)}",
-                QtWidgets.QMessageBox.StandardButton.Ok
+            # 强制刷新视图以显示新的Logo
+            self.main_window.model.dataChanged.emit(
+                self.main_window.model.index(index.row(), 0),
+                self.main_window.model.index(index.row(), self.main_window.model.columnCount() - 1)
             )
-            self.main_window.statusBar().showMessage("重新获取频道信息失败", 3000)
+            
+            # 重新加载Logo（如果是网络Logo）
+            if new_channel_info.get('logo_url') and new_channel_info['logo_url'].startswith(('http://', 'https://')):
+                self._load_single_channel_logo_async(index.row())
+                
+        except Exception as e:
+            self.logger.error(f"完成频道刷新失败: {e}", exc_info=True)
+            self._handle_refresh_error(str(e))
+            
+    def _handle_refresh_error(self, error_message):
+        """处理刷新错误"""
+        if hasattr(self.main_window, 'progress_indicator'):
+            self.main_window.progress_indicator.hide()
+            
+        QtWidgets.QMessageBox.critical(
+            self.main_window,
+            "错误",
+            f"重新获取频道信息失败: {error_message}",
+            QtWidgets.QMessageBox.StandardButton.Ok
+        )
+        self.main_window.statusBar().showMessage("重新获取频道信息失败", 3000)
+        
+    def _load_single_channel_logo_async(self, row):
+        """异步重新加载单个频道的Logo"""
+        try:
+            channel = self.main_window.model.get_channel(row)
+            logo_url = channel.get('logo_url', channel.get('logo', ''))
+            
+            # 只处理网络Logo地址
+            if logo_url and logo_url.startswith(('http://', 'https://')):
+                # 清除缓存中的旧Logo
+                if logo_url in self.logo_cache:
+                    del self.logo_cache[logo_url]
+                
+                # 显示占位符图标
+                self._show_placeholder_icon(row, logo_url)
+                
+                # 重新下载Logo
+                self._download_logo(logo_url, row)
+                
+        except Exception as e:
+            self.logger.debug(f"重新加载Logo失败: {e}")
             
     def _delete_selected_channel(self, index):
         """删除选中的频道"""
