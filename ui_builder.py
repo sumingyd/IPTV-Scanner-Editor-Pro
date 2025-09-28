@@ -739,7 +739,7 @@ class UIBuilder:
             # 强制刷新整个视图，确保所有列都更新
             top_left = self.main_window.model.index(index.row(), 0)
             bottom_right = self.main_window.model.index(index.row(), self.main_window.model.columnCount() - 1)
-            self.main_window.model.dataChanged.emit(top_left, bottom_right)
+            self.main_window.model.dataChanged.emit(top_left, bottom_right, [QtCore.Qt.ItemDataRole.DisplayRole, QtCore.Qt.ItemDataRole.DecorationRole])
             
             # 重新加载Logo（如果是网络Logo）
             if new_channel_info.get('logo_url') and new_channel_info['logo_url'].startswith(('http://', 'https://')):
@@ -747,6 +747,10 @@ class UIBuilder:
                 
             # 强制刷新UI，确保立即显示更新
             self.main_window.channel_list.viewport().update()
+            
+            # 强制调整列宽以适应新内容
+            header = self.main_window.channel_list.horizontalHeader()
+            header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
                 
         except Exception as e:
             self.logger.error(f"完成频道刷新失败: {e}", exc_info=True)
