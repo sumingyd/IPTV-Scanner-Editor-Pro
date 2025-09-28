@@ -1,5 +1,5 @@
 {
-  "timestamp": 1759059249.5983322,
+  "timestamp": 1759061498.6076386,
   "mappings": {
     "CETV-1": {
       "raw_names": [
@@ -168,7 +168,7 @@
     },
     "沂南综合": {
       "raw_names": [
-        "CHANNEL00001096?"
+        "CHANNEL00001096"
       ],
       "logo_url": null,
       "group_name": "临沂"
@@ -603,7 +603,7 @@
       "raw_names": [
         "标清西藏-xizang",
         "CHANNEL00000045",
-        "CHANNEL00000392?"
+        "CHANNEL00000392"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/西藏/西藏卫视2.png",
       "group_name": "卫视"
@@ -839,7 +839,8 @@
         "CCTV9",
         "CCTV9-HD",
         "CHANNEL00000319",
-        "239.21.1.151:5002"
+        "239.21.1.151:5002",
+        "239.21.1.153:5002"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV9.png",
       "group_name": "央视频道"
@@ -996,7 +997,7 @@
         "齐鲁",
         "SDQiLu-HD-DianXin",
         "CHANNEL00000052",
-        "CHANNEL00000313?"
+        "CHANNEL00000313"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东齐鲁.png",
       "group_name": "山东频道"
@@ -1026,7 +1027,7 @@
         "SDTiYu-HD-264",
         "CHANNEL00000057",
         "CHANNEL00000315",
-        "CHANNEL00000400?"
+        "CHANNEL00000400"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东体育.png",
       "group_name": "山东频道"
@@ -1044,7 +1045,7 @@
       "raw_names": [
         "SDXinWen-HD-H264",
         "公共",
-        "CHANNEL00000314?"
+        "CHANNEL00000314"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东新闻.png",
       "group_name": "山东频道"
@@ -1250,14 +1251,14 @@
     },
     "临沂综合": {
       "raw_names": [
-        "CHANNEL00000120?"
+        "CHANNEL00000120"
       ],
       "logo_url": null,
       "group_name": "市级频道"
     },
     "临沂公共": {
       "raw_names": [
-        "CHANNEL00000256?"
+        "CHANNEL00000256"
       ],
       "logo_url": null,
       "group_name": "市级频道"
@@ -1278,7 +1279,7 @@
     },
     "泰安综合": {
       "raw_names": [
-        "CHANNEL00000269?"
+        "CHANNEL00000269"
       ],
       "logo_url": null,
       "group_name": "市级频道"
@@ -1600,7 +1601,7 @@
     },
     "微山综合": {
       "raw_names": [
-        "CHANNEL00001078?"
+        "CHANNEL00001078"
       ],
       "logo_url": null,
       "group_name": "枣庄"
@@ -1666,7 +1667,8 @@
     "肥城综合": {
       "raw_names": [
         "feicheng",
-        "CHANNEL00001039"
+        "CHANNEL00001039",
+        "239.21.2.161:5002"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安肥城.png",
       "group_name": "泰安"
@@ -1737,7 +1739,8 @@
     "邹城综合": {
       "raw_names": [
         "zoucheng-xinwen",
-        "CHANNEL00001038"
+        "CHANNEL00001038",
+        "239.21.1.185:5002"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁邹城.png",
       "group_name": "济宁"
@@ -1844,7 +1847,8 @@
     "周村新闻": {
       "raw_names": [
         "ZHOUCUN-XINWEN",
-        "CHANNEL00001019"
+        "CHANNEL00001019",
+        "239.21.2.150:5002"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博周村.png",
       "group_name": "淄博"
@@ -2267,11 +2271,10 @@
     },
     "金鹰卡通": {
       "raw_names": [
-        "?乡渭?�重�",
+        "䡵乡渭䭁呏乇",
         "CHANNEL00000047",
         "CHANNEL00002027",
-        "金鹰卡通",
-        "?乡渭?�重�"
+        "金鹰卡通"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/金鹰卡通.png",
       "group_name": "特色频道"
@@ -2502,28 +2505,28 @@
     },
     "红色影视": {
       "raw_names": [
-        "CHANNEL00001097?"
+        "CHANNEL00001097"
       ],
       "logo_url": null,
       "group_name": "特色频道"
     },
     "劲爆体育": {
       "raw_names": [
-        "CHANNEL00002026??"
+        "CHANNEL00002026"
       ],
       "logo_url": null,
       "group_name": "特色频道"
     },
     "智慧康养": {
       "raw_names": [
-        "CHANNEL00002031??"
+        "CHANNEL00002031"
       ],
       "logo_url": null,
       "group_name": "特色频道"
     },
     "热血剧场": {
       "raw_names": [
-        "CHANNEL00002032?"
+        "CHANNEL00002032"
       ],
       "logo_url": null,
       "group_name": "特色频道"
