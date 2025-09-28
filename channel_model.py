@@ -494,20 +494,37 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         if not (0 <= index < len(self.channels)):
             return False
             
+        # 记录原始数据用于调试
+        old_name = self.channels[index].get('name', '')
+        old_group = self.channels[index].get('group', '')
+        
         # 更新频道数据
         self.channels[index].update(new_channel)
         
         # 更新名称和分组缓存
         if 'name' in new_channel:
             self._name_cache.add(new_channel['name'])
+            # 如果名称改变，从缓存中移除旧名称
+            if old_name and old_name != new_channel['name']:
+                self._name_cache.discard(old_name)
         if 'group' in new_channel:
             self._group_cache.add(new_channel['group'])
+            # 如果分组改变，从缓存中移除旧分组
+            if old_group and old_group != new_channel['group']:
+                self._group_cache.discard(old_group)
             
-        # 通知视图更新
-        self.dataChanged.emit(
-            self.index(index, 0),
-            self.index(index, self.columnCount() - 1)
-        )
+        # 强制重置模型以确保UI完全更新
+        self.beginResetModel()
+        self.endResetModel()
+        
+        # 同时发送数据变化信号，确保所有视图都更新
+        top_left = self.index(index, 0)
+        bottom_right = self.index(index, self.columnCount() - 1)
+        self.dataChanged.emit(top_left, bottom_right)
+        
+        # 记录更新信息
+        logger.info(f"频道更新成功: 索引 {index}, 原始名: {old_name} -> 新名: {new_channel.get('name', '')}")
+        
         return True
 
     def update_view(self):
