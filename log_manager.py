@@ -29,12 +29,19 @@ class LogManager:
         
         # 确保只有一个handler
         if not self.logger.handlers:
+            # 清空日志文件内容
+            try:
+                with open(self.log_file, 'w', encoding='utf-8') as f:
+                    f.write('')
+            except Exception as e:
+                print(f"清空日志文件失败: {e}")
+            
             handler = RotatingFileHandler(
                 self.log_file, 
                 maxBytes=max_bytes,
                 backupCount=backup_count,
                 encoding='utf-8',
-                mode='a'  # 改为追加模式，不清空历史日志
+                mode='a'  # 追加模式，但每次启动都会先清空
             )
             handler.setFormatter(logging.Formatter(
                 '%(asctime)s - %(levelname)s - %(message)s',
