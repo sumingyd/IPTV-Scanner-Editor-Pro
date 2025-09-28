@@ -513,14 +513,13 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             if old_group and old_group != new_channel['group']:
                 self._group_cache.discard(old_group)
             
-        # 强制重置模型以确保UI完全更新
-        self.beginResetModel()
-        self.endResetModel()
-        
-        # 同时发送数据变化信号，确保所有视图都更新
+        # 发送数据变化信号，确保特定行更新
         top_left = self.index(index, 0)
         bottom_right = self.index(index, self.columnCount() - 1)
         self.dataChanged.emit(top_left, bottom_right)
+        
+        # 强制刷新整个视图以确保所有列都更新
+        self.layoutChanged.emit()
         
         # 记录更新信息
         logger.info(f"频道更新成功: 索引 {index}, 原始名: {old_name} -> 新名: {new_channel.get('name', '')}")

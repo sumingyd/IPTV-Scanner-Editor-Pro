@@ -1,5 +1,5 @@
 {
-  "timestamp": 1759061498.6076386,
+  "timestamp": 1759065161.488179,
   "mappings": {
     "CETV-1": {
       "raw_names": [
@@ -603,7 +603,8 @@
       "raw_names": [
         "标清西藏-xizang",
         "CHANNEL00000045",
-        "CHANNEL00000392"
+        "CHANNEL00000392",
+        "xizang-hd"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/西藏/西藏卫视2.png",
       "group_name": "卫视"
@@ -888,7 +889,8 @@
       "raw_names": [
         "CCTV14",
         "CCTV14-HD",
-        "CHANNEL00000323"
+        "CHANNEL00000323",
+        "239.21.1.157:5002"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV14.png",
       "group_name": "央视频道"
