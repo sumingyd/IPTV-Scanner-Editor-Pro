@@ -1,5 +1,5 @@
 {
-  "timestamp": 1759065161.488179,
+  "timestamp": 1759311756.1895823,
   "mappings": {
     "CETV-1": {
       "raw_names": [
@@ -208,7 +208,8 @@
       "raw_names": [
         "标清兵团-bingtuan",
         "CHANNEL00000071",
-        "bingtuan-hd"
+        "bingtuan-hd",
+        "channel00000394"
       ],
       "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/兵团卫视2.png",
       "group_name": "卫视"

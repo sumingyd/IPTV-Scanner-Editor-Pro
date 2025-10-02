@@ -40,6 +40,7 @@ class ScannerController(QObject):
         # 批量更新相关属性
         self._batch_channels = []
         self._batch_size = 50  # 每50个频道批量更新一次
+        self._last_channel_time = 0  # 记录最后一个频道添加的时间
         self._batch_timer = QtCore.QTimer()
         self._batch_timer.setInterval(500)  # 500ms更新一次
         self._batch_timer.timeout.connect(self._flush_batch_channels)
@@ -60,12 +61,54 @@ class ScannerController(QObject):
         if not self._batch_channels:
             return
             
-        # 批量发送频道数据
-        channels = self._batch_channels.copy()
-        self._batch_channels.clear()
+        current_time = time.time()
         
-        # 使用单个信号发送所有频道
-        self.channel_found.emit({'batch': True, 'channels': channels})
+        # 检查是否需要强制刷新：达到批量大小或超过5秒没有新频道
+        force_flush = (
+            len(self._batch_channels) >= self._batch_size or
+            (self._last_channel_time > 0 and current_time - self._last_channel_time > 5)
+        )
+        
+        if force_flush:
+            # 批量发送频道数据
+            channels = self._batch_channels.copy()
+            self._batch_channels.clear()
+            self._last_channel_time = 0  # 重置时间戳
+            
+            # 使用单个信号发送所有频道
+            self.channel_found.emit({'batch': True, 'channels': channels})
+            
+            # 记录日志
+            if len(channels) > 0:
+                self.logger.debug(f"批量添加 {len(channels)} 个频道到列表")
+                
+            # 强制刷新UI，确保频道立即显示
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(0, self._force_ui_refresh)
+        
+        # 额外检查：如果当前有频道但未达到批量大小，且超过5秒没有新频道，也强制刷新
+        elif (self._batch_channels and 
+              self._last_channel_time > 0 and 
+              current_time - self._last_channel_time > 5):
+            channels = self._batch_channels.copy()
+            self._batch_channels.clear()
+            self._last_channel_time = 0
+            
+            if channels:
+                self.channel_found.emit({'batch': True, 'channels': channels})
+                self.logger.debug(f"超时强制添加 {len(channels)} 个频道到列表")
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(0, self._force_ui_refresh)
+            
+    def _force_ui_refresh(self):
+        """强制刷新UI"""
+        try:
+            if hasattr(self.model, 'update_view'):
+                self.model.update_view()
+            elif hasattr(self.model, 'layoutChanged'):
+                self.model.layoutChanged.emit()
+        except Exception as e:
+            self.logger.debug(f"UI刷新失败: {e}")
         
     def _worker(self):
         """工作线程函数"""
@@ -96,6 +139,7 @@ class ScannerController(QObject):
                     # 添加到批量缓存
                     with self.counter_lock:
                         self._batch_channels.append(channel_info)
+                        self._last_channel_time = time.time()  # 更新最后频道添加时间
                         if len(self._batch_channels) >= self._batch_size:
                             self._flush_batch_channels()
                 
