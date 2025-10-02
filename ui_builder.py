@@ -414,6 +414,17 @@ class UIBuilder(QtCore.QObject):
         self.main_window.enable_retry_checkbox.stateChanged.connect(
             lambda state: self.main_window.loop_scan_checkbox.setEnabled(state == 2)
         )
+        
+        # 连接复选框状态变化信号，保存设置
+        self.main_window.enable_retry_checkbox.stateChanged.connect(
+            lambda: self._save_scan_retry_settings()
+        )
+        self.main_window.loop_scan_checkbox.stateChanged.connect(
+            lambda: self._save_scan_retry_settings()
+        )
+        
+        # 加载保存的重试扫描设置
+        self._load_scan_retry_settings()
 
         # 扫描控制按钮
         self.main_window.scan_btn = QtWidgets.QPushButton("完整扫描")
@@ -1413,6 +1424,35 @@ class UIBuilder(QtCore.QObject):
             if logo_url in self.pending_requests:
                 del self.pending_requests[logo_url]
             reply.deleteLater()
+
+    def _save_scan_retry_settings(self):
+        """保存扫描重试设置"""
+        try:
+            enable_retry = self.main_window.enable_retry_checkbox.isChecked()
+            loop_scan = self.main_window.loop_scan_checkbox.isChecked()
+            
+            self.main_window.config.save_scan_retry_settings(enable_retry, loop_scan)
+            self.logger.debug(f"扫描重试设置已保存: 启用重试={enable_retry}, 循环扫描={loop_scan}")
+        except Exception as e:
+            self.logger.error(f"保存扫描重试设置失败: {e}")
+
+    def _load_scan_retry_settings(self):
+        """加载扫描重试设置"""
+        try:
+            retry_settings = self.main_window.config.load_scan_retry_settings()
+            enable_retry = retry_settings['enable_retry']
+            loop_scan = retry_settings['loop_scan']
+            
+            # 设置复选框状态
+            self.main_window.enable_retry_checkbox.setChecked(enable_retry)
+            self.main_window.loop_scan_checkbox.setChecked(loop_scan)
+            
+            # 根据启用重试状态设置循环扫描的启用状态
+            self.main_window.loop_scan_checkbox.setEnabled(enable_retry)
+            
+            self.logger.debug(f"扫描重试设置已加载: 启用重试={enable_retry}, 循环扫描={loop_scan}")
+        except Exception as e:
+            self.logger.error(f"加载扫描重试设置失败: {e}")
 
 
         
