@@ -104,5 +104,10 @@
   "search_group_only": "仅搜索分组",
   "warning": "警告",
   "select_mapping_to_edit": "请选择要编辑的映射",
-  "select_mapping_to_delete": "请选择要删除的映射"
+  "select_mapping_to_delete": "请选择要删除的映射",
+  "retry_options": "扫描重试选项",
+  "enable_retry_scan": "启用重试扫描",
+  "loop_scan": "循环扫描",
+  "retry_scan_tooltip": "第一次扫描完成后，对失效频道进行再次扫描",
+  "loop_scan_tooltip": "如果重试扫描找到有效频道，继续扫描失效频道直到没有新的有效频道"
 }

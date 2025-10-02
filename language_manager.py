@@ -385,6 +385,18 @@ class LanguageManager:
                         self.tr('mapping_failed', 'Remote mapping load failed')
                     )
             
+            # 更新重试扫描选项
+            if hasattr(main_window, 'retry_label'):
+                main_window.retry_label.setText(self.tr('retry_options', 'Scan Retry Options') + "：")
+            if hasattr(main_window, 'enable_retry_checkbox'):
+                main_window.enable_retry_checkbox.setText(self.tr('enable_retry_scan', 'Enable Retry Scan'))
+                main_window.enable_retry_checkbox.setToolTip(self.tr('retry_scan_tooltip', 'After the first scan completes, retry scanning failed channels'))
+            if hasattr(main_window, 'loop_scan_checkbox'):
+                main_window.loop_scan_checkbox.setText(self.tr('loop_scan', 'Loop Scan'))
+                main_window.loop_scan_checkbox.setToolTip(self.tr('loop_scan_tooltip', 'If retry scan finds valid channels, continue scanning failed channels until no new valid channels are found'))
+            if hasattr(main_window, 'retry_row_label'):
+                main_window.retry_row_label.setText(self.tr('retry_options', 'Scan Retry Options') + "：")
+            
             logger.info(f"UI文本已更新到语言: {self.current_language}")
             
         except Exception as e:
