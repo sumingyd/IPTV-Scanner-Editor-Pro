@@ -37,12 +37,12 @@ class ScannerController(QObject):
         self.channel_counter = 0
         self.counter_lock = threading.Lock()
         
-        # 批量更新相关属性
+        # 立即更新相关属性
         self._batch_channels = []
-        self._batch_size = 50  # 每50个频道批量更新一次
+        self._batch_size = 1  # 立即更新，每个频道都立即添加
         self._last_channel_time = 0  # 记录最后一个频道添加的时间
         self._batch_timer = QtCore.QTimer()
-        self._batch_timer.setInterval(500)  # 500ms更新一次
+        self._batch_timer.setInterval(100)  # 100ms更新一次，更快响应
         self._batch_timer.timeout.connect(self._flush_batch_channels)
         self._batch_timer.start()
         
@@ -136,12 +136,13 @@ class ScannerController(QObject):
                     log_msg = f"有效频道 - 原始名: {channel_info['raw_name']}, 映射名: {channel_info['name']}, 分组: {channel_info['group']}, URL: {url}"
                     self.logger.info(log_msg)
                     
-                    # 添加到批量缓存
-                    with self.counter_lock:
-                        self._batch_channels.append(channel_info)
-                        self._last_channel_time = time.time()  # 更新最后频道添加时间
-                        if len(self._batch_channels) >= self._batch_size:
-                            self._flush_batch_channels()
+                    # 立即添加到频道列表，不使用批量缓存
+                    try:
+                        # 直接发送频道信息到模型
+                        self.channel_found.emit(channel_info)
+                        self.logger.debug(f"立即添加频道: {channel_info['name']}")
+                    except Exception as e:
+                        self.logger.error(f"添加频道失败: {e}", exc_info=True)
                 
                 with self.stats_lock:
                     if valid:
