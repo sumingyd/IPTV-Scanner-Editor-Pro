@@ -19,6 +19,44 @@ CACHE_FILE = "channel_mappings_cache.json"
 USER_MAPPINGS_FILE = "user_channel_mappings.json"
 CHANNEL_FINGERPRINT_FILE = "channel_fingerprints.json"
 
+def load_mappings_from_file(file_path: str) -> Dict[str, dict]:
+    """从文件加载映射规则，支持txt和csv格式"""
+    mappings = {}
+    try:
+        if file_path.lower().endswith('.csv'):
+            # 加载CSV格式
+            import csv
+            with open(file_path, 'r', encoding='utf-8-sig') as f:  # 使用utf-8-sig处理BOM
+                reader = csv.DictReader(f)
+                for row in reader:
+                    # 处理可能的BOM字符
+                    standard_name = row.get('standard_name', '').strip().lstrip('\ufeff')
+                    
+                    # 跳过分组标题行
+                    if standard_name.startswith('##########') and standard_name.endswith('##########'):
+                        continue
+                    
+                    raw_names = [name.strip() for name in row.get('raw_names', '').split(',')] if row.get('raw_names') else []
+                    logo_url = row.get('logo_url', '').strip() if row.get('logo_url') else None
+                    group_name = row.get('group_name', '').strip() if row.get('group_name') else None
+                    
+                    if standard_name:  # 确保标准名称不为空
+                        mappings[standard_name] = {
+                            'raw_names': raw_names,
+                            'logo_url': logo_url if logo_url and logo_url.lower() not in ['', 'none', 'null'] else None,
+                            'group_name': group_name if group_name and group_name.lower() not in ['', 'none', 'null'] else None
+                        }
+        else:
+            # 加载txt格式（向后兼容）
+            with open(file_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        mappings.update(parse_mapping_line(line))
+    except Exception as e:
+        logger.error(f"加载映射文件 {file_path} 失败: {e}")
+    return mappings
+
 def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
     """创建反向映射字典
     返回格式: {raw_name: {'standard_name': str, 'logo_url': str, 'group_name': str}}
@@ -32,7 +70,6 @@ def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
                 'group_name': data.get('group_name')
             }
     return reverse_mappings
-
 
 def load_remote_mappings() -> Dict[str, dict]:
     """加载远程映射规则"""
@@ -482,46 +519,6 @@ def parse_mapping_line(line: str) -> Dict[str, dict]:
             'group_name': group_name if group_name and group_name.lower() not in ['', 'none', 'null'] else None
         }
     }
-
-def load_mappings_from_file(file_path: str) -> Dict[str, dict]:
-    """从文件加载映射规则，支持txt和csv格式"""
-    mappings = {}
-    try:
-        if file_path.lower().endswith('.csv'):
-            # 加载CSV格式
-            import csv
-            with open(file_path, 'r', encoding='utf-8-sig') as f:  # 使用utf-8-sig处理BOM
-                reader = csv.DictReader(f)
-                for row in reader:
-                    # 处理可能的BOM字符
-                    standard_name = row.get('standard_name', '').strip().lstrip('\ufeff')
-                    
-                    # 跳过分组标题行
-                    if standard_name.startswith('##########') and standard_name.endswith('##########'):
-                        continue
-                    
-                    raw_names = [name.strip() for name in row.get('raw_names', '').split(',')] if row.get('raw_names') else []
-                    logo_url = row.get('logo_url', '').strip() if row.get('logo_url') else None
-                    group_name = row.get('group_name', '').strip() if row.get('group_name') else None
-                    
-                    if standard_name:  # 确保标准名称不为空
-                        mappings[standard_name] = {
-                            'raw_names': raw_names,
-                            'logo_url': logo_url if logo_url and logo_url.lower() not in ['', 'none', 'null'] else None,
-                            'group_name': group_name if group_name and group_name.lower() not in ['', 'none', 'null'] else None
-                        }
-        else:
-            # 加载txt格式（向后兼容）
-            with open(file_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#'):
-                        mappings.update(parse_mapping_line(line))
-    except Exception as e:
-        logger.error(f"加载映射文件 {file_path} 失败: {e}")
-    return mappings
-
-
 
 def get_channel_info(raw_name: str) -> dict:
     """获取频道信息(标准名称、logo地址和分组名)

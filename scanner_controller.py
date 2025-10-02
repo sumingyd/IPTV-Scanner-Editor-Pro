@@ -271,6 +271,8 @@ class ScannerController(QObject):
                     if self.stop_event.is_set():
                         break
                     self.scan_queue.put(url)
+                    # 记录所有扫描的URL（用于重试扫描）
+                    self._all_scanned_urls.append(url)
                     
                 # 保持队列适度填充，避免内存占用过高
                 while self.scan_queue.qsize() > 10000 and not self.stop_event.is_set():
@@ -311,11 +313,15 @@ class ScannerController(QObject):
         self.scan_queue = queue.Queue()
         self.url_generator = self.url_parser.parse_url(base_url)
         
+        # 记录所有扫描的URL（用于重试扫描）
+        self._all_scanned_urls = []
+        
         # 预填充第一批URL
         try:
             first_batch = next(self.url_generator)
             for url in first_batch:
                 self.scan_queue.put(url)
+                self._all_scanned_urls.append(url)
             self.stats['total'] = len(first_batch)
         except StopIteration:
             self.logger.warning("没有可扫描的URL")
@@ -348,6 +354,55 @@ class ScannerController(QObject):
         stats_thread.start()
         
         self.logger.info(f"开始扫描URL，使用 {thread_count} 个线程，超时时间: {timeout}秒")
+        
+    def start_scan_from_urls(self, urls: list, thread_count: int = 10, timeout: int = 10, user_agent: str = None, referer: str = None):
+        """从URL列表开始扫描（用于重试扫描）"""
+        # 确保停止之前的扫描
+        self.stop_scan()
+        self.stop_event.clear()
+        
+        from validator import StreamValidator
+        StreamValidator.timeout = timeout
+        if user_agent:
+            StreamValidator.headers['User-Agent'] = user_agent
+        if referer:
+            StreamValidator.headers['Referer'] = referer
+            
+        # 初始化统计信息
+        self.stats = {
+            'total': len(urls),
+            'valid': 0,
+            'invalid': 0,
+            'start_time': time.time(),
+            'elapsed': 0
+        }
+        
+        # 初始化队列
+        self.scan_queue = queue.Queue()
+        
+        # 填充队列
+        for url in urls:
+            self.scan_queue.put(url)
+            
+        # 使用用户设置的线程数
+        self.workers = []
+        for i in range(thread_count):
+            worker = threading.Thread(
+                target=self._worker,
+                name=f"RetryScannerWorker-{i}",
+                daemon=True
+            )
+            worker.start()
+            self.workers.append(worker)
+            
+        stats_thread = threading.Thread(
+            target=self._update_stats,
+            name="RetryStatsUpdater",
+            daemon=True
+        )
+        stats_thread.start()
+        
+        self.logger.info(f"开始重试扫描，共 {len(urls)} 个URL，使用 {thread_count} 个线程，超时时间: {timeout}秒")
         
     def stop_scan(self):
         """停止扫描"""

@@ -482,6 +482,10 @@ class MainWindow(QtWidgets.QMainWindow):
         if hasattr(self.ui.main_window, 'channel_list'):
             header = self.ui.main_window.channel_list.horizontalHeader()
             header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        
+        # 检查是否需要重试扫描
+        if hasattr(self.ui.main_window, 'enable_retry_checkbox') and self.ui.main_window.enable_retry_checkbox.isChecked():
+            self._start_retry_scan()
 
     def _update_stats_display(self, stats_data):
         """更新统计信息显示（统一使用状态栏的统计标签）"""
@@ -598,6 +602,136 @@ class MainWindow(QtWidgets.QMainWindow):
         language_code = self.config.load_language_settings()
         if hasattr(self, 'language_manager') and self.language_manager.set_language(language_code):
             self.language_manager.update_ui_texts(self)
+
+    def _start_retry_scan(self):
+        """开始重试扫描 - 对第一次扫描中失效的URL进行再次扫描"""
+        try:
+            # 获取第一次扫描的所有URL（从扫描器统计信息中获取）
+            if not hasattr(self.scanner, '_all_scanned_urls') or not self.scanner._all_scanned_urls:
+                self.logger.info("没有找到第一次扫描的URL记录，无法进行重试扫描")
+                self.ui.main_window.statusBar().showMessage("没有找到第一次扫描的URL记录，无法进行重试扫描", 3000)
+                return
+            
+            # 获取当前频道列表中所有有效频道的URL
+            valid_urls = set()
+            for i in range(self.model.rowCount()):
+                channel = self.model.get_channel(i)
+                if channel.get('valid', False):
+                    valid_urls.add(channel['url'])
+            
+            # 计算需要重试扫描的URL（第一次扫描的所有URL中，不在有效频道列表中的）
+            all_scanned_urls = set(self.scanner._all_scanned_urls)
+            invalid_urls = list(all_scanned_urls - valid_urls)
+            
+            if not invalid_urls:
+                self.logger.info("没有需要重试扫描的失效URL")
+                self.ui.main_window.statusBar().showMessage("没有需要重试扫描的失效URL", 3000)
+                return
+            
+            self.logger.info(f"开始重试扫描，共 {len(invalid_urls)} 个失效URL")
+            self.ui.main_window.statusBar().showMessage(f"开始重试扫描，共 {len(invalid_urls)} 个失效URL")
+            
+            # 设置重试扫描状态
+            self._retry_scan_count = 0
+            self._retry_found_channels = 0
+            self._retry_urls = invalid_urls.copy()
+            self._retry_loop_enabled = hasattr(self.ui.main_window, 'loop_scan_checkbox') and self.ui.main_window.loop_scan_checkbox.isChecked()
+            
+            # 开始重试扫描
+            self._do_retry_scan()
+            
+        except Exception as e:
+            self.logger.error(f"开始重试扫描失败: {e}", exc_info=True)
+            self.ui.main_window.statusBar().showMessage(f"重试扫描失败: {str(e)}", 3000)
+    
+    def _do_retry_scan(self):
+        """执行重试扫描"""
+        if not hasattr(self, '_retry_urls') or not self._retry_urls:
+            self.logger.info("重试扫描完成")
+            self.ui.main_window.statusBar().showMessage("重试扫描完成", 3000)
+            return
+        
+        # 更新重试计数
+        self._retry_scan_count += 1
+        self.logger.info(f"开始第 {self._retry_scan_count} 轮重试扫描，剩余 {len(self._retry_urls)} 个URL")
+        self.ui.main_window.statusBar().showMessage(f"第 {self._retry_scan_count} 轮重试扫描，剩余 {len(self._retry_urls)} 个URL")
+        
+        # 创建临时扫描器进行重试扫描
+        from scanner_controller import ScannerController
+        temp_scanner = ScannerController(self.model, self)
+        
+        # 设置扫描参数
+        timeout = self.ui.main_window.timeout_input.value()
+        threads = self.ui.main_window.thread_count_input.value()
+        
+        # 连接信号
+        temp_scanner.channel_found.connect(self._on_retry_channel_found)
+        temp_scanner.scan_completed.connect(lambda: self._on_retry_scan_completed(temp_scanner))
+        
+        # 开始扫描
+        temp_scanner.start_scan_from_urls(self._retry_urls, threads, timeout)
+        
+        # 更新按钮状态
+        self.ui.main_window.scan_btn.setText(f"重试扫描中...")
+    
+    def _on_retry_channel_found(self, channel_info):
+        """处理重试扫描中发现的频道"""
+        self._retry_found_channels += 1
+        self.logger.info(f"重试扫描发现有效频道: {channel_info['name']}")
+        
+        # 从重试列表中移除这个URL
+        if hasattr(self, '_retry_urls') and channel_info['url'] in self._retry_urls:
+            self._retry_urls.remove(channel_info['url'])
+        
+        # 更新主统计信息中的有效频道计数
+        if hasattr(self.scanner, 'stats'):
+            with self.scanner.stats_lock:
+                self.scanner.stats['valid'] += 1
+                # 更新统计显示
+                self._update_stats_display({'stats': self.scanner.stats})
+    
+    def _on_retry_scan_completed(self, temp_scanner):
+        """处理重试扫描完成"""
+        try:
+            # 清理临时扫描器
+            temp_scanner.stop_scan()
+            
+            # 检查是否需要继续循环扫描
+            if (self._retry_loop_enabled and 
+                hasattr(self, '_retry_found_channels') and 
+                self._retry_found_channels > 0 and
+                hasattr(self, '_retry_urls') and 
+                self._retry_urls):
+                
+                current_found = self._retry_found_channels
+                # 重置发现计数，继续下一轮扫描
+                self._retry_found_channels = 0
+                self.logger.info(f"循环扫描：第 {self._retry_scan_count} 轮发现 {current_found} 个频道，继续扫描")
+                self.ui.main_window.statusBar().showMessage(f"循环扫描：第 {self._retry_scan_count} 轮发现 {current_found} 个频道，继续第 {self._retry_scan_count + 1} 轮", 3000)
+                
+                # 延迟后继续扫描
+                QtCore.QTimer.singleShot(1000, self._do_retry_scan)
+            else:
+                # 重试扫描完成
+                total_found = getattr(self, '_retry_found_channels', 0)
+                self.logger.info(f"重试扫描完成，共发现 {total_found} 个有效频道")
+                self.ui.main_window.statusBar().showMessage(f"重试扫描完成，共发现 {total_found} 个有效频道", 5000)
+                self.ui.main_window.scan_btn.setText("完整扫描")
+                
+                # 清理重试相关属性
+                if hasattr(self, '_retry_urls'):
+                    del self._retry_urls
+                if hasattr(self, '_retry_scan_count'):
+                    del self._retry_scan_count
+                if hasattr(self, '_retry_found_channels'):
+                    del self._retry_found_channels
+                if hasattr(self, '_retry_loop_enabled'):
+                    del self._retry_loop_enabled
+                    
+        except Exception as e:
+            self.logger.error(f"处理重试扫描完成失败: {e}", exc_info=True)
+            self.ui.main_window.statusBar().showMessage("重试扫描完成处理失败", 3000)
+            self.ui.main_window.scan_btn.setText("完整扫描")
 
     def save_before_exit(self):
         """程序退出前保存所有配置"""

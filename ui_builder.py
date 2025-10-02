@@ -390,6 +390,31 @@ class UIBuilder(QtCore.QObject):
             )
         )
 
+        # 扫描重试选项
+        retry_layout = QtWidgets.QHBoxLayout()
+        retry_label = QtWidgets.QLabel("扫描重试选项：")
+        self.main_window.retry_label = retry_label  # 设置为属性以便语言管理器访问
+        retry_layout.addWidget(retry_label)
+        
+        # 是否启用重试扫描
+        self.main_window.enable_retry_checkbox = QtWidgets.QCheckBox("启用重试扫描")
+        self.main_window.enable_retry_checkbox.setChecked(False)
+        self.main_window.enable_retry_checkbox.setToolTip("第一次扫描完成后，对失效频道进行再次扫描")
+        retry_layout.addWidget(self.main_window.enable_retry_checkbox)
+        
+        # 是否循环扫描
+        self.main_window.loop_scan_checkbox = QtWidgets.QCheckBox("循环扫描")
+        self.main_window.loop_scan_checkbox.setChecked(False)
+        self.main_window.loop_scan_checkbox.setToolTip("如果重试扫描找到有效频道，继续扫描失效频道直到没有新的有效频道")
+        self.main_window.loop_scan_checkbox.setEnabled(False)  # 默认禁用，需要启用重试扫描才能使用
+        retry_layout.addWidget(self.main_window.loop_scan_checkbox)
+        retry_layout.addStretch()
+        
+        # 连接复选框状态变化
+        self.main_window.enable_retry_checkbox.stateChanged.connect(
+            lambda state: self.main_window.loop_scan_checkbox.setEnabled(state == 2)
+        )
+
         # 扫描控制按钮
         self.main_window.scan_btn = QtWidgets.QPushButton("完整扫描")
         self.main_window.scan_btn.setStyleSheet(AppStyles.button_style(active=True))
@@ -429,6 +454,12 @@ class UIBuilder(QtCore.QObject):
         referer_row_label = QtWidgets.QLabel("Referer：")
         self.main_window.referer_row_label = referer_row_label  # 设置为属性以便语言管理器访问
         scan_layout.addRow(referer_row_label, referer_layout)
+        
+        # 添加重试选项行
+        retry_row_label = QtWidgets.QLabel("重试选项：")
+        self.main_window.retry_row_label = retry_row_label  # 设置为属性以便语言管理器访问
+        scan_layout.addRow(retry_row_label, retry_layout)
+        
         scan_layout.addRow(button_layout)
 
         scan_group.setLayout(scan_layout)
