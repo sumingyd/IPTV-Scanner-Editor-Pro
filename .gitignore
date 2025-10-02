@@ -5,7 +5,6 @@ __pycache__/
 
 # C extensions
 *.so
-*.ini
 
 # Distribution / packaging
 .Python
@@ -57,7 +56,6 @@ cover/
 *.pot
 
 # Django stuff:
-*.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
@@ -173,25 +171,29 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-# Python
-__pycache__/
-*.pyc
-*.pyo
+
+# 项目特定文件
+# 日志文件
 *.log
 *.log.1
 *.log.2
 *.log.3
-channel_fingerprints.json
-channel_mappings_cache.json
+app.log
+iptv_manager.log
+
+# 配置文件
+*.ini
 config.ini
 
-# 缓存和数据
+# 缓存文件
+channel_fingerprints.json
+channel_mappings_cache.json
 epg_cache/
-*.log
-*.ini
 
-# 环境
-venv/
-.env
-iptv_manager.log
-.ini
+# 本地频道映射
+local_channel_mappings.txt
+local_channel_mappings.csv
+
+# 构建输出
+build/
+dist/
