@@ -85,6 +85,19 @@ class ConfigManager:
         """加载语言设置"""
         return self.get_value('Language', 'current_language', 'zh')
         
+    def save_scan_retry_settings(self, enable_retry, loop_scan):
+        """保存扫描重试设置"""
+        self.set_value('ScanRetry', 'enable_retry', str(enable_retry))
+        self.set_value('ScanRetry', 'loop_scan', str(loop_scan))
+        return self.save_config()  # 确保立即保存到文件
+        
+    def load_scan_retry_settings(self):
+        """加载扫描重试设置"""
+        return {
+            'enable_retry': self.get_value('ScanRetry', 'enable_retry', 'False').lower() == 'true',
+            'loop_scan': self.get_value('ScanRetry', 'loop_scan', 'False').lower() == 'true'
+        }
+        
     def load_config(self):
         if os.path.exists(self.config_file):
             try:
