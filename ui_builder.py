@@ -9,8 +9,12 @@ from log_manager import LogManager
 from language_manager import LanguageManager
 import functools
 
-class UIBuilder:
+class UIBuilder(QtCore.QObject):
+    # 定义信号
+    refresh_channel_finished = QtCore.pyqtSignal(object, object, str, str)
+    
     def __init__(self, main_window):
+        super().__init__()
         self.main_window = main_window
         self.logger = LogManager()
         self._ui_initialized = False
@@ -21,6 +25,9 @@ class UIBuilder:
         self.pending_requests = {}  # 正在进行的请求
         # 防止Logo加载无限循环的标志
         self._loading_logos = False
+        
+        # 连接信号
+        self.refresh_channel_finished.connect(self._finish_refresh_channel)
 
     def build_ui(self):
         if not self._ui_initialized:
@@ -477,13 +484,27 @@ class UIBuilder:
         self.main_window.channel_list.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.main_window.channel_list.horizontalHeader().setStretchLastSection(True)
         self.main_window.channel_list.verticalHeader().setVisible(False)
+        
+        # 确保模型存在并正确设置到视图中
         if not hasattr(self.main_window, 'model') or not self.main_window.model:
             self.main_window.model = ChannelListModel()
             self.main_window.model.update_status_label = self.main_window._update_validate_status
             # 设置语言管理器
             if hasattr(self.main_window, 'language_manager') and self.main_window.language_manager:
                 self.main_window.model.set_language_manager(self.main_window.language_manager)
-            self.main_window.channel_list.setModel(self.main_window.model)
+        
+        # 关键：始终将模型设置到视图中，确保连接正确
+        self.main_window.channel_list.setModel(self.main_window.model)
+        self.logger.info("频道列表模型已设置到视图中")
+        
+        # 调试：检查模型和视图是否连接正确
+        if self.main_window.channel_list.model() == self.main_window.model:
+            self.logger.info("✅ 模型和视图连接验证成功")
+        else:
+            self.logger.error("❌ 模型和视图连接验证失败")
+            self.logger.error(f"视图模型: {self.main_window.channel_list.model()}")
+            self.logger.error(f"主窗口模型: {self.main_window.model}")
+        
         self.main_window.channel_list.setStyleSheet(AppStyles.list_style())
         
         # 设置列宽自适应
@@ -623,6 +644,8 @@ class UIBuilder:
             )
             return
         
+        self.logger.info(f"开始重新获取频道信息: 行 {index.row()}, 名称: {current_name}, URL: {url}")
+        
         # 显示进度条和状态信息
         self.main_window.progress_indicator.show()
         self.main_window.progress_indicator.setValue(0)
@@ -645,12 +668,16 @@ class UIBuilder:
             @pyqtSlot()
             def run(self):
                 try:
+                    self.ui_builder.logger.info(f"异步任务开始: 验证流媒体 {self.url}")
+                    
                     # 更新进度：开始验证
                     self.ui_builder._update_refresh_progress(25, "正在验证流媒体...")
                     
                     # 执行流媒体验证
                     validator = StreamValidator(self.ui_builder.main_window)
                     result = validator.validate_stream(self.url, timeout=self.timeout)
+                    
+                    self.ui_builder.logger.info(f"流媒体验证结果: 有效={result['valid']}, 延迟={result['latency']}, 分辨率={result.get('resolution', '')}")
                     
                     # 更新进度：正在处理映射
                     self.ui_builder._update_refresh_progress(50, "正在处理频道映射...")
@@ -659,6 +686,8 @@ class UIBuilder:
                     raw_name = result.get('service_name', '') or extract_channel_name_from_url(self.url)
                     if not raw_name or raw_name == "未知频道":
                         raw_name = extract_channel_name_from_url(self.url)
+                    
+                    self.ui_builder.logger.info(f"原始频道名: {raw_name}")
                     
                     # 获取映射信息
                     channel_info_for_fingerprint = {
@@ -670,6 +699,8 @@ class UIBuilder:
                     
                     mapped_info = mapping_manager.get_channel_info(raw_name, self.url, channel_info_for_fingerprint) if result['valid'] else None
                     mapped_name = mapped_info.get('standard_name', raw_name) if mapped_info else raw_name
+                    
+                    self.ui_builder.logger.info(f"映射后频道名: {mapped_name}")
                     
                     # 更新进度：构建频道信息
                     self.ui_builder._update_refresh_progress(75, "正在更新频道信息...")
@@ -695,13 +726,31 @@ class UIBuilder:
                     if 'logo' in current_channel and current_channel['logo']:
                         new_channel_info['logo'] = current_channel['logo']
                     
+                    self.ui_builder.logger.info(f"构建的新频道信息: {new_channel_info}")
+                    
                     # 更新进度：完成更新
                     self.ui_builder._update_refresh_progress(100, "频道信息更新完成")
                     
-                    # 在主线程中更新UI
-                    QtCore.QTimer.singleShot(0, lambda: self.ui_builder._finish_refresh_channel(
-                        self.index, new_channel_info, mapped_name, raw_name
-                    ))
+                    # 在主线程中更新UI - 使用信号槽机制确保在主线程中执行
+                    self.ui_builder.logger.info("准备调用 _finish_refresh_channel 方法")
+                    
+                    # 使用信号发射来触发主线程中的回调
+                    try:
+                        self.ui_builder.logger.info("尝试使用信号发射")
+                        self.ui_builder.refresh_channel_finished.emit(
+                            self.index, new_channel_info, mapped_name, raw_name
+                        )
+                        self.ui_builder.logger.info("信号发射成功")
+                    except Exception as e:
+                        self.ui_builder.logger.error(f"信号发射失败: {e}", exc_info=True)
+                        # 备用方案：使用QTimer.singleShot
+                        self.ui_builder.logger.info("尝试备用方案：QTimer.singleShot")
+                        QtCore.QTimer.singleShot(0, lambda: self.ui_builder._finish_refresh_channel(
+                            self.index, new_channel_info, mapped_name, raw_name
+                        ))
+                        self.ui_builder.logger.info("备用方案已安排")
+                    
+                    self.ui_builder.logger.info("已安排调用 _finish_refresh_channel 方法")
                     
                 except Exception as e:
                     self.ui_builder.logger.error(f"重新获取频道信息失败: {e}", exc_info=True)
@@ -711,6 +760,7 @@ class UIBuilder:
         # 创建并启动异步任务
         task = RefreshChannelTask(self, index, url, current_name, self.main_window.timeout_input.value())
         QThreadPool.globalInstance().start(task)
+        self.logger.info(f"异步任务已启动: {url}")
         
     def _update_refresh_progress(self, value, message):
         """更新刷新进度（线程安全）"""
@@ -725,8 +775,15 @@ class UIBuilder:
     def _finish_refresh_channel(self, index, new_channel_info, mapped_name, raw_name):
         """完成频道信息刷新"""
         try:
+            self.logger.info(f"开始完成频道刷新: 索引 {index.row()}, 原始名: {raw_name}, 新名: {mapped_name}")
+            
             # 更新模型中的频道信息
-            self.main_window.model.update_channel(index.row(), new_channel_info)
+            success = self.main_window.model.update_channel(index.row(), new_channel_info)
+            
+            if not success:
+                self.logger.error(f"更新频道信息失败: 索引 {index.row()}")
+                self._handle_refresh_error("更新频道信息失败")
+                return
             
             # 隐藏进度条
             if hasattr(self.main_window, 'progress_indicator'):
@@ -739,22 +796,83 @@ class UIBuilder:
             # 强制刷新整个视图，确保所有列都更新
             top_left = self.main_window.model.index(index.row(), 0)
             bottom_right = self.main_window.model.index(index.row(), self.main_window.model.columnCount() - 1)
+            self.logger.info(f"发送数据变化信号: 行 {index.row()}, 列 0-{self.main_window.model.columnCount()-1}")
             self.main_window.model.dataChanged.emit(top_left, bottom_right, [QtCore.Qt.ItemDataRole.DisplayRole, QtCore.Qt.ItemDataRole.DecorationRole])
             
             # 重新加载Logo（如果是网络Logo）
             if new_channel_info.get('logo_url') and new_channel_info['logo_url'].startswith(('http://', 'https://')):
+                self.logger.info(f"重新加载Logo: {new_channel_info['logo_url']}")
                 self._load_single_channel_logo_async(index.row())
                 
             # 强制刷新UI，确保立即显示更新
+            self.logger.info("强制刷新UI视图")
             self.main_window.channel_list.viewport().update()
             
             # 强制调整列宽以适应新内容
+            self.logger.info("强制调整列宽")
             header = self.main_window.channel_list.horizontalHeader()
             header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+            
+            # 强制刷新整个模型，确保UI完全更新
+            self.logger.info("发送布局变化信号")
+            self.main_window.model.layoutChanged.emit()
+            
+            # 额外强制刷新：确保UI立即响应
+            self.logger.info("安排延迟UI更新")
+            QtCore.QTimer.singleShot(0, lambda: self._force_ui_update(index.row()))
+            
+            # 延迟再次刷新，确保UI完全更新
+            QtCore.QTimer.singleShot(100, lambda: self._final_ui_refresh(index.row()))
+            
+            self.logger.info("频道刷新完成")
                 
         except Exception as e:
             self.logger.error(f"完成频道刷新失败: {e}", exc_info=True)
             self._handle_refresh_error(str(e))
+            
+    def _final_ui_refresh(self, row):
+        """最终UI刷新，确保所有更新都显示"""
+        try:
+            # 再次强制刷新特定行
+            top_left = self.main_window.model.index(row, 0)
+            bottom_right = self.main_window.model.index(row, self.main_window.model.columnCount() - 1)
+            self.main_window.model.dataChanged.emit(top_left, bottom_right)
+            
+            # 强制刷新整个视图
+            self.main_window.channel_list.viewport().update()
+            
+            # 强制重绘
+            self.main_window.channel_list.repaint()
+            
+            # 强制调整列宽
+            header = self.main_window.channel_list.horizontalHeader()
+            header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+            
+            self.logger.debug(f"最终UI刷新完成: 行 {row}")
+        except Exception as e:
+            self.logger.debug(f"最终UI刷新失败: {e}")
+            
+    def _force_ui_update(self, row):
+        """强制UI更新，确保频道信息立即显示"""
+        try:
+            # 强制刷新特定行
+            top_left = self.main_window.model.index(row, 0)
+            bottom_right = self.main_window.model.index(row, self.main_window.model.columnCount() - 1)
+            self.main_window.model.dataChanged.emit(top_left, bottom_right)
+            
+            # 强制刷新整个视图
+            self.main_window.channel_list.viewport().update()
+            
+            # 强制调整列宽
+            header = self.main_window.channel_list.horizontalHeader()
+            header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+            
+            # 强制重绘
+            self.main_window.channel_list.repaint()
+            
+            self.logger.debug(f"强制UI更新完成: 行 {row}")
+        except Exception as e:
+            self.logger.debug(f"强制UI更新失败: {e}")
             
     def _handle_refresh_error(self, error_message):
         """处理刷新错误"""

@@ -33,6 +33,7 @@ def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
             }
     return reverse_mappings
 
+
 def load_remote_mappings() -> Dict[str, dict]:
     """加载远程映射规则"""
     try:
@@ -122,14 +123,17 @@ class ChannelMappingManager:
             if os.path.exists(self.cache_file):
                 with open(self.cache_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    # 检查缓存是否过期（24小时）
-                    if time.time() - data.get('timestamp', 0) < 24 * 3600:
-                        self.logger.info(f"从缓存加载远程映射规则，共 {len(data.get('mappings', {}))} 条映射")
-                        return data.get('mappings', {})
+                    # 检查缓存是否过期（24小时）且不为空
+                    mappings = data.get('mappings', {})
+                    if time.time() - data.get('timestamp', 0) < 24 * 3600 and mappings:
+                        self.logger.info(f"从缓存加载远程映射规则，共 {len(mappings)} 条映射")
+                        return mappings
+                    else:
+                        self.logger.info(f"缓存已过期或为空，重新加载远程映射")
         except Exception as e:
             self.logger.error(f"加载缓存映射失败: {e}")
         
-        # 缓存不存在或已过期，重新加载远程映射
+        # 缓存不存在、已过期或为空，重新加载远程映射
         return self._load_and_cache_remote_mappings()
     
     def _load_and_cache_remote_mappings(self) -> Dict[str, dict]:

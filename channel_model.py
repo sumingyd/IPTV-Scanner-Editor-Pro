@@ -492,11 +492,14 @@ class ChannelListModel(QtCore.QAbstractTableModel):
     def update_channel(self, index: int, new_channel: Dict[str, Any]) -> bool:
         """更新指定索引的频道数据"""
         if not (0 <= index < len(self.channels)):
+            logger.error(f"更新频道失败: 索引 {index} 超出范围 (0-{len(self.channels)-1})")
             return False
             
         # 记录原始数据用于调试
         old_name = self.channels[index].get('name', '')
         old_group = self.channels[index].get('group', '')
+        
+        logger.info(f"开始更新频道: 索引 {index}, 原始名: {old_name}, 新名: {new_channel.get('name', '')}")
         
         # 更新频道数据
         self.channels[index].update(new_channel)
@@ -516,9 +519,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         # 发送数据变化信号，确保特定行更新
         top_left = self.index(index, 0)
         bottom_right = self.index(index, self.columnCount() - 1)
-        self.dataChanged.emit(top_left, bottom_right)
+        logger.info(f"发送数据变化信号: 行 {index}, 列 0-{self.columnCount()-1}")
+        self.dataChanged.emit(top_left, bottom_right, [QtCore.Qt.ItemDataRole.DisplayRole, QtCore.Qt.ItemDataRole.DecorationRole])
         
         # 强制刷新整个视图以确保所有列都更新
+        logger.info("发送布局变化信号")
         self.layoutChanged.emit()
         
         # 记录更新信息
@@ -531,7 +536,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         if self.channels:
             top_left = self.index(0, 0)
             bottom_right = self.index(len(self.channels)-1, len(self.headers)-1)
-            self.dataChanged.emit(top_left, bottom_right)
+            self.dataChanged.emit(top_left, bottom_right, [QtCore.Qt.ItemDataRole.DisplayRole, QtCore.Qt.ItemDataRole.DecorationRole])
+            self.layoutChanged.emit()
 
     def sort_channels(self):
         """智能排序频道列表"""

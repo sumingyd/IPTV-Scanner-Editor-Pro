@@ -61,9 +61,9 @@ class MainWindow(QtWidgets.QMainWindow):
                     QtCore.QMetaObject.invokeMethod(timer, "stop", QtCore.Qt.ConnectionType.QueuedConnection)
         self._timers.clear()
         
-        # 初始化模型（必须在UI构建后）
-        self.model = ChannelListModel(self.ui.main_window.channel_list)
-        self.ui.main_window.channel_list.setModel(self.model)
+        # 使用UI构建器中已经创建的模型，避免重复设置
+        # 模型已经在ui_builder.py的_setup_channel_list方法中正确设置
+        self.model = self.ui.main_window.model
         
         # 设置模型的父对象为主窗口，确保可以访问UI层的方法
         self.model.setParent(self)
@@ -578,6 +578,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 "错误", 
                 f"无法显示映射管理器: {str(e)}"
             )
+            
+    @QtCore.pyqtSlot(object, object, str, str)
+    def _finish_refresh_channel_wrapper(self, index, new_channel_info, mapped_name, raw_name):
+        """包装方法：在主线程中调用 _finish_refresh_channel"""
+        try:
+            self.logger.info(f"包装方法开始: 索引 {index.row()}, 原始名: {raw_name}, 新名: {mapped_name}")
+            # 调用实际的完成方法
+            self.ui._finish_refresh_channel(index, new_channel_info, mapped_name, raw_name)
+            self.logger.info("包装方法完成")
+        except Exception as e:
+            self.logger.error(f"包装方法调用失败: {e}", exc_info=True)
 
     def init_background_tasks(self):
         """在后台线程执行的初始化任务"""
