@@ -262,14 +262,39 @@ class StreamValidator:
                     else:
                         result['error'] = f"ffmpeg返回错误代码: {process.returncode}"
                     
-                    self.logger.debug(f"流验证失败: {url} (尝试 {attempt+1}/{actual_retries+1}, 错误: {result['error']})")
+                    # 检查是否是解码错误（流有效但解码有问题）
+                    is_decode_error = False
+                    if error_output:
+                        # 常见的解码错误关键词
+                        decode_error_keywords = [
+                            'channel element', 'is not allocated', 'PPS id out of range',
+                            'ESC overflow', 'Number of bands', 'exceeds limit',
+                            'skip_data_stream_element', 'Invalid data found when processing input',
+                            'Error submitting packet to decoder', 'Not yet implemented in FFmpeg',
+                            'Reserved bit set', 'Prediction is not allowed', 'Could not find ref',
+                            'The cu_qp_delta', 'is outside the valid range', 'CABAC_MAX_BIN',
+                            'Rematrix is needed', 'Failed to configure output pad',
+                            'Error reinitializing filters', 'Terminating thread'
+                        ]
+                        is_decode_error = any(keyword in error_output for keyword in decode_error_keywords)
                     
-                    # 如果不是最后一次尝试，等待一下再重试
-                    if attempt < actual_retries and remaining_time > 1.0:
-                        # 动态等待时间，随着重试次数增加而增加
-                        wait_time = min(1.0, remaining_time * 0.2)
-                        time.sleep(wait_time)
-                        remaining_time -= wait_time
+                    if is_decode_error:
+                        # 如果是解码错误，认为流是有效的（流存在但解码有问题）
+                        result['valid'] = True
+                        result['latency'] = int(elapsed * 1000)
+                        result['error'] = "流有效但存在解码问题: " + result['error'][:200]  # 截断错误信息
+                        self.logger.debug(f"流验证成功（解码错误）: {url} (尝试 {attempt+1}/{actual_retries+1}, 耗时: {elapsed:.2f}s)")
+                        break
+                    else:
+                        # 其他错误，继续重试
+                        self.logger.debug(f"流验证失败: {url} (尝试 {attempt+1}/{actual_retries+1}, 错误: {result['error']})")
+                        
+                        # 如果不是最后一次尝试，等待一下再重试
+                        if attempt < actual_retries and remaining_time > 1.0:
+                            # 动态等待时间，随着重试次数增加而增加
+                            wait_time = min(1.0, remaining_time * 0.2)
+                            time.sleep(wait_time)
+                            remaining_time -= wait_time
                         
             except subprocess.TimeoutExpired:
                 process.kill()
