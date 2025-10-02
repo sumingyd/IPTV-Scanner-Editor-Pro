@@ -103,5 +103,10 @@
   "search_group_only": "Search Group Only",
   "warning": "Warning",
   "select_mapping_to_edit": "Please select a mapping to edit",
-  "select_mapping_to_delete": "Please select a mapping to delete"
+  "select_mapping_to_delete": "Please select a mapping to delete",
+  "retry_options": "Scan Retry Options",
+  "enable_retry_scan": "Enable Retry Scan",
+  "loop_scan": "Loop Scan",
+  "retry_scan_tooltip": "After the first scan completes, retry scanning failed channels",
+  "loop_scan_tooltip": "If retry scan finds valid channels, continue scanning failed channels until no new valid channels are found"
 }
