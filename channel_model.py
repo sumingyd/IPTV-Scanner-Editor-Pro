@@ -539,8 +539,21 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             self.dataChanged.emit(top_left, bottom_right, [QtCore.Qt.ItemDataRole.DisplayRole, QtCore.Qt.ItemDataRole.DecorationRole])
             self.layoutChanged.emit()
 
-    def sort_channels(self):
-        """智能排序频道列表"""
+    def sort_channels(self, sort_config=None):
+        """智能排序频道列表
+        
+        Args:
+            sort_config: 排序配置字典，包含primary、secondary、tertiary排序条件
+        """
+        if not sort_config:
+            # 使用默认智能排序
+            self._smart_sort()
+        else:
+            # 使用配置的多条件排序
+            self._multi_condition_sort(sort_config)
+    
+    def _smart_sort(self):
+        """默认智能排序算法"""
         # 定义组名优先级顺序
         group_priority = {
             '央视频道': 0,
@@ -643,6 +656,95 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         ))
         
         self.endResetModel()
+        
+    def _multi_condition_sort(self, sort_config):
+        """多条件排序算法"""
+        self.beginResetModel()
+        
+        # 构建排序键函数
+        def get_sort_key(channel):
+            key = []
+            
+            # 处理三个优先级
+            for priority in ['primary', 'secondary', 'tertiary']:
+                if priority in sort_config:
+                    field_config = sort_config[priority]
+                    field = field_config['field']
+                    ascending = field_config['ascending']
+                    
+                    # 获取字段值
+                    if field == 'group':
+                        value = self._get_group_priority_value(channel.get('group', ''), sort_config.get('group_priority', []))
+                    elif field == 'name':
+                        value = channel.get('name', '')
+                    elif field == 'resolution':
+                        value = self._get_resolution_value(channel.get('resolution', ''))
+                    elif field == 'latency':
+                        value = self._get_latency_value(channel.get('latency', ''))
+                    elif field == 'status':
+                        value = self._get_status_value(channel.get('status', ''))
+                    else:
+                        value = channel.get(field, '')
+                    
+                    # 根据升序/降序调整值
+                    if not ascending:
+                        # 对于数字类型，使用负数实现降序
+                        if isinstance(value, (int, float)):
+                            value = -value
+                        # 对于字符串，使用反转实现降序
+                        elif isinstance(value, str):
+                            value = value[::-1]
+                    
+                    key.append(value)
+            
+            return tuple(key)
+        
+        # 执行排序
+        self.channels.sort(key=get_sort_key)
+        self.endResetModel()
+        
+    def _get_group_priority_value(self, group, group_priority):
+        """获取分组的优先级值"""
+        if not group:
+            return len(group_priority) + 1
+            
+        # 在优先级列表中查找分组
+        for i, priority_group in enumerate(group_priority):
+            if group == priority_group:
+                return i
+                
+        # 如果分组不在优先级列表中，放在最后
+        return len(group_priority) + 1
+        
+    def _get_resolution_value(self, resolution):
+        """解析分辨率字符串，返回数值用于排序"""
+        if not resolution:
+            return 0
+        try:
+            parts = resolution.split('x')
+            if len(parts) == 2:
+                return int(parts[0]) * int(parts[1])  # 返回像素总数
+            return 0
+        except:
+            return 0
+            
+    def _get_latency_value(self, latency):
+        """解析延迟值，返回数值用于排序"""
+        if not latency:
+            return float('inf')  # 没有延迟信息的放在最后
+        try:
+            return float(latency)
+        except:
+            return float('inf')
+            
+    def _get_status_value(self, status):
+        """获取状态值用于排序"""
+        status_priority = {
+            '有效': 0,
+            '待检测': 1,
+            '无效': 2
+        }
+        return status_priority.get(status, 3)
 
     def parse_file_content(self, content: str) -> List[Dict[str, Any]]:
         """解析文件内容并返回频道列表"""

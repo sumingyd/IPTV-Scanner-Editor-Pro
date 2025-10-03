@@ -512,9 +512,19 @@ class UIBuilder(QtCore.QObject):
             lambda: self.main_window.model.sort_channels()
         )
         
+        # 排序配置按钮
+        self.main_window.btn_sort_config = QtWidgets.QPushButton(
+            self.main_window.language_manager.tr('sort_config_button', 'Sort Config')
+        )
+        self.main_window.btn_sort_config.setStyleSheet(AppStyles.button_style(active=True))
+        self.main_window.btn_sort_config.setFixedHeight(36)
+        self.main_window.btn_sort_config.setEnabled(True)
+        self.main_window.btn_sort_config.clicked.connect(self._show_sort_config)
+        
         toolbar.addWidget(self.main_window.btn_validate)
         toolbar.addWidget(self.main_window.btn_hide_invalid)
         toolbar.addWidget(self.main_window.btn_smart_sort)
+        toolbar.addWidget(self.main_window.btn_sort_config)
         toolbar.addStretch()
         list_layout.addLayout(toolbar)
 
@@ -1453,6 +1463,38 @@ class UIBuilder(QtCore.QObject):
             self.logger.debug(f"扫描重试设置已加载: 启用重试={enable_retry}, 循环扫描={loop_scan}")
         except Exception as e:
             self.logger.error(f"加载扫描重试设置失败: {e}")
+
+    def _show_sort_config(self):
+        """显示排序配置对话框"""
+        try:
+            from sort_config_dialog import SortConfigDialog
+            
+            # 创建排序配置对话框
+            dialog = SortConfigDialog(self.main_window, self.main_window.model)
+            
+            # 设置语言管理器
+            if hasattr(self.main_window, 'language_manager') and self.main_window.language_manager:
+                dialog.set_language_manager(self.main_window.language_manager)
+            
+            # 显示对话框
+            if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+                # 获取排序配置
+                sort_config = dialog.get_config()
+                
+                # 应用排序
+                self.main_window.model.sort_channels(sort_config)
+                
+                self.logger.info(f"已应用多条件排序: {sort_config}")
+                self.main_window.statusBar().showMessage("多条件排序已应用", 3000)
+                
+        except Exception as e:
+            self.logger.error(f"显示排序配置对话框失败: {e}", exc_info=True)
+            QtWidgets.QMessageBox.critical(
+                self.main_window,
+                "错误",
+                f"排序配置对话框加载失败: {str(e)}",
+                QtWidgets.QMessageBox.StandardButton.Ok
+            )
 
 
         

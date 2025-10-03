@@ -109,5 +109,19 @@
   "enable_retry_scan": "启用重试扫描",
   "loop_scan": "循环扫描",
   "retry_scan_tooltip": "第一次扫描完成后，对失效频道进行再次扫描",
-  "loop_scan_tooltip": "如果重试扫描找到有效频道，继续扫描失效频道直到没有新的有效频道"
+  "loop_scan_tooltip": "如果重试扫描找到有效频道，继续扫描失效频道直到没有新的有效频道",
+  
+  "sort_config": "排序配置",
+  "sort_priority": "排序优先级设置",
+  "group_priority": "分组优先级设置",
+  "apply_sort": "应用排序",
+  "cancel": "取消",
+  "direction": "方向",
+  "ascending": "升序",
+  "descending": "降序",
+  "latency": "延迟",
+  "sort_config_button": "排序配置",
+  "primary_priority": "第一优先级",
+  "secondary_priority": "第二优先级",
+  "tertiary_priority": "第三优先级"
 }

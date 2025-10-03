@@ -312,6 +312,8 @@ class LanguageManager:
                 main_window.btn_hide_invalid.setText(self.tr('hide_invalid', 'Hide Invalid'))
             if hasattr(main_window, 'btn_smart_sort'):
                 main_window.btn_smart_sort.setText(self.tr('smart_sort', 'Smart Sort'))
+            if hasattr(main_window, 'btn_sort_config'):
+                main_window.btn_sort_config.setText(self.tr('sort_config_button', 'Sort Config'))
             if hasattr(main_window, 'validate_stats_label'):
                 main_window.validate_stats_label.setText(self.tr('please_load_list', 'Please load list first'))
             
