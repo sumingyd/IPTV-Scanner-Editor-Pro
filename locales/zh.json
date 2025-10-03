@@ -123,5 +123,19 @@
   "sort_config_button": "排序配置",
   "primary_priority": "第一优先级",
   "secondary_priority": "第二优先级",
-  "tertiary_priority": "第三优先级"
+  "tertiary_priority": "第三优先级",
+  
+  "sort_method": "排序方式",
+  "custom_order": "自定义顺序",
+  "alphabetical": "字母顺序",
+  "reverse_alphabetical": "字母倒序",
+  "pinyin": "拼音顺序",
+  "quality_high_to_low": "画质从高到低",
+  "quality_low_to_high": "画质从低到高",
+  "width_high_to_low": "宽度从大到小",
+  "width_low_to_high": "宽度从小到大",
+  "low_to_high": "延迟从低到高",
+  "high_to_low": "延迟从高到低",
+  "valid_first": "有效频道在前",
+  "invalid_first": "无效频道在前"
 }

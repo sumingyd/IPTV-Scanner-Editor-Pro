@@ -98,6 +98,62 @@ class ConfigManager:
             'loop_scan': self.get_value('ScanRetry', 'loop_scan', 'False').lower() == 'true'
         }
         
+    def save_sort_config(self, sort_config):
+        """保存排序配置"""
+        # 保存优先级设置
+        self.set_value('SortConfig', 'primary_field', sort_config['primary']['field'])
+        self.set_value('SortConfig', 'primary_method', sort_config['primary']['method'])
+        self.set_value('SortConfig', 'secondary_field', sort_config['secondary']['field'])
+        self.set_value('SortConfig', 'secondary_method', sort_config['secondary']['method'])
+        self.set_value('SortConfig', 'tertiary_field', sort_config['tertiary']['field'])
+        self.set_value('SortConfig', 'tertiary_method', sort_config['tertiary']['method'])
+        
+        # 保存分组优先级
+        group_priority = sort_config.get('group_priority', [])
+        self.set_value('SortConfig', 'group_priority_count', str(len(group_priority)))
+        for i, group in enumerate(group_priority):
+            self.set_value('SortConfig', f'group_priority_{i}', group)
+            
+        return self.save_config()
+        
+    def load_sort_config(self):
+        """加载排序配置"""
+        default_config = {
+            'primary': {'field': 'group', 'method': 'custom'},
+            'secondary': {'field': 'name', 'method': 'alphabetical'},
+            'tertiary': {'field': 'resolution', 'method': 'quality_high_to_low'},
+            'group_priority': []
+        }
+        
+        try:
+            config = {
+                'primary': {
+                    'field': self.get_value('SortConfig', 'primary_field', 'group'),
+                    'method': self.get_value('SortConfig', 'primary_method', 'custom')
+                },
+                'secondary': {
+                    'field': self.get_value('SortConfig', 'secondary_field', 'name'),
+                    'method': self.get_value('SortConfig', 'secondary_method', 'alphabetical')
+                },
+                'tertiary': {
+                    'field': self.get_value('SortConfig', 'tertiary_field', 'resolution'),
+                    'method': self.get_value('SortConfig', 'tertiary_method', 'quality_high_to_low')
+                },
+                'group_priority': []
+            }
+            
+            # 加载分组优先级
+            group_count = int(self.get_value('SortConfig', 'group_priority_count', '0'))
+            for i in range(group_count):
+                group = self.get_value('SortConfig', f'group_priority_{i}')
+                if group:
+                    config['group_priority'].append(group)
+                    
+            return config
+        except Exception as e:
+            logger.error(f"加载排序配置失败: {str(e)}")
+            return default_config
+        
     def load_config(self):
         if os.path.exists(self.config_file):
             try:

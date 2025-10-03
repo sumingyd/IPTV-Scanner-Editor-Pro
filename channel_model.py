@@ -670,30 +670,21 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 if priority in sort_config:
                     field_config = sort_config[priority]
                     field = field_config['field']
-                    ascending = field_config['ascending']
+                    method = field_config['method']
                     
-                    # 获取字段值
+                    # 根据字段和方法获取排序值
                     if field == 'group':
-                        value = self._get_group_priority_value(channel.get('group', ''), sort_config.get('group_priority', []))
+                        value = self._get_group_sort_value(channel.get('group', ''), method, sort_config.get('group_priority', []))
                     elif field == 'name':
-                        value = channel.get('name', '')
+                        value = self._get_name_sort_value(channel.get('name', ''), method)
                     elif field == 'resolution':
-                        value = self._get_resolution_value(channel.get('resolution', ''))
+                        value = self._get_resolution_sort_value(channel.get('resolution', ''), method)
                     elif field == 'latency':
-                        value = self._get_latency_value(channel.get('latency', ''))
+                        value = self._get_latency_sort_value(channel.get('latency', ''), method)
                     elif field == 'status':
-                        value = self._get_status_value(channel.get('status', ''))
+                        value = self._get_status_sort_value(channel.get('status', ''), method)
                     else:
                         value = channel.get(field, '')
-                    
-                    # 根据升序/降序调整值
-                    if not ascending:
-                        # 对于数字类型，使用负数实现降序
-                        if isinstance(value, (int, float)):
-                            value = -value
-                        # 对于字符串，使用反转实现降序
-                        elif isinstance(value, str):
-                            value = value[::-1]
                     
                     key.append(value)
             
@@ -702,6 +693,111 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         # 执行排序
         self.channels.sort(key=get_sort_key)
         self.endResetModel()
+        
+    def _get_group_sort_value(self, group, method, group_priority):
+        """获取分组的排序值"""
+        if method == 'custom':
+            # 自定义顺序：使用拖拽排序的优先级
+            for i, priority_group in enumerate(group_priority):
+                if group == priority_group:
+                    return i
+            return len(group_priority) + 1  # 不在优先级列表中的放在最后
+        elif method == 'alphabetical':
+            # 字母顺序
+            return group.lower() if group else ''
+        elif method == 'reverse_alphabetical':
+            # 字母倒序
+            return group.lower()[::-1] if group else ''
+        else:
+            return group.lower() if group else ''
+            
+    def _get_name_sort_value(self, name, method):
+        """获取名称的排序值"""
+        if method == 'alphabetical':
+            # 字母顺序
+            return name.lower() if name else ''
+        elif method == 'reverse_alphabetical':
+            # 字母倒序
+            return name.lower()[::-1] if name else ''
+        elif method == 'pinyin':
+            # 拼音顺序（简化实现，实际需要拼音库）
+            try:
+                # 这里使用简单的拼音首字母排序
+                import pypinyin
+                pinyin = ''.join([p[0] for p in pypinyin.pinyin(name, style=pypinyin.Style.FIRST_LETTER)])
+                return pinyin.lower() if pinyin else name.lower()
+            except:
+                # 如果没有拼音库，回退到字母顺序
+                return name.lower() if name else ''
+        else:
+            return name.lower() if name else ''
+            
+    def _get_resolution_sort_value(self, resolution, method):
+        """获取分辨率的排序值"""
+        width, height = self._parse_resolution(resolution)
+        total_pixels = width * height
+        
+        if method == 'quality_high_to_low':
+            # 画质从高到低：像素总数越大，值越小（用于升序排序）
+            return -total_pixels
+        elif method == 'quality_low_to_high':
+            # 画质从低到高：像素总数越小，值越小
+            return total_pixels
+        elif method == 'width_high_to_low':
+            # 宽度从大到小：宽度越大，值越小
+            return -width
+        elif method == 'width_low_to_high':
+            # 宽度从小到大：宽度越小，值越小
+            return width
+        else:
+            return -total_pixels  # 默认画质从高到低
+            
+    def _get_latency_sort_value(self, latency, method):
+        """获取延迟的排序值"""
+        try:
+            latency_value = float(latency) if latency else float('inf')
+        except:
+            latency_value = float('inf')
+            
+        if method == 'low_to_high':
+            # 延迟从低到高：延迟越小，值越小
+            return latency_value
+        elif method == 'high_to_low':
+            # 延迟从高到低：延迟越大，值越小
+            return -latency_value
+        else:
+            return latency_value  # 默认延迟从低到高
+            
+    def _get_status_sort_value(self, status, method):
+        """获取状态的排序值"""
+        status_priority = {
+            '有效': 0,
+            '待检测': 1,
+            '无效': 2
+        }
+        
+        status_value = status_priority.get(status, 3)
+        
+        if method == 'valid_first':
+            # 有效频道在前：有效频道值更小
+            return status_value
+        elif method == 'invalid_first':
+            # 无效频道在前：无效频道值更小
+            return -status_value
+        else:
+            return status_value  # 默认有效频道在前
+            
+    def _parse_resolution(self, resolution):
+        """解析分辨率字符串，返回宽度和高度"""
+        if not resolution:
+            return 0, 0
+        try:
+            parts = resolution.split('x')
+            if len(parts) == 2:
+                return int(parts[0]), int(parts[1])
+            return 0, 0
+        except:
+            return 0, 0
         
     def _get_group_priority_value(self, group, group_priority):
         """获取分组的优先级值"""

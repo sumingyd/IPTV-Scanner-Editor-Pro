@@ -21,12 +21,36 @@ class SortConfigDialog(QtWidgets.QDialog):
             ('status', '状态')
         ]
         
-        # 默认排序配置
-        self.sort_config = {
-            'primary': {'field': 'group', 'ascending': True},
-            'secondary': {'field': 'name', 'ascending': True},
-            'tertiary': {'field': 'resolution', 'ascending': False}
+        # 排序方式选项（使用国际化键）
+        self.sort_methods = {
+            'group': [
+                ('custom', 'custom_order'),
+                ('alphabetical', 'alphabetical'),
+                ('reverse_alphabetical', 'reverse_alphabetical')
+            ],
+            'name': [
+                ('alphabetical', 'alphabetical'),
+                ('reverse_alphabetical', 'reverse_alphabetical'),
+                ('pinyin', 'pinyin')
+            ],
+            'resolution': [
+                ('quality_high_to_low', 'quality_high_to_low'),
+                ('quality_low_to_high', 'quality_low_to_high'),
+                ('width_high_to_low', 'width_high_to_low'),
+                ('width_low_to_high', 'width_low_to_high')
+            ],
+            'latency': [
+                ('low_to_high', 'low_to_high'),
+                ('high_to_low', 'high_to_low')
+            ],
+            'status': [
+                ('valid_first', 'valid_first'),
+                ('invalid_first', 'invalid_first')
+            ]
         }
+        
+        # 从配置文件加载排序配置
+        self.sort_config = self.load_config_from_file()
         
         # 分组优先级列表
         self.group_priority = []
@@ -71,35 +95,30 @@ class SortConfigDialog(QtWidgets.QDialog):
             self.secondary_combo.setItemText(i, display_name)
             self.tertiary_combo.setItemText(i, display_name)
             
-        # 更新方向标签
-        self.primary_dir_label.setText(self.language_manager.tr('direction', 'Direction'))
-        self.secondary_dir_label.setText(self.language_manager.tr('direction', 'Direction'))
-        self.tertiary_dir_label.setText(self.language_manager.tr('direction', 'Direction'))
-        
-        # 更新方向选项
-        self.primary_asc_radio.setText(self.language_manager.tr('ascending', 'Ascending'))
-        self.primary_desc_radio.setText(self.language_manager.tr('descending', 'Descending'))
-        self.secondary_asc_radio.setText(self.language_manager.tr('ascending', 'Ascending'))
-        self.secondary_desc_radio.setText(self.language_manager.tr('descending', 'Descending'))
-        self.tertiary_asc_radio.setText(self.language_manager.tr('ascending', 'Ascending'))
-        self.tertiary_desc_radio.setText(self.language_manager.tr('descending', 'Descending'))
-        
         # 更新优先级行标签
         self.primary_row_label.setText(self.language_manager.tr('primary_priority', 'Primary Priority'))
         self.secondary_row_label.setText(self.language_manager.tr('secondary_priority', 'Secondary Priority'))
         self.tertiary_row_label.setText(self.language_manager.tr('tertiary_priority', 'Tertiary Priority'))
+        
+        # 更新方法标签
+        self.primary_method_label.setText(self.language_manager.tr('sort_method', 'Sort Method'))
+        self.secondary_method_label.setText(self.language_manager.tr('sort_method', 'Sort Method'))
+        self.tertiary_method_label.setText(self.language_manager.tr('sort_method', 'Sort Method'))
+        
+        # 重新加载排序方式下拉框的国际化文本
+        self.reload_method_combo_texts()
 
     def init_ui(self):
         """初始化用户界面"""
         self.setWindowTitle("排序配置")
         self.setModal(True)
-        self.resize(500, 600)
+        self.resize(600, 700)
         
         # 主布局
         main_layout = QtWidgets.QVBoxLayout(self)
         
         # 排序优先级设置区域
-        self.priority_label = QtWidgets.QLabel()
+        self.priority_label = QtWidgets.QLabel("排序优先级设置：")
         main_layout.addWidget(self.priority_label)
         
         # 优先级设置表单
@@ -113,17 +132,14 @@ class SortConfigDialog(QtWidgets.QDialog):
         primary_layout.addWidget(self.primary_combo)
         
         primary_layout.addSpacing(10)
-        self.primary_dir_label = QtWidgets.QLabel()
-        primary_layout.addWidget(self.primary_dir_label)
+        self.primary_method_label = QtWidgets.QLabel("排序方式：")
+        primary_layout.addWidget(self.primary_method_label)
         
-        self.primary_asc_radio = QtWidgets.QRadioButton()
-        self.primary_desc_radio = QtWidgets.QRadioButton()
-        self.primary_asc_radio.setChecked(True)
-        primary_layout.addWidget(self.primary_asc_radio)
-        primary_layout.addWidget(self.primary_desc_radio)
+        self.primary_method_combo = QtWidgets.QComboBox()
+        primary_layout.addWidget(self.primary_method_combo)
         primary_layout.addStretch()
         
-        self.primary_row_label = QtWidgets.QLabel()
+        self.primary_row_label = QtWidgets.QLabel("第一优先级：")
         priority_layout.addRow(self.primary_row_label, primary_layout)
         
         # 第二优先级
@@ -134,17 +150,14 @@ class SortConfigDialog(QtWidgets.QDialog):
         secondary_layout.addWidget(self.secondary_combo)
         
         secondary_layout.addSpacing(10)
-        self.secondary_dir_label = QtWidgets.QLabel()
-        secondary_layout.addWidget(self.secondary_dir_label)
+        self.secondary_method_label = QtWidgets.QLabel("排序方式：")
+        secondary_layout.addWidget(self.secondary_method_label)
         
-        self.secondary_asc_radio = QtWidgets.QRadioButton()
-        self.secondary_desc_radio = QtWidgets.QRadioButton()
-        self.secondary_asc_radio.setChecked(True)
-        secondary_layout.addWidget(self.secondary_asc_radio)
-        secondary_layout.addWidget(self.secondary_desc_radio)
+        self.secondary_method_combo = QtWidgets.QComboBox()
+        secondary_layout.addWidget(self.secondary_method_combo)
         secondary_layout.addStretch()
         
-        self.secondary_row_label = QtWidgets.QLabel()
+        self.secondary_row_label = QtWidgets.QLabel("第二优先级：")
         priority_layout.addRow(self.secondary_row_label, secondary_layout)
         
         # 第三优先级
@@ -155,17 +168,14 @@ class SortConfigDialog(QtWidgets.QDialog):
         tertiary_layout.addWidget(self.tertiary_combo)
         
         tertiary_layout.addSpacing(10)
-        self.tertiary_dir_label = QtWidgets.QLabel()
-        tertiary_layout.addWidget(self.tertiary_dir_label)
+        self.tertiary_method_label = QtWidgets.QLabel("排序方式：")
+        tertiary_layout.addWidget(self.tertiary_method_label)
         
-        self.tertiary_asc_radio = QtWidgets.QRadioButton()
-        self.tertiary_desc_radio = QtWidgets.QRadioButton()
-        self.tertiary_asc_radio.setChecked(True)
-        tertiary_layout.addWidget(self.tertiary_asc_radio)
-        tertiary_layout.addWidget(self.tertiary_desc_radio)
+        self.tertiary_method_combo = QtWidgets.QComboBox()
+        tertiary_layout.addWidget(self.tertiary_method_combo)
         tertiary_layout.addStretch()
         
-        self.tertiary_row_label = QtWidgets.QLabel()
+        self.tertiary_row_label = QtWidgets.QLabel("第三优先级：")
         priority_layout.addRow(self.tertiary_row_label, tertiary_layout)
         
         main_layout.addLayout(priority_layout)
@@ -220,9 +230,90 @@ class SortConfigDialog(QtWidgets.QDialog):
         
         main_layout.addLayout(button_layout)
         
+        # 连接信号
+        self.primary_combo.currentTextChanged.connect(self.on_primary_field_changed)
+        self.secondary_combo.currentTextChanged.connect(self.on_secondary_field_changed)
+        self.tertiary_combo.currentTextChanged.connect(self.on_tertiary_field_changed)
+        self.primary_method_combo.currentTextChanged.connect(self.update_group_priority_enabled)
+        
         # 加载默认配置
         self.load_default_config()
         
+    def on_primary_field_changed(self):
+        """第一优先级字段改变时更新排序方式选项"""
+        field_key = self.primary_combo.currentData()
+        self.update_method_combo(self.primary_method_combo, field_key)
+        
+    def on_secondary_field_changed(self):
+        """第二优先级字段改变时更新排序方式选项"""
+        field_key = self.secondary_combo.currentData()
+        self.update_method_combo(self.secondary_method_combo, field_key)
+        
+    def on_tertiary_field_changed(self):
+        """第三优先级字段改变时更新排序方式选项"""
+        field_key = self.tertiary_combo.currentData()
+        self.update_method_combo(self.tertiary_method_combo, field_key)
+        
+    def update_method_combo(self, combo, field_key):
+        """更新排序方式下拉框选项"""
+        combo.clear()
+        methods = self.sort_methods.get(field_key, [])
+        for method_key, method_name_key in methods:
+            # 使用国际化文本
+            display_name = self.language_manager.tr(method_name_key, method_name_key) if self.language_manager else method_name_key
+            combo.addItem(display_name, method_key)
+            
+        # 检查是否需要禁用分组自定义排序
+        self.update_group_priority_enabled()
+        
+    def update_group_priority_enabled(self):
+        """更新分组自定义排序的启用状态"""
+        # 检查第一优先级是否是分组且排序方式不是自定义
+        primary_field = self.primary_combo.currentData()
+        primary_method = self.primary_method_combo.currentData() if self.primary_method_combo.count() > 0 else None
+        
+        # 如果第一优先级是分组且排序方式不是自定义，则禁用分组自定义排序
+        if primary_field == 'group' and primary_method != 'custom':
+            self.group_list_widget.setEnabled(False)
+            self.group_priority_label.setEnabled(False)
+        else:
+            self.group_list_widget.setEnabled(True)
+            self.group_priority_label.setEnabled(True)
+            
+    def reload_method_combo_texts(self):
+        """重新加载排序方式下拉框的国际化文本"""
+        if not self.language_manager:
+            return
+            
+        # 重新加载所有排序方式下拉框的文本
+        for combo in [self.primary_method_combo, self.secondary_method_combo, self.tertiary_method_combo]:
+            if combo.count() > 0:
+                # 保存当前选中的方法
+                current_method = combo.currentData()
+                
+                # 重新设置所有项的文本
+                for i in range(combo.count()):
+                    method_key = combo.itemData(i)
+                    # 找到对应的国际化键
+                    method_name_key = None
+                    for field_methods in self.sort_methods.values():
+                        for mk, mnk in field_methods:
+                            if mk == method_key:
+                                method_name_key = mnk
+                                break
+                        if method_name_key:
+                            break
+                    
+                    if method_name_key:
+                        display_name = self.language_manager.tr(method_name_key, method_name_key)
+                        combo.setItemText(i, display_name)
+                
+                # 恢复选中的方法
+                for i in range(combo.count()):
+                    if combo.itemData(i) == current_method:
+                        combo.setCurrentIndex(i)
+                        break
+            
     def load_group_priority(self):
         """从模型中加载分组优先级"""
         if not self.model:
@@ -266,36 +357,41 @@ class SortConfigDialog(QtWidgets.QDialog):
                 self.tertiary_combo.setCurrentIndex(i)
                 break
                 
-        # 设置排序方向
-        if self.sort_config['primary']['ascending']:
-            self.primary_asc_radio.setChecked(True)
-        else:
-            self.primary_desc_radio.setChecked(True)
-            
-        if self.sort_config['secondary']['ascending']:
-            self.secondary_asc_radio.setChecked(True)
-        else:
-            self.secondary_desc_radio.setChecked(True)
-            
-        if self.sort_config['tertiary']['ascending']:
-            self.tertiary_asc_radio.setChecked(True)
-        else:
-            self.tertiary_desc_radio.setChecked(True)
+        # 更新排序方式下拉框
+        self.update_method_combo(self.primary_method_combo, self.sort_config['primary']['field'])
+        self.update_method_combo(self.secondary_method_combo, self.sort_config['secondary']['field'])
+        self.update_method_combo(self.tertiary_method_combo, self.sort_config['tertiary']['field'])
+        
+        # 设置排序方式
+        for i in range(self.primary_method_combo.count()):
+            if self.primary_method_combo.itemData(i) == self.sort_config['primary']['method']:
+                self.primary_method_combo.setCurrentIndex(i)
+                break
+                
+        for i in range(self.secondary_method_combo.count()):
+            if self.secondary_method_combo.itemData(i) == self.sort_config['secondary']['method']:
+                self.secondary_method_combo.setCurrentIndex(i)
+                break
+                
+        for i in range(self.tertiary_method_combo.count()):
+            if self.tertiary_method_combo.itemData(i) == self.sort_config['tertiary']['method']:
+                self.tertiary_method_combo.setCurrentIndex(i)
+                break
             
     def get_sort_config(self):
         """获取排序配置"""
         config = {
             'primary': {
                 'field': self.primary_combo.currentData(),
-                'ascending': self.primary_asc_radio.isChecked()
+                'method': self.primary_method_combo.currentData()
             },
             'secondary': {
                 'field': self.secondary_combo.currentData(),
-                'ascending': self.secondary_asc_radio.isChecked()
+                'method': self.secondary_method_combo.currentData()
             },
             'tertiary': {
                 'field': self.tertiary_combo.currentData(),
-                'ascending': self.tertiary_asc_radio.isChecked()
+                'method': self.tertiary_method_combo.currentData()
             },
             'group_priority': []
         }
@@ -307,9 +403,40 @@ class SortConfigDialog(QtWidgets.QDialog):
             
         return config
         
+    def load_config_from_file(self):
+        """从配置文件加载排序配置"""
+        try:
+            from config_manager import ConfigManager
+            config_manager = ConfigManager()
+            return config_manager.load_sort_config()
+        except Exception as e:
+            self.logger.error(f"从配置文件加载排序配置失败: {str(e)}")
+            # 返回默认配置
+            return {
+                'primary': {'field': 'group', 'method': 'custom'},
+                'secondary': {'field': 'name', 'method': 'alphabetical'},
+                'tertiary': {'field': 'resolution', 'method': 'quality_high_to_low'},
+                'group_priority': []
+            }
+            
+    def save_config_to_file(self, sort_config):
+        """保存排序配置到文件"""
+        try:
+            from config_manager import ConfigManager
+            config_manager = ConfigManager()
+            return config_manager.save_sort_config(sort_config)
+        except Exception as e:
+            self.logger.error(f"保存排序配置到文件失败: {str(e)}")
+            return False
+        
     def apply_sort(self):
         """应用排序配置"""
         self.sort_config = self.get_sort_config()
+        # 保存配置到文件
+        if self.save_config_to_file(self.sort_config):
+            self.logger.info("排序配置已保存到配置文件")
+        else:
+            self.logger.warning("排序配置保存到配置文件失败")
         self.accept()
         
     def get_config(self):
