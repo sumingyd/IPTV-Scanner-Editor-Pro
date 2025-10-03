@@ -122,5 +122,19 @@
   "sort_config_button": "Sort Config",
   "primary_priority": "Primary Priority",
   "secondary_priority": "Secondary Priority",
-  "tertiary_priority": "Tertiary Priority"
+  "tertiary_priority": "Tertiary Priority",
+  
+  "sort_method": "Sort Method",
+  "custom_order": "Custom Order",
+  "alphabetical": "Alphabetical",
+  "reverse_alphabetical": "Reverse Alphabetical",
+  "pinyin": "Pinyin Order",
+  "quality_high_to_low": "Quality High to Low",
+  "quality_low_to_high": "Quality Low to High",
+  "width_high_to_low": "Width High to Low",
+  "width_low_to_high": "Width Low to High",
+  "low_to_high": "Latency Low to High",
+  "high_to_low": "Latency High to Low",
+  "valid_first": "Valid Channels First",
+  "invalid_first": "Invalid Channels First"
 }
