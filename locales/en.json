@@ -108,5 +108,19 @@
   "enable_retry_scan": "Enable Retry Scan",
   "loop_scan": "Loop Scan",
   "retry_scan_tooltip": "After the first scan completes, retry scanning failed channels",
-  "loop_scan_tooltip": "If retry scan finds valid channels, continue scanning failed channels until no new valid channels are found"
+  "loop_scan_tooltip": "If retry scan finds valid channels, continue scanning failed channels until no new valid channels are found",
+  
+  "sort_config": "Sort Configuration",
+  "sort_priority": "Sort Priority",
+  "group_priority": "Group Priority",
+  "apply_sort": "Apply Sort",
+  "cancel": "Cancel",
+  "direction": "Direction",
+  "ascending": "Ascending",
+  "descending": "Descending",
+  "latency": "Latency",
+  "sort_config_button": "Sort Config",
+  "primary_priority": "Primary Priority",
+  "secondary_priority": "Secondary Priority",
+  "tertiary_priority": "Tertiary Priority"
 }
