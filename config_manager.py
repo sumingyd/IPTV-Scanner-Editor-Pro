@@ -157,7 +157,7 @@ class ConfigManager:
     def load_config(self):
         if os.path.exists(self.config_file):
             try:
-                self.config.read(self.config_file)
+                self.config.read(self.config_file, encoding='utf-8')
                 return True
             except Exception as e:
                 logger.error(f"配置管理-加载配置文件失败: {str(e)}", exc_info=True)
@@ -167,7 +167,7 @@ class ConfigManager:
         
     def save_config(self):
         try:
-            with open(self.config_file, 'w') as f:
+            with open(self.config_file, 'w', encoding='utf-8') as f:
                 self.config.write(f)
             return True
         except Exception as e:
