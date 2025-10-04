@@ -314,6 +314,16 @@ class UIBuilder(QtCore.QObject):
         scan_layout.setSpacing(5)  # 统一设置间距
 
         self.main_window.ip_range_input = QtWidgets.QLineEdit()
+        # 添加失去焦点时自动保存到配置文件
+        self.main_window.ip_range_input.editingFinished.connect(
+            lambda: self.main_window.config.save_network_settings(
+                self.main_window.ip_range_input.text(),
+                self.main_window.timeout_input.value(),
+                self.main_window.thread_count_input.value(),
+                self.main_window.user_agent_input.text(),
+                self.main_window.referer_input.text()
+            )
+        )
 
         # 超时时间设置
         timeout_layout = QtWidgets.QHBoxLayout()
