@@ -837,6 +837,9 @@ class LoadingScreen(QtWidgets.QWidget):
 
         # 版本号
         self.version = QtWidgets.QLabel(f"版本 {AboutDialog.CURRENT_VERSION}")
+        
+        # 设置加载屏幕的窗口标题
+        self.setWindowTitle(f"IPTV 专业扫描编辑工具 v{AboutDialog.CURRENT_VERSION}")
         self.version.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.version.setStyleSheet("""
             QLabel {
