@@ -56,7 +56,9 @@ class SortConfigDialog(QtWidgets.QDialog):
         self.group_priority = []
         
         self.init_ui()
-        self.load_group_priority()
+        # 先尝试从配置加载分组优先级，如果没有配置再加载默认分组
+        if not self.load_group_priority_from_config():
+            self.load_group_priority()
         
     def set_language_manager(self, language_manager):
         """设置语言管理器"""
@@ -377,6 +379,24 @@ class SortConfigDialog(QtWidgets.QDialog):
             if self.tertiary_method_combo.itemData(i) == self.sort_config['tertiary']['method']:
                 self.tertiary_method_combo.setCurrentIndex(i)
                 break
+                
+        # 加载分组优先级顺序
+        self.load_group_priority_from_config()
+        
+    def load_group_priority_from_config(self):
+        """从配置中加载分组优先级顺序"""
+        if not self.sort_config.get('group_priority'):
+            return False
+            
+        # 清空当前列表
+        self.group_list_widget.clear()
+        
+        # 按照配置中的顺序添加分组
+        for group in self.sort_config['group_priority']:
+            item = QtWidgets.QListWidgetItem(group)
+            self.group_list_widget.addItem(item)
+            
+        return True
             
     def get_sort_config(self):
         """获取排序配置"""
