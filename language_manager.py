@@ -246,8 +246,13 @@ class LanguageManager:
             return
             
         try:
-            # 更新窗口标题
-            main_window.setWindowTitle(self.tr('app_title', 'IPTV Scanner Editor Pro'))
+            # 更新窗口标题（包含版本号）
+            from about_dialog import AboutDialog
+            version = AboutDialog.CURRENT_VERSION
+            if self.current_language == 'zh':
+                main_window.setWindowTitle(f"IPTV 专业扫描编辑工具 v{version}")
+            else:
+                main_window.setWindowTitle(f"IPTV Scanner Editor Pro v{version}")
             
             # 更新视频播放区域
             if hasattr(main_window, 'player_group'):

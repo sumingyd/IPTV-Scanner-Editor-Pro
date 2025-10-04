@@ -42,7 +42,11 @@ class UIBuilder(QtCore.QObject):
 
     def _init_ui(self):
         """初始化用户界面"""
-        self.main_window.setWindowTitle("IPTV Scanner Editor Pro / IPTV 专业扫描编辑工具")
+        # 从about_dialog导入版本号
+        from about_dialog import AboutDialog
+        version = AboutDialog.CURRENT_VERSION
+        # 默认使用中文标题，语言管理器会覆盖这个设置
+        self.main_window.setWindowTitle(f"IPTV 专业扫描编辑工具 v{version}")
         
         # 加载保存的窗口布局
         width, height, dividers = self.main_window.config.load_window_layout()
