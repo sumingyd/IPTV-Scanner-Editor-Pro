@@ -140,7 +140,6 @@ class ScannerController(QObject):
                     try:
                         # 直接发送频道信息到模型
                         self.channel_found.emit(channel_info)
-                        self.logger.debug(f"立即添加频道: {channel_info['name']}")
                     except Exception as e:
                         self.logger.error(f"添加频道失败: {e}", exc_info=True)
                 
@@ -228,7 +227,8 @@ class ScannerController(QObject):
             # 记录详细的映射信息用于调试
             if valid:
                 if mapped_name != raw_name:
-                    self.logger.info(f"频道映射成功: {raw_name} -> {mapped_name}")
+                    # 频道映射成功，不再输出调试信息
+                    pass
                 else:
                     self.logger.debug(f"频道未映射，使用原始名称: {raw_name}")
                     
