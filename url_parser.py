@@ -122,7 +122,6 @@ class URLRangeParser:
         for i in range(len(ranges_info)):
             url += url_parts[i] + values[i]
         url += url_parts[-1]
-        self.logger.debug(f"构建的URL: {url}")
         return url
         
     def test_parse_url(self, url: str):
