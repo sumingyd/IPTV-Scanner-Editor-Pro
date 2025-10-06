@@ -356,7 +356,6 @@ class ChannelMappingManager:
                     continue
                 normalized_pattern = re.sub(r'\s+', ' ', raw_pattern.strip()).lower()
                 if normalized_name == normalized_pattern:
-                    self.logger.debug(f"找到精确匹配: {raw_pattern} -> {info['standard_name']}")
                     return info
         except Exception as e:
             self.logger.error(f"反向映射查找失败: {e}")
@@ -368,7 +367,6 @@ class ChannelMappingManager:
                     continue
                 normalized_standard = re.sub(r'\s+', ' ', standard_name.strip()).lower()
                 if normalized_name == normalized_standard:
-                    self.logger.debug(f"从标准名称找到精确匹配: {standard_name}")
                     return {
                         'standard_name': standard_name,
                         'logo_url': info['logo_url'],

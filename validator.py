@@ -252,7 +252,6 @@ class StreamValidator:
                     # ffmpeg成功拉取流
                     result['valid'] = True
                     result['latency'] = int(elapsed * 1000)
-                    self.logger.debug(f"流验证成功: {url} (尝试 {attempt+1}/{actual_retries+1}, 耗时: {elapsed:.2f}s)")
                     break
                 else:
                     # ffmpeg失败，记录错误信息
@@ -283,7 +282,6 @@ class StreamValidator:
                         result['valid'] = True
                         result['latency'] = int(elapsed * 1000)
                         result['error'] = "流有效但存在解码问题: " + result['error'][:200]  # 截断错误信息
-                        self.logger.debug(f"流验证成功（解码错误）: {url} (尝试 {attempt+1}/{actual_retries+1}, 耗时: {elapsed:.2f}s)")
                         break
                     else:
                         # 其他错误，继续重试
@@ -299,7 +297,6 @@ class StreamValidator:
             except subprocess.TimeoutExpired:
                 process.kill()
                 result['error'] = f"拉流超时 (剩余时间: {remaining_time:.1f}s)"
-                self.logger.debug(f"流验证超时: {url} (尝试 {attempt+1}/{actual_retries+1})")
                 
                 # 更新剩余时间
                 remaining_time = max(0, remaining_time - pull_duration)

@@ -1349,7 +1349,6 @@ class UIBuilder(QtCore.QObject):
             index = self.main_window.model.index(row, 0)
             self.main_window.model.dataChanged.emit(index, index)
             
-            self.logger.debug(f"显示占位符图标: {logo_url}")
         except Exception as e:
             self.logger.debug(f"显示占位符图标失败: {logo_url}, {e}")
 
@@ -1431,9 +1430,7 @@ class UIBuilder(QtCore.QObject):
                         # 更新UI
                         index = self.main_window.model.index(row, 0)
                         self.main_window.model.dataChanged.emit(index, index)
-                        
-                        # 只记录成功信息，不记录详细尺寸
-                        self.logger.debug(f"Logo下载成功: {logo_url}")
+
                     else:
                         self.logger.debug(f"Logo图片高度为0: {logo_url}")
                 else:
