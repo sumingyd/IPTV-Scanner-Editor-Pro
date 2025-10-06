@@ -103,11 +103,10 @@ class MainWindow(QtWidgets.QMainWindow):
             if settings['referer']:
                 self.ui.main_window.referer_input.setText(settings['referer'])
             
-            # 加载语言设置
+            # 加载语言设置（不在这里更新UI文本，由后台任务统一处理）
             language_code = self.config.load_language_settings()
             if hasattr(self, 'language_manager'):
-                if self.language_manager.set_language(language_code):
-                    self.language_manager.update_ui_texts(self)
+                self.language_manager.set_language(language_code)
                     
         except Exception as e:
             self.logger.error(f"加载配置失败: {e}")

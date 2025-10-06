@@ -1154,9 +1154,10 @@ class UIBuilder(QtCore.QObject):
         
     def _refresh_language_menu(self):
         """刷新语言菜单，确保在打包环境中也能正确显示"""
-        # 清空现有菜单项
-        self.main_window.language_menu.clear()
-        
+        # 检查菜单是否已经有内容，避免重复添加
+        if self.main_window.language_menu.actions():
+            return
+            
         # 使用已加载的语言列表，避免重复加载
         available_languages = self.main_window.language_manager.available_languages
         
