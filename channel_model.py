@@ -333,22 +333,27 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         lines = ["#EXTM3U"]
         for channel in self.channels:
             channel_name = channel.get('name', '')
-            # 获取频道信息(包含logo地址)
-            channel_info = get_channel_info(channel_name)
-            logger.debug(f"处理频道: {channel_name}, 获取到的信息: {channel_info}")
             
-            # EXTINF行 - 简化格式
-            logo_url = channel_info.get('logo_url') or channel.get('logo')
+            # 直接使用频道列表中已有的logo数据，而不是重新调用映射函数
+            # 频道列表显示时已经加载了映射后的logo地址，保存在logo_url或logo字段中
+            logo_url = channel.get('logo_url') or channel.get('logo', '')
             resolution = channel.get('resolution', '')
             
+            # 如果频道列表中没有logo数据，再尝试调用映射函数获取
+            if not logo_url:
+                channel_info = get_channel_info(channel_name)
+                logo_url = channel_info.get('logo_url')
+                logger.debug(f"处理频道: {channel_name}, 获取到的信息: {channel_info}")
+            
+            # EXTINF行 - 简化格式
             extinf = (
                 f"#EXTINF:-1 "
                 f"tvg-id=\"{channel.get('tvg_id', '')}\" "
-                f"tvg-name=\"{channel_info['standard_name']}\" "
+                f"tvg-name=\"{channel_name}\" "
                 f"tvg-logo=\"{logo_url if logo_url else ''}\" "
                 f"group-title=\"{channel.get('group', '未分类')}\" "
                 f"resolution=\"{channel.get('resolution', '')}\" "
-                f",{channel_info['standard_name']}"
+                f",{channel_name}"
             )
             lines.append(extinf)
             
