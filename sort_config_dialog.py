@@ -2,6 +2,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 from log_manager import LogManager
 from language_manager import LanguageManager
+from styles import AppStyles
 
 class SortConfigDialog(QtWidgets.QDialog):
     """排序配置对话框"""
@@ -109,6 +110,28 @@ class SortConfigDialog(QtWidgets.QDialog):
         
         # 重新加载排序方式下拉框的国际化文本
         self.reload_method_combo_texts()
+        
+        # 更新分组提示信息
+        self.update_group_hint()
+        
+        # 更新拖拽提示信息
+        drag_hint_text = self.language_manager.tr('drag_hint', '💡 Tip: Drag group names to adjust priority order. Insertion position will be shown during dragging.')
+        self.drag_hint_label.setText(drag_hint_text)
+        
+    def update_group_hint(self):
+        """更新分组优先级提示信息"""
+        if not self.language_manager:
+            return
+            
+        # 使用 is_list_empty 方法来判断频道列表是否为空
+        if self.is_list_empty():
+            # 列表为空的情况 - 从配置文件加载
+            hint_text = self.language_manager.tr('group_hint_empty', 'Tip: The channel list is currently empty. Groups are loaded from saved configuration. You can drag to adjust their priority order.')
+        else:
+            # 列表不为空的情况
+            hint_text = self.language_manager.tr('group_hint_normal', 'Tip: The following shows all group names from the current list. You can drag to adjust their priority order.')
+            
+        self.group_hint_label.setText(hint_text)
 
     def init_ui(self):
         """初始化用户界面"""
@@ -187,11 +210,27 @@ class SortConfigDialog(QtWidgets.QDialog):
         self.group_priority_label = QtWidgets.QLabel("分组优先级设置：")
         main_layout.addWidget(self.group_priority_label)
         
-        # 分组列表控件
+        # 添加提示信息
+        self.group_hint_label = QtWidgets.QLabel("")
+        self.group_hint_label.setStyleSheet(AppStyles.group_hint_label_style())
+        self.group_hint_label.setWordWrap(True)
+        main_layout.addWidget(self.group_hint_label)
+        
+        # 分组列表控件 - 改进拖拽体验
         self.group_list_widget = QtWidgets.QListWidget()
         self.group_list_widget.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.InternalMove)
         self.group_list_widget.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        self.group_list_widget.setDropIndicatorShown(True)  # 显示拖拽指示器
+        self.group_list_widget.setDefaultDropAction(QtCore.Qt.DropAction.MoveAction)  # 设置默认拖拽动作为移动
+        self.group_list_widget.setStyleSheet(AppStyles.drag_list_style())
+        
         main_layout.addWidget(self.group_list_widget)
+        
+        # 添加拖拽操作提示
+        self.drag_hint_label = QtWidgets.QLabel("")
+        self.drag_hint_label.setStyleSheet(AppStyles.drag_hint_label_style())
+        self.drag_hint_label.setWordWrap(True)
+        main_layout.addWidget(self.drag_hint_label)
         
         # 按钮区域
         button_layout = QtWidgets.QHBoxLayout()
@@ -340,6 +379,15 @@ class SortConfigDialog(QtWidgets.QDialog):
             for group in default_groups:
                 item = QtWidgets.QListWidgetItem(group)
                 self.group_list_widget.addItem(item)
+                
+        # 更新提示信息
+        self.update_group_hint()
+        
+    def is_list_empty(self):
+        """检查频道列表是否为空"""
+        if not self.model:
+            return True
+        return self.model.rowCount() == 0
                 
     def load_default_config(self):
         """加载默认排序配置"""

@@ -614,12 +614,22 @@ class UIBuilder(QtCore.QObject):
         # 立即触发一次Logo加载
         QtCore.QTimer.singleShot(100, self._load_network_logos)
         
-        # 启用拖放排序功能
+        # 启用拖放排序功能 - 改进拖拽体验
         self.main_window.channel_list.setDragEnabled(True)
         self.main_window.channel_list.setAcceptDrops(True)
         self.main_window.channel_list.setDragDropOverwriteMode(False)
         self.main_window.channel_list.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.InternalMove)
         self.main_window.channel_list.setDefaultDropAction(QtCore.Qt.DropAction.MoveAction)
+        self.main_window.channel_list.setDropIndicatorShown(True)  # 显示拖拽指示器
+        
+        # 添加频道列表拖拽提示
+        self.main_window.channel_drag_hint_label = QtWidgets.QLabel("")
+        self.main_window.channel_drag_hint_label.setStyleSheet(AppStyles.drag_hint_label_style())
+        self.main_window.channel_drag_hint_label.setWordWrap(True)
+        list_layout.addWidget(self.main_window.channel_drag_hint_label)
+        
+        # 设置频道列表拖拽提示文本
+        self.update_channel_drag_hint()
         
         # 添加右键菜单
         self.main_window.channel_list.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
@@ -1480,6 +1490,13 @@ class UIBuilder(QtCore.QObject):
             self.logger.debug(f"扫描重试设置已加载: 启用重试={enable_retry}, 循环扫描={loop_scan}")
         except Exception as e:
             self.logger.error(f"加载扫描重试设置失败: {e}")
+
+    def update_channel_drag_hint(self):
+        """更新频道列表拖拽提示文本"""
+        if hasattr(self.main_window, 'channel_drag_hint_label') and self.main_window.channel_drag_hint_label:
+            if hasattr(self.main_window, 'language_manager') and self.main_window.language_manager:
+                drag_hint_text = self.main_window.language_manager.tr('drag_hint', '💡 Tip: Drag group names to adjust priority order. Insertion position will be shown during dragging.')
+                self.main_window.channel_drag_hint_label.setText(drag_hint_text)
 
     def _show_sort_config(self):
         """显示排序配置对话框"""

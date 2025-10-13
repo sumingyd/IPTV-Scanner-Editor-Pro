@@ -404,6 +404,10 @@ class LanguageManager:
             if hasattr(main_window, 'retry_row_label'):
                 main_window.retry_row_label.setText(self.tr('retry_options', 'Scan Retry Options') + "：")
             
+            # 更新频道列表拖拽提示
+            if hasattr(main_window, 'ui') and hasattr(main_window.ui, 'update_channel_drag_hint'):
+                main_window.ui.update_channel_drag_hint()
+            
             logger.info(f"UI文本已更新到语言: {self.current_language}")
             
         except Exception as e:
