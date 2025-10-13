@@ -2,6 +2,9 @@ from PyQt6 import QtWidgets, QtCore, QtGui
 import time
 import threading
 import os
+import sys
+
+# 核心模块导入
 from channel_model import ChannelListModel
 from ui_builder import UIBuilder
 from config_manager import ConfigManager
@@ -12,9 +15,8 @@ from player_controller import PlayerController
 from list_manager import ListManager
 from url_parser import URLRangeParser
 from language_manager import LanguageManager
-from ui_optimizer import get_ui_optimizer, suspend_updates
+from ui_optimizer import get_ui_optimizer
 from error_handler import init_global_error_handler
-import sys
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -200,13 +202,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.scanner.is_scanning():
             # 停止扫描 - 立即响应
             self.scanner.stop_scan()
-            # 使用语言管理器设置完整扫描按钮文本
-            if hasattr(self, 'language_manager') and self.language_manager:
-                self.ui.main_window.scan_btn.setText(
-                    self.language_manager.tr('full_scan', 'Full Scan')
-                )
-            else:
-                self.ui.main_window.scan_btn.setText("完整扫描")
+            self._set_scan_button_text('full_scan', '完整扫描')
         else:
             # 检查地址是否为空
             url = self.ui.main_window.ip_range_input.text()
@@ -225,13 +221,16 @@ class MainWindow(QtWidgets.QMainWindow):
         timeout = self.ui.main_window.timeout_input.value()
         threads = self.ui.main_window.thread_count_input.value()
         self.scanner.start_scan(url, threads, timeout)
-        # 使用语言管理器设置停止扫描按钮文本
+        self._set_scan_button_text('stop_scan', '停止扫描')
+        
+    def _set_scan_button_text(self, translation_key, default_text):
+        """设置扫描按钮文本（统一处理语言管理器）"""
         if hasattr(self, 'language_manager') and self.language_manager:
             self.ui.main_window.scan_btn.setText(
-                self.language_manager.tr('stop_scan', 'Stop Scan')
+                self.language_manager.tr(translation_key, default_text)
             )
         else:
-            self.ui.main_window.scan_btn.setText("停止扫描")
+            self.ui.main_window.scan_btn.setText(default_text)
 
     def _validate_all_channels(self, timeout: int, threads: int):
         """验证所有频道的有效性"""
@@ -277,8 +276,20 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_pause_clicked(self):
         """处理暂停/播放按钮点击"""
-        is_playing = self.player_controller.toggle_pause()
-        # 使用语言管理器设置暂停/播放按钮文本
+        # 立即更新按钮文本，避免异步延迟
+        current_playing = self.player_controller.is_playing
+        self._set_pause_button_text(not current_playing)
+        
+        # 执行暂停/播放操作
+        self.player_controller.toggle_pause()
+
+    def _on_stop_clicked(self):
+        """处理停止按钮点击"""
+        self.player_controller.stop()
+        self._set_pause_button_text(False)
+        
+    def _set_pause_button_text(self, is_playing):
+        """设置暂停/播放按钮文本（统一处理语言管理器）"""
         if hasattr(self, 'language_manager') and self.language_manager:
             if is_playing:
                 self.ui.main_window.pause_btn.setText(
@@ -291,23 +302,16 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.ui.main_window.pause_btn.setText("暂停" if is_playing else "播放")
 
-    def _on_stop_clicked(self):
-        """处理停止按钮点击"""
-        self.player_controller.stop()
-        # 使用语言管理器设置播放按钮文本
-        if hasattr(self, 'language_manager') and self.language_manager:
-            self.ui.main_window.pause_btn.setText(
-                self.language_manager.tr('play', 'Play')
-            )
-        else:
-            self.ui.main_window.pause_btn.setText("播放")
-
     def _on_play_state_changed(self, is_playing):
         """处理播放状态变化"""
+        # 更新停止按钮状态
         self.ui.main_window.stop_btn.setEnabled(is_playing)
         self.ui.main_window.stop_btn.setStyleSheet(
             AppStyles.button_style(active=is_playing)
         )
+        
+        # 更新暂停/播放按钮文本
+        self._set_pause_button_text(is_playing)
 
     def _open_list(self):
         """打开列表文件"""
