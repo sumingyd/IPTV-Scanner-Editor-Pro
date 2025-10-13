@@ -5,7 +5,7 @@ from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkRepl
 from channel_model import ChannelListModel
 from styles import AppStyles
 from pathlib import Path
-from log_manager import LogManager
+from log_manager import LogManager, global_logger
 from language_manager import LanguageManager
 import functools
 
@@ -16,7 +16,7 @@ class UIBuilder(QtCore.QObject):
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
-        self.logger = LogManager()
+        self.logger = global_logger
         self._ui_initialized = False
         self._model_initialized = False
         # 网络图片管理器
@@ -84,11 +84,12 @@ class UIBuilder(QtCore.QObject):
         self.main_window.progress_indicator.setTextVisible(True)
         self.main_window.progress_indicator.setFixedWidth(120)
         self.main_window.progress_indicator.setStyleSheet(AppStyles.progress_style())
-        self.main_window.progress_indicator.hide()
+        # 初始显示进度条，但设置为0
+        self.main_window.progress_indicator.show()
         status_bar.addPermanentWidget(self.main_window.progress_indicator)
         
         # 添加统计信息标签到状态栏右下角（统一用于扫描和有效性检测）
-        self.main_window.stats_label = QtWidgets.QLabel("")
+        self.main_window.stats_label = QtWidgets.QLabel("就绪")
         self.main_window.stats_label.setStyleSheet("color: #666; padding: 0 5px;")
         status_bar.addPermanentWidget(self.main_window.stats_label)
         
@@ -554,7 +555,6 @@ class UIBuilder(QtCore.QObject):
         # 确保模型存在并正确设置到视图中
         if not hasattr(self.main_window, 'model') or not self.main_window.model:
             self.main_window.model = ChannelListModel()
-            self.main_window.model.update_status_label = self.main_window._update_validate_status
             # 设置语言管理器
             if hasattr(self.main_window, 'language_manager') and self.main_window.language_manager:
                 self.main_window.model.set_language_manager(self.main_window.language_manager)
@@ -592,8 +592,13 @@ class UIBuilder(QtCore.QObject):
         # 监听数据变化重新计算布局和更新按钮状态
         def update_buttons():
             has_channels = self.main_window.model.rowCount() > 0
+            # 播放按钮始终启用（只要有频道）
             self.main_window.pause_btn.setEnabled(has_channels)
             self.main_window.pause_btn.setStyleSheet(AppStyles.button_style(active=has_channels))
+            # 停止按钮根据播放状态启用
+            if hasattr(self.main_window, 'player_controller') and self.main_window.player_controller:
+                self.main_window.stop_btn.setEnabled(self.main_window.player_controller.is_playing)
+                self.main_window.stop_btn.setStyleSheet(AppStyles.button_style(active=self.main_window.player_controller.is_playing))
 
         # 使用批量更新机制
         self.main_window.model.dataChanged.connect(lambda: self._resize_timer.start())

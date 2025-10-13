@@ -5,13 +5,15 @@ import os
 from channel_model import ChannelListModel
 from ui_builder import UIBuilder
 from config_manager import ConfigManager
-from log_manager import LogManager
+from log_manager import LogManager, global_logger
 from scanner_controller import ScannerController
 from styles import AppStyles
 from player_controller import PlayerController
 from list_manager import ListManager
 from url_parser import URLRangeParser
 from language_manager import LanguageManager
+from ui_optimizer import get_ui_optimizer, suspend_updates
+from error_handler import init_global_error_handler
 import sys
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -19,7 +21,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__()
         # 初始化配置和日志管理器
         self.config = ConfigManager()
-        self.logger = LogManager()
+        self.logger = global_logger
         
         # 初始化语言管理器（确保在UI构建前可用）
         self.language_manager = LanguageManager()
@@ -41,15 +43,12 @@ class MainWindow(QtWidgets.QMainWindow):
         # 确保所有定时器在主线程创建
         QtCore.QTimer.singleShot(0, self._init_timers)
         
+        
     def _init_timers(self):
         """在主线程初始化所有定时器"""
-        # 添加UI刷新定时器
-        # refresh_timer = QtCore.QTimer(self)
-        # refresh_timer.timeout.connect(lambda: None)
-        # refresh_timer.start(50)
-        # self._timers.append(refresh_timer)
-        
-        # 添加其他需要的定时器...
+        # 定时器管理器：统一管理所有定时器
+        # 当前暂无需要管理的定时器，保留结构便于扩展
+        pass
         
     def _stop_all_timers(self):
         """安全停止所有定时器"""
@@ -71,6 +70,13 @@ class MainWindow(QtWidgets.QMainWindow):
         # 初始化控制器
         self.init_controllers()
 
+        # 初始化UI优化器和错误处理器
+        self.ui_optimizer = get_ui_optimizer()
+        self.error_handler = init_global_error_handler(self)
+        
+        # 优化频道列表视图性能
+        self.ui_optimizer.optimize_table_view(self.ui.main_window.channel_list)
+
         # UI构建完成后加载配置
         self._load_config()
         
@@ -84,11 +90,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.player_controller = PlayerController(self.ui.main_window.player, self.model)
         self.list_manager = ListManager(self.model)
         
+        # 初始化播放器按钮状态
+        self._on_play_state_changed(self.player_controller.is_playing)
+        
 
-    def _update_validate_status(self, message):
-        """更新有效性检测状态标签（不再使用，保留方法兼容性）"""
-        # 此方法已不再使用，统一使用状态栏的统计标签
-        pass
+    # 废弃方法已移除：_update_validate_status
+    # 功能已迁移到状态栏统计标签
 
     def _load_config(self):
         """加载保存的配置到UI"""
@@ -182,8 +189,11 @@ class MainWindow(QtWidgets.QMainWindow):
         # 扫描完成信号
         self.scanner.scan_completed.connect(self._on_scan_completed)
         
-        # 统计信息更新信号
-        self.scanner.stats_updated.connect(self._update_stats_display)
+        # 统计信息更新信号 - 使用QueuedConnection确保跨线程安全
+        self.logger.debug(f"开始连接统计信息更新信号，扫描器对象: {self.scanner}")
+        self.logger.debug(f"扫描器信号: {self.scanner.stats_updated}")
+        self.scanner.stats_updated.connect(self._update_stats_display, QtCore.Qt.ConnectionType.QueuedConnection)
+        self.logger.debug("统计信息更新信号已连接 (QueuedConnection)")
 
     def _on_scan_clicked(self):
         """处理扫描按钮点击事件 - 使用QTimer避免UI阻塞"""
@@ -461,6 +471,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.main_window.pause_btn.setText("暂停")
             self.current_channel = channel
 
+    @QtCore.pyqtSlot(dict)
     def _on_channel_found(self, channel_info):
         """处理发现有效频道事件"""
         self.ui.main_window.model.add_channel(channel_info)
@@ -486,33 +497,54 @@ class MainWindow(QtWidgets.QMainWindow):
         if hasattr(self.ui.main_window, 'enable_retry_checkbox') and self.ui.main_window.enable_retry_checkbox.isChecked():
             self._start_retry_scan()
 
+    @QtCore.pyqtSlot(dict)
     def _update_stats_display(self, stats_data):
         """更新统计信息显示（统一使用状态栏的统计标签）"""
-        stats = stats_data.get('stats', {})
-        elapsed = time.strftime("%H:%M:%S", time.gmtime(stats.get('elapsed', 0)))
-        
-        # 使用语言管理器翻译统计标签
-        if hasattr(self, 'language_manager') and self.language_manager:
-            total_text = self.language_manager.tr('total_channels', 'Total Channels')
-            valid_text = self.language_manager.tr('valid', 'Valid')
-            invalid_text = self.language_manager.tr('invalid', 'Invalid')
-            time_text = self.language_manager.tr('time_elapsed', 'Time Elapsed')
+        try:
+            # 添加调试日志
+            self.logger.debug(f"收到统计信息更新: {stats_data}")
             
-            # 更新状态栏的统一统计标签
-            self.ui.main_window.stats_label.setText(
-                f"{total_text}: {stats.get('total', 0)} | "
-                f"{valid_text}: {stats.get('valid', 0)} | "
-                f"{invalid_text}: {stats.get('invalid', 0)} | "
-                f"{time_text}: {elapsed}"
-            )
-        else:
-            # 更新状态栏的统一统计标签
-            self.ui.main_window.stats_label.setText(
-                f"总数: {stats.get('total', 0)} | "
-                f"有效: {stats.get('valid', 0)} | "
-                f"无效: {stats.get('invalid', 0)} | "
-                f"耗时: {elapsed}"
-            )
+            # 检查UI对象是否存在
+            if not hasattr(self.ui, 'main_window') or not self.ui.main_window:
+                self.logger.error("UI主窗口对象不存在")
+                return
+                
+            if not hasattr(self.ui.main_window, 'stats_label') or not self.ui.main_window.stats_label:
+                self.logger.error("状态栏统计标签不存在")
+                return
+            
+            # 修复：stats_data现在直接包含stats字典
+            stats = stats_data.get('stats', stats_data)
+            elapsed = time.strftime("%H:%M:%S", time.gmtime(stats.get('elapsed', 0)))
+            
+            # 使用语言管理器翻译统计标签
+            if hasattr(self, 'language_manager') and self.language_manager:
+                total_text = self.language_manager.tr('total_channels', 'Total Channels')
+                valid_text = self.language_manager.tr('valid', 'Valid')
+                invalid_text = self.language_manager.tr('invalid', 'Invalid')
+                time_text = self.language_manager.tr('time_elapsed', 'Time Elapsed')
+                
+                # 更新状态栏的统一统计标签
+                stats_text = (
+                    f"{total_text}: {stats.get('total', 0)} | "
+                    f"{valid_text}: {stats.get('valid', 0)} | "
+                    f"{invalid_text}: {stats.get('invalid', 0)} | "
+                    f"{time_text}: {elapsed}"
+                )
+                self.ui.main_window.stats_label.setText(stats_text)
+                self.logger.debug(f"更新状态栏统计信息: {stats_text}")
+            else:
+                # 更新状态栏的统一统计标签
+                stats_text = (
+                    f"总数: {stats.get('total', 0)} | "
+                    f"有效: {stats.get('valid', 0)} | "
+                    f"无效: {stats.get('invalid', 0)} | "
+                    f"耗时: {elapsed}"
+                )
+                self.ui.main_window.stats_label.setText(stats_text)
+                self.logger.debug(f"更新状态栏统计信息: {stats_text}")
+        except Exception as e:
+            self.logger.error(f"更新统计信息显示失败: {e}", exc_info=True)
 
     def _on_about_clicked(self):
         """处理关于按钮点击事件"""

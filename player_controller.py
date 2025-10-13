@@ -1,7 +1,7 @@
 import sys
 import vlc
 from PyQt6.QtCore import QObject, pyqtSignal
-from log_manager import LogManager
+from log_manager import LogManager, global_logger
 
 class PlayerController(QObject):
     play_error = pyqtSignal(str)
@@ -9,7 +9,7 @@ class PlayerController(QObject):
     
     def __init__(self, video_widget, channel_model=None):
         super().__init__()
-        self.logger = LogManager()
+        self.logger = global_logger
         self.video_widget = video_widget
         self.channel_model = channel_model
         self.instance = None
@@ -45,18 +45,36 @@ class PlayerController(QObject):
             self.play_error.emit(str(e))
 
     def play(self, url, channel_name=""):
-        """播放指定URL的视频"""
+        """播放指定URL的视频 - 使用异步方式避免阻塞UI线程"""
         if not self.player:
             self._init_player()
             
         try:
-            self.player.stop()
-            media = self.instance.media_new(url)
-            self.player.set_media(media)
-            self.player.play()
-            self.is_playing = True
-            self.play_state_changed.emit(True)
-            self.logger.info(f"正在播放: {channel_name}")
+            # 先异步停止当前播放
+            self.stop()
+            
+            # 使用异步方式播放新URL
+            import threading
+            
+            def async_play():
+                try:
+                    media = self.instance.media_new(url)
+                    self.player.set_media(media)
+                    self.player.play()
+                    self.is_playing = True
+                    # 使用QTimer在主线程中安全地发射信号
+                    from PyQt6.QtCore import QTimer
+                    QTimer.singleShot(0, lambda: self.play_state_changed.emit(True))
+                    self.logger.info(f"正在播放: {channel_name}")
+                except Exception as e:
+                    self.logger.error(f"异步播放失败: {e}")
+                    # 使用QTimer在主线程中安全地发射错误信号
+                    QTimer.singleShot(0, lambda: self.play_error.emit(str(e)))
+            
+            # 在后台线程中执行播放操作
+            play_thread = threading.Thread(target=async_play, daemon=True)
+            play_thread.start()
+            
             return True
         except Exception as e:
             self.logger.error(f"播放失败: {e}")
@@ -69,19 +87,54 @@ class PlayerController(QObject):
             self.player.audio_set_volume(volume)
             
     def toggle_pause(self):
-        """切换暂停/播放状态"""
+        """切换暂停/播放状态 - 使用异步方式避免阻塞UI线程"""
         if self.player:
-            self.player.pause()
-            self.is_playing = not self.is_playing
-            return self.is_playing
+            try:
+                # 使用异步方式切换暂停状态
+                import threading
+                
+                def async_pause():
+                    try:
+                        self.player.pause()
+                        self.is_playing = not self.is_playing
+                    except Exception as e:
+                        self.logger.error(f"异步暂停失败: {e}")
+                
+                # 在后台线程中执行暂停操作
+                pause_thread = threading.Thread(target=async_pause, daemon=True)
+                pause_thread.start()
+                
+                return self.is_playing
+            except Exception as e:
+                self.logger.error(f"暂停失败: {e}")
+                return False
         return False
 
     def stop(self):
-        """停止播放"""
+        """停止播放 - 使用异步方式避免阻塞UI线程"""
         if self.player:
-            self.player.stop()
-            self.is_playing = False
-            self.play_state_changed.emit(False)
+            try:
+                # 使用异步方式停止播放，避免阻塞UI线程
+                import threading
+                
+                def async_stop():
+                    try:
+                        self.player.stop()
+                        self.is_playing = False
+                        # 使用QTimer在主线程中安全地发射信号
+                        from PyQt6.QtCore import QTimer
+                        QTimer.singleShot(0, lambda: self.play_state_changed.emit(False))
+                    except Exception as e:
+                        self.logger.error(f"异步停止播放失败: {e}")
+                
+                # 在后台线程中执行停止操作
+                stop_thread = threading.Thread(target=async_stop, daemon=True)
+                stop_thread.start()
+                
+            except Exception as e:
+                self.logger.error(f"停止播放失败: {e}")
+                self.is_playing = False
+                self.play_state_changed.emit(False)
 
     def release(self):
         """释放播放器资源"""

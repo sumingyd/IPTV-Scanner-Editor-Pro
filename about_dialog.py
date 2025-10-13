@@ -7,8 +7,7 @@ import sys
 
 import aiohttp
 
-from log_manager import LogManager
-logger = LogManager()
+from log_manager import global_logger as logger
 
 class AboutDialog(QtWidgets.QDialog):
     # 版本配置

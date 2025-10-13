@@ -6,10 +6,7 @@ import hashlib
 import time
 import threading
 from typing import Dict, List, Optional
-from log_manager import LogManager
-
-# 创建全局日志管理器实例
-logger = LogManager()
+from log_manager import global_logger as logger
 
 # 默认远程URL - 优先使用CSV格式，如果不存在则尝试TXT格式
 DEFAULT_REMOTE_URL = "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/local_channel_mappings.csv"
@@ -137,7 +134,7 @@ class ChannelMappingManager:
     """频道映射管理器，包含本地缓存、频道指纹、智能学习和用户自定义映射功能"""
     
     def __init__(self):
-        self.logger = LogManager()
+        self.logger = logger
         self.cache_file = CACHE_FILE
         self.user_mappings_file = USER_MAPPINGS_FILE
         self.fingerprint_file = CHANNEL_FINGERPRINT_FILE

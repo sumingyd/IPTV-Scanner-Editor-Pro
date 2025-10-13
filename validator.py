@@ -6,7 +6,7 @@ import sys
 import os
 import urllib.parse
 from typing import Dict, Optional
-from log_manager import LogManager
+from log_manager import LogManager, global_logger
 from language_manager import LanguageManager
 
 class StreamValidator:
@@ -14,12 +14,14 @@ class StreamValidator:
     
     _active_processes = []
     _process_lock = threading.Lock()
+    _ffmpeg_path_cache = None
+    _ffprobe_path_cache = None
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
 
     def __init__(self, main_window=None):
-        self.logger = LogManager()
+        self.logger = global_logger
         self._current_process = None
         # 使用主窗口的语言管理器，避免重复加载
         self.main_window = main_window
@@ -44,7 +46,10 @@ class StreamValidator:
 
 
     def _get_ffmpeg_path(self):
-        """获取ffmpeg路径"""
+        """获取ffmpeg路径 - 带缓存版本"""
+        if self._ffmpeg_path_cache is not None:
+            return self._ffmpeg_path_cache
+            
         import os
         import sys
         
@@ -57,12 +62,14 @@ class StreamValidator:
             exe_path = os.path.join(base_path, 'ffmpeg', 'bin', 'ffmpeg.exe')
             tried_paths.append(f"打包路径: {exe_path}")
             if os.path.exists(exe_path):
+                self._ffmpeg_path_cache = exe_path
                 return exe_path
         
         # 2. 尝试从开发环境路径查找
         dev_path = os.path.join(os.path.dirname(__file__), 'ffmpeg', 'bin', 'ffmpeg.exe')
         tried_paths.append(f"开发路径: {dev_path}")
         if os.path.exists(dev_path):
+            self._ffmpeg_path_cache = dev_path
             return dev_path
             
         # 3. 尝试从系统PATH查找
@@ -71,6 +78,7 @@ class StreamValidator:
             path = which('ffmpeg')
             tried_paths.append(f"系统PATH查找")
             if path:
+                self._ffmpeg_path_cache = path
                 return path
         except ImportError:
             tried_paths.append("无法导入shutil.which")
@@ -82,10 +90,14 @@ class StreamValidator:
             "\n".join(tried_paths) +
             "\n将尝试直接调用'ffmpeg'"
         )
+        self._ffmpeg_path_cache = 'ffmpeg'  # 缓存结果
         return 'ffmpeg'  # 最后尝试直接调用
 
     def _get_ffprobe_path(self):
-        """获取ffprobe路径"""
+        """获取ffprobe路径 - 带缓存版本"""
+        if self._ffprobe_path_cache is not None:
+            return self._ffprobe_path_cache
+            
         import os
         import sys
         
@@ -98,12 +110,14 @@ class StreamValidator:
             exe_path = os.path.join(base_path, 'ffmpeg', 'bin', 'ffprobe.exe')
             tried_paths.append(f"打包路径: {exe_path}")
             if os.path.exists(exe_path):
+                self._ffprobe_path_cache = exe_path
                 return exe_path
         
         # 2. 尝试从开发环境路径查找
         dev_path = os.path.join(os.path.dirname(__file__), 'ffmpeg', 'bin', 'ffprobe.exe')
         tried_paths.append(f"开发路径: {dev_path}")
         if os.path.exists(dev_path):
+            self._ffprobe_path_cache = dev_path
             return dev_path
             
         # 3. 尝试从系统PATH查找
@@ -112,6 +126,7 @@ class StreamValidator:
             path = which('ffprobe')
             tried_paths.append(f"系统PATH查找")
             if path:
+                self._ffprobe_path_cache = path
                 return path
         except ImportError:
             tried_paths.append("无法导入shutil.which")
@@ -123,6 +138,7 @@ class StreamValidator:
             "\n".join(tried_paths) +
             "\n将尝试直接调用'ffprobe'"
         )
+        self._ffprobe_path_cache = 'ffprobe'  # 缓存结果
         return 'ffprobe'  # 最后尝试直接调用
 
     def _is_multicast_url(self, url: str) -> bool:

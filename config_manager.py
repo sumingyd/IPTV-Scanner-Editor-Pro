@@ -1,8 +1,7 @@
 import configparser
 import os
 import threading
-from log_manager import LogManager
-logger = LogManager()
+from log_manager import global_logger as logger
 
 class ConfigManager:
     _instance = None

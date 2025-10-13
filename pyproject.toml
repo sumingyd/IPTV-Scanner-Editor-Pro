@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iptv-scanner-editor-pro"
+version = "1.0.0"
+description = "专业的IPTV频道扫描和编辑工具"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "IPTV Scanner Editor Pro Team", email = "support@example.com"}
+]
+keywords = ["iptv", "scanner", "editor", "streaming", "m3u"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Utilities",
+]
+
+dependencies = [
+    "PyQt6>=6.4.0",
+    "requests>=2.28.0",
+    "urllib3>=1.26.0",
+    "python-vlc>=3.0.0",
+    "Pillow>=9.0.0",
+    "configparser>=5.3.0",
+    "typing-extensions>=4.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=22.0.0",
+    "flake8>=5.0.0",
+    "mypy>=0.991",
+    "pytest>=7.2.0",
+    "pytest-qt>=4.2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/sumingyd/IPTV-Scanner-Editor-Pro"
+Repository = "https://github.com/sumingyd/IPTV-Scanner-Editor-Pro"
+"Issue Tracker" = "https://github.com/sumingyd/IPTV-Scanner-Editor-Pro/issues"
+
+[project.scripts]
+iptv-scanner = "main:main"
+
+[tool.setuptools_scm]
+write_to = "_version.py"
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "build/*",
+    "dist/*",
+    "*.pyc",
+]
