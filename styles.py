@@ -222,3 +222,60 @@ class AppStyles:
             return QtGui.QColor('#2a2a2a')  # 深灰色
         else:
             return QtGui.QColor('#f8f8f8')  # 浅灰色
+
+    @staticmethod
+    def drag_list_style() -> str:
+        """拖拽列表样式"""
+        return """
+            QListWidget {
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                padding: 2px;
+                background-color: white;
+            }
+            QListWidget::item {
+                border: 1px solid transparent;
+                border-radius: 3px;
+                padding: 6px 8px;
+                margin: 1px;
+                background-color: #f8f9fa;
+            }
+            QListWidget::item:hover {
+                background-color: #e9ecef;
+                border: 1px solid #dee2e6;
+            }
+            QListWidget::item:selected {
+                background-color: #007bff;
+                color: white;
+                border: 1px solid #0056b3;
+            }
+            QListWidget::item:selected:hover {
+                background-color: #0056b3;
+            }
+        """
+
+    @staticmethod
+    def drag_hint_label_style() -> str:
+        """拖拽提示标签样式"""
+        return """
+            QLabel {
+                color: #007bff;
+                font-size: 11px;
+                padding: 5px;
+                background-color: #e7f3ff;
+                border-radius: 4px;
+            }
+        """
+
+    @staticmethod
+    def group_hint_label_style() -> str:
+        """分组提示标签样式"""
+        return """
+            QLabel {
+                color: #666;
+                font-size: 11px;
+                padding: 5px;
+                background-color: #f5f5f5;
+                border-radius: 4px;
+            }
+        """
