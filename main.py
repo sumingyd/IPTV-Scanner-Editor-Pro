@@ -54,13 +54,14 @@ class MainWindow(QtWidgets.QMainWindow):
         
     def _stop_all_timers(self):
         """安全停止所有定时器"""
-        for timer in self._timers:
-            if timer.isActive():
-                if QtCore.QThread.currentThread() == timer.thread():
-                    timer.stop()
-                else:
-                    QtCore.QMetaObject.invokeMethod(timer, "stop", QtCore.Qt.ConnectionType.QueuedConnection)
-        self._timers.clear()
+        if hasattr(self, '_timers'):
+            for timer in self._timers:
+                if timer.isActive():
+                    if QtCore.QThread.currentThread() == timer.thread():
+                        timer.stop()
+                    else:
+                        QtCore.QMetaObject.invokeMethod(timer, "stop", QtCore.Qt.ConnectionType.QueuedConnection)
+            self._timers.clear()
         
         # 使用UI构建器中已经创建的模型，避免重复设置
         # 模型已经在ui_builder.py的_setup_channel_list方法中正确设置

@@ -370,9 +370,9 @@ class AboutDialog(QtWidgets.QDialog):
         
         try:
             await asyncio.sleep(0.5)
-            latest_version, publish_date = await self._get_latest_version()
-            text_label = self.findChild(QtWidgets.QLabel, "aboutTextLabel")
-            self._update_version_text(text_label, version=latest_version, date=publish_date)
+            latest_version, publish_date, _ = await self._get_latest_version()
+            text_browser = self.findChild(QtWidgets.QTextBrowser, "aboutTextBrowser")
+            self._update_version_text(text_browser, version=latest_version, date=publish_date)
         except Exception as e:
             logger.error(f"手动检查更新失败: {str(e)}")
             self._show_version_error("(检查失败)")
