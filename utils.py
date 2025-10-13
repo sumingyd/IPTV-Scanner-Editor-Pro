@@ -24,48 +24,6 @@ def get_resource_path(relative_path: str) -> str:
     
     return os.path.join(base_path, relative_path)
 
-def setup_logger(name: str, log_file: str = 'app.log', level=logging.DEBUG) -> logging.Logger:
-    """设置日志记录器
-    
-    Args:
-        name: 日志记录器名称
-        log_file: 日志文件路径
-        level: 日志级别
-        
-    Returns:
-        配置好的日志记录器
-    """
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-    
-    # 避免重复添加handler
-    if not logger.handlers:
-        # 创建文件handler
-        file_handler = logging.FileHandler(
-            get_resource_path(log_file), 
-            encoding='utf-8', 
-            mode='a'
-        )
-        file_handler.setLevel(level)
-        
-        # 创建控制台handler
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.WARNING)
-        
-        # 设置日志格式
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
-        )
-        file_handler.setFormatter(formatter)
-        console_handler.setFormatter(formatter)
-        
-        # 添加handler
-        logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
-    
-    return logger
-
 def safe_execute(func, default_return=None, *args, **kwargs):
     """安全执行函数，捕获异常并返回默认值
     
@@ -80,7 +38,7 @@ def safe_execute(func, default_return=None, *args, **kwargs):
     try:
         return func(*args, **kwargs)
     except Exception as e:
-        logger = setup_logger('utils')
+        logger = logging.getLogger('utils')
         logger.error(f"函数 {func.__name__} 执行失败: {e}")
         return default_return
 
@@ -100,7 +58,7 @@ def exception_handler(logger_name: str = 'default', default_return=None):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                logger = setup_logger(logger_name)
+                logger = logging.getLogger(logger_name)
                 logger.error(f"函数 {func.__name__} 执行失败: {e}", exc_info=True)
                 return default_return
         return wrapper
@@ -122,7 +80,7 @@ def ui_exception_handler(logger_name: str = 'ui', show_message: bool = True):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                logger = setup_logger(logger_name)
+                logger = logging.getLogger(logger_name)
                 logger.error(f"UI操作 {func.__name__} 执行失败: {e}", exc_info=True)
                 
                 # 如果函数有self参数且show_message为True，尝试显示错误消息

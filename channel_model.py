@@ -900,6 +900,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
     def load_from_file(self, content: str) -> bool:
         """从文件内容加载频道列表"""
         try:
+            # 使用线程安全的模型重置
             self.beginResetModel()
             self.channels = []
             self._name_cache = set()
@@ -907,24 +908,32 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             
             channels = self.parse_file_content(content)
             if channels is None:
+                self.endResetModel()
                 return False
                 
             self.channels = channels
             self._name_cache = set(c['name'] for c in channels if 'name' in c)
             self._group_cache = set(c['group'] for c in channels if 'group' in c)
             
-            # 通知UI更新状态标签
-            if hasattr(self, 'update_status_label'):
-                self.update_status_label("请点击检测有效性按钮")
+            # 通知UI更新状态标签 - 使用QTimer确保在主线程执行
+            if hasattr(self, 'update_status_label') and self.update_status_label:
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(0, lambda: self.update_status_label("请点击检测有效性按钮"))
             
             self.endResetModel()
             
-            # 数据加载完成后调整列宽
+            # 数据加载完成后调整列宽 - 使用QTimer确保在主线程执行
             view = self.parent()
             if view and hasattr(view, 'resizeColumnsToContents'):
-                view.resizeColumnsToContents()
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(0, view.resizeColumnsToContents)
                 
             return True
         except Exception as e:
             logger.error(f"频道模型-加载频道列表失败: {str(e)}", exc_info=True)
+            # 确保在异常情况下也调用endResetModel
+            try:
+                self.endResetModel()
+            except:
+                pass
             return False

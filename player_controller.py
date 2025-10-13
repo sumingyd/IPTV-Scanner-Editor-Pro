@@ -97,6 +97,9 @@ class PlayerController(QObject):
                     try:
                         self.player.pause()
                         self.is_playing = not self.is_playing
+                        # 使用QTimer在主线程中安全地发射状态变化信号
+                        from PyQt6.QtCore import QTimer
+                        QTimer.singleShot(0, lambda: self.play_state_changed.emit(self.is_playing))
                     except Exception as e:
                         self.logger.error(f"异步暂停失败: {e}")
                 
