@@ -82,7 +82,7 @@ class StreamValidator:
                 return path
         except ImportError:
             tried_paths.append("无法导入shutil.which")
-            pass
+            self.logger.debug("shutil.which导入失败，使用备用方案")
             
         # 记录所有尝试过的路径
         self.logger.warning(
@@ -130,7 +130,7 @@ class StreamValidator:
                 return path
         except ImportError:
             tried_paths.append("无法导入shutil.which")
-            pass
+            self.logger.debug("shutil.which导入失败，使用备用方案")
             
         # 记录所有尝试过的路径
         self.logger.warning(

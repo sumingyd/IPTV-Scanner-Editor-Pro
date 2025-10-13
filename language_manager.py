@@ -149,6 +149,7 @@ class LanguageManager:
                 'en': {
                     'language_name': 'English',
                     'app_title': 'IPTV Scanner Editor Pro',
+                    'app_title_zh': 'IPTV 专业扫描编辑工具',
                     'video_playback': 'Video Playback',
                     'play': 'Play',
                     'pause': 'Pause',

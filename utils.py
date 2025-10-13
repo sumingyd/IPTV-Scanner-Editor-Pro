@@ -89,8 +89,8 @@ def ui_exception_handler(logger_name: str = 'ui', show_message: bool = True):
                         main_window = args[0].ui.main_window if hasattr(args[0].ui, 'main_window') else args[0]
                         if hasattr(main_window, 'statusBar'):
                             main_window.statusBar().showMessage(f"操作失败: {str(e)}", 3000)
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"显示状态栏消息失败: {e}")
                 return None
         return wrapper
     return decorator
