@@ -5,8 +5,8 @@ IPTV Scanner Editor Pro Logo Generator
 """
 
 import os
+import math
 from PIL import Image, ImageDraw, ImageFont
-import numpy as np
 
 def create_logo():
     """创建程序logo"""
@@ -45,11 +45,11 @@ def create_logo():
     
     # 扫描线
     for angle in range(0, 360, 30):
-        rad = np.radians(angle)
-        x1 = center[0] + 120 * np.cos(rad)
-        y1 = center[1] + 120 * np.sin(rad)
-        x2 = center[0] + 180 * np.cos(rad)
-        y2 = center[1] + 180 * np.sin(rad)
+        rad = math.radians(angle)
+        x1 = center[0] + 120 * math.cos(rad)
+        y1 = center[1] + 120 * math.sin(rad)
+        x2 = center[0] + 180 * math.cos(rad)
+        y2 = center[1] + 180 * math.sin(rad)
         draw.line([x1, y1, x2, y2], fill=accent_color, width=3)
     
     # 中心点

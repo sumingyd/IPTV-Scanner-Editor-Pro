@@ -1,12 +1,12 @@
 import re
 from typing import List, Tuple, Generator
-from log_manager import LogManager
+from log_manager import LogManager, global_logger
 
 class URLRangeParser:
     """处理带范围的URL地址解析"""
     
     def __init__(self):
-        self.logger = LogManager()
+        self.logger = global_logger
         # 增强版正则，支持复杂路径中的范围表达式，排除IPv6地址
         # 匹配格式: [数字-数字]，但不匹配IPv6地址中的方括号
         self.range_pattern = re.compile(r'\[(\d+)-(\d+)\]')

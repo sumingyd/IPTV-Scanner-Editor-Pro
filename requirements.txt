@@ -1,8 +1,30 @@
-aiohttp==3.11.14
-lxml==5.3.1
-openpyxl==3.1.2
-PyQt6==6.8.1
-PyQt6_sip==13.10.0
-python_vlc==3.0.21203
-qasync==0.27.1
-Requests==2.32.3
+# IPTV Scanner Editor Pro 依赖声明
+# 使用 pip install -r requirements.txt 安装所有依赖
+
+# 核心GUI框架
+PyQt6>=6.4.0
+
+# 网络请求和流媒体处理
+requests>=2.28.0
+urllib3>=1.26.0
+
+# 多媒体处理
+python-vlc>=3.0.0
+
+# 图像处理
+Pillow>=9.0.0
+
+# 配置管理
+configparser>=5.3.0
+
+# 异步处理
+asyncio>=3.4.3
+
+# 类型提示支持
+typing-extensions>=4.4.0
+
+# 开发工具（可选）
+# black>=22.0.0
+# flake8>=5.0.0
+# mypy>=0.991
+# pytest>=7.2.0

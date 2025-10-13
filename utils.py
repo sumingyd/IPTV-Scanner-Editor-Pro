@@ -3,7 +3,8 @@
 import os
 import sys
 import logging
-from typing import Optional
+from typing import Optional, Callable, Any
+from functools import wraps
 
 def get_resource_path(relative_path: str) -> str:
     """获取资源文件的绝对路径
@@ -82,6 +83,59 @@ def safe_execute(func, default_return=None, *args, **kwargs):
         logger = setup_logger('utils')
         logger.error(f"函数 {func.__name__} 执行失败: {e}")
         return default_return
+
+def exception_handler(logger_name: str = 'default', default_return=None):
+    """异常处理装饰器，减少重复的try/except代码
+    
+    Args:
+        logger_name: 日志记录器名称
+        default_return: 异常时的默认返回值
+        
+    Returns:
+        装饰器函数
+    """
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                logger = setup_logger(logger_name)
+                logger.error(f"函数 {func.__name__} 执行失败: {e}", exc_info=True)
+                return default_return
+        return wrapper
+    return decorator
+
+def ui_exception_handler(logger_name: str = 'ui', show_message: bool = True):
+    """UI异常处理装饰器，专门用于UI操作
+    
+    Args:
+        logger_name: 日志记录器名称
+        show_message: 是否显示错误消息
+        
+    Returns:
+        装饰器函数
+    """
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                logger = setup_logger(logger_name)
+                logger.error(f"UI操作 {func.__name__} 执行失败: {e}", exc_info=True)
+                
+                # 如果函数有self参数且show_message为True，尝试显示错误消息
+                if show_message and args and hasattr(args[0], 'ui'):
+                    try:
+                        main_window = args[0].ui.main_window if hasattr(args[0].ui, 'main_window') else args[0]
+                        if hasattr(main_window, 'statusBar'):
+                            main_window.statusBar().showMessage(f"操作失败: {str(e)}", 3000)
+                    except:
+                        pass
+                return None
+        return wrapper
+    return decorator
 
 def is_valid_url(url: str) -> bool:
     """检查URL是否有效

@@ -234,69 +234,35 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         return {}
 
     def add_channel(self, channel_info: Dict[str, Any]):
-        """添加频道到模型"""
-        if isinstance(channel_info, dict) and channel_info.get('batch') and channel_info.get('channels'):
-            # 批量添加模式
-            channels = channel_info['channels']
-            if not channels:
-                return
+        """添加频道到模型 - 简化版本，只处理单个频道"""
+        # 检查是否已存在相同URL的频道
+        existing_index = -1
+        for i, channel in enumerate(self.channels):
+            if channel.get('url') == channel_info.get('url'):
+                existing_index = i
+                break
                 
-            # 批量处理所有频道
-            self.beginInsertRows(QtCore.QModelIndex(), len(self.channels), len(self.channels) + len(channels) - 1)
-            for channel in channels:
-                # 检查是否已存在相同URL的频道
-                existing_index = -1
-                for i, c in enumerate(self.channels):
-                    if c.get('url') == channel.get('url'):
-                        existing_index = i
-                        break
-                        
-                if existing_index >= 0:
-                    # 更新现有频道
-                    self.channels[existing_index].update(channel)
-                    # 更新名称和分组缓存
-                    if 'name' in channel:
-                        self._name_cache.add(channel['name'])
-                    if 'group' in channel:
-                        self._group_cache.add(channel['group'])
-                else:
-                    # 添加新频道
-                    self.channels.append(channel)
-                    # 更新名称和分组缓存
-                    if 'name' in channel:
-                        self._name_cache.add(channel['name'])
-                    if 'group' in channel:
-                        self._group_cache.add(channel['group'])
-            self.endInsertRows()
+        if existing_index >= 0:
+            # 更新现有频道信息
+            self.channels[existing_index].update(channel_info)
+            # 通知视图更新
+            index = self.index(existing_index, 0)
+            self.dataChanged.emit(index, index)
+            # 更新名称和分组缓存
+            if 'name' in channel_info:
+                self._name_cache.add(channel_info['name'])
+            if 'group' in channel_info:
+                self._group_cache.add(channel_info['group'])
         else:
-            # 单个添加模式
-            existing_index = -1
-            for i, channel in enumerate(self.channels):
-                if channel.get('url') == channel_info.get('url'):
-                    existing_index = i
-                    break
-                    
-            if existing_index >= 0:
-                # 更新现有频道信息
-                self.channels[existing_index].update(channel_info)
-                # 通知视图更新
-                index = self.index(existing_index, 0)
-                self.dataChanged.emit(index, index)
-                # 更新名称和分组缓存
-                if 'name' in channel_info:
-                    self._name_cache.add(channel_info['name'])
-                if 'group' in channel_info:
-                    self._group_cache.add(channel_info['group'])
-            else:
-                # 添加新频道
-                self.beginInsertRows(QtCore.QModelIndex(), len(self.channels), len(self.channels))
-                self.channels.append(channel_info)
-                # 更新名称和分组缓存
-                if 'name' in channel_info:
-                    self._name_cache.add(channel_info['name'])
-                if 'group' in channel_info:
-                    self._group_cache.add(channel_info['group'])
-                self.endInsertRows()
+            # 添加新频道
+            self.beginInsertRows(QtCore.QModelIndex(), len(self.channels), len(self.channels))
+            self.channels.append(channel_info)
+            # 更新名称和分组缓存
+            if 'name' in channel_info:
+                self._name_cache.add(channel_info['name'])
+            if 'group' in channel_info:
+                self._group_cache.add(channel_info['group'])
+            self.endInsertRows()
 
     def hide_invalid(self):
         """隐藏无效频道"""
@@ -491,6 +457,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             if channel.get('url') == url:
                 self.channels[i]['valid'] = valid
                 self.channels[i]['status'] = '有效' if valid else '无效'
+                
+                # 通知视图更新特定行
+                top_left = self.index(i, 0)
+                bottom_right = self.index(i, self.columnCount() - 1)
+                self.dataChanged.emit(top_left, bottom_right, [QtCore.Qt.ItemDataRole.DisplayRole, QtCore.Qt.ItemDataRole.BackgroundRole, QtCore.Qt.ItemDataRole.ForegroundRole])
                 return True
         return False
 
