@@ -931,18 +931,32 @@ def main():
         }}
     """)
 
-    window = MainWindow()
-    loading_screen = LoadingScreen(window)
+    # 第一步：立即显示启动动画
+    loading_screen = LoadingScreen()
     loading_screen.show()
-    app.processEvents()
-
-    def fake_progress():
+    app.processEvents()  # 强制立即显示启动动画
+    
+    # 第二步：创建主窗口对象
+    window = None
+    try:
+        # 创建主窗口对象（这会执行一些初始化）
+        window = MainWindow()
+        window.hide()  # 确保主窗口隐藏
+        loading_screen.main_window = window  # 设置主窗口引用
+    except Exception as e:
+        print(f"[错误] 创建主窗口失败: {e}")
+        # 如果创建失败，直接退出
+        app.quit()
+        sys.exit(1)
+    
+    # 第三步：启动进度条动画和后台初始化
+    def start_progress_animation():
+        """启动进度条动画"""
         val = 0
         while val < 100:
             val += 1
-            time.sleep(0.3)  # 进一步减慢进度条速度
+            time.sleep(0.02)  # 加快进度条速度，减少等待时间
             try:
-                # 检查对象是否仍然存在
                 if hasattr(loading_screen, 'progress') and loading_screen.progress is not None:
                     QtCore.QMetaObject.invokeMethod(
                         loading_screen.progress, "setValue",
@@ -952,11 +966,10 @@ def main():
                 else:
                     break
             except RuntimeError:
-                # 如果进度条已被删除，则退出循环
                 break
-        # 进度条完成后才触发UI初始化
+        
+        # 进度条完成后触发UI初始化
         try:
-            # 检查对象是否仍然存在
             if hasattr(loading_screen, 'start_ui_init') and loading_screen is not None:
                 QtCore.QMetaObject.invokeMethod(
                     loading_screen, "start_ui_init",
@@ -969,13 +982,10 @@ def main():
                         window, "show",
                         QtCore.Qt.ConnectionType.QueuedConnection)
             except RuntimeError:
-                pass  # 如果窗口也被删除了，就什么都不做
+                pass
 
-    threading.Thread(target=fake_progress, daemon=True).start()
-
-    # window已在前面创建
-    window.hide()
-    app.processEvents()
+    # 启动进度条动画
+    threading.Thread(target=start_progress_animation, daemon=True).start()
 
     class BackgroundWorker(QtCore.QObject):
         finished = QtCore.pyqtSignal()
