@@ -3,11 +3,16 @@ import os
 import glob
 from pathlib import Path
 from log_manager import LogManager
+from PyQt6.QtCore import QObject, pyqtSignal
 
 logger = LogManager()
 
-class LanguageManager:
+class LanguageManager(QObject):
+    # 定义语言切换信号
+    language_changed = pyqtSignal()
+    
     def __init__(self, locales_dir='locales'):
+        super().__init__()
         self.locales_dir = locales_dir
         self.current_language = 'zh'  # 默认中文
         self.translations = {}
@@ -144,7 +149,42 @@ class LanguageManager:
                     'serial_number': '序号',
                     'resolution': '分辨率',
                     'status': '状态',
-                    'latency_ms': '延迟(ms)'
+                    'latency_ms': '延迟(ms)',
+                    'about_dialog_title': '关于 IPTV Scanner Editor Pro',
+                    'current_version': '当前版本',
+                    'latest_version': '最新版本',
+                    'build_date': '编译日期',
+                    'qt_version': 'QT版本',
+                    'close_button': '关闭',
+                    'checking_update': '检测中...',
+                    'update_timeout': '请求超时',
+                    'update_failed': '获取失败',
+                    'api_limit': 'API限制',
+                    'update_progress_title': '在线更新',
+                    'update_checking': '正在检查更新...',
+                    'update_downloading': '正在下载更新...',
+                    'update_complete': '更新下载完成，请重启应用',
+                    'update_error': '更新失败',
+                    'network_error': '网络错误',
+                    'feature_intro': '主要功能说明',
+                    'smart_scan': '智能频道扫描',
+                    'advanced_validation': '高级流验证',
+                    'intelligent_management': '智能频道管理',
+                    'integrated_playback': '集成视频播放',
+                    'advanced_config': '高级配置管理',
+                    'professional_tools': '专业工具集成',
+                    'usage_method': '使用方法',
+                    'scan_usage': '在扫描设置中输入地址格式，点击"完整扫描"开始',
+                    'validation_usage': '打开播放列表后点击"检测有效性"按钮',
+                    'management_usage': '右键频道列表或拖拽调整顺序',
+                    'playback_usage': '双击频道列表中的任意频道',
+                    'config_usage': '所有设置自动保存，无需手动操作',
+                    'tools_usage': '通过工具栏访问各专业工具',
+                    'cancel_button': '取消',
+                    'update_complete': '更新下载完成，请重启应用',
+                    'update_error': '更新错误',
+                    'update_failed': '更新失败',
+                    'update_success': '更新完成'
                 },
                 'en': {
                     'language_name': 'English',
@@ -197,7 +237,37 @@ class LanguageManager:
                     'serial_number': 'No.',
                     'resolution': 'Resolution',
                     'status': 'Status',
-                    'latency_ms': 'Latency(ms)'
+                    'latency_ms': 'Latency(ms)',
+                    'about_dialog_title': 'About IPTV Scanner Editor Pro',
+                    'current_version': 'Current Version',
+                    'latest_version': 'Latest Version',
+                    'build_date': 'Build Date',
+                    'qt_version': 'QT Version',
+                    'close_button': 'Close',
+                    'checking_update': 'Checking...',
+                    'update_timeout': 'Request Timeout',
+                    'update_failed': 'Failed to Fetch',
+                    'api_limit': 'API Limit',
+                    'update_progress_title': 'Online Update',
+                    'update_checking': 'Checking for updates...',
+                    'update_downloading': 'Downloading update...',
+                    'update_complete': 'Update downloaded, please restart the application',
+                    'update_error': 'Update Failed',
+                    'network_error': 'Network Error',
+                    'feature_intro': 'Main Features',
+                    'smart_scan': 'Smart Channel Scanning',
+                    'advanced_validation': 'Advanced Stream Validation',
+                    'intelligent_management': 'Intelligent Channel Management',
+                    'integrated_playback': 'Integrated Video Playback',
+                    'advanced_config': 'Advanced Configuration Management',
+                    'professional_tools': 'Professional Tools Integration',
+                    'usage_method': 'Usage Method',
+                    'scan_usage': 'Enter address format in scan settings, click "Full Scan" to start',
+                    'validation_usage': 'Open playlist and click "Validate Effectiveness" button',
+                    'management_usage': 'Right-click channel list or drag to adjust order',
+                    'playback_usage': 'Double-click any channel in the channel list',
+                    'config_usage': 'All settings are automatically saved, no manual operation required',
+                    'tools_usage': 'Access professional tools through the toolbar'
                 }
             }
             
@@ -217,6 +287,8 @@ class LanguageManager:
         if lang_code in self.available_languages:
             self.current_language = lang_code
             self.translations = self.available_languages[lang_code]['data']
+            # 发出语言切换信号
+            self.language_changed.emit()
             return True
         else:
             logger.warning(f"语言 {lang_code} 不可用")
@@ -409,7 +481,23 @@ class LanguageManager:
             if hasattr(main_window, 'ui') and hasattr(main_window.ui, 'update_channel_drag_hint'):
                 main_window.ui.update_channel_drag_hint()
             
+            # 更新所有打开的关于对话框
+            self._update_about_dialogs(main_window)
+            
             logger.info(f"UI文本已更新到语言: {self.current_language}")
             
         except Exception as e:
             logger.error(f"更新UI文本失败: {str(e)}")
+    
+    def _update_about_dialogs(self, main_window):
+        """更新所有打开的关于对话框"""
+        try:
+            # 导入QtWidgets模块
+            from PyQt6 import QtWidgets
+            
+            # 查找所有打开的关于对话框
+            for widget in main_window.findChildren(QtWidgets.QDialog):
+                if hasattr(widget, 'update_ui_texts'):
+                    widget.update_ui_texts()
+        except Exception as e:
+            logger.debug(f"更新关于对话框失败: {e}")

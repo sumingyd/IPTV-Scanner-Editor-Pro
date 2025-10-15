@@ -11,14 +11,14 @@ from log_manager import global_logger as logger
 
 class AboutDialog(QtWidgets.QDialog):
     # 版本配置
-    CURRENT_VERSION = "26.0.0.0"  # 当前版本号(手动修改这里)
+    CURRENT_VERSION = "27.0.0.0"  # 当前版本号(手动修改这里)
     DEFAULT_VERSION = None  # 将从GitHub获取最新版本
     BUILD_DATE = "2025-10-04"  # 更新为当前日期
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.current_version = self.CURRENT_VERSION
-        self.setWindowTitle("关于 IPTV Scanner Editor Pro")
+        # 关于窗口使用硬编码中文，不进行语言切换
         self._init_ui()
 
     # 样式常量
@@ -83,6 +83,9 @@ class AboutDialog(QtWidgets.QDialog):
             }}
         """)
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.WindowStaysOnTopHint)
+        
+        # 设置窗口标题
+        self.setWindowTitle("关于 IPTV Scanner Editor Pro")
 
     def _get_about_html(self, theme):
         """生成关于对话框的HTML内容"""
@@ -113,36 +116,50 @@ class AboutDialog(QtWidgets.QDialog):
                 主要功能说明
             </h3>
             <ul style="margin-left: 20px; line-height: 1.6; padding-left: 5px;">
-                <li><b>频道扫描</b>：
+                <li><b>智能频道扫描</b>：
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
                         <li>设定范围地址进行扫描(如239.1.1.[1-255]:5002)，列出范围内有效频道</li>
                         <li>支持单播、组播、流链接，支持包含多个范围的地址</li>
                         <li>支持自定义扫描超时时间和线程数</li>
+                        <li><i>在扫描设置中输入地址格式，点击"完整扫描"开始</i></li>
                     </ul>
                 </li>
-                <li><b>有效性检测</b>：
+                <li><b>高级流验证</b>：
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
                         <li>打开一个下载的播放列表，批量检测频道有效性</li>
+                        <li><i>打开播放列表后点击"检测有效性"按钮</i></li>
                     </ul>
                 </li>
-                <li><b>频道管理</b>：
+                <li><b>智能频道管理</b>：
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
                         <li>支持拖拽调整频道顺序</li>
                         <li>支持右键删除选定频道、复制频道名及URL</li>
                         <li>频道会尝试获取频道名并通过映射文件匹配频道名、LOGO、分组</li>
                         <li>频道名的映射文件在仓库，可以直接去仓库提交修改</li>
                         <li>频道的logo可以直接在仓库提交上传到logo文件夹</li>
+                        <li><i>右键频道列表或拖拽调整顺序</i></li>
                     </ul>
                 </li>
-                <li><b>视频播放</b>：
+                <li><b>集成视频播放</b>：
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
                         <li>双击频道列表可直接播放当前频道</li>
+                        <li><i>双击频道列表中的任意频道</i></li>
                     </ul>
                 </li>
-                <li><b>配置管理</b>：
+                <li><b>高级配置管理</b>：
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
                         <li>配置文件(config.ini)自动保存在程序目录</li>
                         <li>日志文件(app.log)自动轮转，最大5MB保留3个</li>
+                        <li><i>所有设置自动保存，无需手动操作</i></li>
+                    </ul>
+                </li>
+                <li><b>专业工具集成</b>：
+                    <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
+                        <li>URL解析器，支持复杂地址格式</li>
+                        <li>频道映射管理器，可视化编辑映射规则</li>
+                        <li>错误处理系统，智能恢复和错误报告</li>
+                        <li>性能优化，支持大规模频道列表处理</li>
+                        <li><i>通过工具栏访问各专业工具</i></li>
                     </ul>
                 </li>
             </ul>
@@ -152,8 +169,7 @@ class AboutDialog(QtWidgets.QDialog):
                 <p>
                     <a href="https://github.com/sumingyd/IPTV-Scanner-Editor-Pro" 
                        style="color: {self.ACCENT_COLOR}; text-decoration: none;">GitHub 仓库</a> 
-                    | <a href="javascript:void(0)" style="color: {self.ACCENT_COLOR}; text-decoration: none;" 
-                       onclick="window.pywebview.api.handle_update_click()">在线更新</a>
+                    | <a href="update://check" style="color: {self.ACCENT_COLOR}; text-decoration: none;">在线更新</a>
                 </p>
                 <p style="font-size: 0.8em; margin-top: 10px;">
                     系统信息: Python {sys.version.split()[0]}, {platform.system()} {platform.release()}
@@ -178,7 +194,7 @@ class AboutDialog(QtWidgets.QDialog):
             original_html = self._get_about_html(self.DARK_THEME if self.palette().window().color().lightness() < 128 else self.LIGHT_THEME)
             initial_html = original_html.replace(
                 '<span id="latestVersion"></span>', 
-                '<span id="latestVersion">检测中...</span>'
+                f'<span id="latestVersion">检测中...</span>'
             )
             text_browser.setHtml(initial_html)
             
@@ -242,42 +258,70 @@ class AboutDialog(QtWidgets.QDialog):
 
     def _on_link_activated(self, link):
         """处理链接点击事件"""
-        if link == "javascript:void(0)":
-            try:
-                # 确保有事件循环
-                loop = asyncio.get_event_loop()
-                if loop.is_closed():
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
+        link_str = link.toString()
+        
+        if link_str == "update://check":
+            # 在后台线程中执行更新操作，避免阻塞UI
+            self._start_update_in_background()
                 
-                # 显示点击反馈
-                QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
-                QtWidgets.QApplication.processEvents()
-                
-                # 启动更新任务
-                task = loop.create_task(self._perform_online_update())
-                loop.run_until_complete(task)
-                
-            except Exception as e:
-                logger.error(f"关于对话框-更新按钮点击处理失败: {str(e)}", exc_info=True)
-                QtWidgets.QMessageBox.critical(
-                    self,
-                    "更新错误",
-                    f"无法启动更新流程: {str(e)}"
-                )
-            finally:
-                QtWidgets.QApplication.restoreOverrideCursor()
-                QtWidgets.QApplication.processEvents()
-                
-        elif link.toString().startswith("http"):
+        elif link_str.startswith("http"):
             QtGui.QDesktopServices.openUrl(QtCore.QUrl(link))
+            
+    def _start_update_in_background(self):
+        """在后台线程中启动更新流程"""
+        try:
+            # 显示点击反馈
+            QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
+            QtWidgets.QApplication.processEvents()
+            
+            # 创建并启动后台线程
+            self._update_thread = UpdateThread(self)
+            self._update_thread.update_finished.connect(self._on_update_finished)
+            self._update_thread.update_error.connect(self._on_update_error)
+            self._update_thread.start()
+            
+        except Exception as e:
+            logger.error(f"启动更新线程失败: {str(e)}", exc_info=True)
+            QtWidgets.QApplication.restoreOverrideCursor()
+            QtWidgets.QMessageBox.critical(
+                self,
+                "更新错误",
+                f"无法启动更新流程: {str(e)}"
+            )
+            
+    def _on_update_finished(self, success, message):
+        """更新完成处理"""
+        QtWidgets.QApplication.restoreOverrideCursor()
+        if success:
+            QtWidgets.QMessageBox.information(
+                self,
+                "更新完成",
+                message
+            )
+        else:
+            QtWidgets.QMessageBox.critical(
+                self,
+                "更新失败",
+                message
+            )
+            
+    def _on_update_error(self, error_message):
+        """更新错误处理"""
+        QtWidgets.QApplication.restoreOverrideCursor()
+        QtWidgets.QMessageBox.critical(
+            self,
+            "更新错误",
+            error_message
+        )
 
     async def _perform_online_update(self):
         """执行在线更新"""
         max_retries = 3
         retry_delay = 1  # 秒
         
-        progress = QtWidgets.QProgressDialog("正在检查更新...", "取消", 0, 0, self)
+        progress = QtWidgets.QProgressDialog(
+            "正在检查更新...", 
+            "取消", 0, 0, self)
         progress.setWindowTitle("在线更新")
         progress.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
         progress.setCancelButton(None)
@@ -288,14 +332,14 @@ class AboutDialog(QtWidgets.QDialog):
         for attempt in range(max_retries):
             try:
                 # 1. 获取最新版本信息
-                progress.setLabelText(f"正在获取版本信息(第{attempt+1}次尝试)...")
+                progress.setLabelText(f"正在检查更新...(第{attempt+1}次尝试)...")
                 version, date, download_url = await self._get_latest_version()
                 
                 if not download_url:
                     raise Exception("未找到下载链接")
                     
                 # 2. 下载更新包
-                progress.setLabelText(f"正在下载更新(第{attempt+1}次尝试)...")
+                progress.setLabelText(f"正在下载更新...(第{attempt+1}次尝试)...")
                 progress.setRange(0, 0)  # 不确定进度模式
                 
                 # 设置下载超时和重试
@@ -381,64 +425,166 @@ class AboutDialog(QtWidgets.QDialog):
 
     async def _get_latest_version(self):
         """从GitHub获取最新版本信息"""
-        max_retries = 3
-        retry_delay = 1  # 秒
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest",
+                    headers={'User-Agent': 'IPTV-Scanner-Editor-Pro'}
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        version = data.get('tag_name', '').lstrip('v')
+                        publish_date = data.get('published_at', '')
+                        
+                        # 查找下载链接
+                        download_url = None
+                        for asset in data.get('assets', []):
+                            if asset.get('name', '').endswith('.exe'):
+                                download_url = asset.get('browser_download_url')
+                                break
+                        
+                        return version, publish_date, download_url
+                    elif response.status == 403:
+                        return "(API限制)", "", None
+                    else:
+                        return "(获取失败)", "", None
+        except asyncio.TimeoutError:
+            return "(请求超时)", "", None
+        except Exception as e:
+            logger.error(f"获取最新版本失败: {str(e)}")
+            return "(获取失败)", "", None
+
+
+class UpdateThread(QtCore.QThread):
+    """后台更新线程"""
+    update_finished = QtCore.pyqtSignal(bool, str)  # success, message
+    update_error = QtCore.pyqtSignal(str)  # error_message
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent = parent
         
-        for attempt in range(max_retries):
-            try:
-                url = "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest"
+    def run(self):
+        """线程执行函数"""
+        try:
+            # 创建新的事件循环
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            # 执行更新任务
+            success, message = loop.run_until_complete(self._perform_update())
+            
+            # 发送完成信号
+            self.update_finished.emit(success, message)
+            
+        except Exception as e:
+            logger.error(f"更新线程执行失败: {str(e)}", exc_info=True)
+            self.update_error.emit(f"更新线程执行失败: {str(e)}")
+        finally:
+            loop.close()
+            
+    async def _perform_update(self):
+        """执行更新任务"""
+        try:
+            # 1. 先获取最新版本信息
+            latest_version, date, download_url = await self._get_latest_version()
+            
+            if not latest_version or latest_version.startswith("("):
+                return False, f"无法获取最新版本信息: {latest_version}"
+            
+            # 2. 比较版本号，只有当前版本小于最新版本时才更新
+            current_version = self.parent.current_version if self.parent else "27.0.0.0"
+            
+            if not self._is_newer_version(current_version, latest_version):
+                return False, f"当前版本 {current_version} 已经是最新版本，无需更新"
+            
+            if not download_url or download_url.startswith("("):
+                return False, f"无法获取下载链接: {latest_version}"
                 
-                # 设置超时和代理
-                timeout = aiohttp.ClientTimeout(total=15)
-                connector = aiohttp.TCPConnector(force_close=True)
-                
-                # 添加User-Agent和Accept头
-                headers = {
-                    'User-Agent': 'IPTV-Scanner-Editor-Pro',
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-                
-                async with aiohttp.ClientSession(
-                    timeout=timeout,
-                    connector=connector,
-                    headers=headers
-                ) as session:
-                    try:
-                        async with session.get(url) as response:
-                            if response.status == 200:
-                                data = await response.json()
-                                version = data.get('tag_name', '').lstrip('v')
-                                publish_date = data.get('published_at', '').split('T')[0]
-                                download_url = data.get('assets', [{}])[0].get('browser_download_url', '')
-                                if version and publish_date:
-                                    self.DEFAULT_VERSION = version
-                                    return (version, publish_date, download_url)
-                            elif response.status == 403:
-                                # GitHub API限制
-                                reset_time = response.headers.get('X-RateLimit-Reset')
-                                if reset_time:
-                                    reset_time = datetime.datetime.fromtimestamp(int(reset_time))
-                                    return (f"API限制(重置时间: {reset_time})", 
-                                            datetime.date.today().strftime("%Y-%m-%d"), "")
-                                return ("API请求受限", datetime.date.today().strftime("%Y-%m-%d"), "")
-                            raise Exception(f"HTTP状态码: {response.status}")
-                    except aiohttp.ClientError as e:
-                        logger.error(f"网络请求错误: {str(e)}")
-                        if attempt < max_retries - 1:
-                            await asyncio.sleep(retry_delay * (attempt + 1))
-                            continue
-                        raise
-            except asyncio.TimeoutError:
-                logger.error("获取最新版本超时")
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(retry_delay * (attempt + 1))
-                    continue
-                return ("请求超时", datetime.date.today().strftime("%Y-%m-%d"), "")
-            except Exception as e:
-                logger.error(f"关于对话框-获取版本失败: {str(e)}", exc_info=True)
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(retry_delay * (attempt + 1))
-                    continue
-                return ("获取失败", datetime.date.today().strftime("%Y-%m-%d"), "")
-        
-        return ("网络错误", datetime.date.today().strftime("%Y-%m-%d"), "")
+            # 3. 下载更新包 - 增加超时时间和更好的错误处理
+            timeout = aiohttp.ClientTimeout(total=60, connect=30)
+            connector = aiohttp.TCPConnector(force_close=True, limit=10)
+            
+            async with aiohttp.ClientSession(
+                timeout=timeout,
+                connector=connector,
+                headers={'User-Agent': 'IPTV-Scanner-Editor-Pro'}
+            ) as session:
+                try:
+                    async with session.get(download_url) as response:
+                        if response.status != 200:
+                            return False, f"下载失败: HTTP {response.status}"
+                            
+                        # 保存更新文件
+                        update_file = f"IPTV-Scanner-Editor-Pro-{latest_version}.exe"
+                        with open(update_file, "wb") as f:
+                            async for chunk in response.content.iter_chunked(8192):
+                                f.write(chunk)
+                                
+                    return True, f"已下载版本 {latest_version} 的更新包，请重启应用完成更新"
+                    
+                except aiohttp.ClientConnectorError as e:
+                    return False, f"网络连接失败: {str(e)}"
+                except aiohttp.ServerTimeoutError as e:
+                    return False, f"请求超时: {str(e)}"
+                except aiohttp.ClientError as e:
+                    return False, f"网络错误: {str(e)}"
+            
+        except Exception as e:
+            logger.error(f"更新任务执行失败: {str(e)}", exc_info=True)
+            return False, f"更新失败: {str(e)}"
+            
+    def _is_newer_version(self, current_version, latest_version):
+        """比较版本号，判断最新版本是否比当前版本新"""
+        try:
+            # 将版本号转换为数字列表进行比较
+            current_parts = list(map(int, current_version.split('.')))
+            latest_parts = list(map(int, latest_version.split('.')))
+            
+            # 确保两个版本号有相同的长度
+            max_length = max(len(current_parts), len(latest_parts))
+            current_parts.extend([0] * (max_length - len(current_parts)))
+            latest_parts.extend([0] * (max_length - len(latest_parts)))
+            
+            # 逐位比较
+            for i in range(max_length):
+                if latest_parts[i] > current_parts[i]:
+                    return True
+                elif latest_parts[i] < current_parts[i]:
+                    return False
+            return False  # 版本相同
+            
+        except (ValueError, AttributeError):
+            # 如果版本号格式不正确，使用字符串比较
+            return latest_version > current_version
+            
+    async def _get_latest_version(self):
+        """从GitHub获取最新版本信息"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest",
+                    headers={'User-Agent': 'IPTV-Scanner-Editor-Pro'}
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        version = data.get('tag_name', '').lstrip('v')
+                        publish_date = data.get('published_at', '')
+                        
+                        # 查找下载链接
+                        download_url = None
+                        for asset in data.get('assets', []):
+                            if asset.get('name', '').endswith('.exe'):
+                                download_url = asset.get('browser_download_url')
+                                break
+                        
+                        return version, publish_date, download_url
+                    elif response.status == 403:
+                        return "(API限制)", "", None
+                    else:
+                        return "(获取失败)", "", None
+        except asyncio.TimeoutError:
+            return "(请求超时)", "", None
+        except Exception as e:
+            logger.error(f"获取最新版本失败: {str(e)}")
+            return "(获取失败)", "", None
