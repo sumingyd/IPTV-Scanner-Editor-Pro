@@ -564,6 +564,9 @@ class MainWindow(QtWidgets.QMainWindow):
             def show_dialog():
                 try:
                     dialog.show()
+                    # 立即更新UI文本到当前语言
+                    if hasattr(dialog, 'update_ui_texts'):
+                        dialog.update_ui_texts()
                 except Exception as e:
                     self.logger.error(f"显示对话框出错: {e}")
             
