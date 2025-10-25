@@ -81,13 +81,13 @@ class UIOptimizer:
         """
         # 设置虚拟化属性
         list_view.setUniformItemSizes(True)
-        list_view.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
+        list_view.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollMode.ScrollPerPixel)
         
         # 禁用不必要的动画
         list_view.setProperty("showDropIndicator", False)
         
         # 优化选择行为
-        list_view.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        list_view.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         
         logger.debug(f"优化列表视图: {list_view.objectName() or 'unnamed'}")
     
@@ -98,12 +98,12 @@ class UIOptimizer:
             table_view: 要优化的表格视图
         """
         # 设置虚拟化属性
-        table_view.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
-        table_view.setHorizontalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
+        table_view.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollMode.ScrollPerPixel)
+        table_view.setHorizontalScrollMode(QtWidgets.QAbstractItemView.ScrollMode.ScrollPerPixel)
         
         # 优化列宽调整策略
         header = table_view.horizontalHeader()
-        header.setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
+        header.setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Interactive)
         header.setStretchLastSection(True)
         
         # 禁用交替行颜色（在某些系统上可能影响性能）
