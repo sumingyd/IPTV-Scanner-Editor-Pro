@@ -22,6 +22,9 @@ from error_handler import init_global_error_handler
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
+        # 在UI构建前完全隐藏窗口，防止任何闪动
+        self.hide()
+        
         # 初始化配置和日志管理器
         self.config = ConfigManager()
         self.logger = global_logger
@@ -1090,12 +1093,22 @@ class LoadingScreen(QtWidgets.QWidget):
     @QtCore.pyqtSlot()
     def start_ui_init(self):
         """进度条完成后触发UI初始化"""
-        if self.main_window and self.animation_completed:
-            global_logger.info(f"[启动动画] 启动动画窗口即将关闭，准备显示主窗口")
+        if self.animation_completed:
+            global_logger.info(f"[启动动画] 启动动画窗口即将关闭，准备创建并显示主窗口")
             self.close()
             global_logger.info(f"[启动动画] 启动动画窗口已关闭")
-            self.main_window.show()
-            global_logger.info(f"[启动动画] 主窗口已显示")
+            
+            # 在启动动画完成后创建主窗口，避免窗口闪动
+            try:
+                window = MainWindow()
+                window.show()
+                global_logger.info(f"[启动动画] 主窗口已创建并显示")
+                
+                # 设置应用程序的主窗口引用
+                QtWidgets.QApplication.instance().main_window = window
+            except Exception as e:
+                global_logger.error(f"[启动动画] 创建主窗口失败: {e}")
+                QtWidgets.QApplication.instance().quit()
 
 def main():
     if sys.platform == "win32":
@@ -1121,27 +1134,18 @@ def main():
     loading_screen.show()
     app.processEvents()  # 强制立即显示启动动画
     
-    # 第二步：创建主窗口对象（但不显示）
-    window = None
-    try:
-        window = MainWindow()
-        window.hide()  # 确保主窗口隐藏
-        loading_screen.main_window = window  # 设置主窗口引用
-    except Exception as e:
-        global_logger.error(f"[启动动画] 创建主窗口失败: {e}")
-        app.quit()
-        sys.exit(1)
+    # 第二步：启动动画完全控制初始化过程
+    # 启动动画会通过定时器逐步更新，完成后自动创建并显示主窗口
+    # 将主窗口创建延迟到启动动画完成后，避免窗口闪动
+    loading_screen.main_window = None  # 先设置为None，稍后创建
     
     # 第三步：启动动画完全控制初始化过程
-    # 启动动画会通过定时器逐步更新，完成后自动显示主窗口
-    # 不需要额外的后台线程，让启动动画完全控制流程
+    # 启动动画会通过定时器逐步更新，完成后自动创建并显示主窗口
 
     def cleanup():
         if hasattr(app, 'main_window'):
             app.main_window.save_before_exit()
     app.aboutToQuit.connect(cleanup)
-
-    setattr(app, 'main_window', window)
 
     sys.exit(app.exec())
 
