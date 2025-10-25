@@ -346,7 +346,15 @@ class ChannelMappingManager:
     
     def _get_exact_match(self, normalized_name: str) -> dict:
         """精确匹配映射规则"""
-        # 检查反向映射
+        # 首先检查反向映射（直接查找）
+        try:
+            # 直接检查反向映射字典中是否存在该名称
+            if normalized_name in self.reverse_mappings:
+                return self.reverse_mappings[normalized_name]
+        except Exception as e:
+            self.logger.error(f"反向映射查找失败: {e}")
+        
+        # 如果直接查找失败，尝试遍历反向映射（兼容旧逻辑）
         try:
             for raw_pattern, info in self.reverse_mappings.items():
                 if not raw_pattern or raw_pattern.isspace():
@@ -355,7 +363,7 @@ class ChannelMappingManager:
                 if normalized_name == normalized_pattern:
                     return info
         except Exception as e:
-            self.logger.error(f"反向映射查找失败: {e}")
+            self.logger.error(f"反向映射遍历查找失败: {e}")
         
         # 检查标准名称映射
         try:
@@ -394,8 +402,38 @@ class ChannelMappingManager:
         self.logger.info("远程映射缓存已刷新")
 
 
-# 创建全局映射管理器实例
-mapping_manager = ChannelMappingManager()
+# 创建全局映射管理器实例（延迟加载）
+_mapping_manager_instance = None
+
+def get_mapping_manager():
+    """获取映射管理器实例（延迟加载）"""
+    global _mapping_manager_instance
+    if _mapping_manager_instance is None:
+        _mapping_manager_instance = ChannelMappingManager()
+    return _mapping_manager_instance
+
+# 为了向后兼容，保留mapping_manager变量，但改为延迟加载
+class MappingManagerProxy:
+    """映射管理器代理类，提供延迟加载功能"""
+    
+    def __init__(self):
+        self._manager = None
+    
+    def _get_manager(self):
+        if self._manager is None:
+            self._manager = get_mapping_manager()
+        return self._manager
+    
+    def __getattr__(self, name):
+        # 当访问任何属性时，先获取实际的映射管理器实例
+        return getattr(self._get_manager(), name)
+    
+    def __call__(self, *args, **kwargs):
+        # 如果被当作函数调用，返回管理器实例
+        return self._get_manager()
+
+# 创建代理实例
+mapping_manager = MappingManagerProxy()
 
 def extract_channel_name_from_url(url: str) -> str:
     """从URL提取频道名，支持多种协议格式"""

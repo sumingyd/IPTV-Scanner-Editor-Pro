@@ -74,29 +74,25 @@ class ScannerController(QObject):
                 latency = result['latency']
                 resolution = result.get('resolution', '')
                 
-                # 添加详细的调试日志
-                self.logger.debug(f"频道验证结果 - URL: {url}, 有效: {valid}, 延迟: {latency}ms, 分辨率: {resolution}")
-                
-                # 无论有效还是无效，都构建频道信息
+                # 构建频道信息
                 channel_info = self._build_channel_info(url, valid, latency, resolution, result)
                 if not channel_info:
-                    self.logger.debug(f"构建频道信息失败，跳过URL: {url}")
                     # 即使构建失败，也要确保统计信息更新
                     with self.stats_lock:
                         self.stats['invalid'] += 1
-                        self.logger.debug(f"构建失败情况下增加无效计数: {self.stats['invalid']}")
                         
                         current = self.stats['valid'] + self.stats['invalid']
                         total = self.stats['total']
                         
                         # 立即更新进度，确保状态栏进度条正常显示
-                        QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(current, total))
+                        import functools
+                        QtCore.QTimer.singleShot(0, functools.partial(self.progress_updated.emit, current, total))
                     continue
                 
                 # 确保频道信息包含必要字段
                 channel_info.setdefault('name', channel_info.get('raw_name', extract_channel_name_from_url(url)))
                 
-                # 记录所有频道的详细信息用于调试
+                # 只记录有效频道的详细信息
                 if valid:
                     log_msg = f"有效频道 - 原始名: {channel_info['raw_name']}, 映射名: {channel_info['name']}, 分组: {channel_info['group']}, URL: {url}"
                     self.logger.info(log_msg)
@@ -104,38 +100,42 @@ class ScannerController(QObject):
                     # 使用 functools.partial 确保频道信息正确传递
                     import functools
                     QtCore.QTimer.singleShot(0, functools.partial(self._handle_channel_add, channel_info.copy()))
-                else:
-                    # 记录无效频道信息用于调试
-                    self.logger.debug(f"无效频道 - 原始名: {channel_info['raw_name']}, URL: {url}, 延迟: {latency}ms")
                 
                 # 统计信息更新 - 确保无论有效还是无效都更新
                 with self.stats_lock:
                     if valid:
                         self.stats['valid'] += 1
-                        self.logger.debug(f"增加有效计数: {self.stats['valid']}")
                     else:
                         self.stats['invalid'] += 1
-                        self.logger.debug(f"增加无效计数: {self.stats['invalid']}")
                     
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
                     
+                    # 添加进度条更新追踪日志
+                    progress_percent = int(current / total * 100) if total > 0 else 0
+                    self.logger.debug(f"进度条更新: {current}/{total} ({progress_percent}%)")
+                    
                     # 立即更新进度，确保状态栏进度条正常显示
                     # 使用QTimer在主线程中安全地更新进度
-                    QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(current, total))
+                    import functools
+                    QtCore.QTimer.singleShot(0, functools.partial(self.progress_updated.emit, current, total))
                 
             except Exception as e:
                 self.logger.error(f"工作线程错误: {e}", exc_info=True)
                 # 即使出现异常，也要确保统计信息更新
                 with self.stats_lock:
                     self.stats['invalid'] += 1
-                    self.logger.debug(f"异常情况下增加无效计数: {self.stats['invalid']}")
                     
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
                     
+                    # 添加进度条更新追踪日志
+                    progress_percent = int(current / total * 100) if total > 0 else 0
+                    self.logger.debug(f"进度条更新(异常): {current}/{total} ({progress_percent}%)")
+                    
                     # 立即更新进度，确保状态栏进度条正常显示
-                    QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(current, total))
+                    import functools
+                    QtCore.QTimer.singleShot(0, functools.partial(self.progress_updated.emit, current, total))
                 
                 # 继续处理下一个URL，不中断线程
                 continue
@@ -149,7 +149,8 @@ class ScannerController(QObject):
             total = self.stats['total']
             if current < total:
                 # 使用QTimer在主线程中安全地更新进度
-                QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(total, total))
+                import functools
+                QtCore.QTimer.singleShot(0, functools.partial(self.progress_updated.emit, total, total))
         
     def _update_progress(self, valid: bool):
         """更新扫描进度"""
@@ -159,10 +160,12 @@ class ScannerController(QObject):
             else:
                 self.stats['invalid'] += 1
             
-            self.progress_updated.emit(
-                self.stats['valid'] + self.stats['invalid'],
-                self.stats['total']
-            )
+            current = self.stats['valid'] + self.stats['invalid']
+            total = self.stats['total']
+            
+            # 使用QTimer在主线程中安全地更新进度
+            import functools
+            QtCore.QTimer.singleShot(0, functools.partial(self.progress_updated.emit, current, total))
 
     def _process_valid_channel(self, channel_info: dict):
         """处理有效频道"""
@@ -552,7 +555,8 @@ class ScannerController(QObject):
                     
                     # 立即更新进度，确保状态栏进度条正常显示
                     # 使用QTimer在主线程中安全地更新进度
-                    QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(current, total))
+                    import functools
+                    QtCore.QTimer.singleShot(0, functools.partial(self.progress_updated.emit, current, total))
             except queue.Empty:
                 time.sleep(0.1)
                 break
@@ -565,7 +569,6 @@ class ScannerController(QObject):
     def _update_stats(self):
         """更新统计信息线程"""
         try:
-            self.logger.info("统计信息更新线程开始运行")
             # 简化逻辑：只要没有停止事件就持续更新统计信息
             while not self.stop_event.is_set():
                 try:
@@ -574,10 +577,8 @@ class ScannerController(QObject):
                         self.stats['elapsed'] = time.time() - self.stats['start_time']
                         
                         # 使用QTimer在主线程中安全地更新统计信息
-                        self.logger.debug(f"准备发射统计信息更新信号: {self.stats}")
                         # 直接调用主窗口的更新方法，避免信号连接问题
                         if self.main_window and hasattr(self.main_window, '_update_stats_display'):
-                            self.logger.debug(f"主窗口对象可用，准备调用 _update_stats_display 方法")
                             # 修复：使用functools.partial确保参数正确传递
                             import functools
                             stats_copy = self.stats.copy()
@@ -590,15 +591,11 @@ class ScannerController(QObject):
                                 }
                             ))
                         else:
-                            self.logger.debug(f"主窗口对象不可用或没有 _update_stats_display 方法，使用信号")
                             # 备用方案：仍然使用信号
                             QtCore.QTimer.singleShot(0, lambda: self.stats_updated.emit({
                                 'stats': self.stats.copy(),
                                 'is_validation': self.is_validating
                             }))
-                        
-                        # 记录统计信息状态
-                        self.logger.debug(f"统计信息更新: 总数={self.stats['total']}, 有效={self.stats['valid']}, 无效={self.stats['invalid']}, 耗时={self.stats['elapsed']:.1f}s")
                     
                     # 检查扫描是否完成：所有工作线程都完成且队列为空
                     workers_alive = any(w.is_alive() for w in self.workers) if self.workers else False
@@ -607,7 +604,6 @@ class ScannerController(QObject):
                     
                     # 如果所有工作线程都完成且队列为空，则扫描完成
                     if not workers_alive and queue_empty and validation_queue_empty:
-                        self.logger.info("扫描完成，统计信息更新线程退出")
                         break
                     
                     time.sleep(0.5)  # 恢复到合理的更新频率，避免UI假死
@@ -623,7 +619,6 @@ class ScannerController(QObject):
                     pass
         finally:
             # 等待所有工作线程完成，确保最终的统计信息被发送
-            self.logger.info("等待所有工作线程完成...")
             for worker in self.workers:
                 if worker.is_alive():
                     worker.join(timeout=1.0)
@@ -632,7 +627,6 @@ class ScannerController(QObject):
             try:
                 with self.stats_lock:
                     self.stats['elapsed'] = time.time() - self.stats['start_time']
-                    self.logger.debug(f"发送最终统计信息更新: {self.stats}")
                     
                     if self.main_window and hasattr(self.main_window, '_update_stats_display'):
                         import functools
@@ -652,5 +646,3 @@ class ScannerController(QObject):
                         }))
             except Exception as e:
                 self.logger.error(f"发送最终统计信息失败: {e}")
-            
-            self.logger.info("统计信息更新线程结束")
