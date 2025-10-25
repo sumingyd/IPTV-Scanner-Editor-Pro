@@ -55,6 +55,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # 立即加载配置到UI
         self._load_config()
         
+        # 初始化主窗口的后续设置
+        self._init_main_window()
+        
         # 用于管理所有定时器
         self._timers = []
         
