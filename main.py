@@ -52,6 +52,9 @@ class MainWindow(QtWidgets.QMainWindow):
         if os.path.exists('logo.ico'):
             self.setWindowIcon(QtGui.QIcon('logo.ico'))
         
+        # 立即加载配置到UI
+        self._load_config()
+        
         # 用于管理所有定时器
         self._timers = []
         
