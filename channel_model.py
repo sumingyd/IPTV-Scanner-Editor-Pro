@@ -129,11 +129,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             else:
                 return QtGui.QColor(AppStyles.text_color())  # 使用styles中定义的主题文字颜色
             
-            # 数据加载完成后自动调整列宽
-            if role == QtCore.Qt.ItemDataRole.DisplayRole and index.column() == 0:
-                view = self.parent()
-                if view and hasattr(view, 'resizeColumnsToContents'):
-                    view.resizeColumnsToContents()
         return None
 
     def headerData(self, section: int, orientation: QtCore.Qt.Orientation,
@@ -263,6 +258,12 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             if 'group' in channel_info:
                 self._group_cache.add(channel_info['group'])
             self.endInsertRows()
+            
+            # 添加新频道后强制触发列宽调整
+            view = self.parent()
+            if view and hasattr(view, 'resizeColumnsToContents'):
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(0, view.resizeColumnsToContents)
 
     def hide_invalid(self):
         """隐藏无效频道"""

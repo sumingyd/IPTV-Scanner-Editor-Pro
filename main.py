@@ -539,6 +539,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_channel_found(self, channel_info):
         """处理发现有效频道事件"""
         self.ui.main_window.model.add_channel(channel_info)
+        
+        # 添加频道后强制触发列宽调整
+        if hasattr(self.ui.main_window, 'channel_list'):
+            header = self.ui.main_window.channel_list.horizontalHeader()
+            from PyQt6.QtCore import QTimer
+            from PyQt6.QtWidgets import QHeaderView
+            QTimer.singleShot(0, lambda: header.resizeSections(QHeaderView.ResizeMode.ResizeToContents))
 
     def _on_scan_completed(self):
         """处理扫描完成事件"""
