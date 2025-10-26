@@ -525,7 +525,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.model
             )
             
-        if self.player_controller.play_channel(channel):
+        # 保存当前选中的频道索引
+        self.current_channel_index = index.row()
+            
+        if self.player_controller.play_channel(channel, self.current_channel_index):
             # 使用语言管理器设置暂停按钮文本
             if hasattr(self, 'language_manager') and self.language_manager:
                 self.ui.main_window.pause_btn.setText(

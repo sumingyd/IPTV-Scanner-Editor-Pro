@@ -175,7 +175,7 @@ CCTV-中视购物,239.21.1.100:5002,https://raw.githubusercontent.com/sumingyd/I
 淄博影视,"zibo-yingshi,CHANNEL00001037",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博影视.png,市级频道
 ########## 广播 ##########,,,
 山东交通广播,"239.21.2.151:5002,CHANNEL00003002",,广播
-山东综合广播,"default,channel00004008",,广播
+山东综合广播,"default,channel00004008,239.21.2.36:5002",,广播
 山东经济广播,"239.21.2.148:5002,CHANNEL00003001",,广播
 ########## 德州 ##########,,,
 夏津综合,"xiajin-zonghe,CHANNEL00001069",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州夏津.png,德州

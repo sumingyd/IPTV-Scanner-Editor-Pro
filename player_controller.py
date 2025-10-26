@@ -154,10 +154,62 @@ class PlayerController(QObject):
         except Exception as e:
             self.logger.error(f"释放播放器资源失败: {e}")
 
-    def play_channel(self, channel):
+    def get_video_resolution(self):
+        """从VLC播放器获取当前视频的分辨率"""
+        if not self.player:
+            return None
+            
+        try:
+            # 获取当前视频尺寸 - 使用正确的VLC API
+            width = self.player.video_get_width()
+            height = self.player.video_get_height()
+            
+            if width > 0 and height > 0:
+                resolution = f"{width}x{height}"
+                self.logger.info(f"VLC获取到分辨率: {resolution}")
+                return resolution
+            else:
+                self.logger.warning("VLC获取到的分辨率为0")
+                return None
+        except Exception as e:
+            self.logger.debug(f"获取视频分辨率失败: {e}")
+            return None
+            
+    def get_video_resolution_from_media_info(self):
+        """从媒体信息获取原始分辨率（可能更准确）"""
+        if not self.player:
+            return None
+            
+        try:
+            # 获取当前媒体
+            media = self.player.get_media()
+            if not media:
+                return None
+                
+            # 解析媒体信息
+            media.parse_with_options(vlc.MediaParseFlag.network, 5000)
+            
+            # 获取轨道信息
+            tracks = media.tracks_get()
+            for track in tracks:
+                if track.type == vlc.TrackType.video:
+                    width = track.video.width
+                    height = track.video.height
+                    if width > 0 and height > 0:
+                        resolution = f"{width}x{height}"
+                        self.logger.info(f"从媒体信息获取到分辨率: {resolution}")
+                        return resolution
+                        
+            return None
+        except Exception as e:
+            self.logger.debug(f"从媒体信息获取分辨率失败: {e}")
+            return None
+
+    def play_channel(self, channel, channel_index=None):
         """播放指定频道(允许任何状态)
         Args:
             channel: 可以是Channel对象或包含'url'和'name'键的字典
+            channel_index: 频道在列表中的索引，如果提供则直接更新该频道
         """
         if not channel:
             self.logger.warning("无法播放空频道")
@@ -175,9 +227,172 @@ class PlayerController(QObject):
         try:
             result = self.play(url, name)
             if result:
-                # 播放成功，标记频道为有效
+                # 播放成功，标记频道为有效（异步获取详细信息，避免UI假死）
                 if hasattr(self, 'channel_model') and self.channel_model:
-                    self.channel_model.set_channel_valid(url, True)
+                    # 使用异步方式获取流媒体详细信息
+                    import threading
+                    
+                    def async_update_channel_info():
+                        try:
+                            # 使用验证器获取流媒体详细信息（优先使用验证器获取分辨率）
+                            from validator import StreamValidator
+                            validator = StreamValidator()
+                            stream_info = validator.validate_stream(url, timeout=5)  # 增加超时时间
+                            
+                            # 构建完整的频道信息
+                            channel_info = {
+                                'valid': True,
+                                'status': '有效'
+                            }
+                            
+                            # 如果获取到了详细信息，添加到频道信息中
+                            if stream_info.get('latency'):
+                                channel_info['latency'] = stream_info['latency']
+                            
+                            # 优先使用验证器获取的分辨率（更准确）
+                            if stream_info.get('resolution'):
+                                channel_info['resolution'] = stream_info['resolution']
+                                self.logger.info(f"从验证器获取到分辨率: {stream_info['resolution']}")
+                            else:
+                                # 如果验证器没有获取到分辨率，尝试从播放器获取
+                                resolution_from_player = None
+                                for i in range(10):  # 最多尝试10次，等待播放器稳定
+                                    import time
+                                    time.sleep(0.5)
+                                    resolution_from_player = self.get_video_resolution()
+                                    if resolution_from_player:
+                                        self.logger.info(f"从播放器获取到分辨率: {resolution_from_player}")
+                                        channel_info['resolution'] = resolution_from_player
+                                        break
+                                
+                            # 重新进行频道映射，获取正确的频道名称
+                            try:
+                                from channel_mappings import get_channel_info, extract_channel_name_from_url
+                                # 从URL提取原始频道名
+                                raw_name = extract_channel_name_from_url(url)
+                                # 获取映射后的频道信息
+                                channel_info_result = get_channel_info(raw_name)
+                                mapped_name = channel_info_result.get('standard_name', raw_name)
+                                
+                                if mapped_name and mapped_name != raw_name:
+                                    channel_info['name'] = mapped_name
+                                    self.logger.info(f"重新映射频道名称: {raw_name} -> {mapped_name}")
+                                elif stream_info.get('service_name'):
+                                    channel_info['name'] = stream_info['service_name']
+                                    self.logger.info(f"使用验证器获取的频道名称: {stream_info['service_name']}")
+                                else:
+                                    # 如果没有映射到名称，保留原始名称
+                                    channel_info['name'] = name
+                                    self.logger.info(f"保留原始频道名称: {name}")
+                            except Exception as e:
+                                self.logger.warning(f"重新映射频道名称失败: {e}")
+                                channel_info['name'] = name
+                            
+                            # 在主线程中安全地更新频道信息
+                            from PyQt6.QtCore import QTimer
+                            def update_channel():
+                                try:
+                                    self.logger.info(f"开始执行异步更新频道信息: 索引={channel_index}, URL={url}, 分辨率={channel_info.get('resolution', '未知')}")
+                                    if hasattr(self, 'channel_model') and self.channel_model:
+                                        self.logger.info(f"开始更新频道信息: 索引={channel_index}, URL={url}, 分辨率={channel_info.get('resolution', '未知')}")
+                                        
+                                        # 如果有频道索引，直接更新该频道
+                                        if channel_index is not None:
+                                            success = self.channel_model.update_channel(channel_index, channel_info)
+                                            if success:
+                                                self.logger.info(f"通过索引更新频道信息成功: {name}, 分辨率: {channel_info.get('resolution', '未知')}")
+                                            else:
+                                                self.logger.warning(f"通过索引更新频道信息失败: 索引={channel_index}")
+                                        else:
+                                            # 如果没有索引，通过URL查找
+                                            success = self.channel_model.update_channel_by_url(url, channel_info)
+                                            if success:
+                                                self.logger.info(f"通过URL更新频道信息成功: {name}, 分辨率: {channel_info.get('resolution', '未知')}")
+                                            else:
+                                                self.logger.warning(f"通过URL更新频道信息失败: 未找到URL={url}对应的频道")
+                                    else:
+                                        self.logger.error("频道模型未设置，无法更新频道信息")
+                                except Exception as e:
+                                    self.logger.error(f"更新频道信息异常: {e}")
+                            
+                            self.logger.info(f"准备调用QTimer更新频道信息")
+                            QTimer.singleShot(0, update_channel)
+                            self.logger.info(f"QTimer已调用，等待执行")
+                            
+                            # 同时尝试直接在主线程中更新，确保更新一定会执行
+                            try:
+                                self.logger.info(f"尝试直接更新频道信息: 索引={channel_index}, 分辨率={channel_info.get('resolution', '未知')}")
+                                if hasattr(self, 'channel_model') and self.channel_model and channel_index is not None:
+                                    success = self.channel_model.update_channel(channel_index, channel_info)
+                                    if success:
+                                        self.logger.info(f"直接更新频道信息成功: {name}, 分辨率: {channel_info.get('resolution', '未知')}")
+                                    else:
+                                        self.logger.warning(f"直接更新频道信息失败: 索引={channel_index}")
+                                else:
+                                    self.logger.warning("无法直接更新频道信息: 频道模型或索引为空")
+                            except Exception as e:
+                                self.logger.error(f"直接更新频道信息异常: {e}")
+                            
+                            self.logger.info(f"异步更新频道信息成功: {name} -> 有效, 分辨率: {channel_info.get('resolution', '未知')}")
+                        except Exception as e:
+                            self.logger.warning(f"异步获取频道信息失败: {e}")
+                            # 即使获取详细信息失败，也要标记频道为有效（因为播放成功了）
+                            channel_info = {
+                                'valid': True,
+                                'status': '有效'
+                            }
+                            from PyQt6.QtCore import QTimer
+                            def update_channel_on_error():
+                                try:
+                                    if hasattr(self, 'channel_model') and self.channel_model:
+                                        self.logger.info(f"错误情况下更新频道信息: 索引={channel_index}, URL={url}")
+                                        
+                                        # 如果有频道索引，直接更新该频道
+                                        if channel_index is not None:
+                                            success = self.channel_model.update_channel(channel_index, channel_info)
+                                            if success:
+                                                self.logger.info(f"通过索引更新频道信息成功(错误情况): {name}")
+                                            else:
+                                                self.logger.warning(f"通过索引更新频道信息失败(错误情况): 索引={channel_index}")
+                                        else:
+                                            # 如果没有索引，通过URL查找
+                                            success = self.channel_model.update_channel_by_url(url, channel_info)
+                                            if success:
+                                                self.logger.info(f"通过URL更新频道信息成功(错误情况): {name}")
+                                            else:
+                                                self.logger.warning(f"通过URL更新频道信息失败(错误情况): 未找到URL={url}对应的频道")
+                                    else:
+                                        self.logger.error("频道模型未设置，无法更新频道信息")
+                                except Exception as e:
+                                    self.logger.error(f"更新频道信息异常(错误情况): {e}")
+                            
+                            QTimer.singleShot(0, update_channel_on_error)
+                    
+                    # 在后台线程中执行信息获取
+                    info_thread = threading.Thread(target=async_update_channel_info, daemon=True)
+                    info_thread.start()
+                    
+                    self.logger.info(f"播放成功: {name}，已启动异步信息获取，频道索引: {channel_index}")
+                    
+                    # 立即标记频道为有效，不等待异步信息获取完成
+                    if hasattr(self, 'channel_model') and self.channel_model and channel_index is not None:
+                        from PyQt6.QtCore import QTimer
+                        def immediate_update():
+                            try:
+                                self.logger.info(f"立即更新频道状态: 索引={channel_index}, 名称={name}")
+                                channel_info = {
+                                    'valid': True,
+                                    'status': '有效'
+                                }
+                                success = self.channel_model.update_channel(channel_index, channel_info)
+                                if success:
+                                    self.logger.info(f"立即更新频道状态成功: {name}")
+                                else:
+                                    self.logger.warning(f"立即更新频道状态失败: 索引={channel_index}")
+                            except Exception as e:
+                                self.logger.error(f"立即更新频道状态异常: {e}")
+                        
+                        QTimer.singleShot(0, immediate_update)
             else:
                 self.logger.warning(f"播放失败: {url} (状态码: {self.player.get_state().value if self.player else 'N/A'})")
             return result

@@ -774,7 +774,7 @@ class UIBuilder(QtCore.QObject):
                     
                     self.ui_builder.logger.info(f"原始频道名: {raw_name}")
                     
-                    # 获取映射信息
+                    # 获取映射信息 - 无论流媒体是否有效都应该调用映射管理器
                     channel_info_for_fingerprint = {
                         'service_name': result.get('service_name', ''),
                         'resolution': result.get('resolution', ''),
@@ -782,7 +782,8 @@ class UIBuilder(QtCore.QObject):
                         'bitrate': result.get('bitrate', '')
                     }
                     
-                    mapped_info = mapping_manager.get_channel_info(raw_name, self.url, channel_info_for_fingerprint) if result['valid'] else None
+                    # 关键修复：无论流媒体是否有效，都应该调用映射管理器
+                    mapped_info = mapping_manager.get_channel_info(raw_name, self.url, channel_info_for_fingerprint)
                     mapped_name = mapped_info.get('standard_name', raw_name) if mapped_info else raw_name
                     
                     self.ui_builder.logger.info(f"映射后频道名: {mapped_name}")
