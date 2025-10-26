@@ -316,7 +316,9 @@ class ChannelMappingManager:
         
         # 1. 首先检查精确匹配
         result = self._get_exact_match(normalized_name)
-        if result['standard_name'] != raw_name:  # 如果找到了映射
+        self.logger.debug(f"精确匹配结果: 输入='{normalized_name}', 输出='{result['standard_name']}', Logo='{result['logo_url']}'")
+        if result['standard_name'] != normalized_name:  # 如果找到了映射
+            self.logger.info(f"找到映射: '{raw_name}' -> '{result['standard_name']}'")
             # 记录学习数据
             if url and channel_info:
                 self.learn_from_scan_result(url, raw_name, channel_info, result['standard_name'])
@@ -350,7 +352,9 @@ class ChannelMappingManager:
         try:
             # 直接检查反向映射字典中是否存在该名称
             if normalized_name in self.reverse_mappings:
-                return self.reverse_mappings[normalized_name]
+                result = self.reverse_mappings[normalized_name]
+                self.logger.debug(f"找到精确映射: {normalized_name} -> {result['standard_name']}")
+                return result
         except Exception as e:
             self.logger.error(f"反向映射查找失败: {e}")
         
@@ -361,6 +365,7 @@ class ChannelMappingManager:
                     continue
                 normalized_pattern = re.sub(r'\s+', ' ', raw_pattern.strip()).lower()
                 if normalized_name == normalized_pattern:
+                    self.logger.debug(f"通过遍历找到精确映射: {normalized_name} -> {info['standard_name']}")
                     return info
         except Exception as e:
             self.logger.error(f"反向映射遍历查找失败: {e}")
@@ -372,14 +377,17 @@ class ChannelMappingManager:
                     continue
                 normalized_standard = re.sub(r'\s+', ' ', standard_name.strip()).lower()
                 if normalized_name == normalized_standard:
-                    return {
+                    result = {
                         'standard_name': standard_name,
                         'logo_url': info['logo_url'],
                         'group_name': info.get('group_name')
                     }
+                    self.logger.debug(f"通过标准名称找到映射: {normalized_name} -> {standard_name}")
+                    return result
         except Exception as e:
             self.logger.error(f"标准名称查找失败: {e}")
         
+        self.logger.debug(f"未找到映射: {normalized_name}")
         return {'standard_name': normalized_name, 'logo_url': None}
     
     def get_mapping_suggestions(self, raw_name: str) -> List[str]:

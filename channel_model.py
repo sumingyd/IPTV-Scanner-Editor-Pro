@@ -466,6 +466,52 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 return True
         return False
 
+    def update_channel_by_url(self, url: str, channel_info: Dict[str, Any]) -> bool:
+        """根据URL更新频道信息"""
+        for i, channel in enumerate(self.channels):
+            if channel.get('url') == url:
+                # 记录原始数据用于调试
+                old_name = channel.get('name', '')
+                old_group = channel.get('group', '')
+                
+                logger.info(f"根据URL更新频道: URL={url}, 原始名: {old_name}, 新名: {channel_info.get('name', '')}")
+                
+                # 更新频道数据
+                self.channels[i].update(channel_info)
+                
+                # 更新名称和分组缓存
+                if 'name' in channel_info:
+                    self._name_cache.add(channel_info['name'])
+                    # 如果名称改变，从缓存中移除旧名称
+                    if old_name and old_name != channel_info['name']:
+                        self._name_cache.discard(old_name)
+                if 'group' in channel_info:
+                    self._group_cache.add(channel_info['group'])
+                    # 如果分组改变，从缓存中移除旧分组
+                    if old_group and old_group != channel_info['group']:
+                        self._group_cache.discard(old_group)
+                        
+                # 发送数据变化信号，确保特定行更新 - 使用更全面的角色列表
+                top_left = self.index(i, 0)
+                bottom_right = self.index(i, self.columnCount() - 1)
+                logger.info(f"发送数据变化信号: 行 {i}, 列 0-{self.columnCount()-1}")
+                self.dataChanged.emit(top_left, bottom_right, [
+                    QtCore.Qt.ItemDataRole.DisplayRole, 
+                    QtCore.Qt.ItemDataRole.DecorationRole,
+                    QtCore.Qt.ItemDataRole.BackgroundRole,
+                    QtCore.Qt.ItemDataRole.ForegroundRole
+                ])
+                
+                # 强制刷新整个视图以确保所有列都更新
+                logger.info("发送布局变化信号")
+                self.layoutChanged.emit()
+                
+                # 记录更新信息
+                logger.info(f"根据URL更新频道成功: URL={url}, 原始名: {old_name} -> 新名: {channel_info.get('name', '')}")
+                
+                return True
+        return False
+
     def update_channel(self, index: int, new_channel: Dict[str, Any]) -> bool:
         """更新指定索引的频道数据"""
         if not (0 <= index < len(self.channels)):
@@ -859,6 +905,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                             'group': "未分类",
                             'tvg_id': "",
                             'logo': "",
+                            'resolution': "",  # 添加分辨率字段
                             'valid': False,
                             'status': '待检测'
                         }
@@ -875,9 +922,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                                     current_channel['tvg_id'] = value
                                 elif key == "tvg-logo":
                                     current_channel['logo'] = value
+                                elif key == "resolution":  # 解析分辨率标签
+                                    current_channel['resolution'] = value
                     continue
                     
-                # 处理分辨率标签
+                # 处理分辨率标签（兼容旧格式）
                 if line.startswith("#EXTVLCOPT:video-resolution=") and current_channel:
                     resolution = line.split("=")[1].strip()
                     current_channel['resolution'] = resolution

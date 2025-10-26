@@ -165,11 +165,9 @@ class StreamValidator:
             
             # 如果是HTTP/HTTPS协议，添加连接优化参数
             if parsed.scheme in ['http', 'https']:
-                # 添加连接复用参数
-                if '?' in url:
-                    url += '&reuse=1&timeout=5'
-                else:
-                    url += '?reuse=1&timeout=5'
+                # 添加连接复用参数 - 移除可能导致问题的参数
+                # 让ffmpeg使用默认的网络设置，避免参数冲突
+                pass
             
             return url
         except Exception:
