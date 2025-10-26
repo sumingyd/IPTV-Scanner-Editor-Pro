@@ -181,6 +181,13 @@ class ScannerController(QObject):
     def _handle_channel_add(self, channel_info: dict):
         """处理频道添加"""
         self._add_channel_and_refresh(channel_info)
+        
+        # 添加频道后强制触发列宽调整
+        if hasattr(self.model, 'parent') and self.model.parent():
+            view = self.model.parent()
+            if hasattr(view, 'resizeColumnsToContents'):
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(0, view.resizeColumnsToContents)
 
     def _build_channel_info(self, url: str, valid: bool, latency: int, resolution: str, result: dict) -> dict:
         """构建完整的频道信息字典"""
