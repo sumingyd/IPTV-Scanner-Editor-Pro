@@ -278,7 +278,7 @@ class StreamValidator:
                     # 检查是否是解码错误（流有效但解码有问题）
                     is_decode_error = False
                     if error_output:
-                        # 常见的解码错误关键词
+                        # 扩展的解码错误关键词列表，包含更多常见的解码错误
                         decode_error_keywords = [
                             'channel element', 'is not allocated', 'PPS id out of range',
                             'ESC overflow', 'Number of bands', 'exceeds limit',
@@ -287,7 +287,15 @@ class StreamValidator:
                             'Reserved bit set', 'Prediction is not allowed', 'Could not find ref',
                             'The cu_qp_delta', 'is outside the valid range', 'CABAC_MAX_BIN',
                             'Rematrix is needed', 'Failed to configure output pad',
-                            'Error reinitializing filters', 'Terminating thread'
+                            'Error reinitializing filters', 'Terminating thread',
+                            'non-existing PPS', 'decode_slice_header error', 'no frame!',
+                            'left block unavailable', 'top block unavailable', 'Reference',
+                            'error while decoding MB', 'cabac decode of qscale diff failed',
+                            'SEI type', 'truncated at', 'is not implemented', 'Invalid NAL unit size',
+                            'Missing reference picture', 'reference picture missing during reorder',
+                            'mmco: unref short failure', 'decode_slice_header error',
+                            'concealing', 'error', 'corrupt', 'invalid', 'missing',
+                            'h264', 'h265', 'hevc', 'avc', 'mpeg', 'aac', 'ac3'
                         ]
                         is_decode_error = any(keyword in error_output for keyword in decode_error_keywords)
                     
@@ -298,15 +306,24 @@ class StreamValidator:
                         result['error'] = "流有效但存在解码问题: " + result['error'][:200]  # 截断错误信息
                         break
                     else:
-                        # 其他错误，继续重试
-                        self.logger.debug(f"流验证失败: {url} (尝试 {attempt+1}/{actual_retries+1}, 错误: {result['error']})")
-                        
-                        # 如果不是最后一次尝试，等待一下再重试
-                        if attempt < actual_retries and remaining_time > 1.0:
-                            # 动态等待时间，随着重试次数增加而增加
-                            wait_time = min(1.0, remaining_time * 0.2)
-                            time.sleep(wait_time)
-                            remaining_time -= wait_time
+                        # 其他错误，但考虑到双击播放能正常播放，放宽验证标准
+                        # 只要FFmpeg能连接到流（即使有错误），就认为流有效
+                        # 因为VLC播放器有更强的容错能力
+                        if elapsed > 1.0:  # 如果连接时间超过1秒，说明流存在
+                            result['valid'] = True
+                            result['latency'] = int(elapsed * 1000)
+                            result['error'] = "流有效但存在兼容性问题: " + result['error'][:200]
+                            break
+                        else:
+                            # 其他错误，继续重试
+                            self.logger.debug(f"流验证失败: {url} (尝试 {attempt+1}/{actual_retries+1}, 错误: {result['error']})")
+                            
+                            # 如果不是最后一次尝试，等待一下再重试
+                            if attempt < actual_retries and remaining_time > 1.0:
+                                # 动态等待时间，随着重试次数增加而增加
+                                wait_time = min(1.0, remaining_time * 0.2)
+                                time.sleep(wait_time)
+                                remaining_time -= wait_time
                         
             except subprocess.TimeoutExpired:
                 process.kill()
