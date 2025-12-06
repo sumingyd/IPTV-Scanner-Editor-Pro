@@ -258,7 +258,7 @@ CCTV-中视购物,239.21.1.100:5002,https://raw.githubusercontent.com/sumingyd/I
 ########## 特色频道 ##########,,,
 CHC动作电影,"CHC-dongzuo,CHANNEL00002030",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC动作电影.png,特色频道
 CHC家庭影院,"CHC-jiatingyinyuan,CHANNEL00002028",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC家庭电影.png,特色频道
-CHC影迷电影,"CHANNEL00002029,CHC-gaoqingdianying,239.21.2.127:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC影迷电影.png,特色频道
+CHC影迷电影,"CHANNEL00002029,CHC-gaoqingdianying,,CHC-gaoqingdianying-yingmi,239.21.2.127:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC影迷电影.png,特色频道
 IPTV动作影院,239.21.1.123:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png,特色频道
 IPTV经典电影,239.21.1.124:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png,特色频道
 IPTV魅力时尚,239.21.1.129:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png,特色频道
