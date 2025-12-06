@@ -887,8 +887,8 @@ class LoadingScreen(QtWidgets.QWidget):
             "准备就绪..."
         ]
 
-        # 设置窗口大小和位置 - 更惊艳的尺寸
-        self.setFixedSize(520, 280)
+        # 设置窗口大小和位置 - 更大气现代的尺寸
+        self.setFixedSize(700, 450)
         self.setWindowFlags(
             QtCore.Qt.WindowType.FramelessWindowHint |
             QtCore.Qt.WindowType.WindowStaysOnTopHint
@@ -901,67 +901,77 @@ class LoadingScreen(QtWidgets.QWidget):
         y = (screen_geometry.height() - self.height()) // 2
         self.move(x, y)
 
-        # 设置惊艳的渐变背景
+        # 设置现代化渐变背景 - 使用Qt支持的CSS属性
         self.setStyleSheet("""
             QWidget {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #0c0c0c, stop:0.3 #1a1a2e, stop:0.6 #16213e, stop:1 #0f3460);
-                border: 2px solid qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #00b4d8, stop:0.5 #0077b6, stop:1 #03045e);
-                border-radius: 15px;
+                    stop:0 #0a192f, stop:0.3 #112240, stop:0.6 #1a365d, stop:1 #2d4a7c);
+                border: 3px solid qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #4cc9f0, stop:0.5 #4361ee, stop:1 #3a0ca3);
+                border-radius: 20px;
             }
         """)
 
-        # 主布局 - 惊艳的间距
+        # 主布局 - 更优雅的间距
         main_layout = QtWidgets.QVBoxLayout(self)
-        main_layout.setContentsMargins(35, 30, 35, 25)
-        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(50, 50, 50, 40)
+        main_layout.setSpacing(30)
 
-        # 应用程序标题区域 - 惊艳设计
+        # 应用程序标题区域 - 现代化设计
         title_layout = QtWidgets.QVBoxLayout()
-        title_layout.setSpacing(6)
+        title_layout.setSpacing(10)
         
+        # 主标题 - 添加发光效果
         self.title = QtWidgets.QLabel("IPTV Scanner Editor Pro")
         self.title.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.title.setStyleSheet("""
             QLabel {
                 color: #ffffff;
-                font-size: 24px;
-                font-weight: bold;
+                font-size: 36px;
+                font-weight: 900;
                 background: transparent;
-                padding: 5px;
+                padding: 12px;
+                letter-spacing: 1.5px;
+                font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
             }
         """)
         title_layout.addWidget(self.title)
         
-        self.subtitle = QtWidgets.QLabel("专业扫描编辑工具")
+        # 副标题 - 添加渐变效果
+        self.subtitle = QtWidgets.QLabel("Professional Scanning & Editing Tool")
         self.subtitle.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.subtitle.setStyleSheet("""
             QLabel {
-                color: #90e0ef;
-                font-size: 14px;
-                font-weight: 500;
+                color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #4cc9f0, stop:0.5 #4361ee, stop:1 #3a0ca3);
+                font-size: 18px;
+                font-weight: 600;
                 background: transparent;
-                padding: 2px;
+                padding: 6px;
+                letter-spacing: 0.8px;
+                opacity: 0.95;
+                font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
             }
         """)
         title_layout.addWidget(self.subtitle)
         
         main_layout.addLayout(title_layout)
 
-        # 状态文本区域 - 惊艳设计
+        # 状态文本区域 - 现代化卡片设计
         self.status_text = QtWidgets.QLabel(self.steps[0])
         self.status_text.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.status_text.setStyleSheet("""
             QLabel {
-                color: #caf0f8;
-                font-size: 14px;
+                color: #e2f3f5;
+                font-size: 18px;
                 font-weight: 500;
-                background: rgba(0, 119, 182, 0.2);
-                padding: 12px 20px;
-                border: 1px solid rgba(0, 180, 216, 0.3);
-                border-radius: 10px;
-                margin: 5px 0px;
+                background: rgba(30, 58, 138, 0.4);
+                padding: 20px 30px;
+                border: 2px solid rgba(76, 201, 240, 0.5);
+                border-radius: 15px;
+                margin: 15px 0px;
+                min-height: 30px;
+                font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
             }
         """)
         main_layout.addWidget(self.status_text)
@@ -970,67 +980,83 @@ class LoadingScreen(QtWidgets.QWidget):
         progress_container = QtWidgets.QWidget()
         progress_layout = QtWidgets.QVBoxLayout(progress_container)
         progress_layout.setContentsMargins(0, 0, 0, 0)
-        progress_layout.setSpacing(10)
+        progress_layout.setSpacing(20)
 
-        # 进度条 - 惊艳风格
+        # 进度条 - 现代化风格
         self.progress = QtWidgets.QProgressBar()
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
         self.progress.setTextVisible(False)
         self.progress.setStyleSheet("""
             QProgressBar {
-                border: 2px solid rgba(0, 180, 216, 0.4);
-                border-radius: 12px;
-                height: 18px;
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #1a1a2e, stop:1 #16213e);
+                border: 4px solid rgba(76, 201, 240, 0.4);
+                border-radius: 18px;
+                height: 28px;
+                background: rgba(10, 25, 47, 0.9);
+                padding: 3px;
             }
             QProgressBar::chunk {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #00b4d8, stop:0.3 #0077b6, stop:0.7 #03045e, stop:1 #00b4d8);
-                border-radius: 10px;
-                border: 1px solid rgba(255, 255, 255, 0.2);
+                    stop:0 #4cc9f0, stop:0.4 #4361ee, stop:0.7 #7209b7, stop:1 #3a0ca3);
+                border-radius: 14px;
+                border: 1px solid rgba(255, 255, 255, 0.4);
             }
         """)
         progress_layout.addWidget(self.progress)
 
-        # 进度信息 - 惊艳设计
+        # 进度信息 - 现代化设计
         progress_info_layout = QtWidgets.QHBoxLayout()
+        progress_info_layout.setContentsMargins(0, 8, 0, 0)
         
         self.progress_percent = QtWidgets.QLabel("0%")
         self.progress_percent.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.progress_percent.setStyleSheet("""
             QLabel {
-                color: #00b4d8;
-                font-size: 16px;
+                color: #4cc9f0;
+                font-size: 24px;
                 font-weight: bold;
                 background: transparent;
+                font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
             }
         """)
         progress_info_layout.addWidget(self.progress_percent)
         
         main_layout.addWidget(progress_container)
 
-        # 底部信息区域 - 惊艳设计
+        # 底部信息区域 - 现代化设计
         footer_layout = QtWidgets.QHBoxLayout()
+        
+        # 左侧：加载提示
+        self.loading_hint = QtWidgets.QLabel("正在加载，请稍候...")
+        self.loading_hint.setStyleSheet("""
+            QLabel {
+                color: #90e0ef;
+                font-size: 14px;
+                background: transparent;
+                padding: 6px 12px;
+                opacity: 0.9;
+                font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+            }
+        """)
+        footer_layout.addWidget(self.loading_hint)
         
         footer_layout.addStretch()
         
-        # 版本号
-        self.version = QtWidgets.QLabel(f"版本 {AboutDialog.CURRENT_VERSION}")
+        # 右侧：版本号
+        self.version = QtWidgets.QLabel(f"Version {AboutDialog.CURRENT_VERSION}")
         self.version.setStyleSheet("""
             QLabel {
-                color: #90e0ef;
-                font-size: 12px;
-                background: transparent;
-                padding: 3px 8px;
-                border-radius: 4px;
-                background: rgba(0, 119, 182, 0.2);
+                color: #a8dadc;
+                font-size: 14px;
+                font-weight: 600;
+                background: rgba(30, 58, 138, 0.5);
+                padding: 8px 16px;
+                border-radius: 8px;
+                border: 1px solid rgba(76, 201, 240, 0.3);
+                font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
             }
         """)
         footer_layout.addWidget(self.version)
-        
-        footer_layout.addStretch()
         
         main_layout.addLayout(footer_layout)
 
@@ -1040,15 +1066,25 @@ class LoadingScreen(QtWidgets.QWidget):
         # 初始化进度条同步定时器
         self.progress_timer = QtCore.QTimer()
         self.progress_timer.timeout.connect(self._update_progress_sync)
-        self.progress_timer.start(50)  # 每50ms更新一次进度
+        self.progress_timer.start(40)  # 每40ms更新一次进度，更流畅
         
         # 启动时间记录
         self.start_time = time.time()
         self.step_start_time = time.time()
-        self.current_step_duration = random.uniform(0.1, 0.3)  # 进一步缩短延迟时间
+        self.current_step_duration = random.uniform(0.12, 0.25)  # 优化时间间隔
         self.current_progress = 0
         self.target_progress = 0
         self.animation_completed = False
+        
+        # 添加淡入动画
+        self.opacity_effect = QtWidgets.QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(self.opacity_effect)
+        self.opacity_animation = QtCore.QPropertyAnimation(self.opacity_effect, b"opacity")
+        self.opacity_animation.setDuration(400)
+        self.opacity_animation.setStartValue(0)
+        self.opacity_animation.setEndValue(1)
+        self.opacity_animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+        self.opacity_animation.start()
 
     def _update_progress_sync(self):
         """同步更新进度条和状态文本"""
@@ -1127,10 +1163,10 @@ class LoadingScreen(QtWidgets.QWidget):
                 QtWidgets.QApplication.instance().quit()
 
 def main():
-    if sys.platform == "win32":
-        import asyncio
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
+    # 移除弃用的 asyncio 设置，使用默认事件循环策略
+    # 注意：Python 3.8+ 在 Windows 上默认使用 ProactorEventLoop
+    # 如果需要兼容旧代码，可以保留但会显示弃用警告
+    
     app = QtWidgets.QApplication(sys.argv)
     
     # 设置应用程序字体，避免Fixedsys字体缺失警告
