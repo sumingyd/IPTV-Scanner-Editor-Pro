@@ -278,13 +278,13 @@ class StreamValidator:
                     # 检查是否是解码错误（流有效但解码有问题）
                     is_decode_error = False
                     if error_output:
-                        # 扩展的解码错误关键词列表，包含更多常见的解码错误
+                        # 更严格的解码错误关键词列表，只包含真正的解码错误
                         decode_error_keywords = [
                             'channel element', 'is not allocated', 'PPS id out of range',
                             'ESC overflow', 'Number of bands', 'exceeds limit',
-                            'skip_data_stream_element', 'Invalid data found when processing input',
-                            'Error submitting packet to decoder', 'Not yet implemented in FFmpeg',
-                            'Reserved bit set', 'Prediction is not allowed', 'Could not find ref',
+                            'skip_data_stream_element', 'Error submitting packet to decoder',
+                            'Not yet implemented in FFmpeg', 'Reserved bit set',
+                            'Prediction is not allowed', 'Could not find ref',
                             'The cu_qp_delta', 'is outside the valid range', 'CABAC_MAX_BIN',
                             'Rematrix is needed', 'Failed to configure output pad',
                             'Error reinitializing filters', 'Terminating thread',
@@ -294,10 +294,12 @@ class StreamValidator:
                             'SEI type', 'truncated at', 'is not implemented', 'Invalid NAL unit size',
                             'Missing reference picture', 'reference picture missing during reorder',
                             'mmco: unref short failure', 'decode_slice_header error',
-                            'concealing', 'error', 'corrupt', 'invalid', 'missing',
-                            'h264', 'h265', 'hevc', 'avc', 'mpeg', 'aac', 'ac3'
+                            'concealing'
                         ]
-                        is_decode_error = any(keyword in error_output for keyword in decode_error_keywords)
+                        # 排除通用的错误关键词，避免误判
+                        generic_error_keywords = ['error', 'corrupt', 'invalid', 'missing']
+                        is_decode_error = any(keyword in error_output for keyword in decode_error_keywords) and \
+                                         not any(keyword in error_output.lower() for keyword in generic_error_keywords)
                     
                     if is_decode_error:
                         # 如果是解码错误，认为流是有效的（流存在但解码有问题）
@@ -306,24 +308,19 @@ class StreamValidator:
                         result['error'] = "流有效但存在解码问题: " + result['error'][:200]  # 截断错误信息
                         break
                     else:
-                        # 其他错误，但考虑到双击播放能正常播放，放宽验证标准
-                        # 只要FFmpeg能连接到流（即使有错误），就认为流有效
-                        # 因为VLC播放器有更强的容错能力
-                        if elapsed > 1.0:  # 如果连接时间超过1秒，说明流存在
-                            result['valid'] = True
-                            result['latency'] = int(elapsed * 1000)
-                            result['error'] = "流有效但存在兼容性问题: " + result['error'][:200]
-                            break
+                        # 其他错误，严格验证：只有FFmpeg返回0才认为有效
+                        # 不再放宽验证标准，避免无效频道被标记为有效
+                        
+                        # 如果不是最后一次尝试，等待一下再重试
+                        if attempt < actual_retries and remaining_time > 1.0:
+                            # 动态等待时间，随着重试次数增加而增加
+                            wait_time = min(1.0, remaining_time * 0.2)
+                            time.sleep(wait_time)
+                            remaining_time -= wait_time
                         else:
-                            # 其他错误，继续重试
-                            # 不再输出详细的流验证失败日志
-                            
-                            # 如果不是最后一次尝试，等待一下再重试
-                            if attempt < actual_retries and remaining_time > 1.0:
-                                # 动态等待时间，随着重试次数增加而增加
-                                wait_time = min(1.0, remaining_time * 0.2)
-                                time.sleep(wait_time)
-                                remaining_time -= wait_time
+                            # 最后一次尝试或没有剩余时间，标记为无效
+                            result['valid'] = False
+                            break
                         
             except subprocess.TimeoutExpired:
                 process.kill()
