@@ -101,30 +101,27 @@ class ScannerController(QObject):
                     import functools
                     QtCore.QTimer.singleShot(0, functools.partial(self._handle_channel_add, channel_info.copy()))
                 
-                # 统计信息更新 - 确保无论有效还是无效都更新
-                with self.stats_lock:
-                    if valid:
-                        self.stats['valid'] += 1
-                    else:
-                        self.stats['invalid'] += 1
+                    # 统计信息更新 - 确保无论有效还是无效都更新
+                    with self.stats_lock:
+                        if valid:
+                            self.stats['valid'] += 1
+                        else:
+                            self.stats['invalid'] += 1
                     
-                    current = self.stats['valid'] + self.stats['invalid']
-                    total = self.stats['total']
+                        current = self.stats['valid'] + self.stats['invalid']
+                        total = self.stats['total']
                     
-                    # 即使total为0也发送进度更新信号，但使用默认值
-                    if total <= 0:
-                        self.logger.warning(f"进度条更新: total={total}，使用默认值1避免除零错误")
-                        total = 1  # 避免除零错误
+                        # 如果total为0，说明队列填充线程还没有更新总数
+                        # 在这种情况下，我们使用一个较大的估计值，比如100
+                        if total <= 0:
+                            # 使用一个合理的估计值，避免除零错误
+                            estimated_total = 100
+                            self.logger.debug(f"进度条更新: total={total}，使用估计值{estimated_total}")
+                            total = estimated_total
                     
-                    # 添加进度条更新追踪日志
-                    progress_percent = int(current / total * 100)
-                    progress_percent = max(0, min(100, progress_percent))  # 确保在0-100范围内
-                    self.logger.debug(f"进度条更新: {current}/{total} ({progress_percent}%)")
-                    
-                    # 立即更新进度，确保状态栏进度条正常显示
-                    # 使用QTimer在主线程中安全地更新进度
-                    import functools
-                    QtCore.QTimer.singleShot(0, functools.partial(self.progress_updated.emit, current, total))
+                        # 发送进度更新信号
+                        import functools
+                        QtCore.QTimer.singleShot(0, functools.partial(self.progress_updated.emit, current, total))
                 
             except Exception as e:
                 self.logger.error(f"工作线程错误: {e}", exc_info=True)
@@ -140,12 +137,7 @@ class ScannerController(QObject):
                         self.logger.warning(f"进度条更新(异常): total={total}，使用默认值1避免除零错误")
                         total = 1  # 避免除零错误
                     
-                    # 添加进度条更新追踪日志
-                    progress_percent = int(current / total * 100)
-                    progress_percent = max(0, min(100, progress_percent))  # 确保在0-100范围内
-                    self.logger.debug(f"进度条更新(异常): {current}/{total} ({progress_percent}%)")
-                    
-                    # 立即更新进度，确保状态栏进度条正常显示
+                    # 发送进度更新信号
                     import functools
                     QtCore.QTimer.singleShot(0, functools.partial(self.progress_updated.emit, current, total))
                 
@@ -379,8 +371,7 @@ class ScannerController(QObject):
         )
         stats_thread.start()
         
-        # 扫描开始时重置进度条为0%
-        self.logger.info("扫描开始，重置进度条为0%")
+        # 扫描开始时发送进度更新信号
         QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(0, 1))
         
         self.logger.info(f"开始扫描URL，使用 {optimal_threads} 个线程，超时时间: {timeout}秒")
@@ -513,8 +504,7 @@ class ScannerController(QObject):
         )
         stats_thread.start()
         
-        # 验证开始时重置进度条为0%
-        self.logger.info("有效性验证开始，重置进度条为0%")
+        # 验证开始时发送进度更新信号
         QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(0, 1))
 
     def stop_validation(self):
