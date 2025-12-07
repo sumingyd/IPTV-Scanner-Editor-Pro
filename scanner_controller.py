@@ -111,8 +111,14 @@ class ScannerController(QObject):
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
                     
+                    # 即使total为0也发送进度更新信号，但使用默认值
+                    if total <= 0:
+                        self.logger.warning(f"进度条更新: total={total}，使用默认值1避免除零错误")
+                        total = 1  # 避免除零错误
+                    
                     # 添加进度条更新追踪日志
-                    progress_percent = int(current / total * 100) if total > 0 else 0
+                    progress_percent = int(current / total * 100)
+                    progress_percent = max(0, min(100, progress_percent))  # 确保在0-100范围内
                     self.logger.debug(f"进度条更新: {current}/{total} ({progress_percent}%)")
                     
                     # 立即更新进度，确保状态栏进度条正常显示
@@ -129,8 +135,14 @@ class ScannerController(QObject):
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
                     
+                    # 即使total为0也发送进度更新信号，但使用默认值
+                    if total <= 0:
+                        self.logger.warning(f"进度条更新(异常): total={total}，使用默认值1避免除零错误")
+                        total = 1  # 避免除零错误
+                    
                     # 添加进度条更新追踪日志
-                    progress_percent = int(current / total * 100) if total > 0 else 0
+                    progress_percent = int(current / total * 100)
+                    progress_percent = max(0, min(100, progress_percent))  # 确保在0-100范围内
                     self.logger.debug(f"进度条更新(异常): {current}/{total} ({progress_percent}%)")
                     
                     # 立即更新进度，确保状态栏进度条正常显示
@@ -367,6 +379,10 @@ class ScannerController(QObject):
         )
         stats_thread.start()
         
+        # 扫描开始时重置进度条为0%
+        self.logger.info("扫描开始，重置进度条为0%")
+        QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(0, 1))
+        
         self.logger.info(f"开始扫描URL，使用 {optimal_threads} 个线程，超时时间: {timeout}秒")
         
     def start_scan_from_urls(self, urls: list, thread_count: int = 10, timeout: int = 10, user_agent: str = None, referer: str = None):
@@ -451,7 +467,8 @@ class ScannerController(QObject):
                 worker.join(timeout=0.1)
                 # 如果线程仍然存活，强制终止
                 if worker.is_alive():
-                    self.logger.warning(f"线程 {worker.name} 无法正常终止，强制清理")
+                    # 不再输出警告日志
+                    pass
                 
         self.workers = []
         
@@ -495,6 +512,10 @@ class ScannerController(QObject):
             daemon=True
         )
         stats_thread.start()
+        
+        # 验证开始时重置进度条为0%
+        self.logger.info("有效性验证开始，重置进度条为0%")
+        QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(0, 1))
 
     def stop_validation(self):
         """停止有效性验证"""
@@ -559,6 +580,11 @@ class ScannerController(QObject):
                     # 发送进度更新信号
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
+                    
+                    # 即使total为0也发送进度更新信号，但使用默认值
+                    if total <= 0:
+                        self.logger.warning(f"验证进度条更新: total={total}，使用默认值1避免除零错误")
+                        total = 1  # 避免除零错误
                     
                     # 立即更新进度，确保状态栏进度条正常显示
                     # 使用QTimer在主线程中安全地更新进度

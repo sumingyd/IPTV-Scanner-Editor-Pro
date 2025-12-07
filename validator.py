@@ -316,7 +316,7 @@ class StreamValidator:
                             break
                         else:
                             # 其他错误，继续重试
-                            self.logger.debug(f"流验证失败: {url} (尝试 {attempt+1}/{actual_retries+1}, 错误: {result['error']})")
+                            # 不再输出详细的流验证失败日志
                             
                             # 如果不是最后一次尝试，等待一下再重试
                             if attempt < actual_retries and remaining_time > 1.0:

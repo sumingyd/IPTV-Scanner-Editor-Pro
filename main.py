@@ -130,9 +130,30 @@ class MainWindow(QtWidgets.QMainWindow):
             self.logger.debug("进度条信号已经连接，跳过重复连接")
             return
             
+        # 检查进度条对象是否存在
+        if not hasattr(self.ui.main_window, 'progress_indicator'):
+            self.logger.error("进度条对象不存在，无法连接信号")
+            return
+            
+        if self.ui.main_window.progress_indicator is None:
+            self.logger.error("进度条对象为None，无法连接信号")
+            return
+            
+        self.logger.debug(f"进度条对象存在: {self.ui.main_window.progress_indicator}")
+        self.logger.debug(f"进度条当前值: {self.ui.main_window.progress_indicator.value()}")
+        self.logger.debug(f"进度条是否可见: {self.ui.main_window.progress_indicator.isVisible()}")
+        
         # 进度更新信号 - 更新状态栏的进度条
         def update_progress_bars(cur, total):
-            progress_value = int(cur / total * 100) if total > 0 else 0
+            # 确保total不为0，避免除零错误
+            if total <= 0:
+                progress_value = 0
+                self.logger.warning(f"进度条更新: total={total}，设置为0%")
+            else:
+                progress_value = int(cur / total * 100)
+                # 确保进度值在0-100范围内
+                progress_value = max(0, min(100, progress_value))
+                
             self.logger.debug(f"UI进度条更新函数调用: {cur}/{total} -> {progress_value}%")
             
             # 检查进度条对象是否存在
@@ -146,18 +167,47 @@ class MainWindow(QtWidgets.QMainWindow):
                 
             # 设置进度条值
             try:
-                self.ui.main_window.progress_indicator.setValue(progress_value)
-                self.logger.debug(f"进度条值已设置为: {progress_value}%")
+                # 确保在主线程中更新UI
+                if QtCore.QThread.currentThread() != self.thread():
+                    self.logger.debug("在非主线程中更新进度条，使用QTimer")
+                    QtCore.QTimer.singleShot(0, lambda: _set_progress_value_internal(progress_value))
+                else:
+                    _set_progress_value_internal(progress_value)
+                    
             except Exception as e:
-                self.logger.error(f"设置进度条值失败: {e}")
+                self.logger.error(f"设置进度条值失败: {e}", exc_info=True)
+        
+        # 辅助函数：设置进度条值并确保显示
+        def _set_progress_value_internal(value):
+            try:
+                self.logger.debug(f"开始设置进度条值: {value}%")
+                
+                # 确保进度条可见
+                if not self.ui.main_window.progress_indicator.isVisible():
+                    self.logger.debug(f"进度条不可见，显示进度条")
+                    self.ui.main_window.progress_indicator.show()
+                
+                # 设置进度条值
+                self.ui.main_window.progress_indicator.setValue(value)
+                self.logger.debug(f"进度条值已设置为: {value}%")
+                
+                # 强制UI更新
+                QtWidgets.QApplication.processEvents()
+                    
+            except Exception as e:
+                self.logger.error(f"_set_progress_value_internal失败: {e}", exc_info=True)
             
         # 检查扫描器对象和信号
         self.logger.debug(f"扫描器对象: {self.scanner}")
         self.logger.debug(f"进度条更新信号: {self.scanner.progress_updated}")
         
         # 连接信号
-        self.scanner.progress_updated.connect(update_progress_bars)
-        self.logger.debug("进度条更新信号已连接")
+        try:
+            self.scanner.progress_updated.connect(update_progress_bars)
+            self.logger.debug("进度条更新信号已连接")
+        except Exception as e:
+            self.logger.error(f"连接进度条更新信号失败: {e}", exc_info=True)
+            return
         
         # 扫描开始时显示状态栏进度条
         self.scanner.progress_updated.connect(
@@ -171,6 +221,22 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # 标记信号已连接
         self._progress_signals_connected = True
+        self.logger.info("进度条信号连接完成")
+        
+        # 不再发送测试信号，避免进度条一直显示50%
+        # 测试信号会在实际扫描开始时被重置
+        # QtCore.QTimer.singleShot(1000, lambda: self._test_progress_signal())
+        
+    def _test_progress_signal(self):
+        """测试进度条信号连接"""
+        self.logger.info("开始测试进度条信号连接")
+        # 发送一个测试进度信号
+        if hasattr(self, 'scanner') and self.scanner:
+            self.logger.info(f"发送测试进度信号: 50/100")
+            self.scanner.progress_updated.emit(50, 100)
+            self.logger.info("测试进度信号已发送")
+        else:
+            self.logger.error("扫描器对象不存在，无法测试进度条信号")
         
 
     # 废弃方法已移除：_update_validate_status
@@ -1181,18 +1247,14 @@ def main():
         }}
     """)
 
-    # 第一步：立即显示启动动画
-    loading_screen = LoadingScreen()
-    loading_screen.show()
-    app.processEvents()  # 强制立即显示启动动画
-    
-    # 第二步：启动动画完全控制初始化过程
-    # 启动动画会通过定时器逐步更新，完成后自动创建并显示主窗口
-    # 将主窗口创建延迟到启动动画完成后，避免窗口闪动
-    loading_screen.main_window = None  # 先设置为None，稍后创建
-    
-    # 第三步：启动动画完全控制初始化过程
-    # 启动动画会通过定时器逐步更新，完成后自动创建并显示主窗口
+    # 直接创建并显示主窗口，去掉启动动画
+    try:
+        window = MainWindow()
+        window.show()
+        app.main_window = window
+    except Exception as e:
+        global_logger.error(f"创建主窗口失败: {e}")
+        QtWidgets.QApplication.instance().quit()
 
     def cleanup():
         if hasattr(app, 'main_window'):
