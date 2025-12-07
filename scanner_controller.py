@@ -101,27 +101,27 @@ class ScannerController(QObject):
                     import functools
                     QtCore.QTimer.singleShot(0, functools.partial(self._handle_channel_add, channel_info.copy()))
                 
-                    # 统计信息更新 - 确保无论有效还是无效都更新
-                    with self.stats_lock:
-                        if valid:
-                            self.stats['valid'] += 1
-                        else:
-                            self.stats['invalid'] += 1
-                    
-                        current = self.stats['valid'] + self.stats['invalid']
-                        total = self.stats['total']
-                    
-                        # 如果total为0，说明队列填充线程还没有更新总数
-                        # 在这种情况下，我们使用一个较大的估计值，比如100
-                        if total <= 0:
-                            # 使用一个合理的估计值，避免除零错误
-                            estimated_total = 100
-                            self.logger.debug(f"进度条更新: total={total}，使用估计值{estimated_total}")
-                            total = estimated_total
-                    
-                        # 发送进度更新信号
-                        import functools
-                        QtCore.QTimer.singleShot(0, functools.partial(self.progress_updated.emit, current, total))
+                # 统计信息更新 - 确保无论有效还是无效都更新
+                with self.stats_lock:
+                    if valid:
+                        self.stats['valid'] += 1
+                    else:
+                        self.stats['invalid'] += 1
+                
+                    current = self.stats['valid'] + self.stats['invalid']
+                    total = self.stats['total']
+                
+                    # 如果total为0，说明队列填充线程还没有更新总数
+                    # 在这种情况下，我们使用一个较大的估计值，比如100
+                    if total <= 0:
+                        # 使用一个合理的估计值，避免除零错误
+                        estimated_total = 100
+                        self.logger.debug(f"进度条更新: total={total}，使用估计值{estimated_total}")
+                        total = estimated_total
+                
+                    # 发送进度更新信号
+                    import functools
+                    QtCore.QTimer.singleShot(0, functools.partial(self.progress_updated.emit, current, total))
                 
             except Exception as e:
                 self.logger.error(f"工作线程错误: {e}", exc_info=True)
@@ -132,10 +132,13 @@ class ScannerController(QObject):
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
                     
-                    # 即使total为0也发送进度更新信号，但使用默认值
+                    # 如果total为0，说明队列填充线程还没有更新总数
+                    # 在这种情况下，我们使用一个较大的估计值，比如100
                     if total <= 0:
-                        self.logger.warning(f"进度条更新(异常): total={total}，使用默认值1避免除零错误")
-                        total = 1  # 避免除零错误
+                        # 使用一个合理的估计值，避免除零错误
+                        estimated_total = 100
+                        self.logger.debug(f"进度条更新(异常): total={total}，使用估计值{estimated_total}")
+                        total = estimated_total
                     
                     # 发送进度更新信号
                     import functools

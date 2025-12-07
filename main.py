@@ -18,7 +18,6 @@ from url_parser import URLRangeParser
 from language_manager import LanguageManager
 from ui_optimizer import get_ui_optimizer
 from error_handler import init_global_error_handler
-from progress_manager_new import SimpleProgressManager
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -129,7 +128,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._on_play_state_changed(self.player_controller.is_playing)
 
     def _connect_progress_signals(self):
-        """连接进度条更新信号 - 使用新的简单进度条管理器"""
+        """连接进度条更新信号 - 使用简单的定时器方案"""
         self.logger.info("开始连接进度条更新信号")
         
         # 检查进度条对象是否存在
@@ -145,14 +144,65 @@ class MainWindow(QtWidgets.QMainWindow):
         self.logger.info(f"进度条当前值: {self.ui.main_window.progress_indicator.value()}")
         self.logger.info(f"进度条是否可见: {self.ui.main_window.progress_indicator.isVisible()}")
             
-        # 创建简单的进度条管理器
-        self.progress_manager = SimpleProgressManager(self.ui.main_window.progress_indicator)
-        self.logger.info("简单进度条管理器已创建")
+        # 初始化进度条
+        self.ui.main_window.progress_indicator.setRange(0, 100)
+        self.ui.main_window.progress_indicator.setValue(0)
+        self.ui.main_window.progress_indicator.setTextVisible(True)
+        self.ui.main_window.progress_indicator.setFormat("%p%")
+        self.ui.main_window.progress_indicator.hide()
         
-        # 连接扫描器的信号
-        self.progress_manager.connect_scanner(self.scanner)
+        # 创建定时器来定期更新进度条
+        self.progress_timer = QtCore.QTimer()
+        self.progress_timer.timeout.connect(self._update_progress_from_stats)
+        self.progress_timer.start(500)  # 每500ms更新一次
         
-        self.logger.info("进度条管理器连接完成")
+        # 连接扫描完成信号
+        self.scanner.scan_completed.connect(self._on_scan_completed_for_progress)
+        
+        self.logger.info("进度条定时器已创建")
+        
+    def _update_progress_from_stats(self):
+        """从统计信息更新进度条"""
+        try:
+            # 获取统计信息
+            if hasattr(self.scanner, 'stats'):
+                stats = self.scanner.stats
+                total = stats.get('total', 0)
+                valid = stats.get('valid', 0)
+                invalid = stats.get('invalid', 0)
+                
+                current = valid + invalid
+                
+                # 计算百分比
+                if total <= 0:
+                    progress_value = 0
+                else:
+                    progress_value = int(current / total * 100)
+                    progress_value = max(0, min(100, progress_value))
+                
+                # 显示进度条
+                if not self.ui.main_window.progress_indicator.isVisible() and total > 0:
+                    self.ui.main_window.progress_indicator.show()
+                    self.logger.info(f"显示进度条，当前值: {progress_value}%")
+                
+                # 更新进度值
+                old_value = self.ui.main_window.progress_indicator.value()
+                if old_value != progress_value:
+                    self.ui.main_window.progress_indicator.setValue(progress_value)
+                    self.logger.info(f"进度条更新: {old_value}% -> {progress_value}% ({current}/{total})")
+                    
+        except Exception as e:
+            self.logger.error(f"更新进度条失败: {e}")
+            
+    def _on_scan_completed_for_progress(self):
+        """处理扫描完成，隐藏进度条"""
+        try:
+            # 扫描完成后隐藏进度条
+            self.ui.main_window.progress_indicator.hide()
+            self.ui.main_window.progress_indicator.setValue(0)
+            self.logger.debug("扫描完成，隐藏进度条")
+        except Exception as e:
+            self.logger.error(f"处理扫描完成失败: {e}")
         
 
     # 废弃方法已移除：_update_validate_status
