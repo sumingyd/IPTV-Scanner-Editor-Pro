@@ -34,15 +34,42 @@ class StreamValidator:
 
     @classmethod
     def terminate_all(cls):
-        """终止所有活动的验证进程"""
+        """终止所有活动的验证进程 - 增强版本"""
+        import logging
+        logger = logging.getLogger('IPTVScanner')
+        
         with cls._process_lock:
-            for process in cls._active_processes:
+            processes_to_terminate = cls._active_processes.copy()
+            cls._active_processes = []
+            
+            terminated_count = 0
+            failed_count = 0
+            
+            for process in processes_to_terminate:
                 try:
                     if process.poll() is None:  # 检查进程是否仍在运行
-                        process.kill()
-                except:
-                    pass
-            cls._active_processes = []
+                        # 先尝试优雅终止
+                        process.terminate()
+                        try:
+                            process.wait(timeout=1.0)  # 等待1秒
+                            terminated_count += 1
+                            logger.debug(f"进程 {process.pid} 已优雅终止")
+                        except subprocess.TimeoutExpired:
+                            # 如果优雅终止失败，强制终止
+                            process.kill()
+                            process.wait()
+                            terminated_count += 1
+                            logger.debug(f"进程 {process.pid} 已强制终止")
+                    else:
+                        # 进程已经结束
+                        terminated_count += 1
+                        logger.debug(f"进程 {process.pid} 已结束")
+                except Exception as e:
+                    failed_count += 1
+                    logger.debug(f"终止进程 {process.pid if hasattr(process, 'pid') else 'unknown'} 时出错: {e}")
+            
+            if terminated_count > 0 or failed_count > 0:
+                logger.info(f"验证进程清理完成: {terminated_count} 个进程已终止, {failed_count} 个进程清理失败")
 
 
     def _get_ffmpeg_path(self):
