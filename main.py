@@ -18,6 +18,7 @@ from url_parser import URLRangeParser
 from language_manager import LanguageManager
 from ui_optimizer import get_ui_optimizer
 from error_handler import init_global_error_handler
+from resource_cleaner import register_cleanup, cleanup_all
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -111,6 +112,10 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # 连接信号槽
         self._connect_signals()
+        
+        # 注册资源清理处理器
+        self._register_cleanup_handlers()
+        
         self.logger.info("主窗口初始化完成")
 
     def init_controllers(self):
@@ -893,302 +898,51 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.logger.error(f"保存退出配置失败: {e}")
 
-from PyQt6 import QtWidgets, QtCore, QtGui
-from about_dialog import AboutDialog  # 引入版本号
+    def closeEvent(self, event):
+        """重写窗口关闭事件，确保资源正确清理"""
+        self._cleanup_resources()
+        event.accept()
 
-class LoadingScreen(QtWidgets.QWidget):
-    def __init__(self, main_window=None):
-        super().__init__()
-        self.main_window = main_window
-        self.current_step = 0
-        self.steps = [
-            "正在初始化应用程序...",
-            "加载配置文件...",
-            "初始化语言管理器...",
-            "构建用户界面...",
-            "初始化频道模型...",
-            "加载频道映射规则...",
-            "初始化扫描控制器...",
-            "初始化播放器控制器...",
-            "连接信号和槽...",
-            "加载用户设置...",
-            "准备就绪..."
-        ]
-
-        # 设置窗口大小和位置 - 更大气现代的尺寸
-        self.setFixedSize(700, 450)
-        self.setWindowFlags(
-            QtCore.Qt.WindowType.FramelessWindowHint |
-            QtCore.Qt.WindowType.WindowStaysOnTopHint
-        )
+    def _cleanup_resources(self):
+        """清理所有资源"""
+        self.logger.info("开始清理程序资源...")
         
-        # 居中显示
-        screen = QtWidgets.QApplication.primaryScreen()
-        screen_geometry = screen.availableGeometry()
-        x = (screen_geometry.width() - self.width()) // 2
-        y = (screen_geometry.height() - self.height()) // 2
-        self.move(x, y)
-
-        # 设置现代化渐变背景 - 使用Qt支持的CSS属性
-        self.setStyleSheet("""
-            QWidget {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #0a192f, stop:0.3 #112240, stop:0.6 #1a365d, stop:1 #2d4a7c);
-                border: 3px solid qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #4cc9f0, stop:0.5 #4361ee, stop:1 #3a0ca3);
-                border-radius: 20px;
-            }
-        """)
-
-        # 主布局 - 更优雅的间距
-        main_layout = QtWidgets.QVBoxLayout(self)
-        main_layout.setContentsMargins(50, 50, 50, 40)
-        main_layout.setSpacing(30)
-
-        # 应用程序标题区域 - 现代化设计
-        title_layout = QtWidgets.QVBoxLayout()
-        title_layout.setSpacing(10)
+        # 使用全局资源清理器
+        cleanup_all()
         
-        # 主标题 - 添加发光效果
-        self.title = QtWidgets.QLabel("IPTV Scanner Editor Pro")
-        self.title.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.title.setStyleSheet("""
-            QLabel {
-                color: #ffffff;
-                font-size: 36px;
-                font-weight: 900;
-                background: transparent;
-                padding: 12px;
-                letter-spacing: 1.5px;
-                font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
-            }
-        """)
-        title_layout.addWidget(self.title)
+        self.logger.info("所有资源已清理")
+    
+    def _register_cleanup_handlers(self):
+        """注册资源清理处理器"""
+        self.logger.info("注册资源清理处理器...")
         
-        # 副标题 - 添加渐变效果
-        self.subtitle = QtWidgets.QLabel("Professional Scanning & Editing Tool")
-        self.subtitle.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.subtitle.setStyleSheet("""
-            QLabel {
-                color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #4cc9f0, stop:0.5 #4361ee, stop:1 #3a0ca3);
-                font-size: 18px;
-                font-weight: 600;
-                background: transparent;
-                padding: 6px;
-                letter-spacing: 0.8px;
-                opacity: 0.95;
-                font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
-            }
-        """)
-        title_layout.addWidget(self.subtitle)
+        # 注册定时器清理
+        register_cleanup(self._stop_all_timers, "stop_all_timers")
         
-        main_layout.addLayout(title_layout)
-
-        # 状态文本区域 - 现代化卡片设计
-        self.status_text = QtWidgets.QLabel(self.steps[0])
-        self.status_text.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.status_text.setStyleSheet("""
-            QLabel {
-                color: #e2f3f5;
-                font-size: 18px;
-                font-weight: 500;
-                background: rgba(30, 58, 138, 0.4);
-                padding: 20px 30px;
-                border: 2px solid rgba(76, 201, 240, 0.5);
-                border-radius: 15px;
-                margin: 15px 0px;
-                min-height: 30px;
-                font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
-            }
-        """)
-        main_layout.addWidget(self.status_text)
-
-        # 进度条区域
-        progress_container = QtWidgets.QWidget()
-        progress_layout = QtWidgets.QVBoxLayout(progress_container)
-        progress_layout.setContentsMargins(0, 0, 0, 0)
-        progress_layout.setSpacing(20)
-
-        # 进度条 - 现代化风格
-        self.progress = QtWidgets.QProgressBar()
-        self.progress.setRange(0, 100)
-        self.progress.setValue(0)
-        self.progress.setTextVisible(False)
-        self.progress.setStyleSheet("""
-            QProgressBar {
-                border: 4px solid rgba(76, 201, 240, 0.4);
-                border-radius: 18px;
-                height: 28px;
-                background: rgba(10, 25, 47, 0.9);
-                padding: 3px;
-            }
-            QProgressBar::chunk {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #4cc9f0, stop:0.4 #4361ee, stop:0.7 #7209b7, stop:1 #3a0ca3);
-                border-radius: 14px;
-                border: 1px solid rgba(255, 255, 255, 0.4);
-            }
-        """)
-        progress_layout.addWidget(self.progress)
-
-        # 进度信息 - 现代化设计
-        progress_info_layout = QtWidgets.QHBoxLayout()
-        progress_info_layout.setContentsMargins(0, 8, 0, 0)
+        # 注册进度条定时器清理
+        if hasattr(self, 'progress_timer'):
+            def stop_progress_timer():
+                if self.progress_timer.isActive():
+                    self.progress_timer.stop()
+            register_cleanup(stop_progress_timer, "stop_progress_timer")
         
-        self.progress_percent = QtWidgets.QLabel("0%")
-        self.progress_percent.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.progress_percent.setStyleSheet("""
-            QLabel {
-                color: #4cc9f0;
-                font-size: 24px;
-                font-weight: bold;
-                background: transparent;
-                font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
-            }
-        """)
-        progress_info_layout.addWidget(self.progress_percent)
+        # 注册扫描器清理
+        if hasattr(self, 'scanner'):
+            register_cleanup(self.scanner.stop_scan, "scanner_stop_scan")
         
-        main_layout.addWidget(progress_container)
-
-        # 底部信息区域 - 现代化设计
-        footer_layout = QtWidgets.QHBoxLayout()
+        # 注册播放器资源释放
+        if hasattr(self, 'player_controller'):
+            register_cleanup(self.player_controller.release, "player_release")
         
-        # 左侧：加载提示
-        self.loading_hint = QtWidgets.QLabel("正在加载，请稍候...")
-        self.loading_hint.setStyleSheet("""
-            QLabel {
-                color: #90e0ef;
-                font-size: 14px;
-                background: transparent;
-                padding: 6px 12px;
-                opacity: 0.9;
-                font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
-            }
-        """)
-        footer_layout.addWidget(self.loading_hint)
+        # 注册验证器进程清理
+        from validator import StreamValidator
+        register_cleanup(StreamValidator.terminate_all, "validator_terminate_all")
         
-        footer_layout.addStretch()
+        # 注册内存优化
+        from memory_manager import optimize_memory
+        register_cleanup(optimize_memory, "optimize_memory")
         
-        # 右侧：版本号
-        self.version = QtWidgets.QLabel(f"Version {AboutDialog.CURRENT_VERSION}")
-        self.version.setStyleSheet("""
-            QLabel {
-                color: #a8dadc;
-                font-size: 14px;
-                font-weight: 600;
-                background: rgba(30, 58, 138, 0.5);
-                padding: 8px 16px;
-                border-radius: 8px;
-                border: 1px solid rgba(76, 201, 240, 0.3);
-                font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
-            }
-        """)
-        footer_layout.addWidget(self.version)
-        
-        main_layout.addLayout(footer_layout)
-
-        # 设置加载屏幕的窗口标题
-        self.setWindowTitle(f"IPTV Scanner Editor Pro v{AboutDialog.CURRENT_VERSION}")
-
-        # 初始化进度条同步定时器
-        self.progress_timer = QtCore.QTimer()
-        self.progress_timer.timeout.connect(self._update_progress_sync)
-        self.progress_timer.start(40)  # 每40ms更新一次进度，更流畅
-        
-        # 启动时间记录
-        self.start_time = time.time()
-        self.step_start_time = time.time()
-        self.current_step_duration = random.uniform(0.12, 0.25)  # 优化时间间隔
-        self.current_progress = 0
-        self.target_progress = 0
-        self.animation_completed = False
-        
-        # 添加淡入动画
-        self.opacity_effect = QtWidgets.QGraphicsOpacityEffect(self)
-        self.setGraphicsEffect(self.opacity_effect)
-        self.opacity_animation = QtCore.QPropertyAnimation(self.opacity_effect, b"opacity")
-        self.opacity_animation.setDuration(400)
-        self.opacity_animation.setStartValue(0)
-        self.opacity_animation.setEndValue(1)
-        self.opacity_animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
-        self.opacity_animation.start()
-
-    def _update_progress_sync(self):
-        """同步更新进度条和状态文本"""
-        current_time = time.time()
-        elapsed_in_step = current_time - self.step_start_time
-        
-        # 检查是否需要进入下一步
-        if elapsed_in_step >= self.current_step_duration and self.current_step < len(self.steps):
-            # 记录当前步骤完成信息
-            step_name = self.steps[self.current_step]
-            global_logger.info(f"[启动动画] 步骤 {self.current_step + 1}/{len(self.steps)} 完成: '{step_name}' - 用时: {elapsed_in_step:.2f}秒")
-            
-            # 进入下一步
-            self.current_step += 1
-            if self.current_step < len(self.steps):
-                # 更新状态文本
-                step_name = self.steps[self.current_step]
-                self.status_text.setText(step_name)
-                # 重置步骤计时器
-                self.step_start_time = current_time
-                self.current_step_duration = random.uniform(0.1, 0.3)  # 进一步缩短延迟时间
-                # 计算目标进度
-                self.target_progress = int((self.current_step / len(self.steps)) * 100)
-                
-                global_logger.info(f"[启动动画] 开始步骤 {self.current_step + 1}/{len(self.steps)}: '{step_name}' - 目标进度: {self.target_progress}% - 预计用时: {self.current_step_duration:.2f}秒")
-            else:
-                # 最后一步，直接到100%
-                self.target_progress = 100
-                global_logger.info(f"[启动动画] 所有步骤完成，目标进度设为100%")
-        
-        # 立即更新进度条到目标进度，确保与文字提示同步
-        if self.current_progress != self.target_progress:
-            self.current_progress = self.target_progress
-            self.progress.setValue(self.current_progress)
-            self.progress_percent.setText(f"{self.current_progress}%")
-            
-            # 如果达到100%，触发UI初始化
-            if self.current_progress >= 100:
-                total_time = time.time() - self.start_time
-                global_logger.info(f"[启动动画] 进度条达到100% - 总用时: {total_time:.2f}秒")
-                self.progress_timer.stop()
-                self.animation_completed = True
-                global_logger.info(f"[启动动画] 进度条定时器已停止，立即显示主窗口...")
-                # 立即显示主窗口，不再延迟
-                QtCore.QTimer.singleShot(0, self.start_ui_init)
-        
-        # 强制UI更新
-        QtWidgets.QApplication.processEvents()
-
-    def update_progress(self, value, status_text=None):
-        """更新进度条和状态文本"""
-        self.progress.setValue(value)
-        self.progress_percent.setText(f"{value}%")
-        
-        if status_text:
-            self.status_text.setText(status_text)
-
-    @QtCore.pyqtSlot()
-    def start_ui_init(self):
-        """进度条完成后触发UI初始化"""
-        if self.animation_completed:
-            global_logger.info(f"[启动动画] 启动动画窗口即将关闭，准备创建并显示主窗口")
-            self.close()
-            global_logger.info(f"[启动动画] 启动动画窗口已关闭")
-            
-            # 在启动动画完成后创建主窗口，避免窗口闪动
-            try:
-                window = MainWindow()
-                window.show()
-                global_logger.info(f"[启动动画] 主窗口已创建并显示")
-                
-                # 设置应用程序的主窗口引用
-                QtWidgets.QApplication.instance().main_window = window
-            except Exception as e:
-                global_logger.error(f"[启动动画] 创建主窗口失败: {e}")
-                QtWidgets.QApplication.instance().quit()
+        self.logger.info(f"已注册 {len(get_resource_cleaner()._cleanup_handlers)} 个资源清理处理器")
 
 def main():
     # 移除弃用的 asyncio 设置，使用默认事件循环策略

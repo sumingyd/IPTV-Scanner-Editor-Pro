@@ -429,7 +429,7 @@ class ScannerController(QObject):
         self.logger.info(f"开始重试扫描，共 {len(urls)} 个URL，使用 {thread_count} 个线程，超时时间: {timeout}秒")
         
     def stop_scan(self):
-        """停止扫描 - 优化版本，修复资源泄漏"""
+        """停止扫描 - 增强版本，改进资源清理"""
         self.stop_event.set()
         
         # 首先停止批量更新定时器（如果存在且活动）
@@ -453,22 +453,47 @@ class ScannerController(QObject):
         # 终止所有FFmpeg进程
         from validator import StreamValidator
         StreamValidator.terminate_all()
-                
+        
+        # 等待队列填充线程结束（如果存在）
+        if hasattr(self, 'filler_thread') and self.filler_thread and self.filler_thread.is_alive():
+            self.filler_thread.join(timeout=1.0)
+            if self.filler_thread.is_alive():
+                self.logger.warning("队列填充线程未能及时终止")
+        
         # 优雅地终止所有工作线程
+        alive_workers = []
         for worker in self.workers:
             if worker.is_alive():
-                # 设置极短的超时时间，立即终止线程避免UI假死
-                worker.join(timeout=0.1)
-                # 如果线程仍然存活，强制终止
-                if worker.is_alive():
-                    # 不再输出警告日志
-                    pass
-                
+                alive_workers.append(worker)
+        
+        # 第一次尝试：等待线程自然结束
+        for worker in alive_workers:
+            worker.join(timeout=2.0)  # 增加超时时间
+        
+        # 第二次尝试：检查哪些线程仍然存活
+        still_alive = [w for w in alive_workers if w.is_alive()]
+        if still_alive:
+            self.logger.warning(f"{len(still_alive)} 个工作线程未能及时终止，等待额外时间...")
+            
+            # 额外等待时间
+            for worker in still_alive:
+                worker.join(timeout=1.0)
+            
+            # 最终检查
+            final_alive = [w for w in still_alive if w.is_alive()]
+            if final_alive:
+                self.logger.warning(f"{len(final_alive)} 个工作线程最终未能终止（守护线程将在程序退出时自动终止）")
+        
         self.workers = []
+        
+        # 清理统计更新线程
+        if hasattr(self, 'stats_thread') and self.stats_thread and self.stats_thread.is_alive():
+            self.stats_thread.join(timeout=1.0)
         
         # 强制垃圾回收
         import gc
-        gc.collect()
+        collected = gc.collect()
+        self.logger.debug(f"垃圾回收完成，回收对象: {collected}")
                 
         self.logger.info("扫描已完全停止，所有资源已清理")
 
