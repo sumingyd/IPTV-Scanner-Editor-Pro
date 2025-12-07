@@ -18,7 +18,7 @@ from url_parser import URLRangeParser
 from language_manager import LanguageManager
 from ui_optimizer import get_ui_optimizer
 from error_handler import init_global_error_handler
-from resource_cleaner import register_cleanup, cleanup_all
+from resource_cleaner import get_resource_cleaner, register_cleanup, cleanup_all
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
