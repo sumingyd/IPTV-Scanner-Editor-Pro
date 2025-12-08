@@ -250,6 +250,13 @@ class MainWindow(QtWidgets.QMainWindow):
         except:
             pass
         self.ui.main_window.scan_btn.clicked.connect(self._on_scan_clicked)
+        
+        # 连接追加扫描按钮
+        try:
+            self.ui.main_window.append_scan_btn.clicked.disconnect()
+        except:
+            pass
+        self.ui.main_window.append_scan_btn.clicked.connect(self._on_append_scan_clicked)
                 
                 
         # 连接播放控制信号
@@ -305,16 +312,48 @@ class MainWindow(QtWidgets.QMainWindow):
                 return
                 
             # 使用QTimer延迟执行扫描，避免UI阻塞
-            QtCore.QTimer.singleShot(0, lambda: self._start_scan_delayed(url))
+            QtCore.QTimer.singleShot(0, lambda: self._start_scan_delayed(url, clear_list=True))
+    
+    def _on_append_scan_clicked(self):
+        """处理追加扫描按钮点击事件"""
+        if self.scanner.is_scanning():
+            # 停止扫描 - 立即响应
+            self.scanner.stop_scan()
+            self._set_append_scan_button_text('append_scan', '追加扫描')
+        else:
+            # 检查地址是否为空
+            url = self.ui.main_window.ip_range_input.text()
+            if not url.strip():
+                self.logger.warning("请输入扫描地址")
+                self.ui.main_window.statusBar().showMessage("请输入扫描地址", 3000)
+                return
+                
+            # 使用QTimer延迟执行追加扫描，避免UI阻塞
+            QtCore.QTimer.singleShot(0, lambda: self._start_scan_delayed(url, clear_list=False))
             
-    def _start_scan_delayed(self, url):
-        """延迟启动扫描，避免UI阻塞"""
-        # 开始扫描前清空列表
-        self.model.clear()
+    def _start_scan_delayed(self, url, clear_list=True):
+        """延迟启动扫描，避免UI阻塞
+        
+        Args:
+            url: 要扫描的URL
+            clear_list: 是否清空现有列表，True为完整扫描，False为追加扫描
+        """
+        # 根据参数决定是否清空列表
+        if clear_list:
+            self.model.clear()
+            self.logger.info("开始完整扫描，清空现有列表")
+        else:
+            self.logger.info("开始追加扫描，保留现有列表")
+            
         timeout = self.ui.main_window.timeout_input.value()
         threads = self.ui.main_window.thread_count_input.value()
         self.scanner.start_scan(url, threads, timeout)
-        self._set_scan_button_text('stop_scan', '停止扫描')
+        
+        # 根据扫描类型设置按钮文本
+        if clear_list:
+            self._set_scan_button_text('stop_scan', '停止扫描')
+        else:
+            self._set_append_scan_button_text('stop_scan', '停止扫描')
         
     def _set_scan_button_text(self, translation_key, default_text):
         """设置扫描按钮文本（统一处理语言管理器）"""
@@ -324,6 +363,15 @@ class MainWindow(QtWidgets.QMainWindow):
             )
         else:
             self.ui.main_window.scan_btn.setText(default_text)
+    
+    def _set_append_scan_button_text(self, translation_key, default_text):
+        """设置追加扫描按钮文本（统一处理语言管理器）"""
+        if hasattr(self, 'language_manager') and self.language_manager:
+            self.ui.main_window.append_scan_btn.setText(
+                self.language_manager.tr(translation_key, default_text)
+            )
+        else:
+            self.ui.main_window.append_scan_btn.setText(default_text)
 
     def _validate_all_channels(self, timeout: int, threads: int):
         """验证所有频道的有效性"""
@@ -585,7 +633,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_scan_completed(self):
         """处理扫描完成事件"""
-        self.ui.main_window.scan_btn.setText("完整扫描")
+        # 重置扫描按钮文本
+        self._set_scan_button_text('full_scan', '完整扫描')
+        self._set_append_scan_button_text('append_scan', '追加扫描')
         self.ui.main_window.btn_validate.setText("检测有效性")
         self.logger.info("扫描完成")
         
