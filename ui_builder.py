@@ -446,6 +446,12 @@ class UIBuilder(QtCore.QObject):
         self.main_window.scan_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.main_window.scan_btn.setMinimumHeight(36)
         
+        # 新增追加扫描按钮
+        self.main_window.append_scan_btn = QtWidgets.QPushButton("追加扫描")
+        self.main_window.append_scan_btn.setStyleSheet(AppStyles.button_style(active=True))
+        self.main_window.append_scan_btn.setMinimumHeight(36)
+        self.main_window.append_scan_btn.setToolTip("不清空现有列表，扫描到的有效频道直接追加到列表末尾")
+        
         # 新增直接生成列表按钮
         self.main_window.generate_btn = QtWidgets.QPushButton("直接生成列表")
         self.main_window.generate_btn.setStyleSheet(AppStyles.button_style(active=True))
@@ -454,7 +460,9 @@ class UIBuilder(QtCore.QObject):
         # 使用水平布局让按钮并排显示，自适应宽度
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.addWidget(self.main_window.scan_btn, 1)  # 1表示拉伸因子
-        button_layout.addSpacing(10)  # 添加间距
+        button_layout.addSpacing(5)  # 添加间距
+        button_layout.addWidget(self.main_window.append_scan_btn, 1)  # 1表示拉伸因子
+        button_layout.addSpacing(5)  # 添加间距
         button_layout.addWidget(self.main_window.generate_btn, 1)  # 1表示拉伸因子
         button_layout.addStretch()
 
