@@ -229,8 +229,8 @@ class StreamValidator:
         
         return cmd
 
-    def _run_ffmpeg_test(self, url: str, timeout: int, max_retries: int = 3) -> Dict:
-        """运行ffmpeg测试流有效性，支持智能重试"""
+    def _run_ffmpeg_test(self, url: str, timeout: int, max_retries: int = 0) -> Dict:
+        """运行ffmpeg测试流有效性 - 简化版本，没有智能重试"""
         result = {
             'valid': False,
             'latency': None,
@@ -239,139 +239,70 @@ class StreamValidator:
         }
         
         start_time = time.time()
-        remaining_time = timeout
         
-        # 动态调整重试次数，确保总时间不超过超时时间
-        actual_retries = min(max_retries, max(1, timeout // 2))  # 至少重试1次，最多不超过超时时间的一半
+        # 固定拉流时长：3秒（足够判断流是否有效）
+        pull_duration = 3.0
         
-        for attempt in range(actual_retries + 1):
-            result['retries'] = attempt
+        cmd = self._build_ffmpeg_command(url, pull_duration)
+        
+        # 在Windows上需要处理特殊字符
+        if sys.platform == 'win32':
+            cmd = [arg.replace('^', '^^').replace('&', '^&') for arg in cmd]
+        
+        # 设置环境变量和工作目录
+        env = os.environ.copy()
+        env['PATH'] = os.path.dirname(self._get_ffmpeg_path()) + os.pathsep + env['PATH']
+        
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=False,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
+            shell=False,
+            env=env,
+            cwd=os.path.dirname(self._get_ffmpeg_path())
+        )
+        
+        # 跟踪活动进程
+        with self._process_lock:
+            self._active_processes.append(process)
+        self._current_process = process
+        
+        try:
+            # 记录命令开始执行时间
+            exec_start = time.time()
+            stdout_bytes, stderr_bytes = process.communicate(timeout=timeout)
+            exec_end = time.time()
             
-            # 动态调整拉流时长，随着重试次数增加而减少
-            pull_duration = max(1.0, min(5.0, remaining_time / (actual_retries - attempt + 1)))
+            elapsed = exec_end - exec_start
             
-            cmd = self._build_ffmpeg_command(url, pull_duration)
-            
-            # 在Windows上需要处理特殊字符
-            if sys.platform == 'win32':
-                cmd = [arg.replace('^', '^^').replace('&', '^&') for arg in cmd]
-            
-            # 设置环境变量和工作目录
-            env = os.environ.copy()
-            env['PATH'] = os.path.dirname(self._get_ffmpeg_path()) + os.pathsep + env['PATH']
-            
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=False,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
-                shell=False,
-                env=env,
-                cwd=os.path.dirname(self._get_ffmpeg_path())
-            )
-            
-            # 跟踪活动进程
-            with self._process_lock:
-                self._active_processes.append(process)
-            self._current_process = process
-            
-            try:
-                # 记录命令开始执行时间
-                exec_start = time.time()
-                stdout_bytes, stderr_bytes = process.communicate(timeout=remaining_time)
-                exec_end = time.time()
-                
-                # 更新剩余时间
-                elapsed = exec_end - exec_start
-                remaining_time -= elapsed
-                
-                stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''
-                stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
+            stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''
+            stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
 
-                if process.returncode == 0:
-                    # ffmpeg成功拉取流
-                    result['valid'] = True
-                    result['latency'] = int(elapsed * 1000)
-                    break
+            if process.returncode == 0:
+                # ffmpeg成功拉取流
+                result['valid'] = True
+                result['latency'] = int(elapsed * 1000)
+            else:
+                # ffmpeg失败，记录错误信息
+                error_output = stderr.strip() or stdout.strip()
+                if error_output:
+                    result['error'] = error_output
                 else:
-                    # ffmpeg失败，记录错误信息
-                    error_output = stderr.strip() or stdout.strip()
-                    if error_output:
-                        result['error'] = error_output
-                    else:
-                        result['error'] = f"ffmpeg返回错误代码: {process.returncode}"
-                    
-                    # 检查是否是解码错误（流有效但解码有问题）
-                    is_decode_error = False
-                    if error_output:
-                        # 更严格的解码错误关键词列表，只包含真正的解码错误
-                        decode_error_keywords = [
-                            'channel element', 'is not allocated', 'PPS id out of range',
-                            'ESC overflow', 'Number of bands', 'exceeds limit',
-                            'skip_data_stream_element', 'Error submitting packet to decoder',
-                            'Not yet implemented in FFmpeg', 'Reserved bit set',
-                            'Prediction is not allowed', 'Could not find ref',
-                            'The cu_qp_delta', 'is outside the valid range', 'CABAC_MAX_BIN',
-                            'Rematrix is needed', 'Failed to configure output pad',
-                            'Error reinitializing filters', 'Terminating thread',
-                            'non-existing PPS', 'decode_slice_header error', 'no frame!',
-                            'left block unavailable', 'top block unavailable', 'Reference',
-                            'error while decoding MB', 'cabac decode of qscale diff failed',
-                            'SEI type', 'truncated at', 'is not implemented', 'Invalid NAL unit size',
-                            'Missing reference picture', 'reference picture missing during reorder',
-                            'mmco: unref short failure', 'decode_slice_header error',
-                            'concealing'
-                        ]
-                        # 排除通用的错误关键词，避免误判
-                        generic_error_keywords = ['error', 'corrupt', 'invalid', 'missing']
-                        is_decode_error = any(keyword in error_output for keyword in decode_error_keywords) and \
-                                         not any(keyword in error_output.lower() for keyword in generic_error_keywords)
-                    
-                    if is_decode_error:
-                        # 如果是解码错误，认为流是有效的（流存在但解码有问题）
-                        result['valid'] = True
-                        result['latency'] = int(elapsed * 1000)
-                        result['error'] = "流有效但存在解码问题: " + result['error'][:200]  # 截断错误信息
-                        break
-                    else:
-                        # 其他错误，严格验证：只有FFmpeg返回0才认为有效
-                        # 不再放宽验证标准，避免无效频道被标记为有效
-                        
-                        # 如果不是最后一次尝试，等待一下再重试
-                        if attempt < actual_retries and remaining_time > 1.0:
-                            # 动态等待时间，随着重试次数增加而增加
-                            wait_time = min(1.0, remaining_time * 0.2)
-                            time.sleep(wait_time)
-                            remaining_time -= wait_time
-                        else:
-                            # 最后一次尝试或没有剩余时间，标记为无效
-                            result['valid'] = False
-                            break
-                        
-            except subprocess.TimeoutExpired:
-                process.kill()
-                result['error'] = f"拉流超时 (剩余时间: {remaining_time:.1f}s)"
+                    result['error'] = f"ffmpeg返回错误代码: {process.returncode}"
                 
-                # 更新剩余时间
-                remaining_time = max(0, remaining_time - pull_duration)
-                
-                # 如果还有剩余时间且不是最后一次尝试，继续重试
-                if attempt < actual_retries and remaining_time > 1.0:
-                    continue
-                else:
-                    break
-            except Exception as e:
-                result['error'] = str(e)
-                self.logger.debug(f"流验证异常: {url} (尝试 {attempt+1}/{actual_retries+1}, 异常: {e})")
-                
-                # 其他异常不重试
-                break
-            finally:
-                # 清理已完成进程
-                with self._process_lock:
-                    if process in self._active_processes:
-                        self._active_processes.remove(process)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            result['error'] = f"验证超时 ({timeout}秒)"
+        except Exception as e:
+            result['error'] = str(e)
+            self.logger.debug(f"流验证异常: {url}, 异常: {e}")
+        finally:
+            # 清理已完成进程
+            with self._process_lock:
+                if process in self._active_processes:
+                    self._active_processes.remove(process)
         
         result['latency'] = result.get('latency', int((time.time() - start_time) * 1000))
         return result
@@ -483,12 +414,12 @@ class StreamValidator:
         return result
 
     def validate_stream(self, url: str, raw_channel_name: str = None, timeout: int = 10) -> Dict:
-        """验证视频流有效性
+        """验证视频流有效性 - 简化版本，只验证有效性，不获取详细信息
         
         Args:
             url: 要检测的流地址
             raw_channel_name: 从URL提取的原始频道名
-            timeout: 超时时间(秒)
+            timeout: 超时时间(秒) - 简单的验证超时，超过就判定无效
             
         Returns:
             Dict: 包含检测结果的字典，包含以下字段：
@@ -496,11 +427,8 @@ class StreamValidator:
                 - valid: 是否有效
                 - latency: 延迟(毫秒)
                 - error: 错误信息(如果有)
-                - retries: 重试次数
-                - service_name: 频道名称(从流中提取)
-                - resolution: 分辨率
-                - codec: 视频编码
-                - bitrate: 比特率
+                - retries: 重试次数（始终为0）
+                - service_name: 频道名称（从URL提取）
         """
         # 统一结果结构
         result = {
@@ -509,34 +437,19 @@ class StreamValidator:
             'latency': None,
             'error': None,
             'retries': 0,
-            'service_name': None,
-            'resolution': None,
-            'codec': None,
-            'bitrate': None
+            'service_name': None
         }
             
         try:
-            # 执行ffmpeg流验证，使用智能重试机制
-            test_result = self._run_ffmpeg_test(url, timeout, max_retries=3)
+            # 执行ffmpeg流验证 - 没有重试
+            test_result = self._run_ffmpeg_test(url, timeout, max_retries=0)
             
             # 合并结果
             result.update(test_result)
             
-            # 如果流有效，使用ffprobe获取详细信息
-            if result['valid']:
-                probe_result = self._run_ffprobe(url, timeout)
-                
-                # 优先使用ffprobe获取的service_name
-                if probe_result.get('service_name'):
-                    result['service_name'] = probe_result['service_name']
-                
-                # 合并其他详细信息
-                result.update({k: v for k, v in probe_result.items() if k not in ['service_name', 'error']})
-            
-            # 如果没获取到service_name，从URL提取
-            if not result.get('service_name'):
-                from channel_mappings import extract_channel_name_from_url
-                result['service_name'] = extract_channel_name_from_url(url)
+            # 从URL提取频道名
+            from channel_mappings import extract_channel_name_from_url
+            result['service_name'] = extract_channel_name_from_url(url)
                 
         except Exception as e:
             result['error'] = str(e)

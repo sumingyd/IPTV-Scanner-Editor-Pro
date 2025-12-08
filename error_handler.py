@@ -382,3 +382,118 @@ def safe_execute_global(func: Callable, *args, **kwargs) -> Any:
         except Exception as e:
             logger.error(f"函数执行失败: {e}", exc_info=True)
             return None
+
+
+# ============================================================================
+# 便捷工具函数
+# ============================================================================
+
+def show_error(title: str, message: str, parent: Optional[QtWidgets.QWidget] = None):
+    """显示错误对话框的便捷函数
+    
+    Args:
+        title: 对话框标题
+        message: 错误消息
+        parent: 父窗口（可选）
+    """
+    try:
+        # 首先尝试使用全局错误处理器
+        handler = get_global_error_handler()
+        handler.show_error_dialog(title, message, parent=parent)
+    except RuntimeError:
+        # 如果全局错误处理器未初始化，尝试从父窗口获取
+        if parent and hasattr(parent, 'error_handler') and parent.error_handler:
+            parent.error_handler.show_error_dialog(title, message, parent=parent)
+        else:
+            # 最后回退到QMessageBox
+            QtWidgets.QMessageBox.critical(parent, title, message)
+
+
+def show_warning(title: str, message: str, parent: Optional[QtWidgets.QWidget] = None):
+    """显示警告对话框的便捷函数
+    
+    Args:
+        title: 对话框标题
+        message: 警告消息
+        parent: 父窗口（可选）
+    """
+    try:
+        # 首先尝试使用全局错误处理器
+        handler = get_global_error_handler()
+        handler.show_warning_dialog(title, message, parent=parent)
+    except RuntimeError:
+        # 如果全局错误处理器未初始化，尝试从父窗口获取
+        if parent and hasattr(parent, 'error_handler') and parent.error_handler:
+            parent.error_handler.show_warning_dialog(title, message, parent=parent)
+        else:
+            # 最后回退到QMessageBox
+            QtWidgets.QMessageBox.warning(parent, title, message)
+
+
+def show_info(title: str, message: str, parent: Optional[QtWidgets.QWidget] = None):
+    """显示信息对话框的便捷函数
+    
+    Args:
+        title: 对话框标题
+        message: 信息消息
+        parent: 父窗口（可选）
+    """
+    try:
+        # 首先尝试使用全局错误处理器
+        handler = get_global_error_handler()
+        handler.show_info_dialog(title, message, parent=parent)
+    except RuntimeError:
+        # 如果全局错误处理器未初始化，尝试从父窗口获取
+        if parent and hasattr(parent, 'error_handler') and parent.error_handler:
+            parent.error_handler.show_info_dialog(title, message, parent=parent)
+        else:
+            # 最后回退到QMessageBox
+            QtWidgets.QMessageBox.information(parent, title, message)
+
+
+def show_confirm(title: str, message: str, parent: Optional[QtWidgets.QWidget] = None) -> bool:
+    """显示确认对话框
+    
+    Args:
+        title: 对话框标题
+        message: 确认消息
+        parent: 父窗口（可选）
+        
+    Returns:
+        True如果用户点击"是"，否则False
+    """
+    reply = QtWidgets.QMessageBox.question(
+        parent,
+        title,
+        message,
+        QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No
+    )
+    return reply == QtWidgets.QMessageBox.StandardButton.Yes
+
+
+def show_error_with_details(title: str, message: str, details: str, parent: Optional[QtWidgets.QWidget] = None):
+    """显示带详细信息的错误对话框
+    
+    Args:
+        title: 对话框标题
+        message: 错误消息
+        details: 详细信息
+        parent: 父窗口（可选）
+    """
+    try:
+        # 首先尝试使用全局错误处理器
+        handler = get_global_error_handler()
+        handler.show_error_dialog(title, message, details=details, parent=parent)
+    except RuntimeError:
+        # 如果全局错误处理器未初始化，尝试从父窗口获取
+        if parent and hasattr(parent, 'error_handler') and parent.error_handler:
+            parent.error_handler.show_error_dialog(title, message, details=details, parent=parent)
+        else:
+            # 最后回退到QMessageBox
+            dialog = QtWidgets.QMessageBox(parent)
+            dialog.setWindowTitle(title)
+            dialog.setText(message)
+            dialog.setIcon(QtWidgets.QMessageBox.Icon.Critical)
+            dialog.setDetailedText(details)
+            dialog.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
+            dialog.exec()
