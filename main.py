@@ -196,6 +196,16 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.ui.main_window.progress_indicator.setValue(progress_value)
                     self.logger.info(f"进度条更新: {old_value}% -> {progress_value}% ({current}/{total})")
                     
+                    # 关键修复：当进度达到100%时，自动恢复按钮文本
+                    if progress_value >= 100 and old_value < 100:
+                        self.logger.info("进度达到100%，自动恢复扫描按钮文本")
+                        # 恢复两个扫描按钮的文本
+                        self._set_scan_button_text('full_scan', '完整扫描')
+                        self._set_append_scan_button_text('append_scan', '追加扫描')
+                        # 隐藏进度条
+                        self.ui.main_window.progress_indicator.hide()
+                        self.ui.main_window.progress_indicator.setValue(0)
+                    
         except Exception as e:
             self.logger.error(f"更新进度条失败: {e}")
             
@@ -302,7 +312,9 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.scanner.is_scanning():
             # 停止扫描 - 立即响应
             self.scanner.stop_scan()
+            # 停止扫描后，两个按钮都应该恢复
             self._set_scan_button_text('full_scan', '完整扫描')
+            self._set_append_scan_button_text('append_scan', '追加扫描')
         else:
             # 检查地址是否为空
             url = self.ui.main_window.ip_range_input.text()
@@ -319,6 +331,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.scanner.is_scanning():
             # 停止扫描 - 立即响应
             self.scanner.stop_scan()
+            # 停止扫描后，两个按钮都应该恢复
+            self._set_scan_button_text('full_scan', '完整扫描')
             self._set_append_scan_button_text('append_scan', '追加扫描')
         else:
             # 检查地址是否为空
@@ -902,7 +916,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 total_found = getattr(self, '_retry_found_channels', 0)
                 self.logger.info(f"重试扫描完成，共发现 {total_found} 个有效频道")
                 self.ui.main_window.statusBar().showMessage(f"重试扫描完成，共发现 {total_found} 个有效频道", 5000)
-                self.ui.main_window.scan_btn.setText("完整扫描")
+                
+                # 恢复两个扫描按钮的文本
+                self._set_scan_button_text('full_scan', '完整扫描')
+                self._set_append_scan_button_text('append_scan', '追加扫描')
                 
                 # 清理重试相关属性
                 if hasattr(self, '_retry_urls'):
@@ -917,7 +934,9 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.logger.error(f"处理重试扫描完成失败: {e}", exc_info=True)
             self.ui.main_window.statusBar().showMessage("重试扫描完成处理失败", 3000)
-            self.ui.main_window.scan_btn.setText("完整扫描")
+            # 恢复两个扫描按钮的文本
+            self._set_scan_button_text('full_scan', '完整扫描')
+            self._set_append_scan_button_text('append_scan', '追加扫描')
 
     def save_before_exit(self):
         """程序退出前保存所有配置"""

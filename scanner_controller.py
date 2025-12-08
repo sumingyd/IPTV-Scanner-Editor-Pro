@@ -159,6 +159,15 @@ class ScannerController(QObject):
                 import functools
                 QtCore.QTimer.singleShot(0, functools.partial(self.progress_updated.emit, total, total))
         
+        # 检查是否所有工作线程都已完成
+        # 如果是最后一个工作线程，应该触发扫描完成
+        alive_workers = sum(1 for w in self.workers if w.is_alive()) if self.workers else 0
+        if alive_workers == 0 and not self.stop_event.is_set():
+            # 所有工作线程都已完成，但扫描完成信号可能还没有发射
+            # 这里确保扫描完成信号被发射
+            QtCore.QTimer.singleShot(0, self.scan_completed.emit)
+            self.logger.info("所有工作线程已完成，触发扫描完成信号")
+        
     def _update_progress(self, valid: bool):
         """更新扫描进度"""
         with self.stats_lock:
@@ -662,12 +671,14 @@ class ScannerController(QObject):
                     break
                 
             # 只有当确实有扫描或验证任务完成时才发射完成信号
-            if not self.stop_event.is_set() and (self.stats['total'] > 0 or self.is_validating):
+            # 修改条件：只要统计信息中有任务，就应该发射完成信号
+            if self.stats['total'] > 0 or self.is_validating:
                 try:
                     # 使用QTimer在主线程中安全地发射完成信号
                     QtCore.QTimer.singleShot(0, self.scan_completed.emit)
+                    self.logger.info("扫描完成信号已发射")
                 except RuntimeError:
-                    pass
+                    self.logger.error("发射扫描完成信号失败")
         finally:
             # 等待所有工作线程完成，确保最终的统计信息被发送
             for worker in self.workers:
