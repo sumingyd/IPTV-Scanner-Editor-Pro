@@ -736,18 +736,36 @@ class MainWindow(QtWidgets.QMainWindow):
             
         except ImportError as e:
             self.logger.error(f"导入AboutDialog失败: {e}")
-            QtWidgets.QMessageBox.critical(
-                self,
-                "错误",
-                "无法加载关于对话框模块"
-            )
+            # 使用 error_handler 显示错误对话框
+            if hasattr(self, 'error_handler') and self.error_handler:
+                self.error_handler.show_error_dialog(
+                    "错误",
+                    "无法加载关于对话框模块",
+                    parent=self
+                )
+            else:
+                # 备用方案：直接使用 QMessageBox
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "错误",
+                    "无法加载关于对话框模块"
+                )
         except Exception as e:
             self.logger.error(f"显示关于对话框失败: {e}")
-            QtWidgets.QMessageBox.critical(
-                self,
-                "错误", 
-                f"无法显示关于对话框: {str(e)}"
-            )
+            # 使用 error_handler 显示错误对话框
+            if hasattr(self, 'error_handler') and self.error_handler:
+                self.error_handler.show_error_dialog(
+                    "错误", 
+                    f"无法显示关于对话框: {str(e)}",
+                    parent=self
+                )
+            else:
+                # 备用方案：直接使用 QMessageBox
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "错误", 
+                    f"无法显示关于对话框: {str(e)}"
+                )
             
     def _on_mapping_clicked(self):
         """处理映射管理按钮点击事件"""
@@ -770,18 +788,36 @@ class MainWindow(QtWidgets.QMainWindow):
             
         except ImportError as e:
             self.logger.error(f"导入MappingManagerDialog失败: {e}")
-            QtWidgets.QMessageBox.critical(
-                self,
-                "错误",
-                "无法加载映射管理器模块"
-            )
+            # 使用 error_handler 显示错误对话框
+            if hasattr(self, 'error_handler') and self.error_handler:
+                self.error_handler.show_error_dialog(
+                    "错误",
+                    "无法加载映射管理器模块",
+                    parent=self
+                )
+            else:
+                # 备用方案：直接使用 QMessageBox
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "错误",
+                    "无法加载映射管理器模块"
+                )
         except Exception as e:
             self.logger.error(f"显示映射管理器失败: {e}")
-            QtWidgets.QMessageBox.critical(
-                self,
-                "错误", 
-                f"无法显示映射管理器: {str(e)}"
-            )
+            # 使用 error_handler 显示错误对话框
+            if hasattr(self, 'error_handler') and self.error_handler:
+                self.error_handler.show_error_dialog(
+                    "错误", 
+                    f"无法显示映射管理器: {str(e)}",
+                    parent=self
+                )
+            else:
+                # 备用方案：直接使用 QMessageBox
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "错误", 
+                    f"无法显示映射管理器: {str(e)}"
+                )
             
     @QtCore.pyqtSlot(object, object, str, str)
     def _finish_refresh_channel_wrapper(self, index, new_channel_info, mapped_name, raw_name):

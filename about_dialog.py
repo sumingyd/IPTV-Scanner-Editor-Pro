@@ -283,36 +283,72 @@ class AboutDialog(QtWidgets.QDialog):
         except Exception as e:
             logger.error(f"启动更新线程失败: {str(e)}", exc_info=True)
             QtWidgets.QApplication.restoreOverrideCursor()
-            QtWidgets.QMessageBox.critical(
-                self,
-                "更新错误",
-                f"无法启动更新流程: {str(e)}"
-            )
+            # 使用 error_handler 显示错误对话框
+            if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
+                self.parent.error_handler.show_error_dialog(
+                    "更新错误",
+                    f"无法启动更新流程: {str(e)}",
+                    parent=self
+                )
+            else:
+                # 备用方案：直接使用 QMessageBox
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "更新错误",
+                    f"无法启动更新流程: {str(e)}"
+                )
             
     def _on_update_finished(self, success, message):
         """更新完成处理"""
         QtWidgets.QApplication.restoreOverrideCursor()
         if success:
-            QtWidgets.QMessageBox.information(
-                self,
-                "更新完成",
-                message
-            )
+            # 使用 error_handler 显示信息对话框
+            if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
+                self.parent.error_handler.show_info_dialog(
+                    "更新完成",
+                    message,
+                    parent=self
+                )
+            else:
+                # 备用方案：直接使用 QMessageBox
+                QtWidgets.QMessageBox.information(
+                    self,
+                    "更新完成",
+                    message
+                )
         else:
-            QtWidgets.QMessageBox.critical(
-                self,
-                "更新失败",
-                message
-            )
+            # 使用 error_handler 显示错误对话框
+            if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
+                self.parent.error_handler.show_error_dialog(
+                    "更新失败",
+                    message,
+                    parent=self
+                )
+            else:
+                # 备用方案：直接使用 QMessageBox
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "更新失败",
+                    message
+                )
             
     def _on_update_error(self, error_message):
         """更新错误处理"""
         QtWidgets.QApplication.restoreOverrideCursor()
-        QtWidgets.QMessageBox.critical(
-            self,
-            "更新错误",
-            error_message
-        )
+        # 使用 error_handler 显示错误对话框
+        if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
+            self.parent.error_handler.show_error_dialog(
+                "更新错误",
+                error_message,
+                parent=self
+            )
+        else:
+            # 备用方案：直接使用 QMessageBox
+            QtWidgets.QMessageBox.critical(
+                self,
+                "更新错误",
+                error_message
+            )
 
     async def _perform_online_update(self):
         """执行在线更新"""
@@ -373,11 +409,20 @@ class AboutDialog(QtWidgets.QDialog):
                                     
                         # 4. 提示用户重启应用完成更新
                         progress.setLabelText("更新下载完成，请重启应用")
-                        QtWidgets.QMessageBox.information(
-                            self, 
-                            "更新完成",
-                            f"已下载版本 {version} 的更新包，请重启应用完成更新"
-                        )
+                        # 使用 error_handler 显示信息对话框
+                        if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
+                            self.parent.error_handler.show_info_dialog(
+                                "更新完成",
+                                f"已下载版本 {version} 的更新包，请重启应用完成更新",
+                                parent=self
+                            )
+                        else:
+                            # 备用方案：直接使用 QMessageBox
+                            QtWidgets.QMessageBox.information(
+                                self, 
+                                "更新完成",
+                                f"已下载版本 {version} 的更新包，请重启应用完成更新"
+                            )
                         return  # 成功完成，退出循环
                         
                     except aiohttp.ClientError as e:
@@ -393,11 +438,20 @@ class AboutDialog(QtWidgets.QDialog):
                     await asyncio.sleep(retry_delay * (attempt + 1))
                     continue
                     
-                QtWidgets.QMessageBox.critical(
-                    self,
-                    "更新失败",
-                    f"在线更新失败: {str(e)}\n\n请检查网络连接或稍后再试。"
-                )
+                # 使用 error_handler 显示错误对话框
+                if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
+                    self.parent.error_handler.show_error_dialog(
+                        "更新失败",
+                        f"在线更新失败: {str(e)}\n\n请检查网络连接或稍后再试。",
+                        parent=self
+                    )
+                else:
+                    # 备用方案：直接使用 QMessageBox
+                    QtWidgets.QMessageBox.critical(
+                        self,
+                        "更新失败",
+                        f"在线更新失败: {str(e)}\n\n请检查网络连接或稍后再试。"
+                    )
                 break
                 
         progress.close()
