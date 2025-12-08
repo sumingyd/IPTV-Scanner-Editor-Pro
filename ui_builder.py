@@ -729,12 +729,21 @@ class UIBuilder(QtCore.QObject):
         current_name = self.main_window.model.data(self.main_window.model.index(index.row(), 1))  # 名称在第1列
         
         if not url:
-            QtWidgets.QMessageBox.warning(
-                self.main_window,
-                "错误",
-                "无法获取频道URL",
-                QtWidgets.QMessageBox.StandardButton.Ok
-            )
+            # 使用 error_handler 显示警告对话框
+            if hasattr(self.main_window, 'error_handler') and self.main_window.error_handler:
+                self.main_window.error_handler.show_warning_dialog(
+                    "错误",
+                    "无法获取频道URL",
+                    parent=self.main_window
+                )
+            else:
+                # 备用方案：直接使用 QMessageBox
+                QtWidgets.QMessageBox.warning(
+                    self.main_window,
+                    "错误",
+                    "无法获取频道URL",
+                    QtWidgets.QMessageBox.StandardButton.Ok
+                )
             return
         
         self.logger.info(f"开始重新获取频道信息: 行 {index.row()}, 名称: {current_name}, URL: {url}")
@@ -973,12 +982,21 @@ class UIBuilder(QtCore.QObject):
         if hasattr(self.main_window, 'progress_indicator'):
             self.main_window.progress_indicator.hide()
             
-        QtWidgets.QMessageBox.critical(
-            self.main_window,
-            "错误",
-            f"重新获取频道信息失败: {error_message}",
-            QtWidgets.QMessageBox.StandardButton.Ok
-        )
+        # 使用 error_handler 显示错误对话框
+        if hasattr(self.main_window, 'error_handler') and self.main_window.error_handler:
+            self.main_window.error_handler.show_error_dialog(
+                "错误",
+                f"重新获取频道信息失败: {error_message}",
+                parent=self.main_window
+            )
+        else:
+            # 备用方案：直接使用 QMessageBox
+            QtWidgets.QMessageBox.critical(
+                self.main_window,
+                "错误",
+                f"重新获取频道信息失败: {error_message}",
+                QtWidgets.QMessageBox.StandardButton.Ok
+            )
         self.main_window.statusBar().showMessage("重新获取频道信息失败", 3000)
         
     def _load_single_channel_logo_async(self, row):
@@ -1007,13 +1025,23 @@ class UIBuilder(QtCore.QObject):
         if not index.isValid():
             return
             
-        # 确认删除
-        reply = QtWidgets.QMessageBox.question(
-            self.main_window,
-            self.main_window.language_manager.tr('confirm_delete', 'Confirm Delete'),
-            self.main_window.language_manager.tr('delete_channel_confirm', 'Are you sure you want to delete this channel?'),
-            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No
-        )
+        # 确认删除 - 使用 error_handler 显示确认对话框
+        if hasattr(self.main_window, 'error_handler') and self.main_window.error_handler:
+            # error_handler 没有直接的确认对话框方法，所以使用 QMessageBox
+            reply = QtWidgets.QMessageBox.question(
+                self.main_window,
+                self.main_window.language_manager.tr('confirm_delete', 'Confirm Delete'),
+                self.main_window.language_manager.tr('delete_channel_confirm', 'Are you sure you want to delete this channel?'),
+                QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No
+            )
+        else:
+            # 备用方案：直接使用 QMessageBox
+            reply = QtWidgets.QMessageBox.question(
+                self.main_window,
+                self.main_window.language_manager.tr('confirm_delete', 'Confirm Delete'),
+                self.main_window.language_manager.tr('delete_channel_confirm', 'Are you sure you want to delete this channel?'),
+                QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No
+            )
         
         if reply == QtWidgets.QMessageBox.StandardButton.Yes:
             # 从模型中删除行
@@ -1264,12 +1292,21 @@ class UIBuilder(QtCore.QObject):
         
         # 验证必填字段
         if not channel_info['name'] or not channel_info['url']:
-            QtWidgets.QMessageBox.warning(
-                self.main_window,
-                self.main_window.language_manager.tr('input_error', 'Input Error'),
-                self.main_window.language_manager.tr('name_url_required', 'Channel name and URL cannot be empty'),
-                QtWidgets.QMessageBox.StandardButton.Ok
-            )
+            # 使用 error_handler 显示警告对话框
+            if hasattr(self.main_window, 'error_handler') and self.main_window.error_handler:
+                self.main_window.error_handler.show_warning_dialog(
+                    self.main_window.language_manager.tr('input_error', 'Input Error'),
+                    self.main_window.language_manager.tr('name_url_required', 'Channel name and URL cannot be empty'),
+                    parent=self.main_window
+                )
+            else:
+                # 备用方案：直接使用 QMessageBox
+                QtWidgets.QMessageBox.warning(
+                    self.main_window,
+                    self.main_window.language_manager.tr('input_error', 'Input Error'),
+                    self.main_window.language_manager.tr('name_url_required', 'Channel name and URL cannot be empty'),
+                    QtWidgets.QMessageBox.StandardButton.Ok
+                )
             return
             
         # 更新模型数据
@@ -1290,12 +1327,21 @@ class UIBuilder(QtCore.QObject):
         url = self.main_window.channel_url_edit.text().strip()
         
         if not name or not url:
-            QtWidgets.QMessageBox.warning(
-                self.main_window,
-                self.main_window.language_manager.tr('input_error', 'Input Error'),
-                self.main_window.language_manager.tr('name_url_required', 'Channel name and URL cannot be empty'),
-                QtWidgets.QMessageBox.StandardButton.Ok
-            )
+            # 使用 error_handler 显示警告对话框
+            if hasattr(self.main_window, 'error_handler') and self.main_window.error_handler:
+                self.main_window.error_handler.show_warning_dialog(
+                    self.main_window.language_manager.tr('input_error', 'Input Error'),
+                    self.main_window.language_manager.tr('name_url_required', 'Channel name and URL cannot be empty'),
+                    parent=self.main_window
+                )
+            else:
+                # 备用方案：直接使用 QMessageBox
+                QtWidgets.QMessageBox.warning(
+                    self.main_window,
+                    self.main_window.language_manager.tr('input_error', 'Input Error'),
+                    self.main_window.language_manager.tr('name_url_required', 'Channel name and URL cannot be empty'),
+                    QtWidgets.QMessageBox.StandardButton.Ok
+                )
             return
             
         group = self.main_window.channel_group_edit.text().strip()
@@ -1536,12 +1582,21 @@ class UIBuilder(QtCore.QObject):
                 
         except Exception as e:
             self.logger.error(f"显示排序配置对话框失败: {e}", exc_info=True)
-            QtWidgets.QMessageBox.critical(
-                self.main_window,
-                "错误",
-                f"排序配置对话框加载失败: {str(e)}",
-                QtWidgets.QMessageBox.StandardButton.Ok
-            )
+            # 使用 error_handler 显示错误对话框
+            if hasattr(self.main_window, 'error_handler') and self.main_window.error_handler:
+                self.main_window.error_handler.show_error_dialog(
+                    "错误",
+                    f"排序配置对话框加载失败: {str(e)}",
+                    parent=self.main_window
+                )
+            else:
+                # 备用方案：直接使用 QMessageBox
+                QtWidgets.QMessageBox.critical(
+                    self.main_window,
+                    "错误",
+                    f"排序配置对话框加载失败: {str(e)}",
+                    QtWidgets.QMessageBox.StandardButton.Ok
+                )
 
 
         
