@@ -17,7 +17,7 @@ from list_manager import ListManager
 from url_parser import URLRangeParser
 from language_manager import LanguageManager
 from ui_optimizer import get_ui_optimizer
-from error_handler import init_global_error_handler
+from error_handler import init_global_error_handler, show_error, show_warning, show_info, show_confirm
 from resource_cleaner import get_resource_cleaner, register_cleanup, cleanup_all
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -664,6 +664,10 @@ class MainWindow(QtWidgets.QMainWindow):
             header = self.ui.main_window.channel_list.horizontalHeader()
             header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         
+        # 扫描完成后加载网络Logo
+        self.logger.info("扫描完成，开始加载网络Logo")
+        QtCore.QTimer.singleShot(100, self.ui._load_network_logos)
+        
         # 检查是否需要重试扫描
         if hasattr(self.ui.main_window, 'enable_retry_checkbox') and self.ui.main_window.enable_retry_checkbox.isChecked():
             self._start_retry_scan()
@@ -736,36 +740,12 @@ class MainWindow(QtWidgets.QMainWindow):
             
         except ImportError as e:
             self.logger.error(f"导入AboutDialog失败: {e}")
-            # 使用 error_handler 显示错误对话框
-            if hasattr(self, 'error_handler') and self.error_handler:
-                self.error_handler.show_error_dialog(
-                    "错误",
-                    "无法加载关于对话框模块",
-                    parent=self
-                )
-            else:
-                # 备用方案：直接使用 QMessageBox
-                QtWidgets.QMessageBox.critical(
-                    self,
-                    "错误",
-                    "无法加载关于对话框模块"
-                )
+            # 使用统一的错误处理
+            show_error("错误", "无法加载关于对话框模块", parent=self)
         except Exception as e:
             self.logger.error(f"显示关于对话框失败: {e}")
-            # 使用 error_handler 显示错误对话框
-            if hasattr(self, 'error_handler') and self.error_handler:
-                self.error_handler.show_error_dialog(
-                    "错误", 
-                    f"无法显示关于对话框: {str(e)}",
-                    parent=self
-                )
-            else:
-                # 备用方案：直接使用 QMessageBox
-                QtWidgets.QMessageBox.critical(
-                    self,
-                    "错误", 
-                    f"无法显示关于对话框: {str(e)}"
-                )
+            # 使用统一的错误处理
+            show_error("错误", f"无法显示关于对话框: {str(e)}", parent=self)
             
     def _on_mapping_clicked(self):
         """处理映射管理按钮点击事件"""
@@ -788,36 +768,12 @@ class MainWindow(QtWidgets.QMainWindow):
             
         except ImportError as e:
             self.logger.error(f"导入MappingManagerDialog失败: {e}")
-            # 使用 error_handler 显示错误对话框
-            if hasattr(self, 'error_handler') and self.error_handler:
-                self.error_handler.show_error_dialog(
-                    "错误",
-                    "无法加载映射管理器模块",
-                    parent=self
-                )
-            else:
-                # 备用方案：直接使用 QMessageBox
-                QtWidgets.QMessageBox.critical(
-                    self,
-                    "错误",
-                    "无法加载映射管理器模块"
-                )
+            # 使用统一的错误处理
+            show_error("错误", "无法加载映射管理器模块", parent=self)
         except Exception as e:
             self.logger.error(f"显示映射管理器失败: {e}")
-            # 使用 error_handler 显示错误对话框
-            if hasattr(self, 'error_handler') and self.error_handler:
-                self.error_handler.show_error_dialog(
-                    "错误", 
-                    f"无法显示映射管理器: {str(e)}",
-                    parent=self
-                )
-            else:
-                # 备用方案：直接使用 QMessageBox
-                QtWidgets.QMessageBox.critical(
-                    self,
-                    "错误", 
-                    f"无法显示映射管理器: {str(e)}"
-                )
+            # 使用统一的错误处理
+            show_error("错误", f"无法显示映射管理器: {str(e)}", parent=self)
             
     @QtCore.pyqtSlot(object, object, str, str)
     def _finish_refresh_channel_wrapper(self, index, new_channel_info, mapped_name, raw_name):

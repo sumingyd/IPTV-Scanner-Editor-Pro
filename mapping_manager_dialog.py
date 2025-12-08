@@ -4,6 +4,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 from log_manager import LogManager
 from channel_mappings import mapping_manager
+from error_handler import show_error, show_warning, show_info, show_confirm
 
 class MappingManagerDialog(QtWidgets.QDialog):
     """频道映射管理器对话框"""
@@ -352,19 +353,12 @@ class MappingManagerDialog(QtWidgets.QDialog):
         """编辑选中的映射"""
         selected_rows = self.mapping_table.selectionModel().selectedRows()
         if not selected_rows:
-            # 使用 error_handler 显示警告对话框
-            if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-                self.parent.error_handler.show_warning_dialog(
-                    self.language_manager.tr('warning', 'Warning'),
-                    self.language_manager.tr('select_mapping_to_edit', 'Please select a mapping to edit'),
-                    parent=self
-                )
-            else:
-                # 备用方案：直接使用 QMessageBox
-                QtWidgets.QMessageBox.warning(self, 
-                    self.language_manager.tr('warning', 'Warning'), 
-                    self.language_manager.tr('select_mapping_to_edit', 'Please select a mapping to edit')
-                )
+            # 使用统一的错误处理
+            show_warning(
+                self.language_manager.tr('warning', 'Warning'),
+                self.language_manager.tr('select_mapping_to_edit', 'Please select a mapping to edit'),
+                parent=self
+            )
             return
             
         row = selected_rows[0].row()
@@ -392,30 +386,23 @@ class MappingManagerDialog(QtWidgets.QDialog):
         """删除选中的映射"""
         selected_rows = self.mapping_table.selectionModel().selectedRows()
         if not selected_rows:
-            # 使用 error_handler 显示警告对话框
-            if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-                self.parent.error_handler.show_warning_dialog(
-                    self.language_manager.tr('warning', 'Warning'),
-                    self.language_manager.tr('select_mapping_to_delete', 'Please select a mapping to delete'),
-                    parent=self
-                )
-            else:
-                # 备用方案：直接使用 QMessageBox
-                QtWidgets.QMessageBox.warning(self, 
-                    self.language_manager.tr('warning', 'Warning'), 
-                    self.language_manager.tr('select_mapping_to_delete', 'Please select a mapping to delete')
-                )
+            # 使用统一的错误处理
+            show_warning(
+                self.language_manager.tr('warning', 'Warning'),
+                self.language_manager.tr('select_mapping_to_delete', 'Please select a mapping to delete'),
+                parent=self
+            )
             return
             
         row = selected_rows[0].row()
         standard_name = self.mapping_table.item(row, 0).text()
         raw_name = self.mapping_table.item(row, 1).text()
         
-        reply = QtWidgets.QMessageBox.question(
-            self,
+        # 使用统一的错误处理
+        reply = show_confirm(
             "确认删除",
             f"确定要删除映射 '{raw_name} -> {standard_name}' 吗？",
-            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No
+            parent=self
         )
         
         if reply == QtWidgets.QMessageBox.StandardButton.Yes:
@@ -426,16 +413,8 @@ class MappingManagerDialog(QtWidgets.QDialog):
     def refresh_cache(self):
         """刷新远程映射缓存"""
         mapping_manager.refresh_cache()
-        # 使用 error_handler 显示信息对话框
-        if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-            self.parent.error_handler.show_info_dialog(
-                "成功",
-                "远程映射缓存已刷新",
-                parent=self
-            )
-        else:
-            # 备用方案：直接使用 QMessageBox
-            QtWidgets.QMessageBox.information(self, "成功", "远程映射缓存已刷新")
+        # 使用统一的错误处理
+        show_info("成功", "远程映射缓存已刷新", parent=self)
         
     def export_mappings(self):
         """导出用户映射到CSV文件"""
@@ -458,27 +437,11 @@ class MappingManagerDialog(QtWidgets.QDialog):
                         group_name = mapping_data.get('group_name', '')
                         writer.writerow([standard_name, raw_names, logo_url, group_name])
                         
-                # 使用 error_handler 显示信息对话框
-                if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-                    self.parent.error_handler.show_info_dialog(
-                        "成功",
-                        f"用户映射已导出到: {file_path}",
-                        parent=self
-                    )
-                else:
-                    # 备用方案：直接使用 QMessageBox
-                    QtWidgets.QMessageBox.information(self, "成功", f"用户映射已导出到: {file_path}")
+                # 使用统一的错误处理
+                show_info("成功", f"用户映射已导出到: {file_path}", parent=self)
             except Exception as e:
-                # 使用 error_handler 显示错误对话框
-                if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-                    self.parent.error_handler.show_error_dialog(
-                        "错误",
-                        f"导出失败: {str(e)}",
-                        parent=self
-                    )
-                else:
-                    # 备用方案：直接使用 QMessageBox
-                    QtWidgets.QMessageBox.critical(self, "错误", f"导出失败: {str(e)}")
+                # 使用统一的错误处理
+                show_error("错误", f"导出失败: {str(e)}", parent=self)
                 
     def import_mappings(self):
         """从CSV文件导入用户映射"""
@@ -515,45 +478,20 @@ class MappingManagerDialog(QtWidgets.QDialog):
                 mapping_manager.reverse_mappings = mapping_manager.create_reverse_mappings(mapping_manager.combined_mappings)
                 
                 self.load_user_mappings()
-                # 使用 error_handler 显示信息对话框
-                if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-                    self.parent.error_handler.show_info_dialog(
-                        "成功",
-                        f"用户映射已从CSV文件导入",
-                        parent=self
-                    )
-                else:
-                    # 备用方案：直接使用 QMessageBox
-                    QtWidgets.QMessageBox.information(self, "成功", f"用户映射已从CSV文件导入")
+                # 使用统一的错误处理
+                show_info("成功", "用户映射已从CSV文件导入", parent=self)
             except Exception as e:
-                # 使用 error_handler 显示错误对话框
-                if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-                    self.parent.error_handler.show_error_dialog(
-                        "错误",
-                        f"导入失败: {str(e)}",
-                        parent=self
-                    )
-                else:
-                    # 备用方案：直接使用 QMessageBox
-                    QtWidgets.QMessageBox.critical(self, "错误", f"导入失败: {str(e)}")
+                # 使用统一的错误处理
+                show_error("错误", f"导入失败: {str(e)}", parent=self)
                 
     def clear_fingerprints(self):
         """清空指纹数据"""
-        # 使用 error_handler 显示确认对话框
-        if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-            reply = self.parent.error_handler.show_confirm_dialog(
-                "确认清空",
-                "确定要清空所有频道指纹数据吗？",
-                parent=self
-            )
-        else:
-            # 备用方案：直接使用 QMessageBox
-            reply = QtWidgets.QMessageBox.question(
-                self,
-                "确认清空",
-                "确定要清空所有频道指纹数据吗？",
-                QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No
-            )
+        # 使用统一的错误处理
+        reply = show_confirm(
+            "确认清空",
+            "确定要清空所有频道指纹数据吗？",
+            parent=self
+        )
         
         if reply == QtWidgets.QMessageBox.StandardButton.Yes:
             mapping_manager.channel_fingerprints.clear()
@@ -617,27 +555,11 @@ class MappingManagerDialog(QtWidgets.QDialog):
                     message += f"  - {mapped_name} (出现{count}次)\n"
                 message += "\n"
                 
-            # 使用 error_handler 显示信息对话框
-            if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-                self.parent.error_handler.show_info_dialog(
-                    "不稳定映射分析",
-                    message,
-                    parent=self
-                )
-            else:
-                # 备用方案：直接使用 QMessageBox
-                QtWidgets.QMessageBox.information(self, "不稳定映射分析", message)
+            # 使用统一的错误处理
+            show_info("不稳定映射分析", message, parent=self)
         else:
-            # 使用 error_handler 显示信息对话框
-            if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-                self.parent.error_handler.show_info_dialog(
-                    "分析结果",
-                    "未发现明显不稳定的映射",
-                    parent=self
-                )
-            else:
-                # 备用方案：直接使用 QMessageBox
-                QtWidgets.QMessageBox.information(self, "分析结果", "未发现明显不稳定的映射")
+            # 使用统一的错误处理
+            show_info("分析结果", "未发现明显不稳定的映射", parent=self)
         
         # 将建议映射保存到实例变量中，供映射建议选项卡使用
         self.suggestion_mappings = suggestion_mappings
@@ -651,41 +573,17 @@ class MappingManagerDialog(QtWidgets.QDialog):
         self.load_suggestions()
         
         if self.suggestion_mappings:
-            # 使用 error_handler 显示信息对话框
-            if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-                self.parent.error_handler.show_info_dialog(
-                    "成功",
-                    f"已生成 {len(self.suggestion_mappings)} 条映射建议",
-                    parent=self
-                )
-            else:
-                # 备用方案：直接使用 QMessageBox
-                QtWidgets.QMessageBox.information(self, "成功", f"已生成 {len(self.suggestion_mappings)} 条映射建议")
+            # 使用统一的错误处理
+            show_info("成功", f"已生成 {len(self.suggestion_mappings)} 条映射建议", parent=self)
         else:
-            # 使用 error_handler 显示信息对话框
-            if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-                self.parent.error_handler.show_info_dialog(
-                    "提示",
-                    "暂无映射建议，请先进行扫描以收集数据",
-                    parent=self
-                )
-            else:
-                # 备用方案：直接使用 QMessageBox
-                QtWidgets.QMessageBox.information(self, "提示", "暂无映射建议，请先进行扫描以收集数据")
+            # 使用统一的错误处理
+            show_info("提示", "暂无映射建议，请先进行扫描以收集数据", parent=self)
         
     def apply_suggestion(self, row_index):
         """应用映射建议"""
         if not hasattr(self, 'suggestion_mappings') or row_index >= len(self.suggestion_mappings):
-            # 使用 error_handler 显示警告对话框
-            if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-                self.parent.error_handler.show_warning_dialog(
-                    "错误",
-                    "无法应用此建议",
-                    parent=self
-                )
-            else:
-                # 备用方案：直接使用 QMessageBox
-                QtWidgets.QMessageBox.warning(self, "错误", "无法应用此建议")
+            # 使用统一的错误处理
+            show_warning("错误", "无法应用此建议", parent=self)
             return
         
         suggestion = self.suggestion_mappings[row_index]
@@ -693,21 +591,12 @@ class MappingManagerDialog(QtWidgets.QDialog):
         suggested_mapping = suggestion['suggested_mapping']
         
         # 确认应用建议
-        # 使用 error_handler 显示确认对话框
-        if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-            reply = self.parent.error_handler.show_confirm_dialog(
-                "确认应用建议",
-                f"确定要将 '{raw_name}' 映射到 '{suggested_mapping}' 吗？",
-                parent=self
-            )
-        else:
-            # 备用方案：直接使用 QMessageBox
-            reply = QtWidgets.QMessageBox.question(
-                self,
-                "确认应用建议",
-                f"确定要将 '{raw_name}' 映射到 '{suggested_mapping}' 吗？",
-                QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No
-            )
+        # 使用统一的错误处理
+        reply = show_confirm(
+            "确认应用建议",
+            f"确定要将 '{raw_name}' 映射到 '{suggested_mapping}' 吗？",
+            parent=self
+        )
         
         if reply == QtWidgets.QMessageBox.StandardButton.Yes:
             # 应用映射建议
@@ -722,16 +611,8 @@ class MappingManagerDialog(QtWidgets.QDialog):
             # 重新加载用户映射列表
             self.load_user_mappings()
             
-            # 使用 error_handler 显示信息对话框
-            if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-                self.parent.error_handler.show_info_dialog(
-                    "成功",
-                    f"已应用映射建议: {raw_name} -> {suggested_mapping}",
-                    parent=self
-                )
-            else:
-                # 备用方案：直接使用 QMessageBox
-                QtWidgets.QMessageBox.information(self, "成功", f"已应用映射建议: {raw_name} -> {suggested_mapping}")
+            # 使用统一的错误处理
+            show_info("成功", f"已应用映射建议: {raw_name} -> {suggested_mapping}", parent=self)
     
     def update_ui_texts(self):
         """更新UI文本到当前语言"""
@@ -870,16 +751,8 @@ class MappingEditDialog(QtWidgets.QDialog):
         logo_url = self.logo_url_input.text().strip()
         
         if not standard_name or not raw_name:
-            # 使用 error_handler 显示警告对话框
-            if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
-                self.parent.error_handler.show_warning_dialog(
-                    "输入错误",
-                    "标准名称和原始名称不能为空",
-                    parent=self
-                )
-            else:
-                # 备用方案：直接使用 QMessageBox
-                QtWidgets.QMessageBox.warning(self, "输入错误", "标准名称和原始名称不能为空")
+            # 使用统一的错误处理
+            show_warning("输入错误", "标准名称和原始名称不能为空", parent=self)
             return None
             
         return {

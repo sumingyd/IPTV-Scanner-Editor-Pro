@@ -76,41 +76,20 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             # 获取Logo地址
             logo_url = channel.get('logo_url', channel.get('logo', ''))
             
+            # 简化逻辑：直接检查UI实例的logo_cache
             if logo_url and logo_url.startswith(('http://', 'https://')):
-                # 尝试查找UI层
-                ui_instance = None
-                
-                # 方法1: 通过父对象链查找
-                parent_widget = self.parent()
-                while parent_widget:
-                    if hasattr(parent_widget, 'ui') and hasattr(parent_widget.ui, 'logo_cache'):
-                        ui_instance = parent_widget.ui
-                        break
-                    parent_widget = parent_widget.parent()
-                
-                # 方法2: 如果找不到，尝试通过全局方式查找
-                if not ui_instance:
-                    from PyQt6.QtWidgets import QApplication
-                    app = QApplication.instance()
-                    if app:
-                        for widget in app.allWidgets():
-                            if hasattr(widget, 'ui') and hasattr(widget.ui, 'logo_cache'):
-                                ui_instance = widget.ui
-                                break
+                # 尝试获取UI实例
+                ui_instance = self._get_ui_instance()
                 
                 if ui_instance and hasattr(ui_instance, 'logo_cache'):
+                    # 检查缓存
                     if logo_url in ui_instance.logo_cache:
                         return ui_instance.logo_cache[logo_url]
                     else:
-                        # 如果不在缓存中，返回占位符图标
-                        pixmap = QtGui.QPixmap(36, 36)  # 从24增大到36
+                        # 不在缓存中，返回灰色占位符
+                        pixmap = QtGui.QPixmap(36, 36)
                         pixmap.fill(QtGui.QColor('#cccccc'))
                         return QtGui.QIcon(pixmap)
-                else:
-                    # 如果没有UI层，返回一个占位符图标
-                    pixmap = QtGui.QPixmap(36, 36)  # 从24增大到36
-                    pixmap.fill(QtGui.QColor('#cccccc'))
-                    return QtGui.QIcon(pixmap)
             
             # 如果没有Logo或不是网络地址，返回空图标
             return None
@@ -474,7 +453,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 old_name = channel.get('name', '')
                 old_group = channel.get('group', '')
                 
-                logger.info(f"根据URL更新频道: URL={url}, 原始名: {old_name}, 新名: {channel_info.get('name', '')}")
+                logger.info(f"根据URL更新频道: {old_name} -> {channel_info.get('name', '')}")
                 
                 # 更新频道数据
                 self.channels[i].update(channel_info)
@@ -494,7 +473,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 # 发送数据变化信号，确保特定行更新 - 使用更全面的角色列表
                 top_left = self.index(i, 0)
                 bottom_right = self.index(i, self.columnCount() - 1)
-                logger.info(f"发送数据变化信号: 行 {i}, 列 0-{self.columnCount()-1}")
                 self.dataChanged.emit(top_left, bottom_right, [
                     QtCore.Qt.ItemDataRole.DisplayRole, 
                     QtCore.Qt.ItemDataRole.DecorationRole,
@@ -503,11 +481,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 ])
                 
                 # 强制刷新整个视图以确保所有列都更新
-                logger.info("发送布局变化信号")
                 self.layoutChanged.emit()
-                
-                # 记录更新信息
-                logger.info(f"根据URL更新频道成功: URL={url}, 原始名: {old_name} -> 新名: {channel_info.get('name', '')}")
                 
                 return True
         return False
@@ -515,14 +489,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
     def update_channel(self, index: int, new_channel: Dict[str, Any]) -> bool:
         """更新指定索引的频道数据"""
         if not (0 <= index < len(self.channels)):
-            logger.error(f"更新频道失败: 索引 {index} 超出范围 (0-{len(self.channels)-1})")
             return False
             
         # 记录原始数据用于调试
         old_name = self.channels[index].get('name', '')
         old_group = self.channels[index].get('group', '')
-        
-        logger.info(f"开始更新频道: 索引 {index}, 原始名: {old_name}, 新名: {new_channel.get('name', '')}")
         
         # 更新频道数据
         self.channels[index].update(new_channel)
@@ -542,15 +513,10 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         # 发送数据变化信号，确保特定行更新
         top_left = self.index(index, 0)
         bottom_right = self.index(index, self.columnCount() - 1)
-        logger.info(f"发送数据变化信号: 行 {index}, 列 0-{self.columnCount()-1}")
         self.dataChanged.emit(top_left, bottom_right, [QtCore.Qt.ItemDataRole.DisplayRole, QtCore.Qt.ItemDataRole.DecorationRole])
         
         # 强制刷新整个视图以确保所有列都更新
-        logger.info("发送布局变化信号")
         self.layoutChanged.emit()
-        
-        # 记录更新信息
-        logger.info(f"频道更新成功: 索引 {index}, 原始名: {old_name} -> 新名: {new_channel.get('name', '')}")
         
         return True
 
@@ -946,6 +912,70 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         except Exception as e:
             logger.error(f"频道模型-解析文件内容失败: {str(e)}", exc_info=True)
             return None
+
+    def _update_logo_cache(self, ui_instance, logo_url, pixmap):
+        """更新Logo缓存并刷新UI"""
+        try:
+            logger.debug(f"_update_logo_cache开始执行: {logo_url}, pixmap有效: {not pixmap.isNull()}")
+            
+            # 创建图标
+            icon = QtGui.QIcon(pixmap)
+            
+            # 更新缓存
+            ui_instance.logo_cache[logo_url] = icon
+            
+            # 添加调试日志
+            logger.debug(f"Logo缓存已更新: {logo_url}, 缓存大小: {len(ui_instance.logo_cache)}")
+            
+            # 查找所有使用这个logo_url的频道行
+            rows_to_update = []
+            for i, channel in enumerate(self.channels):
+                if channel.get('logo_url') == logo_url or channel.get('logo') == logo_url:
+                    rows_to_update.append(i)
+            
+            if rows_to_update:
+                logger.debug(f"需要更新UI的行: {rows_to_update}")
+                
+                # 批量更新所有相关行
+                for row in rows_to_update:
+                    # 发送数据变化信号，只更新DecorationRole
+                    index = self.index(row, 0)  # 只更新序号列（Logo列）
+                    self.dataChanged.emit(index, index, [QtCore.Qt.ItemDataRole.DecorationRole])
+                    logger.debug(f"已发送数据变化信号: 行 {row}, logo_url: {logo_url}")
+                
+                # 强制刷新整个视图 - 使用更强制性的方法
+                self.layoutChanged.emit()
+                
+                # 额外：强制视图立即更新
+                view = self.parent()
+                if view and hasattr(view, 'viewport'):
+                    view.viewport().update()
+                
+                logger.debug(f"已发送布局变化信号并强制视图更新")
+            else:
+                logger.debug(f"没有找到使用此logo_url的频道: {logo_url}")
+                
+        except Exception as e:
+            logger.error(f"更新Logo缓存失败: {e}", exc_info=True)
+
+    def _get_ui_instance(self):
+        """获取UI实例"""
+        # 方法1: 通过父对象链查找
+        parent_widget = self.parent()
+        while parent_widget:
+            if hasattr(parent_widget, 'ui') and hasattr(parent_widget.ui, 'logo_cache'):
+                return parent_widget.ui
+            parent_widget = parent_widget.parent()
+        
+        # 方法2: 如果找不到，尝试通过全局方式查找
+        from PyQt6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app:
+            for widget in app.allWidgets():
+                if hasattr(widget, 'ui') and hasattr(widget.ui, 'logo_cache'):
+                    return widget.ui
+        
+        return None
 
     def load_from_file(self, content: str) -> bool:
         """从文件内容加载频道列表"""

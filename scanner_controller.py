@@ -94,7 +94,7 @@ class ScannerController(QObject):
                 
                 # 只记录有效频道的详细信息
                 if valid:
-                    log_msg = f"有效频道 - 原始名: {channel_info['raw_name']}, 映射名: {channel_info['name']}, 分组: {channel_info['group']}, URL: {url}"
+                    log_msg = f"有效频道: {channel_info['name']}, 分组: {channel_info['group']}, URL: {url}"
                     self.logger.info(log_msg)
                     
                     # 使用 functools.partial 确保频道信息正确传递
@@ -111,13 +111,12 @@ class ScannerController(QObject):
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
                 
-                    # 如果total为0，说明队列填充线程还没有更新总数
-                    # 在这种情况下，我们使用一个较大的估计值，比如100
-                    if total <= 0:
-                        # 使用一个合理的估计值，避免除零错误
-                        estimated_total = 100
-                        self.logger.debug(f"进度条更新: total={total}，使用估计值{estimated_total}")
-                        total = estimated_total
+                # 如果total为0，说明队列填充线程还没有更新总数
+                # 在这种情况下，我们使用一个较大的估计值，比如100
+                if total <= 0:
+                    # 使用一个合理的估计值，避免除零错误
+                    estimated_total = 100
+                    total = estimated_total
                 
                     # 发送进度更新信号
                     import functools
@@ -137,7 +136,6 @@ class ScannerController(QObject):
                     if total <= 0:
                         # 使用一个合理的估计值，避免除零错误
                         estimated_total = 100
-                        self.logger.debug(f"进度条更新(异常): total={total}，使用估计值{estimated_total}")
                         total = estimated_total
                     
                     # 发送进度更新信号
@@ -166,7 +164,6 @@ class ScannerController(QObject):
             # 所有工作线程都已完成，但扫描完成信号可能还没有发射
             # 这里确保扫描完成信号被发射
             QtCore.QTimer.singleShot(0, self.scan_completed.emit)
-            self.logger.info("所有工作线程已完成，触发扫描完成信号")
         
     def _update_progress(self, valid: bool):
         """更新扫描进度"""
@@ -186,7 +183,6 @@ class ScannerController(QObject):
     def _process_valid_channel(self, channel_info: dict):
         """处理有效频道"""
         self.model.add_channel(channel_info)
-        self.logger.info(f"添加有效频道: {channel_info['name']}")
 
     def _add_channel_and_refresh(self, channel_info: dict):
         """添加频道并强制刷新UI"""
@@ -206,7 +202,7 @@ class ScannerController(QObject):
                 QTimer.singleShot(0, view.resizeColumnsToContents)
 
     def _build_channel_info(self, url: str, valid: bool, latency: int, resolution: str, result: dict) -> dict:
-        """构建完整的频道信息字典"""
+        """构建基本的频道信息字典 - 简化版本，详细信息异步获取"""
         from channel_mappings import mapping_manager, extract_channel_name_from_url
         
         try:
@@ -215,56 +211,199 @@ class ScannerController(QObject):
             if not raw_name or raw_name == "未知频道":
                 raw_name = extract_channel_name_from_url(url)
             
-            # 获取映射信息（使用新的映射管理器，支持智能学习和指纹匹配）
-            channel_info_for_fingerprint = {
-                'service_name': result.get('service_name', ''),
-                'resolution': resolution,
-                'codec': result.get('codec', ''),
-                'bitrate': result.get('bitrate', '')
-            }
-            
-            mapped_info = mapping_manager.get_channel_info(raw_name, url, channel_info_for_fingerprint) if valid else None
-            mapped_name = mapped_info.get('standard_name', raw_name) if mapped_info else raw_name
-            
-            # 构建频道信息
+            # 构建基本频道信息（不包含详细信息）
             channel_info = {
                 'url': url,
-                'name': mapped_name,
+                'name': raw_name,  # 初始使用原始名称
                 'raw_name': raw_name,
                 'valid': valid,
                 'latency': latency,
-                'resolution': resolution if resolution else '',
+                'resolution': '',  # 初始为空，异步获取
                 'status': '有效' if valid else '无效',
-                'group': mapped_info.get('group_name', '未分类') if mapped_info else '未分类',
-                'logo_url': mapped_info.get('logo_url') if mapped_info else None,
-                'fingerprint': mapping_manager.create_channel_fingerprint(url, channel_info_for_fingerprint) if valid else None
+                'group': '未分类',  # 初始分组
+                'logo_url': None,
+                'needs_details': valid  # 标记需要获取详细信息
             }
             
-            # 记录详细的映射信息用于调试
+            # 如果频道有效，启动异步获取详细信息
             if valid:
-                if mapped_name != raw_name:
-                    # 频道映射成功，不再输出调试信息
-                    pass
-                else:
-                    self.logger.debug(f"频道未映射，使用原始名称: {raw_name}")
-                    
+                self._start_async_details_fetch(channel_info.copy())
+            
             return channel_info
             
         except Exception as e:
             self.logger.error(f"构建频道信息失败: {e}", exc_info=True)
-            # 返回基本的频道信息，即使映射失败
+            # 返回基本的频道信息，即使构建失败
             return {
                 'url': url,
                 'name': extract_channel_name_from_url(url),
                 'raw_name': extract_channel_name_from_url(url),
                 'valid': valid,
                 'latency': latency,
-                'resolution': resolution if resolution else '',
+                'resolution': '',
                 'status': '有效' if valid else '无效',
                 'group': '未分类',
                 'logo_url': None,
-                'error': str(e)
+                'error': str(e),
+                'needs_details': False
             }
+
+    def _start_async_details_fetch(self, channel_info: dict):
+        """启动异步获取频道详细信息"""
+        # 创建线程来获取详细信息
+        thread = threading.Thread(
+            target=self._fetch_channel_details,
+            args=(channel_info,),
+            name=f"DetailsFetcher-{channel_info['url'][-20:]}",
+            daemon=True
+        )
+        thread.start()
+        
+    def _fetch_channel_details(self, channel_info: dict):
+        """获取频道详细信息（分辨率、编码、映射等）"""
+        max_retries = 3
+        retry_delays = [1, 2, 3]  # 重试延迟（秒）
+        
+        for retry_count in range(max_retries):
+            try:
+                url = channel_info['url']
+                
+                # 使用ffprobe获取流详细信息
+                from validator import StreamValidator
+                validator = StreamValidator(self.main_window)
+                
+                # 调用ffprobe获取详细信息（使用较长的超时时间）
+                probe_result = validator._run_ffprobe(url, timeout=10)
+                
+                # 更新频道信息
+                updated_info = channel_info.copy()
+                
+                # 如果有service_name，更新频道名
+                if probe_result.get('service_name'):
+                    updated_info['raw_name'] = probe_result['service_name']
+                    updated_info['name'] = probe_result['service_name']
+                
+                # 更新分辨率和其他信息
+                if probe_result.get('resolution'):
+                    updated_info['resolution'] = probe_result['resolution']
+                if probe_result.get('codec'):
+                    updated_info['codec'] = probe_result['codec']
+                if probe_result.get('bitrate'):
+                    updated_info['bitrate'] = probe_result['bitrate']
+                
+                # 获取映射信息
+                from channel_mappings import mapping_manager
+                channel_info_for_fingerprint = {
+                    'service_name': updated_info['raw_name'],
+                    'resolution': updated_info.get('resolution', ''),
+                    'codec': updated_info.get('codec', ''),
+                    'bitrate': updated_info.get('bitrate', '')
+                }
+                
+                mapped_info = mapping_manager.get_channel_info(
+                    updated_info['raw_name'], 
+                    url, 
+                    channel_info_for_fingerprint
+                )
+                
+                if mapped_info:
+                    updated_info['name'] = mapped_info.get('standard_name', updated_info['raw_name'])
+                    updated_info['group'] = mapped_info.get('group_name', '未分类')
+                    
+                    # 确保logo_url是有效的URL字符串，不是None或空字符串
+                    logo_url = mapped_info.get('logo_url')
+                    
+                    if logo_url and isinstance(logo_url, str) and logo_url.strip():
+                        updated_info['logo_url'] = logo_url.strip()
+                    else:
+                        updated_info['logo_url'] = None
+                    
+                    updated_info['fingerprint'] = mapping_manager.create_channel_fingerprint(url, channel_info_for_fingerprint)
+                
+                # 确保所有必要的字段都存在
+                updated_info.setdefault('resolution', '')
+                updated_info.setdefault('group', '未分类')
+                updated_info.setdefault('logo_url', None)
+                updated_info.setdefault('status', '有效')
+                
+                # 标记详细信息已获取
+                updated_info['needs_details'] = False
+                
+                # 在主线程中更新频道信息 - 使用functools.partial避免lambda作用域问题
+                import functools
+                QtCore.QTimer.singleShot(0, functools.partial(self._update_channel_details, updated_info))
+                
+                # 成功获取，跳出重试循环
+                return
+                
+            except Exception as e:
+                error_msg = f"获取频道详细信息失败 (重试 {retry_count + 1}/{max_retries}): {e}"
+                if retry_count < max_retries - 1:
+                    self.logger.warning(f"{error_msg}, {retry_delays[retry_count]}秒后重试...")
+                    time.sleep(retry_delays[retry_count])
+                else:
+                    self.logger.error(f"{error_msg}, 放弃重试", exc_info=True)
+                    # 即使失败，也标记为不需要再获取
+                    channel_info['needs_details'] = False
+                    # 确保频道信息有必要的字段
+                    channel_info.setdefault('resolution', '')
+                    channel_info.setdefault('group', '未分类')
+                    channel_info.setdefault('logo_url', None)
+                    # 使用functools.partial避免lambda作用域问题
+                    import functools
+                    QtCore.QTimer.singleShot(0, functools.partial(self._update_channel_details, channel_info))
+            
+    def _update_channel_details(self, channel_info: dict):
+        """更新频道详细信息"""
+        try:
+            # 使用现有的update_channel_by_url方法更新频道信息
+            url = channel_info.get('url')
+            if url:
+                success = self.model.update_channel_by_url(url, channel_info)
+                if success:
+                    self.logger.info(f"更新频道详细信息成功: {channel_info.get('name', '未知频道')}, 分辨率: {channel_info.get('resolution', '空')}, 分组: {channel_info.get('group', '空')}")
+                    
+                    # 检查是否有Logo URL，如果有则触发Logo下载
+                    logo_url = channel_info.get('logo_url')
+                    if logo_url and logo_url.startswith(('http://', 'https://')):
+                        # 使用QTimer在主线程中安全地触发Logo下载
+                        QtCore.QTimer.singleShot(0, lambda: self._download_logo(logo_url, url))
+                else:
+                    self.logger.warning(f"更新频道详细信息失败，未找到URL: {url}")
+            else:
+                self.logger.warning("更新频道详细信息失败，URL为空")
+            
+            # 刷新UI
+            self._force_ui_refresh()
+            
+        except Exception as e:
+            self.logger.error(f"更新频道详细信息失败: {e}", exc_info=True)
+            
+    def _download_logo(self, logo_url: str, channel_url: str):
+        """下载Logo图片"""
+        try:
+            # 检查主窗口是否存在
+            if not self.main_window:
+                return
+                
+            # 检查UI实例是否存在
+            if not hasattr(self.main_window, 'ui'):
+                return
+                
+            # 我们需要找到使用这个logo_url的频道行
+            row = -1
+            for i in range(self.model.rowCount()):
+                channel = self.model.get_channel(i)
+                if channel.get('url') == channel_url:
+                    row = i
+                    break
+            
+            if row >= 0:
+                # 调用UI构建器的Logo下载方法
+                if hasattr(self.main_window.ui, '_download_logo'):
+                    self.main_window.ui._download_logo(logo_url, row)
+        except Exception as e:
+            self.logger.error(f"触发Logo下载失败: {e}", exc_info=True)
 
     def _check_channel(self, url: str, raw_channel_name: str = None) -> dict:
         """检查频道有效性"""
@@ -363,7 +502,7 @@ class ScannerController(QObject):
             # 用户指定模式，但限制最大线程数
             optimal_threads = min(thread_count, 50)  # 最多50个线程
         
-        self.logger.info(f"使用 {optimal_threads} 个线程进行扫描 (CPU核心数: {cpu_count})")
+        self.logger.info(f"使用 {optimal_threads} 个线程进行扫描")
             
         # 使用优化后的线程数
         self.workers = []
@@ -386,7 +525,7 @@ class ScannerController(QObject):
         # 扫描开始时发送进度更新信号
         QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(0, 1))
         
-        self.logger.info(f"开始扫描URL，使用 {optimal_threads} 个线程，超时时间: {timeout}秒")
+        self.logger.info(f"开始扫描URL，使用 {optimal_threads} 个线程")
         
     def start_scan_from_urls(self, urls: list, thread_count: int = 10, timeout: int = 10, user_agent: str = None, referer: str = None):
         """从URL列表开始扫描（用于重试扫描）"""
@@ -435,7 +574,7 @@ class ScannerController(QObject):
         )
         stats_thread.start()
         
-        self.logger.info(f"开始重试扫描，共 {len(urls)} 个URL，使用 {thread_count} 个线程，超时时间: {timeout}秒")
+        self.logger.info(f"开始重试扫描，共 {len(urls)} 个URL")
         
     def stop_scan(self):
         """停止扫描 - 增强版本，改进资源清理"""
@@ -504,7 +643,7 @@ class ScannerController(QObject):
         collected = gc.collect()
         self.logger.debug(f"垃圾回收完成，回收对象: {collected}")
                 
-        self.logger.info("扫描已完全停止，所有资源已清理")
+        self.logger.info("扫描已完全停止")
 
     def start_validation(self, model, threads, timeout):
         """开始有效性验证"""
@@ -584,7 +723,7 @@ class ScannerController(QObject):
                 # 记录验证结果日志 - 使用模型中的频道名
                 channel = self.model.get_channel(index)
                 channel_name = channel.get('name', extract_channel_name_from_url(url))
-                log_msg = f"有效性验证 - 频道: {channel_name}, URL: {url}, 状态: {'有效' if valid else '无效'}, 延迟: {latency}ms, 分辨率: {resolution}"
+                log_msg = f"有效性验证 - 频道: {channel_name}, 状态: {'有效' if valid else '无效'}, 延迟: {latency}ms"
                 self.logger.info(log_msg)
                 
                 # 使用QTimer在主线程中安全地更新模型状态
@@ -610,7 +749,6 @@ class ScannerController(QObject):
                     
                     # 即使total为0也发送进度更新信号，但使用默认值
                     if total <= 0:
-                        self.logger.warning(f"验证进度条更新: total={total}，使用默认值1避免除零错误")
                         total = 1  # 避免除零错误
                     
                     # 立即更新进度，确保状态栏进度条正常显示
@@ -676,9 +814,8 @@ class ScannerController(QObject):
                 try:
                     # 使用QTimer在主线程中安全地发射完成信号
                     QtCore.QTimer.singleShot(0, self.scan_completed.emit)
-                    self.logger.info("扫描完成信号已发射")
                 except RuntimeError:
-                    self.logger.error("发射扫描完成信号失败")
+                    pass
         finally:
             # 等待所有工作线程完成，确保最终的统计信息被发送
             for worker in self.workers:
