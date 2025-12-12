@@ -126,7 +126,9 @@ class UIBuilder(QtCore.QObject):
                 self.main_window.main_splitter.updateGeometry()
             ])
         except Exception as e:
-            self.logger.error(f"窗口大小变化处理错误: {str(e)}")
+            # 窗口大小变化处理错误通常不需要记录
+            # self.logger.error(f"窗口大小变化处理错误: {str(e)}")
+            pass
 
     def _init_splitters(self):
         """初始化所有分隔条控件"""
@@ -703,13 +705,15 @@ class UIBuilder(QtCore.QObject):
         """复制频道URL到剪贴板"""
         clipboard = QtWidgets.QApplication.clipboard()
         clipboard.setText(url)
-        self.logger.info(f"已复制URL: {url}")
+        # 复制URL通常不需要记录
+        # self.logger.info(f"已复制URL: {url}")
         
     def _copy_channel_name(self, name):
         """复制频道名到剪贴板"""
         clipboard = QtWidgets.QApplication.clipboard()
         clipboard.setText(name)
-        self.logger.info(f"已复制频道名: {name}")
+        # 复制频道名通常不需要记录
+        # self.logger.info(f"已复制频道名: {name}")
         
     def _refresh_channel_info(self, index):
         """重新获取选中频道的详细信息（异步执行）"""
@@ -725,7 +729,8 @@ class UIBuilder(QtCore.QObject):
             show_warning("错误", "无法获取频道URL", parent=self.main_window)
             return
         
-        self.logger.info(f"开始重新获取频道信息: {current_name}")
+        # 开始重新获取频道信息通常不需要记录
+        # self.logger.info(f"开始重新获取频道信息: {current_name}")
         
         # 显示进度条和状态信息
         self.main_window.progress_indicator.show()
@@ -803,19 +808,16 @@ class UIBuilder(QtCore.QObject):
                         ))
                     
                 except Exception as e:
-                    self.ui_builder.logger.error(f"重新获取频道信息失败: {e}", exc_info=True)
-                    # 在主线程中显示错误
-                    QtCore.QTimer.singleShot(0, lambda: self.ui_builder._handle_refresh_error(str(e)))
-                    
-                except Exception as e:
-                    self.ui_builder.logger.error(f"重新获取频道信息失败: {e}", exc_info=True)
-                    # 在主线程中显示错误
+            # 重新获取频道信息失败通常不需要记录
+            # self.ui_builder.logger.error(f"重新获取频道信息失败: {e}", exc_info=True)
+            # 在主线程中显示错误
                     QtCore.QTimer.singleShot(0, lambda: self.ui_builder._handle_refresh_error(str(e)))
         
         # 创建并启动异步任务
         task = RefreshChannelTask(self, index, url, current_name, self.main_window.timeout_input.value())
         QThreadPool.globalInstance().start(task)
-        self.logger.info(f"异步任务已启动")
+        # 异步任务已启动通常不需要记录
+        # self.logger.info(f"异步任务已启动")
         
     def _update_refresh_progress(self, value, message):
         """更新刷新进度（线程安全）"""
@@ -870,11 +872,13 @@ class UIBuilder(QtCore.QObject):
             QtCore.QTimer.singleShot(100, lambda: self._final_ui_refresh(index.row()))
                 
         except Exception as e:
-            self.logger.error(f"完成频道刷新失败: {e}", exc_info=True)
+            # 完成频道刷新失败通常不需要记录
+            # self.logger.error(f"完成频道刷新失败: {e}", exc_info=True)
             self._handle_refresh_error(str(e))
                 
         except Exception as e:
-            self.logger.error(f"完成频道刷新失败: {e}", exc_info=True)
+            # 完成频道刷新失败通常不需要记录
+            # self.logger.error(f"完成频道刷新失败: {e}", exc_info=True)
             self._handle_refresh_error(str(e))
             
     def _final_ui_refresh(self, row):
@@ -945,7 +949,7 @@ class UIBuilder(QtCore.QObject):
                 self._download_logo(logo_url, row)
                 
         except Exception as e:
-            self.logger.debug(f"重新加载Logo失败: {e}")
+            pass
             
     def _delete_selected_channel(self, index):
         """删除选中的频道"""
@@ -960,11 +964,7 @@ class UIBuilder(QtCore.QObject):
         )
         
         if confirmed:
-            # 从模型中删除行
             self.main_window.model.removeRow(index.row())
-            self.logger.info(f"已删除频道: 行 {index.row()}")
-            
-            # 更新状态标签
             if hasattr(self.main_window, 'validate_status_label'):
                 self.main_window.validate_status_label.setText(
                     f"检测: {self.main_window.model.rowCount()}/0"
@@ -1280,7 +1280,6 @@ class UIBuilder(QtCore.QObject):
             if self.main_window.model.rowCount() > 0:
                 self.logger.info(f"开始加载网络Logo，共 {self.main_window.model.rowCount()} 个频道")
             else:
-                self.logger.debug("_load_network_logos: 没有频道数据")
                 return
             
             # 遍历所有频道，检查是否有网络Logo需要加载
@@ -1292,24 +1291,19 @@ class UIBuilder(QtCore.QObject):
                 
                 # 只处理网络Logo地址
                 if logo_url and logo_url.startswith(('http://', 'https://')):
-                    self.logger.info(f"发现网络Logo: {logo_url}, 行: {row}")
                     
                     # 检查是否已经在缓存中
                     if logo_url in self.logo_cache:
-                        self.logger.debug(f"Logo已在缓存中: {logo_url}")
                         continue
                         
                     # 检查是否已经在请求中
                     if logo_url in self.pending_requests:
-                        self.logger.debug(f"Logo已在请求中: {logo_url}")
                         continue
                         
                     # 立即显示占位符图标，然后异步加载实际图片
-                    self.logger.debug(f"显示占位符图标: {logo_url}")
                     self._show_placeholder_icon(row, logo_url)
                     
                     # 发起网络请求
-                    self.logger.debug(f"发起Logo下载请求: {logo_url}")
                     self._download_logo(logo_url, row)
                 else:
                     self.logger.debug(f"不是网络Logo或为空: {logo_url}")
@@ -1319,10 +1313,8 @@ class UIBuilder(QtCore.QObject):
                 top_left = self.main_window.model.index(0, 0)
                 bottom_right = self.main_window.model.index(self.main_window.model.rowCount() - 1, 0)
                 self.main_window.model.dataChanged.emit(top_left, bottom_right)
-                self.logger.debug("已发送数据变化信号")
         finally:
             self._loading_logos = False
-            self.logger.debug("_load_network_logos: 完成")
 
     def _show_placeholder_icon(self, row, logo_url):
         """显示占位符图标，并立即更新UI"""
@@ -1345,16 +1337,13 @@ class UIBuilder(QtCore.QObject):
     def _download_logo(self, logo_url, row):
         """下载Logo图片"""
         try:
-            self.logger.debug(f"开始下载Logo: {logo_url}, 行: {row}")
             request = QNetworkRequest(QtCore.QUrl(logo_url))
-            
             # 发起请求
             reply = self.network_manager.get(request)
             self.pending_requests[logo_url] = reply
             
             # 连接完成信号
             reply.finished.connect(lambda: self._on_logo_downloaded(reply, logo_url, row))
-            self.logger.debug(f"Logo下载请求已发起: {logo_url}")
             
         except Exception as e:
             self.logger.error(f"Logo下载请求失败: {logo_url}, {e}")
