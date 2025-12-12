@@ -53,16 +53,9 @@ class UIOptimizer:
             except Exception as e:
                 logger.error(f"批量UI操作执行失败: {e}")
         
-        logger.debug(f"执行了 {len(operations)} 个批量UI操作")
     
     def delayed_update(self, operation: Callable, delay_ms: int = 0, *args, **kwargs):
-        """延迟更新UI操作
-        
-        Args:
-            operation: 要执行的UI操作函数
-            delay_ms: 延迟时间（毫秒）
-            *args, **kwargs: 操作参数
-        """
+        """延迟更新UI操作"""
         self._update_stats['delayed_updates'] += 1
         QtCore.QTimer.singleShot(delay_ms, lambda: self._safe_execute(operation, *args, **kwargs))
     
@@ -74,11 +67,7 @@ class UIOptimizer:
             logger.error(f"UI操作执行失败: {e}")
     
     def optimize_list_view(self, list_view: QtWidgets.QAbstractItemView):
-        """优化列表视图性能
-        
-        Args:
-            list_view: 要优化的列表视图
-        """
+        """优化列表视图性能"""
         # 设置虚拟化属性
         list_view.setUniformItemSizes(True)
         list_view.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollMode.ScrollPerPixel)
@@ -88,15 +77,9 @@ class UIOptimizer:
         
         # 优化选择行为
         list_view.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
-        
-        logger.debug(f"优化列表视图: {list_view.objectName() or 'unnamed'}")
     
     def optimize_table_view(self, table_view: QtWidgets.QTableView):
-        """优化表格视图性能
-        
-        Args:
-            table_view: 要优化的表格视图
-        """
+        """优化表格视图性能"""
         # 设置虚拟化属性
         table_view.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollMode.ScrollPerPixel)
         table_view.setHorizontalScrollMode(QtWidgets.QAbstractItemView.ScrollMode.ScrollPerPixel)
@@ -108,17 +91,9 @@ class UIOptimizer:
         
         # 禁用交替行颜色（在某些系统上可能影响性能）
         table_view.setAlternatingRowColors(False)
-        
-        logger.debug(f"优化表格视图: {table_view.objectName() or 'unnamed'}")
     
     def suspend_updates(self, widget: QtWidgets.QWidget, operation: Callable, *args, **kwargs):
-        """暂停UI更新，执行操作后恢复
-        
-        Args:
-            widget: 要暂停更新的控件
-            operation: 要执行的操作
-            *args, **kwargs: 操作参数
-        """
+        """暂停UI更新，执行操作后恢复"""
         try:
             widget.setUpdatesEnabled(False)
             result = operation(*args, **kwargs)
@@ -127,15 +102,7 @@ class UIOptimizer:
             widget.setUpdatesEnabled(True)
     
     def throttle_updates(self, operation: Callable, throttle_time: int = 100):
-        """节流UI更新操作
-        
-        Args:
-            operation: 要节流的操作
-            throttle_time: 节流时间（毫秒）
-            
-        Returns:
-            节流后的函数
-        """
+        """节流UI更新操作"""
         last_call_time = 0
         
         def throttled(*args, **kwargs):
@@ -149,15 +116,7 @@ class UIOptimizer:
         return throttled
     
     def debounce_updates(self, operation: Callable, debounce_time: int = 300):
-        """防抖UI更新操作
-        
-        Args:
-            operation: 要防抖的操作
-            debounce_time: 防抖时间（毫秒）
-            
-        Returns:
-            防抖后的函数
-        """
+        """防抖UI更新操作"""
         timer = QtCore.QTimer()
         timer.setSingleShot(True)
         
@@ -171,11 +130,7 @@ class UIOptimizer:
         return debounced
     
     def get_update_stats(self) -> dict:
-        """获取UI更新统计信息
-        
-        Returns:
-            UI更新统计字典
-        """
+        """获取UI更新统计信息"""
         return self._update_stats.copy()
     
     def reset_stats(self):
@@ -192,11 +147,7 @@ _global_ui_optimizer: Optional[UIOptimizer] = None
 
 
 def get_ui_optimizer() -> UIOptimizer:
-    """获取全局UI优化器
-    
-    Returns:
-        全局UI优化器实例
-    """
+    """获取全局UI优化器 """
     global _global_ui_optimizer
     if _global_ui_optimizer is None:
         _global_ui_optimizer = UIOptimizer()
@@ -223,12 +174,7 @@ def suspend_updates(widget: QtWidgets.QWidget, operation: Callable, *args, **kwa
 
 # UI优化装饰器
 def ui_optimized(optimization_type: str = "batch", **kwargs):
-    """UI优化装饰器
-    
-    Args:
-        optimization_type: 优化类型 ("batch", "delayed", "throttle", "debounce")
-        **kwargs: 优化参数
-    """
+    """UI优化装饰器"""
     def decorator(func: Callable) -> Callable:
         if optimization_type == "batch":
             def wrapper(*args, **inner_kwargs):

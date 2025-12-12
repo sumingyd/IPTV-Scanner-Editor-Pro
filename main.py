@@ -37,7 +37,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # 立即加载保存的语言设置，确保UI构建时使用正确的语言
         language_code = self.config.load_language_settings()
         if self.language_manager.set_language(language_code):
-            self.logger.info(f"语言设置已加载: {language_code}")
+            pass
         
         # 确保在主线程创建
         
@@ -85,20 +85,13 @@ class MainWindow(QtWidgets.QMainWindow):
         
     def _init_main_window(self):
         """初始化主窗口的后续设置"""
-        self.logger.info("开始初始化主窗口")
-        
-        # 使用UI构建器中已经创建的模型，避免重复设置
-        # 模型已经在ui_builder.py的_setup_channel_list方法中正确设置
         self.model = self.ui.main_window.model
-        self.logger.info(f"模型已设置: {self.model}")
         
         # 设置模型的父对象为主窗口，确保可以访问UI层的方法
         self.model.setParent(self)
         
         # 初始化控制器
-        self.logger.info("开始初始化控制器")
         self.init_controllers()
-        self.logger.info("控制器初始化完成")
 
         # 初始化UI优化器和错误处理器
         self.ui_optimizer = get_ui_optimizer()
@@ -115,8 +108,6 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # 注册资源清理处理器
         self._register_cleanup_handlers()
-        
-        self.logger.info("主窗口初始化完成")
 
     def init_controllers(self):
         """初始化所有控制器"""
@@ -134,20 +125,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _connect_progress_signals(self):
         """连接进度条更新信号 - 使用简单的定时器方案"""
-        self.logger.info("开始连接进度条更新信号")
         
         # 检查进度条对象是否存在
         if not hasattr(self.ui.main_window, 'progress_indicator'):
-            self.logger.error("进度条对象不存在，无法连接信号")
             return
             
         if self.ui.main_window.progress_indicator is None:
-            self.logger.error("进度条对象为None，无法连接信号")
             return
-            
-        self.logger.info(f"进度条对象存在: {self.ui.main_window.progress_indicator}")
-        self.logger.info(f"进度条当前值: {self.ui.main_window.progress_indicator.value()}")
-        self.logger.info(f"进度条是否可见: {self.ui.main_window.progress_indicator.isVisible()}")
             
         # 初始化进度条
         self.ui.main_window.progress_indicator.setRange(0, 100)
@@ -163,9 +147,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # 连接扫描完成信号
         self.scanner.scan_completed.connect(self._on_scan_completed_for_progress)
-        
-        self.logger.info("进度条定时器已创建")
-        
+
     def _update_progress_from_stats(self):
         """从统计信息更新进度条"""
         try:
@@ -188,17 +170,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 # 显示进度条
                 if not self.ui.main_window.progress_indicator.isVisible() and total > 0:
                     self.ui.main_window.progress_indicator.show()
-                    self.logger.info(f"显示进度条，当前值: {progress_value}%")
                 
                 # 更新进度值
                 old_value = self.ui.main_window.progress_indicator.value()
                 if old_value != progress_value:
                     self.ui.main_window.progress_indicator.setValue(progress_value)
-                    self.logger.info(f"进度条更新: {old_value}% -> {progress_value}% ({current}/{total})")
                     
                     # 关键修复：当进度达到100%时，自动恢复按钮文本
                     if progress_value >= 100 and old_value < 100:
-                        self.logger.info("进度达到100%，自动恢复扫描按钮文本")
                         # 恢复两个扫描按钮的文本
                         self._set_scan_button_text('full_scan', '完整扫描')
                         self._set_append_scan_button_text('append_scan', '追加扫描')
@@ -207,7 +186,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         self.ui.main_window.progress_indicator.setValue(0)
                     
         except Exception as e:
-            self.logger.error(f"更新进度条失败: {e}")
+            pass
             
     def _on_scan_completed_for_progress(self):
         """处理扫描完成，隐藏进度条"""
@@ -215,13 +194,9 @@ class MainWindow(QtWidgets.QMainWindow):
             # 扫描完成后隐藏进度条
             self.ui.main_window.progress_indicator.hide()
             self.ui.main_window.progress_indicator.setValue(0)
-            self.logger.debug("扫描完成，隐藏进度条")
         except Exception as e:
-            self.logger.error(f"处理扫描完成失败: {e}")
-        
+            pass
 
-    # 废弃方法已移除：_update_validate_status
-    # 功能已迁移到状态栏统计标签
 
     def _load_config(self):
         """加载保存的配置到UI"""

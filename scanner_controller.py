@@ -58,7 +58,7 @@ class ScannerController(QObject):
             elif hasattr(self.model, 'layoutChanged'):
                 self.model.layoutChanged.emit()
         except Exception as e:
-            self.logger.debug(f"UI刷新失败: {e}")
+            pass
         
     def _worker(self):
         """工作线程函数"""
@@ -94,8 +94,6 @@ class ScannerController(QObject):
                 
                 # 只记录有效频道的详细信息
                 if valid:
-                    log_msg = f"有效频道: {channel_info['name']}, 分组: {channel_info['group']}, URL: {url}"
-                    self.logger.info(log_msg)
                     
                     # 使用 functools.partial 确保频道信息正确传递
                     import functools
@@ -111,8 +109,6 @@ class ScannerController(QObject):
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
                 
-                # 如果total为0，说明队列填充线程还没有更新总数
-                # 在这种情况下，我们使用一个较大的估计值，比如100
                 if total <= 0:
                     # 使用一个合理的估计值，避免除零错误
                     estimated_total = 100
@@ -123,16 +119,13 @@ class ScannerController(QObject):
                     QtCore.QTimer.singleShot(0, functools.partial(self.progress_updated.emit, current, total))
                 
             except Exception as e:
-                self.logger.error(f"工作线程错误: {e}", exc_info=True)
                 # 即使出现异常，也要确保统计信息更新
                 with self.stats_lock:
                     self.stats['invalid'] += 1
                     
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
-                    
-                    # 如果total为0，说明队列填充线程还没有更新总数
-                    # 在这种情况下，我们使用一个较大的估计值，比如100
+
                     if total <= 0:
                         # 使用一个合理的估计值，避免除零错误
                         estimated_total = 100
@@ -157,8 +150,6 @@ class ScannerController(QObject):
                 import functools
                 QtCore.QTimer.singleShot(0, functools.partial(self.progress_updated.emit, total, total))
         
-        # 检查是否所有工作线程都已完成
-        # 如果是最后一个工作线程，应该触发扫描完成
         alive_workers = sum(1 for w in self.workers if w.is_alive()) if self.workers else 0
         if alive_workers == 0 and not self.stop_event.is_set():
             # 所有工作线程都已完成，但扫描完成信号可能还没有发射
@@ -232,7 +223,6 @@ class ScannerController(QObject):
             return channel_info
             
         except Exception as e:
-            self.logger.error(f"构建频道信息失败: {e}", exc_info=True)
             # 返回基本的频道信息，即使构建失败
             return {
                 'url': url,
@@ -339,10 +329,8 @@ class ScannerController(QObject):
             except Exception as e:
                 error_msg = f"获取频道详细信息失败 (重试 {retry_count + 1}/{max_retries}): {e}"
                 if retry_count < max_retries - 1:
-                    self.logger.warning(f"{error_msg}, {retry_delays[retry_count]}秒后重试...")
                     time.sleep(retry_delays[retry_count])
                 else:
-                    self.logger.error(f"{error_msg}, 放弃重试", exc_info=True)
                     # 即使失败，也标记为不需要再获取
                     channel_info['needs_details'] = False
                     # 确保频道信息有必要的字段
@@ -361,23 +349,21 @@ class ScannerController(QObject):
             if url:
                 success = self.model.update_channel_by_url(url, channel_info)
                 if success:
-                    self.logger.info(f"更新频道详细信息成功: {channel_info.get('name', '未知频道')}, 分辨率: {channel_info.get('resolution', '空')}, 分组: {channel_info.get('group', '空')}")
-                    
                     # 检查是否有Logo URL，如果有则触发Logo下载
                     logo_url = channel_info.get('logo_url')
                     if logo_url and logo_url.startswith(('http://', 'https://')):
                         # 使用QTimer在主线程中安全地触发Logo下载
                         QtCore.QTimer.singleShot(0, lambda: self._download_logo(logo_url, url))
                 else:
-                    self.logger.warning(f"更新频道详细信息失败，未找到URL: {url}")
+                    pass
             else:
-                self.logger.warning("更新频道详细信息失败，URL为空")
+                pass
             
             # 刷新UI
             self._force_ui_refresh()
             
         except Exception as e:
-            self.logger.error(f"更新频道详细信息失败: {e}", exc_info=True)
+            pass
             
     def _download_logo(self, logo_url: str, channel_url: str):
         """下载Logo图片"""
@@ -403,7 +389,7 @@ class ScannerController(QObject):
                 if hasattr(self.main_window.ui, '_download_logo'):
                     self.main_window.ui._download_logo(logo_url, row)
         except Exception as e:
-            self.logger.error(f"触发Logo下载失败: {e}", exc_info=True)
+            pass
 
     def _check_channel(self, url: str, raw_channel_name: str = None) -> dict:
         """检查频道有效性"""
@@ -434,9 +420,9 @@ class ScannerController(QObject):
                     time.sleep(0.1)
                     
         except Exception as e:
-            self.logger.error(f"队列填充线程错误: {e}")
+            pass
         finally:
-            self.logger.info("URL生成完成，队列填充结束")
+            pass
 
     def is_scanning(self):
         """检查是否正在扫描"""
@@ -606,7 +592,7 @@ class ScannerController(QObject):
         if hasattr(self, 'filler_thread') and self.filler_thread and self.filler_thread.is_alive():
             self.filler_thread.join(timeout=1.0)
             if self.filler_thread.is_alive():
-                self.logger.warning("队列填充线程未能及时终止")
+                pass
         
         # 优雅地终止所有工作线程
         alive_workers = []
@@ -621,17 +607,10 @@ class ScannerController(QObject):
         # 第二次尝试：检查哪些线程仍然存活
         still_alive = [w for w in alive_workers if w.is_alive()]
         if still_alive:
-            self.logger.warning(f"{len(still_alive)} 个工作线程未能及时终止，等待额外时间...")
-            
             # 额外等待时间
             for worker in still_alive:
                 worker.join(timeout=1.0)
             
-            # 最终检查
-            final_alive = [w for w in still_alive if w.is_alive()]
-            if final_alive:
-                self.logger.warning(f"{len(final_alive)} 个工作线程最终未能终止（守护线程将在程序退出时自动终止）")
-        
         self.workers = []
         
         # 清理统计更新线程
@@ -641,9 +620,6 @@ class ScannerController(QObject):
         # 强制垃圾回收
         import gc
         collected = gc.collect()
-        self.logger.debug(f"垃圾回收完成，回收对象: {collected}")
-                
-        self.logger.info("扫描已完全停止")
 
     def start_validation(self, model, threads, timeout):
         """开始有效性验证"""
