@@ -334,23 +334,20 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self._set_append_scan_button_text('stop_scan', '停止扫描')
         
-    def _set_scan_button_text(self, translation_key, default_text):
-        """设置扫描按钮文本（统一处理语言管理器）"""
+    def _set_button_text(self, button, translation_key, default_text):
+        """通用按钮文本设置函数（统一处理语言管理器）"""
         if hasattr(self, 'language_manager') and self.language_manager:
-            self.ui.main_window.scan_btn.setText(
-                self.language_manager.tr(translation_key, default_text)
-            )
+            button.setText(self.language_manager.tr(translation_key, default_text))
         else:
-            self.ui.main_window.scan_btn.setText(default_text)
+            button.setText(default_text)
+
+    def _set_scan_button_text(self, translation_key, default_text):
+        """设置扫描按钮文本（向后兼容）"""
+        self._set_button_text(self.ui.main_window.scan_btn, translation_key, default_text)
     
     def _set_append_scan_button_text(self, translation_key, default_text):
-        """设置追加扫描按钮文本（统一处理语言管理器）"""
-        if hasattr(self, 'language_manager') and self.language_manager:
-            self.ui.main_window.append_scan_btn.setText(
-                self.language_manager.tr(translation_key, default_text)
-            )
-        else:
-            self.ui.main_window.append_scan_btn.setText(default_text)
+        """设置追加扫描按钮文本（向后兼容）"""
+        self._set_button_text(self.ui.main_window.append_scan_btn, translation_key, default_text)
 
     def _validate_all_channels(self, timeout: int, threads: int):
         """验证所有频道的有效性"""
@@ -409,18 +406,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self._set_pause_button_text(False)
         
     def _set_pause_button_text(self, is_playing):
-        """设置暂停/播放按钮文本（统一处理语言管理器）"""
-        if hasattr(self, 'language_manager') and self.language_manager:
-            if is_playing:
-                self.ui.main_window.pause_btn.setText(
-                    self.language_manager.tr('pause', 'Pause')
-                )
-            else:
-                self.ui.main_window.pause_btn.setText(
-                    self.language_manager.tr('play', 'Play')
-                )
+        """设置暂停/播放按钮文本（使用通用函数）"""
+        if is_playing:
+            self._set_button_text(self.ui.main_window.pause_btn, 'pause', '暂停')
         else:
-            self.ui.main_window.pause_btn.setText("暂停" if is_playing else "播放")
+            self._set_button_text(self.ui.main_window.pause_btn, 'play', '播放')
 
     def _on_play_state_changed(self, is_playing):
         """处理播放状态变化"""
