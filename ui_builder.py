@@ -313,6 +313,16 @@ class UIBuilder(QtCore.QObject):
         parent.layout().addWidget(player_group)
 
 
+    def _save_network_settings(self):
+        """保存网络设置到配置文件（提取的重复代码）"""
+        self.main_window.config.save_network_settings(
+            self.main_window.ip_range_input.text(),
+            self.main_window.timeout_input.value(),
+            self.main_window.thread_count_input.value(),
+            self.main_window.user_agent_input.text(),
+            self.main_window.referer_input.text()
+        )
+
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
         """配置扫描面板"""
         scan_group = QtWidgets.QGroupBox("扫描设置")
@@ -321,22 +331,46 @@ class UIBuilder(QtCore.QObject):
         scan_layout.setContentsMargins(5, 5, 5, 5)  # 统一设置边距
         scan_layout.setSpacing(5)  # 统一设置间距
 
+        # 设置输入控件
+        self._setup_scan_inputs()
+        
+        # 设置扫描重试选项
+        self._setup_scan_retry_options()
+        
+        # 设置扫描按钮
+        self._setup_scan_buttons()
+        
+        # 添加所有控件到布局
+        self._add_scan_controls_to_layout(scan_layout)
+
+        scan_group.setLayout(scan_layout)
+        parent.addWidget(scan_group)
+
+    def _setup_scan_inputs(self):
+        """设置扫描输入控件"""
+        # IP地址输入
         self.main_window.ip_range_input = QtWidgets.QLineEdit()
-        # 添加失去焦点时自动保存到配置文件
         self.main_window.ip_range_input.editingFinished.connect(
-            lambda: self.main_window.config.save_network_settings(
-                self.main_window.ip_range_input.text(),
-                self.main_window.timeout_input.value(),
-                self.main_window.thread_count_input.value(),
-                self.main_window.user_agent_input.text(),
-                self.main_window.referer_input.text()
-            )
+            lambda: self._save_network_settings()
         )
 
         # 超时时间设置
+        self._setup_timeout_input()
+        
+        # 线程数设置
+        self._setup_thread_input()
+        
+        # User-Agent设置
+        self._setup_user_agent_input()
+        
+        # Referer设置
+        self._setup_referer_input()
+
+    def _setup_timeout_input(self):
+        """设置超时时间输入控件"""
         timeout_layout = QtWidgets.QHBoxLayout()
         timeout_label = QtWidgets.QLabel("设置扫描超时时间（秒）")
-        self.main_window.timeout_description_label = timeout_label  # 设置为属性以便语言管理器访问
+        self.main_window.timeout_description_label = timeout_label
         timeout_layout.addWidget(timeout_label)
         self.main_window.timeout_input = QtWidgets.QSpinBox()
         self.main_window.timeout_input.setRange(1, 60)
@@ -344,74 +378,58 @@ class UIBuilder(QtCore.QObject):
         self.main_window.timeout_input.setSuffix(" 秒")
         timeout_layout.addWidget(self.main_window.timeout_input)
         self.main_window.timeout_input.valueChanged.connect(
-            lambda: self.main_window.config.save_network_settings(
-                self.main_window.ip_range_input.text(),
-                self.main_window.timeout_input.value(),
-                self.main_window.thread_count_input.value(),
-                self.main_window.user_agent_input.text(),
-                self.main_window.referer_input.text()
-            )
+            lambda: self._save_network_settings()
         )
-        
-        # 线程数设置
+        self.main_window.timeout_layout = timeout_layout
+
+    def _setup_thread_input(self):
+        """设置线程数输入控件"""
         thread_layout = QtWidgets.QHBoxLayout()
         thread_label = QtWidgets.QLabel("设置扫描使用的线程数量")
-        self.main_window.thread_count_label = thread_label  # 设置为属性以便语言管理器访问
+        self.main_window.thread_count_label = thread_label
         thread_layout.addWidget(thread_label)
         self.main_window.thread_count_input = QtWidgets.QSpinBox()
         self.main_window.thread_count_input.setRange(1, 100)
         self.main_window.thread_count_input.setValue(10)
         thread_layout.addWidget(self.main_window.thread_count_input)
         self.main_window.thread_count_input.valueChanged.connect(
-            lambda: self.main_window.config.save_network_settings(
-                self.main_window.ip_range_input.text(),
-                self.main_window.timeout_input.value(),
-                self.main_window.thread_count_input.value(),
-                self.main_window.user_agent_input.text(),
-                self.main_window.referer_input.text()
-            )
+            lambda: self._save_network_settings()
         )
+        self.main_window.thread_layout = thread_layout
 
-        # User-Agent设置
+    def _setup_user_agent_input(self):
+        """设置User-Agent输入控件"""
         user_agent_layout = QtWidgets.QHBoxLayout()
         user_agent_label = QtWidgets.QLabel("User-Agent:")
-        self.main_window.user_agent_label = user_agent_label  # 设置为属性以便语言管理器访问
+        self.main_window.user_agent_label = user_agent_label
         user_agent_layout.addWidget(user_agent_label)
         self.main_window.user_agent_input = QtWidgets.QLineEdit()
         self.main_window.user_agent_input.setPlaceholderText("可选，留空使用默认")
         user_agent_layout.addWidget(self.main_window.user_agent_input)
         self.main_window.user_agent_input.textChanged.connect(
-            lambda: self.main_window.config.save_network_settings(
-                self.main_window.ip_range_input.text(),
-                self.main_window.timeout_input.value(),
-                self.main_window.thread_count_input.value(),
-                self.main_window.user_agent_input.text(),
-                self.main_window.referer_input.text()
-            )
+            lambda: self._save_network_settings()
         )
+        self.main_window.user_agent_layout = user_agent_layout
 
-        # Referer设置
+    def _setup_referer_input(self):
+        """设置Referer输入控件"""
         referer_layout = QtWidgets.QHBoxLayout()
         referer_label = QtWidgets.QLabel("Referer:")
-        self.main_window.referer_label = referer_label  # 设置为属性以便语言管理器访问
+        self.main_window.referer_label = referer_label
         referer_layout.addWidget(referer_label)
         self.main_window.referer_input = QtWidgets.QLineEdit()
         self.main_window.referer_input.setPlaceholderText("可选，留空不使用")
         referer_layout.addWidget(self.main_window.referer_input)
         self.main_window.referer_input.textChanged.connect(
-            lambda: self.main_window.config.save_network_settings(
-                self.main_window.ip_range_input.text(),
-                self.main_window.timeout_input.value(),
-                self.main_window.thread_count_input.value(),
-                self.main_window.user_agent_input.text(),
-                self.main_window.referer_input.text()
-            )
+            lambda: self._save_network_settings()
         )
+        self.main_window.referer_layout = referer_layout
 
-        # 扫描重试选项
+    def _setup_scan_retry_options(self):
+        """设置扫描重试选项"""
         retry_layout = QtWidgets.QHBoxLayout()
         retry_label = QtWidgets.QLabel("扫描重试选项：")
-        self.main_window.retry_label = retry_label  # 设置为属性以便语言管理器访问
+        self.main_window.retry_label = retry_label
         retry_layout.addWidget(retry_label)
         
         # 是否启用重试扫描
@@ -424,7 +442,7 @@ class UIBuilder(QtCore.QObject):
         self.main_window.loop_scan_checkbox = QtWidgets.QCheckBox("循环扫描")
         self.main_window.loop_scan_checkbox.setChecked(False)
         self.main_window.loop_scan_checkbox.setToolTip("如果重试扫描找到有效频道，继续扫描失效频道直到没有新的有效频道")
-        self.main_window.loop_scan_checkbox.setEnabled(False)  # 默认禁用，需要启用重试扫描才能使用
+        self.main_window.loop_scan_checkbox.setEnabled(False)
         retry_layout.addWidget(self.main_window.loop_scan_checkbox)
         retry_layout.addStretch()
         
@@ -443,7 +461,11 @@ class UIBuilder(QtCore.QObject):
         
         # 加载保存的重试扫描设置
         self._load_scan_retry_settings()
+        
+        self.main_window.retry_layout = retry_layout
 
+    def _setup_scan_buttons(self):
+        """设置扫描按钮"""
         # 扫描控制按钮
         self.main_window.scan_btn = QtWidgets.QPushButton("完整扫描")
         self.main_window.scan_btn.setStyleSheet(AppStyles.button_style(active=True))
@@ -462,45 +484,49 @@ class UIBuilder(QtCore.QObject):
         
         # 使用水平布局让按钮并排显示，自适应宽度
         button_layout = QtWidgets.QHBoxLayout()
-        button_layout.addWidget(self.main_window.scan_btn, 1)  # 1表示拉伸因子
-        button_layout.addSpacing(5)  # 添加间距
-        button_layout.addWidget(self.main_window.append_scan_btn, 1)  # 1表示拉伸因子
-        button_layout.addSpacing(5)  # 添加间距
-        button_layout.addWidget(self.main_window.generate_btn, 1)  # 1表示拉伸因子
+        button_layout.addWidget(self.main_window.scan_btn, 1)
+        button_layout.addSpacing(5)
+        button_layout.addWidget(self.main_window.append_scan_btn, 1)
+        button_layout.addSpacing(5)
+        button_layout.addWidget(self.main_window.generate_btn, 1)
         button_layout.addStretch()
+        
+        self.main_window.scan_button_layout = button_layout
 
+    def _add_scan_controls_to_layout(self, scan_layout):
+        """添加扫描控件到布局"""
         address_format_label = QtWidgets.QLabel("地址格式：")
-        self.main_window.address_format_label = address_format_label  # 设置为属性以便语言管理器访问
+        self.main_window.address_format_label = address_format_label
         address_example_label = QtWidgets.QLabel("示例：http://192.168.1.1:1234/rtp/10.10.[1-20].[1-20]:5002   [1-20]表示范围")
-        self.main_window.address_example_label = address_example_label  # 设置为属性以便语言管理器访问
+        self.main_window.address_example_label = address_example_label
         scan_layout.addRow(address_format_label, address_example_label)
+        
         input_address_label = QtWidgets.QLabel("输入地址：")
-        self.main_window.input_address_label = input_address_label  # 设置为属性以便语言管理器访问
+        self.main_window.input_address_label = input_address_label
         scan_layout.addRow(input_address_label, self.main_window.ip_range_input)
+        
         timeout_row_label = QtWidgets.QLabel("超时时间：")
-        self.main_window.timeout_row_label = timeout_row_label  # 设置为属性以便语言管理器访问
-        scan_layout.addRow(timeout_row_label, timeout_layout)
+        self.main_window.timeout_row_label = timeout_row_label
+        scan_layout.addRow(timeout_row_label, self.main_window.timeout_layout)
         
         thread_row_label = QtWidgets.QLabel("线程数：")
-        self.main_window.thread_row_label = thread_row_label  # 设置为属性以便语言管理器访问
-        scan_layout.addRow(thread_row_label, thread_layout)
+        self.main_window.thread_row_label = thread_row_label
+        scan_layout.addRow(thread_row_label, self.main_window.thread_layout)
+        
         user_agent_row_label = QtWidgets.QLabel("User-Agent：")
-        self.main_window.user_agent_row_label = user_agent_row_label  # 设置为属性以便语言管理器访问
-        scan_layout.addRow(user_agent_row_label, user_agent_layout)
+        self.main_window.user_agent_row_label = user_agent_row_label
+        scan_layout.addRow(user_agent_row_label, self.main_window.user_agent_layout)
         
         referer_row_label = QtWidgets.QLabel("Referer：")
-        self.main_window.referer_row_label = referer_row_label  # 设置为属性以便语言管理器访问
-        scan_layout.addRow(referer_row_label, referer_layout)
+        self.main_window.referer_row_label = referer_row_label
+        scan_layout.addRow(referer_row_label, self.main_window.referer_layout)
         
         # 添加重试选项行
         retry_row_label = QtWidgets.QLabel("重试选项：")
-        self.main_window.retry_row_label = retry_row_label  # 设置为属性以便语言管理器访问
-        scan_layout.addRow(retry_row_label, retry_layout)
+        self.main_window.retry_row_label = retry_row_label
+        scan_layout.addRow(retry_row_label, self.main_window.retry_layout)
         
-        scan_layout.addRow(button_layout)
-
-        scan_group.setLayout(scan_layout)
-        parent.addWidget(scan_group)
+        scan_layout.addRow(self.main_window.scan_button_layout)
 
     def _setup_channel_list(self, parent) -> None:  
         """配置频道列表"""
