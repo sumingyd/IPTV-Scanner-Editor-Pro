@@ -268,8 +268,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # 连接直接生成列表按钮
         self.ui.main_window.generate_btn.clicked.connect(self._on_generate_clicked)
         
-        # 有效性检测完成时也隐藏状态栏进度条（由进度条管理器处理）
-        
         # 频道发现信号
         self.scanner.channel_found.connect(self._on_channel_found)
         
@@ -277,10 +275,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scanner.scan_completed.connect(self._on_scan_completed)
         
         # 统计信息更新信号 - 使用QueuedConnection确保跨线程安全
-        self.logger.debug(f"开始连接统计信息更新信号，扫描器对象: {self.scanner}")
-        self.logger.debug(f"扫描器信号: {self.scanner.stats_updated}")
         self.scanner.stats_updated.connect(self._update_stats_display, QtCore.Qt.ConnectionType.QueuedConnection)
-        self.logger.debug("统计信息更新信号已连接 (QueuedConnection)")
 
     def _on_scan_clicked(self):
         """处理扫描按钮点击事件 - 使用QTimer避免UI阻塞"""
@@ -321,12 +316,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtCore.QTimer.singleShot(0, lambda: self._start_scan_delayed(url, clear_list=False))
             
     def _start_scan_delayed(self, url, clear_list=True):
-        """延迟启动扫描，避免UI阻塞
-        
-        Args:
-            url: 要扫描的URL
-            clear_list: 是否清空现有列表，True为完整扫描，False为追加扫描
-        """
+        """延迟启动扫描，避免UI阻塞"""
         # 根据参数决定是否清空列表
         if clear_list:
             self.model.clear()
@@ -981,10 +971,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.logger.info(f"已注册 {len(get_resource_cleaner()._cleanup_handlers)} 个资源清理处理器")
 
 def main():
-    # 移除弃用的 asyncio 设置，使用默认事件循环策略
-    # 注意：Python 3.8+ 在 Windows 上默认使用 ProactorEventLoop
-    # 如果需要兼容旧代码，可以保留但会显示弃用警告
-    
     app = QtWidgets.QApplication(sys.argv)
     
     # 设置应用程序字体，避免Fixedsys字体缺失警告
