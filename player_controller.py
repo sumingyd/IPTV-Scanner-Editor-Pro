@@ -206,11 +206,7 @@ class PlayerController(QObject):
             return None
 
     def play_channel(self, channel, channel_index=None):
-        """播放指定频道(允许任何状态)
-        Args:
-            channel: 可以是Channel对象或包含'url'和'name'键的字典
-            channel_index: 频道在列表中的索引，如果提供则直接更新该频道
-        """
+        """播放指定频道(允许任何状态)"""
         if not channel:
             self.logger.warning("无法播放空频道")
             return False

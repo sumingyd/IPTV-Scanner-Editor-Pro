@@ -8,9 +8,7 @@ class ListManager:
         self.model = model
 
     def open_list(self, parent=None):
-        """打开列表文件
-        返回: (成功状态, 错误信息)
-        """
+        """打开列表文件"""
         try:
             file_path, _ = QFileDialog.getOpenFileName(
                 parent,

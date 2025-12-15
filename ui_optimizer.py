@@ -1,5 +1,3 @@
-"""UI响应优化工具 - 提升用户界面响应速度"""
-
 from PyQt6 import QtCore, QtWidgets
 from typing import Callable, Any, Optional
 from log_manager import LogManager, global_logger
@@ -25,12 +23,7 @@ class UIOptimizer:
         }
     
     def batch_update(self, operation: Callable, *args, **kwargs):
-        """批量更新UI操作
-        
-        Args:
-            operation: 要执行的UI操作函数
-            *args, **kwargs: 操作参数
-        """
+        """批量更新UI操作"""
         self._batch_operations.append((operation, args, kwargs))
         self._update_stats['batch_operations'] += 1
         

@@ -1,5 +1,3 @@
-"""内存管理工具 - 优化内存使用"""
-
 import gc
 import weakref
 import threading
@@ -12,7 +10,6 @@ logger = global_logger
 
 class MemoryManager:
     """内存管理器，提供内存优化功能"""
-    
     _instance: Optional['MemoryManager'] = None
     _lock = threading.Lock()
     
@@ -37,13 +34,7 @@ class MemoryManager:
         logger.info("内存管理器已初始化")
     
     def create_object_pool(self, pool_name: str, factory_func, max_size: int = 100):
-        """创建对象池
-        
-        Args:
-            pool_name: 对象池名称
-            factory_func: 对象工厂函数
-            max_size: 最大池大小
-        """
+        """创建对象池"""
         with self._lock:
             if pool_name not in self._object_pools:
                 self._object_pools[pool_name] = {
@@ -56,15 +47,7 @@ class MemoryManager:
                 logger.debug(f"创建对象池: {pool_name}, 最大大小: {max_size}")
     
     def get_from_pool(self, pool_name: str, *args, **kwargs):
-        """从对象池获取对象
-        
-        Args:
-            pool_name: 对象池名称
-            *args, **kwargs: 传递给工厂函数的参数
-            
-        Returns:
-            对象实例
-        """
+        """从对象池获取对象"""
         with self._lock:
             if pool_name not in self._object_pools:
                 logger.warning(f"对象池 {pool_name} 不存在")
@@ -87,12 +70,7 @@ class MemoryManager:
                 return obj
     
     def return_to_pool(self, pool_name: str, obj):
-        """将对象返回到对象池
-        
-        Args:
-            pool_name: 对象池名称
-            obj: 要返回的对象
-        """
+        """将对象返回到对象池"""
         with self._lock:
             if pool_name not in self._object_pools:
                 logger.warning(f"对象池 {pool_name} 不存在")
@@ -108,12 +86,7 @@ class MemoryManager:
                 logger.debug(f"对象池 {pool_name} 已满，丢弃对象")
     
     def register_weak_ref(self, ref_name: str, obj):
-        """注册弱引用
-        
-        Args:
-            ref_name: 引用名称
-            obj: 要引用的对象
-        """
+        """注册弱引用"""
         with self._lock:
             if ref_name not in self._weak_refs:
                 self._weak_refs[ref_name] = weakref.WeakValueDictionary()
@@ -122,28 +95,14 @@ class MemoryManager:
             logger.debug(f"注册弱引用: {ref_name}, 对象ID: {id(obj)}")
     
     def get_weak_ref(self, ref_name: str, obj_id: int):
-        """获取弱引用对象
-        
-        Args:
-            ref_name: 引用名称
-            obj_id: 对象ID
-            
-        Returns:
-            对象实例或None
-        """
+        """获取弱引用对象"""
         with self._lock:
             if ref_name in self._weak_refs:
                 return self._weak_refs[ref_name].get(obj_id)
             return None
     
     def cache_object(self, key: str, obj: Any, max_age: Optional[int] = None):
-        """缓存对象
-        
-        Args:
-            key: 缓存键
-            obj: 要缓存的对象
-            max_age: 最大缓存时间（秒）
-        """
+        """缓存对象"""
         with self._lock:
             cache_entry = {
                 'object': obj,
@@ -154,14 +113,7 @@ class MemoryManager:
             logger.debug(f"缓存对象: {key}")
     
     def get_cached_object(self, key: str):
-        """获取缓存对象
-        
-        Args:
-            key: 缓存键
-            
-        Returns:
-            缓存的对象或None
-        """
+        """获取缓存对象"""
         with self._lock:
             if key in self._cache:
                 entry = self._cache[key]
@@ -180,11 +132,7 @@ class MemoryManager:
             return None
     
     def clear_cache(self, key: Optional[str] = None):
-        """清除缓存
-        
-        Args:
-            key: 要清除的缓存键，如果为None则清除所有缓存
-        """
+        """清除缓存"""
         with self._lock:
             if key:
                 if key in self._cache:
@@ -231,11 +179,7 @@ class MemoryManager:
         logger.info("内存优化完成")
     
     def get_memory_stats(self) -> Dict[str, Any]:
-        """获取内存统计信息
-        
-        Returns:
-            内存统计信息字典
-        """
+        """获取内存统计信息"""
         import psutil
         import os
         
@@ -281,11 +225,7 @@ _global_memory_manager: Optional[MemoryManager] = None
 
 
 def get_memory_manager() -> MemoryManager:
-    """获取全局内存管理器
-    
-    Returns:
-        全局内存管理器实例
-    """
+    """获取全局内存管理器"""
     global _global_memory_manager
     if _global_memory_manager is None:
         _global_memory_manager = MemoryManager()
