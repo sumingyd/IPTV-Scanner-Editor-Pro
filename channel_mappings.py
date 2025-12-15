@@ -562,9 +562,7 @@ def parse_mapping_line(line: str) -> Dict[str, dict]:
     }
 
 def get_channel_info(raw_name: str) -> dict:
-    """获取频道信息(标准名称、logo地址和分组名)
-    返回格式: {'standard_name': str, 'logo_url': str, 'group_name': str}
-    """
+    """获取频道信息(标准名称、logo地址和分组名)"""
     # 使用新的映射管理器
     return mapping_manager.get_channel_info(raw_name)
 

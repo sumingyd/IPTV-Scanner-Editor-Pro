@@ -529,11 +529,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             self.layoutChanged.emit()
 
     def sort_channels(self, sort_config=None):
-        """智能排序频道列表
-        
-        Args:
-            sort_config: 排序配置字典，包含primary、secondary、tertiary排序条件
-        """
+        """智能排序频道列表"""
         if not sort_config:
             # 使用默认智能排序
             self._smart_sort()

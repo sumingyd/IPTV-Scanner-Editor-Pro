@@ -35,12 +35,7 @@ class ResourceCleaner:
         logger.info("资源清理器已初始化")
     
     def register_cleanup_handler(self, handler: Callable, name: Optional[str] = None):
-        """注册清理处理器
-        
-        Args:
-            handler: 清理函数
-            name: 处理器名称（可选），用于调试
-        """
+        """注册清理处理器"""
         with self._lock:
             self._cleanup_handlers.append(handler)
             if name:
@@ -123,11 +118,7 @@ _global_cleaner: Optional[ResourceCleaner] = None
 
 
 def get_resource_cleaner() -> ResourceCleaner:
-    """获取全局资源清理器
-    
-    Returns:
-        全局资源清理器实例
-    """
+    """获取全局资源清理器"""
     global _global_cleaner
     if _global_cleaner is None:
         _global_cleaner = ResourceCleaner()
@@ -135,12 +126,7 @@ def get_resource_cleaner() -> ResourceCleaner:
 
 
 def register_cleanup(handler: Callable, name: Optional[str] = None):
-    """注册清理函数（便捷函数）
-    
-    Args:
-        handler: 清理函数
-        name: 处理器名称（可选）
-    """
+    """注册清理函数（便捷函数）"""
     cleaner = get_resource_cleaner()
     cleaner.register_cleanup_handler(handler, name)
 

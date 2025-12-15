@@ -6,39 +6,21 @@ from log_manager import global_logger as logger
 
 
 class ErrorHandler:
-    """用户友好的错误处理系统
-    
-    提供统一的错误提示机制，包括弹窗、状态栏消息等。
-    """
+    """用户友好的错误处理系统"""
     
     def __init__(self, parent_window: Optional[QtWidgets.QWidget] = None):
-        """初始化错误处理器
-        
-        Args:
-            parent_window: 父窗口，用于显示弹窗
-        """
+        """初始化错误处理器"""
         self.parent_window = parent_window
         self._status_bar = None
     
     def set_status_bar(self, status_bar: QtWidgets.QStatusBar):
-        """设置状态栏用于显示错误消息
-        
-        Args:
-            status_bar: 状态栏对象
-        """
+        """设置状态栏用于显示错误消息"""
         self._status_bar = status_bar
     
     def show_error_dialog(self, title: str, message: str, 
                          details: Optional[str] = None,
                          parent: Optional[QtWidgets.QWidget] = None):
-        """显示错误对话框
-        
-        Args:
-            title: 对话框标题
-            message: 错误消息
-            details: 详细错误信息（可选）
-            parent: 父窗口（可选）
-        """
+        """显示错误对话框"""
         parent = parent or self.parent_window
         if not parent:
             logger.error(f"无法显示错误对话框，缺少父窗口: {title} - {message}")
@@ -71,14 +53,7 @@ class ErrorHandler:
     def show_warning_dialog(self, title: str, message: str,
                            details: Optional[str] = None,
                            parent: Optional[QtWidgets.QWidget] = None):
-        """显示警告对话框
-        
-        Args:
-            title: 对话框标题
-            message: 警告消息
-            details: 详细警告信息（可选）
-            parent: 父窗口（可选）
-        """
+        """显示警告对话框"""
         parent = parent or self.parent_window
         if not parent:
             logger.warning(f"无法显示警告对话框，缺少父窗口: {title} - {message}")
@@ -111,14 +86,7 @@ class ErrorHandler:
     def show_info_dialog(self, title: str, message: str,
                         details: Optional[str] = None,
                         parent: Optional[QtWidgets.QWidget] = None):
-        """显示信息对话框
-        
-        Args:
-            title: 对话框标题
-            message: 信息消息
-            details: 详细信息（可选）
-            parent: 父窗口（可选）
-        """
+        """显示信息对话框"""
         parent = parent or self.parent_window
         if not parent:
             logger.info(f"无法显示信息对话框，缺少父窗口: {title} - {message}")
@@ -149,12 +117,7 @@ class ErrorHandler:
             logger.error(f"显示信息对话框失败: {e}")
     
     def show_status_message(self, message: str, timeout: int = 3000):
-        """在状态栏显示消息
-        
-        Args:
-            message: 消息内容
-            timeout: 显示时间（毫秒）
-        """
+        """在状态栏显示消息"""
         if self._status_bar:
             try:
                 self._status_bar.showMessage(message, timeout)
@@ -169,15 +132,7 @@ class ErrorHandler:
                         show_dialog: bool = True,
                         log_level: str = 'error',
                         context: Optional[Dict[str, Any]] = None):
-        """处理异常 - 增强版本
-        
-        Args:
-            exception: 异常对象
-            user_message: 用户友好的错误消息（可选）
-            show_dialog: 是否显示错误对话框
-            log_level: 日志级别（'error'、'warning'、'info'）
-            context: 异常上下文信息（可选）
-        """
+        """处理异常 - 增强版本"""
         # 构建详细的错误信息
         error_info = self._build_error_info(exception, user_message, context)
         
@@ -203,16 +158,7 @@ class ErrorHandler:
         return error_info
     
     def _build_error_info(self, exception: Exception, user_message: Optional[str], context: Optional[Dict]) -> Dict[str, str]:
-        """构建详细的错误信息
-        
-        Args:
-            exception: 异常对象
-            user_message: 用户友好的错误消息
-            context: 异常上下文信息
-            
-        Returns:
-            错误信息字典
-        """
+        """构建详细的错误信息"""
         import traceback
         import sys
         
@@ -270,14 +216,7 @@ class ErrorHandler:
         }
     
     def _get_user_friendly_message(self, exception: Exception) -> str:
-        """获取用户友好的错误消息
-        
-        Args:
-            exception: 异常对象
-            
-        Returns:
-            用户友好的错误消息
-        """
+        """获取用户友好的错误消息"""
         exception_type = type(exception)
         exception_message = str(exception)
         
@@ -308,18 +247,7 @@ class ErrorHandler:
                     show_dialog: bool = True,
                     default_return: Any = None,
                     **kwargs) -> Any:
-        """安全执行函数，自动处理异常
-        
-        Args:
-            func: 要执行的函数
-            user_message: 用户友好的错误消息
-            show_dialog: 是否显示错误对话框
-            default_return: 异常时的默认返回值
-            *args, **kwargs: 函数参数
-            
-        Returns:
-            函数执行结果或默认值
-        """
+        """安全执行函数，自动处理异常"""
         try:
             return func(*args, **kwargs)
         except Exception as e:
@@ -336,25 +264,14 @@ _global_error_handler: Optional[ErrorHandler] = None
 
 
 def init_global_error_handler(parent_window: QtWidgets.QWidget) -> ErrorHandler:
-    """初始化全局错误处理器
-    
-    Args:
-        parent_window: 父窗口
-        
-    Returns:
-        全局错误处理器实例
-    """
+    """初始化全局错误处理器"""
     global _global_error_handler
     _global_error_handler = ErrorHandler(parent_window)
     return _global_error_handler
 
 
 def get_global_error_handler() -> ErrorHandler:
-    """获取全局错误处理器
-    
-    Returns:
-        全局错误处理器实例
-    """
+    """获取全局错误处理器"""
     global _global_error_handler
     if _global_error_handler is None:
         raise RuntimeError("全局错误处理器未初始化，请先调用 init_global_error_handler")
@@ -362,15 +279,7 @@ def get_global_error_handler() -> ErrorHandler:
 
 
 def safe_execute_global(func: Callable, *args, **kwargs) -> Any:
-    """使用全局错误处理器安全执行函数
-    
-    Args:
-        func: 要执行的函数
-        *args, **kwargs: 函数参数
-        
-    Returns:
-        函数执行结果或默认值
-    """
+    """使用全局错误处理器安全执行函数"""
     try:
         handler = get_global_error_handler()
         return handler.safe_execute(func, *args, **kwargs)
@@ -389,13 +298,7 @@ def safe_execute_global(func: Callable, *args, **kwargs) -> Any:
 # ============================================================================
 
 def show_error(title: str, message: str, parent: Optional[QtWidgets.QWidget] = None):
-    """显示错误对话框的便捷函数
-    
-    Args:
-        title: 对话框标题
-        message: 错误消息
-        parent: 父窗口（可选）
-    """
+    """显示错误对话框的便捷函数"""
     try:
         # 首先尝试使用全局错误处理器
         handler = get_global_error_handler()
@@ -410,13 +313,7 @@ def show_error(title: str, message: str, parent: Optional[QtWidgets.QWidget] = N
 
 
 def show_warning(title: str, message: str, parent: Optional[QtWidgets.QWidget] = None):
-    """显示警告对话框的便捷函数
-    
-    Args:
-        title: 对话框标题
-        message: 警告消息
-        parent: 父窗口（可选）
-    """
+    """显示警告对话框的便捷函数"""
     try:
         # 首先尝试使用全局错误处理器
         handler = get_global_error_handler()
@@ -431,13 +328,7 @@ def show_warning(title: str, message: str, parent: Optional[QtWidgets.QWidget] =
 
 
 def show_info(title: str, message: str, parent: Optional[QtWidgets.QWidget] = None):
-    """显示信息对话框的便捷函数
-    
-    Args:
-        title: 对话框标题
-        message: 信息消息
-        parent: 父窗口（可选）
-    """
+    """显示信息对话框的便捷函数"""
     try:
         # 首先尝试使用全局错误处理器
         handler = get_global_error_handler()
@@ -452,16 +343,7 @@ def show_info(title: str, message: str, parent: Optional[QtWidgets.QWidget] = No
 
 
 def show_confirm(title: str, message: str, parent: Optional[QtWidgets.QWidget] = None) -> bool:
-    """显示确认对话框
-    
-    Args:
-        title: 对话框标题
-        message: 确认消息
-        parent: 父窗口（可选）
-        
-    Returns:
-        True如果用户点击"是"，否则False
-    """
+    """显示确认对话框"""
     reply = QtWidgets.QMessageBox.question(
         parent,
         title,
@@ -472,14 +354,7 @@ def show_confirm(title: str, message: str, parent: Optional[QtWidgets.QWidget] =
 
 
 def show_error_with_details(title: str, message: str, details: str, parent: Optional[QtWidgets.QWidget] = None):
-    """显示带详细信息的错误对话框
-    
-    Args:
-        title: 对话框标题
-        message: 错误消息
-        details: 详细信息
-        parent: 父窗口（可选）
-    """
+    """显示带详细信息的错误对话框"""
     try:
         # 首先尝试使用全局错误处理器
         handler = get_global_error_handler()

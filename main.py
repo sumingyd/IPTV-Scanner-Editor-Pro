@@ -25,21 +25,13 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__()
         # 在UI构建前完全隐藏窗口，防止任何闪动
         self.hide()
-        
-        # 初始化配置和日志管理器
         self.config = ConfigManager()
         self.logger = global_logger
-        
-        # 初始化语言管理器（确保在UI构建前可用）
         self.language_manager = LanguageManager()
         self.language_manager.load_available_languages()
-        
-        # 立即加载保存的语言设置，确保UI构建时使用正确的语言
         language_code = self.config.load_language_settings()
         if self.language_manager.set_language(language_code):
             pass
-        
-        # 确保在主线程创建
         
         # 构建UI
         self.ui = UIBuilder(self)
@@ -55,14 +47,8 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # 立即加载配置到UI
         self._load_config()
-        
-        # 初始化主窗口的后续设置
         self._init_main_window()
-        
-        # 用于管理所有定时器
         self._timers = []
-        
-        # 确保所有定时器在主线程创建
         QtCore.QTimer.singleShot(0, self._init_timers)
         
         

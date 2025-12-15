@@ -126,8 +126,6 @@ class UIBuilder(QtCore.QObject):
                 self.main_window.main_splitter.updateGeometry()
             ])
         except Exception as e:
-            # 窗口大小变化处理错误通常不需要记录
-            # self.logger.error(f"窗口大小变化处理错误: {str(e)}")
             pass
 
     def _init_splitters(self):
@@ -731,15 +729,11 @@ class UIBuilder(QtCore.QObject):
         """复制频道URL到剪贴板"""
         clipboard = QtWidgets.QApplication.clipboard()
         clipboard.setText(url)
-        # 复制URL通常不需要记录
-        # self.logger.info(f"已复制URL: {url}")
         
     def _copy_channel_name(self, name):
         """复制频道名到剪贴板"""
         clipboard = QtWidgets.QApplication.clipboard()
         clipboard.setText(name)
-        # 复制频道名通常不需要记录
-        # self.logger.info(f"已复制频道名: {name}")
         
     def _refresh_channel_info(self, index):
         """重新获取选中频道的详细信息（异步执行）"""
@@ -754,9 +748,6 @@ class UIBuilder(QtCore.QObject):
             # 使用统一的错误处理
             show_warning("错误", "无法获取频道URL", parent=self.main_window)
             return
-        
-        # 开始重新获取频道信息通常不需要记录
-        # self.logger.info(f"开始重新获取频道信息: {current_name}")
         
         # 显示进度条和状态信息
         self.main_window.progress_indicator.show()
@@ -834,16 +825,12 @@ class UIBuilder(QtCore.QObject):
                         ))
                     
                 except Exception as e:
-            # 重新获取频道信息失败通常不需要记录
-            # self.ui_builder.logger.error(f"重新获取频道信息失败: {e}", exc_info=True)
             # 在主线程中显示错误
                     QtCore.QTimer.singleShot(0, lambda: self.ui_builder._handle_refresh_error(str(e)))
         
         # 创建并启动异步任务
         task = RefreshChannelTask(self, index, url, current_name, self.main_window.timeout_input.value())
         QThreadPool.globalInstance().start(task)
-        # 异步任务已启动通常不需要记录
-        # self.logger.info(f"异步任务已启动")
         
     def _update_refresh_progress(self, value, message):
         """更新刷新进度（线程安全）"""
@@ -898,13 +885,9 @@ class UIBuilder(QtCore.QObject):
             QtCore.QTimer.singleShot(100, lambda: self._final_ui_refresh(index.row()))
                 
         except Exception as e:
-            # 完成频道刷新失败通常不需要记录
-            # self.logger.error(f"完成频道刷新失败: {e}", exc_info=True)
             self._handle_refresh_error(str(e))
                 
         except Exception as e:
-            # 完成频道刷新失败通常不需要记录
-            # self.logger.error(f"完成频道刷新失败: {e}", exc_info=True)
             self._handle_refresh_error(str(e))
             
     def _final_ui_refresh(self, row):

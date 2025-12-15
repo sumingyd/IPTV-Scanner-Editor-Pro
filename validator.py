@@ -414,22 +414,7 @@ class StreamValidator:
         return result
 
     def validate_stream(self, url: str, raw_channel_name: str = None, timeout: int = 10) -> Dict:
-        """验证视频流有效性 - 简化版本，只验证有效性，不获取详细信息
-        
-        Args:
-            url: 要检测的流地址
-            raw_channel_name: 从URL提取的原始频道名
-            timeout: 超时时间(秒) - 简单的验证超时，超过就判定无效
-            
-        Returns:
-            Dict: 包含检测结果的字典，包含以下字段：
-                - url: 原始URL
-                - valid: 是否有效
-                - latency: 延迟(毫秒)
-                - error: 错误信息(如果有)
-                - retries: 重试次数（始终为0）
-                - service_name: 频道名称（从URL提取）
-        """
+        """验证视频流有效性 - 简化版本，只验证有效性，不获取详细信息"""
         # 统一结果结构
         result = {
             'url': url,

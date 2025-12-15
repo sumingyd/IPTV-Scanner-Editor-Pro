@@ -36,12 +36,7 @@ class ScannerController(QObject):
         self.timeout = 10  # 默认超时时间
         self.channel_counter = 0
         self.counter_lock = threading.Lock()
-        
-        # 移除批量处理相关属性，直接添加频道
         self._batch_timer = None  # 不再使用批量定时器
-        
-        # 信号连接由主窗口处理
-        # self.channel_found.connect(self.model.add_channel)  # 由主窗口处理
         self.stats = {
             'total': 0,
             'valid': 0,
@@ -152,7 +147,6 @@ class ScannerController(QObject):
         
         alive_workers = sum(1 for w in self.workers if w.is_alive()) if self.workers else 0
         if alive_workers == 0 and not self.stop_event.is_set():
-            # 所有工作线程都已完成，但扫描完成信号可能还没有发射
             # 这里确保扫描完成信号被发射
             QtCore.QTimer.singleShot(0, self.scan_completed.emit)
         
