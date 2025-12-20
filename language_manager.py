@@ -56,8 +56,10 @@ class LanguageManager(QObject):
                 try:
                     os.makedirs(self.locales_dir)
                     logger.warning(f"语言目录不存在，已创建: {self.locales_dir}")
-                except:
-                    logger.error(f"无法创建语言目录: {self.locales_dir}")
+                except OSError as e:
+                    logger.error(f"无法创建语言目录 {self.locales_dir}: {e}")
+                except Exception as e:
+                    logger.error(f"创建语言目录时发生意外错误: {e}")
                 self._languages_loaded = True
                 return self.available_languages
             

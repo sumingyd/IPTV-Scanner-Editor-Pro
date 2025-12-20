@@ -575,7 +575,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 if len(parts) == 2:
                     return int(parts[0]) * int(parts[1])  # 返回像素总数
                 return 0
-            except:
+            except (ValueError, IndexError) as e:
+                logger.debug(f"解析分辨率失败: {resolution}, 错误: {e}")
+                return 0
+            except Exception as e:
+                logger.warning(f"解析分辨率时发生意外错误: {resolution}, 错误: {e}")
                 return 0
 
         def get_cctv_number(name):
@@ -711,8 +715,13 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 import pypinyin
                 pinyin = ''.join([p[0] for p in pypinyin.pinyin(name, style=pypinyin.Style.FIRST_LETTER)])
                 return pinyin.lower() if pinyin else name.lower()
-            except:
+            except ImportError as e:
                 # 如果没有拼音库，回退到字母顺序
+                logger.debug(f"拼音库导入失败，使用字母顺序: {e}")
+                return name.lower() if name else ''
+            except Exception as e:
+                # 其他异常
+                logger.warning(f"拼音转换失败，使用字母顺序: {e}")
                 return name.lower() if name else ''
         else:
             return name.lower() if name else ''
@@ -741,7 +750,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         """获取延迟的排序值"""
         try:
             latency_value = float(latency) if latency else float('inf')
-        except:
+        except (ValueError, TypeError) as e:
+            logger.debug(f"解析延迟值失败: {latency}, 错误: {e}")
+            latency_value = float('inf')
+        except Exception as e:
+            logger.warning(f"解析延迟值时发生意外错误: {latency}, 错误: {e}")
             latency_value = float('inf')
             
         if method == 'low_to_high':
@@ -781,7 +794,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             if len(parts) == 2:
                 return int(parts[0]), int(parts[1])
             return 0, 0
-        except:
+        except (ValueError, IndexError) as e:
+            logger.debug(f"解析分辨率失败: {resolution}, 错误: {e}")
+            return 0, 0
+        except Exception as e:
+            logger.warning(f"解析分辨率时发生意外错误: {resolution}, 错误: {e}")
             return 0, 0
         
     def _get_group_priority_value(self, group, group_priority):
@@ -806,7 +823,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             if len(parts) == 2:
                 return int(parts[0]) * int(parts[1])  # 返回像素总数
             return 0
-        except:
+        except (ValueError, IndexError) as e:
+            logger.debug(f"解析分辨率失败: {resolution}, 错误: {e}")
+            return 0
+        except Exception as e:
+            logger.warning(f"解析分辨率时发生意外错误: {resolution}, 错误: {e}")
             return 0
             
     def _get_latency_value(self, latency):
@@ -815,7 +836,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             return float('inf')  # 没有延迟信息的放在最后
         try:
             return float(latency)
-        except:
+        except (ValueError, TypeError) as e:
+            logger.debug(f"解析延迟值失败: {latency}, 错误: {e}")
+            return float('inf')
+        except Exception as e:
+            logger.warning(f"解析延迟值时发生意外错误: {latency}, 错误: {e}")
             return float('inf')
             
     def _get_status_value(self, status):
@@ -1010,6 +1035,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             # 确保在异常情况下也调用endResetModel
             try:
                 self.endResetModel()
-            except:
-                pass
+            except RuntimeError as re:
+                logger.debug(f"调用endResetModel失败: {re}")
+            except Exception as ex:
+                logger.warning(f"调用endResetModel时发生意外错误: {ex}")
             return False

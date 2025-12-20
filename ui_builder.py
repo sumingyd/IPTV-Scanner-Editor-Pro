@@ -9,6 +9,161 @@ from log_manager import LogManager, global_logger
 from language_manager import LanguageManager
 from error_handler import show_error, show_warning, show_info, show_confirm
 import functools
+from typing import Optional, Dict, Any, Callable
+
+class UIComponentFactory:
+    """UI组件工厂，减少重复代码"""
+    
+    def __init__(self, logger=None):
+        self.logger = logger or global_logger
+    
+    def create_button(self, text: str, active: bool = True, 
+                     tooltip: str = "", height: int = 36, 
+                     callback: Optional[Callable] = None) -> QtWidgets.QPushButton:
+        """创建标准化按钮"""
+        button = QtWidgets.QPushButton(text)
+        button.setStyleSheet(AppStyles.button_style(active=active))
+        button.setMinimumHeight(height)
+        if tooltip:
+            button.setToolTip(tooltip)
+        if callback:
+            button.clicked.connect(callback)
+        return button
+    
+    def create_label(self, text: str = "", tooltip: str = "") -> QtWidgets.QLabel:
+        """创建标准化标签"""
+        label = QtWidgets.QLabel(text)
+        if tooltip:
+            label.setToolTip(tooltip)
+        return label
+    
+    def create_line_edit(self, placeholder: str = "", tooltip: str = "",
+                        text_changed_callback: Optional[Callable] = None) -> QtWidgets.QLineEdit:
+        """创建标准化文本输入框"""
+        line_edit = QtWidgets.QLineEdit()
+        if placeholder:
+            line_edit.setPlaceholderText(placeholder)
+        if tooltip:
+            line_edit.setToolTip(tooltip)
+        if text_changed_callback:
+            line_edit.textChanged.connect(text_changed_callback)
+        return line_edit
+    
+    def create_spin_box(self, min_val: int = 1, max_val: int = 100, 
+                       default_val: int = 10, suffix: str = "",
+                       value_changed_callback: Optional[Callable] = None) -> QtWidgets.QSpinBox:
+        """创建标准化数字输入框"""
+        spin_box = QtWidgets.QSpinBox()
+        spin_box.setRange(min_val, max_val)
+        spin_box.setValue(default_val)
+        if suffix:
+            spin_box.setSuffix(suffix)
+        if value_changed_callback:
+            spin_box.valueChanged.connect(value_changed_callback)
+        return spin_box
+    
+    def create_checkbox(self, text: str = "", checked: bool = False,
+                       tooltip: str = "", state_changed_callback: Optional[Callable] = None) -> QtWidgets.QCheckBox:
+        """创建标准化复选框"""
+        checkbox = QtWidgets.QCheckBox(text)
+        checkbox.setChecked(checked)
+        if tooltip:
+            checkbox.setToolTip(tooltip)
+        if state_changed_callback:
+            checkbox.stateChanged.connect(state_changed_callback)
+        return checkbox
+    
+    def create_group_box(self, title: str = "") -> QtWidgets.QGroupBox:
+        """创建标准化分组框"""
+        group_box = QtWidgets.QGroupBox(title)
+        return group_box
+    
+    def create_layout(self, orientation: str = "vertical", 
+                     margins: tuple = (5, 5, 5, 5), spacing: int = 5) -> QtWidgets.QLayout:
+        """创建标准化布局"""
+        if orientation == "vertical":
+            layout = QtWidgets.QVBoxLayout()
+        else:
+            layout = QtWidgets.QHBoxLayout()
+        layout.setContentsMargins(*margins)
+        layout.setSpacing(spacing)
+        return layout
+    
+    def create_form_layout(self, margins: tuple = (5, 5, 5, 5), spacing: int = 5) -> QtWidgets.QFormLayout:
+        """创建标准化表单布局"""
+        layout = QtWidgets.QFormLayout()
+        layout.setContentsMargins(*margins)
+        layout.setSpacing(spacing)
+        return layout
+
+
+class LogoCacheManager:
+    """Logo缓存管理器，优化Logo缓存机制"""
+    
+    def __init__(self, max_size: int = 100, logger=None):
+        self.cache: Dict[str, QtGui.QIcon] = {}
+        self.max_size = max_size
+        self.access_times: Dict[str, float] = {}
+        self.logger = logger or global_logger
+        self.pending_requests: Dict[str, QNetworkReply] = {}
+    
+    def get(self, logo_url: str) -> Optional[QtGui.QIcon]:
+        """从缓存获取Logo"""
+        if logo_url in self.cache:
+            self.access_times[logo_url] = QtCore.QDateTime.currentMSecsSinceEpoch()
+            return self.cache[logo_url]
+        return None
+    
+    def put(self, logo_url: str, icon: QtGui.QIcon):
+        """将Logo放入缓存"""
+        if len(self.cache) >= self.max_size:
+            self._evict_oldest()
+        
+        self.cache[logo_url] = icon
+        self.access_times[logo_url] = QtCore.QDateTime.currentMSecsSinceEpoch()
+    
+    def remove(self, logo_url: str):
+        """从缓存移除Logo"""
+        if logo_url in self.cache:
+            del self.cache[logo_url]
+        if logo_url in self.access_times:
+            del self.access_times[logo_url]
+    
+    def clear(self):
+        """清空缓存"""
+        self.cache.clear()
+        self.access_times.clear()
+        self.pending_requests.clear()
+    
+    def _evict_oldest(self):
+        """移除最久未使用的缓存项"""
+        if not self.access_times:
+            return
+        
+        oldest_url = min(self.access_times.items(), key=lambda x: x[1])[0]
+        self.remove(oldest_url)
+        self.logger.debug(f"Logo缓存已满，移除最久未使用的: {oldest_url}")
+    
+    def add_pending_request(self, logo_url: str, reply: QNetworkReply):
+        """添加待处理的请求"""
+        self.pending_requests[logo_url] = reply
+    
+    def remove_pending_request(self, logo_url: str):
+        """移除待处理的请求"""
+        if logo_url in self.pending_requests:
+            del self.pending_requests[logo_url]
+    
+    def is_pending(self, logo_url: str) -> bool:
+        """检查是否有待处理的请求"""
+        return logo_url in self.pending_requests
+    
+    def cleanup_pending_requests(self):
+        """清理所有待处理的请求"""
+        for reply in self.pending_requests.values():
+            reply.abort()
+            reply.deleteLater()
+        self.pending_requests.clear()
+
 
 class UIBuilder(QtCore.QObject):
     # 定义信号
@@ -20,10 +175,16 @@ class UIBuilder(QtCore.QObject):
         self.logger = global_logger
         self._ui_initialized = False
         self._model_initialized = False
+        
+        # UI组件工厂
+        self.ui_factory = UIComponentFactory(self.logger)
+        
+        # Logo缓存管理器
+        self.logo_cache_manager = LogoCacheManager(max_size=200, logger=self.logger)
+        
         # 网络图片管理器
         self.network_manager = QNetworkAccessManager()
-        self.logo_cache = {}  # 缓存已下载的Logo图片
-        self.pending_requests = {}  # 正在进行的请求
+        
         # 防止Logo加载无限循环的标志
         self._loading_logos = False
         
@@ -271,37 +432,39 @@ class UIBuilder(QtCore.QObject):
 
     def _setup_player_panel(self, parent: QtWidgets.QWidget) -> None:
         """配置播放器面板"""
-        player_group = QtWidgets.QGroupBox("视频播放")
+        player_group = self.ui_factory.create_group_box("视频播放")
         self.main_window.player_group = player_group  # 设置为属性以便语言管理器访问
-        player_layout = QtWidgets.QVBoxLayout()
-        player_layout.setContentsMargins(2, 2, 2, 2)
-        player_layout.setSpacing(5)
+        player_layout = self.ui_factory.create_layout("vertical", (2, 2, 2, 2), 5)
         
         # 播放器主体
         self.main_window.player = QtWidgets.QWidget()
         player_layout.addWidget(self.main_window.player, stretch=10)  # 大部分空间给播放器
 
         # 控制按钮区域
-        control_layout = QtWidgets.QHBoxLayout()
-        control_layout.setContentsMargins(0, 5, 0, 5)
+        control_layout = self.ui_factory.create_layout("horizontal", (0, 5, 0, 5), 5)
         
         # 播放/停止按钮
-        self.main_window.pause_btn = QtWidgets.QPushButton("播放")
-        self.main_window.pause_btn.setStyleSheet(AppStyles.button_style(active=False))
+        self.main_window.pause_btn = self.ui_factory.create_button(
+            "播放", active=False, height=36, callback=self.main_window._on_pause_clicked
+        )
         self.main_window.pause_btn.setEnabled(False)
-        self.main_window.stop_btn = QtWidgets.QPushButton("停止")
-        self.main_window.stop_btn.setStyleSheet(AppStyles.button_style(active=False))
+        
+        self.main_window.stop_btn = self.ui_factory.create_button(
+            "停止", active=False, height=36, callback=self.main_window._on_stop_clicked
+        )
         self.main_window.stop_btn.setEnabled(False)
         
         # 音量控制
         self.main_window.volume_slider = QtWidgets.QSlider(Qt.Orientation.Horizontal)
         self.main_window.volume_slider.setRange(0, 100)
         self.main_window.volume_slider.setValue(50)
+        self.main_window.volume_slider.valueChanged.connect(self.main_window._on_volume_changed)
+        
+        volume_label = self.ui_factory.create_label("音量：")
+        self.main_window.volume_label = volume_label  # 设置为属性以便语言管理器访问
         
         control_layout.addWidget(self.main_window.pause_btn)
         control_layout.addWidget(self.main_window.stop_btn)
-        volume_label = QtWidgets.QLabel("音量：")
-        self.main_window.volume_label = volume_label  # 设置为属性以便语言管理器访问
         control_layout.addWidget(volume_label)
         control_layout.addWidget(self.main_window.volume_slider)
         
@@ -1302,11 +1465,12 @@ class UIBuilder(QtCore.QObject):
                 if logo_url and logo_url.startswith(('http://', 'https://')):
                     
                     # 检查是否已经在缓存中
-                    if logo_url in self.logo_cache:
+                    cached_icon = self.logo_cache_manager.get(logo_url)
+                    if cached_icon:
                         continue
                         
                     # 检查是否已经在请求中
-                    if logo_url in self.pending_requests:
+                    if self.logo_cache_manager.is_pending(logo_url):
                         continue
                         
                     # 立即显示占位符图标，然后异步加载实际图片
@@ -1349,7 +1513,7 @@ class UIBuilder(QtCore.QObject):
             request = QNetworkRequest(QtCore.QUrl(logo_url))
             # 发起请求
             reply = self.network_manager.get(request)
-            self.pending_requests[logo_url] = reply
+            self.logo_cache_manager.add_pending_request(logo_url, reply)
             
             # 连接完成信号
             reply.finished.connect(lambda: self._on_logo_downloaded(reply, logo_url, row))
@@ -1372,11 +1536,12 @@ class UIBuilder(QtCore.QObject):
                     # 只处理网络Logo地址
                     if logo_url and logo_url.startswith(('http://', 'https://')):
                         # 检查是否已经在缓存中
-                        if logo_url in self.logo_cache:
+                        cached_icon = self.logo_cache_manager.get(logo_url)
+                        if cached_icon:
                             continue
                             
                         # 检查是否已经在请求中
-                        if logo_url in self.pending_requests:
+                        if self.logo_cache_manager.is_pending(logo_url):
                             continue
                             
                         # 立即显示占位符图标，然后异步加载实际图片
@@ -1414,8 +1579,8 @@ class UIBuilder(QtCore.QObject):
                                                     QtCore.Qt.TransformationMode.SmoothTransformation)
                         icon = QtGui.QIcon(scaled_pixmap)
                         
-                        # 缓存图片
-                        self.logo_cache[logo_url] = icon
+                        # 缓存图片到Logo缓存管理器
+                        self.logo_cache_manager.put(logo_url, icon)
                         
                         # 更新UI
                         index = self.main_window.model.index(row, 0)
@@ -1432,8 +1597,7 @@ class UIBuilder(QtCore.QObject):
             self.logger.debug(f"Logo处理异常: {logo_url}, {e}")
         finally:
             # 清理请求
-            if logo_url in self.pending_requests:
-                del self.pending_requests[logo_url]
+            self.logo_cache_manager.remove_pending_request(logo_url)
             reply.deleteLater()
 
     def _save_scan_retry_settings(self):

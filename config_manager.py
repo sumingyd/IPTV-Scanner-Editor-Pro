@@ -183,3 +183,84 @@ class ConfigManager:
         if not self.config.has_section(section):
             self.config.add_section(section)
         self.config.set(section, key, value)
+    
+    def save_ui_settings(self, settings: dict):
+        """保存UI相关设置"""
+        for key, value in settings.items():
+            self.set_value('UI', key, str(value))
+        return self.save_config()
+    
+    def load_ui_settings(self, defaults: dict = None) -> dict:
+        """加载UI相关设置"""
+        defaults = defaults or {}
+        settings = {}
+        for key, default_value in defaults.items():
+            value = self.get_value('UI', key)
+            if value is not None:
+                # 根据默认值的类型进行转换
+                if isinstance(default_value, bool):
+                    settings[key] = value.lower() == 'true'
+                elif isinstance(default_value, int):
+                    settings[key] = int(value)
+                elif isinstance(default_value, float):
+                    settings[key] = float(value)
+                else:
+                    settings[key] = value
+            else:
+                settings[key] = default_value
+        return settings
+    
+    def save_player_settings(self, volume: int, mute: bool = False):
+        """保存播放器设置"""
+        self.set_value('Player', 'volume', str(volume))
+        self.set_value('Player', 'mute', str(mute))
+        return self.save_config()
+    
+    def load_player_settings(self) -> dict:
+        """加载播放器设置"""
+        return {
+            'volume': int(self.get_value('Player', 'volume', '50')),
+            'mute': self.get_value('Player', 'mute', 'False').lower() == 'true'
+        }
+    
+    def save_list_settings(self, auto_save: bool = True, backup_count: int = 3):
+        """保存列表相关设置"""
+        self.set_value('List', 'auto_save', str(auto_save))
+        self.set_value('List', 'backup_count', str(backup_count))
+        return self.save_config()
+    
+    def load_list_settings(self) -> dict:
+        """加载列表相关设置"""
+        return {
+            'auto_save': self.get_value('List', 'auto_save', 'True').lower() == 'true',
+            'backup_count': int(self.get_value('List', 'backup_count', '3'))
+        }
+    
+    def save_validation_settings(self, auto_validate: bool = False, validate_timeout: int = 10):
+        """保存验证相关设置"""
+        self.set_value('Validation', 'auto_validate', str(auto_validate))
+        self.set_value('Validation', 'validate_timeout', str(validate_timeout))
+        return self.save_config()
+    
+    def load_validation_settings(self) -> dict:
+        """加载验证相关设置"""
+        return {
+            'auto_validate': self.get_value('Validation', 'auto_validate', 'False').lower() == 'true',
+            'validate_timeout': int(self.get_value('Validation', 'validate_timeout', '10'))
+        }
+    
+    def save_all_settings(self, settings_dict: dict):
+        """保存所有设置"""
+        for section, section_settings in settings_dict.items():
+            for key, value in section_settings.items():
+                self.set_value(section, key, str(value))
+        return self.save_config()
+    
+    def load_all_settings(self) -> dict:
+        """加载所有设置"""
+        all_settings = {}
+        for section in self.config.sections():
+            all_settings[section] = {}
+            for key in self.config.options(section):
+                all_settings[section][key] = self.config.get(section, key)
+        return all_settings
