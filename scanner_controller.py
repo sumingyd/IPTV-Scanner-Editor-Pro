@@ -21,7 +21,7 @@ class ScannerController(QObject):
     # 在类定义中声明信号
     channel_validated = pyqtSignal(int, bool, int, str)  # index, valid, latency, resolution
 
-    def __init__(self, model: ChannelListModel, main_window=None):
+    def __init__(self, model: ChannelListModel, main_window=None) -> None:
         super().__init__()
         self.logger = global_logger
         self.model = model
@@ -32,12 +32,12 @@ class ScannerController(QObject):
         self.scan_queue = queue.Queue()  # 扫描专用队列
         self.validation_queue = queue.Queue()  # 验证专用队列
         self.stop_event = threading.Event()
-        self.workers = []
+        self.workers: List[threading.Thread] = []
         self.timeout = 10  # 默认超时时间
         self.channel_counter = 0
         self.counter_lock = threading.Lock()
         self._batch_timer = None  # 不再使用批量定时器
-        self.stats = {
+        self.stats: Dict[str, any] = {
             'total': 0,
             'valid': 0,
             'invalid': 0,
@@ -55,7 +55,7 @@ class ScannerController(QObject):
         except Exception as e:
             pass
         
-    def _worker(self):
+    def _worker(self) -> None:
         """工作线程函数"""
         while not self.stop_event.is_set():
             try:
@@ -385,7 +385,7 @@ class ScannerController(QObject):
         except Exception as e:
             pass
 
-    def _check_channel(self, url: str, raw_channel_name: str = None) -> dict:
+    def _check_channel(self, url: str, raw_channel_name: str = None) -> Dict[str, any]:
         """检查频道有效性"""
         from validator import StreamValidator
         # 使用主窗口的语言管理器（如果可用）
@@ -422,7 +422,7 @@ class ScannerController(QObject):
         """检查是否正在扫描"""
         return len(self.workers) > 0 and not self.stop_event.is_set()
 
-    def start_scan(self, base_url: str, thread_count: int = 10, timeout: int = 10, user_agent: str = None, referer: str = None):
+    def start_scan(self, base_url: str, thread_count: int = 10, timeout: int = 10, user_agent: str = None, referer: str = None) -> None:
         """开始扫描 - 优化版本"""
         # 确保停止之前的扫描
         self.stop_scan()
@@ -615,11 +615,19 @@ class ScannerController(QObject):
         import gc
         collected = gc.collect()
 
-    def start_validation(self, model, threads, timeout):
+    def start_validation(self, model, threads, timeout, user_agent=None, referer=None):
         """开始有效性验证"""
         self.is_validating = True
         self.stop_event.clear()
         self.timeout = timeout
+        
+        # 设置验证器的headers，与扫描逻辑相同
+        from validator import StreamValidator
+        StreamValidator.timeout = timeout
+        if user_agent:
+            StreamValidator.headers['User-Agent'] = user_agent
+        if referer:
+            StreamValidator.headers['Referer'] = referer
         
         self.stats = {
             'total': model.rowCount(),
@@ -679,11 +687,10 @@ class ScannerController(QObject):
         self.logger.info("有效性验证已立即停止，所有进程已终止")
 
     def _validation_worker(self):
-        """有效性验证工作线程"""
+        """有效性验证工作线程 - 修改为与扫描逻辑相同"""
         while not self.stop_event.is_set():
             try:
                 url, index = self.validation_queue.get_nowait()
-                time.sleep(0.01)
                 
                 result = self._check_channel(url)
                 valid = result['valid']
@@ -696,15 +703,16 @@ class ScannerController(QObject):
                 log_msg = f"有效性验证 - 频道: {channel_name}, 状态: {'有效' if valid else '无效'}, 延迟: {latency}ms"
                 self.logger.info(log_msg)
                 
-                # 使用QTimer在主线程中安全地更新模型状态
-                QtCore.QTimer.singleShot(0, lambda: self.model.set_channel_valid(url, valid))
+                # 使用QTimer在主线程中安全地更新模型状态 - 使用functools.partial避免lambda作用域问题
+                import functools
+                QtCore.QTimer.singleShot(0, functools.partial(self.model.set_channel_valid, url, valid))
                 
                 # 每10次更新批量刷新一次视图
                 if index % 10 == 0:
                     QtCore.QTimer.singleShot(0, self.model.update_view)
                 
-                # 使用QTimer在主线程中安全地发射信号
-                QtCore.QTimer.singleShot(0, lambda: self.channel_validated.emit(index, valid, latency, resolution))
+                # 使用QTimer在主线程中安全地发射信号 - 使用functools.partial避免lambda作用域问题
+                QtCore.QTimer.singleShot(0, functools.partial(self.channel_validated.emit, index, valid, latency, resolution))
                 
                 with self.stats_lock:
                     # 统计所有被检测的频道，无论是否映射成功
@@ -723,14 +731,11 @@ class ScannerController(QObject):
                     
                     # 立即更新进度，确保状态栏进度条正常显示
                     # 使用QTimer在主线程中安全地更新进度
-                    import functools
                     QtCore.QTimer.singleShot(0, functools.partial(self.progress_updated.emit, current, total))
             except queue.Empty:
-                time.sleep(0.1)
                 break
             except Exception as e:
                 self.logger.error(f"验证线程错误: {e}", exc_info=True)
-                time.sleep(0.1)
                 # 继续处理下一个任务，不中断线程
                 continue
 

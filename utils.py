@@ -93,3 +93,40 @@ def truncate_text(text: str, max_length: int = 50, suffix: str = "...") -> str:
     if len(text) <= max_length:
         return text
     return text[:max_length - len(suffix)] + suffix
+
+def safe_connect(signal, slot):
+    """安全连接信号，避免重复连接
+    
+    Args:
+        signal: PyQt信号对象
+        slot: 槽函数或可调用对象
+    
+    Returns:
+        bool: 连接是否成功
+    """
+    try:
+        # 先尝试断开现有连接
+        signal.disconnect()
+    except (TypeError, RuntimeError):
+        # 如果没有连接，会抛出TypeError或RuntimeError
+        pass
+    
+    try:
+        # 建立新连接
+        signal.connect(slot)
+        return True
+    except Exception as e:
+        logging.getLogger('utils').error(f"连接信号失败: {e}")
+        return False
+
+def safe_connect_button(button, callback):
+    """安全连接按钮点击信号
+    
+    Args:
+        button: QPushButton或类似按钮对象
+        callback: 回调函数
+    
+    Returns:
+        bool: 连接是否成功
+    """
+    return safe_connect(button.clicked, callback)

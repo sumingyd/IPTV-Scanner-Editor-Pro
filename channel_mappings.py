@@ -543,8 +543,12 @@ def parse_mapping_line(line: str) -> Dict[str, dict]:
             if (name.startswith('"') and name.endswith('"')) or (name.startswith("'") and name.endswith("'")):
                 name = name[1:-1]
             raw_names.append(name)
-    except:
+    except (ValueError, IndexError) as e:
+        logger.debug(f"使用shlex解析映射行失败，回退到原始方法: {e}")
         # 如果解析失败，回退到原始方法
+        raw_names = [name.strip('"\' ') for name in parts[1].split()]
+    except Exception as e:
+        logger.warning(f"解析映射行时发生意外错误: {e}")
         raw_names = [name.strip('"\' ') for name in parts[1].split()]
     
     # 解析logo地址(如果有)

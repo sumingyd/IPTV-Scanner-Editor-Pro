@@ -372,3 +372,257 @@ def show_error_with_details(title: str, message: str, details: str, parent: Opti
             dialog.setDetailedText(details)
             dialog.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
             dialog.exec()
+
+
+# ============================================================================
+# 异常处理装饰器
+# ============================================================================
+
+def handle_exceptions(
+    user_message: Optional[str] = None,
+    show_dialog: bool = True,
+    default_return: Any = None,
+    log_level: str = 'error'
+):
+    """
+    异常处理装饰器，用于自动处理函数中的异常
+    
+    参数:
+        user_message: 用户友好的错误消息
+        show_dialog: 是否显示错误对话框
+        default_return: 异常发生时的默认返回值
+        log_level: 日志级别 ('error', 'warning', 'info')
+    
+    使用示例:
+        @handle_exceptions(user_message="加载文件失败", default_return=[])
+        def load_file(file_path):
+            # 可能会抛出异常的函数
+            with open(file_path, 'r') as f:
+                return f.read()
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                # 获取错误处理器
+                try:
+                    handler = get_global_error_handler()
+                except RuntimeError:
+                    # 如果没有全局错误处理器，使用默认日志记录
+                    logger = getattr(func, '__logger__', None)
+                    if not logger:
+                        from log_manager import global_logger
+                        logger = global_logger
+                    
+                    # 构建错误消息
+                    error_msg = user_message or f"执行 {func.__name__} 失败"
+                    full_msg = f"{error_msg}: {type(e).__name__}: {str(e)}"
+                    
+                    # 记录日志
+                    if log_level == 'error':
+                        logger.error(full_msg, exc_info=True)
+                    elif log_level == 'warning':
+                        logger.warning(full_msg, exc_info=True)
+                    else:
+                        logger.info(full_msg, exc_info=True)
+                    
+                    return default_return
+                
+                # 使用错误处理器处理异常
+                handler.handle_exception(
+                    exception=e,
+                    user_message=user_message or f"执行 {func.__name__} 失败",
+                    show_dialog=show_dialog,
+                    log_level=log_level
+                )
+                return default_return
+        
+        # 复制原始函数的元数据
+        wrapper.__name__ = func.__name__
+        wrapper.__doc__ = func.__doc__
+        wrapper.__module__ = func.__module__
+        
+        return wrapper
+    return decorator
+
+
+def handle_specific_exceptions(
+    exceptions: tuple,
+    user_message: Optional[str] = None,
+    show_dialog: bool = True,
+    default_return: Any = None,
+    log_level: str = 'error'
+):
+    """
+    处理特定异常的装饰器
+    
+    参数:
+        exceptions: 要处理的异常类型元组
+        user_message: 用户友好的错误消息
+        show_dialog: 是否显示错误对话框
+        default_return: 异常发生时的默认返回值
+        log_level: 日志级别
+    
+    使用示例:
+        @handle_specific_exceptions(
+            exceptions=(FileNotFoundError, PermissionError),
+            user_message="文件操作失败",
+            default_return=None
+        )
+        def open_file(file_path):
+            return open(file_path, 'r')
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except exceptions as e:
+                # 获取错误处理器
+                try:
+                    handler = get_global_error_handler()
+                except RuntimeError:
+                    # 如果没有全局错误处理器，使用默认日志记录
+                    logger = getattr(func, '__logger__', None)
+                    if not logger:
+                        from log_manager import global_logger
+                        logger = global_logger
+                    
+                    # 构建错误消息
+                    error_msg = user_message or f"执行 {func.__name__} 失败"
+                    full_msg = f"{error_msg}: {type(e).__name__}: {str(e)}"
+                    
+                    # 记录日志
+                    if log_level == 'error':
+                        logger.error(full_msg, exc_info=True)
+                    elif log_level == 'warning':
+                        logger.warning(full_msg, exc_info=True)
+                    else:
+                        logger.info(full_msg, exc_info=True)
+                    
+                    return default_return
+                
+                # 使用错误处理器处理异常
+                handler.handle_exception(
+                    exception=e,
+                    user_message=user_message or f"执行 {func.__name__} 失败",
+                    show_dialog=show_dialog,
+                    log_level=log_level
+                )
+                return default_return
+            except Exception as e:
+                # 其他异常重新抛出
+                raise
+        
+        # 复制原始函数的元数据
+        wrapper.__name__ = func.__name__
+        wrapper.__doc__ = func.__doc__
+        wrapper.__module__ = func.__module__
+        
+        return wrapper
+    return decorator
+
+
+def retry_on_exception(
+    max_retries: int = 3,
+    delay: float = 1.0,
+    exceptions: tuple = (Exception,),
+    user_message: Optional[str] = None,
+    show_dialog: bool = False
+):
+    """
+    异常重试装饰器
+    
+    参数:
+        max_retries: 最大重试次数
+        delay: 重试延迟（秒）
+        exceptions: 触发重试的异常类型
+        user_message: 用户友好的错误消息
+        show_dialog: 是否显示错误对话框
+    
+    使用示例:
+        @retry_on_exception(max_retries=3, delay=2.0)
+        def download_file(url):
+            # 可能会失败的下载操作
+            return requests.get(url).content
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            import time
+            
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    # 如果是最后一次尝试，处理异常
+                    if attempt == max_retries - 1:
+                        try:
+                            handler = get_global_error_handler()
+                            handler.handle_exception(
+                                exception=e,
+                                user_message=user_message or f"执行 {func.__name__} 失败（重试 {max_retries} 次后）",
+                                show_dialog=show_dialog
+                            )
+                        except RuntimeError:
+                            # 如果没有全局错误处理器，记录日志
+                            from log_manager import global_logger
+                            logger = global_logger
+                            error_msg = user_message or f"执行 {func.__name__} 失败（重试 {max_retries} 次后）"
+                            logger.error(f"{error_msg}: {type(e).__name__}: {str(e)}", exc_info=True)
+                        
+                        raise
+                    
+                    # 记录重试信息
+                    try:
+                        handler = get_global_error_handler()
+                        handler.show_status_message(f"重试 {func.__name__}... (第 {attempt + 1} 次)")
+                    except RuntimeError:
+                        pass
+                    
+                    # 等待后重试
+                    time.sleep(delay)
+            
+            # 理论上不会执行到这里
+            raise RuntimeError(f"函数 {func.__name__} 重试 {max_retries} 次后仍然失败")
+        
+        # 复制原始函数的元数据
+        wrapper.__name__ = func.__name__
+        wrapper.__doc__ = func.__doc__
+        wrapper.__module__ = func.__module__
+        
+        return wrapper
+    return decorator
+
+
+def log_execution_time(func):
+    """
+    记录函数执行时间的装饰器
+    
+    使用示例:
+        @log_execution_time
+        def process_data(data):
+            # 耗时操作
+            time.sleep(2)
+            return processed_data
+    """
+    def wrapper(*args, **kwargs):
+        import time
+        from log_manager import global_logger
+        
+        start_time = time.time()
+        try:
+            result = func(*args, **kwargs)
+            elapsed_time = time.time() - start_time
+            global_logger.debug(f"函数 {func.__name__} 执行时间: {elapsed_time:.3f} 秒")
+            return result
+        except Exception as e:
+            elapsed_time = time.time() - start_time
+            global_logger.error(f"函数 {func.__name__} 执行失败，耗时: {elapsed_time:.3f} 秒")
+            raise
+    
+    # 复制原始函数的元数据
+    wrapper.__name__ = func.__name__
+    wrapper.__doc__ = func.__doc__
+    wrapper.__module__ = func.__module__
+    
+    return wrapper
