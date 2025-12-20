@@ -16,6 +16,9 @@ class StreamValidator:
     _process_lock = threading.Lock()
     _ffmpeg_path_cache = None
     _ffprobe_path_cache = None
+    # 限制同时运行的ffprobe实例数量，避免资源竞争
+    # 根据扫描线程数调整，默认扫描使用5个线程，这里设置为3个并发ffprobe
+    _ffprobe_semaphore = threading.Semaphore(3)  # 最多同时运行3个ffprobe
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
@@ -366,68 +369,94 @@ class StreamValidator:
         return result
 
     def _run_ffprobe(self, url: str, timeout: int) -> Dict:
-        """执行ffprobe命令获取流详细信息"""
+        """执行ffprobe命令获取流详细信息 - 使用信号量限制并发"""
         result = {}
         
-        ffprobe_path = self._get_ffprobe_path()
-        cmd = [
-            ffprobe_path,
-            '-v', 'quiet',
-            '-print_format', 'json',
-            '-show_format',
-            '-show_streams',
-            '-show_programs',
-            url
-        ]
-        
-        # 在Windows上需要处理特殊字符
-        if sys.platform == 'win32':
-            cmd = [arg.replace('^', '^^').replace('&', '^&') for arg in cmd]
-        
-        # 设置环境变量和工作目录
-        env = os.environ.copy()
-        env['PATH'] = os.path.dirname(self._get_ffprobe_path()) + os.pathsep + env['PATH']
-        
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=False,
-            creationflags=subprocess.CREATE_NO_WINDOW,
-            shell=True if sys.platform == 'win32' else False,
-            env=env,
-            cwd=os.path.dirname(self._get_ffprobe_path())
-        )
-        
-        # 跟踪活动进程
-        with self._process_lock:
-            self._active_processes.append(process)
-        self._current_process = process
-        
+        # 使用信号量限制并发ffprobe实例数量
+        # 增加等待时间到10秒，避免在繁忙时超时
+        if not self._ffprobe_semaphore.acquire(timeout=10):  # 等待最多10秒获取信号量
+            self.logger.warning(f"获取ffprobe信号量超时: {url}")
+            result['error'] = "ffprobe并发限制超时"
+            return result
+            
         try:
-            stdout_bytes, stderr_bytes = process.communicate(timeout=timeout)
-            stdout = stdout_bytes.decode('utf-8', errors='replace')
-            stderr = stderr_bytes.decode('utf-8', errors='replace')
-
-            if process.returncode == 0:
-                try:
-                    data = json.loads(stdout)
-                    result.update(self._parse_ffprobe_output(data))
-                except json.JSONDecodeError:
-                    result['error'] = stderr.strip()
-            else:
-                result['error'] = stderr.strip()
-                
-        except subprocess.TimeoutExpired:
-            process.kill()
-            result['error'] = "ffprobe超时"
-        except Exception as e:
-            result['error'] = str(e)
-        finally:
-            # 清理已完成进程
+            ffprobe_path = self._get_ffprobe_path()
+            cmd = [
+                ffprobe_path,
+                '-v', 'quiet',
+                '-print_format', 'json',
+                '-show_format',
+                '-show_streams',
+                '-show_programs',
+                url
+            ]
+            
+            # 在Windows上需要处理特殊字符
+            if sys.platform == 'win32':
+                cmd = [arg.replace('^', '^^').replace('&', '^&') for arg in cmd]
+            
+            # 设置环境变量和工作目录
+            env = os.environ.copy()
+            env['PATH'] = os.path.dirname(self._get_ffprobe_path()) + os.pathsep + env['PATH']
+            
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=False,
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
+                shell=True if sys.platform == 'win32' else False,  # Windows上使用shell=True
+                env=env,
+                cwd=os.path.dirname(self._get_ffprobe_path())
+            )
+            
+            # 跟踪活动进程
             with self._process_lock:
-                if process in self._active_processes:
-                    self._active_processes.remove(process)
+                self._active_processes.append(process)
+            self._current_process = process
+            
+            try:
+                stdout_bytes, stderr_bytes = process.communicate(timeout=timeout)
+                stdout = stdout_bytes.decode('utf-8', errors='replace')
+                stderr = stderr_bytes.decode('utf-8', errors='replace')
+
+                if process.returncode == 0:
+                    try:
+                        # 添加调试信息
+                        self.logger.debug(f"ffprobe stdout长度: {len(stdout)}, stderr长度: {len(stderr)}")
+                        
+                        if stdout.strip():  # 确保stdout不为空
+                            data = json.loads(stdout)
+                            result.update(self._parse_ffprobe_output(data))
+                        else:
+                            # 如果stdout为空，记录警告
+                            self.logger.warning(f"ffprobe返回空输出: url={url}")
+                            result['error'] = "ffprobe返回空输出"
+                    except json.JSONDecodeError as e:
+                        self.logger.warning(f"ffprobe JSON解析失败: {e}, stdout前100字符: {stdout[:100]}")
+                        result['error'] = f"JSON解析失败: {e}"
+                    except Exception as e:
+                        self.logger.warning(f"ffprobe解析异常: {e}")
+                        result['error'] = str(e)
+                else:
+                    self.logger.warning(f"ffprobe返回非零代码: {process.returncode}, stderr: {stderr}")
+                    result['error'] = stderr.strip()
+                    
+            except subprocess.TimeoutExpired:
+                process.kill()
+                self.logger.warning(f"ffprobe超时: {url}")
+                result['error'] = "ffprobe超时"
+            except Exception as e:
+                self.logger.warning(f"ffprobe执行异常: {e}")
+                result['error'] = str(e)
+            finally:
+                # 清理已完成进程
+                with self._process_lock:
+                    if process in self._active_processes:
+                        self._active_processes.remove(process)
+        finally:
+            # 释放信号量
+            self._ffprobe_semaphore.release()
                 
         return result
 
@@ -472,7 +501,7 @@ class StreamValidator:
         return result
 
     def validate_stream(self, url: str, raw_channel_name: str = None, timeout: int = 10) -> Dict:
-        """验证视频流有效性 - 简化版本，只验证有效性，不获取详细信息"""
+        """验证视频流有效性 - 同时获取JSON中的频道名"""
         # 统一结果结构
         result = {
             'url': url,
@@ -480,7 +509,10 @@ class StreamValidator:
             'latency': None,
             'error': None,
             'retries': 0,
-            'service_name': None
+            'service_name': None,
+            'resolution': None,
+            'codec': None,
+            'bitrate': None
         }
             
         try:
@@ -490,9 +522,40 @@ class StreamValidator:
             # 合并结果
             result.update(test_result)
             
-            # 从URL提取频道名
-            from channel_mappings import extract_channel_name_from_url
-            result['service_name'] = extract_channel_name_from_url(url)
+            # 记录验证结果
+            self.logger.debug(f"流验证结果: url={url}, valid={result['valid']}, latency={result['latency']}")
+            
+            # 如果流有效，尝试运行ffprobe获取JSON中的频道名
+            if result['valid']:
+                self.logger.debug(f"流有效，尝试运行ffprobe获取JSON中的频道名: {url}")
+                try:
+                    # 运行ffprobe获取详细信息 - 使用更长的超时时间（10秒）
+                    probe_result = self._run_ffprobe(url, timeout=10)  # 增加超时时间到10秒
+                    
+                    self.logger.debug(f"ffprobe结果: {probe_result}")
+                    
+                    # 如果ffprobe成功获取到service_name，使用它
+                    if probe_result.get('service_name'):
+                        result['service_name'] = probe_result['service_name']
+                        result['resolution'] = probe_result.get('resolution')
+                        result['codec'] = probe_result.get('codec')
+                        result['bitrate'] = probe_result.get('bitrate')
+                        self.logger.info(f"从JSON获取到频道名: {result['service_name']} (URL: {url})")
+                    else:
+                        # 从URL提取频道名
+                        from channel_mappings import extract_channel_name_from_url
+                        result['service_name'] = extract_channel_name_from_url(url)
+                        self.logger.info(f"ffprobe未返回service_name，从URL提取频道名: {result['service_name']} (URL: {url})")
+                except Exception as e:
+                    # ffprobe失败，从URL提取频道名
+                    self.logger.warning(f"ffprobe失败: {e}, 从URL提取频道名: {url}")
+                    from channel_mappings import extract_channel_name_from_url
+                    result['service_name'] = extract_channel_name_from_url(url)
+            else:
+                # 流无效，从URL提取频道名
+                from channel_mappings import extract_channel_name_from_url
+                result['service_name'] = extract_channel_name_from_url(url)
+                self.logger.info(f"流无效，从URL提取频道名: {result['service_name']} (URL: {url})")
                 
         except Exception as e:
             result['error'] = str(e)
