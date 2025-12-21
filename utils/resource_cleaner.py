@@ -40,7 +40,7 @@ class ResourceCleaner:
             self._cleanup_handlers.append(handler)
             if name:
                 self._weak_handlers[name] = handler
-            logger.debug(f"注册清理处理器: {name or handler.__name__}")
+            # 移除调试日志，整合到调用方的日志中
     
     def unregister_cleanup_handler(self, handler: Callable):
         """注销清理处理器"""
