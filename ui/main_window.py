@@ -649,24 +649,34 @@ class MainWindow(QtWidgets.QMainWindow):
         """注册资源清理处理器"""
         self.logger.info("注册资源清理处理器...")
         
+        # 收集所有处理器名称用于整合日志
+        handler_names = []
+        
         register_cleanup(self._stop_all_timers, "stop_all_timers")
+        handler_names.append("stop_all_timers")
         
         if hasattr(self, 'progress_timer'):
             def stop_progress_timer():
                 if self.progress_timer.isActive():
                     self.progress_timer.stop()
             register_cleanup(stop_progress_timer, "stop_progress_timer")
+            handler_names.append("stop_progress_timer")
         
         if hasattr(self, 'scanner'):
             register_cleanup(self.scanner.stop_scan, "scanner_stop_scan")
+            handler_names.append("scanner_stop_scan")
         
         if hasattr(self, 'player_controller'):
             register_cleanup(self.player_controller.release, "player_release")
+            handler_names.append("player_release")
         
         from services.validator_service import StreamValidator
         register_cleanup(StreamValidator.terminate_all, "validator_terminate_all")
+        handler_names.append("validator_terminate_all")
         
         from utils.memory_manager import optimize_memory
         register_cleanup(optimize_memory, "optimize_memory")
+        handler_names.append("optimize_memory")
         
-        self.logger.info(f"已注册 {len(get_resource_cleaner()._cleanup_handlers)} 个资源清理处理器")
+        # 整合日志：显示所有注册的处理器
+        self.logger.info(f"已注册 {len(handler_names)} 个资源清理处理器: {', '.join(handler_names)}")
