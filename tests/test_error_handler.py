@@ -4,7 +4,7 @@ import unittest
 import tempfile
 import os
 from unittest.mock import patch, MagicMock
-from error_handler import (
+from utils.error_handler import (
     handle_exceptions,
     handle_specific_exceptions,
     retry_on_exception,

@@ -6,7 +6,7 @@ import hashlib
 import time
 import threading
 from typing import Dict, List, Optional
-from log_manager import global_logger as logger
+from core.log_manager import global_logger as logger
 
 # 默认远程URL - 优先使用CSV格式，如果不存在则尝试TXT格式
 DEFAULT_REMOTE_URL = "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/local_channel_mappings.csv"
@@ -71,12 +71,26 @@ def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
 def load_remote_mappings() -> Dict[str, dict]:
     """加载远程映射规则"""
     try:
-        from config_manager import ConfigManager
-        config = ConfigManager()
+        # 尝试从core目录导入ConfigManager
         try:
-            remote_url = config.get('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
-        except AttributeError:
-            remote_url = DEFAULT_REMOTE_URL
+            from core.config_manager import ConfigManager
+            config = ConfigManager()
+            try:
+                remote_url = config.get('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
+            except AttributeError:
+                remote_url = DEFAULT_REMOTE_URL
+        except ImportError:
+            # 如果core.config_manager导入失败，尝试直接导入config_manager（旧结构）
+            try:
+                from config_manager import ConfigManager
+                config = ConfigManager()
+                try:
+                    remote_url = config.get('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
+                except AttributeError:
+                    remote_url = DEFAULT_REMOTE_URL
+            except ImportError:
+                # 如果都失败，使用默认URL
+                remote_url = DEFAULT_REMOTE_URL
         
         # 增加重试机制和SSL错误处理
         max_retries = 3
@@ -316,7 +330,7 @@ class ChannelMappingManager:
         
         # 1. 首先检查精确匹配
         result = self._get_exact_match(normalized_name)
-        self.logger.debug(f"精确匹配结果: 输入='{normalized_name}', 输出='{result['standard_name']}', Logo='{result['logo_url']}'")
+        # 移除调试日志：精确匹配结果
         if result['standard_name'] != normalized_name:  # 如果找到了映射
             self.logger.info(f"找到映射: '{raw_name}' -> '{result['standard_name']}'")
             # 记录学习数据
@@ -343,7 +357,7 @@ class ChannelMappingManager:
             self.learn_from_scan_result(url, raw_name, channel_info, raw_name)
         
         # 3. 返回原始名称
-        self.logger.debug(f"没有找到匹配的映射，返回原始名称: {raw_name}")
+        # 移除调试日志：没有找到匹配的映射
         return {'standard_name': raw_name, 'logo_url': None}
     
     def _get_exact_match(self, normalized_name: str) -> dict:
@@ -353,7 +367,7 @@ class ChannelMappingManager:
             # 直接检查反向映射字典中是否存在该名称
             if normalized_name in self.reverse_mappings:
                 result = self.reverse_mappings[normalized_name]
-                self.logger.debug(f"找到精确映射: {normalized_name} -> {result['standard_name']}")
+                # 移除调试日志，整合到get_channel_info方法中
                 return result
         except Exception as e:
             self.logger.error(f"反向映射查找失败: {e}")
@@ -365,7 +379,7 @@ class ChannelMappingManager:
                     continue
                 normalized_pattern = re.sub(r'\s+', ' ', raw_pattern.strip()).lower()
                 if normalized_name == normalized_pattern:
-                    self.logger.debug(f"通过遍历找到精确映射: {normalized_name} -> {info['standard_name']}")
+                    # 移除调试日志，整合到get_channel_info方法中
                     return info
         except Exception as e:
             self.logger.error(f"反向映射遍历查找失败: {e}")
@@ -382,12 +396,12 @@ class ChannelMappingManager:
                         'logo_url': info['logo_url'],
                         'group_name': info.get('group_name')
                     }
-                    self.logger.debug(f"通过标准名称找到映射: {normalized_name} -> {standard_name}")
+                    # 移除调试日志，整合到get_channel_info方法中
                     return result
         except Exception as e:
             self.logger.error(f"标准名称查找失败: {e}")
         
-        self.logger.debug(f"未找到映射: {normalized_name}")
+        # 移除调试日志
         return {'standard_name': normalized_name, 'logo_url': None}
     
     def get_mapping_suggestions(self, raw_name: str) -> List[str]:

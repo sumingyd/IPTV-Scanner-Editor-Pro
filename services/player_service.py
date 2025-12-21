@@ -1,7 +1,7 @@
 import sys
 import vlc
 from PyQt6.QtCore import QObject, pyqtSignal
-from log_manager import LogManager, global_logger
+from core.log_manager import LogManager, global_logger
 
 class PlayerController(QObject):
     play_error = pyqtSignal(str)

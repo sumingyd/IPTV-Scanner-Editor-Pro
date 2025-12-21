@@ -1,6 +1,6 @@
 import re
 from typing import List, Tuple, Generator
-from log_manager import LogManager, global_logger
+from core.log_manager import LogManager, global_logger
 
 class URLRangeParser:
     """处理带范围的URL地址解析"""

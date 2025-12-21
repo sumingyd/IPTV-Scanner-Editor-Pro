@@ -1,6 +1,6 @@
 from PyQt6 import QtCore, QtWidgets
 from typing import Callable, Any, Optional
-from log_manager import LogManager, global_logger
+from core.log_manager import LogManager, global_logger
 
 logger = global_logger
 

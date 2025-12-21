@@ -3,7 +3,7 @@ import weakref
 import threading
 import time
 from typing import Dict, Any, Optional
-from log_manager import LogManager, global_logger
+from core.log_manager import LogManager, global_logger
 
 logger = global_logger
 

@@ -4,7 +4,7 @@ import gc
 import threading
 import weakref
 from typing import List, Callable, Optional
-from log_manager import global_logger
+from core.log_manager import global_logger
 
 logger = global_logger
 

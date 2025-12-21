@@ -1,7 +1,7 @@
 import configparser
 import os
 import threading
-from log_manager import global_logger as logger
+from .log_manager import global_logger as logger
 
 class ConfigManager:
     _instance = None
@@ -25,8 +25,10 @@ class ConfigManager:
             # 打包成exe的情况
             config_dir = os.path.dirname(sys.executable)
         else:
-            # 开发环境
-            config_dir = os.path.dirname(__file__)
+            # 开发环境 - 使用项目根目录
+            # 获取当前文件的绝对路径，然后向上两级到项目根目录
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            config_dir = os.path.dirname(current_dir)  # 从core目录到项目根目录
         self.config_file = os.path.join(config_dir, config_file)
         self.config = configparser.ConfigParser()
         self._lock = threading.Lock()
@@ -34,16 +36,20 @@ class ConfigManager:
         self.load_config()
         self._initialized = True
         
-    def save_window_layout(self, width, height, dividers):
-        """保存窗口布局"""
+    def save_window_layout(self, x, y, width, height, dividers):
+        """保存窗口布局（包括位置和大小）"""
+        self.set_value('UI', 'window_x', str(x))
+        self.set_value('UI', 'window_y', str(y))
         self.set_value('UI', 'window_width', str(width))
         self.set_value('UI', 'window_height', str(height))
         for i, pos in enumerate(dividers):
             self.set_value('UI', f'divider_{i}', str(pos))
         return self.save_config()  # 确保立即保存到文件
             
-    def load_window_layout(self, default_width=800, default_height=600, default_dividers=None):
-        """加载窗口布局"""
+    def load_window_layout(self, default_x=100, default_y=100, default_width=800, default_height=600, default_dividers=None):
+        """加载窗口布局（包括位置和大小）"""
+        x = int(self.get_value('UI', 'window_x', default_x))
+        y = int(self.get_value('UI', 'window_y', default_y))
         width = int(self.get_value('UI', 'window_width', default_width))
         height = int(self.get_value('UI', 'window_height', default_height))
         dividers = []
@@ -54,15 +60,22 @@ class ConfigManager:
                 break
             dividers.append(int(pos))
             i += 1
-        return width, height, dividers or default_dividers
+        return x, y, width, height, dividers or default_dividers
         
-    def save_network_settings(self, url, timeout, threads, user_agent, referer):
+    def save_network_settings(self, url, timeout, threads, user_agent, referer, enable_retry=None, loop_scan=None):
         """保存网络设置"""
         self.set_value('Network', 'url', url)
         self.set_value('Network', 'timeout', str(timeout))
         self.set_value('Network', 'threads', str(threads))
         self.set_value('Network', 'user_agent', user_agent)
         self.set_value('Network', 'referer', referer)
+        
+        # 保存重试设置（如果提供了）
+        if enable_retry is not None:
+            self.set_value('Network', 'enable_retry', str(enable_retry))
+        if loop_scan is not None:
+            self.set_value('Network', 'loop_scan', str(loop_scan))
+            
         return self.save_config()  # 确保立即保存到文件
         
     def load_network_settings(self):
@@ -72,7 +85,9 @@ class ConfigManager:
             'timeout': int(self.get_value('Network', 'timeout', '30')),
             'threads': int(self.get_value('Network', 'threads', '5')),
             'user_agent': self.get_value('Network', 'user_agent', ''),
-            'referer': self.get_value('Network', 'referer', '')
+            'referer': self.get_value('Network', 'referer', ''),
+            'enable_retry': self.get_value('Network', 'enable_retry', 'False').lower() == 'true',
+            'loop_scan': self.get_value('Network', 'loop_scan', 'False').lower() == 'true'
         }
         
     def save_language_settings(self, language_code):

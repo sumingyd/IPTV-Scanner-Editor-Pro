@@ -2,12 +2,12 @@ import asyncio
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
-from models.channel_model import ChannelListModel
-from ui.styles import AppStyles
+from channel_model import ChannelListModel
+from styles import AppStyles
 from pathlib import Path
 from log_manager import LogManager, global_logger
 from language_manager import LanguageManager
-from utils.error_handler import show_error, show_warning, show_info, show_confirm
+from error_handler import show_error, show_warning, show_info, show_confirm
 import functools
 from typing import Optional, Dict, Any, Callable
 
@@ -256,7 +256,7 @@ class UIBuilder(QtCore.QObject):
         status_bar.addPermanentWidget(self.main_window.stats_label)
         
         # 初始化时显示映射状态
-        from models.channel_mappings import mapping_manager
+        from channel_mappings import mapping_manager
         if mapping_manager.remote_mappings:
             self.main_window.mapping_status_label.setText(
                 self.main_window.language_manager.tr('mapping_loaded', 'Remote mapping loaded')
@@ -919,8 +919,8 @@ class UIBuilder(QtCore.QObject):
         
         # 使用QThreadPool异步执行验证任务
         from PyQt6.QtCore import QRunnable, QThreadPool, pyqtSlot
-        from services.validator_service import StreamValidator
-        from models.channel_mappings import mapping_manager, extract_channel_name_from_url
+        from validator import StreamValidator
+        from channel_mappings import mapping_manager, extract_channel_name_from_url
         
         class RefreshChannelTask(QRunnable):
             def __init__(self, ui_builder, index, url, current_name, timeout):

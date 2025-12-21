@@ -2,9 +2,9 @@ import json
 import os
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
-from log_manager import LogManager
-from channel_mappings import mapping_manager
-from error_handler import show_error, show_warning, show_info, show_confirm
+from core.log_manager import LogManager
+from models.channel_mappings import mapping_manager
+from utils.error_handler import show_error, show_warning, show_info, show_confirm
 
 class MappingManagerDialog(QtWidgets.QDialog):
     """频道映射管理器对话框"""

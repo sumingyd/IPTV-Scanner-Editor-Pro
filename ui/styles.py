@@ -1,5 +1,5 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
-from log_manager import LogManager, global_logger
+from core.log_manager import LogManager, global_logger
 
 class AppStyles:
 

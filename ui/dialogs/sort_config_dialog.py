@@ -1,8 +1,8 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
-from log_manager import LogManager
-from language_manager import LanguageManager
-from styles import AppStyles
+from core.log_manager import LogManager
+from core.language_manager import LanguageManager
+from ui.styles import AppStyles
 
 class SortConfigDialog(QtWidgets.QDialog):
     """排序配置对话框"""
