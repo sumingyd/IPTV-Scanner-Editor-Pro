@@ -5,8 +5,8 @@ from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkRepl
 from models.channel_model import ChannelListModel
 from ui.styles import AppStyles
 from pathlib import Path
-from log_manager import LogManager, global_logger
-from language_manager import LanguageManager
+from core.log_manager import LogManager, global_logger
+from core.language_manager import LanguageManager
 from utils.error_handler import show_error, show_warning, show_info, show_confirm
 import functools
 from typing import Optional, Dict, Any, Callable
@@ -205,13 +205,16 @@ class UIBuilder(QtCore.QObject):
     def _init_ui(self):
         """初始化用户界面"""
         # 从about_dialog导入版本号
-        from about_dialog import AboutDialog
+        from ui.dialogs.about_dialog import AboutDialog
         version = AboutDialog.CURRENT_VERSION
         # 默认使用中文标题，语言管理器会覆盖这个设置
         self.main_window.setWindowTitle(f"IPTV 专业扫描编辑工具 v{version}")
         
-        # 加载保存的窗口布局
-        width, height, dividers = self.main_window.config.load_window_layout()
+        # 加载保存的窗口布局（包括位置和大小）
+        x, y, width, height, dividers = self.main_window.config.load_window_layout()
+        
+        # 设置窗口位置和大小
+        self.main_window.move(x, y)
         self.main_window.resize(width, height)
         
         # 连接窗口大小变化信号
@@ -269,6 +272,7 @@ class UIBuilder(QtCore.QObject):
     def _on_window_resize(self, event):
         """处理窗口大小变化事件"""
         try:
+            pos = self.main_window.pos()
             size = self.main_window.size()
             # 保存当前分割器状态
             dividers = [
@@ -277,8 +281,8 @@ class UIBuilder(QtCore.QObject):
                 *self.main_window.channel_splitter.sizes(),
             ]
             
-            # 保存窗口布局
-            self.main_window.config.save_window_layout(size.width(), size.height(), dividers)
+            # 保存窗口布局（包括位置和大小）
+            self.main_window.config.save_window_layout(pos.x(), pos.y(), size.width(), size.height(), dividers)
             event.accept()
             
             # 强制更新布局
@@ -302,7 +306,7 @@ class UIBuilder(QtCore.QObject):
         self._setup_custom_splitter(self.main_window.channel_splitter)
         
         # 加载保存的分隔条位置
-        _, _, dividers = self.main_window.config.load_window_layout()
+        _, _, _, _, dividers = self.main_window.config.load_window_layout()
         
         # 仅在未加载保存布局时设置默认值
         if not (dividers and len(dividers) >= 8):
@@ -333,7 +337,7 @@ class UIBuilder(QtCore.QObject):
         self.main_window.main_splitter.addWidget(right_container)
         
         # 加载保存的分隔条位置
-        _, _, dividers = self.main_window.config.load_window_layout()
+        _, _, _, _, dividers = self.main_window.config.load_window_layout()
         if dividers and len(dividers) >= 6:
             # 确保所有分割器都已初始化后再设置位置
             self.main_window.main_splitter.setSizes(dividers[:2])
@@ -420,13 +424,14 @@ class UIBuilder(QtCore.QObject):
             splitter.setSizes(sizes)
             
             # 保存分隔条位置
+            pos = self.main_window.pos()
             size = self.main_window.size()
             dividers = [
                 *self.main_window.main_splitter.sizes(),
                 *self.main_window.left_splitter.sizes(),
                 *self.main_window.channel_splitter.sizes(),
             ]
-            self.main_window.config.save_window_layout(size.width(), size.height(), dividers)
+            self.main_window.config.save_window_layout(pos.x(), pos.y(), size.width(), size.height(), dividers)
         else:
             self._drag_start_pos = None
 
@@ -481,7 +486,9 @@ class UIBuilder(QtCore.QObject):
             self.main_window.timeout_input.value(),
             self.main_window.thread_count_input.value(),
             self.main_window.user_agent_input.text(),
-            self.main_window.referer_input.text()
+            self.main_window.referer_input.text(),
+            self.main_window.enable_retry_checkbox.isChecked(),
+            self.main_window.loop_scan_checkbox.isChecked()
         )
 
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
@@ -1268,9 +1275,8 @@ class UIBuilder(QtCore.QObject):
             # 直接连接信号，不使用functools.partial
             lang_action.triggered.connect(lambda checked, code=lang_code: self._change_language(code))
             self.main_window.language_menu.addAction(lang_action)
-            self.logger.debug(f"添加语言选项: {lang_code} - {lang_info['display_name']}")
         
-        self.logger.debug(f"语言菜单包含 {len(self.main_window.language_menu.actions())} 个动作")
+        # 移除调试日志，整合到语言管理器日志中
         
         # 创建QWidgetAction来包装QToolButton
         language_action = QtWidgets.QWidgetAction(self.main_window)
@@ -1334,7 +1340,7 @@ class UIBuilder(QtCore.QObject):
 
     def _show_about_dialog(self):
         """显示关于对话框"""
-        from about_dialog import AboutDialog
+        from ui.dialogs.about_dialog import AboutDialog
         dialog = AboutDialog(
             self.main_window)
         dialog.exec()
@@ -1618,14 +1624,23 @@ class UIBuilder(QtCore.QObject):
             enable_retry = retry_settings['enable_retry']
             loop_scan = retry_settings['loop_scan']
             
-            # 设置复选框状态
-            self.main_window.enable_retry_checkbox.setChecked(enable_retry)
-            self.main_window.loop_scan_checkbox.setChecked(loop_scan)
+            # 暂时断开信号连接，避免触发保存
+            self.main_window.enable_retry_checkbox.blockSignals(True)
+            self.main_window.loop_scan_checkbox.blockSignals(True)
             
-            # 根据启用重试状态设置循环扫描的启用状态
-            self.main_window.loop_scan_checkbox.setEnabled(enable_retry)
-            
-            self.logger.debug(f"扫描重试设置已加载: 启用重试={enable_retry}, 循环扫描={loop_scan}")
+            try:
+                # 设置复选框状态
+                self.main_window.enable_retry_checkbox.setChecked(enable_retry)
+                self.main_window.loop_scan_checkbox.setChecked(loop_scan)
+                
+                # 根据启用重试状态设置循环扫描的启用状态
+                self.main_window.loop_scan_checkbox.setEnabled(enable_retry)
+                
+                self.logger.debug(f"扫描重试设置已加载: 启用重试={enable_retry}, 循环扫描={loop_scan}")
+            finally:
+                # 恢复信号连接
+                self.main_window.enable_retry_checkbox.blockSignals(False)
+                self.main_window.loop_scan_checkbox.blockSignals(False)
         except Exception as e:
             self.logger.error(f"加载扫描重试设置失败: {e}")
 
@@ -1639,7 +1654,7 @@ class UIBuilder(QtCore.QObject):
     def _show_sort_config(self):
         """显示排序配置对话框"""
         try:
-            from sort_config_dialog import SortConfigDialog
+            from ui.dialogs.sort_config_dialog import SortConfigDialog
             
             # 创建排序配置对话框
             dialog = SortConfigDialog(self.main_window, self.main_window.model)

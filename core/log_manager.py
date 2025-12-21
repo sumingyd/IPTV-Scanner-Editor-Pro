@@ -40,8 +40,10 @@ class LogManager:
             # 打包成exe的情况
             log_dir = os.path.dirname(sys.executable)
         else:
-            # 开发环境
-            log_dir = os.path.dirname(__file__)
+            # 开发环境 - 使用项目根目录
+            # 获取当前文件的绝对路径，然后向上两级到项目根目录
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            log_dir = os.path.dirname(current_dir)  # 从core目录到项目根目录
         return os.path.join(log_dir, log_file)
     
     def _setup_logger(self):

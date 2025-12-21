@@ -2,7 +2,7 @@
 
 from PyQt6 import QtWidgets, QtCore
 from typing import Optional, Callable, Any, Dict
-from log_manager import global_logger as logger
+from core.log_manager import global_logger as logger
 
 
 class ErrorHandler:
@@ -412,7 +412,7 @@ def handle_exceptions(
                     # 如果没有全局错误处理器，使用默认日志记录
                     logger = getattr(func, '__logger__', None)
                     if not logger:
-                        from log_manager import global_logger
+                        from core.log_manager import global_logger
                         logger = global_logger
                     
                     # 构建错误消息
@@ -485,7 +485,7 @@ def handle_specific_exceptions(
                     # 如果没有全局错误处理器，使用默认日志记录
                     logger = getattr(func, '__logger__', None)
                     if not logger:
-                        from log_manager import global_logger
+                        from core.log_manager import global_logger
                         logger = global_logger
                     
                     # 构建错误消息
@@ -565,7 +565,7 @@ def retry_on_exception(
                             )
                         except RuntimeError:
                             # 如果没有全局错误处理器，记录日志
-                            from log_manager import global_logger
+                            from core.log_manager import global_logger
                             logger = global_logger
                             error_msg = user_message or f"执行 {func.__name__} 失败（重试 {max_retries} 次后）"
                             logger.error(f"{error_msg}: {type(e).__name__}: {str(e)}", exc_info=True)
@@ -607,7 +607,7 @@ def log_execution_time(func):
     """
     def wrapper(*args, **kwargs):
         import time
-        from log_manager import global_logger
+        from core.log_manager import global_logger
         
         start_time = time.time()
         try:

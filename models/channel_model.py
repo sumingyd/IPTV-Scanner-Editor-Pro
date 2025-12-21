@@ -1,8 +1,8 @@
 from PyQt6 import QtCore, QtGui
 import os
 from typing import List, Dict, Any
-from log_manager import LogManager
-from styles import AppStyles
+from core.log_manager import LogManager
+from ui.styles import AppStyles
 logger = LogManager()
 
 class ChannelListModel(QtCore.QAbstractTableModel):
@@ -274,7 +274,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
     def to_m3u(self) -> str:
         """将频道列表转换为M3U格式字符串"""
-        from channel_mappings import get_channel_info
+        from models.channel_mappings import get_channel_info
         logger = LogManager()
         lines = ["#EXTM3U"]
         for channel in self.channels:
@@ -453,7 +453,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 old_name = channel.get('name', '')
                 old_group = channel.get('group', '')
                 
-                logger.info(f"根据URL更新频道: {old_name} -> {channel_info.get('name', '')}")
+                # 移除单独的更新日志，整合到映射日志中
+                # 映射日志已经在channel_mappings.py中记录
                 
                 # 更新频道数据
                 self.channels[i].update(channel_info)

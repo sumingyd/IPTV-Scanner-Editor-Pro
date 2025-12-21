@@ -3,7 +3,7 @@ import queue
 import time
 from typing import List, Dict
 from services.url_parser_service import URLRangeParser
-from log_manager import LogManager, global_logger
+from core.log_manager import LogManager, global_logger
 from models.channel_model import ChannelListModel
 from PyQt6 import QtCore
 from PyQt6.QtCore import pyqtSignal, QObject
@@ -87,9 +87,8 @@ class ScannerController(QObject):
                 # 确保频道信息包含必要字段
                 channel_info.setdefault('name', channel_info.get('raw_name', extract_channel_name_from_url(url)))
                 
-                # 只记录有效频道的详细信息
+                # 只添加有效频道到列表
                 if valid:
-                    
                     # 使用 functools.partial 确保频道信息正确传递
                     import functools
                     QtCore.QTimer.singleShot(0, functools.partial(self._handle_channel_add, channel_info.copy()))
@@ -251,10 +250,6 @@ class ScannerController(QObject):
         for retry_count in range(max_retries):
             try:
                 url = channel_info['url']
-                raw_name = channel_info.get('raw_name', '未知频道')
-                
-                # 记录开始获取详细信息
-                self.logger.info(f"开始获取频道详细信息: {raw_name} ({url})")
                 
                 # 使用ffprobe获取流详细信息
                 from services.validator_service import StreamValidator
@@ -263,12 +258,6 @@ class ScannerController(QObject):
                 # 调用ffprobe获取详细信息（使用较长的超时时间）
                 probe_result = validator._run_ffprobe(url, timeout=10)
                 
-                # 检查ffprobe结果
-                if probe_result.get('error'):
-                    self.logger.info(f"FFPROBE获取信息失败: {raw_name} - {probe_result['error']}")
-                else:
-                    self.logger.info(f"FFPROBE获取信息成功: {raw_name}")
-                
                 # 更新频道信息
                 updated_info = channel_info.copy()
                 
@@ -276,16 +265,14 @@ class ScannerController(QObject):
                 if probe_result.get('service_name'):
                     updated_info['raw_name'] = probe_result['service_name']
                     updated_info['name'] = probe_result['service_name']
-                    self.logger.info(f"从FFPROBE获取到频道名: {probe_result['service_name']}")
                 
                 # 更新分辨率和其他信息
                 if probe_result.get('resolution'):
                     updated_info['resolution'] = probe_result['resolution']
-                    self.logger.info(f"从FFPROBE获取到分辨率: {probe_result['resolution']}")
                 if probe_result.get('codec'):
                     updated_info['codec'] = probe_result['codec']
                 if probe_result.get('bitrate'):
-                    updated_info['bitrate'] = probe_result.get('bitrate')
+                    updated_info['bitrate'] = probe_result['bitrate']
                 
                 # 获取映射信息
                 from models.channel_mappings import mapping_manager
@@ -315,8 +302,6 @@ class ScannerController(QObject):
                         updated_info['logo_url'] = None
                     
                     updated_info['fingerprint'] = mapping_manager.create_channel_fingerprint(url, channel_info_for_fingerprint)
-                    
-                    self.logger.info(f"频道映射成功: {updated_info['raw_name']} -> {updated_info['name']}")
                 
                 # 确保所有必要的字段都存在
                 updated_info.setdefault('resolution', '')
@@ -336,7 +321,6 @@ class ScannerController(QObject):
                 
             except Exception as e:
                 error_msg = f"获取频道详细信息失败 (重试 {retry_count + 1}/{max_retries}): {e}"
-                self.logger.info(error_msg)
                 if retry_count < max_retries - 1:
                     time.sleep(retry_delays[retry_count])
                 else:
@@ -572,13 +556,26 @@ class ScannerController(QObject):
         self.logger.info(f"开始重试扫描，共 {len(urls)} 个URL")
         
     def stop_scan(self):
-        """停止扫描 - 增强版本，改进资源清理"""
+        """停止扫描 - 快速响应版本，避免程序假死"""
+        # 设置停止事件，让所有工作线程知道应该停止
         self.stop_event.set()
         
-        # 首先停止批量更新定时器（如果存在且活动）
-        if hasattr(self, '_batch_timer') and self._batch_timer and self._batch_timer.isActive():
-            self._batch_timer.stop()
+        # 立即清空所有队列，避免新任务被处理
+        self._clear_all_queues()
         
+        # 立即终止所有FFmpeg/VLC进程
+        self._terminate_all_processes()
+        
+        # 快速清理工作线程（不等待太长时间）
+        self._cleanup_workers_fast()
+        
+        # 清理其他资源
+        self._cleanup_other_resources()
+        
+        self.logger.info("扫描已立即停止")
+        
+    def _clear_all_queues(self):
+        """清空所有队列"""
         # 清空扫描队列
         while not self.scan_queue.empty():
             try:
@@ -593,42 +590,81 @@ class ScannerController(QObject):
             except queue.Empty:
                 break
         
-        # 终止所有FFmpeg进程
-        from services.validator_service import StreamValidator
-        StreamValidator.terminate_all()
-        
-        # 等待队列填充线程结束（如果存在）
+        # 如果有队列填充线程，设置标志让它停止
         if hasattr(self, 'filler_thread') and self.filler_thread and self.filler_thread.is_alive():
-            self.filler_thread.join(timeout=1.0)
-            if self.filler_thread.is_alive():
-                pass
-        
-        # 优雅地终止所有工作线程
-        alive_workers = []
-        for worker in self.workers:
-            if worker.is_alive():
-                alive_workers.append(worker)
-        
-        # 第一次尝试：等待线程自然结束
-        for worker in alive_workers:
-            worker.join(timeout=2.0)  # 增加超时时间
-        
-        # 第二次尝试：检查哪些线程仍然存活
-        still_alive = [w for w in alive_workers if w.is_alive()]
-        if still_alive:
-            # 额外等待时间
-            for worker in still_alive:
-                worker.join(timeout=1.0)
+            # 不等待，让线程自己检测停止事件
+            pass
+    
+    def _terminate_all_processes(self):
+        """终止所有FFmpeg/VLC进程"""
+        try:
+            from services.validator_service import StreamValidator
+            StreamValidator.terminate_all()
+        except Exception as e:
+            self.logger.debug(f"终止进程时出错: {e}")
+    
+    def _cleanup_workers_fast(self):
+        """快速清理工作线程"""
+        if not self.workers:
+            return
             
+        # 记录当前存活的线程
+        alive_workers = [w for w in self.workers if w.is_alive()]
+        
+        if not alive_workers:
+            self.workers = []
+            return
+            
+        # 第一次尝试：快速等待（0.5秒）
+        for worker in alive_workers:
+            worker.join(timeout=0.5)
+        
+        # 检查哪些线程仍然存活
+        still_alive = [w for w in alive_workers if w.is_alive()]
+        
+        if still_alive:
+            # 记录警告但不阻塞UI
+            self.logger.warning(f"{len(still_alive)} 个工作线程仍在运行，将在后台清理")
+            
+            # 启动后台线程来等待这些线程
+            cleanup_thread = threading.Thread(
+                target=self._background_cleanup,
+                args=(still_alive,),
+                name="BackgroundCleanup",
+                daemon=True
+            )
+            cleanup_thread.start()
+        
+        # 清空工作线程列表，让扫描按钮可以立即响应
         self.workers = []
+    
+    def _background_cleanup(self, workers):
+        """在后台清理工作线程"""
+        try:
+            # 等待最多3秒
+            for worker in workers:
+                worker.join(timeout=3.0)
+            
+            # 检查是否还有存活的线程
+            still_alive = [w for w in workers if w.is_alive()]
+            if still_alive:
+                self.logger.warning(f"后台清理后仍有 {len(still_alive)} 个线程存活")
+        except Exception as e:
+            self.logger.debug(f"后台清理出错: {e}")
+    
+    def _cleanup_other_resources(self):
+        """清理其他资源"""
+        # 停止批量更新定时器
+        if hasattr(self, '_batch_timer') and self._batch_timer and self._batch_timer.isActive():
+            self._batch_timer.stop()
         
         # 清理统计更新线程
         if hasattr(self, 'stats_thread') and self.stats_thread and self.stats_thread.is_alive():
-            self.stats_thread.join(timeout=1.0)
+            self.stats_thread.join(timeout=0.5)
         
         # 强制垃圾回收
         import gc
-        collected = gc.collect()
+        gc.collect()
 
     def start_validation(self, model, threads, timeout, user_agent=None, referer=None):
         """开始有效性验证"""

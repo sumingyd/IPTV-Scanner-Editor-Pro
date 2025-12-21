@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QFileDialog
-from log_manager import LogManager, global_logger
-from channel_model import ChannelListModel
+from core.log_manager import LogManager, global_logger
+from models.channel_model import ChannelListModel
 
 class ListManager:
     def __init__(self, model: ChannelListModel):
