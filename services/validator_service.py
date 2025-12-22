@@ -638,9 +638,7 @@ class StreamValidator:
             # 第二步：判断有效性 - ffmpeg或VLC有一个成功就认为有效
             ffmpeg_valid = ffmpeg_result['valid']
             
-            # 调试日志：记录验证结果
-            self.logger.debug(f"验证结果 - URL: {url}, ffmpeg_valid: {ffmpeg_valid}, vlc_valid: {vlc_valid}, ffmpeg_error: {ffmpeg_result.get('error', '无错误')}")
-            
+            # 整合日志：只在验证失败时记录详细信息
             if ffmpeg_valid or vlc_valid:
                 # ffmpeg或VLC验证成功，流有效
                 result['valid'] = True
@@ -649,13 +647,8 @@ class StreamValidator:
                 if ffmpeg_result.get('error'):
                     result['error'] = ffmpeg_result['error']
                 
-                # 整合日志：记录验证结果
-                if ffmpeg_valid and vlc_valid:
-                    self.logger.info(f"{url} 经FFMPEG和VLC验证均成功，判定为有效频道")
-                elif ffmpeg_valid:
-                    self.logger.info(f"{url} 经FFMPEG验证成功，判定为有效频道")
-                elif vlc_valid:
-                    self.logger.info(f"{url} 经VLC验证成功，判定为有效频道")
+                # 只在DEBUG级别记录验证成功
+                self.logger.debug(f"验证成功 - URL: {url}, 延迟: {ffmpeg_result['latency']}ms")
                 
                 # 确保有频道名
                 if not result.get('service_name'):
@@ -676,6 +669,7 @@ class StreamValidator:
                         retry_reason = "超时" if '超时' in error_msg else "并发限制"
                 
                 if should_retry:
+                    # 只在DEBUG级别记录重试
                     self.logger.debug(f"第一次验证{retry_reason}，重试一次: {url}")
                     # 重试一次，使用更长的超时时间
                     ffmpeg_result = self._run_ffmpeg_test(url, timeout + 5, max_retries=0)
@@ -685,7 +679,8 @@ class StreamValidator:
                         result['valid'] = True
                         result['latency'] = ffmpeg_result['latency']
                         result['retries'] = 1
-                        self.logger.info(f"{url} 经重试后FFMPEG验证成功，判定为有效频道")
+                        # 只在DEBUG级别记录重试成功
+                        self.logger.debug(f"重试成功 - URL: {url}, 延迟: {ffmpeg_result['latency']}ms")
                         
                         # 确保有频道名
                         if not result.get('service_name'):
@@ -698,8 +693,8 @@ class StreamValidator:
                 result['latency'] = ffmpeg_result['latency']
                 result['error'] = ffmpeg_result.get('error', 'ffmpeg和VLC验证都失败')
                 
-                # 整合日志：记录验证失败
-                self.logger.info(f"{url} 经FFMPEG和VLC验证均失败，判定频道无效")
+                # 只在INFO级别记录验证失败（重要信息）
+                self.logger.info(f"验证失败 - URL: {url}, 错误: {result['error']}")
                 
                 # 无效的流确保有频道名
                 if not result.get('service_name'):
