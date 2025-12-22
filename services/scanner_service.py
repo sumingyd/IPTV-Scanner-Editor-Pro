@@ -747,11 +747,17 @@ class ScannerController(QObject):
                 latency = result['latency']
                 resolution = result.get('resolution', '')
                 
-                # 记录验证结果日志 - 使用模型中的频道名
+                # 只在验证失败时记录详细信息，验证成功只记录DEBUG级别
                 channel = self.model.get_channel(index)
                 channel_name = channel.get('name', extract_channel_name_from_url(url))
-                log_msg = f"有效性验证 - 频道: {channel_name}, 状态: {'有效' if valid else '无效'}, 延迟: {latency}ms"
-                self.logger.info(log_msg)
+                
+                if not valid:
+                    # 验证失败，记录INFO级别日志
+                    log_msg = f"验证失败 - 频道: {channel_name}, 延迟: {latency}ms"
+                    self.logger.info(log_msg)
+                else:
+                    # 验证成功，只记录DEBUG级别日志
+                    self.logger.debug(f"验证成功 - 频道: {channel_name}, 延迟: {latency}ms")
                 
                 # 使用QTimer在主线程中安全地更新模型状态 - 使用functools.partial避免lambda作用域问题
                 import functools
