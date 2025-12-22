@@ -47,7 +47,6 @@ class URLRangeParser:
             return
             
         self.logger.info(f"开始解析范围URL: {url}")
-        self.logger.debug(f"原始URL: {url}")
         
         # 先替换所有范围表达式为占位符，保留原始位置信息
         placeholders = []
@@ -60,9 +59,6 @@ class URLRangeParser:
                 'match': match.group()
             })
             temp_url = temp_url[:start] + f"__RANGE_{i}__" + temp_url[end:]
-            
-        self.logger.debug(f"替换占位符后URL: {temp_url}")
-        self.logger.debug(f"找到的范围表达式: {placeholders}")
         
         # 获取所有范围表达式及其可能值
         ranges_info = []
@@ -84,6 +80,15 @@ class URLRangeParser:
             yield url
             return
             
+        # 计算生成的URL总数
+        total_urls = 1
+        for r in ranges_info:
+            total_urls *= (r['end'] - r['start'] + 1)
+        
+        # 显示解析结果
+        range_count = len(ranges_info)
+        self.logger.info(f"URL解析: 找到 {range_count} 个范围表达式，将生成 {total_urls} 个URL")
+            
         # 分割URL
         url_parts = []
         last_pos = 0
@@ -94,9 +99,11 @@ class URLRangeParser:
         
         # 生成URL批次
         batch = []
+        generated_count = 0
         for values in self._generate_range_values(ranges_info):
             url = self._build_url_from_parts(url_parts, ranges_info, values)
             batch.append(url)
+            generated_count += 1
             
             if len(batch) >= batch_size:
                 yield batch

@@ -142,7 +142,7 @@ class LogoCacheManager:
         
         oldest_url = min(self.access_times.items(), key=lambda x: x[1])[0]
         self.remove(oldest_url)
-        self.logger.debug(f"Logo缓存已满，移除最久未使用的: {oldest_url}")
+        # 移除调试日志，避免日志过多
     
     def add_pending_request(self, logo_url: str, reply: QNetworkReply):
         """添加待处理的请求"""
@@ -1465,8 +1465,6 @@ class UIBuilder(QtCore.QObject):
                 channel = self.main_window.model.get_channel(row)
                 logo_url = channel.get('logo_url', channel.get('logo', ''))
                 
-                self.logger.debug(f"检查频道 {row}: logo_url={logo_url}")
-                
                 # 只处理网络Logo地址
                 if logo_url and logo_url.startswith(('http://', 'https://')):
                     
@@ -1484,8 +1482,6 @@ class UIBuilder(QtCore.QObject):
                     
                     # 发起网络请求
                     self._download_logo(logo_url, row)
-                else:
-                    self.logger.debug(f"不是网络Logo或为空: {logo_url}")
                     
             # 强制刷新视图以确保Logo显示
             if self.main_window.model.rowCount() > 0:
@@ -1511,7 +1507,8 @@ class UIBuilder(QtCore.QObject):
             self.main_window.model.dataChanged.emit(index, index)
             
         except Exception as e:
-            self.logger.debug(f"显示占位符图标失败: {logo_url}, {e}")
+            # 移除调试日志，避免日志过多
+            pass
 
     def _download_logo(self, logo_url, row):
         """下载Logo图片"""
@@ -1591,16 +1588,10 @@ class UIBuilder(QtCore.QObject):
                         # 更新UI
                         index = self.main_window.model.index(row, 0)
                         self.main_window.model.dataChanged.emit(index, index)
-
-                    else:
-                        self.logger.debug(f"Logo图片高度为0: {logo_url}")
-                else:
-                    self.logger.debug(f"Logo图片格式不支持: {logo_url}")
-            else:
-                self.logger.debug(f"Logo下载失败: {logo_url}, 错误: {reply.errorString()}")
                 
         except Exception as e:
-            self.logger.debug(f"Logo处理异常: {logo_url}, {e}")
+            # 移除调试日志，避免日志过多
+            pass
         finally:
             # 清理请求
             self.logo_cache_manager.remove_pending_request(logo_url)

@@ -480,8 +480,6 @@ class ScannerController(QObject):
         else:
             # 用户指定模式，但限制最大线程数
             optimal_threads = min(thread_count, 50)  # 最多50个线程
-        
-        self.logger.info(f"使用 {optimal_threads} 个线程进行扫描")
             
         # 使用优化后的线程数
         self.workers = []
@@ -504,6 +502,7 @@ class ScannerController(QObject):
         # 扫描开始时发送进度更新信号
         QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(0, 1))
         
+        # 整合日志：只显示一次线程信息
         self.logger.info(f"开始扫描URL，使用 {optimal_threads} 个线程")
         
     def start_scan_from_urls(self, urls: list, thread_count: int = 10, timeout: int = 10, user_agent: str = None, referer: str = None):
@@ -572,7 +571,7 @@ class ScannerController(QObject):
         # 清理其他资源
         self._cleanup_other_resources()
         
-        self.logger.info("扫描已立即停止")
+        # 移除日志，避免不必要的日志输出
         
     def _clear_all_queues(self):
         """清空所有队列"""
