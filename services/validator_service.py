@@ -219,19 +219,33 @@ class StreamValidator:
         # 优化URL
         optimized_url = self._optimize_url_for_network(url)
         
+        # 检查是否为4K流（根据URL或频道名判断）
+        is_4k_stream = '4k' in url.lower() or '4K' in url or '2160' in url
+        
         cmd = [
             ffmpeg_path,
             '-v', 'error',
-            '-timeout', '5000000',  # 5秒超时
-            '-t', str(duration),    # 拉取时长
-            '-reconnect', '1',      # 启用重连
-            '-reconnect_at_eof', '1',  # 在EOF时重连
-            '-reconnect_streamed', '1',  # 流式重连
-            '-reconnect_delay_max', '2',  # 最大重连延迟
-            '-i', optimized_url,
-            '-f', 'null',           # 输出到空设备
-            '-'
+            '-timeout', '10000000' if is_4k_stream else '5000000',  # 4K流使用10秒超时
+            '-t', str(duration),
+            '-reconnect', '1',
+            '-reconnect_at_eof', '1',
+            '-reconnect_streamed', '1',
+            '-reconnect_delay_max', '5' if is_4k_stream else '2',  # 4K流使用更长的重连延迟
         ]
+        
+        # 为4K流添加额外的优化参数
+        if is_4k_stream:
+            cmd.extend([
+                '-analyzeduration', '10000000',  # 增加分析时长
+                '-probesize', '10000000',        # 增加探测大小
+                '-threads', '2',                 # 使用2个线程
+            ])
+        
+        cmd.extend([
+            '-i', optimized_url,
+            '-f', 'null',
+            '-'
+        ])
         
         # 添加headers
         if hasattr(self, 'headers') and self.headers:
