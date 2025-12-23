@@ -427,6 +427,9 @@ class ScannerController(QObject):
         self.stop_scan()
         self.stop_event.clear()
         
+        # 保存超时时间和线程数到实例变量
+        self.timeout = timeout
+        
         from services.validator_service import StreamValidator
         StreamValidator.timeout = timeout
         if user_agent:
@@ -469,17 +472,9 @@ class ScannerController(QObject):
         )
         self.filler_thread.start()
             
-        # 智能线程数调整：根据CPU核心数和URL数量优化
-        import multiprocessing
-        cpu_count = multiprocessing.cpu_count()
-        
-        # 动态调整线程数
-        if thread_count <= 0:
-            # 自动模式：根据CPU核心数调整
-            optimal_threads = min(cpu_count * 2, 20)  # 最多20个线程
-        else:
-            # 用户指定模式，但限制最大线程数
-            optimal_threads = min(thread_count, 50)  # 最多50个线程
+        # 使用用户指定的线程数，不进行智能调整
+        # 用户知道他们想要多少线程
+        optimal_threads = thread_count if thread_count > 0 else 1  # 至少1个线程
             
         # 使用优化后的线程数
         self.workers = []
@@ -502,8 +497,7 @@ class ScannerController(QObject):
         # 扫描开始时发送进度更新信号
         QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(0, 1))
         
-        # 整合日志：只显示一次线程信息
-        self.logger.info(f"开始扫描URL，使用 {optimal_threads} 个线程")
+        # 不再记录开始扫描日志，避免控制台输出
         
     def start_scan_from_urls(self, urls: list, thread_count: int = 10, timeout: int = 10, user_agent: str = None, referer: str = None):
         """从URL列表开始扫描（用于重试扫描）"""
@@ -552,7 +546,7 @@ class ScannerController(QObject):
         )
         stats_thread.start()
         
-        self.logger.info(f"开始重试扫描，共 {len(urls)} 个URL")
+        # 不再记录重试扫描日志，避免控制台输出
         
     def stop_scan(self):
         """停止扫描 - 快速响应版本，避免程序假死"""
@@ -600,7 +594,8 @@ class ScannerController(QObject):
             from services.validator_service import StreamValidator
             StreamValidator.terminate_all()
         except Exception as e:
-            self.logger.debug(f"终止进程时出错: {e}")
+            # 不再记录DEBUG日志
+            pass
     
     def _cleanup_workers_fast(self):
         """快速清理工作线程"""
@@ -649,7 +644,8 @@ class ScannerController(QObject):
             if still_alive:
                 self.logger.warning(f"后台清理后仍有 {len(still_alive)} 个线程存活")
         except Exception as e:
-            self.logger.debug(f"后台清理出错: {e}")
+            # 不再记录DEBUG日志
+            pass
     
     def _cleanup_other_resources(self):
         """清理其他资源"""
@@ -734,7 +730,7 @@ class ScannerController(QObject):
                 
         self.workers = []
         self.worker_queue = queue.Queue()
-        self.logger.info("有效性验证已立即停止，所有进程已终止")
+        # 不再记录验证停止日志，避免控制台输出
 
     def _validation_worker(self):
         """有效性验证工作线程 - 修改为与扫描逻辑相同"""
@@ -747,17 +743,8 @@ class ScannerController(QObject):
                 latency = result['latency']
                 resolution = result.get('resolution', '')
                 
-                # 只在验证失败时记录详细信息，验证成功只记录DEBUG级别
-                channel = self.model.get_channel(index)
-                channel_name = channel.get('name', extract_channel_name_from_url(url))
-                
-                if not valid:
-                    # 验证失败，记录INFO级别日志
-                    log_msg = f"验证失败 - 频道: {channel_name}, 延迟: {latency}ms"
-                    self.logger.info(log_msg)
-                else:
-                    # 验证成功，只记录DEBUG级别日志
-                    self.logger.debug(f"验证成功 - 频道: {channel_name}, 延迟: {latency}ms")
+                # 不再记录验证日志，避免控制台输出
+                # 验证成功和失败都不记录
                 
                 # 使用QTimer在主线程中安全地更新模型状态 - 使用functools.partial避免lambda作用域问题
                 import functools

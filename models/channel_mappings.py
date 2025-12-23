@@ -69,7 +69,7 @@ def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
     return reverse_mappings
 
 def load_remote_mappings() -> Dict[str, dict]:
-    """加载远程映射规则"""
+    """加载远程映射规则 - 简化版本，不重试，不阻塞"""
     try:
         # 尝试从core目录导入ConfigManager
         try:
@@ -92,55 +92,42 @@ def load_remote_mappings() -> Dict[str, dict]:
                 # 如果都失败，使用默认URL
                 remote_url = DEFAULT_REMOTE_URL
         
-        # 增加重试机制和SSL错误处理
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                # 先尝试CSV格式
-                response = requests.get(remote_url, timeout=10, verify=False)  # 临时禁用SSL验证
-                if response.status_code == 404:
-                    # 如果CSV格式不存在，尝试TXT格式（向后兼容）
-                    txt_url = remote_url.replace('.csv', '.txt')
-                    logger.info(f"CSV映射文件不存在，尝试TXT格式: {txt_url}")
-                    response = requests.get(txt_url, timeout=10, verify=False)
-                
-                response.raise_for_status()
-                
-                # 根据文件扩展名确定格式
-                if remote_url.endswith('.csv') or response.url.endswith('.csv'):
-                    file_ext = '.csv'
-                else:
-                    file_ext = '.txt'
-                
-                # 创建临时文件保存远程内容
-                temp_file = f"remote_mappings{file_ext}"
-                with open(temp_file, 'w', encoding='utf-8') as f:
-                    f.write(response.text)
-                
-                # 从临时文件加载映射
-                mappings = load_mappings_from_file(temp_file)
-                os.remove(temp_file)
-                logger.info(f"成功加载远程映射规则，共 {len(mappings)} 条映射")
-                return mappings
-                
-            except requests.exceptions.SSLError as e:
-                logger.warning(f"SSL错误 (尝试 {attempt + 1}/{max_retries}): {e}")
-                if attempt < max_retries - 1:
-                    import time
-                    time.sleep(2)  # 等待2秒后重试
-                else:
-                    raise e
-            except Exception as e:
-                logger.error(f"加载远程映射失败 (尝试 {attempt + 1}/{max_retries}): {e}")
-                if attempt < max_retries - 1:
-                    import time
-                    time.sleep(2)  # 等待2秒后重试
-                else:
-                    raise e
-                    
-        return {}  # 所有重试都失败
+        # 简化版本：只尝试一次，不重试
+        try:
+            # 先尝试CSV格式
+            response = requests.get(remote_url, timeout=5, verify=False)  # 减少超时时间到5秒
+            if response.status_code == 404:
+                # 如果CSV格式不存在，尝试TXT格式（向后兼容）
+                txt_url = remote_url.replace('.csv', '.txt')
+                logger.info(f"CSV映射文件不存在，尝试TXT格式: {txt_url}")
+                response = requests.get(txt_url, timeout=5, verify=False)
+            
+            response.raise_for_status()
+            
+            # 根据文件扩展名确定格式
+            if remote_url.endswith('.csv') or response.url.endswith('.csv'):
+                file_ext = '.csv'
+            else:
+                file_ext = '.txt'
+            
+            # 创建临时文件保存远程内容
+            temp_file = f"remote_mappings{file_ext}"
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                f.write(response.text)
+            
+            # 从临时文件加载映射
+            mappings = load_mappings_from_file(temp_file)
+            os.remove(temp_file)
+            logger.info(f"成功加载远程映射规则，共 {len(mappings)} 条映射")
+            return mappings
+            
+        except Exception as e:
+            # 只记录一次错误，不重试
+            logger.warning(f"加载远程映射失败: {e}, 使用本地缓存")
+            return {}
+            
     except Exception as e:
-        logger.error(f"加载远程映射失败: {e}, 使用本地映射")
+        logger.warning(f"加载远程映射失败: {e}, 使用本地映射")
         return {}
 
 

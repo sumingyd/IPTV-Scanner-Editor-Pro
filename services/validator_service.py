@@ -16,15 +16,13 @@ class StreamValidator:
     _process_lock = threading.Lock()
     _ffmpeg_path_cache = None
     _ffprobe_path_cache = None
-    # 限制同时运行的ffprobe实例数量，避免资源竞争
-    # 根据扫描线程数调整，默认扫描使用5个线程，这里设置为3个并发ffprobe
-    _ffprobe_semaphore = threading.Semaphore(3)  # 最多同时运行3个ffprobe
-    # 限制同时运行的ffmpeg验证实例数量，避免资源竞争
-    _ffmpeg_semaphore = threading.Semaphore(3)  # 最多同时运行3个ffmpeg验证
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
     timeout = 10  # 默认超时时间
+    # 限制同时运行的ffprobe进程数量，避免资源竞争
+    _max_concurrent_processes = 5
+    _semaphore = threading.Semaphore(_max_concurrent_processes)
 
     def __init__(self, main_window=None):
         self.logger = global_logger
@@ -59,75 +57,24 @@ class StreamValidator:
                         try:
                             process.wait(timeout=1.0)  # 等待1秒
                             terminated_count += 1
-                            logger.debug(f"进程 {process.pid} 已优雅终止")
+                            # 不再记录DEBUG日志
                         except subprocess.TimeoutExpired:
                             # 如果优雅终止失败，强制终止
                             process.kill()
                             process.wait()
                             terminated_count += 1
-                            logger.debug(f"进程 {process.pid} 已强制终止")
+                            # 不再记录DEBUG日志
                     else:
                         # 进程已经结束
                         terminated_count += 1
-                        logger.debug(f"进程 {process.pid} 已结束")
+                        # 不再记录DEBUG日志
                 except Exception as e:
                     failed_count += 1
-                    logger.debug(f"终止进程 {process.pid if hasattr(process, 'pid') else 'unknown'} 时出错: {e}")
+                    # 不再记录DEBUG日志
             
-            if terminated_count > 0 or failed_count > 0:
-                logger.info(f"验证进程清理完成: {terminated_count} 个进程已终止, {failed_count} 个进程清理失败")
+            # 不再记录清理完成日志
 
 
-    def _get_ffmpeg_path(self):
-        """获取ffmpeg路径 - 带缓存版本"""
-        if self._ffmpeg_path_cache is not None:
-            return self._ffmpeg_path_cache
-            
-        import os
-        import sys
-        
-        # 记录所有尝试的路径
-        tried_paths = []
-        
-        # 1. 尝试从打包后的路径查找
-        if getattr(sys, 'frozen', False):
-            base_path = os.path.dirname(sys.executable)
-            exe_path = os.path.join(base_path, 'ffmpeg', 'bin', 'ffmpeg.exe')
-            tried_paths.append(f"打包路径: {exe_path}")
-            if os.path.exists(exe_path):
-                self._ffmpeg_path_cache = exe_path
-                return exe_path
-        
-        # 2. 尝试从开发环境路径查找 - 项目根目录
-        # 获取项目根目录（当前文件向上两级）
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(current_dir)  # 从services目录到项目根目录
-        dev_path = os.path.join(project_root, 'ffmpeg', 'bin', 'ffmpeg.exe')
-        tried_paths.append(f"开发路径: {dev_path}")
-        if os.path.exists(dev_path):
-            self._ffmpeg_path_cache = dev_path
-            return dev_path
-            
-        # 3. 尝试从系统PATH查找
-        try:
-            from shutil import which
-            path = which('ffmpeg')
-            tried_paths.append(f"系统PATH查找")
-            if path:
-                self._ffmpeg_path_cache = path
-                return path
-        except ImportError:
-            tried_paths.append("无法导入shutil.which")
-            self.logger.debug("shutil.which导入失败，使用备用方案")
-            
-        # 记录所有尝试过的路径
-        self.logger.warning(
-            "无法找到ffmpeg，尝试了以下路径:\n" + 
-            "\n".join(tried_paths) +
-            "\n将尝试直接调用'ffmpeg'"
-        )
-        self._ffmpeg_path_cache = 'ffmpeg'  # 缓存结果
-        return 'ffmpeg'  # 最后尝试直接调用
 
     def _get_ffprobe_path(self):
         """获取ffprobe路径 - 带缓存版本"""
@@ -212,70 +159,26 @@ class StreamValidator:
         except Exception:
             return url
 
-    def _build_ffmpeg_command(self, url: str, duration: float = 3.0) -> list:
-        """构建ffmpeg命令"""
-        ffmpeg_path = self._get_ffmpeg_path()
-        
-        # 优化URL
-        optimized_url = self._optimize_url_for_network(url)
-        
-        # 检查是否为4K流（根据URL或频道名判断）
-        is_4k_stream = '4k' in url.lower() or '4K' in url or '2160' in url
-        
-        cmd = [
-            ffmpeg_path,
-            '-v', 'error',
-            '-timeout', '10000000' if is_4k_stream else '5000000',  # 4K流使用10秒超时
-            '-t', str(duration),
-            '-reconnect', '1',
-            '-reconnect_at_eof', '1',
-            '-reconnect_streamed', '1',
-            '-reconnect_delay_max', '5' if is_4k_stream else '2',  # 4K流使用更长的重连延迟
-        ]
-        
-        # 为4K流添加额外的优化参数
-        if is_4k_stream:
-            cmd.extend([
-                '-analyzeduration', '10000000',  # 增加分析时长
-                '-probesize', '10000000',        # 增加探测大小
-                '-threads', '2',                 # 使用2个线程
-            ])
-        
-        cmd.extend([
-            '-i', optimized_url,
-            '-f', 'null',
-            '-'
-        ])
-        
-        # 添加headers
-        if hasattr(self, 'headers') and self.headers:
-            for key, value in self.headers.items():
-                if value:
-                    cmd.extend(['-headers', f'{key}: {value}'])
-        
-        return cmd
 
-    def _run_ffmpeg_test(self, url: str, timeout: int, max_retries: int = 0) -> Dict:
-        """运行ffmpeg测试流有效性 - 使用信号量限制并发"""
-        result = {
-            'valid': False,
-            'latency': None,
-            'error': None,
-            'retries': 0
-        }
+
+    def _run_ffprobe_test(self, url: str, timeout: int) -> Dict:
+        """运行ffprobe测试流有效性 - 快速验证方法"""
+        result = {}
         
-        # 使用信号量限制并发ffmpeg验证实例数量
-        if not self._ffmpeg_semaphore.acquire(timeout=5):  # 等待最多5秒获取信号量
-            result['error'] = "ffmpeg并发限制超时"
-            return result
-            
         try:
-            start_time = time.time()
+            ffprobe_path = self._get_ffprobe_path()
             
-            # 使用正常的拉流时长：3秒
-            pull_duration = 3.0
-            
-            cmd = self._build_ffmpeg_command(url, pull_duration)
+            # 构建ffprobe命令 - 增加超时时间
+            # 用户手动测试使用5秒超时，但某些URL需要更长时间
+            # 使用10秒超时（10000000微秒）
+            cmd = [
+                ffprobe_path,
+                '-v', 'error',
+                '-timeout', '10000000',  # 10秒超时（增加超时时间）
+                '-probesize', '10000000',
+                '-show_format',
+                url
+            ]
             
             # 在Windows上需要处理特殊字符
             if sys.platform == 'win32':
@@ -283,128 +186,86 @@ class StreamValidator:
             
             # 设置环境变量和工作目录
             env = os.environ.copy()
-            env['PATH'] = os.path.dirname(self._get_ffmpeg_path()) + os.pathsep + env['PATH']
+            env['PATH'] = os.path.dirname(self._get_ffprobe_path()) + os.pathsep + env['PATH']
             
-            process = None
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=False,
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
+                shell=False,
+                env=env,
+                cwd=os.path.dirname(self._get_ffprobe_path())
+            )
+            
+            # 跟踪活动进程
+            with self._process_lock:
+                self._active_processes.append(process)
+            self._current_process = process
+            
             try:
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    universal_newlines=False,
-                    creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
-                    shell=False,
-                    env=env,
-                    cwd=os.path.dirname(self._get_ffmpeg_path())
-                )
-                
-                # 跟踪活动进程
-                with self._process_lock:
-                    self._active_processes.append(process)
-                self._current_process = process
-                
-                # 记录命令开始执行时间
-                exec_start = time.time()
-                stdout_bytes, stderr_bytes = process.communicate(timeout=timeout)
-                exec_end = time.time()
-                
-                elapsed = exec_end - exec_start
-                
+                # 增加超时时间：使用timeout + 2秒，确保比ffprobe的-timeout更长
+                # ffprobe的-timeout是5000000微秒（5秒），所以Python超时至少7秒
+                python_timeout = max(timeout, 7)  # 至少7秒
+                stdout_bytes, stderr_bytes = process.communicate(timeout=python_timeout)
                 stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''
                 stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
 
-                # 正常的判断逻辑
-                if process.returncode == 0:
-                    # ffmpeg成功拉取流
-                    result['valid'] = True
-                    result['latency'] = int(elapsed * 1000)
-                    self.logger.debug(f"ffmpeg验证成功，执行时间: {elapsed:.2f}秒")
-                else:
-                    # 检查错误输出
-                    error_output = stderr.strip() or stdout.strip()
+                # 检查是否为可接受的错误
+                error_output = stderr.strip() or stdout.strip()
+                return_code = process.returncode
+                
+                # 定义可接受的错误模式
+                # 注意：'Stream ends prematurely' 不应该视为可接受，因为用户测试无法播放
+                acceptable_errors = [
+                    'Error number -138 occurred',
+                    'non-existing PPS',
+                    'decode_slice_header error',
+                    'no frame',
+                    'sps_id out of range'
+                ]
+                
+                is_acceptable_error = False
+                if error_output:
+                    for acceptable_error in acceptable_errors:
+                        if acceptable_error in error_output:
+                            is_acceptable_error = True
+                            break
+                
+                if return_code == 0 or is_acceptable_error:
+                    # ffprobe成功或可接受错误，流有效
+                    # 不再同步获取详细信息，验证成功后立即返回
+                    # 详细信息将在后台异步获取（由ScannerController处理）
                     
-                    if error_output:
-                        # 检查是否是真正的致命错误
-                        fatal_errors = [
-                            'Connection refused',
-                            'Connection timed out',
-                            'Server returned 404',
-                            'Server returned 403',
-                            'Server returned 401',
-                            'Error opening input',
-                            'Connection reset by peer',
-                            'Network is unreachable',
-                            'No route to host',
-                            'Operation timed out',
-                            'Invalid data found',
-                            'stream ends prematurely',
-                            'HTTP error',
-                            '403 Forbidden',
-                            '404 Not Found',
-                            '500 Internal Server Error',
-                            '502 Bad Gateway',
-                            '503 Service Unavailable',
-                            'Unable to open',
-                            'No such file or directory',
-                            'Permission denied'
-                        ]
-                        
-                        is_fatal = False
-                        for fatal in fatal_errors:
-                            if fatal.lower() in error_output.lower():
-                                is_fatal = True
-                                break
-                        
-                        if is_fatal:
-                            result['error'] = error_output[:200]  # 只取前200字符
-                            self.logger.debug(f"ffmpeg致命错误: {error_output[:100]}")
-                        else:
-                            # 非致命错误，可能仍然有效
-                            result['valid'] = True
-                            result['latency'] = int(elapsed * 1000)
-                            result['error'] = f"警告: {error_output[:100]}"
-                            self.logger.debug(f"ffmpeg非致命错误但认为有效: {elapsed:.2f}秒")
-                    else:
-                        # 没有错误输出但返回非零代码，这种情况通常无效
-                        result['valid'] = False
-                        result['error'] = f"无错误输出但返回代码: {process.returncode}"
-                        self.logger.debug(f"ffmpeg无错误输出但返回非零代码: {process.returncode}")
-                        
+                    # 如果是可接受错误，记录警告但不标记为错误
+                    if is_acceptable_error:
+                        result['warning'] = error_output[:200]  # 只取前200字符
+                else:
+                    # ffprobe失败，记录错误信息
+                    result['error'] = error_output[:200] if error_output else f"返回代码: {return_code}"
+                    
             except subprocess.TimeoutExpired:
                 if process:
                     process.kill()
-                # 超时意味着流无效
-                result['error'] = f"验证超时 ({timeout}秒)"
-                # 移除调试日志，整合日志会记录验证失败
+                result['error'] = f"ffprobe超时 ({timeout}秒)"
             except Exception as e:
                 result['error'] = str(e)
-                self.logger.debug(f"流验证异常: {url}, 异常: {e}")
             finally:
                 # 清理已完成进程
                 if process:
                     with self._process_lock:
                         if process in self._active_processes:
                             self._active_processes.remove(process)
-            
-            # 确保latency有值（即使测试失败）
-            if result['latency'] is None:
-                result['latency'] = int((time.time() - start_time) * 1000)
+        except Exception as e:
+            result['error'] = str(e)
                 
-        finally:
-            # 释放信号量
-            self._ffmpeg_semaphore.release()
-            
         return result
 
     def _run_ffprobe(self, url: str, timeout: int) -> Dict:
         """执行ffprobe命令获取流详细信息 - 简化日志输出"""
         result = {}
         
-        # 使用信号量限制并发ffprobe实例数量
-        if not self._ffprobe_semaphore.acquire(timeout=5):  # 等待最多5秒获取信号量
-            result['error'] = "ffprobe并发限制超时"
-            return result
-            
         try:
             ffprobe_path = self._get_ffprobe_path()
             cmd = [
@@ -470,9 +331,8 @@ class StreamValidator:
                 with self._process_lock:
                     if process in self._active_processes:
                         self._active_processes.remove(process)
-        finally:
-            # 释放信号量
-            self._ffprobe_semaphore.release()
+        except Exception as e:
+            result['error'] = str(e)
                 
         return result
 
@@ -516,107 +376,16 @@ class StreamValidator:
                 
         return result
 
-    def _try_vlc_validation(self, url: str, timeout: int = 10) -> bool:
-        """尝试使用VLC验证流有效性 - 真正播放几秒来获取分辨率信息"""
-        try:
-            import vlc
-            import time
-            
-            # 创建VLC实例
-            vlc_args = [
-                '--no-xlib', 
-                '--quiet',
-                '--no-stats',
-                '--no-video-title-show',
-                '--no-osd',
-                '--no-spu',
-                '--no-snapshot-preview'
-            ]
-            instance = vlc.Instance(vlc_args)
-            
-            # 创建媒体
-            media = instance.media_new(url)
-            
-            # 设置超时和缓存
-            media.add_option(f':network-timeout={timeout * 1000}')
-            media.add_option(f':file-caching={timeout * 1000}')
-            media.add_option(':no-video')  # 不显示视频窗口
-            
-            # 创建播放器
-            player = instance.media_player_new()
-            player.set_media(media)
-            
-            # 开始播放
-            player.play()
-            
-            # 等待VLC开始播放
-            start_time = time.time()
-            played_time = 0
-            has_played = False
-            
-            while time.time() - start_time < timeout:
-                state = player.get_state()
-                
-                # 检查状态
-                if state == vlc.State.Playing:
-                    # VLC正在播放，记录播放时间
-                    if not has_played:
-                        has_played = True
-                        play_start_time = time.time()
-                    
-                    # 如果已经开始播放，检查播放时长
-                    if has_played:
-                        played_time = time.time() - play_start_time
-                        
-                        # 至少播放3秒，确保能获取到分辨率信息
-                        if played_time >= 3.0:
-                            # 停止播放并清理资源
-                            player.stop()
-                            player.release()
-                            instance.release()
-                            return True
-                    
-                    time.sleep(0.5)  # 播放中，等待更长时间
-                    
-                elif state == vlc.State.Opening:
-                    # VLC正在打开，继续等待
-                    time.sleep(0.1)
-                    
-                elif state in [vlc.State.Error, vlc.State.Ended, vlc.State.Stopped, vlc.State.NothingSpecial]:
-                    # VLC报告错误或停止，认为流无效
-                    player.stop()
-                    player.release()
-                    instance.release()
-                    return False
-                else:
-                    # 其他状态，继续等待
-                    time.sleep(0.1)
-            
-            # 超时，停止播放并清理资源
-            player.stop()
-            player.release()
-            instance.release()
-            
-            # 如果已经开始播放但播放时间不足3秒，认为无效
-            if has_played and played_time < 3.0:
-                self.logger.debug(f"VLC播放时间不足: {played_time:.2f}秒")
-                return False
-            else:
-                # 根本没有开始播放
-                return False
-            
-        except Exception as e:
-            self.logger.debug(f"VLC验证异常: {e}")
-            return False
 
     def validate_stream(self, url: str, raw_channel_name: str = None, timeout: int = 10) -> Dict:
-        """验证视频流有效性 - ffmpeg+VLC双验证，整合日志输出"""
+        """验证视频流有效性 - 只使用ffprobe验证"""
         # 统一结果结构
         result = {
             'url': url,
             'valid': False,
             'latency': None,
             'error': None,
+            'warning': None,
             'retries': 0,
             'service_name': None,
             'resolution': None,
@@ -625,83 +394,46 @@ class StreamValidator:
         }
             
         try:
-            # 第一步：并行尝试ffmpeg和VLC验证
-            ffmpeg_result = self._run_ffmpeg_test(url, timeout, max_retries=0)
+            # 只使用ffprobe验证
+            start_time = time.time()
+            ffprobe_result = self._run_ffprobe_test(url, timeout)
+            ffprobe_latency = int((time.time() - start_time) * 1000)
             
-            # VLC验证（备用验证方法）- 增加超时时间到10秒
-            vlc_valid = False
-            try:
-                vlc_valid = self._try_vlc_validation(url, timeout=10)
-            except Exception:
-                pass  # VLC验证异常静默处理
+            # ffprobe验证成功条件：没有错误信息（警告可以接受）
+            has_error = 'error' in ffprobe_result and ffprobe_result['error']
+            has_warning = 'warning' in ffprobe_result and ffprobe_result['warning']
             
-            # 第二步：判断有效性 - ffmpeg或VLC有一个成功就认为有效
-            ffmpeg_valid = ffmpeg_result['valid']
-            
-            # 整合日志：只在验证失败时记录详细信息
-            if ffmpeg_valid or vlc_valid:
-                # ffmpeg或VLC验证成功，流有效
+            if not has_error:
+                # ffprobe验证成功（可能有警告），流有效
                 result['valid'] = True
-                result['latency'] = ffmpeg_result['latency']
+                result['latency'] = ffprobe_latency
                 
-                if ffmpeg_result.get('error'):
-                    result['error'] = ffmpeg_result['error']
+                # 从ffprobe结果中提取信息
+                if ffprobe_result.get('service_name'):
+                    result['service_name'] = ffprobe_result['service_name']
+                if ffprobe_result.get('resolution'):
+                    result['resolution'] = ffprobe_result['resolution']
+                if ffprobe_result.get('codec'):
+                    result['codec'] = ffprobe_result['codec']
+                if ffprobe_result.get('bitrate'):
+                    result['bitrate'] = ffprobe_result['bitrate']
                 
-                # 只在DEBUG级别记录验证成功
-                self.logger.debug(f"验证成功 - URL: {url}, 延迟: {ffmpeg_result['latency']}ms")
-                
-                # 确保有频道名
-                if not result.get('service_name'):
-                    from models.channel_mappings import extract_channel_name_from_url
-                    result['service_name'] = extract_channel_name_from_url(url)
-                    
-                return result
+                # 如果有警告，记录警告信息
+                if has_warning:
+                    result['warning'] = ffprobe_result['warning']
+                    # 不再记录警告日志，避免控制台输出
+                # 验证成功不记录日志
             else:
-                # ffmpeg和VLC都验证失败，流无效
-                # 增加重试机制：如果第一次验证失败（超时或并发限制超时），重试一次
-                should_retry = False
-                retry_reason = ""
-                
-                if ffmpeg_result.get('error'):
-                    error_msg = ffmpeg_result['error']
-                    if '超时' in error_msg or '并发限制超时' in error_msg:
-                        should_retry = True
-                        retry_reason = "超时" if '超时' in error_msg else "并发限制"
-                
-                if should_retry:
-                    # 只在DEBUG级别记录重试
-                    self.logger.debug(f"第一次验证{retry_reason}，重试一次: {url}")
-                    # 重试一次，使用更长的超时时间
-                    ffmpeg_result = self._run_ffmpeg_test(url, timeout + 5, max_retries=0)
-                    ffmpeg_valid = ffmpeg_result['valid']
-                    
-                    if ffmpeg_valid:
-                        result['valid'] = True
-                        result['latency'] = ffmpeg_result['latency']
-                        result['retries'] = 1
-                        # 只在DEBUG级别记录重试成功
-                        self.logger.debug(f"重试成功 - URL: {url}, 延迟: {ffmpeg_result['latency']}ms")
-                        
-                        # 确保有频道名
-                        if not result.get('service_name'):
-                            from models.channel_mappings import extract_channel_name_from_url
-                            result['service_name'] = extract_channel_name_from_url(url)
-                            
-                        return result
-                
+                # ffprobe验证失败，流无效
                 result['valid'] = False
-                result['latency'] = ffmpeg_result['latency']
-                result['error'] = ffmpeg_result.get('error', 'ffmpeg和VLC验证都失败')
-                
-                # 只在INFO级别记录验证失败（重要信息）
-                self.logger.info(f"验证失败 - URL: {url}, 错误: {result['error']}")
-                
-                # 无效的流确保有频道名
-                if not result.get('service_name'):
-                    from models.channel_mappings import extract_channel_name_from_url
-                    result['service_name'] = extract_channel_name_from_url(url)
-                    
-                return result
+                result['latency'] = ffprobe_latency
+                result['error'] = ffprobe_result.get('error', 'ffprobe验证失败')
+                # 不再记录错误日志，避免控制台输出
+            
+            # 确保有频道名
+            if not result.get('service_name'):
+                from models.channel_mappings import extract_channel_name_from_url
+                result['service_name'] = extract_channel_name_from_url(url)
                 
         except Exception as e:
             result['error'] = str(e)
