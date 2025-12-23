@@ -19,11 +19,10 @@ for /f "tokens=*" %%I in ('python -c "import sys; print(sys.prefix)"') do set PY
 echo 使用Python路径: %PYTHON_PATH%
 echo pyinstaller路径: %PYINSTALLER_PATH%
 
-pyinstaller --onefile --windowed --icon=logo.ico ^
+pyinstaller --onefile --windowed --icon=resources/logo.ico ^
 --add-data "locales/zh.json:locales" ^
 --add-data "locales/en.json:locales" ^
---add-data "logo.ico:." ^
---add-data "logo.png:." ^
+--add-data "resources/logo.ico:resources" ^
 --paths "%PYTHON_PATH%\Lib\site-packages" ^
 --paths "." ^
 --hidden-import python-vlc ^
