@@ -62,6 +62,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self._init_main_window()
         self._timers = []
         QtCore.QTimer.singleShot(0, self._init_timers)
+        
+        # 延迟显示窗口，确保UI完全初始化后再显示
+        QtCore.QTimer.singleShot(100, self.show)
     
     def _init_timers(self):
         """在主线程初始化所有定时器"""
