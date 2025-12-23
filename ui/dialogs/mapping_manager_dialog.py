@@ -475,7 +475,9 @@ class MappingManagerDialog(QtWidgets.QDialog):
                 mapping_manager.user_mappings.update(imported_mappings)
                 mapping_manager._save_user_mappings()
                 mapping_manager.combined_mappings = mapping_manager._combine_mappings()
-                mapping_manager.reverse_mappings = mapping_manager.create_reverse_mappings(mapping_manager.combined_mappings)
+                # 修复：正确调用create_reverse_mappings函数
+                from models.channel_mappings import create_reverse_mappings
+                mapping_manager.reverse_mappings = create_reverse_mappings(mapping_manager.combined_mappings)
                 
                 self.load_user_mappings()
                 # 使用统一的错误处理

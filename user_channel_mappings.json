@@ -1,0 +1,2826 @@
+{
+  "########## CETV ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "CETV-1": {
+    "raw_names": [
+      "CETV-1",
+      "CETV-1HD",
+      "CHANNEL00000076"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV1.png",
+    "group_name": "CETV"
+  },
+  "CETV-2": {
+    "raw_names": [
+      "CETV2",
+      "CETV2SD",
+      "239.21.2.8:5002",
+      "CHANNEL00000077"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV2.png",
+    "group_name": "CETV"
+  },
+  "CETV-3": {
+    "raw_names": [],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV3.png",
+    "group_name": "CETV"
+  },
+  "CETV-4": {
+    "raw_names": [
+      "cetv-4",
+      "CHANNEL00000070",
+      "CHANNEL00000666"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV4.png",
+    "group_name": "CETV"
+  },
+  "CETV-生态环境": {
+    "raw_names": [
+      "CHANNEL00000644",
+      "CHANNEL00000671"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/生态环境.png",
+    "group_name": "CETV"
+  },
+  "########## CGTN ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "CGTN": {
+    "raw_names": [
+      "CGTN",
+      "CGTN-SD",
+      "CGTN-HD",
+      "CHANNEL00000009",
+      "CHANNEL00000352"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN.png",
+    "group_name": "CGTN"
+  },
+  "CGTN纪录": {
+    "raw_names": [
+      "239.21.2.31:5002",
+      "CHANNEL00000353"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN纪录.png",
+    "group_name": "CGTN"
+  },
+  "CGTN西语": {
+    "raw_names": [
+      "239.21.2.32:5002",
+      "CHANNEL00000354"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN西语.png",
+    "group_name": "CGTN"
+  },
+  "CGTN法语": {
+    "raw_names": [
+      "239.21.2.33:5002",
+      "CHANNEL00000355"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN法语.png",
+    "group_name": "CGTN"
+  },
+  "CGTN阿语": {
+    "raw_names": [
+      "239.21.2.34:5002",
+      "CHANNEL00000356"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN阿语.png",
+    "group_name": "CGTN"
+  },
+  "CGTN俄语": {
+    "raw_names": [
+      "239.21.2.35:5002",
+      "CHANNEL00000357"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN俄语.png",
+    "group_name": "CGTN"
+  },
+  "########## 东营 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "广饶综合": {
+    "raw_names": [
+      "guangrao-xinwen",
+      "CHANNEL00001043"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/东营广饶.png",
+    "group_name": "东营"
+  },
+  "########## 临沂 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "兰陵综合": {
+    "raw_names": [
+      "lanling-zonghe",
+      "CHANNEL00001032"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂兰陵.png",
+    "group_name": "临沂"
+  },
+  "兰陵公共": {
+    "raw_names": [
+      "lanling-gonggong",
+      "CHANNEL00001095"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂兰陵.png",
+    "group_name": "临沂"
+  },
+  "蒙阴综合": {
+    "raw_names": [
+      "mengyin",
+      "CHANNEL00001031",
+      "239.21.2.23:5002"
+    ],
+    "logo_url": null,
+    "group_name": "临沂"
+  },
+  "莒南综合": {
+    "raw_names": [
+      "junan-zonghe",
+      "CHANNEL00001011"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂莒南.png",
+    "group_name": "临沂"
+  },
+  "沂水综合": {
+    "raw_names": [
+      "CHANNEL00001098",
+      "yishui-1"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂沂水.png",
+    "group_name": "临沂"
+  },
+  "沂水生活": {
+    "raw_names": [
+      "yishui-2",
+      "CHANNEL00001099"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂沂水.png",
+    "group_name": "临沂"
+  },
+  "河东综合": {
+    "raw_names": [
+      "hedong-zonghe",
+      "CHANNEL00001109"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂河东.png",
+    "group_name": "临沂"
+  },
+  "临沭综合": {
+    "raw_names": [
+      "linshu",
+      "CHANNEL00001094"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂临沭.png",
+    "group_name": "临沂"
+  },
+  "沂南综合": {
+    "raw_names": [
+      "CHANNEL00001096"
+    ],
+    "logo_url": null,
+    "group_name": "临沂"
+  },
+  "########## 卫视 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "安徽卫视": {
+    "raw_names": [
+      "239.21.1.21:5002",
+      "ANHUI-UD",
+      "CHANNEL00000328"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/安徽/安徽卫视2.png",
+    "group_name": "卫视"
+  },
+  "北京卫视": {
+    "raw_names": [
+      "239.21.1.20:5002",
+      "BEIJING",
+      "BEIJING-HD",
+      "CHANNEL00000019",
+      "CHANNEL00000302",
+      "CHANNEL40000001"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视.png",
+    "group_name": "卫视"
+  },
+  "北京卫视-4K": {
+    "raw_names": [
+      "BRIJING-4K-25P",
+      "BEIJING-4K-50P",
+      "239.21.2.172:5002",
+      "苏超25P"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视4K.png",
+    "group_name": "卫视"
+  },
+  "兵团卫视": {
+    "raw_names": [
+      "标清兵团-bingtuan",
+      "CHANNEL00000071",
+      "bingtuan-hd",
+      "channel00000394"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/兵团卫视2.png",
+    "group_name": "卫视"
+  },
+  "东方卫视": {
+    "raw_names": [
+      "239.21.1.23:5002",
+      "SHANGHAI",
+      "SHANGHAI-HD",
+      "CHANNEL00000022",
+      "CHANNEL00000309"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方卫视1.png",
+    "group_name": "卫视"
+  },
+  "东方卫视-4K": {
+    "raw_names": [
+      "CHANNEL40000009",
+      "ShangHai-4K-25P",
+      "239.21.2.184:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方卫视4K.png",
+    "group_name": "卫视"
+  },
+  "东南卫视": {
+    "raw_names": [
+      "239.21.1.29:5002",
+      "FUJIAN",
+      "FUJIAN-HD",
+      "CHANNEL00000028",
+      "CHANNEL00000310"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/福建/东南卫视2.png",
+    "group_name": "卫视"
+  },
+  "凤凰卫视": {
+    "raw_names": [
+      "凤凰卫视-fenghuang",
+      "CHANNEL00000380",
+      "239.21.2.163:5002",
+      "239.21.2.153:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰卫视.png",
+    "group_name": "卫视"
+  },
+  "凤凰香港": {
+    "raw_names": [
+      "凤凰香港-fenghuang",
+      "239.21.2.164:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰香港.png",
+    "group_name": "卫视"
+  },
+  "凤凰资讯": {
+    "raw_names": [
+      "凤凰资讯-fenghuang"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰资讯.png",
+    "group_name": "卫视"
+  },
+  "甘肃卫视": {
+    "raw_names": [
+      "GanSu",
+      "GanSu-HD",
+      "239.21.1.47:5002",
+      "CHANNEL00000349",
+      "239.21.2.22:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/甘肃/甘肃卫视2.png",
+    "group_name": "卫视"
+  },
+  "广东卫视": {
+    "raw_names": [
+      "??????",
+      "GuangDong",
+      "GuangDong-HD",
+      "CHANNEL00000025",
+      "CHANNEL00000307",
+      "239.21.2.157:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/广东卫视2.png",
+    "group_name": "卫视"
+  },
+  "广东卫视-4K": {
+    "raw_names": [
+      "239.21.2.173:5002",
+      "GUANGDONG-4k",
+      "广东卫视4K",
+      "CHANNEL40000003",
+      "GuangDong-4K-25P"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/广东卫视4K.png",
+    "group_name": "卫视"
+  },
+  "广西卫视": {
+    "raw_names": [
+      "GuangXi",
+      "GuangXi-HD",
+      "CHANNEL00000038",
+      "CHANNEL00000368"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广西/广西卫视2.png",
+    "group_name": "卫视"
+  },
+  "贵州卫视": {
+    "raw_names": [
+      "python main.py",
+      "239.21.1.42:5002",
+      "GUIZHOU",
+      "GUIZHOU-HD",
+      "CHANNEL00000041",
+      "CHANNEL00000329"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/贵州/贵州卫视3.png",
+    "group_name": "卫视"
+  },
+  "海南卫视": {
+    "raw_names": [
+      "HAINAN",
+      "HAINAN-HD",
+      "239.21.1.31:5002",
+      "CHANNEL00000347"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/海南/海南卫视3.png",
+    "group_name": "卫视"
+  },
+  "河北卫视": {
+    "raw_names": [
+      "239.21.1.168:5002",
+      "???????",
+      "HEBEI",
+      "HEBEI-HD",
+      "CHANNEL00000034",
+      "CHANNEL00000330"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河北/河北卫视3.png",
+    "group_name": "卫视"
+  },
+  "河南卫视": {
+    "raw_names": [
+      "HENAN",
+      "HENAN-HD",
+      "239.21.1.38:5002",
+      "CHANNEL00000037",
+      "CHANNEL00000358",
+      "239.21.2.37:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/河南卫视3.png",
+    "group_name": "卫视"
+  },
+  "黑龙江卫视": {
+    "raw_names": [
+      "239.21.1.91:5002",
+      "239.21.1.28:5002",
+      "HEILONGJIANG",
+      "HEILONGJIANG-HD",
+      "CHANNEL00000027",
+      "CHANNEL00000306"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/黑龙江/黑龙江卫视1.png",
+    "group_name": "卫视"
+  },
+  "湖北卫视": {
+    "raw_names": [
+      "HUBEI",
+      "HUBEI-HD",
+      "hubei-sd-dianxin",
+      "CHANNEL00000031",
+      "CHANNEL00000325"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖北/湖北卫视2.png",
+    "group_name": "卫视"
+  },
+  "湖南卫视": {
+    "raw_names": [
+      "239.21.1.18:5002",
+      "HUNAN",
+      "HUNAN-HD",
+      "CHANNEL00000324"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/湖南卫视1.png",
+    "group_name": "卫视"
+  },
+  "湖南卫视-4K": {
+    "raw_names": [
+      "CHANNEL40000006",
+      "239.21.2.181:5002",
+      "HuNan-4K-25P"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/湖南卫视4K.png",
+    "group_name": "卫视"
+  },
+  "吉林卫视": {
+    "raw_names": [
+      "239.21.2.49:5002",
+      "????????",
+      "JILIN",
+      "JILIN-HD",
+      "CHANNEL00000036",
+      "CHANNEL00000363"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/吉林/吉林卫视3.png",
+    "group_name": "卫视"
+  },
+  "江苏卫视": {
+    "raw_names": [
+      "239.21.1.19:5002",
+      "JIANGSU",
+      "JIANGSU-HD",
+      "CHANNEL00000018",
+      "CHANNEL00000304"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/江苏卫视3.png",
+    "group_name": "卫视"
+  },
+  "江苏卫视-4K": {
+    "raw_names": [
+      "CHANNEL40000007",
+      "239.21.2.183:5002",
+      "JiangSu-4K-25P"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/江苏卫视4K.png",
+    "group_name": "卫视"
+  },
+  "江西卫视": {
+    "raw_names": [
+      "239.21.1.36:5002",
+      "JIANGXI",
+      "JIANGXI-HD",
+      "CHANNEL00000035",
+      "CHANNEL00000335"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江西/江西卫视2.png",
+    "group_name": "卫视"
+  },
+  "辽宁卫视": {
+    "raw_names": [
+      "239.21.1.27:5002",
+      "LIAONING",
+      "LIAONING-HD",
+      "CHANNEL00000026",
+      "CHANNEL00000326"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/辽宁/辽宁卫视2.png",
+    "group_name": "卫视"
+  },
+  "内蒙古卫视": {
+    "raw_names": [
+      "标清内蒙-neimeng",
+      "CHANNEL00000040"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/内蒙古/内蒙古卫视2.png",
+    "group_name": "卫视"
+  },
+  "宁夏卫视": {
+    "raw_names": [
+      "标清宁夏-ningxia",
+      "CHANNEL00000043",
+      "CHANNEL00000395",
+      "ningxia-hd"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/宁夏/宁夏卫视2.png",
+    "group_name": "卫视"
+  },
+  "农林卫视": {
+    "raw_names": [
+      "标清农林-nonglin",
+      "CHANNEL00000072"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/陕西/农林卫视2.png",
+    "group_name": "卫视"
+  },
+  "青海卫视": {
+    "raw_names": [
+      "QingHai",
+      "QingHai-HD",
+      "CHANNEL00000042",
+      "CHANNEL00000366"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/青海/青海卫视2.png",
+    "group_name": "卫视"
+  },
+  "三沙卫视": {
+    "raw_names": [
+      "239.21.2.9:5002",
+      "CHANNEL00000078"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/海南/三沙卫视3.png",
+    "group_name": "卫视"
+  },
+  "厦门卫视": {
+    "raw_names": [
+      "239.21.2.6:5002",
+      "XM",
+      "XMSD",
+      "CHANNEL00000075"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/福建/厦门卫视3.png",
+    "group_name": "卫视"
+  },
+  "山东卫视": {
+    "raw_names": [
+      "山东卫视",
+      "SDTV-HD-DianXin",
+      "239.21.2.158:5002",
+      "CHANNEL00001068",
+      "CHANNEL00000301",
+      "239.21.2.135:5002",
+      "channel20000004",
+      "CHANNEL10000301"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东卫视3.png",
+    "group_name": "卫视"
+  },
+  "山东卫视-4K": {
+    "raw_names": [
+      "山东shandong-4K-25P",
+      "CHANNEL40000005",
+      "239.21.2.179:5002",
+      "山东shandong-4K-25P",
+      "山东4k50p主"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东卫视4K.png",
+    "group_name": "卫视"
+  },
+  "山西卫视": {
+    "raw_names": [
+      "标清山西-shanxi",
+      "CHANNEL00000032"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山西/山西卫视3.png",
+    "group_name": "卫视"
+  },
+  "陕西卫视": {
+    "raw_names": [
+      "标清陕西-shanxi",
+      "CHANNEL00000029"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/陕西/陕西卫视3.png",
+    "group_name": "卫视"
+  },
+  "深圳卫视": {
+    "raw_names": [
+      "239.21.1.25:5002",
+      "SHENZHEN",
+      "SHENZHEN-HD",
+      "CHANNEL00000024",
+      "CHANNEL00000308",
+      "239.21.1.93:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视2.png",
+    "group_name": "卫视"
+  },
+  "深圳卫视-4K": {
+    "raw_names": [
+      "shenzhen-4K-25P",
+      "239.21.2.174:5002",
+      "深圳卫视4K",
+      "CHANNEL40000004"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视4K.png",
+    "group_name": "卫视"
+  },
+  "四川卫视": {
+    "raw_names": [
+      "SICHUAN",
+      "SICHUAN-HD",
+      "???????",
+      "CHANNEL00000348",
+      "239.21.2.15:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川/四川卫视3.png",
+    "group_name": "卫视"
+  },
+  "四川卫视-4K": {
+    "raw_names": [
+      "CHANNEL40000010",
+      "SiChuan-4K-25P",
+      "239.21.2.185:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川/四川卫视4K.png",
+    "group_name": "卫视"
+  },
+  "天津卫视": {
+    "raw_names": [
+      "TIANJIN",
+      "TIANJIN-HD",
+      "CHANNEL00000021",
+      "CHANNEL00000327",
+      "239.21.1.165:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/天津/天津卫视3.png",
+    "group_name": "卫视"
+  },
+  "西藏卫视": {
+    "raw_names": [
+      "标清西藏-xizang",
+      "CHANNEL00000045",
+      "CHANNEL00000392",
+      "xizang-hd"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/西藏/西藏卫视2.png",
+    "group_name": "卫视"
+  },
+  "新疆卫视": {
+    "raw_names": [
+      "标清新疆-xinjiang",
+      "CHANNEL00000044",
+      "CHANNEL00000393",
+      "xinjiang-hd"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/新疆卫视2.png",
+    "group_name": "卫视"
+  },
+  "延边卫视": {
+    "raw_names": [
+      "标清延边-yanbian",
+      "CHANNEL00000668",
+      "239.21.2.137:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/吉林/延边卫视.png",
+    "group_name": "卫视"
+  },
+  "云南卫视": {
+    "raw_names": [
+      "YunNan",
+      "YunNan-HD",
+      "CHANNEL00000039",
+      "CHANNEL00000367",
+      "239.21.2.86:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/云南/云南卫视3.png",
+    "group_name": "卫视"
+  },
+  "浙江卫视": {
+    "raw_names": [
+      "239.21.1.17:5002",
+      "ZHEJIANG",
+      "ZHEJIANG-HD",
+      "CHANNEL00000016",
+      "CHANNEL00000305"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/浙江卫视2.png",
+    "group_name": "卫视"
+  },
+  "浙江卫视-4K": {
+    "raw_names": [
+      "CHANNEL40000008",
+      "ZheJiang-4K-25P",
+      "239.21.2.182:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/浙江卫视4K.png",
+    "group_name": "卫视"
+  },
+  "重庆卫视": {
+    "raw_names": [
+      "CHONGQING",
+      "CHONGQING-HD",
+      "CHANNEL00000341",
+      "239.21.1.233:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/重庆/重庆卫视3.png",
+    "group_name": "卫视"
+  },
+  "########## 国际频道 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "NHK世界台": {
+    "raw_names": [
+      "NHK",
+      "239.21.2.170:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/日本/NHK世界台.png",
+    "group_name": "国际频道"
+  },
+  "阿里郎": {
+    "raw_names": [
+      "阿里郎-alilang"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/韩国/阿里郎.png",
+    "group_name": "国际频道"
+  },
+  "澳门Macau": {
+    "raw_names": [
+      "澳门卫视-aomen",
+      "239.21.2.167:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/澳门/澳门电视台.png",
+    "group_name": "国际频道"
+  },
+  "法兰西": {
+    "raw_names": [
+      "法兰西-falanxi",
+      "239.21.2.168:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/法兰西/法兰西.png",
+    "group_name": "国际频道"
+  },
+  "欧洲新闻": {
+    "raw_names": [
+      "欧洲新闻-OUZHOUXINWEN",
+      "239.21.2.169:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/德国/DW德国之声.png",
+    "group_name": "国际频道"
+  },
+  "新加坡新闻": {
+    "raw_names": [
+      "新加坡新闻-xinjiapo",
+      "239.21.2.165:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新加坡/新加坡新闻.png",
+    "group_name": "国际频道"
+  },
+  "########## 央视频道 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "CCTV-1 综合": {
+    "raw_names": [
+      "CCTV1",
+      "cctv-1",
+      "CCTV-1",
+      "CCTV1-SD",
+      "CCTV1-HD",
+      "CHANNEL00000001",
+      "CHANNEL00000311",
+      "CHANNEL00004003"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV1.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-2 财经": {
+    "raw_names": [
+      "CCTV2",
+      "CCTV2-HD",
+      "CHANNEL00000317",
+      "239.21.1.151:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV2.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-3 综艺": {
+    "raw_names": [
+      "239.21.2.45:5002",
+      "CCTV3",
+      "CCTV3-HD",
+      "CHANNEL00000003",
+      "CHANNEL00000359"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV3.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-4 (亚洲)": {
+    "raw_names": [
+      "CCTV4",
+      "CCTV4-HD",
+      "CHANNEL00000320"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-4 (欧洲)": {
+    "raw_names": [
+      "239.21.2.28:5002",
+      "CHANNEL00000350"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4欧洲.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-4 (美洲)": {
+    "raw_names": [
+      "239.21.2.29:5002",
+      "CHANNEL00000351"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4美洲.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-4K 超高清": {
+    "raw_names": [
+      "CCTV",
+      "CCTV 4K",
+      "239.21.2.152:5002",
+      "CHANNEL00000382"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4K.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-5 体育": {
+    "raw_names": [
+      "239.21.2.46:5002",
+      "CCTV5",
+      "CCTV5-HD",
+      "CHANNEL00000360",
+      "channel30000005"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV5.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-5+ 体育赛事": {
+    "raw_names": [
+      "CCTV5+",
+      "CCTV5+-HD",
+      "CHANNEL00000316"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV5+.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-6 电影": {
+    "raw_names": [
+      "CCTV6",
+      "CCTV6-HD",
+      "CHANNEL00000006",
+      "CHANNEL00000361",
+      "239.21.2.47:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV6.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-7 国防军事": {
+    "raw_names": [
+      "CCTV7",
+      "CCTV7-HD",
+      "CHANNEL00000318",
+      "239.21.1.152:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV7.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-8 电视剧": {
+    "raw_names": [
+      "CCTV8",
+      "CCTV8-HD",
+      "CHANNEL00000008",
+      "CHANNEL00000362",
+      "channel20000001"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV8.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-9 纪录": {
+    "raw_names": [
+      "CCTV9",
+      "CCTV9-HD",
+      "CHANNEL00000319",
+      "239.21.1.151:5002",
+      "239.21.1.153:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV9.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-10 科教": {
+    "raw_names": [
+      "CCTV10",
+      "CCTV10-HD",
+      "CHANNEL00000321",
+      "239.21.1.155:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV10.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-11 戏曲": {
+    "raw_names": [
+      "CCTV11",
+      "CCTV11-HD",
+      "CHANNEL00000344",
+      "239.21.2.2:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV11.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-12 社会与法": {
+    "raw_names": [
+      "CCTV12",
+      "CCTV12-HD",
+      "CHANNEL00000322",
+      "239.21.1.156:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV12.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-13 新闻": {
+    "raw_names": [
+      "CCTV13",
+      "CCTV13-HD",
+      "CHANNEL00000345"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV13.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-14 少儿": {
+    "raw_names": [
+      "CCTV14",
+      "CCTV14-HD",
+      "CHANNEL00000323",
+      "239.21.1.157:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV14.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-15 音乐": {
+    "raw_names": [
+      "239.21.2.4:5002",
+      "CCTV15",
+      "CCTV15-HD",
+      "CHANNEL00000346"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV15.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-16 奥林匹克": {
+    "raw_names": [],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV16.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-17 农业农村": {
+    "raw_names": [
+      "zoucheng-xinwen",
+      "CCTV17",
+      "CCTV17-HD",
+      "CHANNEL00000303"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV17.png",
+    "group_name": "央视频道"
+  },
+  "CCTV-中视购物": {
+    "raw_names": [
+      "239.21.1.100:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV中视购物.png",
+    "group_name": "央视频道"
+  },
+  "央广购物": {
+    "raw_names": [
+      "CHANNEL00000704"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/央广购物.png",
+    "group_name": "央视频道"
+  },
+  "中央新影 中学生": {
+    "raw_names": [
+      "239.21.2.176:5002",
+      "CHANNEL00000673"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/中央新影中学生.png",
+    "group_name": "央视频道"
+  },
+  "########## 威海 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "荣成综合": {
+    "raw_names": [
+      "rongcheng",
+      "CHANNEL00001053",
+      "239.21.1.227:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海荣成.png",
+    "group_name": "威海"
+  },
+  "文登综合": {
+    "raw_names": [
+      "wendeng",
+      "239.21.1.174:5002"
+    ],
+    "logo_url": null,
+    "group_name": "威海"
+  },
+  "乳山综合": {
+    "raw_names": [
+      "rushan",
+      "CHANNEL00001049"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海乳山.png",
+    "group_name": "威海"
+  },
+  "########## 山东频道 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "山东居家购物": {
+    "raw_names": [
+      "SDGouWu-HD-H264",
+      "CHANNEL00000700"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东居家购物.png",
+    "group_name": "山东频道"
+  },
+  "山东教育卫视": {
+    "raw_names": [
+      "239.21.1.101:5002",
+      "SHANDONG-JIAOYU",
+      "SHANDONG-JIAOYU-HD",
+      "CHANNEL00000331"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东教育.png",
+    "group_name": "山东频道"
+  },
+  "山东农科": {
+    "raw_names": [
+      "农科",
+      "SDNongKe-HD-H264",
+      "CHANNEL00000339"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东农科.png",
+    "group_name": "山东频道"
+  },
+  "山东齐鲁": {
+    "raw_names": [
+      "齐鲁",
+      "SDQiLu-HD-DianXin",
+      "CHANNEL00000052",
+      "CHANNEL0000031",
+      "CHANNEL10000313"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东齐鲁.png",
+    "group_name": "山东频道"
+  },
+  "山东少儿": {
+    "raw_names": [
+      "少儿",
+      "SDShaoEr-HD-H264",
+      "CHANNEL00000340",
+      "239.21.1.208:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东少儿.png",
+    "group_name": "山东频道"
+  },
+  "山东生活": {
+    "raw_names": [
+      "生活",
+      "SDShengHhuo-HD-H264",
+      "CHANNEL00000336"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东生活.png",
+    "group_name": "山东频道"
+  },
+  "山东体育休闲": {
+    "raw_names": [
+      "体育",
+      "SDTiYu-HD-264",
+      "CHANNEL00000057",
+      "CHANNEL00000315",
+      "CHANNEL00000400"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东体育休闲.png",
+    "group_name": "山东频道"
+  },
+  "山东文旅": {
+    "raw_names": [
+      "SDWenLv-HD-H264",
+      "影视",
+      "CHANNEL00000337"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东文旅.png",
+    "group_name": "山东频道"
+  },
+  "山东新闻": {
+    "raw_names": [
+      "SDXinWen-HD-H264",
+      "公共",
+      "CHANNEL00000314",
+      "CHANNEL10000314"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东新闻.png",
+    "group_name": "山东频道"
+  },
+  "山东综艺": {
+    "raw_names": [
+      "ZongYi",
+      "SDZongYiHD-H264",
+      "CHANNEL00000338",
+      "239.21.1.177:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东综艺.png",
+    "group_name": "山东频道"
+  },
+  "########## 市级频道 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "滨州民生": {
+    "raw_names": [
+      "binzhou-minsheng",
+      "CHANNEL00000221"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州.png",
+    "group_name": "市级频道"
+  },
+  "滨州新闻综合": {
+    "raw_names": [
+      "binzhou-xinwen",
+      "CHANNEL00000220"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州.png",
+    "group_name": "市级频道"
+  },
+  "德州经济生活": {
+    "raw_names": [
+      "dezhou-jingjishenghuo",
+      "CHANNEL00000207"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州生活.png",
+    "group_name": "市级频道"
+  },
+  "德州新闻综合": {
+    "raw_names": [
+      "dezhou-xinwen",
+      "CHANNEL00000206"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州新闻.png",
+    "group_name": "市级频道"
+  },
+  "东营公共": {
+    "raw_names": [
+      "dongying-gonggong",
+      "CHANNEL00000227"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/东营.png",
+    "group_name": "市级频道"
+  },
+  "东营新闻综合": {
+    "raw_names": [
+      "dongying-xinwen",
+      "CHANNEL00000226"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/东营.png",
+    "group_name": "市级频道"
+  },
+  "菏泽-1": {
+    "raw_names": [
+      "heze-1",
+      "CHANNEL00000232"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽.png",
+    "group_name": "市级频道"
+  },
+  "菏泽-2": {
+    "raw_names": [
+      "heze-2",
+      "CHANNEL00000234"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽.png",
+    "group_name": "市级频道"
+  },
+  "济南都市": {
+    "raw_names": [
+      "标清济南都市-jinandushi",
+      "CHANNEL00000062"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南都市.png",
+    "group_name": "市级频道"
+  },
+  "济南教育": {
+    "raw_names": [
+      "JINAN-JIAOYU济南教育高清",
+      "CHANNEL00000069"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南教育.png",
+    "group_name": "市级频道"
+  },
+  "济南鲁中": {
+    "raw_names": [
+      "jinan-luzhong",
+      "CHANNEL00000244"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南鲁中.png",
+    "group_name": "市级频道"
+  },
+  "济南少儿": {
+    "raw_names": [
+      "标清济南少儿-jinanshaoer",
+      "CHANNEL00000067"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南少儿.png",
+    "group_name": "市级频道"
+  },
+  "济南生活": {
+    "raw_names": [
+      "标清济南生活-jinanshenghuo",
+      "CHANNEL00000063"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南生活.png",
+    "group_name": "市级频道"
+  },
+  "济南文旅体育": {
+    "raw_names": [
+      "标清济南文旅-jinanwenlv",
+      "CHANNEL00000064"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南文旅体育.png",
+    "group_name": "市级频道"
+  },
+  "济南新闻综合": {
+    "raw_names": [
+      "标清济南新闻-jinanxinwen",
+      "JINAN-XINWEN济南高清",
+      "CHANNEL00000061",
+      "CHANNEL00000312"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南新闻.png",
+    "group_name": "市级频道"
+  },
+  "济南娱乐": {
+    "raw_names": [
+      "标清济南娱乐-jinanyule",
+      "CHANNEL00000065"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南娱乐.png",
+    "group_name": "市级频道"
+  },
+  "济南综合": {
+    "raw_names": [
+      "239.21.1.62:5002",
+      "CHANNEL00004000"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南新闻综合.png",
+    "group_name": "市级频道"
+  },
+  "济宁高新": {
+    "raw_names": [
+      "jining-gaoxin",
+      "CHANNEL00001101"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png",
+    "group_name": "市级频道"
+  },
+  "济宁公共": {
+    "raw_names": [
+      "jining-gonggong",
+      "CHANNEL00000241",
+      "239.21.2.20:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png",
+    "group_name": "市级频道"
+  },
+  "济宁生活": {
+    "raw_names": [
+      "jining-shenghuo",
+      "CHANNEL00000239"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png",
+    "group_name": "市级频道"
+  },
+  "济宁综合": {
+    "raw_names": [
+      "239.21.2.19:5002",
+      "jining-zonghe",
+      "jining-zongheHD",
+      "CHANNEL00000240"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png",
+    "group_name": "市级频道"
+  },
+  "聊城民生": {
+    "raw_names": [
+      "liaocheng-minsheng",
+      "CHANNEL00000251",
+      "239.21.1.254:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城.png",
+    "group_name": "市级频道"
+  },
+  "聊城综合": {
+    "raw_names": [
+      "liaocheng-zonghe",
+      "CHANNEL00000250"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城.png",
+    "group_name": "市级频道"
+  },
+  "临沂综合": {
+    "raw_names": [
+      "CHANNEL00000120"
+    ],
+    "logo_url": null,
+    "group_name": "市级频道"
+  },
+  "临沂公共": {
+    "raw_names": [
+      "CHANNEL00000256"
+    ],
+    "logo_url": null,
+    "group_name": "市级频道"
+  },
+  "临沂经济": {
+    "raw_names": [
+      "CHANNEL00000121"
+    ],
+    "logo_url": null,
+    "group_name": "市级频道"
+  },
+  "泰安经济": {
+    "raw_names": [
+      "CHANNEL00000270"
+    ],
+    "logo_url": null,
+    "group_name": "市级频道"
+  },
+  "泰安综合": {
+    "raw_names": [
+      "CHANNEL00000269"
+    ],
+    "logo_url": null,
+    "group_name": "市级频道"
+  },
+  "青岛QTV-1": {
+    "raw_names": [
+      "QTV-1",
+      "CHANNEL00000500"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV1.png",
+    "group_name": "市级频道"
+  },
+  "青岛QTV-2": {
+    "raw_names": [
+      "QTV-2",
+      "CHANNEL00000501"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV2.png",
+    "group_name": "市级频道"
+  },
+  "青岛QTV-3": {
+    "raw_names": [
+      "QTV-3",
+      "CHANNEL00000502"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV3.png",
+    "group_name": "市级频道"
+  },
+  "青岛QTV-4": {
+    "raw_names": [
+      "QTV-4",
+      "CHANNEL00000503"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV4.png",
+    "group_name": "市级频道"
+  },
+  "青岛QTV-5": {
+    "raw_names": [
+      "QTV-5",
+      "CHANNEL00000505",
+      "QTV-6"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV5.png",
+    "group_name": "市级频道"
+  },
+  "日照公共": {
+    "raw_names": [
+      "rizhao-gonggong",
+      "CHANNEL00001100"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照公共.png",
+    "group_name": "市级频道"
+  },
+  "日照科教": {
+    "raw_names": [
+      "rizhao-kejiao",
+      "CHANNEL00000263"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照科教.png",
+    "group_name": "市级频道"
+  },
+  "日照新闻综合": {
+    "raw_names": [
+      "rizhao-xinwen",
+      "CHANNEL00000262"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照新闻.png",
+    "group_name": "市级频道"
+  },
+  "威海都市生活": {
+    "raw_names": [
+      "weihai-jingjishenghuo",
+      "CHANNEL00000275",
+      "239.21.2.156:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海.png",
+    "group_name": "市级频道"
+  },
+  "威海新闻综合": {
+    "raw_names": [
+      "weihai-xinwen",
+      "CHANNEL00000274"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海.png",
+    "group_name": "市级频道"
+  },
+  "潍坊高新区": {
+    "raw_names": [
+      "weifang-gaoxin",
+      "CHANNEL00001106"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊高新.png",
+    "group_name": "市级频道"
+  },
+  "潍坊经济生活": {
+    "raw_names": [
+      "weifang-2",
+      "CHANNEL00000216"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊生活.png",
+    "group_name": "市级频道"
+  },
+  "潍坊科教文化": {
+    "raw_names": [
+      "weifang-4",
+      "CHANNEL00000218"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊文旅.png",
+    "group_name": "市级频道"
+  },
+  "潍坊新闻综合": {
+    "raw_names": [
+      "weifang-1",
+      "CHANNEL00000215"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊新闻.png",
+    "group_name": "市级频道"
+  },
+  "潍坊公共": {
+    "raw_names": [
+      "weifang-3",
+      "CHANNEL00000217"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊影视.png",
+    "group_name": "市级频道"
+  },
+  "烟台公共": {
+    "raw_names": [
+      "yantai-gonggong",
+      "CHANNEL00000281"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png",
+    "group_name": "市级频道"
+  },
+  "烟台经济科技": {
+    "raw_names": [
+      "239.21.1.205:5002",
+      "yantai-jingji",
+      "CHANNEL00000282"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png",
+    "group_name": "市级频道"
+  },
+  "烟台新闻综合": {
+    "raw_names": [
+      "yantai-xinwen",
+      "CHANNEL00000280"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png",
+    "group_name": "市级频道"
+  },
+  "烟台影视": {
+    "raw_names": [
+      "yantai-yingshi",
+      "CHANNEL00000283",
+      "239.21.1.204:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png",
+    "group_name": "市级频道"
+  },
+  "淄博民生": {
+    "raw_names": [
+      "zibo-minsheng",
+      "CHANNEL00000294"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博民生.png",
+    "group_name": "市级频道"
+  },
+  "淄博文旅": {
+    "raw_names": [
+      "zibo-wenlv",
+      "CHANNEL00000293"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博文旅.png",
+    "group_name": "市级频道"
+  },
+  "淄博新闻综合": {
+    "raw_names": [
+      "zibo-xinwen",
+      "CHANNEL00000292"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博新闻.png",
+    "group_name": "市级频道"
+  },
+  "淄博影视": {
+    "raw_names": [
+      "zibo-yingshi",
+      "CHANNEL00001037"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博影视.png",
+    "group_name": "市级频道"
+  },
+  "########## 广播 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "山东交通广播": {
+    "raw_names": [
+      "239.21.2.151:5002",
+      "CHANNEL00003002"
+    ],
+    "logo_url": null,
+    "group_name": "广播"
+  },
+  "山东综合广播": {
+    "raw_names": [
+      "default",
+      "channel00004008",
+      "239.21.2.36:5002"
+    ],
+    "logo_url": null,
+    "group_name": "广播"
+  },
+  "山东经济广播": {
+    "raw_names": [
+      "239.21.2.148:5002",
+      "CHANNEL00003001"
+    ],
+    "logo_url": null,
+    "group_name": "广播"
+  },
+  "########## 德州 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "夏津综合": {
+    "raw_names": [
+      "xiajin-zonghe",
+      "CHANNEL00001069"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州夏津.png",
+    "group_name": "德州"
+  },
+  "夏津公共": {
+    "raw_names": [
+      "xiajin-gonggong",
+      "CHANNEL00001070"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州夏津.png",
+    "group_name": "德州"
+  },
+  "武城综合频道": {
+    "raw_names": [
+      "wucheng-xinwen",
+      "CHANNEL00001059"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州武城.png",
+    "group_name": "德州"
+  },
+  "武城综艺": {
+    "raw_names": [
+      "CHANNEL00001060"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州武城.png",
+    "group_name": "德州"
+  },
+  "禹城综合": {
+    "raw_names": [
+      "yucheng-zonghe",
+      "CHANNEL00001061"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州禹城.png",
+    "group_name": "德州"
+  },
+  "禹城综艺": {
+    "raw_names": [
+      "239.21.1.242:5002",
+      "yucheng-zongyi",
+      "CHANNEL00001062"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州禹城.png",
+    "group_name": "德州"
+  },
+  "齐河综合": {
+    "raw_names": [
+      "qihe",
+      "CHANNEL00001056"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州齐河.png",
+    "group_name": "德州"
+  },
+  "平原综合": {
+    "raw_names": [
+      "pingyuan",
+      "CHANNEL00001064"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州平原.png",
+    "group_name": "德州"
+  },
+  "陵城综合": {
+    "raw_names": [
+      "lingcheng",
+      "CHANNEL00001082"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州陵城.png",
+    "group_name": "德州"
+  },
+  "宁津综合": {
+    "raw_names": [
+      "ningjin-zonghe",
+      "CHANNEL00001003"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州宁津.png",
+    "group_name": "德州"
+  },
+  "临邑综合": {
+    "raw_names": [
+      "linyi(dezhou)",
+      "CHANNEL00001104"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州临邑.png",
+    "group_name": "德州"
+  },
+  "########## 日照 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "莒县综合": {
+    "raw_names": [
+      "juxian-zonghe",
+      "CHANNEL00001014"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照莒县.png",
+    "group_name": "日照"
+  },
+  "岚山综合": {
+    "raw_names": [
+      "lanshan",
+      "CHANNEL00001044"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照岚山.png",
+    "group_name": "日照"
+  },
+  "########## 枣庄 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "微山综合": {
+    "raw_names": [
+      "CHANNEL00001078"
+    ],
+    "logo_url": null,
+    "group_name": "枣庄"
+  },
+  "########## 泰安 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "新泰综合": {
+    "raw_names": [
+      "xintai-xinwen",
+      "CHANNEL00001029"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安新泰.png",
+    "group_name": "泰安"
+  },
+  "新泰乡村": {
+    "raw_names": [
+      "xintai-xiangcun",
+      "CHANNEL00001066"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安新泰.png",
+    "group_name": "泰安"
+  },
+  "东平综合": {
+    "raw_names": [
+      "dongping",
+      "CHANNEL00001001"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安东平.png",
+    "group_name": "泰安"
+  },
+  "宁阳综合": {
+    "raw_names": [
+      "ningyang-1",
+      "CHANNEL00001071"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安宁阳.png",
+    "group_name": "泰安"
+  },
+  "宁阳生活": {
+    "raw_names": [
+      "ningyang-2",
+      "CHANNEL00001072"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安宁阳.png",
+    "group_name": "泰安"
+  },
+  "岱岳综合": {
+    "raw_names": [
+      "daiyue",
+      "daiyue-HD",
+      "CHANNEL00001013"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安岱岳.png",
+    "group_name": "泰安"
+  },
+  "泰山综合": {
+    "raw_names": [
+      "taishan",
+      "taishanHD",
+      "CHANNEL00001114"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安泰山.png",
+    "group_name": "泰安"
+  },
+  "肥城综合": {
+    "raw_names": [
+      "feicheng",
+      "CHANNEL00001039",
+      "239.21.2.161:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安肥城.png",
+    "group_name": "泰安"
+  },
+  "########## 济南 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "商河综合": {
+    "raw_names": [
+      "shanghe",
+      "CHANNEL00001008"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南商河.png",
+    "group_name": "济南"
+  },
+  "平阴综合": {
+    "raw_names": [
+      "pingyin",
+      "CHANNEL00001050"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南平阴.png",
+    "group_name": "济南"
+  },
+  "济阳综合": {
+    "raw_names": [
+      "jiyang",
+      "CHANNEL00001030"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南济阳.png",
+    "group_name": "济南"
+  },
+  "长清综合": {
+    "raw_names": [
+      "changqing",
+      "CHANNEL00001018"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南长清.png",
+    "group_name": "济南"
+  },
+  "历城综合": {
+    "raw_names": [
+      "licheng",
+      "CHANNEL00001105"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南历城.png",
+    "group_name": "济南"
+  },
+  "章丘综合": {
+    "raw_names": [
+      "CHANNEL00004009"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南章丘.png",
+    "group_name": "济南"
+  },
+  "########## 济宁 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "曲阜综合": {
+    "raw_names": [
+      "qufu-xinwen",
+      "CHANNEL00001052"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁曲阜.png",
+    "group_name": "济宁"
+  },
+  "兖州新闻": {
+    "raw_names": [
+      "yanzhou",
+      "CHANNEL00001051"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁兖州.png",
+    "group_name": "济宁"
+  },
+  "邹城综合": {
+    "raw_names": [
+      "zoucheng-xinwen",
+      "CHANNEL00001038",
+      "239.21.1.185:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁邹城.png",
+    "group_name": "济宁"
+  },
+  "梁山综合": {
+    "raw_names": [
+      "liangshan"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁梁山.png",
+    "group_name": "济宁"
+  },
+  "嘉祥综合": {
+    "raw_names": [
+      "jiaxiang-xinwen",
+      "CHANNEL00001016",
+      "239.21.2.84:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁嘉祥.png",
+    "group_name": "济宁"
+  },
+  "鱼台综合": {
+    "raw_names": [
+      "yutai-xinwen",
+      "CHANNEL00001107",
+      "239.21.2.134:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁鱼台.png",
+    "group_name": "济宁"
+  },
+  "鱼台生活": {
+    "raw_names": [
+      "yutai-shenghuo",
+      "CHANNEL00001108"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁鱼台.png",
+    "group_name": "济宁"
+  },
+  "任城综合": {
+    "raw_names": [
+      "RenCHENG-1",
+      "CHANNEL00001111"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁任城.png",
+    "group_name": "济宁"
+  },
+  "任城生活": {
+    "raw_names": [
+      "RenCheng-2",
+      "CHANNEL00001112"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁任城.png",
+    "group_name": "济宁"
+  },
+  "汶上综合": {
+    "raw_names": [
+      "CHANNEL00001116",
+      "wenshang-zonghe"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁汶上.png",
+    "group_name": "济宁"
+  },
+  "########## 淄博 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "桓台综合": {
+    "raw_names": [
+      "huantai",
+      "CHANNEL00001020"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博桓台.png",
+    "group_name": "淄博"
+  },
+  "沂源综合": {
+    "raw_names": [
+      "yiyuan",
+      "CHANNEL00001002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博沂源.png",
+    "group_name": "淄博"
+  },
+  "淄川新闻": {
+    "raw_names": [
+      "zichuan-xinwen",
+      "CHANNEL00001007"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博淄川.png",
+    "group_name": "淄博"
+  },
+  "张店综合": {
+    "raw_names": [
+      "zhangdian",
+      "CHANNEL00001012",
+      "239.21.2.138:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博张店.png",
+    "group_name": "淄博"
+  },
+  "高青综合": {
+    "raw_names": [
+      "gaoqing-zonghe",
+      "CHANNEL00001023",
+      "239.21.2.140:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博高青.png",
+    "group_name": "淄博"
+  },
+  "周村新闻": {
+    "raw_names": [
+      "ZHOUCUN-XINWEN",
+      "CHANNEL00001019",
+      "239.21.2.150:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博周村.png",
+    "group_name": "淄博"
+  },
+  "########## 滨州 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "惠民综合": {
+    "raw_names": [
+      "huimin",
+      "CHANNEL00001009"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州惠民.png",
+    "group_name": "滨州"
+  },
+  "无棣综合": {
+    "raw_names": [
+      "wudi",
+      "CHANNEL00001024"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州无棣.png",
+    "group_name": "滨州"
+  },
+  "沾化综合": {
+    "raw_names": [
+      "zhanhua",
+      "CHANNEL00001035",
+      "239.21.1.226:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州沾化.png",
+    "group_name": "滨州"
+  },
+  "邹平综合": {
+    "raw_names": [
+      "zouping",
+      "CHANNEL00001058",
+      "239.21.1.238:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州邹平.png",
+    "group_name": "滨州"
+  },
+  "阳信综合": {
+    "raw_names": [
+      "yangxin",
+      "CHANNEL00001036"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州阳信.png",
+    "group_name": "滨州"
+  },
+  "########## 潍坊 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "安丘综合": {
+    "raw_names": [
+      "anqiu-zonghe",
+      "CHANNEL00001015"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊安丘.png",
+    "group_name": "潍坊"
+  },
+  "昌乐综合": {
+    "raw_names": [
+      "changle",
+      "CHANNEL00001033",
+      "239.21.1.245:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊昌乐.png",
+    "group_name": "潍坊"
+  },
+  "昌邑综合": {
+    "raw_names": [
+      "changyi-xinwen",
+      "CHANNEL00001083"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊昌邑.png",
+    "group_name": "潍坊"
+  },
+  "青州综合": {
+    "raw_names": [
+      "qingzhou-zonghe",
+      "CHANNEL00001042"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊青州.png",
+    "group_name": "潍坊"
+  },
+  "青州文化旅游": {
+    "raw_names": [
+      "qingzhou-wenlv",
+      "CHANNEL00001057",
+      "239.21.1.231:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊青州.png",
+    "group_name": "潍坊"
+  },
+  "寿光蔬菜": {
+    "raw_names": [
+      "shouguang-shucai",
+      "CHANNEL00001045",
+      "239.21.1.218:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊寿光.png",
+    "group_name": "潍坊"
+  },
+  "寿光综合": {
+    "raw_names": [
+      "shouguang-xinwen",
+      "CHANNEL00000702",
+      "CHANNEL00001000"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊寿光.png",
+    "group_name": "潍坊"
+  },
+  "诸城综合": {
+    "raw_names": [
+      "zhucheng",
+      "CHANNEL00001004",
+      "239.21.1.217:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊诸城.png",
+    "group_name": "潍坊"
+  },
+  "高密综合": {
+    "raw_names": [
+      "gaomi-xinwen",
+      "CHANNEL00001089"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊高密.png",
+    "group_name": "潍坊"
+  },
+  "临朐综合": {
+    "raw_names": [
+      "linqu-xinwen",
+      "CHANNEL00001085"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊临朐.png",
+    "group_name": "潍坊"
+  },
+  "########## 烟台 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "栖霞综合": {
+    "raw_names": [
+      "qixia",
+      "CHANNEL00001055"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台栖霞.png",
+    "group_name": "烟台"
+  },
+  "牟平综合": {
+    "raw_names": [
+      "muping-xinwen",
+      "CHANNEL00001076"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台牟平.png",
+    "group_name": "烟台"
+  },
+  "牟平生活": {
+    "raw_names": [
+      "muping-shenghuo",
+      "CHANNEL00001077"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台牟平.png",
+    "group_name": "烟台"
+  },
+  "长岛综合": {
+    "raw_names": [
+      "changdao",
+      "CHANNEL00001090"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台长岛.png",
+    "group_name": "烟台"
+  },
+  "蓬莱综合": {
+    "raw_names": [
+      "penglai",
+      "CHANNEL00001088"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台蓬莱.png",
+    "group_name": "烟台"
+  },
+  "海阳综合": {
+    "raw_names": [
+      "haiyang-zonghe",
+      "海阳综合电信用",
+      "CHANNEL00001091"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台海阳.png",
+    "group_name": "烟台"
+  },
+  "海阳综艺": {
+    "raw_names": [
+      "239.21.2.65:5002",
+      "haiyang-zongyi",
+      "CHANNEL00001092"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台海阳.png",
+    "group_name": "烟台"
+  },
+  "招远综合": {
+    "raw_names": [
+      "zhaoyuan-zonghe",
+      "CHANNEL00001113"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台招远.png",
+    "group_name": "烟台"
+  },
+  "龙口综合": {
+    "raw_names": [
+      "longkou-zonghe",
+      "CHANNEL00001005"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台龙口.png",
+    "group_name": "烟台"
+  },
+  "########## 特色频道 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "CHC动作电影": {
+    "raw_names": [
+      "CHC-dongzuo",
+      "CHANNEL00002030"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC动作电影.png",
+    "group_name": "特色频道"
+  },
+  "CHC家庭影院": {
+    "raw_names": [
+      "CHC-jiatingyinyuan",
+      "CHANNEL00002028"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC家庭电影.png",
+    "group_name": "特色频道"
+  },
+  "CHC影迷电影": {
+    "raw_names": [
+      "CHANNEL00002029",
+      "CHC-gaoqingdianying",
+      "CHC-gaoqingdianying-yingmi",
+      "239.21.2.127:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC影迷电影.png",
+    "group_name": "特色频道"
+  },
+  "IPTV动作影院": {
+    "raw_names": [
+      "239.21.1.123:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png",
+    "group_name": "特色频道"
+  },
+  "IPTV经典电影": {
+    "raw_names": [
+      "239.21.1.124:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png",
+    "group_name": "特色频道"
+  },
+  "IPTV魅力时尚": {
+    "raw_names": [
+      "239.21.1.129:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png",
+    "group_name": "特色频道"
+  },
+  "IPTV热播剧场": {
+    "raw_names": [
+      "239.21.1.128:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png",
+    "group_name": "特色频道"
+  },
+  "IPTV少儿动画": {
+    "raw_names": [
+      "239.21.1.125:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png",
+    "group_name": "特色频道"
+  },
+  "IPTV喜剧影院": {
+    "raw_names": [
+      "239.21.1.122:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png",
+    "group_name": "特色频道"
+  },
+  "IPTV相声小品": {
+    "raw_names": [
+      "239.21.1.126:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png",
+    "group_name": "特色频道"
+  },
+  "财富天下": {
+    "raw_names": [
+      "CFTX",
+      "CFTXSD",
+      "239.21.1.127:5002",
+      "CHANNEL00000607"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/财富天下.png",
+    "group_name": "特色频道"
+  },
+  "茶频道": {
+    "raw_names": [
+      "增值-cha",
+      "CHANNEL00000649"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/茶频道.png",
+    "group_name": "特色频道"
+  },
+  "车迷": {
+    "raw_names": [
+      "增值-chemi",
+      "CHANNEL00000645"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/车迷频道.png",
+    "group_name": "特色频道"
+  },
+  "东方财经": {
+    "raw_names": [
+      "增值-dongfangcaijing",
+      "CHANNEL00002025"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方财经.png",
+    "group_name": "特色频道"
+  },
+  "动漫秀场": {
+    "raw_names": [
+      "??-dongmanxiuchang",
+      "CHANNEL00002000",
+      "239.21.2.92:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/动漫秀场.png",
+    "group_name": "特色频道"
+  },
+  "都市剧场": {
+    "raw_names": [
+      "增值-dushijuchang",
+      "CHANNEL00002022"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/都市剧场.png",
+    "group_name": "特色频道"
+  },
+  "法治天地": {
+    "raw_names": [
+      "增值-fazhitiandi",
+      "CHANNEL00002010"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/法治天地3.png",
+    "group_name": "特色频道"
+  },
+  "光影": {
+    "raw_names": [
+      "239.21.1.131:5002"
+    ],
+    "logo_url": null,
+    "group_name": "特色频道"
+  },
+  "哈哈炫动": {
+    "raw_names": [
+      "标清炫动xuandong",
+      "CHANNEL00000050"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/哈哈炫动2.png",
+    "group_name": "特色频道"
+  },
+  "海洋频道": {
+    "raw_names": [
+      "Bravo Inc.",
+      "CHANNEL00000662"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/海洋频道.png",
+    "group_name": "特色频道"
+  },
+  "精彩影视": {
+    "raw_names": [
+      "jingcaiyingshi",
+      "CHANNEL00002012"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/精彩影视.png",
+    "group_name": "特色频道"
+  },
+  "环球旅游": {
+    "raw_names": [
+      "增值-huanqiulvyou",
+      "CHANNEL00000643"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/环球旅游.png",
+    "group_name": "特色频道"
+  },
+  "纪实科教": {
+    "raw_names": [
+      "BeiJing-JISHI",
+      "239.21.1.194:5002",
+      "CHANNEL00000332",
+      "239.21.1.172:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/纪实科教.png",
+    "group_name": "特色频道"
+  },
+  "家庭理财": {
+    "raw_names": [
+      "增值-jiatinglicai",
+      "CHANNEL00000654"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/辽宁/家庭理财.png",
+    "group_name": "特色频道"
+  },
+  "嘉佳卡通": {
+    "raw_names": [
+      "239.21.2.5:5002",
+      "CHANNEL00000074"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/嘉佳卡通.png",
+    "group_name": "特色频道"
+  },
+  "金色学堂": {
+    "raw_names": [
+      "增值-jinsexuetang",
+      "CHANNEL00002018"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/金色学堂.png",
+    "group_name": "特色频道"
+  },
+  "金鹰纪实": {
+    "raw_names": [
+      "HUNAN-JISHI",
+      "HUNAN-JISHI-HD",
+      "239.21.1.196:5002",
+      "CHANNEL00000334"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/金鹰纪实.png",
+    "group_name": "特色频道"
+  },
+  "金鹰卡通": {
+    "raw_names": [
+      "䡵乡渭䭁呏乇",
+      "CHANNEL00000047",
+      "CHANNEL00002027",
+      "金鹰卡通"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/金鹰卡通.png",
+    "group_name": "特色频道"
+  },
+  "卡酷少儿": {
+    "raw_names": [
+      "BeiJing-KAKU",
+      "CHANNEL00000048",
+      "CHANNEL00000661"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/卡酷少儿.png",
+    "group_name": "特色频道"
+  },
+  "快乐垂钓": {
+    "raw_names": [
+      "增值-kuailechuidiao",
+      "CHANNEL00000648",
+      "239.21.2.97:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/快乐垂钓.png",
+    "group_name": "特色频道"
+  },
+  "乐游": {
+    "raw_names": [
+      "增值-leyou",
+      "CHANNEL00002016",
+      "239.21.2.104:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/乐游.png",
+    "group_name": "特色频道"
+  },
+  "梨园": {
+    "raw_names": [
+      "增值-liyuan",
+      "CHANNEL00000656"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/梨园频道.png",
+    "group_name": "特色频道"
+  },
+  "美人": {
+    "raw_names": [
+      "239.21.1.132:5002"
+    ],
+    "logo_url": null,
+    "group_name": "特色频道"
+  },
+  "魅力足球": {
+    "raw_names": [
+      "增值-meilizuqiu",
+      "CHANNEL00002021"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/魅力足球2.png",
+    "group_name": "特色频道"
+  },
+  "墨宝": {
+    "raw_names": [
+      "239.21.1.130:5002"
+    ],
+    "logo_url": null,
+    "group_name": "特色频道"
+  },
+  "汽摩": {
+    "raw_names": [
+      "QiMo",
+      "CHANNEL00000711"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/重庆/汽摩.png",
+    "group_name": "特色频道"
+  },
+  "求索纪录": {
+    "raw_names": [
+      "QiuSuoJiLu",
+      "QiuSuoJiLu HD",
+      "CHANNEL00000667",
+      "239.21.2.159:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/求索纪录.png",
+    "group_name": "特色频道"
+  },
+  "生活时尚": {
+    "raw_names": [
+      "增值-shenghuoshishang",
+      "CHANNEL00002019"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/生活时尚.png",
+    "group_name": "特色频道"
+  },
+  "生态环境": {
+    "raw_names": [
+      "239.21.2.160:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/生态环境.png",
+    "group_name": "特色频道"
+  },
+  "书画": {
+    "raw_names": [
+      "增值-shuhua",
+      "CHANNEL00000651"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/书画.png",
+    "group_name": "特色频道"
+  },
+  "四海钓鱼": {
+    "raw_names": [
+      "增值-sihaidiaoyu",
+      "CHANNEL00000640",
+      "增值-sihaidiaoyuHD",
+      "CHANNEL00000674"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/四海钓鱼.png",
+    "group_name": "特色频道"
+  },
+  "天下足球": {
+    "raw_names": [
+      "239.21.1.162:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/天下足球.png",
+    "group_name": "特色频道"
+  },
+  "文物宝库": {
+    "raw_names": [
+      "增值-wenwubaoku",
+      "CHANNEL00000658"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/文物宝库.png",
+    "group_name": "特色频道"
+  },
+  "武术世界": {
+    "raw_names": [
+      "239.21.2.96:5002",
+      "增值-wushushijie",
+      "CHANNEL00000657"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/武术世界.png",
+    "group_name": "特色频道"
+  },
+  "先锋乒羽": {
+    "raw_names": [
+      "增值-xianfengpingyu",
+      "CHANNEL00000650"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/先锋乒羽.png",
+    "group_name": "特色频道"
+  },
+  "新动漫": {
+    "raw_names": [
+      "239.21.2.93:5002",
+      "xindongman-AS",
+      "CHANNEL00000659"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/辽宁/新动漫2.png",
+    "group_name": "特色频道"
+  },
+  "优漫卡通": {
+    "raw_names": [
+      "标清优漫卡通-youman",
+      "CHANNEL00000049"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/优漫卡通2.png",
+    "group_name": "特色频道"
+  },
+  "优优宝贝": {
+    "raw_names": [
+      "增值-youyoubaobei",
+      "CHANNEL00000641"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/优优宝贝2.png",
+    "group_name": "特色频道"
+  },
+  "游戏风云": {
+    "raw_names": [
+      "增值-youxifengyun",
+      "CHANNEL00002024"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/游戏风云.png",
+    "group_name": "特色频道"
+  },
+  "苏超联赛-4K": {
+    "raw_names": [
+      "苏超25帧",
+      "239.21.2.178:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/苏超联赛.png",
+    "group_name": "特色频道"
+  },
+  "中国交通": {
+    "raw_names": [
+      "zhongguo-jiaotong",
+      "CHANNEL00000073"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/公安部/中国交通3.png",
+    "group_name": "特色频道"
+  },
+  "中华特产": {
+    "raw_names": [
+      "zhuanxian-zhonghuatechan",
+      "增值-zhonghuatechan",
+      "CHANNEL00000642",
+      "CHANNEL00000672",
+      "CHANNEL00000672?"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/中华特产.png",
+    "group_name": "特色频道"
+  },
+  "重温经典影视": {
+    "raw_names": [
+      "Kan-shandong",
+      "CHANNEL00000364",
+      "239.21.2.77:5002",
+      "channel20000003"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/重温经典影视.png",
+    "group_name": "特色频道"
+  },
+  "综合测试": {
+    "raw_names": [
+      "239.21.1.203:5002"
+    ],
+    "logo_url": null,
+    "group_name": "特色频道"
+  },
+  "已停用": {
+    "raw_names": [
+      "239.21.2.26:5002",
+      "CHANNEL00000060",
+      "channel00004004"
+    ],
+    "logo_url": null,
+    "group_name": "特色频道"
+  },
+  "红色影视": {
+    "raw_names": [
+      "CHANNEL00001097"
+    ],
+    "logo_url": null,
+    "group_name": "特色频道"
+  },
+  "劲爆体育": {
+    "raw_names": [
+      "CHANNEL00002026"
+    ],
+    "logo_url": null,
+    "group_name": "特色频道"
+  },
+  "智慧康养": {
+    "raw_names": [
+      "CHANNEL00002031"
+    ],
+    "logo_url": null,
+    "group_name": "特色频道"
+  },
+  "热血剧场": {
+    "raw_names": [
+      "CHANNEL00002032"
+    ],
+    "logo_url": null,
+    "group_name": "特色频道"
+  },
+  "########## 聊城 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "莘县综合": {
+    "raw_names": [
+      "shenxian",
+      "CHANNEL00001047"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城莘县.png",
+    "group_name": "聊城"
+  },
+  "茌平综合": {
+    "raw_names": [
+      "239.21.1.219:5002",
+      "chiping",
+      "CHANNEL00001048"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城茌平.png",
+    "group_name": "聊城"
+  },
+  "冠县综合": {
+    "raw_names": [
+      "guanxian",
+      "CHANNEL00001040",
+      "239.21.2.149:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城冠县.png",
+    "group_name": "聊城"
+  },
+  "东阿综合": {
+    "raw_names": [
+      "239.21.2.61:5002",
+      "donge",
+      "CHANNEL00001093"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城东阿.png",
+    "group_name": "聊城"
+  },
+  "临清综合": {
+    "raw_names": [
+      "linqing-zonghe",
+      "CHANNEL00001103",
+      "239.21.2.123:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城临清.png",
+    "group_name": "聊城"
+  },
+  "########## 菏泽 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "定陶综合": {
+    "raw_names": [
+      "dingtao",
+      "CHANNEL00001063"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽定陶.png",
+    "group_name": "菏泽"
+  },
+  "巨野新闻": {
+    "raw_names": [
+      "juye-xinwen",
+      "CHANNEL00001046"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽巨野.png",
+    "group_name": "菏泽"
+  },
+  "东明综合": {
+    "raw_names": [
+      "dongming",
+      "CHANNEL00001065",
+      "239.21.1.246:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽东明.png",
+    "group_name": "菏泽"
+  },
+  "郓城综合": {
+    "raw_names": [
+      "yuncheng",
+      "CHANNEL00001041",
+      "CHANNEL00001084"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽郓城.png",
+    "group_name": "菏泽"
+  },
+  "单县综合": {
+    "raw_names": [
+      "shanxian-zonghe",
+      "CHANNEL00001079",
+      "239.21.2.21:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽单县.png",
+    "group_name": "菏泽"
+  },
+  "鄄城综合": {
+    "raw_names": [
+      "juancheng-zonghe",
+      "239.21.2.141:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽鄄城.png",
+    "group_name": "菏泽"
+  },
+  "########## 青岛 ##########": {
+    "raw_names": [],
+    "logo_url": null,
+    "group_name": null
+  },
+  "莱西综合": {
+    "raw_names": [
+      "laixi",
+      "CHANNEL00001067",
+      "239.21.1.247:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛莱西.png",
+    "group_name": "青岛"
+  },
+  "崂山综合": {
+    "raw_names": [
+      "laoshan",
+      "CHANNEL00001022",
+      "CHANNEL00001075",
+      "239.21.1.223:5002",
+      "239.21.2.122:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛崂山.png",
+    "group_name": "青岛"
+  },
+  "平度综合": {
+    "raw_names": [
+      "pingdu-PDTV-1",
+      "CHANNEL00001054",
+      "239.21.1.228:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛平度.png",
+    "group_name": "青岛"
+  },
+  "黄岛综合": {
+    "raw_names": [
+      "huangdao-xinwen",
+      "CHANNEL00001086"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛黄岛.png",
+    "group_name": "青岛"
+  },
+  "黄岛生活": {
+    "raw_names": [
+      "239.21.2.58:5002",
+      "huangdao-shenghuo",
+      "CHANNEL00001087"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛黄岛.png",
+    "group_name": "青岛"
+  },
+  "胶州综合": {
+    "raw_names": [
+      "jiaozhou",
+      "CHANNEL00001074",
+      "239.21.2.60:5002"
+    ],
+    "logo_url": "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛胶州.png",
+    "group_name": "青岛"
+  }
+}
