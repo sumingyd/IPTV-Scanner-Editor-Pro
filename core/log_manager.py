@@ -47,7 +47,7 @@ class LogManager:
         return os.path.join(log_dir, log_file)
     
     def _setup_logger(self):
-        """配置日志记录器"""
+        """配置日志记录器 - 只保留文件日志，移除控制台输出"""
         # 获取全局日志记录器
         self.logger = logging.getLogger('IPTVScanner')
         self.logger.setLevel(self.level)
@@ -66,21 +66,15 @@ class LogManager:
         )
         file_handler.setLevel(self.level)
         
-        # 创建控制台handler
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.WARNING)  # 控制台只显示警告及以上级别
-        
         # 设置日志格式
         formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S'
         )
         file_handler.setFormatter(formatter)
-        console_handler.setFormatter(formatter)
         
-        # 添加handler
+        # 只添加文件handler，不添加控制台handler
         self.logger.addHandler(file_handler)
-        self.logger.addHandler(console_handler)
         
         # 清空日志文件内容（每次启动时）
         self._clear_log_file()
