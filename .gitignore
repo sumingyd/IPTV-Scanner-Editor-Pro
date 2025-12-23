@@ -192,6 +192,12 @@ epg_cache/
 
 # 本地频道映射
 user_channel_mappings.json
+编译助手.bat
+一键编译-无vlc+ffprobe.bat
+一键编译.bat
+pyproject.toml
+pyi_rth_vlc.py
+
 
 # 构建输出
 build/

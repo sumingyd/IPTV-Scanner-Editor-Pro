@@ -55,8 +55,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.language_manager.update_ui_texts(self)
         
         # 设置窗口图标
-        if os.path.exists('logo.ico'):
-            self.setWindowIcon(QtGui.QIcon('logo.ico'))
+        if os.path.exists('resources/logo.ico'):
+            self.setWindowIcon(QtGui.QIcon('resources/logo.ico'))
 
         # 初始化主窗口的后续设置
         self._init_main_window()
