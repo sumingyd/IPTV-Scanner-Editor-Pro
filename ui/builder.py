@@ -228,10 +228,8 @@ class UIBuilder(QtCore.QObject):
         self._init_splitters()
         main_layout.addWidget(self.main_window.main_splitter)
 
-        # 强制应用布局设置
-        if dividers and len(dividers) >= 2:
-            self.main_window.main_splitter.setSizes(dividers[:2])
-            self.main_window.left_splitter.setSizes(dividers[2:4])
+        # 注意：这里不设置分割器大小，由_init_splitters统一处理
+        # 避免重复设置导致冲突
 
         # 状态栏
         status_bar = self.main_window.statusBar()
@@ -281,8 +279,14 @@ class UIBuilder(QtCore.QObject):
                 *self.main_window.channel_splitter.sizes(),
             ]
             
-            # 保存窗口布局（包括位置和大小）
-            self.main_window.config.save_window_layout(pos.x(), pos.y(), size.width(), size.height(), dividers)
+            # 关键修复：只有当分隔条有实际大小时才保存位置
+            # 避免在窗口初始化时保存0值
+            has_valid_sizes = all(size > 0 for size in dividers if size is not None)
+            
+            if has_valid_sizes:
+                # 保存窗口布局（包括位置和大小）
+                self.main_window.config.save_window_layout(pos.x(), pos.y(), size.width(), size.height(), dividers)
+            
             event.accept()
             
             # 强制更新布局
@@ -308,18 +312,6 @@ class UIBuilder(QtCore.QObject):
         # 加载保存的分隔条位置
         _, _, _, _, dividers = self.main_window.config.load_window_layout()
         
-        # 仅在未加载保存布局时设置默认值
-        if not (dividers and len(dividers) >= 8):
-            # 设置更合理的默认尺寸(基于窗口当前大小)
-            width = self.main_window.width()
-            height = self.main_window.height()
-            self.main_window.main_splitter.setSizes([int(width*0.4), int(width*0.6)])
-        
-        # 设置分割器属性
-        self._setup_custom_splitter(self.main_window.main_splitter)
-        self._setup_custom_splitter(self.main_window.left_splitter)
-        self._setup_custom_splitter(self.main_window.channel_splitter)
-        
         # 视频播放面板放在左侧上方
         video_container = QtWidgets.QWidget()
         self._setup_player_panel(video_container)
@@ -336,22 +328,38 @@ class UIBuilder(QtCore.QObject):
         self.main_window.main_splitter.addWidget(self.main_window.left_splitter)
         self.main_window.main_splitter.addWidget(right_container)
         
-        # 加载保存的分隔条位置
-        _, _, _, _, dividers = self.main_window.config.load_window_layout()
-        if dividers and len(dividers) >= 6:
-            # 确保所有分割器都已初始化后再设置位置
-            self.main_window.main_splitter.setSizes(dividers[:2])
-            self.main_window.left_splitter.setSizes(dividers[2:4])
-            # 延迟设置channel_splitter确保UI完全初始化
-            QtCore.QTimer.singleShot(100, lambda: 
-                self.main_window.channel_splitter.setSizes(dividers[4:6]))
-
-        else:
-            # 设置更合理的默认尺寸(基于窗口当前大小)
+        # 设置分割器属性（确保所有分割器都已初始化）
+        self._setup_custom_splitter(self.main_window.main_splitter)
+        self._setup_custom_splitter(self.main_window.left_splitter)
+        self._setup_custom_splitter(self.main_window.channel_splitter)
+        
+        # 延迟设置分隔栏位置，确保窗口完全显示
+        def apply_splitter_sizes():
+            # 设置默认尺寸（仅在未加载保存布局时使用）
             width = self.main_window.width()
             height = self.main_window.height()
-            self.main_window.main_splitter.setSizes([int(width*0.4), int(width*0.6)])
-            self.main_window.left_splitter.setSizes([int(height*0.4), int(height*0.6)])
+            default_main_sizes = [int(width*0.4), int(width*0.6)]
+            default_left_sizes = [int(height*0.4), int(height*0.6)]
+            default_channel_sizes = [int(height*0.7), int(height*0.3)]
+            
+            # 应用保存的分隔条位置或默认值
+            if dividers and len(dividers) >= 6:
+                # 确保所有分割器都已初始化后再设置位置
+                self.main_window.main_splitter.setSizes(dividers[:2])
+                self.main_window.left_splitter.setSizes(dividers[2:4])
+                # 延迟设置channel_splitter确保UI完全初始化
+                QtCore.QTimer.singleShot(100, lambda: 
+                    self.main_window.channel_splitter.setSizes(dividers[4:6]))
+            else:
+                # 使用默认尺寸
+                self.main_window.main_splitter.setSizes(default_main_sizes)
+                self.main_window.left_splitter.setSizes(default_left_sizes)
+                QtCore.QTimer.singleShot(100, lambda: 
+                    self.main_window.channel_splitter.setSizes(default_channel_sizes))
+                
+        
+        # 延迟应用分隔栏位置，确保窗口完全显示
+        QtCore.QTimer.singleShot(200, apply_splitter_sizes)
 
 
     def _setup_custom_splitter(self, splitter):
@@ -852,8 +860,8 @@ class UIBuilder(QtCore.QObject):
             parent.layout().setContentsMargins(0, 0, 0, 0)
             parent.layout().addWidget(self.main_window.channel_splitter)
         
-        # 设置默认分割比例
-        self.main_window.channel_splitter.setSizes([int(self.main_window.height()*0.7), int(self.main_window.height()*0.3)])
+        # 注意：这里不设置默认分割比例，由_init_splitters统一处理
+        # 避免覆盖已保存的分隔栏位置
 
 
     def _show_channel_context_menu(self, pos):
