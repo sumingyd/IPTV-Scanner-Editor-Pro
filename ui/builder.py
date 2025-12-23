@@ -97,72 +97,6 @@ class UIComponentFactory:
         return layout
 
 
-class LogoCacheManager:
-    """Logo缓存管理器，优化Logo缓存机制"""
-    
-    def __init__(self, max_size: int = 100, logger=None):
-        self.cache: Dict[str, QtGui.QIcon] = {}
-        self.max_size = max_size
-        self.access_times: Dict[str, float] = {}
-        self.logger = logger or global_logger
-        self.pending_requests: Dict[str, QNetworkReply] = {}
-    
-    def get(self, logo_url: str) -> Optional[QtGui.QIcon]:
-        """从缓存获取Logo"""
-        if logo_url in self.cache:
-            self.access_times[logo_url] = QtCore.QDateTime.currentMSecsSinceEpoch()
-            return self.cache[logo_url]
-        return None
-    
-    def put(self, logo_url: str, icon: QtGui.QIcon):
-        """将Logo放入缓存"""
-        if len(self.cache) >= self.max_size:
-            self._evict_oldest()
-        
-        self.cache[logo_url] = icon
-        self.access_times[logo_url] = QtCore.QDateTime.currentMSecsSinceEpoch()
-    
-    def remove(self, logo_url: str):
-        """从缓存移除Logo"""
-        if logo_url in self.cache:
-            del self.cache[logo_url]
-        if logo_url in self.access_times:
-            del self.access_times[logo_url]
-    
-    def clear(self):
-        """清空缓存"""
-        self.cache.clear()
-        self.access_times.clear()
-        self.pending_requests.clear()
-    
-    def _evict_oldest(self):
-        """移除最久未使用的缓存项"""
-        if not self.access_times:
-            return
-        
-        oldest_url = min(self.access_times.items(), key=lambda x: x[1])[0]
-        self.remove(oldest_url)
-        # 移除调试日志，避免日志过多
-    
-    def add_pending_request(self, logo_url: str, reply: QNetworkReply):
-        """添加待处理的请求"""
-        self.pending_requests[logo_url] = reply
-    
-    def remove_pending_request(self, logo_url: str):
-        """移除待处理的请求"""
-        if logo_url in self.pending_requests:
-            del self.pending_requests[logo_url]
-    
-    def is_pending(self, logo_url: str) -> bool:
-        """检查是否有待处理的请求"""
-        return logo_url in self.pending_requests
-    
-    def cleanup_pending_requests(self):
-        """清理所有待处理的请求"""
-        for reply in self.pending_requests.values():
-            reply.abort()
-            reply.deleteLater()
-        self.pending_requests.clear()
 
 
 class UIBuilder(QtCore.QObject):
@@ -178,15 +112,6 @@ class UIBuilder(QtCore.QObject):
         
         # UI组件工厂
         self.ui_factory = UIComponentFactory(self.logger)
-        
-        # Logo缓存管理器
-        self.logo_cache_manager = LogoCacheManager(max_size=200, logger=self.logger)
-        
-        # 网络图片管理器
-        self.network_manager = QNetworkAccessManager()
-        
-        # 防止Logo加载无限循环的标志
-        self._loading_logos = False
         
         # 连接信号
         self.refresh_channel_finished.connect(self._finish_refresh_channel)
@@ -815,12 +740,6 @@ class UIBuilder(QtCore.QObject):
         QtCore.QTimer.singleShot(100, lambda: header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents))
         
         
-        # 监听数据变化，异步加载网络Logo（只针对新增的行）
-        self.main_window.model.rowsInserted.connect(self._load_single_channel_logo)
-        self.main_window.model.modelReset.connect(self._load_network_logos)
-        
-        # 立即触发一次Logo加载
-        QtCore.QTimer.singleShot(100, self._load_network_logos)
         
         # 启用拖放排序功能 - 改进拖拽体验
         self.main_window.channel_list.setDragEnabled(True)
@@ -1042,9 +961,6 @@ class UIBuilder(QtCore.QObject):
             bottom_right = self.main_window.model.index(index.row(), self.main_window.model.columnCount() - 1)
             self.main_window.model.dataChanged.emit(top_left, bottom_right, [QtCore.Qt.ItemDataRole.DisplayRole, QtCore.Qt.ItemDataRole.DecorationRole])
             
-            # 重新加载Logo（如果是网络Logo）
-            if new_channel_info.get('logo_url') and new_channel_info['logo_url'].startswith(('http://', 'https://')):
-                self._load_single_channel_logo_async(index.row())
                 
             # 强制刷新UI，确保立即显示更新
             self.main_window.channel_list.viewport().update()
@@ -1117,26 +1033,6 @@ class UIBuilder(QtCore.QObject):
         show_error("错误", f"重新获取频道信息失败: {error_message}", parent=self.main_window)
         self.main_window.statusBar().showMessage("重新获取频道信息失败", 3000)
         
-    def _load_single_channel_logo_async(self, row):
-        """异步重新加载单个频道的Logo"""
-        try:
-            channel = self.main_window.model.get_channel(row)
-            logo_url = channel.get('logo_url', channel.get('logo', ''))
-            
-            # 只处理网络Logo地址
-            if logo_url and logo_url.startswith(('http://', 'https://')):
-                # 清除缓存中的旧Logo
-                if logo_url in self.logo_cache:
-                    del self.logo_cache[logo_url]
-                
-                # 显示占位符图标
-                self._show_placeholder_icon(row, logo_url)
-                
-                # 重新下载Logo
-                self._download_logo(logo_url, row)
-                
-        except Exception as e:
-            pass
             
     def _delete_selected_channel(self, index):
         """删除选中的频道"""
@@ -1449,161 +1345,7 @@ class UIBuilder(QtCore.QObject):
         self.main_window.channel_logo_edit.clear()
         self.main_window.channel_url_edit.clear()
 
-    def _load_network_logos(self):
-        """异步加载网络Logo图片"""
-        # 防止无限循环
-        if self._loading_logos:
-            self.logger.debug("_load_network_logos: 已经在加载中，跳过")
-            return
-            
-        if not hasattr(self.main_window, 'model') or not self.main_window.model:
-            self.logger.debug("_load_network_logos: 模型不存在，跳过")
-            return
-            
-        self._loading_logos = True
-        try:
-            # 只记录开始加载的简要信息
-            if self.main_window.model.rowCount() > 0:
-                self.logger.info(f"开始加载网络Logo，共 {self.main_window.model.rowCount()} 个频道")
-            else:
-                return
-            
-            # 遍历所有频道，检查是否有网络Logo需要加载
-            for row in range(self.main_window.model.rowCount()):
-                channel = self.main_window.model.get_channel(row)
-                logo_url = channel.get('logo_url', channel.get('logo', ''))
-                
-                # 只处理网络Logo地址
-                if logo_url and logo_url.startswith(('http://', 'https://')):
-                    
-                    # 检查是否已经在缓存中
-                    cached_icon = self.logo_cache_manager.get(logo_url)
-                    if cached_icon:
-                        continue
-                        
-                    # 检查是否已经在请求中
-                    if self.logo_cache_manager.is_pending(logo_url):
-                        continue
-                        
-                    # 立即显示占位符图标，然后异步加载实际图片
-                    self._show_placeholder_icon(row, logo_url)
-                    
-                    # 发起网络请求
-                    self._download_logo(logo_url, row)
-                    
-            # 强制刷新视图以确保Logo显示
-            if self.main_window.model.rowCount() > 0:
-                top_left = self.main_window.model.index(0, 0)
-                bottom_right = self.main_window.model.index(self.main_window.model.rowCount() - 1, 0)
-                self.main_window.model.dataChanged.emit(top_left, bottom_right)
-        finally:
-            self._loading_logos = False
 
-    def _show_placeholder_icon(self, row, logo_url):
-        """显示占位符图标，并立即更新UI"""
-        try:
-            # 创建一个简单的占位符图标
-            pixmap = QtGui.QPixmap(24, 24)
-            pixmap.fill(QtGui.QColor('#cccccc'))
-            placeholder_icon = QtGui.QIcon(pixmap)
-            
-            # 临时缓存占位符图标
-            self.logo_cache[logo_url] = placeholder_icon
-            
-            # 立即更新UI
-            index = self.main_window.model.index(row, 0)
-            self.main_window.model.dataChanged.emit(index, index)
-            
-        except Exception as e:
-            # 移除调试日志，避免日志过多
-            pass
-
-    def _download_logo(self, logo_url, row):
-        """下载Logo图片"""
-        try:
-            request = QNetworkRequest(QtCore.QUrl(logo_url))
-            # 发起请求
-            reply = self.network_manager.get(request)
-            self.logo_cache_manager.add_pending_request(logo_url, reply)
-            
-            # 连接完成信号
-            reply.finished.connect(lambda: self._on_logo_downloaded(reply, logo_url, row))
-            
-        except Exception as e:
-            self.logger.error(f"Logo下载请求失败: {logo_url}, {e}")
-
-    def _load_single_channel_logo(self, parent, first, last):
-        """只加载新增频道的Logo"""
-        if self._loading_logos:
-            return
-            
-        self._loading_logos = True
-        try:
-            for row in range(first, last + 1):
-                if row < self.main_window.model.rowCount():
-                    channel = self.main_window.model.get_channel(row)
-                    logo_url = channel.get('logo_url', channel.get('logo', ''))
-                    
-                    # 只处理网络Logo地址
-                    if logo_url and logo_url.startswith(('http://', 'https://')):
-                        # 检查是否已经在缓存中
-                        cached_icon = self.logo_cache_manager.get(logo_url)
-                        if cached_icon:
-                            continue
-                            
-                        # 检查是否已经在请求中
-                        if self.logo_cache_manager.is_pending(logo_url):
-                            continue
-                            
-                        # 立即显示占位符图标，然后异步加载实际图片
-                        self._show_placeholder_icon(row, logo_url)
-                        
-                        # 发起网络请求
-                        self._download_logo(logo_url, row)
-        finally:
-            self._loading_logos = False
-
-    def _on_logo_downloaded(self, reply, logo_url, row):
-        """Logo下载完成处理"""
-        try:
-            if reply.error() == QNetworkReply.NetworkError.NoError:
-                # 读取图片数据
-                data = reply.readAll()
-                pixmap = QtGui.QPixmap()
-                if pixmap.loadFromData(data):
-                    # 等比缩放图片，保持宽高比，增大Logo尺寸到36像素
-                    original_size = pixmap.size()
-                    if original_size.height() > 0:
-                        # 计算缩放比例，保持宽高比
-                        scale_factor = 36.0 / original_size.height()  # 从24增大到36
-                        new_width = int(original_size.width() * scale_factor)
-                        new_height = 36  # 从24增大到36
-                        
-                        # 如果宽度超过120像素，限制最大宽度
-                        if new_width > 120:  # 从100增大到120
-                            scale_factor = 120.0 / original_size.width()
-                            new_width = 120
-                            new_height = int(original_size.height() * scale_factor)
-                        
-                        scaled_pixmap = pixmap.scaled(new_width, new_height, 
-                                                    QtCore.Qt.AspectRatioMode.KeepAspectRatio, 
-                                                    QtCore.Qt.TransformationMode.SmoothTransformation)
-                        icon = QtGui.QIcon(scaled_pixmap)
-                        
-                        # 缓存图片到Logo缓存管理器
-                        self.logo_cache_manager.put(logo_url, icon)
-                        
-                        # 更新UI
-                        index = self.main_window.model.index(row, 0)
-                        self.main_window.model.dataChanged.emit(index, index)
-                
-        except Exception as e:
-            # 移除调试日志，避免日志过多
-            pass
-        finally:
-            # 清理请求
-            self.logo_cache_manager.remove_pending_request(logo_url)
-            reply.deleteLater()
 
     def _save_scan_retry_settings(self):
         """保存扫描重试设置"""
