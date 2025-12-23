@@ -553,8 +553,7 @@ class MainWindow(QtWidgets.QMainWindow):
             header = self.ui.main_window.channel_list.horizontalHeader()
             header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         
-        self.logger.info("扫描完成，开始加载网络Logo")
-        QtCore.QTimer.singleShot(100, self.ui._load_network_logos)
+        self.logger.info("扫描完成")
 
     @QtCore.pyqtSlot(dict)
     def _update_stats_display(self, stats_data):
