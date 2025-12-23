@@ -191,8 +191,7 @@ channel_mappings_cache.json
 epg_cache/
 
 # 本地频道映射
-local_channel_mappings.txt
-local_channel_mappings.csv
+user_channel_mappings.json
 
 # 构建输出
 build/
