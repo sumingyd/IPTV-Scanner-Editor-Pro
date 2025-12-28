@@ -161,9 +161,9 @@ class UIBuilder(QtCore.QObject):
         status_bar.show()
         status_bar.setStyleSheet(AppStyles.statusbar_style())
         
-        # 添加远程映射状态标签
+        # 添加远程映射状态标签（临时显示，不永久添加）
         self.main_window.mapping_status_label = QtWidgets.QLabel()
-        status_bar.addWidget(self.main_window.mapping_status_label)
+        self.main_window.mapping_status_label.setStyleSheet("color: #666; padding: 0 5px;")
         
         # 添加进度条到状态栏右下角（显示实际进度）
         self.main_window.progress_indicator = QtWidgets.QProgressBar()
@@ -181,16 +181,15 @@ class UIBuilder(QtCore.QObject):
         self.main_window.stats_label.setStyleSheet("color: #666; padding: 0 5px;")
         status_bar.addPermanentWidget(self.main_window.stats_label)
         
-        # 初始化时显示映射状态
+        # 初始化时显示映射状态（临时显示，3秒后清除）
         from models.channel_mappings import mapping_manager
         if mapping_manager.remote_mappings:
-            self.main_window.mapping_status_label.setText(
-                self.main_window.language_manager.tr('mapping_loaded', 'Remote mapping loaded')
-            )
+            mapping_status = self.main_window.language_manager.tr('mapping_loaded', 'Remote mapping loaded')
         else:
-            self.main_window.mapping_status_label.setText(
-                self.main_window.language_manager.tr('mapping_failed', 'Remote mapping load failed')
-            )
+            mapping_status = self.main_window.language_manager.tr('mapping_failed', 'Remote mapping load failed')
+        
+        # 临时显示映射状态，3秒后清除
+        status_bar.showMessage(mapping_status, 3000)
 
     def _on_window_resize(self, event):
         """处理窗口大小变化事件"""
