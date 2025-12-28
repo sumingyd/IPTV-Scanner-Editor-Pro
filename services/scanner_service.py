@@ -44,6 +44,9 @@ class ScannerController(QObject):
             'start_time': 0,
             'elapsed': 0
         }
+        # 记录无效的URL，用于重试扫描
+        self.invalid_urls = []
+        self.invalid_urls_lock = threading.Lock()
 
     def _force_ui_refresh(self):
         """强制刷新UI"""
@@ -99,6 +102,9 @@ class ScannerController(QObject):
                         self.stats['valid'] += 1
                     else:
                         self.stats['invalid'] += 1
+                        # 记录无效URL
+                        with self.invalid_urls_lock:
+                            self.invalid_urls.append(url)
                 
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
@@ -505,6 +511,10 @@ class ScannerController(QObject):
         self.stop_scan()
         self.stop_event.clear()
         
+        # 清空无效URL列表，避免累积
+        with self.invalid_urls_lock:
+            self.invalid_urls.clear()
+        
         from services.validator_service import StreamValidator
         StreamValidator.timeout = timeout
         if user_agent:
@@ -826,14 +836,21 @@ class ScannerController(QObject):
                 except RuntimeError:
                     break
                 
-            # 只有当确实有扫描或验证任务完成时才发射完成信号
-            # 修改条件：只要统计信息中有任务，就应该发射完成信号
-            if self.stats['total'] > 0 or self.is_validating:
+            # 检查扫描是否被用户停止
+            if self.stop_event.is_set():
+                self.logger.info("扫描被用户停止")
+            else:
+                # 整合日志：扫描完成，触发重试扫描
+                self.logger.info(f"扫描完成: 总数={self.stats['total']}, 有效={self.stats['valid']}, 无效={self.stats['invalid']}")
+                
+                # 直接调用主窗口的方法
                 try:
-                    # 使用QTimer在主线程中安全地发射完成信号
-                    QtCore.QTimer.singleShot(0, self.scan_completed.emit)
-                except RuntimeError:
-                    pass
+                    if self.main_window and hasattr(self.main_window, '_on_scan_completed'):
+                        QtCore.QTimer.singleShot(0, self.main_window._on_scan_completed)
+                    else:
+                        self.logger.warning("无法调用主窗口方法")
+                except Exception as e:
+                    self.logger.error(f"调用主窗口方法失败: {e}")
         finally:
             # 等待所有工作线程完成，确保最终的统计信息被发送
             for worker in self.workers:
@@ -863,3 +880,14 @@ class ScannerController(QObject):
                         }))
             except Exception as e:
                 self.logger.error(f"发送最终统计信息失败: {e}")
+            
+            # 检查扫描是否被用户停止
+            if self.stop_event.is_set():
+                self.logger.info("扫描被用户停止")
+            else:
+                # 最终保障：直接调用主窗口的方法
+                try:
+                    if self.main_window and hasattr(self.main_window, '_on_scan_completed'):
+                        QtCore.QTimer.singleShot(0, self.main_window._on_scan_completed)
+                except Exception as e:
+                    self.logger.error(f"最终保障调用失败: {e}")
