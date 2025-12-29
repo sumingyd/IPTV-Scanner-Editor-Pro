@@ -7,23 +7,24 @@ from PyQt6.QtCore import QObject, pyqtSignal
 
 logger = LogManager()
 
+
 class LanguageManager(QObject):
     # 定义语言切换信号
     language_changed = pyqtSignal()
-    
+
     def __init__(self, locales_dir='locales'):
         super().__init__()
         self.locales_dir = locales_dir
         self.current_language = 'zh'  # 默认中文
         self.translations = {}
         self.available_languages = {}
-        
+
     def load_available_languages(self):
         """加载所有可用的语言文件"""
         # 如果已经加载过，直接返回缓存结果
         if hasattr(self, '_languages_loaded') and self._languages_loaded:
             return self.available_languages
-            
+
         self.available_languages = {}
         try:
             # 首先尝试从打包后的路径查找
@@ -31,7 +32,7 @@ class LanguageManager(QObject):
             if getattr(sys, 'frozen', False):
                 # 打包后的路径 - 尝试多个可能的路径
                 base_path = os.path.dirname(sys.executable)
-                
+
                 # 尝试1: 可执行文件同目录下的locales文件夹
                 locales_path = os.path.join(base_path, 'locales')
                 if os.path.exists(locales_path):
@@ -46,7 +47,7 @@ class LanguageManager(QObject):
                     cwd_locales = os.path.join(os.getcwd(), 'locales')
                     if os.path.exists(cwd_locales):
                         self.locales_dir = cwd_locales
-            
+
             if not os.path.exists(self.locales_dir):
                 # 如果目录不存在，尝试创建
                 try:
@@ -58,10 +59,10 @@ class LanguageManager(QObject):
                     logger.error(f"创建语言目录时发生意外错误: {e}")
                 self._languages_loaded = True
                 return self.available_languages
-            
+
             # 查找所有json语言文件
             json_files = glob.glob(os.path.join(self.locales_dir, '*.json'))
-            
+
             # 如果没有找到文件，尝试从打包资源中加载
             if not json_files and getattr(sys, 'frozen', False):
                 # 尝试加载内置的语言文件
@@ -81,17 +82,17 @@ class LanguageManager(QObject):
                             }
                     except Exception as e:
                         logger.error(f"加载语言文件失败 {json_file}: {str(e)}")
-                    
+
         except Exception as e:
             logger.error(f"扫描语言文件失败: {str(e)}")
-            
+
         # 整合日志：记录加载结果
         if self.available_languages:
             loaded_languages = list(self.available_languages.keys())
             logger.info(f"成功加载 {len(loaded_languages)} 种语言: {', '.join(loaded_languages)}")
         else:
             logger.warning("未找到可用的语言文件")
-            
+
         self._languages_loaded = True
         return self.available_languages
 
@@ -183,8 +184,6 @@ class LanguageManager(QObject):
                     'tools_usage': '通过工具栏访问各专业工具',
                     'cancel_button': '取消',
                     'update_complete': '更新下载完成，请重启应用',
-                    'update_error': '更新错误',
-                    'update_failed': '更新失败',
                     'update_success': '更新完成'
                 },
                 'en': {
@@ -271,7 +270,7 @@ class LanguageManager(QObject):
                     'tools_usage': 'Access professional tools through the toolbar'
                 }
             }
-            
+
             for lang_code, data in builtin_languages.items():
                 self.available_languages[lang_code] = {
                     'file': f'builtin:{lang_code}',
@@ -279,10 +278,10 @@ class LanguageManager(QObject):
                     'data': data
                 }
                 logger.info(f"成功加载内置语言: {lang_code}")
-                
+
         except Exception as e:
             logger.error(f"加载内置语言失败: {str(e)}")
-    
+
     def set_language(self, lang_code):
         """设置当前语言"""
         if lang_code in self.available_languages:
@@ -294,15 +293,15 @@ class LanguageManager(QObject):
         else:
             logger.warning(f"语言 {lang_code} 不可用")
             return False
-    
+
     def get_translation(self, key, default=None):
         """获取翻译文本"""
         return self.translations.get(key, default)
-    
+
     def tr(self, key, default=None):
         """翻译文本的快捷方法"""
         return self.get_translation(key, default)
-    
+
     def get_language_list(self):
         """获取语言列表用于显示"""
         languages = []
@@ -313,12 +312,12 @@ class LanguageManager(QObject):
                 'file': lang_info['file']
             })
         return languages
-    
+
     def update_ui_texts(self, main_window):
         """更新UI文本到当前语言"""
         if not self.translations:
             return
-            
+
         try:
             # 更新窗口标题（包含版本号）
             from ui.dialogs.about_dialog import AboutDialog
@@ -327,7 +326,7 @@ class LanguageManager(QObject):
                 main_window.setWindowTitle(f"IPTV 专业扫描编辑工具 v{version}")
             else:
                 main_window.setWindowTitle(f"IPTV Scanner Editor Pro v{version}")
-            
+
             # 更新视频播放区域
             if hasattr(main_window, 'player_group'):
                 main_window.player_group.setTitle(self.tr('video_playback', 'Video Playback'))
@@ -337,7 +336,7 @@ class LanguageManager(QObject):
                 main_window.stop_btn.setText(self.tr('stop', 'Stop'))
             if hasattr(main_window, 'volume_label'):
                 main_window.volume_label.setText(self.tr('volume', 'Volume'))
-            
+
             # 更新扫描设置区域
             if hasattr(main_window, 'scan_group'):
                 main_window.scan_group.setTitle(self.tr('scan_settings', 'Scan Settings'))
@@ -348,9 +347,11 @@ class LanguageManager(QObject):
             if hasattr(main_window, 'input_address_label'):
                 main_window.input_address_label.setText(self.tr('input_address', 'Input Address'))
             if hasattr(main_window, 'timeout_description_label'):
-                main_window.timeout_description_label.setText(self.tr('timeout_description', 'Set scan timeout (seconds)'))
+                main_window.timeout_description_label.setText(
+                    self.tr('timeout_description', 'Set scan timeout (seconds)'))
             if hasattr(main_window, 'thread_count_label'):
-                main_window.thread_count_label.setText(self.tr('thread_count_description', 'Set number of scan threads'))
+                main_window.thread_count_label.setText(
+                    self.tr('thread_count_description', 'Set number of scan threads'))
             if hasattr(main_window, 'user_agent_label'):
                 main_window.user_agent_label.setText(self.tr('user_agent', 'User-Agent'))
             if hasattr(main_window, 'referer_label'):
@@ -381,7 +382,7 @@ class LanguageManager(QObject):
                     f"{self.tr('invalid', 'Invalid')}: 0 | "
                     f"{self.tr('time_elapsed', 'Time Elapsed')}: 0s"
                 )
-            
+
             # 更新频道列表区域
             if hasattr(main_window, 'list_group'):
                 main_window.list_group.setTitle(self.tr('channel_list', 'Channel List'))
@@ -395,7 +396,7 @@ class LanguageManager(QObject):
                 main_window.btn_sort_config.setText(self.tr('sort_config_button', 'Sort Config'))
             if hasattr(main_window, 'validate_stats_label'):
                 main_window.validate_stats_label.setText(self.tr('please_load_list', 'Please load list first'))
-            
+
             # 更新频道编辑区域
             if hasattr(main_window, 'edit_group'):
                 main_window.edit_group.setTitle(self.tr('channel_edit', 'Channel Edit'))
@@ -413,7 +414,7 @@ class LanguageManager(QObject):
                 main_window.add_channel_btn.setText(self.tr('add_channel', 'Add Channel'))
             if hasattr(main_window, 'operation_label'):
                 main_window.operation_label.setText(self.tr('operation', 'Operation') + ":")
-            
+
             # 更新工具栏按钮文本
             if hasattr(main_window, 'open_action'):
                 main_window.open_action.setText(f"📂 {self.tr('open_list', 'Open List')}")
@@ -427,7 +428,7 @@ class LanguageManager(QObject):
                 main_window.about_action.setText(f"ℹ️ {self.tr('about', 'About')}")
             if hasattr(main_window, 'mapping_action'):
                 main_window.mapping_action.setText(f"🗺️ {self.tr('mapping_manager', 'Channel Mapping Manager')}")
-            
+
             # 更新占位符文本
             if hasattr(main_window, 'channel_name_edit'):
                 main_window.channel_name_edit.setPlaceholderText(
@@ -446,14 +447,16 @@ class LanguageManager(QObject):
                     self.tr('channel_url', 'Channel URL') + ' (' + self.tr('required', 'Required') + ')'
                 )
             if hasattr(main_window, 'user_agent_input'):
-                main_window.user_agent_input.setPlaceholderText(self.tr('optional_default', 'Optional, use default if empty'))
+                main_window.user_agent_input.setPlaceholderText(
+                    self.tr('optional_default', 'Optional, use default if empty'))
             if hasattr(main_window, 'referer_input'):
-                main_window.referer_input.setPlaceholderText(self.tr('optional_not_used', 'Optional, not used if empty'))
-            
+                main_window.referer_input.setPlaceholderText(
+                    self.tr('optional_not_used', 'Optional, not used if empty'))
+
             # 更新频道列表表头
             if hasattr(main_window, 'model') and main_window.model:
                 main_window.model.set_language_manager(self)
-            
+
             # 更新映射状态标签
             if hasattr(main_window, 'mapping_status_label'):
                 from models.channel_mappings import mapping_manager
@@ -465,37 +468,40 @@ class LanguageManager(QObject):
                     main_window.mapping_status_label.setText(
                         self.tr('mapping_failed', 'Remote mapping load failed')
                     )
-            
+
             # 更新重试扫描选项
             if hasattr(main_window, 'retry_label'):
                 main_window.retry_label.setText(self.tr('retry_options', 'Scan Retry Options') + "：")
             if hasattr(main_window, 'enable_retry_checkbox'):
                 main_window.enable_retry_checkbox.setText(self.tr('enable_retry_scan', 'Enable Retry Scan'))
-                main_window.enable_retry_checkbox.setToolTip(self.tr('retry_scan_tooltip', 'After the first scan completes, retry scanning failed channels'))
+                main_window.enable_retry_checkbox.setToolTip(
+                    self.tr('retry_scan_tooltip', 'After the first scan completes, retry scanning failed channels'))
             if hasattr(main_window, 'loop_scan_checkbox'):
                 main_window.loop_scan_checkbox.setText(self.tr('loop_scan', 'Loop Scan'))
-                main_window.loop_scan_checkbox.setToolTip(self.tr('loop_scan_tooltip', 'If retry scan finds valid channels, continue scanning failed channels until no new valid channels are found'))
+                main_window.loop_scan_checkbox.setToolTip(
+                    self.tr('loop_scan_tooltip',
+                            'If retry scan finds valid channels, continue scanning failed channels until no new valid channels are found'))
             if hasattr(main_window, 'retry_row_label'):
                 main_window.retry_row_label.setText(self.tr('retry_options', 'Scan Retry Options') + "：")
-            
+
             # 更新频道列表拖拽提示
             if hasattr(main_window, 'ui') and hasattr(main_window.ui, 'update_channel_drag_hint'):
                 main_window.ui.update_channel_drag_hint()
-            
+
             # 更新所有打开的关于对话框
             self._update_about_dialogs(main_window)
-            
+
             logger.info(f"UI文本已更新到语言: {self.current_language}")
-            
+
         except Exception as e:
             logger.error(f"更新UI文本失败: {str(e)}")
-    
+
     def _update_about_dialogs(self, main_window):
         """更新所有打开的关于对话框"""
         try:
             # 导入QtWidgets模块
             from PyQt6 import QtWidgets
-            
+
             # 查找所有打开的关于对话框
             for widget in main_window.findChildren(QtWidgets.QDialog):
                 if hasattr(widget, 'update_ui_texts'):

@@ -11,10 +11,10 @@ logger = global_logger
 
 class ResourceCleaner:
     """全局资源清理器"""
-    
+
     _instance: Optional['ResourceCleaner'] = None
     _lock = threading.Lock()
-    
+
     def __new__(cls):
         if cls._instance is None:
             with cls._lock:
@@ -22,18 +22,18 @@ class ResourceCleaner:
                     cls._instance = super().__new__(cls)
                     cls._instance._initialized = False
         return cls._instance
-    
+
     def __init__(self):
         if self._initialized:
             return
-        
+
         self._cleanup_handlers: List[Callable] = []
         self._weak_handlers = weakref.WeakValueDictionary()
         self._lock = threading.Lock()
         self._initialized = True
-        
+
         logger.info("资源清理器已初始化")
-    
+
     def register_cleanup_handler(self, handler: Callable, name: Optional[str] = None):
         """注册清理处理器"""
         with self._lock:
@@ -41,7 +41,7 @@ class ResourceCleaner:
             if name:
                 self._weak_handlers[name] = handler
             # 移除调试日志，整合到调用方的日志中
-    
+
     def unregister_cleanup_handler(self, handler: Callable):
         """注销清理处理器"""
         with self._lock:
@@ -55,19 +55,19 @@ class ResourceCleaner:
                 for name in to_remove:
                     del self._weak_handlers[name]
                 logger.debug(f"注销清理处理器: {handler.__name__}")
-    
+
     def cleanup_all(self):
         """执行所有清理操作"""
         logger.info("开始全局资源清理...")
-        
+
         # 按注册顺序执行清理处理器
         handlers_to_execute = []
         with self._lock:
             handlers_to_execute = self._cleanup_handlers.copy()
-        
+
         success_count = 0
         error_count = 0
-        
+
         for handler in handlers_to_execute:
             handler_name = None
             with self._lock:
@@ -76,7 +76,7 @@ class ResourceCleaner:
                     if h == handler:
                         handler_name = name
                         break
-            
+
             try:
                 handler()
                 success_count += 1
@@ -84,11 +84,11 @@ class ResourceCleaner:
             except Exception as e:
                 error_count += 1
                 logger.error(f"清理处理器执行失败 {handler_name or handler.__name__}: {e}")
-        
+
         # 强制垃圾回收
         collected = gc.collect()
         logger.debug(f"垃圾回收完成，回收对象: {collected}")
-        
+
         # 清理弱引用字典中的无效引用
         with self._lock:
             # 创建副本以避免在迭代时修改
@@ -96,14 +96,14 @@ class ResourceCleaner:
             for name, handler in weak_items:
                 if handler is None:
                     del self._weak_handlers[name]
-        
+
         logger.info(f"全局资源清理完成: {success_count} 个处理器成功, {error_count} 个处理器失败")
-    
+
     def get_handler_count(self) -> int:
         """获取注册的处理器数量"""
         with self._lock:
             return len(self._cleanup_handlers)
-    
+
     def clear_all_handlers(self):
         """清除所有清理处理器"""
         with self._lock:
@@ -162,19 +162,19 @@ def auto_cleanup(func):
                 cleanup_all()
             except Exception as e:
                 logger.error(f"自动资源清理失败: {e}")
-    
+
     return wrapper
 
 
 # 上下文管理器
 class ResourceCleanupContext:
     """资源清理上下文管理器"""
-    
+
     def __enter__(self):
         """进入上下文"""
         logger.debug("进入资源清理上下文")
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """退出上下文时清理资源"""
         logger.debug("退出资源清理上下文，执行清理")
@@ -182,7 +182,7 @@ class ResourceCleanupContext:
             cleanup_all()
         except Exception as e:
             logger.error(f"上下文资源清理失败: {e}")
-        
+
         # 不处理异常，让异常正常传播
         return False
 
