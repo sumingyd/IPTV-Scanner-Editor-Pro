@@ -8,6 +8,7 @@ from models.channel_model import ChannelListModel
 from PyQt6 import QtCore
 from PyQt6.QtCore import pyqtSignal, QObject
 from models.channel_mappings import extract_channel_name_from_url
+from utils.scan_state_manager import get_scan_state_manager, ScanStateContext
 
 
 class ScannerController(QObject):
@@ -48,6 +49,10 @@ class ScannerController(QObject):
         # 记录无效的URL，用于重试扫描
         self.invalid_urls = []
         self.invalid_urls_lock = threading.Lock()
+
+        # 扫描状态管理器
+        self.scan_state_manager = get_scan_state_manager()
+        self.scan_id = 'main_scan'
 
     def _force_ui_refresh(self):
         """强制刷新UI"""
@@ -121,6 +126,9 @@ class ScannerController(QObject):
                         with self.invalid_urls_lock:
                             self.invalid_urls.append(url)
 
+                        # 更新扫描状态管理器中的无效URL
+                        self.scan_state_manager.add_invalid_url(self.scan_id, url)
+
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
 
@@ -184,25 +192,6 @@ class ScannerController(QObject):
         if alive_workers == 0 and not self.stop_event.is_set():
             # 这里确保扫描完成信号被发射
             QtCore.QTimer.singleShot(0, self.scan_completed.emit)
-
-    def _update_progress(self, valid: bool):
-        """更新扫描进度"""
-        with self.stats_lock:
-            if valid:
-                self.stats['valid'] += 1
-            else:
-                self.stats['invalid'] += 1
-
-            current = self.stats['valid'] + self.stats['invalid']
-            total = self.stats['total']
-
-            # 使用QTimer在主线程中安全地更新进度
-            import functools
-            QtCore.QTimer.singleShot(
-                0, functools.partial(
-                    self.progress_updated.emit, current, total
-                )
-            )
 
     def _process_valid_channel(self, channel_info: dict):
         """处理有效频道"""
@@ -463,6 +452,16 @@ class ScannerController(QObject):
         self.stop_scan()
         self.stop_event.clear()
 
+        # 使用扫描状态上下文管理器
+        with ScanStateContext(self.scan_id, self):
+            self._start_scan_internal(base_url, thread_count, timeout, user_agent, referer)
+
+    def _start_scan_internal(
+        self, base_url: str, thread_count: int = 10, timeout: int = 10,
+        user_agent: str = None, referer: str = None
+    ) -> None:
+        """内部扫描启动方法"""
+
         # 保存超时时间和线程数到实例变量
         self.timeout = timeout
 
@@ -481,6 +480,13 @@ class ScannerController(QObject):
             'start_time': time.time(),
             'elapsed': 0
         }
+
+        # 更新扫描状态管理器
+        self.scan_state_manager.update_scan_state(self.scan_id, {
+            'is_scanning': True,
+            'scanner': self
+        })
+        self.scan_state_manager.update_stats(self.scan_id, self.stats)
 
         # 初始化队列和生成器
         self.scan_queue = queue.Queue()
@@ -543,6 +549,19 @@ class ScannerController(QObject):
         with self.invalid_urls_lock:
             self.invalid_urls.clear()
 
+        # 清空扫描状态管理器中的无效URL
+        self.scan_state_manager.clear_invalid_urls(self.scan_id)
+
+        # 使用扫描状态上下文管理器
+        with ScanStateContext(self.scan_id, self):
+            self._start_scan_from_urls_internal(urls, thread_count, timeout, user_agent, referer)
+
+    def _start_scan_from_urls_internal(
+        self, urls: list, thread_count: int = 10, timeout: int = 10,
+        user_agent: str = None, referer: str = None
+    ):
+        """内部从URL列表开始扫描方法"""
+
         from services.validator_service import StreamValidator
         StreamValidator.timeout = timeout
         if user_agent:
@@ -558,6 +577,13 @@ class ScannerController(QObject):
             'start_time': time.time(),
             'elapsed': 0
         }
+
+        # 更新扫描状态管理器
+        self.scan_state_manager.update_scan_state(self.scan_id, {
+            'is_scanning': True,
+            'scanner': self
+        })
+        self.scan_state_manager.update_stats(self.scan_id, self.stats)
 
         # 初始化队列
         self.scan_queue = queue.Queue()
@@ -588,6 +614,11 @@ class ScannerController(QObject):
         """停止扫描 - 快速响应版本，避免程序假死"""
         # 设置停止事件，让所有工作线程知道应该停止
         self.stop_event.set()
+
+        # 更新扫描状态管理器
+        self.scan_state_manager.update_scan_state(self.scan_id, {
+            'is_scanning': False
+        })
 
         # 立即清空所有队列，避免新任务被处理
         self._clear_all_queues()
@@ -698,6 +729,11 @@ class ScannerController(QObject):
         self.stop_event.clear()
         self.timeout = timeout
 
+        # 更新扫描状态管理器
+        self.scan_state_manager.update_scan_state(self.scan_id, {
+            'is_validating': True
+        })
+
         # 设置验证器的headers，与扫描逻辑相同
         from services.validator_service import StreamValidator
         StreamValidator.timeout = timeout
@@ -742,6 +778,11 @@ class ScannerController(QObject):
         """停止有效性验证"""
         self.stop_event.set()
         self.is_validating = False
+
+        # 更新扫描状态管理器
+        self.scan_state_manager.update_scan_state(self.scan_id, {
+            'is_validating': False
+        })
 
         # 清空任务队列
         while not self.validation_queue.empty():
@@ -825,6 +866,9 @@ class ScannerController(QObject):
                     # 使用锁确保获取最新的统计信息
                     with self.stats_lock:
                         self.stats['elapsed'] = time.time() - self.stats['start_time']
+
+                        # 更新扫描状态管理器中的统计信息
+                        self.scan_state_manager.update_stats(self.scan_id, self.stats)
 
                         # 直接调用主窗口的更新方法，避免信号连接问题
                         if self.main_window and hasattr(self.main_window, '_update_stats_display'):

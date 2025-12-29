@@ -17,6 +17,13 @@ from ui.optimizer import get_ui_optimizer
 from utils.error_handler import init_global_error_handler
 from utils.resource_cleaner import register_cleanup
 from utils.general_utils import safe_connect_button
+from utils.progress_manager import init_progress_manager
+from utils.config_notifier import register_config_observer
+from utils.scan_state_manager import get_scan_state_manager, register_retry_task, RetryScanStateContext
+from utils.logging_helper import (
+    log_ui_info, log_ui_warning, log_ui_error, log_scan_info,
+    log_scan_warning, log_config_error, log_config_info
+)
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -42,11 +49,12 @@ class MainWindow(QtWidgets.QMainWindow):
             language_code = self.config.load_language_settings()
             self.language_manager.set_language(language_code)
 
-        # 重试扫描相关属性
-        self.is_retry_scan = False  # 标记当前是否是重试扫描
-        self.failed_channels = []  # 存储失败的频道URL
-        self.retry_count = 0  # 重试次数计数
-        self.last_retry_valid_count = 0  # 上一次重试找到的有效频道数
+        # 扫描状态管理器
+        self.scan_state_manager = get_scan_state_manager()
+        self.retry_id = 'main_retry'
+
+        # 注册重试扫描任务
+        register_retry_task(self.retry_id, self)
 
         # 在UI构建前完全隐藏窗口，防止任何闪动
         self.hide()
@@ -93,6 +101,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.model = self.ui.main_window.model
         self.model.setParent(self)
 
+        # 初始化进度条管理器（必须在 init_controllers 之前）
+        self.progress_manager = init_progress_manager(
+            self.ui.main_window.progress_indicator,
+            self.ui.main_window.statusBar()
+        )
+
         self.init_controllers()
 
         self.ui_optimizer = get_ui_optimizer()
@@ -105,17 +119,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self._load_config()
         self._connect_signals()
         self._register_cleanup_handlers()
+        self._register_config_observers()
 
     def init_controllers(self):
         """初始化所有控制器"""
-        self.logger.info("=== 初始化控制器 ===")
+        log_ui_info("=== 初始化控制器 ===")
 
         if not hasattr(self, 'scanner') or self.scanner is None:
-            self.logger.info("创建ScannerController实例")
+            log_scan_info("创建ScannerController实例")
             self.scanner = ScannerController(self.model, self)
-            self.logger.info(f"ScannerController创建完成: {self.scanner}")
+            log_scan_info(f"ScannerController创建完成: {self.scanner}")
         else:
-            self.logger.info(f"ScannerController已存在: {self.scanner}")
+            log_scan_info(f"ScannerController已存在: {self.scanner}")
 
         self.player_controller = PlayerController(
             self.ui.main_window.player, self.model
@@ -125,31 +140,26 @@ class MainWindow(QtWidgets.QMainWindow):
         self._connect_progress_signals()
         self._on_play_state_changed(self.player_controller.is_playing)
 
-        self.logger.info("=== 控制器初始化完成 ===")
+        log_ui_info("=== 控制器初始化完成 ===")
 
     def _connect_progress_signals(self):
         """连接进度条更新信号"""
-        if not hasattr(self.ui.main_window, 'progress_indicator'):
-            return
+        # 使用进度条管理器注册扫描进度回调
+        self.progress_manager.register_progress_callback(
+            'scan',
+            self._update_scan_progress
+        )
 
-        if self.ui.main_window.progress_indicator is None:
-            return
+        # 启动自动更新
+        self.progress_manager.start_auto_update(
+            self._update_scan_progress,
+            interval=500
+        )
 
-        self.ui.main_window.progress_indicator.setRange(0, 100)
-        self.ui.main_window.progress_indicator.setValue(0)
-        self.ui.main_window.progress_indicator.setTextVisible(True)
-        self.ui.main_window.progress_indicator.setFormat("%p%")
-        self.ui.main_window.progress_indicator.hide()
+        log_ui_info("进度条信号已连接")
 
-        self.progress_timer = QtCore.QTimer()
-        self.progress_timer.timeout.connect(self._update_progress_from_stats)
-        self.progress_timer.start(500)
-
-        # 注意：scan_completed 信号已经在 _connect_signals 中连接到 _on_scan_completed
-        # 这里不需要重复连接
-
-    def _update_progress_from_stats(self):
-        """从统计信息更新进度条"""
+    def _update_scan_progress(self):
+        """更新扫描进度（使用进度条管理器）"""
         try:
             if hasattr(self.scanner, 'stats'):
                 stats = self.scanner.stats
@@ -159,43 +169,33 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 current = valid + invalid
 
-                if total <= 0:
-                    progress_value = 0
-                else:
-                    progress_value = int(current / total * 100)
-                    progress_value = max(0, min(100, progress_value))
+                if total > 0:
+                    # 使用进度条管理器更新进度
+                    self.progress_manager.update_progress_from_stats(
+                        current,
+                        total,
+                        f"扫描进度: {current}/{total}"
+                    )
 
-                if not self.ui.main_window.progress_indicator.isVisible() and total > 0:
-                    self.ui.main_window.progress_indicator.show()
-
-                old_value = self.ui.main_window.progress_indicator.value()
-                if old_value != progress_value:
-                    self.ui.main_window.progress_indicator.setValue(progress_value)
-
-                    if progress_value >= 100 and old_value < 100:
+                    # 检查是否完成
+                    if current >= total and total > 0:
+                        self.progress_manager.complete_progress("扫描完成")
                         self._set_scan_button_text('full_scan', '完整扫描')
                         self._set_append_scan_button_text('append_scan', '追加扫描')
-                        self._hide_progress_indicator()
 
         except AttributeError as e:
-            self.logger.debug(f"进度条更新失败: {e}")
+            log_scan_warning(f"扫描进度更新失败: {e}")
         except Exception as e:
-            self.logger.warning(f"进度条更新时发生意外错误: {e}")
+            log_scan_warning(f"扫描进度更新时发生意外错误: {e}")
 
     def _on_scan_completed_for_progress(self):
         """处理扫描完成，隐藏进度条"""
         try:
-            self._hide_progress_indicator()
+            self.progress_manager.hide_progress()
         except AttributeError as e:
-            self.logger.debug(f"隐藏进度条失败: {e}")
+            log_ui_warning(f"隐藏进度条失败: {e}")
         except Exception as e:
-            self.logger.warning(f"隐藏进度条时发生意外错误: {e}")
-
-    def _hide_progress_indicator(self):
-        """统一隐藏进度条的方法"""
-        if hasattr(self.ui.main_window, 'progress_indicator'):
-            self.ui.main_window.progress_indicator.hide()
-            self.ui.main_window.progress_indicator.setValue(0)
+            log_ui_warning(f"隐藏进度条时发生意外错误: {e}")
 
     def _load_config(self):
         """加载保存的配置到UI"""
@@ -226,13 +226,59 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.language_manager.set_language(language_code)
 
         except Exception as e:
-            self.logger.error(f"加载配置失败: {e}")
+            log_config_error(f"加载配置失败: {e}")
             self.ui.main_window.timeout_input.setValue(10)
             self.ui.main_window.thread_count_input.setValue(5)
 
+    def _register_config_observers(self):
+        """注册配置变更观察者"""
+        # 注册网络配置变更观察者
+        register_config_observer("Network.*", self._on_network_config_changed)
+        register_config_observer("ScanRetry.*", self._on_scan_retry_config_changed)
+        register_config_observer("Language.current_language", self._on_language_config_changed)
+
+        log_config_info("配置变更观察者已注册")
+
+    def _on_network_config_changed(self, section, key, old_value, new_value):
+        """处理网络配置变更"""
+        log_config_info(f"网络配置变更: {section}.{key} = {old_value} -> {new_value}")
+
+        # 更新对应的UI控件
+        if key == 'url':
+            self.ui.main_window.ip_range_input.setText(new_value)
+        elif key == 'timeout':
+            self.ui.main_window.timeout_input.setValue(int(new_value))
+        elif key == 'threads':
+            self.ui.main_window.thread_count_input.setValue(int(new_value))
+        elif key == 'user_agent':
+            self.ui.main_window.user_agent_input.setText(new_value)
+        elif key == 'referer':
+            self.ui.main_window.referer_input.setText(new_value)
+        elif key == 'enable_retry':
+            self.ui.main_window.enable_retry_checkbox.setChecked(new_value.lower() == 'true')
+        elif key == 'loop_scan':
+            self.ui.main_window.loop_scan_checkbox.setChecked(new_value.lower() == 'true')
+
+    def _on_scan_retry_config_changed(self, section, key, old_value, new_value):
+        """处理扫描重试配置变更"""
+        log_config_info(f"扫描重试配置变更: {section}.{key} = {old_value} -> {new_value}")
+
+        if key == 'enable_retry':
+            self.ui.main_window.enable_retry_checkbox.setChecked(new_value.lower() == 'true')
+        elif key == 'loop_scan':
+            self.ui.main_window.loop_scan_checkbox.setChecked(new_value.lower() == 'true')
+
+    def _on_language_config_changed(self, section, key, old_value, new_value):
+        """处理语言配置变更"""
+        log_config_info(f"语言配置变更: {section}.{key} = {old_value} -> {new_value}")
+
+        if hasattr(self, 'language_manager'):
+            self.language_manager.set_language(new_value)
+            self.language_manager.update_ui_texts(self)
+
     def _connect_signals(self):
         """连接所有信号和槽"""
-        self.logger.info("=== 开始连接信号 ===")
+        log_ui_info("=== 开始连接信号 ===")
 
         self.ui.main_window.channel_list.selectionModel().selectionChanged.connect(
             self._on_channel_selected
@@ -257,37 +303,37 @@ class MainWindow(QtWidgets.QMainWindow):
         safe_connect_button(self.ui.main_window.generate_btn, self._on_generate_clicked)
 
         # 连接扫描器信号
-        self.logger.info("连接扫描器信号...")
+        log_ui_info("连接扫描器信号...")
 
         # 检查scanner对象是否存在
         if not hasattr(self, 'scanner') or self.scanner is None:
-            self.logger.error("scanner对象不存在，无法连接信号")
+            log_ui_error("scanner对象不存在，无法连接信号")
             return
 
-        self.logger.info(f"scanner对象: {self.scanner}")
+        log_ui_info(f"scanner对象: {self.scanner}")
 
         try:
             self.scanner.channel_found.connect(self._on_channel_found)
-            self.logger.info("channel_found信号已连接")
+            log_ui_info("channel_found信号已连接")
         except Exception as e:
-            self.logger.error(f"连接channel_found信号失败: {e}")
+            log_ui_error(f"连接channel_found信号失败: {e}")
 
         try:
             self.scanner.scan_completed.connect(self._on_scan_completed)
-            self.logger.info("scan_completed信号已连接到 _on_scan_completed")
+            log_ui_info("scan_completed信号已连接到 _on_scan_completed")
         except Exception as e:
-            self.logger.error(f"连接scan_completed信号失败: {e}")
+            log_ui_error(f"连接scan_completed信号失败: {e}")
 
         try:
             self.scanner.stats_updated.connect(
                 self._update_stats_display,
                 QtCore.Qt.ConnectionType.QueuedConnection
             )
-            self.logger.info("stats_updated信号已连接")
+            log_ui_info("stats_updated信号已连接")
         except Exception as e:
-            self.logger.error(f"连接stats_updated信号失败: {e}")
+            log_ui_error(f"连接stats_updated信号失败: {e}")
 
-        self.logger.info("=== 信号连接完成 ===")
+        log_ui_info("=== 信号连接完成 ===")
 
     def _on_scan_clicked(self):
         """处理扫描按钮点击事件"""
@@ -298,7 +344,7 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             url = self.ui.main_window.ip_range_input.text()
             if not url.strip():
-                self.logger.warning("请输入扫描地址")
+                log_ui_warning("请输入扫描地址")
                 self.ui.main_window.statusBar().showMessage("请输入扫描地址", 3000)
                 return
 
@@ -313,7 +359,7 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             url = self.ui.main_window.ip_range_input.text()
             if not url.strip():
-                self.logger.warning("请输入扫描地址")
+                log_ui_warning("请输入扫描地址")
                 self.ui.main_window.statusBar().showMessage("请输入扫描地址", 3000)
                 return
 
@@ -323,9 +369,9 @@ class MainWindow(QtWidgets.QMainWindow):
         """延迟启动扫描，避免UI阻塞"""
         if clear_list:
             self.model.clear()
-            self.logger.info("开始完整扫描，清空现有列表")
+            log_scan_info("开始完整扫描，清空现有列表")
         else:
-            self.logger.info("开始追加扫描，保留现有列表")
+            log_scan_info("开始追加扫描，保留现有列表")
 
         timeout = self.ui.main_window.timeout_input.value()
         threads = self.ui.main_window.thread_count_input.value()
@@ -592,14 +638,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_scan_completed(self):
         """处理扫描完成事件"""
         # 检查是否是重试扫描刚刚开始的情况
-        if self.is_retry_scan and self.retry_count > 0:
+        if self.scan_state_manager.is_retry_scan(self.retry_id) and self.scan_state_manager.get_retry_count(self.retry_id) > 0:
             # 检查扫描器是否正在扫描
             if hasattr(self, 'scanner') and self.scanner and self.scanner.is_scanning():
                 self.logger.info("重试扫描进行中，跳过完成处理")
                 return
 
         # 隐藏进度条
-        self._hide_progress_indicator()
+        self.progress_manager.hide_progress()
 
         # 只有在扫描真正完成时才更新按钮文本
         if not self.is_retry_scan or (self.is_retry_scan and not self.scanner.is_scanning()):
@@ -619,7 +665,7 @@ class MainWindow(QtWidgets.QMainWindow):
             header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
         # 检查是否需要重试扫描
-        if not self.is_retry_scan:
+        if not self.scan_state_manager.is_retry_scan(self.retry_id):
             # 这是第一次扫描完成，检查是否需要重试
             if self.ui.main_window.enable_retry_checkbox.isChecked():
                 self.logger.info("开始重试扫描")
@@ -730,15 +776,19 @@ class MainWindow(QtWidgets.QMainWindow):
         # 收集所有处理器名称用于整合日志
         handler_names = []
 
+        # 注册配置保存处理器（应该在清理前执行）
+        register_cleanup(self.save_before_exit, "save_config_before_exit")
+        handler_names.append("save_config_before_exit")
+
         register_cleanup(self._stop_all_timers, "stop_all_timers")
         handler_names.append("stop_all_timers")
 
-        if hasattr(self, 'progress_timer'):
-            def stop_progress_timer():
-                if self.progress_timer.isActive():
-                    self.progress_timer.stop()
-            register_cleanup(stop_progress_timer, "stop_progress_timer")
-            handler_names.append("stop_progress_timer")
+        # 进度条管理器清理
+        register_cleanup(self.progress_manager.stop_auto_update, "progress_manager_stop_auto_update")
+        handler_names.append("progress_manager_stop_auto_update")
+
+        register_cleanup(self.progress_manager.hide_progress, "progress_manager_hide_progress")
+        handler_names.append("progress_manager_hide_progress")
 
         if hasattr(self, 'scanner'):
             register_cleanup(self.scanner.stop_scan, "scanner_stop_scan")
@@ -763,12 +813,19 @@ class MainWindow(QtWidgets.QMainWindow):
         """处理重试扫描"""
         self.logger.info("=== _handle_retry_scan 方法开始 ===")
 
+        # 使用重试扫描状态上下文管理器
+        with RetryScanStateContext(self.retry_id, self):
+            self._handle_retry_scan_internal()
+
+    def _handle_retry_scan_internal(self):
+        """内部重试扫描处理方法"""
         # 收集失败的频道
         self._collect_failed_channels()
 
-        self.logger.info(f"收集到的失败频道数量: {len(self.failed_channels)}")
+        failed_channels = self.scan_state_manager.get_failed_channels(self.retry_id)
+        self.logger.info(f"收集到的失败频道数量: {len(failed_channels)}")
 
-        if not self.failed_channels:
+        if not failed_channels:
             self.logger.info("没有失败的频道需要重试")
             self.ui.main_window.statusBar().showMessage("没有失败的频道需要重试", 3000)
             self.logger.info("=== _handle_retry_scan 方法结束（无失败频道）===")
@@ -776,7 +833,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 记录当前的有效频道数，用于判断是否找到了新的有效频道
         current_valid_count = self._count_valid_channels()
-        self.last_retry_valid_count = current_valid_count
+        self.scan_state_manager.update_last_retry_valid_count(self.retry_id, current_valid_count)
         self.logger.info(f"当前有效频道数: {current_valid_count}")
 
         # 启动重试扫描
@@ -786,24 +843,26 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _collect_failed_channels(self):
         """收集失败的频道URL"""
-        self.failed_channels = []
-
-        # 从ScannerController获取无效的URL列表
+        # 从扫描状态管理器获取无效的URL列表
         if hasattr(self, 'scanner') and self.scanner:
-            # 获取无效URL列表
-            with self.scanner.invalid_urls_lock:
-                self.failed_channels = self.scanner.invalid_urls.copy()
+            # 获取扫描状态管理器中的无效URL
+            invalid_urls = self.scanner.scan_state_manager.get_invalid_urls(self.scanner.scan_id)
 
-            self.logger.info(f"从ScannerController获取失败频道: {len(self.failed_channels)} 个")
+            # 添加到重试扫描状态管理器
+            for url in invalid_urls:
+                self.scan_state_manager.add_failed_channel(self.retry_id, url)
+
+            self.logger.info(f"从扫描状态管理器获取失败频道: {len(invalid_urls)} 个")
 
             # 调试：记录前5个无效URL
-            for i in range(min(5, len(self.failed_channels))):
-                url = self.failed_channels[i]
+            for i in range(min(5, len(invalid_urls))):
+                url = invalid_urls[i]
                 self.logger.info(f"无效URL {i}: {url[:50]}")
         else:
             self.logger.warning("ScannerController不存在，无法获取失败频道列表")
 
-        self.logger.info(f"收集完成: 失败频道数={len(self.failed_channels)}")
+        failed_channels = self.scan_state_manager.get_failed_channels(self.retry_id)
+        self.logger.info(f"收集完成: 失败频道数={len(failed_channels)}")
 
     def _count_valid_channels(self):
         """统计有效频道数量"""
@@ -816,11 +875,17 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _start_retry_scan(self):
         """启动重试扫描"""
-        self.is_retry_scan = True
-        self.retry_count += 1
+        # 更新重试扫描状态
+        self.scan_state_manager.update_retry_state(self.retry_id, {
+            'is_retry_scan': True
+        })
 
-        self.logger.info(f"开始第 {self.retry_count} 次重试扫描，共 {len(self.failed_channels)} 个频道")
-        self.ui.main_window.statusBar().showMessage(f"开始第 {self.retry_count} 次重试扫描...", 3000)
+        # 增加重试计数
+        retry_count = self.scan_state_manager.increment_retry_count(self.retry_id)
+
+        failed_channels = self.scan_state_manager.get_failed_channels(self.retry_id)
+        self.logger.info(f"开始第 {retry_count} 次重试扫描，共 {len(failed_channels)} 个频道")
+        self.ui.main_window.statusBar().showMessage(f"开始第 {retry_count} 次重试扫描...", 3000)
 
         # 使用扫描服务的 start_scan_from_urls 方法
         timeout = self.ui.main_window.timeout_input.value()
@@ -829,7 +894,7 @@ class MainWindow(QtWidgets.QMainWindow):
         referer = self.ui.main_window.referer_input.text()
 
         self.scanner.start_scan_from_urls(
-            self.failed_channels,
+            failed_channels,
             threads,
             timeout,
             user_agent,
@@ -844,9 +909,11 @@ class MainWindow(QtWidgets.QMainWindow):
         """处理重试扫描完成"""
         # 计算本次重试找到的有效频道数
         current_valid_count = self._count_valid_channels()
-        new_valid_count = current_valid_count - self.last_retry_valid_count
+        last_retry_valid_count = self.scan_state_manager.get_last_retry_valid_count(self.retry_id)
+        new_valid_count = current_valid_count - last_retry_valid_count
 
-        self.logger.info(f"第 {self.retry_count} 次重试扫描完成，找到 {new_valid_count} 个新的有效频道")
+        retry_count = self.scan_state_manager.get_retry_count(self.retry_id)
+        self.logger.info(f"第 {retry_count} 次重试扫描完成，找到 {new_valid_count} 个新的有效频道")
 
         # 检查是否需要继续循环扫描
         if self.ui.main_window.loop_scan_checkbox.isChecked() and new_valid_count > 0:
@@ -865,31 +932,34 @@ class MainWindow(QtWidgets.QMainWindow):
         # 重新收集失败的频道
         self._collect_failed_channels()
 
-        if not self.failed_channels:
+        failed_channels = self.scan_state_manager.get_failed_channels(self.retry_id)
+        if not failed_channels:
             self.logger.info("所有频道都已有效，循环扫描结束")
             self.ui.main_window.statusBar().showMessage("所有频道都已有效，循环扫描结束", 3000)
             self._finish_retry_scan()
             return
 
         # 更新有效频道计数
-        self.last_retry_valid_count = self._count_valid_channels()
+        current_valid_count = self._count_valid_channels()
+        self.scan_state_manager.update_last_retry_valid_count(self.retry_id, current_valid_count)
 
         # 继续重试扫描
         self._start_retry_scan()
 
     def _finish_retry_scan(self):
         """完成重试扫描"""
-        self.is_retry_scan = False
-        total_valid = self._count_valid_channels()
+        # 更新重试扫描状态
+        self.scan_state_manager.update_retry_state(self.retry_id, {
+            'is_retry_scan': False
+        })
 
-        self.logger.info(f"重试扫描完成，共进行 {self.retry_count} 次重试，总计有效频道: {total_valid}")
+        total_valid = self._count_valid_channels()
+        retry_count = self.scan_state_manager.get_retry_count(self.retry_id)
+
+        self.logger.info(f"重试扫描完成，共进行 {retry_count} 次重试，总计有效频道: {total_valid}")
         self.ui.main_window.statusBar().showMessage(f"重试扫描完成，总计有效频道: {total_valid}", 5000)
 
-        # 重置重试计数
-        self.retry_count = 0
-        self.last_retry_valid_count = 0
-        self.failed_channels = []
-
+        # 重置重试状态（通过RetryScanStateContext的__exit__方法自动处理）
         # 更新按钮文本
         self._set_scan_button_text('full_scan', '完整扫描')
         self._set_append_scan_button_text('append_scan', '追加扫描')

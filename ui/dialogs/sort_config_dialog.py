@@ -479,9 +479,14 @@ class SortConfigDialog(QtWidgets.QDialog):
     def load_config_from_file(self):
         """从配置文件加载排序配置"""
         try:
-            from config_manager import ConfigManager
-            config_manager = ConfigManager()
-            return config_manager.load_sort_config()
+            # 使用父窗口的配置管理器
+            if self.parent() and hasattr(self.parent(), 'config'):
+                return self.parent().config.load_sort_config()
+            else:
+                # 回退到直接导入
+                from core.config_manager import ConfigManager
+                config_manager = ConfigManager()
+                return config_manager.load_sort_config()
         except Exception as e:
             self.logger.error(f"从配置文件加载排序配置失败: {str(e)}")
             # 返回默认配置
@@ -495,9 +500,14 @@ class SortConfigDialog(QtWidgets.QDialog):
     def save_config_to_file(self, sort_config):
         """保存排序配置到文件"""
         try:
-            from config_manager import ConfigManager
-            config_manager = ConfigManager()
-            return config_manager.save_sort_config(sort_config)
+            # 使用父窗口的配置管理器
+            if self.parent() and hasattr(self.parent(), 'config'):
+                return self.parent().config.save_sort_config(sort_config)
+            else:
+                # 回退到直接导入
+                from core.config_manager import ConfigManager
+                config_manager = ConfigManager()
+                return config_manager.save_sort_config(sort_config)
         except Exception as e:
             self.logger.error(f"保存排序配置到文件失败: {str(e)}")
             return False

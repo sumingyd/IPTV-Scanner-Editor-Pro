@@ -15,16 +15,6 @@ def get_resource_path(relative_path: str) -> str:
     return os.path.join(base_path, relative_path)
 
 
-def safe_execute(func, default_return=None, *args, **kwargs):
-    """安全执行函数，捕获异常并返回默认值"""
-    try:
-        return func(*args, **kwargs)
-    except Exception as e:
-        logger = logging.getLogger('utils')
-        logger.error(f"函数 {func.__name__} 执行失败: {e}")
-        return default_return
-
-
 def is_valid_url(url: str) -> bool:
     """检查URL是否有效"""
     if not url or not isinstance(url, str):

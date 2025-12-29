@@ -5,6 +5,8 @@ from models.channel_model import ChannelListModel
 from ui.styles import AppStyles
 from core.log_manager import global_logger
 from utils.error_handler import show_error, show_warning, show_confirm
+from utils.progress_manager import get_progress_manager
+from utils.config_notifier import config_change_context
 from typing import Optional, Callable
 
 
@@ -459,15 +461,17 @@ class UIBuilder(QtCore.QObject):
 
     def _save_network_settings(self):
         """保存网络设置到配置文件（提取的重复代码）"""
-        self.main_window.config.save_network_settings(
-            self.main_window.ip_range_input.text(),
-            self.main_window.timeout_input.value(),
-            self.main_window.thread_count_input.value(),
-            self.main_window.user_agent_input.text(),
-            self.main_window.referer_input.text(),
-            self.main_window.enable_retry_checkbox.isChecked(),
-            self.main_window.loop_scan_checkbox.isChecked()
-        )
+        # 使用配置变更上下文保存网络设置
+        with config_change_context("Network", "url"):
+            self.main_window.config.save_network_settings(
+                self.main_window.ip_range_input.text(),
+                self.main_window.timeout_input.value(),
+                self.main_window.thread_count_input.value(),
+                self.main_window.user_agent_input.text(),
+                self.main_window.referer_input.text(),
+                self.main_window.enable_retry_checkbox.isChecked(),
+                self.main_window.loop_scan_checkbox.isChecked()
+            )
 
     def _setup_scan_panel(self, parent: QtWidgets.QSplitter) -> None:
         """配置扫描面板"""
@@ -888,10 +892,10 @@ class UIBuilder(QtCore.QObject):
             show_warning("错误", "无法获取频道URL", parent=self.main_window)
             return
 
-        # 显示进度条和状态信息
-        self.main_window.progress_indicator.show()
-        self.main_window.progress_indicator.setValue(0)
-        self.main_window.statusBar().showMessage(f"正在重新获取频道信息: {current_name}")
+        # 使用统一的进度条管理器显示进度
+        progress_manager = get_progress_manager()
+        progress_manager.start_progress(f"重新获取频道信息: {current_name}")
+        progress_manager.update_progress(0, f"正在重新获取频道信息: {current_name}")
 
         # 使用QThreadPool异步执行验证任务
         from PyQt6.QtCore import QRunnable, QThreadPool, pyqtSlot
@@ -1002,13 +1006,8 @@ class UIBuilder(QtCore.QObject):
 
     def _update_refresh_progress(self, value, message):
         """更新刷新进度（线程安全）"""
-        QtCore.QTimer.singleShot(0, lambda: self._update_progress_ui(value, message))
-
-    def _update_progress_ui(self, value, message):
-        """在主线程中更新进度UI"""
-        if hasattr(self.main_window, 'progress_indicator'):
-            self.main_window.progress_indicator.setValue(value)
-            self.main_window.statusBar().showMessage(f"{message}")
+        # 直接使用进度条管理器更新进度
+        QtCore.QTimer.singleShot(0, lambda: get_progress_manager().update_progress(value, message))
 
     def _finish_refresh_channel(self, index, new_channel_info, mapped_name, raw_name):
         """完成频道信息刷新"""
@@ -1020,9 +1019,9 @@ class UIBuilder(QtCore.QObject):
                 self._handle_refresh_error("更新频道信息失败")
                 return
 
-            # 隐藏进度条
-            if hasattr(self.main_window, 'progress_indicator'):
-                self.main_window.progress_indicator.hide()
+            # 使用统一的进度条管理器隐藏进度条
+            progress_manager = get_progress_manager()
+            progress_manager.hide_progress()
 
             # 显示成功消息
             self.main_window.statusBar().showMessage(f"频道信息已更新: {raw_name} -> {mapped_name}", 3000)
@@ -1098,8 +1097,9 @@ class UIBuilder(QtCore.QObject):
 
     def _handle_refresh_error(self, error_message):
         """处理刷新错误"""
-        if hasattr(self.main_window, 'progress_indicator'):
-            self.main_window.progress_indicator.hide()
+        # 使用统一的进度条管理器隐藏进度条
+        progress_manager = get_progress_manager()
+        progress_manager.hide_progress()
 
         # 使用统一的错误处理
         show_error("错误", f"重新获取频道信息失败: {error_message}", parent=self.main_window)
@@ -1425,7 +1425,10 @@ class UIBuilder(QtCore.QObject):
             enable_retry = self.main_window.enable_retry_checkbox.isChecked()
             loop_scan = self.main_window.loop_scan_checkbox.isChecked()
 
-            self.main_window.config.save_scan_retry_settings(enable_retry, loop_scan)
+            # 使用配置变更上下文保存扫描重试设置
+            with config_change_context("ScanRetry", "enable_retry"):
+                self.main_window.config.save_scan_retry_settings(enable_retry, loop_scan)
+
             self.logger.debug(f"扫描重试设置已保存: 启用重试={enable_retry}, 循环扫描={loop_scan}")
         except Exception as e:
             self.logger.error(f"保存扫描重试设置失败: {e}")
