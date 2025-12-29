@@ -1,20 +1,18 @@
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtCore import Qt
 import asyncio
-import datetime
 import platform
 import sys
-
 import aiohttp
-
 from core.log_manager import global_logger as logger
+
 
 class AboutDialog(QtWidgets.QDialog):
     # 版本配置
     CURRENT_VERSION = "29.0.0.0"  # 当前版本号(手动修改这里)
     DEFAULT_VERSION = None  # 将从GitHub获取最新版本
     BUILD_DATE = "2025-12-24"  # 更新为当前日期
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.current_version = self.CURRENT_VERSION
@@ -24,13 +22,13 @@ class AboutDialog(QtWidgets.QDialog):
     # 样式常量
     LIGHT_THEME = {
         'bg': "#ffffff",
-        'text': "#333333", 
+        'text': "#333333",
         'card': "#f8f9fa",
         'border': "#e0e0e0",
         'code_bg': "#f0f0f0",
         'code_text': "#333333"
     }
-    
+
     DARK_THEME = {
         'bg': "#2d2d2d",
         'text': "#eeeeee",
@@ -39,7 +37,7 @@ class AboutDialog(QtWidgets.QDialog):
         'code_bg': "#454545",
         'code_text': "#ffffff"
     }
-    
+
     ACCENT_COLOR = "#3498db"  # 主色调
 
     def _init_ui(self):
@@ -59,11 +57,11 @@ class AboutDialog(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(text_browser)
         layout.addWidget(close_btn, 0, Qt.AlignmentFlag.AlignCenter)
-        
+
         self.setLayout(layout)
         self.setMinimumWidth(500)
         self.setMinimumHeight(580)
-        
+
         self.setStyleSheet(f"""
             QDialog {{
                 background-color: {theme['bg']};
@@ -83,7 +81,7 @@ class AboutDialog(QtWidgets.QDialog):
             }}
         """)
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.WindowStaysOnTopHint)
-        
+
         # 设置窗口标题
         self.setWindowTitle("关于 IPTV Scanner Editor Pro")
 
@@ -94,8 +92,8 @@ class AboutDialog(QtWidgets.QDialog):
             <h1 style="color: {self.ACCENT_COLOR}; text-align: center; margin-bottom: 15px; font-size: 18px;">
                 IPTV Scanner Editor Pro / IPTV 专业扫描编辑工具
             </h1>
-            
-            <div style="background-color: {theme['card']}; padding: 15px; border-radius: 8px; 
+
+            <div style="background-color: {theme['card']}; padding: 15px; border-radius: 8px;
                  margin-bottom: 15px; border: 1px solid {theme['border']};">
                 <p style="line-height: 1.6; margin: 5px 0;">
                     <b>当前版本：</b> {self.current_version}
@@ -110,8 +108,8 @@ class AboutDialog(QtWidgets.QDialog):
                     <b>QT版本：</b> {QtCore.qVersion()}
                 </p>
             </div>
-            
-            <h3 style="color: {self.ACCENT_COLOR}; border-bottom: 1px solid {theme['border']}; 
+
+            <h3 style="color: {self.ACCENT_COLOR}; border-bottom: 1px solid {theme['border']};
                 padding-bottom: 5px; font-size: 15px; margin-top: 0;">
                 主要功能说明
             </h3>
@@ -163,12 +161,12 @@ class AboutDialog(QtWidgets.QDialog):
                     </ul>
                 </li>
             </ul>
-            
+
             <div style="margin-top: 20px; text-align: center; font-size: 0.9em; color: {theme['text']}; opacity: 0.8;">
                 <p>© 2025 IPTV Scanner Editor Pro 版权所有</p>
                 <p>
-                    <a href="https://github.com/sumingyd/IPTV-Scanner-Editor-Pro" 
-                       style="color: {self.ACCENT_COLOR}; text-decoration: none;">GitHub 仓库</a> 
+                    <a href="https://github.com/sumingyd/IPTV-Scanner-Editor-Pro"
+                       style="color: {self.ACCENT_COLOR}; text-decoration: none;">GitHub 仓库</a>
                     | <a href="update://check" style="color: {self.ACCENT_COLOR}; text-decoration: none;">在线更新</a>
                 </p>
                 <p style="font-size: 0.8em; margin-top: 10px;">
@@ -183,26 +181,28 @@ class AboutDialog(QtWidgets.QDialog):
         text_browser = self.findChild(QtWidgets.QTextBrowser, "aboutTextBrowser")
         if not text_browser:
             return
-            
+
         # 先显示对话框
         super().show()
         QtWidgets.QApplication.processEvents()
-        
+
         # 延迟100ms确保对话框完全显示后再设置文本
         def set_initial_text():
             # 直接使用原始HTML内容替换，避免toHtml()可能的问题
-            original_html = self._get_about_html(self.DARK_THEME if self.palette().window().color().lightness() < 128 else self.LIGHT_THEME)
+            original_html = self._get_about_html(
+                self.DARK_THEME if self.palette().window().color().lightness() < 128 else self.LIGHT_THEME
+                )
             initial_html = original_html.replace(
-                '<span id="latestVersion"></span>', 
-                f'<span id="latestVersion">检测中...</span>'
+                '<span id="latestVersion"></span>',
+                '<span id="latestVersion">检测中...</span>'
             )
             text_browser.setHtml(initial_html)
-            
+
             # 再延迟100ms开始版本检查
             QtCore.QTimer.singleShot(100, lambda: self._check_version_async(text_browser))
-            
+
         QtCore.QTimer.singleShot(100, set_initial_text)
-        
+
     def _check_version_async(self, text_browser):
         """异步检查版本"""
         try:
@@ -217,7 +217,7 @@ class AboutDialog(QtWidgets.QDialog):
                 self._show_version_error(latest_version)
         except asyncio.TimeoutError:
             self._show_version_error("(请求超时)")
-        except Exception as e:
+        except Exception:
             self._show_version_error("(获取失败)")
         finally:
             loop.close()
@@ -225,12 +225,9 @@ class AboutDialog(QtWidgets.QDialog):
     def _update_version_text(self, text_browser, version=None, date=None, error_msg=None):
         """更新版本号文本"""
         if text_browser:
-            # 获取当前HTML
-            current_html = text_browser.toHtml()
-            
             # 确定要设置的内容
             content = version if version is not None else error_msg
-            
+
             if content is not None:
                 # 方法1: 直接重建整个HTML
                 theme = self.DARK_THEME if self.palette().window().color().lightness() < 128 else self.LIGHT_THEME
@@ -239,11 +236,11 @@ class AboutDialog(QtWidgets.QDialog):
                     f'<span id="latestVersion">{content}</span>'
                 )
                 text_browser.setHtml(full_html)
-                
+
                 # 强制刷新界面
                 text_browser.repaint()
                 QtWidgets.QApplication.processEvents()
-                
+
                 # 使用QTimer延迟执行确保更新
                 QtCore.QTimer.singleShot(100, lambda: (
                     text_browser.setHtml(full_html),
@@ -259,27 +256,27 @@ class AboutDialog(QtWidgets.QDialog):
     def _on_link_activated(self, link):
         """处理链接点击事件"""
         link_str = link.toString()
-        
+
         if link_str == "update://check":
             # 在后台线程中执行更新操作，避免阻塞UI
             self._start_update_in_background()
-                
+
         elif link_str.startswith("http"):
             QtGui.QDesktopServices.openUrl(QtCore.QUrl(link))
-            
+
     def _start_update_in_background(self):
         """在后台线程中启动更新流程"""
         try:
             # 显示点击反馈
             QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
             QtWidgets.QApplication.processEvents()
-            
+
             # 创建并启动后台线程
             self._update_thread = UpdateThread(self)
             self._update_thread.update_finished.connect(self._on_update_finished)
             self._update_thread.update_error.connect(self._on_update_error)
             self._update_thread.start()
-            
+
         except Exception as e:
             logger.error(f"启动更新线程失败: {str(e)}", exc_info=True)
             QtWidgets.QApplication.restoreOverrideCursor()
@@ -297,7 +294,7 @@ class AboutDialog(QtWidgets.QDialog):
                     "更新错误",
                     f"无法启动更新流程: {str(e)}"
                 )
-            
+
     def _on_update_finished(self, success, message):
         """更新完成处理"""
         QtWidgets.QApplication.restoreOverrideCursor()
@@ -331,7 +328,7 @@ class AboutDialog(QtWidgets.QDialog):
                     "更新失败",
                     message
                 )
-            
+
     def _on_update_error(self, error_message):
         """更新错误处理"""
         QtWidgets.QApplication.restoreOverrideCursor()
@@ -354,9 +351,9 @@ class AboutDialog(QtWidgets.QDialog):
         """执行在线更新"""
         max_retries = 3
         retry_delay = 1  # 秒
-        
+
         progress = QtWidgets.QProgressDialog(
-            "正在检查更新...", 
+            "正在检查更新...",
             "取消", 0, 0, self)
         progress.setWindowTitle("在线更新")
         progress.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
@@ -370,18 +367,18 @@ class AboutDialog(QtWidgets.QDialog):
                 # 1. 获取最新版本信息
                 progress.setLabelText(f"正在检查更新...(第{attempt+1}次尝试)...")
                 version, date, download_url = await self._get_latest_version()
-                
+
                 if not download_url:
                     raise Exception("未找到下载链接")
-                    
+
                 # 2. 下载更新包
                 progress.setLabelText(f"正在下载更新...(第{attempt+1}次尝试)...")
                 progress.setRange(0, 0)  # 不确定进度模式
-                
+
                 # 设置下载超时和重试
                 timeout = aiohttp.ClientTimeout(total=30)
                 connector = aiohttp.TCPConnector(force_close=True)
-                
+
                 async with aiohttp.ClientSession(
                     timeout=timeout,
                     connector=connector,
@@ -391,12 +388,12 @@ class AboutDialog(QtWidgets.QDialog):
                         async with session.get(download_url) as response:
                             if response.status != 200:
                                 raise Exception(f"下载失败: HTTP {response.status}")
-                                
+
                             # 获取文件大小用于进度显示
                             file_size = int(response.headers.get('Content-Length', 0))
                             progress.setRange(0, file_size)
                             progress.setValue(0)
-                            
+
                             # 3. 保存更新文件(包含版本号)
                             update_file = f"IPTV-Scanner-Editor-Pro-{version}.exe"
                             with open(update_file, "wb") as f:
@@ -406,7 +403,7 @@ class AboutDialog(QtWidgets.QDialog):
                                     downloaded += len(chunk)
                                     progress.setValue(downloaded)
                                     QtWidgets.QApplication.processEvents()
-                                    
+
                         # 4. 提示用户重启应用完成更新
                         progress.setLabelText("更新下载完成，请重启应用")
                         # 使用 error_handler 显示信息对话框
@@ -419,25 +416,25 @@ class AboutDialog(QtWidgets.QDialog):
                         else:
                             # 备用方案：直接使用 QMessageBox
                             QtWidgets.QMessageBox.information(
-                                self, 
+                                self,
                                 "更新完成",
                                 f"已下载版本 {version} 的更新包，请重启应用完成更新"
                             )
                         return  # 成功完成，退出循环
-                        
+
                     except aiohttp.ClientError as e:
                         logger.error(f"关于对话框-下载失败(第{attempt+1}次): {str(e)}")
                         if attempt < max_retries - 1:
                             await asyncio.sleep(retry_delay * (attempt + 1))
                             continue
                         raise
-                        
+
             except Exception as e:
                 logger.error(f"关于对话框-在线更新失败(第{attempt+1}次): {str(e)}")
                 if attempt < max_retries - 1:
                     await asyncio.sleep(retry_delay * (attempt + 1))
                     continue
-                    
+
                 # 使用 error_handler 显示错误对话框
                 if hasattr(self.parent, 'error_handler') and self.parent.error_handler:
                     self.parent.error_handler.show_error_dialog(
@@ -453,9 +450,9 @@ class AboutDialog(QtWidgets.QDialog):
                         f"在线更新失败: {str(e)}\n\n请检查网络连接或稍后再试。"
                     )
                 break
-                
+
         progress.close()
-            
+
     async def _check_update(self):
         """手动检查更新"""
         progress = QtWidgets.QProgressDialog("正在检查更新...", "取消", 0, 0, self)
@@ -465,7 +462,7 @@ class AboutDialog(QtWidgets.QDialog):
         progress.setMinimumDuration(0)
         progress.show()
         QtWidgets.QApplication.processEvents()
-        
+
         try:
             await asyncio.sleep(0.5)
             latest_version, publish_date, _ = await self._get_latest_version()
@@ -489,14 +486,14 @@ class AboutDialog(QtWidgets.QDialog):
                         data = await response.json()
                         version = data.get('tag_name', '').lstrip('v')
                         publish_date = data.get('published_at', '')
-                        
+
                         # 查找下载链接
                         download_url = None
                         for asset in data.get('assets', []):
                             if asset.get('name', '').endswith('.exe'):
                                 download_url = asset.get('browser_download_url')
                                 break
-                        
+
                         return version, publish_date, download_url
                     elif response.status == 403:
                         return "(API限制)", "", None
@@ -513,52 +510,52 @@ class UpdateThread(QtCore.QThread):
     """后台更新线程"""
     update_finished = QtCore.pyqtSignal(bool, str)  # success, message
     update_error = QtCore.pyqtSignal(str)  # error_message
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent = parent
-        
+
     def run(self):
         """线程执行函数"""
         try:
             # 创建新的事件循环
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            
+
             # 执行更新任务
             success, message = loop.run_until_complete(self._perform_update())
-            
+
             # 发送完成信号
             self.update_finished.emit(success, message)
-            
+
         except Exception as e:
             logger.error(f"更新线程执行失败: {str(e)}", exc_info=True)
             self.update_error.emit(f"更新线程执行失败: {str(e)}")
         finally:
             loop.close()
-            
+
     async def _perform_update(self):
         """执行更新任务"""
         try:
             # 1. 先获取最新版本信息
             latest_version, date, download_url = await self._get_latest_version()
-            
+
             if not latest_version or latest_version.startswith("("):
                 return False, f"无法获取最新版本信息: {latest_version}"
-            
+
             # 2. 比较版本号，只有当前版本小于最新版本时才更新
             current_version = self.parent.current_version if self.parent else "27.0.0.0"
-            
+
             if not self._is_newer_version(current_version, latest_version):
                 return False, f"当前版本 {current_version} 已经是最新版本，无需更新"
-            
+
             if not download_url or download_url.startswith("("):
                 return False, f"无法获取下载链接: {latest_version}"
-                
+
             # 3. 下载更新包 - 增加超时时间和更好的错误处理
             timeout = aiohttp.ClientTimeout(total=60, connect=30)
             connector = aiohttp.TCPConnector(force_close=True, limit=10)
-            
+
             async with aiohttp.ClientSession(
                 timeout=timeout,
                 connector=connector,
@@ -568,38 +565,38 @@ class UpdateThread(QtCore.QThread):
                     async with session.get(download_url) as response:
                         if response.status != 200:
                             return False, f"下载失败: HTTP {response.status}"
-                            
+
                         # 保存更新文件
                         update_file = f"IPTV-Scanner-Editor-Pro-{latest_version}.exe"
                         with open(update_file, "wb") as f:
                             async for chunk in response.content.iter_chunked(8192):
                                 f.write(chunk)
-                                
+
                     return True, f"已下载版本 {latest_version} 的更新包，请重启应用完成更新"
-                    
+
                 except aiohttp.ClientConnectorError as e:
                     return False, f"网络连接失败: {str(e)}"
                 except aiohttp.ServerTimeoutError as e:
                     return False, f"请求超时: {str(e)}"
                 except aiohttp.ClientError as e:
                     return False, f"网络错误: {str(e)}"
-            
+
         except Exception as e:
             logger.error(f"更新任务执行失败: {str(e)}", exc_info=True)
             return False, f"更新失败: {str(e)}"
-            
+
     def _is_newer_version(self, current_version, latest_version):
         """比较版本号，判断最新版本是否比当前版本新"""
         try:
             # 将版本号转换为数字列表进行比较
             current_parts = list(map(int, current_version.split('.')))
             latest_parts = list(map(int, latest_version.split('.')))
-            
+
             # 确保两个版本号有相同的长度
             max_length = max(len(current_parts), len(latest_parts))
             current_parts.extend([0] * (max_length - len(current_parts)))
             latest_parts.extend([0] * (max_length - len(latest_parts)))
-            
+
             # 逐位比较
             for i in range(max_length):
                 if latest_parts[i] > current_parts[i]:
@@ -607,11 +604,11 @@ class UpdateThread(QtCore.QThread):
                 elif latest_parts[i] < current_parts[i]:
                     return False
             return False  # 版本相同
-            
+
         except (ValueError, AttributeError):
             # 如果版本号格式不正确，使用字符串比较
             return latest_version > current_version
-            
+
     async def _get_latest_version(self):
         """从GitHub获取最新版本信息"""
         try:
@@ -624,14 +621,14 @@ class UpdateThread(QtCore.QThread):
                         data = await response.json()
                         version = data.get('tag_name', '').lstrip('v')
                         publish_date = data.get('published_at', '')
-                        
+
                         # 查找下载链接
                         download_url = None
                         for asset in data.get('assets', []):
                             if asset.get('name', '').endswith('.exe'):
                                 download_url = asset.get('browser_download_url')
                                 break
-                        
+
                         return version, publish_date, download_url
                     elif response.status == 403:
                         return "(API限制)", "", None

@@ -1,5 +1,5 @@
-from PyQt6 import QtCore, QtGui, QtWidgets
-from core.log_manager import LogManager, global_logger
+from PyQt6 import QtGui
+
 
 class AppStyles:
 
@@ -49,7 +49,7 @@ class AppStyles:
                 color: #666666;
             }
         """
-        
+
         if active:
             active_style = """
                 QPushButton {
@@ -201,7 +201,7 @@ class AppStyles:
         # 计算背景亮度来判断深浅色模式
         bg_color = palette.color(QtGui.QPalette.ColorRole.Window)
         is_dark = bg_color.lightness() < 128
-        
+
         # 深色模式返回浅色，浅色模式返回深色
         if is_dark:
             return QtGui.QColor('#f0f0f0')  # 浅灰色
@@ -216,7 +216,7 @@ class AppStyles:
         # 计算背景亮度来判断深浅色模式
         bg_color = palette.color(QtGui.QPalette.ColorRole.Window)
         is_dark = bg_color.lightness() < 128
-        
+
         # 深色模式返回深色背景，浅色模式返回浅色背景
         if is_dark:
             return QtGui.QColor('#2a2a2a')  # 深灰色

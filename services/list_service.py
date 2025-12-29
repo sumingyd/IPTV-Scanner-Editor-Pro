@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import QFileDialog
-from core.log_manager import LogManager, global_logger
+from core.log_manager import global_logger
 from models.channel_model import ChannelListModel
+
 
 class ListManager:
     def __init__(self, model: ChannelListModel):
@@ -12,14 +13,14 @@ class ListManager:
         try:
             file_path, _ = QFileDialog.getOpenFileName(
                 parent,
-                "打开列表文件", 
+                "打开列表文件",
                 "",
                 "M3U文件 (*.m3u *.m3u8);;文本文件 (*.txt);;Excel文件 (*.xlsx);;所有文件 (*)"
             )
-            
+
             if not file_path:
                 return False, "用户取消选择"
-                
+
             if file_path.lower().endswith('.xlsx'):
                 success = self.model.from_excel(file_path)
             else:
@@ -36,7 +37,7 @@ class ListManager:
                         if not content.strip():
                             return False, "文件内容为空"
                         success = self.model.load_from_file(content)
-            
+
             if success:
                 self.logger.info(f"成功加载列表文件: {file_path}")
                 return True, ""
@@ -44,12 +45,12 @@ class ListManager:
                 error_msg = f"文件格式可能不正确: {file_path}"
                 self.logger.warning(error_msg)
                 return False, error_msg
-                
-        except PermissionError as e:
-            error_msg = f"权限不足无法读取文件 {file_path}: {str(e)}"
+
+        except PermissionError:
+            error_msg = f"权限不足无法读取文件 {file_path}"
             self.logger.error(error_msg)
             return False, error_msg
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             error_msg = f"文件不存在: {file_path}"
             self.logger.error(error_msg)
             return False, error_msg
@@ -74,10 +75,10 @@ class ListManager:
                 "",
                 "M3U文件 (*.m3u);;文本文件 (*.txt);;Excel文件 (*.xlsx);;所有文件 (*)"
             )
-            
+
             if not file_path:
                 return False
-                
+
             if file_path.lower().endswith('.txt'):
                 content = self.model.to_txt()
                 content = f"# IPTV频道列表\n# 共 {self.model.rowCount()} 个频道\n\n{content}"
@@ -91,9 +92,9 @@ class ListManager:
                 content = self.model.to_m3u()
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(content)
-                
+
             return True
-            
+
         except Exception as e:
             self.logger.error(f"保存列表文件失败: {str(e)}", exc_info=True)
             return False

@@ -3,7 +3,7 @@ import weakref
 import threading
 import time
 from typing import Dict, Any, Optional
-from core.log_manager import LogManager, global_logger
+from core.log_manager import global_logger
 
 logger = global_logger
 
@@ -12,7 +12,7 @@ class MemoryManager:
     """内存管理器，提供内存优化功能"""
     _instance: Optional['MemoryManager'] = None
     _lock = threading.Lock()
-    
+
     def __new__(cls):
         if cls._instance is None:
             with cls._lock:
@@ -20,19 +20,19 @@ class MemoryManager:
                     cls._instance = super().__new__(cls)
                     cls._instance._initialized = False
         return cls._instance
-        
+
     def __init__(self):
         if self._initialized:
             return
-            
+
         self._object_pools: Dict[str, list] = {}
         self._weak_refs: Dict[str, weakref.WeakValueDictionary] = {}
         self._cache: Dict[str, Any] = {}
         self._lock = threading.Lock()
         self._initialized = True
-        
+
         logger.info("内存管理器已初始化")
-    
+
     def create_object_pool(self, pool_name: str, factory_func, max_size: int = 100):
         """创建对象池"""
         with self._lock:
@@ -45,17 +45,17 @@ class MemoryManager:
                     'reused': 0
                 }
                 logger.debug(f"创建对象池: {pool_name}, 最大大小: {max_size}")
-    
+
     def get_from_pool(self, pool_name: str, *args, **kwargs):
         """从对象池获取对象"""
         with self._lock:
             if pool_name not in self._object_pools:
                 logger.warning(f"对象池 {pool_name} 不存在")
                 return None
-                
+
             pool_info = self._object_pools[pool_name]
             pool = pool_info['pool']
-            
+
             if pool:
                 # 从池中获取对象
                 obj = pool.pop()
@@ -68,39 +68,39 @@ class MemoryManager:
                 pool_info['created'] += 1
                 logger.debug(f"从对象池 {pool_name} 创建新对象，已创建: {pool_info['created']}")
                 return obj
-    
+
     def return_to_pool(self, pool_name: str, obj):
         """将对象返回到对象池"""
         with self._lock:
             if pool_name not in self._object_pools:
                 logger.warning(f"对象池 {pool_name} 不存在")
                 return
-                
+
             pool_info = self._object_pools[pool_name]
             pool = pool_info['pool']
-            
+
             if len(pool) < pool_info['max_size']:
                 pool.append(obj)
                 logger.debug(f"对象返回到池 {pool_name}，池大小: {len(pool)}")
             else:
                 logger.debug(f"对象池 {pool_name} 已满，丢弃对象")
-    
+
     def register_weak_ref(self, ref_name: str, obj):
         """注册弱引用"""
         with self._lock:
             if ref_name not in self._weak_refs:
                 self._weak_refs[ref_name] = weakref.WeakValueDictionary()
-            
+
             self._weak_refs[ref_name][id(obj)] = obj
             logger.debug(f"注册弱引用: {ref_name}, 对象ID: {id(obj)}")
-    
+
     def get_weak_ref(self, ref_name: str, obj_id: int):
         """获取弱引用对象"""
         with self._lock:
             if ref_name in self._weak_refs:
                 return self._weak_refs[ref_name].get(obj_id)
             return None
-    
+
     def cache_object(self, key: str, obj: Any, max_age: Optional[int] = None):
         """缓存对象"""
         with self._lock:
@@ -111,13 +111,13 @@ class MemoryManager:
             }
             self._cache[key] = cache_entry
             logger.debug(f"缓存对象: {key}")
-    
+
     def get_cached_object(self, key: str):
         """获取缓存对象"""
         with self._lock:
             if key in self._cache:
                 entry = self._cache[key]
-                
+
                 # 检查缓存是否过期
                 if entry['max_age'] and entry['timestamp']:
                     current_time = time.time()
@@ -125,12 +125,12 @@ class MemoryManager:
                         del self._cache[key]
                         logger.debug(f"缓存对象 {key} 已过期")
                         return None
-                
+
                 logger.debug(f"从缓存获取对象: {key}")
                 return entry['object']
-            
+
             return None
-    
+
     def clear_cache(self, key: Optional[str] = None):
         """清除缓存"""
         with self._lock:
@@ -142,31 +142,31 @@ class MemoryManager:
                 cache_size = len(self._cache)
                 self._cache.clear()
                 logger.debug(f"清除所有缓存，共 {cache_size} 个对象")
-    
+
     def optimize_memory(self):
         """优化内存使用"""
         logger.info("开始内存优化...")
-        
+
         # 强制垃圾回收
         collected = gc.collect()
         logger.debug(f"垃圾回收完成，回收对象: {collected}")
-        
+
         # 清理过期的缓存
         current_time = time.time()
         expired_keys = []
-        
+
         with self._lock:
             for key, entry in self._cache.items():
                 if entry['max_age'] and entry['timestamp']:
                     if current_time - entry['timestamp'] > entry['max_age']:
                         expired_keys.append(key)
-            
+
             for key in expired_keys:
                 del self._cache[key]
-        
+
         if expired_keys:
             logger.debug(f"清理过期缓存: {len(expired_keys)} 个对象")
-        
+
         # 清理对象池（保留一半对象）
         for pool_name, pool_info in self._object_pools.items():
             pool = pool_info['pool']
@@ -175,17 +175,17 @@ class MemoryManager:
                 for _ in range(remove_count):
                     pool.pop()
                 logger.debug(f"清理对象池 {pool_name}，移除 {remove_count} 个对象")
-        
+
         logger.info("内存优化完成")
-    
+
     def get_memory_stats(self) -> Dict[str, Any]:
         """获取内存统计信息"""
         import psutil
         import os
-        
+
         process = psutil.Process(os.getpid())
         memory_info = process.memory_info()
-        
+
         stats = {
             'rss': memory_info.rss,  # 物理内存使用
             'vms': memory_info.vms,  # 虚拟内存使用
@@ -193,7 +193,7 @@ class MemoryManager:
             'cache_size': len(self._cache),
             'weak_refs': sum(len(refs) for refs in self._weak_refs.values())
         }
-        
+
         # 对象池统计
         for pool_name, pool_info in self._object_pools.items():
             stats['object_pools'][pool_name] = {
@@ -202,22 +202,22 @@ class MemoryManager:
                 'reused': pool_info['reused'],
                 'max_size': pool_info['max_size']
             }
-        
+
         return stats
-    
+
     def log_memory_stats(self):
         """记录内存统计信息到日志"""
         stats = self.get_memory_stats()
-        
+
         logger.info(f"内存使用统计 - RSS: {stats['rss'] / 1024 / 1024:.2f} MB, "
-                   f"VMS: {stats['vms'] / 1024 / 1024:.2f} MB, "
-                   f"缓存对象: {stats['cache_size']}, "
-                   f"弱引用: {stats['weak_refs']}")
-        
+                    f"VMS: {stats['vms'] / 1024 / 1024:.2f} MB, "
+                    f"缓存对象: {stats['cache_size']}, "
+                    f"弱引用: {stats['weak_refs']}")
+
         for pool_name, pool_stats in stats['object_pools'].items():
             logger.info(f"对象池 {pool_name} - 大小: {pool_stats['pool_size']}/"
-                       f"{pool_stats['max_size']}, 创建: {pool_stats['created']}, "
-                       f"复用: {pool_stats['reused']}")
+                        f"{pool_stats['max_size']}, 创建: {pool_stats['created']}, "
+                        f"复用: {pool_stats['reused']}")
 
 
 # 全局内存管理器实例
@@ -250,12 +250,12 @@ def memory_optimized(func):
     def wrapper(*args, **kwargs):
         # 函数执行前优化内存
         optimize_memory()
-        
+
         try:
             result = func(*args, **kwargs)
             return result
         finally:
             # 函数执行后优化内存
             optimize_memory()
-    
+
     return wrapper
