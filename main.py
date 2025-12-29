@@ -38,8 +38,8 @@ def main():
 
         # 清理函数，在应用程序退出前调用
         def cleanup():
-            if hasattr(app, 'main_window'):
-                app.main_window.save_before_exit()
+            # 使用应用程序的清理方法，它会调用全局资源清理器
+            application.cleanup()
 
         # 连接应用程序退出信号到清理函数
         app.aboutToQuit.connect(cleanup)

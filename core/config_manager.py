@@ -2,6 +2,7 @@ import configparser
 import os
 import threading
 from .log_manager import global_logger as logger
+from utils.config_notifier import notify_config_change
 
 
 class ConfigManager:
@@ -204,7 +205,16 @@ class ConfigManager:
     def set_value(self, section, key, value):
         if not self.config.has_section(section):
             self.config.add_section(section)
+
+        # 获取旧值
+        old_value = self.get_value(section, key)
+
+        # 设置新值
         self.config.set(section, key, value)
+
+        # 通知配置变更
+        if old_value != value:
+            notify_config_change(section, key, old_value, value)
 
     def save_ui_settings(self, settings: dict):
         """保存UI相关设置"""

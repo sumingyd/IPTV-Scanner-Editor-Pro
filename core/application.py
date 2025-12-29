@@ -69,11 +69,9 @@ class Application:
         """清理应用程序资源"""
         self.logger.info("清理应用程序资源...")
 
-        # 清理主窗口资源
-        if self.main_window:
-            self.main_window.save_before_exit()
-
-        # 使用全局资源清理器
+        # 使用全局资源清理器执行所有清理
+        # 注意：主窗口的save_before_exit()方法已经通过register_cleanup注册为清理处理器
+        # 所以这里只需要调用cleanup_all()即可
         cleanup_all()
 
         self.logger.info("应用程序资源清理完成")
