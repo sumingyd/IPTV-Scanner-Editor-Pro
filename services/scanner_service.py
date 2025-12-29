@@ -199,7 +199,8 @@ class ScannerController(QObject):
 
     def _add_channel_and_refresh(self, channel_info: dict):
         """添加频道并强制刷新UI"""
-        self.model.add_channel(channel_info)
+        # 扫描生成的频道，不是从文件加载的
+        self.model.add_channel(channel_info, is_from_file=False)
         # 强制刷新UI
         self._force_ui_refresh()
 
