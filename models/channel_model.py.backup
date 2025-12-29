@@ -25,15 +25,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         # 语言管理器引用
         self._language_manager = None
 
-        # 原始文件内容：用于保存从文件加载的原始内容
-        self._original_file_content = ""
-        
-        # 是否处于隐藏无效项状态
-        self._is_hiding_invalid = False
-        
-        # 原始频道数据存储（用于非隐藏状态下的保存）
-        self._original_channel_data = {}
-
     def set_language_manager(self, language_manager):
         """设置语言管理器"""
         self._language_manager = language_manager
@@ -201,13 +192,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             return self.channels[index]
         return {}
 
-    def add_channel(self, channel_info: Dict[str, Any], is_from_file: bool = False):
-        """添加频道到模型 - 简化版本，只处理单个频道
-        
-        Args:
-            channel_info: 频道信息字典
-            is_from_file: 是否从文件加载的频道（需要保存原始数据）
-        """
+    def add_channel(self, channel_info: Dict[str, Any]):
+        """添加频道到模型 - 简化版本，只处理单个频道"""
         # 检查是否已存在相同URL的频道
         existing_index = -1
         for i, channel in enumerate(self.channels):
@@ -237,21 +223,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 self._group_cache.add(channel_info['group'])
             self.endInsertRows()
 
-            # 如果是从文件加载的频道，保存原始数据
-            if is_from_file:
-                url = channel_info.get('url', '')
-                if url:
-                    # 保存原始数据副本，不包括后续添加的字段
-                    original_channel = {
-                        'name': channel_info.get('name', ''),
-                        'group': channel_info.get('group', '未分类'),
-                        'tvg_id': channel_info.get('tvg_id', ''),
-                        'logo': channel_info.get('logo', ''),
-                        'resolution': channel_info.get('resolution', ''),
-                        'url': url
-                    }
-                    self._original_channel_data[url] = original_channel
-
             # 添加新频道后强制触发列宽调整
             view = self.parent()
             if view and hasattr(view, 'resizeColumnsToContents'):
@@ -264,7 +235,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             self._original_channels = self.channels.copy()
         self.beginResetModel()
         self.channels = [c for c in self.channels if c.get('valid', True)]
-        self._is_hiding_invalid = True
         self.endResetModel()
 
     def show_all(self):
@@ -273,7 +243,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         # 重新加载所有频道数据
         if hasattr(self, '_original_channels'):
             self.channels = self._original_channels.copy()
-        self._is_hiding_invalid = False
         self.endResetModel()
 
     def get_name_suggestions(self) -> List[str]:
@@ -288,100 +257,18 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         """获取所有频道名称列表"""
         return sorted(self._name_cache)
 
-    def _filter_original_content(self) -> str:
-        """过滤原始文件内容，只保留有效频道的行"""
-        if not self._original_file_content or not self._is_hiding_invalid:
-            return ""
-            
-        lines = self._original_file_content.splitlines()
-        filtered_lines = []
-        current_channel_lines = []
-        in_channel_block = False
-        channel_url = ""
-        
-        for line in lines:
-            line = line.rstrip()  # 保留行尾空格
-            
-            if line.startswith("#EXTINF:"):
-                # 开始一个新的频道块
-                in_channel_block = True
-                current_channel_lines = [line]
-                channel_url = ""
-            elif line and not line.startswith("#") and in_channel_block:
-                # 这是URL行
-                channel_url = line
-                current_channel_lines.append(line)
-                
-                # 检查这个URL对应的频道是否有效
-                is_valid = False
-                for channel in self.channels:
-                    if channel.get('url') == channel_url and channel.get('valid', False):
-                        is_valid = True
-                        break
-                
-                # 如果频道有效，保留这个频道块
-                if is_valid:
-                    filtered_lines.extend(current_channel_lines)
-                    if filtered_lines and filtered_lines[-1] != "":
-                        filtered_lines.append("")  # 添加空行分隔
-                
-                # 重置状态
-                in_channel_block = False
-                current_channel_lines = []
-                channel_url = ""
-            elif in_channel_block:
-                # 频道块中的其他行（如注释等）
-                current_channel_lines.append(line)
-            else:
-                # 非频道块的行（如文件头、注释等）
-                filtered_lines.append(line)
-        
-        # 移除末尾的空行
-        while filtered_lines and filtered_lines[-1] == "":
-            filtered_lines.pop()
-            
-        return "\n".join(filtered_lines)
-    
     def to_m3u(self) -> str:
         """将频道列表转换为M3U格式字符串"""
-        # 如果处于隐藏无效项状态且有原始文件内容，使用过滤后的原始内容
-        if self._is_hiding_invalid and self._original_file_content:
-            filtered_content = self._filter_original_content()
-            if filtered_content:
-                # 添加保存信息
-                from datetime import datetime
-                return f"{filtered_content}\n\n# Generated by IPTV Scanner Editor Pro\n# Saved at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n# GitHub: https://github.com/your-repo/IPTV-Scanner-Editor-Pro"
-        
-        # 否则使用原来的逻辑
         from models.channel_mappings import get_channel_info
         logger = LogManager()
         lines = ["#EXTM3U"]
         for channel in self.channels:
-            url = channel.get('url', '')
-            if not url:
-                continue
-                
-            # 检查是否有原始数据可用
-            original_channel = self._original_channel_data.get(url)
-            
-            if original_channel:
-                # 使用原始数据，但保留有效性检测结果
-                channel_name = original_channel.get('name', channel.get('name', ''))
-                group = original_channel.get('group', channel.get('group', '未分类'))
-                tvg_id = original_channel.get('tvg_id', channel.get('tvg_id', ''))
-                logo = original_channel.get('logo', channel.get('logo', ''))
-                resolution = original_channel.get('resolution', channel.get('resolution', ''))
-            else:
-                # 使用当前数据（扫描生成的频道）
-                channel_name = channel.get('name', '')
-                group = channel.get('group', '未分类')
-                tvg_id = channel.get('tvg_id', '')
-                logo = channel.get('logo', '')
-                resolution = channel.get('resolution', '')
+            channel_name = channel.get('name', '')
 
             # 直接使用频道列表中已有的logo数据，而不是重新调用映射函数
             # 频道列表显示时已经加载了映射后的logo地址，保存在logo_url或logo字段中
-            logo_url = channel.get('logo_url') or logo
+            logo_url = channel.get('logo_url') or channel.get('logo', '')
+            resolution = channel.get('resolution', '')
 
             # 如果频道列表中没有logo数据，再尝试调用映射函数获取
             if not logo_url:
@@ -392,17 +279,17 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             # EXTINF行 - 简化格式
             extinf = (
                 f"#EXTINF:-1 "
-                f"tvg-id=\"{tvg_id}\" "
+                f"tvg-id=\"{channel.get('tvg_id', '')}\" "
                 f"tvg-name=\"{channel_name}\" "
                 f"tvg-logo=\"{logo_url if logo_url else ''}\" "
-                f"group-title=\"{group}\" "
+                f"group-title=\"{channel.get('group', '未分类')}\" "
                 f"resolution=\"{resolution}\" "
                 f",{channel_name}"
             )
             lines.append(extinf)
 
             # URL行
-            lines.append(url)
+            lines.append(channel.get('url', ''))
 
         # 添加来源信息
         from datetime import datetime
@@ -415,27 +302,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         """将频道列表转换为TXT格式字符串"""
         lines = []
         for channel in self.channels:
-            url = channel.get('url', '')
-            if not url:
-                continue
-                
-            # 检查是否有原始数据可用
-            original_channel = self._original_channel_data.get(url)
-            
-            if original_channel:
-                # 使用原始数据，但保留有效性检测结果
-                channel_name = original_channel.get('name', channel.get('name', ''))
-                group = original_channel.get('group', channel.get('group', '未分类'))
-            else:
-                # 使用当前数据（扫描生成的频道）
-                channel_name = channel.get('name', '未命名')
-                group = channel.get('group', '未分类')
-            
             # 格式: 频道名称,URL,分组,Logo地址,状态,延迟
             line = (
-                f"{channel_name},"
-                f"{url},"
-                f"{group},"
+                f"{channel.get('name', '未命名')},"
+                f"{channel.get('url', '')},"
+                f"{channel.get('group', '未分类')},"
                 f"{channel.get('status', '待检测')},"
                 f"{channel.get('latency', '')}"
             )
@@ -1063,25 +934,20 @@ class ChannelListModel(QtCore.QAbstractTableModel):
     def load_from_file(self, content: str) -> bool:
         """从文件内容加载频道列表"""
         try:
-            # 保存原始文件内容
-            self._original_file_content = content
-            
             # 使用线程安全的模型重置
             self.beginResetModel()
             self.channels = []
             self._name_cache = set()
             self._group_cache = set()
-            # 清空原始数据存储
-            self._original_channel_data = {}
 
             channels = self.parse_file_content(content)
             if channels is None:
                 self.endResetModel()
                 return False
 
-            # 使用add_channel方法添加频道，标记为从文件加载
-            for channel in channels:
-                self.add_channel(channel, is_from_file=True)
+            self.channels = channels
+            self._name_cache = set(c['name'] for c in channels if 'name' in c)
+            self._group_cache = set(c['group'] for c in channels if 'group' in c)
 
             # 通知UI更新状态标签 - 使用QTimer确保在主线程执行
             if hasattr(self, 'update_status_label') and self.update_status_label:
