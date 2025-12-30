@@ -23,6 +23,12 @@ asyncio>=3.4.3
 # 类型提示支持
 typing-extensions>=4.4.0
 
+# Excel文件处理
+openpyxl>=3.1.0
+
+# 拼音排序支持
+pypinyin>=0.50.0
+
 # 开发工具（可选）
 # black>=22.0.0
 # flake8>=5.0.0
