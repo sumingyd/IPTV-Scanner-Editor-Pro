@@ -78,6 +78,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 延迟显示窗口，确保UI完全初始化后再显示
         QtCore.QTimer.singleShot(100, self.show)
+        
+        # 在窗口显示后延迟检查新版本
+        QtCore.QTimer.singleShot(500, self._check_for_updates_async)
 
     def _init_timers(self):
         """在主线程初始化所有定时器"""
@@ -966,3 +969,145 @@ class MainWindow(QtWidgets.QMainWindow):
         # 更新按钮文本
         self._set_scan_button_text('full_scan', '完整扫描')
         self._set_append_scan_button_text('append_scan', '追加扫描')
+
+    def _check_for_updates_async(self):
+        """异步检查新版本"""
+        try:
+            # 在后台线程中执行版本检查
+            from PyQt6.QtCore import QThread, pyqtSignal
+            import asyncio
+            import aiohttp
+            
+            class UpdateCheckThread(QThread):
+                """版本检查线程"""
+                update_found = pyqtSignal(str, str)  # 最新版本号, 当前版本号
+                check_completed = pyqtSignal(bool, str)  # 是否成功, 消息
+                
+                def run(self):
+                    try:
+                        # 创建新的事件循环
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        
+                        # 获取当前版本
+                        from ui.dialogs.about_dialog import AboutDialog
+                        current_version = AboutDialog.CURRENT_VERSION
+                        
+                        # 获取最新版本（设置超时避免长时间等待）
+                        latest_version, _, _ = loop.run_until_complete(
+                            asyncio.wait_for(self._get_latest_version(), timeout=15)
+                        )
+                        
+                        if latest_version and not latest_version.startswith("("):
+                            # 检查是否有新版本
+                            if self._is_newer_version(current_version, latest_version):
+                                self.update_found.emit(latest_version, current_version)
+                                self.check_completed.emit(True, f"发现新版本: {latest_version}")
+                            else:
+                                self.check_completed.emit(True, "当前已是最新版本")
+                        else:
+                            # 网络错误或其他问题，静默处理，不显示给用户
+                            self.check_completed.emit(False, f"版本检查失败: {latest_version}")
+                        
+                    except asyncio.TimeoutError:
+                        # 超时错误，静默处理
+                        self.check_completed.emit(False, "版本检查超时")
+                    except Exception as e:
+                        # 其他异常，静默处理
+                        self.check_completed.emit(False, f"版本检查异常: {str(e)}")
+                    finally:
+                        try:
+                            loop.close()
+                        except Exception:
+                            pass
+                
+                async def _get_latest_version(self):
+                    """从GitHub获取最新版本信息"""
+                    try:
+                        async with aiohttp.ClientSession() as session:
+                            async with session.get(
+                                "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest",
+                                headers={'User-Agent': 'IPTV-Scanner-Editor-Pro'},
+                                timeout=aiohttp.ClientTimeout(total=10)
+                            ) as response:
+                                if response.status == 200:
+                                    data = await response.json()
+                                    version = data.get('tag_name', '').lstrip('v')
+                                    return version, None, None
+                                elif response.status == 403:
+                                    return "(API限制)", None, None
+                                else:
+                                    return "(获取失败)", None, None
+                    except asyncio.TimeoutError:
+                        return "(请求超时)", None, None
+                    except Exception:
+                        return "(获取失败)", None, None
+                
+                def _is_newer_version(self, current_version, latest_version):
+                    """比较版本号，判断最新版本是否比当前版本新"""
+                    try:
+                        # 将版本号转换为数字列表进行比较
+                        current_parts = list(map(int, current_version.split('.')))
+                        latest_parts = list(map(int, latest_version.split('.')))
+                        
+                        # 确保两个版本号有相同的长度
+                        max_length = max(len(current_parts), len(latest_parts))
+                        current_parts.extend([0] * (max_length - len(current_parts)))
+                        latest_parts.extend([0] * (max_length - len(latest_parts)))
+                        
+                        # 逐位比较
+                        for i in range(max_length):
+                            if latest_parts[i] > current_parts[i]:
+                                return True
+                            elif latest_parts[i] < current_parts[i]:
+                                return False
+                        return False  # 版本相同
+                    except (ValueError, AttributeError):
+                        # 如果版本号格式不正确，使用字符串比较
+                        return latest_version > current_version
+            
+            # 创建并启动版本检查线程
+            self.update_check_thread = UpdateCheckThread()
+            self.update_check_thread.setParent(self)
+            self.update_check_thread.update_found.connect(self._on_update_found)
+            self.update_check_thread.check_completed.connect(self._on_update_check_completed)
+            self.update_check_thread.start()
+            
+        except Exception as e:
+            self.logger.error(f"启动版本检查失败: {str(e)}")
+    
+    def _on_update_found(self, latest_version, current_version):
+        """发现新版本时的处理"""
+        try:
+            # 在窗口标题添加提示
+            original_title = self.windowTitle()
+            if " - 有新版本" not in original_title:
+                new_title = f"{original_title} - 有新版本 {latest_version}"
+                self.setWindowTitle(new_title)
+            
+            # 在状态栏用红字显示提示
+            status_message = f"发现新版本 {latest_version} (当前版本 {current_version})"
+            self.ui.main_window.statusBar().showMessage(status_message, 10000)  # 显示10秒
+            
+            # 设置状态栏消息为红色
+            self.ui.main_window.statusBar().setStyleSheet("""
+                QStatusBar {
+                    color: #ff0000;
+                    font-weight: bold;
+                }
+            """)
+            
+            # 10秒后恢复状态栏样式
+            QtCore.QTimer.singleShot(10000, lambda: self.ui.main_window.statusBar().setStyleSheet(""))
+            
+            self.logger.info(f"发现新版本: {latest_version} (当前版本: {current_version})")
+            
+        except Exception as e:
+            self.logger.error(f"更新界面提示失败: {str(e)}")
+    
+    def _on_update_check_completed(self, success, message):
+        """版本检查完成时的处理"""
+        if success:
+            self.logger.info(f"版本检查完成: {message}")
+        else:
+            self.logger.warning(f"版本检查失败: {message}")
