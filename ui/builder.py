@@ -405,7 +405,7 @@ class UIBuilder(QtCore.QObject):
                 *self.main_window.channel_splitter.sizes(),
             ]
             self.main_window.config.save_window_layout(
-                os.x(), pos.y(), size.width(),
+                pos.x(), pos.y(), size.width(),
                 size.height(), dividers)
         else:
             self._drag_start_pos = None
