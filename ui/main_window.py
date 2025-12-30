@@ -638,7 +638,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_scan_completed(self):
         """处理扫描完成事件"""
         # 检查是否是重试扫描刚刚开始的情况
-        if self.scan_state_manager.is_retry_scan(self.retry_id) and self.scan_state_manager.get_retry_count(self.retry_id) > 0:
+        is_retry = self.scan_state_manager.is_retry_scan(self.retry_id)
+        retry_count = self.scan_state_manager.get_retry_count(self.retry_id)
+        if is_retry and retry_count > 0:
             # 检查扫描器是否正在扫描
             if hasattr(self, 'scanner') and self.scanner and self.scanner.is_scanning():
                 self.logger.info("重试扫描进行中，跳过完成处理")
@@ -648,7 +650,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress_manager.hide_progress()
 
         # 只有在扫描真正完成时才更新按钮文本
-        if not self.is_retry_scan or (self.is_retry_scan and not self.scanner.is_scanning()):
+        is_retry_scan = self.scan_state_manager.is_retry_scan(self.retry_id)
+        if not is_retry_scan or (is_retry_scan and not self.scanner.is_scanning()):
             self._set_scan_button_text('full_scan', '完整扫描')
             self._set_append_scan_button_text('append_scan', '追加扫描')
 
