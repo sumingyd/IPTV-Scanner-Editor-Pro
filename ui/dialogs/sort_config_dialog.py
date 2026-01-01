@@ -148,6 +148,9 @@ class SortConfigDialog(QtWidgets.QDialog):
         self.setModal(True)
         self.resize(600, 700)
 
+        # 应用统一的对话框样式和按钮样式
+        self.setStyleSheet(AppStyles.dialog_style() + AppStyles.button_style())
+
         # 主布局
         main_layout = QtWidgets.QVBoxLayout(self)
 

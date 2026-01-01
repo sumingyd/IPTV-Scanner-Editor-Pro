@@ -78,7 +78,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 延迟显示窗口，确保UI完全初始化后再显示
         QtCore.QTimer.singleShot(100, self.show)
-        
+
         # 在窗口显示后延迟检查新版本
         QtCore.QTimer.singleShot(500, self._check_for_updates_async)
 
@@ -977,27 +977,27 @@ class MainWindow(QtWidgets.QMainWindow):
             from PyQt6.QtCore import QThread, pyqtSignal
             import asyncio
             import aiohttp
-            
+
             class UpdateCheckThread(QThread):
                 """版本检查线程"""
                 update_found = pyqtSignal(str, str)  # 最新版本号, 当前版本号
                 check_completed = pyqtSignal(bool, str)  # 是否成功, 消息
-                
+
                 def run(self):
                     try:
                         # 创建新的事件循环
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
-                        
+
                         # 获取当前版本
                         from ui.dialogs.about_dialog import AboutDialog
                         current_version = AboutDialog.CURRENT_VERSION
-                        
+
                         # 获取最新版本（设置超时避免长时间等待）
                         latest_version, _, _ = loop.run_until_complete(
                             asyncio.wait_for(self._get_latest_version(), timeout=15)
                         )
-                        
+
                         if latest_version and not latest_version.startswith("("):
                             # 检查是否有新版本
                             if self._is_newer_version(current_version, latest_version):
@@ -1008,7 +1008,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         else:
                             # 网络错误或其他问题，静默处理，不显示给用户
                             self.check_completed.emit(False, f"版本检查失败: {latest_version}")
-                        
+
                     except asyncio.TimeoutError:
                         # 超时错误，静默处理
                         self.check_completed.emit(False, "版本检查超时")
@@ -1020,7 +1020,7 @@ class MainWindow(QtWidgets.QMainWindow):
                             loop.close()
                         except Exception:
                             pass
-                
+
                 async def _get_latest_version(self):
                     """从GitHub获取最新版本信息"""
                     try:
@@ -1042,19 +1042,19 @@ class MainWindow(QtWidgets.QMainWindow):
                         return "(请求超时)", None, None
                     except Exception:
                         return "(获取失败)", None, None
-                
+
                 def _is_newer_version(self, current_version, latest_version):
                     """比较版本号，判断最新版本是否比当前版本新"""
                     try:
                         # 将版本号转换为数字列表进行比较
                         current_parts = list(map(int, current_version.split('.')))
                         latest_parts = list(map(int, latest_version.split('.')))
-                        
+
                         # 确保两个版本号有相同的长度
                         max_length = max(len(current_parts), len(latest_parts))
                         current_parts.extend([0] * (max_length - len(current_parts)))
                         latest_parts.extend([0] * (max_length - len(latest_parts)))
-                        
+
                         # 逐位比较
                         for i in range(max_length):
                             if latest_parts[i] > current_parts[i]:
@@ -1065,17 +1065,17 @@ class MainWindow(QtWidgets.QMainWindow):
                     except (ValueError, AttributeError):
                         # 如果版本号格式不正确，使用字符串比较
                         return latest_version > current_version
-            
+
             # 创建并启动版本检查线程
             self.update_check_thread = UpdateCheckThread()
             self.update_check_thread.setParent(self)
             self.update_check_thread.update_found.connect(self._on_update_found)
             self.update_check_thread.check_completed.connect(self._on_update_check_completed)
             self.update_check_thread.start()
-            
+
         except Exception as e:
             self.logger.error(f"启动版本检查失败: {str(e)}")
-    
+
     def _on_update_found(self, latest_version, current_version):
         """发现新版本时的处理"""
         try:
@@ -1084,22 +1084,22 @@ class MainWindow(QtWidgets.QMainWindow):
             if " - 有新版本" not in original_title:
                 new_title = f"{original_title} - 有新版本 {latest_version}"
                 self.setWindowTitle(new_title)
-            
+
             # 在状态栏用红字显示提示
             status_message = f"发现新版本 {latest_version} (当前版本 {current_version})"
             self.ui.main_window.statusBar().showMessage(status_message, 10000)  # 显示10秒
-            
+
             # 设置状态栏消息为红色
             self.ui.main_window.statusBar().setStyleSheet(AppStyles.statusbar_error_style())
-            
+
             # 10秒后恢复状态栏样式
             QtCore.QTimer.singleShot(10000, lambda: self.ui.main_window.statusBar().setStyleSheet(""))
-            
+
             self.logger.info(f"发现新版本: {latest_version} (当前版本: {current_version})")
-            
+
         except Exception as e:
             self.logger.error(f"更新界面提示失败: {str(e)}")
-    
+
     def _on_update_check_completed(self, success, message):
         """版本检查完成时的处理"""
         if success:
