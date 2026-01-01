@@ -9,9 +9,9 @@ from core.log_manager import global_logger as logger
 
 class AboutDialog(QtWidgets.QDialog):
     # 版本配置
-    CURRENT_VERSION = "32.0.0.0"  # 当前版本号(手动修改这里)
+    CURRENT_VERSION = "33.0.0.0"  # 当前版本号(手动修改这里)
     DEFAULT_VERSION = None  # 将从GitHub获取最新版本
-    BUILD_DATE = "2025-12-30"  # 更新为当前日期
+    BUILD_DATE = "2026-01-01"  # 更新为当前日期
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -62,22 +62,14 @@ class AboutDialog(QtWidgets.QDialog):
         self.setMinimumWidth(500)
         self.setMinimumHeight(580)
 
-        self.setStyleSheet(f"""
+        # 导入样式
+        from ui.styles import AppStyles
+
+        # 使用统一的对话框样式和按钮样式
+        self.setStyleSheet(AppStyles.dialog_style() + AppStyles.button_style() + f"""
             QDialog {{
                 background-color: {theme['bg']};
                 color: {theme['text']};
-            }}
-            QPushButton {{
-                background-color: {self.ACCENT_COLOR};
-                color: white;
-                padding: 8px 16px;
-                border: none;
-                border-radius: 4px;
-                min-width: 80px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: #2980b9;
             }}
         """)
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.WindowStaysOnTopHint)
@@ -125,6 +117,8 @@ class AboutDialog(QtWidgets.QDialog):
                 <li><b>高级流验证</b>：
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
                         <li>打开一个下载的播放列表，批量检测频道有效性</li>
+                        <li>支持多线程并发检测，提高验证效率</li>
+                        <li>自动识别无效频道并标记状态</li>
                         <li><i>打开播放列表后点击"检测有效性"按钮</i></li>
                     </ul>
                 </li>
@@ -135,12 +129,15 @@ class AboutDialog(QtWidgets.QDialog):
                         <li>频道会尝试获取频道名并通过映射文件匹配频道名、LOGO、分组</li>
                         <li>频道名的映射文件在仓库，可以直接去仓库提交修改</li>
                         <li>频道的logo可以直接在仓库提交上传到logo文件夹</li>
+                        <li>支持频道分组管理和批量操作</li>
                         <li><i>右键频道列表或拖拽调整顺序</i></li>
                     </ul>
                 </li>
                 <li><b>集成视频播放</b>：
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
                         <li>双击频道列表可直接播放当前频道</li>
+                        <li>支持VLC播放器集成，提供流畅的播放体验</li>
+                        <li>自动检测播放器状态和连接质量</li>
                         <li><i>双击频道列表中的任意频道</i></li>
                     </ul>
                 </li>
@@ -148,6 +145,8 @@ class AboutDialog(QtWidgets.QDialog):
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
                         <li>配置文件(config.ini)自动保存在程序目录</li>
                         <li>日志文件(app.log)自动轮转，最大5MB保留3个</li>
+                        <li>支持自定义界面样式和主题设置</li>
+                        <li>所有样式定义统一管理，确保界面一致性</li>
                         <li><i>所有设置自动保存，无需手动操作</i></li>
                     </ul>
                 </li>
@@ -155,9 +154,38 @@ class AboutDialog(QtWidgets.QDialog):
                     <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
                         <li>URL解析器，支持复杂地址格式</li>
                         <li>频道映射管理器，可视化编辑映射规则</li>
+                        <li>排序配置工具，支持多级排序和自定义优先级</li>
                         <li>错误处理系统，智能恢复和错误报告</li>
                         <li>性能优化，支持大规模频道列表处理</li>
+                        <li>多语言支持，界面文本可切换</li>
                         <li><i>通过工具栏访问各专业工具</i></li>
+                    </ul>
+                </li>
+                <li><b>频道映射管理器</b>：
+                    <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
+                        <li>用户映射管理：添加、编辑、删除频道映射规则</li>
+                        <li>频道指纹查看：分析频道识别特征和映射历史</li>
+                        <li>映射建议：基于历史数据智能推荐映射规则</li>
+                        <li>支持导入/导出映射配置，便于备份和分享</li>
+                        <li><i>通过"工具"菜单打开"频道映射管理器"</i></li>
+                    </ul>
+                </li>
+                <li><b>排序配置功能</b>：
+                    <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
+                        <li>支持三级排序优先级设置（主、次、第三优先级）</li>
+                        <li>多种排序字段：分组、名称、分辨率、延迟、状态</li>
+                        <li>灵活的排序方式：字母顺序、拼音、质量高低等</li>
+                        <li>分组优先级自定义排序，支持拖拽调整顺序</li>
+                        <li><i>通过"工具"菜单打开"排序配置"</i></li>
+                    </ul>
+                </li>
+                <li><b>界面与样式</b>：
+                    <ul style="margin-left: 15px; line-height: 1.5; list-style-type: circle;">
+                        <li>统一的样式管理系统，所有界面元素风格一致</li>
+                        <li>现代化的UI设计，支持深色/浅色主题</li>
+                        <li>响应式布局，适应不同屏幕尺寸</li>
+                        <li>按钮、标签页、对话框等组件样式统一</li>
+                        <li><i>所有样式定义在styles.py文件中集中管理</i></li>
                     </ul>
                 </li>
             </ul>

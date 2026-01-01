@@ -31,8 +31,15 @@ class MappingManagerDialog(QtWidgets.QDialog):
         """设置用户界面"""
         layout = QtWidgets.QVBoxLayout(self)
 
+        # 导入样式
+        from ui.styles import AppStyles
+
+        # 应用统一的对话框样式和按钮样式
+        self.setStyleSheet(AppStyles.dialog_style() + AppStyles.button_style())
+
         # 创建选项卡
         self.tab_widget = QtWidgets.QTabWidget()
+        self.tab_widget.setStyleSheet(AppStyles.tab_widget_style())
 
         # 用户映射管理选项卡
         self.user_mapping_tab = self.create_user_mapping_tab()
@@ -52,15 +59,19 @@ class MappingManagerDialog(QtWidgets.QDialog):
         button_layout = QtWidgets.QHBoxLayout()
 
         self.refresh_cache_btn = QtWidgets.QPushButton("刷新远程映射缓存")
+        self.refresh_cache_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.refresh_cache_btn.clicked.connect(self.refresh_cache)
 
         self.export_mappings_btn = QtWidgets.QPushButton("导出用户映射")
+        self.export_mappings_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.export_mappings_btn.clicked.connect(self.export_mappings)
 
         self.import_mappings_btn = QtWidgets.QPushButton("导入用户映射")
+        self.import_mappings_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.import_mappings_btn.clicked.connect(self.import_mappings)
 
         self.close_btn = QtWidgets.QPushButton("关闭")
+        self.close_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.close_btn.clicked.connect(self.accept)
 
         button_layout.addWidget(self.refresh_cache_btn)
@@ -75,6 +86,9 @@ class MappingManagerDialog(QtWidgets.QDialog):
         """创建用户映射管理选项卡"""
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(widget)
+
+        # 导入样式
+        from ui.styles import AppStyles
 
         # 搜索和过滤区域
         search_layout = QtWidgets.QHBoxLayout()
@@ -111,12 +125,15 @@ class MappingManagerDialog(QtWidgets.QDialog):
         button_layout = QtWidgets.QHBoxLayout()
 
         self.add_mapping_btn = QtWidgets.QPushButton("添加映射")
+        self.add_mapping_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.add_mapping_btn.clicked.connect(self.add_mapping)
 
         self.edit_mapping_btn = QtWidgets.QPushButton("编辑映射")
+        self.edit_mapping_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.edit_mapping_btn.clicked.connect(self.edit_mapping)
 
         self.delete_mapping_btn = QtWidgets.QPushButton("删除映射")
+        self.delete_mapping_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.delete_mapping_btn.clicked.connect(self.delete_mapping)
 
         button_layout.addWidget(self.add_mapping_btn)
@@ -133,6 +150,9 @@ class MappingManagerDialog(QtWidgets.QDialog):
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(widget)
 
+        # 导入样式
+        from ui.styles import AppStyles
+
         # 指纹列表
         self.fingerprint_table = QtWidgets.QTableWidget()
         self.fingerprint_table.setColumnCount(5)
@@ -146,9 +166,11 @@ class MappingManagerDialog(QtWidgets.QDialog):
         button_layout = QtWidgets.QHBoxLayout()
 
         self.clear_fingerprints_btn = QtWidgets.QPushButton("清空指纹数据")
+        self.clear_fingerprints_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.clear_fingerprints_btn.clicked.connect(self.clear_fingerprints)
 
         self.analyze_fingerprints_btn = QtWidgets.QPushButton("分析不稳定映射")
+        self.analyze_fingerprints_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.analyze_fingerprints_btn.clicked.connect(self.analyze_fingerprints)
 
         button_layout.addWidget(self.clear_fingerprints_btn)
@@ -164,6 +186,9 @@ class MappingManagerDialog(QtWidgets.QDialog):
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(widget)
 
+        # 导入样式
+        from ui.styles import AppStyles
+
         # 建议列表
         self.suggestion_table = QtWidgets.QTableWidget()
         self.suggestion_table.setColumnCount(4)
@@ -174,6 +199,7 @@ class MappingManagerDialog(QtWidgets.QDialog):
 
         # 刷新按钮
         self.refresh_suggestions_btn = QtWidgets.QPushButton("刷新建议")
+        self.refresh_suggestions_btn.setStyleSheet(AppStyles.button_style(active=True))
         self.refresh_suggestions_btn.clicked.connect(self.refresh_suggestions)
         layout.addWidget(self.refresh_suggestions_btn)
 
