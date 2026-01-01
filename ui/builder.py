@@ -1,4 +1,3 @@
-import os
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 from models.channel_model import ChannelListModel
@@ -185,7 +184,7 @@ class UIBuilder(QtCore.QObject):
 
         # 添加远程映射状态标签（临时显示，不永久添加）
         self.main_window.mapping_status_label = QtWidgets.QLabel()
-        self.main_window.mapping_status_label.setStyleSheet("color: #666; padding: 0 5px;")
+        self.main_window.mapping_status_label.setStyleSheet(AppStyles.secondary_label_style())
 
         # 添加进度条到状态栏右下角（显示实际进度）
         self.main_window.progress_indicator = QtWidgets.QProgressBar()
@@ -200,7 +199,7 @@ class UIBuilder(QtCore.QObject):
 
         # 添加统计信息标签到状态栏右下角（统一用于扫描和有效性检测）
         self.main_window.stats_label = QtWidgets.QLabel("就绪")
-        self.main_window.stats_label.setStyleSheet("color: #666; padding: 0 5px;")
+        self.main_window.stats_label.setStyleSheet(AppStyles.secondary_label_style())
         status_bar.addPermanentWidget(self.main_window.stats_label)
 
         # 初始化时显示映射状态（临时显示，3秒后清除）

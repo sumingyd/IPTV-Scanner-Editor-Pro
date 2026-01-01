@@ -1090,12 +1090,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.main_window.statusBar().showMessage(status_message, 10000)  # 显示10秒
             
             # 设置状态栏消息为红色
-            self.ui.main_window.statusBar().setStyleSheet("""
-                QStatusBar {
-                    color: #ff0000;
-                    font-weight: bold;
-                }
-            """)
+            self.ui.main_window.statusBar().setStyleSheet(AppStyles.statusbar_error_style())
             
             # 10秒后恢复状态栏样式
             QtCore.QTimer.singleShot(10000, lambda: self.ui.main_window.statusBar().setStyleSheet(""))

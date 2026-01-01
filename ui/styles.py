@@ -279,3 +279,56 @@ class AppStyles:
                 border-radius: 4px;
             }
         """
+
+    @staticmethod
+    def statusbar_error_style() -> str:
+        """状态栏错误/警告样式（红色文字）"""
+        return """
+            QStatusBar {
+                color: #ff0000;
+                font-weight: bold;
+            }
+        """
+
+    @staticmethod
+    def apply_button_style() -> str:
+        """应用按钮样式（绿色）"""
+        return """
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """
+
+    @staticmethod
+    def cancel_button_style() -> str:
+        """取消按钮样式（红色）"""
+        return """
+            QPushButton {
+                background-color: #f44336;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #da190b;
+            }
+        """
+
+    @staticmethod
+    def secondary_label_style() -> str:
+        """次要标签样式（灰色文字，带内边距）"""
+        return """
+            QLabel {
+                color: #666;
+                padding: 0 5px;
+            }
+        """
