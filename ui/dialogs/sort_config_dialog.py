@@ -116,7 +116,8 @@ class SortConfigDialog(QtWidgets.QDialog):
         # 更新拖拽提示信息
         drag_hint_text = self.language_manager.tr(
             'drag_hint',
-            '💡 Tip: Drag group names to adjust priority order. Insertion position will be shown during dragging.')
+            '💡 Tip: Drag group names to adjust priority order. '
+            'Insertion position will be shown during dragging.')
         self.drag_hint_label.setText(drag_hint_text)
 
     def update_group_hint(self):
@@ -129,12 +130,15 @@ class SortConfigDialog(QtWidgets.QDialog):
             # 列表为空的情况 - 从配置文件加载
             hint_text = self.language_manager.tr(
                 'group_hint_empty',
-                'Tip: The channel list is currently empty. Groups are loaded from saved configuration. You can drag to adjust their priority order.')
+                'Tip: The channel list is currently empty. '
+                'Groups are loaded from saved configuration. '
+                'You can drag to adjust their priority order.')
         else:
             # 列表不为空的情况
             hint_text = self.language_manager.tr(
                 'group_hint_normal',
-                'Tip: The following shows all group names from the current list. You can drag to adjust their priority order.')
+                'Tip: The following shows all group names from the current list. '
+                'You can drag to adjust their priority order.')
 
         self.group_hint_label.setText(hint_text)
 
@@ -240,34 +244,11 @@ class SortConfigDialog(QtWidgets.QDialog):
         # 按钮区域
         button_layout = QtWidgets.QHBoxLayout()
         self.apply_btn = QtWidgets.QPushButton("应用排序")
-        self.apply_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-        """)
+        self.apply_btn.setStyleSheet(AppStyles.apply_button_style())
         self.apply_btn.clicked.connect(self.apply_sort)
 
         self.cancel_btn = QtWidgets.QPushButton("取消")
-        self.cancel_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f44336;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #da190b;
-            }
-        """)
+        self.cancel_btn.setStyleSheet(AppStyles.cancel_button_style())
         self.cancel_btn.clicked.connect(self.reject)
 
         button_layout.addStretch()
@@ -306,7 +287,8 @@ class SortConfigDialog(QtWidgets.QDialog):
         methods = self.sort_methods.get(field_key, [])
         for method_key, method_name_key in methods:
             # 使用国际化文本
-            display_name = self.language_manager.tr(method_name_key, method_name_key) if self.language_manager else method_name_key
+            display_name = (self.language_manager.tr(method_name_key, method_name_key)
+                            if self.language_manager else method_name_key)
             combo.addItem(display_name, method_key)
 
         # 检查是否需要禁用分组自定义排序
