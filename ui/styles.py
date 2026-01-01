@@ -5,34 +5,43 @@ class AppStyles:
 
     @staticmethod
     def main_window_style() -> str:
+        """主窗口样式(自动适应深色/浅色模式)"""
         return """
             QMainWindow {
-                background-color: #f5f7fa;
-                color: #2d3748;
+                background-color: palette(window);
+                color: palette(windowText);
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                font-size: 13px;
             }
             QGroupBox {
-                border: 1px solid #e2e8f0;
+                border: 1px solid palette(mid);
                 border-radius: 8px;
                 margin-top: 12px;
                 padding-top: 16px;
                 font-weight: 600;
                 font-size: 13px;
-                background-color: white;
-                color: #4a5568;
+                background-color: palette(base);
+                color: palette(windowText);
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 12px;
                 padding: 0 6px;
-                color: #4a5568;
+                color: palette(windowText);
                 font-weight: 600;
             }
             QSplitter::handle {
-                background-color: #e2e8f0;
+                background-color: palette(mid);
             }
             QSplitter::handle:hover {
-                background-color: #a0aec0;
+                background-color: palette(highlight);
+            }
+            /* 复选框样式 - 只设置字体，让系统处理显示 */
+            QCheckBox {
+                color: palette(windowText);
+                font-size: 13px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                spacing: 8px;
             }
         """
 
@@ -87,37 +96,50 @@ class AppStyles:
 
     @staticmethod
     def list_style() -> str:
+        """列表样式(自动适应深色/浅色模式)"""
         return """
             QTableView {
-                border: 1px solid #e2e8f0;
+                border: 1px solid palette(mid);
                 border-radius: 6px;
-                alternate-background-color: #f8fafc;
+                alternate-background-color: palette(alternate-base);
                 selection-background-color: #4a7eff;
                 selection-color: white;
-                gridline-color: #e2e8f0;
+                gridline-color: palette(mid);
                 font-size: 12px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                background-color: white;
+                background-color: palette(base);
             }
             QTableView::item {
                 padding: 6px 10px;
-                border-bottom: 1px solid #f1f5f9;
+                border-bottom: 1px solid palette(mid);
+                color: palette(windowText);
+            }
+            QTableView::item:hover {
+                background-color: palette(highlight);
+                border: 1px solid palette(mid);
+                border-radius: 4px;
             }
             QTableView::item:selected {
                 background-color: #4a7eff;
                 color: white;
                 font-weight: 500;
+                border: 1px solid #2a5eff;
+                border-radius: 4px;
+            }
+            QTableView::item:selected:hover {
+                background-color: #3a6eff;
+                border-color: #1a4eff;
             }
             QHeaderView {
-                background-color: #f1f5f9;
+                background-color: palette(button);
                 border: none;
             }
             QHeaderView::section {
-                background-color: #f1f5f9;
+                background-color: palette(button);
                 padding: 8px 12px;
                 border: none;
-                border-right: 1px solid #e2e8f0;
-                color: #4a5568;
+                border-right: 1px solid palette(mid);
+                color: palette(windowText);
                 font-weight: 600;
                 font-size: 12px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
@@ -137,16 +159,29 @@ class AppStyles:
             QHeaderView::section:nth-child(4) {
                 min-width: 250px; /* URL列最小宽度 */
             }
+            /* 拖拽时的视觉反馈 */
+            QTableView::item:drag {
+                background-color: #4a7eff;
+                color: white;
+                border: 2px dashed #2a5eff;
+                border-radius: 4px;
+                opacity: 0.7;
+            }
+            QTableView::item:drop {
+                background-color: palette(highlight);
+                border: 2px solid #4a7eff;
+                border-radius: 4px;
+            }
         """
 
     @staticmethod
     def statusbar_style() -> str:
-        """状态栏样式(跟随系统深色/浅色模式)"""
+        """状态栏样式(自动适应深色/浅色模式)"""
         return """
             QStatusBar {
-                background-color: #f1f5f9;
-                color: #4a5568;
-                border-top: 1px solid #e2e8f0;
+                background-color: palette(button);
+                color: palette(windowText);
+                border-top: 1px solid palette(mid);
                 padding: 6px 12px;
                 font-size: 12px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
@@ -157,9 +192,10 @@ class AppStyles:
                 padding: 0 6px;
             }
             QStatusBar QLabel {
-                color: #718096;
+                color: palette(windowText);
                 font-size: 12px;
                 font-weight: 500;
+                opacity: 0.8;
             }
         """
 
@@ -196,28 +232,28 @@ class AppStyles:
 
     @staticmethod
     def toolbar_button_style() -> str:
-        """工具栏按钮样式(emoji+文字)"""
+        """工具栏按钮样式(emoji+文字，自动适应深色/浅色模式)"""
         return """
             QToolButton {
-                border: 1px solid #e2e8f0;
+                border: 1px solid palette(mid);
                 border-radius: 4px;
                 padding: 4px 8px;
                 margin: 1px;
-                background-color: white;
+                background-color: palette(button);
                 min-width: 60px;
                 min-height: 28px;
-                color: #4a5568;
+                color: palette(windowText);
                 font-size: 12px;
                 font-weight: 500;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
             }
             QToolButton:hover {
-                background-color: #f1f5f9;
-                border-color: #cbd5e1;
+                background-color: palette(highlight);
+                border-color: palette(highlight);
                 color: #4a7eff;
             }
             QToolButton:pressed {
-                background-color: #e2e8f0;
+                background-color: palette(mid);
                 color: #2a5eff;
             }
             QToolButton::menu-indicator {
@@ -227,18 +263,19 @@ class AppStyles:
 
     @staticmethod
     def dialog_style() -> str:
-        """对话框通用样式"""
+        """对话框通用样式(自动适应深色/浅色模式)"""
         return """
             QDialog {
-                background-color: #ffffff;
-                color: #333333;
-                border: 1px solid #e0e0e0;
+                background-color: palette(window);
+                color: palette(windowText);
+                border: 1px solid palette(mid);
                 border-radius: 8px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
             }
             QDialog QLabel {
-                color: #555;
+                color: palette(windowText);
                 font-size: 13px;
+                opacity: 0.9;
             }
             QDialog QPushButton {
                 min-width: 70px;
@@ -248,30 +285,38 @@ class AppStyles:
                 font-weight: 500;
             }
             QDialog QGroupBox {
-                border: 1px solid #e0e0e0;
+                border: 1px solid palette(mid);
                 border-radius: 8px;
                 margin-top: 12px;
                 padding-top: 18px;
-                background-color: #f8f9fa;
+                background-color: palette(alternate-base);
             }
             QDialog QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 12px;
                 padding: 0 6px;
-                color: #555;
+                color: palette(windowText);
                 font-weight: 600;
                 font-size: 13px;
             }
             QDialog QLineEdit, QDialog QSpinBox, QDialog QComboBox {
-                border: 1px solid #e0e0e0;
+                border: 1px solid palette(mid);
                 border-radius: 6px;
                 padding: 6px 10px;
                 font-size: 13px;
-                background-color: white;
+                background-color: palette(base);
+                color: palette(windowText);
             }
             QDialog QLineEdit:focus, QDialog QSpinBox:focus, QDialog QComboBox:focus {
                 border-color: #4a7eff;
                 outline: none;
+            }
+            /* 复选框样式 - 只设置字体，让系统处理显示 */
+            QCheckBox {
+                color: palette(windowText);
+                font-size: 13px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                spacing: 8px;
             }
         """
 
@@ -307,13 +352,13 @@ class AppStyles:
 
     @staticmethod
     def drag_list_style() -> str:
-        """拖拽列表样式"""
+        """拖拽列表样式(自动适应深色/浅色模式)"""
         return """
             QListWidget {
-                border: 1px solid #e0e0e0;
+                border: 1px solid palette(mid);
                 border-radius: 8px;
                 padding: 4px;
-                background-color: white;
+                background-color: palette(base);
                 font-size: 13px;
             }
             QListWidget::item {
@@ -321,11 +366,12 @@ class AppStyles:
                 border-radius: 6px;
                 padding: 8px 12px;
                 margin: 2px;
-                background-color: #f8f9fa;
+                background-color: palette(alternate-base);
+                color: palette(windowText);
             }
             QListWidget::item:hover {
-                background-color: #e9ecef;
-                border: 1px solid #dee2e6;
+                background-color: palette(highlight);
+                border: 1px solid palette(mid);
             }
             QListWidget::item:selected {
                 background-color: #4a7eff;
@@ -339,31 +385,32 @@ class AppStyles:
 
     @staticmethod
     def drag_hint_label_style() -> str:
-        """拖拽提示标签样式"""
+        """拖拽提示标签样式(自动适应深色/浅色模式)"""
         return """
             QLabel {
                 color: #4a7eff;
                 font-size: 12px;
                 padding: 8px 12px;
-                background-color: #f0f5ff;
+                background-color: palette(alternate-base);
                 border-radius: 6px;
                 font-weight: 500;
-                border: 1px solid #e0ebff;
+                border: 1px solid palette(mid);
             }
         """
 
     @staticmethod
     def group_hint_label_style() -> str:
-        """分组提示标签样式"""
+        """分组提示标签样式(自动适应深色/浅色模式)"""
         return """
             QLabel {
-                color: #666;
+                color: palette(windowText);
                 font-size: 12px;
                 padding: 8px 12px;
-                background-color: #f8f9fa;
+                background-color: palette(alternate-base);
                 border-radius: 6px;
                 font-weight: 500;
-                border: 1px solid #e9ecef;
+                border: 1px solid palette(mid);
+                opacity: 0.8;
             }
         """
 
@@ -415,35 +462,38 @@ class AppStyles:
         """次要标签样式（灰色文字，带内边距）"""
         return """
             QLabel {
-                color: #666;
+                color: palette(windowText);
                 padding: 0 5px;
+                font-size: 13px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                opacity: 0.8;
             }
         """
 
     @staticmethod
     def tab_widget_style() -> str:
-        """标签页控件样式"""
+        """标签页控件样式(自动适应深色/浅色模式)"""
         return """
             QTabWidget {
-                background-color: white;
-                border: 1px solid #e0e0e0;
+                background-color: palette(window);
+                border: 1px solid palette(mid);
                 border-radius: 8px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
             }
             QTabWidget::pane {
-                border: 1px solid #e0e0e0;
+                border: 1px solid palette(mid);
                 border-radius: 0 0 8px 8px;
-                background-color: white;
+                background-color: palette(window);
                 margin-top: -1px;
             }
             QTabBar {
-                background-color: #f8f9fa;
-                border-bottom: 1px solid #e0e0e0;
+                background-color: palette(button);
+                border-bottom: 1px solid palette(mid);
                 border-radius: 8px 8px 0 0;
             }
             QTabBar::tab {
-                background-color: #f8f9fa;
-                border: 1px solid #e0e0e0;
+                background-color: palette(button);
+                border: 1px solid palette(mid);
                 border-bottom: none;
                 border-radius: 6px 6px 0 0;
                 padding: 8px 16px;
@@ -451,18 +501,21 @@ class AppStyles:
                 margin-top: 4px;
                 font-size: 13px;
                 font-weight: 500;
-                color: #666;
+                color: palette(windowText);
+                opacity: 0.8;
             }
             QTabBar::tab:selected {
-                background-color: white;
-                border-color: #e0e0e0;
-                border-bottom-color: white;
+                background-color: palette(window);
+                border-color: palette(mid);
+                border-bottom-color: palette(window);
                 color: #4a7eff;
                 font-weight: 600;
+                opacity: 1.0;
             }
             QTabBar::tab:hover:!selected {
-                background-color: #e9ecef;
+                background-color: palette(alternate-base);
                 color: #4a7eff;
+                opacity: 0.9;
             }
             QTabBar::tab:first {
                 margin-left: 4px;

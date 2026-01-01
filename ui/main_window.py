@@ -81,6 +81,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 在窗口显示后延迟检查新版本
         QtCore.QTimer.singleShot(500, self._check_for_updates_async)
+        
+        # 注册到主题管理器
+        from ui.theme_manager import get_theme_manager
+        self.theme_manager = get_theme_manager()
+        self.theme_manager.register_window(self)
 
     def _init_timers(self):
         """在主线程初始化所有定时器"""
