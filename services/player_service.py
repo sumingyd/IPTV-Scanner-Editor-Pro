@@ -228,25 +228,24 @@ class PlayerController(QObject):
                 # 播放命令成功发出，但不自动标记频道为有效
                 # 让用户通过"检测有效性"功能来验证频道
                 self.logger.info(f"播放命令已发出: {name}")
-                
+
                 # 可选：延迟检查播放状态，但不更新频道有效性
                 # 这可以帮助用户了解播放是否真正成功
                 if hasattr(self, 'channel_model') and self.channel_model:
                     import threading
-                    from PyQt6.QtCore import QTimer
-                    
+
                     def check_playback_status():
                         """检查播放状态，但不更新频道有效性"""
                         try:
                             # 等待几秒让播放器稳定
                             import time
                             time.sleep(3)
-                            
+
                             # 检查播放器状态
                             if self.player:
                                 state = self.player.get_state()
                                 self.logger.info(f"播放状态检查: {name} -> {state}")
-                                
+
                                 # 如果播放状态良好，可以记录日志但不更新频道有效性
                                 if state in [vlc.State.Playing, vlc.State.Opening]:
                                     self.logger.info(f"频道 {name} 播放状态良好")
@@ -254,7 +253,7 @@ class PlayerController(QObject):
                                     self.logger.warning(f"频道 {name} 播放状态不佳: {state}")
                         except Exception as e:
                             self.logger.warning(f"检查播放状态失败: {e}")
-                    
+
                     # 在后台线程中检查播放状态
                     status_thread = threading.Thread(target=check_playback_status, daemon=True)
                     status_thread.start()
