@@ -58,14 +58,12 @@ class ScanStateManager:
                     'scanner': scanner,
                     'last_update': time.time()
                 }
-                logger.debug(f"注册扫描任务: {scan_id}")
 
     def unregister_scan(self, scan_id: str):
         """注销扫描任务"""
         with self._lock:
             if scan_id in self._scan_states:
                 del self._scan_states[scan_id]
-                logger.debug(f"注销扫描任务: {scan_id}")
 
     def update_scan_state(self, scan_id: str, state: Dict[str, Any]):
         """更新扫描状态"""
@@ -73,7 +71,6 @@ class ScanStateManager:
             if scan_id in self._scan_states:
                 self._scan_states[scan_id].update(state)
                 self._scan_states[scan_id]['last_update'] = time.time()
-                logger.debug(f"更新扫描状态: {scan_id} -> {state}")
 
     def get_scan_state(self, scan_id: str) -> Optional[Dict[str, Any]]:
         """获取扫描状态"""
@@ -100,7 +97,6 @@ class ScanStateManager:
             if scan_id in self._scan_states:
                 self._scan_states[scan_id]['stats'].update(stats)
                 self._scan_states[scan_id]['last_update'] = time.time()
-                logger.debug(f"更新统计信息: {scan_id} -> {stats}")
 
     def get_stats(self, scan_id: str) -> Optional[Dict[str, Any]]:
         """获取统计信息"""
@@ -115,7 +111,6 @@ class ScanStateManager:
             if scan_id in self._scan_states:
                 if url not in self._scan_states[scan_id]['invalid_urls']:
                     self._scan_states[scan_id]['invalid_urls'].append(url)
-                    logger.debug(f"添加无效URL: {scan_id} -> {url[:50]}...")
 
     def get_invalid_urls(self, scan_id: str) -> List[str]:
         """获取无效URL列表"""
@@ -129,7 +124,6 @@ class ScanStateManager:
         with self._lock:
             if scan_id in self._scan_states:
                 self._scan_states[scan_id]['invalid_urls'] = []
-                logger.debug(f"清空无效URL列表: {scan_id}")
 
     # 重试扫描状态管理
     def register_retry_scan(self, retry_id: str, main_window=None):
@@ -144,7 +138,6 @@ class ScanStateManager:
                     'main_window': main_window,
                     'last_update': time.time()
                 }
-                logger.debug(f"注册重试扫描任务: {retry_id}")
 
     def update_retry_state(self, retry_id: str, state: Dict[str, Any]):
         """更新重试扫描状态"""
@@ -152,7 +145,6 @@ class ScanStateManager:
             if retry_id in self._retry_states:
                 self._retry_states[retry_id].update(state)
                 self._retry_states[retry_id]['last_update'] = time.time()
-                logger.debug(f"更新重试扫描状态: {retry_id} -> {state}")
 
     def get_retry_state(self, retry_id: str) -> Optional[Dict[str, Any]]:
         """获取重试扫描状态"""
@@ -172,7 +164,6 @@ class ScanStateManager:
             if retry_id in self._retry_states:
                 if url not in self._retry_states[retry_id]['failed_channels']:
                     self._retry_states[retry_id]['failed_channels'].append(url)
-                    logger.debug(f"添加失败频道: {retry_id} -> {url[:50]}...")
 
     def get_failed_channels(self, retry_id: str) -> List[str]:
         """获取失败频道列表"""
@@ -186,7 +177,6 @@ class ScanStateManager:
         with self._lock:
             if retry_id in self._retry_states:
                 self._retry_states[retry_id]['failed_channels'] = []
-                logger.debug(f"清空失败频道列表: {retry_id}")
 
     def increment_retry_count(self, retry_id: str) -> int:
         """增加重试计数并返回新值"""
@@ -194,7 +184,6 @@ class ScanStateManager:
             if retry_id in self._retry_states:
                 self._retry_states[retry_id]['retry_count'] += 1
                 count = self._retry_states[retry_id]['retry_count']
-                logger.debug(f"增加重试计数: {retry_id} -> {count}")
                 return count
             return 0
 
@@ -203,7 +192,6 @@ class ScanStateManager:
         with self._lock:
             if retry_id in self._retry_states:
                 self._retry_states[retry_id]['retry_count'] = 0
-                logger.debug(f"重置重试计数: {retry_id}")
 
     def get_retry_count(self, retry_id: str) -> int:
         """获取重试计数"""
@@ -217,7 +205,6 @@ class ScanStateManager:
         with self._lock:
             if retry_id in self._retry_states:
                 self._retry_states[retry_id]['last_retry_valid_count'] = count
-                logger.debug(f"更新上一次重试有效频道数: {retry_id} -> {count}")
 
     def get_last_retry_valid_count(self, retry_id: str) -> int:
         """获取上一次重试的有效频道数"""
@@ -303,12 +290,7 @@ class ScanStateContext:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """退出上下文时注销扫描任务"""
-        if exc_type is None:
-            # 没有异常，正常退出
-            manager = get_scan_state_manager()
-            manager.unregister_scan(self.scan_id)
-
+        """退出上下文时不立即注销扫描任务，让重试功能能够获取无效URL"""
         # 不处理异常，让异常正常传播
         return False
 
@@ -328,11 +310,7 @@ class RetryScanStateContext:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """退出上下文时重置重试状态"""
-        if exc_type is None:
-            # 没有异常，正常退出
-            manager = get_scan_state_manager()
-            manager.reset_retry_count(self.retry_id)
-            manager.clear_failed_channels(self.retry_id)
-
+        # 注意：这里不再自动重置重试计数，因为重试计数需要在重试过程中保持
+        # 重试计数的重置应该在重试扫描最终完成时由主窗口的 _finish_retry_scan 方法处理
         # 不处理异常，让异常正常传播
         return False

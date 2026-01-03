@@ -185,13 +185,8 @@ class ScannerController(QObject):
                     )
                 )
 
-        if self.workers:
-            alive_workers = sum(1 for w in self.workers if w.is_alive())
-        else:
-            alive_workers = 0
-        if alive_workers == 0 and not self.stop_event.is_set():
-            # 这里确保扫描完成信号被发射
-            QtCore.QTimer.singleShot(0, self.scan_completed.emit)
+        # 注意：不再在工作线程中触发扫描完成信号
+        # 扫描完成信号由 _update_stats 线程统一处理，避免重复触发
 
     def _process_valid_channel(self, channel_info: dict):
         """处理有效频道"""
@@ -963,17 +958,5 @@ class ScannerController(QObject):
             except Exception as e:
                 self.logger.error(f"发送最终统计信息失败: {e}")
 
-            # 检查扫描是否被用户停止
-            if self.stop_event.is_set():
-                self.logger.info("扫描被用户停止")
-            else:
-                # 最终保障：直接调用主窗口的方法
-                try:
-                    if self.main_window and hasattr(
-                        self.main_window, '_on_scan_completed'
-                    ):
-                        QtCore.QTimer.singleShot(
-                            0, self.main_window._on_scan_completed
-                        )
-                except Exception as e:
-                    self.logger.error(f"最终保障调用失败: {e}")
+            # 注意：不再在finally块中重复调用_on_scan_completed
+            # 扫描完成已经在try块中处理过了
