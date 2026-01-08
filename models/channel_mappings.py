@@ -45,19 +45,51 @@ def load_mappings_from_file(file_path: str) -> Dict[str, dict]:
                     catchup = row.get('catchup', '').strip() if row.get('catchup') else None
                     catchup_days = row.get('catchup_days', '').strip() if row.get('catchup_days') else None
                     catchup_source = row.get('catchup_source', '').strip() if row.get('catchup_source') else None
+                    resolution = row.get('resolution', '').strip() if row.get('resolution') else None
 
                     if standard_name:  # 确保标准名称不为空
-                        mappings[standard_name] = {
-                            'raw_names': raw_names,
-                            'logo_url': logo_url if logo_url and logo_url.lower() not in ['', 'none', 'null'] else None,
-                            'group_name': group_name if group_name and group_name.lower() not in ['', 'none', 'null'] else None,
-                            'tvg_id': tvg_id if tvg_id and tvg_id.lower() not in ['', 'none', 'null'] else None,
-                            'tvg_chno': tvg_chno if tvg_chno and tvg_chno.lower() not in ['', 'none', 'null'] else None,
-                            'tvg_shift': tvg_shift if tvg_shift and tvg_shift.lower() not in ['', 'none', 'null'] else None,
-                            'catchup': catchup if catchup and catchup.lower() not in ['', 'none', 'null'] else None,
-                            'catchup_days': catchup_days if catchup_days and catchup_days.lower() not in ['', 'none', 'null'] else None,
-                            'catchup_source': catchup_source if catchup_source and catchup_source.lower() not in ['', 'none', 'null'] else None
-                        }
+                        # 检查是否已存在相同标准名称的映射
+                        if standard_name in mappings:
+                            # 合并原始名称，避免重复
+                            existing_raw_names = mappings[standard_name]['raw_names']
+                            for raw_name in raw_names:
+                                if raw_name not in existing_raw_names:
+                                    existing_raw_names.append(raw_name)
+                            # 如果当前行有logo_url而现有映射没有，则更新logo_url
+                            if logo_url and not mappings[standard_name]['logo_url']:
+                                mappings[standard_name]['logo_url'] = logo_url if logo_url.lower() not in ['', 'none', 'null'] else None
+                            # 如果当前行有group_name而现有映射没有，则更新group_name
+                            if group_name and not mappings[standard_name]['group_name']:
+                                mappings[standard_name]['group_name'] = group_name if group_name.lower() not in ['', 'none', 'null'] else None
+                            # 更新其他字段（如果当前行有值而现有映射没有）
+                            if tvg_id and not mappings[standard_name]['tvg_id']:
+                                mappings[standard_name]['tvg_id'] = tvg_id if tvg_id.lower() not in ['', 'none', 'null'] else None
+                            if tvg_chno and not mappings[standard_name]['tvg_chno']:
+                                mappings[standard_name]['tvg_chno'] = tvg_chno if tvg_chno.lower() not in ['', 'none', 'null'] else None
+                            if tvg_shift and not mappings[standard_name]['tvg_shift']:
+                                mappings[standard_name]['tvg_shift'] = tvg_shift if tvg_shift.lower() not in ['', 'none', 'null'] else None
+                            if catchup and not mappings[standard_name]['catchup']:
+                                mappings[standard_name]['catchup'] = catchup if catchup.lower() not in ['', 'none', 'null'] else None
+                            if catchup_days and not mappings[standard_name]['catchup_days']:
+                                mappings[standard_name]['catchup_days'] = catchup_days if catchup_days.lower() not in ['', 'none', 'null'] else None
+                            if catchup_source and not mappings[standard_name]['catchup_source']:
+                                mappings[standard_name]['catchup_source'] = catchup_source if catchup_source.lower() not in ['', 'none', 'null'] else None
+                            if resolution and not mappings[standard_name]['resolution']:
+                                mappings[standard_name]['resolution'] = resolution if resolution.lower() not in ['', 'none', 'null'] else None
+                        else:
+                            # 创建新的映射
+                            mappings[standard_name] = {
+                                'raw_names': raw_names,
+                                'logo_url': logo_url if logo_url and logo_url.lower() not in ['', 'none', 'null'] else None,
+                                'group_name': group_name if group_name and group_name.lower() not in ['', 'none', 'null'] else None,
+                                'tvg_id': tvg_id if tvg_id and tvg_id.lower() not in ['', 'none', 'null'] else None,
+                                'tvg_chno': tvg_chno if tvg_chno and tvg_chno.lower() not in ['', 'none', 'null'] else None,
+                                'tvg_shift': tvg_shift if tvg_shift and tvg_shift.lower() not in ['', 'none', 'null'] else None,
+                                'catchup': catchup if catchup and catchup.lower() not in ['', 'none', 'null'] else None,
+                                'catchup_days': catchup_days if catchup_days and catchup_days.lower() not in ['', 'none', 'null'] else None,
+                                'catchup_source': catchup_source if catchup_source and catchup_source.lower() not in ['', 'none', 'null'] else None,
+                                'resolution': resolution if resolution and resolution.lower() not in ['', 'none', 'null'] else None
+                            }
         else:
             # 加载txt格式（向后兼容）
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -72,7 +104,7 @@ def load_mappings_from_file(file_path: str) -> Dict[str, dict]:
 
 def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
     """创建反向映射字典
-    返回格式: {raw_name: {'standard_name': str, 'logo_url': str, 'group_name': str}}
+    返回格式: {raw_name: {'standard_name': str, 'logo_url': str, 'group_name': str, ...}}
     """
     reverse_mappings = {}
     for standard_name, data in mappings.items():
@@ -80,7 +112,14 @@ def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
             reverse_mappings[raw_name] = {
                 'standard_name': standard_name,
                 'logo_url': data['logo_url'],
-                'group_name': data.get('group_name')
+                'group_name': data.get('group_name'),
+                'tvg_id': data.get('tvg_id'),
+                'tvg_chno': data.get('tvg_chno'),
+                'tvg_shift': data.get('tvg_shift'),
+                'catchup': data.get('catchup'),
+                'catchup_days': data.get('catchup_days'),
+                'catchup_source': data.get('catchup_source'),
+                'resolution': data.get('resolution')
             }
     return reverse_mappings
 
@@ -398,7 +437,14 @@ class ChannelMappingManager:
                     result = {
                         'standard_name': standard_name,
                         'logo_url': info['logo_url'],
-                        'group_name': info.get('group_name')
+                        'group_name': info.get('group_name'),
+                        'tvg_id': info.get('tvg_id'),
+                        'tvg_chno': info.get('tvg_chno'),
+                        'tvg_shift': info.get('tvg_shift'),
+                        'catchup': info.get('catchup'),
+                        'catchup_days': info.get('catchup_days'),
+                        'catchup_source': info.get('catchup_source'),
+                        'resolution': info.get('resolution')
                     }
                     # 移除调试日志，整合到get_channel_info方法中
                     return result
