@@ -1,338 +1,283 @@
-standard_name,raw_names,logo_url,group_name
-########## CETV ##########,,,
-CETV-1,"CETV-1,CETV-1HD,CHANNEL00000076",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV1.png,CETV
-CETV-2,"CETV2,CETV2SD,239.21.2.8:5002,CHANNEL00000077",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV2.png,CETV
-CETV-3,,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV3.png,CETV
-CETV-4,"cetv-4,CHANNEL00000070,CHANNEL00000666",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV4.png,CETV
-CETV-生态环境,"CHANNEL00000644,CHANNEL00000671",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/生态环境.png,CETV
-########## CGTN ##########,,,
-CGTN,"CGTN,CGTN-SD,CGTN-HD,CHANNEL00000009,CHANNEL00000352",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN.png,CGTN
-CGTN纪录,"239.21.2.31:5002,CHANNEL00000353",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN纪录.png,CGTN
-CGTN西语,"239.21.2.32:5002,CHANNEL00000354",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN西语.png,CGTN
-CGTN法语,"239.21.2.33:5002,CHANNEL00000355",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN法语.png,CGTN
-CGTN阿语,"239.21.2.34:5002,CHANNEL00000356",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN阿语.png,CGTN
-CGTN俄语,"239.21.2.35:5002,CHANNEL00000357",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN俄语.png,CGTN
-########## 东营 ##########,,,
-广饶综合,"guangrao-xinwen,CHANNEL00001043",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/东营广饶.png,东营
-########## 临沂 ##########,,,
-兰陵综合,"lanling-zonghe,CHANNEL00001032",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂兰陵.png,临沂
-兰陵公共,"lanling-gonggong,CHANNEL00001095",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂兰陵.png,临沂
-蒙阴综合,"mengyin,CHANNEL00001031,239.21.2.23:5002",,临沂
-莒南综合,"junan-zonghe,CHANNEL00001011",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂莒南.png,临沂
-沂水综合,"CHANNEL00001098,yishui-1",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂沂水.png,临沂
-沂水生活,"yishui-2,CHANNEL00001099",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂沂水.png,临沂
-河东综合,"hedong-zonghe,CHANNEL00001109",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂河东.png,临沂
-临沭综合,"linshu,CHANNEL00001094",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂临沭.png,临沂
-沂南综合,CHANNEL00001096,,临沂
-########## 卫视 ##########,,,
-安徽卫视,"239.21.1.21:5002,ANHUI-UD,CHANNEL00000328",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/安徽/安徽卫视2.png,卫视
-北京卫视,"239.21.1.20:5002,BEIJING,BEIJING-HD,CHANNEL00000019,CHANNEL00000302,CHANNEL40000001",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视.png,卫视
-北京卫视-4K,"BRIJING-4K-25P,BEIJING-4K-50P,239.21.2.172:5002,苏超25P",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视4K.png,卫视
-兵团卫视,"标清兵团-bingtuan,CHANNEL00000071,bingtuan-hd,channel00000394",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/兵团卫视2.png,卫视
-东方卫视,"239.21.1.23:5002,SHANGHAI,SHANGHAI-HD,CHANNEL00000022,CHANNEL00000309",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方卫视1.png,卫视
-东方卫视-4K,"CHANNEL40000009,ShangHai-4K-25P,239.21.2.184:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方卫视4K.png,卫视
-东南卫视,"239.21.1.29:5002,FUJIAN,FUJIAN-HD,CHANNEL00000028,CHANNEL00000310",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/福建/东南卫视2.png,卫视
-凤凰卫视,"凤凰卫视-fenghuang,CHANNEL00000380,239.21.2.163:5002,239.21.2.153:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰卫视.png,卫视
-凤凰香港,"凤凰香港-fenghuang,239.21.2.164:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰香港.png,卫视
-凤凰资讯,凤凰资讯-fenghuang,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/香港/凤凰资讯.png,卫视
-甘肃卫视,"GanSu,GanSu-HD,239.21.1.47:5002,CHANNEL00000349,239.21.2.22:5002,GanSu_HD",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/甘肃/甘肃卫视2.png,卫视
-广东卫视,"??????,GuangDong,GuangDong-HD,CHANNEL00000025,CHANNEL00000307,239.21.2.157:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/广东卫视2.png,卫视
-广东卫视-4K,"239.21.2.173:5002,GUANGDONG-4k,广东卫视4K,CHANNEL40000003,GuangDong-4K-25P",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/广东卫视4K.png,卫视
-广西卫视,"GuangXi,GuangXi-HD,CHANNEL00000038,CHANNEL00000368",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广西/广西卫视2.png,卫视
-贵州卫视,"python main.py,239.21.1.42:5002,GUIZHOU,GUIZHOU-HD,CHANNEL00000041,CHANNEL00000329",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/贵州/贵州卫视3.png,卫视
-海南卫视,"HAINAN,HAINAN-HD,239.21.1.31:5002,CHANNEL00000347",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/海南/海南卫视3.png,卫视
-河北卫视,"239.21.1.168:5002,???????,HEBEI,HEBEI-HD,CHANNEL00000034,CHANNEL00000330",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河北/河北卫视3.png,卫视
-河南卫视,"HENAN,HENAN-HD,239.21.1.38:5002,CHANNEL00000037,CHANNEL00000358,239.21.2.37:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/河南卫视3.png,卫视
-黑龙江卫视,"239.21.1.91:5002,239.21.1.28:5002,HEILONGJIANG,HEILONGJIANG-HD,CHANNEL00000027,CHANNEL00000306",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/黑龙江/黑龙江卫视1.png,卫视
-湖北卫视,"HUBEI,HUBEI-HD,hubei-sd-dianxin,CHANNEL00000031,CHANNEL00000325",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖北/湖北卫视2.png,卫视
-湖南卫视,"239.21.1.18:5002,HUNAN,HUNAN-HD,CHANNEL00000324",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/湖南卫视1.png,卫视
-湖南卫视-4K,"CHANNEL40000006,239.21.2.181:5002,HuNan-4K-25P",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/湖南卫视4K.png,卫视
-吉林卫视,"239.21.2.49:5002,????????,JILIN,JILIN-HD,CHANNEL00000036,CHANNEL00000363",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/吉林/吉林卫视3.png,卫视
-江苏卫视,"239.21.1.19:5002,JIANGSU,JIANGSU-HD,CHANNEL00000018,CHANNEL00000304",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/江苏卫视3.png,卫视
-江苏卫视-4K,"CHANNEL40000007,239.21.2.183:5002,JiangSu-4K-25P",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/江苏卫视4K.png,卫视
-江西卫视,"239.21.1.36:5002,JIANGXI,JIANGXI-HD,CHANNEL00000035,CHANNEL00000335",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江西/江西卫视2.png,卫视
-辽宁卫视,"239.21.1.27:5002,LIAONING,LIAONING-HD,CHANNEL00000026,CHANNEL00000326",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/辽宁/辽宁卫视2.png,卫视
-内蒙古卫视,"标清内蒙-neimeng,CHANNEL00000040",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/内蒙古/内蒙古卫视2.png,卫视
-宁夏卫视,"标清宁夏-ningxia,CHANNEL00000043,CHANNEL00000395,ningxia-hd",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/宁夏/宁夏卫视2.png,卫视
-农林卫视,"标清农林-nonglin,CHANNEL00000072",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/陕西/农林卫视2.png,卫视
-青海卫视,"QingHai,QingHai-HD,CHANNEL00000042,CHANNEL00000366",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/青海/青海卫视2.png,卫视
-三沙卫视,"239.21.2.9:5002,CHANNEL00000078",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/海南/三沙卫视3.png,卫视
-厦门卫视,"239.21.2.6:5002,XM,XMSD,CHANNEL00000075",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/福建/厦门卫视3.png,卫视
-山东卫视,"山东卫视,SDTV-HD-DianXin,239.21.2.158:5002,CHANNEL00001068,CHANNEL00000301,239.21.2.135:5002,channel20000004,CHANNEL10000301",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东卫视3.png,卫视
-山东卫视-4K,"山东shandong-4K-25P,CHANNEL40000005,239.21.2.179:5002,山东shandong-4K-25P,山东4k50p主",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东卫视4K.png,卫视
-山西卫视,"标清山西-shanxi,CHANNEL00000032",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山西/山西卫视3.png,卫视
-陕西卫视,"标清陕西-shanxi,CHANNEL00000029",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/陕西/陕西卫视3.png,卫视
-深圳卫视,"239.21.1.25:5002,SHENZHEN,SHENZHEN-HD,CHANNEL00000024,CHANNEL00000308,239.21.1.93:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视2.png,卫视
-深圳卫视-4K,"shenzhen-4K-25P,239.21.2.174:5002,深圳卫视4K,CHANNEL40000004",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视4K.png,卫视
-四川卫视,"SICHUAN,SICHUAN-HD,???????,CHANNEL00000348,239.21.2.15:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川/四川卫视3.png,卫视
-四川卫视-4K,"CHANNEL40000010,SiChuan-4K-25P,239.21.2.185:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川/四川卫视4K.png,卫视
-天津卫视,"TIANJIN,TIANJIN-HD,CHANNEL00000021,CHANNEL00000327,239.21.1.165:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/天津/天津卫视3.png,卫视
-西藏卫视,"标清西藏-xizang,CHANNEL00000045,CHANNEL00000392,xizang-hd",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/西藏/西藏卫视2.png,卫视
-新疆卫视,"标清新疆-xinjiang,CHANNEL00000044,CHANNEL00000393,xinjiang-hd",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/新疆卫视2.png,卫视
-延边卫视,"标清延边-yanbian,CHANNEL00000668,239.21.2.137:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/吉林/延边卫视.png,卫视
-云南卫视,"YunNan,YunNan-HD,CHANNEL00000039,CHANNEL00000367,239.21.2.86:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/云南/云南卫视3.png,卫视
-浙江卫视,"239.21.1.17:5002,ZHEJIANG,ZHEJIANG-HD,CHANNEL00000016,CHANNEL00000305",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/浙江卫视2.png,卫视
-浙江卫视-4K,"CHANNEL40000008,ZheJiang-4K-25P,239.21.2.182:5002,",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/浙江卫视4K.png,卫视
-重庆卫视,"CHONGQING,CHONGQING-HD,CHANNEL00000341,239.21.1.233:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/重庆/重庆卫视3.png,卫视
-########## 国际频道 ##########,,,
-NHK世界台,"NHK,239.21.2.170:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/日本/NHK世界台.png,国际频道
-阿里郎,阿里郎-alilang,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/韩国/阿里郎.png,国际频道
-澳门Macau,"澳门卫视-aomen,239.21.2.167:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/澳门/澳门电视台.png,国际频道
-法兰西,"法兰西-falanxi,239.21.2.168:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/法兰西/法兰西.png,国际频道
-欧洲新闻,"欧洲新闻-OUZHOUXINWEN,239.21.2.169:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/德国/DW德国之声.png,国际频道
-新加坡新闻,"新加坡新闻-xinjiapo,239.21.2.165:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新加坡/新加坡新闻.png,国际频道
-########## 央视频道 ##########,,,
-CCTV-1 综合,"CCTV1,cctv-1,CCTV-1,CCTV1-SD,CCTV1-HD,CHANNEL00000001,CHANNEL00000311,CHANNEL00004003",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV1.png,央视频道
-CCTV-2 财经,"CCTV2,CCTV2-HD,CHANNEL00000317,239.21.1.151:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV2.png,央视频道
-CCTV-3 综艺,"239.21.2.45:5002,CCTV3,CCTV3-HD,CHANNEL00000003,CHANNEL00000359",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV3.png,央视频道
-CCTV-4 (亚洲),"CCTV4,CCTV4-HD,CHANNEL00000320",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4.png,央视频道
-CCTV-4 (欧洲),"239.21.2.28:5002,CHANNEL00000350",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4欧洲.png,央视频道
-CCTV-4 (美洲),"239.21.2.29:5002,CHANNEL00000351",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4美洲.png,央视频道
-CCTV-4K 超高清,"CCTV ,CCTV 4K,239.21.2.152:5002,CHANNEL00000382",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4K.png,央视频道
-CCTV-5 体育,"239.21.2.46:5002,CCTV5,CCTV5-HD,CHANNEL00000360,channel30000005",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV5.png,央视频道
-CCTV-5+ 体育赛事,"CCTV5+,CCTV5+-HD,CHANNEL00000316",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV5+.png,央视频道
-CCTV-6 电影,"CCTV6,CCTV6-HD,CHANNEL00000006,CHANNEL00000361,239.21.2.47:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV6.png,央视频道
-CCTV-7 国防军事,"CCTV7,CCTV7-HD,CHANNEL00000318,239.21.1.152:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV7.png,央视频道
-CCTV-8 电视剧,"CCTV8,CCTV8-HD,CHANNEL00000008,CHANNEL00000362,channel20000001",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV8.png,央视频道
-CCTV-9 纪录,"CCTV9,CCTV9-HD,CHANNEL00000319,239.21.1.151:5002,239.21.1.153:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV9.png,央视频道
-CCTV-10 科教,"CCTV10,CCTV10-HD,CHANNEL00000321,239.21.1.155:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV10.png,央视频道
-CCTV-11 戏曲,"CCTV11,CCTV11-HD,CHANNEL00000344,239.21.2.2:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV11.png,央视频道
-CCTV-12 社会与法,"CCTV12,CCTV12-HD,CHANNEL00000322,239.21.1.156:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV12.png,央视频道
-CCTV-13 新闻,"CCTV13,CCTV13-HD,CHANNEL00000345",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV13.png,央视频道
-CCTV-14 少儿,"CCTV14,CCTV14-HD,CHANNEL00000323,239.21.1.157:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV14.png,央视频道
-CCTV-15 音乐,"239.21.2.4:5002,CCTV15,CCTV15-HD,CHANNEL00000346",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV15.png,央视频道
-CCTV-16 奥林匹克,,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV16.png,央视频道
-CCTV-17 农业农村,"zoucheng-xinwen,CCTV17,CCTV17-HD,CHANNEL00000303",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV17.png,央视频道
-CCTV-中视购物,239.21.1.100:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV中视购物.png,央视频道
-央广购物,CHANNEL00000704,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/央广购物.png,央视频道
-中央新影 中学生,"239.21.2.176:5002,CHANNEL00000673",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/中央新影中学生.png,央视频道
-########## 威海 ##########,,,
-荣成综合,"rongcheng,CHANNEL00001053,239.21.1.227:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海荣成.png,威海
-文登综合,"wendeng,239.21.1.174:5002",,威海
-乳山综合,"rushan,CHANNEL00001049",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海乳山.png,威海
-########## 山东频道 ##########,,,
-山东居家购物,"SDGouWu-HD-H264,CHANNEL00000700",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东居家购物.png,山东频道
-山东教育卫视,"239.21.1.101:5002,SHANDONG-JIAOYU,SHANDONG-JIAOYU-HD,CHANNEL00000331",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东教育.png,山东频道
-山东农科,"农科,SDNongKe-HD-H264,CHANNEL00000339",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东农科.png,山东频道
-山东齐鲁,"齐鲁,SDQiLu-HD-DianXin,CHANNEL00000052,CHANNEL0000031,CHANNEL10000313",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东齐鲁.png,山东频道
-山东少儿,"少儿,SDShaoEr-HD-H264,CHANNEL00000340,239.21.1.208:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东少儿.png,山东频道
-山东生活,"生活,SDShengHhuo-HD-H264,CHANNEL00000336",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东生活.png,山东频道
-山东体育休闲,"体育,SDTiYu-HD-264,CHANNEL00000057,CHANNEL00000315,CHANNEL00000400",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东体育休闲.png,山东频道
-山东文旅,"SDWenLv-HD-H264,影视,CHANNEL00000337",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东文旅.png,山东频道
-山东新闻,"SDXinWen-HD-H264,公共,CHANNEL00000314,CHANNEL10000314",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东新闻.png,山东频道
-山东综艺,"ZongYi,SDZongYiHD-H264,CHANNEL00000338,239.21.1.177:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东综艺.png,山东频道
-########## 市级频道 ##########,,,
-滨州民生,"binzhou-minsheng,CHANNEL00000221",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州.png,市级频道
-滨州新闻综合,"binzhou-xinwen,CHANNEL00000220",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州.png,市级频道
-德州经济生活,"dezhou-jingjishenghuo,CHANNEL00000207",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州生活.png,市级频道
-德州新闻综合,"dezhou-xinwen,CHANNEL00000206",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州新闻.png,市级频道
-东营公共,"dongying-gonggong,CHANNEL00000227",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/东营.png,市级频道
-东营新闻综合,"dongying-xinwen,CHANNEL00000226",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/东营.png,市级频道
-菏泽-1,"heze-1,CHANNEL00000232",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽.png,市级频道
-菏泽-2,"heze-2,CHANNEL00000234",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽.png,市级频道
-济南都市,"标清济南都市-jinandushi,CHANNEL00000062",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南都市.png,市级频道
-济南教育,"JINAN-JIAOYU济南教育高清,CHANNEL00000069",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南教育.png,市级频道
-济南鲁中,"jinan-luzhong,CHANNEL00000244",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南鲁中.png,市级频道
-济南少儿,"标清济南少儿-jinanshaoer,CHANNEL00000067",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南少儿.png,市级频道
-济南生活,"标清济南生活-jinanshenghuo,CHANNEL00000063",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南生活.png,市级频道
-济南文旅体育,"标清济南文旅-jinanwenlv,CHANNEL00000064",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南文旅体育.png,市级频道
-济南新闻综合,"标清济南新闻-jinanxinwen,JINAN-XINWEN济南高清,CHANNEL00000061,CHANNEL00000312",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南新闻.png,市级频道
-济南娱乐,"标清济南娱乐-jinanyule,CHANNEL00000065",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南娱乐.png,市级频道
-济南综合,"239.21.1.62:5002,CHANNEL00004000",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南新闻综合.png,市级频道
-济宁高新,"jining-gaoxin,CHANNEL00001101",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png,市级频道
-济宁公共,"jining-gonggong,CHANNEL00000241,239.21.2.20:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png,市级频道
-济宁生活,"jining-shenghuo,CHANNEL00000239",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png,市级频道
-济宁综合,"239.21.2.19:5002,jining-zonghe,jining-zongheHD,CHANNEL00000240",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png,市级频道
-聊城民生,"liaocheng-minsheng,CHANNEL00000251,239.21.1.254:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城.png,市级频道
-聊城综合,"liaocheng-zonghe,CHANNEL00000250",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城.png,市级频道
-临沂综合,CHANNEL00000120,,市级频道
-临沂公共,CHANNEL00000256,,市级频道
-临沂经济,CHANNEL00000121,,市级频道
-泰安经济,CHANNEL00000270,,市级频道
-泰安综合,CHANNEL00000269,,市级频道
-青岛QTV-1,"QTV-1,CHANNEL00000500",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV1.png,市级频道
-青岛QTV-2,"QTV-2,CHANNEL00000501",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV2.png,市级频道
-青岛QTV-3,"QTV-3,CHANNEL00000502",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV3.png,市级频道
-青岛QTV-4,"QTV-4,CHANNEL00000503",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV4.png,市级频道
-青岛QTV-5,"QTV-5,CHANNEL00000505,QTV-6",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV5.png,市级频道
-日照公共,"rizhao-gonggong,CHANNEL00001100",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照公共.png,市级频道
-日照科教,"rizhao-kejiao,CHANNEL00000263",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照科教.png,市级频道
-日照新闻综合,"rizhao-xinwen,CHANNEL00000262",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照新闻.png,市级频道
-威海都市生活,"weihai-jingjishenghuo,CHANNEL00000275,239.21.2.156:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海.png,市级频道
-威海新闻综合,"weihai-xinwen,CHANNEL00000274",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海.png,市级频道
-潍坊高新区,"weifang-gaoxin,CHANNEL00001106",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊高新.png,市级频道
-潍坊经济生活,"weifang-2,CHANNEL00000216",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊生活.png,市级频道
-潍坊科教文化,"weifang-4,CHANNEL00000218",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊文旅.png,市级频道
-潍坊新闻综合,"weifang-1,CHANNEL00000215",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊新闻.png,市级频道
-潍坊公共,"weifang-3,CHANNEL00000217",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊影视.png,市级频道
-烟台公共,"yantai-gonggong,CHANNEL00000281",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png,市级频道
-烟台经济科技,"239.21.1.205:5002,yantai-jingji,CHANNEL00000282",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png,市级频道
-烟台新闻综合,"yantai-xinwen,CHANNEL00000280",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png,市级频道
-烟台影视,"yantai-yingshi,CHANNEL00000283,239.21.1.204:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png,市级频道
-淄博民生,"zibo-minsheng,CHANNEL00000294",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博民生.png,市级频道
-淄博文旅,"zibo-wenlv,CHANNEL00000293",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博文旅.png,市级频道
-淄博新闻综合,"zibo-xinwen,CHANNEL00000292",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博新闻.png,市级频道
-淄博影视,"zibo-yingshi,CHANNEL00001037",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博影视.png,市级频道
-########## 广播 ##########,,,
-山东交通广播,"239.21.2.151:5002,CHANNEL00003002",,广播
-山东综合广播,"default,channel00004008,239.21.2.36:5002",,广播
-山东经济广播,"239.21.2.148:5002,CHANNEL00003001",,广播
-########## 德州 ##########,,,
-夏津综合,"xiajin-zonghe,CHANNEL00001069",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州夏津.png,德州
-夏津公共,"xiajin-gonggong,CHANNEL00001070",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州夏津.png,德州
-武城综合频道,"wucheng-xinwen,CHANNEL00001059",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州武城.png,德州
-武城综艺,CHANNEL00001060,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州武城.png,德州
-禹城综合,"yucheng-zonghe,CHANNEL00001061",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州禹城.png,德州
-禹城综艺,"239.21.1.242:5002,yucheng-zongyi,CHANNEL00001062",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州禹城.png,德州
-齐河综合,"qihe,CHANNEL00001056",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州齐河.png,德州
-平原综合,"pingyuan,CHANNEL00001064",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州平原.png,德州
-陵城综合,"lingcheng,CHANNEL00001082",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州陵城.png,德州
-宁津综合,"ningjin-zonghe,CHANNEL00001003",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州宁津.png,德州
-临邑综合,"linyi(dezhou),CHANNEL00001104",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州临邑.png,德州
-########## 日照 ##########,,,
-莒县综合,"juxian-zonghe,CHANNEL00001014",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照莒县.png,日照
-岚山综合,"lanshan,CHANNEL00001044",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照岚山.png,日照
-########## 枣庄 ##########,,,
-微山综合,CHANNEL00001078,,枣庄
-########## 泰安 ##########,,,
-新泰综合,"xintai-xinwen,CHANNEL00001029",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安新泰.png,泰安
-新泰乡村,"xintai-xiangcun,CHANNEL00001066",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安新泰.png,泰安
-东平综合,"dongping,CHANNEL00001001",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安东平.png,泰安
-宁阳综合,"ningyang-1,CHANNEL00001071",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安宁阳.png,泰安
-宁阳生活,"ningyang-2,CHANNEL00001072",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安宁阳.png,泰安
-岱岳综合,"daiyue,daiyue-HD,CHANNEL00001013",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安岱岳.png,泰安
-泰山综合,"taishan,taishanHD,CHANNEL00001114,239.21.2.147:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安泰山.png,泰安
-肥城综合,"feicheng,CHANNEL00001039,239.21.2.161:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安肥城.png,泰安
-########## 济南 ##########,,,
-商河综合,"shanghe,CHANNEL00001008",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南商河.png,济南
-平阴综合,"pingyin,CHANNEL00001050",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南平阴.png,济南
-济阳综合,"jiyang,CHANNEL00001030",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南济阳.png,济南
-长清综合,"changqing,CHANNEL00001018",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南长清.png,济南
-历城综合,"licheng,CHANNEL00001105",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南历城.png,济南
-章丘综合,CHANNEL00004009,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南章丘.png,济南
-########## 济宁 ##########,,,
-曲阜综合,"qufu-xinwen,CHANNEL00001052",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁曲阜.png,济宁
-兖州新闻,"yanzhou,CHANNEL00001051",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁兖州.png,济宁
-邹城综合,"zoucheng-xinwen,CHANNEL00001038,239.21.1.185:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁邹城.png,济宁
-梁山综合,liangshan,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁梁山.png,济宁
-嘉祥综合,"jiaxiang-xinwen,CHANNEL00001016,239.21.2.84:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁嘉祥.png,济宁
-鱼台综合,"yutai-xinwen,CHANNEL00001107,239.21.2.134:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁鱼台.png,济宁
-鱼台生活,"yutai-shenghuo,CHANNEL00001108",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁鱼台.png,济宁
-任城综合,"RenCHENG-1,CHANNEL00001111",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁任城.png,济宁
-任城生活,"RenCheng-2,CHANNEL00001112",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁任城.png,济宁
-汶上综合,"CHANNEL00001116,wenshang-zonghe",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁汶上.png,济宁
-########## 淄博 ##########,,,
-桓台综合,"huantai,CHANNEL00001020",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博桓台.png,淄博
-沂源综合,"yiyuan,CHANNEL00001002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博沂源.png,淄博
-淄川新闻,"zichuan-xinwen,CHANNEL00001007",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博淄川.png,淄博
-张店综合,"zhangdian,CHANNEL00001012,239.21.2.138:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博张店.png,淄博
-高青综合,"gaoqing-zonghe,CHANNEL00001023,239.21.2.140:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博高青.png,淄博
-周村新闻,"ZHOUCUN-XINWEN,CHANNEL00001019,239.21.2.150:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博周村.png,淄博
-########## 滨州 ##########,,,
-惠民综合,"huimin,CHANNEL00001009",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州惠民.png,滨州
-无棣综合,"wudi,CHANNEL00001024",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州无棣.png,滨州
-沾化综合,"zhanhua,CHANNEL00001035,239.21.1.226:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州沾化.png,滨州
-邹平综合,"zouping,CHANNEL00001058,239.21.1.238:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州邹平.png,滨州
-阳信综合,"yangxin,CHANNEL00001036",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州阳信.png,滨州
-########## 潍坊 ##########,,,
-安丘综合,"anqiu-zonghe,CHANNEL00001015",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊安丘.png,潍坊
-昌乐综合,"changle,CHANNEL00001033,239.21.1.245:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊昌乐.png,潍坊
-昌邑综合,"changyi-xinwen,CHANNEL00001083",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊昌邑.png,潍坊
-青州综合,"qingzhou-zonghe,CHANNEL00001042",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊青州.png,潍坊
-青州文化旅游,"qingzhou-wenlv,CHANNEL00001057,239.21.1.231:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊青州.png,潍坊
-寿光蔬菜,"shouguang-shucai,CHANNEL00001045,239.21.1.218:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊寿光.png,潍坊
-寿光综合,"shouguang-xinwen,CHANNEL00000702,CHANNEL00001000",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊寿光.png,潍坊
-诸城综合,"zhucheng,CHANNEL00001004,239.21.1.217:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊诸城.png,潍坊
-高密综合,"gaomi-xinwen,CHANNEL00001089",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊高密.png,潍坊
-临朐综合,"linqu-xinwen,CHANNEL00001085",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊临朐.png,潍坊
-########## 烟台 ##########,,,
-栖霞综合,"qixia,CHANNEL00001055",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台栖霞.png,烟台
-牟平综合,"muping-xinwen,CHANNEL00001076",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台牟平.png,烟台
-牟平生活,"muping-shenghuo,CHANNEL00001077",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台牟平.png,烟台
-长岛综合,"changdao,CHANNEL00001090",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台长岛.png,烟台
-蓬莱综合,"penglai,CHANNEL00001088",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台蓬莱.png,烟台
-海阳综合,"haiyang-zonghe,海阳综合电信用,CHANNEL00001091",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台海阳.png,烟台
-海阳综艺,"239.21.2.65:5002,haiyang-zongyi,CHANNEL00001092",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台海阳.png,烟台
-招远综合,"zhaoyuan-zonghe,CHANNEL00001113",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台招远.png,烟台
-龙口综合,"longkou-zonghe,CHANNEL00001005",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台龙口.png,烟台
-########## 特色频道 ##########,,,
-CHC动作电影,"CHC-dongzuo,CHANNEL00002030",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC动作电影.png,特色频道
-CHC家庭影院,"CHC-jiatingyinyuan,CHANNEL00002028",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC家庭电影.png,特色频道
-CHC影迷电影,"CHANNEL00002029,CHC-gaoqingdianying,,CHC-gaoqingdianying-yingmi,239.21.2.127:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC影迷电影.png,特色频道
-IPTV动作影院,239.21.1.123:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png,特色频道
-IPTV经典电影,239.21.1.124:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png,特色频道
-IPTV魅力时尚,239.21.1.129:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png,特色频道
-IPTV热播剧场,239.21.1.128:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png,特色频道
-IPTV少儿动画,239.21.1.125:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png,特色频道
-IPTV喜剧影院,239.21.1.122:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png,特色频道
-IPTV相声小品,239.21.1.126:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/华数.png,特色频道
-财富天下,"CFTX,CFTXSD,239.21.1.127:5002,CHANNEL00000607",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/财富天下.png,特色频道
-茶频道,"增值-cha,CHANNEL00000649",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/茶频道.png,特色频道
-车迷,"增值-chemi,CHANNEL00000645",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/车迷频道.png,特色频道
-东方财经,"增值-dongfangcaijing,CHANNEL00002025",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方财经.png,特色频道
-动漫秀场,"??-dongmanxiuchang,CHANNEL00002000,239.21.2.92:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/动漫秀场.png,特色频道
-都市剧场,"增值-dushijuchang,CHANNEL00002022",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/都市剧场.png,特色频道
-法治天地,"增值-fazhitiandi,CHANNEL00002010",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/法治天地3.png,特色频道
-光影,239.21.1.131:5002,,特色频道
-哈哈炫动,"标清炫动xuandong,CHANNEL00000050",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/哈哈炫动2.png,特色频道
-海洋频道,"Bravo Inc.,CHANNEL00000662",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/海洋频道.png,特色频道
-精彩影视,"jingcaiyingshi,CHANNEL00002012",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/精彩影视.png,特色频道
-环球旅游,"增值-huanqiulvyou,CHANNEL00000643",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/环球旅游.png,特色频道
-纪实科教,"BeiJing-JISHI,239.21.1.194:5002,CHANNEL00000332,239.21.1.172:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/纪实科教.png,特色频道
-家庭理财,"增值-jiatinglicai,CHANNEL00000654",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/辽宁/家庭理财.png,特色频道
-嘉佳卡通,"239.21.2.5:5002,CHANNEL00000074",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/嘉佳卡通.png,特色频道
-金色学堂,"增值-jinsexuetang,CHANNEL00002018",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/金色学堂.png,特色频道
-金鹰纪实,"HUNAN-JISHI,HUNAN-JISHI-HD,239.21.1.196:5002,CHANNEL00000334,HuNan-jinying-KATONG-HD,239.21.2.121:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/金鹰纪实.png,特色频道
-金鹰卡通,"䡵乡渭䭁呏乇,CHANNEL00000047,CHANNEL00002027,金鹰卡通",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/金鹰卡通.png,特色频道
-卡酷少儿,"BeiJing-KAKU,CHANNEL00000048,CHANNEL00000661",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/卡酷少儿.png,特色频道
-快乐垂钓,"增值-kuailechuidiao,CHANNEL00000648,239.21.2.97:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/快乐垂钓.png,特色频道
-乐游,"增值-leyou,CHANNEL00002016,239.21.2.104:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/乐游.png,特色频道
-梨园,"增值-liyuan,CHANNEL00000656",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/梨园频道.png,特色频道
-美人,239.21.1.132:5002,,特色频道
-魅力足球,"增值-meilizuqiu,CHANNEL00002021",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/魅力足球2.png,特色频道
-墨宝,239.21.1.130:5002,,特色频道
-汽摩,"QiMo,CHANNEL00000711",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/重庆/汽摩.png,特色频道
-求索纪录,"QiuSuoJiLu ,QiuSuoJiLu HD,CHANNEL00000667,239.21.2.159:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/求索纪录.png,特色频道
-生活时尚,"增值-shenghuoshishang,CHANNEL00002019",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/生活时尚.png,特色频道
-生态环境,239.21.2.160:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/生态环境.png,特色频道
-书画,"增值-shuhua,CHANNEL00000651",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/书画.png,特色频道
-四海钓鱼,"增值-sihaidiaoyu,CHANNEL00000640,增值-sihaidiaoyuHD,CHANNEL00000674",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/四海钓鱼.png,特色频道
-天下足球,239.21.1.162:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/天下足球.png,特色频道
-文物宝库,"增值-wenwubaoku,CHANNEL00000658",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/文物宝库.png,特色频道
-武术世界,"239.21.2.96:5002,增值-wushushijie,CHANNEL00000657",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/武术世界.png,特色频道
-先锋乒羽,"增值-xianfengpingyu,CHANNEL00000650",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/先锋乒羽.png,特色频道
-新动漫,"239.21.2.93:5002,xindongman-AS,CHANNEL00000659",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/辽宁/新动漫2.png,特色频道
-优漫卡通,"标清优漫卡通-youman,CHANNEL00000049",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/优漫卡通2.png,特色频道
-优优宝贝,"增值-youyoubaobei,CHANNEL00000641",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/优优宝贝2.png,特色频道
-游戏风云,"增值-youxifengyun,CHANNEL00002024",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/游戏风云.png,特色频道
-苏超联赛-4K,"苏超25帧,239.21.2.178:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/苏超联赛.png,特色频道
-中国交通,"zhongguo-jiaotong,CHANNEL00000073",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/公安部/中国交通3.png,特色频道
-中华特产,"zhuanxian-zhonghuatechan,增值-zhonghuatechan,CHANNEL00000642,CHANNEL00000672,CHANNEL00000672?",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/中华特产.png,特色频道
-重温经典影视,"Kan-shandong,CHANNEL00000364,239.21.2.77:5002,channel20000003",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/重温经典影视.png,特色频道
-综合测试,239.21.1.203:5002,,特色频道
-已停用,"239.21.2.26:5002,CHANNEL00000060,channel00004004",,特色频道
-红色影视,CHANNEL00001097,,特色频道
-劲爆体育,CHANNEL00002026,,特色频道
-智慧康养,CHANNEL00002031,,特色频道
-热血剧场,CHANNEL00002032,,特色频道
-########## 聊城 ##########,,,
-莘县综合,"shenxian,CHANNEL00001047",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城莘县.png,聊城
-茌平综合,"239.21.1.219:5002,chiping,CHANNEL00001048",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城茌平.png,聊城
-冠县综合,"guanxian,CHANNEL00001040,239.21.2.149:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城冠县.png,聊城
-东阿综合,"239.21.2.61:5002,donge,CHANNEL00001093",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城东阿.png,聊城
-临清综合,"linqing-zonghe,CHANNEL00001103,239.21.2.123:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城临清.png,聊城
-东昌综合,"dongchang-zonghe,239.21.2.190:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城东昌.png,聊城
-########## 菏泽 ##########,,,
-定陶综合,"dingtao,CHANNEL00001063",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽定陶.png,菏泽
-巨野新闻,"juye-xinwen,CHANNEL00001046",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽巨野.png,菏泽
-东明综合,"dongming,CHANNEL00001065,239.21.1.246:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽东明.png,菏泽
-郓城综合,"yuncheng,CHANNEL00001041,CHANNEL00001084",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽郓城.png,菏泽
-单县综合,"shanxian-zonghe,CHANNEL00001079,239.21.2.21:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽单县.png,菏泽
-鄄城综合,"juancheng-zonghe,239.21.2.141:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽鄄城.png,菏泽
-########## 青岛 ##########,,,
-莱西综合,"laixi,CHANNEL00001067,239.21.1.247:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛莱西.png,青岛
-崂山综合,"laoshan,CHANNEL00001022,CHANNEL00001075,239.21.1.223:5002,239.21.2.122:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛崂山.png,青岛
-平度综合,"pingdu-PDTV-1,CHANNEL00001054,239.21.1.228:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛平度.png,青岛
-黄岛综合,"huangdao-xinwen,CHANNEL00001086",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛黄岛.png,青岛
-黄岛生活,"239.21.2.58:5002,huangdao-shenghuo,CHANNEL00001087",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛黄岛.png,青岛
-胶州综合,"jiaozhou,CHANNEL00001074,239.21.2.60:5002",https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛胶州.png,青岛
+﻿standard_name,raw_names,logo_url,group_name,tvg_id,tvg_chno,tvg_shift,catchup,catchup_days,catchup_source
+CCTV-1 综合,239.21.1.120:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV1.png,央视频道,20000113,1,0,vod,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226103/10000100000000060000000002902003_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-1 综合,239.21.1.1:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV1.png,央视频道,20000098,301,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221225997/10000100000000060000000002706806_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-2 财经,239.21.1.151:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV2.png,央视频道,20000152,7,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226173/10000100000000060000000003110715_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-3 综艺,239.21.2.45:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV3.png,央视频道,410248918,8,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227134/415322505.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-4 中文,239.21.1.154:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4.png,央视频道,20000150,9,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226179/10000100000000060000000003110724_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-4 欧洲,239.21.2.28:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4欧洲.png,国际频道,409210221,80,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227070/409210222.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-4 美洲,239.21.2.29:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4美洲.png,国际频道,409210217,81,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227105/409210218.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-5 体育,239.21.2.46:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV5.png,央视频道,410248922,10,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227138/415322482.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-5+ 体育赛事,239.21.1.142:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV5+.png,央视频道,20000139,11,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226143/10000100000000060000000003071273_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-6 电影,239.21.2.47:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV6.png,央视频道,432747446,12,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227213/432747447.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-7 国防军事,239.21.1.152:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV7.png,央视频道,20000153,13,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226175/10000100000000060000000003110716_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-8 电视剧,239.21.2.48:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV8.png,央视频道,410248914,14,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227031/410248915.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-9 纪录,239.21.1.153:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV9.png,央视频道,20000147,15,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226177/10000100000000060000000003110720_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-10 科教,239.21.1.155:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV10.png,央视频道,20000154,16,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226181/10000100000000060000000003110727_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-11 戏曲,239.21.2.2:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV11.png,央视频道,395256094,17,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226826/395256095.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-12 社会与法,239.21.1.156:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV12.png,央视频道,20000155,18,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226183/10000100000000060000000003110728_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-13 新闻,239.21.2.3:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV13.png,央视频道,395256390,19,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226767/395256391.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-14 少儿,239.21.1.157:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV14.png,央视频道,20000156,20,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226185/10000100000000060000000003110729_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-15 音乐,239.21.2.4:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV15.png,央视频道,395256222,21,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226736/395256223.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-17 农业农村,239.21.1.186:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV17.png,央视频道,20000183,22,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226366/10000100000000060000000003766311_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+中学生,239.21.2.176:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/中央新影中学生.png,央视频道,,92,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227434/523619250.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+东南卫视,239.21.1.113:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/福建/东南卫视2.png,卫视频道,20000114,41,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226154/10000100000000060000000002885447_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+东方卫视,239.21.1.111:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方卫视1.png,卫视频道,20000108,34,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226150/10000100000000060000000002807413_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+云南卫视,239.21.2.86:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/云南/云南卫视3.png,卫视频道,438782320,55,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227210/438782321.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+兵团卫视,239.21.2.188:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/兵团卫视2.png,卫视频道,527989414,69,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227339/527989415.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+北京卫视,239.21.1.88:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视.png,卫视频道,20000062,36,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226061/10000100000000060000000002709089_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+吉林卫视,239.21.2.49:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/吉林/吉林卫视3.png,卫视频道,411800544,54,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227161/411800545.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+四川卫视,239.21.2.15:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川/四川卫视3.png,卫视频道,397438338,50,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226842/397438339.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+天津卫视,239.21.1.165:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/天津/天津卫视3.png,卫视频道,20000166,38,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226211/10000100000000060000000003301168_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+宁夏卫视,239.21.2.189:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/宁夏/宁夏卫视2.png,卫视频道,527989426,58,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227450/527989427.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+安徽卫视,239.21.1.159:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/安徽/安徽卫视2.png,卫视频道,20000157,37,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226189/10000100000000060000000003110731_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+山东卫视,239.21.1.87:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东卫视3.png,卫视频道,20000068,2,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226059/10000100000000060000000002709088_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+广东卫视,239.21.1.92:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/广东卫视2.png,卫视频道,20000080,43,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226067/10000100000000060000000002709095_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+广西卫视,239.21.2.87:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广西/广西卫视2.png,卫视频道,438782488,53,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227214/438782489.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+新疆卫视,239.21.2.187:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/新疆卫视2.png,卫视频道,527989402,59,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227461/527989403.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+江苏卫视,239.21.1.89:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/江苏卫视3.png,卫视频道,20000021,35,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226063/10000100000000060000000002709090_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+江西卫视,239.21.1.167:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江西/江西卫视2.png,卫视频道,20000168,47,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226215/10000100000000060000000003301175_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+河北卫视,239.21.1.168:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河北/河北卫视3.png,卫视频道,20000163,48,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226217/10000100000000060000000003301180_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+河南卫视,239.21.2.37:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/河南卫视3.png,卫视频道,410142844,52,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227129/410142845.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+浙江卫视,239.21.1.90:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/浙江卫视2.png,卫视频道,20000042,33,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226090/10000100000000060000000002709093_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+海南卫视,239.21.2.14:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/海南/海南卫视3.png,卫视频道,397438343,49,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226845/397438344.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+深圳卫视,239.21.1.93:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视2.png,卫视频道,20000033,40,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226088/10000100000000060000000002709106_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+湖北卫视,239.21.1.163:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖北/湖北卫视2.png,卫视频道,20000161,42,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226207/10000100000000060000000003301162_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+湖南卫视,239.21.1.158:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/湖南卫视1.png,卫视频道,20000151,32,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226187/10000100000000060000000003110730_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+甘肃卫视,239.21.2.22:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/甘肃/甘肃卫视2.png,卫视频道,402020796,60,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226832/402020797.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+西藏卫视,239.21.2.186:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/西藏/西藏卫视2.png,卫视频道,527989390,62,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227457/527989391.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+贵州卫视,239.21.1.166:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/贵州/贵州卫视3.png,卫视频道,20000167,46,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226213/10000100000000060000000003301172_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+辽宁卫视,239.21.1.164:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/辽宁/辽宁卫视2.png,卫视频道,20000162,39,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226209/10000100000000060000000003301163_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+重庆卫视,239.21.1.233:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/重庆/重庆卫视3.png,卫视频道,381520799,45,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226671/10000100000000060000000004141140_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+青海卫视,239.21.2.51:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/青海/青海卫视2.png,卫视频道,,,,none,0,
+青海卫视,239.21.2.85:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/青海/青海卫视2.png,卫视频道,438782476,61,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227104/438782477.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+黑龙江卫视,239.21.1.91:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/黑龙江/黑龙江卫视1.png,卫视频道,20000063,44,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226065/10000100000000060000000002709094_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+三沙卫视,239.21.2.9:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/海南/三沙卫视3.png,卫视频道,395256445,72,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226775/395256446.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+兵团卫视,239.21.1.234:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/兵团卫视2.png,卫视频道,,,,none,0,
+内蒙古卫视,239.21.1.41:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/内蒙古/内蒙古卫视2.png,卫视频道,20000087,57,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226034/10000100000000060000000002706931_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+农林卫视,239.21.1.235:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/陕西/农林卫视2.png,卫视频道,381525206,70,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226697/10000100000000060000000004141149_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+厦门卫视,239.21.2.6:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/福建/厦门卫视3.png,卫视频道,395256451,74,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226771/395256452.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+宁夏卫视,239.21.1.44:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/宁夏/宁夏卫视2.png,卫视频道,,,,none,0,
+山西卫视,239.21.1.33:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山西/山西卫视3.png,卫视频道,20000027,51,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226015/10000100000000060000000002706922_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+延边卫视,239.21.2.137:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/吉林/延边卫视.png,卫视频道,469553262,91,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227334/469553263.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+新疆卫视,239.21.1.45:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/新疆/新疆卫视2.png,卫视频道,,,,none,0,
+西藏卫视,239.21.1.46:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/西藏/西藏卫视2.png,卫视频道,,,,none,0,
+陕西卫视,239.21.1.30:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/陕西/陕西卫视3.png,卫视频道,20000044,56,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226018/10000100000000060000000002706915_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CGTN,239.21.1.10:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN.png,国际频道,20000057,87,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226112/10000100000000060000000002713888_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CGTN英语,239.21.2.30:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN.png,国际频道,409209236,79,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226976/409209237.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CGTN俄语,239.21.2.35:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN俄语.png,国际频道,409209240,86,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227113/409209241.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CGTN法语,239.21.2.33:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN法语.png,国际频道,409210236,84,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227074/409210237.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CGTN英文纪录,239.21.2.31:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN纪录.png,国际频道,409210230,82,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226991/409210231.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CGTN西班牙语,239.21.2.32:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN西语.png,国际频道,409210241,83,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226980/409210242.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CGTN阿拉伯语,239.21.2.34:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CGTN/CGTN阿语.png,国际频道,409210245,85,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227109/409210246.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CCTV-4K 超高清,239.21.2.152:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/CCTV4K.png,4K频道,494657501,78,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227239/494657502.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+东方卫视-4K,239.21.2.184:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方卫视4K.png,4K频道,527738510,96,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227331/527738511.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+北京卫视-4K,239.21.2.172:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/北京卫视4K.png,4K频道,518924347,100,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227299/518924348.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+四川卫视-4K,239.21.2.185:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/四川/四川卫视4K.png,4K频道,527738521,97,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227335/527738522.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+山东卫视-4K,239.21.2.179:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东卫视4K.png,4K频道,527218191,67,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227442/527218192.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+山东卫视-4K,239.21.2.157:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东卫视4K.png,4K频道,,,,none,0,
+广东卫视-4K,239.21.2.173:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/广东卫视4K.png,4K频道,521682523,98,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227437/521682524.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+江苏卫视-4K,239.21.2.183:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/江苏/江苏卫视4K.png,4K频道,527738561,95,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227446/527738562.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+浙江卫视-4K,239.21.2.182:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/浙江卫视4K.png,4K频道,527738499,94,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227453/527738500.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+深圳卫视-4K,239.21.2.174:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视4K.png,4K频道,521682570,99,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227307/521682571.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+深圳卫视-4K,239.21.2.158:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/深圳卫视4K.png,4K频道,,,,none,0,
+湖南卫视-4K,239.21.2.181:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/湖南卫视4K.png,4K频道,527738295,93,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227316/527738296.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+中国教育-1,239.21.2.7:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV1.png,特色频道,395256463,75,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226744/395256464.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+中国教育-2,239.21.2.8:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV2.png,特色频道,395256486,76,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226834/395256487.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+中国教育-4,239.21.2.129:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CETV/CETV4.png,特色频道,456916031,77,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227187/456916096.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CHC动作电影,239.21.2.128:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC动作电影.png,特色频道,454656909,143,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227184/454656910.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CHC家庭影院,239.21.2.126:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC家庭电影.png,特色频道,454656890,141,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227188/454656891.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CHC影迷电影,239.21.2.127:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC影迷电影.png,特色频道,454656878,142,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227180/454656879.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+东方财经,239.21.2.108:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/东方财经.png,特色频道,443310047,129,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227270/443310048.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+中华特产,239.21.2.177:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/中华特产.png,特色频道,523620990,360,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227315/523620991.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+中国交通,239.21.1.115:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/公安部/中国交通3.png,特色频道,392270228,71,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226801/392270229.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+乐游,239.21.2.104:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/乐游.png,特色频道,443310011,125,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227139/443310012.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+四海钓鱼,239.21.2.180:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/四海钓鱼.png,特色频道,527408515,120,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227449/527408516.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+快乐垂钓,239.21.2.97:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/快乐垂钓.png,特色频道,443330035,118,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227156/443330036.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+文物宝库,239.21.2.109:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/文物宝库.png,特色频道,443330185,130,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227341/443330186.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+梨园,239.21.2.101:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/梨园频道.png,特色频道,443330130,122,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227282/443330131.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+武术世界,239.21.2.96:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/河南/武术世界.png,特色频道,443330025,117,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227337/443330026.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+求索纪录,239.21.2.159:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/浙江/求索纪录.png,特色频道,457055033,121,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227231/457055034.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+汽摩,239.21.2.142:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/重庆/汽摩.png,特色频道,479155501,331,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227346/479155502.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+法治天地,239.21.2.105:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/法治天地3.png,特色频道,443310023,126,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227152/443310024.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+海洋频道,239.21.2.119:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/海洋频道.png,特色频道,449855976,976,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227353/449855977.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+游戏风云,239.21.2.107:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/游戏风云.png,特色频道,443310035,128,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227143/443310036.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+环球旅游,239.21.2.115:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/环球旅游.png,特色频道,410462830,137,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227149/410462831.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+生态环境,239.21.2.160:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/生态环境.png,特色频道,505952659,88,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227276/505952660.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+生活时尚,239.21.2.103:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/生活时尚.png,特色频道,443309999,124,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227325/443310000.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+精彩影视,239.21.2.91:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/华数/精彩影视.png,特色频道,443330047,112,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227155/443330176.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+北京纪实科教,239.21.1.172:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/纪实科教.png,特色频道,20000164,330,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226225/10000100000000060000000003301187_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+茶,239.21.2.110:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/茶频道.png,特色频道,443330152,131,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227290/443330153.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+都市剧场,239.21.2.90:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/都市剧场.png,特色频道,443330118,111,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227147/443330119.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+重温经典影视,239.21.2.77:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/重温经典影视.png,特色频道,,,,none,0,
+金色学堂,239.21.2.102:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/金色学堂.png,特色频道,443309934,123,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227262/443309935.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+金鹰纪实,239.21.1.170:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/金鹰纪实.png,特色频道,20000165,68,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226221/10000100000000060000000003301183_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+书画,239.21.2.111:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/书画.png,特色频道,443330164,132,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227163/443330165.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+CHC影迷电影,239.21.2.127:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/CHC影迷电影.png,特色频道,,,,none,0,
+先锋乒羽,239.21.2.98:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/先锋乒羽.png,特色频道,,,,none,0,
+财富天下,239.21.1.127:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/财富天下.png,特色频道,,,,none,0,
+动漫秀场,239.21.2.92:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/上海/动漫秀场.png,少儿频道,443309883,113,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227297/443309884.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+卡酷少儿,239.21.2.120:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/卡酷少儿.png,少儿频道,448429700,64,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227167/448429701.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+金鹰卡通,239.21.2.121:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/湖南/金鹰卡通.png,少儿频道,443837473,63,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227164/443837474.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+山东少儿,239.21.1.208:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东少儿.png,少儿频道,391572870,29,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226810/391572871.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+优优宝贝,239.21.2.94:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/优优宝贝2.png,少儿频道,410462865,115,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227023/410462866.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+优漫卡通,239.21.1.50:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/北京/优漫卡通2.png,少儿频道,20000088,65,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226066/10000100000000060000000002706940_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+嘉佳卡通,239.21.2.5:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/广东/嘉佳卡通.png,少儿频道,395256411,73,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226740/395256412.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+新动漫,239.21.2.93:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/辽宁/新动漫2.png,少儿频道,443330106,114,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227333/443330107.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+山东体育,239.21.1.141:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东体育.png,山东频道,20000138,26,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226139/10000100000000060000000003064319_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+山东农科,239.21.1.183:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东农科.png,山东频道,20000182,28,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226279/10000100000000060000000003687322_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+居家购物,239.21.1.112:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东居家购物.png,山东频道,20000109,31,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226091/10000100000000060000000002859311_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+山东教育卫视,239.21.1.169:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东教育.png,山东频道,20000169,30,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226219/10000100000000060000000003301182_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+山东文旅,239.21.1.176:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东文旅.png,山东频道,20000174,23,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226233/10000100000000060000000003385231_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+山东新闻,239.21.1.140:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东新闻.png,山东频道,20000137,27,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226137/10000100000000060000000003064294_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+山东生活,239.21.1.175:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东生活.png,山东频道,20000173,24,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226276/10000100000000060000000003357334_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+山东综艺,239.21.1.177:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东综艺.png,山东频道,20000175,25,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226235/10000100000000060000000003385298_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+山东齐鲁,239.21.1.134:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东齐鲁.png,山东频道,20000128,3,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226119/10000100000000060000000002952439_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+德州新闻综合,239.21.1.75:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州新闻.png,市级频道,,,,none,0,
+德州经济生活,239.21.1.76:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州生活.png,市级频道,,,,none,0,
+济南教育,239.21.1.133:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南教育.png,市级频道,,,,none,0,
+济南新闻综合,239.21.1.94:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南新闻.png,市级频道,,,,none,0,
+济宁综合,239.21.2.19:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png,市级频道,,,,none,0,
+济宁高新,239.21.2.83:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png,市级频道,,,,none,0,
+淄博影视,239.21.1.182:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博影视.png,市级频道,,,,none,0,
+淄博新闻综合,239.21.1.84:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博新闻.png,市级频道,,,,none,0,
+潍坊公共,239.21.2.88:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊影视.png,市级频道,,,,none,0,
+潍坊新闻综合,239.21.1.77:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊新闻.png,市级频道,,,,none,0,
+潍坊科教文化,239.21.2.89:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊文旅.png,市级频道,,,,none,0,
+潍坊经济生活,239.21.1.78:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊生活.png,市级频道,,,,none,0,
+潍坊高新区,239.21.2.131:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊高新.png,市级频道,,,,none,0,
+烟台影视,239.21.1.204:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png,市级频道,,,,none,0,
+烟台新闻综合,239.21.1.116:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png,市级频道,,,,none,0,
+烟台经济科技,239.21.1.205:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png,市级频道,,,,none,0,
+聊城民生,239.21.1.254:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城.png,市级频道,387375626,5,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226753/387375627.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+聊城综合,239.21.1.253:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城.png,市级频道,387375542,4,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226770/387375543.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+东营公共,239.21.1.82:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/东营.png,市级频道,,,,none,0,
+东营新闻综合,239.21.1.81:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/东营.png,市级频道,,,,none,0,
+威海新闻综合,239.21.2.155:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海.png,市级频道,,,,none,0,
+威海都市生活,239.21.2.156:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海.png,市级频道,,,,none,0,
+日照公共,239.21.2.81:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照公共.png,市级频道,,,,none,0,
+日照新闻综合,239.21.1.79:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照新闻.png,市级频道,,,,none,0,
+日照科教,239.21.1.80:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照科教.png,市级频道,,,,none,0,
+济南娱乐,239.21.1.66:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南娱乐.png,市级频道,,,,none,0,
+济南少儿,239.21.1.68:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南少儿.png,市级频道,,,,none,0,
+济南文旅体育,239.21.1.65:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南文旅体育.png,市级频道,,,,none,0,
+济南新闻综合,239.21.1.62:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南新闻.png,市级频道,,,,none,0,
+济南生活,239.21.1.64:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南生活.png,市级频道,,,,none,0,
+济南都市,239.21.1.63:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南都市.png,市级频道,,,,none,0,
+济南鲁中,239.21.1.149:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南鲁中.png,市级频道,,,,none,0,
+济宁公共,239.21.2.20:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png,市级频道,,,,none,0,
+济宁生活,239.21.1.139:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png,市级频道,,,,none,0,
+淄博文旅,239.21.1.83:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博文旅.png,市级频道,,,,none,0,
+淄博民生,239.21.1.109:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博民生.png,市级频道,,,,none,0,
+滨州新闻综合,239.21.1.118:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州.png,市级频道,,,,none,0,
+滨州民生,239.21.1.119:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州.png,市级频道,,,,none,0,
+烟台公共,239.21.1.117:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png,市级频道,,,,none,0,
+菏泽-1,239.21.1.103:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽.png,市级频道,,,,none,0,
+菏泽-2,239.21.2.18:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽.png,市级频道,,,,none,0,
+青岛QTV-1,239.21.1.69:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV1.png,市级频道,,,,none,0,
+青岛QTV-2,239.21.1.70:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV2.png,市级频道,,,,none,0,
+青岛QTV-3,239.21.1.71:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV3.png,市级频道,,,,none,0,
+青岛QTV-4,239.21.1.72:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV4.png,市级频道,,,,none,0,
+青岛QTV-5,239.21.1.74:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/QTV5.png,市级频道,,,,none,0,
+无棣综合,239.21.1.214:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州无棣.png,地方频道,,,,none,0,
+沾化综合,239.21.1.226:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州沾化.png,地方频道,,,,none,0,
+邹平综合,239.21.1.238:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州邹平.png,地方频道,,,,none,0,
+阳信综合,239.21.1.252:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州阳信.png,地方频道,,,,none,0,
+临邑综合,239.21.2.130:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州临邑.png,地方频道,,,,none,0,
+夏津公共,239.21.1.102:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州夏津.png,地方频道,,,,none,0,
+夏津综合,239.21.1.106:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州夏津.png,地方频道,,,,none,0,
+宁津综合,239.21.2.50:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州宁津.png,地方频道,,,,none,0,
+平原综合,239.21.1.243:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州平原.png,地方频道,,,,none,0,
+武城综合,239.21.1.239:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州武城.png,地方频道,,,,none,0,
+禹城综合,239.21.1.241:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州禹城.png,地方频道,,,,none,0,
+禹城综艺,239.21.1.242:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州禹城.png,地方频道,,,,none,0,
+陵城综合,239.21.2.24:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州陵城.png,地方频道,,,,none,0,
+齐河综合,239.21.1.230:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/德州齐河.png,地方频道,,,,none,0,
+广饶综合,239.21.1.193:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/东营广饶.png,地方频道,,,,none,0,
+单县综合,239.21.2.21:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽单县.png,地方频道,,,,none,0,
+定陶综合,239.21.1.244:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽定陶.png,地方频道,,,,none,0,
+巨野新闻,239.21.1.215:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽巨野.png,地方频道,,,,none,0,
+郓城综合,239.21.1.251:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽郓城.png,地方频道,,,,none,0,
+历城综合,239.21.2.132:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南历城.png,地方频道,,,,none,0,
+商河综合,239.21.2.53:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南商河.png,地方频道,,,,none,0,
+平阴综合,239.21.1.221:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南平阴.png,地方频道,,,,none,0,
+济阳综合,239.21.1.187:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南济阳.png,地方频道,,,,none,0,
+任城生活,239.21.2.144:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁任城.png,地方频道,,,,none,0,
+任城综合,239.21.2.143:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁任城.png,地方频道,,,,none,0,
+兖州新闻,239.21.1.224:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁兖州.png,地方频道,,,,none,0,
+嘉祥综合,239.21.2.84:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁嘉祥.png,地方频道,,,,none,0,
+曲阜综合,239.21.1.225:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁曲阜.png,地方频道,,,,none,0,
+梁山综合,239.21.2.12:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁梁山.png,地方频道,,,,none,0,
+汶上综合,239.21.2.175:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁汶上.png,地方频道,,,,none,0,
+邹城综合,239.21.1.185:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁邹城.png,地方频道,,,,none,0,
+鱼台生活,239.21.2.135:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁鱼台.png,地方频道,,,,none,0,
+鱼台综合,239.21.2.134:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁鱼台.png,地方频道,,,,none,0,
+东昌综合,239.21.2.190:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城东昌.png,地方频道,533741323,6,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227328/533741324.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+东阿综合,239.21.2.61:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城东阿.png,地方频道,,,,none,0,
+临清综合,239.21.2.123:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城临清.png,地方频道,,,,none,0,
+茌平综合,239.21.1.219:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城茌平.png,地方频道,,,,none,0,
+莘县综合,239.21.1.211:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城莘县.png,地方频道,,,,none,0,
+临沭综合,239.21.2.154:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂临沭.png,地方频道,,,,none,0,
+兰陵公共,239.21.2.63:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂兰陵.png,地方频道,,,,none,0,
+兰陵综合,239.21.1.237:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂兰陵.png,地方频道,,,,none,0,
+沂水生活,239.21.2.80:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂沂水.png,地方频道,,,,none,0,
+沂水综合,239.21.2.79:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂沂水.png,地方频道,,,,none,0,
+河东综合,239.21.2.136:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂河东.png,地方频道,,,,none,0,
+莒南综合,239.21.2.66:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂莒南.png,地方频道,,,,none,0,
+蒙阴综合,239.21.2.23:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临沂蒙阴.png,地方频道,,,,none,0,
+崂山综合,239.21.1.223:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛崂山.png,地方频道,,,,none,0,
+崂山综合,239.21.2.122:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛崂山.png,地方频道,,,,none,0,
+平度综合,239.21.1.228:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛平度.png,地方频道,,,,none,0,
+胶州综合,239.21.2.60:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛胶州.png,地方频道,,,,none,0,
+莱西综合,239.21.1.247:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛莱西.png,地方频道,,,,none,0,
+黄岛生活,239.21.2.58:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛黄岛.png,地方频道,,,,none,0,
+黄岛综合,239.21.2.57:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/青岛黄岛.png,地方频道,,,,none,0,
+岚山综合,239.21.1.209:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照岚山.png,地方频道,,,,none,0,
+莒县综合,239.21.1.236:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/日照莒县.png,地方频道,,,,none,0,
+东平综合,239.21.1.216:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安东平.png,地方频道,,,,none,0,
+宁阳综合,239.21.1.143:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安宁阳.png,地方频道,,,,none,0,
+岱岳综合,239.21.2.139:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安岱岳.png,地方频道,,,,none,0,
+新泰乡村,239.21.1.248:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安新泰乡村.png,地方频道,,,,none,0,
+新泰综合,239.21.1.210:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安新泰.png,地方频道,,,,none,0,
+泰山综合,239.21.2.147:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安泰山.png,地方频道,,,,none,0,
+肥城综合,239.21.2.161:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安肥城.png,地方频道,,,,none,0,
+乳山综合,239.21.1.220:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海乳山.png,地方频道,,,,none,0,
+文登综合,239.21.1.174:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海文登.png,地方频道,,,,none,0,
+荣成综合,239.21.1.227:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/威海荣成.png,地方频道,,,,none,0,
+临朐综合,239.21.2.62:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊临朐.png,地方频道,,,,none,0,
+安丘综合,239.21.2.13:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊安丘.png,地方频道,,,,none,0,
+寿光蔬菜,239.21.1.218:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊寿光.png,地方频道,,,,none,0,
+昌乐综合,239.21.1.245:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊昌乐.png,地方频道,,,,none,0,
+昌邑综合,239.21.2.27:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊昌邑.png,地方频道,,,,none,0,
+青州文化旅游,239.21.1.231:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊青州.png,地方频道,,,,none,0,
+青州综合,239.21.1.232:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊青州.png,地方频道,,,,none,0,
+高密综合,239.21.2.59:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊高密.png,地方频道,,,,none,0,
+招远综合,239.21.2.145:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台招远.png,地方频道,,,,none,0,
+海阳综合,239.21.2.64:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台海阳.png,地方频道,,,,none,0,
+海阳综合,239.21.2.68:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台海阳.png,地方频道,,,,none,0,
+海阳综艺,239.21.2.65:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台海阳.png,地方频道,,,,none,0,
+牟平生活,239.21.2.11:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台牟平.png,地方频道,,,,none,0,
+牟平综合,239.21.2.10:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台牟平.png,地方频道,,,,none,0,
+蓬莱综合,239.21.2.56:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台蓬莱.png,地方频道,,,,none,0,
+长岛综合,239.21.2.52:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台长岛.png,地方频道,,,,none,0,
+龙口综合,239.21.2.146:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台龙口.png,地方频道,,,,none,0,
+淄川新闻,239.21.1.160:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博淄川.png,地方频道,,,,none,0,
+惠民综合,239.21.1.181:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/滨州惠民.png,地方频道,,,,none,0,
+东明综合,239.21.1.246:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽东明.png,地方频道,,,,none,0,
+鄄城综合,239.21.2.141:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/菏泽鄄城.png,地方频道,,,,none,0,
+长清综合,239.21.1.107:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南长清.png,地方频道,,,,none,0,
+冠县综合,239.21.1.250:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城冠县.png,地方频道,,,,none,0,
+冠县综合,239.21.2.149:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/聊城冠县.png,地方频道,,,,none,0,
+宁阳生活,239.21.1.144:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/泰安宁阳.png,地方频道,,,,none,0,
+寿光综合,239.21.1.180:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊寿光.png,地方频道,,,,none,0,
+诸城综合,239.21.1.217:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊诸城.png,地方频道,,,,none,0,
+栖霞综合,239.21.1.229:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台栖霞.png,地方频道,,,,none,0,
+周村新闻,239.21.2.150:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博周村.png,地方频道,,,,none,0,
+张店综合,239.21.2.138:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博张店.png,地方频道,,,,none,0,
+桓台综合,239.21.1.105:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博桓台.png,地方频道,,,,none,0,
+沂源综合,239.21.1.114:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博沂源.png,地方频道,,,,none,0,
+高青综合,239.21.2.140:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博高青.png,地方频道,,,,none,0,
+山东综合广播,239.21.2.36:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东综合广播.png,山东广播,,,,none,0,
+山东交通广播,239.21.2.151:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东交通广播.png,山东广播,495807201,291,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227370/495807202.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+山东经济广播,239.21.2.148:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东经济广播.png,山东广播,490711724,290,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221227366/490711725.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+九屏,239.21.1.203:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/九屏同看.png,山东广播,370005661,100000,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226598/10000100000000060000000003878453_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+已停用,239.21.2.26:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/停用频道.png,山东广播,,,,none,0,
