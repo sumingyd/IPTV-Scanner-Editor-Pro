@@ -277,40 +277,41 @@ class ScannerController(QObject):
             try:
                 url = channel_info['url']
 
-                # 使用ffprobe获取流详细信息
-                from services.validator_service import StreamValidator
-                validator = StreamValidator(self.main_window)
-
-                # 调用ffprobe获取详细信息（使用较长的超时时间）
-                probe_result = validator._run_ffprobe(url, timeout=10)
-
-                # 更新频道信息
-                updated_info = channel_info.copy()
-
-                # 不再从service_name更新频道名，保持从URL提取的名称
-                # 只更新分辨率和其他信息
-                if probe_result.get('resolution'):
-                    updated_info['resolution'] = probe_result['resolution']
-                if probe_result.get('codec'):
-                    updated_info['codec'] = probe_result['codec']
-                if probe_result.get('bitrate'):
-                    updated_info['bitrate'] = probe_result['bitrate']
-
-                # 获取映射信息 - 使用从URL提取的名称进行映射
+                # 首先获取映射信息 - 使用从URL提取的名称进行映射
                 from models.channel_mappings import mapping_manager
                 channel_info_for_fingerprint = {
-                    'service_name': updated_info['raw_name'],  # 使用从URL提取的名称
-                    'resolution': updated_info.get('resolution', ''),
-                    'codec': updated_info.get('codec', ''),
-                    'bitrate': updated_info.get('bitrate', '')
+                    'service_name': channel_info['raw_name'],  # 使用从URL提取的名称
+                    'resolution': '',  # 初始为空，优先从映射获取
+                    'codec': '',
+                    'bitrate': ''
                 }
 
                 mapped_info = mapping_manager.get_channel_info(
-                    updated_info['raw_name'],  # 使用从URL提取的名称
+                    channel_info['raw_name'],  # 使用从URL提取的名称
                     url,
                     channel_info_for_fingerprint
                 )
 
+                # 更新频道信息
+                updated_info = channel_info.copy()
+
+                # 优先使用映射中的分辨率
+                if mapped_info and mapped_info.get('resolution'):
+                    updated_info['resolution'] = mapped_info['resolution']
+                else:
+                    # 如果映射中没有分辨率，再使用ffprobe获取
+                    from services.validator_service import StreamValidator
+                    validator = StreamValidator(self.main_window)
+                    probe_result = validator._run_ffprobe(url, timeout=10)
+                    
+                    if probe_result.get('resolution'):
+                        updated_info['resolution'] = probe_result['resolution']
+                    if probe_result.get('codec'):
+                        updated_info['codec'] = probe_result['codec']
+                    if probe_result.get('bitrate'):
+                        updated_info['bitrate'] = probe_result['bitrate']
+
+                # 更新其他映射信息
                 if mapped_info:
                     standard_name = mapped_info.get(
                         'standard_name', updated_info['raw_name']
@@ -322,11 +323,24 @@ class ScannerController(QObject):
 
                     # 确保logo_url是有效的URL字符串，不是None或空字符串
                     logo_url = mapped_info.get('logo_url')
-
                     if logo_url and isinstance(logo_url, str) and logo_url.strip():
                         updated_info['logo_url'] = logo_url.strip()
                     else:
                         updated_info['logo_url'] = None
+
+                    # 更新其他映射字段
+                    if mapped_info.get('tvg_id'):
+                        updated_info['tvg_id'] = mapped_info['tvg_id']
+                    if mapped_info.get('tvg_chno'):
+                        updated_info['tvg_chno'] = mapped_info['tvg_chno']
+                    if mapped_info.get('tvg_shift'):
+                        updated_info['tvg_shift'] = mapped_info['tvg_shift']
+                    if mapped_info.get('catchup'):
+                        updated_info['catchup'] = mapped_info['catchup']
+                    if mapped_info.get('catchup_days'):
+                        updated_info['catchup_days'] = mapped_info['catchup_days']
+                    if mapped_info.get('catchup_source'):
+                        updated_info['catchup_source'] = mapped_info['catchup_source']
 
                     updated_info['fingerprint'] = (
                         mapping_manager.create_channel_fingerprint(
@@ -950,8 +964,3 @@ class ScannerController(QObject):
                         }))
             except Exception as e:
                 self.logger.error(f"发送最终统计信息失败: {e}")
-
-            # 注意：不再在finally块中重复调用_on_scan_completed
-            # 扫描完成已经在try块中处理过了
-            # 注意：不再在finally块中重复调用_on_scan_completed
-            # 注意：不再在finally块中重复调用_on_scan_completed
