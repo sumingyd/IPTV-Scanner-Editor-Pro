@@ -241,13 +241,18 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             if is_from_file:
                 url = channel_info.get('url', '')
                 if url:
-                    # 保存原始数据副本，不包括后续添加的字段
+                    # 保存原始数据副本，包含所有M3U属性
                     original_channel = {
                         'name': channel_info.get('name', ''),
                         'group': channel_info.get('group', '未分类'),
                         'tvg_id': channel_info.get('tvg_id', ''),
                         'logo': channel_info.get('logo', ''),
                         'resolution': channel_info.get('resolution', ''),
+                        'tvg_chno': channel_info.get('tvg_chno', ''),
+                        'tvg_shift': channel_info.get('tvg_shift', ''),
+                        'catchup': channel_info.get('catchup', ''),
+                        'catchup_days': channel_info.get('catchup_days', ''),
+                        'catchup_source': channel_info.get('catchup_source', ''),
                         'url': url
                     }
                     self._original_channel_data[url] = original_channel
@@ -371,6 +376,12 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 tvg_id = original_channel.get('tvg_id', channel.get('tvg_id', ''))
                 logo = original_channel.get('logo', channel.get('logo', ''))
                 resolution = original_channel.get('resolution', channel.get('resolution', ''))
+                # 新增字段
+                tvg_chno = original_channel.get('tvg_chno', channel.get('tvg_chno', ''))
+                tvg_shift = original_channel.get('tvg_shift', channel.get('tvg_shift', ''))
+                catchup = original_channel.get('catchup', channel.get('catchup', ''))
+                catchup_days = original_channel.get('catchup_days', channel.get('catchup_days', ''))
+                catchup_source = original_channel.get('catchup_source', channel.get('catchup_source', ''))
             else:
                 # 使用当前数据（扫描生成的频道）
                 channel_name = channel.get('name', '')
@@ -378,6 +389,12 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 tvg_id = channel.get('tvg_id', '')
                 logo = channel.get('logo', '')
                 resolution = channel.get('resolution', '')
+                # 新增字段
+                tvg_chno = channel.get('tvg_chno', '')
+                tvg_shift = channel.get('tvg_shift', '')
+                catchup = channel.get('catchup', '')
+                catchup_days = channel.get('catchup_days', '')
+                catchup_source = channel.get('catchup_source', '')
 
             # 直接使用频道列表中已有的logo数据，而不是重新调用映射函数
             # 频道列表显示时已经加载了映射后的logo地址，保存在logo_url或logo字段中
@@ -389,16 +406,36 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 logo_url = channel_info.get('logo_url')
                 logger.debug(f"处理频道: {channel_name}, 获取到的信息: {channel_info}")
 
-            # EXTINF行 - 简化格式
-            extinf = (
-                f"#EXTINF:-1 "
-                f"tvg-id=\"{tvg_id}\" "
-                f"tvg-name=\"{channel_name}\" "
-                f"tvg-logo=\"{logo_url if logo_url else ''}\" "
-                f"group-title=\"{group}\" "
-                f"resolution=\"{resolution}\" "
-                f",{channel_name}"
-            )
+            # EXTINF行 - 完整格式，包含所有字段
+            extinf_parts = ["#EXTINF:-1"]
+
+            # 添加所有属性
+            if tvg_id:
+                extinf_parts.append(f'tvg-id="{tvg_id}"')
+            if channel_name:
+                extinf_parts.append(f'tvg-name="{channel_name}"')
+            if logo_url:
+                extinf_parts.append(f'tvg-logo="{logo_url}"')
+            if group:
+                extinf_parts.append(f'group-title="{group}"')
+            if tvg_chno:
+                extinf_parts.append(f'tvg-chno="{tvg_chno}"')
+            if tvg_shift:
+                extinf_parts.append(f'tvg-shift="{tvg_shift}"')
+            if catchup:
+                extinf_parts.append(f'catchup="{catchup}"')
+            if catchup_days:
+                extinf_parts.append(f'catchup-days="{catchup_days}"')
+            if catchup_source:
+                extinf_parts.append(f'catchup-source="{catchup_source}"')
+            if resolution:
+                extinf_parts.append(f'resolution="{resolution}"')
+
+            # 添加频道名称
+            extinf_parts.append(f",{channel_name}")
+
+            # 组合成完整的EXTINF行
+            extinf = " ".join(extinf_parts)
             lines.append(extinf)
 
             # URL行
@@ -1012,31 +1049,50 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         if name.startswith('"') and name.endswith('"'):
                             name = name[1:-1]
 
-                        # 初始化频道信息
+                        # 初始化频道信息 - 包含所有可能的M3U属性
                         current_channel = {
                             'name': name,
                             'group': "未分类",
                             'tvg_id': "",
                             'logo': "",
                             'resolution': "",  # 添加分辨率字段
+                            'tvg_chno': "",
+                            'tvg_shift': "",
+                            'catchup': "",
+                            'catchup_days': "",
+                            'catchup_source': "",
                             'valid': False,
                             'status': '待检测'
                         }
 
-                        # 解析各个属性
-                        attrs = attrs_part.split()
-                        for attr in attrs:
-                            if "=" in attr:
-                                key, value = attr.split("=", 1)
-                                value = value.strip('"')
-                                if key == "group-title":
-                                    current_channel['group'] = value
-                                elif key == "tvg-id":
-                                    current_channel['tvg_id'] = value
-                                elif key == "tvg-logo":
-                                    current_channel['logo'] = value
-                                elif key == "resolution":  # 解析分辨率标签
-                                    current_channel['resolution'] = value
+                        # 解析各个属性 - 使用正则表达式提取所有属性
+                        import re
+                        # 匹配所有 key="value" 格式的属性
+                        attr_pattern = r'(\S+)="([^"]*)"'
+                        matches = re.findall(attr_pattern, attrs_part)
+
+                        for key, value in matches:
+                            if key == "group-title":
+                                current_channel['group'] = value
+                            elif key == "tvg-id":
+                                current_channel['tvg_id'] = value
+                            elif key == "tvg-name":
+                                # 覆盖从逗号后提取的名称
+                                current_channel['name'] = value
+                            elif key == "tvg-logo":
+                                current_channel['logo'] = value
+                            elif key == "tvg-chno":
+                                current_channel['tvg_chno'] = value
+                            elif key == "tvg-shift":
+                                current_channel['tvg_shift'] = value
+                            elif key == "catchup":
+                                current_channel['catchup'] = value
+                            elif key == "catchup-days":
+                                current_channel['catchup_days'] = value
+                            elif key == "catchup-source":
+                                current_channel['catchup_source'] = value
+                            elif key == "resolution":
+                                current_channel['resolution'] = value
                     continue
 
                 # 处理分辨率标签（兼容旧格式）

@@ -218,17 +218,14 @@ class ScannerController(QObject):
         from models.channel_mappings import extract_channel_name_from_url
 
         try:
-            # 获取原始频道名
-            raw_name = result.get('service_name', '')
-            raw_name = raw_name or extract_channel_name_from_url(url)
-            if not raw_name or raw_name == "未知频道":
-                raw_name = extract_channel_name_from_url(url)
+            # 直接从URL提取频道名，不再尝试从媒体信息获取原始名称
+            channel_name = extract_channel_name_from_url(url)
 
             # 构建基本频道信息（不包含详细信息）
             channel_info = {
                 'url': url,
-                'name': raw_name,  # 初始使用原始名称
-                'raw_name': raw_name,
+                'name': channel_name,  # 使用从URL提取的名称
+                'raw_name': channel_name,
                 'valid': valid,
                 'latency': latency,
                 'resolution': '',  # 初始为空，异步获取
@@ -290,12 +287,8 @@ class ScannerController(QObject):
                 # 更新频道信息
                 updated_info = channel_info.copy()
 
-                # 如果有service_name，更新频道名
-                if probe_result.get('service_name'):
-                    updated_info['raw_name'] = probe_result['service_name']
-                    updated_info['name'] = probe_result['service_name']
-
-                # 更新分辨率和其他信息
+                # 不再从service_name更新频道名，保持从URL提取的名称
+                # 只更新分辨率和其他信息
                 if probe_result.get('resolution'):
                     updated_info['resolution'] = probe_result['resolution']
                 if probe_result.get('codec'):
@@ -303,17 +296,17 @@ class ScannerController(QObject):
                 if probe_result.get('bitrate'):
                     updated_info['bitrate'] = probe_result['bitrate']
 
-                # 获取映射信息
+                # 获取映射信息 - 使用从URL提取的名称进行映射
                 from models.channel_mappings import mapping_manager
                 channel_info_for_fingerprint = {
-                    'service_name': updated_info['raw_name'],
+                    'service_name': updated_info['raw_name'],  # 使用从URL提取的名称
                     'resolution': updated_info.get('resolution', ''),
                     'codec': updated_info.get('codec', ''),
                     'bitrate': updated_info.get('bitrate', '')
                 }
 
                 mapped_info = mapping_manager.get_channel_info(
-                    updated_info['raw_name'],
+                    updated_info['raw_name'],  # 使用从URL提取的名称
                     url,
                     channel_info_for_fingerprint
                 )
@@ -960,3 +953,5 @@ class ScannerController(QObject):
 
             # 注意：不再在finally块中重复调用_on_scan_completed
             # 扫描完成已经在try块中处理过了
+            # 注意：不再在finally块中重复调用_on_scan_completed
+            # 注意：不再在finally块中重复调用_on_scan_completed

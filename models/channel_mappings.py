@@ -38,11 +38,25 @@ def load_mappings_from_file(file_path: str) -> Dict[str, dict]:
                     logo_url = row.get('logo_url', '').strip() if row.get('logo_url') else None
                     group_name = row.get('group_name', '').strip() if row.get('group_name') else None
 
+                    # 新增字段
+                    tvg_id = row.get('tvg_id', '').strip() if row.get('tvg_id') else None
+                    tvg_chno = row.get('tvg_chno', '').strip() if row.get('tvg_chno') else None
+                    tvg_shift = row.get('tvg_shift', '').strip() if row.get('tvg_shift') else None
+                    catchup = row.get('catchup', '').strip() if row.get('catchup') else None
+                    catchup_days = row.get('catchup_days', '').strip() if row.get('catchup_days') else None
+                    catchup_source = row.get('catchup_source', '').strip() if row.get('catchup_source') else None
+
                     if standard_name:  # 确保标准名称不为空
                         mappings[standard_name] = {
                             'raw_names': raw_names,
                             'logo_url': logo_url if logo_url and logo_url.lower() not in ['', 'none', 'null'] else None,
-                            'group_name': group_name if group_name and group_name.lower() not in ['', 'none', 'null'] else None
+                            'group_name': group_name if group_name and group_name.lower() not in ['', 'none', 'null'] else None,
+                            'tvg_id': tvg_id if tvg_id and tvg_id.lower() not in ['', 'none', 'null'] else None,
+                            'tvg_chno': tvg_chno if tvg_chno and tvg_chno.lower() not in ['', 'none', 'null'] else None,
+                            'tvg_shift': tvg_shift if tvg_shift and tvg_shift.lower() not in ['', 'none', 'null'] else None,
+                            'catchup': catchup if catchup and catchup.lower() not in ['', 'none', 'null'] else None,
+                            'catchup_days': catchup_days if catchup_days and catchup_days.lower() not in ['', 'none', 'null'] else None,
+                            'catchup_source': catchup_source if catchup_source and catchup_source.lower() not in ['', 'none', 'null'] else None
                         }
         else:
             # 加载txt格式（向后兼容）
