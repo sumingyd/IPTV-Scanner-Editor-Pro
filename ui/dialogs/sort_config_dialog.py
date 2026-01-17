@@ -18,7 +18,8 @@ class SortConfigDialog(QtWidgets.QDialog):
             ('name', '名称'),
             ('resolution', '分辨率'),
             ('latency', '延迟'),
-            ('status', '状态')
+            ('status', '状态'),
+            ('mapping_order', '映射文件顺序')
         ]
 
         # 排序方式选项（使用国际化键）
@@ -46,6 +47,9 @@ class SortConfigDialog(QtWidgets.QDialog):
             'status': [
                 ('valid_first', 'valid_first'),
                 ('invalid_first', 'invalid_first')
+            ],
+            'mapping_order': [
+                ('mapping_order', 'mapping_order')  # 映射文件顺序只有一种排序方式
             ]
         }
 
@@ -87,7 +91,8 @@ class SortConfigDialog(QtWidgets.QDialog):
             'name': self.language_manager.tr('channel_name', 'Name'),
             'resolution': self.language_manager.tr('resolution', 'Resolution'),
             'latency': self.language_manager.tr('latency', 'Latency'),
-            'status': self.language_manager.tr('status', 'Status')
+            'status': self.language_manager.tr('status', 'Status'),
+            'mapping_order': self.language_manager.tr('mapping_order', 'Mapping File Order')
         }
 
         # 更新下拉框选项
@@ -303,13 +308,27 @@ class SortConfigDialog(QtWidgets.QDialog):
         primary_field = self.primary_combo.currentData()
         primary_method = self.primary_method_combo.currentData() if self.primary_method_combo.count() > 0 else None
 
-        # 如果第一优先级是分组且排序方式不是自定义，则禁用分组自定义排序
-        if primary_field == 'group' and primary_method != 'custom':
+        # 如果第一优先级是映射文件顺序，则禁用其他所有选项
+        if primary_field == 'mapping_order':
+            self.secondary_combo.setEnabled(False)
+            self.secondary_method_combo.setEnabled(False)
+            self.tertiary_combo.setEnabled(False)
+            self.tertiary_method_combo.setEnabled(False)
             self.group_list_widget.setEnabled(False)
             self.group_priority_label.setEnabled(False)
         else:
-            self.group_list_widget.setEnabled(True)
-            self.group_priority_label.setEnabled(True)
+            self.secondary_combo.setEnabled(True)
+            self.secondary_method_combo.setEnabled(True)
+            self.tertiary_combo.setEnabled(True)
+            self.tertiary_method_combo.setEnabled(True)
+            
+            # 如果第一优先级是分组且排序方式不是自定义，则禁用分组自定义排序
+            if primary_field == 'group' and primary_method != 'custom':
+                self.group_list_widget.setEnabled(False)
+                self.group_priority_label.setEnabled(False)
+            else:
+                self.group_list_widget.setEnabled(True)
+                self.group_priority_label.setEnabled(True)
 
     def reload_method_combo_texts(self):
         """重新加载排序方式下拉框的国际化文本"""

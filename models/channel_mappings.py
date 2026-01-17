@@ -466,6 +466,35 @@ class ChannelMappingManager:
         # 去重并返回
         return list(set(suggestions))
 
+    def get_mapping_entries(self) -> List[dict]:
+        """获取映射文件中的所有映射条目，按文件中的顺序返回"""
+        entries = []
+        try:
+            # 获取组合映射中的所有条目
+            for standard_name, data in self.combined_mappings.items():
+                entry = {
+                    'standard_name': standard_name,
+                    'raw_names': data.get('raw_names', []),
+                    'logo_url': data.get('logo_url'),
+                    'group_name': data.get('group_name'),
+                    'tvg_id': data.get('tvg_id'),
+                    'tvg_chno': data.get('tvg_chno'),
+                    'tvg_shift': data.get('tvg_shift'),
+                    'catchup': data.get('catchup'),
+                    'catchup_days': data.get('catchup_days'),
+                    'catchup_source': data.get('catchup_source'),
+                    'resolution': data.get('resolution')
+                }
+                entries.append(entry)
+            
+            # 按标准名称排序，保持一致性（文件中的顺序可能无法完全保留）
+            entries.sort(key=lambda x: x['standard_name'])
+            
+            return entries
+        except Exception as e:
+            self.logger.error(f"获取映射条目失败: {e}")
+            return []
+
     def refresh_cache(self):
         """刷新远程映射缓存"""
         self.remote_mappings = self._load_and_cache_remote_mappings()

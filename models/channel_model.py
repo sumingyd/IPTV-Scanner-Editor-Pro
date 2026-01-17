@@ -840,39 +840,81 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         """多条件排序算法"""
         self.beginResetModel()
 
-        # 构建排序键函数
-        def get_sort_key(channel):
-            key = []
+        # 检查是否是映射文件顺序排序
+        if sort_config.get('primary', {}).get('field') == 'mapping_order':
+            # 映射文件顺序排序
+            self._sort_by_mapping_order()
+        else:
+            # 构建排序键函数
+            def get_sort_key(channel):
+                key = []
 
-            # 处理三个优先级
-            for priority in ['primary', 'secondary', 'tertiary']:
-                if priority in sort_config:
-                    field_config = sort_config[priority]
-                    field = field_config['field']
-                    method = field_config['method']
+                # 处理三个优先级
+                for priority in ['primary', 'secondary', 'tertiary']:
+                    if priority in sort_config:
+                        field_config = sort_config[priority]
+                        field = field_config['field']
+                        method = field_config['method']
 
-                    # 根据字段和方法获取排序值
-                    if field == 'group':
-                        value = self._get_group_sort_value(channel.get('group', ''),
-                                                           method, sort_config.get('group_priority', []))
-                    elif field == 'name':
-                        value = self._get_name_sort_value(channel.get('name', ''), method)
-                    elif field == 'resolution':
-                        value = self._get_resolution_sort_value(channel.get('resolution', ''), method)
-                    elif field == 'latency':
-                        value = self._get_latency_sort_value(channel.get('latency', ''), method)
-                    elif field == 'status':
-                        value = self._get_status_sort_value(channel.get('status', ''), method)
-                    else:
-                        value = channel.get(field, '')
+                        # 根据字段和方法获取排序值
+                        if field == 'group':
+                            value = self._get_group_sort_value(channel.get('group', ''),
+                                                               method, sort_config.get('group_priority', []))
+                        elif field == 'name':
+                            value = self._get_name_sort_value(channel.get('name', ''), method)
+                        elif field == 'resolution':
+                            value = self._get_resolution_sort_value(channel.get('resolution', ''), method)
+                        elif field == 'latency':
+                            value = self._get_latency_sort_value(channel.get('latency', ''), method)
+                        elif field == 'status':
+                            value = self._get_status_sort_value(channel.get('status', ''), method)
+                        else:
+                            value = channel.get(field, '')
 
-                    key.append(value)
+                        key.append(value)
 
-            return tuple(key)
+                return tuple(key)
 
-        # 执行排序
-        self.channels.sort(key=get_sort_key)
+            # 执行排序
+            self.channels.sort(key=get_sort_key)
+        
         self.endResetModel()
+
+    def _sort_by_mapping_order(self):
+        """按映射文件顺序排序"""
+        try:
+            from models.channel_mappings import mapping_manager
+            
+            # 获取映射文件中的映射条目
+            mapping_entries = mapping_manager.get_mapping_entries()
+            
+            # 如果没有映射条目，直接返回
+            if not mapping_entries:
+                return
+            
+            # 创建映射名称到顺序的映射
+            mapping_order = {}
+            for i, entry in enumerate(mapping_entries):
+                standard_name = entry.get('standard_name', '')
+                if standard_name:
+                    # 如果同一个标准名称有多个映射条目，使用第一个出现的顺序
+                    if standard_name not in mapping_order:
+                        mapping_order[standard_name] = i
+            
+            # 排序函数
+            def get_mapping_order(channel):
+                channel_name = channel.get('name', '')
+                # 查找映射顺序
+                if channel_name in mapping_order:
+                    return mapping_order[channel_name]
+                # 未找到映射的频道放在最后
+                return len(mapping_order) + 1
+            
+            # 执行排序
+            self.channels.sort(key=get_mapping_order)
+            
+        except Exception as e:
+            logger.error(f"按映射文件顺序排序失败: {str(e)}", exc_info=True)
 
     def _get_group_sort_value(self, group, method, group_priority):
         """获取分组的排序值"""

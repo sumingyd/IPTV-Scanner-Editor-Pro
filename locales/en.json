@@ -146,5 +146,6 @@
   
   "group_hint_empty": "Tip: The channel list is currently empty. Groups are loaded from saved configuration. You can drag to adjust their priority order.",
   "group_hint_normal": "Tip: The following shows all group names from the current list. You can drag to adjust their priority order.",
-  "drag_hint": "💡 Tip: Drag group names to adjust priority order. Insertion position will be shown during dragging."
+  "drag_hint": "💡 Tip: Drag group names to adjust priority order. Insertion position will be shown during dragging.",
+  "mapping_order": "Mapping File Order"
 }
