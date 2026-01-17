@@ -486,10 +486,10 @@ class ChannelMappingManager:
                     'resolution': data.get('resolution')
                 }
                 entries.append(entry)
-            
+
             # 按标准名称排序，保持一致性（文件中的顺序可能无法完全保留）
             entries.sort(key=lambda x: x['standard_name'])
-            
+
             return entries
         except Exception as e:
             self.logger.error(f"获取映射条目失败: {e}")

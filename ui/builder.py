@@ -675,7 +675,7 @@ class UIBuilder(QtCore.QObject):
         # 使用类成员变量保存分割器引用
         self.main_window.channel_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
         self._setup_custom_splitter(self.main_window.channel_splitter)
-        
+
         # 设置分割器属性：不允许子部件折叠，设置最小高度
         self.main_window.channel_splitter.setChildrenCollapsible(False)
 
@@ -1157,7 +1157,7 @@ class UIBuilder(QtCore.QObject):
         """配置频道编辑区域 - 根据用户反馈优化布局"""
         edit_group = QtWidgets.QGroupBox("频道编辑")
         self.main_window.edit_group = edit_group  # 设置为属性以便语言管理器访问
-        
+
         # 使用垂直布局作为主布局
         main_layout = QtWidgets.QVBoxLayout()
         main_layout.setContentsMargins(5, 5, 5, 5)
@@ -1177,17 +1177,17 @@ class UIBuilder(QtCore.QObject):
         name_group_layout = QtWidgets.QHBoxLayout()
         name_group_layout.setContentsMargins(0, 0, 0, 0)
         name_group_layout.setSpacing(10)
-        
+
         channel_name_label = QtWidgets.QLabel("频道名称:")
         self.main_window.channel_name_label = channel_name_label
         name_group_layout.addWidget(channel_name_label)
         name_group_layout.addWidget(self.main_window.channel_name_edit)
-        
+
         channel_group_label = QtWidgets.QLabel("频道分组:")
         self.main_window.channel_group_label = channel_group_label
         name_group_layout.addWidget(channel_group_label)
         name_group_layout.addWidget(self.main_window.channel_group_edit)
-        
+
         name_group_widget.setLayout(name_group_layout)
         content_layout.addRow("基本信息:", name_group_widget)
 
@@ -1206,17 +1206,17 @@ class UIBuilder(QtCore.QObject):
         tvg_row_layout = QtWidgets.QHBoxLayout()
         tvg_row_layout.setContentsMargins(0, 0, 0, 0)
         tvg_row_layout.setSpacing(10)
-        
+
         tvg_id_label = QtWidgets.QLabel("TVG-ID:")
         self.main_window.tvg_id_label = tvg_id_label
         tvg_row_layout.addWidget(tvg_id_label)
         tvg_row_layout.addWidget(self.main_window.channel_tvg_id_edit)
-        
+
         tvg_chno_label = QtWidgets.QLabel("TVG频道号:")
         self.main_window.tvg_chno_label = tvg_chno_label
         tvg_row_layout.addWidget(tvg_chno_label)
         tvg_row_layout.addWidget(self.main_window.channel_tvg_chno_edit)
-        
+
         tvg_row_widget.setLayout(tvg_row_layout)
         content_layout.addRow("TVG设置:", tvg_row_widget)
 
@@ -1225,17 +1225,17 @@ class UIBuilder(QtCore.QObject):
         tvg_shift_catchup_layout = QtWidgets.QHBoxLayout()
         tvg_shift_catchup_layout.setContentsMargins(0, 0, 0, 0)
         tvg_shift_catchup_layout.setSpacing(10)
-        
+
         tvg_shift_label = QtWidgets.QLabel("TVG时移:")
         self.main_window.tvg_shift_label = tvg_shift_label
         tvg_shift_catchup_layout.addWidget(tvg_shift_label)
         tvg_shift_catchup_layout.addWidget(self.main_window.channel_tvg_shift_edit)
-        
+
         catchup_label = QtWidgets.QLabel("回看模式:")
         self.main_window.catchup_label = catchup_label
         tvg_shift_catchup_layout.addWidget(catchup_label)
         tvg_shift_catchup_layout.addWidget(self.main_window.channel_catchup_combo)
-        
+
         tvg_shift_catchup_widget.setLayout(tvg_shift_catchup_layout)
         content_layout.addRow("时移与回看:", tvg_shift_catchup_widget)
 
@@ -1251,7 +1251,7 @@ class UIBuilder(QtCore.QObject):
 
         # 设置内容部件的布局
         content_widget.setLayout(content_layout)
-        
+
         # 将内容部件添加到主布局
         main_layout.addWidget(content_widget)
 
@@ -1260,7 +1260,7 @@ class UIBuilder(QtCore.QObject):
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.setContentsMargins(0, 10, 0, 0)
         button_layout.setSpacing(10)  # 按钮间距
-        
+
         # 修改频道按钮
         self.main_window.edit_channel_btn = QtWidgets.QPushButton("修改频道")
         self.main_window.edit_channel_btn.setStyleSheet(AppStyles.button_style(active=True))
@@ -1280,7 +1280,7 @@ class UIBuilder(QtCore.QObject):
         button_layout.addWidget(self.main_window.edit_channel_btn, 1)  # 权重为1，平均分配空间
         button_layout.addSpacing(10)  # 按钮之间的间距
         button_layout.addWidget(self.main_window.add_channel_btn, 1)  # 权重为1，平均分配空间
-        
+
         button_widget.setLayout(button_layout)
         main_layout.addWidget(button_widget, 0)  # 权重为0，不拉伸，紧贴上方内容
 
@@ -1290,12 +1290,12 @@ class UIBuilder(QtCore.QObject):
         )
 
         edit_group.setLayout(main_layout)
-        
+
         # 设置最小高度，确保所有内容都能显示
         content_height = content_layout.sizeHint().height()
         button_height = 50  # 按钮区域高度
         edit_group.setMinimumHeight(content_height + button_height + 50)  # 额外留一些空间
-        
+
         parent.addWidget(edit_group)
         return edit_group
 
@@ -1481,7 +1481,7 @@ class UIBuilder(QtCore.QObject):
             self.main_window.channel_tvg_id_edit.setText(channel.get('tvg_id', ''))
             self.main_window.channel_tvg_chno_edit.setText(channel.get('tvg_chno', ''))
             self.main_window.channel_tvg_shift_edit.setText(channel.get('tvg_shift', ''))
-            
+
             # 设置回看模式下拉框
             catchup_value = channel.get('catchup', '')
             index = self.main_window.channel_catchup_combo.findText(catchup_value)
@@ -1489,7 +1489,7 @@ class UIBuilder(QtCore.QObject):
                 self.main_window.channel_catchup_combo.setCurrentIndex(index)
             else:
                 self.main_window.channel_catchup_combo.setCurrentIndex(0)  # 设置为空
-            
+
             self.main_window.channel_catchup_days_edit.setText(channel.get('catchup_days', ''))
             self.main_window.channel_catchup_source_edit.setText(channel.get('catchup_source', ''))
 

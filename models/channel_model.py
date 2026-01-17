@@ -12,7 +12,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         self.channels: List[Dict[str, Any]] = []
         self.headers = [
             "序号", "频道名称", "分辨率", "URL", "分组",
-            "Logo地址", "状态", "延迟(ms)", "TVG-ID", 
+            "Logo地址", "状态", "延迟(ms)", "TVG-ID",
             "TVG频道号", "TVG时移", "回看", "回看天数", "回看源"
         ]
 
@@ -877,21 +877,21 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
             # 执行排序
             self.channels.sort(key=get_sort_key)
-        
+
         self.endResetModel()
 
     def _sort_by_mapping_order(self):
         """按映射文件顺序排序"""
         try:
             from models.channel_mappings import mapping_manager
-            
+
             # 获取映射文件中的映射条目
             mapping_entries = mapping_manager.get_mapping_entries()
-            
+
             # 如果没有映射条目，直接返回
             if not mapping_entries:
                 return
-            
+
             # 创建映射名称到顺序的映射
             mapping_order = {}
             for i, entry in enumerate(mapping_entries):
@@ -900,7 +900,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                     # 如果同一个标准名称有多个映射条目，使用第一个出现的顺序
                     if standard_name not in mapping_order:
                         mapping_order[standard_name] = i
-            
+
             # 排序函数
             def get_mapping_order(channel):
                 channel_name = channel.get('name', '')
@@ -909,10 +909,10 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                     return mapping_order[channel_name]
                 # 未找到映射的频道放在最后
                 return len(mapping_order) + 1
-            
+
             # 执行排序
             self.channels.sort(key=get_mapping_order)
-            
+
         except Exception as e:
             logger.error(f"按映射文件顺序排序失败: {str(e)}", exc_info=True)
 
