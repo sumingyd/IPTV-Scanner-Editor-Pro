@@ -675,6 +675,9 @@ class UIBuilder(QtCore.QObject):
         # 使用类成员变量保存分割器引用
         self.main_window.channel_splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical)
         self._setup_custom_splitter(self.main_window.channel_splitter)
+        
+        # 设置分割器属性：不允许子部件折叠，设置最小高度
+        self.main_window.channel_splitter.setChildrenCollapsible(False)
 
         # 频道列表区域
         list_group = QtWidgets.QGroupBox("频道列表")
@@ -857,6 +860,18 @@ class UIBuilder(QtCore.QObject):
         copy_url_action.triggered.connect(lambda: self._copy_channel_url(url))
         menu.addAction(copy_url_action)
 
+        # 添加复制TVG-ID菜单项
+        tvg_id = self.main_window.model.data(self.main_window.model.index(index.row(), 8))  # TVG-ID在第8列
+        copy_tvg_id_action = QtGui.QAction("复制TVG-ID", self.main_window)
+        copy_tvg_id_action.triggered.connect(lambda: self._copy_channel_tvg_id(tvg_id))
+        menu.addAction(copy_tvg_id_action)
+
+        # 添加复制分组菜单项
+        group = self.main_window.model.data(self.main_window.model.index(index.row(), 4))  # 分组在第4列
+        copy_group_action = QtGui.QAction("复制分组", self.main_window)
+        copy_group_action.triggered.connect(lambda: self._copy_channel_group(group))
+        menu.addAction(copy_group_action)
+
         menu.addSeparator()
 
         # 添加删除频道菜单项
@@ -876,6 +891,16 @@ class UIBuilder(QtCore.QObject):
         """复制频道名到剪贴板"""
         clipboard = QtWidgets.QApplication.clipboard()
         clipboard.setText(name)
+
+    def _copy_channel_tvg_id(self, tvg_id):
+        """复制TVG-ID到剪贴板"""
+        clipboard = QtWidgets.QApplication.clipboard()
+        clipboard.setText(tvg_id)
+
+    def _copy_channel_group(self, group):
+        """复制分组到剪贴板"""
+        clipboard = QtWidgets.QApplication.clipboard()
+        clipboard.setText(group)
 
     def _refresh_channel_info(self, index):
         """重新获取选中频道的详细信息（异步执行）"""
@@ -1129,13 +1154,153 @@ class UIBuilder(QtCore.QObject):
                 )
 
     def _setup_channel_edit(self, parent) -> QtWidgets.QWidget:
-        """配置频道编辑区域"""
+        """配置频道编辑区域 - 根据用户反馈优化布局"""
         edit_group = QtWidgets.QGroupBox("频道编辑")
         self.main_window.edit_group = edit_group  # 设置为属性以便语言管理器访问
-        edit_layout = QtWidgets.QFormLayout()
-        edit_layout.setContentsMargins(5, 5, 5, 5)
-        edit_layout.setSpacing(5)
+        
+        # 使用垂直布局作为主布局
+        main_layout = QtWidgets.QVBoxLayout()
+        main_layout.setContentsMargins(5, 5, 5, 5)
+        main_layout.setSpacing(5)
 
+        # 创建内容部件（不使用滚动区域，让分割器控制高度）
+        content_widget = QtWidgets.QWidget()
+        content_layout = QtWidgets.QFormLayout()
+        content_layout.setContentsMargins(5, 5, 5, 5)
+        content_layout.setSpacing(5)
+
+        # 创建所有输入控件
+        self._create_channel_edit_controls()
+
+        # 第一行：频道名称和频道分组（两个字段一行）
+        name_group_widget = QtWidgets.QWidget()
+        name_group_layout = QtWidgets.QHBoxLayout()
+        name_group_layout.setContentsMargins(0, 0, 0, 0)
+        name_group_layout.setSpacing(10)
+        
+        channel_name_label = QtWidgets.QLabel("频道名称:")
+        self.main_window.channel_name_label = channel_name_label
+        name_group_layout.addWidget(channel_name_label)
+        name_group_layout.addWidget(self.main_window.channel_name_edit)
+        
+        channel_group_label = QtWidgets.QLabel("频道分组:")
+        self.main_window.channel_group_label = channel_group_label
+        name_group_layout.addWidget(channel_group_label)
+        name_group_layout.addWidget(self.main_window.channel_group_edit)
+        
+        name_group_widget.setLayout(name_group_layout)
+        content_layout.addRow("基本信息:", name_group_widget)
+
+        # 第二行：LOGO地址（单独一行，因为地址可能很长）
+        logo_address_label = QtWidgets.QLabel("LOGO地址:")
+        self.main_window.logo_address_label = logo_address_label
+        content_layout.addRow(logo_address_label, self.main_window.channel_logo_edit)
+
+        # 第三行：频道URL（单独一行，因为地址可能很长）
+        channel_url_label = QtWidgets.QLabel("频道URL:")
+        self.main_window.channel_url_label = channel_url_label
+        content_layout.addRow(channel_url_label, self.main_window.channel_url_edit)
+
+        # 第四行：TVG-ID和TVG频道号（两个字段一行）
+        tvg_row_widget = QtWidgets.QWidget()
+        tvg_row_layout = QtWidgets.QHBoxLayout()
+        tvg_row_layout.setContentsMargins(0, 0, 0, 0)
+        tvg_row_layout.setSpacing(10)
+        
+        tvg_id_label = QtWidgets.QLabel("TVG-ID:")
+        self.main_window.tvg_id_label = tvg_id_label
+        tvg_row_layout.addWidget(tvg_id_label)
+        tvg_row_layout.addWidget(self.main_window.channel_tvg_id_edit)
+        
+        tvg_chno_label = QtWidgets.QLabel("TVG频道号:")
+        self.main_window.tvg_chno_label = tvg_chno_label
+        tvg_row_layout.addWidget(tvg_chno_label)
+        tvg_row_layout.addWidget(self.main_window.channel_tvg_chno_edit)
+        
+        tvg_row_widget.setLayout(tvg_row_layout)
+        content_layout.addRow("TVG设置:", tvg_row_widget)
+
+        # 第五行：TVG时移和回看模式（两个字段一行，回看模式改为下拉框）
+        tvg_shift_catchup_widget = QtWidgets.QWidget()
+        tvg_shift_catchup_layout = QtWidgets.QHBoxLayout()
+        tvg_shift_catchup_layout.setContentsMargins(0, 0, 0, 0)
+        tvg_shift_catchup_layout.setSpacing(10)
+        
+        tvg_shift_label = QtWidgets.QLabel("TVG时移:")
+        self.main_window.tvg_shift_label = tvg_shift_label
+        tvg_shift_catchup_layout.addWidget(tvg_shift_label)
+        tvg_shift_catchup_layout.addWidget(self.main_window.channel_tvg_shift_edit)
+        
+        catchup_label = QtWidgets.QLabel("回看模式:")
+        self.main_window.catchup_label = catchup_label
+        tvg_shift_catchup_layout.addWidget(catchup_label)
+        tvg_shift_catchup_layout.addWidget(self.main_window.channel_catchup_combo)
+        
+        tvg_shift_catchup_widget.setLayout(tvg_shift_catchup_layout)
+        content_layout.addRow("时移与回看:", tvg_shift_catchup_widget)
+
+        # 第六行：回看天数（单独一行）
+        catchup_days_label = QtWidgets.QLabel("回看天数:")
+        self.main_window.catchup_days_label = catchup_days_label
+        content_layout.addRow(catchup_days_label, self.main_window.channel_catchup_days_edit)
+
+        # 第七行：回看源（单独一行，因为地址可能很长）
+        catchup_source_label = QtWidgets.QLabel("回看源:")
+        self.main_window.catchup_source_label = catchup_source_label
+        content_layout.addRow(catchup_source_label, self.main_window.channel_catchup_source_edit)
+
+        # 设置内容部件的布局
+        content_widget.setLayout(content_layout)
+        
+        # 将内容部件添加到主布局
+        main_layout.addWidget(content_widget)
+
+        # 按钮区域 - 两个按钮填满左右，紧贴上方内容
+        button_widget = QtWidgets.QWidget()
+        button_layout = QtWidgets.QHBoxLayout()
+        button_layout.setContentsMargins(0, 10, 0, 0)
+        button_layout.setSpacing(10)  # 按钮间距
+        
+        # 修改频道按钮
+        self.main_window.edit_channel_btn = QtWidgets.QPushButton("修改频道")
+        self.main_window.edit_channel_btn.setStyleSheet(AppStyles.button_style(active=True))
+        self.main_window.edit_channel_btn.setFixedHeight(36)
+        self.main_window.edit_channel_btn.setEnabled(False)
+        self.main_window.edit_channel_btn.setToolTip("修改当前选中的频道信息")
+        self.main_window.edit_channel_btn.clicked.connect(self._edit_channel)
+
+        # 添加频道按钮
+        self.main_window.add_channel_btn = QtWidgets.QPushButton("添加频道")
+        self.main_window.add_channel_btn.setStyleSheet(AppStyles.button_style(active=True))
+        self.main_window.add_channel_btn.setFixedHeight(36)
+        self.main_window.add_channel_btn.setToolTip("添加新频道到列表")
+        self.main_window.add_channel_btn.clicked.connect(self._add_channel)
+
+        # 按钮填满左右空间
+        button_layout.addWidget(self.main_window.edit_channel_btn, 1)  # 权重为1，平均分配空间
+        button_layout.addSpacing(10)  # 按钮之间的间距
+        button_layout.addWidget(self.main_window.add_channel_btn, 1)  # 权重为1，平均分配空间
+        
+        button_widget.setLayout(button_layout)
+        main_layout.addWidget(button_widget, 0)  # 权重为0，不拉伸，紧贴上方内容
+
+        # 监听列表选择变化
+        self.main_window.channel_list.selectionModel().selectionChanged.connect(
+            self._on_selection_changed
+        )
+
+        edit_group.setLayout(main_layout)
+        
+        # 设置最小高度，确保所有内容都能显示
+        content_height = content_layout.sizeHint().height()
+        button_height = 50  # 按钮区域高度
+        edit_group.setMinimumHeight(content_height + button_height + 50)  # 额外留一些空间
+        
+        parent.addWidget(edit_group)
+        return edit_group
+
+    def _create_channel_edit_controls(self):
+        """创建频道编辑区域的所有输入控件"""
         # 频道名称输入
         self.main_window.channel_name_edit = QtWidgets.QLineEdit()
         self.main_window.channel_name_edit.setPlaceholderText("输入频道名称 (必填)")
@@ -1156,57 +1321,36 @@ class UIBuilder(QtCore.QObject):
         self.main_window.channel_url_edit.setPlaceholderText("输入频道URL (必填)")
         self.main_window.channel_url_edit.setToolTip("输入频道的播放地址，如'http://example.com/stream.m3u8'")
 
-        # 修改频道按钮
-        self.main_window.edit_channel_btn = QtWidgets.QPushButton("修改频道")
-        self.main_window.edit_channel_btn.setStyleSheet(AppStyles.button_style(active=True))
-        self.main_window.edit_channel_btn.setFixedHeight(36)
-        self.main_window.edit_channel_btn.setEnabled(False)
-        self.main_window.edit_channel_btn.setToolTip("修改当前选中的频道信息")
-        self.main_window.edit_channel_btn.clicked.connect(self._edit_channel)
+        # TVG-ID输入
+        self.main_window.channel_tvg_id_edit = QtWidgets.QLineEdit()
+        self.main_window.channel_tvg_id_edit.setPlaceholderText("输入TVG-ID (可选)")
+        self.main_window.channel_tvg_id_edit.setToolTip("输入TVG-ID，用于EPG匹配")
 
-        # 监听列表选择变化
-        self.main_window.channel_list.selectionModel().selectionChanged.connect(
-            self._on_selection_changed
-        )
+        # TVG频道号输入
+        self.main_window.channel_tvg_chno_edit = QtWidgets.QLineEdit()
+        self.main_window.channel_tvg_chno_edit.setPlaceholderText("输入TVG频道号 (可选)")
+        self.main_window.channel_tvg_chno_edit.setToolTip("输入TVG频道号，用于频道排序")
 
-        # 添加频道按钮
-        self.main_window.add_channel_btn = QtWidgets.QPushButton("添加频道")
-        self.main_window.add_channel_btn.setStyleSheet(AppStyles.button_style(active=True))
-        self.main_window.add_channel_btn.setFixedHeight(36)
-        self.main_window.add_channel_btn.setToolTip("添加新频道到列表")
-        self.main_window.add_channel_btn.clicked.connect(self._add_channel)
+        # TVG时移输入
+        self.main_window.channel_tvg_shift_edit = QtWidgets.QLineEdit()
+        self.main_window.channel_tvg_shift_edit.setPlaceholderText("输入TVG时移 (可选)")
+        self.main_window.channel_tvg_shift_edit.setToolTip("输入TVG时移，用于时区调整")
 
-        # 按钮布局
-        button_layout = QtWidgets.QHBoxLayout()
-        button_layout.addWidget(self.main_window.edit_channel_btn)
-        button_layout.addSpacing(10)
-        button_layout.addWidget(self.main_window.add_channel_btn)
+        # 回看模式下拉框（替换原来的输入框）
+        self.main_window.channel_catchup_combo = QtWidgets.QComboBox()
+        self.main_window.channel_catchup_combo.addItems(["", "default", "vod", "append", "shift", "flussonic", "flussonic-ts", "flussonic-dash", "none"])
+        self.main_window.channel_catchup_combo.setPlaceholderText("选择回看模式")
+        self.main_window.channel_catchup_combo.setToolTip("选择回看模式，如'default'、'vod'、'none'等")
 
-        # 添加到布局
-        channel_name_label = QtWidgets.QLabel("频道名称:")
-        self.main_window.channel_name_label = channel_name_label  # 设置为属性以便语言管理器访问
-        edit_layout.addRow(channel_name_label, self.main_window.channel_name_edit)
+        # 回看天数输入
+        self.main_window.channel_catchup_days_edit = QtWidgets.QLineEdit()
+        self.main_window.channel_catchup_days_edit.setPlaceholderText("输入回看天数 (可选)")
+        self.main_window.channel_catchup_days_edit.setToolTip("输入回看天数，如'7'")
 
-        channel_group_label = QtWidgets.QLabel("频道分组:")
-        self.main_window.channel_group_label = channel_group_label  # 设置为属性以便语言管理器访问
-        edit_layout.addRow(channel_group_label, self.main_window.channel_group_edit)
-
-        logo_address_label = QtWidgets.QLabel("LOGO地址:")
-        self.main_window.logo_address_label = logo_address_label  # 设置为属性以便语言管理器访问
-        edit_layout.addRow(logo_address_label, self.main_window.channel_logo_edit)
-
-        channel_url_label = QtWidgets.QLabel("频道URL:")
-        self.main_window.channel_url_label = channel_url_label  # 设置为属性以便语言管理器访问
-        edit_layout.addRow(channel_url_label, self.main_window.channel_url_edit)
-
-        operation_label = QtWidgets.QLabel("操作:")
-        self.main_window.operation_label = operation_label  # 设置为属性以便语言管理器访问
-        edit_layout.addRow(operation_label)
-        edit_layout.addRow(button_layout)
-
-        edit_group.setLayout(edit_layout)
-        parent.addWidget(edit_group)
-        return edit_group
+        # 回看源输入
+        self.main_window.channel_catchup_source_edit = QtWidgets.QLineEdit()
+        self.main_window.channel_catchup_source_edit.setPlaceholderText("输入回看源 (可选)")
+        self.main_window.channel_catchup_source_edit.setToolTip("输入回看源URL模板")
 
     def _setup_toolbar(self):
         """初始化工具栏"""
@@ -1334,6 +1478,20 @@ class UIBuilder(QtCore.QObject):
             self.main_window.channel_group_edit.setText(channel.get('group', ''))
             self.main_window.channel_logo_edit.setText(channel.get('logo', ''))
             self.main_window.channel_url_edit.setText(channel.get('url', ''))
+            self.main_window.channel_tvg_id_edit.setText(channel.get('tvg_id', ''))
+            self.main_window.channel_tvg_chno_edit.setText(channel.get('tvg_chno', ''))
+            self.main_window.channel_tvg_shift_edit.setText(channel.get('tvg_shift', ''))
+            
+            # 设置回看模式下拉框
+            catchup_value = channel.get('catchup', '')
+            index = self.main_window.channel_catchup_combo.findText(catchup_value)
+            if index >= 0:
+                self.main_window.channel_catchup_combo.setCurrentIndex(index)
+            else:
+                self.main_window.channel_catchup_combo.setCurrentIndex(0)  # 设置为空
+            
+            self.main_window.channel_catchup_days_edit.setText(channel.get('catchup_days', ''))
+            self.main_window.channel_catchup_source_edit.setText(channel.get('catchup_source', ''))
 
             # 启用修改按钮
             self.main_window.edit_channel_btn.setEnabled(True)
@@ -1343,6 +1501,12 @@ class UIBuilder(QtCore.QObject):
             self.main_window.channel_group_edit.clear()
             self.main_window.channel_logo_edit.clear()
             self.main_window.channel_url_edit.clear()
+            self.main_window.channel_tvg_id_edit.clear()
+            self.main_window.channel_tvg_chno_edit.clear()
+            self.main_window.channel_tvg_shift_edit.clear()
+            self.main_window.channel_catchup_combo.setCurrentIndex(0)  # 设置为空
+            self.main_window.channel_catchup_days_edit.clear()
+            self.main_window.channel_catchup_source_edit.clear()
 
             # 禁用修改按钮
             self.main_window.edit_channel_btn.setEnabled(False)
@@ -1358,7 +1522,13 @@ class UIBuilder(QtCore.QObject):
             'name': self.main_window.channel_name_edit.text().strip(),
             'group': self.main_window.channel_group_edit.text().strip(),
             'logo': self.main_window.channel_logo_edit.text().strip(),
-            'url': self.main_window.channel_url_edit.text().strip()
+            'url': self.main_window.channel_url_edit.text().strip(),
+            'tvg_id': self.main_window.channel_tvg_id_edit.text().strip(),
+            'tvg_chno': self.main_window.channel_tvg_chno_edit.text().strip(),
+            'tvg_shift': self.main_window.channel_tvg_shift_edit.text().strip(),
+            'catchup': self.main_window.channel_catchup_combo.currentText().strip(),
+            'catchup_days': self.main_window.channel_catchup_days_edit.text().strip(),
+            'catchup_source': self.main_window.channel_catchup_source_edit.text().strip()
         }
 
         # 验证必填字段
@@ -1379,6 +1549,12 @@ class UIBuilder(QtCore.QObject):
         self.main_window.channel_group_edit.clear()
         self.main_window.channel_logo_edit.clear()
         self.main_window.channel_url_edit.clear()
+        self.main_window.channel_tvg_id_edit.clear()
+        self.main_window.channel_tvg_chno_edit.clear()
+        self.main_window.channel_tvg_shift_edit.clear()
+        self.main_window.channel_catchup_combo.setCurrentIndex(0)  # 设置为空
+        self.main_window.channel_catchup_days_edit.clear()
+        self.main_window.channel_catchup_source_edit.clear()
 
         # 禁用修改按钮
         self.main_window.edit_channel_btn.setEnabled(False)
