@@ -321,7 +321,7 @@ class SortConfigDialog(QtWidgets.QDialog):
             self.secondary_method_combo.setEnabled(True)
             self.tertiary_combo.setEnabled(True)
             self.tertiary_method_combo.setEnabled(True)
-            
+
             # 如果第一优先级是分组且排序方式不是自定义，则禁用分组自定义排序
             if primary_field == 'group' and primary_method != 'custom':
                 self.group_list_widget.setEnabled(False)
