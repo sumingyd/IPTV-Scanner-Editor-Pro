@@ -12,7 +12,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         self.channels: List[Dict[str, Any]] = []
         self.headers = [
             "序号", "频道名称", "分辨率", "URL", "分组",
-            "Logo地址", "状态", "延迟(ms)"
+            "Logo地址", "状态", "延迟(ms)", "TVG-ID", 
+            "TVG频道号", "TVG时移", "回看", "回看天数", "回看源"
         ]
 
         # 状态标签更新回调
@@ -84,6 +85,18 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 return channel.get('status', '待检测')
             elif col == 7:  # 延迟(ms)
                 return str(channel.get('latency', ''))
+            elif col == 8:  # TVG-ID
+                return channel.get('tvg_id', '')
+            elif col == 9:  # TVG频道号
+                return channel.get('tvg_chno', '')
+            elif col == 10:  # TVG时移
+                return channel.get('tvg_shift', '')
+            elif col == 11:  # 回看
+                return channel.get('catchup', '')
+            elif col == 12:  # 回看天数
+                return channel.get('catchup_days', '')
+            elif col == 13:  # 回看源
+                return channel.get('catchup_source', '')
         elif role == QtCore.Qt.ItemDataRole.DecorationRole and col == 0:  # 序号列不再显示Logo图片
             # 直接返回None，不显示任何图标
             return None
@@ -129,6 +142,18 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                     return self._language_manager.tr('status', 'Status')
                 elif header_text == "延迟(ms)":
                     return self._language_manager.tr('latency_ms', 'Latency(ms)')
+                elif header_text == "TVG-ID":
+                    return self._language_manager.tr('tvg_id', 'TVG-ID')
+                elif header_text == "TVG频道号":
+                    return self._language_manager.tr('tvg_chno', 'TVG Channel No.')
+                elif header_text == "TVG时移":
+                    return self._language_manager.tr('tvg_shift', 'TVG Shift')
+                elif header_text == "回看":
+                    return self._language_manager.tr('catchup', 'Catchup')
+                elif header_text == "回看天数":
+                    return self._language_manager.tr('catchup_days', 'Catchup Days')
+                elif header_text == "回看源":
+                    return self._language_manager.tr('catchup_source', 'Catchup Source')
             return header_text
         return str(section + 1) if section > 0 else ""  # 序号列不显示行号
 
