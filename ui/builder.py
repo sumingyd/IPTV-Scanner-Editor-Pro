@@ -756,6 +756,12 @@ class UIBuilder(QtCore.QObject):
         for i in range(header.count()):
             header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
+        # 启用表头点击排序
+        header.setSectionsClickable(True)
+        header.setSortIndicatorShown(True)
+        header.setSortIndicator(-1, QtCore.Qt.SortOrder.AscendingOrder)  # 初始无排序
+        header.sectionClicked.connect(self._on_header_clicked)
+
         # 使用定时器控制列宽调整频率
         self._resize_timer = QtCore.QTimer()
         self._resize_timer.setSingleShot(True)
@@ -1645,6 +1651,50 @@ class UIBuilder(QtCore.QObject):
                     'Insertion position will be shown during dragging.'
                 )
                 self.main_window.channel_drag_hint_label.setText(drag_hint_text)
+
+    def _on_header_clicked(self, column):
+        """处理表头点击事件"""
+        if not hasattr(self.main_window, 'model') or not self.main_window.model:
+            return
+
+        # 获取当前排序状态
+        header = self.main_window.channel_list.horizontalHeader()
+        
+        # 使用模型来跟踪排序状态，而不是依赖表头
+        if not hasattr(self.main_window.model, '_header_sort_state'):
+            self.main_window.model._header_sort_state = {}
+        
+        # 获取当前列的排序状态
+        current_order = self.main_window.model._header_sort_state.get(column, QtCore.Qt.SortOrder.AscendingOrder)
+        
+        # 记录当前状态
+        self.logger.info(f"表头点击: 列={column}, 当前顺序={current_order}")
+        
+        # 切换排序顺序
+        if current_order == QtCore.Qt.SortOrder.AscendingOrder:
+            new_order = QtCore.Qt.SortOrder.DescendingOrder
+        else:
+            new_order = QtCore.Qt.SortOrder.AscendingOrder
+        
+        # 保存新的排序状态
+        self.main_window.model._header_sort_state[column] = new_order
+        
+        # 更新表头排序指示器
+        header.setSortIndicator(column, new_order)
+        
+        # 执行排序
+        self.main_window.model.sort(column, new_order)
+        
+        # 显示排序状态
+        column_name = self.main_window.model.headers[column] if column < len(self.main_window.model.headers) else f"列{column}"
+        order_text = "升序" if new_order == QtCore.Qt.SortOrder.AscendingOrder else "降序"
+        self.main_window.statusBar().showMessage(f"已按 {column_name} {order_text} 排序", 2000)
+        
+        # 记录调试信息
+        self.logger.info(f"表头排序完成: 列={column}, 新顺序={new_order}")
+        
+        # 强制刷新表头
+        header.update()
 
     def _show_sort_config(self):
         """显示排序配置对话框"""
