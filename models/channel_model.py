@@ -35,6 +35,10 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         # 原始频道数据存储（用于非隐藏状态下的保存）
         self._original_channel_data = {}
 
+        # 排序状态
+        self._sort_column = -1  # 当前排序列
+        self._sort_order = QtCore.Qt.SortOrder.AscendingOrder  # 排序顺序
+
     def set_language_manager(self, language_manager):
         """设置语言管理器"""
         self._language_manager = language_manager
@@ -1068,6 +1072,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         if not latency:
             return float('inf')  # 没有延迟信息的放在最后
         try:
+            # 尝试转换为浮点数
             return float(latency)
         except (ValueError, TypeError) as e:
             logger.debug(f"解析延迟值失败: {latency}, 错误: {e}")
@@ -1182,6 +1187,76 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         except Exception as e:
             logger.error(f"频道模型-解析文件内容失败: {str(e)}", exc_info=True)
             return None
+
+    def _natural_sort_key(self, s):
+        """自然排序键函数，将字符串中的数字部分转换为整数用于排序"""
+        if not s:
+            return []
+        
+        import re
+        # 将字符串分割为字母和数字部分
+        return [int(text) if text.isdigit() else text.lower() 
+                for text in re.split(r'(\d+)', str(s))]
+    
+    def sort(self, column: int, order: QtCore.Qt.SortOrder = QtCore.Qt.SortOrder.AscendingOrder):
+        """按列排序频道列表"""
+        if column < 0 or column >= len(self.headers):
+            return
+
+        # 保存排序状态
+        self._sort_column = column
+        self._sort_order = order
+
+        # 开始排序
+        self.beginResetModel()
+
+        # 根据列索引选择排序键函数
+        if column == 0:  # 序号列 - 按原始顺序
+            # 序号列不排序，保持原样
+            pass
+        elif column == 1:  # 频道名称
+            self.channels.sort(key=lambda x: self._natural_sort_key(x.get('name', '')),
+                               reverse=(order == QtCore.Qt.SortOrder.DescendingOrder))
+        elif column == 2:  # 分辨率
+            self.channels.sort(key=lambda x: self._get_resolution_value(x.get('resolution', '')),
+                               reverse=(order == QtCore.Qt.SortOrder.DescendingOrder))
+        elif column == 3:  # URL
+            self.channels.sort(key=lambda x: self._natural_sort_key(x.get('url', '')),
+                               reverse=(order == QtCore.Qt.SortOrder.DescendingOrder))
+        elif column == 4:  # 分组
+            self.channels.sort(key=lambda x: self._natural_sort_key(x.get('group', '')),
+                               reverse=(order == QtCore.Qt.SortOrder.DescendingOrder))
+        elif column == 5:  # Logo地址
+            self.channels.sort(key=lambda x: self._natural_sort_key(x.get('logo_url', x.get('logo', ''))),
+                               reverse=(order == QtCore.Qt.SortOrder.DescendingOrder))
+        elif column == 6:  # 状态
+            self.channels.sort(key=lambda x: self._get_status_value(x.get('status', '')),
+                               reverse=(order == QtCore.Qt.SortOrder.DescendingOrder))
+        elif column == 7:  # 延迟(ms)
+            self.channels.sort(key=lambda x: self._get_latency_value(x.get('latency', '')),
+                               reverse=(order == QtCore.Qt.SortOrder.DescendingOrder))
+        elif column == 8:  # TVG-ID
+            self.channels.sort(key=lambda x: self._natural_sort_key(x.get('tvg_id', '')),
+                               reverse=(order == QtCore.Qt.SortOrder.DescendingOrder))
+        elif column == 9:  # TVG频道号
+            # TVG频道号可能是数字，使用自然排序
+            self.channels.sort(key=lambda x: self._natural_sort_key(x.get('tvg_chno', '')),
+                               reverse=(order == QtCore.Qt.SortOrder.DescendingOrder))
+        elif column == 10:  # TVG时移
+            self.channels.sort(key=lambda x: self._natural_sort_key(x.get('tvg_shift', '')),
+                               reverse=(order == QtCore.Qt.SortOrder.DescendingOrder))
+        elif column == 11:  # 回看
+            self.channels.sort(key=lambda x: self._natural_sort_key(x.get('catchup', '')),
+                               reverse=(order == QtCore.Qt.SortOrder.DescendingOrder))
+        elif column == 12:  # 回看天数
+            # 回看天数可能是数字，使用自然排序
+            self.channels.sort(key=lambda x: self._natural_sort_key(x.get('catchup_days', '')),
+                               reverse=(order == QtCore.Qt.SortOrder.DescendingOrder))
+        elif column == 13:  # 回看源
+            self.channels.sort(key=lambda x: self._natural_sort_key(x.get('catchup_source', '')),
+                               reverse=(order == QtCore.Qt.SortOrder.DescendingOrder))
+
+        self.endResetModel()
 
     def load_from_file(self, content: str) -> bool:
         """从文件内容加载频道列表"""
