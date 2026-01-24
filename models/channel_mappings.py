@@ -48,48 +48,63 @@ def load_mappings_from_file(file_path: str) -> Dict[str, dict]:
                     resolution = row.get('resolution', '').strip() if row.get('resolution') else None
 
                     if standard_name:  # 确保标准名称不为空
-                        # 检查是否已存在相同标准名称的映射
-                        if standard_name in mappings:
-                            # 合并原始名称，避免重复
-                            existing_raw_names = mappings[standard_name]['raw_names']
-                            for raw_name in raw_names:
-                                if raw_name not in existing_raw_names:
-                                    existing_raw_names.append(raw_name)
-                            # 如果当前行有logo_url而现有映射没有，则更新logo_url
-                            if logo_url and not mappings[standard_name]['logo_url']:
-                                mappings[standard_name]['logo_url'] = logo_url if logo_url.lower() not in ['', 'none', 'null'] else None
-                            # 如果当前行有group_name而现有映射没有，则更新group_name
-                            if group_name and not mappings[standard_name]['group_name']:
-                                mappings[standard_name]['group_name'] = group_name if group_name.lower() not in ['', 'none', 'null'] else None
-                            # 更新其他字段（如果当前行有值而现有映射没有）
-                            if tvg_id and not mappings[standard_name]['tvg_id']:
-                                mappings[standard_name]['tvg_id'] = tvg_id if tvg_id.lower() not in ['', 'none', 'null'] else None
-                            if tvg_chno and not mappings[standard_name]['tvg_chno']:
-                                mappings[standard_name]['tvg_chno'] = tvg_chno if tvg_chno.lower() not in ['', 'none', 'null'] else None
-                            if tvg_shift and not mappings[standard_name]['tvg_shift']:
-                                mappings[standard_name]['tvg_shift'] = tvg_shift if tvg_shift.lower() not in ['', 'none', 'null'] else None
-                            if catchup and not mappings[standard_name]['catchup']:
-                                mappings[standard_name]['catchup'] = catchup if catchup.lower() not in ['', 'none', 'null'] else None
-                            if catchup_days and not mappings[standard_name]['catchup_days']:
-                                mappings[standard_name]['catchup_days'] = catchup_days if catchup_days.lower() not in ['', 'none', 'null'] else None
-                            if catchup_source and not mappings[standard_name]['catchup_source']:
-                                mappings[standard_name]['catchup_source'] = catchup_source if catchup_source.lower() not in ['', 'none', 'null'] else None
-                            if resolution and not mappings[standard_name]['resolution']:
-                                mappings[standard_name]['resolution'] = resolution if resolution.lower() not in ['', 'none', 'null'] else None
-                        else:
-                            # 创建新的映射
-                            mappings[standard_name] = {
-                                'raw_names': raw_names,
-                                'logo_url': logo_url if logo_url and logo_url.lower() not in ['', 'none', 'null'] else None,
-                                'group_name': group_name if group_name and group_name.lower() not in ['', 'none', 'null'] else None,
-                                'tvg_id': tvg_id if tvg_id and tvg_id.lower() not in ['', 'none', 'null'] else None,
-                                'tvg_chno': tvg_chno if tvg_chno and tvg_chno.lower() not in ['', 'none', 'null'] else None,
-                                'tvg_shift': tvg_shift if tvg_shift and tvg_shift.lower() not in ['', 'none', 'null'] else None,
-                                'catchup': catchup if catchup and catchup.lower() not in ['', 'none', 'null'] else None,
-                                'catchup_days': catchup_days if catchup_days and catchup_days.lower() not in ['', 'none', 'null'] else None,
-                                'catchup_source': catchup_source if catchup_source and catchup_source.lower() not in ['', 'none', 'null'] else None,
-                                'resolution': resolution if resolution and resolution.lower() not in ['', 'none', 'null'] else None
-                            }
+                        # 为每个原始名称创建独立的映射条目
+                        # 使用标准名称 + 原始名称作为键，确保每个IP地址都有独立的映射
+                        for raw_name in raw_names:
+                            if raw_name:  # 确保原始名称不为空
+                                # 创建唯一的键：标准名称 + 原始名称
+                                unique_key = f"{standard_name}||{raw_name}"
+                                
+                                # 创建映射条目
+                                mappings[unique_key] = {
+                                    'standard_name': standard_name,
+                                    'raw_names': [raw_name],  # 只包含当前原始名称
+                                    'logo_url': (
+                                        logo_url if logo_url and 
+                                        logo_url.lower() not in ['', 'none', 'null'] 
+                                        else None
+                                    ),
+                                    'group_name': (
+                                        group_name if group_name and 
+                                        group_name.lower() not in ['', 'none', 'null'] 
+                                        else None
+                                    ),
+                                    'tvg_id': (
+                                        tvg_id if tvg_id and 
+                                        tvg_id.lower() not in ['', 'none', 'null'] 
+                                        else None
+                                    ),
+                                    'tvg_chno': (
+                                        tvg_chno if tvg_chno and 
+                                        tvg_chno.lower() not in ['', 'none', 'null'] 
+                                        else None
+                                    ),
+                                    'tvg_shift': (
+                                        tvg_shift if tvg_shift and 
+                                        tvg_shift.lower() not in ['', 'none', 'null'] 
+                                        else None
+                                    ),
+                                    'catchup': (
+                                        catchup if catchup and 
+                                        catchup.lower() not in ['', 'none', 'null'] 
+                                        else None
+                                    ),
+                                    'catchup_days': (
+                                        catchup_days if catchup_days and 
+                                        catchup_days.lower() not in ['', 'none', 'null'] 
+                                        else None
+                                    ),
+                                    'catchup_source': (
+                                        catchup_source if catchup_source and 
+                                        catchup_source.lower() not in ['', 'none', 'null'] 
+                                        else None
+                                    ),
+                                    'resolution': (
+                                        resolution if resolution and 
+                                        resolution.lower() not in ['', 'none', 'null'] 
+                                        else None
+                                    )
+                                }
         else:
             # 加载txt格式（向后兼容）
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -107,7 +122,13 @@ def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
     返回格式: {raw_name: {'standard_name': str, 'logo_url': str, 'group_name': str, ...}}
     """
     reverse_mappings = {}
-    for standard_name, data in mappings.items():
+    for unique_key, data in mappings.items():
+        # 从unique_key中提取标准名称（格式为"标准名称||原始名称"）
+        if '||' in unique_key:
+            standard_name = unique_key.split('||')[0]
+        else:
+            standard_name = unique_key
+            
         for raw_name in data['raw_names']:
             reverse_mappings[raw_name] = {
                 'standard_name': standard_name,
@@ -429,7 +450,13 @@ class ChannelMappingManager:
 
         # 检查标准名称映射
         try:
-            for standard_name, info in self.combined_mappings.items():
+            for unique_key, info in self.combined_mappings.items():
+                # 从unique_key中提取标准名称（格式为"标准名称||原始名称"）
+                if '||' in unique_key:
+                    standard_name = unique_key.split('||')[0]
+                else:
+                    standard_name = unique_key
+                    
                 if not standard_name or standard_name.isspace():
                     continue
                 normalized_standard = re.sub(r'\s+', ' ', standard_name.strip()).lower()
@@ -471,9 +498,19 @@ class ChannelMappingManager:
         entries = []
         try:
             # 获取组合映射中的所有条目
-            for standard_name, data in self.combined_mappings.items():
+            for unique_key, data in self.combined_mappings.items():
+                # 从unique_key中提取标准名称和原始名称（格式为"标准名称||原始名称"）
+                if '||' in unique_key:
+                    standard_name = unique_key.split('||')[0]
+                    raw_name = unique_key.split('||')[1]
+                else:
+                    standard_name = unique_key
+                    raw_name = data.get('raw_names', [''])[0] if data.get('raw_names') else ''
+                    
                 entry = {
+                    'unique_key': unique_key,
                     'standard_name': standard_name,
+                    'raw_name': raw_name,
                     'raw_names': data.get('raw_names', []),
                     'logo_url': data.get('logo_url'),
                     'group_name': data.get('group_name'),
