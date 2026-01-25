@@ -9,7 +9,9 @@ from typing import Dict, List
 from core.log_manager import global_logger as logger
 
 # 默认远程URL - 优先使用CSV格式，如果不存在则尝试TXT格式
-DEFAULT_REMOTE_URL = "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/local_channel_mappings.csv"
+DEFAULT_REMOTE_URL = (
+    "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/local_channel_mappings.csv"
+)
 
 # 本地缓存文件路径
 CACHE_FILE = "channel_mappings_cache.json"
@@ -42,7 +44,16 @@ def load_mappings_from_file(file_path: str) -> Dict[str, dict]:
                     tvg_id = row.get('tvg_id', '').strip() if row.get('tvg_id') else None
                     tvg_chno = row.get('tvg_chno', '').strip() if row.get('tvg_chno') else None
                     tvg_shift = row.get('tvg_shift', '').strip() if row.get('tvg_shift') else None
-                    catchup = row.get('catchup', '').strip() if row.get('catchup') else None
+                    
+                    # 修复catchup字段处理：保留字符串"none"，空字符串转换为None
+                    catchup_raw = row.get('catchup', '')
+                    if catchup_raw is not None:
+                        catchup = catchup_raw.strip()
+                        if catchup == '':
+                            catchup = None
+                    else:
+                        catchup = None
+                    
                     catchup_days = row.get('catchup_days', '').strip() if row.get('catchup_days') else None
                     catchup_source = row.get('catchup_source', '').strip() if row.get('catchup_source') else None
                     resolution = row.get('resolution', '').strip() if row.get('resolution') else None
@@ -84,11 +95,7 @@ def load_mappings_from_file(file_path: str) -> Dict[str, dict]:
                                         tvg_shift.lower() not in ['', 'none', 'null'] 
                                         else None
                                     ),
-                                    'catchup': (
-                                        catchup if catchup and 
-                                        catchup.lower() not in ['', 'none', 'null'] 
-                                        else None
-                                    ),
+                                    'catchup': catchup,  # 直接使用catchup值，第68-75行已经处理了空字符串转换
                                     'catchup_days': (
                                         catchup_days if catchup_days and 
                                         catchup_days.lower() not in ['', 'none', 'null'] 

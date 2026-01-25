@@ -96,7 +96,10 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             elif col == 10:  # TVG时移
                 return channel.get('tvg_shift', '')
             elif col == 11:  # 回看
-                return channel.get('catchup', '')
+                catchup_value = channel.get('catchup', '')
+                # 如果catchup是None或空字符串，返回空字符串
+                # 如果catchup是"none"，返回"none"
+                return catchup_value if catchup_value is not None else ''
             elif col == 12:  # 回看天数
                 return channel.get('catchup_days', '')
             elif col == 13:  # 回看源
@@ -112,9 +115,12 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             else:
                 return QtGui.QColor(AppStyles.table_bg_color())  # 使用styles中定义的表格背景色
         elif role == QtCore.Qt.ItemDataRole.ForegroundRole:
-            if not channel.get('valid', True):
+            status = channel.get('status', '待检测')
+            valid = channel.get('valid', True)
+            
+            if not valid and status != '待检测':
                 return QtGui.QColor('#ff6666')  # 无效项文字颜色(红色)
-            elif channel.get('status') == '待检测':
+            elif status == '待检测':
                 return QtGui.QColor('#999999')  # 待检测文字颜色(灰色)
             else:
                 return QtGui.QColor(AppStyles.text_color())  # 使用styles中定义的主题文字颜色
@@ -1143,28 +1149,35 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         attr_pattern = r'(\S+)="([^"]*)"'
                         matches = re.findall(attr_pattern, attrs_part)
 
+                        # 预定义的标签映射
+                        tag_mapping = {
+                            "group-title": "group",
+                            "tvg-id": "tvg_id",
+                            "tvg-name": "name",
+                            "tvg-logo": "logo",
+                            "tvg-chno": "tvg_chno",
+                            "tvg-shift": "tvg_shift",
+                            "catchup": "catchup",
+                            "catchup-days": "catchup_days",
+                            "catchup-source": "catchup_source",
+                            "resolution": "resolution",
+                            "tvg-language": "tvg_language",
+                            "audio-track": "audio_track",
+                            "aspect-ratio": "aspect_ratio",
+                            "parent-code": "parent_code"
+                        }
+
+                        # 存储所有解析到的标签
+                        all_tags = {}
+                        
                         for key, value in matches:
-                            if key == "group-title":
-                                current_channel['group'] = value
-                            elif key == "tvg-id":
-                                current_channel['tvg_id'] = value
-                            elif key == "tvg-name":
-                                # 覆盖从逗号后提取的名称
-                                current_channel['name'] = value
-                            elif key == "tvg-logo":
-                                current_channel['logo'] = value
-                            elif key == "tvg-chno":
-                                current_channel['tvg_chno'] = value
-                            elif key == "tvg-shift":
-                                current_channel['tvg_shift'] = value
-                            elif key == "catchup":
-                                current_channel['catchup'] = value
-                            elif key == "catchup-days":
-                                current_channel['catchup_days'] = value
-                            elif key == "catchup-source":
-                                current_channel['catchup_source'] = value
-                            elif key == "resolution":
-                                current_channel['resolution'] = value
+                            # 使用映射表获取字段名，如果没有映射则使用原始key
+                            field_name = tag_mapping.get(key, key.replace('-', '_'))
+                            current_channel[field_name] = value
+                            all_tags[key] = value
+                        
+                        # 保存所有原始标签（用于调试和保存）
+                        current_channel['_all_tags'] = all_tags
                     continue
 
                 # 处理分辨率标签（兼容旧格式）
