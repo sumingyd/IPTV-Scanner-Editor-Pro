@@ -1482,7 +1482,9 @@ class UIBuilder(QtCore.QObject):
             # 填充到编辑区
             self.main_window.channel_name_edit.setText(channel.get('name', ''))
             self.main_window.channel_group_edit.setText(channel.get('group', ''))
-            self.main_window.channel_logo_edit.setText(channel.get('logo', ''))
+            # 优先使用logo_url字段，如果没有则使用logo字段
+            logo_value = channel.get('logo_url', channel.get('logo', ''))
+            self.main_window.channel_logo_edit.setText(logo_value)
             self.main_window.channel_url_edit.setText(channel.get('url', ''))
             self.main_window.channel_tvg_id_edit.setText(channel.get('tvg_id', ''))
             self.main_window.channel_tvg_chno_edit.setText(channel.get('tvg_chno', ''))
