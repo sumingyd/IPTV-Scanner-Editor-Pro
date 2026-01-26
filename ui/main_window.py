@@ -441,24 +441,20 @@ class MainWindow(QtWidgets.QMainWindow):
         """处理播放状态变化"""
         self.logger.info(f"播放状态变化: is_playing={is_playing}")
 
-        from ui.optimizer import batch_update
+        # 直接更新UI，不使用batch_update，确保立即生效
+        self.ui.main_window.stop_btn.setEnabled(is_playing)
+        self.ui.main_window.stop_btn.setStyleSheet(
+            AppStyles.button_style(active=is_playing)
+        )
 
-        def update_ui_state():
-            self.ui.main_window.stop_btn.setEnabled(is_playing)
-            self.ui.main_window.stop_btn.setStyleSheet(
-                AppStyles.button_style(active=is_playing)
-            )
+        self._set_pause_button_text(is_playing)
 
-            self._set_pause_button_text(is_playing)
+        if hasattr(self.ui.main_window, 'pause_btn'):
+            self.ui.main_window.pause_btn.repaint()
+        if hasattr(self.ui.main_window, 'stop_btn'):
+            self.ui.main_window.stop_btn.repaint()
 
-            if hasattr(self.ui.main_window, 'pause_btn'):
-                self.ui.main_window.pause_btn.repaint()
-            if hasattr(self.ui.main_window, 'stop_btn'):
-                self.ui.main_window.stop_btn.repaint()
-
-            self.logger.info(f"停止按钮启用状态: {self.ui.main_window.stop_btn.isEnabled()}")
-
-        batch_update(update_ui_state)
+        self.logger.info(f"停止按钮启用状态: {self.ui.main_window.stop_btn.isEnabled()}")
 
     def _on_validate_clicked(self):
         """处理有效性检测按钮点击事件"""

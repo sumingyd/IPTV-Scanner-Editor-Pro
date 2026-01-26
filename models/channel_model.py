@@ -117,7 +117,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         elif role == QtCore.Qt.ItemDataRole.ForegroundRole:
             status = channel.get('status', '待检测')
             valid = channel.get('valid', True)
-            
+
             if not valid and status != '待检测':
                 return QtGui.QColor('#ff6666')  # 无效项文字颜色(红色)
             elif status == '待检测':
@@ -1169,13 +1169,13 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
                         # 存储所有解析到的标签
                         all_tags = {}
-                        
+
                         for key, value in matches:
                             # 使用映射表获取字段名，如果没有映射则使用原始key
                             field_name = tag_mapping.get(key, key.replace('-', '_'))
                             current_channel[field_name] = value
                             all_tags[key] = value
-                        
+
                         # 保存所有原始标签（用于调试和保存）
                         current_channel['_all_tags'] = all_tags
                     continue
@@ -1205,12 +1205,12 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         """自然排序键函数，将字符串中的数字部分转换为整数用于排序"""
         if not s:
             return []
-        
+
         import re
         # 将字符串分割为字母和数字部分
-        return [int(text) if text.isdigit() else text.lower() 
+        return [int(text) if text.isdigit() else text.lower()
                 for text in re.split(r'(\d+)', str(s))]
-    
+
     def sort(self, column: int, order: QtCore.Qt.SortOrder = QtCore.Qt.SortOrder.AscendingOrder):
         """按列排序频道列表"""
         if column < 0 or column >= len(self.headers):
