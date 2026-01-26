@@ -106,11 +106,32 @@ class ScanStateManager:
             return None
 
     def add_invalid_url(self, scan_id: str, url: str):
-        """添加无效URL"""
+        """添加无效URL - 优化版，支持大量URL"""
         with self._lock:
             if scan_id in self._scan_states:
-                if url not in self._scan_states[scan_id]['invalid_urls']:
-                    self._scan_states[scan_id]['invalid_urls'].append(url)
+                invalid_urls = self._scan_states[scan_id]['invalid_urls']
+                # 对于大量URL，使用集合来快速去重，但需要定期清理
+                if len(invalid_urls) < 100000:  # 小于10万时使用列表
+                    if url not in invalid_urls:
+                        invalid_urls.append(url)
+                else:
+                    # 大于10万时，转换为集合去重，然后转回列表
+                    # 注意：这会有性能开销，但可以避免内存爆炸
+                    if hasattr(self._scan_states[scan_id], '_url_set'):
+                        url_set = self._scan_states[scan_id]['_url_set']
+                    else:
+                        url_set = set(invalid_urls)
+                        self._scan_states[scan_id]['_url_set'] = url_set
+                    
+                    if url not in url_set:
+                        url_set.add(url)
+                        invalid_urls.append(url)
+                        
+                        # 定期清理，避免列表过大
+                        if len(invalid_urls) % 10000 == 0:
+                            # 每1万个URL清理一次重复项
+                            unique_urls = list(url_set)
+                            self._scan_states[scan_id]['invalid_urls'] = unique_urls
 
     def get_invalid_urls(self, scan_id: str) -> List[str]:
         """获取无效URL列表"""
@@ -159,11 +180,31 @@ class ScanStateManager:
             return False
 
     def add_failed_channel(self, retry_id: str, url: str):
-        """添加失败频道"""
+        """添加失败频道 - 优化版，支持大量URL"""
         with self._lock:
             if retry_id in self._retry_states:
-                if url not in self._retry_states[retry_id]['failed_channels']:
-                    self._retry_states[retry_id]['failed_channels'].append(url)
+                failed_channels = self._retry_states[retry_id]['failed_channels']
+                # 对于大量URL，使用集合来快速去重
+                if len(failed_channels) < 100000:  # 小于10万时使用列表
+                    if url not in failed_channels:
+                        failed_channels.append(url)
+                else:
+                    # 大于10万时，转换为集合去重
+                    if hasattr(self._retry_states[retry_id], '_failed_url_set'):
+                        url_set = self._retry_states[retry_id]['_failed_url_set']
+                    else:
+                        url_set = set(failed_channels)
+                        self._retry_states[retry_id]['_failed_url_set'] = url_set
+                    
+                    if url not in url_set:
+                        url_set.add(url)
+                        failed_channels.append(url)
+                        
+                        # 定期清理，避免列表过大
+                        if len(failed_channels) % 10000 == 0:
+                            # 每1万个URL清理一次重复项
+                            unique_urls = list(url_set)
+                            self._retry_states[retry_id]['failed_channels'] = unique_urls
 
     def get_failed_channels(self, retry_id: str) -> List[str]:
         """获取失败频道列表"""
