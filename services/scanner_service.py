@@ -417,30 +417,37 @@ class ScannerController(QObject):
         )
 
     def _fill_queue(self):
-        """动态填充扫描队列"""
+        """动态填充扫描队列 - 优化版，避免内存爆炸"""
         try:
+            batch_count = 0
             for batch in self.url_generator:
                 if self.stop_event.is_set():
                     break
 
+                batch_count += 1
+                
+                # 只更新统计信息，不记录所有URL
                 with self.stats_lock:
                     self.stats['total'] += len(batch)
 
+                # 只填充队列，不记录到列表
                 for url in batch:
                     if self.stop_event.is_set():
                         break
                     self.scan_queue.put(url)
-                    # 记录所有扫描的URL（用于重试扫描）
-                    self._all_scanned_urls.append(url)
 
                 # 保持队列适度填充，避免内存占用过高
                 while self.scan_queue.qsize() > 10000 and not self.stop_event.is_set():
                     time.sleep(0.1)
+                    
+                # 每处理100个批次后稍微休息，避免CPU占用过高
+                if batch_count % 100 == 0:
+                    time.sleep(0.01)
 
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.debug(f"队列填充线程异常: {e}")
         finally:
-            pass
+            self.logger.info(f"队列填充完成，共处理 {batch_count} 个批次")
 
     def is_scanning(self):
         """检查是否正在扫描"""

@@ -602,6 +602,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.current_channel_index = index.row()
 
         if self.player_controller.play_channel(channel, self.current_channel_index):
+            # 播放命令成功发出，立即更新UI状态
+            # 注意：play_channel是异步的，实际播放状态会通过play_state_changed信号更新
+            # 但为了确保UI立即响应，我们手动设置播放状态为True
+            self.player_controller.is_playing = True
+            self._on_play_state_changed(True)
+
             if hasattr(self, 'language_manager') and self.language_manager:
                 self.ui.main_window.pause_btn.setText(
                     self.language_manager.tr('pause', 'Pause')

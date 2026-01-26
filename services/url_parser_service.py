@@ -116,15 +116,24 @@ class URLRangeParser:
             yield batch
 
     def _generate_range_values(self, ranges_info):
-        """生成范围值的迭代器"""
-        from itertools import product
-
-        ranges = []
-        for r in ranges_info:
-            values = range(r['start'], r['end'] + 1)
-            ranges.append([str(num).zfill(r['zero_pad']) for num in values])
-
-        return product(*ranges)
+        """生成范围值的迭代器 - 完全惰性生成，避免内存爆炸"""
+        # 使用自定义的笛卡尔积生成器，完全惰性
+        def lazy_product(ranges):
+            """惰性笛卡尔积生成器"""
+            if not ranges:
+                yield ()
+                return
+            
+            # 获取第一个范围
+            first_range = ranges[0]
+            first_values = range(first_range['start'], first_range['end'] + 1)
+            
+            # 递归处理剩余范围
+            for rest in lazy_product(ranges[1:]):
+                for num in first_values:
+                    yield (str(num).zfill(first_range['zero_pad']),) + rest
+        
+        return lazy_product(ranges_info)
 
     def _build_url_from_parts(self, url_parts, ranges_info, values):
         """从URL部分和值构建完整URL"""
