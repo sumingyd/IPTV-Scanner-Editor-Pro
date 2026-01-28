@@ -829,6 +829,10 @@ class UIBuilder(QtCore.QObject):
 
         # 添加频道编辑区域
         self._setup_channel_edit(self.main_window.channel_splitter)
+        
+        # 在应用程序启动时就创建媒体信息显示区域
+        # 延迟创建，确保UI完全初始化
+        QtCore.QTimer.singleShot(100, self._create_media_info_widget)
 
         if isinstance(parent, QtWidgets.QSplitter):
             parent.addWidget(self.main_window.channel_splitter)
@@ -848,6 +852,14 @@ class UIBuilder(QtCore.QObject):
         # 获取选中频道的URL和名称
         url = self.main_window.model.data(self.main_window.model.index(index.row(), 3))  # URL在第3列
         name = self.main_window.model.data(self.main_window.model.index(index.row(), 1))  # 名称在第1列
+
+        # 添加分析频道详细信息菜单项
+        analyze_action = QtGui.QAction("分析频道详细", self.main_window)
+        analyze_action.triggered.connect(
+            lambda: self._analyze_channel_details(index))
+        menu.addAction(analyze_action)
+
+        menu.addSeparator()
 
         # 添加重新获取信息菜单项
         refresh_info_action = QtGui.QAction("重新获取信息", self.main_window)
@@ -1134,6 +1146,608 @@ class UIBuilder(QtCore.QObject):
         # 使用统一的错误处理
         show_error("错误", f"重新获取频道信息失败: {error_message}", parent=self.main_window)
         self.main_window.statusBar().showMessage("重新获取频道信息失败", 3000)
+
+    def _analyze_channel_details(self, index):
+        """分析频道详细信息（异步执行）"""
+        if not index.isValid():
+            return
+
+        # 获取当前频道的URL和名称
+        url = self.main_window.model.data(self.main_window.model.index(index.row(), 3))  # URL在第3列
+        current_name = self.main_window.model.data(self.main_window.model.index(index.row(), 1))  # 名称在第1列
+
+        if not url:
+            # 使用统一的错误处理
+            show_warning("错误", "无法获取频道URL", parent=self.main_window)
+            return
+
+        # 使用统一的进度条管理器显示进度
+        progress_manager = get_progress_manager()
+        progress_manager.start_progress(f"分析频道详细信息: {current_name}")
+        progress_manager.update_progress(0, f"正在分析频道详细信息: {current_name}")
+
+        # 使用QThreadPool异步执行分析任务
+        from PyQt6.QtCore import QRunnable, QThreadPool, pyqtSlot
+        from services.validator_service import StreamValidator
+
+        class AnalyzeChannelTask(QRunnable):
+            def __init__(self, ui_builder, index, url, current_name, timeout):
+                super().__init__()
+                self.ui_builder = ui_builder
+                self.index = index
+                self.url = url
+                self.current_name = current_name
+                self.timeout = timeout
+
+            @pyqtSlot()
+            def run(self):
+                try:
+                    # 执行ffprobe详细分析
+                    validator = StreamValidator(self.ui_builder.main_window)
+                    
+                    # 使用更详细的ffprobe命令获取完整信息
+                    import subprocess
+                    import json
+                    import os
+                    import sys
+                    
+                    ffprobe_path = validator._get_ffprobe_path()
+                    self.ui_builder.logger.info(f"ffprobe路径: {ffprobe_path}")
+                    self.ui_builder.logger.info(f"分析URL: {self.url}")
+                    
+                    cmd = [
+                        ffprobe_path,
+                        '-v', 'quiet',
+                        '-print_format', 'json',
+                        '-show_format',
+                        '-show_streams',
+                        '-show_programs',
+                        self.url
+                    ]
+
+                    # 在Windows上需要处理特殊字符
+                    if sys.platform == 'win32':
+                        cmd = [arg.replace('^', '^^').replace('&', '^&') for arg in cmd]
+
+                    self.ui_builder.logger.info(f"执行命令: {' '.join(cmd)}")
+                    
+                    # 设置环境变量和工作目录
+                    env = os.environ.copy()
+                    env['PATH'] = os.path.dirname(ffprobe_path) + os.pathsep + env['PATH']
+
+                    process = subprocess.Popen(
+                        cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        universal_newlines=False,
+                        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
+                        shell=True if sys.platform == 'win32' else False,
+                        env=env,
+                        cwd=os.path.dirname(ffprobe_path)
+                    )
+
+                    try:
+                        stdout_bytes, stderr_bytes = process.communicate(timeout=self.timeout)
+                        stdout = stdout_bytes.decode('utf-8', errors='replace')
+                        stderr = stderr_bytes.decode('utf-8', errors='replace')
+                        
+                        self.ui_builder.logger.info(f"ffprobe返回代码: {process.returncode}")
+                        self.ui_builder.logger.info(f"stdout长度: {len(stdout)}")
+                        self.ui_builder.logger.info(f"stderr: {stderr[:200]}")
+
+                        if process.returncode == 0:
+                            try:
+                                if stdout.strip():
+                                    data = json.loads(stdout)
+                                    self.ui_builder.logger.info(f"成功解析JSON数据，格式信息: {data.get('format', {}).get('format_name', '未知')}")
+                                    # 在主线程中显示分析结果
+                                    self.ui_builder.logger.info("准备调用_show_media_info")
+                                    # 使用functools.partial确保函数被正确调用
+                                    import functools
+                                    show_func = functools.partial(self.ui_builder._show_media_info, data, self.current_name)
+                                    QtCore.QTimer.singleShot(0, show_func)
+                                else:
+                                    self.ui_builder.logger.warning("ffprobe返回空输出")
+                                    QtCore.QTimer.singleShot(
+                                        0,
+                                        lambda: self.ui_builder._handle_analyze_error(
+                                            "ffprobe返回空输出"
+                                        )
+                                    )
+                            except json.JSONDecodeError as json_error:
+                                self.ui_builder.logger.error(f"JSON解析失败: {json_error}")
+                                QtCore.QTimer.singleShot(
+                                    0,
+                                    lambda: self.ui_builder._handle_analyze_error(
+                                        f"JSON解析失败: {json_error}"
+                                    )
+                                )
+                            except Exception as parse_error:
+                                self.ui_builder.logger.error(f"解析失败: {parse_error}")
+                                QtCore.QTimer.singleShot(
+                                    0,
+                                    lambda: self.ui_builder._handle_analyze_error(
+                                        str(parse_error)
+                                    )
+                                )
+                        else:
+                            self.ui_builder.logger.error(f"ffprobe执行失败: {stderr.strip()}")
+                            QtCore.QTimer.singleShot(
+                                0,
+                                lambda: self.ui_builder._handle_analyze_error(
+                                    stderr.strip() or f"返回代码: {process.returncode}"
+                                )
+                            )
+
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        self.ui_builder.logger.error("ffprobe超时")
+                        QtCore.QTimer.singleShot(
+                            0,
+                            lambda: self.ui_builder._handle_analyze_error(
+                                "ffprobe超时"
+                            )
+                        )
+                    except Exception as timeout_error:
+                        self.ui_builder.logger.error(f"ffprobe执行异常: {timeout_error}")
+                        QtCore.QTimer.singleShot(
+                            0,
+                            lambda: self.ui_builder._handle_analyze_error(
+                                str(timeout_error)
+                            )
+                        )
+
+                except Exception as e:
+                    # 在主线程中显示错误
+                    error_msg = str(e)
+                    self.ui_builder.logger.error(
+                        f"分析频道失败: {error_msg}",
+                        exc_info=True,
+                    )
+                    QtCore.QTimer.singleShot(
+                        0,
+                        lambda msg=error_msg: (
+                            self.ui_builder._handle_analyze_error(msg)
+                        ),
+                    )
+
+        # 创建并启动异步任务
+        task = AnalyzeChannelTask(
+            self,
+            index,
+            url,
+            current_name,
+            self.main_window.timeout_input.value(),
+        )
+        QThreadPool.globalInstance().start(task)
+
+    def _show_media_info(self, data, channel_name):
+        """显示媒体信息"""
+        try:
+            self.logger.info(f"开始显示媒体信息: {channel_name}")
+            
+            # 使用统一的进度条管理器隐藏进度条
+            progress_manager = get_progress_manager()
+            progress_manager.hide_progress()
+
+            # 创建媒体信息显示区域（如果不存在）
+            if not hasattr(self.main_window, 'media_info_widget'):
+                self.logger.info("创建媒体信息显示区域")
+                self._create_media_info_widget()
+            
+            # 确保媒体信息显示区域有内容
+            if hasattr(self.main_window, 'media_info_initial_label'):
+                self.logger.info("隐藏初始提示文本")
+                self.main_window.media_info_initial_label.setVisible(False)
+            
+            # 确保媒体信息容器可见
+            if hasattr(self.main_window, 'media_info_container'):
+                self.logger.info("确保媒体信息容器可见")
+                self.main_window.media_info_container.setVisible(True)
+
+            # 解析并显示媒体信息
+            self.logger.info("更新媒体信息显示")
+            self._update_media_info_display(data, channel_name)
+
+            # 显示成功消息
+            self.main_window.statusBar().showMessage(f"频道分析完成: {channel_name}", 3000)
+            
+            # 强制刷新UI
+            QtCore.QTimer.singleShot(0, lambda: self.main_window.media_info_widget.update())
+            QtCore.QTimer.singleShot(0, lambda: self.main_window.media_info_scroll_area.update())
+            QtCore.QTimer.singleShot(0, lambda: self.main_window.media_info_container.update())
+            
+            # 确保滚动区域正确显示内容
+            QtCore.QTimer.singleShot(100, lambda: self.main_window.media_info_scroll_area.ensureVisible(0, 0))
+            
+            self.logger.info(f"媒体信息显示完成: {channel_name}")
+        except Exception as e:
+            self.logger.error(f"显示媒体信息时发生错误: {e}", exc_info=True)
+            self.main_window.statusBar().showMessage(f"显示媒体信息失败: {str(e)}", 3000)
+
+    def _handle_analyze_error(self, error_message):
+        """处理分析错误"""
+        # 使用统一的进度条管理器隐藏进度条
+        progress_manager = get_progress_manager()
+        progress_manager.hide_progress()
+
+        # 使用统一的错误处理
+        show_error("错误", f"分析频道信息失败: {error_message}", parent=self.main_window)
+        self.main_window.statusBar().showMessage("分析频道信息失败", 3000)
+
+    def _create_media_info_widget(self):
+        """创建媒体信息显示区域（在频道编辑区域内）"""
+        # 检查是否已经创建了媒体信息显示区域
+        if hasattr(self.main_window, 'media_info_widget'):
+            return
+        
+        # 获取现有的编辑区域布局
+        if not hasattr(self.main_window, 'edit_group'):
+            return
+        
+        edit_group = self.main_window.edit_group
+        main_layout = edit_group.layout()
+        if not main_layout:
+            return
+        
+        # 找到内容部件和按钮部件
+        content_widget = None
+        button_widget = None
+        for i in range(main_layout.count()):
+            item = main_layout.itemAt(i)
+            if item.widget():
+                widget = item.widget()
+                # 检查是否是内容部件（包含表单布局）
+                if widget.layout() and isinstance(widget.layout(), QtWidgets.QFormLayout):
+                    content_widget = widget
+                # 检查是否是按钮部件
+                elif widget.layout() and isinstance(widget.layout(), QtWidgets.QHBoxLayout):
+                    button_widget = widget
+        
+        if not content_widget or not button_widget:
+            return
+        
+        # 创建新的主布局（水平分割）
+        new_main_widget = QtWidgets.QWidget()
+        new_main_layout = QtWidgets.QHBoxLayout()
+        new_main_layout.setContentsMargins(5, 5, 5, 5)
+        new_main_layout.setSpacing(10)
+        
+        # 左侧：现有的频道编辑内容
+        left_widget = QtWidgets.QWidget()
+        left_layout = QtWidgets.QVBoxLayout()
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(5)
+        
+        # 添加内容部件
+        left_layout.addWidget(content_widget)
+        
+        # 添加按钮部件
+        left_layout.addWidget(button_widget)
+        
+        left_widget.setLayout(left_layout)
+        new_main_layout.addWidget(left_widget, 1)  # 权重为1
+        
+        # 右侧：媒体信息显示区域（初始为空）
+        media_info_widget = QtWidgets.QWidget()
+        media_info_layout = QtWidgets.QVBoxLayout()
+        media_info_layout.setContentsMargins(5, 5, 5, 5)
+        media_info_layout.setSpacing(5)
+        
+        # 创建滚动区域用于显示媒体信息
+        scroll_area = QtWidgets.QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        
+        # 创建媒体信息显示容器
+        media_info_container = QtWidgets.QWidget()
+        self.main_window.media_info_container = media_info_container
+        self.main_window.media_info_layout = QtWidgets.QVBoxLayout()
+        self.main_window.media_info_layout.setContentsMargins(5, 5, 5, 5)
+        self.main_window.media_info_layout.setSpacing(5)
+        media_info_container.setLayout(self.main_window.media_info_layout)
+        
+        # 添加初始提示文本
+        initial_label = QtWidgets.QLabel("📺 媒体信息区域\n\n右键点击频道列表中的频道，选择'分析频道详细'来显示媒体信息")
+        initial_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        initial_label.setStyleSheet("color: #666; font-size: 12px; padding: 20px;")
+        self.main_window.media_info_layout.addWidget(initial_label)
+        
+        scroll_area.setWidget(media_info_container)
+        media_info_layout.addWidget(scroll_area)
+        
+        media_info_widget.setLayout(media_info_layout)
+        new_main_layout.addWidget(media_info_widget, 1)  # 权重为1
+        
+        new_main_widget.setLayout(new_main_layout)
+        
+        # 替换编辑区域的内容
+        # 首先从原布局中移除所有部件
+        while main_layout.count():
+            item = main_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+        
+        # 添加新的主部件
+        main_layout.addWidget(new_main_widget)
+        
+        # 保存引用
+        self.main_window.media_info_widget = media_info_widget
+        self.main_window.media_info_scroll_area = scroll_area
+        self.main_window.media_info_initial_label = initial_label
+        self.main_window.media_info_left_widget = left_widget
+        self.main_window.media_info_content_widget = content_widget
+        self.main_window.media_info_button_widget = button_widget
+
+    def _update_media_info_display(self, data, channel_name):
+        """更新媒体信息显示"""
+        if not hasattr(self.main_window, 'media_info_layout'):
+            return
+        
+        # 清空现有的媒体信息
+        while self.main_window.media_info_layout.count():
+            item = self.main_window.media_info_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        # 添加频道名称标题
+        title_label = QtWidgets.QLabel(f"📺 频道: {channel_name}")
+        title_label.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 10px;")
+        self.main_window.media_info_layout.addWidget(title_label)
+        
+        # 添加分隔线
+        separator = QtWidgets.QFrame()
+        separator.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        separator.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
+        self.main_window.media_info_layout.addWidget(separator)
+        
+        # 解析并显示格式信息
+        if 'format' in data:
+            format_info = data['format']
+            format_group = self._create_info_group("容器格式", format_info)
+            self.main_window.media_info_layout.addWidget(format_group)
+        
+        # 解析并显示流信息
+        if 'streams' in data and data['streams']:
+            # 视频流
+            video_streams = [s for s in data['streams'] if s.get('codec_type') == 'video']
+            if video_streams:
+                for i, stream in enumerate(video_streams):
+                    stream_group = self._create_stream_info_group(f"视频流 {i+1}", stream)
+                    self.main_window.media_info_layout.addWidget(stream_group)
+            
+            # 音频流
+            audio_streams = [s for s in data['streams'] if s.get('codec_type') == 'audio']
+            if audio_streams:
+                for i, stream in enumerate(audio_streams):
+                    stream_group = self._create_stream_info_group(f"音频流 {i+1}", stream)
+                    self.main_window.media_info_layout.addWidget(stream_group)
+            
+            # 其他流
+            other_streams = [s for s in data['streams'] if s.get('codec_type') not in ['video', 'audio']]
+            if other_streams:
+                for i, stream in enumerate(other_streams):
+                    stream_group = self._create_stream_info_group(f"其他流 {i+1}", stream)
+                    self.main_window.media_info_layout.addWidget(stream_group)
+        
+        # 添加弹性空间
+        self.main_window.media_info_layout.addStretch()
+
+    def _create_info_group(self, title, info_dict):
+        """创建信息分组"""
+        group = QtWidgets.QGroupBox(title)
+        layout = QtWidgets.QFormLayout()
+        layout.setContentsMargins(5, 10, 5, 10)
+        layout.setSpacing(5)
+        
+        # 获取语言管理器
+        language_manager = getattr(self.main_window, 'language_manager', None)
+        
+        for key, value in info_dict.items():
+            # 国际化键名
+            display_key = self._get_localized_key(key, language_manager)
+            
+            if isinstance(value, dict):
+                # 嵌套字典，递归处理
+                sub_group = self._create_info_group(display_key, value)
+                layout.addRow(sub_group)
+            elif isinstance(value, list):
+                # 列表，显示为字符串
+                value_str = ', '.join(str(item) for item in value)
+                value_label = QtWidgets.QLabel(value_str)
+                value_label.setWordWrap(True)  # 启用自动换行
+                layout.addRow(f"{display_key}:", value_label)
+            else:
+                # 普通值
+                value_label = QtWidgets.QLabel(str(value))
+                value_label.setWordWrap(True)  # 启用自动换行
+                layout.addRow(f"{display_key}:", value_label)
+        
+        group.setLayout(layout)
+        return group
+
+    def _get_localized_key(self, key, language_manager):
+        """获取国际化键名"""
+        # 如果语言管理器不存在，尝试从主窗口获取
+        if not language_manager and hasattr(self.main_window, 'language_manager'):
+            language_manager = self.main_window.language_manager
+        
+        if not language_manager:
+            return key
+        
+        # 媒体信息键名映射
+        key_mapping = {
+            # 通用键名
+            'filename': '文件名',
+            'nb_streams': '流数量',
+            'nb_programs': '节目数量',
+            'format_name': '格式名称',
+            'format_long_name': '格式长名称',
+            'start_time': '开始时间',
+            'probe_score': '探测分数',
+            'duration': '时长',
+            'size': '大小',
+            'bit_rate': '比特率',
+            'tags': '标签',
+            
+            # 流信息键名
+            'index': '索引',
+            'codec_name': '编解码器名称',
+            'codec_long_name': '编解码器长名称',
+            'profile': '配置文件',
+            'codec_type': '编解码器类型',
+            'codec_tag_string': '编解码器标签字符串',
+            'codec_tag': '编解码器标签',
+            'width': '宽度',
+            'height': '高度',
+            'coded_width': '编码宽度',
+            'coded_height': '编码高度',
+            'closed_captions': '隐藏字幕',
+            'film_grain': '胶片颗粒',
+            'has_b_frames': '有B帧',
+            'sample_aspect_ratio': '采样宽高比',
+            'display_aspect_ratio': '显示宽高比',
+            'pix_fmt': '像素格式',
+            'level': '级别',
+            'color_range': '色彩范围',
+            'color_space': '色彩空间',
+            'color_transfer': '色彩传输',
+            'color_primaries': '主要色彩',
+            'chroma_location': '色度位置',
+            'refs': '参考帧',
+            'ts_id': '传输流ID',
+            'ts_packetsize': '传输流包大小',
+            'id': 'ID',
+            'r_frame_rate': '帧率',
+            'avg_frame_rate': '平均帧率',
+            'time_base': '时间基准',
+            'start_pts': '开始PTS',
+            'start_time': '开始时间',
+            'extradata_size': '额外数据大小',
+            'sample_fmt': '采样格式',
+            'sample_rate': '采样率',
+            'channels': '声道数',
+            'channel_layout': '声道布局',
+            'bits_per_sample': '每采样位数',
+            'initial_padding': '初始填充',
+            'bit_rate': '比特率',
+            'disposition': '配置',
+            'default': '默认',
+            'dub': '配音',
+            'original': '原始',
+            'comment': '评论',
+            'lyrics': '歌词',
+            'karaoke': '卡拉OK',
+            'forced': '强制',
+            'hearing_impaired': '听力障碍',
+            'visual_impaired': '视力障碍',
+            'clean_effects': '清洁效果',
+            'attached_pic': '附加图片',
+            'timed_thumbnails': '定时缩略图',
+            'non_diegetic': '非叙事',
+            'captions': '字幕',
+            'descriptions': '描述',
+            'metadata': '元数据',
+            'dependent': '依赖',
+            'still_image': '静态图像',
+            
+            # 其他常见键名
+            'programs': '节目',
+            'stream_groups': '流组',
+            'streams': '流',
+            'format': '格式',
+            'video': '视频',
+            'audio': '音频',
+            'subtitle': '字幕',
+            'data': '数据',
+            'attachment': '附件',
+        }
+        
+        # 尝试从语言管理器获取翻译
+        translation_key = f"media_info_{key}"
+        # 首先尝试从映射中获取，如果没有则使用键名本身
+        default_translation = key_mapping.get(key, key)
+        translated = language_manager.tr(translation_key, default_translation)
+        
+        # 如果翻译结果仍然是键名本身，尝试使用通用翻译
+        if translated == key:
+            # 尝试将下划线转换为空格作为显示名称
+            translated = key.replace('_', ' ')
+        
+        return translated
+
+    def _create_stream_info_group(self, title, stream_info):
+        """创建流信息分组"""
+        group = QtWidgets.QGroupBox(title)
+        layout = QtWidgets.QFormLayout()
+        layout.setContentsMargins(5, 10, 5, 10)
+        layout.setSpacing(5)
+        
+        # 获取语言管理器
+        language_manager = getattr(self.main_window, 'language_manager', None)
+        
+        # 显示关键信息
+        important_keys = [
+            'codec_name', 'codec_long_name', 'codec_type', 'width', 'height',
+            'sample_aspect_ratio', 'display_aspect_ratio', 'pix_fmt',
+            'sample_fmt', 'sample_rate', 'channels', 'channel_layout',
+            'bit_rate', 'profile', 'level'
+        ]
+        
+        for key in important_keys:
+            if key in stream_info:
+                value = stream_info[key]
+                if value:
+                    # 国际化键名
+                    display_key = self._get_localized_key(key, language_manager)
+                    value_label = QtWidgets.QLabel(str(value))
+                    value_label.setWordWrap(True)  # 启用自动换行
+                    layout.addRow(f"{display_key}:", value_label)
+        
+        # 如果有其他信息，添加到折叠区域
+        other_keys = [k for k in stream_info.keys() if k not in important_keys and stream_info[k]]
+        if other_keys:
+            # 创建折叠按钮
+            expand_button = QtWidgets.QPushButton("显示详细信息")
+            expand_button.setCheckable(True)
+            expand_button.setChecked(False)
+            expand_button.setStyleSheet("QPushButton { border: none; color: #0078d7; }")
+            
+            # 创建详细信息区域
+            details_widget = QtWidgets.QWidget()
+            details_layout = QtWidgets.QFormLayout()
+            details_layout.setContentsMargins(10, 5, 5, 5)
+            details_layout.setSpacing(3)
+            
+            for key in other_keys:
+                value = stream_info[key]
+                # 国际化键名
+                display_key = self._get_localized_key(key, language_manager)
+                
+                if isinstance(value, dict):
+                    # 嵌套字典
+                    for sub_key, sub_value in value.items():
+                        sub_display_key = self._get_localized_key(f"{key}.{sub_key}", language_manager)
+                        sub_value_label = QtWidgets.QLabel(str(sub_value))
+                        sub_value_label.setWordWrap(True)  # 启用自动换行
+                        details_layout.addRow(f"{sub_display_key}:", sub_value_label)
+                else:
+                    value_label = QtWidgets.QLabel(str(value))
+                    value_label.setWordWrap(True)  # 启用自动换行
+                    details_layout.addRow(f"{display_key}:", value_label)
+            
+            details_widget.setLayout(details_layout)
+            details_widget.setVisible(False)
+            
+            # 连接按钮点击事件
+            expand_button.toggled.connect(details_widget.setVisible)
+            
+            layout.addRow(expand_button)
+            layout.addRow(details_widget)
+        
+        group.setLayout(layout)
+        return group
 
     def _delete_selected_channel(self, index):
         """删除选中的频道"""
