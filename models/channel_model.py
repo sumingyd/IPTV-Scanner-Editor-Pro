@@ -15,6 +15,19 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             "Logo地址", "状态", "延迟(ms)", "TVG-ID",
             "TVG频道号", "TVG时移", "回看", "回看天数", "回看源"
         ]
+        
+        # 隐藏列状态：True表示隐藏，False表示显示
+        self.hidden_columns = {
+            2: False,   # 分辨率
+            4: False,   # 分组
+            5: False,   # Logo地址
+            8: False,   # TVG-ID
+            9: False,   # TVG频道号
+            10: False,  # TVG时移
+            11: False,  # 回看
+            12: False,  # 回看天数
+            13: False   # 回看源
+        }
 
         # 状态标签更新回调
         self.update_status_label = None
@@ -61,8 +74,55 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         self.endResetModel()
 
     def columnCount(self, parent=QtCore.QModelIndex()) -> int:
-        """返回列数"""
-        return len(self.headers)
+        """返回列数（排除隐藏列）"""
+        visible_count = len(self.headers)
+        for col, hidden in self.hidden_columns.items():
+            if hidden and col < len(self.headers):
+                visible_count -= 1
+        return visible_count
+
+    def _logical_to_actual_column(self, logical_col: int) -> int:
+        """将逻辑列索引转换为实际列索引（考虑隐藏列）"""
+        if logical_col < 0:
+            return -1
+            
+        actual_col = 0
+        for col in range(len(self.headers)):
+            if col in self.hidden_columns and self.hidden_columns[col]:
+                continue
+            if actual_col == logical_col:
+                return col
+            actual_col += 1
+        return -1
+
+    def _actual_to_logical_column(self, actual_col: int) -> int:
+        """将实际列索引转换为逻辑列索引（考虑隐藏列）"""
+        if actual_col < 0:
+            return -1
+            
+        logical_col = 0
+        for col in range(len(self.headers)):
+            if col == actual_col:
+                return logical_col
+            if col not in self.hidden_columns or not self.hidden_columns[col]:
+                logical_col += 1
+        return -1
+
+    def toggle_column_visibility(self, actual_col: int):
+        """切换列的隐藏状态"""
+        if actual_col in self.hidden_columns:
+            self.hidden_columns[actual_col] = not self.hidden_columns[actual_col]
+            # 通知视图列数发生变化
+            self.beginResetModel()
+            self.endResetModel()
+            # 通知表头更新
+            self.headerDataChanged.emit(QtCore.Qt.Orientation.Horizontal, 0, self.columnCount() - 1)
+            return True
+        return False
+
+    def is_column_hidden(self, actual_col: int) -> bool:
+        """检查列是否隐藏"""
+        return self.hidden_columns.get(actual_col, False)
 
     def data(self, index: QtCore.QModelIndex, role: int = QtCore.Qt.ItemDataRole.DisplayRole):
         """返回单元格数据"""
@@ -70,41 +130,45 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             return None
 
         channel = self.channels[index.row()]
-        col = index.column()
+        logical_col = index.column()
+        actual_col = self._logical_to_actual_column(logical_col)
+        
+        if actual_col == -1:
+            return None
 
         if role == QtCore.Qt.ItemDataRole.DisplayRole:
-            if col == 0:  # 序号 - 只显示序号，图片通过装饰角色显示
+            if actual_col == 0:  # 序号 - 只显示序号，图片通过装饰角色显示
                 return str(index.row() + 1)
-            elif col == 1:  # 频道名称
+            elif actual_col == 1:  # 频道名称
                 return channel.get('name', '未命名')
-            elif col == 2:  # 分辨率
+            elif actual_col == 2:  # 分辨率
                 return channel.get('resolution', '')
-            elif col == 3:  # URL
+            elif actual_col == 3:  # URL
                 return channel.get('url', '')
-            elif col == 4:  # 分组
+            elif actual_col == 4:  # 分组
                 return channel.get('group', '未分类')
-            elif col == 5:  # Logo地址
+            elif actual_col == 5:  # Logo地址
                 return channel.get('logo_url', channel.get('logo', ''))
-            elif col == 6:  # 状态
+            elif actual_col == 6:  # 状态
                 return channel.get('status', '待检测')
-            elif col == 7:  # 延迟(ms)
+            elif actual_col == 7:  # 延迟(ms)
                 return str(channel.get('latency', ''))
-            elif col == 8:  # TVG-ID
+            elif actual_col == 8:  # TVG-ID
                 return channel.get('tvg_id', '')
-            elif col == 9:  # TVG频道号
+            elif actual_col == 9:  # TVG频道号
                 return channel.get('tvg_chno', '')
-            elif col == 10:  # TVG时移
+            elif actual_col == 10:  # TVG时移
                 return channel.get('tvg_shift', '')
-            elif col == 11:  # 回看
+            elif actual_col == 11:  # 回看
                 catchup_value = channel.get('catchup', '')
                 # 如果catchup是None或空字符串，返回空字符串
                 # 如果catchup是"none"，返回"none"
                 return catchup_value if catchup_value is not None else ''
-            elif col == 12:  # 回看天数
+            elif actual_col == 12:  # 回看天数
                 return channel.get('catchup_days', '')
-            elif col == 13:  # 回看源
+            elif actual_col == 13:  # 回看源
                 return channel.get('catchup_source', '')
-        elif role == QtCore.Qt.ItemDataRole.DecorationRole and col == 0:  # 序号列不再显示Logo图片
+        elif role == QtCore.Qt.ItemDataRole.DecorationRole and actual_col == 0:  # 序号列不再显示Logo图片
             # 直接返回None，不显示任何图标
             return None
         elif role == QtCore.Qt.ItemDataRole.TextAlignmentRole:
@@ -133,8 +197,13 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         if role != QtCore.Qt.ItemDataRole.DisplayRole:
             return None
         if orientation == QtCore.Qt.Orientation.Horizontal:
+            # 将逻辑列转换为实际列
+            actual_col = self._logical_to_actual_column(section)
+            if actual_col == -1:
+                return None
+                
             # 使用语言管理器翻译表头
-            header_text = self.headers[section]
+            header_text = self.headers[actual_col]
             if hasattr(self, '_language_manager') and self._language_manager:
                 if header_text == "序号":
                     return self._language_manager.tr('serial_number', 'No.')
@@ -444,26 +513,26 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             # EXTINF行 - 完整格式，包含所有字段
             extinf_parts = ["#EXTINF:-1"]
 
-            # 添加所有属性
-            if tvg_id:
+            # 添加所有属性（排除隐藏列对应的字段）
+            if tvg_id and not self.is_column_hidden(8):  # TVG-ID列
                 extinf_parts.append(f'tvg-id="{tvg_id}"')
             if channel_name:
                 extinf_parts.append(f'tvg-name="{channel_name}"')
-            if logo_url:
+            if logo_url and not self.is_column_hidden(5):  # Logo地址列
                 extinf_parts.append(f'tvg-logo="{logo_url}"')
-            if group:
+            if group and not self.is_column_hidden(4):  # 分组列
                 extinf_parts.append(f'group-title="{group}"')
-            if tvg_chno:
+            if tvg_chno and not self.is_column_hidden(9):  # TVG频道号列
                 extinf_parts.append(f'tvg-chno="{tvg_chno}"')
-            if tvg_shift:
+            if tvg_shift and not self.is_column_hidden(10):  # TVG时移列
                 extinf_parts.append(f'tvg-shift="{tvg_shift}"')
-            if catchup:
+            if catchup and not self.is_column_hidden(11):  # 回看列
                 extinf_parts.append(f'catchup="{catchup}"')
-            if catchup_days:
+            if catchup_days and not self.is_column_hidden(12):  # 回看天数列
                 extinf_parts.append(f'catchup-days="{catchup_days}"')
-            if catchup_source:
+            if catchup_source and not self.is_column_hidden(13):  # 回看源列
                 extinf_parts.append(f'catchup-source="{catchup_source}"')
-            if resolution:
+            if resolution and not self.is_column_hidden(2):  # 分辨率列
                 extinf_parts.append(f'resolution="{resolution}"')
 
             # 添加频道名称
@@ -667,7 +736,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
                 # 发送数据变化信号，确保特定行更新 - 使用更全面的角色列表
                 top_left = self.index(i, 0)
-                bottom_right = self.index(i, self.columnCount() - 1)
+                # 使用实际列数而不是逻辑列数
+                bottom_right = self.index(i, len(self.headers) - 1)
                 self.dataChanged.emit(top_left, bottom_right, [
                     QtCore.Qt.ItemDataRole.DisplayRole,
                     QtCore.Qt.ItemDataRole.DecorationRole,

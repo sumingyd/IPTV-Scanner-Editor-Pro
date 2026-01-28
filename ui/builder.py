@@ -731,7 +731,6 @@ class UIBuilder(QtCore.QObject):
             QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection
         )
         self.main_window.channel_list.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
-        self.main_window.channel_list.horizontalHeader().setStretchLastSection(True)
         self.main_window.channel_list.verticalHeader().setVisible(False)
 
         # 确保模型存在并正确设置到视图中
@@ -746,28 +745,30 @@ class UIBuilder(QtCore.QObject):
 
         self.main_window.channel_list.setStyleSheet(AppStyles.list_style())
 
-        # 设置列宽自适应
+        # 设置自定义表头
         header = self.main_window.channel_list.horizontalHeader()
         header.setStretchLastSection(False)  # 禁用最后列自动拉伸
         header.setMinimumSectionSize(30)  # 最小列宽
         header.setMaximumSectionSize(1000)  # 最大列宽
 
-        # 所有列始终自适应内容
-        for i in range(header.count()):
-            header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        # 创建并设置自定义表头委托
+        header_delegate = HeaderDelegate(self.main_window.channel_list, self.main_window.model)
+        self.main_window.channel_list.setHorizontalHeader(header_delegate)
+        header_delegate.setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        header_delegate.setDefaultSectionSize(100)  # 默认列宽
 
         # 启用表头点击排序
-        header.setSectionsClickable(True)
-        header.setSortIndicatorShown(True)
-        header.setSortIndicator(-1, QtCore.Qt.SortOrder.AscendingOrder)  # 初始无排序
-        header.sectionClicked.connect(self._on_header_clicked)
+        header_delegate.setSectionsClickable(True)
+        header_delegate.setSortIndicatorShown(True)
+        header_delegate.setSortIndicator(-1, QtCore.Qt.SortOrder.AscendingOrder)  # 初始无排序
+        header_delegate.sectionClicked.connect(self._on_header_clicked)
 
         # 使用定时器控制列宽调整频率
         self._resize_timer = QtCore.QTimer()
         self._resize_timer.setSingleShot(True)
         self._resize_timer.setInterval(500)  # 500ms延迟
         self._resize_timer.timeout.connect(
-            lambda: header.resizeSections(
+            lambda: header_delegate.resizeSections(
                 QtWidgets.QHeaderView.ResizeMode.ResizeToContents
             )
         )
@@ -794,7 +795,7 @@ class UIBuilder(QtCore.QObject):
         # 强制立即调整列宽，确保初始状态正确
         QtCore.QTimer.singleShot(
             100,
-            lambda: header.resizeSections(
+            lambda: header_delegate.resizeSections(
                 QtWidgets.QHeaderView.ResizeMode.ResizeToContents
             )
         )
@@ -2339,6 +2340,112 @@ class UIBuilder(QtCore.QObject):
             self.logger.error(f"显示排序配置对话框失败: {e}", exc_info=True)
             # 使用统一的错误处理
             show_error("错误", f"排序配置对话框加载失败: {str(e)}", parent=self.main_window)
+
+
+class HeaderDelegate(QtWidgets.QHeaderView):
+    """自定义表头委托，支持关闭按钮"""
+    
+    def __init__(self, parent=None, model=None):
+        super().__init__(QtCore.Qt.Orientation.Horizontal, parent)
+        self.model = model
+        self.close_button_size = 16
+        self.close_button_margin = 4
+        
+        # 设置表头属性
+        self.setSectionsClickable(True)
+        self.setHighlightSections(True)
+        self.setStretchLastSection(False)
+        
+    def paintSection(self, painter, rect, logicalIndex):
+        """绘制表头部分，包括关闭按钮"""
+        # 调用父类绘制基本表头
+        super().paintSection(painter, rect, logicalIndex)
+        
+        # 检查是否是支持关闭的列
+        actual_col = self.model._logical_to_actual_column(logicalIndex) if self.model else logicalIndex
+        if actual_col in [2, 4, 5, 8, 9, 10, 11, 12, 13]:  # 支持关闭的列
+            # 绘制关闭按钮
+            close_rect = QtCore.QRect(
+                rect.right() - self.close_button_size - self.close_button_margin,
+                rect.top() + (rect.height() - self.close_button_size) // 2,
+                self.close_button_size,
+                self.close_button_size
+            )
+            
+            # 绘制关闭按钮背景
+            painter.save()
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+            
+            # 检查鼠标是否在关闭按钮上
+            mouse_pos = self.mapFromGlobal(QtGui.QCursor.pos())
+            is_hover = close_rect.contains(mouse_pos)
+            
+            # 绘制圆形背景
+            if is_hover:
+                painter.setBrush(QtGui.QColor(255, 100, 100, 200))
+                painter.setPen(QtGui.QColor(255, 50, 50, 200))
+            else:
+                painter.setBrush(QtGui.QColor(200, 200, 200, 150))
+                painter.setPen(QtGui.QColor(150, 150, 150, 150))
+            
+            painter.drawEllipse(close_rect)
+            
+            # 绘制关闭符号（X）
+            painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255), 2))
+            cross_margin = 4
+            painter.drawLine(
+                close_rect.left() + cross_margin,
+                close_rect.top() + cross_margin,
+                close_rect.right() - cross_margin,
+                close_rect.bottom() - cross_margin
+            )
+            painter.drawLine(
+                close_rect.right() - cross_margin,
+                close_rect.top() + cross_margin,
+                close_rect.left() + cross_margin,
+                close_rect.bottom() - cross_margin
+            )
+            
+            painter.restore()
+    
+    def mousePressEvent(self, event):
+        """处理鼠标点击事件"""
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            # 检查是否点击了关闭按钮
+            pos = event.pos()
+            for logicalIndex in range(self.count()):
+                rect = self.sectionViewportPosition(logicalIndex)
+                section_rect = QtCore.QRect(
+                    rect, 0, self.sectionSize(logicalIndex), self.height()
+                )
+                
+                # 检查是否是支持关闭的列
+                actual_col = self.model._logical_to_actual_column(logicalIndex) if self.model else logicalIndex
+                if actual_col in [2, 4, 5, 8, 9, 10, 11, 12, 13]:
+                    # 计算关闭按钮区域
+                    close_rect = QtCore.QRect(
+                        section_rect.right() - self.close_button_size - self.close_button_margin,
+                        section_rect.top() + (section_rect.height() - self.close_button_size) // 2,
+                        self.close_button_size,
+                        self.close_button_size
+                    )
+                    
+                    if close_rect.contains(pos):
+                        # 切换列的隐藏状态
+                        if self.model:
+                            self.model.toggle_column_visibility(actual_col)
+                            # 更新表头
+                            self.update()
+                        event.accept()
+                        return
+        
+        # 如果不是点击关闭按钮，调用父类处理（用于排序等）
+        super().mousePressEvent(event)
+    
+    def sizeHint(self):
+        """返回表头大小提示"""
+        size = super().sizeHint()
+        return QtCore.QSize(size.width(), size.height() + 5)  # 增加一点高度以容纳关闭按钮
 
 
 class AndroidSplitterHandle(QtWidgets.QWidget):
