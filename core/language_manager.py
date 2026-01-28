@@ -492,7 +492,8 @@ class LanguageManager(QObject):
                 main_window.loop_scan_checkbox.setText(self.tr('loop_scan', 'Loop Scan'))
                 main_window.loop_scan_checkbox.setToolTip(
                     self.tr('loop_scan_tooltip',
-                            'If retry scan finds valid channels, continue scanning failed channels until no new valid channels are found'))
+                            'If retry scan finds valid channels, continue scanning failed channels '
+                            'until no new valid channels are found'))
             if hasattr(main_window, 'retry_row_label'):
                 main_window.retry_row_label.setText(self.tr('retry_options', 'Scan Retry Options') + "：")
 

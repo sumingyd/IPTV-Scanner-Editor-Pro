@@ -36,7 +36,11 @@ def load_mappings_from_file(file_path: str) -> Dict[str, dict]:
                     if standard_name.startswith('##########') and standard_name.endswith('##########'):
                         continue
 
-                    raw_names = [name.strip() for name in row.get('raw_names', '').split(',')] if row.get('raw_names') else []
+                    raw_names = (
+                        [name.strip() for name in row.get('raw_names', '').split(',')]
+                        if row.get('raw_names')
+                        else []
+                    )
                     logo_url = row.get('logo_url', '').strip() if row.get('logo_url') else None
                     group_name = row.get('group_name', '').strip() if row.get('group_name') else None
 
@@ -44,7 +48,7 @@ def load_mappings_from_file(file_path: str) -> Dict[str, dict]:
                     tvg_id = row.get('tvg_id', '').strip() if row.get('tvg_id') else None
                     tvg_chno = row.get('tvg_chno', '').strip() if row.get('tvg_chno') else None
                     tvg_shift = row.get('tvg_shift', '').strip() if row.get('tvg_shift') else None
-                    
+
                     # 修复catchup字段处理：保留字符串"none"，空字符串转换为None
                     catchup_raw = row.get('catchup', '')
                     if catchup_raw is not None:
@@ -53,7 +57,7 @@ def load_mappings_from_file(file_path: str) -> Dict[str, dict]:
                             catchup = None
                     else:
                         catchup = None
-                    
+
                     catchup_days = row.get('catchup_days', '').strip() if row.get('catchup_days') else None
                     catchup_source = row.get('catchup_source', '').strip() if row.get('catchup_source') else None
                     resolution = row.get('resolution', '').strip() if row.get('resolution') else None
@@ -65,50 +69,50 @@ def load_mappings_from_file(file_path: str) -> Dict[str, dict]:
                             if raw_name:  # 确保原始名称不为空
                                 # 创建唯一的键：标准名称 + 原始名称
                                 unique_key = f"{standard_name}||{raw_name}"
-                                
+
                                 # 创建映射条目
                                 mappings[unique_key] = {
                                     'standard_name': standard_name,
                                     'raw_names': [raw_name],  # 只包含当前原始名称
                                     'logo_url': (
-                                        logo_url if logo_url and 
-                                        logo_url.lower() not in ['', 'none', 'null'] 
+                                        logo_url if logo_url and
+                                        logo_url.lower() not in ['', 'none', 'null']
                                         else None
                                     ),
                                     'group_name': (
-                                        group_name if group_name and 
-                                        group_name.lower() not in ['', 'none', 'null'] 
+                                        group_name if group_name and
+                                        group_name.lower() not in ['', 'none', 'null']
                                         else None
                                     ),
                                     'tvg_id': (
-                                        tvg_id if tvg_id and 
-                                        tvg_id.lower() not in ['', 'none', 'null'] 
+                                        tvg_id if tvg_id and
+                                        tvg_id.lower() not in ['', 'none', 'null']
                                         else None
                                     ),
                                     'tvg_chno': (
-                                        tvg_chno if tvg_chno and 
-                                        tvg_chno.lower() not in ['', 'none', 'null'] 
+                                        tvg_chno if tvg_chno and
+                                        tvg_chno.lower() not in ['', 'none', 'null']
                                         else None
                                     ),
                                     'tvg_shift': (
-                                        tvg_shift if tvg_shift and 
-                                        tvg_shift.lower() not in ['', 'none', 'null'] 
+                                        tvg_shift if tvg_shift and
+                                        tvg_shift.lower() not in ['', 'none', 'null']
                                         else None
                                     ),
                                     'catchup': catchup,  # 直接使用catchup值，第68-75行已经处理了空字符串转换
                                     'catchup_days': (
-                                        catchup_days if catchup_days and 
-                                        catchup_days.lower() not in ['', 'none', 'null'] 
+                                        catchup_days if catchup_days and
+                                        catchup_days.lower() not in ['', 'none', 'null']
                                         else None
                                     ),
                                     'catchup_source': (
-                                        catchup_source if catchup_source and 
-                                        catchup_source.lower() not in ['', 'none', 'null'] 
+                                        catchup_source if catchup_source and
+                                        catchup_source.lower() not in ['', 'none', 'null']
                                         else None
                                     ),
                                     'resolution': (
-                                        resolution if resolution and 
-                                        resolution.lower() not in ['', 'none', 'null'] 
+                                        resolution if resolution and
+                                        resolution.lower() not in ['', 'none', 'null']
                                         else None
                                     )
                                 }
@@ -135,7 +139,7 @@ def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
             standard_name = unique_key.split('||')[0]
         else:
             standard_name = unique_key
-            
+
         for raw_name in data['raw_names']:
             reverse_mappings[raw_name] = {
                 'standard_name': standard_name,
@@ -463,7 +467,7 @@ class ChannelMappingManager:
                     standard_name = unique_key.split('||')[0]
                 else:
                     standard_name = unique_key
-                    
+
                 if not standard_name or standard_name.isspace():
                     continue
                 normalized_standard = re.sub(r'\s+', ' ', standard_name.strip()).lower()
@@ -513,7 +517,7 @@ class ChannelMappingManager:
                 else:
                     standard_name = unique_key
                     raw_name = data.get('raw_names', [''])[0] if data.get('raw_names') else ''
-                    
+
                 entry = {
                     'unique_key': unique_key,
                     'standard_name': standard_name,

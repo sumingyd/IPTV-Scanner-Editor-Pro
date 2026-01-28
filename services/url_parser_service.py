@@ -123,16 +123,16 @@ class URLRangeParser:
             if not ranges:
                 yield ()
                 return
-            
+
             # 获取第一个范围
             first_range = ranges[0]
             first_values = range(first_range['start'], first_range['end'] + 1)
-            
+
             # 递归处理剩余范围
             for rest in lazy_product(ranges[1:]):
                 for num in first_values:
                     yield (str(num).zfill(first_range['zero_pad']),) + rest
-        
+
         return lazy_product(ranges_info)
 
     def _build_url_from_parts(self, url_parts, ranges_info, values):

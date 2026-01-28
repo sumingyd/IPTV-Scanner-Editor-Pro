@@ -122,11 +122,11 @@ class ScanStateManager:
                     else:
                         url_set = set(invalid_urls)
                         self._scan_states[scan_id]['_url_set'] = url_set
-                    
+
                     if url not in url_set:
                         url_set.add(url)
                         invalid_urls.append(url)
-                        
+
                         # 定期清理，避免列表过大
                         if len(invalid_urls) % 10000 == 0:
                             # 每1万个URL清理一次重复项
@@ -195,11 +195,11 @@ class ScanStateManager:
                     else:
                         url_set = set(failed_channels)
                         self._retry_states[retry_id]['_failed_url_set'] = url_set
-                    
+
                     if url not in url_set:
                         url_set.add(url)
                         failed_channels.append(url)
-                        
+
                         # 定期清理，避免列表过大
                         if len(failed_channels) % 10000 == 0:
                             # 每1万个URL清理一次重复项
