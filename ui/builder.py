@@ -646,7 +646,9 @@ class UIBuilder(QtCore.QObject):
         """添加扫描控件到布局"""
         address_format_label = QtWidgets.QLabel("地址格式：")
         self.main_window.address_format_label = address_format_label
-        address_example_label = QtWidgets.QLabel("示例：http://192.168.1.1:1234/rtp/10.10.[1-20].[1-20]:5002   [1-20]表示范围")
+        address_example_label = QtWidgets.QLabel(
+            "示例：http://192.168.1.1:1234/rtp/10.10.[1-20].[1-20]:5002   [1-20]表示范围"
+        )
         self.main_window.address_example_label = address_example_label
         scan_layout.addRow(address_format_label, address_example_label)
         input_address_label = QtWidgets.QLabel("输入地址：")
@@ -830,7 +832,7 @@ class UIBuilder(QtCore.QObject):
 
         # 添加频道编辑区域
         self._setup_channel_edit(self.main_window.channel_splitter)
-        
+
         # 在应用程序启动时就创建媒体信息显示区域
         # 延迟创建，确保UI完全初始化
         QtCore.QTimer.singleShot(100, self._create_media_info_widget)
@@ -1240,12 +1242,17 @@ class UIBuilder(QtCore.QObject):
                             try:
                                 if stdout.strip():
                                     data = json.loads(stdout)
-                                    self.ui_builder.logger.info(f"成功解析JSON数据，格式信息: {data.get('format', {}).get('format_name', '未知')}")
+                                    format_info = data.get('format', {}).get('format_name', '未知')
+                                    self.ui_builder.logger.info(f"成功解析JSON数据，格式信息: {format_info}")
                                     # 在主线程中显示分析结果
                                     self.ui_builder.logger.info("准备调用_show_media_info")
                                     # 使用functools.partial确保函数被正确调用
                                     import functools
-                                    show_func = functools.partial(self.ui_builder._show_media_info, data, self.current_name)
+                                    show_func = functools.partial(
+                                        self.ui_builder._show_media_info,
+                                        data,
+                                        self.current_name
+                                    )
                                     QtCore.QTimer.singleShot(0, show_func)
                                 else:
                                     self.ui_builder.logger.warning("ffprobe返回空输出")
@@ -1256,23 +1263,23 @@ class UIBuilder(QtCore.QObject):
                                         )
                                     )
                             except json.JSONDecodeError as json_error:
-                                self.ui_builder.logger.error(f"JSON解析失败: {json_error}")
+                                error_msg = f"JSON解析失败: {json_error}"
+                                self.ui_builder.logger.error(error_msg)
                                 QtCore.QTimer.singleShot(
                                     0,
-                                    lambda: self.ui_builder._handle_analyze_error(
-                                        f"JSON解析失败: {json_error}"
-                                    )
+                                    lambda msg=error_msg: self.ui_builder._handle_analyze_error(msg)
                                 )
                             except Exception as parse_error:
-                                self.ui_builder.logger.error(f"解析失败: {parse_error}")
+                                error_msg = f"解析失败: {parse_error}"
+                                self.ui_builder.logger.error(error_msg)
                                 QtCore.QTimer.singleShot(
                                     0,
-                                    lambda: self.ui_builder._handle_analyze_error(
-                                        str(parse_error)
-                                    )
+                                    lambda msg=error_msg: self.ui_builder._handle_analyze_error(msg)
                                 )
                         else:
-                            self.ui_builder.logger.error(f"ffprobe执行失败: {stderr.strip()}")
+                            self.ui_builder.logger.error(
+                                f"ffprobe执行失败: {stderr.strip()}"
+                            )
                             QtCore.QTimer.singleShot(
                                 0,
                                 lambda: self.ui_builder._handle_analyze_error(
@@ -1290,12 +1297,11 @@ class UIBuilder(QtCore.QObject):
                             )
                         )
                     except Exception as timeout_error:
-                        self.ui_builder.logger.error(f"ffprobe执行异常: {timeout_error}")
+                        error_msg = f"ffprobe执行异常: {timeout_error}"
+                        self.ui_builder.logger.error(error_msg)
                         QtCore.QTimer.singleShot(
                             0,
-                            lambda: self.ui_builder._handle_analyze_error(
-                                str(timeout_error)
-                            )
+                            lambda msg=error_msg: self.ui_builder._handle_analyze_error(msg)
                         )
 
                 except Exception as e:
@@ -1959,9 +1965,14 @@ class UIBuilder(QtCore.QObject):
 
         # 回看模式下拉框（替换原来的输入框）
         self.main_window.channel_catchup_combo = QtWidgets.QComboBox()
-        self.main_window.channel_catchup_combo.addItems(["", "default", "vod", "append", "shift", "flussonic", "flussonic-ts", "flussonic-dash", "none"])
+        self.main_window.channel_catchup_combo.addItems([
+            "", "default", "vod", "append", "shift",
+            "flussonic", "flussonic-ts", "flussonic-dash", "none"
+        ])
         self.main_window.channel_catchup_combo.setPlaceholderText("选择回看模式")
-        self.main_window.channel_catchup_combo.setToolTip("选择回看模式，如'default'、'vod'、'none'等")
+        self.main_window.channel_catchup_combo.setToolTip(
+            "选择回看模式，如'default'、'vod'、'none'等"
+        )
 
         # 回看天数输入
         self.main_window.channel_catchup_days_edit = QtWidgets.QLineEdit()
@@ -2276,40 +2287,43 @@ class UIBuilder(QtCore.QObject):
 
         # 获取当前排序状态
         header = self.main_window.channel_list.horizontalHeader()
-        
+
         # 使用模型来跟踪排序状态，而不是依赖表头
         if not hasattr(self.main_window.model, '_header_sort_state'):
             self.main_window.model._header_sort_state = {}
-        
+
         # 获取当前列的排序状态
         current_order = self.main_window.model._header_sort_state.get(column, QtCore.Qt.SortOrder.AscendingOrder)
-        
+
         # 记录当前状态
         self.logger.info(f"表头点击: 列={column}, 当前顺序={current_order}")
-        
+
         # 切换排序顺序
         if current_order == QtCore.Qt.SortOrder.AscendingOrder:
             new_order = QtCore.Qt.SortOrder.DescendingOrder
         else:
             new_order = QtCore.Qt.SortOrder.AscendingOrder
-        
+
         # 保存新的排序状态
         self.main_window.model._header_sort_state[column] = new_order
-        
+
         # 更新表头排序指示器
         header.setSortIndicator(column, new_order)
-        
+
         # 执行排序
         self.main_window.model.sort(column, new_order)
-        
+
         # 显示排序状态
-        column_name = self.main_window.model.headers[column] if column < len(self.main_window.model.headers) else f"列{column}"
+        if column < len(self.main_window.model.headers):
+            column_name = self.main_window.model.headers[column]
+        else:
+            column_name = f"列{column}"
         order_text = "升序" if new_order == QtCore.Qt.SortOrder.AscendingOrder else "降序"
         self.main_window.statusBar().showMessage(f"已按 {column_name} {order_text} 排序", 2000)
-        
+
         # 记录调试信息
         self.logger.info(f"表头排序完成: 列={column}, 新顺序={new_order}")
-        
+
         # 强制刷新表头
         header.update()
 
@@ -2344,23 +2358,23 @@ class UIBuilder(QtCore.QObject):
 
 class HeaderDelegate(QtWidgets.QHeaderView):
     """自定义表头委托，支持关闭按钮"""
-    
+
     def __init__(self, parent=None, model=None):
         super().__init__(QtCore.Qt.Orientation.Horizontal, parent)
         self.model = model
         self.close_button_size = 16
         self.close_button_margin = 4
-        
+
         # 设置表头属性
         self.setSectionsClickable(True)
         self.setHighlightSections(True)
         self.setStretchLastSection(False)
-        
+
     def paintSection(self, painter, rect, logicalIndex):
         """绘制表头部分，包括关闭按钮"""
         # 调用父类绘制基本表头
         super().paintSection(painter, rect, logicalIndex)
-        
+
         # 检查是否是支持关闭的列
         actual_col = self.model._logical_to_actual_column(logicalIndex) if self.model else logicalIndex
         if actual_col in [2, 4, 5, 8, 9, 10, 11, 12, 13]:  # 支持关闭的列
@@ -2371,15 +2385,15 @@ class HeaderDelegate(QtWidgets.QHeaderView):
                 self.close_button_size,
                 self.close_button_size
             )
-            
+
             # 绘制关闭按钮背景
             painter.save()
             painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-            
+
             # 检查鼠标是否在关闭按钮上
             mouse_pos = self.mapFromGlobal(QtGui.QCursor.pos())
             is_hover = close_rect.contains(mouse_pos)
-            
+
             # 绘制圆形背景
             if is_hover:
                 painter.setBrush(QtGui.QColor(255, 100, 100, 200))
@@ -2387,9 +2401,9 @@ class HeaderDelegate(QtWidgets.QHeaderView):
             else:
                 painter.setBrush(QtGui.QColor(200, 200, 200, 150))
                 painter.setPen(QtGui.QColor(150, 150, 150, 150))
-            
+
             painter.drawEllipse(close_rect)
-            
+
             # 绘制关闭符号（X）
             painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255), 2))
             cross_margin = 4
@@ -2405,9 +2419,9 @@ class HeaderDelegate(QtWidgets.QHeaderView):
                 close_rect.left() + cross_margin,
                 close_rect.bottom() - cross_margin
             )
-            
+
             painter.restore()
-    
+
     def mousePressEvent(self, event):
         """处理鼠标点击事件"""
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
@@ -2418,7 +2432,7 @@ class HeaderDelegate(QtWidgets.QHeaderView):
                 section_rect = QtCore.QRect(
                     rect, 0, self.sectionSize(logicalIndex), self.height()
                 )
-                
+
                 # 检查是否是支持关闭的列
                 actual_col = self.model._logical_to_actual_column(logicalIndex) if self.model else logicalIndex
                 if actual_col in [2, 4, 5, 8, 9, 10, 11, 12, 13]:
@@ -2429,7 +2443,7 @@ class HeaderDelegate(QtWidgets.QHeaderView):
                         self.close_button_size,
                         self.close_button_size
                     )
-                    
+
                     if close_rect.contains(pos):
                         # 切换列的隐藏状态
                         if self.model:
@@ -2438,10 +2452,10 @@ class HeaderDelegate(QtWidgets.QHeaderView):
                             self.update()
                         event.accept()
                         return
-        
+
         # 如果不是点击关闭按钮，调用父类处理（用于排序等）
         super().mousePressEvent(event)
-    
+
     def sizeHint(self):
         """返回表头大小提示"""
         size = super().sizeHint()

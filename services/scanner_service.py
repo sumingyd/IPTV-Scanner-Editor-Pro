@@ -303,7 +303,7 @@ class ScannerController(QObject):
                     from services.validator_service import StreamValidator
                     validator = StreamValidator(self.main_window)
                     probe_result = validator._run_ffprobe(url, timeout=10)
-                    
+
                     if probe_result.get('resolution'):
                         updated_info['resolution'] = probe_result['resolution']
                     if probe_result.get('codec'):
@@ -425,7 +425,7 @@ class ScannerController(QObject):
                     break
 
                 batch_count += 1
-                
+
                 # 只更新统计信息，不记录所有URL
                 with self.stats_lock:
                     self.stats['total'] += len(batch)
@@ -439,7 +439,7 @@ class ScannerController(QObject):
                 # 保持队列适度填充，避免内存占用过高
                 while self.scan_queue.qsize() > 10000 and not self.stop_event.is_set():
                     time.sleep(0.1)
-                    
+
                 # 每处理100个批次后稍微休息，避免CPU占用过高
                 if batch_count % 100 == 0:
                     time.sleep(0.01)
