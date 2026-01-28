@@ -1184,17 +1184,17 @@ class UIBuilder(QtCore.QObject):
                 try:
                     # 执行ffprobe详细分析
                     validator = StreamValidator(self.ui_builder.main_window)
-                    
+
                     # 使用更详细的ffprobe命令获取完整信息
                     import subprocess
                     import json
                     import os
                     import sys
-                    
+
                     ffprobe_path = validator._get_ffprobe_path()
                     self.ui_builder.logger.info(f"ffprobe路径: {ffprobe_path}")
                     self.ui_builder.logger.info(f"分析URL: {self.url}")
-                    
+
                     cmd = [
                         ffprobe_path,
                         '-v', 'quiet',
@@ -1210,7 +1210,7 @@ class UIBuilder(QtCore.QObject):
                         cmd = [arg.replace('^', '^^').replace('&', '^&') for arg in cmd]
 
                     self.ui_builder.logger.info(f"执行命令: {' '.join(cmd)}")
-                    
+
                     # 设置环境变量和工作目录
                     env = os.environ.copy()
                     env['PATH'] = os.path.dirname(ffprobe_path) + os.pathsep + env['PATH']
@@ -1230,7 +1230,7 @@ class UIBuilder(QtCore.QObject):
                         stdout_bytes, stderr_bytes = process.communicate(timeout=self.timeout)
                         stdout = stdout_bytes.decode('utf-8', errors='replace')
                         stderr = stderr_bytes.decode('utf-8', errors='replace')
-                        
+
                         self.ui_builder.logger.info(f"ffprobe返回代码: {process.returncode}")
                         self.ui_builder.logger.info(f"stdout长度: {len(stdout)}")
                         self.ui_builder.logger.info(f"stderr: {stderr[:200]}")
@@ -1325,7 +1325,7 @@ class UIBuilder(QtCore.QObject):
         """显示媒体信息"""
         try:
             self.logger.info(f"开始显示媒体信息: {channel_name}")
-            
+
             # 使用统一的进度条管理器隐藏进度条
             progress_manager = get_progress_manager()
             progress_manager.hide_progress()
@@ -1334,12 +1334,12 @@ class UIBuilder(QtCore.QObject):
             if not hasattr(self.main_window, 'media_info_widget'):
                 self.logger.info("创建媒体信息显示区域")
                 self._create_media_info_widget()
-            
+
             # 确保媒体信息显示区域有内容
             if hasattr(self.main_window, 'media_info_initial_label'):
                 self.logger.info("隐藏初始提示文本")
                 self.main_window.media_info_initial_label.setVisible(False)
-            
+
             # 确保媒体信息容器可见
             if hasattr(self.main_window, 'media_info_container'):
                 self.logger.info("确保媒体信息容器可见")
@@ -1351,15 +1351,15 @@ class UIBuilder(QtCore.QObject):
 
             # 显示成功消息
             self.main_window.statusBar().showMessage(f"频道分析完成: {channel_name}", 3000)
-            
+
             # 强制刷新UI
             QtCore.QTimer.singleShot(0, lambda: self.main_window.media_info_widget.update())
             QtCore.QTimer.singleShot(0, lambda: self.main_window.media_info_scroll_area.update())
             QtCore.QTimer.singleShot(0, lambda: self.main_window.media_info_container.update())
-            
+
             # 确保滚动区域正确显示内容
             QtCore.QTimer.singleShot(100, lambda: self.main_window.media_info_scroll_area.ensureVisible(0, 0))
-            
+
             self.logger.info(f"媒体信息显示完成: {channel_name}")
         except Exception as e:
             self.logger.error(f"显示媒体信息时发生错误: {e}", exc_info=True)
@@ -1380,16 +1380,16 @@ class UIBuilder(QtCore.QObject):
         # 检查是否已经创建了媒体信息显示区域
         if hasattr(self.main_window, 'media_info_widget'):
             return
-        
+
         # 获取现有的编辑区域布局
         if not hasattr(self.main_window, 'edit_group'):
             return
-        
+
         edit_group = self.main_window.edit_group
         main_layout = edit_group.layout()
         if not main_layout:
             return
-        
+
         # 找到内容部件和按钮部件
         content_widget = None
         button_widget = None
@@ -1403,43 +1403,43 @@ class UIBuilder(QtCore.QObject):
                 # 检查是否是按钮部件
                 elif widget.layout() and isinstance(widget.layout(), QtWidgets.QHBoxLayout):
                     button_widget = widget
-        
+
         if not content_widget or not button_widget:
             return
-        
+
         # 创建新的主布局（水平分割）
         new_main_widget = QtWidgets.QWidget()
         new_main_layout = QtWidgets.QHBoxLayout()
         new_main_layout.setContentsMargins(5, 5, 5, 5)
         new_main_layout.setSpacing(10)
-        
+
         # 左侧：现有的频道编辑内容
         left_widget = QtWidgets.QWidget()
         left_layout = QtWidgets.QVBoxLayout()
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(5)
-        
+
         # 添加内容部件
         left_layout.addWidget(content_widget)
-        
+
         # 添加按钮部件
         left_layout.addWidget(button_widget)
-        
+
         left_widget.setLayout(left_layout)
         new_main_layout.addWidget(left_widget, 1)  # 权重为1
-        
+
         # 右侧：媒体信息显示区域（初始为空）
         media_info_widget = QtWidgets.QWidget()
         media_info_layout = QtWidgets.QVBoxLayout()
         media_info_layout.setContentsMargins(5, 5, 5, 5)
         media_info_layout.setSpacing(5)
-        
+
         # 创建滚动区域用于显示媒体信息
         scroll_area = QtWidgets.QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        
+
         # 创建媒体信息显示容器
         media_info_container = QtWidgets.QWidget()
         self.main_window.media_info_container = media_info_container
@@ -1447,31 +1447,31 @@ class UIBuilder(QtCore.QObject):
         self.main_window.media_info_layout.setContentsMargins(5, 5, 5, 5)
         self.main_window.media_info_layout.setSpacing(5)
         media_info_container.setLayout(self.main_window.media_info_layout)
-        
+
         # 添加初始提示文本
         initial_label = QtWidgets.QLabel("📺 媒体信息区域\n\n右键点击频道列表中的频道，选择'分析频道详细'来显示媒体信息")
         initial_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         initial_label.setStyleSheet("color: #666; font-size: 12px; padding: 20px;")
         self.main_window.media_info_layout.addWidget(initial_label)
-        
+
         scroll_area.setWidget(media_info_container)
         media_info_layout.addWidget(scroll_area)
-        
+
         media_info_widget.setLayout(media_info_layout)
         new_main_layout.addWidget(media_info_widget, 1)  # 权重为1
-        
+
         new_main_widget.setLayout(new_main_layout)
-        
+
         # 替换编辑区域的内容
         # 首先从原布局中移除所有部件
         while main_layout.count():
             item = main_layout.takeAt(0)
             if item.widget():
                 item.widget().setParent(None)
-        
+
         # 添加新的主部件
         main_layout.addWidget(new_main_widget)
-        
+
         # 保存引用
         self.main_window.media_info_widget = media_info_widget
         self.main_window.media_info_scroll_area = scroll_area
@@ -1484,30 +1484,30 @@ class UIBuilder(QtCore.QObject):
         """更新媒体信息显示"""
         if not hasattr(self.main_window, 'media_info_layout'):
             return
-        
+
         # 清空现有的媒体信息
         while self.main_window.media_info_layout.count():
             item = self.main_window.media_info_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
-        
+
         # 添加频道名称标题
         title_label = QtWidgets.QLabel(f"📺 频道: {channel_name}")
         title_label.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 10px;")
         self.main_window.media_info_layout.addWidget(title_label)
-        
+
         # 添加分隔线
         separator = QtWidgets.QFrame()
         separator.setFrameShape(QtWidgets.QFrame.Shape.HLine)
         separator.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
         self.main_window.media_info_layout.addWidget(separator)
-        
+
         # 解析并显示格式信息
         if 'format' in data:
             format_info = data['format']
             format_group = self._create_info_group("容器格式", format_info)
             self.main_window.media_info_layout.addWidget(format_group)
-        
+
         # 解析并显示流信息
         if 'streams' in data and data['streams']:
             # 视频流
@@ -1516,21 +1516,21 @@ class UIBuilder(QtCore.QObject):
                 for i, stream in enumerate(video_streams):
                     stream_group = self._create_stream_info_group(f"视频流 {i+1}", stream)
                     self.main_window.media_info_layout.addWidget(stream_group)
-            
+
             # 音频流
             audio_streams = [s for s in data['streams'] if s.get('codec_type') == 'audio']
             if audio_streams:
                 for i, stream in enumerate(audio_streams):
                     stream_group = self._create_stream_info_group(f"音频流 {i+1}", stream)
                     self.main_window.media_info_layout.addWidget(stream_group)
-            
+
             # 其他流
             other_streams = [s for s in data['streams'] if s.get('codec_type') not in ['video', 'audio']]
             if other_streams:
                 for i, stream in enumerate(other_streams):
                     stream_group = self._create_stream_info_group(f"其他流 {i+1}", stream)
                     self.main_window.media_info_layout.addWidget(stream_group)
-        
+
         # 添加弹性空间
         self.main_window.media_info_layout.addStretch()
 
@@ -1540,14 +1540,14 @@ class UIBuilder(QtCore.QObject):
         layout = QtWidgets.QFormLayout()
         layout.setContentsMargins(5, 10, 5, 10)
         layout.setSpacing(5)
-        
+
         # 获取语言管理器
         language_manager = getattr(self.main_window, 'language_manager', None)
-        
+
         for key, value in info_dict.items():
             # 国际化键名
             display_key = self._get_localized_key(key, language_manager)
-            
+
             if isinstance(value, dict):
                 # 嵌套字典，递归处理
                 sub_group = self._create_info_group(display_key, value)
@@ -1563,7 +1563,7 @@ class UIBuilder(QtCore.QObject):
                 value_label = QtWidgets.QLabel(str(value))
                 value_label.setWordWrap(True)  # 启用自动换行
                 layout.addRow(f"{display_key}:", value_label)
-        
+
         group.setLayout(layout)
         return group
 
@@ -1572,10 +1572,10 @@ class UIBuilder(QtCore.QObject):
         # 如果语言管理器不存在，尝试从主窗口获取
         if not language_manager and hasattr(self.main_window, 'language_manager'):
             language_manager = self.main_window.language_manager
-        
+
         if not language_manager:
             return key
-        
+
         # 媒体信息键名映射
         key_mapping = {
             # 通用键名
@@ -1590,7 +1590,7 @@ class UIBuilder(QtCore.QObject):
             'size': '大小',
             'bit_rate': '比特率',
             'tags': '标签',
-            
+
             # 流信息键名
             'index': '索引',
             'codec_name': '编解码器名称',
@@ -1651,7 +1651,7 @@ class UIBuilder(QtCore.QObject):
             'metadata': '元数据',
             'dependent': '依赖',
             'still_image': '静态图像',
-            
+
             # 其他常见键名
             'programs': '节目',
             'stream_groups': '流组',
@@ -1663,18 +1663,18 @@ class UIBuilder(QtCore.QObject):
             'data': '数据',
             'attachment': '附件',
         }
-        
+
         # 尝试从语言管理器获取翻译
         translation_key = f"media_info_{key}"
         # 首先尝试从映射中获取，如果没有则使用键名本身
         default_translation = key_mapping.get(key, key)
         translated = language_manager.tr(translation_key, default_translation)
-        
+
         # 如果翻译结果仍然是键名本身，尝试使用通用翻译
         if translated == key:
             # 尝试将下划线转换为空格作为显示名称
             translated = key.replace('_', ' ')
-        
+
         return translated
 
     def _create_stream_info_group(self, title, stream_info):
@@ -1683,10 +1683,10 @@ class UIBuilder(QtCore.QObject):
         layout = QtWidgets.QFormLayout()
         layout.setContentsMargins(5, 10, 5, 10)
         layout.setSpacing(5)
-        
+
         # 获取语言管理器
         language_manager = getattr(self.main_window, 'language_manager', None)
-        
+
         # 显示关键信息
         important_keys = [
             'codec_name', 'codec_long_name', 'codec_type', 'width', 'height',
@@ -1694,7 +1694,7 @@ class UIBuilder(QtCore.QObject):
             'sample_fmt', 'sample_rate', 'channels', 'channel_layout',
             'bit_rate', 'profile', 'level'
         ]
-        
+
         for key in important_keys:
             if key in stream_info:
                 value = stream_info[key]
@@ -1704,7 +1704,7 @@ class UIBuilder(QtCore.QObject):
                     value_label = QtWidgets.QLabel(str(value))
                     value_label.setWordWrap(True)  # 启用自动换行
                     layout.addRow(f"{display_key}:", value_label)
-        
+
         # 如果有其他信息，添加到折叠区域
         other_keys = [k for k in stream_info.keys() if k not in important_keys and stream_info[k]]
         if other_keys:
@@ -1713,18 +1713,18 @@ class UIBuilder(QtCore.QObject):
             expand_button.setCheckable(True)
             expand_button.setChecked(False)
             expand_button.setStyleSheet("QPushButton { border: none; color: #0078d7; }")
-            
+
             # 创建详细信息区域
             details_widget = QtWidgets.QWidget()
             details_layout = QtWidgets.QFormLayout()
             details_layout.setContentsMargins(10, 5, 5, 5)
             details_layout.setSpacing(3)
-            
+
             for key in other_keys:
                 value = stream_info[key]
                 # 国际化键名
                 display_key = self._get_localized_key(key, language_manager)
-                
+
                 if isinstance(value, dict):
                     # 嵌套字典
                     for sub_key, sub_value in value.items():
@@ -1736,16 +1736,16 @@ class UIBuilder(QtCore.QObject):
                     value_label = QtWidgets.QLabel(str(value))
                     value_label.setWordWrap(True)  # 启用自动换行
                     details_layout.addRow(f"{display_key}:", value_label)
-            
+
             details_widget.setLayout(details_layout)
             details_widget.setVisible(False)
-            
+
             # 连接按钮点击事件
             expand_button.toggled.connect(details_widget.setVisible)
-            
+
             layout.addRow(expand_button)
             layout.addRow(details_widget)
-        
+
         group.setLayout(layout)
         return group
 
