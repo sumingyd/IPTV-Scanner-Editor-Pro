@@ -148,5 +148,9 @@
   "group_hint_empty": "提示：频道列表当前为空。分组是从保存的配置中加载的。您可以通过拖拽调整它们的优先级顺序。",
   "group_hint_normal": "提示：以下显示的是当前列表中的所有分组名称。您可以通过拖拽调整它们的优先级顺序。",
   "drag_hint": "💡 提示：拖拽分组名称可以调整优先级顺序，拖拽时会显示插入位置",
-  "mapping_order": "映射文件顺序"
+  "mapping_order": "映射文件顺序",
+  "confirm_delete_multiple": "确认删除多个频道",
+  "delete_channels_confirm": "确定要删除选中的 {count} 个频道吗?",
+  "channel_deleted": "频道已删除",
+  "channels_deleted": "{count} 个频道已删除"
 }
