@@ -1757,27 +1757,62 @@ class UIBuilder(QtCore.QObject):
         return group
 
     def _delete_selected_channel(self, index):
-        """删除选中的频道"""
-        if not index.isValid():
+        """删除选中的频道（支持多选）"""
+        # 获取所有选中的行
+        selection_model = self.main_window.channel_list.selectionModel()
+        selected_rows = selection_model.selectedRows()
+        
+        if not selected_rows:
             return
 
-        # 使用统一的确认对话框
-        confirmed = show_confirm(
-            self.main_window.language_manager.tr(
-                'confirm_delete', 'Confirm Delete'
-            ),
-            self.main_window.language_manager.tr(
-                'delete_channel_confirm',
-                'Are you sure you want to delete this channel?'
-            ),
-            parent=self.main_window
-        )
+        # 根据选中数量显示不同的确认消息
+        if len(selected_rows) == 1:
+            # 单个删除确认
+            confirmed = show_confirm(
+                self.main_window.language_manager.tr(
+                    'confirm_delete', 'Confirm Delete'
+                ),
+                self.main_window.language_manager.tr(
+                    'delete_channel_confirm',
+                    'Are you sure you want to delete this channel?'
+                ),
+                parent=self.main_window
+            )
+        else:
+            # 多个删除确认
+            confirmed = show_confirm(
+                self.main_window.language_manager.tr(
+                    'confirm_delete_multiple', 'Confirm Delete Multiple'
+                ),
+                self.main_window.language_manager.tr(
+                    'delete_channels_confirm',
+                    'Are you sure you want to delete {count} selected channels?'
+                ).format(count=len(selected_rows)),
+                parent=self.main_window
+            )
 
         if confirmed:
-            self.main_window.model.removeRow(index.row())
+            # 按行号从大到小排序，避免删除时索引变化
+            rows_to_delete = sorted([row.row() for row in selected_rows], reverse=True)
+            
+            for row in rows_to_delete:
+                self.main_window.model.removeRow(row)
+            
             if hasattr(self.main_window, 'validate_status_label'):
                 self.main_window.validate_status_label.setText(
                     f"检测: {self.main_window.model.rowCount()}/0"
+                )
+            
+            # 显示删除成功的消息
+            if len(rows_to_delete) == 1:
+                self.main_window.statusBar().showMessage(
+                    self.main_window.language_manager.tr('channel_deleted', 'Channel deleted'),
+                    3000
+                )
+            else:
+                self.main_window.statusBar().showMessage(
+                    self.main_window.language_manager.tr('channels_deleted', '{count} channels deleted').format(count=len(rows_to_delete)),
+                    3000
                 )
 
     def _setup_channel_edit(self, parent) -> QtWidgets.QWidget:
