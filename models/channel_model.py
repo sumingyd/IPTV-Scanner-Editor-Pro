@@ -725,6 +725,16 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 # 更新频道数据
                 self.channels[i].update(channel_info)
 
+                # 同时更新原始数据存储（如果存在）
+                if url in self._original_channel_data:
+                    # 更新原始数据存储中的对应频道
+                    original_channel = self._original_channel_data[url]
+                    # 只更新原始数据中存在的字段
+                    for key in ['name', 'group', 'logo', 'tvg_id', 'resolution',
+                                'tvg_chno', 'tvg_shift', 'catchup', 'catchup_days', 'catchup_source']:
+                        if key in channel_info:
+                            original_channel[key] = channel_info[key]
+
                 # 更新名称和分组缓存
                 if 'name' in channel_info:
                     self._name_cache.add(channel_info['name'])
@@ -759,12 +769,28 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         if not (0 <= index < len(self.channels)):
             return False
 
+        # 获取当前频道的URL
+        channel = self.channels[index]
+        url = channel.get('url', '')
+        if not url:
+            return False
+
         # 记录原始数据用于调试
-        old_name = self.channels[index].get('name', '')
-        old_group = self.channels[index].get('group', '')
+        old_name = channel.get('name', '')
+        old_group = channel.get('group', '')
 
         # 更新频道数据
         self.channels[index].update(new_channel)
+
+        # 同时更新原始数据存储（如果存在）
+        if url in self._original_channel_data:
+            # 更新原始数据存储中的对应频道
+            original_channel = self._original_channel_data[url]
+            # 只更新原始数据中存在的字段
+            for key in ['name', 'group', 'logo', 'tvg_id', 'resolution',
+                        'tvg_chno', 'tvg_shift', 'catchup', 'catchup_days', 'catchup_source']:
+                if key in new_channel:
+                    original_channel[key] = new_channel[key]
 
         # 更新名称和分组缓存
         if 'name' in new_channel:
