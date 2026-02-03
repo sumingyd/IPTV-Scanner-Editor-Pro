@@ -507,10 +507,14 @@ class ChannelMappingManager:
         """获取映射建议"""
         suggestions = []
 
-        # 基于指纹历史记录提供建议
-        for fingerprint, data in self.channel_fingerprints.items():
-            if data['raw_name'] == raw_name and data['mapped_name'] != raw_name:
-                suggestions.append(data['mapped_name'])
+        # 基于指纹历史记录提供建议 - 使用锁保护字典访问
+        with self.fingerprint_lock:
+            # 创建字典的副本进行遍历，避免迭代时字典被修改
+            fingerprints_copy = self.channel_fingerprints.copy()
+            
+            for fingerprint, data in fingerprints_copy.items():
+                if data['raw_name'] == raw_name and data['mapped_name'] != raw_name:
+                    suggestions.append(data['mapped_name'])
 
         # 去重并返回
         return list(set(suggestions))
