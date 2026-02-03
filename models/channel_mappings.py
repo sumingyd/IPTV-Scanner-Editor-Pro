@@ -368,7 +368,11 @@ class ChannelMappingManager:
         return hashlib.md5(fingerprint_str.encode()).hexdigest()
 
     def learn_from_scan_result(self, url: str, raw_name: str, channel_info: dict, mapped_name: str):
-        """从扫描结果中学习并完善映射规则"""
+        """从扫描结果中学习并完善映射规则 - 优化版本"""
+        # 优化1：如果映射名称就是原始名称，不记录学习（避免噪音）
+        if mapped_name == raw_name:
+            return
+        
         fingerprint = self.create_channel_fingerprint(url, channel_info)
 
         # 记录指纹与映射关系
@@ -381,13 +385,20 @@ class ChannelMappingManager:
                 'count': 1
             }
         else:
+            # 优化2：只增加计数，不更新映射名称（保持第一次的有效映射）
             self.channel_fingerprints[fingerprint]['count'] += 1
             self.channel_fingerprints[fingerprint]['last_seen'] = time.time()
 
-        # 如果某个指纹频繁出现但映射不稳定，建议用户添加映射
+        # 优化3：只有当两个映射名称都有效且不同时才警告
+        # 避免原始名称 vs 映射名称的虚假警告
         if self.channel_fingerprints[fingerprint]['count'] >= 3:
             current_mapped = self.channel_fingerprints[fingerprint]['mapped_name']
-            if current_mapped != mapped_name:
+            
+            # 只有当两个都是有效映射名称时才警告
+            if (current_mapped and mapped_name and 
+                current_mapped != mapped_name and
+                current_mapped != raw_name and  # 原始名称不算有效映射
+                mapped_name != raw_name):       # 原始名称不算有效映射
                 self.logger.warning(f"频道映射不稳定: {raw_name} -> {current_mapped} vs {mapped_name}")
 
         self._save_channel_fingerprints()

@@ -152,31 +152,84 @@ class StreamValidator:
         except Exception:
             return url
 
+    def _quick_tcp_check(self, url: str, timeout: int = 1) -> bool:
+        """TCP连接快速检查 - 先检查基本连通性"""
+        import socket
+        from urllib.parse import urlparse
+        
+        try:
+            parsed = urlparse(url)
+            host = parsed.hostname
+            if not host:
+                return False
+            
+            # 对于UDP/RTP协议，不进行TCP检查，直接返回True
+            # 因为这些是面向无连接的协议，TCP检查没有意义
+            scheme = parsed.scheme.lower()
+            if scheme in ['udp', 'rtp', 'rtsp']:
+                return True
+                
+            # 获取端口
+            port = parsed.port
+            if not port:
+                # 根据协议使用默认端口
+                if scheme == 'http':
+                    port = 80
+                elif scheme == 'https':
+                    port = 443
+                else:
+                    port = 80  # 其他协议默认80
+            
+            # 解析主机名（支持域名和IP）
+            try:
+                # 如果是IP地址，直接使用
+                socket.inet_aton(host)
+                ip = host
+            except socket.error:
+                # 如果是域名，解析为IP
+                ip = socket.gethostbyname(host)
+            
+            # 尝试TCP连接
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(timeout)
+            result = sock.connect_ex((ip, port))
+            sock.close()
+            
+            return result == 0  # 0表示连接成功
+        except Exception:
+            return False
+
     def _run_ffprobe_test(self, url: str, timeout: int) -> Dict:
-        """运行ffprobe测试流有效性 - 快速验证方法"""
+        """运行ffprobe测试流有效性 - 优化版本"""
         result = {}
 
         try:
-            # 确保信号量已初始化
+            # 1. 先进行快速TCP检查（1秒超时）
+            tcp_timeout = min(1, timeout // 3)  # 使用1秒或timeout的1/3
+            if not self._quick_tcp_check(url, tcp_timeout):
+                result['error'] = "TCP连接失败"
+                return result
+
+            # 2. 确保信号量已初始化
             if self._semaphore is None:
-                # 使用默认值5作为后备
                 default_max_processes = 5
                 self._max_concurrent_processes = default_max_processes
                 self._semaphore = threading.Semaphore(default_max_processes)
 
-            # 获取信号量，限制并发进程数
+            # 3. 获取信号量，限制并发进程数
             with self._semaphore:
                 ffprobe_path = self._get_ffprobe_path()
 
-                # 构建ffprobe命令 - 增加超时时间
-                # 用户手动测试使用5秒超时，但某些URL需要更长时间
-                # 使用10秒超时（10000000微秒）
+                # 构建优化的ffprobe命令
+                # 使用更小的探测大小和更合适的参数
                 cmd = [
                     ffprobe_path,
                     '-v', 'error',
-                    '-timeout', '10000000',  # 10秒超时（增加超时时间）
-                    '-probesize', '10000000',
-                    '-show_format',
+                    '-timeout', f'{timeout * 1000000}',  # 使用传入的timeout（秒转微秒）
+                    '-probesize', '500000',  # 减少到500KB（原10MB）
+                    '-analyzeduration', '1000000',  # 分析时长1秒
+                    '-show_entries', 'format=duration:stream=codec_type',  # 只获取必要信息
+                    '-of', 'json',  # JSON格式输出
                     url
                 ]
 
@@ -205,38 +258,44 @@ class StreamValidator:
             self._current_process = process
 
             try:
-                # 增加超时时间：使用timeout + 2秒，确保比ffprobe的-timeout更长
-                # ffprobe的-timeout是5000000微秒（5秒），所以Python超时至少7秒
-                python_timeout = max(timeout, 7)  # 至少7秒
+                # 使用传入的timeout作为Python超时
+                python_timeout = timeout
                 stdout_bytes, stderr_bytes = process.communicate(timeout=python_timeout)
                 stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''
                 stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
 
-                # 检查是否为可接受的错误
+                # 检查输出
                 error_output = stderr.strip() or stdout.strip()
                 return_code = process.returncode
 
-                # 定义可接受的错误模式
-                # 注意：'Stream ends prematurely' 不应该视为可接受，因为用户测试无法播放
-                acceptable_errors = [
-                    'Error number -138 occurred',
-                    'non-existing PPS',
-                    'decode_slice_header error',
-                    'no frame',
-                    'sps_id out of range'
-                ]
-
-                is_acceptable_error = False
-                if error_output:
-                    for acceptable_error in acceptable_errors:
-                        if acceptable_error in error_output:
-                            is_acceptable_error = True
-                            break
-
-                if return_code == 0 or is_acceptable_error:
-                    # 如果是可接受错误，记录警告但不标记为错误
-                    if is_acceptable_error:
-                        result['warning'] = error_output[:200]  # 只取前200字符
+                # 严格判断：只有返回码为0才认为是有效流
+                # 移除"可接受错误"逻辑，避免错判
+                if return_code == 0:
+                    # 尝试解析JSON输出，验证是否有有效数据
+                    try:
+                        if stdout.strip():
+                            data = json.loads(stdout)
+                            # 检查是否有有效的流信息
+                            has_video = False
+                            if 'streams' in data:
+                                for stream in data['streams']:
+                                    if stream.get('codec_type') == 'video':
+                                        has_video = True
+                                        break
+                            
+                            if has_video or 'format' in data:
+                                # 有视频流或格式信息，认为是有效流
+                                pass
+                            else:
+                                result['error'] = "未检测到视频流"
+                        else:
+                            result['error'] = "ffprobe返回空输出"
+                    except json.JSONDecodeError:
+                        # 即使JSON解析失败，只要ffprobe返回0，也认为是有效
+                        # 有些流可能返回非JSON格式但仍然是有效的
+                        pass
+                    except Exception as e:
+                        result['error'] = f"解析输出失败: {str(e)}"
                 else:
                     # ffprobe失败，记录错误信息
                     result['error'] = error_output[:200] if error_output else f"返回代码: {return_code}"
