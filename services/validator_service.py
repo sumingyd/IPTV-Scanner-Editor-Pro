@@ -24,10 +24,10 @@ class StreamValidator:
             'Chrome/91.0.4472.124 Safari/537.36'
         )
     }
-    timeout = 10  # 默认超时时间
+    timeout = None  # 不再使用硬编码默认值，从调用者传入
     # 限制同时运行的ffprobe进程数量，避免资源竞争
-    _max_concurrent_processes = 5
-    _semaphore = threading.Semaphore(_max_concurrent_processes)
+    _max_concurrent_processes = None  # 不再硬编码，从调用者传入
+    _semaphore = None
 
     def __init__(self, main_window=None):
         self.logger = global_logger
@@ -157,38 +157,47 @@ class StreamValidator:
         result = {}
 
         try:
-            ffprobe_path = self._get_ffprobe_path()
+            # 确保信号量已初始化
+            if self._semaphore is None:
+                # 使用默认值5作为后备
+                default_max_processes = 5
+                self._max_concurrent_processes = default_max_processes
+                self._semaphore = threading.Semaphore(default_max_processes)
 
-            # 构建ffprobe命令 - 增加超时时间
-            # 用户手动测试使用5秒超时，但某些URL需要更长时间
-            # 使用10秒超时（10000000微秒）
-            cmd = [
-                ffprobe_path,
-                '-v', 'error',
-                '-timeout', '10000000',  # 10秒超时（增加超时时间）
-                '-probesize', '10000000',
-                '-show_format',
-                url
-            ]
+            # 获取信号量，限制并发进程数
+            with self._semaphore:
+                ffprobe_path = self._get_ffprobe_path()
 
-            # 在Windows上需要处理特殊字符
-            if sys.platform == 'win32':
-                cmd = [arg.replace('^', '^^').replace('&', '^&') for arg in cmd]
+                # 构建ffprobe命令 - 增加超时时间
+                # 用户手动测试使用5秒超时，但某些URL需要更长时间
+                # 使用10秒超时（10000000微秒）
+                cmd = [
+                    ffprobe_path,
+                    '-v', 'error',
+                    '-timeout', '10000000',  # 10秒超时（增加超时时间）
+                    '-probesize', '10000000',
+                    '-show_format',
+                    url
+                ]
 
-            # 设置环境变量和工作目录
-            env = os.environ.copy()
-            env['PATH'] = os.path.dirname(self._get_ffprobe_path()) + os.pathsep + env['PATH']
+                # 在Windows上需要处理特殊字符
+                if sys.platform == 'win32':
+                    cmd = [arg.replace('^', '^^').replace('&', '^&') for arg in cmd]
 
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=False,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
-                shell=False,
-                env=env,
-                cwd=os.path.dirname(self._get_ffprobe_path())
-            )
+                # 设置环境变量和工作目录
+                env = os.environ.copy()
+                env['PATH'] = os.path.dirname(self._get_ffprobe_path()) + os.pathsep + env['PATH']
+
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=False,
+                    creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
+                    shell=False,
+                    env=env,
+                    cwd=os.path.dirname(self._get_ffprobe_path())
+                )
 
             # 跟踪活动进程
             with self._process_lock:
