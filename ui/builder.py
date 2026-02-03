@@ -523,7 +523,13 @@ class UIBuilder(QtCore.QObject):
         timeout_layout.addWidget(timeout_label)
         self.main_window.timeout_input = QtWidgets.QSpinBox()
         self.main_window.timeout_input.setRange(1, 60)
-        self.main_window.timeout_input.setValue(10)
+        # 从配置文件加载默认值，如果没有则使用配置管理器的默认值
+        try:
+            settings = self.main_window.config.load_network_settings()
+            default_timeout = settings['timeout']
+        except Exception:
+            default_timeout = 30  # 配置管理器的默认值
+        self.main_window.timeout_input.setValue(default_timeout)
         self.main_window.timeout_input.setSuffix(" 秒")
         timeout_layout.addWidget(self.main_window.timeout_input)
         self.main_window.timeout_input.valueChanged.connect(
@@ -539,7 +545,13 @@ class UIBuilder(QtCore.QObject):
         thread_layout.addWidget(thread_label)
         self.main_window.thread_count_input = QtWidgets.QSpinBox()
         self.main_window.thread_count_input.setRange(1, 100)
-        self.main_window.thread_count_input.setValue(10)
+        # 从配置文件加载默认值，如果没有则使用配置管理器的默认值
+        try:
+            settings = self.main_window.config.load_network_settings()
+            default_threads = settings['threads']
+        except Exception:
+            default_threads = 5  # 配置管理器的默认值
+        self.main_window.thread_count_input.setValue(default_threads)
         thread_layout.addWidget(self.main_window.thread_count_input)
         self.main_window.thread_count_input.valueChanged.connect(
             lambda: self._save_network_settings()

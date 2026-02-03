@@ -214,29 +214,69 @@ class ScannerController(QObject):
         self, url: str, valid: bool, latency: int,
         resolution: str, result: dict
     ) -> dict:
-        """构建基本的频道信息字典 - 简化版本，详细信息异步获取"""
+        """构建基本的频道信息字典 - 优化版本，避免不必要的详细信息获取"""
         from models.channel_mappings import extract_channel_name_from_url
 
         try:
-            # 直接从URL提取频道名，不再尝试从媒体信息获取原始名称
+            # 直接从URL提取频道名
             channel_name = extract_channel_name_from_url(url)
+            
+            # 检查是否有映射信息
+            from models.channel_mappings import mapping_manager
+            has_mapping = False
+            mapped_info = None
+            
+            if valid:
+                # 快速检查是否有映射
+                channel_info_for_check = {
+                    'service_name': channel_name,
+                    'resolution': result.get('resolution', ''),
+                    'codec': result.get('codec', ''),
+                    'bitrate': result.get('bitrate', '')
+                }
+                
+                mapped_info = mapping_manager.get_channel_info(
+                    channel_name,
+                    url,
+                    channel_info_for_check
+                )
+                has_mapping = mapped_info is not None
 
-            # 构建基本频道信息（不包含详细信息）
+            # 构建频道信息
+            resolution_from_result = result.get('resolution', '')
+            resolution_from_mapping = mapped_info.get('resolution') if mapped_info else ''
             channel_info = {
                 'url': url,
-                'name': channel_name,  # 使用从URL提取的名称
+                'name': channel_name,
                 'raw_name': channel_name,
                 'valid': valid,
                 'latency': latency,
-                'resolution': '',  # 初始为空，异步获取
+                'resolution': resolution_from_result or resolution_from_mapping,
                 'status': '有效' if valid else '无效',
-                'group': '未分类',  # 初始分组
-                'logo_url': None,
-                'needs_details': valid  # 标记需要获取详细信息
+                'group': mapped_info.get('group_name', '未分类') if mapped_info else '未分类',
+                'logo_url': mapped_info.get('logo_url') if mapped_info else None,
+                'needs_details': valid and has_mapping  # 只有有映射的频道才需要获取详细信息
             }
-
-            # 如果频道有效，启动异步获取详细信息
-            if valid:
+            
+            # 如果有映射信息，更新其他字段
+            if mapped_info:
+                if mapped_info.get('standard_name'):
+                    channel_info['name'] = mapped_info['standard_name']
+                if mapped_info.get('tvg_id'):
+                    channel_info['tvg_id'] = mapped_info['tvg_id']
+                if mapped_info.get('tvg_chno'):
+                    channel_info['tvg_chno'] = mapped_info['tvg_chno']
+                if mapped_info.get('tvg_shift'):
+                    channel_info['tvg_shift'] = mapped_info['tvg_shift']
+                if mapped_info.get('catchup'):
+                    channel_info['catchup'] = mapped_info['catchup']
+                if mapped_info.get('catchup_days'):
+                    channel_info['catchup_days'] = mapped_info['catchup_days']
+                if mapped_info.get('catchup_source'):
+                    channel_info['catchup_source'] = mapped_info['catchup_source']
+            
+            # 如果频道有效且有映射，启动异步获取详细信息
+            if valid and has_mapping:
                 self._start_async_details_fetch(channel_info.copy())
 
             return channel_info
@@ -249,7 +289,7 @@ class ScannerController(QObject):
                 'raw_name': extract_channel_name_from_url(url),
                 'valid': valid,
                 'latency': latency,
-                'resolution': '',
+                'resolution': result.get('resolution', ''),
                 'status': '有效' if valid else '无效',
                 'group': '未分类',
                 'logo_url': None,
@@ -269,7 +309,7 @@ class ScannerController(QObject):
         thread.start()
 
     def _fetch_channel_details(self, channel_info: dict):
-        """获取频道详细信息（分辨率、编码、映射等）"""
+        """获取频道详细信息（仅用于有映射的频道）"""
         max_retries = 3
         retry_delays = [1, 2, 3]  # 重试延迟（秒）
 
@@ -277,17 +317,17 @@ class ScannerController(QObject):
             try:
                 url = channel_info['url']
 
-                # 首先获取映射信息 - 使用从URL提取的名称进行映射
+                # 获取映射信息
                 from models.channel_mappings import mapping_manager
                 channel_info_for_fingerprint = {
-                    'service_name': channel_info['raw_name'],  # 使用从URL提取的名称
-                    'resolution': '',  # 初始为空，优先从映射获取
-                    'codec': '',
-                    'bitrate': ''
+                    'service_name': channel_info['raw_name'],
+                    'resolution': channel_info.get('resolution', ''),
+                    'codec': channel_info.get('codec', ''),
+                    'bitrate': channel_info.get('bitrate', '')
                 }
 
                 mapped_info = mapping_manager.get_channel_info(
-                    channel_info['raw_name'],  # 使用从URL提取的名称
+                    channel_info['raw_name'],
                     url,
                     channel_info_for_fingerprint
                 )
@@ -295,39 +335,21 @@ class ScannerController(QObject):
                 # 更新频道信息
                 updated_info = channel_info.copy()
 
-                # 优先使用映射中的分辨率
-                if mapped_info and mapped_info.get('resolution'):
-                    updated_info['resolution'] = mapped_info['resolution']
-                else:
-                    # 如果映射中没有分辨率，再使用ffprobe获取
-                    from services.validator_service import StreamValidator
-                    validator = StreamValidator(self.main_window)
-                    probe_result = validator._run_ffprobe(url, timeout=10)
-
-                    if probe_result.get('resolution'):
-                        updated_info['resolution'] = probe_result['resolution']
-                    if probe_result.get('codec'):
-                        updated_info['codec'] = probe_result['codec']
-                    if probe_result.get('bitrate'):
-                        updated_info['bitrate'] = probe_result['bitrate']
-
-                # 更新其他映射信息
+                # 更新映射信息
                 if mapped_info:
-                    standard_name = mapped_info.get(
-                        'standard_name', updated_info['raw_name']
-                    )
-                    updated_info['name'] = standard_name
-                    updated_info['group'] = mapped_info.get(
-                        'group_name', '未分类'
-                    )
-
-                    # 确保logo_url是有效的URL字符串，不是None或空字符串
+                    # 更新标准名称
+                    if mapped_info.get('standard_name'):
+                        updated_info['name'] = mapped_info['standard_name']
+                    
+                    # 更新分组
+                    if mapped_info.get('group_name'):
+                        updated_info['group'] = mapped_info['group_name']
+                    
+                    # 更新logo
                     logo_url = mapped_info.get('logo_url')
                     if logo_url and isinstance(logo_url, str) and logo_url.strip():
                         updated_info['logo_url'] = logo_url.strip()
-                    else:
-                        updated_info['logo_url'] = None
-
+                    
                     # 更新其他映射字段
                     if mapped_info.get('tvg_id'):
                         updated_info['tvg_id'] = mapped_info['tvg_id']
@@ -341,23 +363,16 @@ class ScannerController(QObject):
                         updated_info['catchup_days'] = mapped_info['catchup_days']
                     if mapped_info.get('catchup_source'):
                         updated_info['catchup_source'] = mapped_info['catchup_source']
-
-                    updated_info['fingerprint'] = (
-                        mapping_manager.create_channel_fingerprint(
-                            url, channel_info_for_fingerprint
-                        )
+                    
+                    # 创建指纹
+                    updated_info['fingerprint'] = mapping_manager.create_channel_fingerprint(
+                        url, channel_info_for_fingerprint
                     )
-
-                # 确保所有必要的字段都存在
-                updated_info.setdefault('resolution', '')
-                updated_info.setdefault('group', '未分类')
-                updated_info.setdefault('logo_url', None)
-                updated_info.setdefault('status', '有效')
 
                 # 标记详细信息已获取
                 updated_info['needs_details'] = False
 
-                # 在主线程中更新频道信息 - 使用functools.partial避免lambda作用域问题
+                # 在主线程中更新频道信息
                 import functools
                 QtCore.QTimer.singleShot(
                     0, functools.partial(self._update_channel_details, updated_info)
@@ -375,10 +390,6 @@ class ScannerController(QObject):
                 else:
                     # 即使失败，也标记为不需要再获取
                     channel_info['needs_details'] = False
-                    # 确保频道信息有必要的字段
-                    channel_info.setdefault('resolution', '')
-                    channel_info.setdefault('group', '未分类')
-                    channel_info.setdefault('logo_url', None)
                     # 使用functools.partial避免lambda作用域问题
                     import functools
                     QtCore.QTimer.singleShot(
@@ -477,6 +488,9 @@ class ScannerController(QObject):
 
         from services.validator_service import StreamValidator
         StreamValidator.timeout = timeout
+        # 设置最大并发进程数
+        StreamValidator._max_concurrent_processes = thread_count
+        StreamValidator._semaphore = threading.Semaphore(thread_count)
         if user_agent:
             StreamValidator.headers['User-Agent'] = user_agent
         if referer:
