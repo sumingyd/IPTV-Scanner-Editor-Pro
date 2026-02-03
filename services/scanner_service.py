@@ -115,6 +115,9 @@ class ScannerController(QObject):
                             self._handle_channel_add, channel_info.copy()
                             )
                     )
+                    
+                    # 重要：启动异步映射检查（如果有需要）
+                    self._start_async_mapping_check(channel_info.copy())
 
                 # 统计信息更新 - 确保无论有效还是无效都更新
                 with self.stats_lock:
@@ -214,70 +217,35 @@ class ScannerController(QObject):
         self, url: str, valid: bool, latency: int,
         resolution: str, result: dict
     ) -> dict:
-        """构建基本的频道信息字典 - 优化版本，避免不必要的详细信息获取"""
+        """构建基本的频道信息字典 - 优化版本，只在异步线程中检查映射"""
         from models.channel_mappings import extract_channel_name_from_url
 
         try:
             # 直接从URL提取频道名
             channel_name = extract_channel_name_from_url(url)
-            
-            # 检查是否有映射信息
-            from models.channel_mappings import mapping_manager
-            has_mapping = False
-            mapped_info = None
-            
-            if valid:
-                # 快速检查是否有映射
-                channel_info_for_check = {
-                    'service_name': channel_name,
-                    'resolution': result.get('resolution', ''),
-                    'codec': result.get('codec', ''),
-                    'bitrate': result.get('bitrate', '')
-                }
-                
-                mapped_info = mapping_manager.get_channel_info(
-                    channel_name,
-                    url,
-                    channel_info_for_check
-                )
-                has_mapping = mapped_info is not None
 
-            # 构建频道信息
-            resolution_from_result = result.get('resolution', '')
-            resolution_from_mapping = mapped_info.get('resolution') if mapped_info else ''
+            # 重要修改：验证有效后不立即检查映射！
+            # 只在异步线程中检查映射，避免重复日志和性能浪费
+            
+            # 注意：这里不再调用 mapping_manager.get_channel_info
+            # 映射检查将在异步线程 _fetch_channel_details 中进行
+
+            # 构建频道信息（只包含基本信息，不包含映射信息）
             channel_info = {
                 'url': url,
-                'name': channel_name,
+                'name': channel_name,  # 使用URL提取的名称
                 'raw_name': channel_name,
                 'valid': valid,
                 'latency': latency,
-                'resolution': resolution_from_result or resolution_from_mapping,
+                'resolution': result.get('resolution', ''),
                 'status': '有效' if valid else '无效',
-                'group': mapped_info.get('group_name', '未分类') if mapped_info else '未分类',
-                'logo_url': mapped_info.get('logo_url') if mapped_info else None,
-                'needs_details': valid and has_mapping  # 只有有映射的频道才需要获取详细信息
+                'group': '未分类',  # 默认分组，异步线程中更新
+                'logo_url': None,   # 默认无logo，异步线程中更新
+                'needs_details': False  # 重要：这里设为False，异步线程中再决定是否需要获取详情
             }
             
-            # 如果有映射信息，更新其他字段
-            if mapped_info:
-                if mapped_info.get('standard_name'):
-                    channel_info['name'] = mapped_info['standard_name']
-                if mapped_info.get('tvg_id'):
-                    channel_info['tvg_id'] = mapped_info['tvg_id']
-                if mapped_info.get('tvg_chno'):
-                    channel_info['tvg_chno'] = mapped_info['tvg_chno']
-                if mapped_info.get('tvg_shift'):
-                    channel_info['tvg_shift'] = mapped_info['tvg_shift']
-                if mapped_info.get('catchup'):
-                    channel_info['catchup'] = mapped_info['catchup']
-                if mapped_info.get('catchup_days'):
-                    channel_info['catchup_days'] = mapped_info['catchup_days']
-                if mapped_info.get('catchup_source'):
-                    channel_info['catchup_source'] = mapped_info['catchup_source']
-            
-            # 如果频道有效且有映射，启动异步获取详细信息
-            if valid and has_mapping:
-                self._start_async_details_fetch(channel_info.copy())
+            # 注意：这里不启动异步获取详细信息
+            # 异步获取将在 _start_async_mapping_check 方法中决定
 
             return channel_info
 
@@ -395,6 +363,14 @@ class ScannerController(QObject):
                     QtCore.QTimer.singleShot(
                         0, functools.partial(self._update_channel_details, channel_info)
                     )
+
+    def _start_async_mapping_check(self, channel_info: dict):
+        """启动异步映射检查 - 所有有效频道都检查映射"""
+        # 所有有效的频道都需要检查映射
+        # 无论是什么格式的URL（IP地址、域名、其他格式）
+        
+        # 直接启动异步映射检查
+        self._start_async_details_fetch(channel_info)
 
     def _update_channel_details(self, channel_info: dict):
         """更新频道详细信息"""
