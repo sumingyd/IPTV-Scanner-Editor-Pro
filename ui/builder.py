@@ -1777,7 +1777,7 @@ class UIBuilder(QtCore.QObject):
         # 获取所有选中的行
         selection_model = self.main_window.channel_list.selectionModel()
         selected_rows = selection_model.selectedRows()
-        
+
         if not selected_rows:
             return
 
@@ -1810,15 +1810,15 @@ class UIBuilder(QtCore.QObject):
         if confirmed:
             # 按行号从大到小排序，避免删除时索引变化
             rows_to_delete = sorted([row.row() for row in selected_rows], reverse=True)
-            
+
             for row in rows_to_delete:
                 self.main_window.model.removeRow(row)
-            
+
             if hasattr(self.main_window, 'validate_status_label'):
                 self.main_window.validate_status_label.setText(
                     f"检测: {self.main_window.model.rowCount()}/0"
                 )
-            
+
             # 显示删除成功的消息
             if len(rows_to_delete) == 1:
                 self.main_window.statusBar().showMessage(
@@ -1828,7 +1828,7 @@ class UIBuilder(QtCore.QObject):
             else:
                 self.main_window.statusBar().showMessage(
                     self.main_window.language_manager.tr(
-                        'channels_deleted', 
+                        'channels_deleted',
                         '{count} channels deleted'
                     ).format(count=len(rows_to_delete)),
                     3000

@@ -9,7 +9,7 @@ from core.log_manager import global_logger as logger
 
 class AboutDialog(QtWidgets.QDialog):
     # 版本配置
-    CURRENT_VERSION = "40.0.0.0"  # 当前版本号(手动修改这里)
+    CURRENT_VERSION = "41.0.0.0"  # 当前版本号(手动修改这里)
     DEFAULT_VERSION = None  # 将从GitHub获取最新版本
     BUILD_DATE = "2026-01-31"  # 更新为当前日期
 

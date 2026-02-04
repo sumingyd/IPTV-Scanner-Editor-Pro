@@ -156,19 +156,19 @@ class StreamValidator:
         """TCP连接快速检查 - 先检查基本连通性"""
         import socket
         from urllib.parse import urlparse
-        
+
         try:
             parsed = urlparse(url)
             host = parsed.hostname
             if not host:
                 return False
-            
+
             # 对于UDP/RTP协议，不进行TCP检查，直接返回True
             # 因为这些是面向无连接的协议，TCP检查没有意义
             scheme = parsed.scheme.lower()
             if scheme in ['udp', 'rtp', 'rtsp']:
                 return True
-                
+
             # 获取端口
             port = parsed.port
             if not port:
@@ -179,7 +179,7 @@ class StreamValidator:
                     port = 443
                 else:
                     port = 80  # 其他协议默认80
-            
+
             # 解析主机名（支持域名和IP）
             try:
                 # 如果是IP地址，直接使用
@@ -188,13 +188,13 @@ class StreamValidator:
             except socket.error:
                 # 如果是域名，解析为IP
                 ip = socket.gethostbyname(host)
-            
+
             # 尝试TCP连接
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(timeout)
             result = sock.connect_ex((ip, port))
             sock.close()
-            
+
             return result == 0  # 0表示连接成功
         except Exception:
             return False
@@ -283,7 +283,7 @@ class StreamValidator:
                                     if stream.get('codec_type') == 'video':
                                         has_video = True
                                         break
-                            
+
                             if has_video or 'format' in data:
                                 # 有视频流或格式信息，认为是有效流
                                 pass
@@ -300,7 +300,7 @@ class StreamValidator:
                 else:
                     # ffprobe失败，记录错误信息
                     result['error'] = error_output[:200] if error_output else f"返回代码: {return_code}"
-                    
+
                     # 根据错误信息判断错误类型
                     error_lower = error_output.lower() if error_output else ""
                     if "timeout" in error_lower or "超时" in error_lower:
