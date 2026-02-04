@@ -112,10 +112,10 @@
   "select_mapping_to_edit": "请选择要编辑的映射",
   "select_mapping_to_delete": "请选择要删除的映射",
   "retry_options": "扫描重试选项",
-  "enable_retry_scan": "启用重试扫描",
+  "enable_retry_scan": "启用智能重试扫描",
   "loop_scan": "循环扫描",
-  "retry_scan_tooltip": "第一次扫描完成后，对失效频道进行再次扫描",
-  "loop_scan_tooltip": "如果重试扫描找到有效频道，继续扫描失效频道直到没有新的有效频道",
+  "retry_scan_tooltip": "基于失败原因智能重试：只重试超时、连接失败等临时错误，不重试TCP失败、404等永久错误",
+  "loop_scan_tooltip": "如果智能重试扫描找到有效频道，继续扫描失效频道直到没有新的有效频道",
   
   "sort_config": "排序配置",
   "sort_priority": "排序优先级设置",
