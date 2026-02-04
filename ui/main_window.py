@@ -867,7 +867,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if hasattr(self, 'scanner') and self.scanner:
             # 获取需要重试的URL（基于失败原因过滤）
             retry_urls = self.scan_state_manager.get_retry_urls(self.scanner.scan_id)
-            
+
             # 清空之前的失败频道列表，避免累积
             self.scan_state_manager.clear_failed_channels(self.retry_id)
 

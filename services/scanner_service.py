@@ -115,7 +115,7 @@ class ScannerController(QObject):
                             self._handle_channel_add, channel_info.copy()
                             )
                     )
-                    
+
                     # 重要：启动异步映射检查（如果有需要）
                     self._start_async_mapping_check(channel_info.copy())
 
@@ -231,7 +231,7 @@ class ScannerController(QObject):
 
             # 重要修改：验证有效后不立即检查映射！
             # 只在异步线程中检查映射，避免重复日志和性能浪费
-            
+
             # 注意：这里不再调用 mapping_manager.get_channel_info
             # 映射检查将在异步线程 _fetch_channel_details 中进行
 
@@ -248,7 +248,7 @@ class ScannerController(QObject):
                 'logo_url': None,   # 默认无logo，异步线程中更新
                 'needs_details': False  # 重要：这里设为False，异步线程中再决定是否需要获取详情
             }
-            
+
             # 注意：这里不启动异步获取详细信息
             # 异步获取将在 _start_async_mapping_check 方法中决定
 
@@ -313,20 +313,20 @@ class ScannerController(QObject):
                     # 更新标准名称
                     if mapped_info.get('standard_name'):
                         updated_info['name'] = mapped_info['standard_name']
-                    
+
                     # 更新分组
                     if mapped_info.get('group_name'):
                         updated_info['group'] = mapped_info['group_name']
-                    
+
                     # 更新logo
                     logo_url = mapped_info.get('logo_url')
                     if logo_url and isinstance(logo_url, str) and logo_url.strip():
                         updated_info['logo_url'] = logo_url.strip()
-                    
+
                     # 更新分辨率（从映射文件中获取）
                     if mapped_info.get('resolution'):
                         updated_info['resolution'] = mapped_info['resolution']
-                    
+
                     # 更新其他映射字段
                     if mapped_info.get('tvg_id'):
                         updated_info['tvg_id'] = mapped_info['tvg_id']
@@ -340,7 +340,7 @@ class ScannerController(QObject):
                         updated_info['catchup_days'] = mapped_info['catchup_days']
                     if mapped_info.get('catchup_source'):
                         updated_info['catchup_source'] = mapped_info['catchup_source']
-                    
+
                     # 创建指纹
                     updated_info['fingerprint'] = mapping_manager.create_channel_fingerprint(
                         url, channel_info_for_fingerprint
@@ -377,7 +377,7 @@ class ScannerController(QObject):
         """启动异步映射检查 - 所有有效频道都检查映射"""
         # 所有有效的频道都需要检查映射
         # 无论是什么格式的URL（IP地址、域名、其他格式）
-        
+
         # 直接启动异步映射检查
         self._start_async_details_fetch(channel_info)
 

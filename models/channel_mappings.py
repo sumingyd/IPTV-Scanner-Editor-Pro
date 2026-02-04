@@ -1,4 +1,3 @@
-import requests
 import os
 import re
 import json
@@ -7,6 +6,14 @@ import time
 import threading
 from typing import Dict, List
 from core.log_manager import global_logger as logger
+
+# 尝试导入requests，如果失败则提供备用方案
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
+    logger.warning("requests模块未安装，远程映射功能将不可用")
 
 # 默认远程URL - 优先使用CSV格式，如果不存在则尝试TXT格式
 DEFAULT_REMOTE_URL = (
@@ -158,6 +165,11 @@ def create_reverse_mappings(mappings: Dict[str, dict]) -> Dict[str, dict]:
 
 def load_remote_mappings() -> Dict[str, dict]:
     """加载远程映射规则 - 简化版本，不重试，不阻塞"""
+    # 检查requests模块是否可用
+    if not REQUESTS_AVAILABLE:
+        logger.warning("requests模块不可用，无法加载远程映射")
+        return {}
+    
     try:
         # 尝试从core目录导入ConfigManager
         try:
@@ -372,7 +384,7 @@ class ChannelMappingManager:
         # 优化1：如果映射名称就是原始名称，不记录学习（避免噪音）
         if mapped_name == raw_name:
             return
-        
+
         fingerprint = self.create_channel_fingerprint(url, channel_info)
 
         # 记录指纹与映射关系
@@ -393,9 +405,9 @@ class ChannelMappingManager:
         # 避免原始名称 vs 映射名称的虚假警告
         if self.channel_fingerprints[fingerprint]['count'] >= 3:
             current_mapped = self.channel_fingerprints[fingerprint]['mapped_name']
-            
+
             # 只有当两个都是有效映射名称时才警告
-            if (current_mapped and mapped_name and 
+            if (current_mapped and mapped_name and
                 current_mapped != mapped_name and
                 current_mapped != raw_name and  # 原始名称不算有效映射
                 mapped_name != raw_name):       # 原始名称不算有效映射
@@ -511,7 +523,7 @@ class ChannelMappingManager:
         with self.fingerprint_lock:
             # 创建字典的副本进行遍历，避免迭代时字典被修改
             fingerprints_copy = self.channel_fingerprints.copy()
-            
+
             for fingerprint, data in fingerprints_copy.items():
                 if data['raw_name'] == raw_name and data['mapped_name'] != raw_name:
                     suggestions.append(data['mapped_name'])

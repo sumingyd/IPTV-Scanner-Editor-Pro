@@ -110,13 +110,13 @@ class ScanStateManager:
         with self._lock:
             if scan_id in self._scan_states:
                 invalid_urls = self._scan_states[scan_id]['invalid_urls']
-                
+
                 # 存储URL和错误类型
                 url_entry = {
                     'url': url,
                     'error_type': error_type
                 }
-                
+
                 # 对于大量URL，使用集合来快速去重，但需要定期清理
                 if len(invalid_urls) < 100000:  # 小于10万时使用列表
                     # 检查是否已存在相同的URL
@@ -154,53 +154,53 @@ class ScanStateManager:
             if scan_id in self._scan_states:
                 return self._scan_states[scan_id].get('invalid_urls', [])
             return []
-    
+
     def get_retry_urls(self, scan_id: str) -> List[str]:
         """获取需要重试的URL列表（基于失败原因）"""
         with self._lock:
             if scan_id not in self._scan_states:
                 return []
-            
+
             invalid_urls = self._scan_states[scan_id].get('invalid_urls', [])
             retry_urls = []
-            
+
             for entry in invalid_urls:
                 error_type = entry.get('error_type')
                 url = entry.get('url')
-                
+
                 # 基于失败原因判断是否需要重试
                 if self._should_retry_url(error_type):
                     retry_urls.append(url)
-            
+
             return retry_urls
-    
+
     def _should_retry_url(self, error_type: str) -> bool:
         """判断是否需要重试某个URL（基于错误类型）"""
         if not error_type:
             return False  # 没有错误类型，不重试
-        
+
         # 需要重试的错误类型
         retry_error_types = [
-            'timeout',           # 超时
-            'connection_failed', # 连接失败（但不是TCP连接失败）
-            'ffprobe_error'      # ffprobe错误（可能是临时错误）
+            'timeout',            # 超时
+            'connection_failed',  # 连接失败（但不是TCP连接失败）
+            'ffprobe_error'       # ffprobe错误（可能是临时错误）
         ]
-        
+
         # 不需要重试的错误类型
         no_retry_error_types = [
             'tcp_failed',        # TCP连接失败（服务器不存在）
             'not_found',         # 404错误
             'permission_denied'  # 权限拒绝
         ]
-        
+
         # 优先检查不需要重试的类型
         if error_type in no_retry_error_types:
             return False
-        
+
         # 检查需要重试的类型
         if error_type in retry_error_types:
             return True
-        
+
         # 其他错误类型默认不重试
         return False
 
