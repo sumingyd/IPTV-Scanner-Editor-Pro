@@ -323,6 +323,10 @@ class ScannerController(QObject):
                     if logo_url and isinstance(logo_url, str) and logo_url.strip():
                         updated_info['logo_url'] = logo_url.strip()
                     
+                    # 更新分辨率（从映射文件中获取）
+                    if mapped_info.get('resolution'):
+                        updated_info['resolution'] = mapped_info['resolution']
+                    
                     # 更新其他映射字段
                     if mapped_info.get('tvg_id'):
                         updated_info['tvg_id'] = mapped_info['tvg_id']
