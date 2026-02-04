@@ -125,12 +125,17 @@ class ScannerController(QObject):
                         self.stats['valid'] += 1
                     else:
                         self.stats['invalid'] += 1
-                        # 记录无效URL
+                        # 记录无效URL和错误类型（如果可用）
+                        error_type = result.get('error_type')
                         with self.invalid_urls_lock:
-                            self.invalid_urls.append(url)
+                            self.invalid_urls.append({
+                                'url': url,
+                                'error_type': error_type,
+                                'error': result.get('error', '')
+                            })
 
-                        # 更新扫描状态管理器中的无效URL
-                        self.scan_state_manager.add_invalid_url(self.scan_id, url)
+                        # 更新扫描状态管理器中的无效URL（带错误类型）
+                        self.scan_state_manager.add_invalid_url(self.scan_id, url, error_type)
 
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']

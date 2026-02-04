@@ -862,29 +862,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.logger.info("=== _handle_retry_scan 方法结束 ===")
 
     def _collect_failed_channels(self):
-        """收集失败的频道URL，优化大量无效URL的资源管理"""
-        # 从扫描状态管理器获取无效的URL列表
+        """收集失败的频道URL，基于失败原因进行智能重试"""
+        # 从扫描状态管理器获取需要重试的URL列表（基于失败原因）
         if hasattr(self, 'scanner') and self.scanner:
-            # 获取扫描状态管理器中的无效URL
-            invalid_urls = []
-
-            # 尝试从全局扫描状态管理器获取
-            invalid_urls = self.scan_state_manager.get_invalid_urls(self.scanner.scan_id)
-
-            # 如果全局扫描状态管理器没有，尝试从扫描器自身的invalid_urls获取
-            if not invalid_urls and hasattr(self.scanner, 'invalid_urls'):
-                with self.scanner.invalid_urls_lock:
-                    invalid_urls = self.scanner.invalid_urls.copy()
-
+            # 获取需要重试的URL（基于失败原因过滤）
+            retry_urls = self.scan_state_manager.get_retry_urls(self.scanner.scan_id)
+            
             # 清空之前的失败频道列表，避免累积
             self.scan_state_manager.clear_failed_channels(self.retry_id)
 
             # 批量添加到重试扫描状态管理器，优化内存使用
             batch_size = 1000
-            total_count = len(invalid_urls)
+            total_count = len(retry_urls)
 
             for i in range(0, total_count, batch_size):
-                batch = invalid_urls[i:i+batch_size]
+                batch = retry_urls[i:i+batch_size]
                 for url in batch:
                     self.scan_state_manager.add_failed_channel(self.retry_id, url)
 
@@ -895,29 +887,38 @@ class MainWindow(QtWidgets.QMainWindow):
 
             # 减少日志输出，避免日志过多
             if total_count > 1000:
-                self.logger.info(f"从扫描状态管理器获取失败频道: {total_count} 个 (大量URL，简化日志)")
-                # 只记录前2个无效URL
+                self.logger.info(f"智能重试: 基于失败原因筛选出 {total_count} 个需要重试的URL (大量URL，简化日志)")
+                # 只记录前2个需要重试的URL
                 for i in range(min(2, total_count)):
-                    url = invalid_urls[i]
-                    self.logger.info(f"无效URL示例 {i}: {url[:50]}")
+                    url = retry_urls[i]
+                    self.logger.info(f"重试URL示例 {i}: {url[:50]}")
                 if total_count > 2:
                     self.logger.info(f"... 还有 {total_count - 2} 个URL")
             else:
-                self.logger.info(f"从扫描状态管理器获取失败频道: {total_count} 个")
-                # 只记录前3个无效URL
+                self.logger.info(f"智能重试: 基于失败原因筛选出 {total_count} 个需要重试的URL")
+                # 只记录前3个需要重试的URL
                 for i in range(min(3, total_count)):
-                    url = invalid_urls[i]
-                    self.logger.info(f"无效URL {i}: {url[:50]}")
+                    url = retry_urls[i]
+                    self.logger.info(f"重试URL {i}: {url[:50]}")
         else:
-            self.logger.warning("ScannerController不存在，无法获取失败频道列表")
+            self.logger.warning("ScannerController不存在，无法获取需要重试的URL列表")
 
         failed_channels = self.scan_state_manager.get_failed_channels(self.retry_id)
-        self.logger.info(f"收集完成: 失败频道数={len(failed_channels)}")
+        self.logger.info(f"智能重试收集完成: 需要重试的URL数={len(failed_channels)}")
 
-        # 如果失败频道数量很大，显示警告信息
+        # 如果重试URL数量很大，显示警告信息
         if len(failed_channels) > 10000:
             self.ui.main_window.statusBar().showMessage(
-                f"警告: 有 {len(failed_channels)} 个失败频道需要重试，可能需要较长时间", 5000
+                f"警告: 有 {len(failed_channels)} 个URL需要重试，可能需要较长时间", 5000
+            )
+        elif len(failed_channels) > 0:
+            # 显示智能重试信息
+            self.ui.main_window.statusBar().showMessage(
+                f"智能重试: 将重试 {len(failed_channels)} 个可能有效的URL", 3000
+            )
+        else:
+            self.ui.main_window.statusBar().showMessage(
+                "智能重试: 没有需要重试的URL", 3000
             )
 
     def _count_valid_channels(self):

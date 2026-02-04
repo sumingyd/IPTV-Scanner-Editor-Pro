@@ -111,10 +111,10 @@
   "select_mapping_to_edit": "Please select a mapping to edit",
   "select_mapping_to_delete": "Please select a mapping to delete",
   "retry_options": "Scan Retry Options",
-  "enable_retry_scan": "Enable Retry Scan",
+  "enable_retry_scan": "Enable Smart Retry Scan",
   "loop_scan": "Loop Scan",
-  "retry_scan_tooltip": "After the first scan completes, retry scanning failed channels",
-  "loop_scan_tooltip": "If retry scan finds valid channels, continue scanning failed channels until no new valid channels are found",
+  "retry_scan_tooltip": "Smart retry based on failure reason: only retry temporary errors like timeout, connection failure, not retry permanent errors like TCP failure, 404",
+  "loop_scan_tooltip": "If smart retry scan finds valid channels, continue scanning failed channels until no new valid channels are found",
   
   "sort_config": "Sort Configuration",
   "sort_priority": "Sort Priority",

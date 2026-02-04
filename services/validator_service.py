@@ -200,7 +200,7 @@ class StreamValidator:
             return False
 
     def _run_ffprobe_test(self, url: str, timeout: int) -> Dict:
-        """运行ffprobe测试流有效性 - 优化版本"""
+        """运行ffprobe测试流有效性 - 优化版本，记录错误类型"""
         result = {}
 
         try:
@@ -208,6 +208,7 @@ class StreamValidator:
             tcp_timeout = min(1, timeout // 3)  # 使用1秒或timeout的1/3
             if not self._quick_tcp_check(url, tcp_timeout):
                 result['error'] = "TCP连接失败"
+                result['error_type'] = 'tcp_failed'  # 记录错误类型
                 return result
 
             # 2. 确保信号量已初始化
@@ -299,6 +300,19 @@ class StreamValidator:
                 else:
                     # ffprobe失败，记录错误信息
                     result['error'] = error_output[:200] if error_output else f"返回代码: {return_code}"
+                    
+                    # 根据错误信息判断错误类型
+                    error_lower = error_output.lower() if error_output else ""
+                    if "timeout" in error_lower or "超时" in error_lower:
+                        result['error_type'] = 'timeout'
+                    elif "connection" in error_lower or "连接" in error_lower:
+                        result['error_type'] = 'connection_failed'
+                    elif "not found" in error_lower or "404" in error_lower:
+                        result['error_type'] = 'not_found'
+                    elif "permission" in error_lower or "权限" in error_lower:
+                        result['error_type'] = 'permission_denied'
+                    else:
+                        result['error_type'] = 'ffprobe_error'
 
             except subprocess.TimeoutExpired:
                 if process:
@@ -482,6 +496,9 @@ class StreamValidator:
                 result['valid'] = False
                 result['latency'] = ffprobe_latency
                 result['error'] = ffprobe_result.get('error', 'ffprobe验证失败')
+                # 传递错误类型
+                if 'error_type' in ffprobe_result:
+                    result['error_type'] = ffprobe_result['error_type']
                 # 不再记录错误日志，避免控制台输出
 
             # 确保有频道名

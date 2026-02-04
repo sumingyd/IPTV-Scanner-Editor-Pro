@@ -593,8 +593,12 @@ class UIBuilder(QtCore.QObject):
         self.main_window.retry_label = retry_label
         retry_layout.addWidget(retry_label)
 
-        # 是否启用重试扫描
-        self.main_window.enable_retry_checkbox = QtWidgets.QCheckBox("启用重试扫描")
+        # 是否启用智能重试扫描（基于失败原因）
+        self.main_window.enable_retry_checkbox = QtWidgets.QCheckBox("启用智能重试扫描")
+        self.main_window.enable_retry_checkbox.setToolTip(
+            "基于失败原因智能重试：只重试超时、连接失败等临时错误，"
+            "不重试TCP失败、404等永久错误"
+        )
         self.main_window.enable_retry_checkbox.setChecked(False)
         self.main_window.enable_retry_checkbox.setToolTip("第一次扫描完成后，对失效频道进行再次扫描")
         retry_layout.addWidget(self.main_window.enable_retry_checkbox)
@@ -1823,7 +1827,10 @@ class UIBuilder(QtCore.QObject):
                 )
             else:
                 self.main_window.statusBar().showMessage(
-                    self.main_window.language_manager.tr('channels_deleted', '{count} channels deleted').format(count=len(rows_to_delete)),
+                    self.main_window.language_manager.tr(
+                        'channels_deleted', 
+                        '{count} channels deleted'
+                    ).format(count=len(rows_to_delete)),
                     3000
                 )
 
