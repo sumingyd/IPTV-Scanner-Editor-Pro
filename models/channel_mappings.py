@@ -169,7 +169,7 @@ def load_remote_mappings() -> Dict[str, dict]:
     if not REQUESTS_AVAILABLE:
         logger.warning("requests模块不可用，无法加载远程映射")
         return {}
-    
+
     try:
         # 尝试从core目录导入ConfigManager
         try:
@@ -420,16 +420,18 @@ class ChannelMappingManager:
         if not raw_name or raw_name.isspace():
             return {'standard_name': '', 'logo_url': None}
 
-        # 标准化输入名称
-        normalized_name = raw_name.strip().lower()
+        # 重要修改：不再将原始名称转换为小写，保持原始大小写
+        # 只进行基本的清理，不改变大小写
+        cleaned_name = raw_name.strip()
 
-        if not normalized_name:
+        if not cleaned_name:
             return {'standard_name': raw_name, 'logo_url': None}
 
-        # 1. 首先检查精确匹配
-        result = self._get_exact_match(normalized_name)
-        # 移除调试日志：精确匹配结果
-        if result['standard_name'] != normalized_name:  # 如果找到了映射
+        # 1. 首先检查精确匹配（使用原始大小写）
+        result = self._get_exact_match(cleaned_name)
+
+        # 检查是否找到了映射（标准名称与输入名称不同）
+        if result['standard_name'] != cleaned_name:  # 如果找到了映射
             self.logger.info(f"找到映射: '{raw_name}' -> '{result['standard_name']}'")
             # 记录学习数据
             if url and channel_info:
@@ -444,45 +446,70 @@ class ChannelMappingManager:
                 if mapped_name != raw_name:
                     self.logger.info(f"通过指纹匹配找到映射: {raw_name} -> {mapped_name}")
                     # 通过指纹匹配找到映射后，再次尝试获取完整的频道信息
-                    fingerprint_result = self._get_exact_match(mapped_name.lower())
+                    fingerprint_result = self._get_exact_match(mapped_name)
                     if fingerprint_result['standard_name'] != mapped_name:  # 如果找到了完整映射
                         return fingerprint_result
                     else:
-                        # 如果没有找到完整映射，返回基本映射信息
-                        return {'standard_name': mapped_name, 'logo_url': None}
+                        # 如果没有找到完整映射，返回基本映射信息（包含所有字段）
+                        return {
+                            'standard_name': mapped_name,
+                            'logo_url': None,
+                            'group_name': None,
+                            'tvg_id': None,
+                            'tvg_chno': None,
+                            'tvg_shift': None,
+                            'catchup': None,
+                            'catchup_days': None,
+                            'catchup_source': None,
+                            'resolution': None
+                        }
 
             # 记录当前映射关系用于学习
             self.learn_from_scan_result(url, raw_name, channel_info, raw_name)
 
-        # 3. 返回原始名称
+        # 3. 返回原始名称（包含所有字段，即使为空）
         # 移除调试日志：没有找到匹配的映射
-        return {'standard_name': raw_name, 'logo_url': None}
+        return {
+            'standard_name': raw_name,
+            'logo_url': None,
+            'group_name': None,
+            'tvg_id': None,
+            'tvg_chno': None,
+            'tvg_shift': None,
+            'catchup': None,
+            'catchup_days': None,
+            'catchup_source': None,
+            'resolution': None
+        }
 
-    def _get_exact_match(self, normalized_name: str) -> dict:
+    def _get_exact_match(self, cleaned_name: str) -> dict:
         """精确匹配映射规则"""
-        # 首先检查反向映射（直接查找）
+        # 重要修改：支持原始大小写匹配，同时保持向后兼容性
+
+        # 1. 首先尝试原始大小写精确匹配（直接查找）
         try:
-            # 直接检查反向映射字典中是否存在该名称
-            if normalized_name in self.reverse_mappings:
-                result = self.reverse_mappings[normalized_name]
-                # 移除调试日志，整合到get_channel_info方法中
+            if cleaned_name in self.reverse_mappings:
+                result = self.reverse_mappings[cleaned_name]
                 return result
         except Exception as e:
             self.logger.error(f"反向映射查找失败: {e}")
 
-        # 如果直接查找失败，尝试遍历反向映射（兼容旧逻辑）
+        # 2. 如果原始大小写匹配失败，尝试小写匹配（保持向后兼容）
         try:
+            # 将输入名称转换为小写进行匹配
+            normalized_name = re.sub(r'\s+', ' ', cleaned_name.strip()).lower()
+
+            # 检查反向映射（小写匹配）
             for raw_pattern, info in self.reverse_mappings.items():
                 if not raw_pattern or raw_pattern.isspace():
                     continue
                 normalized_pattern = re.sub(r'\s+', ' ', raw_pattern.strip()).lower()
                 if normalized_name == normalized_pattern:
-                    # 移除调试日志，整合到get_channel_info方法中
                     return info
         except Exception as e:
             self.logger.error(f"反向映射遍历查找失败: {e}")
 
-        # 检查标准名称映射
+        # 3. 检查标准名称映射（小写匹配）
         try:
             for unique_key, info in self.combined_mappings.items():
                 # 从unique_key中提取标准名称（格式为"标准名称||原始名称"）
@@ -507,13 +534,23 @@ class ChannelMappingManager:
                         'catchup_source': info.get('catchup_source'),
                         'resolution': info.get('resolution')
                     }
-                    # 移除调试日志，整合到get_channel_info方法中
                     return result
         except Exception as e:
             self.logger.error(f"标准名称查找失败: {e}")
 
-        # 移除调试日志
-        return {'standard_name': normalized_name, 'logo_url': None}
+        # 4. 没有找到匹配，返回原始名称（包含所有字段）
+        return {
+            'standard_name': cleaned_name,
+            'logo_url': None,
+            'group_name': None,
+            'tvg_id': None,
+            'tvg_chno': None,
+            'tvg_shift': None,
+            'catchup': None,
+            'catchup_days': None,
+            'catchup_source': None,
+            'resolution': None
+        }
 
     def get_mapping_suggestions(self, raw_name: str) -> List[str]:
         """获取映射建议"""
