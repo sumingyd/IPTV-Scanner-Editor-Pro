@@ -14,29 +14,28 @@ class ConfigManager:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
+                    # 初始化实例属性
                     cls._instance._initialized = False
+                    # 初始化配置文件路径
+                    import sys
+                    if getattr(sys, 'frozen', False):
+                        # 打包成exe的情况
+                        config_dir = os.path.dirname(sys.executable)
+                    else:
+                        # 开发环境 - 使用项目根目录
+                        current_dir = os.path.dirname(os.path.abspath(__file__))
+                        config_dir = os.path.dirname(current_dir)  # 从core目录到项目根目录
+                    cls._instance.config_file = os.path.join(config_dir, config_file)
+                    cls._instance.config = configparser.ConfigParser()
+                    cls._instance._lock = threading.Lock()
+                    # 初始化时立即加载已有配置
+                    cls._instance.load_config()
+                    cls._instance._initialized = True
         return cls._instance
 
     def __init__(self, config_file='config.ini'):
-        if self._initialized:
-            return
-
-        # 使用程序所在目录存放配置文件
-        import sys
-        if getattr(sys, 'frozen', False):
-            # 打包成exe的情况
-            config_dir = os.path.dirname(sys.executable)
-        else:
-            # 开发环境 - 使用项目根目录
-            # 获取当前文件的绝对路径，然后向上两级到项目根目录
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            config_dir = os.path.dirname(current_dir)  # 从core目录到项目根目录
-        self.config_file = os.path.join(config_dir, config_file)
-        self.config = configparser.ConfigParser()
-        self._lock = threading.Lock()
-        # 初始化时立即加载已有配置
-        self.load_config()
-        self._initialized = True
+        # 单例模式下，__init__可能会被多次调用，所以什么都不做
+        pass
 
     def save_window_layout(self, x, y, width, height, dividers):
         """保存窗口布局（包括位置和大小）"""
@@ -180,7 +179,14 @@ class ConfigManager:
         if os.path.exists(self.config_file):
             try:
                 self.config.read(self.config_file, encoding='utf-8')
+                logger.info(f"配置管理-成功加载配置文件: {self.config_file}")
                 return True
+            except configparser.Error as e:
+                logger.error(f"配置管理-解析配置文件失败: {str(e)}", exc_info=True)
+                return False
+            except IOError as e:
+                logger.error(f"配置管理-读取配置文件失败: {str(e)}", exc_info=True)
+                return False
             except Exception as e:
                 logger.error(f"配置管理-加载配置文件失败: {str(e)}", exc_info=True)
                 return False
@@ -189,9 +195,19 @@ class ConfigManager:
 
     def save_config(self):
         try:
+            # 确保配置目录存在
+            config_dir = os.path.dirname(self.config_file)
+            if not os.path.exists(config_dir):
+                os.makedirs(config_dir)
+                logger.info(f"配置管理-创建配置目录: {config_dir}")
+            
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 self.config.write(f)
+            logger.info(f"配置管理-成功保存配置文件: {self.config_file}")
             return True
+        except IOError as e:
+            logger.error(f"配置管理-写入配置文件失败: {str(e)}", exc_info=True)
+            return False
         except Exception as e:
             logger.error(f"配置管理-保存配置文件失败: {str(e)}", exc_info=True)
             return False
@@ -199,22 +215,34 @@ class ConfigManager:
     def get_value(self, section, key, default=None):
         try:
             return self.config.get(section, key)
-        except (configparser.NoSectionError, configparser.NoOptionError):
+        except configparser.NoSectionError:
+            logger.debug(f"配置管理- section不存在: {section}")
+            return default
+        except configparser.NoOptionError:
+            logger.debug(f"配置管理- option不存在: {section}.{key}")
+            return default
+        except Exception as e:
+            logger.error(f"配置管理-获取配置值失败: {str(e)}", exc_info=True)
             return default
 
     def set_value(self, section, key, value):
-        if not self.config.has_section(section):
-            self.config.add_section(section)
+        try:
+            if not self.config.has_section(section):
+                self.config.add_section(section)
+                logger.debug(f"配置管理-创建section: {section}")
 
-        # 获取旧值
-        old_value = self.get_value(section, key)
+            # 获取旧值
+            old_value = self.get_value(section, key)
 
-        # 设置新值
-        self.config.set(section, key, value)
+            # 设置新值
+            self.config.set(section, key, value)
 
-        # 通知配置变更
-        if old_value != value:
-            notify_config_change(section, key, old_value, value)
+            # 通知配置变更
+            if old_value != value:
+                notify_config_change(section, key, old_value, value)
+                logger.debug(f"配置管理-配置变更: {section}.{key} = {old_value} -> {value}")
+        except Exception as e:
+            logger.error(f"配置管理-设置配置值失败: {str(e)}", exc_info=True)
 
     def save_ui_settings(self, settings: dict):
         """保存UI相关设置"""

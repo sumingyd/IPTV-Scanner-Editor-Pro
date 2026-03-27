@@ -1,6 +1,9 @@
 import os
 import sys
 import logging
+import time
+import re
+from typing import Any, Dict, List, Optional
 
 
 def get_resource_path(relative_path: str) -> str:
@@ -13,6 +16,15 @@ def get_resource_path(relative_path: str) -> str:
         base_path = os.path.dirname(__file__)
 
     return os.path.join(base_path, relative_path)
+
+
+def get_project_root() -> str:
+    """获取项目根目录"""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    else:
+        # 从utils目录向上两级到项目根目录
+        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def is_valid_url(url: str) -> bool:
@@ -88,3 +100,99 @@ def safe_connect_button(button, callback):
         bool: 连接是否成功
     """
     return safe_connect(button.clicked, callback)
+
+
+def format_time(seconds: float) -> str:
+    """格式化时间（秒）为时分秒格式"""
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    
+    if hours > 0:
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+    elif minutes > 0:
+        return f"{minutes:02d}:{secs:02d}"
+    else:
+        return f"00:{secs:02d}"
+
+
+def retry_operation(operation, max_retries: int = 3, delay: float = 1.0, exceptions: tuple = (Exception,)) -> Any:
+    """带重试机制的操作执行
+
+    Args:
+        operation: 要执行的操作函数
+        max_retries: 最大重试次数
+        delay: 重试间隔（秒）
+        exceptions: 要捕获的异常类型
+
+    Returns:
+        Any: 操作的返回值
+
+    Raises:
+        Exception: 如果所有重试都失败
+    """
+    for attempt in range(max_retries):
+        try:
+            return operation()
+        except exceptions as e:
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(delay)
+            logging.getLogger('utils').warning(f"操作失败，重试 {attempt + 1}/{max_retries}: {e}")
+
+
+def deep_merge_dicts(target: Dict, source: Dict) -> Dict:
+    """深度合并两个字典
+
+    Args:
+        target: 目标字典
+        source: 源字典
+
+    Returns:
+        Dict: 合并后的字典
+    """
+    for key, value in source.items():
+        if key in target and isinstance(target[key], dict) and isinstance(value, dict):
+            deep_merge_dicts(target[key], value)
+        else:
+            target[key] = value
+    return target
+
+
+def sanitize_filename(filename: str) -> str:
+    """清理文件名，移除或替换无效字符
+
+    Args:
+        filename: 原始文件名
+
+    Returns:
+        str: 清理后的文件名
+    """
+    # 移除或替换Windows文件名中的无效字符
+    invalid_chars = '\\/:*?"<>|'
+    for char in invalid_chars:
+        filename = filename.replace(char, '_')
+    return filename.strip()
+
+
+def parse_url_range(url_pattern: str) -> List[str]:
+    """解析URL范围模式
+
+    Args:
+        url_pattern: URL模式，支持 {start-end} 格式
+
+    Returns:
+        List[str]: 生成的URL列表
+    """
+    urls = []
+    # 查找 {start-end} 模式
+    match = re.search(r'\{([0-9]+)-([0-9]+)\}', url_pattern)
+    if match:
+        start = int(match.group(1))
+        end = int(match.group(2))
+        for i in range(start, end + 1):
+            url = url_pattern.replace(match.group(0), str(i))
+            urls.append(url)
+    else:
+        urls.append(url_pattern)
+    return urls
