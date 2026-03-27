@@ -103,6 +103,19 @@ class MainWindow(QtWidgets.QMainWindow):
                             timer, "stop", QtCore.Qt.ConnectionType.QueuedConnection
                         )
             self._timers.clear()
+        
+        # 停止扫描器中的批量更新定时器
+        if hasattr(self, 'scanner') and hasattr(self.scanner, '_batch_timer'):
+            try:
+                if self.scanner._batch_timer and self.scanner._batch_timer.isActive():
+                    if QtCore.QThread.currentThread() == self.scanner._batch_timer.thread():
+                        self.scanner._batch_timer.stop()
+                    else:
+                        QtCore.QMetaObject.invokeMethod(
+                            self.scanner._batch_timer, "stop", QtCore.Qt.ConnectionType.QueuedConnection
+                        )
+            except Exception as e:
+                self.logger.error(f"停止批量更新定时器失败: {e}")
 
     def _init_main_window(self):
         """初始化主窗口的后续设置"""
