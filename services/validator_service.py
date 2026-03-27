@@ -192,10 +192,18 @@ class StreamValidator:
             # 尝试TCP连接
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(timeout)
+            # 设置TCP_NODELAY，减少延迟
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             result = sock.connect_ex((ip, port))
             sock.close()
 
             return result == 0  # 0表示连接成功
+        except socket.gaierror:
+            # 域名解析失败
+            return False
+        except socket.timeout:
+            # 连接超时
+            return False
         except Exception:
             return False
 
@@ -221,18 +229,39 @@ class StreamValidator:
             with self._semaphore:
                 ffprobe_path = self._get_ffprobe_path()
 
+                # 检查是否为组播URL
+                is_multicast = self._is_multicast_url(url)
+
                 # 构建优化的ffprobe命令
                 # 使用更小的探测大小和更合适的参数
                 cmd = [
                     ffprobe_path,
+                    '-hide_banner',  # 隐藏横幅信息
                     '-v', 'error',
                     '-timeout', f'{timeout * 1000000}',  # 使用传入的timeout（秒转微秒）
-                    '-probesize', '500000',  # 减少到500KB（原10MB）
-                    '-analyzeduration', '1000000',  # 分析时长1秒
+                    '-probesize', '250000',  # 进一步减少到250KB
+                    '-analyzeduration', '500000',  # 分析时长0.5秒
                     '-show_entries', 'format=duration:stream=codec_type',  # 只获取必要信息
                     '-of', 'json',  # JSON格式输出
-                    url
                 ]
+
+                # 为组播URL添加特殊参数
+                if is_multicast:
+                    cmd.extend([
+                        '-rtsp_transport', 'udp',  # 强制使用UDP传输
+                        '-max_delay', '5000000',  # 最大延迟5秒
+                    ])
+
+                # 添加网络优化参数
+                cmd.extend([
+                    '-reconnect', '1',  # 启用自动重连
+                    '-reconnect_at_eof', '1',  # 在EOF时重连
+                    '-reconnect_streamed', '1',  # 对流式内容重连
+                    '-reconnect_delay_max', '3',  # 最大重连延迟3秒
+                ])
+
+                # 添加URL（所有选项必须在URL之前）
+                cmd.append(url)
 
                 # 在Windows上需要处理特殊字符
                 if sys.platform == 'win32':
@@ -241,6 +270,8 @@ class StreamValidator:
                 # 设置环境变量和工作目录
                 env = os.environ.copy()
                 env['PATH'] = os.path.dirname(self._get_ffprobe_path()) + os.pathsep + env['PATH']
+                # 添加网络相关环境变量
+                env['FFREPORT'] = ''  # 禁用ffmpeg报告
 
                 process = subprocess.Popen(
                     cmd,
@@ -266,13 +297,16 @@ class StreamValidator:
                 stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
 
                 # 检查输出
-                error_output = stderr.strip() or stdout.strip()
+                error_output = stderr.strip()
                 return_code = process.returncode
 
-                # 严格判断：只有返回码为0才认为是有效流
-                # 移除"可接受错误"逻辑，避免错判
-                if return_code == 0:
-                    # 尝试解析JSON输出，验证是否有有效数据
+                # 对于所有类型的URL使用统一的严格验证标准
+                # 返回码为0表示ffprobe执行成功
+                if return_code != 0:
+                    result['error'] = error_output[:200] if error_output else f"返回代码: {return_code}"
+
+                # 对于所有URL，尝试解析JSON输出（即使stderr有警告信息）
+                if not result.get('error'):
                     try:
                         if stdout.strip():
                             data = json.loads(stdout)
@@ -284,24 +318,21 @@ class StreamValidator:
                                         has_video = True
                                         break
 
-                            if has_video or 'format' in data:
-                                # 有视频流或格式信息，认为是有效流
-                                pass
-                            else:
-                                result['error'] = "未检测到视频流"
+                            # 对于所有URL，都需要有视频流或格式信息
+                            if not has_video and 'format' not in data:
+                                result['error'] = "未检测到视频流或格式信息"
                         else:
+                            # 对于所有URL，返回空输出认为是无效
                             result['error'] = "ffprobe返回空输出"
                     except json.JSONDecodeError:
-                        # 即使JSON解析失败，只要ffprobe返回0，也认为是有效
-                        # 有些流可能返回非JSON格式但仍然是有效的
-                        pass
+                        # 对于所有URL，JSON解析失败认为是无效
+                        result['error'] = "ffprobe返回无效的JSON格式"
                     except Exception as e:
+                        # 对于所有URL，解析错误认为是无效
                         result['error'] = f"解析输出失败: {str(e)}"
-                else:
-                    # ffprobe失败，记录错误信息
-                    result['error'] = error_output[:200] if error_output else f"返回代码: {return_code}"
 
-                    # 根据错误信息判断错误类型
+                # 根据错误信息判断错误类型
+                if result.get('error'):
                     error_lower = error_output.lower() if error_output else ""
                     if "timeout" in error_lower or "超时" in error_lower:
                         result['error_type'] = 'timeout'
@@ -318,8 +349,10 @@ class StreamValidator:
                 if process:
                     process.kill()
                 result['error'] = f"ffprobe超时 ({timeout}秒)"
+                result['error_type'] = 'timeout'
             except Exception as e:
                 result['error'] = str(e)
+                result['error_type'] = 'unknown_error'
             finally:
                 # 清理已完成进程
                 if process:
@@ -328,6 +361,7 @@ class StreamValidator:
                             self._active_processes.remove(process)
         except Exception as e:
             result['error'] = str(e)
+            result['error_type'] = 'unknown_error'
 
         return result
 

@@ -68,9 +68,14 @@ class ScannerController(QObject):
         """工作线程函数"""
         while not self.stop_event.is_set():
             try:
-                url = self.scan_queue.get_nowait()
+                # 使用超时等待，避免CPU空转，同时给队列填充时间
+                url = self.scan_queue.get(timeout=0.5)
             except queue.Empty:
-                break
+                # 如果队列为空且填充线程已结束，则退出
+                if hasattr(self, 'filler_thread') and not self.filler_thread.is_alive():
+                    break
+                # 否则继续等待
+                continue
 
             try:
                 result = self._check_channel(url)
@@ -504,18 +509,7 @@ class ScannerController(QObject):
         # 记录所有扫描的URL（用于重试扫描）
         self._all_scanned_urls = []
 
-        # 预填充第一批URL
-        try:
-            first_batch = next(self.url_generator)
-            for url in first_batch:
-                self.scan_queue.put(url)
-                self._all_scanned_urls.append(url)
-            self.stats['total'] = len(first_batch)
-        except StopIteration:
-            self.logger.warning("没有可扫描的URL")
-            return
-
-        # 启动队列填充线程
+        # 启动队列填充线程（不再预填充，所有URL都由填充线程处理）
         self.filler_thread = threading.Thread(
             target=self._fill_queue,
             name="QueueFiller",
@@ -900,7 +894,11 @@ class ScannerController(QObject):
                                 'is_validation': self.is_validating
                             }))
 
-                    # 检查扫描是否完成：所有工作线程都完成且队列为空
+                    # 检查扫描是否完成：填充线程结束、所有工作线程都完成且队列为空
+                    filler_alive = (
+                        self.filler_thread.is_alive()
+                        if hasattr(self, 'filler_thread') and self.filler_thread else False
+                    )
                     workers_alive = (
                         any(w.is_alive() for w in self.workers)
                         if self.workers else False
@@ -914,8 +912,8 @@ class ScannerController(QObject):
                         if hasattr(self, 'validation_queue') else True
                     )
 
-                    # 如果所有工作线程都完成且队列为空，则扫描完成
-                    if not workers_alive and queue_empty and validation_queue_empty:
+                    # 如果填充线程结束、所有工作线程都完成且队列为空，则扫描完成
+                    if not filler_alive and not workers_alive and queue_empty and validation_queue_empty:
                         break
 
                     time.sleep(0.5)  # 恢复到合理的更新频率，避免UI假死
