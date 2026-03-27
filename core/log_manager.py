@@ -15,24 +15,29 @@ class LogManager:
         """单例模式实现"""
         if not cls._instance:
             cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
+            # 初始化实例属性
+            log_file = kwargs.get('log_file', 'app.log')
+            max_bytes = kwargs.get('max_bytes', 5*1024*1024)
+            backup_count = kwargs.get('backup_count', 3)
+            level = kwargs.get('level', logging.DEBUG)
+            
+            # 初始化属性
+            cls._instance.log_file = cls._instance._get_log_path(log_file)
+            cls._instance.level = level
+            cls._instance.max_bytes = max_bytes
+            cls._instance.backup_count = backup_count
+            
+            # 配置日志记录器
+            cls._instance._setup_logger()
+            
+            cls._instance._initialized = True
         return cls._instance
 
     def __init__(self, log_file: str = 'app.log', max_bytes: int = 5*1024*1024,
                  backup_count: int = 3, level: int = logging.DEBUG):
         """初始化日志管理器"""
-        if self._initialized:
-            return
-
-        self.log_file = self._get_log_path(log_file)
-        self.level = level
-        self.max_bytes = max_bytes
-        self.backup_count = backup_count
-
-        # 配置日志记录器
-        self._setup_logger()
-
-        self._initialized = True
+        # 单例模式下，__init__可能会被多次调用，所以什么都不做
+        pass
 
     def _get_log_path(self, log_file: str) -> str:
         """获取日志文件路径"""
@@ -48,44 +53,58 @@ class LogManager:
 
     def _setup_logger(self):
         """配置日志记录器 - 只保留文件日志，移除控制台输出"""
-        # 获取全局日志记录器
-        self.logger = logging.getLogger('IPTVScanner')
-        self.logger.setLevel(self.level)
+        try:
+            # 获取全局日志记录器
+            self.logger = logging.getLogger('IPTVScanner')
+            self.logger.setLevel(self.level)
 
-        # 避免重复添加handler
-        if self.logger.handlers:
-            return
+            # 避免重复添加handler
+            if self.logger.handlers:
+                return
 
-        # 创建文件handler（轮转文件）
-        file_handler = RotatingFileHandler(
-            self.log_file,
-            maxBytes=self.max_bytes,
-            backupCount=self.backup_count,
-            encoding='utf-8',
-            mode='a'
-        )
-        file_handler.setLevel(self.level)
+            # 确保日志目录存在
+            log_dir = os.path.dirname(self.log_file)
+            if not os.path.exists(log_dir):
+                os.makedirs(log_dir)
+                print(f"创建日志目录: {log_dir}")
 
-        # 设置日志格式
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
-        )
-        file_handler.setFormatter(formatter)
+            # 创建文件handler（轮转文件）
+            file_handler = RotatingFileHandler(
+                self.log_file,
+                maxBytes=self.max_bytes,
+                backupCount=self.backup_count,
+                encoding='utf-8',
+                mode='a'
+            )
+            file_handler.setLevel(self.level)
 
-        # 只添加文件handler，不添加控制台handler
-        self.logger.addHandler(file_handler)
+            # 设置日志格式
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S'
+            )
+            file_handler.setFormatter(formatter)
 
-        # 清空日志文件内容（每次启动时）
-        self._clear_log_file()
+            # 只添加文件handler，不添加控制台handler
+            self.logger.addHandler(file_handler)
+
+            # 清空日志文件内容（每次启动时）
+            self._clear_log_file()
+            
+            print(f"日志管理器初始化成功，日志文件: {self.log_file}")
+        except Exception as e:
+            print(f"配置日志记录器失败: {e}")
 
     def _clear_log_file(self):
         """清空日志文件内容"""
         try:
             with open(self.log_file, 'w', encoding='utf-8') as f:
                 f.write('')
-        except Exception as e:
+            print(f"清空日志文件成功: {self.log_file}")
+        except IOError as e:
             print(f"清空日志文件失败: {e}")
+        except Exception as e:
+            print(f"清空日志文件时发生错误: {e}")
 
     def debug(self, message: str):
         """记录调试信息"""

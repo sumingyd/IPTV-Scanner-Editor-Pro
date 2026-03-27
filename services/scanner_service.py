@@ -868,6 +868,7 @@ class ScannerController(QObject):
 
     def _update_stats(self):
         """更新统计信息线程"""
+        import time
         try:
             # 简化逻辑：只要没有停止事件就持续更新统计信息
             while not self.stop_event.is_set():
