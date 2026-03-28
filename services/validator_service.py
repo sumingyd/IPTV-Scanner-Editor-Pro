@@ -221,7 +221,7 @@ class StreamValidator:
 
             # 2. 确保信号量已初始化
             if self._semaphore is None:
-                default_max_processes = 5
+                default_max_processes = 8  # 增加并发数
                 self._max_concurrent_processes = default_max_processes
                 self._semaphore = threading.Semaphore(default_max_processes)
 
@@ -233,15 +233,15 @@ class StreamValidator:
                 is_multicast = self._is_multicast_url(url)
 
                 # 构建优化的ffprobe命令
-                # 使用更小的探测大小和更合适的参数
+                # 方案2：简化ffprobe参数，提高速度
                 cmd = [
                     ffprobe_path,
                     '-hide_banner',  # 隐藏横幅信息
                     '-v', 'error',
                     '-timeout', f'{timeout * 1000000}',  # 使用传入的timeout（秒转微秒）
-                    '-probesize', '250000',  # 进一步减少到250KB
-                    '-analyzeduration', '500000',  # 分析时长0.5秒
-                    '-show_entries', 'format=duration:stream=codec_type',  # 只获取必要信息
+                    '-probesize', '100000',  # 进一步减少到100KB
+                    '-analyzeduration', '300000',  # 分析时长0.3秒
+                    '-show_entries', 'stream=codec_type',  # 只检查是否有视频流
                     '-of', 'json',  # JSON格式输出
                 ]
 
@@ -479,7 +479,7 @@ class StreamValidator:
 
         return result
 
-    def validate_stream(self, url: str, raw_channel_name: str = None, timeout: int = 10) -> Dict:
+    def validate_stream(self, url: str, raw_channel_name: str = None, timeout: int = 5) -> Dict:
         """验证视频流有效性 - 只使用ffprobe验证"""
         # 统一结果结构
         result = {
