@@ -309,6 +309,17 @@ class ConfigManager:
             'validate_timeout': int(self.get_value('Validation', 'validate_timeout', '10'))
         }
 
+    def save_mapping_settings(self, enable_mapping: bool = True):
+        """保存映射功能设置"""
+        self.set_value('Mapping', 'enable_mapping', str(enable_mapping))
+        return self.save_config()
+
+    def load_mapping_settings(self) -> dict:
+        """加载映射功能设置"""
+        return {
+            'enable_mapping': self.get_value('Mapping', 'enable_mapping', 'True').lower() == 'true'
+        }
+
     def save_all_settings(self, settings_dict: dict):
         """保存所有设置"""
         for section, section_settings in settings_dict.items():

@@ -243,6 +243,9 @@ class ChannelMappingManager:
         self.user_mappings_lock = threading.Lock()
         self.fingerprint_lock = threading.Lock()
 
+        # 映射功能开关（默认开启）
+        self.enable_mapping = True
+
         # 加载各种映射数据
         self.remote_mappings = self._load_cached_mappings()
         self.user_mappings = self._load_user_mappings()
@@ -417,6 +420,21 @@ class ChannelMappingManager:
 
     def get_channel_info(self, raw_name: str, url: str = None, channel_info: dict = None) -> dict:
         """获取频道信息，支持智能学习和指纹匹配"""
+        # 如果映射功能关闭，直接返回原始名称
+        if not self.enable_mapping:
+            return {
+                'standard_name': raw_name,
+                'logo_url': None,
+                'group_name': None,
+                'tvg_id': None,
+                'tvg_chno': None,
+                'tvg_shift': None,
+                'catchup': None,
+                'catchup_days': None,
+                'catchup_source': None,
+                'resolution': None
+            }
+
         if not raw_name or raw_name.isspace():
             return {'standard_name': '', 'logo_url': None}
 

@@ -486,6 +486,9 @@ class UIBuilder(QtCore.QObject):
         # 设置扫描重试选项
         self._setup_scan_retry_options()
 
+        # 设置映射功能选项
+        self._setup_mapping_options()
+
         # 设置扫描按钮
         self._setup_scan_buttons()
 
@@ -629,6 +632,52 @@ class UIBuilder(QtCore.QObject):
 
         self.main_window.retry_layout = retry_layout
 
+    def _setup_mapping_options(self):
+        """设置映射功能选项"""
+        mapping_layout = QtWidgets.QHBoxLayout()
+        mapping_label = QtWidgets.QLabel("映射功能选项：")
+        self.main_window.mapping_label = mapping_label
+        mapping_layout.addWidget(mapping_label)
+
+        # 是否启用频道映射
+        self.main_window.enable_mapping_checkbox = QtWidgets.QCheckBox("启用频道映射")
+        self.main_window.enable_mapping_checkbox.setToolTip(
+            "启用后，扫描到的频道会根据映射文件自动匹配频道名称、Logo、分组等信息"
+        )
+        self.main_window.enable_mapping_checkbox.setChecked(True)
+        mapping_layout.addWidget(self.main_window.enable_mapping_checkbox)
+        mapping_layout.addStretch()
+
+        # 连接复选框状态变化信号，保存设置
+        self.main_window.enable_mapping_checkbox.stateChanged.connect(
+            lambda: self._save_mapping_settings()
+        )
+
+        # 加载保存的映射设置
+        self._load_mapping_settings()
+
+        self.main_window.mapping_layout = mapping_layout
+
+    def _save_mapping_settings(self):
+        """保存映射设置到配置文件"""
+        from models.channel_mappings import mapping_manager
+        enable_mapping = self.main_window.enable_mapping_checkbox.isChecked()
+        self.main_window.config.save_mapping_settings(enable_mapping)
+        # 同时更新 mapping_manager 的状态
+        mapping_manager.enable_mapping = enable_mapping
+
+    def _load_mapping_settings(self):
+        """加载映射设置"""
+        from models.channel_mappings import mapping_manager
+        try:
+            settings = self.main_window.config.load_mapping_settings()
+            enable_mapping = settings['enable_mapping']
+            self.main_window.enable_mapping_checkbox.setChecked(enable_mapping)
+            # 同时更新 mapping_manager 的状态
+            mapping_manager.enable_mapping = enable_mapping
+        except Exception as e:
+            self.logger.error(f"加载映射设置失败: {e}")
+
     def _setup_scan_buttons(self):
         """设置扫描按钮"""
         # 扫描控制按钮
@@ -686,6 +735,10 @@ class UIBuilder(QtCore.QObject):
         retry_row_label = QtWidgets.QLabel("重试选项：")
         self.main_window.retry_row_label = retry_row_label
         scan_layout.addRow(retry_row_label, self.main_window.retry_layout)
+        # 添加映射选项行
+        mapping_row_label = QtWidgets.QLabel("映射选项：")
+        self.main_window.mapping_row_label = mapping_row_label
+        scan_layout.addRow(mapping_row_label, self.main_window.mapping_layout)
         scan_layout.addRow(self.main_window.scan_button_layout)
 
     def _setup_channel_list(self, parent) -> None:
