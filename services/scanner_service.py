@@ -380,6 +380,11 @@ class ScannerController(QObject):
 
     def _start_async_mapping_check(self, channel_info: dict):
         """启动异步映射检查 - 所有有效频道都检查映射"""
+        # 检查映射功能是否开启
+        from models.channel_mappings import mapping_manager
+        if not mapping_manager.enable_mapping:
+            return
+        
         # 所有有效的频道都需要检查映射
         # 无论是什么格式的URL（IP地址、域名、其他格式）
 
