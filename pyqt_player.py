@@ -43,12 +43,19 @@ class TranslucentPanel(QFrame):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
-        # 绘制半透明背景
-        painter.fillRect(self.rect(), QColor(30, 30, 30, self.opacity))
+        # 创建圆角矩形路径
+        from PyQt6.QtGui import QPainterPath
+        from PyQt6.QtCore import QRectF
+        path = QPainterPath()
+        rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
+        path.addRoundedRect(rect, 8, 8)
+        
+        # 绘制半透明背景（只在圆角内）
+        painter.fillPath(path, QColor(30, 30, 30, self.opacity))
         
         # 绘制边框
         painter.setPen(QColor(100, 100, 100, 150))
-        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 8, 8)
+        painter.drawPath(path)
         
         # 调用父类的 paintEvent 来绘制子控件
         super().paintEvent(event)
@@ -1104,7 +1111,7 @@ class IPTVPlayer(QMainWindow):
         try:
             # 获取视频分辨率
             resolution = self.player_controller.get_video_resolution()
-            print(f"DEBUG: resolution = {resolution}")
+            # 获取视频分辨率成功
             if not resolution or resolution == "未知":
                 return
             
@@ -1129,14 +1136,11 @@ class IPTVPlayer(QMainWindow):
             # 计算新的窗口宽度 = 视频宽度 * 缩放比例
             new_window_width = int(video_width * scale)
             
-            print(f"DEBUG: video={video_width}x{video_height}, scale={scale:.3f}, current={current_width}x{current_height}, new_width={new_window_width}")
-            
             # 设置最小和最大宽度限制
             new_window_width = max(800, min(new_window_width, 1920))
             
             # 只有当新宽度与当前宽度差异超过50px时才调整
             if abs(new_window_width - current_width) < 50:
-                print(f"DEBUG: width difference too small, skipping")
                 return
             
             # 调整窗口大小（保持窗口中心位置不变）
@@ -1223,7 +1227,7 @@ class IPTVPlayer(QMainWindow):
             pass
     
     def update_floating_panel_info(self):
-        """定期更新悬浮窗信息（进度条、时间等）"""
+        """定期更新悬浮窗信息（进度条、时间、媒体信息等）"""
         if not self.player_controller or not self.current_channel:
             return
         
@@ -1259,6 +1263,62 @@ class IPTVPlayer(QMainWindow):
         # 更新音量
         volume = self.player_controller.get_volume()
         self.volume_slider.setValue(volume)
+        
+        # 更新第一行媒体信息（分辨率、编码、码率、帧率等）
+        try:
+            resolution = self.player_controller.get_video_resolution() or "--x--"
+            video_codec = self.player_controller.get_video_codec() or "--"
+            bitrate = self.player_controller.get_bitrate() or "--"
+            fps = self.player_controller.get_fps() or "--"
+            audio_codec = self.player_controller.get_audio_codec() or "--"
+            network_stats = self.player_controller.get_network_stats() or ""
+            
+            # 解析网络统计信息
+            delay = "--"
+            loss = "--"
+            buffer = "--"
+            protocol = "--"
+            if network_stats and "延迟:" in network_stats:
+                # 尝试解析网络统计
+                parts = network_stats.split()
+                for part in parts:
+                    if "延迟:" in part:
+                        delay = part.replace("延迟:", "").replace("ms", "")
+                    elif "丢包:" in part:
+                        loss = part.replace("丢包:", "").replace("%", "")
+                    elif "缓冲:" in part:
+                        buffer = part.replace("缓冲:", "").replace("%", "")
+                    elif "协议:" in part:
+                        protocol = part.replace("协议:", "")
+            
+            # 格式化码率显示
+            bitrate_str = bitrate
+            if bitrate != "--" and bitrate != "未知":
+                try:
+                    bitrate_val = float(bitrate.replace("Mbps", "").replace("Kbps", "").replace("bps", ""))
+                    if "Mbps" in bitrate:
+                        bitrate_str = f"{bitrate_val:.1f}Mbps"
+                    elif "Kbps" in bitrate:
+                        bitrate_str = f"{bitrate_val:.0f}Kbps"
+                except:
+                    pass
+            
+            # 更新第一行：视频信息（更详细的格式）
+            # 格式：分辨率 编码 码率 帧率
+            video_info_text = f"📺 {resolution}  {video_codec}  {bitrate_str}  {fps}fps"
+            self.video_info.setText(video_info_text)
+            
+            # 更新音频信息（更详细的格式）
+            # 格式：编码
+            audio_info_text = f"🔊 {audio_codec}"
+            self.audio_info.setText(audio_info_text)
+            
+            # 更新网络信息（更详细的格式）
+            # 格式：协议 延迟 丢包 缓冲
+            network_info_text = f"📡 {protocol}  延迟:{delay}ms  丢包:{loss}%  缓冲:{buffer}%"
+            self.network_info.setText(network_info_text)
+        except Exception:
+            pass
     
     def eventFilter(self, obj, event):
         """事件过滤器，处理鼠标事件"""
@@ -1377,10 +1437,36 @@ class IPTVPlayer(QMainWindow):
                     
                     self.populate_channel_list()
                     self.status_bar.showMessage(self.language_manager.get("channels_loaded").format(count=len(CHANNELS)))
+                    
+                    # 重新显示并提升三个悬浮窗
+                    self.raise_floating_panels()
                 else:
                     self.status_bar.showMessage(self.language_manager.get("file_format_error"))
             except Exception as ex:
                 self.status_bar.showMessage(self.language_manager.get("open_file_error").format(error=str(ex)))
+                # 发生异常也要重新显示悬浮窗
+                self.raise_floating_panels()
+    
+    def raise_floating_panels(self):
+        """重新显示并提升三个悬浮窗到最前面"""
+        # 更新位置
+        self.update_floating_position()
+        
+        # 显示并提升三个面板
+        if hasattr(self, 'epg_panel') and self.epg_panel:
+            self.epg_panel.show()
+            self.epg_panel.raise_()
+            self.epg_panel.activateWindow()
+        
+        if hasattr(self, 'playlist_panel') and self.playlist_panel:
+            self.playlist_panel.show()
+            self.playlist_panel.raise_()
+            self.playlist_panel.activateWindow()
+        
+        if hasattr(self, 'floating_panel') and self.floating_panel:
+            self.floating_panel.show()
+            self.floating_panel.raise_()
+            self.floating_panel.activateWindow()
     
     def save_playlist(self):
         """保存播放列表"""
