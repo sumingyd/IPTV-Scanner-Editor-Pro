@@ -404,10 +404,21 @@ class IPTVPlayer(QMainWindow):
         self.channel_list.itemClicked.connect(self.select_channel)
         self.playlist_layout.addWidget(self.channel_list, 1)
         
-        # 添加到上半部分布局
-        self.top_layout.addWidget(self.epg_panel)
+        # 添加到上半部分布局（只添加视频区域）
         self.top_layout.addWidget(self.video_frame, 1)
-        self.top_layout.addWidget(self.playlist_panel)
+        
+        # 设置左右侧边栏为视频区域的子控件（悬浮效果）
+        # 左侧EPG面板悬浮
+        self.epg_panel.setParent(self.video_frame)
+        self.epg_panel.setFixedHeight(self.video_frame.height() - 180)  # 留出底部空间
+        self.epg_panel.move(10, 10)
+        self.epg_panel.show()
+        
+        # 右侧播放列表面板悬浮
+        self.playlist_panel.setParent(self.video_frame)
+        self.playlist_panel.setFixedHeight(self.video_frame.height() - 180)  # 留出底部空间
+        self.playlist_panel.move(self.video_frame.width() - self.playlist_panel.width() - 10, 10)
+        self.playlist_panel.show()
         
         # 悬浮控制面板
         self.floating_panel = QFrame()
@@ -888,9 +899,20 @@ class IPTVPlayer(QMainWindow):
     def update_floating_position(self):
         """更新悬浮窗位置"""
         if hasattr(self, 'floating_panel') and self.floating_panel:
+            # 更新底部悬浮控制面板位置
             x = (self.video_frame.width() - self.floating_panel.width()) // 2
             y = self.video_frame.height() - self.floating_panel.height() - 20
             self.floating_panel.move(x, y)
+            
+            # 更新左侧EPG面板位置和高度
+            if hasattr(self, 'epg_panel') and self.epg_panel:
+                self.epg_panel.setFixedHeight(self.video_frame.height() - 180)
+                self.epg_panel.move(10, 10)
+            
+            # 更新右侧播放列表面板位置和高度
+            if hasattr(self, 'playlist_panel') and self.playlist_panel:
+                self.playlist_panel.setFixedHeight(self.video_frame.height() - 180)
+                self.playlist_panel.move(self.video_frame.width() - self.playlist_panel.width() - 10, 10)
     
     def toggle_fullscreen(self, checked=None):
         """切换全屏"""
