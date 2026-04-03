@@ -337,13 +337,35 @@ class IPTVPlayer(QMainWindow):
         # 主布局
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
-        self.main_layout = QHBoxLayout(self.central_widget)
+        self.main_layout = QVBoxLayout(self.central_widget)
         
         # 背景设置
         self.central_widget.setStyleSheet("background-color: #000000;")
         
         # 菜单栏
         self.setup_menu_bar()
+        
+        # 上半部分布局（包含侧边栏和视频区域）
+        self.top_layout = QHBoxLayout()
+        
+        # 左侧EPG面板
+        self.epg_panel = QFrame()
+        self.epg_panel.setStyleSheet("background-color: rgba(30, 30, 30, 0.8); border-radius: 8px;")
+        self.epg_panel.setFixedWidth(200)
+        self.epg_layout = QVBoxLayout(self.epg_panel)
+        
+        # EPG标题
+        self.epg_title = QLabel("📅 节目单")
+        self.epg_title.setStyleSheet("color: white; font-size: 14px; font-weight: bold; padding: 8px; background-color: transparent;")
+        self.epg_layout.addWidget(self.epg_title)
+        
+        # EPG内容
+        self.epg_content = QListWidget()
+        self.epg_content.setStyleSheet("background-color: transparent; color: white; border: none; padding: 5px;")
+        self.epg_content.setSpacing(8)
+        self.epg_content.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.epg_content.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.epg_layout.addWidget(self.epg_content, 1)
         
         # 视频播放区域
         self.video_frame = QFrame()
@@ -353,136 +375,248 @@ class IPTVPlayer(QMainWindow):
         # 视频占位符
         self.video_placeholder = QLabel("📺")
         self.video_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.video_placeholder.setStyleSheet("font-size: 200px; color: #1a1a1a;")
+        self.video_placeholder.setStyleSheet("font-size: 200px; color: #1a1a1a; background-color: transparent;")
         self.video_layout.addWidget(self.video_placeholder)
-        
-        # 左侧EPG面板
-        self.epg_panel = QFrame()
-        self.epg_panel.setStyleSheet("background-color: #1e1e1e; border-radius: 8px;")
-        self.epg_panel.setFixedWidth(250)
-        self.epg_layout = QVBoxLayout(self.epg_panel)
-        
-        # EPG标题
-        self.epg_title = QLabel("📅 节目单")
-        self.epg_title.setStyleSheet("color: white; font-size: 16px; font-weight: bold; padding: 10px;")
-        self.epg_layout.addWidget(self.epg_title)
-        
-        # EPG内容
-        self.epg_content = QListWidget()
-        self.epg_content.setStyleSheet("background-color: transparent; color: white;")
-        self.epg_layout.addWidget(self.epg_content)
         
         # 右侧播放列表面板
         self.playlist_panel = QFrame()
-        self.playlist_panel.setStyleSheet("background-color: #1e1e1e; border-radius: 8px;")
-        self.playlist_panel.setFixedWidth(300)
+        self.playlist_panel.setStyleSheet("background-color: rgba(30, 30, 30, 0.8); border-radius: 8px;")
+        self.playlist_panel.setFixedWidth(250)
         self.playlist_layout = QVBoxLayout(self.playlist_panel)
         
         # 播放列表标题和分组选择
         self.playlist_header = QHBoxLayout()
         self.playlist_title = QLabel("📺 频道列表")
-        self.playlist_title.setStyleSheet("color: white; font-size: 16px; font-weight: bold; padding: 10px;")
+        self.playlist_title.setStyleSheet("color: white; font-size: 14px; font-weight: bold; padding: 8px; background-color: transparent;")
         self.group_combo = QComboBox()
         self.group_combo.addItems(CHANNEL_GROUPS)
-        self.group_combo.setStyleSheet("background-color: #2d2d2d; color: white; padding: 5px;")
+        self.group_combo.setStyleSheet("background-color: rgba(45, 45, 45, 0.8); color: white; padding: 4px; border: none; font-size: 12px;")
         self.playlist_header.addWidget(self.playlist_title)
         self.playlist_header.addWidget(self.group_combo)
         self.playlist_layout.addLayout(self.playlist_header)
         
         # 频道列表
         self.channel_list = QListWidget()
-        self.channel_list.setStyleSheet("background-color: transparent; color: white;")
+        self.channel_list.setStyleSheet("background-color: transparent; color: white; border: none; padding: 5px;")
+        self.channel_list.setSpacing(6)
+        self.channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.channel_list.itemClicked.connect(self.select_channel)
-        self.playlist_layout.addWidget(self.channel_list)
+        self.playlist_layout.addWidget(self.channel_list, 1)
+        
+        # 添加到上半部分布局
+        self.top_layout.addWidget(self.epg_panel)
+        self.top_layout.addWidget(self.video_frame, 1)
+        self.top_layout.addWidget(self.playlist_panel)
         
         # 悬浮控制面板
         self.floating_panel = QFrame()
-        self.floating_panel.setStyleSheet("background-color: #1e1e1e; border-radius: 8px; padding: 10px;")
+        self.floating_panel.setStyleSheet("background-color: rgba(30, 30, 30, 0.8); border-radius: 8px;")
         self.floating_panel.setFixedHeight(150)
+        self.floating_panel.setFixedWidth(1000)
         self.floating_layout = QVBoxLayout(self.floating_panel)
+        self.floating_layout.setContentsMargins(15, 8, 15, 8)
+        self.floating_layout.setSpacing(5)
         
-        # 媒体信息
-        self.media_info = QLabel("📺 1920×1080  H.264  4.5Mbps  25fps  🔊 AAC  128kbps  2.0ch  48kHz  📡 延迟:45ms  丢包:0%  缓冲:100%")
-        self.media_info.setStyleSheet("color: white; font-size: 12px;")
-        self.floating_layout.addWidget(self.media_info)
+        # 第一行：媒体信息（详细版）
+        media_row = QHBoxLayout()
+        media_row.setSpacing(20)
+        
+        video_info = QLabel("📺 1920×1080  H.264  High@L4.1  4.5Mbps  25fps  YUV420P  BT.709")
+        video_info.setStyleSheet("color: #aaaaaa; font-size: 10px; background-color: transparent;")
+        media_row.addWidget(video_info)
+        
+        audio_info = QLabel("🔊 AAC-LC  128kbps  2.0ch  48kHz  16bit  Dolby Digital+")
+        audio_info.setStyleSheet("color: #aaaaaa; font-size: 10px; background-color: transparent;")
+        media_row.addWidget(audio_info)
+        
+        network_info = QLabel("📡 RTMP  延迟:45ms  丢包:0%  缓冲:100%  码率:4.8Mbps  连接:稳定")
+        network_info.setStyleSheet("color: #aaaaaa; font-size: 10px; background-color: transparent;")
+        media_row.addWidget(network_info)
+        
+        media_row.addStretch()
+        self.floating_layout.addLayout(media_row)
         
         # 分隔线
-        self.separator1 = QFrame()
-        self.separator1.setStyleSheet("background-color: #666666; height: 1px; margin: 8px 0;")
-        self.floating_layout.addWidget(self.separator1)
+        line1 = QFrame()
+        line1.setFrameShape(QFrame.Shape.HLine)
+        line1.setStyleSheet("background-color: #555555; max-height: 1px;")
+        self.floating_layout.addWidget(line1)
         
-        # 节目信息
-        self.program_info = QHBoxLayout()
+        # 第二行：节目信息（加高布局）
+        info_row = QHBoxLayout()
+        info_row.setSpacing(15)
         
-        # LOGO区域
-        self.logo_container = QFrame()
-        self.logo_container.setStyleSheet("background-color: #2d2d2d; border-radius: 6px; width: 80px; height: 50px;")
-        self.logo_layout = QVBoxLayout(self.logo_container)
+        # 左侧：频道LOGO（更宽的长方形）和名称
+        left_section = QHBoxLayout()
+        left_section.setSpacing(10)
+        
         self.channel_logo = QLabel("📺")
-        self.channel_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.channel_logo.setStyleSheet("font-size: 30px;")
-        self.logo_layout.addWidget(self.channel_logo)
-        self.program_info.addWidget(self.logo_container)
+        self.channel_logo.setStyleSheet("font-size: 24px; background-color: transparent;")
+        self.channel_logo.setFixedSize(120, 40)
+        left_section.addWidget(self.channel_logo)
         
-        # 频道信息
-        self.channel_info = QVBoxLayout()
+        name_section = QVBoxLayout()
+        name_section.setSpacing(2)
+        
         self.channel_name = QLabel(self.current_channel["name"])
-        self.channel_name.setStyleSheet("color: white; font-size: 16px; font-weight: bold;")
-        self.current_program = QLabel(self.current_channel["current_program"])
-        self.current_program.setStyleSheet("color: #4CAF50; font-size: 13px;")
-        self.channel_info.addWidget(self.channel_name)
-        self.channel_info.addWidget(self.current_program)
-        self.program_info.addLayout(self.channel_info)
+        self.channel_name.setStyleSheet("color: white; font-size: 14px; font-weight: bold; background-color: transparent;")
+        name_section.addWidget(self.channel_name)
         
-        # 节目描述
-        self.program_desc = QLabel("当前节目：" + self.current_channel["current_program"])
-        self.program_desc.setStyleSheet("color: #888; font-size: 12px; margin-left: 20px;")
-        self.program_info.addWidget(self.program_desc)
+        self.current_program = QLabel("▶ " + self.current_channel["current_program"])
+        self.current_program.setStyleSheet("color: #4CAF50; font-size: 11px; background-color: transparent;")
+        name_section.addWidget(self.current_program)
         
-        self.floating_layout.addLayout(self.program_info)
+        left_section.addLayout(name_section)
+        left_section.addStretch()
+        info_row.addLayout(left_section, 2)
+        
+        # 中间：节目描述（直接显示内容，无标题）
+        desc_section = QVBoxLayout()
+        desc_section.setContentsMargins(0, 5, 0, 0)
+        
+        self.program_desc = QLabel("本期节目精彩看点，不容错过！这里是节目的详细描述内容，介绍节目的主要内容和看点。")
+        self.program_desc.setStyleSheet("color: #cccccc; font-size: 10px; background-color: transparent;")
+        self.program_desc.setWordWrap(True)
+        desc_section.addWidget(self.program_desc)
+        info_row.addLayout(desc_section, 3)
+        
+        # 右侧：节目时间信息
+        time_section = QVBoxLayout()
+        time_section.setSpacing(2)
+        
+        time_label = QLabel("⏱ 20:00 - 20:45")
+        time_label.setStyleSheet("color: #aaaaaa; font-size: 10px; background-color: transparent;")
+        time_section.addWidget(time_label)
+        
+        remain_label = QLabel("剩余: 32分钟")
+        remain_label.setStyleSheet("color: #4CAF50; font-size: 10px; background-color: transparent;")
+        time_section.addWidget(remain_label)
+        info_row.addLayout(time_section, 1)
+        
+        self.floating_layout.addLayout(info_row)
         
         # 分隔线
-        self.separator2 = QFrame()
-        self.separator2.setStyleSheet("background-color: #666666; height: 1px; margin: 8px 0;")
-        self.floating_layout.addWidget(self.separator2)
+        line2 = QFrame()
+        line2.setFrameShape(QFrame.Shape.HLine)
+        line2.setStyleSheet("background-color: #555555; max-height: 1px;")
+        self.floating_layout.addWidget(line2)
         
-        # 播放控制
-        self.control_layout = QHBoxLayout()
+        # 第三行：播放控制 + 节目进度条
+        control_row = QHBoxLayout()
+        control_row.setSpacing(8)
         
+        # 左侧：播放按钮
         self.play_button = QToolButton()
         self.play_button.setText("▶")
-        self.play_button.setStyleSheet("color: white; font-size: 16px; background-color: #2d2d2d; border-radius: 4px; padding: 5px;")
+        self.play_button.setFixedSize(28, 26)
+        self.play_button.setStyleSheet("color: white; font-size: 14px; background-color: rgba(60, 60, 60, 0.9); border-radius: 4px; border: none;")
+        control_row.addWidget(self.play_button)
         
+        control_row.addStretch()
+        
+        # 中间：时间进度条组（居中）
+        progress_group = QHBoxLayout()
+        progress_group.setSpacing(4)
+        
+        # 当前节目开始时间
+        progress_start = QLabel("20:00")
+        progress_start.setStyleSheet("color: #888888; font-size: 11px; background-color: transparent;")
+        progress_group.addWidget(progress_start)
+        
+        # 时间进度条
+        self.program_progress = QSlider(Qt.Orientation.Horizontal)
+        self.program_progress.setRange(0, 100)
+        self.program_progress.setValue(35)
+        self.program_progress.setFixedWidth(450)
+        self.program_progress.setStyleSheet("""
+            QSlider {
+                background-color: transparent;
+            }
+            QSlider::groove:horizontal { 
+                background: #555555; 
+                height: 4px; 
+                border-radius: 2px;
+            } 
+            QSlider::sub-page:horizontal { 
+                background: #4CAF50;
+                height: 4px; 
+                border-radius: 2px;
+            }
+            QSlider::handle:horizontal { 
+                background: #ffffff; 
+                width: 10px; 
+                height: 10px; 
+                border-radius: 5px;
+                margin: -3px 0;
+            }
+        """)
+        progress_group.addWidget(self.program_progress)
+        
+        # 当前节目结束时间
+        progress_end = QLabel("20:45")
+        progress_end.setStyleSheet("color: #888888; font-size: 11px; background-color: transparent;")
+        progress_group.addWidget(progress_end)
+        
+        control_row.addLayout(progress_group)
+        
+        control_row.addStretch()
+        
+        # 5. 音量图标
         self.volume_button = QToolButton()
         self.volume_button.setText("🔊")
-        self.volume_button.setStyleSheet("color: white; font-size: 16px; background-color: #2d2d2d; border-radius: 4px; padding: 5px;")
+        self.volume_button.setFixedSize(28, 26)
+        self.volume_button.setStyleSheet("color: white; font-size: 12px; background-color: rgba(60, 60, 60, 0.9); border-radius: 4px; border: none;")
+        control_row.addWidget(self.volume_button)
         
+        # 6. 音量调节拖动条
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(80)
-        self.volume_slider.setStyleSheet("QSlider::groove:horizontal { background: #2d2d2d; height: 6px; border-radius: 3px; } QSlider::handle:horizontal { background: #4CAF50; width: 16px; height: 16px; border-radius: 8px; }")
+        self.volume_slider.setFixedWidth(80)
+        self.volume_slider.setStyleSheet("""
+            QSlider::groove:horizontal { 
+                background: #444444; 
+                height: 4px; 
+                border-radius: 2px;
+            } 
+            QSlider::sub-page:horizontal {
+                background: #4CAF50;
+                height: 4px;
+                border-radius: 2px;
+            }
+            QSlider::handle:horizontal { 
+                background: #ffffff; 
+                width: 12px; 
+                height: 12px; 
+                border-radius: 6px;
+                margin: -4px 0;
+            }
+        """)
+        control_row.addWidget(self.volume_slider)
         
+        # 7. 全屏图标
         self.fullscreen_button = QToolButton()
         self.fullscreen_button.setText("⛶")
-        self.fullscreen_button.setStyleSheet("color: white; font-size: 16px; background-color: #2d2d2d; border-radius: 4px; padding: 5px;")
+        self.fullscreen_button.setFixedSize(28, 26)
+        self.fullscreen_button.setStyleSheet("color: white; font-size: 12px; background-color: rgba(60, 60, 60, 0.9); border-radius: 4px; border: none;")
         self.fullscreen_button.clicked.connect(self.toggle_fullscreen)
+        control_row.addWidget(self.fullscreen_button)
         
-        self.control_layout.addWidget(self.play_button)
-        self.control_layout.addWidget(self.volume_button)
-        self.control_layout.addWidget(self.volume_slider)
-        self.control_layout.addWidget(self.fullscreen_button)
-        
-        self.floating_layout.addLayout(self.control_layout)
+        self.floating_layout.addLayout(control_row)
         
         # 添加到主布局
-        self.main_layout.addWidget(self.epg_panel)
-        self.main_layout.addWidget(self.video_frame, 1)
-        self.main_layout.addWidget(self.playlist_panel)
+        self.main_layout.addLayout(self.top_layout, 1)
         
-        # 悬浮面板（放在视频区域上方）
-        self.floating_panel.setParent(self.video_frame)
-        self.floating_panel.move(200, 500)
-        self.floating_panel.show()
+        # 创建水平布局来居中悬浮窗
+        floating_layout = QHBoxLayout()
+        floating_layout.addStretch()
+        floating_layout.addWidget(self.floating_panel)
+        floating_layout.addStretch()
+        
+        self.main_layout.addLayout(floating_layout)
+        self.main_layout.setContentsMargins(10, 10, 10, 10)
+        self.main_layout.setSpacing(10)
         
         # 状态栏
         self.status_bar = QStatusBar()
@@ -650,40 +784,38 @@ class IPTVPlayer(QMainWindow):
         """填充频道列表"""
         self.channel_list.clear()
         for channel in CHANNELS:
-            item = QListWidgetItem()
-            item_widget = QWidget()
-            item_layout = QHBoxLayout(item_widget)
-            
-            logo_label = QLabel(channel["logo"])
-            logo_label.setFixedSize(30, 30)
-            logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            
-            name_label = QLabel(channel["name"])
-            name_label.setStyleSheet("color: white;")
-            
-            item_layout.addWidget(logo_label)
-            item_layout.addWidget(name_label)
-            item_layout.setContentsMargins(5, 5, 5, 5)
-            
-            item.setSizeHint(item_widget.sizeHint())
-            self.channel_list.setItemWidget(item, item_widget)
+            item = QListWidgetItem(channel["name"])
+            item.setSizeHint(QSize(0, 40))  # 增加行高
             self.channel_list.addItem(item)
     
     def populate_epg_list(self):
         """填充EPG列表"""
         self.epg_content.clear()
         # 设置列表的整体样式
-        self.epg_content.setStyleSheet("color: white;")
+        self.epg_content.setStyleSheet("background-color: transparent; color: white; border: none; padding: 5px;")
         epg_items = [
-            "19:00 - 新闻联播",
-            "19:30 - 天气预报",
-            "20:00 - 焦点访谈",
-            "20:30 - 电视剧",
-            "22:00 - 晚间新闻",
-            "22:30 - 国际新闻"
+            {"time": "19:00", "name": "新闻联播", "replay": True, "current": False},
+            {"time": "19:30", "name": "天气预报", "replay": False, "current": False},
+            {"time": "20:00", "name": "焦点访谈", "replay": True, "current": True},  # 当前播放节目
+            {"time": "20:30", "name": "电视剧", "replay": True, "current": False},
+            {"time": "22:00", "name": "晚间新闻", "replay": False, "current": False},
+            {"time": "22:30", "name": "国际新闻", "replay": True, "current": False}
         ]
-        for item in epg_items:
-            list_item = QListWidgetItem(item)
+        for item_data in epg_items:
+            replay_icon = "⏮" if item_data["replay"] else ""
+            current_icon = "▶" if item_data["current"] else ""
+            if item_data["current"]:
+                item_text = f"{item_data['time']} - {item_data['name']} {replay_icon} {current_icon}"
+                list_item = QListWidgetItem(item_text)
+                # 使用不同的方式标记当前节目
+                font = list_item.font()
+                font.setBold(True)
+                list_item.setFont(font)
+                list_item.setForeground(QColor(76, 175, 80))  # #4CAF50
+            else:
+                item_text = f"{item_data['time']} - {item_data['name']} {replay_icon}"
+                list_item = QListWidgetItem(item_text)
+            list_item.setSizeHint(QSize(0, 30))  # 增加行高
             self.epg_content.addItem(list_item)
     
     def select_channel(self, item):
