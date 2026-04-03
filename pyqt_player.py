@@ -424,25 +424,25 @@ class IPTVPlayer(QMainWindow):
         self.floating_panel = QFrame()
         self.floating_panel.setStyleSheet("background-color: rgba(30, 30, 30, 0.8); border-radius: 8px;")
         self.floating_panel.setFixedHeight(150)
-        self.floating_panel.setFixedWidth(1000)
+        self.floating_panel.setFixedWidth(1100)
         self.floating_layout = QVBoxLayout(self.floating_panel)
         self.floating_layout.setContentsMargins(15, 8, 15, 8)
         self.floating_layout.setSpacing(5)
         
         # 第一行：媒体信息（详细版）
         media_row = QHBoxLayout()
-        media_row.setSpacing(20)
+        media_row.setSpacing(12)
         
         video_info = QLabel("📺 1920×1080  H.264  High@L4.1  4.5Mbps  25fps  YUV420P  BT.709")
-        video_info.setStyleSheet("color: #aaaaaa; font-size: 10px; background-color: transparent;")
+        video_info.setStyleSheet("color: #aaaaaa; font-size: 9px; background-color: transparent;")
         media_row.addWidget(video_info)
         
         audio_info = QLabel("🔊 AAC-LC  128kbps  2.0ch  48kHz  16bit  Dolby Digital+")
-        audio_info.setStyleSheet("color: #aaaaaa; font-size: 10px; background-color: transparent;")
+        audio_info.setStyleSheet("color: #aaaaaa; font-size: 9px; background-color: transparent;")
         media_row.addWidget(audio_info)
         
-        network_info = QLabel("📡 RTMP  延迟:45ms  丢包:0%  缓冲:100%  码率:4.8Mbps  连接:稳定")
-        network_info.setStyleSheet("color: #aaaaaa; font-size: 10px; background-color: transparent;")
+        network_info = QLabel("📡 RTMP  延迟:45ms  丢包:0%  缓冲:100%  码率:4.8Mbps")
+        network_info.setStyleSheet("color: #aaaaaa; font-size: 9px; background-color: transparent;")
         media_row.addWidget(network_info)
         
         media_row.addStretch()
