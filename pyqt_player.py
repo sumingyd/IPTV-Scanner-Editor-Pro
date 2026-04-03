@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QFrame, QToolButton, QSlider, QGridLayout, QComboBox
 )
 from PyQt6.QtCore import Qt, QSize, QTimer, QUrl
-from PyQt6.QtGui import QIcon, QPixmap, QFont, QColor, QAction
+from PyQt6.QtGui import QIcon, QPixmap, QFont, QColor, QAction, QPainter, QBrush
 
 # 导入播放器服务
 import sys
@@ -25,6 +25,33 @@ CHANNEL_GROUPS = ["全部频道"]
 
 # EPG 节目单数据（初始为空字典）
 EPG_DATA = {}
+
+# 自定义半透明面板类（独立窗口）
+class TranslucentPanel(QFrame):
+    """支持真正半透明背景的悬浮面板（独立窗口）"""
+    def __init__(self, parent=None, opacity=180):
+        super().__init__(parent)
+        self.opacity = opacity
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        # 设置为工具窗口，无边框
+        self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint)
+        # 确保面板可以接收鼠标事件
+        self.setMouseTracking(True)
+        
+    def paintEvent(self, event):
+        """自定义绘制半透明背景和边框"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # 绘制半透明背景
+        painter.fillRect(self.rect(), QColor(30, 30, 30, self.opacity))
+        
+        # 绘制边框
+        painter.setPen(QColor(100, 100, 100, 150))
+        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 8, 8)
+        
+        # 调用父类的 paintEvent 来绘制子控件
+        super().paintEvent(event)
 
 # 语言管理
 class LanguageManager:
@@ -349,8 +376,17 @@ class IPTVPlayer(QMainWindow):
         self.top_layout = QHBoxLayout()
         
         # 左侧EPG面板
-        self.epg_panel = QFrame()
-        self.epg_panel.setStyleSheet("background-color: rgba(30, 30, 30, 0.8); border-radius: 8px;")
+        self.epg_panel = TranslucentPanel(opacity=180)
+        self.epg_panel.setStyleSheet("""
+            QLabel {
+                border: none;
+                background-color: transparent;
+            }
+            QListWidget {
+                border: none;
+                background-color: transparent;
+            }
+        """)
         self.epg_panel.setFixedWidth(200)
         self.epg_layout = QVBoxLayout(self.epg_panel)
         
@@ -375,7 +411,7 @@ class IPTVPlayer(QMainWindow):
         
         # 视频播放区域
         self.video_frame = QFrame()
-        self.video_frame.setStyleSheet("background-color: #000000;")
+        self.video_frame.setStyleSheet("background-color: transparent;")
         
         # 创建默认背景（不播放时显示）
         self.video_placeholder = QLabel("📺", self.video_frame)
@@ -393,8 +429,20 @@ class IPTVPlayer(QMainWindow):
         self.player_controller.play_state_changed.connect(self.on_play_state_changed)
         
         # 右侧播放列表面板
-        self.playlist_panel = QFrame()
-        self.playlist_panel.setStyleSheet("background-color: rgba(30, 30, 30, 0.8); border-radius: 8px;")
+        self.playlist_panel = TranslucentPanel(opacity=180)
+        self.playlist_panel.setStyleSheet("""
+            QLabel {
+                border: none;
+                background-color: transparent;
+            }
+            QListWidget {
+                border: none;
+                background-color: transparent;
+            }
+            QComboBox {
+                border: none;
+            }
+        """)
         self.playlist_panel.setFixedWidth(250)
         self.playlist_layout = QVBoxLayout(self.playlist_panel)
         
@@ -428,22 +476,32 @@ class IPTVPlayer(QMainWindow):
         # 添加到上半部分布局（只添加视频区域）
         self.top_layout.addWidget(self.video_frame, 1)
         
-        # 设置左右侧边栏为视频区域的子控件（悬浮效果）
+        # 设置左右侧边栏为独立窗口（悬浮效果）
         # 左侧EPG面板悬浮
-        self.epg_panel.setParent(self.video_frame)
         self.epg_panel.setFixedHeight(self.video_frame.height() - 180)  # 留出底部空间
-        self.epg_panel.move(10, 10)
         self.epg_panel.show()
         
         # 右侧播放列表面板悬浮
-        self.playlist_panel.setParent(self.video_frame)
         self.playlist_panel.setFixedHeight(self.video_frame.height() - 180)  # 留出底部空间
-        self.playlist_panel.move(self.video_frame.width() - self.playlist_panel.width() - 10, 10)
         self.playlist_panel.show()
         
         # 悬浮控制面板
-        self.floating_panel = QFrame()
-        self.floating_panel.setStyleSheet("background-color: rgba(30, 30, 30, 0.8); border-radius: 8px;")
+        self.floating_panel = TranslucentPanel(opacity=180)
+        self.floating_panel.setStyleSheet("""
+            QLabel {
+                border: none;
+                background-color: transparent;
+            }
+            QPushButton {
+                border: none;
+            }
+            QSlider {
+                border: none;
+            }
+            QProgressBar {
+                border: none;
+            }
+        """)
         self.floating_panel.setFixedHeight(150)
         self.floating_panel.setFixedWidth(1100)
         self.floating_layout = QVBoxLayout(self.floating_panel)
@@ -645,15 +703,8 @@ class IPTVPlayer(QMainWindow):
         self.main_layout.setContentsMargins(10, 10, 10, 10)
         self.main_layout.setSpacing(10)
         
-        # 设置悬浮窗为视频区域的子控件，实现真正的悬浮效果
-        self.floating_panel.setParent(self.video_frame)
-        self.floating_panel.setFixedWidth(900)
-        self.floating_panel.move(
-            (self.video_frame.width() - self.floating_panel.width()) // 2,
-            self.video_frame.height() - self.floating_panel.height() - 20
-        )
-        # 根据状态设置悬浮窗显示
-        self.floating_panel.setVisible(self.floating_panel_visible)
+        # 显示底部悬浮控制面板
+        self.floating_panel.show()
         
         # 安装事件过滤器
         self.video_frame.installEventFilter(self)
@@ -670,6 +721,9 @@ class IPTVPlayer(QMainWindow):
         
         # 填充EPG列表
         self.populate_epg_list()
+        
+        # 初始化后立即更新悬浮窗位置
+        self.update_floating_position()
     
     def setup_menu_bar(self):
         """设置菜单栏"""
@@ -1138,22 +1192,29 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, 'video_placeholder') and self.video_placeholder:
             self.video_placeholder.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
         
-        # 更新左侧EPG面板位置和高度，并确保在视频窗口之上
+        # 获取 video_frame 在屏幕上的位置
+        video_frame_global_pos = self.video_frame.mapToGlobal(self.video_frame.rect().topLeft())
+        
+        # 更新左侧EPG面板位置和高度
         if hasattr(self, 'epg_panel') and self.epg_panel:
             self.epg_panel.setFixedHeight(self.video_frame.height() - 180)
-            self.epg_panel.move(10, 10)
+            x = video_frame_global_pos.x() + 10
+            y = video_frame_global_pos.y() + 10
+            self.epg_panel.move(x, y)
             self.epg_panel.raise_()
         
-        # 更新右侧播放列表面板位置和高度，并确保在视频窗口之上
+        # 更新右侧播放列表面板位置和高度
         if hasattr(self, 'playlist_panel') and self.playlist_panel:
             self.playlist_panel.setFixedHeight(self.video_frame.height() - 180)
-            self.playlist_panel.move(self.video_frame.width() - self.playlist_panel.width() - 10, 10)
+            x = video_frame_global_pos.x() + self.video_frame.width() - self.playlist_panel.width() - 10
+            y = video_frame_global_pos.y() + 10
+            self.playlist_panel.move(x, y)
             self.playlist_panel.raise_()
         
-        # 更新底部悬浮控制面板位置，并确保在最上层
+        # 更新底部悬浮控制面板位置
         if hasattr(self, 'floating_panel') and self.floating_panel:
-            x = (self.video_frame.width() - self.floating_panel.width()) // 2
-            y = self.video_frame.height() - self.floating_panel.height() - 20
+            x = video_frame_global_pos.x() + (self.video_frame.width() - self.floating_panel.width()) // 2
+            y = video_frame_global_pos.y() + self.video_frame.height() - self.floating_panel.height() - 20
             self.floating_panel.move(x, y)
             self.floating_panel.raise_()
     
@@ -1325,6 +1386,16 @@ class IPTVPlayer(QMainWindow):
         self.close()
         self.__init__()
         self.show()
+    
+    def moveEvent(self, event):
+        """主窗口移动时，更新悬浮窗口位置"""
+        super().moveEvent(event)
+        self.update_floating_position()
+    
+    def resizeEvent(self, event):
+        """主窗口调整大小时，更新悬浮窗口位置"""
+        super().resizeEvent(event)
+        self.update_floating_position()
     
     def keyPressEvent(self, event):
         """键盘事件处理"""
