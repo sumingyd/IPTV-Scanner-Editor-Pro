@@ -608,15 +608,27 @@ class IPTVPlayer(QMainWindow):
         # 添加到主布局
         self.main_layout.addLayout(self.top_layout, 1)
         
-        # 创建水平布局来居中悬浮窗
-        floating_layout = QHBoxLayout()
-        floating_layout.addStretch()
-        floating_layout.addWidget(self.floating_panel)
-        floating_layout.addStretch()
-        
-        self.main_layout.addLayout(floating_layout)
         self.main_layout.setContentsMargins(10, 10, 10, 10)
         self.main_layout.setSpacing(10)
+        
+        # 设置悬浮窗为视频区域的子控件，实现真正的悬浮效果
+        self.floating_panel.setParent(self.video_frame)
+        self.floating_panel.setFixedWidth(900)
+        self.floating_panel.move(
+            (self.video_frame.width() - self.floating_panel.width()) // 2,
+            self.video_frame.height() - self.floating_panel.height() - 20
+        )
+        
+        # 设置悬浮窗鼠标悬停显示/离开隐藏
+        self.floating_panel.setMouseTracking(True)
+        self.video_frame.setMouseTracking(True)
+        
+        # 初始显示悬浮窗（用于测试）
+        self.floating_panel.show()
+        
+        # 安装事件过滤器
+        self.video_frame.installEventFilter(self)
+        self.floating_panel.installEventFilter(self)
         
         # 状态栏
         self.status_bar = QStatusBar()
@@ -837,6 +849,48 @@ class IPTVPlayer(QMainWindow):
         """显示/隐藏播放列表面板"""
         self.playlist_visible = checked
         self.playlist_panel.setVisible(checked)
+    
+    def eventFilter(self, obj, event):
+        """事件过滤器，处理鼠标事件"""
+        if obj == self.video_frame:
+            if event.type() == event.Type.Resize:
+                # 视频区域大小改变时，重新定位悬浮窗
+                self.update_floating_position()
+            elif event.type() == event.Type.MouseMove:
+                # 检查鼠标是否在底部区域
+                if self.is_mouse_in_bottom_area(event.pos()):
+                    self.floating_panel.show()
+                elif not self.floating_panel.underMouse():
+                    # 鼠标不在底部区域且不在悬浮窗内，隐藏悬浮窗
+                    self.floating_panel.hide()
+            elif event.type() == event.Type.Leave:
+                # 鼠标离开视频区域时隐藏悬浮窗
+                if not self.floating_panel.underMouse():
+                    self.floating_panel.hide()
+        elif obj == self.floating_panel:
+            if event.type() == event.Type.Leave:
+                # 鼠标离开悬浮窗时，检查是否还在视频区域底部
+                if self.video_frame.underMouse():
+                    # 鼠标还在视频区域内，检查是否在底部区域
+                    mouse_pos = self.video_frame.mapFromGlobal(self.cursor().pos())
+                    if not self.is_mouse_in_bottom_area(mouse_pos):
+                        self.floating_panel.hide()
+                else:
+                    # 鼠标不在视频区域内，隐藏悬浮窗
+                    self.floating_panel.hide()
+        return super().eventFilter(obj, event)
+
+    def is_mouse_in_bottom_area(self, pos):
+        """检查鼠标是否在视频区域底部"""
+        bottom_threshold = 80  # 底部80像素区域
+        return pos.y() > self.video_frame.height() - bottom_threshold
+    
+    def update_floating_position(self):
+        """更新悬浮窗位置"""
+        if hasattr(self, 'floating_panel') and self.floating_panel:
+            x = (self.video_frame.width() - self.floating_panel.width()) // 2
+            y = self.video_frame.height() - self.floating_panel.height() - 20
+            self.floating_panel.move(x, y)
     
     def toggle_fullscreen(self, checked=None):
         """切换全屏"""
