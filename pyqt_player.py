@@ -11,27 +11,17 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QSize, QTimer, QUrl
 from PyQt6.QtGui import QIcon, QPixmap, QFont, QColor, QAction
 
-# 频道列表（默认数据）
-CHANNELS = [
-    {"id": 1, "name": "CCTV-1 综合", "url": "http://example.com/cctv1.m3u8", "logo": "📺", "current_program": "新闻联播"},
-    {"id": 2, "name": "CCTV-2 财经", "url": "http://example.com/cctv2.m3u8", "logo": "📺", "current_program": "经济半小时"},
-    {"id": 3, "name": "CCTV-3 综艺", "url": "http://example.com/cctv3.m3u8", "logo": "📺", "current_program": "星光大道"},
-    {"id": 4, "name": "CCTV-4 国际", "url": "http://example.com/cctv4.m3u8", "logo": "📺", "current_program": "中国新闻"},
-    {"id": 5, "name": "CCTV-5 体育", "url": "http://example.com/cctv5.m3u8", "logo": "📺", "current_program": "体育新闻"},
-    {"id": 6, "name": "CCTV-6 电影", "url": "http://example.com/cctv6.m3u8", "logo": "📺", "current_program": "佳片有约"},
-    {"id": 7, "name": "CCTV-7 军事", "url": "http://example.com/cctv7.m3u8", "logo": "📺", "current_program": "军事报道"},
-    {"id": 8, "name": "CCTV-8 电视剧", "url": "http://example.com/cctv8.m3u8", "logo": "📺", "current_program": "黄金剧场"},
-    {"id": 9, "name": "CCTV-9 纪录", "url": "http://example.com/cctv9.m3u8", "logo": "📺", "current_program": "纪录天下"},
-    {"id": 10, "name": "CCTV-10 科教", "url": "http://example.com/cctv10.m3u8", "logo": "📺", "current_program": "走近科学"},
-    {"id": 11, "name": "湖南卫视", "url": "http://example.com/hunan.m3u8", "logo": "📺", "current_program": "快乐大本营"},
-    {"id": 12, "name": "浙江卫视", "url": "http://example.com/zhejiang.m3u8", "logo": "📺", "current_program": "中国好声音"},
-    {"id": 13, "name": "东方卫视", "url": "http://example.com/dongfang.m3u8", "logo": "📺", "current_program": "极限挑战"},
-    {"id": 14, "name": "江苏卫视", "url": "http://example.com/jiangsu.m3u8", "logo": "📺", "current_program": "非诚勿扰"},
-    {"id": 15, "name": "北京卫视", "url": "http://example.com/beijing.m3u8", "logo": "📺", "current_program": "养生堂"},
-]
+# 导入播放器服务
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from services.player_service import PlayerController
 
-# 频道分组
-CHANNEL_GROUPS = ["全部频道", "央视频道", "卫视频道", "地方频道", "体育频道", "电影频道", "综艺频道", "新闻频道"]
+# 频道列表（默认为空，需要用户打开播放列表文件）
+CHANNELS = []
+
+# 频道分组（从实际数据中提取，初始为空）
+CHANNEL_GROUPS = ["全部频道"]
 
 # 语言管理
 class LanguageManager:
@@ -225,7 +215,7 @@ class ChannelListModel:
                         current_channel['logo'] = tvg_logo_match.group(1)
                     
                     group_match = re.search(r"group-title=[\"']([^\"']*)[\"']", attrs_part)
-                    if group_match:
+                    if group_match and group_match.group(1):
                         current_channel['group'] = group_match.group(1)
                     
                     tvg_chno_match = re.search(r"tvg-chno=[\"']([^\"']*)[\"']", attrs_part)
@@ -316,8 +306,8 @@ class IPTVPlayer(QMainWindow):
         # 频道列表模型
         self.channel_model = ChannelListModel()
         
-        # 当前选中的频道
-        self.current_channel = CHANNELS[0]
+        # 当前选中的频道（默认为None）
+        self.current_channel = None
         
         # 面板状态
         self.epg_visible = True
@@ -367,16 +357,30 @@ class IPTVPlayer(QMainWindow):
         self.epg_content.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.epg_layout.addWidget(self.epg_content, 1)
         
+        # EPG空提示
+        self.epg_empty_label = QLabel("暂无节目信息")
+        self.epg_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.epg_empty_label.setStyleSheet("color: #666666; font-size: 12px; background-color: transparent;")
+        self.epg_layout.addWidget(self.epg_empty_label)
+        
         # 视频播放区域
         self.video_frame = QFrame()
         self.video_frame.setStyleSheet("background-color: #000000;")
-        self.video_layout = QVBoxLayout(self.video_frame)
         
-        # 视频占位符
-        self.video_placeholder = QLabel("📺")
+        # 创建默认背景（不播放时显示）
+        self.video_placeholder = QLabel("📺", self.video_frame)
         self.video_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_placeholder.setStyleSheet("font-size: 200px; color: #1a1a1a; background-color: transparent;")
-        self.video_layout.addWidget(self.video_placeholder)
+        self.video_placeholder.show()  # 初始显示
+        
+        # 创建视频播放窗口（用于VLC）
+        self.video_widget = QWidget(self.video_frame)
+        self.video_widget.setStyleSheet("background-color: #000000;")
+        self.video_widget.hide()  # 初始隐藏
+        
+        # 初始化播放器控制器
+        self.player_controller = PlayerController(self.video_widget)
+        self.player_controller.play_state_changed.connect(self.on_play_state_changed)
         
         # 右侧播放列表面板
         self.playlist_panel = QFrame()
@@ -391,6 +395,7 @@ class IPTVPlayer(QMainWindow):
         self.group_combo = QComboBox()
         self.group_combo.addItems(CHANNEL_GROUPS)
         self.group_combo.setStyleSheet("background-color: rgba(45, 45, 45, 0.8); color: white; padding: 4px; border: none; font-size: 12px;")
+        self.group_combo.currentTextChanged.connect(self.on_group_changed)
         self.playlist_header.addWidget(self.playlist_title)
         self.playlist_header.addWidget(self.group_combo)
         self.playlist_layout.addLayout(self.playlist_header)
@@ -403,6 +408,12 @@ class IPTVPlayer(QMainWindow):
         self.channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.channel_list.itemClicked.connect(self.select_channel)
         self.playlist_layout.addWidget(self.channel_list, 1)
+        
+        # 频道列表空提示
+        self.channel_empty_label = QLabel("暂无频道")
+        self.channel_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.channel_empty_label.setStyleSheet("color: #666666; font-size: 12px; background-color: transparent;")
+        self.playlist_layout.addWidget(self.channel_empty_label)
         
         # 添加到上半部分布局（只添加视频区域）
         self.top_layout.addWidget(self.video_frame, 1)
@@ -430,23 +441,23 @@ class IPTVPlayer(QMainWindow):
         self.floating_layout.setSpacing(5)
         
         # 第一行：媒体信息（详细版）
-        media_row = QHBoxLayout()
-        media_row.setSpacing(12)
+        self.media_row = QHBoxLayout()
+        self.media_row.setSpacing(12)
         
-        video_info = QLabel("📺 1920×1080  H.264  High@L4.1  4.5Mbps  25fps  YUV420P  BT.709")
-        video_info.setStyleSheet("color: #aaaaaa; font-size: 9px; background-color: transparent;")
-        media_row.addWidget(video_info)
+        self.video_info = QLabel("📺 未播放")
+        self.video_info.setStyleSheet("color: #aaaaaa; font-size: 9px; background-color: transparent;")
+        self.media_row.addWidget(self.video_info)
         
-        audio_info = QLabel("🔊 AAC-LC  128kbps  2.0ch  48kHz  16bit  Dolby Digital+")
-        audio_info.setStyleSheet("color: #aaaaaa; font-size: 9px; background-color: transparent;")
-        media_row.addWidget(audio_info)
+        self.audio_info = QLabel("🔊 --")
+        self.audio_info.setStyleSheet("color: #aaaaaa; font-size: 9px; background-color: transparent;")
+        self.media_row.addWidget(self.audio_info)
         
-        network_info = QLabel("📡 RTMP  延迟:45ms  丢包:0%  缓冲:100%  码率:4.8Mbps")
-        network_info.setStyleSheet("color: #aaaaaa; font-size: 9px; background-color: transparent;")
-        media_row.addWidget(network_info)
+        self.network_info = QLabel("📡 --")
+        self.network_info.setStyleSheet("color: #aaaaaa; font-size: 9px; background-color: transparent;")
+        self.media_row.addWidget(self.network_info)
         
-        media_row.addStretch()
-        self.floating_layout.addLayout(media_row)
+        self.media_row.addStretch()
+        self.floating_layout.addLayout(self.media_row)
         
         # 分隔线
         line1 = QFrame()
@@ -455,8 +466,8 @@ class IPTVPlayer(QMainWindow):
         self.floating_layout.addWidget(line1)
         
         # 第二行：节目信息（加高布局）
-        info_row = QHBoxLayout()
-        info_row.setSpacing(15)
+        self.info_row = QHBoxLayout()
+        self.info_row.setSpacing(15)
         
         # 左侧：频道LOGO（更宽的长方形）和名称
         left_section = QHBoxLayout()
@@ -470,42 +481,42 @@ class IPTVPlayer(QMainWindow):
         name_section = QVBoxLayout()
         name_section.setSpacing(2)
         
-        self.channel_name = QLabel(self.current_channel["name"])
+        self.channel_name = QLabel("未选择频道")
         self.channel_name.setStyleSheet("color: white; font-size: 14px; font-weight: bold; background-color: transparent;")
         name_section.addWidget(self.channel_name)
         
-        self.current_program = QLabel("▶ " + self.current_channel["current_program"])
+        self.current_program = QLabel("▶ 请选择频道开始播放")
         self.current_program.setStyleSheet("color: #4CAF50; font-size: 11px; background-color: transparent;")
         name_section.addWidget(self.current_program)
         
         left_section.addLayout(name_section)
         left_section.addStretch()
-        info_row.addLayout(left_section, 2)
+        self.info_row.addLayout(left_section, 2)
         
         # 中间：节目描述（直接显示内容，无标题）
         desc_section = QVBoxLayout()
         desc_section.setContentsMargins(0, 5, 0, 0)
         
-        self.program_desc = QLabel("本期节目精彩看点，不容错过！这里是节目的详细描述内容，介绍节目的主要内容和看点。")
+        self.program_desc = QLabel("打开播放列表文件或导入频道以开始观看")
         self.program_desc.setStyleSheet("color: #cccccc; font-size: 10px; background-color: transparent;")
         self.program_desc.setWordWrap(True)
         desc_section.addWidget(self.program_desc)
-        info_row.addLayout(desc_section, 3)
+        self.info_row.addLayout(desc_section, 3)
         
         # 右侧：节目时间信息
         time_section = QVBoxLayout()
         time_section.setSpacing(2)
         
-        time_label = QLabel("⏱ 20:00 - 20:45")
-        time_label.setStyleSheet("color: #aaaaaa; font-size: 10px; background-color: transparent;")
-        time_section.addWidget(time_label)
+        self.time_label = QLabel("⏱ --:-- - --:--")
+        self.time_label.setStyleSheet("color: #aaaaaa; font-size: 10px; background-color: transparent;")
+        time_section.addWidget(self.time_label)
         
-        remain_label = QLabel("剩余: 32分钟")
-        remain_label.setStyleSheet("color: #4CAF50; font-size: 10px; background-color: transparent;")
-        time_section.addWidget(remain_label)
-        info_row.addLayout(time_section, 1)
+        self.remain_label = QLabel("等待播放...")
+        self.remain_label.setStyleSheet("color: #4CAF50; font-size: 10px; background-color: transparent;")
+        time_section.addWidget(self.remain_label)
+        self.info_row.addLayout(time_section, 1)
         
-        self.floating_layout.addLayout(info_row)
+        self.floating_layout.addLayout(self.info_row)
         
         # 分隔线
         line2 = QFrame()
@@ -514,31 +525,32 @@ class IPTVPlayer(QMainWindow):
         self.floating_layout.addWidget(line2)
         
         # 第三行：播放控制 + 节目进度条
-        control_row = QHBoxLayout()
-        control_row.setSpacing(8)
+        self.control_row = QHBoxLayout()
+        self.control_row.setSpacing(8)
         
         # 左侧：播放按钮
         self.play_button = QToolButton()
         self.play_button.setText("▶")
         self.play_button.setFixedSize(28, 26)
         self.play_button.setStyleSheet("color: white; font-size: 14px; background-color: rgba(60, 60, 60, 0.9); border-radius: 4px; border: none;")
-        control_row.addWidget(self.play_button)
+        self.play_button.clicked.connect(self.toggle_play)
+        self.control_row.addWidget(self.play_button)
         
-        control_row.addStretch()
+        self.control_row.addStretch()
         
         # 中间：时间进度条组（居中）
-        progress_group = QHBoxLayout()
-        progress_group.setSpacing(4)
+        self.progress_group = QHBoxLayout()
+        self.progress_group.setSpacing(4)
         
         # 当前节目开始时间
-        progress_start = QLabel("20:00")
-        progress_start.setStyleSheet("color: #888888; font-size: 11px; background-color: transparent;")
-        progress_group.addWidget(progress_start)
+        self.progress_start = QLabel("--:--")
+        self.progress_start.setStyleSheet("color: #888888; font-size: 11px; background-color: transparent;")
+        self.progress_group.addWidget(self.progress_start)
         
         # 时间进度条
         self.program_progress = QSlider(Qt.Orientation.Horizontal)
         self.program_progress.setRange(0, 100)
-        self.program_progress.setValue(35)
+        self.program_progress.setValue(0)
         self.program_progress.setFixedWidth(450)
         self.program_progress.setStyleSheet("""
             QSlider {
@@ -562,23 +574,23 @@ class IPTVPlayer(QMainWindow):
                 margin: -3px 0;
             }
         """)
-        progress_group.addWidget(self.program_progress)
+        self.progress_group.addWidget(self.program_progress)
         
         # 当前节目结束时间
-        progress_end = QLabel("20:45")
-        progress_end.setStyleSheet("color: #888888; font-size: 11px; background-color: transparent;")
-        progress_group.addWidget(progress_end)
+        self.progress_end = QLabel("--:--")
+        self.progress_end.setStyleSheet("color: #888888; font-size: 11px; background-color: transparent;")
+        self.progress_group.addWidget(self.progress_end)
         
-        control_row.addLayout(progress_group)
+        self.control_row.addLayout(self.progress_group)
         
-        control_row.addStretch()
+        self.control_row.addStretch()
         
         # 5. 音量图标
         self.volume_button = QToolButton()
         self.volume_button.setText("🔊")
         self.volume_button.setFixedSize(28, 26)
         self.volume_button.setStyleSheet("color: white; font-size: 12px; background-color: rgba(60, 60, 60, 0.9); border-radius: 4px; border: none;")
-        control_row.addWidget(self.volume_button)
+        self.control_row.addWidget(self.volume_button)
         
         # 6. 音量调节拖动条
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
@@ -604,7 +616,8 @@ class IPTVPlayer(QMainWindow):
                 margin: -4px 0;
             }
         """)
-        control_row.addWidget(self.volume_slider)
+        self.volume_slider.valueChanged.connect(self.set_volume)
+        self.control_row.addWidget(self.volume_slider)
         
         # 7. 全屏图标
         self.fullscreen_button = QToolButton()
@@ -612,9 +625,9 @@ class IPTVPlayer(QMainWindow):
         self.fullscreen_button.setFixedSize(28, 26)
         self.fullscreen_button.setStyleSheet("color: white; font-size: 12px; background-color: rgba(60, 60, 60, 0.9); border-radius: 4px; border: none;")
         self.fullscreen_button.clicked.connect(self.toggle_fullscreen)
-        control_row.addWidget(self.fullscreen_button)
+        self.control_row.addWidget(self.fullscreen_button)
         
-        self.floating_layout.addLayout(control_row)
+        self.floating_layout.addLayout(self.control_row)
         
         # 添加到主布局
         self.main_layout.addLayout(self.top_layout, 1)
@@ -629,17 +642,13 @@ class IPTVPlayer(QMainWindow):
             (self.video_frame.width() - self.floating_panel.width()) // 2,
             self.video_frame.height() - self.floating_panel.height() - 20
         )
-        
-        # 设置悬浮窗鼠标悬停显示/离开隐藏
-        self.floating_panel.setMouseTracking(True)
-        self.video_frame.setMouseTracking(True)
-        
-        # 初始显示悬浮窗（用于测试）
-        self.floating_panel.show()
+        # 根据状态设置悬浮窗显示
+        self.floating_panel.setVisible(self.floating_panel_visible)
         
         # 安装事件过滤器
         self.video_frame.installEventFilter(self)
-        self.floating_panel.installEventFilter(self)
+        self.video_widget.installEventFilter(self)
+        self.video_placeholder.installEventFilter(self)
         
         # 状态栏
         self.status_bar = QStatusBar()
@@ -724,6 +733,11 @@ class IPTVPlayer(QMainWindow):
         show_playlist.triggered.connect(self.toggle_playlist)
         view_menu.addAction(show_playlist)
         
+        show_floating = QAction("显示控制面板", self, checkable=True)
+        show_floating.setChecked(self.floating_panel_visible)
+        show_floating.triggered.connect(self.toggle_floating_panel)
+        view_menu.addAction(show_floating)
+        
         view_menu.addSeparator()
         
         fullscreen = QAction(self.language_manager.get("fullscreen"), self, checkable=True)
@@ -803,11 +817,67 @@ class IPTVPlayer(QMainWindow):
         english.triggered.connect(lambda: self.set_language("en"))
         language_menu.addAction(english)
     
+    def update_channel_groups(self):
+        """从CHANNELS中提取分组并更新下拉框"""
+        global CHANNEL_GROUPS
+        
+        # 提取所有唯一的分组，保持出现顺序
+        groups = []
+        seen = set()
+        for channel in CHANNELS:
+            group = channel.get('group', '') or '未分类'
+            if group not in seen:
+                groups.append(group)
+                seen.add(group)
+        
+        # 更新CHANNEL_GROUPS
+        new_groups = ["全部频道"] + groups
+        
+        # 如果分组没有变化，不需要更新
+        if new_groups == CHANNEL_GROUPS:
+            return
+        
+        CHANNEL_GROUPS = new_groups
+        
+        # 暂时断开信号连接，避免递归
+        self.group_combo.blockSignals(True)
+        
+        # 更新下拉框
+        current_text = self.group_combo.currentText()
+        self.group_combo.clear()
+        self.group_combo.addItems(CHANNEL_GROUPS)
+        
+        # 尝试恢复之前的选择
+        index = self.group_combo.findText(current_text)
+        if index >= 0:
+            self.group_combo.setCurrentIndex(index)
+        
+        # 恢复信号连接
+        self.group_combo.blockSignals(False)
+    
     def populate_channel_list(self):
         """填充频道列表"""
         self.channel_list.clear()
+        
+        # 更新分组下拉框
+        self.update_channel_groups()
+        
+        if not CHANNELS:
+            self.channel_empty_label.show()
+            return
+        self.channel_empty_label.hide()
+        
+        # 获取当前选中的分组
+        selected_group = self.group_combo.currentText()
+        
         for channel in CHANNELS:
-            item = QListWidgetItem(channel["name"])
+            # 如果选择了特定分组，只显示该分组的频道
+            if selected_group != "全部频道":
+                channel_group = channel.get('group', '未分类')
+                if channel_group != selected_group:
+                    continue
+            
+            item = QListWidgetItem(channel.get("name", "未命名"))
             item.setSizeHint(QSize(0, 40))  # 增加行高
             self.channel_list.addItem(item)
     
@@ -816,40 +886,33 @@ class IPTVPlayer(QMainWindow):
         self.epg_content.clear()
         # 设置列表的整体样式
         self.epg_content.setStyleSheet("background-color: transparent; color: white; border: none; padding: 5px;")
-        epg_items = [
-            {"time": "19:00", "name": "新闻联播", "replay": True, "current": False},
-            {"time": "19:30", "name": "天气预报", "replay": False, "current": False},
-            {"time": "20:00", "name": "焦点访谈", "replay": True, "current": True},  # 当前播放节目
-            {"time": "20:30", "name": "电视剧", "replay": True, "current": False},
-            {"time": "22:00", "name": "晚间新闻", "replay": False, "current": False},
-            {"time": "22:30", "name": "国际新闻", "replay": True, "current": False}
-        ]
-        for item_data in epg_items:
-            replay_icon = "⏮" if item_data["replay"] else ""
-            current_icon = "▶" if item_data["current"] else ""
-            if item_data["current"]:
-                item_text = f"{item_data['time']} - {item_data['name']} {replay_icon} {current_icon}"
-                list_item = QListWidgetItem(item_text)
-                # 使用不同的方式标记当前节目
-                font = list_item.font()
-                font.setBold(True)
-                list_item.setFont(font)
-                list_item.setForeground(QColor(76, 175, 80))  # #4CAF50
-            else:
-                item_text = f"{item_data['time']} - {item_data['name']} {replay_icon}"
-                list_item = QListWidgetItem(item_text)
-            list_item.setSizeHint(QSize(0, 30))  # 增加行高
-            self.epg_content.addItem(list_item)
+        
+        # 检查是否有当前频道
+        if not self.current_channel:
+            self.epg_empty_label.show()
+            return
+        
+        # TODO: 从EPG源获取真实数据
+        # 目前显示空提示，等待真实EPG数据
+        self.epg_empty_label.show()
+    
+    def on_group_changed(self, group_name):
+        """分组切换时重新填充频道列表"""
+        self.populate_channel_list()
     
     def select_channel(self, item):
-        """选择频道"""
+        """选择频道并播放"""
         index = self.channel_list.row(item)
         if 0 <= index < len(CHANNELS):
             self.current_channel = CHANNELS[index]
-            self.channel_name.setText(self.current_channel["name"])
-            self.current_program.setText(self.current_channel["current_program"])
-            self.program_desc.setText("当前节目：" + self.current_channel["current_program"])
-            self.channel_logo.setText(self.current_channel["logo"])
+            self.channel_name.setText(self.current_channel.get("name", "未知频道"))
+            self.current_program.setText("▶ 准备播放...")
+            self.program_desc.setText(f"URL: {self.current_channel.get('url', 'N/A')[:50]}...")
+            logo = self.current_channel.get("logo", "")
+            self.channel_logo.setText(logo if logo else "📺")
+            
+            # 播放选中的频道
+            self.play_channel(self.current_channel)
     
     def toggle_epg(self, checked):
         """显示/隐藏EPG面板"""
@@ -861,58 +924,122 @@ class IPTVPlayer(QMainWindow):
         self.playlist_visible = checked
         self.playlist_panel.setVisible(checked)
     
+    def toggle_floating_panel(self, checked):
+        """显示/隐藏底部控制面板"""
+        self.floating_panel_visible = checked
+        self.floating_panel.setVisible(checked)
+    
+    def toggle_play(self):
+        """切换播放/暂停"""
+        if self.player_controller:
+            self.player_controller.toggle_pause()
+    
+    def set_volume(self, value):
+        """设置音量"""
+        if self.player_controller:
+            self.player_controller.set_volume(value)
+    
+    def play_channel(self, channel):
+        """播放指定频道"""
+        if self.player_controller and channel:
+            url = channel.get('url')
+            name = channel.get('name', '未知频道')
+            if url:
+                # 播放前先显示视频窗口（VLC需要可见窗口才能正确设置视频输出）
+                if hasattr(self, 'video_placeholder'):
+                    self.video_placeholder.hide()
+                if hasattr(self, 'video_widget'):
+                    self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
+                    self.video_widget.show()
+                # 确保悬浮窗在视频窗口之上
+                if hasattr(self, 'floating_panel'):
+                    self.floating_panel.raise_()
+                self.player_controller.play(url, name)
+    
+    def on_play_state_changed(self, is_playing):
+        """播放状态改变时的处理"""
+        if is_playing:
+            self.play_button.setText("⏸")
+            # 播放时隐藏背景，显示视频窗口
+            if hasattr(self, 'video_placeholder'):
+                self.video_placeholder.hide()
+            if hasattr(self, 'video_widget'):
+                self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
+                self.video_widget.show()
+            # 确保悬浮控件在视频窗口之上
+            if hasattr(self, 'epg_panel'):
+                self.epg_panel.raise_()
+            if hasattr(self, 'playlist_panel'):
+                self.playlist_panel.raise_()
+            if hasattr(self, 'floating_panel'):
+                self.floating_panel.raise_()
+            # 更新媒体信息
+            self.update_media_info()
+        else:
+            self.play_button.setText("▶")
+            # 停止时隐藏视频窗口，显示背景
+            if hasattr(self, 'video_widget'):
+                self.video_widget.hide()
+            if hasattr(self, 'video_placeholder'):
+                self.video_placeholder.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
+                self.video_placeholder.show()
+    
+    def update_media_info(self):
+        """更新媒体信息显示"""
+        if not self.player_controller or not self.current_channel:
+            return
+        
+        # 获取视频分辨率
+        resolution = self.player_controller.get_video_resolution()
+        if resolution:
+            self.video_info.setText(f"📺 {resolution}")
+        else:
+            self.video_info.setText("📺 获取中...")
+        
+        # 更新频道名称和节目信息
+        self.channel_name.setText(self.current_channel.get("name", "未知频道"))
+        self.current_program.setText("▶ 正在播放")
+        self.program_desc.setText(f"URL: {self.current_channel.get('url', 'N/A')[:50]}...")
+        
+        # TODO: 从VLC获取更详细的媒体信息（音频、码率等）
+        # 这些需要在PlayerController中添加相应的方法
+    
     def eventFilter(self, obj, event):
         """事件过滤器，处理鼠标事件"""
-        if obj == self.video_frame:
+        if obj in (self.video_frame, self.video_widget, self.video_placeholder):
             if event.type() == event.Type.Resize:
                 # 视频区域大小改变时，重新定位悬浮窗
                 self.update_floating_position()
-            elif event.type() == event.Type.MouseMove:
-                # 检查鼠标是否在底部区域
-                if self.is_mouse_in_bottom_area(event.pos()):
-                    self.floating_panel.show()
-                elif not self.floating_panel.underMouse():
-                    # 鼠标不在底部区域且不在悬浮窗内，隐藏悬浮窗
-                    self.floating_panel.hide()
-            elif event.type() == event.Type.Leave:
-                # 鼠标离开视频区域时隐藏悬浮窗
-                if not self.floating_panel.underMouse():
-                    self.floating_panel.hide()
-        elif obj == self.floating_panel:
-            if event.type() == event.Type.Leave:
-                # 鼠标离开悬浮窗时，检查是否还在视频区域底部
-                if self.video_frame.underMouse():
-                    # 鼠标还在视频区域内，检查是否在底部区域
-                    mouse_pos = self.video_frame.mapFromGlobal(self.cursor().pos())
-                    if not self.is_mouse_in_bottom_area(mouse_pos):
-                        self.floating_panel.hide()
-                else:
-                    # 鼠标不在视频区域内，隐藏悬浮窗
-                    self.floating_panel.hide()
         return super().eventFilter(obj, event)
-
-    def is_mouse_in_bottom_area(self, pos):
-        """检查鼠标是否在视频区域底部"""
-        bottom_threshold = 80  # 底部80像素区域
-        return pos.y() > self.video_frame.height() - bottom_threshold
     
     def update_floating_position(self):
         """更新悬浮窗位置"""
+        # 更新视频窗口大小
+        if hasattr(self, 'video_widget') and self.video_widget:
+            self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
+        
+        # 更新默认背景大小
+        if hasattr(self, 'video_placeholder') and self.video_placeholder:
+            self.video_placeholder.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
+        
+        # 更新左侧EPG面板位置和高度，并确保在视频窗口之上
+        if hasattr(self, 'epg_panel') and self.epg_panel:
+            self.epg_panel.setFixedHeight(self.video_frame.height() - 180)
+            self.epg_panel.move(10, 10)
+            self.epg_panel.raise_()
+        
+        # 更新右侧播放列表面板位置和高度，并确保在视频窗口之上
+        if hasattr(self, 'playlist_panel') and self.playlist_panel:
+            self.playlist_panel.setFixedHeight(self.video_frame.height() - 180)
+            self.playlist_panel.move(self.video_frame.width() - self.playlist_panel.width() - 10, 10)
+            self.playlist_panel.raise_()
+        
+        # 更新底部悬浮控制面板位置，并确保在最上层
         if hasattr(self, 'floating_panel') and self.floating_panel:
-            # 更新底部悬浮控制面板位置
             x = (self.video_frame.width() - self.floating_panel.width()) // 2
             y = self.video_frame.height() - self.floating_panel.height() - 20
             self.floating_panel.move(x, y)
-            
-            # 更新左侧EPG面板位置和高度
-            if hasattr(self, 'epg_panel') and self.epg_panel:
-                self.epg_panel.setFixedHeight(self.video_frame.height() - 180)
-                self.epg_panel.move(10, 10)
-            
-            # 更新右侧播放列表面板位置和高度
-            if hasattr(self, 'playlist_panel') and self.playlist_panel:
-                self.playlist_panel.setFixedHeight(self.video_frame.height() - 180)
-                self.playlist_panel.move(self.video_frame.width() - self.playlist_panel.width() - 10, 10)
+            self.floating_panel.raise_()
     
     def toggle_fullscreen(self, checked=None):
         """切换全屏"""
@@ -935,8 +1062,10 @@ class IPTVPlayer(QMainWindow):
         """重置布局"""
         self.epg_visible = True
         self.playlist_visible = True
+        self.floating_panel_visible = True
         self.epg_panel.setVisible(True)
         self.playlist_panel.setVisible(True)
+        self.floating_panel.setVisible(True)
         self.resize(1280, 720)
     
     def new_playlist(self):
@@ -944,6 +1073,9 @@ class IPTVPlayer(QMainWindow):
         global CHANNELS
         CHANNELS = []
         self.populate_channel_list()
+        # 清空EPG显示
+        self.epg_content.clear()
+        self.epg_empty_label.show()
         self.status_bar.showMessage("已新建播放列表")
     
     def open_playlist(self):
@@ -968,15 +1100,17 @@ class IPTVPlayer(QMainWindow):
                             "id": i + 1,
                             "name": ch.get('name', '未命名'),
                             "url": ch.get('url', ''),
-                            "logo": ch.get('logo', '📺'),
+                            "logo": ch.get('logo', ''),
+                            "group": ch.get('group', '未分类'),
                             "current_program": ''
                         })
                     if CHANNELS:
                         self.current_channel = CHANNELS[0]
-                        self.channel_name.setText(self.current_channel["name"])
-                        self.current_program.setText(self.current_channel["current_program"])
-                        self.program_desc.setText("当前节目：" + self.current_channel["current_program"])
-                        self.channel_logo.setText(self.current_channel["logo"])
+                        self.channel_name.setText(self.current_channel.get("name", "未知频道"))
+                        self.current_program.setText("▶ 请选择频道播放")
+                        self.program_desc.setText("打开播放列表文件成功，点击频道开始播放")
+                        logo = self.current_channel.get("logo", "")
+                        self.channel_logo.setText(logo if logo else "📺")
                     
                     self.populate_channel_list()
                     self.status_bar.showMessage(self.language_manager.get("channels_loaded").format(count=len(CHANNELS)))

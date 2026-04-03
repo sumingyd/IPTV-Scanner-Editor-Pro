@@ -54,11 +54,20 @@ class PlayerController(QObject):
             # 先异步停止当前播放
             self.stop()
 
+            # 在主线程中获取窗口ID（winId()必须在主线程调用）
+            win_id = None
+            if self.video_widget and sys.platform.startswith('win'):
+                win_id = int(self.video_widget.winId())
+
             # 使用异步方式播放新URL
             import threading
 
             def async_play():
                 try:
+                    # 设置视频输出窗口
+                    if win_id is not None:
+                        self.player.set_hwnd(win_id)
+                    
                     media = self.instance.media_new(url)
                     self.player.set_media(media)
                     self.player.play()
@@ -263,3 +272,102 @@ class PlayerController(QObject):
         except Exception as e:
             self.logger.error(f"播放异常: {str(e)}")
             return False
+    
+    def get_current_time(self):
+        """获取当前播放时间（毫秒）"""
+        if self.player and self.is_playing:
+            try:
+                return self.player.get_time()
+            except Exception:
+                pass
+        return 0
+    
+    def get_total_time(self):
+        """获取总时长（毫秒）"""
+        if self.player and self.is_playing:
+            try:
+                return self.player.get_length()
+            except Exception:
+                pass
+        return 0
+    
+    def get_position(self):
+        """获取播放位置（0.0-1.0）"""
+        if self.player and self.is_playing:
+            try:
+                return self.player.get_position()
+            except Exception:
+                pass
+        return 0.0
+    
+    def get_volume(self):
+        """获取当前音量（0-100）"""
+        if self.player:
+            try:
+                return self.player.audio_get_volume()
+            except Exception:
+                pass
+        return 50
+    
+    def get_audio_codec(self):
+        """获取音频编码"""
+        if self.player and self.is_playing:
+            try:
+                media = self.player.get_media()
+                if media:
+                    tracks = media.tracks_get()
+                    for track in tracks:
+                        if track.type == vlc.TrackType.audio:
+                            return track.codec
+            except Exception:
+                pass
+        return "未知"
+    
+    def get_video_codec(self):
+        """获取视频编码"""
+        if self.player and self.is_playing:
+            try:
+                media = self.player.get_media()
+                if media:
+                    tracks = media.tracks_get()
+                    for track in tracks:
+                        if track.type == vlc.TrackType.video:
+                            return track.codec
+            except Exception:
+                pass
+        return "未知"
+    
+    def get_bitrate(self):
+        """获取码率"""
+        if self.player and self.is_playing:
+            try:
+                media = self.player.get_media()
+                if media:
+                    stats = media.get_stats()
+                    if stats:
+                        return f"{stats.input_bitrate / 1000:.1f}kbps"
+            except Exception:
+                pass
+        return "未知"
+    
+    def get_fps(self):
+        """获取帧率"""
+        if self.player and self.is_playing:
+            try:
+                return f"{self.player.video_get_fps():.1f}fps"
+            except Exception:
+                pass
+        return "未知"
+    
+    def get_network_stats(self):
+        """获取网络统计"""
+        if self.player and self.is_playing:
+            try:
+                media = self.player.get_media()
+                if media:
+                    stats = media.get_stats()
+                    if stats:
+                        return f"延迟:{stats.demux_read_bytes}ms 丢包:{stats.lost_pictures}% 缓冲:{stats.demux_bitrate / 1000:.0f}%"
+            except Exception:
+                pass
+        return "延迟:--ms 丢包:--% 缓冲:--%"
