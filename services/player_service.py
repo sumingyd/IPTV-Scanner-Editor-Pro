@@ -38,6 +38,10 @@ class PlayerController(QObject):
             else:
                 self.player.set_xwindow(self.video_widget.winId())
 
+            # 设置视频缩放模式为填充（让视频填满窗口）
+            self.player.video_set_scale(0)  # 0 表示自动缩放
+            self.player.video_set_aspect_ratio(None)  # 使用视频原始比例
+
             # 设置初始音量
             self.player.audio_set_volume(50)
 
@@ -72,15 +76,13 @@ class PlayerController(QObject):
                     self.player.set_media(media)
                     self.player.play()
                     self.is_playing = True
-                    # 使用QTimer在主线程中安全地发射信号
-                    from PyQt6.QtCore import QTimer
-                    QTimer.singleShot(0, lambda: self.play_state_changed.emit(True))
+                    # 直接发射信号
+                    self.play_state_changed.emit(True)
                     self.logger.info(f"正在播放: {channel_name}")
                 except Exception as e:
                     self.logger.error(f"异步播放失败: {e}")
-                    # 使用QTimer在主线程中安全地发射错误信号
-                    # 使用默认参数捕获e的值，避免lambda执行时e已超出作用域
-                    QTimer.singleShot(0, lambda e=e: self.play_error.emit(str(e)))
+                    # 发射错误信号
+                    self.play_error.emit(str(e))
 
             # 在后台线程中执行播放操作
             play_thread = threading.Thread(target=async_play, daemon=True)

@@ -411,7 +411,7 @@ class IPTVPlayer(QMainWindow):
         
         # 视频播放区域
         self.video_frame = QFrame()
-        self.video_frame.setStyleSheet("background-color: transparent;")
+        self.video_frame.setStyleSheet("background-color: #000000;")
         
         # 创建默认背景（不播放时显示）
         self.video_placeholder = QLabel("📺", self.video_frame)
@@ -700,8 +700,8 @@ class IPTVPlayer(QMainWindow):
         # 添加到主布局
         self.main_layout.addLayout(self.top_layout, 1)
         
-        self.main_layout.setContentsMargins(10, 10, 10, 10)
-        self.main_layout.setSpacing(10)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
         
         # 显示底部悬浮控制面板
         self.floating_panel.show()
@@ -722,8 +722,8 @@ class IPTVPlayer(QMainWindow):
         # 填充EPG列表
         self.populate_epg_list()
         
-        # 初始化后立即更新悬浮窗位置
-        self.update_floating_position()
+        # 使用定时器延迟更新悬浮窗位置，确保窗口已显示
+        QTimer.singleShot(100, self.update_floating_position)
     
     def setup_menu_bar(self):
         """设置菜单栏"""
@@ -1078,6 +1078,12 @@ class IPTVPlayer(QMainWindow):
             self.update_media_info()
             # 启动定时器，每200ms更新一次
             self.update_timer.start(200)
+            # 立即尝试调整窗口大小，并在之后持续检查
+            self.adjust_window_size_to_video()
+            self._resize_attempts = 0
+            self._resize_timer = QTimer()
+            self._resize_timer.timeout.connect(self._try_adjust_window_size)
+            self._resize_timer.start(500)  # 每500ms检查一次
         else:
             self.play_button.setText("▶")
             # 停止时隐藏视频窗口，显示背景
@@ -1089,6 +1095,86 @@ class IPTVPlayer(QMainWindow):
             # 停止定时器
             if hasattr(self, 'update_timer'):
                 self.update_timer.stop()
+    
+    def adjust_window_size_to_video(self):
+        """根据视频分辨率调整窗口大小，保持窗口高度不变，调整宽度以适应视频比例"""
+        if not self.player_controller:
+            return
+        
+        try:
+            # 获取视频分辨率
+            resolution = self.player_controller.get_video_resolution()
+            print(f"DEBUG: resolution = {resolution}")
+            if not resolution or resolution == "未知":
+                return
+            
+            # 解析分辨率
+            parts = resolution.split('x')
+            if len(parts) != 2:
+                return
+            
+            video_width = int(parts[0])
+            video_height = int(parts[1])
+            
+            if video_width <= 0 or video_height <= 0:
+                return
+            
+            # 获取当前窗口高度（保持高度不变）
+            current_height = self.height()
+            current_width = self.width()
+            
+            # 计算缩放比例：窗口高度 / 视频高度
+            scale = current_height / video_height
+            
+            # 计算新的窗口宽度 = 视频宽度 * 缩放比例
+            new_window_width = int(video_width * scale)
+            
+            print(f"DEBUG: video={video_width}x{video_height}, scale={scale:.3f}, current={current_width}x{current_height}, new_width={new_window_width}")
+            
+            # 设置最小和最大宽度限制
+            new_window_width = max(800, min(new_window_width, 1920))
+            
+            # 只有当新宽度与当前宽度差异超过50px时才调整
+            if abs(new_window_width - current_width) < 50:
+                print(f"DEBUG: width difference too small, skipping")
+                return
+            
+            # 调整窗口大小（保持窗口中心位置不变）
+            current_geometry = self.geometry()
+            center_x = current_geometry.x() + current_geometry.width() // 2
+            center_y = current_geometry.y() + current_geometry.height() // 2
+            
+            new_x = center_x - new_window_width // 2
+            new_y = center_y - current_height // 2
+            
+            print(f"DEBUG: setting geometry to {new_window_width}x{current_height}")
+            self.setGeometry(new_x, new_y, new_window_width, current_height)
+            
+        except Exception as e:
+            print(f"DEBUG: exception = {e}")
+    
+    def _try_adjust_window_size(self):
+        """尝试调整窗口大小，最多尝试10次"""
+        self._resize_attempts += 1
+        
+        # 尝试调整窗口大小
+        self.adjust_window_size_to_video()
+        
+        # 检查是否获取到了分辨率
+        if self.player_controller:
+            resolution = self.player_controller.get_video_resolution()
+            if resolution and resolution != "未知":
+                # 成功获取到分辨率，停止定时器
+                if hasattr(self, '_resize_timer') and self._resize_timer:
+                    self._resize_timer.stop()
+                    self._resize_timer = None
+                return
+        
+        # 如果尝试次数超过10次，停止定时器
+        if self._resize_attempts >= 10:
+            if hasattr(self, '_resize_timer') and self._resize_timer:
+                self._resize_timer.stop()
+                self._resize_timer = None
     
     def update_media_info(self):
         """更新媒体信息显示"""
