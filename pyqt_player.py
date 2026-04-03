@@ -23,6 +23,9 @@ CHANNELS = []
 # 频道分组（从实际数据中提取，初始为空）
 CHANNEL_GROUPS = ["全部频道"]
 
+# EPG 节目单数据（初始为空字典）
+EPG_DATA = {}
+
 # 语言管理
 class LanguageManager:
     def __init__(self):
@@ -318,6 +321,13 @@ class IPTVPlayer(QMainWindow):
         
         # 全屏状态
         self.is_fullscreen = False
+        
+        # 导入 QTimer
+        from PyQt6.QtCore import QTimer
+        
+        # 创建定时器，定期更新悬浮窗信息
+        self.update_timer = QTimer()
+        self.update_timer.timeout.connect(self.update_floating_panel_info)
         
         # 初始化UI
         self.init_ui()
@@ -905,14 +915,51 @@ class IPTVPlayer(QMainWindow):
         index = self.channel_list.row(item)
         if 0 <= index < len(CHANNELS):
             self.current_channel = CHANNELS[index]
-            self.channel_name.setText(self.current_channel.get("name", "未知频道"))
-            self.current_program.setText("▶ 准备播放...")
-            self.program_desc.setText(f"URL: {self.current_channel.get('url', 'N/A')[:50]}...")
-            logo = self.current_channel.get("logo", "")
-            self.channel_logo.setText(logo if logo else "📺")
+            
+            # 立即更新悬浮窗信息
+            self.update_channel_info_on_selection()
             
             # 播放选中的频道
             self.play_channel(self.current_channel)
+    
+    def update_channel_info_on_selection(self):
+        """选择频道时立即更新悬浮窗信息"""
+        if not self.current_channel:
+            return
+        
+        # 更新频道名称和LOGO
+        self.channel_name.setText(self.current_channel.get("name", "未知频道"))
+        self.current_program.setText("▶ 准备播放...")
+        logo = self.current_channel.get("logo", "")
+        self.channel_logo.setText(logo if logo else "📺")
+        
+        # 从EPG数据获取当前节目描述（安全处理）
+        try:
+            channel_name = self.current_channel.get("name", "")
+            if channel_name and EPG_DATA and channel_name in EPG_DATA:
+                current_channel_epg = EPG_DATA[channel_name]
+                if current_channel_epg and len(current_channel_epg) > 0:
+                    current_program_data = current_channel_epg[0]
+                    self.program_desc.setText(current_program_data.get("description", "暂无节目描述"))
+                    # 更新时间信息
+                    self.progress_start.setText(current_program_data.get("time", "--:--"))
+                    self.time_label.setText(f"⏱ {current_program_data.get('time', '--:--')} - --:--")
+                    self.remain_label.setText("等待播放...")
+                else:
+                    self.program_desc.setText(f"URL: {self.current_channel.get('url', 'N/A')[:50]}...")
+            else:
+                self.program_desc.setText(f"URL: {self.current_channel.get('url', 'N/A')[:50]}...")
+        except Exception:
+            self.program_desc.setText(f"URL: {self.current_channel.get('url', 'N/A')[:50]}...")
+        
+        # 重置进度条和时间
+        self.program_progress.setValue(0)
+        self.progress_end.setText("--:--")
+        
+        # 重置第一行媒体信息为默认值
+        self.video_info.setText("📺 等待播放...")
+        self.audio_info.setText("🔊 --")
+        self.network_info.setText("📡 等待连接...")
     
     def toggle_epg(self, checked):
         """显示/隐藏EPG面板"""
@@ -975,6 +1022,8 @@ class IPTVPlayer(QMainWindow):
                 self.floating_panel.raise_()
             # 更新媒体信息
             self.update_media_info()
+            # 启动定时器，每200ms更新一次
+            self.update_timer.start(200)
         else:
             self.play_button.setText("▶")
             # 停止时隐藏视频窗口，显示背景
@@ -983,26 +1032,93 @@ class IPTVPlayer(QMainWindow):
             if hasattr(self, 'video_placeholder'):
                 self.video_placeholder.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
                 self.video_placeholder.show()
+            # 停止定时器
+            if hasattr(self, 'update_timer'):
+                self.update_timer.stop()
     
     def update_media_info(self):
         """更新媒体信息显示"""
         if not self.player_controller or not self.current_channel:
             return
         
-        # 获取视频分辨率
-        resolution = self.player_controller.get_video_resolution()
-        if resolution:
-            self.video_info.setText(f"📺 {resolution}")
-        else:
+        # 获取视频分辨率和其他媒体信息（安全处理）
+        try:
+            resolution = self.player_controller.get_video_resolution() or "未知"
+            video_codec = self.player_controller.get_video_codec() or "未知"
+            bitrate = self.player_controller.get_bitrate() or "未知"
+            fps = self.player_controller.get_fps() or "未知"
+            audio_codec = self.player_controller.get_audio_codec() or "未知"
+            network_stats = self.player_controller.get_network_stats() or "延迟:--ms 丢包:--% 缓冲:--%"
+            
+            # 更新第一行：媒体信息
+            video_info_text = f"📺 {resolution}  {video_codec}  {bitrate}  {fps}"
+            audio_info_text = f"🔊 {audio_codec}"
+            network_info_text = f"📡 {network_stats}"
+            
+            self.video_info.setText(video_info_text)
+            self.audio_info.setText(audio_info_text)
+            self.network_info.setText(network_info_text)
+        except Exception:
             self.video_info.setText("📺 获取中...")
+            self.audio_info.setText("🔊 --")
+            self.network_info.setText("📡 --")
         
-        # 更新频道名称和节目信息
+        # 更新第二行：频道信息
         self.channel_name.setText(self.current_channel.get("name", "未知频道"))
         self.current_program.setText("▶ 正在播放")
-        self.program_desc.setText(f"URL: {self.current_channel.get('url', 'N/A')[:50]}...")
         
-        # TODO: 从VLC获取更详细的媒体信息（音频、码率等）
-        # 这些需要在PlayerController中添加相应的方法
+        # 从EPG数据获取当前节目描述（安全处理）
+        try:
+            channel_name = self.current_channel.get("name", "")
+            if channel_name and EPG_DATA and channel_name in EPG_DATA:
+                current_channel_epg = EPG_DATA[channel_name]
+                if current_channel_epg and len(current_channel_epg) > 0:
+                    current_program_data = current_channel_epg[0]
+                    self.program_desc.setText(current_program_data.get("description", "暂无节目描述"))
+                    # 更新时间信息
+                    self.progress_start.setText(current_program_data.get("time", "--:--"))
+                    self.time_label.setText(f"⏱ {current_program_data.get('time', '--:--')} - --:--")
+                    self.remain_label.setText("播放中...")
+        except Exception:
+            pass
+    
+    def update_floating_panel_info(self):
+        """定期更新悬浮窗信息（进度条、时间等）"""
+        if not self.player_controller or not self.current_channel:
+            return
+        
+        # 更新播放进度
+        current_time_ms = self.player_controller.get_current_time()
+        total_time_ms = self.player_controller.get_total_time()
+        position = self.player_controller.get_position()
+        
+        # 格式化时间
+        def format_time(ms):
+            if ms <= 0:
+                return "00:00:00"
+            seconds = ms // 1000
+            minutes = seconds // 60
+            hours = minutes // 60
+            return f"{hours:02d}:{minutes % 60:02d}:{seconds % 60:02d}"
+        
+        current_time_str = format_time(current_time_ms)
+        total_time_str = format_time(total_time_ms)
+        
+        # 更新进度条
+        if total_time_ms > 0:
+            progress_value = int(position * 100)
+            self.program_progress.setValue(progress_value)
+        else:
+            self.program_progress.setValue(0)
+        
+        # 更新时间显示（如果有视频时间信息）
+        if current_time_ms > 0 and total_time_ms > 0:
+            self.progress_start.setText(current_time_str)
+            self.progress_end.setText(total_time_str)
+        
+        # 更新音量
+        volume = self.player_controller.get_volume()
+        self.volume_slider.setValue(volume)
     
     def eventFilter(self, obj, event):
         """事件过滤器，处理鼠标事件"""
