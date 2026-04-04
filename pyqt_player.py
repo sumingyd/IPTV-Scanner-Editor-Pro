@@ -998,7 +998,43 @@ class IPTVPlayer(QMainWindow):
         self.channel_name.setText(self.current_channel.get("name", "未知频道"))
         self.current_program.setText("▶ 准备播放...")
         logo = self.current_channel.get("logo", "")
-        self.channel_logo.setText(logo if logo else "📺")
+        
+        if logo:
+            # 使用 QNetworkAccessManager 加载网络图片
+            from PyQt6.QtGui import QPixmap
+            from PyQt6.QtCore import QUrl, QByteArray
+            from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
+            
+            def on_logo_loaded(reply):
+                if reply.error() == QNetworkReply.NetworkError.NoError:
+                    data = reply.readAll()
+                    pixmap = QPixmap()
+                    if pixmap.loadFromData(data):
+                        # 缩放图片以适应 QLabel 大小
+                        scaled_pixmap = pixmap.scaled(self.channel_logo.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                        self.channel_logo.setPixmap(scaled_pixmap)
+                        self.channel_logo.setText("")  # 清除文本
+                    else:
+                        # 加载失败，显示默认图标
+                        self.channel_logo.setPixmap(QPixmap())
+                        self.channel_logo.setText("📺")
+                else:
+                    # 加载失败，显示默认图标
+                    self.channel_logo.setPixmap(QPixmap())
+                    self.channel_logo.setText("📺")
+                reply.deleteLater()
+            
+            # 创建网络管理器
+            manager = QNetworkAccessManager()
+            manager.finished.connect(on_logo_loaded)
+            
+            # 发送请求
+            request = QNetworkRequest(QUrl(logo))
+            manager.get(request)
+        else:
+            # 没有 logo，显示默认图标
+            self.channel_logo.setPixmap(QPixmap())
+            self.channel_logo.setText("📺")
         
         # 从EPG数据获取当前节目描述（安全处理）
         try:
@@ -1252,22 +1288,20 @@ class IPTVPlayer(QMainWindow):
         
         # 更新第一行媒体信息（分辨率、编码、帧率等）
         try:
-            # 只在第一次获取或频道切换时更新基本信息
-            if not hasattr(self, 'current_channel_hash') or self.current_channel_hash != hash(str(self.current_channel)):
-                self.current_channel_hash = hash(str(self.current_channel))
-                self.media_basic_info = {
-                    'resolution': self.player_controller.get_video_resolution() or "--",
-                    'video_codec': self.player_controller.get_video_codec() or "--",
-                    'video_profile': self.player_controller.get_video_profile() or "--",
-                    'video_color_space': self.player_controller.get_video_color_space() or "--",
-                    'video_color_primaries': self.player_controller.get_video_color_primaries() or "--",
-                    'fps': self.player_controller.get_fps() or "--",
-                    'audio_codec': self.player_controller.get_audio_codec() or "--",
-                    'audio_bitrate': self.player_controller.get_audio_bitrate() or "--",
-                    'audio_channels': self.player_controller.get_audio_channels() or "--",
-                    'audio_samplerate': self.player_controller.get_audio_samplerate() or "--",
-                    'network_protocol': self.player_controller.get_network_protocol() or "--"
-                }
+            # 每次都更新媒体信息，确保显示最新数据
+            self.media_basic_info = {
+                'resolution': self.player_controller.get_video_resolution() or "--",
+                'video_codec': self.player_controller.get_video_codec() or "--",
+                'video_profile': self.player_controller.get_video_profile() or "--",
+                'video_color_space': self.player_controller.get_video_color_space() or "--",
+                'video_color_primaries': self.player_controller.get_video_color_primaries() or "--",
+                'fps': self.player_controller.get_fps() or "--",
+                'audio_codec': self.player_controller.get_audio_codec() or "--",
+                'audio_bitrate': self.player_controller.get_audio_bitrate() or "--",
+                'audio_channels': self.player_controller.get_audio_channels() or "--",
+                'audio_samplerate': self.player_controller.get_audio_samplerate() or "--",
+                'network_protocol': self.player_controller.get_network_protocol() or "--"
+            }
             
             # 实时更新的信息
             network_stats = self.player_controller.get_network_stats() or ""
@@ -1440,7 +1474,43 @@ class IPTVPlayer(QMainWindow):
                         self.current_program.setText("▶ 请选择频道播放")
                         self.program_desc.setText("打开播放列表文件成功，点击频道开始播放")
                         logo = self.current_channel.get("logo", "")
-                        self.channel_logo.setText(logo if logo else "📺")
+                        
+                        if logo:
+                            # 使用 QNetworkAccessManager 加载网络图片
+                            from PyQt6.QtGui import QPixmap
+                            from PyQt6.QtCore import QUrl, QByteArray
+                            from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
+                            
+                            def on_logo_loaded(reply):
+                                if reply.error() == QNetworkReply.NetworkError.NoError:
+                                    data = reply.readAll()
+                                    pixmap = QPixmap()
+                                    if pixmap.loadFromData(data):
+                                        # 缩放图片以适应 QLabel 大小
+                                        scaled_pixmap = pixmap.scaled(self.channel_logo.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                                        self.channel_logo.setPixmap(scaled_pixmap)
+                                        self.channel_logo.setText("")  # 清除文本
+                                    else:
+                                        # 加载失败，显示默认图标
+                                        self.channel_logo.setPixmap(QPixmap())
+                                        self.channel_logo.setText("📺")
+                                else:
+                                    # 加载失败，显示默认图标
+                                    self.channel_logo.setPixmap(QPixmap())
+                                    self.channel_logo.setText("📺")
+                                reply.deleteLater()
+                            
+                            # 创建网络管理器
+                            manager = QNetworkAccessManager()
+                            manager.finished.connect(on_logo_loaded)
+                            
+                            # 发送请求
+                            request = QNetworkRequest(QUrl(logo))
+                            manager.get(request)
+                        else:
+                            # 没有 logo，显示默认图标
+                            self.channel_logo.setPixmap(QPixmap())
+                            self.channel_logo.setText("📺")
                     
                     self.populate_channel_list()
                     self.status_bar.showMessage(self.language_manager.get("channels_loaded").format(count=len(CHANNELS)))
