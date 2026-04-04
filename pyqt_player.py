@@ -512,23 +512,29 @@ class IPTVPlayer(QMainWindow):
         self.floating_panel.setFixedHeight(150)
         self.floating_panel.setFixedWidth(1100)
         self.floating_layout = QVBoxLayout(self.floating_panel)
-        self.floating_layout.setContentsMargins(15, 8, 15, 8)
-        self.floating_layout.setSpacing(5)
+        self.floating_layout.setContentsMargins(15, 6, 15, 8)
+        self.floating_layout.setSpacing(3)
         
         # 第一行：媒体信息（详细版）
         self.media_row = QHBoxLayout()
         self.media_row.setSpacing(12)
         
         self.video_info = QLabel("📺 未播放")
-        self.video_info.setStyleSheet("color: #aaaaaa; font-size: 10px; background-color: transparent;")
+        self.video_info.setStyleSheet("color: #aaaaaa; font-size: 14px; background-color: transparent;")
+        self.video_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self.video_info.setFixedHeight(22)
         self.media_row.addWidget(self.video_info)
         
         self.audio_info = QLabel("🔊 --")
-        self.audio_info.setStyleSheet("color: #aaaaaa; font-size: 9px; background-color: transparent;")
+        self.audio_info.setStyleSheet("color: #aaaaaa; font-size: 14px; background-color: transparent;")
+        self.audio_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self.audio_info.setFixedHeight(18)
         self.media_row.addWidget(self.audio_info)
         
         self.network_info = QLabel("📡 --")
-        self.network_info.setStyleSheet("color: #aaaaaa; font-size: 9px; background-color: transparent;")
+        self.network_info.setStyleSheet("color: #aaaaaa; font-size: 14px; background-color: transparent;")
+        self.network_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self.network_info.setFixedHeight(18)
         self.media_row.addWidget(self.network_info)
         
         self.media_row.addStretch()
@@ -557,11 +563,11 @@ class IPTVPlayer(QMainWindow):
         name_section.setSpacing(2)
         
         self.channel_name = QLabel("未选择频道")
-        self.channel_name.setStyleSheet("color: white; font-size: 14px; font-weight: bold; background-color: transparent;")
+        self.channel_name.setStyleSheet("color: white; font-size: 16px; font-weight: bold; background-color: transparent;")
         name_section.addWidget(self.channel_name)
         
         self.current_program = QLabel("▶ 请选择频道开始播放")
-        self.current_program.setStyleSheet("color: #4CAF50; font-size: 11px; background-color: transparent;")
+        self.current_program.setStyleSheet("color: #4CAF50; font-size: 13px; background-color: transparent;")
         name_section.addWidget(self.current_program)
         
         left_section.addLayout(name_section)
@@ -573,7 +579,7 @@ class IPTVPlayer(QMainWindow):
         desc_section.setContentsMargins(0, 5, 0, 0)
         
         self.program_desc = QLabel("打开播放列表文件或导入频道以开始观看")
-        self.program_desc.setStyleSheet("color: #cccccc; font-size: 10px; background-color: transparent;")
+        self.program_desc.setStyleSheet("color: #cccccc; font-size: 12px; background-color: transparent;")
         self.program_desc.setWordWrap(True)
         desc_section.addWidget(self.program_desc)
         self.info_row.addLayout(desc_section, 3)
@@ -583,11 +589,11 @@ class IPTVPlayer(QMainWindow):
         time_section.setSpacing(2)
         
         self.time_label = QLabel("⏱ --:-- - --:--")
-        self.time_label.setStyleSheet("color: #aaaaaa; font-size: 10px; background-color: transparent;")
+        self.time_label.setStyleSheet("color: #aaaaaa; font-size: 12px; background-color: transparent;")
         time_section.addWidget(self.time_label)
         
         self.remain_label = QLabel("等待播放...")
-        self.remain_label.setStyleSheet("color: #4CAF50; font-size: 10px; background-color: transparent;")
+        self.remain_label.setStyleSheet("color: #4CAF50; font-size: 12px; background-color: transparent;")
         time_section.addWidget(self.remain_label)
         self.info_row.addLayout(time_section, 1)
         
