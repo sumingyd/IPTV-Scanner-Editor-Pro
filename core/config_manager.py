@@ -319,6 +319,19 @@ class ConfigManager:
         return {
             'enable_mapping': self.get_value('Mapping', 'enable_mapping', 'True').lower() == 'true'
         }
+    
+    def save_epg_settings(self, epg_url: str, epg_source: str):
+        """保存EPG节目单设置"""
+        self.set_value('EPG', 'epg_url', epg_url)
+        self.set_value('EPG', 'epg_source', epg_source)
+        return self.save_config()
+    
+    def load_epg_settings(self) -> dict:
+        """加载EPG节目单设置"""
+        return {
+            'epg_url': self.get_value('EPG', 'epg_url', ''),
+            'epg_source': self.get_value('EPG', 'epg_source', '默认')
+        }
 
     def save_all_settings(self, settings_dict: dict):
         """保存所有设置"""
