@@ -1,5 +1,6 @@
 import sys
 import os
+
 import re
 from datetime import datetime
 from PyQt6.QtWidgets import (
@@ -1005,11 +1006,9 @@ class IPTVPlayer(QMainWindow):
         if logo:
             # 去除 URL 中的各种引号
             logo = logo.strip('`"\'')
-            print(f"[调试] 尝试加载 LOGO: {logo}")
             
             # 检查缓存中是否已有该 LOGO
             if logo in self.logo_cache:
-                print("[调试] 使用缓存的 LOGO")
                 pixmap = self.logo_cache[logo]
                 # 缩放图片以适应 QLabel 大小
                 scaled_pixmap = pixmap.scaled(self.channel_logo.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
@@ -1025,16 +1024,12 @@ class IPTVPlayer(QMainWindow):
             # 创建网络管理器（作为实例属性，避免被垃圾回收）
             if not hasattr(self, 'logo_manager'):
                 self.logo_manager = QNetworkAccessManager()
-                print("[调试] 创建 logo_manager")
             
             def on_logo_loaded(reply):
-                print(f"[调试] LOGO 加载完成，错误码: {reply.error()}")
                 if reply.error() == QNetworkReply.NetworkError.NoError:
                     data = reply.readAll()
-                    print(f"[调试] 收到数据大小: {len(data)} bytes")
                     pixmap = QPixmap()
                     if pixmap.loadFromData(data):
-                        print("[调试] 图片加载成功，存入缓存")
                         # 缓存 LOGO
                         self.logo_cache[logo] = pixmap
                         # 缩放图片以适应 QLabel 大小
@@ -1042,12 +1037,10 @@ class IPTVPlayer(QMainWindow):
                         self.channel_logo.setPixmap(scaled_pixmap)
                         self.channel_logo.setText("")  # 清除文本
                     else:
-                        print("[调试] 图片加载失败")
                         # 加载失败，显示默认图标
                         self.channel_logo.setPixmap(QPixmap())
                         self.channel_logo.setText("📺")
                 else:
-                    print(f"[调试] 网络错误: {reply.errorString()}")
                     # 加载失败，显示默认图标
                     self.channel_logo.setPixmap(QPixmap())
                     self.channel_logo.setText("📺")
@@ -1061,15 +1054,10 @@ class IPTVPlayer(QMainWindow):
             
             # 连接信号
             self.logo_manager.finished.connect(on_logo_loaded)
-            print("[调试] 信号连接完成")
             
             # 发送请求
             request = QNetworkRequest(QUrl(logo))
-            print(f"[调试] 发送 LOGO 请求: {logo}")
-            
-            # 发送请求
-            reply = self.logo_manager.get(request)
-            print(f"[调试] 请求已发送，reply: {reply}")
+            self.logo_manager.get(request)
         else:
             # 没有 logo，显示默认图标
             self.channel_logo.setPixmap(QPixmap())
