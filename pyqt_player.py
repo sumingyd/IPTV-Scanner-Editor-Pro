@@ -2,7 +2,7 @@ import sys
 import os
 
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QListWidget, QListWidgetItem, QStackedWidget,
@@ -1070,17 +1070,42 @@ class IPTVPlayer(QMainWindow):
                 current_channel_epg = EPG_DATA[channel_name]
                 if current_channel_epg and len(current_channel_epg) > 0:
                     current_program_data = current_channel_epg[0]
+                    # 更新节目名称
+                    program_name = current_program_data.get("title", "正在播放")
+                    self.current_program.setText(f"▶ {program_name}")
+                    # 更新节目描述
                     self.program_desc.setText(current_program_data.get("description", "暂无节目描述"))
                     # 更新时间信息
                     self.progress_start.setText(current_program_data.get("time", "--:--"))
                     self.time_label.setText(f"⏱ {current_program_data.get('time', '--:--')} - --:--")
                     self.remain_label.setText("等待播放...")
                 else:
-                    self.program_desc.setText(f"URL: {self.current_channel.get('url', 'N/A')[:50]}...")
+                    # 没有节目单，显示默认信息
+                    self.current_program.setText("▶ 正在播放")
+                    self.program_desc.setText("打开播放列表文件成功，点击频道开始播放")
+                    # 显示当前系统时间
+                    from datetime import datetime
+                    current_time = datetime.now().strftime("%H:%M")
+                    self.time_label.setText(f"⏱ {current_time}")
+                    self.remain_label.setText("等待播放...")
             else:
-                self.program_desc.setText(f"URL: {self.current_channel.get('url', 'N/A')[:50]}...")
+                # 没有节目单，显示默认信息
+                self.current_program.setText("▶ 正在播放")
+                self.program_desc.setText("打开播放列表文件成功，点击频道开始播放")
+                # 显示当前系统时间
+                from datetime import datetime
+                current_time = datetime.now().strftime("%H:%M")
+                self.time_label.setText(f"⏱ {current_time}")
+                self.remain_label.setText("等待播放...")
         except Exception:
-            self.program_desc.setText(f"URL: {self.current_channel.get('url', 'N/A')[:50]}...")
+            # 发生异常，显示默认信息
+            self.current_program.setText("▶ 正在播放")
+            self.program_desc.setText("打开播放列表文件成功，点击频道开始播放")
+            # 显示当前系统时间
+            from datetime import datetime
+            current_time = datetime.now().strftime("%H:%M")
+            self.time_label.setText(f"⏱ {current_time}")
+            self.remain_label.setText("等待播放...")
         
         # 重置进度条和时间
         self.program_progress.setValue(0)
@@ -1257,7 +1282,21 @@ class IPTVPlayer(QMainWindow):
         # 更新第二行：频道信息
         if self.current_channel:
             self.channel_name.setText(self.current_channel.get("name", "未知频道"))
-            self.current_program.setText("▶ 正在播放")
+            # 从EPG数据获取当前节目名称（安全处理）
+            try:
+                channel_name = self.current_channel.get("name", "")
+                if channel_name and EPG_DATA and channel_name in EPG_DATA:
+                    current_channel_epg = EPG_DATA[channel_name]
+                    if current_channel_epg and len(current_channel_epg) > 0:
+                        current_program_data = current_channel_epg[0]
+                        program_name = current_program_data.get("title", "正在播放")
+                        self.current_program.setText(f"▶ {program_name}")
+                    else:
+                        self.current_program.setText("▶ 正在播放")
+                else:
+                    self.current_program.setText("▶ 正在播放")
+            except Exception:
+                self.current_program.setText("▶ 正在播放")
         
         # 从EPG数据获取当前节目描述（安全处理）
         try:
@@ -1272,8 +1311,57 @@ class IPTVPlayer(QMainWindow):
                         self.progress_start.setText(current_program_data.get("time", "--:--"))
                         self.time_label.setText(f"⏱ {current_program_data.get('time', '--:--')} - --:--")
                         self.remain_label.setText("播放中...")
+                    else:
+                        # 没有节目单，显示默认信息
+                        self.program_desc.setText("正在播放当前频道")
+                        # 显示当前系统时间
+                        from datetime import datetime
+                        current_time = datetime.now()
+                        start_hour = current_time.strftime("%H:00")
+                        end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+                        self.progress_start.setText(start_hour)
+                        self.progress_end.setText(end_hour)
+                        self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
+                        self.remain_label.setText("播放中...")
+                        # 设置进度条
+                        minutes = current_time.minute
+                        seconds = current_time.second
+                        progress = int(((minutes * 60) + seconds) / 3600 * 100)
+                        self.program_progress.setValue(progress)
+                else:
+                    # 没有节目单，显示默认信息
+                    self.program_desc.setText("正在播放当前频道")
+                    # 显示当前系统时间
+                    from datetime import datetime
+                    current_time = datetime.now()
+                    start_hour = current_time.strftime("%H:00")
+                    end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+                    self.progress_start.setText(start_hour)
+                    self.progress_end.setText(end_hour)
+                    self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
+                    self.remain_label.setText("播放中...")
+                    # 设置进度条
+                    minutes = current_time.minute
+                    seconds = current_time.second
+                    progress = int(((minutes * 60) + seconds) / 3600 * 100)
+                    self.program_progress.setValue(progress)
         except Exception:
-            pass
+            # 发生异常，显示默认信息
+            self.program_desc.setText("正在播放当前频道")
+            # 显示当前系统时间
+            from datetime import datetime
+            current_time = datetime.now()
+            start_hour = current_time.strftime("%H:00")
+            end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+            self.progress_start.setText(start_hour)
+            self.progress_end.setText(end_hour)
+            self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
+            self.remain_label.setText("播放中...")
+            # 设置进度条
+            minutes = current_time.minute
+            seconds = current_time.second
+            progress = int(((minutes * 60) + seconds) / 3600 * 100)
+            self.program_progress.setValue(progress)
     
     def update_floating_panel_info(self):
         """定期更新悬浮窗信息（进度条、时间、媒体信息等）"""
@@ -1297,17 +1385,40 @@ class IPTVPlayer(QMainWindow):
         current_time_str = format_time(current_time_ms)
         total_time_str = format_time(total_time_ms)
         
-        # 更新进度条
-        if total_time_ms > 0:
-            progress_value = int(position * 100)
-            self.program_progress.setValue(progress_value)
-        else:
-            self.program_progress.setValue(0)
+        # 检查是否有节目单
+        has_epg = False
+        try:
+            channel_name = self.current_channel.get("name", "")
+            if channel_name and EPG_DATA and channel_name in EPG_DATA:
+                current_channel_epg = EPG_DATA[channel_name]
+                if current_channel_epg and len(current_channel_epg) > 0:
+                    has_epg = True
+        except Exception:
+            pass
         
-        # 更新时间显示（如果有视频时间信息）
-        if current_time_ms > 0 and total_time_ms > 0:
-            self.progress_start.setText(current_time_str)
-            self.progress_end.setText(total_time_str)
+        # 更新进度条和时间显示
+        if has_epg:
+            # 有节目单，使用视频播放时间
+            if total_time_ms > 0:
+                progress_value = int(position * 100)
+                self.program_progress.setValue(progress_value)
+                self.progress_start.setText(current_time_str)
+                self.progress_end.setText(total_time_str)
+            else:
+                self.program_progress.setValue(0)
+        else:
+            # 没有节目单，使用当前系统时间和小时段
+            from datetime import datetime
+            current_time = datetime.now()
+            start_hour = current_time.strftime("%H:00")
+            end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+            self.progress_start.setText(start_hour)
+            self.progress_end.setText(end_hour)
+            # 设置进度条
+            minutes = current_time.minute
+            seconds = current_time.second
+            progress = int(((minutes * 60) + seconds) / 3600 * 100)
+            self.program_progress.setValue(progress)
         
         # 更新音量
         volume = self.player_controller.get_volume()
