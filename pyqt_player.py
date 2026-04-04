@@ -1000,37 +1000,69 @@ class IPTVPlayer(QMainWindow):
         logo = self.current_channel.get("logo", "")
         
         if logo:
+            # 去除 URL 中的各种引号
+            logo = logo.strip('`"\'')
+            print(f"[调试] 尝试加载 LOGO: {logo}")
+            
+            # 检查是否已经加载过相同的 LOGO
+            if hasattr(self, 'last_logo_url') and self.last_logo_url == logo:
+                print("[调试] LOGO 已加载，跳过重复请求")
+                return
+            
+            # 记录当前 LOGO URL
+            self.last_logo_url = logo
+            
             # 使用 QNetworkAccessManager 加载网络图片
             from PyQt6.QtGui import QPixmap
             from PyQt6.QtCore import QUrl, QByteArray
             from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
             
+            # 创建网络管理器（作为实例属性，避免被垃圾回收）
+            if not hasattr(self, 'logo_manager'):
+                self.logo_manager = QNetworkAccessManager()
+                print("[调试] 创建 logo_manager")
+            
             def on_logo_loaded(reply):
+                print(f"[调试] LOGO 加载完成，错误码: {reply.error()}")
                 if reply.error() == QNetworkReply.NetworkError.NoError:
                     data = reply.readAll()
+                    print(f"[调试] 收到数据大小: {len(data)} bytes")
                     pixmap = QPixmap()
                     if pixmap.loadFromData(data):
+                        print("[调试] 图片加载成功")
                         # 缩放图片以适应 QLabel 大小
                         scaled_pixmap = pixmap.scaled(self.channel_logo.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
                         self.channel_logo.setPixmap(scaled_pixmap)
                         self.channel_logo.setText("")  # 清除文本
                     else:
+                        print("[调试] 图片加载失败")
                         # 加载失败，显示默认图标
                         self.channel_logo.setPixmap(QPixmap())
                         self.channel_logo.setText("📺")
                 else:
+                    print(f"[调试] 网络错误: {reply.errorString()}")
                     # 加载失败，显示默认图标
                     self.channel_logo.setPixmap(QPixmap())
                     self.channel_logo.setText("📺")
                 reply.deleteLater()
             
-            # 创建网络管理器
-            manager = QNetworkAccessManager()
-            manager.finished.connect(on_logo_loaded)
+            # 断开之前的信号连接，避免重复回调
+            try:
+                self.logo_manager.finished.disconnect()
+            except:
+                pass
+            
+            # 连接信号
+            self.logo_manager.finished.connect(on_logo_loaded)
+            print("[调试] 信号连接完成")
             
             # 发送请求
             request = QNetworkRequest(QUrl(logo))
-            manager.get(request)
+            print(f"[调试] 发送 LOGO 请求: {logo}")
+            
+            # 发送请求
+            reply = self.logo_manager.get(request)
+            print(f"[调试] 请求已发送，reply: {reply}")
         else:
             # 没有 logo，显示默认图标
             self.channel_logo.setPixmap(QPixmap())
@@ -1473,44 +1505,9 @@ class IPTVPlayer(QMainWindow):
                         self.channel_name.setText(self.current_channel.get("name", "未知频道"))
                         self.current_program.setText("▶ 请选择频道播放")
                         self.program_desc.setText("打开播放列表文件成功，点击频道开始播放")
-                        logo = self.current_channel.get("logo", "")
-                        
-                        if logo:
-                            # 使用 QNetworkAccessManager 加载网络图片
-                            from PyQt6.QtGui import QPixmap
-                            from PyQt6.QtCore import QUrl, QByteArray
-                            from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
-                            
-                            def on_logo_loaded(reply):
-                                if reply.error() == QNetworkReply.NetworkError.NoError:
-                                    data = reply.readAll()
-                                    pixmap = QPixmap()
-                                    if pixmap.loadFromData(data):
-                                        # 缩放图片以适应 QLabel 大小
-                                        scaled_pixmap = pixmap.scaled(self.channel_logo.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                                        self.channel_logo.setPixmap(scaled_pixmap)
-                                        self.channel_logo.setText("")  # 清除文本
-                                    else:
-                                        # 加载失败，显示默认图标
-                                        self.channel_logo.setPixmap(QPixmap())
-                                        self.channel_logo.setText("📺")
-                                else:
-                                    # 加载失败，显示默认图标
-                                    self.channel_logo.setPixmap(QPixmap())
-                                    self.channel_logo.setText("📺")
-                                reply.deleteLater()
-                            
-                            # 创建网络管理器
-                            manager = QNetworkAccessManager()
-                            manager.finished.connect(on_logo_loaded)
-                            
-                            # 发送请求
-                            request = QNetworkRequest(QUrl(logo))
-                            manager.get(request)
-                        else:
-                            # 没有 logo，显示默认图标
-                            self.channel_logo.setPixmap(QPixmap())
-                            self.channel_logo.setText("📺")
+                        # 重置 LOGO 显示为默认图标，等待用户选择频道时加载
+                        self.channel_logo.setPixmap(QPixmap())
+                        self.channel_logo.setText("📺")
                     
                     self.populate_channel_list()
                     self.status_bar.showMessage(self.language_manager.get("channels_loaded").format(count=len(CHANNELS)))
