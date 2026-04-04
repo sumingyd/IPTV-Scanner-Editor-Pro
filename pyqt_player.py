@@ -356,6 +356,9 @@ class IPTVPlayer(QMainWindow):
         # 全屏状态
         self.is_fullscreen = False
         
+        # LOGO 缓存
+        self.logo_cache = {}  # 缓存格式: {logo_url: QPixmap}
+        
         # 导入 QTimer
         from PyQt6.QtCore import QTimer
         
@@ -1004,13 +1007,15 @@ class IPTVPlayer(QMainWindow):
             logo = logo.strip('`"\'')
             print(f"[调试] 尝试加载 LOGO: {logo}")
             
-            # 检查是否已经加载过相同的 LOGO
-            if hasattr(self, 'last_logo_url') and self.last_logo_url == logo:
-                print("[调试] LOGO 已加载，跳过重复请求")
+            # 检查缓存中是否已有该 LOGO
+            if logo in self.logo_cache:
+                print("[调试] 使用缓存的 LOGO")
+                pixmap = self.logo_cache[logo]
+                # 缩放图片以适应 QLabel 大小
+                scaled_pixmap = pixmap.scaled(self.channel_logo.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                self.channel_logo.setPixmap(scaled_pixmap)
+                self.channel_logo.setText("")  # 清除文本
                 return
-            
-            # 记录当前 LOGO URL
-            self.last_logo_url = logo
             
             # 使用 QNetworkAccessManager 加载网络图片
             from PyQt6.QtGui import QPixmap
@@ -1029,7 +1034,9 @@ class IPTVPlayer(QMainWindow):
                     print(f"[调试] 收到数据大小: {len(data)} bytes")
                     pixmap = QPixmap()
                     if pixmap.loadFromData(data):
-                        print("[调试] 图片加载成功")
+                        print("[调试] 图片加载成功，存入缓存")
+                        # 缓存 LOGO
+                        self.logo_cache[logo] = pixmap
                         # 缩放图片以适应 QLabel 大小
                         scaled_pixmap = pixmap.scaled(self.channel_logo.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
                         self.channel_logo.setPixmap(scaled_pixmap)
