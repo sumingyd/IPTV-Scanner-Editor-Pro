@@ -520,7 +520,7 @@ class IPTVPlayer(QMainWindow):
         self.media_row.setSpacing(12)
         
         self.video_info = QLabel("📺 未播放")
-        self.video_info.setStyleSheet("color: #aaaaaa; font-size: 9px; background-color: transparent;")
+        self.video_info.setStyleSheet("color: #aaaaaa; font-size: 10px; background-color: transparent;")
         self.media_row.addWidget(self.video_info)
         
         self.audio_info = QLabel("🔊 --")
@@ -1182,47 +1182,27 @@ class IPTVPlayer(QMainWindow):
     
     def update_media_info(self):
         """更新媒体信息显示"""
-        if not self.player_controller or not self.current_channel:
-            return
-        
-        # 获取视频分辨率和其他媒体信息（安全处理）
-        try:
-            resolution = self.player_controller.get_video_resolution() or "未知"
-            video_codec = self.player_controller.get_video_codec() or "未知"
-            bitrate = self.player_controller.get_bitrate() or "未知"
-            fps = self.player_controller.get_fps() or "未知"
-            audio_codec = self.player_controller.get_audio_codec() or "未知"
-            network_stats = self.player_controller.get_network_stats() or "延迟:--ms 丢包:--% 缓冲:--%"
-            
-            # 更新第一行：媒体信息
-            video_info_text = f"📺 {resolution}  {video_codec}  {bitrate}  {fps}"
-            audio_info_text = f"🔊 {audio_codec}"
-            network_info_text = f"📡 {network_stats}"
-            
-            self.video_info.setText(video_info_text)
-            self.audio_info.setText(audio_info_text)
-            self.network_info.setText(network_info_text)
-        except Exception:
-            self.video_info.setText("📺 获取中...")
-            self.audio_info.setText("🔊 --")
-            self.network_info.setText("📡 --")
+        # 直接调用 update_floating_panel_info 方法，保持统一
+        self.update_floating_panel_info()
         
         # 更新第二行：频道信息
-        self.channel_name.setText(self.current_channel.get("name", "未知频道"))
-        self.current_program.setText("▶ 正在播放")
+        if self.current_channel:
+            self.channel_name.setText(self.current_channel.get("name", "未知频道"))
+            self.current_program.setText("▶ 正在播放")
         
         # 从EPG数据获取当前节目描述（安全处理）
         try:
-            channel_name = self.current_channel.get("name", "")
-            if channel_name and EPG_DATA and channel_name in EPG_DATA:
-                current_channel_epg = EPG_DATA[channel_name]
-                if current_channel_epg and len(current_channel_epg) > 0:
-                    current_program_data = current_channel_epg[0]
-                    self.program_desc.setText(current_program_data.get("description", "暂无节目描述"))
-                    # 更新时间信息
-                    self.progress_start.setText(current_program_data.get("time", "--:--"))
-                    self.time_label.setText(f"⏱ {current_program_data.get('time', '--:--')} - --:--")
-                    self.remain_label.setText("播放中...")
+            if self.current_channel:
+                channel_name = self.current_channel.get("name", "")
+                if channel_name and EPG_DATA and channel_name in EPG_DATA:
+                    current_channel_epg = EPG_DATA[channel_name]
+                    if current_channel_epg and len(current_channel_epg) > 0:
+                        current_program_data = current_channel_epg[0]
+                        self.program_desc.setText(current_program_data.get("description", "暂无节目描述"))
+                        # 更新时间信息
+                        self.progress_start.setText(current_program_data.get("time", "--:--"))
+                        self.time_label.setText(f"⏱ {current_program_data.get('time', '--:--')} - --:--")
+                        self.remain_label.setText("播放中...")
         except Exception:
             pass
     
@@ -1264,60 +1244,81 @@ class IPTVPlayer(QMainWindow):
         volume = self.player_controller.get_volume()
         self.volume_slider.setValue(volume)
         
-        # 更新第一行媒体信息（分辨率、编码、码率、帧率等）
+        # 更新第一行媒体信息（分辨率、编码、帧率等）
         try:
-            resolution = self.player_controller.get_video_resolution() or "--x--"
-            video_codec = self.player_controller.get_video_codec() or "--"
-            bitrate = self.player_controller.get_bitrate() or "--"
-            fps = self.player_controller.get_fps() or "--"
-            audio_codec = self.player_controller.get_audio_codec() or "--"
+            # 只在第一次获取或频道切换时更新基本信息
+            if not hasattr(self, 'current_channel_hash') or self.current_channel_hash != hash(str(self.current_channel)):
+                self.current_channel_hash = hash(str(self.current_channel))
+                self.media_basic_info = {
+                    'resolution': self.player_controller.get_video_resolution() or "--",
+                    'video_codec': self.player_controller.get_video_codec() or "--",
+                    'video_profile': self.player_controller.get_video_profile() or "--",
+                    'video_color_space': self.player_controller.get_video_color_space() or "--",
+                    'video_color_primaries': self.player_controller.get_video_color_primaries() or "--",
+                    'fps': self.player_controller.get_fps() or "--",
+                    'audio_codec': self.player_controller.get_audio_codec() or "--",
+                    'audio_bitrate': self.player_controller.get_audio_bitrate() or "--",
+                    'audio_channels': self.player_controller.get_audio_channels() or "--",
+                    'audio_samplerate': self.player_controller.get_audio_samplerate() or "--",
+                    'network_protocol': self.player_controller.get_network_protocol() or "--"
+                }
+            
+            # 实时更新的信息
             network_stats = self.player_controller.get_network_stats() or ""
             
-            # 解析网络统计信息
+            # 解析网络统计信息，只保留延迟
             delay = "--"
-            loss = "--"
-            buffer = "--"
-            protocol = "--"
             if network_stats and "延迟:" in network_stats:
-                # 尝试解析网络统计
                 parts = network_stats.split()
                 for part in parts:
                     if "延迟:" in part:
                         delay = part.replace("延迟:", "").replace("ms", "")
-                    elif "丢包:" in part:
-                        loss = part.replace("丢包:", "").replace("%", "")
-                    elif "缓冲:" in part:
-                        buffer = part.replace("缓冲:", "").replace("%", "")
-                    elif "协议:" in part:
-                        protocol = part.replace("协议:", "")
             
-            # 格式化码率显示
-            bitrate_str = bitrate
-            if bitrate != "--" and bitrate != "未知":
-                try:
-                    bitrate_val = float(bitrate.replace("Mbps", "").replace("Kbps", "").replace("bps", ""))
-                    if "Mbps" in bitrate:
-                        bitrate_str = f"{bitrate_val:.1f}Mbps"
-                    elif "Kbps" in bitrate:
-                        bitrate_str = f"{bitrate_val:.0f}Kbps"
-                except:
-                    pass
+            # 从缓存获取基本信息
+            resolution = self.media_basic_info.get('resolution', "--")
+            video_codec = self.media_basic_info.get('video_codec', "--")
+            video_profile = self.media_basic_info.get('video_profile', "--")
+            video_color_space = self.media_basic_info.get('video_color_space', "--")
+            video_color_primaries = self.media_basic_info.get('video_color_primaries', "--")
+            fps = self.media_basic_info.get('fps', "--")
+            audio_codec = self.media_basic_info.get('audio_codec', "--")
+            audio_bitrate = self.media_basic_info.get('audio_bitrate', "--")
+            audio_channels = self.media_basic_info.get('audio_channels', "--")
+            audio_samplerate = self.media_basic_info.get('audio_samplerate', "--")
+            network_protocol = self.media_basic_info.get('network_protocol', "--")
             
-            # 更新第一行：视频信息（更详细的格式）
-            # 格式：分辨率 编码 码率 帧率
-            video_info_text = f"📺 {resolution}  {video_codec}  {bitrate_str}  {fps}fps"
+            # 更新第一行：视频信息（每个字段都有标题）
+            video_info_parts = [
+                f"分辨率:{resolution}", 
+                f"编码:{video_codec}",
+                f"级别:{video_profile}",
+                f"帧率:{fps}"
+            ]
+            if video_color_space != "--":
+                video_info_parts.append(f"色彩空间:{video_color_space}")
+            if video_color_primaries != "--":
+                video_info_parts.append(f"色彩标准:{video_color_primaries}")
+            video_info_text = f"📺 {'  '.join(video_info_parts)}"
             self.video_info.setText(video_info_text)
             
-            # 更新音频信息（更详细的格式）
-            # 格式：编码
-            audio_info_text = f"🔊 {audio_codec}"
+            # 更新音频信息（每个字段都有标题）
+            audio_info_parts = [
+                f"编码:{audio_codec}",
+                f"码率:{audio_bitrate}",
+                f"声道:{audio_channels}",
+                f"采样率:{audio_samplerate}"
+            ]
+            audio_info_text = f"🔊 {'  '.join(audio_info_parts)}"
             self.audio_info.setText(audio_info_text)
             
-            # 更新网络信息（更详细的格式）
-            # 格式：协议 延迟 丢包 缓冲
-            network_info_text = f"📡 {protocol}  延迟:{delay}ms  丢包:{loss}%  缓冲:{buffer}%"
+            # 更新网络信息（每个字段都有标题）
+            network_info_parts = [
+                f"协议:{network_protocol}",
+                f"延迟:{delay}ms"
+            ]
+            network_info_text = f"📡 {'  '.join(network_info_parts)}"
             self.network_info.setText(network_info_text)
-        except Exception:
+        except Exception as e:
             pass
     
     def eventFilter(self, obj, event):
