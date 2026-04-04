@@ -567,7 +567,7 @@ class IPTVPlayer(QMainWindow):
         name_section.setSpacing(2)
         
         self.channel_name = QLabel("未选择频道")
-        self.channel_name.setStyleSheet("color: white; font-size: 16px; font-weight: bold; background-color: transparent;")
+        self.channel_name.setStyleSheet("color: white; font-size: 18px; font-weight: bold; background-color: transparent;")
         name_section.addWidget(self.channel_name)
         
         self.current_program = QLabel("▶ 请选择频道开始播放")
@@ -583,7 +583,7 @@ class IPTVPlayer(QMainWindow):
         desc_section.setContentsMargins(0, 5, 0, 0)
         
         self.program_desc = QLabel("打开播放列表文件或导入频道以开始观看")
-        self.program_desc.setStyleSheet("color: #cccccc; font-size: 12px; background-color: transparent;")
+        self.program_desc.setStyleSheet("color: #cccccc; font-size: 14px; background-color: transparent;")
         self.program_desc.setWordWrap(True)
         desc_section.addWidget(self.program_desc)
         self.info_row.addLayout(desc_section, 3)
@@ -1414,6 +1414,8 @@ class IPTVPlayer(QMainWindow):
             end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
             self.progress_start.setText(start_hour)
             self.progress_end.setText(end_hour)
+            # 更新time_label显示当前系统时间
+            self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
             # 设置进度条
             minutes = current_time.minute
             seconds = current_time.second
