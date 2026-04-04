@@ -481,12 +481,17 @@ class PlayerController(QObject):
                     self.play_state_changed.emit(True)
                     self.logger.info(f"正在播放: {channel_name}")
                     
+                    # 保存当前URL，用于检查是否已经切换了频道
+                    current_url_for_fetch = url
+                    
                     # 在另一个后台线程中使用ffprobe获取媒体信息（不阻碍播放）
                     def fetch_media_info():
                         try:
-                            info = self._run_ffprobe(url, timeout=10)  # 增加超时时间到10秒
-                            # 通过信号将信息传递到主线程
-                            self.media_info_ready.emit(info)
+                            info = self._run_ffprobe(current_url_for_fetch, timeout=10)  # 增加超时时间到10秒
+                            # 检查是否已经切换了频道，如果切换了就不发射信号
+                            if self.current_url == current_url_for_fetch:
+                                # 通过信号将信息传递到主线程
+                                self.media_info_ready.emit(info)
                         except Exception as e:
                             self.logger.debug(f"ffprobe获取信息失败: {e}")
                     

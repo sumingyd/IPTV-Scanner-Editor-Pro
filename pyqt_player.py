@@ -514,7 +514,7 @@ class IPTVPlayer(QMainWindow):
             }
         """)
         self.floating_panel.setFixedHeight(150)
-        self.floating_panel.setFixedWidth(1100)
+        self.floating_panel.setFixedWidth(1000)
         self.floating_layout = QVBoxLayout(self.floating_panel)
         self.floating_layout.setContentsMargins(15, 6, 15, 8)
         self.floating_layout.setSpacing(3)
@@ -524,19 +524,19 @@ class IPTVPlayer(QMainWindow):
         self.media_row.setSpacing(12)
         
         self.video_info = QLabel("📺 未播放")
-        self.video_info.setStyleSheet("color: #aaaaaa; font-size: 14px; background-color: transparent;")
+        self.video_info.setStyleSheet("color: #aaaaaa; font-size: 12px; background-color: transparent;")
         self.video_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.video_info.setFixedHeight(22)
         self.media_row.addWidget(self.video_info)
         
         self.audio_info = QLabel("🔊 --")
-        self.audio_info.setStyleSheet("color: #aaaaaa; font-size: 14px; background-color: transparent;")
+        self.audio_info.setStyleSheet("color: #aaaaaa; font-size: 12px; background-color: transparent;")
         self.audio_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.audio_info.setFixedHeight(18)
         self.media_row.addWidget(self.audio_info)
         
         self.network_info = QLabel("📡 --")
-        self.network_info.setStyleSheet("color: #aaaaaa; font-size: 14px; background-color: transparent;")
+        self.network_info.setStyleSheet("color: #aaaaaa; font-size: 12px; background-color: transparent;")
         self.network_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.network_info.setFixedHeight(18)
         self.media_row.addWidget(self.network_info)
@@ -1144,6 +1144,24 @@ class IPTVPlayer(QMainWindow):
     def play_channel(self, channel):
         """播放指定频道"""
         if self.player_controller and channel:
+            # 切换频道时清空之前的频道信息
+            if hasattr(self, 'channel_name'):
+                self.channel_name.setText("切换频道中...")
+            if hasattr(self, 'current_program'):
+                self.current_program.setText("▶ 正在播放")
+            if hasattr(self, 'program_desc'):
+                self.program_desc.setText("正在加载节目信息...")
+            if hasattr(self, 'media_info'):
+                self.media_info.setText("📺 加载中...")
+            if hasattr(self, 'progress_start'):
+                self.progress_start.setText("00:00")
+            if hasattr(self, 'progress_end'):
+                self.progress_end.setText("00:00")
+            if hasattr(self, 'time_label'):
+                self.time_label.setText("⏱ 00:00")
+            if hasattr(self, 'program_progress'):
+                self.program_progress.setValue(0)
+            
             url = channel.get('url')
             name = channel.get('name', '未知频道')
             if url:
@@ -1177,14 +1195,10 @@ class IPTVPlayer(QMainWindow):
                 self.floating_panel.raise_()
             # 更新媒体信息
             self.update_media_info()
-            # 启动定时器，每200ms更新一次
-            self.update_timer.start(200)
-            # 立即尝试调整窗口大小，并在之后持续检查
-            self.adjust_window_size_to_video()
-            self._resize_attempts = 0
-            self._resize_timer = QTimer()
-            self._resize_timer.timeout.connect(self._try_adjust_window_size)
-            self._resize_timer.start(500)  # 每500ms检查一次
+            # 启动定时器，每500ms更新一次（减少频率，避免卡顿）
+            self.update_timer.start(500)
+            # 暂时禁用自动调整窗口大小，避免程序卡死
+            # self.adjust_window_size_to_video()
         else:
             self.play_button.setText("▶")
             # 停止时隐藏视频窗口，显示背景
@@ -1223,6 +1237,15 @@ class IPTVPlayer(QMainWindow):
             # 获取当前窗口高度（保持高度不变）
             current_height = self.height()
             current_width = self.width()
+            
+            # 对于4K及以上分辨率，限制缩放比例，避免窗口过大
+            max_video_width = 1920  # 限制最大视频宽度为1080p
+            if video_width > max_video_width:
+                # 保存原始的视频宽度
+                original_video_width = video_width
+                video_width = max_video_width
+                # 按比例调整视频高度
+                video_height = int(video_height * (max_video_width / original_video_width))
             
             # 计算缩放比例：窗口高度 / 视频高度
             scale = current_height / video_height
@@ -1368,10 +1391,35 @@ class IPTVPlayer(QMainWindow):
         if not self.player_controller or not self.current_channel:
             return
         
-        # 更新播放进度
-        current_time_ms = self.player_controller.get_current_time()
-        total_time_ms = self.player_controller.get_total_time()
-        position = self.player_controller.get_position()
+        # 减少对VLC的调用频率，避免录屏时卡死
+        if not hasattr(self, 'update_count'):
+            self.update_count = 0
+        
+        # 每2次更新才获取一次播放进度，减少VLC交互
+        if self.update_count % 2 == 0:
+            # 更新播放进度
+            current_time_ms = self.player_controller.get_current_time()
+            total_time_ms = self.player_controller.get_total_time()
+            position = self.player_controller.get_position()
+        else:
+            # 使用上次的值
+            if hasattr(self, 'last_current_time_ms'):
+                current_time_ms = self.last_current_time_ms
+                total_time_ms = self.last_total_time_ms
+                position = self.last_position
+            else:
+                # 第一次获取
+                current_time_ms = self.player_controller.get_current_time()
+                total_time_ms = self.player_controller.get_total_time()
+                position = self.player_controller.get_position()
+        
+        # 保存当前值
+        self.last_current_time_ms = current_time_ms
+        self.last_total_time_ms = total_time_ms
+        self.last_position = position
+        
+        # 增加更新计数
+        self.update_count += 1
         
         # 格式化时间
         def format_time(ms):
@@ -1428,20 +1476,28 @@ class IPTVPlayer(QMainWindow):
         
         # 更新第一行媒体信息（分辨率、编码、帧率等）
         try:
-            # 每次都更新媒体信息，确保显示最新数据
-            self.media_basic_info = {
-                'resolution': self.player_controller.get_video_resolution() or "--",
-                'video_codec': self.player_controller.get_video_codec() or "--",
-                'video_profile': self.player_controller.get_video_profile() or "--",
-                'video_color_space': self.player_controller.get_video_color_space() or "--",
-                'video_color_primaries': self.player_controller.get_video_color_primaries() or "--",
-                'fps': self.player_controller.get_fps() or "--",
-                'audio_codec': self.player_controller.get_audio_codec() or "--",
-                'audio_bitrate': self.player_controller.get_audio_bitrate() or "--",
-                'audio_channels': self.player_controller.get_audio_channels() or "--",
-                'audio_samplerate': self.player_controller.get_audio_samplerate() or "--",
-                'network_protocol': self.player_controller.get_network_protocol() or "--"
-            }
+            # 只在初始化时获取一次媒体信息，或者每10次更新才获取一次，减少VLC交互
+            if not hasattr(self, 'media_basic_info') or not hasattr(self, 'media_info_update_count') or self.media_info_update_count % 10 == 0:
+                self.media_basic_info = {
+                    'resolution': self.player_controller.get_video_resolution() or "--",
+                    'video_codec': self.player_controller.get_video_codec() or "--",
+                    'video_profile': self.player_controller.get_video_profile() or "--",
+                    'video_color_space': self.player_controller.get_video_color_space() or "--",
+                    'video_color_primaries': self.player_controller.get_video_color_primaries() or "--",
+                    'fps': self.player_controller.get_fps() or "--",
+                    'audio_codec': self.player_controller.get_audio_codec() or "--",
+                    'audio_bitrate': self.player_controller.get_audio_bitrate() or "--",
+                    'audio_channels': self.player_controller.get_audio_channels() or "--",
+                    'audio_samplerate': self.player_controller.get_audio_samplerate() or "--",
+                    'network_protocol': self.player_controller.get_network_protocol() or "--"
+                }
+                
+                # 初始化更新计数
+                if not hasattr(self, 'media_info_update_count'):
+                    self.media_info_update_count = 0
+            
+            # 增加更新计数
+            self.media_info_update_count += 1
             
             # 实时更新的信息
             network_stats = self.player_controller.get_network_stats() or ""
