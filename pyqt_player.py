@@ -19,7 +19,7 @@ from core.log_manager import global_logger as logger
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from services.player_service import PlayerController
+from services.mpv_player_service import MpvPlayerController
 
 # 频道列表（默认为空，需要用户打开播放列表文件）
 CHANNELS = []
@@ -370,7 +370,7 @@ class IPTVPlayer(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("IPTV Scanner Editor Pro")
-        self.setGeometry(100, 100, 1280, 720)
+        self.setGeometry(100, 100, 1300, 720)
         self.setMinimumSize(800, 600)
         # 连接EPG状态信号到槽函数
         self.epg_status_signal.connect(self.update_status_bar)
@@ -441,6 +441,28 @@ class IPTVPlayer(QMainWindow):
         
         # 菜单栏
         self.setup_menu_bar()
+        
+        # 工具栏（暂时隐藏，等需要时再显示）
+        self.toolbar = self.addToolBar("播放控制")
+        self.toolbar.setStyleSheet("""
+            QToolBar {
+                background-color: #2a2a2a;
+                color: white;
+                padding: 4px;
+            }
+            QToolBar QPushButton {
+                background-color: #3a3a3a;
+                color: white;
+                border: 1px solid #555;
+                padding: 5px 10px;
+                border-radius: 3px;
+                margin: 2px;
+            }
+            QToolBar QPushButton:hover {
+                background-color: #4a4a4a;
+            }
+        """)
+        self.toolbar.hide()  # 暂时隐藏工具栏
         
         # 上半部分布局（包含侧边栏和视频区域）
         self.top_layout = QHBoxLayout()
@@ -518,14 +540,15 @@ class IPTVPlayer(QMainWindow):
         self.video_placeholder.setStyleSheet("font-size: 200px; color: #1a1a1a; background-color: transparent;")
         self.video_placeholder.show()  # 初始显示
         
-        # 创建视频播放窗口（用于VLC）
+        # 创建视频播放窗口
         self.video_widget = QWidget(self.video_frame)
         self.video_widget.setStyleSheet("background-color: #000000;")
-        self.video_widget.hide()  # 初始隐藏
+        self.video_widget.show()  # 初始显示
         
         # 初始化播放器控制器
-        self.player_controller = PlayerController(self.video_widget)
+        self.player_controller = MpvPlayerController(self.video_widget)
         self.player_controller.play_state_changed.connect(self.on_play_state_changed)
+        self.player_controller.media_info_ready.connect(self.on_media_info_ready)
         
         # 右侧播放列表面板
         self.playlist_panel = TranslucentPanel(opacity=180)
@@ -792,7 +815,16 @@ class IPTVPlayer(QMainWindow):
         self.volume_slider.valueChanged.connect(self.set_volume)
         self.control_row.addWidget(self.volume_slider)
         
-        # 7. 全屏图标
+        # 7. 退出回看按钮（初始隐藏）
+        self.exit_catchup_button = QToolButton()
+        self.exit_catchup_button.setText("⏪ 退出回看")
+        self.exit_catchup_button.setFixedSize(100, 26)
+        self.exit_catchup_button.setStyleSheet("color: white; font-size: 12px; background-color: rgba(255, 100, 100, 0.9); border-radius: 4px; border: none;")
+        self.exit_catchup_button.clicked.connect(self.exit_catchup)
+        self.exit_catchup_button.hide()
+        self.control_row.addWidget(self.exit_catchup_button)
+        
+        # 8. 全屏图标
         self.fullscreen_button = QToolButton()
         self.fullscreen_button.setText("⛶")
         self.fullscreen_button.setFixedSize(28, 26)
@@ -1147,9 +1179,20 @@ class IPTVPlayer(QMainWindow):
                 # 格式化时间显示
                 start_str = start_time.strftime("%H:%M")
                 
+                # 检查频道是否支持回看
+                catchup = self.current_channel.get('catchup', '')
+                has_catchup = bool(catchup)
+                
                 # 创建节目项
                 item_text = f"{start_str}  {program.get('title', '未知节目')}"
                 item = QListWidgetItem(item_text)
+                
+                # 给已播放的节目添加回看图标
+                if has_catchup and end_time < now:
+                    from PyQt6.QtGui import QIcon
+                    from PyQt6.QtCore import QSize
+                    # 使用Unicode字符作为图标，或者使用QIcon
+                    item.setText(item_text + " 🔄")
                 
                 # 设置样式
                 if start_time <= now <= end_time:
@@ -1216,7 +1259,13 @@ class IPTVPlayer(QMainWindow):
                 start_str = start_time.strftime("%H:%M")
                 program_text = f"{start_str}  {program.get('title', '未知节目')}"
                 
-                if program_text == item_text:
+                # 移除回看图标，以便比较
+                if ' 🔄' in item_text:
+                    item_text_compare = item_text.replace(' 🔄', '')
+                else:
+                    item_text_compare = item_text
+                
+                if program_text == item_text_compare:
                     # 检查节目是否已播放
                     if end_time < now:
                         # 已播放的节目，启动回看
@@ -1253,50 +1302,39 @@ class IPTVPlayer(QMainWindow):
         # 显示回看状态
         self.status_bar.showMessage(f"正在回看: {channel_name} - {title}")
         
-        # 使用VLC播放回看
+        # 使用mpv播放回看
         if self.player_controller:
             # 保存当前频道信息，用于退出回看
             self.original_channel = self.current_channel.copy()
             # 标记当前处于回看模式
             self.is_catchup_mode = True
+            
+            # 播放前隐藏背景占位符
+            if hasattr(self, 'video_placeholder'):
+                self.video_placeholder.hide()
+            # 确保视频窗口位置正确
+            if hasattr(self, 'video_widget'):
+                self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
+            # 确保悬浮窗在视频窗口之上
+            if hasattr(self, 'floating_panel'):
+                self.floating_panel.raise_()
+                
             # 播放回看
             self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
             # 添加退出回看按钮
             self.add_exit_catchup_button()
     
     def add_exit_catchup_button(self):
-        """添加退出回看按钮"""
-        # 检查是否已经存在退出回看按钮
-        if hasattr(self, 'exit_catchup_button') and self.exit_catchup_button:
-            return
-        
-        # 创建退出回看按钮
-        self.exit_catchup_button = QPushButton("退出回看")
-        self.exit_catchup_button.setStyleSheet("""
-            QPushButton {
-                background-color: #3a3a3a;
-                color: white;
-                border: 1px solid #555;
-                padding: 5px 10px;
-                border-radius: 3px;
-            }
-            QPushButton:hover {
-                background-color: #4a4a4a;
-            }
-        """)
-        self.exit_catchup_button.clicked.connect(self.exit_catchup)
-        
-        # 将按钮添加到工具栏
-        if hasattr(self, 'toolbar'):
-            self.toolbar.addWidget(self.exit_catchup_button)
+        """显示退出回看按钮"""
+        # 显示退出回看按钮
+        if hasattr(self, 'exit_catchup_button'):
+            self.exit_catchup_button.show()
     
     def exit_catchup(self):
         """退出回看，返回直播"""
-        # 移除退出回看按钮
-        if hasattr(self, 'exit_catchup_button') and self.exit_catchup_button:
-            self.toolbar.removeWidget(self.exit_catchup_button)
-            self.exit_catchup_button.deleteLater()
-            delattr(self, 'exit_catchup_button')
+        # 隐藏退出回看按钮
+        if hasattr(self, 'exit_catchup_button'):
+            self.exit_catchup_button.hide()
         
         # 退出回看模式
         self.is_catchup_mode = False
@@ -1305,6 +1343,7 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, 'original_channel') and self.original_channel:
             channel_name = self.original_channel.get("name", "未知频道")
             self.status_bar.showMessage(f"返回直播: {channel_name}")
+            # 实际播放原频道
             self.play_channel(self.original_channel)
     
     def on_group_changed(self, group_name):
@@ -1530,12 +1569,12 @@ class IPTVPlayer(QMainWindow):
             if url:
                 # 更新状态栏消息
                 self.status_bar.showMessage(f"正在播放: {name}")
-                # 播放前先显示视频窗口（VLC需要可见窗口才能正确设置视频输出）
+                # 播放前隐藏背景占位符
                 if hasattr(self, 'video_placeholder'):
                     self.video_placeholder.hide()
+                # 确保视频窗口位置正确
                 if hasattr(self, 'video_widget'):
                     self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
-                    self.video_widget.show()
                 # 确保悬浮窗在视频窗口之上
                 if hasattr(self, 'floating_panel'):
                     self.floating_panel.raise_()
@@ -1567,22 +1606,58 @@ class IPTVPlayer(QMainWindow):
             # 更新状态栏消息
             if self.current_channel:
                 channel_name = self.current_channel.get('name', '未知频道')
-                self.status_bar.showMessage(f"正在播放: {channel_name}")
+                if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
+                    self.status_bar.showMessage(f"正在回看: {channel_name}")
+                else:
+                    self.status_bar.showMessage(f"正在播放: {channel_name}")
         else:
             self.play_button.setText("▶")
-            # 停止时隐藏视频窗口，显示背景
-            if hasattr(self, 'video_widget'):
-                self.video_widget.hide()
-            if hasattr(self, 'video_placeholder'):
-                self.video_placeholder.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
-                self.video_placeholder.show()
+            # 暂停时不要显示背景占位符，保持视频窗口可见
             # 停止定时器
             if hasattr(self, 'update_timer'):
                 self.update_timer.stop()
             # 更新状态栏消息
             if self.current_channel:
                 channel_name = self.current_channel.get('name', '未知频道')
-                self.status_bar.showMessage(f"已暂停: {channel_name}")
+                if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
+                    self.status_bar.showMessage(f"已暂停回看: {channel_name}")
+                else:
+                    self.status_bar.showMessage(f"已暂停: {channel_name}")
+    
+    def on_media_info_ready(self, media_info):
+        """媒体信息获取完成时的处理"""
+        # 更新媒体信息显示
+        if media_info:
+            # 更新视频信息
+            video_info = media_info.get('video', {})
+            video_codec = video_info.get('codec', '未知')
+            video_width = video_info.get('width', 0)
+            video_height = video_info.get('height', 0)
+            video_resolution = f"{video_width}x{video_height}" if video_width and video_height else "未知"
+            video_bitrate = video_info.get('bit_rate', 0)
+            video_bitrate_str = f"{video_bitrate // 1000}kbps" if video_bitrate else "未知"
+            
+            # 更新音频信息
+            audio_info = media_info.get('audio', {})
+            audio_codec = audio_info.get('codec', '未知')
+            channels = audio_info.get('channels', 0)
+            sample_rate = audio_info.get('sample_rate', 0)
+            audio_bitrate = audio_info.get('bit_rate', 0)
+            audio_bitrate_str = f"{audio_bitrate // 1000}kbps" if audio_bitrate else "未知"
+            
+            # 更新网络信息
+            format_name = media_info.get('format', '未知')
+            protocol = media_info.get('protocol', '未知')
+            
+            # 更新显示
+            self.video_info.setText(f"📺 {video_codec} {video_resolution} {video_bitrate_str}")
+            self.audio_info.setText(f"🔊 {audio_codec} {channels}ch {sample_rate}Hz {audio_bitrate_str}")
+            self.network_info.setText(f"📡 {format_name} {protocol}")
+            
+            # 更新状态栏消息
+            if self.current_channel:
+                channel_name = self.current_channel.get('name', '未知频道')
+                self.status_bar.showMessage(f"正在播放: {channel_name} - {video_codec} {video_resolution} {protocol}")
     
     def adjust_window_size_to_video(self):
         """根据视频分辨率调整窗口大小，保持窗口高度不变，调整宽度以适应视频比例"""
@@ -1923,80 +1998,8 @@ class IPTVPlayer(QMainWindow):
         volume = self.player_controller.get_volume()
         self.volume_slider.setValue(volume)
         
-        # 更新第一行媒体信息（分辨率、编码、帧率等）
-        try:
-            # 只在初始化时获取一次媒体信息，或者每10次更新才获取一次，减少VLC交互
-            if not hasattr(self, 'media_basic_info') or not hasattr(self, 'media_info_update_count') or self.media_info_update_count % 10 == 0:
-                self.media_basic_info = {
-                    'resolution': self.player_controller.get_video_resolution() or "--",
-                    'video_codec': self.player_controller.get_video_codec() or "--",
-                    'video_profile': self.player_controller.get_video_profile() or "--",
-                    'video_color_space': self.player_controller.get_video_color_space() or "--",
-                    'video_color_primaries': self.player_controller.get_video_color_primaries() or "--",
-                    'fps': self.player_controller.get_fps() or "--",
-                    'audio_codec': self.player_controller.get_audio_codec() or "--",
-                    'audio_bitrate': self.player_controller.get_audio_bitrate() or "--",
-                    'audio_channels': self.player_controller.get_audio_channels() or "--",
-                    'audio_samplerate': self.player_controller.get_audio_samplerate() or "--",
-                    'network_protocol': self.player_controller.get_network_protocol() or "--"
-                }
-                
-                # 初始化更新计数
-                if not hasattr(self, 'media_info_update_count'):
-                    self.media_info_update_count = 0
-            
-            # 增加更新计数
-            self.media_info_update_count += 1
-            
-            # 实时更新的信息
-            network_stats = ""
-            delay = "--"
-            
-            # 从缓存获取基本信息
-            resolution = self.media_basic_info.get('resolution', "--")
-            video_codec = self.media_basic_info.get('video_codec', "--")
-            video_profile = self.media_basic_info.get('video_profile', "--")
-            video_color_space = self.media_basic_info.get('video_color_space', "--")
-            video_color_primaries = self.media_basic_info.get('video_color_primaries', "--")
-            fps = self.media_basic_info.get('fps', "--")
-            audio_codec = self.media_basic_info.get('audio_codec', "--")
-            audio_bitrate = self.media_basic_info.get('audio_bitrate', "--")
-            audio_channels = self.media_basic_info.get('audio_channels', "--")
-            audio_samplerate = self.media_basic_info.get('audio_samplerate', "--")
-            network_protocol = self.media_basic_info.get('network_protocol', "--")
-            
-            # 更新第一行：视频信息（每个字段都有标题）
-            video_info_parts = [
-                f"分辨率:{resolution}", 
-                f"编码:{video_codec}",
-                f"级别:{video_profile}",
-                f"帧率:{fps}"
-            ]
-            if video_color_space != "--":
-                video_info_parts.append(f"色彩空间:{video_color_space}")
-            if video_color_primaries != "--":
-                video_info_parts.append(f"色彩标准:{video_color_primaries}")
-            video_info_text = f"📺 {'  '.join(video_info_parts)}"
-            self.video_info.setText(video_info_text)
-            
-            # 更新音频信息（每个字段都有标题）
-            audio_info_parts = [
-                f"编码:{audio_codec}",
-                f"码率:{audio_bitrate}",
-                f"声道:{audio_channels}",
-                f"采样率:{audio_samplerate}"
-            ]
-            audio_info_text = f"🔊 {'  '.join(audio_info_parts)}"
-            self.audio_info.setText(audio_info_text)
-            
-            # 更新网络信息（每个字段都有标题）
-            network_info_parts = [
-                f"协议:{network_protocol}"
-            ]
-            network_info_text = f"📡 {'  '.join(network_info_parts)}"
-            self.network_info.setText(network_info_text)
-        except Exception as e:
-            pass
+        # 媒体信息已经通过on_media_info_ready方法更新，这里不再重复获取
+        # 如果需要更新媒体信息，会通过on_media_info_ready方法触发
     
     def eventFilter(self, obj, event):
         """事件过滤器，处理鼠标事件"""
