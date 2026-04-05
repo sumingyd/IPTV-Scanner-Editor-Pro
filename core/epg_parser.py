@@ -23,11 +23,53 @@ class EPGParser:
                 self.last_update = datetime.fromisoformat(last_update_str)
             except Exception:
                 pass
+        # 尝试加载缓存的EPG数据
+        self.load_cached_epg_data()
     
-    def load_epg_from_url(self, epg_url):
+    def load_cached_epg_data(self):
+        """从缓存文件加载EPG数据"""
+        import os
+        from core.config_manager import ConfigManager
+        config = ConfigManager()
+        cache_dir = config.get_value('General', 'cache_dir', 'cache')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        
+        epg_cache_file = os.path.join(cache_dir, 'epg_cache.json')
+        if os.path.exists(epg_cache_file):
+            try:
+                import json
+                with open(epg_cache_file, 'r', encoding='utf-8') as f:
+                    self.epg_data = json.load(f)
+                logger.info(f"从缓存文件加载EPG数据，包含 {len(self.epg_data)} 个频道")
+            except Exception as e:
+                logger.error(f"加载EPG缓存数据失败: {e}")
+                self.epg_data = {}
+    
+    def save_cached_epg_data(self):
+        """保存EPG数据到缓存文件"""
+        import os
+        from core.config_manager import ConfigManager
+        config = ConfigManager()
+        cache_dir = config.get_value('General', 'cache_dir', 'cache')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        
+        epg_cache_file = os.path.join(cache_dir, 'epg_cache.json')
+        try:
+            import json
+            with open(epg_cache_file, 'w', encoding='utf-8') as f:
+                json.dump(self.epg_data, f, ensure_ascii=False, indent=2)
+            logger.info(f"EPG数据已保存到缓存文件: {epg_cache_file}")
+        except Exception as e:
+            logger.error(f"保存EPG缓存数据失败: {e}")
+    
+    def load_epg_from_url(self, epg_url, status_callback=None):
         """从URL加载EPG数据"""
         if not epg_url:
             logger.warning("EPG URL未设置")
+            if status_callback:
+                status_callback("EPG URL未设置")
             return False
         
         # 检查是否已经有当天的EPG数据
@@ -35,15 +77,30 @@ class EPGParser:
             # 如果EPG数据为空，重新下载
             if len(self.epg_data) == 0:
                 logger.warning("EPG数据为空，重新下载")
+                if status_callback:
+                    status_callback("EPG数据为空，重新下载")
             else:
+                if status_callback:
+                    status_callback("使用缓存的EPG数据")
                 return True
         
+        if status_callback:
+            status_callback("正在下载EPG数据...")
+        
         try:
-            logger.info(f"开始下载EPG数据: {epg_url}")
             response = requests.get(epg_url, timeout=30)
             response.raise_for_status()
             
-            # 解析EPG数据
+            content_length = len(response.text)
+            if content_length == 0:
+                logger.error("EPG数据为空")
+                if status_callback:
+                    status_callback("EPG数据为空")
+                return False
+            
+            if status_callback:
+                status_callback("正在解析EPG数据...")
+            
             self.epg_data = self.parse_epg_data(response.text)
             self.last_update = datetime.now()
             # 保存last_update到配置文件
@@ -51,8 +108,17 @@ class EPGParser:
             config = ConfigManager()
             config.set_value('EPG', 'last_update', self.last_update.isoformat())
             config.save_config()
-            logger.info(f"EPG数据下载成功，包含 {len(self.epg_data)} 个频道")
+            
+            # 保存EPG数据到缓存文件
+            self.save_cached_epg_data()
+            
+            if status_callback:
+                status_callback(f"EPG数据下载成功，包含 {len(self.epg_data)} 个频道")
+            
             return True
+        except requests.exceptions.RequestException as e:
+            logger.error(f"EPG数据下载失败: {e}")
+            return False
         except Exception as e:
             logger.error(f"加载EPG数据失败: {e}")
             return False
@@ -65,7 +131,6 @@ class EPGParser:
             return json.loads(epg_content)
         except json.JSONDecodeError:
             # 如果不是JSON格式，尝试解析其他格式
-            logger.warning("EPG数据不是JSON格式，尝试其他解析方式")
             return self.parse_epg_xml(epg_content)
     
     def parse_epg_xml(self, epg_content):
@@ -93,7 +158,9 @@ class EPGParser:
             
             # 解析节目信息
             # 使用更通用的查找方式，查找所有的programme元素
-            for programme in root.iter('programme'):
+            programmes = list(root.iter('programme'))
+            
+            for programme in programmes:
                 channel_id = programme.get('channel')
                 start = programme.get('start')
                 # 同时支持end和stop属性
@@ -139,7 +206,6 @@ class EPGParser:
                         logger.error(f"解析节目时间失败: {e}")
                         pass
             
-            logger.info(f"XML格式EPG解析成功，包含 {len(result)} 个频道")
             return result
         except Exception as e:
             logger.error(f"XML格式EPG解析失败: {e}")
@@ -180,6 +246,25 @@ class EPGParser:
                 channel_name_short_lower = channel_name_short.lower()
                 for epg_channel_id, programs in self.epg_data.items():
                     if channel_name_short_lower in epg_channel_id.lower() or epg_channel_id.lower() in channel_name_short_lower:
+                        return programs
+            # 尝试使用频道名称中的数字部分匹配
+            if channel_name:
+                import re
+                # 提取频道名称中的数字
+                numbers = re.findall(r'\d+', channel_name)
+                if numbers:
+                    for epg_channel_id, programs in self.epg_data.items():
+                        for number in numbers:
+                            if number in epg_channel_id:
+                                return programs
+            # 尝试使用频道名称的简化形式匹配（去除空格和特殊字符）
+            if channel_name:
+                import re
+                # 去除空格和特殊字符
+                simplified_name = re.sub(r'[^a-zA-Z0-9]', '', channel_name).lower()
+                for epg_channel_id, programs in self.epg_data.items():
+                    simplified_epg_channel = re.sub(r'[^a-zA-Z0-9]', '', epg_channel_id).lower()
+                    if simplified_name in simplified_epg_channel or simplified_epg_channel in simplified_name:
                         return programs
             return []
     

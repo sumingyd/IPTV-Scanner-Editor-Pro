@@ -4,8 +4,6 @@ import json
 import subprocess
 import os
 import time
-import urllib.request
-import threading
 from PyQt6.QtCore import QObject, pyqtSignal
 from core.log_manager import global_logger
 
@@ -85,19 +83,6 @@ class PlayerController(QObject):
         self.current_url = None
         self.media_info = {}
         
-        # 网络监控相关
-        self._network_stats = {
-            'delay': '--',
-            'loss': '--',
-            'buffer': '--',
-            'speed': '--',
-            'last_bytes': 0,
-            'last_time': 0,
-            'lock': threading.Lock()
-        }
-        self._network_monitor_thread = None
-        self._stop_network_monitor = threading.Event()
-        
         self._init_player()
         
         # 连接信号
@@ -106,166 +91,6 @@ class PlayerController(QObject):
     def _on_media_info_ready(self, info):
         """当ffprobe获取到信息时调用"""
         self.media_info = info
-        self.logger.debug(f"媒体信息已更新: {info}")
-
-    def _start_network_monitor(self, url):
-        """启动网络监控线程"""
-        self._stop_network_monitor.clear()
-        self._network_monitor_thread = threading.Thread(
-            target=self._network_monitor_loop,
-            args=(url,),
-            daemon=True
-        )
-        self._network_monitor_thread.start()
-
-    def _stop_network_monitor_thread(self):
-        """停止网络监控线程"""
-        self._stop_network_monitor.set()
-        if self._network_monitor_thread and self._network_monitor_thread.is_alive():
-            self._network_monitor_thread.join(timeout=1)
-
-    def _network_monitor_loop(self, url):
-        """网络监控循环"""
-        while not self._stop_network_monitor.is_set() and self.is_playing:
-            try:
-                # 测量延迟
-                delay = self._measure_delay(url)
-                
-                # 计算下载速率
-                speed = self._calculate_download_speed()
-                
-                # 获取缓冲状态
-                buffer = self._get_vlc_buffer_status()
-                
-                # 更新网络统计
-                with self._network_stats['lock']:
-                    self._network_stats['delay'] = delay
-                    self._network_stats['speed'] = speed
-                    self._network_stats['buffer'] = buffer
-                
-                # 每秒更新一次
-                time.sleep(1)
-            except Exception as e:
-                self.logger.debug(f"网络监控错误: {e}")
-                time.sleep(1)
-
-    def _measure_delay(self, url):
-        """测量网络延迟"""
-        try:
-            # 解析URL获取主机名
-            from urllib.parse import urlparse
-            parsed = urlparse(url)
-            host = parsed.hostname
-            
-            if not host:
-                return '--'
-            
-            # 对于HTTP/HTTPS URL，尝试测量响应时间
-            if parsed.scheme in ['http', 'https']:
-                start_time = time.time()
-                try:
-                    # 发送HEAD请求测量延迟
-                    req = urllib.request.Request(url, method='HEAD')
-                    req.add_header('User-Agent', 'Mozilla/5.0')
-                    with urllib.request.urlopen(req, timeout=2) as response:
-                        delay_ms = int((time.time() - start_time) * 1000)
-                        return f"{delay_ms}"
-                except:
-                    # 如果HEAD请求失败，使用ping
-                    return self._ping_host(host)
-            else:
-                # 对于其他协议，使用ping
-                return self._ping_host(host)
-        except Exception as e:
-            self.logger.debug(f"测量延迟失败: {e}")
-            return '--'
-
-    def _ping_host(self, host):
-        """使用ping命令测量延迟"""
-        try:
-            import subprocess
-            import platform
-            
-            # 根据操作系统选择ping参数
-            if platform.system().lower() == 'windows':
-                cmd = ['ping', '-n', '1', '-w', '1000', host]
-            else:
-                cmd = ['ping', '-c', '1', '-W', '1', host]
-            
-            start_time = time.time()
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=2)
-            delay_ms = int((time.time() - start_time) * 1000)
-            
-            if result.returncode == 0:
-                return f"{delay_ms}"
-            else:
-                return '--'
-        except Exception as e:
-            self.logger.debug(f"ping失败: {e}")
-            return '--'
-
-    def _calculate_download_speed(self):
-        """计算下载速率"""
-        try:
-            if not self.player or not self.is_playing:
-                return '--'
-            
-            media = self.player.get_media()
-            if not media:
-                return '--'
-            
-            # 获取当前统计信息
-            stats = media.get_stats()
-            if not stats:
-                return '--'
-            
-            # 获取当前读取的字节数
-            current_bytes = getattr(stats, 'demux_read_bytes', 0)
-            current_time = time.time()
-            
-            with self._network_stats['lock']:
-                last_bytes = self._network_stats['last_bytes']
-                last_time = self._network_stats['last_time']
-                
-                # 计算速率
-                if last_bytes > 0 and last_time > 0 and current_bytes > last_bytes:
-                    bytes_diff = current_bytes - last_bytes
-                    time_diff = current_time - last_time
-                    
-                    if time_diff > 0:
-                        # 转换为 Mbps
-                        speed_mbps = (bytes_diff * 8) / (time_diff * 1000000)
-                        
-                        # 更新上次记录
-                        self._network_stats['last_bytes'] = current_bytes
-                        self._network_stats['last_time'] = current_time
-                        
-                        return f"{speed_mbps:.1f}Mbps"
-                else:
-                    # 第一次记录
-                    self._network_stats['last_bytes'] = current_bytes
-                    self._network_stats['last_time'] = current_time
-            
-            return '--'
-        except Exception as e:
-            self.logger.debug(f"计算下载速率失败: {e}")
-            return '--'
-
-    def _get_vlc_buffer_status(self):
-        """获取VLC缓冲状态"""
-        try:
-            if not self.player or not self.is_playing:
-                return '--'
-            
-            # 尝试获取缓冲状态
-            buffer_percent = self.player.get_media().get_stats().demux_read_bytes if hasattr(self.player.get_media().get_stats(), 'demux_read_bytes') else 0
-            if buffer_percent > 0:
-                return f"{min(100, int(buffer_percent / 1000))}"
-            
-            return '--'
-        except Exception as e:
-            self.logger.debug(f"获取缓冲状态失败: {e}")
-            return '--'
 
     def _get_ffprobe_path(self):
         """获取ffprobe路径"""
@@ -410,8 +235,21 @@ class PlayerController(QObject):
                 '--no-xlib',
                 '--quiet',
                 '--no-stats',
-                '--no-video-title-show'
+                '--no-video-title-show',
+                '--rtsp-timeout=30',  # 设置RTSP超时时间为30秒
+                '--network-caching=3000',  # 设置网络缓存为3000毫秒，提高稳定性
+                '--live-caching=3000',  # 设置直播缓存为3000毫秒
+                '--file-caching=3000',  # 设置文件缓存为3000毫秒
+                '--sout-mux-caching=3000',  # 设置输出缓存为3000毫秒
+                '--ignore-config'  # 忽略配置文件，使用当前参数
             ]
+            
+            # 从配置文件读取RTSP协议类型
+            from core.config_manager import ConfigManager
+            config = ConfigManager()
+            rtsp_protocol = config.get_value('Player', 'rtsp_protocol', 'tcp')
+            if rtsp_protocol.lower() == 'tcp':
+                vlc_args.append('--rtsp-tcp')  # 使用TCP协议而非UDP，提高稳定性
             self.instance = vlc.Instance(vlc_args)
             self.player = self.instance.media_player_new()
 
@@ -439,21 +277,11 @@ class PlayerController(QObject):
             self._init_player()
 
         try:
-            # 先停止当前播放和网络监控
+            # 先停止当前播放
             self.stop()
-            self._stop_network_monitor_thread()
 
             # 保存当前URL
             self.current_url = url
-            
-            # 重置网络统计
-            with self._network_stats['lock']:
-                self._network_stats['delay'] = '--'
-                self._network_stats['loss'] = '--'
-                self._network_stats['buffer'] = '--'
-                self._network_stats['speed'] = '--'
-                self._network_stats['last_bytes'] = 0
-                self._network_stats['last_time'] = 0
             
             # 在主线程中获取窗口ID（winId()必须在主线程调用）
             win_id = None
@@ -470,12 +298,17 @@ class PlayerController(QObject):
                         self.player.set_hwnd(win_id)
                     
                     media = self.instance.media_new(url)
+                    # 为RTSP流添加特殊处理
+                    if url.lower().startswith('rtsp://'):
+                        # 设置RTSP相关选项
+                        media.add_option('rtsp-tcp')  # 使用TCP协议
+                        media.add_option('network-caching=3000')  # 设置网络缓存
+                        media.add_option('live-caching=3000')  # 设置直播缓存
+                        media.add_option('file-caching=3000')  # 设置文件缓存
+                        media.add_option('sout-mux-caching=3000')  # 设置输出缓存
                     self.player.set_media(media)
                     self.player.play()
                     self.is_playing = True
-                    
-                    # 启动网络监控
-                    self._start_network_monitor(url)
                     
                     # 直接发射信号
                     self.play_state_changed.emit(True)
@@ -487,11 +320,13 @@ class PlayerController(QObject):
                     # 在另一个后台线程中使用ffprobe获取媒体信息（不阻碍播放）
                     def fetch_media_info():
                         try:
-                            info = self._run_ffprobe(current_url_for_fetch, timeout=10)  # 增加超时时间到10秒
-                            # 检查是否已经切换了频道，如果切换了就不发射信号
-                            if self.current_url == current_url_for_fetch:
-                                # 通过信号将信息传递到主线程
-                                self.media_info_ready.emit(info)
+                            # 对RTSP协议的URL跳过ffprobe获取媒体信息
+                            if not current_url_for_fetch.lower().startswith('rtsp://'):
+                                info = self._run_ffprobe(current_url_for_fetch, timeout=10)  # 增加超时时间到10秒
+                                # 检查是否已经切换了频道，如果切换了就不发射信号
+                                if self.current_url == current_url_for_fetch:
+                                    # 通过信号将信息传递到主线程
+                                    self.media_info_ready.emit(info)
                         except Exception as e:
                             self.logger.debug(f"ffprobe获取信息失败: {e}")
                     
@@ -547,9 +382,6 @@ class PlayerController(QObject):
 
     def stop(self):
         """停止播放 - 使用异步方式避免阻塞UI线程"""
-        # 停止网络监控
-        self._stop_network_monitor_thread()
-        
         if self.player:
             try:
                 # 使用异步方式停止播放，避免阻塞UI线程
@@ -594,55 +426,14 @@ class PlayerController(QObject):
         # 优先使用ffprobe获取的信息
         if self.media_info.get('resolution'):
             return self.media_info['resolution']
-            
-        if not self.player:
-            return None
-
-        try:
-            # 获取当前视频尺寸 - 使用正确的VLC API
-            width = self.player.video_get_width()
-            height = self.player.video_get_height()
-
-            if width > 0 and height > 0:
-                resolution = f"{width}x{height}"
-                self.logger.info(f"VLC获取到分辨率: {resolution}")
-                return resolution
-            else:
-                self.logger.warning("VLC获取到的分辨率为0")
-                return None
-        except Exception as e:
-            self.logger.debug(f"获取视频分辨率失败: {e}")
-            return None
+        return None
 
     def get_video_resolution_from_media_info(self):
         """从媒体信息获取原始分辨率（可能更准确）"""
-        if not self.player:
-            return None
-
-        try:
-            # 获取当前媒体
-            media = self.player.get_media()
-            if not media:
-                return None
-
-            # 解析媒体信息
-            media.parse_with_options(vlc.MediaParseFlag.network, 5000)
-
-            # 获取轨道信息
-            tracks = media.tracks_get()
-            for track in tracks:
-                if track.type == vlc.TrackType.video:
-                    width = track.video.width
-                    height = track.video.height
-                    if width > 0 and height > 0:
-                        resolution = f"{width}x{height}"
-                        self.logger.info(f"从媒体信息获取到分辨率: {resolution}")
-                        return resolution
-
-            return None
-        except Exception as e:
-            self.logger.debug(f"从媒体信息获取分辨率失败: {e}")
-            return None
+        # 优先使用ffprobe获取的信息
+        if self.media_info.get('resolution'):
+            return self.media_info['resolution']
+        return None
 
     def play_channel(self, channel, channel_index=None):
         """播放指定频道(允许任何状态)"""
@@ -755,20 +546,6 @@ class PlayerController(QObject):
         # 优先使用ffprobe获取的信息
         if self.media_info.get('audio_codec'):
             return self.media_info['audio_codec']
-            
-        if self.player and self.is_playing:
-            try:
-                media = self.player.get_media()
-                if media:
-                    tracks = list(media.tracks_get())
-                    for track in tracks:
-                        if track.type == vlc.TrackType.audio:
-                            codec = getattr(track, 'codec', 'N/A')
-                            codec_str = self._fourcc_to_string(codec)
-                            codec_str = codec_str.lower().strip()
-                            return AUDIO_CODEC_MAP.get(codec_str, codec_str.upper())
-            except Exception as e:
-                self.logger.debug(f"获取音频编码失败: {e}")
         return "--"
     
     def get_video_codec(self):
@@ -776,20 +553,6 @@ class PlayerController(QObject):
         # 优先使用ffprobe获取的信息
         if self.media_info.get('video_codec'):
             return self.media_info['video_codec']
-            
-        if self.player and self.is_playing:
-            try:
-                media = self.player.get_media()
-                if media:
-                    tracks = list(media.tracks_get())
-                    for track in tracks:
-                        if track.type == vlc.TrackType.video:
-                            codec = getattr(track, 'codec', 'N/A')
-                            codec_str = self._fourcc_to_string(codec)
-                            codec_str = codec_str.lower().strip()
-                            return VIDEO_CODEC_MAP.get(codec_str, codec_str.upper())
-            except Exception as e:
-                self.logger.debug(f"获取视频编码失败: {e}")
         return "--"
     
     def get_bitrate(self):
@@ -797,18 +560,6 @@ class PlayerController(QObject):
         # 优先使用ffprobe获取的信息
         if self.media_info.get('bitrate'):
             return self.media_info['bitrate']
-            
-        if self.player and self.is_playing:
-            try:
-                media = self.player.get_media()
-                if media:
-                    tracks = list(media.tracks_get())
-                    for track in tracks:
-                        if track.type == vlc.TrackType.video:
-                            if hasattr(track, 'bitrate') and track.bitrate > 0:
-                                return f"{track.bitrate/1000:.1f}Mbps"
-            except Exception as e:
-                self.logger.debug(f"获取码率失败: {e}")
         return "--"
     
     def get_fps(self):
@@ -816,48 +567,17 @@ class PlayerController(QObject):
         # 优先使用ffprobe获取的信息
         if self.media_info.get('fps'):
             return self.media_info['fps']
-            
-        if self.player and self.is_playing:
-            try:
-                media = self.player.get_media()
-                if media:
-                    tracks = list(media.tracks_get())
-                    for track in tracks:
-                        if track.type == vlc.TrackType.video:
-                            if hasattr(track, 'frame_rate') and track.frame_rate > 0:
-                                return f"{track.frame_rate:.1f}fps"
-                            elif hasattr(track, 'fps') and track.fps > 0:
-                                return f"{track.fps:.1f}fps"
-            except Exception as e:
-                self.logger.debug(f"获取帧率失败: {e}")
         return "--"
     
     def get_network_stats(self):
         """获取网络统计"""
-        delay = self.get_network_delay()
-        loss = self.get_network_loss()
-        buffer = self.get_network_buffer()
-        return f"延迟:{delay}ms 丢包:{loss}% 缓冲:{buffer}%"
+        return ""
     
     def get_video_profile(self):
         """获取视频编码级别"""
         # 优先使用ffprobe获取的信息
         if self.media_info.get('video_profile'):
             return self.media_info['video_profile']
-            
-        if self.player and self.is_playing:
-            try:
-                media = self.player.get_media()
-                if media:
-                    tracks = list(media.tracks_get())
-                    for track in tracks:
-                        if track.type == vlc.TrackType.video:
-                            if hasattr(track, 'profile') and track.profile > 0:
-                                return str(track.profile)
-                            elif hasattr(track, 'level') and track.level > 0:
-                                return str(track.level)
-            except Exception as e:
-                self.logger.debug(f"获取视频编码级别失败: {e}")
         return "--"
     
     def get_video_color_space(self):
@@ -865,18 +585,6 @@ class PlayerController(QObject):
         # 优先使用ffprobe获取的信息
         if self.media_info.get('color_space'):
             return self.media_info['color_space']
-            
-        if self.player and self.is_playing:
-            try:
-                media = self.player.get_media()
-                if media:
-                    tracks = list(media.tracks_get())
-                    for track in tracks:
-                        if track.type == vlc.TrackType.video:
-                            if hasattr(track.video, 'colorspace') and track.video.colorspace:
-                                return str(track.video.colorspace)
-            except Exception as e:
-                self.logger.debug(f"获取视频色彩空间失败: {e}")
         return "--"
     
     def get_video_color_primaries(self):
@@ -884,18 +592,6 @@ class PlayerController(QObject):
         # 优先使用ffprobe获取的信息
         if self.media_info.get('color_primaries'):
             return self.media_info['color_primaries']
-            
-        if self.player and self.is_playing:
-            try:
-                media = self.player.get_media()
-                if media:
-                    tracks = list(media.tracks_get())
-                    for track in tracks:
-                        if track.type == vlc.TrackType.video:
-                            if hasattr(track.video, 'primaries') and track.video.primaries:
-                                return str(track.video.primaries)
-            except Exception as e:
-                self.logger.debug(f"获取视频色彩标准失败: {e}")
         return "--"
     
     def get_audio_bitrate(self):
@@ -903,18 +599,6 @@ class PlayerController(QObject):
         # 优先使用ffprobe获取的信息
         if self.media_info.get('audio_bitrate'):
             return self.media_info['audio_bitrate']
-            
-        if self.player and self.is_playing:
-            try:
-                media = self.player.get_media()
-                if media:
-                    tracks = list(media.tracks_get())
-                    for track in tracks:
-                        if track.type == vlc.TrackType.audio:
-                            if hasattr(track, 'bitrate') and track.bitrate > 0:
-                                return f"{track.bitrate}kbps"
-            except Exception as e:
-                self.logger.debug(f"获取音频码率失败: {e}")
         return "--"
     
     def get_audio_channels(self):
@@ -922,18 +606,6 @@ class PlayerController(QObject):
         # 优先使用ffprobe获取的信息
         if self.media_info.get('audio_channels'):
             return self.media_info['audio_channels']
-            
-        if self.player and self.is_playing:
-            try:
-                media = self.player.get_media()
-                if media:
-                    tracks = list(media.tracks_get())
-                    for track in tracks:
-                        if track.type == vlc.TrackType.audio:
-                            if hasattr(track, 'channels') and track.channels > 0:
-                                return f"{track.channels}.0ch"
-            except Exception as e:
-                self.logger.debug(f"获取音频声道数失败: {e}")
         return "--"
     
     def get_audio_samplerate(self):
@@ -941,18 +613,6 @@ class PlayerController(QObject):
         # 优先使用ffprobe获取的信息
         if self.media_info.get('audio_samplerate'):
             return self.media_info['audio_samplerate']
-            
-        if self.player and self.is_playing:
-            try:
-                media = self.player.get_media()
-                if media:
-                    tracks = list(media.tracks_get())
-                    for track in tracks:
-                        if track.type == vlc.TrackType.audio:
-                            if hasattr(track, 'rate') and track.rate > 0:
-                                return f"{track.rate}kHz"
-            except Exception as e:
-                self.logger.debug(f"获取音频采样率失败: {e}")
         return "--"
     
     def get_audio_bits(self):
@@ -960,37 +620,13 @@ class PlayerController(QObject):
         # 优先使用ffprobe获取的信息
         if self.media_info.get('audio_bits'):
             return self.media_info['audio_bits']
-            
-        if self.player and self.is_playing:
-            try:
-                media = self.player.get_media()
-                if media:
-                    tracks = list(media.tracks_get())
-                    for track in tracks:
-                        if track.type == vlc.TrackType.audio:
-                            if hasattr(track, 'bits_per_sample') and track.bits_per_sample > 0:
-                                return f"{track.bits_per_sample}bit"
-                            elif hasattr(track, 'bits') and track.bits > 0:
-                                return f"{track.bits}bit"
-            except Exception as e:
-                self.logger.debug(f"获取音频位深失败: {e}")
         return "--"
     
     def get_audio_format(self):
         """获取音频格式"""
-        if self.player and self.is_playing:
-            try:
-                media = self.player.get_media()
-                if media:
-                    tracks = list(media.tracks_get())
-                    for track in tracks:
-                        if track.type == vlc.TrackType.audio:
-                            if hasattr(track.audio, 'codec') and track.audio.codec:
-                                codec = self._fourcc_to_string(track.audio.codec)
-                                codec_str = codec.lower().strip()
-                                return AUDIO_CODEC_MAP.get(codec_str, codec_str.upper())
-            except Exception as e:
-                self.logger.debug(f"获取音频格式失败: {e}")
+        # 优先使用ffprobe获取的信息
+        if self.media_info.get('audio_codec'):
+            return self.media_info['audio_codec']
         return "--"
     
     def get_network_protocol(self):
@@ -1015,46 +651,3 @@ class PlayerController(QObject):
             except Exception as e:
                 self.logger.debug(f"获取网络协议失败: {e}")
         return "--"
-    
-    def get_network_speed(self):
-        """获取网络速率"""
-        with self._network_stats['lock']:
-            speed = self._network_stats['speed']
-            if speed != '--':
-                return speed
-        
-        # 如果监控线程没有获取到，尝试直接计算
-        if self.player and self.is_playing:
-            try:
-                media = self.player.get_media()
-                if media:
-                    stats = media.get_stats()
-                    if stats and hasattr(stats, 'input_bitrate'):
-                        input_bitrate = stats.input_bitrate
-                        if input_bitrate > 0:
-                            speed_mbps = (input_bitrate * 8) / 1000000
-                            return f"{speed_mbps:.1f}Mbps"
-            except Exception as e:
-                self.logger.debug(f"获取网络速率失败: {e}")
-        return "--"
-    
-    def get_network_delay(self):
-        """获取网络延迟"""
-        with self._network_stats['lock']:
-            delay = self._network_stats['delay']
-            if delay != '--':
-                return delay
-        return "--"
-    
-    def get_network_loss(self):
-        """获取丢包率"""
-        # 目前无法准确获取丢包率，返回 --
-        return "--"
-    
-    def get_network_buffer(self):
-        """获取缓冲状态"""
-        with self._network_stats['lock']:
-            buffer = self._network_stats['buffer']
-            if buffer != '--':
-                return f"{buffer}%"
-        return "--%"

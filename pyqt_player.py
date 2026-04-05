@@ -362,11 +362,18 @@ class ChannelListModel:
 
 # 主应用类
 class IPTVPlayer(QMainWindow):
+    # 导入信号模块
+    from PyQt6.QtCore import pyqtSignal
+    # 定义EPG状态更新信号
+    epg_status_signal = pyqtSignal(str)
+    
     def __init__(self):
         super().__init__()
         self.setWindowTitle("IPTV Scanner Editor Pro")
         self.setGeometry(100, 100, 1280, 720)
         self.setMinimumSize(800, 600)
+        # 连接EPG状态信号到槽函数
+        self.epg_status_signal.connect(self.update_status_bar)
         
         # 语言管理
         self.language_manager = LanguageManager()
@@ -402,7 +409,11 @@ class IPTVPlayer(QMainWindow):
         epg_settings = self.config.load_epg_settings()
         if epg_settings['epg_url']:
             import threading
-            threading.Thread(target=self.epg_parser.load_epg_from_url, args=(epg_settings['epg_url'],), daemon=True).start()
+            # 定义状态回调函数
+            def epg_status_callback(message):
+                # 使用信号更新状态栏
+                self.epg_status_signal.emit(message)
+            threading.Thread(target=self.epg_parser.load_epg_from_url, args=(epg_settings['epg_url'], epg_status_callback), daemon=True).start()
         
         # 导入 QTimer
         from PyQt6.QtCore import QTimer
@@ -486,6 +497,9 @@ class IPTVPlayer(QMainWindow):
         self.epg_content.setSpacing(8)
         self.epg_content.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.epg_content.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.epg_content.addItem("加载中...")
+        # 添加点击事件处理
+        self.epg_content.itemClicked.connect(self.on_epg_item_clicked)
         self.epg_layout.addWidget(self.epg_content, 1)
         
         # EPG空提示
@@ -815,11 +829,20 @@ class IPTVPlayer(QMainWindow):
         """)
         self.status_bar.showMessage("就绪")
         
+        # 回看相关属性
+        self.is_catchup_mode = False
+        self.original_channel = None
+        self.exit_catchup_button = None
+    
+    def update_status_bar(self, message):
+        """更新状态栏消息"""
+        self.status_bar.showMessage(message)
+        
         # 填充频道列表
         self.populate_channel_list()
         
-        # 填充EPG列表
-        self.populate_epg_list()
+        # 延迟填充EPG列表，等待EPG数据下载完成
+        QTimer.singleShot(5000, self.populate_epg_list)
         
         # 使用定时器延迟更新悬浮窗位置，确保窗口已显示
         QTimer.singleShot(100, self.update_floating_position)
@@ -982,6 +1005,7 @@ class IPTVPlayer(QMainWindow):
         tools_menu.addAction(network_settings)
         
         player_settings = QAction(self.language_manager.get("player_settings"), self)
+        player_settings.triggered.connect(self.player_settings)
         tools_menu.addAction(player_settings)
         
         # EPG节目单设置
@@ -1094,15 +1118,10 @@ class IPTVPlayer(QMainWindow):
         channel_name = self.current_channel.get("name", "")
         tvg_id = self.current_channel.get("tvg_id", "")
         
-        # 调试日志
-        logger.info(f"获取EPG数据: channel_name={channel_name}, tvg_id={tvg_id}")
-        
         # 获取当前频道的节目单
         epg_list = self.epg_parser.get_channel_epg(channel_name, tvg_id)
         
-        # 调试日志
-        logger.info(f"获取到 {len(epg_list)} 个节目")
-        
+        # 如果没有节目数据，显示空提示
         if not epg_list:
             self.epg_empty_label.show()
             return
@@ -1113,22 +1132,16 @@ class IPTVPlayer(QMainWindow):
         # 显示节目单数据
         from datetime import datetime
         now = datetime.now()
-        
-        # 调试日志
-        logger.info(f"当前选择的日期: {self.current_epg_date}")
-        logger.info(f"当前时间: {now}")
+        current_program_index = -1
+        item_index = 0
         
         for program in epg_list:
             try:
                 start_time = datetime.fromisoformat(program.get('start', ''))
                 end_time = datetime.fromisoformat(program.get('end', ''))
                 
-                # 调试日志
-                logger.info(f"节目: {program.get('title')}, 开始: {start_time}, 结束: {end_time}")
-                
                 # 检查节目是否在当前选择的日期
                 if start_time.date() != self.current_epg_date and end_time.date() != self.current_epg_date:
-                    logger.info(f"节目不在当前选择的日期，跳过: {start_time.date()} != {self.current_epg_date}")
                     continue
                 
                 # 格式化时间显示
@@ -1138,9 +1151,6 @@ class IPTVPlayer(QMainWindow):
                 item_text = f"{start_str}  {program.get('title', '未知节目')}"
                 item = QListWidgetItem(item_text)
                 
-                # 调试日志
-                logger.info(f"添加节目到列表: {item_text}")
-                
                 # 设置样式
                 if start_time <= now <= end_time:
                     # 当前正在播放的节目
@@ -1148,6 +1158,7 @@ class IPTVPlayer(QMainWindow):
                     font.setBold(True)
                     item.setFont(font)
                     item.setForeground(QColor(76, 168, 232))  # #00a8e8
+                    current_program_index = item_index
                 elif start_time > now:
                     # 未来节目
                     item.setForeground(QColor(255, 255, 255))  # white
@@ -1156,9 +1167,145 @@ class IPTVPlayer(QMainWindow):
                     item.setForeground(QColor(102, 102, 102))  # #666666
                 
                 self.epg_content.addItem(item)
+                item_index += 1
             except Exception as e:
                 logger.error(f"处理节目失败: {e}")
                 continue
+        
+        # 滚动到当前正在播放的节目
+        if current_program_index >= 0:
+            self.epg_content.setCurrentRow(current_program_index)
+            self.epg_content.scrollToItem(self.epg_content.item(current_program_index))
+    
+    def on_epg_item_clicked(self, item):
+        """EPG节目项点击事件"""
+        if not self.current_channel:
+            return
+        
+        # 检查频道是否支持回看
+        catchup = self.current_channel.get('catchup', '')
+        if not catchup:
+            # 不支持回看，显示提示
+            self.status_bar.showMessage("该频道不支持回看")
+            return
+        
+        # 获取当前选择的日期
+        from datetime import datetime
+        now = datetime.now()
+        
+        # 获取当前频道的节目单
+        channel_name = self.current_channel.get("name", "")
+        tvg_id = self.current_channel.get("tvg_id", "")
+        epg_list = self.epg_parser.get_channel_epg(channel_name, tvg_id)
+        
+        if not epg_list:
+            return
+        
+        # 查找被点击的节目
+        item_text = item.text()
+        for program in epg_list:
+            try:
+                start_time = datetime.fromisoformat(program.get('start', ''))
+                end_time = datetime.fromisoformat(program.get('end', ''))
+                
+                # 检查节目是否在当前选择的日期
+                if start_time.date() != self.current_epg_date and end_time.date() != self.current_epg_date:
+                    continue
+                
+                # 格式化时间显示
+                start_str = start_time.strftime("%H:%M")
+                program_text = f"{start_str}  {program.get('title', '未知节目')}"
+                
+                if program_text == item_text:
+                    # 检查节目是否已播放
+                    if end_time < now:
+                        # 已播放的节目，启动回看
+                        self.start_catchup(program)
+                    break
+            except Exception as e:
+                logger.error(f"处理节目失败: {e}")
+                continue
+    
+    def start_catchup(self, program):
+        """启动回看功能"""
+        if not self.current_channel:
+            return
+        
+        # 获取频道信息
+        channel_name = self.current_channel.get("name", "未知频道")
+        catchup_source = self.current_channel.get('catchup_source', '')
+        
+        # 构建回看URL
+        from datetime import datetime
+        start_time = datetime.fromisoformat(program.get('start', ''))
+        end_time = datetime.fromisoformat(program.get('end', ''))
+        title = program.get('title', '未知节目')
+        
+        # 构建回看URL
+        catchup_url = catchup_source
+        if catchup_source:
+            # 替换时间占位符
+            catchup_url = catchup_source.replace('${(b)yyyyMMddHHmmss}', start_time.strftime('%Y%m%d%H%M%S'))
+            catchup_url = catchup_url.replace('${(e)yyyyMMddHHmmss}', end_time.strftime('%Y%m%d%H%M%S'))
+            # 记录构建的回看URL
+            logger.info(f"构建回看URL: {catchup_url}")
+        
+        # 显示回看状态
+        self.status_bar.showMessage(f"正在回看: {channel_name} - {title}")
+        
+        # 使用VLC播放回看
+        if self.player_controller:
+            # 保存当前频道信息，用于退出回看
+            self.original_channel = self.current_channel.copy()
+            # 标记当前处于回看模式
+            self.is_catchup_mode = True
+            # 播放回看
+            self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
+            # 添加退出回看按钮
+            self.add_exit_catchup_button()
+    
+    def add_exit_catchup_button(self):
+        """添加退出回看按钮"""
+        # 检查是否已经存在退出回看按钮
+        if hasattr(self, 'exit_catchup_button') and self.exit_catchup_button:
+            return
+        
+        # 创建退出回看按钮
+        self.exit_catchup_button = QPushButton("退出回看")
+        self.exit_catchup_button.setStyleSheet("""
+            QPushButton {
+                background-color: #3a3a3a;
+                color: white;
+                border: 1px solid #555;
+                padding: 5px 10px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #4a4a4a;
+            }
+        """)
+        self.exit_catchup_button.clicked.connect(self.exit_catchup)
+        
+        # 将按钮添加到工具栏
+        if hasattr(self, 'toolbar'):
+            self.toolbar.addWidget(self.exit_catchup_button)
+    
+    def exit_catchup(self):
+        """退出回看，返回直播"""
+        # 移除退出回看按钮
+        if hasattr(self, 'exit_catchup_button') and self.exit_catchup_button:
+            self.toolbar.removeWidget(self.exit_catchup_button)
+            self.exit_catchup_button.deleteLater()
+            delattr(self, 'exit_catchup_button')
+        
+        # 退出回看模式
+        self.is_catchup_mode = False
+        
+        # 恢复播放原频道
+        if hasattr(self, 'original_channel') and self.original_channel:
+            channel_name = self.original_channel.get("name", "未知频道")
+            self.status_bar.showMessage(f"返回直播: {channel_name}")
+            self.play_channel(self.original_channel)
     
     def on_group_changed(self, group_name):
         """分组切换时重新填充频道列表"""
@@ -1381,6 +1528,8 @@ class IPTVPlayer(QMainWindow):
             url = channel.get('url')
             name = channel.get('name', '未知频道')
             if url:
+                # 更新状态栏消息
+                self.status_bar.showMessage(f"正在播放: {name}")
                 # 播放前先显示视频窗口（VLC需要可见窗口才能正确设置视频输出）
                 if hasattr(self, 'video_placeholder'):
                     self.video_placeholder.hide()
@@ -1415,6 +1564,10 @@ class IPTVPlayer(QMainWindow):
             self.update_timer.start(500)
             # 暂时禁用自动调整窗口大小，避免程序卡死
             # self.adjust_window_size_to_video()
+            # 更新状态栏消息
+            if self.current_channel:
+                channel_name = self.current_channel.get('name', '未知频道')
+                self.status_bar.showMessage(f"正在播放: {channel_name}")
         else:
             self.play_button.setText("▶")
             # 停止时隐藏视频窗口，显示背景
@@ -1426,6 +1579,10 @@ class IPTVPlayer(QMainWindow):
             # 停止定时器
             if hasattr(self, 'update_timer'):
                 self.update_timer.stop()
+            # 更新状态栏消息
+            if self.current_channel:
+                channel_name = self.current_channel.get('name', '未知频道')
+                self.status_bar.showMessage(f"已暂停: {channel_name}")
     
     def adjust_window_size_to_video(self):
         """根据视频分辨率调整窗口大小，保持窗口高度不变，调整宽度以适应视频比例"""
@@ -1792,15 +1949,8 @@ class IPTVPlayer(QMainWindow):
             self.media_info_update_count += 1
             
             # 实时更新的信息
-            network_stats = self.player_controller.get_network_stats() or ""
-            
-            # 解析网络统计信息，只保留延迟
+            network_stats = ""
             delay = "--"
-            if network_stats and "延迟:" in network_stats:
-                parts = network_stats.split()
-                for part in parts:
-                    if "延迟:" in part:
-                        delay = part.replace("延迟:", "").replace("ms", "")
             
             # 从缓存获取基本信息
             resolution = self.media_basic_info.get('resolution', "--")
@@ -1841,8 +1991,7 @@ class IPTVPlayer(QMainWindow):
             
             # 更新网络信息（每个字段都有标题）
             network_info_parts = [
-                f"协议:{network_protocol}",
-                f"延迟:{delay}ms"
+                f"协议:{network_protocol}"
             ]
             network_info_text = f"📡 {'  '.join(network_info_parts)}"
             self.network_info.setText(network_info_text)
@@ -1925,6 +2074,52 @@ class IPTVPlayer(QMainWindow):
         self.playlist_panel.setVisible(True)
         self.floating_panel.setVisible(True)
         self.resize(1280, 720)
+    
+    def player_settings(self):
+        """播放器设置"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QDialogButtonBox
+        
+        # 创建对话框
+        dialog = QDialog(self)
+        dialog.setWindowTitle("播放器设置")
+        dialog.setGeometry(200, 200, 400, 200)
+        
+        # 创建布局
+        layout = QVBoxLayout(dialog)
+        
+        # RTSP协议类型选择
+        rtsp_layout = QHBoxLayout()
+        rtsp_label = QLabel("RTSP协议类型:")
+        rtsp_combo = QComboBox()
+        rtsp_combo.addItem("TCP", "tcp")
+        rtsp_combo.addItem("UDP", "udp")
+        # 加载现有设置
+        rtsp_protocol = self.config.get_value('Player', 'rtsp_protocol', 'tcp')
+        index = rtsp_combo.findData(rtsp_protocol)
+        if index >= 0:
+            rtsp_combo.setCurrentIndex(index)
+        rtsp_layout.addWidget(rtsp_label)
+        rtsp_layout.addWidget(rtsp_combo)
+        layout.addLayout(rtsp_layout)
+        
+        # 按钮
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        layout.addWidget(button_box)
+        
+        # 连接信号
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+        
+        # 显示对话框
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            # 保存设置
+            selected_protocol = rtsp_combo.currentData()
+            self.config.set_value('Player', 'rtsp_protocol', selected_protocol)
+            self.config.save_config()
+            self.status_bar.showMessage("播放器设置已保存")
+            # 提示用户需要重启播放器才能生效
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.information(self, "提示", "设置已保存，需要重启播放器才能生效")
     
     def epg_settings(self):
         """EPG节目单设置"""
@@ -2013,7 +2208,11 @@ class IPTVPlayer(QMainWindow):
                             self.config.save_epg_settings(tvg_url, "M3U文件")
                             # 加载EPG数据
                             import threading
-                            threading.Thread(target=self.epg_parser.load_epg_from_url, args=(tvg_url,), daemon=True).start()
+                            # 定义状态回调函数
+                            def epg_status_callback(message):
+                                # 使用信号更新状态栏
+                                self.epg_status_signal.emit(message)
+                            threading.Thread(target=self.epg_parser.load_epg_from_url, args=(tvg_url, epg_status_callback), daemon=True).start()
                 
                 logger.info("开始解析M3U文件内容")
                 if self.channel_model.load_from_file(content):
