@@ -332,6 +332,36 @@ class ConfigManager:
             'epg_url': self.get_value('EPG', 'epg_url', ''),
             'epg_source': self.get_value('EPG', 'epg_source', '默认')
         }
+    
+    def save_recent_files(self, recent_files):
+        """保存最近打开的文件列表"""
+        # 限制最近打开文件的数量为10个
+        recent_files = recent_files[:10]
+        self.set_value('RecentFiles', 'count', str(len(recent_files)))
+        for i, file_path in enumerate(recent_files):
+            self.set_value('RecentFiles', f'file_{i}', file_path)
+        return self.save_config()
+    
+    def load_recent_files(self):
+        """加载最近打开的文件列表"""
+        recent_files = []
+        count = int(self.get_value('RecentFiles', 'count', '0'))
+        for i in range(count):
+            file_path = self.get_value('RecentFiles', f'file_{i}')
+            if file_path:
+                recent_files.append(file_path)
+        return recent_files
+    
+    def add_recent_file(self, file_path):
+        """添加一个最近打开的文件"""
+        recent_files = self.load_recent_files()
+        # 如果文件已经在列表中，先移除它
+        if file_path in recent_files:
+            recent_files.remove(file_path)
+        # 将新文件添加到列表开头
+        recent_files.insert(0, file_path)
+        # 保存更新后的列表
+        return self.save_recent_files(recent_files)
 
     def save_all_settings(self, settings_dict: dict):
         """保存所有设置"""

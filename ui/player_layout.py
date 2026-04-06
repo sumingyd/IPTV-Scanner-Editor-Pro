@@ -599,6 +599,131 @@ class PlayerLayout:
             panel_y = window_rect.bottom() - self.main_window.floating_panel.height() - 30
 
             self.main_window.floating_panel.setGeometry(panel_x, panel_y, panel_width, self.main_window.floating_panel.height())
+    
+    def _update_recent_files_menu(self):
+        """更新最近打开文件菜单"""
+        from core.config_manager import ConfigManager
+        
+        # 清空当前菜单
+        self.main_window.recent_menu.clear()
+        
+        # 加载最近打开的文件列表
+        config_manager = ConfigManager()
+        recent_files = config_manager.load_recent_files()
+        
+        if not recent_files:
+            # 如果没有最近打开的文件，添加一个禁用的菜单项
+            no_recent_action = QtGui.QAction("无最近打开的文件", self.main_window)
+            no_recent_action.setEnabled(False)
+            self.main_window.recent_menu.addAction(no_recent_action)
+        else:
+            # 添加最近打开的文件到菜单
+            for file_path in recent_files:
+                action = QtGui.QAction(file_path, self.main_window)
+                action.triggered.connect(lambda checked, path=file_path: self._open_recent_file(path))
+                self.main_window.recent_menu.addAction(action)
+    
+    def _open_recent_file(self, file_path):
+        """打开最近打开的文件"""
+        from core.log_manager import global_logger as logger
+        
+        try:
+            # 加载文件内容
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 解析M3U内容
+            if hasattr(self.main_window, 'model'):
+                self.main_window.model.load_from_file(content)
+            
+            # 更新最近打开文件列表
+            from core.config_manager import ConfigManager
+            config_manager = ConfigManager()
+            config_manager.add_recent_file(file_path)
+            self._update_recent_files_menu()
+            
+            logger.info(f"成功打开最近文件: {file_path}")
+            if hasattr(self.main_window, 'statusBar'):
+                self.main_window.statusBar().showMessage(f"成功打开文件: {file_path}")
+        except Exception as ex:
+            logger.error(f"打开最近文件失败: {str(ex)}")
+            if hasattr(self.main_window, 'statusBar'):
+                self.main_window.statusBar().showMessage(f"打开文件失败: {str(ex)}")
+    
+    def _on_open_list(self):
+        """打开列表文件"""
+        from core.log_manager import global_logger as logger
+        from core.config_manager import ConfigManager
+        
+        # 打开文件选择对话框
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self.main_window,
+            "打开列表文件",
+            "",
+            "M3U文件 (*.m3u *.m3u8);;文本文件 (*.txt);;所有文件 (*.*)"
+        )
+        
+        if file_path:
+            try:
+                # 加载文件内容
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                # 解析M3U内容
+                if hasattr(self.main_window, 'model'):
+                    self.main_window.model.load_from_file(content)
+                
+                # 添加到最近打开文件列表
+                config_manager = ConfigManager()
+                config_manager.add_recent_file(file_path)
+                self._update_recent_files_menu()
+                
+                logger.info(f"成功加载列表文件: {file_path}")
+                if hasattr(self.main_window, 'statusBar'):
+                    self.main_window.statusBar().showMessage(f"成功加载列表文件: {file_path}")
+            except Exception as ex:
+                logger.error(f"打开列表文件失败: {str(ex)}")
+                if hasattr(self.main_window, 'statusBar'):
+                    self.main_window.statusBar().showMessage(f"打开列表文件失败: {str(ex)}")
+    
+    def _on_save_as(self):
+        """另存为"""
+        from core.log_manager import global_logger as logger
+        
+        # 打开保存文件对话框
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self.main_window,
+            "保存列表文件",
+            "playlist.m3u",
+            "M3U文件 (*.m3u);;M3U8文件 (*.m3u8);;文本文件 (*.txt);;所有文件 (*.*)"
+        )
+        
+        if file_path:
+            try:
+                # 获取M3U内容
+                if hasattr(self.main_window, 'model'):
+                    content = self.main_window.model.to_m3u()
+                else:
+                    content = "#EXTM3U"
+                
+                if content:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    logger.info(f"成功保存列表文件: {file_path}")
+                    if hasattr(self.main_window, 'statusBar'):
+                        self.main_window.statusBar().showMessage(f"成功保存列表文件: {file_path}")
+                else:
+                    logger.warning("没有可保存的内容")
+                    if hasattr(self.main_window, 'statusBar'):
+                        self.main_window.statusBar().showMessage("没有可保存的内容")
+            except Exception as ex:
+                logger.error(f"保存列表文件失败: {str(ex)}")
+                if hasattr(self.main_window, 'statusBar'):
+                    self.main_window.statusBar().showMessage(f"保存列表文件失败: {str(ex)}")
+    
+    def _on_exit(self):
+        """退出应用程序"""
+        self.main_window.close()
 
     def _setup_menu_bar(self):
         """设置菜单栏"""
@@ -608,16 +733,27 @@ class PlayerLayout:
         file_menu = menubar.addMenu("📁 文件")
 
         open_action = QtGui.QAction("📂 打开列表", self.main_window)
-        save_action = QtGui.QAction("💾 保存列表", self.main_window)
-        export_action = QtGui.QAction("📤 导出M3U", self.main_window)
+        # 添加最近打开子菜单
+        recent_menu = file_menu.addMenu("📋 最近打开")
+        save_as_action = QtGui.QAction("💾 另存为", self.main_window)
         exit_action = QtGui.QAction("🚪 退出", self.main_window)
 
         file_menu.addAction(open_action)
-        file_menu.addAction(save_action)
-        file_menu.addSeparator()
-        file_menu.addAction(export_action)
+        file_menu.addMenu(recent_menu)
+        file_menu.addAction(save_as_action)
         file_menu.addSeparator()
         file_menu.addAction(exit_action)
+        
+        # 保存菜单动作引用
+        self.main_window.recent_menu = recent_menu
+        
+        # 初始化最近打开文件菜单
+        self._update_recent_files_menu()
+        
+        # 连接菜单动作
+        open_action.triggered.connect(self._on_open_list)
+        save_as_action.triggered.connect(self._on_save_as)
+        exit_action.triggered.connect(self._on_exit)
 
         # 编辑菜单
         edit_menu = menubar.addMenu("✏️ 编辑")
@@ -706,8 +842,7 @@ class PlayerLayout:
 
         # 保存菜单动作引用
         self.main_window.open_action = open_action
-        self.main_window.save_action = save_action
-        self.main_window.export_action = export_action
+        self.main_window.save_as_action = save_as_action
         self.main_window.exit_action = exit_action
         self.main_window.add_channel_action = add_channel_action
         self.main_window.edit_channel_action = edit_channel_action

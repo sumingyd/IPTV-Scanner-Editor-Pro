@@ -219,7 +219,7 @@ class MpvPlayerController(QObject):
                 if result < 0:
                     self.logger.error(f"使用字符串设置窗口ID失败: {result}")
                 else:
-                    self.logger.info(f"成功使用字符串设置窗口ID: {window_id_int}")
+                    self.logger.debug(f"成功使用字符串设置窗口ID: {window_id_int}")
             except Exception as e:
                 self.logger.error(f"设置窗口ID失败: {str(e)}")
             
@@ -369,7 +369,7 @@ class MpvPlayerController(QObject):
                 if result < 0:
                     self.logger.error(f"切换暂停状态失败，错误码: {result}")
                 else:
-                    self.logger.info("切换暂停状态")
+                    self.logger.debug("切换暂停状态")
         except Exception as e:
             self.logger.error(f"暂停播放失败: {str(e)}")
     
@@ -393,7 +393,7 @@ class MpvPlayerController(QObject):
                 if result < 0:
                     self.logger.error(f"设置音量失败，错误码: {result}")
                 else:
-                    self.logger.info(f"设置音量: {volume}")
+                    self.logger.debug(f"设置音量: {volume}")
         except Exception as e:
             self.logger.error(f"设置音量失败: {str(e)}")
     
@@ -489,9 +489,9 @@ class MpvPlayerController(QObject):
                         if result < 0:
                             self.logger.error(f"使用百分比设置播放位置失败，错误码: {result}")
                         else:
-                            self.logger.info(f"使用百分比设置播放位置: {position}")
+                            self.logger.debug(f"使用百分比设置播放位置: {position}")
                     else:
-                        self.logger.info(f"使用绝对位置设置播放位置: {position}")
+                        self.logger.debug(f"使用绝对位置设置播放位置: {position}")
                 else:
                     # 如果获取不到总时长，使用百分比
                     seek_percent = position * 100.0
@@ -502,7 +502,7 @@ class MpvPlayerController(QObject):
                     if result < 0:
                         self.logger.error(f"设置播放位置失败，错误码: {result}")
                     else:
-                        self.logger.info(f"设置播放位置: {position}")
+                        self.logger.debug(f"设置播放位置: {position}")
                 
                 # 恢复播放状态
                 if is_playing:
