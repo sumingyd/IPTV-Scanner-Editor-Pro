@@ -1155,6 +1155,34 @@ class IPTVPlayer(QMainWindow):
         # 获取当前频道的节目单
         epg_list = self.epg_parser.get_channel_epg(channel_name, tvg_id)
         
+        # 如果EPG解析器没有数据，尝试从EPG_DATA获取
+        if not epg_list and EPG_DATA and channel_name in EPG_DATA:
+            current_channel_epg = EPG_DATA[channel_name]
+            if current_channel_epg and len(current_channel_epg) > 0:
+                # 转换EPG_DATA格式为与epg_parser返回的格式一致
+                epg_list = []
+                from datetime import datetime
+                for program_data in current_channel_epg:
+                    try:
+                        # 解析时间格式
+                        time_str = program_data.get('time', '')
+                        if time_str:
+                            # 假设时间格式为 "HH:MM-HH:MM"
+                            time_parts = time_str.split('-')
+                            if len(time_parts) == 2:
+                                # 创建一个简单的节目对象
+                                program = {
+                                    'title': program_data.get('title', '未知节目'),
+                                    'desc': program_data.get('description', ''),
+                                    # 使用当前日期和解析的时间创建开始和结束时间
+                                    'start': datetime.now().strftime('%Y-%m-%d') + 'T' + time_parts[0] + ':00',
+                                    'end': datetime.now().strftime('%Y-%m-%d') + 'T' + time_parts[1] + ':00'
+                                }
+                                epg_list.append(program)
+                    except Exception as e:
+                        logger.error(f"处理EPG_DATA节目失败: {e}")
+                        continue
+        
         # 如果没有节目数据，显示空提示
         if not epg_list:
             self.epg_empty_label.show()
@@ -1168,6 +1196,7 @@ class IPTVPlayer(QMainWindow):
         now = datetime.now()
         current_program_index = -1
         item_index = 0
+        has_date_program = False
         
         for program in epg_list:
             try:
@@ -1177,6 +1206,8 @@ class IPTVPlayer(QMainWindow):
                 # 检查节目是否在当前选择的日期
                 if start_time.date() != self.current_epg_date and end_time.date() != self.current_epg_date:
                     continue
+                
+                has_date_program = True
                 
                 # 格式化时间显示
                 start_str = start_time.strftime("%H:%M")
@@ -1229,6 +1260,14 @@ class IPTVPlayer(QMainWindow):
             except Exception as e:
                 logger.error(f"处理节目失败: {e}")
                 continue
+        
+        # 如果没有当前日期的节目，显示空提示
+        if not has_date_program:
+            self.epg_empty_label.show()
+            return
+        
+        # 隐藏空提示
+        self.epg_empty_label.hide()
         
         # 滚动到当前正在播放的节目
         if current_program_index >= 0:
