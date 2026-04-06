@@ -41,6 +41,8 @@ class TranslucentPanel(QFrame):
         self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint)
         # 确保面板可以接收鼠标事件
         self.setMouseTracking(True)
+        # 确保面板保持活动状态
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         
     def paintEvent(self, event):
         """自定义绘制半透明背景和边框"""
@@ -696,6 +698,8 @@ class IPTVPlayer(QMainWindow):
         self.program_desc = QLabel("打开播放列表文件或导入频道以开始观看")
         self.program_desc.setStyleSheet("color: #cccccc; font-size: 14px; background-color: transparent;")
         self.program_desc.setWordWrap(True)
+        self.program_desc.setFixedHeight(40)  # 固定高度，限制显示行数
+        self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop)
         desc_section.addWidget(self.program_desc)
         self.info_row.addLayout(desc_section, 3)
         
@@ -1421,6 +1425,13 @@ class IPTVPlayer(QMainWindow):
         # 检查是否处于回看模式
         is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
         if not is_catchup:
+            # 直播模式下，立即更新进度条到当前时间
+            from datetime import datetime
+            current_time = datetime.now()
+            minutes = current_time.minute
+            seconds = current_time.second
+            progress = int(((minutes * 60) + seconds) / 3600 * 100)
+            self.program_progress.setValue(progress)
             return
         
         # 获取进度条的当前值
@@ -2468,12 +2479,41 @@ class IPTVPlayer(QMainWindow):
     def open_playlist(self):
         """打开播放列表"""
         from core.log_manager import global_logger as logger
+        
+        # 临时隐藏悬浮窗，避免遮挡文件选择对话框
+        epg_visible = False
+        playlist_visible = False
+        floating_visible = False
+        
+        if hasattr(self, 'epg_panel') and self.epg_panel:
+            epg_visible = self.epg_panel.isVisible()
+            self.epg_panel.hide()
+        
+        if hasattr(self, 'playlist_panel') and self.playlist_panel:
+            playlist_visible = self.playlist_panel.isVisible()
+            self.playlist_panel.hide()
+        
+        if hasattr(self, 'floating_panel') and self.floating_panel:
+            floating_visible = self.floating_panel.isVisible()
+            self.floating_panel.hide()
+        
+        # 打开文件选择对话框
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             self.language_manager.get("open_playlist"),
             "",
             "M3U文件 (*.m3u *.m3u8);;文本文件 (*.txt);;所有文件 (*.*)"
         )
+        
+        # 重新显示悬浮窗
+        if hasattr(self, 'epg_panel') and self.epg_panel and epg_visible:
+            self.epg_panel.show()
+        
+        if hasattr(self, 'playlist_panel') and self.playlist_panel and playlist_visible:
+            self.playlist_panel.show()
+        
+        if hasattr(self, 'floating_panel') and self.floating_panel and floating_visible:
+            self.floating_panel.show()
         
         if file_path:
             try:

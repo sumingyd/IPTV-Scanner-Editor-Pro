@@ -569,47 +569,32 @@ class MpvPlayerController(QObject):
                 }
             }
             
-            # 先尝试获取播放状态，看看媒体是否已加载
-            paused = self._get_mpv_property_string('pause')
-            self.logger.info(f"播放状态: {paused}")
-            
-            # 尝试获取一些简单的属性
-            test_props = ['paused', 'time-pos', 'duration']
-            for prop in test_props:
-                val = self._get_mpv_property_string(prop)
-                if val:
-                    self.logger.info(f"属性 {prop} = {val}")
-            
             # 尝试获取协议
             protocol = self._get_mpv_property_string('path')
             if protocol and '://' in protocol:
                 media_info['protocol'] = protocol.split('://')[0].upper()
             
-            # 尝试获取视频轨道信息
-            video_track_count = self._get_mpv_property_int('video-params')
-            self.logger.info(f"视频轨道数: {video_track_count}")
-            
-            # 尝试获取视频编码 - 使用不同的方法
-            # 方法1: 直接获取video-codec
+            # 尝试获取视频编码
             video_codec = self._get_mpv_property_string('video-codec')
+            if not video_codec:
+                video_codec = self._get_mpv_property_string('video-codec-name')
             if video_codec:
                 media_info['video']['codec'] = video_codec
-            
-            # 方法2: 获取视频轨道列表
-            track_list = self._get_mpv_property_string('track-list')
-            if track_list:
-                self.logger.info(f"轨道列表: {track_list[:100]}")  # 只记录前100个字符
             
             # 尝试获取视频尺寸
             width = self._get_mpv_property_int('dwidth')
             if not width:
                 width = self._get_mpv_property_int('width')
+            if not width:
+                width = self._get_mpv_property_int('video-params/w')
             if width:
                 media_info['video']['width'] = width
             
             height = self._get_mpv_property_int('dheight')
             if not height:
                 height = self._get_mpv_property_int('height')
+            if not height:
+                height = self._get_mpv_property_int('video-params/h')
             if height:
                 media_info['video']['height'] = height
             
@@ -617,17 +602,28 @@ class MpvPlayerController(QObject):
             fps = self._get_mpv_property_double('container-fps')
             if not fps:
                 fps = self._get_mpv_property_double('fps')
+            if not fps:
+                fps = self._get_mpv_property_double('video-params/fps')
             if fps:
                 media_info['video']['frame_rate'] = fps
             
+            # 尝试获取视频码率
+            video_bitrate = self._get_mpv_property_double('video-bitrate')
+            if video_bitrate:
+                media_info['video']['bit_rate'] = int(video_bitrate)
+            
             # 尝试获取音频信息
             audio_codec = self._get_mpv_property_string('audio-codec')
+            if not audio_codec:
+                audio_codec = self._get_mpv_property_string('audio-codec-name')
             if audio_codec:
                 media_info['audio']['codec'] = audio_codec
             
             channels = self._get_mpv_property_int('audio-params/channel-count')
             if not channels:
                 channels = self._get_mpv_property_int('audio-channels')
+            if not channels:
+                channels = self._get_mpv_property_int('audio-params/channels')
             if channels:
                 media_info['audio']['channels'] = channels
             
@@ -637,8 +633,15 @@ class MpvPlayerController(QObject):
             if sample_rate:
                 media_info['audio']['sample_rate'] = sample_rate
             
+            # 尝试获取音频码率
+            audio_bitrate = self._get_mpv_property_double('audio-bitrate')
+            if audio_bitrate:
+                media_info['audio']['bit_rate'] = int(audio_bitrate)
+            
             # 尝试获取文件格式
             format_name = self._get_mpv_property_string('file-format')
+            if not format_name:
+                format_name = self._get_mpv_property_string('container-format')
             if format_name:
                 media_info['format'] = format_name
             
