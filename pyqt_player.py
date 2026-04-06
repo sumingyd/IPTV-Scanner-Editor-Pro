@@ -1183,7 +1183,8 @@ class IPTVPlayer(QMainWindow):
                 
                 # 检查频道是否支持回看
                 catchup = self.current_channel.get('catchup', '')
-                has_catchup = bool(catchup)
+                catchup_source = self.current_channel.get('catchup_source', '')
+                has_catchup = bool(catchup) and bool(catchup_source)
                 
                 # 创建节目项
                 item_text = f"{start_str}  {program.get('title', '未知节目')}"
@@ -1241,7 +1242,8 @@ class IPTVPlayer(QMainWindow):
         
         # 检查频道是否支持回看
         catchup = self.current_channel.get('catchup', '')
-        if not catchup:
+        catchup_source = self.current_channel.get('catchup_source', '')
+        if not (catchup and catchup_source):
             # 不支持回看，显示提示
             self.status_bar.showMessage("该频道不支持回看")
             return
@@ -1319,7 +1321,8 @@ class IPTVPlayer(QMainWindow):
             self.catchup_program = {
                 'start': start_time,
                 'end': end_time,
-                'title': title
+                'title': title,
+                'desc': program.get('desc', '')
             }
             # 标记当前处于回看模式
             self.is_catchup_mode = True
@@ -1333,7 +1336,11 @@ class IPTVPlayer(QMainWindow):
             # 确保悬浮窗在视频窗口之上
             if hasattr(self, 'floating_panel'):
                 self.floating_panel.raise_()
-                
+            
+            # 重置进度条
+            if hasattr(self, 'program_progress'):
+                self.program_progress.setValue(0)
+            
             # 播放回看
             self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
             # 添加退出回看按钮
@@ -1624,6 +1631,16 @@ class IPTVPlayer(QMainWindow):
     def play_channel(self, channel):
         """播放指定频道"""
         if self.player_controller and channel:
+            # 退出回看模式
+            if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
+                self.is_catchup_mode = False
+                # 隐藏退出回看按钮
+                if hasattr(self, 'exit_catchup_button'):
+                    self.exit_catchup_button.hide()
+                # 清除回看节目信息
+                if hasattr(self, 'catchup_program'):
+                    delattr(self, 'catchup_program')
+            
             # 切换频道时清空之前的频道信息
             if hasattr(self, 'channel_name'):
                 self.channel_name.setText("切换频道中...")
@@ -1880,6 +1897,8 @@ class IPTVPlayer(QMainWindow):
                         desc = self.catchup_program.get('desc', '暂无节目描述')
                         # 显示节目描述
                         self.program_desc.setText(desc)
+                        # 显示节目名称
+                        self.current_program.setText(f"▶ {title}")
                         if start_time and end_time:
                             start_str = start_time.strftime("%H:%M")
                             end_str = end_time.strftime("%H:%M")
@@ -1888,8 +1907,12 @@ class IPTVPlayer(QMainWindow):
                         else:
                             self.time_label.setText("⏱ --:-- - --:--")
                             self.remain_label.setText("回看中...")
-                    except Exception:
+                    except Exception as e:
                         # 发生异常，显示默认信息
+                        logger.error(f"处理回看节目信息失败: {e}")
+                        if hasattr(self, 'catchup_program'):
+                            title = self.catchup_program.get('title', '未知节目')
+                            self.current_program.setText(f"▶ {title}")
                         self.program_desc.setText("正在回看当前节目")
                         self.time_label.setText("⏱ --:-- - --:--")
                         self.remain_label.setText("回看中...")
@@ -2092,8 +2115,8 @@ class IPTVPlayer(QMainWindow):
                             if current_position > 0:
                                 progress_value = min(int((current_position / total_duration) * 100), 100)
                             else:
-                                # 如果获取不到播放位置，使用进度条当前值
-                                progress_value = self.program_progress.value()
+                                # 如果获取不到播放位置，使用0作为初始值
+                                progress_value = 0
                             self.program_progress.setValue(progress_value)
                         else:
                             self.program_progress.setValue(0)
@@ -2107,8 +2130,8 @@ class IPTVPlayer(QMainWindow):
                         self.progress_end.setText(total_time_str)
                     else:
                         self.program_progress.setValue(0)
-            # 回看模式下，直接返回，避免执行后面的分支
-            return
+            # 回看模式下，继续执行后面的代码，确保更新节目描述
+            # 不再直接返回
         elif has_epg:
             if current_program:
                 # 使用EPG节目单的时间信息

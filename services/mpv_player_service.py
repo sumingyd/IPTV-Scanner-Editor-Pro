@@ -457,18 +457,11 @@ class MpvPlayerController(QObject):
             if self.mpv_handle:
                 # 使用百分比seek命令直接跳转
                 seek_percent = position * 100.0
-                # 尝试使用不同的命令格式
-                cmd = [b'seek', f'{seek_percent}'.encode('utf-8'), b'absolute', None]
+                # 使用正确的mpv命令格式
+                cmd = [b'seek', f'{seek_percent}'.encode('utf-8'), b'percent', None]
                 cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
                 result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
                 
-                if result < 0:
-                    # 如果失败，尝试另一种格式
-                    self.logger.error(f"使用absolute参数失败，尝试使用其他格式")
-                    cmd = [b'seek', f'{seek_percent}'.encode('utf-8'), None]
-                    cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
-                    result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
-                    
                 if result < 0:
                     self.logger.error(f"设置播放位置失败，错误码: {result}")
                 else:
