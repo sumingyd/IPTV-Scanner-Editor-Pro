@@ -223,12 +223,22 @@ class MpvPlayerController(QObject):
             except Exception as e:
                 self.logger.error(f"设置窗口ID失败: {str(e)}")
             
-            # 设置其他属性
+            # 设置其他属性 - 优化内嵌渲染模式
+            # 使用gpu渲染器，并指定窗口嵌入模式
             libmpv.mpv_set_property_string(self.mpv_handle, b'vo', b'gpu')
+            # 启用硬件解码
             libmpv.mpv_set_property_string(self.mpv_handle, b'hwdec', b'auto')
+            # 禁用内置控制器
             libmpv.mpv_set_property_string(self.mpv_handle, b'osc', b'no')
             libmpv.mpv_set_property_string(self.mpv_handle, b'osd-bar', b'no')
+            # 设置日志级别
             libmpv.mpv_set_property_string(self.mpv_handle, b'log-level', b'error')
+            # 禁用窗口装饰
+            libmpv.mpv_set_property_string(self.mpv_handle, b'no-window-dragging', b'yes')
+            # 确保视频渲染在正确的层级
+            libmpv.mpv_set_property_string(self.mpv_handle, b'window-scale', b'1.0')
+            # 禁用窗口边框
+            libmpv.mpv_set_property_string(self.mpv_handle, b'border', b'no')
             
             # 初始化mpv
             result = libmpv.mpv_initialize(self.mpv_handle)

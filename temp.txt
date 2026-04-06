@@ -1,0 +1,400 @@
+        
+        # 涓婁竴澶╂寜閽?        self.epg_prev_day = QPushButton("鈼€")
+        self.epg_prev_day.setFixedSize(24, 24)
+        self.epg_prev_day.setStyleSheet("background-color: transparent; color: #888; border: none; font-size: 12px;")
+        self.epg_prev_day.clicked.connect(self.on_prev_day)
+        date_layout.addWidget(self.epg_prev_day)
+        
+        # 鏃ユ湡鏄剧ず
+        self.epg_date_label = QLabel("浠婂ぉ")
+        self.epg_date_label.setStyleSheet("color: white; font-size: 12px;")
+        self.epg_date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        date_layout.addWidget(self.epg_date_label, 1)
+        
+        # 涓嬩竴澶╂寜閽?        self.epg_next_day = QPushButton("鈻?)
+        self.epg_next_day.setFixedSize(24, 24)
+        self.epg_next_day.setStyleSheet("background-color: transparent; color: #888; border: none; font-size: 12px;")
+        self.epg_next_day.clicked.connect(self.on_next_day)
+        date_layout.addWidget(self.epg_next_day)
+        
+        self.epg_layout.addLayout(date_layout)
+        
+        # EPG鍐呭
+        self.epg_content = QListWidget()
+        self.epg_content.setStyleSheet("background-color: transparent; color: white; border: none; padding: 5px;")
+        self.epg_content.setSpacing(8)
+        self.epg_content.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.epg_content.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.epg_layout.addWidget(self.epg_content, 1)
+        
+        # EPG绌烘彁绀?        self.epg_empty_label = QLabel("鏆傛棤鑺傜洰淇℃伅")
+        self.epg_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.epg_empty_label.setStyleSheet("color: #666666; font-size: 12px; background-color: transparent;")
+        self.epg_layout.addWidget(self.epg_empty_label)
+        
+        # 瑙嗛鎾斁鍖哄煙
+        self.video_frame = QFrame()
+        self.video_frame.setStyleSheet("background-color: #000000;")
+        
+        # 鍒涘缓榛樿鑳屾櫙锛堜笉鎾斁鏃舵樉绀猴級
+        self.video_placeholder = QLabel("馃摵", self.video_frame)
+        self.video_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.video_placeholder.setStyleSheet("font-size: 200px; color: #1a1a1a; background-color: transparent;")
+        self.video_placeholder.show()  # 鍒濆鏄剧ず
+        
+        # 鍒涘缓瑙嗛鎾斁绐楀彛锛堢敤浜嶸LC锛?        self.video_widget = QWidget(self.video_frame)
+        self.video_widget.setStyleSheet("background-color: #000000;")
+        self.video_widget.hide()  # 鍒濆闅愯棌
+        
+        # 鍒濆鍖栨挱鏀惧櫒鎺у埗鍣?        self.player_controller = PlayerController(self.video_widget)
+        self.player_controller.play_state_changed.connect(self.on_play_state_changed)
+        
+        # 鍙充晶鎾斁鍒楄〃闈㈡澘
+        self.playlist_panel = TranslucentPanel(opacity=180)
+        self.playlist_panel.setStyleSheet("""
+            QLabel {
+                border: none;
+                background-color: transparent;
+            }
+            QListWidget {
+                border: none;
+                background-color: transparent;
+            }
+            QComboBox {
+                border: none;
+            }
+        """)
+        self.playlist_panel.setFixedWidth(250)
+        self.playlist_layout = QVBoxLayout(self.playlist_panel)
+        
+        # 鎾斁鍒楄〃鏍囬鍜屽垎缁勯€夋嫨
+        self.playlist_header = QHBoxLayout()
+        self.playlist_title = QLabel("馃摵 棰戦亾鍒楄〃")
+        self.playlist_title.setStyleSheet("color: white; font-size: 14px; font-weight: bold; padding: 8px; background-color: transparent;")
+        self.group_combo = QComboBox()
+        self.group_combo.addItems(CHANNEL_GROUPS)
+        self.group_combo.setStyleSheet("background-color: rgba(45, 45, 45, 0.8); color: white; padding: 4px; border: none; font-size: 12px;")
+        self.group_combo.currentTextChanged.connect(self.on_group_changed)
+        self.playlist_header.addWidget(self.playlist_title)
+        self.playlist_header.addWidget(self.group_combo)
+        self.playlist_layout.addLayout(self.playlist_header)
+        
+        # 棰戦亾鍒楄〃
+        self.channel_list = QListWidget()
+        self.channel_list.setStyleSheet("background-color: transparent; color: white; border: none; padding: 5px;")
+        self.channel_list.setSpacing(6)
+        self.channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.channel_list.itemClicked.connect(self.select_channel)
+        self.playlist_layout.addWidget(self.channel_list, 1)
+        
+        # 棰戦亾鍒楄〃绌烘彁绀?        self.channel_empty_label = QLabel("鏆傛棤棰戦亾")
+        self.channel_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.channel_empty_label.setStyleSheet("color: #666666; font-size: 12px; background-color: transparent;")
+        self.playlist_layout.addWidget(self.channel_empty_label)
+        
+        # 娣诲姞鍒颁笂鍗婇儴鍒嗗竷灞€锛堝彧娣诲姞瑙嗛鍖哄煙锛?        self.top_layout.addWidget(self.video_frame, 1)
+        
+        # 璁剧疆宸﹀彸渚ц竟鏍忎负鐙珛绐楀彛锛堟偓娴晥鏋滐級
+        # 宸︿晶EPG闈㈡澘鎮诞
+        self.epg_panel.setFixedHeight(self.video_frame.height() - 180)  # 鐣欏嚭搴曢儴绌洪棿
+        self.epg_panel.show()
+        
+        # 鍙充晶鎾斁鍒楄〃闈㈡澘鎮诞
+        self.playlist_panel.setFixedHeight(self.video_frame.height() - 180)  # 鐣欏嚭搴曢儴绌洪棿
+        self.playlist_panel.show()
+        
+        # 鎮诞鎺у埗闈㈡澘
+        self.floating_panel = TranslucentPanel(opacity=180)
+        self.floating_panel.setStyleSheet("""
+            QLabel {
+                border: none;
+                background-color: transparent;
+            }
+            QPushButton {
+                border: none;
+            }
+            QSlider {
+                border: none;
+            }
+            QProgressBar {
+                border: none;
+            }
+        """)
+        self.floating_panel.setFixedHeight(150)
+        self.floating_panel.setFixedWidth(1000)
+        self.floating_layout = QVBoxLayout(self.floating_panel)
+        self.floating_layout.setContentsMargins(15, 6, 15, 8)
+        self.floating_layout.setSpacing(3)
+        
+        # 绗竴琛岋細濯掍綋淇℃伅锛堣缁嗙増锛?        self.media_row = QHBoxLayout()
+        self.media_row.setSpacing(12)
+        
+        self.video_info = QLabel("馃摵 鏈挱鏀?)
+        self.video_info.setStyleSheet("color: #aaaaaa; font-size: 12px; background-color: transparent;")
+        self.video_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self.video_info.setFixedHeight(22)
+        self.media_row.addWidget(self.video_info)
+        
+        self.audio_info = QLabel("馃攰 --")
+        self.audio_info.setStyleSheet("color: #aaaaaa; font-size: 12px; background-color: transparent;")
+        self.audio_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self.audio_info.setFixedHeight(18)
+        self.media_row.addWidget(self.audio_info)
+        
+        self.network_info = QLabel("馃摗 --")
+        self.network_info.setStyleSheet("color: #aaaaaa; font-size: 12px; background-color: transparent;")
+        self.network_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self.network_info.setFixedHeight(18)
+        self.media_row.addWidget(self.network_info)
+        
+        self.media_row.addStretch()
+        self.floating_layout.addLayout(self.media_row)
+        
+        # 鍒嗛殧绾?        line1 = QFrame()
+        line1.setFrameShape(QFrame.Shape.HLine)
+        line1.setStyleSheet("background-color: #555555; max-height: 1px;")
+        self.floating_layout.addWidget(line1)
+        
+        # 绗簩琛岋細鑺傜洰淇℃伅锛堝姞楂樺竷灞€锛?        self.info_row = QHBoxLayout()
+        self.info_row.setSpacing(15)
+        
+        # 宸︿晶锛氶閬揕OGO锛堟洿瀹界殑闀挎柟褰級鍜屽悕绉?        left_section = QHBoxLayout()
+        left_section.setSpacing(10)
+        
+        self.channel_logo = QLabel("馃摵")
+        self.channel_logo.setStyleSheet("font-size: 24px; background-color: transparent;")
+        self.channel_logo.setFixedSize(120, 40)
+        left_section.addWidget(self.channel_logo)
+        
+        name_section = QVBoxLayout()
+        name_section.setSpacing(2)
+        
+        self.channel_name = QLabel("鏈€夋嫨棰戦亾")
+        self.channel_name.setStyleSheet("color: white; font-size: 18px; font-weight: bold; background-color: transparent;")
+        name_section.addWidget(self.channel_name)
+        
+        self.current_program = QLabel("鈻?璇烽€夋嫨棰戦亾寮€濮嬫挱鏀?)
+        self.current_program.setStyleSheet("color: #4CAF50; font-size: 13px; background-color: transparent;")
+        name_section.addWidget(self.current_program)
+        
+        left_section.addLayout(name_section)
+        left_section.addStretch()
+        self.info_row.addLayout(left_section, 2)
+        
+        # 涓棿锛氳妭鐩弿杩帮紙鐩存帴鏄剧ず鍐呭锛屾棤鏍囬锛?        desc_section = QVBoxLayout()
+        desc_section.setContentsMargins(0, 5, 0, 0)
+        
+        self.program_desc = QLabel("鎵撳紑鎾斁鍒楄〃鏂囦欢鎴栧鍏ラ閬撲互寮€濮嬭鐪?)
+        self.program_desc.setStyleSheet("color: #cccccc; font-size: 14px; background-color: transparent;")
+        self.program_desc.setWordWrap(True)
+        desc_section.addWidget(self.program_desc)
+        self.info_row.addLayout(desc_section, 3)
+        
+        # 鍙充晶锛氳妭鐩椂闂翠俊鎭?        time_section = QVBoxLayout()
+        time_section.setSpacing(2)
+        
+        self.time_label = QLabel("鈴?--:-- - --:--")
+        self.time_label.setStyleSheet("color: #aaaaaa; font-size: 12px; background-color: transparent;")
+        time_section.addWidget(self.time_label)
+        
+        self.remain_label = QLabel("绛夊緟鎾斁...")
+        self.remain_label.setStyleSheet("color: #4CAF50; font-size: 12px; background-color: transparent;")
+        time_section.addWidget(self.remain_label)
+        self.info_row.addLayout(time_section, 1)
+        
+        self.floating_layout.addLayout(self.info_row)
+        
+        # 鍒嗛殧绾?        line2 = QFrame()
+        line2.setFrameShape(QFrame.Shape.HLine)
+        line2.setStyleSheet("background-color: #555555; max-height: 1px;")
+        self.floating_layout.addWidget(line2)
+        
+        # 绗笁琛岋細鎾斁鎺у埗 + 鑺傜洰杩涘害鏉?        self.control_row = QHBoxLayout()
+        self.control_row.setSpacing(8)
+        
+        # 宸︿晶锛氭挱鏀炬寜閽?        self.play_button = QToolButton()
+        self.play_button.setText("鈻?)
+        self.play_button.setFixedSize(28, 26)
+        self.play_button.setStyleSheet("color: white; font-size: 14px; background-color: rgba(60, 60, 60, 0.9); border-radius: 4px; border: none;")
+        self.play_button.clicked.connect(self.toggle_play)
+        self.control_row.addWidget(self.play_button)
+        
+        self.control_row.addStretch()
+        
+        # 涓棿锛氭椂闂磋繘搴︽潯缁勶紙灞呬腑锛?        self.progress_group = QHBoxLayout()
+        self.progress_group.setSpacing(4)
+        
+        # 褰撳墠鑺傜洰寮€濮嬫椂闂?        self.progress_start = QLabel("--:--")
+        self.progress_start.setStyleSheet("color: #888888; font-size: 11px; background-color: transparent;")
+        self.progress_group.addWidget(self.progress_start)
+        
+        # 鏃堕棿杩涘害鏉?        self.program_progress = QSlider(Qt.Orientation.Horizontal)
+        self.program_progress.setRange(0, 100)
+        self.program_progress.setValue(0)
+        self.program_progress.setFixedWidth(450)
+        self.program_progress.setStyleSheet("""
+            QSlider {
+                background-color: transparent;
+            }
+            QSlider::groove:horizontal { 
+                background: #555555; 
+                height: 4px; 
+                border-radius: 2px;
+            } 
+            QSlider::sub-page:horizontal { 
+                background: #4CAF50;
+                height: 4px; 
+                border-radius: 2px;
+            }
+            QSlider::handle:horizontal { 
+                background: #ffffff; 
+                width: 10px; 
+                height: 10px; 
+                border-radius: 5px;
+                margin: -3px 0;
+            }
+        """)
+        self.progress_group.addWidget(self.program_progress)
+        
+        # 褰撳墠鑺傜洰缁撴潫鏃堕棿
+        self.progress_end = QLabel("--:--")
+        self.progress_end.setStyleSheet("color: #888888; font-size: 11px; background-color: transparent;")
+        self.progress_group.addWidget(self.progress_end)
+        
+        self.control_row.addLayout(self.progress_group)
+        
+        self.control_row.addStretch()
+        
+        # 5. 闊抽噺鍥炬爣
+        self.volume_button = QToolButton()
+        self.volume_button.setText("馃攰")
+        self.volume_button.setFixedSize(28, 26)
+        self.volume_button.setStyleSheet("color: white; font-size: 12px; background-color: rgba(60, 60, 60, 0.9); border-radius: 4px; border: none;")
+        self.control_row.addWidget(self.volume_button)
+        
+        # 6. 闊抽噺璋冭妭鎷栧姩鏉?        self.volume_slider = QSlider(Qt.Orientation.Horizontal)
+        self.volume_slider.setRange(0, 100)
+        self.volume_slider.setValue(80)
+        self.volume_slider.setFixedWidth(80)
+        self.volume_slider.setStyleSheet("""
+            QSlider::groove:horizontal { 
+                background: #444444; 
+                height: 4px; 
+                border-radius: 2px;
+            } 
+            QSlider::sub-page:horizontal {
+                background: #4CAF50;
+                height: 4px;
+                border-radius: 2px;
+            }
+            QSlider::handle:horizontal { 
+                background: #ffffff; 
+                width: 12px; 
+                height: 12px; 
+                border-radius: 6px;
+                margin: -4px 0;
+            }
+        """)
+        self.volume_slider.valueChanged.connect(self.set_volume)
+        self.control_row.addWidget(self.volume_slider)
+        
+        # 7. 鍏ㄥ睆鍥炬爣
+        self.fullscreen_button = QToolButton()
+        self.fullscreen_button.setText("鉀?)
+        self.fullscreen_button.setFixedSize(28, 26)
+        self.fullscreen_button.setStyleSheet("color: white; font-size: 12px; background-color: rgba(60, 60, 60, 0.9); border-radius: 4px; border: none;")
+        self.fullscreen_button.clicked.connect(self.toggle_fullscreen)
+        self.control_row.addWidget(self.fullscreen_button)
+        
+        self.floating_layout.addLayout(self.control_row)
+        
+        # 娣诲姞鍒颁富甯冨眬
+        self.main_layout.addLayout(self.top_layout, 1)
+        
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
+        
+        # 鏄剧ず搴曢儴鎮诞鎺у埗闈㈡澘
+        self.floating_panel.show()
+        
+        # 瀹夎浜嬩欢杩囨护鍣?        self.video_frame.installEventFilter(self)
+        self.video_widget.installEventFilter(self)
+        self.video_placeholder.installEventFilter(self)
+        
+        # 鐘舵€佹爮
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+        # 璁剧疆鐘舵€佹爮鏍峰紡
+        self.status_bar.setStyleSheet("""
+            QStatusBar {
+                background-color: #2a2a2a;
+                color: white;
+                padding: 4px;
+            }
+        """)
+        self.status_bar.showMessage("灏辩华")
+        
+        # 濉厖棰戦亾鍒楄〃
+        self.populate_channel_list()
+        
+        # 濉厖EPG鍒楄〃
+        self.populate_epg_list()
+        
+        # 浣跨敤瀹氭椂鍣ㄥ欢杩熸洿鏂版偓娴獥浣嶇疆锛岀‘淇濈獥鍙ｅ凡鏄剧ず
+        QTimer.singleShot(100, self.update_floating_position)
+    
+    def setup_menu_bar(self):
+        """璁剧疆鑿滃崟鏍?""
+        menu_bar = self.menuBar()
+        # 璁剧疆鑿滃崟鏍忔牱寮?        menu_bar.setStyleSheet("""
+            QMenuBar {
+                background-color: #2a2a2a;
+                color: white;
+                padding: 2px;
+            }
+            QMenuBar::item {
+                padding: 4px 8px;
+                margin: 2px;
+                border-radius: 4px;
+            }
+            QMenuBar::item:selected {
+                background-color: #4a4a4a;
+            }
+            QMenu {
+                background-color: #2a2a2a;
+                color: white;
+                border-radius: 4px;
+                padding: 2px;
+            }
+            QMenu::item {
+                padding: 4px 20px;
+                margin: 2px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background-color: #4a4a4a;
+            }
+        """)
+        
+        # 鏂囦欢鑿滃崟
+        file_menu = menu_bar.addMenu(self.language_manager.get("file"))
+        
+        new_playlist = QAction(self.language_manager.get("new_playlist"), self)
+        new_playlist.triggered.connect(self.new_playlist)
+        file_menu.addAction(new_playlist)
+        
+        open_playlist = QAction(self.language_manager.get("open_playlist"), self)
+        open_playlist.triggered.connect(self.open_playlist)
+        file_menu.addAction(open_playlist)
+        
+        save_playlist = QAction(self.language_manager.get("save_playlist"), self)
+        save_playlist.triggered.connect(self.save_playlist)
+        file_menu.addAction(save_playlist)
+        
+        save_as = QAction(self.language_manager.get("save_as"), self)
+        save_as.triggered.connect(self.save_as)
+        file_menu.addAction(save_as)
+        
+        file_menu.addSeparator()
+        
