@@ -1426,12 +1426,64 @@ class IPTVPlayer(QMainWindow):
         # 获取进度条的当前值
         value = self.program_progress.value()
         
-        # 调用播放器的seek方法
-        if hasattr(self, 'player_controller') and self.player_controller:
-            # 计算对应的播放位置（0-1之间的浮点数）
-            position = value / 100.0
-            # 调用seek方法
-            self.player_controller.seek(position)
+        # 重新构建回看URL并重新播放
+        if hasattr(self, 'catchup_program') and hasattr(self, 'original_channel'):
+            try:
+                # 获取频道信息
+                channel_name = self.original_channel.get("name", "未知频道")
+                catchup_source = self.original_channel.get('catchup_source', '')
+                
+                if not catchup_source:
+                    return
+                
+                # 获取回看节目的信息
+                start_time = self.catchup_program.get('start')
+                end_time = self.catchup_program.get('end')
+                title = self.catchup_program.get('title', '未知节目')
+                
+                if not (start_time and end_time):
+                    return
+                
+                # 计算总时长
+                total_duration = (end_time - start_time).total_seconds()
+                
+                # 根据进度条位置计算新的开始时间
+                from datetime import timedelta
+                new_start_seconds = total_duration * (value / 100.0)
+                new_start_time = start_time + timedelta(seconds=new_start_seconds)
+                
+                # 构建新的回看URL
+                catchup_url = catchup_source
+                catchup_url = catchup_url.replace('${(b)yyyyMMddHHmmss}', new_start_time.strftime('%Y%m%d%H%M%S'))
+                catchup_url = catchup_url.replace('${(e)yyyyMMddHHmmss}', end_time.strftime('%Y%m%d%H%M%S'))
+                
+                # 记录构建的回看URL
+                logger.info(f"构建新的回看URL: {catchup_url}")
+                
+                # 显示回看状态
+                self.status_bar.showMessage(f"正在回看: {channel_name} - {title}")
+                
+                # 保存当前进度条位置
+                saved_progress = value
+                
+                # 播放新的回看URL
+                if hasattr(self, 'player_controller') and self.player_controller:
+                    # 播放新的回看
+                    self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
+                    
+                    # 强制设置进度条位置
+                    if hasattr(self, 'program_progress'):
+                        self.program_progress.setValue(saved_progress)
+                        # 强制更新显示
+                        self.program_progress.repaint()
+            except Exception as e:
+                logger.error(f"重新构建回看URL失败: {e}")
+                # 如果失败，尝试使用播放器的seek方法
+                if hasattr(self, 'player_controller') and self.player_controller:
+                    # 计算对应的播放位置（0-1之间的浮点数）
+                    position = value / 100.0
+                    # 调用seek方法
+                    self.player_controller.seek(position)
     
     def on_group_changed(self, group_name):
         """分组切换时重新填充频道列表"""

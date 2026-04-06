@@ -455,17 +455,52 @@ class MpvPlayerController(QObject):
         """
         try:
             if self.mpv_handle:
-                # 使用百分比seek命令直接跳转
-                seek_percent = position * 100.0
-                # 使用正确的mpv命令格式
-                cmd = [b'seek', f'{seek_percent}'.encode('utf-8'), b'percent', None]
-                cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
-                result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+                # 保存当前播放状态
+                is_playing = not self._get_mpv_property_string('pause') or self._get_mpv_property_string('pause') == 'no'
                 
-                if result < 0:
-                    self.logger.error(f"设置播放位置失败，错误码: {result}")
+                # 使用绝对位置（秒）进行seek
+                # 先获取总时长
+                duration_seconds = self._get_mpv_property_double('duration')
+                if duration_seconds:
+                    # 计算目标位置（秒）
+                    target_position = duration_seconds * position
+                    # 使用绝对位置进行seek
+                    cmd = [b'seek', f'{target_position}'.encode('utf-8'), b'absolute', None]
+                    cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+                    result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+                    
+                    if result < 0:
+                        self.logger.error(f"使用绝对位置设置播放位置失败，错误码: {result}")
+                        # 如果失败，尝试使用百分比
+                        seek_percent = position * 100.0
+                        cmd = [b'seek', f'{seek_percent}'.encode('utf-8'), b'absolute-percent', None]
+                        cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+                        result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+                        
+                        if result < 0:
+                            self.logger.error(f"使用百分比设置播放位置失败，错误码: {result}")
+                        else:
+                            self.logger.info(f"使用百分比设置播放位置: {position}")
+                    else:
+                        self.logger.info(f"使用绝对位置设置播放位置: {position}")
                 else:
-                    self.logger.info(f"设置播放位置: {position}")
+                    # 如果获取不到总时长，使用百分比
+                    seek_percent = position * 100.0
+                    cmd = [b'seek', f'{seek_percent}'.encode('utf-8'), b'absolute-percent', None]
+                    cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+                    result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+                    
+                    if result < 0:
+                        self.logger.error(f"设置播放位置失败，错误码: {result}")
+                    else:
+                        self.logger.info(f"设置播放位置: {position}")
+                
+                # 恢复播放状态
+                if is_playing:
+                    # 确保视频继续播放
+                    cmd = [b'cycle', b'pause', None]
+                    cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+                    libmpv.mpv_command(self.mpv_handle, cmd_ptr)
         except Exception as e:
             self.logger.error(f"设置播放位置失败: {str(e)}")
     
