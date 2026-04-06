@@ -370,7 +370,7 @@ class IPTVPlayer(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("IPTV Scanner Editor Pro")
-        self.setGeometry(100, 100, 1300, 720)
+        self.setGeometry(100, 100, 1280, 760)
         self.setMinimumSize(800, 600)
         # 连接EPG状态信号到槽函数
         self.epg_status_signal.connect(self.update_status_bar)
@@ -757,9 +757,9 @@ class IPTVPlayer(QMainWindow):
                 height: 4px; 
                 border-radius: 2px;
             } 
-            QSlider::sub-page:horizontal { 
+            QSlider::sub-page:horizontal {
                 background: #4CAF50;
-                height: 4px; 
+                height: 4px;
                 border-radius: 2px;
             }
             QSlider::handle:horizontal { 
@@ -770,6 +770,8 @@ class IPTVPlayer(QMainWindow):
                 margin: -3px 0;
             }
         """)
+        # 连接进度条拖动事件
+        self.program_progress.sliderReleased.connect(self.on_progress_slider_released)
         self.progress_group.addWidget(self.program_progress)
         
         # 当前节目结束时间
@@ -786,6 +788,7 @@ class IPTVPlayer(QMainWindow):
         self.volume_button.setText("🔊")
         self.volume_button.setFixedSize(28, 26)
         self.volume_button.setStyleSheet("color: white; font-size: 12px; background-color: rgba(60, 60, 60, 0.9); border-radius: 4px; border: none;")
+        self.volume_button.clicked.connect(self.toggle_mute)
         self.control_row.addWidget(self.volume_button)
         
         # 6. 音量调节拖动条
@@ -864,7 +867,6 @@ class IPTVPlayer(QMainWindow):
         # 回看相关属性
         self.is_catchup_mode = False
         self.original_channel = None
-        self.exit_catchup_button = None
     
     def update_status_bar(self, message):
         """更新状态栏消息"""
@@ -1189,10 +1191,22 @@ class IPTVPlayer(QMainWindow):
                 
                 # 给已播放的节目添加回看图标
                 if has_catchup and end_time < now:
-                    from PyQt6.QtGui import QIcon
+                    # 使用QIcon设置图标，这样无论节目名多长，图标都会显示在左侧
+                    from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor
                     from PyQt6.QtCore import QSize
-                    # 使用Unicode字符作为图标，或者使用QIcon
-                    item.setText(item_text + " 🔄")
+                    
+                    # 创建一个带有回看图标的QPixmap
+                    pixmap = QPixmap(20, 20)
+                    pixmap.fill(QColor(0, 0, 0, 0))  # 透明背景
+                    painter = QPainter(pixmap)
+                    painter.setPen(QColor(255, 255, 255))
+                    painter.setFont(painter.font())
+                    painter.drawText(0, 0, 20, 20, 0x0004 | 0x0008, "🔄")  # 居中显示
+                    painter.end()
+                    
+                    # 设置图标
+                    item.setIcon(QIcon(pixmap))
+                    item.setToolTip("支持回看")
                 
                 # 设置样式
                 if start_time <= now <= end_time:
@@ -1259,13 +1273,8 @@ class IPTVPlayer(QMainWindow):
                 start_str = start_time.strftime("%H:%M")
                 program_text = f"{start_str}  {program.get('title', '未知节目')}"
                 
-                # 移除回看图标，以便比较
-                if ' 🔄' in item_text:
-                    item_text_compare = item_text.replace(' 🔄', '')
-                else:
-                    item_text_compare = item_text
-                
-                if program_text == item_text_compare:
+                # 直接比较文本，因为图标不会影响文本内容
+                if program_text == item_text:
                     # 检查节目是否已播放
                     if end_time < now:
                         # 已播放的节目，启动回看
@@ -1306,6 +1315,12 @@ class IPTVPlayer(QMainWindow):
         if self.player_controller:
             # 保存当前频道信息，用于退出回看
             self.original_channel = self.current_channel.copy()
+            # 保存当前回看的节目信息
+            self.catchup_program = {
+                'start': start_time,
+                'end': end_time,
+                'title': title
+            }
             # 标记当前处于回看模式
             self.is_catchup_mode = True
             
@@ -1327,8 +1342,14 @@ class IPTVPlayer(QMainWindow):
     def add_exit_catchup_button(self):
         """显示退出回看按钮"""
         # 显示退出回看按钮
-        if hasattr(self, 'exit_catchup_button'):
-            self.exit_catchup_button.show()
+        if hasattr(self, 'exit_catchup_button') and self.exit_catchup_button:
+            try:
+                self.exit_catchup_button.show()
+                # 确保按钮在最上层
+                self.exit_catchup_button.raise_()
+                logger.info("退出回看按钮已显示")
+            except Exception as e:
+                logger.error(f"显示退出回看按钮失败: {e}")
     
     def exit_catchup(self):
         """退出回看，返回直播"""
@@ -1338,6 +1359,9 @@ class IPTVPlayer(QMainWindow):
         
         # 退出回看模式
         self.is_catchup_mode = False
+        # 清除回看节目信息
+        if hasattr(self, 'catchup_program'):
+            delattr(self, 'catchup_program')
         
         # 恢复播放原频道
         if hasattr(self, 'original_channel') and self.original_channel:
@@ -1345,6 +1369,23 @@ class IPTVPlayer(QMainWindow):
             self.status_bar.showMessage(f"返回直播: {channel_name}")
             # 实际播放原频道
             self.play_channel(self.original_channel)
+    
+    def on_progress_slider_released(self):
+        """进度条拖动释放时的处理"""
+        # 检查是否处于回看模式
+        is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
+        if not is_catchup:
+            return
+        
+        # 获取进度条的当前值
+        value = self.program_progress.value()
+        
+        # 调用播放器的seek方法
+        if hasattr(self, 'player_controller') and self.player_controller:
+            # 计算对应的播放位置（0-1之间的浮点数）
+            position = value / 100.0
+            # 调用seek方法
+            self.player_controller.seek(position)
     
     def on_group_changed(self, group_name):
         """分组切换时重新填充频道列表"""
@@ -1542,6 +1583,43 @@ class IPTVPlayer(QMainWindow):
         """设置音量"""
         if self.player_controller:
             self.player_controller.set_volume(value)
+            # 如果不是静音状态，更新音量图标
+            if hasattr(self, '_is_muted') and not self._is_muted:
+                self._update_volume_icon(value)
+    
+    def toggle_mute(self):
+        """切换静音/取消静音"""
+        if not hasattr(self, '_is_muted'):
+            self._is_muted = False
+        
+        if self.player_controller:
+            if self._is_muted:
+                # 取消静音
+                self._is_muted = False
+                # 恢复之前的音量
+                if hasattr(self, '_pre_mute_volume'):
+                    self.player_controller.set_volume(self._pre_mute_volume)
+                    self.volume_slider.setValue(self._pre_mute_volume)
+                    self._update_volume_icon(self._pre_mute_volume)
+            else:
+                # 静音
+                self._is_muted = True
+                # 保存当前音量
+                self._pre_mute_volume = self.player_controller.get_volume()
+                # 设置音量为0
+                self.player_controller.set_volume(0)
+                self.volume_slider.setValue(0)
+                # 更新音量图标
+                self.volume_button.setText("🔇")
+    
+    def _update_volume_icon(self, volume):
+        """根据音量更新音量图标"""
+        if volume == 0:
+            self.volume_button.setText("🔇")
+        elif volume < 50:
+            self.volume_button.setText("🔉")
+        else:
+            self.volume_button.setText("🔊")
     
     def play_channel(self, channel):
         """播放指定频道"""
@@ -1750,123 +1828,165 @@ class IPTVPlayer(QMainWindow):
         # 直接调用 update_floating_panel_info 方法，保持统一
         self.update_floating_panel_info()
         
+        # 检查是否处于回看模式
+        is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
+        
         # 更新第二行：频道信息
         if self.current_channel:
             self.channel_name.setText(self.current_channel.get("name", "未知频道"))
-            # 从EPG数据获取当前节目名称（安全处理）
-            try:
-                channel_name = self.current_channel.get("name", "")
-                tvg_id = self.current_channel.get("tvg_id", "")
-                if channel_name:
-                    # 首先尝试从EPG解析器获取节目名称（使用tvg-id和频道名称）
-                    current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
-                    if current_program:
-                        program_name = current_program.get("title", "正在播放")
-                        self.current_program.setText(f"▶ {program_name}")
-                    # 然后尝试从EPG_DATA获取节目名称
-                    elif EPG_DATA and channel_name in EPG_DATA:
-                        current_channel_epg = EPG_DATA[channel_name]
-                        if current_channel_epg and len(current_channel_epg) > 0:
-                            current_program_data = current_channel_epg[0]
-                            program_name = current_program_data.get("title", "正在播放")
+            
+            # 回看模式下，使用回看节目的信息
+            if is_catchup and hasattr(self, 'catchup_program'):
+                try:
+                    program_name = self.catchup_program.get('title', '正在回看')
+                    self.current_program.setText(f"▶ {program_name}")
+                except Exception:
+                    self.current_program.setText("▶ 正在回看")
+            else:
+                # 非回看模式，从EPG数据获取当前节目名称（安全处理）
+                try:
+                    channel_name = self.current_channel.get("name", "")
+                    tvg_id = self.current_channel.get("tvg_id", "")
+                    if channel_name:
+                        # 首先尝试从EPG解析器获取节目名称（使用tvg-id和频道名称）
+                        current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
+                        if current_program:
+                            program_name = current_program.get("title", "正在播放")
                             self.current_program.setText(f"▶ {program_name}")
+                        # 然后尝试从EPG_DATA获取节目名称
+                        elif EPG_DATA and channel_name in EPG_DATA:
+                            current_channel_epg = EPG_DATA[channel_name]
+                            if current_channel_epg and len(current_channel_epg) > 0:
+                                current_program_data = current_channel_epg[0]
+                                program_name = current_program_data.get("title", "正在播放")
+                                self.current_program.setText(f"▶ {program_name}")
+                            else:
+                                self.current_program.setText("▶ 正在播放")
                         else:
                             self.current_program.setText("▶ 正在播放")
-                    else:
-                        self.current_program.setText("▶ 正在播放")
-            except Exception:
-                self.current_program.setText("▶ 正在播放")
+                except Exception:
+                    self.current_program.setText("▶ 正在播放")
         
         # 从EPG数据获取当前节目描述（安全处理）
         try:
             if self.current_channel:
-                channel_name = self.current_channel.get("name", "")
-                tvg_id = self.current_channel.get("tvg_id", "")
-                if channel_name:
-                    # 首先尝试从EPG解析器获取节目描述（使用tvg-id和频道名称）
-                    current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
-                    if current_program:
-                        self.program_desc.setText(current_program.get("desc", "暂无节目描述"))
-                        # 更新时间信息
-                        try:
-                            from datetime import datetime
-                            start_time = datetime.fromisoformat(current_program.get('start', ''))
-                            end_time = datetime.fromisoformat(current_program.get('end', ''))
+                # 回看模式下，使用回看节目的信息
+                if is_catchup and hasattr(self, 'catchup_program'):
+                    try:
+                        # 使用回看节目的信息
+                        start_time = self.catchup_program.get('start')
+                        end_time = self.catchup_program.get('end')
+                        title = self.catchup_program.get('title', '未知节目')
+                        desc = self.catchup_program.get('desc', '暂无节目描述')
+                        # 显示节目描述
+                        self.program_desc.setText(desc)
+                        if start_time and end_time:
                             start_str = start_time.strftime("%H:%M")
                             end_str = end_time.strftime("%H:%M")
-                            self.progress_start.setText(start_str)
                             self.time_label.setText(f"⏱ {start_str} - {end_str}")
-                            self.remain_label.setText("播放中...")
-                        except:
-                            # 时间解析失败，使用默认时间
-                            from datetime import datetime
-                            current_time = datetime.now()
-                            start_hour = current_time.strftime("%H:00")
-                            end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
-                            self.progress_start.setText(start_hour)
-                            self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
-                            self.remain_label.setText("播放中...")
-                    # 然后尝试从EPG_DATA获取节目描述
-                    elif EPG_DATA and channel_name in EPG_DATA:
-                        current_channel_epg = EPG_DATA[channel_name]
-                        if current_channel_epg and len(current_channel_epg) > 0:
-                            current_program_data = current_channel_epg[0]
-                            self.program_desc.setText(current_program_data.get("description", "暂无节目描述"))
-                            # 更新时间信息
-                            self.progress_start.setText(current_program_data.get("time", "--:--"))
-                            self.time_label.setText(f"⏱ {current_program_data.get('time', '--:--')} - --:--")
-                            self.remain_label.setText("播放中...")
+                            self.remain_label.setText("回看中...")
                         else:
-                            # 没有节目单，显示默认信息
-                            self.program_desc.setText("正在播放当前频道")
-                            # 显示当前系统时间
-                            from datetime import datetime
-                            current_time = datetime.now()
-                            start_hour = current_time.strftime("%H:00")
-                            end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
-                            self.progress_start.setText(start_hour)
-                            self.progress_end.setText(end_hour)
-                            self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
-                            self.remain_label.setText("播放中...")
-                            # 设置进度条
+                            self.time_label.setText("⏱ --:-- - --:--")
+                            self.remain_label.setText("回看中...")
+                    except Exception:
+                        # 发生异常，显示默认信息
+                        self.program_desc.setText("正在回看当前节目")
+                        self.time_label.setText("⏱ --:-- - --:--")
+                        self.remain_label.setText("回看中...")
+                else:
+                    # 非回看模式，从EPG数据获取节目描述
+                    channel_name = self.current_channel.get("name", "")
+                    tvg_id = self.current_channel.get("tvg_id", "")
+                    if channel_name:
+                        # 首先尝试从EPG解析器获取节目描述（使用tvg-id和频道名称）
+                        current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
+                        if current_program:
+                            self.program_desc.setText(current_program.get("desc", "暂无节目描述"))
+                            # 更新时间信息
+                            try:
+                                from datetime import datetime
+                                start_time = datetime.fromisoformat(current_program.get('start', ''))
+                                end_time = datetime.fromisoformat(current_program.get('end', ''))
+                                start_str = start_time.strftime("%H:%M")
+                                end_str = end_time.strftime("%H:%M")
+                                self.progress_start.setText(start_str)
+                                self.time_label.setText(f"⏱ {start_str} - {end_str}")
+                                self.remain_label.setText("播放中...")
+                            except:
+                                # 时间解析失败，使用默认时间
+                                from datetime import datetime
+                                current_time = datetime.now()
+                                start_hour = current_time.strftime("%H:00")
+                                end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+                                self.progress_start.setText(start_hour)
+                                self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
+                                self.remain_label.setText("播放中...")
+                        # 然后尝试从EPG_DATA获取节目描述
+                        elif EPG_DATA and channel_name in EPG_DATA:
+                            current_channel_epg = EPG_DATA[channel_name]
+                            if current_channel_epg and len(current_channel_epg) > 0:
+                                current_program_data = current_channel_epg[0]
+                                self.program_desc.setText(current_program_data.get("description", "暂无节目描述"))
+                                # 更新时间信息
+                                self.progress_start.setText(current_program_data.get("time", "--:--"))
+                                self.time_label.setText(f"⏱ {current_program_data.get('time', '--:--')} - --:--")
+                                self.remain_label.setText("播放中...")
+                            else:
+                                # 没有节目单，显示默认信息
+                                self.program_desc.setText("正在播放当前频道")
+                                # 显示当前系统时间
+                                from datetime import datetime
+                                current_time = datetime.now()
+                                start_hour = current_time.strftime("%H:00")
+                                end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+                                self.progress_start.setText(start_hour)
+                                self.progress_end.setText(end_hour)
+                                self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
+                                self.remain_label.setText("播放中...")
+                                # 设置进度条
+                            minutes = current_time.minute
+                            seconds = current_time.second
+                            progress = int(((minutes * 60) + seconds) / 3600 * 100)
+                            self.program_progress.setValue(progress)
+                    else:
+                        # 没有节目单，显示默认信息
+                        self.program_desc.setText("正在播放当前频道")
+                        # 显示当前系统时间
+                        from datetime import datetime
+                        current_time = datetime.now()
+                        start_hour = current_time.strftime("%H:00")
+                        end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+                        self.progress_start.setText(start_hour)
+                        self.progress_end.setText(end_hour)
+                        self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
+                        self.remain_label.setText("播放中...")
+                        # 设置进度条
                         minutes = current_time.minute
                         seconds = current_time.second
                         progress = int(((minutes * 60) + seconds) / 3600 * 100)
                         self.program_progress.setValue(progress)
-                else:
-                    # 没有节目单，显示默认信息
-                    self.program_desc.setText("正在播放当前频道")
-                    # 显示当前系统时间
-                    from datetime import datetime
-                    current_time = datetime.now()
-                    start_hour = current_time.strftime("%H:00")
-                    end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
-                    self.progress_start.setText(start_hour)
-                    self.progress_end.setText(end_hour)
-                    self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
-                    self.remain_label.setText("播放中...")
-                    # 设置进度条
-                    minutes = current_time.minute
-                    seconds = current_time.second
-                    progress = int(((minutes * 60) + seconds) / 3600 * 100)
-                    self.program_progress.setValue(progress)
         except Exception:
             # 发生异常，显示默认信息
-            self.program_desc.setText("正在播放当前频道")
-            # 显示当前系统时间
-            from datetime import datetime
-            current_time = datetime.now()
-            start_hour = current_time.strftime("%H:00")
-            end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
-            self.progress_start.setText(start_hour)
-            self.progress_end.setText(end_hour)
-            self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
-            self.remain_label.setText("播放中...")
-            # 设置进度条
-            minutes = current_time.minute
-            seconds = current_time.second
-            progress = int(((minutes * 60) + seconds) / 3600 * 100)
-            self.program_progress.setValue(progress)
+            if is_catchup:
+                self.program_desc.setText("正在回看当前节目")
+                self.time_label.setText("⏱ --:-- - --:--")
+                self.remain_label.setText("回看中...")
+            else:
+                self.program_desc.setText("正在播放当前频道")
+                # 显示当前系统时间
+                from datetime import datetime
+                current_time = datetime.now()
+                start_hour = current_time.strftime("%H:00")
+                end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+                self.progress_start.setText(start_hour)
+                self.progress_end.setText(end_hour)
+                self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
+                self.remain_label.setText("播放中...")
+                # 设置进度条
+                minutes = current_time.minute
+                seconds = current_time.second
+                progress = int(((minutes * 60) + seconds) / 3600 * 100)
+                self.program_progress.setValue(progress)
     
     def update_floating_panel_info(self):
         """定期更新悬浮窗信息（进度条、时间、媒体信息等）"""
@@ -1915,27 +2035,81 @@ class IPTVPlayer(QMainWindow):
         current_time_str = format_time(current_time_ms)
         total_time_str = format_time(total_time_ms)
         
-        # 检查是否有节目单
+        # 检查是否处于回看模式
+        is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
+        # 记录回看模式状态
+        logger.info(f"回看模式状态: {is_catchup}")
+        
+        # 只有在非回看模式下才检查EPG
         has_epg = False
         current_program = None
-        try:
-            channel_name = self.current_channel.get("name", "")
-            tvg_id = self.current_channel.get("tvg_id", "")
-            if channel_name:
-                # 首先尝试从EPG解析器获取节目单（使用tvg-id和频道名称）
-                current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
-                if current_program:
-                    has_epg = True
-                # 然后尝试从EPG_DATA获取节目单
-                elif EPG_DATA and channel_name in EPG_DATA:
-                    current_channel_epg = EPG_DATA[channel_name]
-                    if current_channel_epg and len(current_channel_epg) > 0:
+        if not is_catchup:
+            try:
+                channel_name = self.current_channel.get("name", "")
+                tvg_id = self.current_channel.get("tvg_id", "")
+                if channel_name:
+                    # 首先尝试从EPG解析器获取节目单（使用tvg-id和频道名称）
+                    current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
+                    if current_program:
                         has_epg = True
-        except Exception:
-            pass
+                    # 然后尝试从EPG_DATA获取节目单
+                    elif EPG_DATA and channel_name in EPG_DATA:
+                        current_channel_epg = EPG_DATA[channel_name]
+                        if current_channel_epg and len(current_channel_epg) > 0:
+                            has_epg = True
+            except Exception:
+                pass
         
         # 更新进度条和时间显示
-        if has_epg:
+        if is_catchup:
+            # 回看模式，使用EPG节目单的时间信息
+            if hasattr(self, 'catchup_program'):
+                try:
+                    # 使用回看节目的时间信息
+                    start_time = self.catchup_program.get('start')
+                    end_time = self.catchup_program.get('end')
+                    if start_time and end_time:
+                        # 计算节目总时长
+                        total_duration = (end_time - start_time).total_seconds()
+                        
+                        # 格式化时间显示
+                        start_str = start_time.strftime("%H:%M")
+                        end_str = end_time.strftime("%H:%M")
+                        # 确保时间显示正确
+                        self.progress_start.setText(start_str)
+                        self.progress_end.setText(end_str)
+                        # 强制更新显示
+                        self.progress_start.repaint()
+                        self.progress_end.repaint()
+                        # 记录日志
+                        logger.info(f"回看模式 - 设置时间显示: {start_str} - {end_str}")
+                        
+                        # 获取当前播放位置（秒）
+                        current_position = current_time_ms / 1000
+                        
+                        if total_duration > 0:
+                            # 计算进度百分比
+                            if current_position > 0:
+                                progress_value = min(int((current_position / total_duration) * 100), 100)
+                            else:
+                                # 如果获取不到播放位置，使用进度条当前值
+                                progress_value = self.program_progress.value()
+                            self.program_progress.setValue(progress_value)
+                        else:
+                            self.program_progress.setValue(0)
+                except Exception as e:
+                    logger.error(f"处理回看时间显示失败: {e}")
+                    # 如果出错，使用视频播放时间
+                    if total_time_ms > 0:
+                        progress_value = int(position * 100)
+                        self.program_progress.setValue(progress_value)
+                        self.progress_start.setText(current_time_str)
+                        self.progress_end.setText(total_time_str)
+                    else:
+                        self.program_progress.setValue(0)
+            # 回看模式下，直接返回，避免执行后面的分支
+            return
+        elif has_epg:
             if current_program:
                 # 使用EPG节目单的时间信息
                 try:
@@ -1994,9 +2168,7 @@ class IPTVPlayer(QMainWindow):
             progress = int(((minutes * 60) + seconds) / 3600 * 100)
             self.program_progress.setValue(progress)
         
-        # 更新音量
-        volume = self.player_controller.get_volume()
-        self.volume_slider.setValue(volume)
+        # 不再更新音量，避免音量拖动后自动恢复的问题
         
         # 媒体信息已经通过on_media_info_ready方法更新，这里不再重复获取
         # 如果需要更新媒体信息，会通过on_media_info_ready方法触发

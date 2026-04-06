@@ -356,8 +356,11 @@ class MpvPlayerController(QObject):
             if self.mpv_handle:
                 cmd = [b'cycle', b'pause', None]
                 cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
-                libmpv.mpv_command(self.mpv_handle, cmd_ptr)
-            self.logger.info("切换暂停状态")
+                result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+                if result < 0:
+                    self.logger.error(f"切换暂停状态失败，错误码: {result}")
+                else:
+                    self.logger.info("切换暂停状态")
         except Exception as e:
             self.logger.error(f"暂停播放失败: {str(e)}")
     
@@ -371,10 +374,17 @@ class MpvPlayerController(QObject):
             volume: 音量值 (0-100)
         """
         try:
+            # 保存音量
+            self._last_volume = volume
+            
             if self.mpv_handle:
+                # 使用字符串设置音量
                 volume_str = f"{volume}".encode('utf-8')
-                libmpv.mpv_set_property_string(self.mpv_handle, b'volume', volume_str)
-            self.logger.info(f"设置音量: {volume}")
+                result = libmpv.mpv_set_property_string(self.mpv_handle, b'volume', volume_str)
+                if result < 0:
+                    self.logger.error(f"设置音量失败，错误码: {result}")
+                else:
+                    self.logger.info(f"设置音量: {volume}")
         except Exception as e:
             self.logger.error(f"设置音量失败: {str(e)}")
     
@@ -384,11 +394,17 @@ class MpvPlayerController(QObject):
             音量值 (0-100)
         """
         try:
-            # 由于使用ctypes，暂时返回默认音量
-            return 50  # 默认音量
-        except Exception as e:
-            self.logger.error(f"获取音量失败: {str(e)}")
-            return 50
+            if not hasattr(self, '_last_volume'):
+                self._last_volume = 80  # 默认音量
+            
+            # 尝试从mpv获取音量
+            volume_value = self._get_mpv_property_double('volume')
+            if volume_value is not None:
+                self._last_volume = int(volume_value)
+            return self._last_volume
+        except Exception:
+            # 如果失败，返回上次保存的音量
+            return getattr(self, '_last_volume', 80)
     
     def get_current_time(self):
         """获取当前播放时间
@@ -396,7 +412,9 @@ class MpvPlayerController(QObject):
             当前播放时间（毫秒）
         """
         try:
-            # 由于使用ctypes，暂时返回0
+            time_seconds = self._get_mpv_property_double('time-pos')
+            if time_seconds:
+                return int(time_seconds * 1000)
             return 0
         except Exception as e:
             self.logger.error(f"获取当前时间失败: {str(e)}")
@@ -408,7 +426,9 @@ class MpvPlayerController(QObject):
             总播放时间（毫秒）
         """
         try:
-            # 由于使用ctypes，暂时返回0
+            duration_seconds = self._get_mpv_property_double('duration')
+            if duration_seconds:
+                return int(duration_seconds * 1000)
             return 0
         except Exception as e:
             self.logger.error(f"获取总时间失败: {str(e)}")
@@ -420,11 +440,41 @@ class MpvPlayerController(QObject):
             当前播放位置（0-1之间的浮点数）
         """
         try:
-            # 由于使用ctypes，暂时返回0
+            percent_pos = self._get_mpv_property_double('percent-pos')
+            if percent_pos:
+                return percent_pos / 100.0
             return 0
         except Exception as e:
             self.logger.error(f"获取播放位置失败: {str(e)}")
             return 0
+    
+    def seek(self, position):
+        """设置播放位置
+        Args:
+            position: 播放位置（0-1之间的浮点数）
+        """
+        try:
+            if self.mpv_handle:
+                # 使用百分比seek命令直接跳转
+                seek_percent = position * 100.0
+                # 尝试使用不同的命令格式
+                cmd = [b'seek', f'{seek_percent}'.encode('utf-8'), b'absolute', None]
+                cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+                result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+                
+                if result < 0:
+                    # 如果失败，尝试另一种格式
+                    self.logger.error(f"使用absolute参数失败，尝试使用其他格式")
+                    cmd = [b'seek', f'{seek_percent}'.encode('utf-8'), None]
+                    cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+                    result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+                    
+                if result < 0:
+                    self.logger.error(f"设置播放位置失败，错误码: {result}")
+                else:
+                    self.logger.info(f"设置播放位置: {position}")
+        except Exception as e:
+            self.logger.error(f"设置播放位置失败: {str(e)}")
     
 
 
@@ -471,51 +521,116 @@ class MpvPlayerController(QObject):
             return
         
         try:
-            # 尝试获取媒体信息，使用多种属性名称
-            video_codec = (self._get_mpv_property_string('video-codec') or 
-                          self._get_mpv_property_string('current-tracks/video/title'))
-            width = self._get_mpv_property_int('width')
-            height = self._get_mpv_property_int('height')
-            fps = self._get_mpv_property_double('fps') or self._get_mpv_property_double('container-fps')
-            
-            audio_codec = (self._get_mpv_property_string('audio-codec') or 
-                          self._get_mpv_property_string('current-tracks/audio/title'))
-            channels = self._get_mpv_property_int('audio-channels') or self._get_mpv_property_int('audio-params/channels')
-            sample_rate = self._get_mpv_property_int('audio-samplerate') or self._get_mpv_property_int('audio-params/samplerate')
-            
-            format_name = self._get_mpv_property_string('file-format') or self._get_mpv_property_string('format')
-            duration = self._get_mpv_property_double('duration')
-            protocol = self._get_mpv_property_string('file-protocol') or self._get_mpv_property_string('protocol')
-            
-            # 构建媒体信息
+            # 构建基本媒体信息
             media_info = {
-                'format': format_name or '未知',
-                'duration': duration or 0,
-                'protocol': protocol or '未知',
+                'format': '未知',
+                'duration': 0,
+                'protocol': '未知',
                 'video': {
-                    'codec': video_codec or '未知',
-                    'width': width or 0,
-                    'height': height or 0,
-                    'frame_rate': fps or 0,
+                    'codec': '未知',
+                    'width': 0,
+                    'height': 0,
+                    'frame_rate': 0,
                     'bit_rate': 0
                 },
                 'audio': {
-                    'codec': audio_codec or '未知',
-                    'channels': channels or 0,
-                    'sample_rate': sample_rate or 0,
+                    'codec': '未知',
+                    'channels': 0,
+                    'sample_rate': 0,
                     'bit_rate': 0
                 }
             }
             
+            # 先尝试获取播放状态，看看媒体是否已加载
+            paused = self._get_mpv_property_string('pause')
+            self.logger.info(f"播放状态: {paused}")
+            
+            # 尝试获取一些简单的属性
+            test_props = ['paused', 'time-pos', 'duration']
+            for prop in test_props:
+                val = self._get_mpv_property_string(prop)
+                if val:
+                    self.logger.info(f"属性 {prop} = {val}")
+            
+            # 尝试获取协议
+            protocol = self._get_mpv_property_string('path')
+            if protocol and '://' in protocol:
+                media_info['protocol'] = protocol.split('://')[0].upper()
+            
+            # 尝试获取视频轨道信息
+            video_track_count = self._get_mpv_property_int('video-params')
+            self.logger.info(f"视频轨道数: {video_track_count}")
+            
+            # 尝试获取视频编码 - 使用不同的方法
+            # 方法1: 直接获取video-codec
+            video_codec = self._get_mpv_property_string('video-codec')
+            if video_codec:
+                media_info['video']['codec'] = video_codec
+            
+            # 方法2: 获取视频轨道列表
+            track_list = self._get_mpv_property_string('track-list')
+            if track_list:
+                self.logger.info(f"轨道列表: {track_list[:100]}")  # 只记录前100个字符
+            
+            # 尝试获取视频尺寸
+            width = self._get_mpv_property_int('dwidth')
+            if not width:
+                width = self._get_mpv_property_int('width')
+            if width:
+                media_info['video']['width'] = width
+            
+            height = self._get_mpv_property_int('dheight')
+            if not height:
+                height = self._get_mpv_property_int('height')
+            if height:
+                media_info['video']['height'] = height
+            
+            # 尝试获取帧率
+            fps = self._get_mpv_property_double('container-fps')
+            if not fps:
+                fps = self._get_mpv_property_double('fps')
+            if fps:
+                media_info['video']['frame_rate'] = fps
+            
+            # 尝试获取音频信息
+            audio_codec = self._get_mpv_property_string('audio-codec')
+            if audio_codec:
+                media_info['audio']['codec'] = audio_codec
+            
+            channels = self._get_mpv_property_int('audio-params/channel-count')
+            if not channels:
+                channels = self._get_mpv_property_int('audio-channels')
+            if channels:
+                media_info['audio']['channels'] = channels
+            
+            sample_rate = self._get_mpv_property_int('audio-params/samplerate')
+            if not sample_rate:
+                sample_rate = self._get_mpv_property_int('audio-samplerate')
+            if sample_rate:
+                media_info['audio']['sample_rate'] = sample_rate
+            
+            # 尝试获取文件格式
+            format_name = self._get_mpv_property_string('file-format')
+            if format_name:
+                media_info['format'] = format_name
+            
+            # 尝试获取时长
+            duration = self._get_mpv_property_double('duration')
+            if duration:
+                media_info['duration'] = duration
+            
+            # 记录获取到的媒体信息
             self.logger.info(f"获取到媒体信息: {media_info}")
             self.media_info_ready.emit(media_info)
             
             # 如果没有获取到关键信息，再尝试几次
-            if (video_codec == '未知' and audio_codec == '未知' and format_name == '未知'):
+            if (media_info['video']['codec'] == '未知' and 
+                media_info['audio']['codec'] == '未知' and 
+                media_info['format'] == '未知'):
                 if not hasattr(self, '_media_info_attempts'):
                     self._media_info_attempts = 0
                 self._media_info_attempts += 1
-                if self._media_info_attempts < 5:  # 最多尝试5次
+                if self._media_info_attempts < 10:  # 最多尝试10次
                     QTimer.singleShot(1000, self._try_get_media_info)
                 else:
                     self._media_info_attempts = 0
@@ -526,49 +641,69 @@ class MpvPlayerController(QObject):
     def _get_mpv_property_string(self, property_name):
         """获取mpv字符串属性"""
         try:
-            value = ctypes.c_char_p()
-            result = libmpv.mpv_get_property_string(
-                self.mpv_handle,
-                property_name.encode('utf-8'),
-                ctypes.byref(value)
-            )
-            if result < 0 or not value.value:
+            if not self.mpv_handle:
                 return None
-            property_value = value.value.decode('utf-8')
-            libmpv.mpv_free(value)
-            return property_value
+            
+            try:
+                value = ctypes.c_char_p()
+                result = libmpv.mpv_get_property_string(
+                    self.mpv_handle,
+                    property_name.encode('utf-8'),
+                    ctypes.byref(value)
+                )
+                if result < 0:
+                    return None
+                if not value.value:
+                    return None
+                property_value = value.value.decode('utf-8')
+                libmpv.mpv_free(value)
+                return property_value
+            except Exception as inner_e:
+                return None
         except Exception:
             return None
     
     def _get_mpv_property_int(self, property_name):
         """获取mpv整数属性"""
         try:
-            value = ctypes.c_int64()
-            result = libmpv.mpv_get_property(
-                self.mpv_handle,
-                property_name.encode('utf-8'),
-                MPV_FORMAT_INT64,
-                ctypes.byref(value)
-            )
-            if result < 0:
+            if not self.mpv_handle:
                 return None
-            return value.value
+            
+            try:
+                value = ctypes.c_int64()
+                result = libmpv.mpv_get_property(
+                    self.mpv_handle,
+                    property_name.encode('utf-8'),
+                    MPV_FORMAT_INT64,
+                    ctypes.byref(value)
+                )
+                if result < 0:
+                    return None
+                return value.value
+            except Exception as inner_e:
+                return None
         except Exception:
             return None
     
     def _get_mpv_property_double(self, property_name):
         """获取mpv浮点数属性"""
         try:
-            value = ctypes.c_double()
-            result = libmpv.mpv_get_property(
-                self.mpv_handle,
-                property_name.encode('utf-8'),
-                MPV_FORMAT_DOUBLE,
-                ctypes.byref(value)
-            )
-            if result < 0:
+            if not self.mpv_handle:
                 return None
-            return value.value
+            
+            try:
+                value = ctypes.c_double()
+                result = libmpv.mpv_get_property(
+                    self.mpv_handle,
+                    property_name.encode('utf-8'),
+                    MPV_FORMAT_DOUBLE,
+                    ctypes.byref(value)
+                )
+                if result < 0:
+                    return None
+                return value.value
+            except Exception as inner_e:
+                return None
         except Exception:
             return None
     
