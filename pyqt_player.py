@@ -407,16 +407,6 @@ class IPTVPlayer(QMainWindow):
         from core.epg_parser import global_epg_parser
         self.epg_parser = global_epg_parser
         
-        # 加载EPG数据
-        epg_settings = self.config.load_epg_settings()
-        if epg_settings['epg_url']:
-            import threading
-            # 定义状态回调函数
-            def epg_status_callback(message):
-                # 使用信号更新状态栏
-                self.epg_status_signal.emit(message)
-            threading.Thread(target=self.epg_parser.load_epg_from_url, args=(epg_settings['epg_url'], epg_status_callback), daemon=True).start()
-        
         # 导入 QTimer
         from PyQt6.QtCore import QTimer
         
@@ -2781,27 +2771,22 @@ class IPTVPlayer(QMainWindow):
                 
                 # 如果需要更新，立即加载列表订阅
                 if need_update:
+                    logger.info("列表订阅需要更新，开始下载最新数据")
                     import threading
                     threading.Thread(target=self.update_playlist_subscription, daemon=True).start()
                 else:
                     # 检查是否有本地缓存的列表文件
                     import os
                     cache_dir = self.config.get_value('General', 'cache_dir', 'cache')
-                    logger.info(f"缓存目录: {cache_dir}")
                     if not os.path.exists(cache_dir):
                         os.makedirs(cache_dir)
-                        logger.info(f"创建缓存目录: {cache_dir}")
                     
                     playlist_cache_file = os.path.join(cache_dir, 'playlist_cache.m3u')
-                    logger.info(f"缓存文件路径: {playlist_cache_file}")
                     
                     if os.path.exists(playlist_cache_file):
-                        logger.info(f"缓存文件存在，大小: {os.path.getsize(playlist_cache_file)} bytes")
                         try:
                             with open(playlist_cache_file, 'r', encoding='utf-8') as f:
                                 content = f.read()
-                            
-                            logger.info(f"缓存文件内容长度: {len(content)} characters")
                             
                             # 解析M3U内容
                             if self.channel_model.load_from_file(content):
@@ -2832,7 +2817,7 @@ class IPTVPlayer(QMainWindow):
                                     item.setData(Qt.ItemDataRole.UserRole, ch)
                                     self.channel_list.addItem(item)
                                 
-                                logger.info(f"从缓存加载列表数据，共 {len(CHANNELS)} 个频道")
+                                logger.info(f"列表订阅无需更新，从缓存加载数据，共 {len(CHANNELS)} 个频道")
                                 self.status_bar.showMessage("从缓存加载列表数据")
                             else:
                                 logger.error("缓存列表文件解析失败")
@@ -2920,14 +2905,17 @@ class IPTVPlayer(QMainWindow):
                 
                 # 如果需要更新，立即加载节目单订阅
                 if need_update:
+                    logger.info("节目单订阅需要更新，开始下载最新数据")
                     import threading
                     threading.Thread(target=self.update_epg_subscription, daemon=True).start()
                 else:
                     # 从缓存加载EPG数据
                     from core.epg_parser import global_epg_parser
+                    # 加载缓存的EPG数据
+                    global_epg_parser.load_cached_epg_data()
                     if global_epg_parser.epg_data:
                         EPG_DATA = global_epg_parser.epg_data
-                        logger.info(f"从缓存加载EPG数据，包含 {len(EPG_DATA)} 个频道")
+                        logger.info(f"节目单订阅无需更新，从缓存加载数据，共 {len(EPG_DATA)} 个频道")
                     else:
                         # 如果缓存数据为空，强制更新
                         logger.info("EPG缓存数据为空，强制更新")
@@ -3023,61 +3011,28 @@ class IPTVPlayer(QMainWindow):
             if not epg_url:
                 return
             
-            # 获取用户设置的更新间隔
-            epg_interval = int(self.config.get_value('EPG', 'update_interval', '60'))
+            logger.info(f"开始更新节目单订阅: {epg_url}")
             
-            # 检查是否需要更新
-            last_update_str = self.config.get_value('EPG', 'last_update', None)
-            need_update = True
-            if last_update_str:
-                try:
-                    from datetime import datetime
-                    last_update = datetime.fromisoformat(last_update_str)
-                    time_since_update = datetime.now() - last_update
-                    if time_since_update.total_seconds() < epg_interval * 60:
-                        need_update = False
-                        logger.info(f"节目单订阅无需更新，上次更新时间: {last_update}")
-                except Exception as e:
-                    logger.error(f"解析EPG上次更新时间失败: {e}")
-                    pass
-            
-            if need_update:
-                logger.info(f"开始更新节目单订阅: {epg_url}")
-                
-                # 使用EPGParser的load_epg_from_url方法
-                from core.epg_parser import global_epg_parser
-                if global_epg_parser.load_epg_from_url(epg_url):
-                    # 更新全局EPG_DATA
-                    EPG_DATA = global_epg_parser.epg_data
-                    logger.info(f"节目单订阅更新成功，共 {len(EPG_DATA)} 个频道的节目单")
-                    self.status_bar.showMessage("节目单订阅更新成功")
-                else:
-                    # 如果加载失败，从缓存加载
-                    if global_epg_parser.epg_data:
-                        EPG_DATA = global_epg_parser.epg_data
-                        logger.info(f"使用缓存的EPG数据，包含 {len(EPG_DATA)} 个频道")
-                        self.status_bar.showMessage("使用缓存的EPG数据")
-                    else:
-                        logger.error("节目单订阅内容解析失败")
-                        self.status_bar.showMessage("节目单订阅内容解析失败")
+            # 使用EPGParser的load_epg_from_url方法
+            from core.epg_parser import global_epg_parser
+            if global_epg_parser.load_epg_from_url(epg_url):
+                # 更新全局EPG_DATA
+                EPG_DATA = global_epg_parser.epg_data
+                # 保存最后更新时间
+                from datetime import datetime
+                self.config.set_value('EPG', 'last_update', datetime.now().isoformat())
+                self.config.save_config()
+                logger.info(f"节目单订阅更新成功，共 {len(EPG_DATA)} 个频道的节目单，已使用最新数据")
+                self.status_bar.showMessage("节目单订阅更新成功")
             else:
-                # 不需要更新，从缓存加载
-                from core.epg_parser import global_epg_parser
+                # 如果加载失败，从缓存加载
                 if global_epg_parser.epg_data:
                     EPG_DATA = global_epg_parser.epg_data
                     logger.info(f"使用缓存的EPG数据，包含 {len(EPG_DATA)} 个频道")
                     self.status_bar.showMessage("使用缓存的EPG数据")
                 else:
-                    # 缓存为空，强制更新
-                    logger.info("EPG缓存数据为空，强制更新")
-                    from core.epg_parser import global_epg_parser
-                    if global_epg_parser.load_epg_from_url(epg_url):
-                        EPG_DATA = global_epg_parser.epg_data
-                        logger.info(f"节目单订阅更新成功，共 {len(EPG_DATA)} 个频道的节目单")
-                        self.status_bar.showMessage("节目单订阅更新成功")
-                    else:
-                        logger.error("节目单订阅内容解析失败")
-                        self.status_bar.showMessage("节目单订阅内容解析失败")
+                    logger.error("节目单订阅内容解析失败")
+                    self.status_bar.showMessage("节目单订阅内容解析失败")
         except Exception as ex:
             logger.error(f"更新节目单订阅失败: {str(ex)}")
             self.status_bar.showMessage(f"更新节目单订阅失败: {str(ex)}")

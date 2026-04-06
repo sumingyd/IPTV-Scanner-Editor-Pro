@@ -23,8 +23,6 @@ class EPGParser:
                 self.last_update = datetime.fromisoformat(last_update_str)
             except Exception:
                 pass
-        # 尝试加载缓存的EPG数据
-        self.load_cached_epg_data()
     
     def load_cached_epg_data(self):
         """从缓存文件加载EPG数据"""
@@ -41,7 +39,6 @@ class EPGParser:
                 import json
                 with open(epg_cache_file, 'r', encoding='utf-8') as f:
                     self.epg_data = json.load(f)
-                logger.info(f"从缓存文件加载EPG数据，包含 {len(self.epg_data)} 个频道")
             except Exception as e:
                 logger.error(f"加载EPG缓存数据失败: {e}")
                 self.epg_data = {}
@@ -91,7 +88,30 @@ class EPGParser:
             response = requests.get(epg_url, timeout=30)
             response.raise_for_status()
             
-            content_length = len(response.text)
+            # 检查是否是.gz压缩文件
+            content = response.content
+            if epg_url.endswith('.gz') or response.headers.get('Content-Encoding') == 'gzip':
+                logger.info("检测到.gz压缩文件，正在解压...")
+                import gzip
+                from io import BytesIO
+                try:
+                    with gzip.GzipFile(fileobj=BytesIO(content)) as f:
+                        content = f.read()
+                except Exception as e:
+                    logger.error(f"解压.gz文件失败: {e}")
+                    return False
+            
+            # 转换为文本
+            try:
+                epg_content = content.decode('utf-8')
+            except UnicodeDecodeError:
+                try:
+                    epg_content = content.decode('gbk')
+                except UnicodeDecodeError:
+                    logger.error("无法解码EPG文件内容")
+                    return False
+            
+            content_length = len(epg_content)
             if content_length == 0:
                 logger.error("EPG数据为空")
                 if status_callback:
@@ -101,7 +121,7 @@ class EPGParser:
             if status_callback:
                 status_callback("正在解析EPG数据...")
             
-            self.epg_data = self.parse_epg_data(response.text)
+            self.epg_data = self.parse_epg_data(epg_content)
             self.last_update = datetime.now()
             # 保存last_update到配置文件
             from core.config_manager import ConfigManager
@@ -181,12 +201,17 @@ class EPGParser:
                 if channel_id and start and title:
                     # 转换时间格式
                     try:
-                        # 假设时间格式为 YYYYMMDDHHMMSS timezone，例如 20240404180000 +0800
-                        start_time = datetime.strptime(start[:14], '%Y%m%d%H%M%S')
+                        # 清理时间字符串，只保留数字部分
+                        def clean_time_str(time_str):
+                            return ''.join(c for c in time_str if c.isdigit())[:14]
+                        
+                        start_clean = clean_time_str(start)
+                        start_time = datetime.strptime(start_clean, '%Y%m%d%H%M%S')
                         
                         # 处理end属性为None的情况
                         if end:
-                            end_time = datetime.strptime(end[:14], '%Y%m%d%H%M%S')
+                            end_clean = clean_time_str(end)
+                            end_time = datetime.strptime(end_clean, '%Y%m%d%H%M%S')
                         else:
                             # 如果end为None，假设节目持续30分钟
                             end_time = start_time + timedelta(minutes=30)
