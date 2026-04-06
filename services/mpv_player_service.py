@@ -341,6 +341,15 @@ class MpvPlayerController(QObject):
                 cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
                 libmpv.mpv_command(self.mpv_handle, cmd_ptr)
             
+            # 取消媒体信息获取任务
+            if hasattr(self, '_media_info_timer') and self._media_info_timer:
+                self._media_info_timer.stop()
+            
+            # 取消ffprobe任务
+            if hasattr(self, '_current_ffprobe_worker') and self._current_ffprobe_worker:
+                self._current_ffprobe_worker.is_running = False
+                delattr(self, '_current_ffprobe_worker')
+            
             self.is_playing = False
             self.play_state_changed.emit(False)
             self.current_url = None
@@ -416,8 +425,8 @@ class MpvPlayerController(QObject):
             if time_seconds:
                 return int(time_seconds * 1000)
             return 0
-        except Exception as e:
-            self.logger.error(f"获取当前时间失败: {str(e)}")
+        except Exception:
+            # 静默处理异常，避免产生大量日志
             return 0
     
     def get_total_time(self):
@@ -430,8 +439,8 @@ class MpvPlayerController(QObject):
             if duration_seconds:
                 return int(duration_seconds * 1000)
             return 0
-        except Exception as e:
-            self.logger.error(f"获取总时间失败: {str(e)}")
+        except Exception:
+            # 静默处理异常，避免产生大量日志
             return 0
 
     def get_position(self):
@@ -444,8 +453,8 @@ class MpvPlayerController(QObject):
             if percent_pos:
                 return percent_pos / 100.0
             return 0
-        except Exception as e:
-            self.logger.error(f"获取播放位置失败: {str(e)}")
+        except Exception:
+            # 静默处理异常，避免产生大量日志
             return 0
     
     def seek(self, position):
@@ -540,8 +549,13 @@ class MpvPlayerController(QObject):
         Args:
             url: 媒体URL
         """
+        # 取消之前的媒体信息获取任务
+        if hasattr(self, '_media_info_timer') and self._media_info_timer:
+            self._media_info_timer.stop()
+        
         # 延迟获取媒体信息，确保媒体已加载
-        QTimer.singleShot(2000, self._try_get_media_info)
+        self._media_info_timer = QTimer(self)
+        self._media_info_timer.singleShot(2000, self._try_get_media_info)
     
     def _try_get_media_info(self):
         """尝试获取媒体信息"""
@@ -549,125 +563,155 @@ class MpvPlayerController(QObject):
             return
         
         try:
-            # 构建基本媒体信息
-            media_info = {
-                'format': '未知',
-                'duration': 0,
-                'protocol': '未知',
-                'video': {
-                    'codec': '未知',
-                    'width': 0,
-                    'height': 0,
-                    'frame_rate': 0,
-                    'bit_rate': 0
-                },
-                'audio': {
-                    'codec': '未知',
-                    'channels': 0,
-                    'sample_rate': 0,
-                    'bit_rate': 0
-                }
-            }
-            
-            # 尝试获取协议
-            protocol = self._get_mpv_property_string('path')
-            if protocol and '://' in protocol:
-                media_info['protocol'] = protocol.split('://')[0].upper()
-            
-            # 尝试获取视频编码
-            video_codec = self._get_mpv_property_string('video-codec')
-            if not video_codec:
-                video_codec = self._get_mpv_property_string('video-codec-name')
-            if video_codec:
-                media_info['video']['codec'] = video_codec
-            
-            # 尝试获取视频尺寸
-            width = self._get_mpv_property_int('dwidth')
-            if not width:
-                width = self._get_mpv_property_int('width')
-            if not width:
-                width = self._get_mpv_property_int('video-params/w')
-            if width:
-                media_info['video']['width'] = width
-            
-            height = self._get_mpv_property_int('dheight')
-            if not height:
-                height = self._get_mpv_property_int('height')
-            if not height:
-                height = self._get_mpv_property_int('video-params/h')
-            if height:
-                media_info['video']['height'] = height
-            
-            # 尝试获取帧率
-            fps = self._get_mpv_property_double('container-fps')
-            if not fps:
-                fps = self._get_mpv_property_double('fps')
-            if not fps:
-                fps = self._get_mpv_property_double('video-params/fps')
-            if fps:
-                media_info['video']['frame_rate'] = fps
-            
-            # 尝试获取视频码率
-            video_bitrate = self._get_mpv_property_double('video-bitrate')
-            if video_bitrate:
-                media_info['video']['bit_rate'] = int(video_bitrate)
-            
-            # 尝试获取音频信息
-            audio_codec = self._get_mpv_property_string('audio-codec')
-            if not audio_codec:
-                audio_codec = self._get_mpv_property_string('audio-codec-name')
-            if audio_codec:
-                media_info['audio']['codec'] = audio_codec
-            
-            channels = self._get_mpv_property_int('audio-params/channel-count')
-            if not channels:
-                channels = self._get_mpv_property_int('audio-channels')
-            if not channels:
-                channels = self._get_mpv_property_int('audio-params/channels')
-            if channels:
-                media_info['audio']['channels'] = channels
-            
-            sample_rate = self._get_mpv_property_int('audio-params/samplerate')
-            if not sample_rate:
-                sample_rate = self._get_mpv_property_int('audio-samplerate')
-            if sample_rate:
-                media_info['audio']['sample_rate'] = sample_rate
-            
-            # 尝试获取音频码率
-            audio_bitrate = self._get_mpv_property_double('audio-bitrate')
-            if audio_bitrate:
-                media_info['audio']['bit_rate'] = int(audio_bitrate)
-            
-            # 尝试获取文件格式
-            format_name = self._get_mpv_property_string('file-format')
-            if not format_name:
-                format_name = self._get_mpv_property_string('container-format')
-            if format_name:
-                media_info['format'] = format_name
-            
-            # 尝试获取时长
-            duration = self._get_mpv_property_double('duration')
-            if duration:
-                media_info['duration'] = duration
-            
-            # 记录获取到的媒体信息
-            self.logger.info(f"获取到媒体信息: {media_info}")
-            self.media_info_ready.emit(media_info)
-            
-            # 如果没有获取到关键信息，再尝试几次
-            if (media_info['video']['codec'] == '未知' and 
-                media_info['audio']['codec'] == '未知' and 
-                media_info['format'] == '未知'):
-                if not hasattr(self, '_media_info_attempts'):
-                    self._media_info_attempts = 0
-                self._media_info_attempts += 1
-                if self._media_info_attempts < 10:  # 最多尝试10次
-                    QTimer.singleShot(1000, self._try_get_media_info)
-                else:
-                    self._media_info_attempts = 0
+            # 直接使用ffprobe获取媒体信息
+            if hasattr(self, 'current_url') and self.current_url:
+                # 使用线程执行ffprobe，避免UI卡顿
+                from PyQt6.QtCore import QThreadPool, QRunnable
+                
+                class FFProbeWorker(QRunnable):
+                    def __init__(self, url, callback, parent):
+                        super().__init__()
+                        self.url = url
+                        self.callback = callback
+                        self.parent = parent
+                        self.is_running = True
+                    
+                    def run(self):
+                        try:
+                            import subprocess
+                            import json
+                            
+                            # 检查ffprobe是否存在
+                            try:
+                                subprocess.run(['ffprobe', '-version'], capture_output=True, text=True, timeout=5)
+                            except Exception:
+                                self.callback(None)
+                                return
+                            
+                            # 检查是否已经被取消
+                            if not self.is_running:
+                                return
+                            
+                            # 构建ffprobe命令
+                            cmd = [
+                                'ffprobe',
+                                '-v', 'quiet',
+                                '-print_format', 'json',
+                                '-show_format',
+                                '-show_streams',
+                                self.url
+                            ]
+                            
+                            # 执行命令
+                            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                            
+                            # 检查是否已经被取消
+                            if not self.is_running:
+                                return
+                            
+                            if result.returncode == 0:
+                                # 解析结果
+                                data = json.loads(result.stdout)
+                                
+                                # 构建媒体信息
+                                media_info = {
+                                    'format': '未知',
+                                    'duration': 0,
+                                    'protocol': '未知',
+                                    'video': {
+                                        'codec': '未知',
+                                        'width': 0,
+                                        'height': 0,
+                                        'frame_rate': 0,
+                                        'bit_rate': 0
+                                    },
+                                    'audio': {
+                                        'codec': '未知',
+                                        'channels': 0,
+                                        'sample_rate': 0,
+                                        'bit_rate': 0
+                                    }
+                                }
+                                
+                                # 从当前URL获取协议信息
+                                if '://' in self.url:
+                                    media_info['protocol'] = self.url.split('://')[0].upper()
+                                
+                                # 处理格式信息
+                                if 'format' in data:
+                                    format_data = data['format']
+                                    if 'format_name' in format_data:
+                                        media_info['format'] = format_data['format_name']
+                                    if 'duration' in format_data:
+                                        try:
+                                            media_info['duration'] = float(format_data['duration'])
+                                        except:
+                                            pass
+                                
+                                # 处理流信息
+                                if 'streams' in data:
+                                    for stream in data['streams']:
+                                        if stream.get('codec_type') == 'video':
+                                            if 'codec_name' in stream:
+                                                media_info['video']['codec'] = stream['codec_name']
+                                            if 'width' in stream:
+                                                media_info['video']['width'] = stream['width']
+                                            if 'height' in stream:
+                                                media_info['video']['height'] = stream['height']
+                                            if 'r_frame_rate' in stream:
+                                                try:
+                                                    num, den = map(int, stream['r_frame_rate'].split('/'))
+                                                    if den > 0:
+                                                        media_info['video']['frame_rate'] = num / den
+                                                except:
+                                                    pass
+                                            if 'bit_rate' in stream:
+                                                try:
+                                                    media_info['video']['bit_rate'] = int(stream['bit_rate'])
+                                                except:
+                                                    pass
+                                        elif stream.get('codec_type') == 'audio':
+                                            if 'codec_name' in stream:
+                                                media_info['audio']['codec'] = stream['codec_name']
+                                            if 'channels' in stream:
+                                                media_info['audio']['channels'] = stream['channels']
+                                            if 'sample_rate' in stream:
+                                                try:
+                                                    media_info['audio']['sample_rate'] = int(stream['sample_rate'])
+                                                except:
+                                                    pass
+                                            if 'bit_rate' in stream:
+                                                try:
+                                                    media_info['audio']['bit_rate'] = int(stream['bit_rate'])
+                                                except:
+                                                    pass
+                                
+                                # 记录获取到的媒体信息
+                                self.callback(media_info)
+                            else:
+                                self.callback(None)
+                        except Exception:
+                            self.callback(None)
+                
+                # 取消之前的ffprobe任务
+                if hasattr(self, '_current_ffprobe_worker') and self._current_ffprobe_worker:
+                    self._current_ffprobe_worker.is_running = False
+                
+                # 启动线程
+                def on_ffprobe_finished(media_info):
+                    if media_info:
+                        self.logger.info(f"使用ffprobe获取到媒体信息: {media_info}")
+                        self.media_info_ready.emit(media_info)
+                    # 清除当前worker
+                    if hasattr(self, '_current_ffprobe_worker'):
+                        delattr(self, '_current_ffprobe_worker')
+                
+                worker = FFProbeWorker(self.current_url, on_ffprobe_finished, self)
+                self._current_ffprobe_worker = worker
+                QThreadPool.globalInstance().start(worker)
                 
         except Exception as e:
-            self.logger.error(f"使用libmpv获取媒体信息失败: {str(e)}")
+            self.logger.error(f"获取媒体信息失败: {str(e)}")
     
     def _get_mpv_property_string(self, property_name):
         """获取mpv字符串属性"""
@@ -675,23 +719,20 @@ class MpvPlayerController(QObject):
             if not self.mpv_handle:
                 return None
             
-            try:
-                value = ctypes.c_char_p()
-                result = libmpv.mpv_get_property_string(
-                    self.mpv_handle,
-                    property_name.encode('utf-8'),
-                    ctypes.byref(value)
-                )
-                if result < 0:
-                    return None
-                if not value.value:
-                    return None
-                property_value = value.value.decode('utf-8')
-                libmpv.mpv_free(value)
-                return property_value
-            except Exception as inner_e:
+            value = ctypes.c_char_p()
+            result = libmpv.mpv_get_property_string(
+                self.mpv_handle,
+                property_name.encode('utf-8'),
+                ctypes.byref(value)
+            )
+            if result < 0:
                 return None
-        except Exception:
+            if not value.value:
+                return None
+            property_value = value.value.decode('utf-8')
+            libmpv.mpv_free(value)
+            return property_value
+        except:
             return None
     
     def _get_mpv_property_int(self, property_name):
@@ -700,20 +741,17 @@ class MpvPlayerController(QObject):
             if not self.mpv_handle:
                 return None
             
-            try:
-                value = ctypes.c_int64()
-                result = libmpv.mpv_get_property(
-                    self.mpv_handle,
-                    property_name.encode('utf-8'),
-                    MPV_FORMAT_INT64,
-                    ctypes.byref(value)
-                )
-                if result < 0:
-                    return None
-                return value.value
-            except Exception as inner_e:
+            value = ctypes.c_int64()
+            result = libmpv.mpv_get_property(
+                self.mpv_handle,
+                property_name.encode('utf-8'),
+                MPV_FORMAT_INT64,
+                ctypes.byref(value)
+            )
+            if result < 0:
                 return None
-        except Exception:
+            return value.value
+        except:
             return None
     
     def _get_mpv_property_double(self, property_name):
@@ -722,20 +760,17 @@ class MpvPlayerController(QObject):
             if not self.mpv_handle:
                 return None
             
-            try:
-                value = ctypes.c_double()
-                result = libmpv.mpv_get_property(
-                    self.mpv_handle,
-                    property_name.encode('utf-8'),
-                    MPV_FORMAT_DOUBLE,
-                    ctypes.byref(value)
-                )
-                if result < 0:
-                    return None
-                return value.value
-            except Exception as inner_e:
+            value = ctypes.c_double()
+            result = libmpv.mpv_get_property(
+                self.mpv_handle,
+                property_name.encode('utf-8'),
+                MPV_FORMAT_DOUBLE,
+                ctypes.byref(value)
+            )
+            if result < 0:
                 return None
-        except Exception:
+            return value.value
+        except:
             return None
     
     from PyQt6.QtCore import pyqtSlot

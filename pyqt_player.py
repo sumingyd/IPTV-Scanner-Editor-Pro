@@ -1847,9 +1847,9 @@ class IPTVPlayer(QMainWindow):
             protocol = media_info.get('protocol', '未知')
             
             # 更新显示
-            self.video_info.setText(f"📺 {video_codec} {video_resolution} {video_bitrate_str}")
-            self.audio_info.setText(f"🔊 {audio_codec} {channels}ch {sample_rate}Hz {audio_bitrate_str}")
-            self.network_info.setText(f"📡 {format_name} {protocol}")
+            self.video_info.setText(f"📺 编码: {video_codec} | 分辨率: {video_resolution} | 码率: {video_bitrate_str}")
+            self.audio_info.setText(f"🔊 编码: {audio_codec} | 声道: {channels}ch | 采样率: {sample_rate}Hz | 码率: {audio_bitrate_str}")
+            self.network_info.setText(f"📡 格式: {format_name} | 协议: {protocol}")
             
             # 更新状态栏消息
             if self.current_channel:
