@@ -259,11 +259,23 @@ class IPTVPlayer(QMainWindow):
         logger.debug("开始初始化 IPTVPlayer（最小化）")
         super().__init__()
         logger.debug("设置窗口属性")
+        # 配置管理器
+        from core.config_manager import ConfigManager
+        self.config = ConfigManager()
+        
         # 获取当前版本号并设置窗口标题
         from ui.dialogs.about_dialog import AboutDialog
         current_version = AboutDialog.CURRENT_VERSION
         self.setWindowTitle(f"IPTV Scanner Editor Pro v{current_version}")
-        self.setGeometry(100, 100, 1280, 780)
+        
+        # 加载窗口布局（包括位置和大小）
+        x, y, width, height, _ = self.config.load_window_layout(
+            default_x=100,
+            default_y=100,
+            default_width=1280,
+            default_height=780
+        )
+        self.setGeometry(x, y, width, height)
         self.setMinimumSize(800, 600)
 
         # 连接EPG状态信号到槽函数
@@ -297,10 +309,6 @@ class IPTVPlayer(QMainWindow):
         # LOGO 缓存
         self.logo_cache = {}
         
-        # 配置管理器
-        from core.config_manager import ConfigManager
-        self.config = ConfigManager()
-        
         # EPG解析器
         from core.epg_parser import global_epg_parser
         self.epg_parser = global_epg_parser
@@ -310,8 +318,10 @@ class IPTVPlayer(QMainWindow):
         
         # 初始化定时器占位符
         self.update_timer = None
+        self.resize_timer = None
         self._initialization_complete = False
         self._panels_initialized = False
+        self._ui_initialized = False
         
         # 注意：所有悬浮窗先不创建
         self.epg_panel = None
@@ -429,6 +439,9 @@ class IPTVPlayer(QMainWindow):
         
         # 使用 QTimer 延迟执行，确保在主线程中执行
         QTimer.singleShot(1000, load_data_with_delay)
+        
+        # 标记UI初始化完成
+        self._ui_initialized = True
         
         logger.debug("_initialize_in_order: 完成")
     
@@ -1505,12 +1518,12 @@ class IPTVPlayer(QMainWindow):
                 if start_time.date() == self.current_epg_date or end_time.date() == self.current_epg_date:
                     filtered_programs.append(program)
                     # 记录节目信息，用于调试
-                    logger.info(f"添加节目: {program.get('title', '未知节目')}, 开始: {start_time}, 结束: {end_time}")
+                    logger.debug(f"添加节目: {program.get('title', '未知节目')}, 开始: {start_time}, 结束: {end_time}")
                 # 检查节目是否是昨天的节目
                 elif start_time.date() == self.current_epg_date - timedelta(days=1):
                     yesterday_programs.append(program)
                     # 记录节目信息，用于调试
-                    logger.info(f"添加昨天的节目: {program.get('title', '未知节目')}, 开始: {start_time}, 结束: {end_time}")
+                    logger.debug(f"添加昨天的节目: {program.get('title', '未知节目')}, 开始: {start_time}, 结束: {end_time}")
             except Exception as e:
                 logger.error(f"过滤节目失败: {e}")
                 continue
@@ -1589,7 +1602,7 @@ class IPTVPlayer(QMainWindow):
             logger.info(f"添加提示项: 当前时间 {now_str} 没有正在播放的节目")
         
         # 记录排序后的节目信息，用于调试
-        logger.info(f"排序后的节目列表:")
+        logger.debug(f"排序后的节目列表:")
         for i, program in enumerate(filtered_programs):
             try:
                 # 检查是否是QListWidgetItem对象（提示项）
@@ -2188,9 +2201,8 @@ class IPTVPlayer(QMainWindow):
     def on_play_state_changed(self, is_playing):
         """播放状态改变时的处理"""
         # 确保在主线程中执行
-        from PyQt6.QtCore import QMetaObject, Qt
-        QMetaObject.invokeMethod(self, "_handle_play_state_change", Qt.ConnectionType.QueuedConnection, 
-                                Qt.Q_ARG(bool, is_playing))
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(0, lambda: self._handle_play_state_change(is_playing))
     
     def _handle_play_state_change(self, is_playing):
         """处理播放状态改变（在主线程中执行）"""
@@ -3513,6 +3525,21 @@ class IPTVPlayer(QMainWindow):
             logger.error(f"切换语言失败: {str(e)}")
             self.status_bar.showMessage("切换语言失败")
     
+    def save_window_layout(self):
+        """保存窗口布局（包括位置和大小）"""
+        # 只有当UI初始化完成后才保存窗口布局
+        if not hasattr(self, '_ui_initialized') or not self._ui_initialized:
+            return
+            
+        try:
+            pos = self.pos()
+            size = self.size()
+            # 保存窗口布局（包括位置和大小）
+            self.config.save_window_layout(pos.x(), pos.y(), size.width(), size.height(), [])
+            logger.debug(f"保存窗口布局: x={pos.x()}, y={pos.y()}, width={size.width()}, height={size.height()}")
+        except Exception as e:
+            logger.error(f"保存窗口布局失败: {e}")
+    
     def moveEvent(self, event):
         """主窗口移动时，更新悬浮窗口位置"""
         super().moveEvent(event)
@@ -3522,6 +3549,22 @@ class IPTVPlayer(QMainWindow):
         """主窗口调整大小时，更新悬浮窗口位置"""
         super().resizeEvent(event)
         self.update_floating_position()
+        
+        # 使用防抖机制，避免频繁保存配置
+        if self.resize_timer:
+            self.resize_timer.stop()
+        
+        # 创建新的定时器，300毫秒后保存配置
+        self.resize_timer = QTimer(self)
+        self.resize_timer.setSingleShot(True)
+        self.resize_timer.timeout.connect(self.save_window_layout)
+        self.resize_timer.start(300)
+    
+    def closeEvent(self, event):
+        """窗口关闭时，保存窗口布局"""
+        # 保存窗口布局
+        self.save_window_layout()
+        super().closeEvent(event)
     
     def keyPressEvent(self, event):
         """键盘事件处理"""
