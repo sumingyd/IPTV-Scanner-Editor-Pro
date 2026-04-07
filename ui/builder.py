@@ -148,8 +148,7 @@ class UIBuilder(QtCore.QObject):
 
     def _init_ui(self):
         """初始化用户界面"""
-        # 使用默认窗口位置和大小
-        self.main_window.move(100, 100)
+        # 使用默认窗口大小
         self.main_window.resize(1000, 700)
 
         # 连接窗口大小变化信号
@@ -452,6 +451,21 @@ class UIBuilder(QtCore.QObject):
             QCheckBox {
                 color: white;
                 font-size: 12px;
+                spacing: 8px;
+            }
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+                border: 2px solid #555;
+                border-radius: 3px;
+                background-color: #3a3a3a;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #4a7eff;
+                border-color: #4a7eff;
+            }
+            QCheckBox::indicator:hover {
+                border-color: #4a7eff;
             }
             QPushButton {
                 background-color: #4a7eff;
@@ -2021,17 +2035,68 @@ class UIBuilder(QtCore.QObject):
         """配置频道编辑区域 - 根据用户反馈优化布局"""
         edit_group = QtWidgets.QGroupBox("频道编辑")
         self.main_window.edit_group = edit_group  # 设置为属性以便语言管理器访问
+        
+        # 设置频道编辑区域的样式，确保它是一个块，并且文字颜色是白色的
+        edit_group.setStyleSheet("""
+            QGroupBox {
+                background-color: #2a2a2a;
+                color: white;
+                border: 1px solid #555;
+                border-radius: 8px;
+                margin-top: 12px;
+                padding-top: 16px;
+                font-weight: 600;
+                font-size: 13px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 6px;
+                color: white;
+                font-weight: 600;
+            }
+            QLabel {
+                color: white;
+                font-size: 12px;
+            }
+            QLineEdit {
+                background-color: #3a3a3a;
+                color: white;
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 6px;
+            }
+            QPushButton {
+                background-color: #4a7eff;
+                color: white;
+                border: 1px solid #4a7eff;
+                border-radius: 4px;
+                padding: 6px 12px;
+                min-width: 70px;
+                min-height: 30px;
+                font-weight: 500;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #3a6eff;
+                border-color: #3a6eff;
+            }
+            QPushButton:pressed {
+                background-color: #2a5eff;
+                border-color: #2a5eff;
+            }
+        """)
 
         # 使用垂直布局作为主布局
         main_layout = QtWidgets.QVBoxLayout()
-        main_layout.setContentsMargins(5, 5, 5, 5)
-        main_layout.setSpacing(5)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(8)
 
         # 创建内容部件（不使用滚动区域，让分割器控制高度）
         content_widget = QtWidgets.QWidget()
         content_layout = QtWidgets.QFormLayout()
         content_layout.setContentsMargins(5, 5, 5, 5)
-        content_layout.setSpacing(5)
+        content_layout.setSpacing(8)
 
         # 创建所有输入控件
         self._create_channel_edit_controls()
