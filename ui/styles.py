@@ -286,23 +286,415 @@ class AppStyles:
         """状态栏样式(自动适应深色/浅色模式)"""
         return """
             QStatusBar {
-                background-color: palette(button);
-                color: palette(windowText);
-                border-top: 1px solid palette(mid);
-                padding: 6px 12px;
-                font-size: 12px;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                font-weight: 500;
+                background-color: #2a2a2a;
+                color: white;
+                padding: 4px;
             }
-            QStatusBar::item {
+        """
+
+    @staticmethod
+    def player_toolbar_style() -> str:
+        """播放器工具栏样式"""
+        return """
+            QToolBar {
+                background-color: #2a2a2a;
+                color: white;
+                padding: 4px;
+            }
+            QToolBar QPushButton {
+                background-color: #3a3a3a;
+                color: white;
+                border: 1px solid #555;
+                padding: 5px 10px;
+                border-radius: 3px;
+                margin: 2px;
+            }
+            QToolBar QPushButton:hover {
+                background-color: #4a4a4a;
+            }
+        """
+
+    @staticmethod
+    def player_panel_style() -> str:
+        """播放器面板样式"""
+        return """
+            QLabel {
                 border: none;
-                padding: 0 6px;
+                background-color: transparent;
             }
-            QStatusBar QLabel {
-                color: palette(windowText);
+            QListWidget {
+                border: none;
+                background-color: transparent;
+            }
+            QComboBox {
+                border: none;
+            }
+        """
+
+    @staticmethod
+    def player_button_style() -> str:
+        """播放器按钮样式"""
+        return """
+            QToolButton {
+                color: white;
+                font-size: 14px;
+                background-color: rgba(60, 60, 60, 0.9);
+                border-radius: 4px;
+                border: none;
+            }
+        """
+
+    @staticmethod
+    def player_slider_style() -> str:
+        """播放器滑块样式"""
+        return """
+            QSlider {
+                background-color: transparent;
+            }
+            QSlider::groove:horizontal { 
+                background: #555555; 
+                height: 4px; 
+                border-radius: 2px;
+            } 
+            QSlider::sub-page:horizontal {
+                background: #4CAF50;
+                height: 4px;
+                border-radius: 2px;
+            }
+            QSlider::handle:horizontal { 
+                background: #ffffff; 
+                width: 10px; 
+                height: 10px; 
+                border-radius: 5px;
+                margin: -3px 0;
+            }
+        """
+
+    @staticmethod
+    def player_volume_slider_style() -> str:
+        """播放器音量滑块样式"""
+        return """
+            QSlider::groove:horizontal { 
+                background: #444444; 
+                height: 4px; 
+                border-radius: 2px;
+            } 
+            QSlider::sub-page:horizontal {
+                background: #4CAF50;
+                height: 4px;
+                border-radius: 2px;
+            }
+            QSlider::handle:horizontal { 
+                background: #ffffff; 
+                width: 12px; 
+                height: 12px; 
+                border-radius: 6px;
+                margin: -4px 0;
+            }
+        """
+
+    @staticmethod
+    def exit_catchup_button_style() -> str:
+        """退出回看按钮样式"""
+        return """
+            QToolButton {
+                color: white;
                 font-size: 12px;
-                font-weight: 500;
-                opacity: 0.8;
+                background-color: rgba(255, 100, 100, 0.9);
+                border-radius: 4px;
+                border: none;
+            }
+        """
+
+    @staticmethod
+    def player_label_style() -> str:
+        """播放器标签样式"""
+        return """
+            QLabel {
+                color: #aaaaaa;
+                font-size: 12px;
+                background-color: transparent;
+            }
+        """
+
+    @staticmethod
+    def player_channel_name_style() -> str:
+        """播放器频道名称样式"""
+        return """
+            QLabel {
+                color: white;
+                font-size: 18px;
+                font-weight: bold;
+                background-color: transparent;
+            }
+        """
+
+    @staticmethod
+    def player_program_style() -> str:
+        """播放器节目样式"""
+        return """
+            QLabel {
+                color: #4CAF50;
+                font-size: 13px;
+                background-color: transparent;
+            }
+        """
+
+    @staticmethod
+    def player_program_desc_style() -> str:
+        """播放器节目描述样式"""
+        return """
+            QLabel {
+                color: #cccccc;
+                font-size: 14px;
+                background-color: transparent;
+            }
+        """
+
+    @staticmethod
+    def player_date_button_style() -> str:
+        """播放器日期按钮样式"""
+        return """
+            QPushButton {
+                background-color: transparent;
+                color: #888;
+                border: none;
+                font-size: 12px;
+            }
+        """
+
+    @staticmethod
+    def player_date_label_style() -> str:
+        """播放器日期标签样式"""
+        return """
+            QLabel {
+                color: white;
+                font-size: 12px;
+            }
+        """
+
+    @staticmethod
+    def player_epg_title_style() -> str:
+        """播放器EPG标题样式"""
+        return """
+            QLabel {
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 8px;
+                background-color: transparent;
+            }
+        """
+
+    @staticmethod
+    def player_group_combo_style() -> str:
+        """播放器分组下拉框样式"""
+        return """
+            QComboBox {
+                background-color: rgba(45, 45, 45, 0.8);
+                color: white;
+                padding: 4px;
+                border: none;
+                font-size: 12px;
+            }
+        """
+
+    @staticmethod
+    def player_playlist_title_style() -> str:
+        """播放器播放列表标题样式"""
+        return """
+            QLabel {
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 8px;
+                background-color: transparent;
+            }
+        """
+
+    @staticmethod
+    def player_line_style() -> str:
+        """播放器分割线样式"""
+        return """
+            QFrame {
+                background-color: #555555;
+                max-height: 1px;
+            }
+        """
+
+    @staticmethod
+    def player_video_placeholder_style() -> str:
+        """播放器视频占位符样式"""
+        return """
+            QLabel {
+                font-size: 200px;
+                color: #1a1a1a;
+                background-color: transparent;
+            }
+        """
+
+    @staticmethod
+    def player_empty_label_style() -> str:
+        """播放器空状态标签样式"""
+        return """
+            QLabel {
+                color: #666666;
+                font-size: 12px;
+                background-color: transparent;
+            }
+        """
+
+    @staticmethod
+    def player_list_style() -> str:
+        """播放器列表样式"""
+        return """
+            QListWidget {
+                background-color: transparent;
+                color: white;
+                border: none;
+                padding: 5px;
+            }
+        """
+
+    @staticmethod
+    def player_progress_label_style() -> str:
+        """播放器进度标签样式"""
+        return """
+            QLabel {
+                color: #888888;
+                font-size: 11px;
+                background-color: transparent;
+            }
+        """
+
+    @staticmethod
+    def player_channel_logo_style() -> str:
+        """播放器频道LOGO样式"""
+        return """
+            QLabel {
+                font-size: 24px;
+                background-color: transparent;
+            }
+        """
+
+    @staticmethod
+    def player_background_style() -> str:
+        """播放器背景样式"""
+        return """
+            background-color: #000000;
+        """
+
+    @staticmethod
+    def player_menu_bar_style() -> str:
+        """播放器菜单栏样式"""
+        return """
+            QMenuBar {
+                background-color: #2a2a2a;
+                color: white;
+                padding: 2px;
+            }
+            QMenuBar::item {
+                padding: 4px 8px;
+                margin: 2px;
+                border-radius: 4px;
+            }
+            QMenuBar::item:selected {
+                background-color: #4a4a4a;
+            }
+            QMenu {
+                background-color: #2a2a2a;
+                color: white;
+                border-radius: 4px;
+                padding: 2px;
+            }
+            QMenu::item {
+                padding: 4px 20px;
+                margin: 2px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background-color: #4a4a4a;
+            }
+        """
+
+    @staticmethod
+    def player_settings_dialog_style() -> str:
+        """播放器设置对话框样式"""
+        return """
+            QGroupBox {
+                background-color: transparent;
+                border: none;
+                margin-top: 10px;
+                margin-left: 0;
+                margin-right: 0;
+                padding: 0;
+            }
+            QGroupBox::title {
+                color: white;
+                subcontrol-origin: margin;
+                left: 0;
+                padding: 0 5px 0 5px;
+                font-weight: bold;
+            }
+            QLabel {
+                color: white;
+                margin-left: 0;
+                margin-top: 5px;
+            }
+            QLineEdit {
+                background-color: rgba(50, 50, 50, 200);
+                color: white;
+                border: 1px solid rgba(100, 100, 100, 200);
+                border-radius: 4px;
+                padding: 6px;
+                margin-left: 0;
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+            QComboBox {
+                background-color: rgba(50, 50, 50, 200);
+                color: white;
+                border: 1px solid rgba(100, 100, 100, 200);
+                border-radius: 4px;
+                padding: 6px;
+                margin-left: 0;
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+            QComboBox QAbstractItemView {
+                background-color: rgba(30, 30, 30, 220);
+                color: white;
+                border: 1px solid rgba(100, 100, 100, 200);
+                border-radius: 4px;
+            }
+            QCheckBox {
+                color: white;
+                margin-left: 0;
+                margin-top: 5px;
+            }
+            QSpinBox {
+                background-color: rgba(50, 50, 50, 200);
+                color: white;
+                border: 1px solid rgba(100, 100, 100, 200);
+                border-radius: 4px;
+                padding: 6px;
+                margin-left: 0;
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+            QPushButton {
+                background-color: rgba(50, 50, 50, 200);
+                color: white;
+                border: 1px solid rgba(100, 100, 100, 200);
+                border-radius: 4px;
+                padding: 8px 16px;
+                margin: 10px 0;
+            }
+            QPushButton:hover {
+                background-color: rgba(60, 60, 60, 220);
+            }
+            QPushButton:pressed {
+                background-color: rgba(40, 40, 40, 220);
             }
         """
 

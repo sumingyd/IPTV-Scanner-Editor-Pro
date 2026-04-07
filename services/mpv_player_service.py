@@ -19,7 +19,7 @@ libmpv_path = os.path.join(mpv_dir, 'libmpv-2.dll')
 if os.path.exists(libmpv_path):
     # 设置MPV_LIBRARY环境变量，指定libmpv-2.dll的路径
     os.environ['MPV_LIBRARY'] = libmpv_path
-    print(f"使用libmpv-2.dll: {libmpv_path}")
+
 else:
     print(f"未找到libmpv-2.dll: {libmpv_path}")
 
@@ -27,7 +27,7 @@ else:
 try:
     # 加载libmpv-2.dll
     libmpv = ctypes.CDLL(libmpv_path)
-    print("成功使用ctypes加载libmpv-2.dll")
+
     
     # 定义函数类型
     libmpv.mpv_create.restype = ctypes.c_void_p
@@ -100,7 +100,7 @@ try:
     MPV_FORMAT_DOUBLE = 4
     MPV_FORMAT_NODE = 5
     
-    print("成功定义libmpv相关的结构体和函数")
+
 except Exception as e:
     print(f"使用ctypes加载libmpv-2.dll失败: {str(e)}")
     libmpv = None
@@ -108,7 +108,7 @@ except Exception as e:
 # 尝试导入mpv
 try:
     import mpv
-    print("成功导入mpv模块")
+
 except Exception as e:
     print(f"导入mpv模块失败: {str(e)}")
     mpv = None

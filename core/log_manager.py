@@ -19,7 +19,7 @@ class LogManager:
             log_file = kwargs.get('log_file', 'app.log')
             max_bytes = kwargs.get('max_bytes', 5*1024*1024)
             backup_count = kwargs.get('backup_count', 3)
-            level = kwargs.get('level', logging.DEBUG)
+            level = kwargs.get('level', logging.INFO)
             
             # 初始化属性
             cls._instance.log_file = cls._instance._get_log_path(log_file)
@@ -34,7 +34,7 @@ class LogManager:
         return cls._instance
 
     def __init__(self, log_file: str = 'app.log', max_bytes: int = 5*1024*1024,
-                 backup_count: int = 3, level: int = logging.DEBUG):
+                 backup_count: int = 3, level: int = logging.INFO):
         """初始化日志管理器"""
         # 单例模式下，__init__可能会被多次调用，所以什么都不做
         pass
@@ -91,7 +91,7 @@ class LogManager:
             # 清空日志文件内容（每次启动时）
             self._clear_log_file()
             
-            print(f"日志管理器初始化成功，日志文件: {self.log_file}")
+
         except Exception as e:
             print(f"配置日志记录器失败: {e}")
 
@@ -100,7 +100,7 @@ class LogManager:
         try:
             with open(self.log_file, 'w', encoding='utf-8') as f:
                 f.write('')
-            print(f"清空日志文件成功: {self.log_file}")
+
         except IOError as e:
             print(f"清空日志文件失败: {e}")
         except Exception as e:

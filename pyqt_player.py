@@ -17,6 +17,7 @@ from core.log_manager import global_logger as logger
 
 # 导入语言管理器
 from core.language_manager import LanguageManager
+from ui.styles import AppStyles
 
 # 导入播放器服务
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -245,6 +246,7 @@ class ChannelListModel:
 class IPTVPlayer(QMainWindow):
     # 导入信号模块
     from PyQt6.QtCore import pyqtSignal
+    from ui.styles import AppStyles
     # 定义EPG状态更新信号
     epg_status_signal = pyqtSignal(str)
     
@@ -258,7 +260,7 @@ class IPTVPlayer(QMainWindow):
         self.setMinimumSize(800, 600)
         
         # 关键修复：在显示窗口前就设置黑色背景样式
-        self.setStyleSheet("background-color: #000000;")
+        self.setStyleSheet(AppStyles.player_background_style())
         
         # 连接EPG状态信号到槽函数
         self.epg_status_signal.connect(self.update_status_bar)
@@ -323,7 +325,7 @@ class IPTVPlayer(QMainWindow):
         # 创建最最基本的UI，只为了显示黑色背景的窗口
         logger.debug("创建最最基本的UI")
         self.central_widget = QWidget()
-        self.central_widget.setStyleSheet("background-color: #000000;")
+        self.central_widget.setStyleSheet(AppStyles.player_background_style())
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout(self.central_widget)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
@@ -385,24 +387,7 @@ class IPTVPlayer(QMainWindow):
         
         # 工具栏（暂时隐藏，等需要时再显示）
         self.toolbar = self.addToolBar("播放控制")
-        self.toolbar.setStyleSheet("""
-            QToolBar {
-                background-color: #2a2a2a;
-                color: white;
-                padding: 4px;
-            }
-            QToolBar QPushButton {
-                background-color: #3a3a3a;
-                color: white;
-                border: 1px solid #555;
-                padding: 5px 10px;
-                border-radius: 3px;
-                margin: 2px;
-            }
-            QToolBar QPushButton:hover {
-                background-color: #4a4a4a;
-            }
-        """)
+        self.toolbar.setStyleSheet(AppStyles.player_toolbar_style())
         self.toolbar.hide()
         
         # 第三步：创建视频区域
@@ -420,17 +405,17 @@ class IPTVPlayer(QMainWindow):
         
         # 只创建视频播放区域（不创建悬浮窗）
         self.video_frame = QFrame()
-        self.video_frame.setStyleSheet("background-color: #000000;")
+        self.video_frame.setStyleSheet(AppStyles.player_background_style())
         
         # 创建默认背景
         self.video_placeholder = QLabel("📺", self.video_frame)
         self.video_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.video_placeholder.setStyleSheet("font-size: 200px; color: #1a1a1a; background-color: transparent;")
+        self.video_placeholder.setStyleSheet(AppStyles.player_video_placeholder_style())
         self.video_placeholder.show()
         
         # 创建视频播放窗口
         self.video_widget = QWidget(self.video_frame)
-        self.video_widget.setStyleSheet("background-color: #000000;")
+        self.video_widget.setStyleSheet(AppStyles.player_background_style())
         self.video_widget.show()
         
         # 添加视频区域到布局
@@ -450,13 +435,7 @@ class IPTVPlayer(QMainWindow):
         # 状态栏
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.setStyleSheet("""
-            QStatusBar {
-                background-color: #2a2a2a;
-                color: white;
-                padding: 4px;
-            }
-        """)
+        self.status_bar.setStyleSheet(AppStyles.statusbar_style())
         self.status_bar.showMessage("就绪")
         
         # 回看相关属性
@@ -515,22 +494,13 @@ class IPTVPlayer(QMainWindow):
         
         # 左侧EPG面板
         self.epg_panel = TranslucentPanel(opacity=180)
-        self.epg_panel.setStyleSheet("""
-            QLabel {
-                border: none;
-                background-color: transparent;
-            }
-            QListWidget {
-                border: none;
-                background-color: transparent;
-            }
-        """)
+        self.epg_panel.setStyleSheet(AppStyles.player_panel_style())
         self.epg_panel.setFixedWidth(200)
         self.epg_layout = QVBoxLayout(self.epg_panel)
         
         # EPG标题
         self.epg_title = QLabel("📅 节目单")
-        self.epg_title.setStyleSheet("color: white; font-size: 14px; font-weight: bold; padding: 8px; background-color: transparent;")
+        self.epg_title.setStyleSheet(AppStyles.player_epg_title_style())
         self.epg_layout.addWidget(self.epg_title)
         
         # 日期选择器
@@ -540,20 +510,20 @@ class IPTVPlayer(QMainWindow):
         # 上一天按钮
         self.epg_prev_day = QPushButton("◀")
         self.epg_prev_day.setFixedSize(24, 24)
-        self.epg_prev_day.setStyleSheet("background-color: transparent; color: #888; border: none; font-size: 12px;")
+        self.epg_prev_day.setStyleSheet(AppStyles.player_date_button_style())
         self.epg_prev_day.clicked.connect(self.on_prev_day)
         date_layout.addWidget(self.epg_prev_day)
         
         # 日期显示
         self.epg_date_label = QLabel("今天")
-        self.epg_date_label.setStyleSheet("color: white; font-size: 12px;")
+        self.epg_date_label.setStyleSheet(AppStyles.player_date_label_style())
         self.epg_date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         date_layout.addWidget(self.epg_date_label, 1)
         
         # 下一天按钮
         self.epg_next_day = QPushButton("▶")
         self.epg_next_day.setFixedSize(24, 24)
-        self.epg_next_day.setStyleSheet("background-color: transparent; color: #888; border: none; font-size: 12px;")
+        self.epg_next_day.setStyleSheet(AppStyles.player_date_button_style())
         self.epg_next_day.clicked.connect(self.on_next_day)
         date_layout.addWidget(self.epg_next_day)
         
@@ -561,7 +531,7 @@ class IPTVPlayer(QMainWindow):
         
         # EPG内容
         self.epg_content = QListWidget()
-        self.epg_content.setStyleSheet("background-color: transparent; color: white; border: none; padding: 5px;")
+        self.epg_content.setStyleSheet(AppStyles.player_list_style())
         self.epg_content.setSpacing(8)
         self.epg_content.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.epg_content.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -573,7 +543,7 @@ class IPTVPlayer(QMainWindow):
         # EPG空提示
         self.epg_empty_label = QLabel("暂无节目信息")
         self.epg_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.epg_empty_label.setStyleSheet("color: #666666; font-size: 12px; background-color: transparent;")
+        self.epg_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         self.epg_layout.addWidget(self.epg_empty_label)
         
         # 第三步：创建播放列表面板
@@ -588,29 +558,17 @@ class IPTVPlayer(QMainWindow):
         
         # 右侧播放列表面板
         self.playlist_panel = TranslucentPanel(opacity=180)
-        self.playlist_panel.setStyleSheet("""
-            QLabel {
-                border: none;
-                background-color: transparent;
-            }
-            QListWidget {
-                border: none;
-                background-color: transparent;
-            }
-            QComboBox {
-                border: none;
-            }
-        """)
+        self.playlist_panel.setStyleSheet(AppStyles.player_panel_style())
         self.playlist_panel.setFixedWidth(250)
         self.playlist_layout = QVBoxLayout(self.playlist_panel)
         
         # 播放列表标题和分组选择
         self.playlist_header = QHBoxLayout()
         self.playlist_title = QLabel("📺 频道列表")
-        self.playlist_title.setStyleSheet("color: white; font-size: 14px; font-weight: bold; padding: 8px; background-color: transparent;")
+        self.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
         self.group_combo = QComboBox()
         self.group_combo.addItems(CHANNEL_GROUPS)
-        self.group_combo.setStyleSheet("background-color: rgba(45, 45, 45, 0.8); color: white; padding: 4px; border: none; font-size: 12px;")
+        self.group_combo.setStyleSheet(AppStyles.player_group_combo_style())
         self.group_combo.currentTextChanged.connect(self.on_group_changed)
         self.playlist_header.addWidget(self.playlist_title)
         self.playlist_header.addWidget(self.group_combo)
@@ -618,7 +576,7 @@ class IPTVPlayer(QMainWindow):
         
         # 频道列表
         self.channel_list = QListWidget()
-        self.channel_list.setStyleSheet("background-color: transparent; color: white; border: none; padding: 5px;")
+        self.channel_list.setStyleSheet(AppStyles.player_list_style())
         self.channel_list.setSpacing(6)
         self.channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -628,7 +586,7 @@ class IPTVPlayer(QMainWindow):
         # 频道列表空提示
         self.channel_empty_label = QLabel("暂无频道")
         self.channel_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.channel_empty_label.setStyleSheet("color: #666666; font-size: 12px; background-color: transparent;")
+        self.channel_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         self.playlist_layout.addWidget(self.channel_empty_label)
         
         # 第四步：创建底部悬浮控制面板
@@ -653,21 +611,7 @@ class IPTVPlayer(QMainWindow):
         
         # 悬浮控制面板
         self.floating_panel = TranslucentPanel(opacity=180)
-        self.floating_panel.setStyleSheet("""
-            QLabel {
-                border: none;
-                background-color: transparent;
-            }
-            QPushButton {
-                border: none;
-            }
-            QSlider {
-                border: none;
-            }
-            QProgressBar {
-                border: none;
-            }
-        """)
+        self.floating_panel.setStyleSheet(AppStyles.player_panel_style())
         self.floating_panel.setFixedHeight(150)
         self.floating_panel.setFixedWidth(1000)
         self.floating_layout = QVBoxLayout(self.floating_panel)
@@ -689,19 +633,19 @@ class IPTVPlayer(QMainWindow):
         self.media_row.setSpacing(12)
         
         self.video_info = QLabel("📺 未播放")
-        self.video_info.setStyleSheet("color: #aaaaaa; font-size: 12px; background-color: transparent;")
+        self.video_info.setStyleSheet(AppStyles.player_label_style())
         self.video_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.video_info.setFixedHeight(22)
         self.media_row.addWidget(self.video_info)
         
         self.audio_info = QLabel("🔊 --")
-        self.audio_info.setStyleSheet("color: #aaaaaa; font-size: 12px; background-color: transparent;")
+        self.audio_info.setStyleSheet(AppStyles.player_label_style())
         self.audio_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.audio_info.setFixedHeight(18)
         self.media_row.addWidget(self.audio_info)
         
         self.network_info = QLabel("📡 --")
-        self.network_info.setStyleSheet("color: #aaaaaa; font-size: 12px; background-color: transparent;")
+        self.network_info.setStyleSheet(AppStyles.player_label_style())
         self.network_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.network_info.setFixedHeight(18)
         self.media_row.addWidget(self.network_info)
@@ -712,7 +656,7 @@ class IPTVPlayer(QMainWindow):
         # 分隔线
         line1 = QFrame()
         line1.setFrameShape(QFrame.Shape.HLine)
-        line1.setStyleSheet("background-color: #555555; max-height: 1px;")
+        line1.setStyleSheet(AppStyles.player_line_style())
         self.floating_layout.addWidget(line1)
         
         # 第三步：创建节目信息行
@@ -734,7 +678,7 @@ class IPTVPlayer(QMainWindow):
         left_section.setSpacing(10)
         
         self.channel_logo = QLabel("📺")
-        self.channel_logo.setStyleSheet("font-size: 24px; background-color: transparent;")
+        self.channel_logo.setStyleSheet(AppStyles.player_channel_logo_style())
         self.channel_logo.setFixedSize(120, 40)
         left_section.addWidget(self.channel_logo)
         
@@ -742,11 +686,11 @@ class IPTVPlayer(QMainWindow):
         name_section.setSpacing(2)
         
         self.channel_name = QLabel("未选择频道")
-        self.channel_name.setStyleSheet("color: white; font-size: 18px; font-weight: bold; background-color: transparent;")
+        self.channel_name.setStyleSheet(AppStyles.player_channel_name_style())
         name_section.addWidget(self.channel_name)
         
         self.current_program = QLabel("▶ 请选择频道开始播放")
-        self.current_program.setStyleSheet("color: #4CAF50; font-size: 13px; background-color: transparent;")
+        self.current_program.setStyleSheet(AppStyles.player_program_style())
         name_section.addWidget(self.current_program)
         
         left_section.addLayout(name_section)
@@ -758,7 +702,7 @@ class IPTVPlayer(QMainWindow):
         desc_section.setContentsMargins(0, 5, 0, 0)
         
         self.program_desc = QLabel("打开播放列表文件或导入频道以开始观看")
-        self.program_desc.setStyleSheet("color: #cccccc; font-size: 14px; background-color: transparent;")
+        self.program_desc.setStyleSheet(AppStyles.player_program_desc_style())
         self.program_desc.setWordWrap(True)
         self.program_desc.setFixedHeight(40)
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -770,11 +714,11 @@ class IPTVPlayer(QMainWindow):
         time_section.setSpacing(2)
         
         self.time_label = QLabel("⏱ --:-- - --:--")
-        self.time_label.setStyleSheet("color: #aaaaaa; font-size: 12px; background-color: transparent;")
+        self.time_label.setStyleSheet(AppStyles.player_label_style())
         time_section.addWidget(self.time_label)
         
         self.remain_label = QLabel("等待播放...")
-        self.remain_label.setStyleSheet("color: #4CAF50; font-size: 12px; background-color: transparent;")
+        self.remain_label.setStyleSheet(AppStyles.player_program_style())
         time_section.addWidget(self.remain_label)
         self.info_row.addLayout(time_section, 1)
         
@@ -783,7 +727,7 @@ class IPTVPlayer(QMainWindow):
         # 分隔线
         line2 = QFrame()
         line2.setFrameShape(QFrame.Shape.HLine)
-        line2.setStyleSheet("background-color: #555555; max-height: 1px;")
+        line2.setStyleSheet(AppStyles.player_line_style())
         self.floating_layout.addWidget(line2)
         
         # 第四步：创建控制行
@@ -804,7 +748,7 @@ class IPTVPlayer(QMainWindow):
         self.play_button = QToolButton()
         self.play_button.setText("▶")
         self.play_button.setFixedSize(28, 26)
-        self.play_button.setStyleSheet("color: white; font-size: 14px; background-color: rgba(60, 60, 60, 0.9); border-radius: 4px; border: none;")
+        self.play_button.setStyleSheet(AppStyles.player_button_style())
         self.play_button.clicked.connect(self.toggle_play)
         self.control_row.addWidget(self.play_button)
         
@@ -816,7 +760,7 @@ class IPTVPlayer(QMainWindow):
         
         # 当前节目开始时间
         self.progress_start = QLabel("--:--")
-        self.progress_start.setStyleSheet("color: #888888; font-size: 11px; background-color: transparent;")
+        self.progress_start.setStyleSheet(AppStyles.player_progress_label_style())
         self.progress_group.addWidget(self.progress_start)
         
         # 时间进度条
@@ -824,34 +768,13 @@ class IPTVPlayer(QMainWindow):
         self.program_progress.setRange(0, 100)
         self.program_progress.setValue(0)
         self.program_progress.setFixedWidth(450)
-        self.program_progress.setStyleSheet("""
-            QSlider {
-                background-color: transparent;
-            }
-            QSlider::groove:horizontal { 
-                background: #555555; 
-                height: 4px; 
-                border-radius: 2px;
-            } 
-            QSlider::sub-page:horizontal {
-                background: #4CAF50;
-                height: 4px;
-                border-radius: 2px;
-            }
-            QSlider::handle:horizontal { 
-                background: #ffffff; 
-                width: 10px; 
-                height: 10px; 
-                border-radius: 5px;
-                margin: -3px 0;
-            }
-        """)
+        self.program_progress.setStyleSheet(AppStyles.player_slider_style())
         self.program_progress.sliderReleased.connect(self.on_progress_slider_released)
         self.progress_group.addWidget(self.program_progress)
         
         # 当前节目结束时间
         self.progress_end = QLabel("--:--")
-        self.progress_end.setStyleSheet("color: #888888; font-size: 11px; background-color: transparent;")
+        self.progress_end.setStyleSheet(AppStyles.player_progress_label_style())
         self.progress_group.addWidget(self.progress_end)
         
         self.control_row.addLayout(self.progress_group)
@@ -862,7 +785,7 @@ class IPTVPlayer(QMainWindow):
         self.volume_button = QToolButton()
         self.volume_button.setText("🔊")
         self.volume_button.setFixedSize(28, 26)
-        self.volume_button.setStyleSheet("color: white; font-size: 12px; background-color: rgba(60, 60, 60, 0.9); border-radius: 4px; border: none;")
+        self.volume_button.setStyleSheet(AppStyles.player_button_style())
         self.volume_button.clicked.connect(self.toggle_mute)
         self.control_row.addWidget(self.volume_button)
         
@@ -871,25 +794,7 @@ class IPTVPlayer(QMainWindow):
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(80)
         self.volume_slider.setFixedWidth(80)
-        self.volume_slider.setStyleSheet("""
-            QSlider::groove:horizontal { 
-                background: #444444; 
-                height: 4px; 
-                border-radius: 2px;
-            } 
-            QSlider::sub-page:horizontal {
-                background: #4CAF50;
-                height: 4px;
-                border-radius: 2px;
-            }
-            QSlider::handle:horizontal { 
-                background: #ffffff; 
-                width: 12px; 
-                height: 12px; 
-                border-radius: 6px;
-                margin: -4px 0;
-            }
-        """)
+        self.volume_slider.setStyleSheet(AppStyles.player_volume_slider_style())
         self.volume_slider.valueChanged.connect(self.set_volume)
         self.control_row.addWidget(self.volume_slider)
         
@@ -897,7 +802,7 @@ class IPTVPlayer(QMainWindow):
         self.exit_catchup_button = QToolButton()
         self.exit_catchup_button.setText("⏪ 退出回看")
         self.exit_catchup_button.setFixedSize(100, 26)
-        self.exit_catchup_button.setStyleSheet("color: white; font-size: 12px; background-color: rgba(255, 100, 100, 0.9); border-radius: 4px; border: none;")
+        self.exit_catchup_button.setStyleSheet(AppStyles.exit_catchup_button_style())
         self.exit_catchup_button.clicked.connect(self.exit_catchup)
         self.exit_catchup_button.hide()
         self.control_row.addWidget(self.exit_catchup_button)
@@ -906,7 +811,7 @@ class IPTVPlayer(QMainWindow):
         self.fullscreen_button = QToolButton()
         self.fullscreen_button.setText("⛶")
         self.fullscreen_button.setFixedSize(28, 26)
-        self.fullscreen_button.setStyleSheet("color: white; font-size: 12px; background-color: rgba(60, 60, 60, 0.9); border-radius: 4px; border: none;")
+        self.fullscreen_button.setStyleSheet(AppStyles.player_button_style())
         self.fullscreen_button.clicked.connect(self.toggle_fullscreen)
         self.control_row.addWidget(self.fullscreen_button)
         
@@ -1055,35 +960,7 @@ class IPTVPlayer(QMainWindow):
         """设置菜单栏"""
         menu_bar = self.menuBar()
         # 设置菜单栏样式
-        menu_bar.setStyleSheet("""
-            QMenuBar {
-                background-color: #2a2a2a;
-                color: white;
-                padding: 2px;
-            }
-            QMenuBar::item {
-                padding: 4px 8px;
-                margin: 2px;
-                border-radius: 4px;
-            }
-            QMenuBar::item:selected {
-                background-color: #4a4a4a;
-            }
-            QMenu {
-                background-color: #2a2a2a;
-                color: white;
-                border-radius: 4px;
-                padding: 2px;
-            }
-            QMenu::item {
-                padding: 4px 20px;
-                margin: 2px;
-                border-radius: 4px;
-            }
-            QMenu::item:selected {
-                background-color: #4a4a4a;
-            }
-        """)
+        menu_bar.setStyleSheet(AppStyles.player_menu_bar_style())
         
         try:
             # 文件菜单
@@ -1263,7 +1140,7 @@ class IPTVPlayer(QMainWindow):
         """填充EPG列表"""
         self.epg_content.clear()
         # 设置列表的整体样式
-        self.epg_content.setStyleSheet("background-color: transparent; border: none; padding: 5px;")
+        self.epg_content.setStyleSheet(AppStyles.player_list_style())
         
         # 检查是否有当前频道
         if not self.current_channel:
@@ -2776,68 +2653,7 @@ class IPTVPlayer(QMainWindow):
         dialog.setWindowTitle("播放器设置")
         dialog.setMinimumSize(400, 350)
         # 设置样式表
-        dialog.setStyleSheet("""
-            QGroupBox {
-                background-color: transparent;
-                border: none;
-                margin-top: 10px;
-                margin-left: 0;
-                margin-right: 0;
-                padding: 0;
-            }
-            QGroupBox::title {
-                color: white;
-                subcontrol-origin: margin;
-                left: 0;
-                padding: 0 5px 0 5px;
-                font-weight: bold;
-            }
-            QLabel {
-                color: white;
-                margin-left: 0;
-                margin-top: 5px;
-            }
-            QLineEdit {
-                background-color: rgba(50, 50, 50, 200);
-                color: white;
-                border: 1px solid rgba(100, 100, 100, 200);
-                border-radius: 4px;
-                padding: 6px;
-                margin-left: 0;
-                margin-right: 0;
-                margin-bottom: 10px;
-            }
-            QComboBox {
-                background-color: rgba(50, 50, 50, 200);
-                color: white;
-                border: 1px solid rgba(100, 100, 100, 200);
-                border-radius: 4px;
-                padding: 6px;
-                margin-left: 0;
-                margin-right: 0;
-                margin-bottom: 10px;
-            }
-            QComboBox QAbstractItemView {
-                background-color: rgba(30, 30, 30, 220);
-                color: white;
-                border: 1px solid rgba(100, 100, 100, 200);
-                border-radius: 4px;
-            }
-            QPushButton {
-                background-color: rgba(50, 50, 50, 200);
-                color: white;
-                border: 1px solid rgba(100, 100, 100, 200);
-                border-radius: 4px;
-                padding: 8px 16px;
-                margin: 10px 0;
-            }
-            QPushButton:hover {
-                background-color: rgba(60, 60, 60, 220);
-            }
-            QPushButton:pressed {
-                background-color: rgba(40, 40, 40, 220);
-            }
-        """)
+        dialog.setStyleSheet(AppStyles.player_settings_dialog_style())
         
         # 创建布局
         main_layout = QVBoxLayout(dialog)
