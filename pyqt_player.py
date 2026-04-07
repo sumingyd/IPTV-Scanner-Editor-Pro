@@ -364,91 +364,50 @@ class IPTVPlayer(QMainWindow):
         """按照顺序执行初始化流程"""
         logger.debug("_initialize_in_order: 开始")
         
-        # 1. 初始化基本UI
-        self.init_ui()
-        
         # 处理事件，确保UI渲染完成
         from PyQt6.QtWidgets import QApplication
         app = QApplication.instance()
-        if app:
-            app.processEvents()
+        
+        # 批量创建UI组件
+        # 1. 初始化基本UI
+        self.init_ui()
         
         # 2. 初始化视频相关组件（菜单栏、工具栏、视频区域、状态栏）
         self._init_video_components()
         
-        # 处理事件，确保UI渲染完成
-        if app:
-            app.processEvents()
-        
         # 3. 创建视频区域
         self._create_video_area()
-        
-        # 处理事件，确保UI渲染完成
-        if app:
-            app.processEvents()
         
         # 4. 创建状态栏
         self._create_status_bar()
         
-        # 处理事件，确保UI渲染完成
-        if app:
-            app.processEvents()
-        
         # 5. 初始化播放器
         self._init_player()
-        
-        # 处理事件，确保UI渲染完成
-        if app:
-            app.processEvents()
         
         # 6. 创建定时器
         self._create_timer()
         
-        # 处理事件，确保UI渲染完成
-        if app:
-            app.processEvents()
-        
         # 7. 创建并显示EPG面板
         self._create_epg_panel()
-        
-        # 处理事件，确保UI渲染完成
-        if app:
-            app.processEvents()
         
         # 8. 创建并显示播放列表面板
         self._create_playlist_panel()
         
-        # 处理事件，确保UI渲染完成
-        if app:
-            app.processEvents()
-        
         # 9. 创建并显示底部悬浮控制面板
         self._create_bottom_panel()
-        
-        # 处理事件，确保UI渲染完成
-        if app:
-            app.processEvents()
         
         # 10. 初始化最近打开文件菜单
         self._update_recent_files_menu()
         
-        # 处理事件，确保UI渲染完成
-        if app:
-            app.processEvents()
-        
         # 11. 安装事件过滤器
         self._install_event_filters()
-        
-        # 处理事件，确保UI渲染完成
-        if app:
-            app.processEvents()
         
         # 12. 面板已经在创建时显示，无需再次显示
         
         # 13. 更新悬浮窗位置
         self._update_floating_position()
         
-        # 处理事件，确保UI渲染完成
+        # 批量处理事件，确保所有UI渲染完成
         if app:
             app.processEvents()
         
