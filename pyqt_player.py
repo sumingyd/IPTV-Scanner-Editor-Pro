@@ -3382,23 +3382,8 @@ class IPTVPlayer(QMainWindow):
     
     def show_about(self):
         """显示关于"""
-        dialog = QDialog(self)
-        dialog.setWindowTitle(self.language_manager.tr("about_title"))
-        dialog.setGeometry(200, 200, 400, 300)
-        
-        layout = QVBoxLayout(dialog)
-        text_edit = QTextEdit()
-        text_edit.setPlainText(self.language_manager.tr("about_content"))
-        text_edit.setReadOnly(True)
-        layout.addWidget(text_edit)
-        
-        button_box = QHBoxLayout()
-        ok_button = QPushButton("确定")
-        ok_button.clicked.connect(dialog.accept)
-        button_box.addStretch()
-        button_box.addWidget(ok_button)
-        layout.addLayout(button_box)
-        
+        from ui.dialogs.about_dialog import AboutDialog
+        dialog = AboutDialog(self)
         dialog.exec()
     
     def set_language(self, language):

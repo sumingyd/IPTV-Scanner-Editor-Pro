@@ -58,6 +58,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # 在UI构建前完全隐藏窗口，防止任何闪动
         self.hide()
 
+        # 设置窗口样式，与主窗口一致
+        from ui.styles import AppStyles
+        self.setStyleSheet(AppStyles.player_background_style())
+
         # 创建UI构建器实例
         self.ui = UIBuilder(self)
         self.ui.build_ui()
