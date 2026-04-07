@@ -254,7 +254,7 @@ class IPTVPlayer(QMainWindow):
         super().__init__()
         logger.debug("设置窗口属性")
         self.setWindowTitle("IPTV Scanner Editor Pro")
-        self.setGeometry(100, 100, 1280, 760)
+        self.setGeometry(100, 100, 1280, 780)
         self.setMinimumSize(800, 600)
         
         # 关键修复：在显示窗口前就设置黑色背景样式
@@ -3326,16 +3326,6 @@ class IPTVPlayer(QMainWindow):
             self.config.save_epg_settings(epg_url, epg_source)
             self.status_bar.showMessage("EPG节目单设置已保存")
     
-    def new_playlist(self):
-        """新建播放列表"""
-        global CHANNELS
-        CHANNELS = []
-        self.populate_channel_list()
-        # 清空EPG显示
-        self.epg_content.clear()
-        self.epg_empty_label.show()
-        self.status_bar.showMessage("已新建播放列表")
-    
     def update_recent_files_menu(self):
         """更新最近打开文件菜单"""
         from core.config_manager import ConfigManager
@@ -3524,10 +3514,6 @@ class IPTVPlayer(QMainWindow):
             self.floating_panel.raise_()
             self.floating_panel.activateWindow()
     
-    def save_playlist(self):
-        """保存播放列表"""
-        self.save_as()
-    
     def save_as(self):
         """另存为"""
         file_path, _ = QFileDialog.getSaveFileName(
@@ -3556,15 +3542,7 @@ class IPTVPlayer(QMainWindow):
                     self.status_bar.showMessage(self.language_manager.tr("no_content"))
             except Exception as ex:
                 self.status_bar.showMessage(self.language_manager.tr("save_error").format(error=str(ex)))
-    
-    def import_channels(self):
-        """导入频道"""
-        self.open_playlist()
-    
-    def export_channels(self):
-        """导出频道"""
-        self.save_as()
-    
+        
     def show_usage_instructions(self):
         """显示使用说明"""
         dialog = QDialog(self)
