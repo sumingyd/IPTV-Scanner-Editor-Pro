@@ -15,6 +15,9 @@ from PyQt6.QtGui import QIcon, QPixmap, QFont, QColor, QAction, QPainter, QBrush
 # 导入日志管理器
 from core.log_manager import global_logger as logger
 
+# 导入语言管理器
+from core.language_manager import LanguageManager
+
 # 导入播放器服务
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from services.mpv_player_service import MpvPlayerController
@@ -63,128 +66,6 @@ class TranslucentPanel(QFrame):
         
         # 调用父类的 paintEvent 来绘制子控件
         super().paintEvent(event)
-
-# 语言管理
-class LanguageManager:
-    def __init__(self):
-        self.current_language = "zh"
-        self.translations = {
-            "zh": {
-                "file": "文件",
-                "edit": "编辑",
-                "view": "视图",
-                "tools": "工具",
-                "help": "帮助",
-                "new_playlist": "新建播放列表",
-                "open_playlist": "打开播放列表",
-                "save_playlist": "保存播放列表",
-                "save_as": "另存为...",
-                "import_channels": "导入频道",
-                "export_channels": "导出频道",
-                "exit": "退出",
-                "undo": "撤销",
-                "redo": "重做",
-                "select_all": "全选",
-                "delete_selected": "删除选中",
-                "add_channel": "添加频道",
-                "show_epg": "显示节目单",
-                "show_playlist": "显示播放列表",
-                "fullscreen": "全屏模式",
-                "refresh": "刷新",
-                "reset_layout": "重置布局",
-                "scan_channels": "扫描频道",
-                "verify_channels": "验证频道",
-                "smart_sort": "智能排序",
-                "hide_invalid": "隐藏无效项",
-                "restore_hidden": "恢复隐藏项",
-                "channel_management": "频道管理",
-                "channel_mapping": "频道映射",
-                "favorite_management": "收藏管理",
-                "network_settings": "网络设置",
-                "player_settings": "播放器设置",
-                "usage_instructions": "使用说明",
-                "about": "关于",
-                "language": "语言",
-                "chinese": "中文",
-                "english": "English",
-                "loading_channels": "正在加载频道...",
-                "channels_loaded": "成功加载 {count} 个频道",
-                "file_format_error": "文件格式不正确或为空",
-                "open_file_error": "打开文件失败: {error}",
-                "save_success": "保存成功",
-                "save_error": "保存文件失败: {error}",
-                "no_content": "没有可保存的内容",
-                "file_selection_error": "文件选择失败: {error}",
-                "app_name": "IPTV Scanner Editor Pro",
-                "version": "版本 1.0.0",
-                "description": "IPTV 频道扫描和编辑工具",
-                "usage_title": "使用说明",
-                "usage_content": "1. 点击'文件'菜单打开播放列表\n2. 选择频道开始播放\n3. 使用工具栏控制播放\n4. 点击'工具'菜单扫描和验证频道",
-                "about_title": "关于",
-                "about_content": "IPTV Scanner Editor Pro\n版本 1.0.0\n\nIPTV 频道扫描和编辑工具\n\n© 2026 IPTV Scanner Editor Pro"
-            },
-            "en": {
-                "file": "File",
-                "edit": "Edit",
-                "view": "View",
-                "tools": "Tools",
-                "help": "Help",
-                "new_playlist": "New Playlist",
-                "open_playlist": "Open Playlist",
-                "save_playlist": "Save Playlist",
-                "save_as": "Save As...",
-                "import_channels": "Import Channels",
-                "export_channels": "Export Channels",
-                "exit": "Exit",
-                "undo": "Undo",
-                "redo": "Redo",
-                "select_all": "Select All",
-                "delete_selected": "Delete Selected",
-                "add_channel": "Add Channel",
-                "show_epg": "Show EPG",
-                "show_playlist": "Show Playlist",
-                "fullscreen": "Fullscreen",
-                "refresh": "Refresh",
-                "reset_layout": "Reset Layout",
-                "scan_channels": "Scan Channels",
-                "verify_channels": "Verify Channels",
-                "smart_sort": "Smart Sort",
-                "hide_invalid": "Hide Invalid",
-                "restore_hidden": "Restore Hidden",
-                "channel_management": "Channel Management",
-                "channel_mapping": "Channel Mapping",
-                "favorite_management": "Favorite Management",
-                "network_settings": "Network Settings",
-                "player_settings": "Player Settings",
-                "usage_instructions": "Usage Instructions",
-                "about": "About",
-                "language": "Language",
-                "chinese": "中文",
-                "english": "English",
-                "loading_channels": "Loading channels...",
-                "channels_loaded": "Successfully loaded {count} channels",
-                "file_format_error": "File format is incorrect or empty",
-                "open_file_error": "Failed to open file: {error}",
-                "save_success": "Save successful",
-                "save_error": "Failed to save file: {error}",
-                "no_content": "No content to save",
-                "file_selection_error": "File selection failed: {error}",
-                "app_name": "IPTV Scanner Editor Pro",
-                "version": "Version 1.0.0",
-                "description": "IPTV channel scanning and editing tool",
-                "usage_title": "Usage Instructions",
-                "usage_content": "1. Click 'File' menu to open playlist\n2. Select channel to start playing\n3. Use toolbar to control playback\n4. Click 'Tools' menu to scan and verify channels",
-                "about_title": "About",
-                "about_content": "IPTV Scanner Editor Pro\nVersion 1.0.0\n\nIPTV channel scanning and editing tool\n\n© 2026 IPTV Scanner Editor Pro"
-            }
-        }
-    
-    def set_language(self, language):
-        if language in self.translations:
-            self.current_language = language
-    
-    def get(self, key):
-        return self.translations.get(self.current_language, {}).get(key, key)
 
 # 频道列表模型
 class ChannelListModel:
@@ -384,6 +265,8 @@ class IPTVPlayer(QMainWindow):
         
         # 语言管理
         self.language_manager = LanguageManager()
+        self.language_manager.load_available_languages()
+        self.language_manager.set_language('zh')
         
         # 频道列表模型
         self.channel_model = ChannelListModel()
@@ -1202,111 +1085,115 @@ class IPTVPlayer(QMainWindow):
             }
         """)
         
-        # 文件菜单
-        file_menu = menu_bar.addMenu(self.language_manager.get("file"))
-        
-        open_playlist = QAction(self.language_manager.get("open_playlist"), self)
-        open_playlist.triggered.connect(self.open_playlist)
-        open_playlist.setShortcut("N")
-        file_menu.addAction(open_playlist)
-        
-        # 添加最近打开子菜单
-        recent_menu = file_menu.addMenu("最近打开")
-        
-        save_as = QAction(self.language_manager.get("save_as"), self)
-        save_as.triggered.connect(self.save_as)
-        save_as.setShortcut("S")
-        file_menu.addAction(save_as)
-        
-        file_menu.addSeparator()
-        
-        exit_action = QAction(self.language_manager.get("exit"), self)
-        exit_action.triggered.connect(self.close)
-        file_menu.addAction(exit_action)
-        
-        # 保存最近打开菜单引用
-        self.recent_menu = recent_menu
-        
-        # 初始化最近打开文件列表（如果需要）
-        if not skip_recent_files:
-            self.update_recent_files_menu()
-        
-
-        
-        # 视图菜单
-        view_menu = menu_bar.addMenu(self.language_manager.get("view"))
-        
-        show_epg = QAction(self.language_manager.get("show_epg"), self, checkable=True)
-        show_epg.setChecked(self.epg_visible)
-        show_epg.triggered.connect(self.toggle_epg)
-        show_epg.setShortcut("E")
-        view_menu.addAction(show_epg)
-        
-        show_playlist = QAction(self.language_manager.get("show_playlist"), self, checkable=True)
-        show_playlist.setChecked(self.playlist_visible)
-        show_playlist.triggered.connect(self.toggle_playlist)
-        show_playlist.setShortcut("L")
-        view_menu.addAction(show_playlist)
-        
-        show_floating = QAction("显示控制面板", self, checkable=True)
-        show_floating.setChecked(self.floating_panel_visible)
-        show_floating.triggered.connect(self.toggle_floating_panel)
-        show_floating.setShortcut("M")
-        view_menu.addAction(show_floating)
-        
-        view_menu.addSeparator()
-        
-        fullscreen = QAction(self.language_manager.get("fullscreen"), self, checkable=True)
-        fullscreen.triggered.connect(self.toggle_fullscreen)
-        fullscreen.setShortcut("Q")
-        view_menu.addAction(fullscreen)
-        
-        refresh = QAction(self.language_manager.get("refresh"), self)
-        refresh.triggered.connect(self.refresh_ui)
-        view_menu.addAction(refresh)
-        
-        reset_layout = QAction(self.language_manager.get("reset_layout"), self)
-        reset_layout.triggered.connect(self.reset_layout)
-        view_menu.addAction(reset_layout)
-        
-        # 工具菜单
-        tools_menu = menu_bar.addMenu(self.language_manager.get("tools"))
-        
-        scan_channels = QAction(self.language_manager.get("scan_channels"), self)
-        scan_channels.triggered.connect(self.open_scan_ui)
-        tools_menu.addAction(scan_channels)
-        
-        tools_menu.addSeparator()
-        
-        player_settings = QAction(self.language_manager.get("player_settings"), self)
-        player_settings.triggered.connect(self.player_settings)
-        tools_menu.addAction(player_settings)
-        
-        # 帮助菜单
-        help_menu = menu_bar.addMenu(self.language_manager.get("help"))
-        
-        usage_instructions = QAction(self.language_manager.get("usage_instructions"), self)
-        usage_instructions.triggered.connect(self.show_usage_instructions)
-        help_menu.addAction(usage_instructions)
-        
-        about = QAction(self.language_manager.get("about"), self)
-        about.triggered.connect(self.show_about)
-        help_menu.addAction(about)
-        
-        help_menu.addSeparator()
-        
-        # 语言选择
-        language_menu = help_menu.addMenu(self.language_manager.get("language"))
-        
-        chinese = QAction(self.language_manager.get("chinese"), self, checkable=True)
-        chinese.setChecked(self.language_manager.current_language == "zh")
-        chinese.triggered.connect(lambda: self.set_language("zh"))
-        language_menu.addAction(chinese)
-        
-        english = QAction(self.language_manager.get("english"), self, checkable=True)
-        english.setChecked(self.language_manager.current_language == "en")
-        english.triggered.connect(lambda: self.set_language("en"))
-        language_menu.addAction(english)
+        try:
+            # 文件菜单
+            file_menu = menu_bar.addMenu("文件")
+            
+            open_playlist = QAction("打开播放列表", self)
+            open_playlist.triggered.connect(self.open_playlist)
+            open_playlist.setShortcut("Ctrl+O")
+            file_menu.addAction(open_playlist)
+            
+            # 添加最近打开子菜单
+            recent_menu = file_menu.addMenu("最近打开")
+            
+            save_as = QAction("另存为...", self)
+            save_as.triggered.connect(self.save_as)
+            save_as.setShortcut("Ctrl+S")
+            file_menu.addAction(save_as)
+            
+            file_menu.addSeparator()
+            
+            exit_action = QAction("退出", self)
+            exit_action.triggered.connect(self.close)
+            exit_action.setShortcut("Ctrl+Q")
+            file_menu.addAction(exit_action)
+            
+            # 保存最近打开菜单引用
+            self.recent_menu = recent_menu
+            
+            # 初始化最近打开文件列表（如果需要）
+            if not skip_recent_files:
+                self.update_recent_files_menu()
+            
+            # 视图菜单
+            view_menu = menu_bar.addMenu("视图")
+            
+            show_epg = QAction("显示节目单", self, checkable=True)
+            show_epg.setChecked(self.epg_visible)
+            show_epg.triggered.connect(self.toggle_epg)
+            show_epg.setShortcut("E")
+            view_menu.addAction(show_epg)
+            
+            show_playlist = QAction("显示播放列表", self, checkable=True)
+            show_playlist.setChecked(self.playlist_visible)
+            show_playlist.triggered.connect(self.toggle_playlist)
+            show_playlist.setShortcut("L")
+            view_menu.addAction(show_playlist)
+            
+            show_floating = QAction("显示控制面板", self, checkable=True)
+            show_floating.setChecked(self.floating_panel_visible)
+            show_floating.triggered.connect(self.toggle_floating_panel)
+            show_floating.setShortcut("M")
+            view_menu.addAction(show_floating)
+            
+            view_menu.addSeparator()
+            
+            fullscreen = QAction("全屏模式", self, checkable=True)
+            fullscreen.triggered.connect(self.toggle_fullscreen)
+            fullscreen.setShortcut("F11")
+            view_menu.addAction(fullscreen)
+            
+            refresh = QAction("刷新", self)
+            refresh.triggered.connect(self.refresh_ui)
+            refresh.setShortcut("F5")
+            view_menu.addAction(refresh)
+            
+            reset_layout = QAction("重置布局", self)
+            reset_layout.triggered.connect(self.reset_layout)
+            view_menu.addAction(reset_layout)
+            
+            # 工具菜单
+            tools_menu = menu_bar.addMenu("工具")
+            
+            scan_channels = QAction("扫描频道", self)
+            scan_channels.triggered.connect(self.open_scan_ui)
+            tools_menu.addAction(scan_channels)
+            
+            tools_menu.addSeparator()
+            
+            player_settings = QAction("播放器设置", self)
+            player_settings.triggered.connect(self.player_settings)
+            tools_menu.addAction(player_settings)
+            
+            # 帮助菜单
+            help_menu = menu_bar.addMenu("帮助")
+            
+            usage_instructions = QAction("使用说明", self)
+            usage_instructions.triggered.connect(self.show_usage_instructions)
+            help_menu.addAction(usage_instructions)
+            
+            about = QAction("关于", self)
+            about.triggered.connect(self.show_about)
+            help_menu.addAction(about)
+            
+            help_menu.addSeparator()
+            
+            # 语言选择
+            language_menu = help_menu.addMenu("语言")
+            
+            chinese = QAction("中文", self, checkable=True)
+            chinese.setChecked(True)  # 默认中文
+            chinese.triggered.connect(lambda: self.set_language("zh"))
+            language_menu.addAction(chinese)
+            
+            english = QAction("English", self, checkable=True)
+            english.setChecked(False)
+            english.triggered.connect(lambda: self.set_language("en"))
+            language_menu.addAction(english)
+            
+        except Exception as e:
+            logger.error(f"创建菜单栏失败: {str(e)}")
     
     def update_channel_groups(self):
         """从CHANNELS中提取分组并更新下拉框"""
@@ -3521,7 +3408,7 @@ class IPTVPlayer(QMainWindow):
         # 打开文件选择对话框
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            self.language_manager.get("open_playlist"),
+            self.language_manager.tr("open_playlist"),
             "",
             "M3U文件 (*.m3u *.m3u8);;文本文件 (*.txt);;所有文件 (*.*)"
         )
@@ -3602,17 +3489,17 @@ class IPTVPlayer(QMainWindow):
                     
                     logger.info("开始填充频道列表")
                     self.populate_channel_list()
-                    self.status_bar.showMessage(self.language_manager.get("channels_loaded").format(count=len(CHANNELS)))
+                    self.status_bar.showMessage(self.language_manager.tr("channels_loaded").format(count=len(CHANNELS)))
                     logger.info(f"频道列表填充完成，显示 {len(CHANNELS)} 个频道")
                     
                     # 重新显示并提升三个悬浮窗
                     self.raise_floating_panels()
                 else:
                     logger.error("M3U文件解析失败")
-                    self.status_bar.showMessage(self.language_manager.get("file_format_error"))
+                    self.status_bar.showMessage(self.language_manager.tr("file_format_error"))
             except Exception as ex:
                 logger.error(f"打开播放列表文件失败: {ex}")
-                self.status_bar.showMessage(self.language_manager.get("open_file_error").format(error=str(ex)))
+                self.status_bar.showMessage(self.language_manager.tr("open_file_error").format(error=str(ex)))
                 # 发生异常也要重新显示悬浮窗
                 self.raise_floating_panels()
     
@@ -3645,7 +3532,7 @@ class IPTVPlayer(QMainWindow):
         """另存为"""
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            self.language_manager.get("save_as"),
+            self.language_manager.tr("save_as"),
             "playlist.m3u",
             "M3U文件 (*.m3u);;M3U8文件 (*.m3u8);;文本文件 (*.txt);;所有文件 (*.*)"
         )
@@ -3664,11 +3551,11 @@ class IPTVPlayer(QMainWindow):
                 if content:
                     with open(file_path, 'w', encoding='utf-8') as f:
                         f.write(content)
-                    self.status_bar.showMessage(self.language_manager.get("save_success"))
+                    self.status_bar.showMessage(self.language_manager.tr("save_success"))
                 else:
-                    self.status_bar.showMessage(self.language_manager.get("no_content"))
+                    self.status_bar.showMessage(self.language_manager.tr("no_content"))
             except Exception as ex:
-                self.status_bar.showMessage(self.language_manager.get("save_error").format(error=str(ex)))
+                self.status_bar.showMessage(self.language_manager.tr("save_error").format(error=str(ex)))
     
     def import_channels(self):
         """导入频道"""
@@ -3681,12 +3568,12 @@ class IPTVPlayer(QMainWindow):
     def show_usage_instructions(self):
         """显示使用说明"""
         dialog = QDialog(self)
-        dialog.setWindowTitle(self.language_manager.get("usage_title"))
+        dialog.setWindowTitle(self.language_manager.tr("usage_title"))
         dialog.setGeometry(200, 200, 400, 300)
         
         layout = QVBoxLayout(dialog)
         text_edit = QTextEdit()
-        text_edit.setPlainText(self.language_manager.get("usage_content"))
+        text_edit.setPlainText(self.language_manager.tr("usage_content"))
         text_edit.setReadOnly(True)
         layout.addWidget(text_edit)
         
@@ -3702,12 +3589,12 @@ class IPTVPlayer(QMainWindow):
     def show_about(self):
         """显示关于"""
         dialog = QDialog(self)
-        dialog.setWindowTitle(self.language_manager.get("about_title"))
+        dialog.setWindowTitle(self.language_manager.tr("about_title"))
         dialog.setGeometry(200, 200, 400, 300)
         
         layout = QVBoxLayout(dialog)
         text_edit = QTextEdit()
-        text_edit.setPlainText(self.language_manager.get("about_content"))
+        text_edit.setPlainText(self.language_manager.tr("about_content"))
         text_edit.setReadOnly(True)
         layout.addWidget(text_edit)
         
@@ -3722,11 +3609,17 @@ class IPTVPlayer(QMainWindow):
     
     def set_language(self, language):
         """设置语言"""
-        self.language_manager.set_language(language)
-        # 重新初始化UI
-        self.close()
-        self.__init__()
-        self.show()
+        try:
+            # 更新语言设置
+            self.language_manager.set_language(language)
+            # 重新创建菜单栏以更新语言
+            self.menuBar().clear()
+            self.setup_menu_bar()
+            # 更新状态栏消息
+            self.status_bar.showMessage(f"语言已切换为: {language}")
+        except Exception as e:
+            logger.error(f"切换语言失败: {str(e)}")
+            self.status_bar.showMessage("切换语言失败")
     
     def moveEvent(self, event):
         """主窗口移动时，更新悬浮窗口位置"""
