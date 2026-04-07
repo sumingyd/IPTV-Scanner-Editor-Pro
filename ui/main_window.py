@@ -10,7 +10,6 @@ from PyQt6 import QtWidgets, QtCore, QtGui
 from ui.builder import UIBuilder
 from services.scanner_service import ScannerController
 from ui.styles import AppStyles
-from services.player_service import PlayerController
 from services.list_service import ListManager
 from services.url_parser_service import URLRangeParser
 from ui.optimizer import get_ui_optimizer
@@ -153,13 +152,7 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             log_scan_info(f"ScannerController已存在: {self.scanner}")
 
-        self.player_controller = PlayerController(
-            self.ui.main_window.player, self.model
-        )
-        self.list_manager = ListManager(self.model)
-
         self._connect_progress_signals()
-        self._on_play_state_changed(self.player_controller.is_playing)
 
         log_ui_info("=== 控制器初始化完成 ===")
 
@@ -308,17 +301,6 @@ class MainWindow(QtWidgets.QMainWindow):
         safe_connect_button(self.ui.main_window.scan_btn, self._on_scan_clicked)
         safe_connect_button(self.ui.main_window.append_scan_btn, self._on_append_scan_clicked)
 
-        self.ui.main_window.volume_slider.valueChanged.connect(
-            self._on_volume_changed
-        )
-        safe_connect_button(self.ui.main_window.pause_btn, self._on_pause_clicked)
-        safe_connect_button(self.ui.main_window.stop_btn, self._on_stop_clicked)
-
-        self.player_controller.play_state_changed.connect(
-            self._on_play_state_changed)
-
-        self.ui.main_window.channel_list.doubleClicked.connect(self._play_selected_channel)
-
         safe_connect_button(self.ui.main_window.btn_validate, self._on_validate_clicked)
         safe_connect_button(self.ui.main_window.btn_hide_invalid, self._on_hide_invalid_clicked)
         safe_connect_button(self.ui.main_window.generate_btn, self._on_generate_clicked)
@@ -419,55 +401,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """设置追加扫描按钮文本"""
         self._set_button_text(self.ui.main_window.append_scan_btn, translation_key, default_text)
 
-    def _on_volume_changed(self, value):
-        """处理音量滑块变化"""
-        self.player_controller.set_volume(value)
 
-    def _on_pause_clicked(self):
-        """处理暂停/播放按钮点击"""
-        if not self.player_controller.is_playing:
-            selected = self.ui.main_window.channel_list.selectedIndexes()
-            if not selected:
-                self.logger.warning("请先选择一个频道")
-                self.ui.main_window.statusBar().showMessage("请先选择一个频道", 3000)
-                self._set_pause_button_text(False)
-                return
-
-            self._play_selected_channel(selected[0])
-        else:
-            self.player_controller.toggle_pause()
-            self._set_pause_button_text(not self.player_controller.is_playing)
-
-    def _on_stop_clicked(self):
-        """处理停止按钮点击"""
-        self.player_controller.stop()
-        self._set_pause_button_text(False)
-
-    def _set_pause_button_text(self, is_playing):
-        """设置暂停/播放按钮文本"""
-        if is_playing:
-            self._set_button_text(self.ui.main_window.pause_btn, 'pause', '暂停')
-        else:
-            self._set_button_text(self.ui.main_window.pause_btn, 'play', '播放')
-
-    def _on_play_state_changed(self, is_playing):
-        """处理播放状态变化"""
-        self.logger.info(f"播放状态变化: is_playing={is_playing}")
-
-        # 直接更新UI，不使用batch_update，确保立即生效
-        self.ui.main_window.stop_btn.setEnabled(is_playing)
-        self.ui.main_window.stop_btn.setStyleSheet(
-            AppStyles.button_style(active=is_playing)
-        )
-
-        self._set_pause_button_text(is_playing)
-
-        if hasattr(self.ui.main_window, 'pause_btn'):
-            self.ui.main_window.pause_btn.repaint()
-        if hasattr(self.ui.main_window, 'stop_btn'):
-            self.ui.main_window.stop_btn.repaint()
-
-        self.logger.info(f"停止按钮启用状态: {self.ui.main_window.stop_btn.isEnabled()}")
 
     def _on_validate_clicked(self):
         """处理有效性检测按钮点击事件"""
@@ -556,78 +490,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.main_window.model.show_all()
             self.ui.main_window.btn_hide_invalid.setText("隐藏无效项")
 
-    def _open_list(self):
-        """打开列表文件"""
-        try:
-            success, error_msg = self.list_manager.open_list(self)
 
-            if success:
-                self.ui.main_window.btn_hide_invalid.setEnabled(False)
-                self.ui.main_window.btn_validate.setEnabled(True)
-                self.ui.main_window.statusBar().showMessage("列表加载成功", 3000)
 
-                self.model.modelReset.emit()
-                return True
-            else:
-                self.logger.warning(f"打开列表失败: {error_msg}")
-                self.ui.main_window.statusBar().showMessage(f"打开列表失败: {error_msg}", 3000)
-                return False
-        except Exception as e:
-            error_msg = f"打开列表失败: {str(e)}"
-            self.logger.error(error_msg, exc_info=True)
-            self.ui.main_window.statusBar().showMessage(error_msg, 3000)
-            return False
 
-    def _save_list(self):
-        """保存列表文件"""
-        try:
-            result = self.list_manager.save_list(self)
-            if result:
-                self.logger.info("列表保存成功")
-                self.ui.main_window.statusBar().showMessage("列表保存成功", 3000)
-                return True
-            else:
-                self.logger.warning("列表保存失败")
-                self.ui.main_window.statusBar().showMessage("列表保存失败", 3000)
-                return False
-
-        except Exception as e:
-            self.logger.error(f"保存列表失败: {e}", exc_info=True)
-            self.ui.main_window.statusBar().showMessage(f"保存列表失败: {str(e)}", 3000)
-            return False
-
-    def _play_selected_channel(self, index):
-        """播放选中的频道"""
-        if not index.isValid():
-            return
-
-        channel = self.ui.main_window.model.get_channel(index.row())
-        if not channel or not channel.get('url'):
-            return
-
-        if not hasattr(self, 'player_controller') or not self.player_controller:
-            from services.player_service import PlayerController
-            self.player_controller = PlayerController(
-                self.ui.main_window.player,
-                self.model
-            )
-
-        self.current_channel_index = index.row()
-
-        if self.player_controller.play_channel(channel, self.current_channel_index):
-            # 播放命令成功发出，立即更新UI状态
-            # 注意：play_channel是异步的，实际播放状态会通过play_state_changed信号更新
-            # 但为了确保UI立即响应，我们手动设置播放状态为True
-            self.player_controller.is_playing = True
-            self._on_play_state_changed(True)
-
-            if hasattr(self, 'language_manager') and self.language_manager:
-                self.ui.main_window.pause_btn.setText(
-                    self.language_manager.tr('pause', 'Pause')
-                )
-            else:
-                self.ui.main_window.pause_btn.setText("暂停")
-            self.current_channel = channel
 
     def save_before_exit(self):
         """退出前保存配置"""

@@ -410,53 +410,9 @@ class UIBuilder(QtCore.QObject):
             self._drag_start_pos = None
 
     def _setup_player_panel(self, parent: QtWidgets.QWidget) -> None:
-        """配置播放器面板"""
-        player_group = self.ui_factory.create_group_box("视频播放")
-        self.main_window.player_group = player_group
-        player_layout = self.ui_factory.create_layout(
-            "vertical", (2, 2, 2, 2), 5)
-
-        # 播放器主体
-        self.main_window.player = QtWidgets.QWidget()
-        player_layout.addWidget(self.main_window.player, stretch=10)
-
-        # 控制按钮区域
-        control_layout = self.ui_factory.create_layout(
-            "horizontal", (0, 5, 0, 5), 5)
-
-        # 播放/停止按钮
-        self.main_window.pause_btn = self.ui_factory.create_button(
-            "播放", active=False, height=36,
-            callback=self.main_window._on_pause_clicked
-        )
-        self.main_window.pause_btn.setEnabled(False)
-
-        self.main_window.stop_btn = self.ui_factory.create_button(
-            "停止", active=False, height=36,
-            callback=self.main_window._on_stop_clicked
-        )
-        self.main_window.stop_btn.setEnabled(False)
-
-        # 音量控制
-        self.main_window.volume_slider = QtWidgets.QSlider(
-            Qt.Orientation.Horizontal)
-        self.main_window.volume_slider.setRange(0, 100)
-        self.main_window.volume_slider.setValue(50)
-        self.main_window.volume_slider.valueChanged.connect(
-            self.main_window._on_volume_changed)
-
-        volume_label = self.ui_factory.create_label("音量：")
-        self.main_window.volume_label = volume_label  # 设置为属性以便语言管理器访问
-
-        control_layout.addWidget(self.main_window.pause_btn)
-        control_layout.addWidget(self.main_window.stop_btn)
-        control_layout.addWidget(volume_label)
-        control_layout.addWidget(self.main_window.volume_slider)
-
-        player_layout.addLayout(control_layout)
-        player_group.setLayout(player_layout)
-        parent.setLayout(QtWidgets.QVBoxLayout())
-        parent.layout().addWidget(player_group)
+        """配置播放器面板（空实现，扫描窗口不需要播放功能）"""
+        # 扫描窗口不需要播放功能，所以这里留空
+        pass
 
     def _save_network_settings(self):
         """保存网络设置到配置文件（提取的重复代码）"""
@@ -844,24 +800,8 @@ class UIBuilder(QtCore.QObject):
             )
         )
 
-        # 监听数据变化重新计算布局和更新按钮状态
-        def update_buttons():
-            has_channels = self.main_window.model.rowCount() > 0
-            # 播放按钮始终启用（只要有频道）
-            self.main_window.pause_btn.setEnabled(has_channels)
-            self.main_window.pause_btn.setStyleSheet(AppStyles.button_style(active=has_channels))
-            # 停止按钮根据播放状态启用
-            if hasattr(self.main_window, 'player_controller') and self.main_window.player_controller:
-                self.main_window.stop_btn.setEnabled(self.main_window.player_controller.is_playing)
-                self.main_window.stop_btn.setStyleSheet(
-                    AppStyles.button_style(active=self.main_window.player_controller.is_playing))
-
         # 使用批量更新机制 - 只连接一次数据变化信号
         self.main_window.model.dataChanged.connect(lambda: self._resize_timer.start())
-        self.main_window.model.dataChanged.connect(update_buttons)
-        self.main_window.model.rowsInserted.connect(update_buttons)
-        self.main_window.model.rowsRemoved.connect(update_buttons)
-        self.main_window.model.modelReset.connect(update_buttons)
 
         # 强制立即调整列宽，确保初始状态正确
         QtCore.QTimer.singleShot(
@@ -2107,13 +2047,6 @@ class UIBuilder(QtCore.QObject):
                 action.setToolTip(tooltip)
             return action
 
-        # 主要功能按钮 - 在创建时直接连接信号
-        self.main_window.open_action = create_action("📂", "打开列表", "打开IPTV列表文件")
-        self.main_window.open_action.triggered.connect(self.main_window._open_list)
-
-        self.main_window.save_action = create_action("💾", "保存列表", "保存当前列表到文件")
-        self.main_window.save_action.triggered.connect(self.main_window._save_list)
-
         # 使用QToolButton并手动连接菜单项点击事件
         self.main_window.language_button = QtWidgets.QToolButton(self.main_window)
         self.main_window.language_button.setText("🌐 语言")
@@ -2153,8 +2086,9 @@ class UIBuilder(QtCore.QObject):
         toolbar.addSeparator()
 
         # 添加按钮到工具栏
-        toolbar.addAction(self.main_window.open_action)
-        toolbar.addAction(self.main_window.save_action)
+        # 扫描窗口不需要打开和保存列表功能
+        # toolbar.addAction(self.main_window.open_action)
+        # toolbar.addAction(self.main_window.save_action)
         toolbar.addAction(language_action)
         toolbar.addAction(self.main_window.mapping_action)
         toolbar.addAction(self.main_window.about_action)
