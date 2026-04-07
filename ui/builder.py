@@ -168,11 +168,21 @@ class UIBuilder(QtCore.QObject):
         
         # 创建统计信息标签用于显示扫描状态
         self.main_window.stats_label = QtWidgets.QLabel("就绪")
-        self.main_window.stats_label.setStyleSheet(AppStyles.secondary_label_style())
+        self.main_window.stats_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                padding: 0 5px;
+                font-size: 13px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                opacity: 0.8;
+            }
+        """)
 
         # 主布局
         main_widget = QtWidgets.QWidget()
+        main_widget.setStyleSheet("background-color: transparent;")
         main_layout = QtWidgets.QHBoxLayout(main_widget)
+        main_layout.setContentsMargins(10, 10, 10, 10)
         self._init_splitters()
         main_layout.addWidget(self.main_window.main_splitter)
         self.main_window.setLayout(main_layout)
@@ -1059,21 +1069,6 @@ class UIBuilder(QtCore.QObject):
         # 获取选中频道的URL和名称
         url = self.main_window.model.data(self.main_window.model.index(index.row(), 3))  # URL在第3列
         name = self.main_window.model.data(self.main_window.model.index(index.row(), 1))  # 名称在第1列
-
-        # 添加分析频道详细信息菜单项
-        analyze_action = QtGui.QAction("分析频道详细", self.main_window)
-        analyze_action.triggered.connect(
-            lambda: self._analyze_channel_details(index))
-        menu.addAction(analyze_action)
-
-        menu.addSeparator()
-
-        # 添加重新获取信息菜单项
-        refresh_info_action = QtGui.QAction("重新获取信息", self.main_window)
-        refresh_info_action.triggered.connect(lambda: self._refresh_channel_info(index))
-        menu.addAction(refresh_info_action)
-
-        menu.addSeparator()
 
         # 添加复制频道名菜单项
         copy_name_action = QtGui.QAction("复制频道名", self.main_window)

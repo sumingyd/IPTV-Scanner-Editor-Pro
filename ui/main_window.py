@@ -33,14 +33,15 @@ class MainWindow(QtWidgets.QDialog):
         self.dragging = False
         self.offset = None
         self.opacity = 220
+        # 确保没有窗口标题
+        self.setWindowTitle("")
+        # 设置窗口属性，参考 AboutDialog 的实现
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-        # 设置为工具窗口，无边框，无标题栏
-        self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint | QtCore.Qt.WindowType.CustomizeWindowHint)
+        self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
         # 确保窗口可以接收鼠标事件
         self.setMouseTracking(True)
         # 确保窗口保持活动状态
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
-
         # 保存应用程序引用
         self.application = application
         if application:
