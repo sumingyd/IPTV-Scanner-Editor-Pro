@@ -249,6 +249,10 @@ class IPTVPlayer(QMainWindow):
     from ui.styles import AppStyles
     # 定义EPG状态更新信号
     epg_status_signal = pyqtSignal(str)
+    # 定义其他信号
+    channel_list_updated = pyqtSignal()
+    epg_list_updated = pyqtSignal()
+    status_message = pyqtSignal(str)
     
     def __init__(self):
         import time
@@ -264,6 +268,10 @@ class IPTVPlayer(QMainWindow):
 
         # 连接EPG状态信号到槽函数
         self.epg_status_signal.connect(self.update_status_bar)
+        # 连接其他信号到槽函数
+        self.channel_list_updated.connect(self._update_channel_list_ui)
+        self.epg_list_updated.connect(self._populate_epg_list)
+        self.status_message.connect(self.status_bar_show_message)
         
         # 语言管理
         self.language_manager = LanguageManager()
@@ -333,7 +341,16 @@ class IPTVPlayer(QMainWindow):
         
         logger.debug("IPTVPlayer（最小化）初始化完成")
         
-        # 立即开始初始化流程
+        # 立即显示窗口
+        self.show()
+        
+        # 处理事件，确保窗口渲染完成
+        from PyQt6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app:
+            app.processEvents()
+        
+        # 执行初始化流程
         self._initialize_in_order()
     
     def init_ui(self):
@@ -350,61 +367,321 @@ class IPTVPlayer(QMainWindow):
         # 1. 初始化基本UI
         self.init_ui()
         
+        # 处理事件，确保UI渲染完成
+        from PyQt6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app:
+            app.processEvents()
+        
         # 2. 初始化视频相关组件（菜单栏、工具栏、视频区域、状态栏）
         self._init_video_components()
+        
+        # 处理事件，确保UI渲染完成
+        if app:
+            app.processEvents()
         
         # 3. 创建视频区域
         self._create_video_area()
         
+        # 处理事件，确保UI渲染完成
+        if app:
+            app.processEvents()
+        
         # 4. 创建状态栏
         self._create_status_bar()
+        
+        # 处理事件，确保UI渲染完成
+        if app:
+            app.processEvents()
         
         # 5. 初始化播放器
         self._init_player()
         
-        # 6. 创建悬浮窗
-        self._create_floating_panels()
+        # 处理事件，确保UI渲染完成
+        if app:
+            app.processEvents()
         
-        # 7. 创建定时器
+        # 6. 创建定时器
         self._create_timer()
         
-        # 8. 创建EPG面板
+        # 处理事件，确保UI渲染完成
+        if app:
+            app.processEvents()
+        
+        # 7. 创建并显示EPG面板
         self._create_epg_panel()
         
-        # 9. 创建播放列表面板
+        # 处理事件，确保UI渲染完成
+        if app:
+            app.processEvents()
+        
+        # 8. 创建并显示播放列表面板
         self._create_playlist_panel()
         
-        # 10. 创建底部悬浮控制面板
+        # 处理事件，确保UI渲染完成
+        if app:
+            app.processEvents()
+        
+        # 9. 创建并显示底部悬浮控制面板
         self._create_bottom_panel()
         
-        # 11. 显示底部悬浮控制面板
-        self._show_floating_panel()
+        # 处理事件，确保UI渲染完成
+        if app:
+            app.processEvents()
         
-        # 12. 显示左右面板
-        self._show_side_panels()
+        # 10. 初始化最近打开文件菜单
+        self._update_recent_files_menu()
+        
+        # 处理事件，确保UI渲染完成
+        if app:
+            app.processEvents()
+        
+        # 11. 安装事件过滤器
+        self._install_event_filters()
+        
+        # 处理事件，确保UI渲染完成
+        if app:
+            app.processEvents()
+        
+        # 12. 面板已经在创建时显示，无需再次显示
         
         # 13. 更新悬浮窗位置
         self._update_floating_position()
         
-        # 14. 初始化最近打开文件菜单
-        self._update_recent_files_menu()
+        # 处理事件，确保UI渲染完成
+        if app:
+            app.processEvents()
         
-        # 15. 启动订阅更新定时器
-        self._start_subscription_timers()
+        # 14. 延迟执行数据加载，确保UI先显示
+        from PyQt6.QtCore import QTimer
         
-        # 16. 安装事件过滤器
-        self._install_event_filters()
+        def load_data_with_delay():
+            # 启动订阅更新
+            self._start_subscription_timers()
+            
+            # 填充频道列表
+            self._populate_channel_list()
+            
+            # 填充 EPG 列表
+            self._populate_epg_list()
+            
+            # 检查版本更新
+            self._check_for_updates_async()
         
-        # 17. 填充频道列表
-        self._populate_channel_list()
-        
-        # 填充 EPG 列表
-        self._populate_epg_list()
-        
-        # 18. 检查版本更新
-        self._check_for_updates_async()
+        # 使用 QTimer 延迟执行，确保在主线程中执行
+        QTimer.singleShot(1000, load_data_with_delay)
         
         logger.debug("_initialize_in_order: 完成")
+    
+    def _handle_playlist_subscription(self, need_update, playlist_url):
+        """在后台线程中处理列表订阅"""
+        try:
+            global CHANNELS
+            
+            if need_update:
+                logger.info("列表订阅需要更新，开始下载最新数据")
+                self.update_playlist_subscription()
+            else:
+                # 检查是否有本地缓存的列表文件
+                import os
+                cache_dir = self.config.get_value('General', 'cache_dir', 'cache')
+                if not os.path.exists(cache_dir):
+                    os.makedirs(cache_dir)
+                
+                playlist_cache_file = os.path.join(cache_dir, 'playlist_cache.m3u')
+                
+                if os.path.exists(playlist_cache_file):
+                    try:
+                        with open(playlist_cache_file, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                        
+                        # 解析M3U内容
+                        if self.channel_model.load_from_file(content):
+                            # 更新CHANNELS列表
+                            global CHANNELS
+                            CHANNELS = []
+                            for i, ch in enumerate(self.channel_model.channels):
+                                CHANNELS.append({
+                                    "id": i + 1,
+                                    "name": ch.get('name', '未命名'),
+                                    "url": ch.get('url', ''),
+                                    "logo": ch.get('logo', ''),
+                                    "group": ch.get('group', '未分类'),
+                                    "tvg_id": ch.get('tvg_id', ''),
+                                    "tvg_chno": ch.get('tvg_chno', ''),
+                                    "tvg_shift": ch.get('tvg_shift', ''),
+                                    "catchup": ch.get('catchup', ''),
+                                    "catchup_days": ch.get('catchup_days', ''),
+                                    "catchup_source": ch.get('catchup_source', ''),
+                                    "resolution": ch.get('resolution', ''),
+                                    "current_program": ''
+                                })
+                            
+                            # 更新频道列表UI
+                            self.channel_list_updated.emit()
+                            
+                            logger.info(f"列表订阅无需更新，从缓存加载数据，共 {len(CHANNELS)} 个频道")
+                            self.status_message.emit("从缓存加载列表数据")
+                        else:
+                            logger.error("缓存列表文件解析失败")
+                            # 尝试直接解析内容
+                            logger.info("尝试直接解析缓存内容...")
+                            try:
+                                # 手动解析M3U内容
+                                lines = content.strip().split('\n')
+                                channels = []
+                                current_channel = {}
+                                for line in lines:
+                                    line = line.strip()
+                                    if line.startswith('#EXTINF:'):
+                                        # 解析频道信息
+                                        parts = line.split(',', 1)
+                                        if len(parts) > 1:
+                                            current_channel['name'] = parts[1]
+                                    elif not line.startswith('#') and line:
+                                        # 解析频道URL
+                                        if current_channel:
+                                            current_channel['url'] = line
+                                            channels.append(current_channel.copy())
+                                            current_channel = {}
+                                
+                                if channels:
+                                    logger.info(f"手动解析成功，共 {len(channels)} 个频道")
+                                    # 更新CHANNELS列表
+                                    CHANNELS = []
+                                    for i, ch in enumerate(channels):
+                                        CHANNELS.append({
+                                            "id": i + 1,
+                                            "name": ch.get('name', '未命名'),
+                                            "url": ch.get('url', ''),
+                                            "logo": ch.get('logo', ''),
+                                            "group": ch.get('group', '未分类'),
+                                            "tvg_id": ch.get('tvg_id', ''),
+                                            "tvg_chno": ch.get('tvg_chno', ''),
+                                            "tvg_shift": ch.get('tvg_shift', ''),
+                                            "catchup": ch.get('catchup', ''),
+                                            "catchup_days": ch.get('catchup_days', ''),
+                                            "catchup_source": ch.get('catchup_source', ''),
+                                            "resolution": ch.get('resolution', ''),
+                                            "current_program": ''
+                                        })
+                                    
+                                    # 更新频道列表UI
+                                    self.channel_list_updated.emit()
+                                    
+                                    logger.info(f"手动解析后更新列表UI，共 {len(CHANNELS)} 个频道")
+                                    self.status_message.emit("手动解析后更新列表")
+                                else:
+                                    logger.error("手动解析也失败")
+                            except Exception as ex:
+                                logger.error(f"手动解析失败: {ex}")
+                    except Exception as ex:
+                        logger.error(f"加载缓存列表失败: {ex}")
+                else:
+                    logger.info("缓存文件不存在")
+                    # 如果缓存文件不存在，强制更新列表
+                    logger.info("缓存文件不存在，强制更新列表")
+                    self.update_playlist_subscription()
+        except Exception as ex:
+            logger.error(f"处理列表订阅失败: {ex}")
+    
+    def update_channel_list_ui(self):
+        """更新频道列表UI（公共方法，用于 QMetaObject.invokeMethod 调用）"""
+        self._update_channel_list_ui()
+    
+    def _update_channel_list_ui(self):
+        """更新频道列表UI"""
+        try:
+            self.channel_list.clear()
+            for ch in CHANNELS:
+                item = QListWidgetItem(ch['name'])
+                item.setData(Qt.ItemDataRole.UserRole, ch)
+                self.channel_list.addItem(item)
+        except Exception as ex:
+            logger.error(f"更新频道列表UI失败: {ex}")
+    
+    def status_bar_show_message(self, message):
+        """在状态栏显示消息"""
+        try:
+            self.status_bar.showMessage(message)
+        except Exception as ex:
+            logger.error(f"在状态栏显示消息失败: {ex}")
+    
+    def _handle_epg_subscription(self, epg_url, epg_interval):
+        """在后台线程中处理节目单订阅"""
+        try:
+            global EPG_DATA
+            
+            from datetime import datetime, timedelta
+            
+            # 检查是否需要立即更新
+            last_update_str = self.config.get_value('EPG', 'last_update', None)
+            need_update = True
+            if last_update_str:
+                try:
+                    last_update = datetime.fromisoformat(last_update_str)
+                    time_since_update = datetime.now() - last_update
+                    if time_since_update.total_seconds() < epg_interval * 60:
+                        need_update = False
+                        logger.info(f"节目单订阅无需立即更新，上次更新时间: {last_update}")
+                except Exception as e:
+                    logger.error(f"解析EPG上次更新时间失败: {e}")
+                    pass
+            else:
+                logger.info("未找到EPG上次更新时间，需要更新")
+            
+            if need_update:
+                logger.info("节目单订阅需要更新，开始下载最新数据")
+                self.update_epg_subscription()
+            else:
+                # 从缓存加载EPG数据
+                from core.epg_parser import global_epg_parser
+                # 加载缓存的EPG数据
+                global_epg_parser.load_cached_epg_data()
+                if global_epg_parser.epg_data:
+                    EPG_DATA = global_epg_parser.epg_data
+                    logger.info(f"节目单订阅无需更新，从缓存加载数据，共 {len(EPG_DATA)} 个频道")
+                    # 更新EPG列表UI
+                    self.epg_list_updated.emit()
+                else:
+                    # 如果缓存数据为空，强制更新
+                    logger.info("EPG缓存数据为空，强制更新")
+                    self.update_epg_subscription()
+        except Exception as ex:
+            logger.error(f"处理节目单订阅失败: {ex}")
+    
+    def _load_data_in_background(self):
+        """在后台线程中加载数据"""
+        logger.debug("_load_data_in_background: 开始")
+        
+        # 1. 等待UI元素显示
+        import time
+        max_wait = 5  # 最大等待时间（秒）
+        wait_time = 0
+        
+        while wait_time < max_wait:
+            # 检查关键UI元素是否已经创建
+            if hasattr(self, 'video_frame') and self.video_frame and \
+               hasattr(self, 'floating_panel') and self.floating_panel and \
+               hasattr(self, 'epg_panel') and self.epg_panel and \
+               hasattr(self, 'playlist_panel') and self.playlist_panel:
+                break
+            
+            time.sleep(0.1)
+            wait_time += 0.1
+        
+        logger.debug(f"_load_data_in_background: UI准备就绪，等待时间: {wait_time:.1f}秒")
+        
+        # 2. 填充频道列表
+        self.channel_list_updated.emit()
+        
+        # 3. 填充 EPG 列表
+        self.epg_list_updated.emit()
+        
+        # 4. 检查版本更新
+        self._check_for_updates_async()
+        
+        logger.debug("_load_data_in_background: 完成")
     
     def _full_initialization(self):
         """完整的初始化（在窗口显示后异步执行）"""
@@ -414,8 +691,7 @@ class IPTVPlayer(QMainWindow):
         self.init_ui()
         
         # 第二步：创建视频相关组件
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._init_video_components)
+        self._init_video_components()
         
         logger.debug("_full_initialization: 完成")
     
@@ -581,6 +857,9 @@ class IPTVPlayer(QMainWindow):
         self.epg_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         self.epg_layout.addWidget(self.epg_empty_label)
         
+        # 显示面板
+        self.epg_panel.show()
+        
         logger.debug("_create_epg_panel: 完成")
     
     def _create_playlist_panel(self):
@@ -620,6 +899,9 @@ class IPTVPlayer(QMainWindow):
         self.channel_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         self.playlist_layout.addWidget(self.channel_empty_label)
         
+        # 显示面板
+        self.playlist_panel.show()
+        
         logger.debug("_create_playlist_panel: 完成")
     
     def _create_bottom_panel(self):
@@ -646,6 +928,9 @@ class IPTVPlayer(QMainWindow):
         
         # 第二步：创建媒体信息行
         self._create_media_row()
+        
+        # 显示面板
+        self.floating_panel.show()
         
         logger.debug("_create_panel: 完成")
     
@@ -882,10 +1167,21 @@ class IPTVPlayer(QMainWindow):
         self.video_placeholder.installEventFilter(self)
         
         # 填充频道列表
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._populate_channel_list)
+        self._populate_channel_list()
         
         logger.debug("_install_event_filters: 完成")
+    
+    def populate_channel_list_ui(self):
+        """填充频道列表（公共方法，用于 QMetaObject.invokeMethod 调用）"""
+        self._populate_channel_list()
+    
+    def populate_epg_list_ui(self):
+        """填充EPG列表（公共方法，用于 QMetaObject.invokeMethod 调用）"""
+        self._populate_epg_list()
+    
+    def check_for_updates_ui(self):
+        """检查版本更新（公共方法，用于 QMetaObject.invokeMethod 调用）"""
+        self._check_for_updates_async()
     
     def _populate_channel_list(self):
         """填充频道列表"""
@@ -895,10 +1191,13 @@ class IPTVPlayer(QMainWindow):
         self.populate_channel_list()
         
         # 填充 EPG 列表
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._populate_epg_list)
+        self._populate_epg_list()
         
         logger.debug("_populate_channel_list: 完成")
+    
+    def populate_epg_list_ui(self):
+        """填充EPG列表（公共方法，用于 QMetaObject.invokeMethod 调用）"""
+        self._populate_epg_list()
     
     def _populate_epg_list(self):
         """填充EPG列表"""
@@ -926,8 +1225,7 @@ class IPTVPlayer(QMainWindow):
         self.start_subscription_timers()
         
         # 安装事件过滤器
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._install_event_filters)
+        self._install_event_filters()
         
         logger.debug("_start_subscription_timers: 完成")
     
@@ -1930,6 +2228,13 @@ class IPTVPlayer(QMainWindow):
     
     def on_play_state_changed(self, is_playing):
         """播放状态改变时的处理"""
+        # 确保在主线程中执行
+        from PyQt6.QtCore import QMetaObject, Qt
+        QMetaObject.invokeMethod(self, "_handle_play_state_change", Qt.ConnectionType.QueuedConnection, 
+                                Qt.Q_ARG(bool, is_playing))
+    
+    def _handle_play_state_change(self, is_playing):
+        """处理播放状态改变（在主线程中执行）"""
         if is_playing:
             self.play_button.setText("⏸")
             # 播放时隐藏背景，显示视频窗口
@@ -2767,12 +3072,6 @@ class IPTVPlayer(QMainWindow):
             
             from datetime import datetime, timedelta
             
-            # 停止现有的定时器（如果存在）
-            if hasattr(self, 'playlist_timer') and self.playlist_timer:
-                self.playlist_timer.stop()
-            if hasattr(self, 'epg_timer') and self.epg_timer:
-                self.epg_timer.stop()
-            
             # 标记已经检查过订阅更新
             if hasattr(self, '_subscription_checked') and self._subscription_checked:
                 return
@@ -2799,158 +3098,15 @@ class IPTVPlayer(QMainWindow):
                     except Exception:
                         pass
                 
-                # 如果需要更新，立即加载列表订阅
-                if need_update:
-                    logger.info("列表订阅需要更新，开始下载最新数据")
-                    import threading
-                    threading.Thread(target=self.update_playlist_subscription, daemon=True).start()
-                else:
-                    # 检查是否有本地缓存的列表文件
-                    import os
-                    cache_dir = self.config.get_value('General', 'cache_dir', 'cache')
-                    if not os.path.exists(cache_dir):
-                        os.makedirs(cache_dir)
-                    
-                    playlist_cache_file = os.path.join(cache_dir, 'playlist_cache.m3u')
-                    
-                    if os.path.exists(playlist_cache_file):
-                        try:
-                            with open(playlist_cache_file, 'r', encoding='utf-8') as f:
-                                content = f.read()
-                            
-                            # 解析M3U内容
-                            if self.channel_model.load_from_file(content):
-                                # 更新CHANNELS列表
-                                global CHANNELS
-                                CHANNELS = []
-                                for i, ch in enumerate(self.channel_model.channels):
-                                    CHANNELS.append({
-                                        "id": i + 1,
-                                        "name": ch.get('name', '未命名'),
-                                        "url": ch.get('url', ''),
-                                        "logo": ch.get('logo', ''),
-                                        "group": ch.get('group', '未分类'),
-                                        "tvg_id": ch.get('tvg_id', ''),
-                                        "tvg_chno": ch.get('tvg_chno', ''),
-                                        "tvg_shift": ch.get('tvg_shift', ''),
-                                        "catchup": ch.get('catchup', ''),
-                                        "catchup_days": ch.get('catchup_days', ''),
-                                        "catchup_source": ch.get('catchup_source', ''),
-                                        "resolution": ch.get('resolution', ''),
-                                        "current_program": ''
-                                    })
-                                
-                                # 更新频道列表UI
-                                self.channel_list.clear()
-                                for ch in CHANNELS:
-                                    item = QListWidgetItem(ch['name'])
-                                    item.setData(Qt.ItemDataRole.UserRole, ch)
-                                    self.channel_list.addItem(item)
-                                
-                                logger.info(f"列表订阅无需更新，从缓存加载数据，共 {len(CHANNELS)} 个频道")
-                                self.status_bar.showMessage("从缓存加载列表数据")
-                            else:
-                                logger.error("缓存列表文件解析失败")
-                                # 尝试直接解析内容
-                                logger.info("尝试直接解析缓存内容...")
-                                try:
-                                    # 手动解析M3U内容
-                                    lines = content.strip().split('\n')
-                                    channels = []
-                                    current_channel = {}
-                                    for line in lines:
-                                        line = line.strip()
-                                        if line.startswith('#EXTINF:'):
-                                            # 解析频道信息
-                                            parts = line.split(',', 1)
-                                            if len(parts) > 1:
-                                                current_channel['name'] = parts[1]
-                                        elif not line.startswith('#') and line:
-                                            # 解析频道URL
-                                            if current_channel:
-                                                current_channel['url'] = line
-                                                channels.append(current_channel.copy())
-                                                current_channel = {}
-                                    
-                                    if channels:
-                                        logger.info(f"手动解析成功，共 {len(channels)} 个频道")
-                                        # 更新CHANNELS列表
-                                        CHANNELS = []
-                                        for i, ch in enumerate(channels):
-                                            CHANNELS.append({
-                                                "id": i + 1,
-                                                "name": ch.get('name', '未命名'),
-                                                "url": ch.get('url', ''),
-                                                "logo": ch.get('logo', ''),
-                                                "group": ch.get('group', '未分类'),
-                                                "tvg_id": ch.get('tvg_id', ''),
-                                                "tvg_chno": ch.get('tvg_chno', ''),
-                                                "tvg_shift": ch.get('tvg_shift', ''),
-                                                "catchup": ch.get('catchup', ''),
-                                                "catchup_days": ch.get('catchup_days', ''),
-                                                "catchup_source": ch.get('catchup_source', ''),
-                                                "resolution": ch.get('resolution', ''),
-                                                "current_program": ''
-                                            })
-                                        
-                                        # 更新频道列表UI
-                                        self.channel_list.clear()
-                                        for ch in CHANNELS:
-                                            item = QListWidgetItem(ch['name'])
-                                            item.setData(Qt.ItemDataRole.UserRole, ch)
-                                            self.channel_list.addItem(item)
-                                        
-                                        logger.info(f"手动解析后更新列表UI，共 {len(CHANNELS)} 个频道")
-                                        self.status_bar.showMessage("手动解析后更新列表")
-                                    else:
-                                        logger.error("手动解析也失败")
-                                except Exception as ex:
-                                    logger.error(f"手动解析失败: {ex}")
-                        except Exception as ex:
-                            logger.error(f"加载缓存列表失败: {ex}")
-                    else:
-                        logger.info("缓存文件不存在")
-                        # 如果缓存文件不存在，强制更新列表
-                        logger.info("缓存文件不存在，强制更新列表")
-                        import threading
-                        threading.Thread(target=self.update_playlist_subscription, daemon=True).start()
+                # 无论是否需要更新，都在后台线程中处理
+                import threading
+                threading.Thread(target=self._handle_playlist_subscription, args=(need_update, playlist_url), daemon=True).start()
             
             # 处理节目单订阅
             if epg_url:
-                # 检查是否需要立即更新
-                last_update_str = self.config.get_value('EPG', 'last_update', None)
-                need_update = True
-                if last_update_str:
-                    try:
-                        last_update = datetime.fromisoformat(last_update_str)
-                        time_since_update = datetime.now() - last_update
-                        if time_since_update.total_seconds() < epg_interval * 60:
-                            need_update = False
-                            logger.info(f"节目单订阅无需立即更新，上次更新时间: {last_update}")
-                    except Exception as e:
-                        logger.error(f"解析EPG上次更新时间失败: {e}")
-                        pass
-                else:
-                    logger.info("未找到EPG上次更新时间，需要更新")
-                
-                # 如果需要更新，立即加载节目单订阅
-                if need_update:
-                    logger.info("节目单订阅需要更新，开始下载最新数据")
-                    import threading
-                    threading.Thread(target=self.update_epg_subscription, daemon=True).start()
-                else:
-                    # 从缓存加载EPG数据
-                    from core.epg_parser import global_epg_parser
-                    # 加载缓存的EPG数据
-                    global_epg_parser.load_cached_epg_data()
-                    if global_epg_parser.epg_data:
-                        EPG_DATA = global_epg_parser.epg_data
-                        logger.info(f"节目单订阅无需更新，从缓存加载数据，共 {len(EPG_DATA)} 个频道")
-                    else:
-                        # 如果缓存数据为空，强制更新
-                        logger.info("EPG缓存数据为空，强制更新")
-                        import threading
-                        threading.Thread(target=self.update_epg_subscription, daemon=True).start()
+                # 无论是否需要更新，都在后台线程中处理
+                import threading
+                threading.Thread(target=self._handle_epg_subscription, args=(epg_url, epg_interval), daemon=True).start()
         except Exception as ex:
             logger.error(f"检查订阅内容失败: {str(ex)}")
     
@@ -2996,11 +3152,7 @@ class IPTVPlayer(QMainWindow):
                     })
                 
                 # 更新频道列表UI
-                self.channel_list.clear()
-                for ch in CHANNELS:
-                    item = QListWidgetItem(ch['name'])
-                    item.setData(Qt.ItemDataRole.UserRole, ch)
-                    self.channel_list.addItem(item)
+                self._update_channel_list_ui()
                 
                 # 保存最后更新时间
                 from datetime import datetime
@@ -3053,19 +3205,19 @@ class IPTVPlayer(QMainWindow):
                 self.config.set_value('EPG', 'last_update', datetime.now().isoformat())
                 self.config.save_config()
                 logger.info(f"节目单订阅更新成功，共 {len(EPG_DATA)} 个频道的节目单，已使用最新数据")
-                self.status_bar.showMessage("节目单订阅更新成功")
+                self.status_bar_show_message("节目单订阅更新成功")
             else:
                 # 如果加载失败，从缓存加载
                 if global_epg_parser.epg_data:
                     EPG_DATA = global_epg_parser.epg_data
                     logger.info(f"使用缓存的EPG数据，包含 {len(EPG_DATA)} 个频道")
-                    self.status_bar.showMessage("使用缓存的EPG数据")
+                    self.status_bar_show_message("使用缓存的EPG数据")
                 else:
                     logger.error("节目单订阅内容解析失败")
-                    self.status_bar.showMessage("节目单订阅内容解析失败")
+                    self.status_bar_show_message("节目单订阅内容解析失败")
         except Exception as ex:
             logger.error(f"更新节目单订阅失败: {str(ex)}")
-            self.status_bar.showMessage(f"更新节目单订阅失败: {str(ex)}")
+            self.status_bar_show_message(f"更新节目单订阅失败: {str(ex)}")
     
     def save_player_settings(self, dialog):
         """保存播放器设置"""
@@ -3552,14 +3704,18 @@ class IPTVPlayer(QMainWindow):
             self.status_bar.setStyleSheet(AppStyles.statusbar_error_style())
 
             # 10秒后恢复状态栏样式
-            from PyQt6.QtCore import QTimer
-            QTimer.singleShot(10000, lambda: self.status_bar.setStyleSheet(""))
+            from PyQt6.QtCore import QMetaObject, Qt
+            QMetaObject.invokeMethod(self, "_reset_statusbar_style", Qt.ConnectionType.QueuedConnection)
 
             logger.info(f"发现新版本: {latest_version} (当前版本: {current_version})")
 
         except Exception as e:
             logger.error(f"更新界面提示失败: {str(e)}")
 
+    def _reset_statusbar_style(self):
+        """恢复状态栏样式"""
+        self.status_bar.setStyleSheet("")
+    
     def _on_update_check_completed(self, success, message):
         """版本检查完成时的处理"""
         if success:
