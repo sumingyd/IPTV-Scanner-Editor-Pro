@@ -25,11 +25,21 @@ from utils.logging_helper import (
 )
 
 
-class MainWindow(QtWidgets.QMainWindow):
-    """主窗口类，继承自QMainWindow"""
+class MainWindow(QtWidgets.QDialog):
+    """主窗口类，继承自QDialog"""
 
     def __init__(self, application=None):
         super().__init__()
+        self.dragging = False
+        self.offset = None
+        self.opacity = 220
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+        # 设置为工具窗口，无边框，无标题栏
+        self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint | QtCore.Qt.WindowType.CustomizeWindowHint)
+        # 确保窗口可以接收鼠标事件
+        self.setMouseTracking(True)
+        # 确保窗口保持活动状态
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
 
         # 保存应用程序引用
         self.application = application
@@ -58,10 +68,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # 在UI构建前完全隐藏窗口，防止任何闪动
         self.hide()
 
-        # 设置窗口样式，与主窗口一致
-        from ui.styles import AppStyles
-        self.setStyleSheet(AppStyles.player_background_style())
-
         # 创建UI构建器实例
         self.ui = UIBuilder(self)
         self.ui.build_ui()
@@ -70,10 +76,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if hasattr(self, 'language_manager'):
             self.language_manager.update_ui_texts(self)
 
-        # 设置窗口图标
-        if os.path.exists('resources/logo.ico'):
-            self.setWindowIcon(QtGui.QIcon('resources/logo.ico'))
-
         # 初始化主窗口的后续设置
         self._init_main_window()
         self._timers = []
@@ -81,13 +83,37 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # 延迟显示窗口，确保UI完全初始化后再显示
         QtCore.QTimer.singleShot(100, self.show)
-
-
-
-        # 注册到主题管理器
-        from ui.theme_manager import get_theme_manager
-        self.theme_manager = get_theme_manager()
-        self.theme_manager.register_window(self)
+    
+    def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self.dragging = True
+            self.offset = event.position().toPoint()
+    
+    def mouseMoveEvent(self, event):
+        if self.dragging:
+            new_position = event.globalPosition().toPoint() - self.offset
+            self.move(new_position)
+    
+    def mouseReleaseEvent(self, event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self.dragging = False
+    
+    def paintEvent(self, event):
+        """自定义绘制半透明背景和边框"""
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        
+        # 创建圆角矩形路径
+        path = QtGui.QPainterPath()
+        rect = QtCore.QRectF(self.rect().adjusted(1, 1, -1, -1))
+        path.addRoundedRect(rect, 12, 12)
+        
+        # 绘制半透明背景（只在圆角内）
+        painter.fillPath(path, QtGui.QColor(30, 30, 30, self.opacity))
+        
+        # 绘制边框
+        painter.setPen(QtGui.QColor(120, 120, 120, 200))
+        painter.drawPath(path)
 
     def _init_timers(self):
         """在主线程初始化所有定时器"""
@@ -127,7 +153,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # 初始化进度条管理器（必须在 init_controllers 之前）
         self.progress_manager = init_progress_manager(
             self.ui.main_window.progress_indicator,
-            self.ui.main_window.statusBar()
+            None
         )
 
         self.init_controllers()
@@ -351,7 +377,7 @@ class MainWindow(QtWidgets.QMainWindow):
             url = self.ui.main_window.ip_range_input.text()
             if not url.strip():
                 log_ui_warning("请输入扫描地址")
-                self.ui.main_window.statusBar().showMessage("请输入扫描地址", 3000)
+                # 扫描频道窗口没有状态栏，直接在日志中记录
                 return
 
             QtCore.QTimer.singleShot(0, lambda: self._start_scan_delayed(url, clear_list=True))
@@ -366,7 +392,7 @@ class MainWindow(QtWidgets.QMainWindow):
             url = self.ui.main_window.ip_range_input.text()
             if not url.strip():
                 log_ui_warning("请输入扫描地址")
-                self.ui.main_window.statusBar().showMessage("请输入扫描地址", 3000)
+                # 扫描频道窗口没有状态栏，直接在日志中记录
                 return
 
             QtCore.QTimer.singleShot(0, lambda: self._start_scan_delayed(url, clear_list=False))
@@ -460,7 +486,7 @@ class MainWindow(QtWidgets.QMainWindow):
         url = self.ui.main_window.ip_range_input.text()
         if not url.strip():
             self.logger.warning("请输入生成地址")
-            self.ui.main_window.statusBar().showMessage("请输入生成地址", 3000)
+            # 扫描频道窗口没有状态栏，直接在日志中记录
             return
 
         self.model.clear()
@@ -482,7 +508,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.model.add_channel(channel)
                 count += 1
 
-        self.ui.main_window.statusBar().showMessage(f"已生成 {count} 个频道", 3000)
+        # 扫描频道窗口没有状态栏，直接在日志中记录
+        self.logger.info(f"已生成 {count} 个频道")
 
     def _on_hide_invalid_clicked(self):
         """处理隐藏无效项按钮点击事件"""
@@ -647,28 +674,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_mapping_clicked(self):
         """处理映射管理按钮点击事件"""
-        try:
-            from ui.dialogs.mapping_manager_dialog import MappingManagerDialog
-
-            dialog = MappingManagerDialog(self)
-            dialog.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
-
-            def show_dialog():
-                try:
-                    dialog.exec()
-                except Exception as e:
-                    self.logger.error(f"显示映射管理器出错: {e}")
-
-            QtCore.QTimer.singleShot(0, show_dialog)
-
-        except ImportError as e:
-            self.logger.error(f"导入MappingManagerDialog失败: {e}")
-            from utils.error_handler import show_error
-            show_error("错误", "无法加载映射管理器模块", parent=self)
-        except Exception as e:
-            self.logger.error(f"显示映射管理器失败: {e}")
-            from utils.error_handler import show_error
-            show_error("错误", f"无法显示映射管理器: {str(e)}", parent=self)
+        # 频道映射管理器已迁移到主界面菜单，此方法不再使用
+        pass
 
     def _register_cleanup_handlers(self):
         """注册资源清理处理器"""
@@ -728,7 +735,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if not failed_channels:
             self.logger.info("没有失败的频道需要重试")
-            self.ui.main_window.statusBar().showMessage("没有失败的频道需要重试", 3000)
+            # 扫描频道窗口没有状态栏，直接在日志中记录
             self.logger.info("=== _handle_retry_scan 方法结束（无失败频道）===")
             return
 
@@ -787,20 +794,14 @@ class MainWindow(QtWidgets.QMainWindow):
         failed_channels = self.scan_state_manager.get_failed_channels(self.retry_id)
         self.logger.info(f"智能重试收集完成: 需要重试的URL数={len(failed_channels)}")
 
-        # 如果重试URL数量很大，显示警告信息
+        # 如果重试URL数量很大，记录警告信息
         if len(failed_channels) > 10000:
-            self.ui.main_window.statusBar().showMessage(
-                f"警告: 有 {len(failed_channels)} 个URL需要重试，可能需要较长时间", 5000
-            )
+            self.logger.warning(f"警告: 有 {len(failed_channels)} 个URL需要重试，可能需要较长时间")
         elif len(failed_channels) > 0:
-            # 显示智能重试信息
-            self.ui.main_window.statusBar().showMessage(
-                f"智能重试: 将重试 {len(failed_channels)} 个可能有效的URL", 3000
-            )
+            # 记录智能重试信息
+            self.logger.info(f"智能重试: 将重试 {len(failed_channels)} 个可能有效的URL")
         else:
-            self.ui.main_window.statusBar().showMessage(
-                "智能重试: 没有需要重试的URL", 3000
-            )
+            self.logger.info("智能重试: 没有需要重试的URL")
 
     def _count_valid_channels(self):
         """统计有效频道数量"""
@@ -823,7 +824,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         failed_channels = self.scan_state_manager.get_failed_channels(self.retry_id)
         self.logger.info(f"开始第 {retry_count} 次重试扫描，共 {len(failed_channels)} 个频道")
-        self.ui.main_window.statusBar().showMessage(f"开始第 {retry_count} 次重试扫描...", 3000)
+        # 扫描频道窗口没有状态栏，直接在日志中记录
 
         # 使用扫描服务的 start_scan_from_urls 方法
         timeout = self.ui.main_window.timeout_input.value()
@@ -861,7 +862,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # 检查是否需要继续循环扫描
         if self.ui.main_window.loop_scan_checkbox.isChecked() and new_valid_count > 0:
             # 找到了新的有效频道，继续扫描
-            self.ui.main_window.statusBar().showMessage(f"找到 {new_valid_count} 个新频道，继续扫描...", 3000)
+            self.logger.info(f"找到 {new_valid_count} 个新频道，继续扫描...")
 
             # 重新收集失败的频道并继续扫描
             QtCore.QTimer.singleShot(1000, self._continue_loop_scan)
@@ -877,7 +878,7 @@ class MainWindow(QtWidgets.QMainWindow):
         failed_channels = self.scan_state_manager.get_failed_channels(self.retry_id)
         if not failed_channels:
             self.logger.info("所有频道都已有效，循环扫描结束")
-            self.ui.main_window.statusBar().showMessage("所有频道都已有效，循环扫描结束", 3000)
+            # 扫描频道窗口没有状态栏，直接在日志中记录
             self._finish_retry_scan()
             return
 
@@ -899,7 +900,7 @@ class MainWindow(QtWidgets.QMainWindow):
         retry_count = self.scan_state_manager.get_retry_count(self.retry_id)
 
         self.logger.info(f"重试扫描完成，共进行 {retry_count} 次重试，总计有效频道: {total_valid}")
-        self.ui.main_window.statusBar().showMessage(f"重试扫描完成，总计有效频道: {total_valid}", 5000)
+        # 扫描频道窗口没有状态栏，直接在日志中记录
 
         # 重置重试计数和失败频道列表
         self.scan_state_manager.reset_retry_count(self.retry_id)

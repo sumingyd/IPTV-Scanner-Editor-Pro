@@ -1306,6 +1306,10 @@ class IPTVPlayer(QMainWindow):
             scan_channels.triggered.connect(self.open_scan_ui)
             tools_menu.addAction(scan_channels)
             
+            channel_mapping = QAction("频道映射管理器", self)
+            channel_mapping.triggered.connect(self.open_channel_mapping)
+            tools_menu.addAction(channel_mapping)
+            
             tools_menu.addSeparator()
             
             player_settings = QAction("播放器设置", self)
@@ -1564,7 +1568,7 @@ class IPTVPlayer(QMainWindow):
                     if start_time <= now <= end_time:
                         # 将这个节目添加到过滤列表的最前面
                         filtered_programs.insert(0, program)
-                        logger.info(f"添加昨天的跨天节目: {program.get('title', '未知节目')}, 开始: {start_time}, 结束: {end_time}")
+                        logger.debug(f"添加昨天的跨天节目: {program.get('title', '未知节目')}, 开始: {start_time}, 结束: {end_time}")
                         has_current_program = True
                         current_program_index = 0
                         break
@@ -1583,7 +1587,7 @@ class IPTVPlayer(QMainWindow):
                     if start_time <= now <= end_time:
                         # 将这个节目添加到过滤列表的最前面
                         filtered_programs.insert(0, program)
-                        logger.info(f"添加当前播放的节目: {program.get('title', '未知节目')}, 开始: {start_time}, 结束: {end_time}")
+                        logger.debug(f"添加当前播放的节目: {program.get('title', '未知节目')}, 开始: {start_time}, 结束: {end_time}")
                         has_current_program = True
                         current_program_index = 0
                         break
@@ -1611,7 +1615,7 @@ class IPTVPlayer(QMainWindow):
                 else:
                     start_time = datetime.fromisoformat(program.get('start', ''))
                     end_time = datetime.fromisoformat(program.get('end', ''))
-                    logger.info(f"{i+1}. {program.get('title', '未知节目')}, 开始: {start_time}, 结束: {end_time}")
+                    logger.debug(f"{i+1}. {program.get('title', '未知节目')}, 开始: {start_time}, 结束: {end_time}")
             except Exception as e:
                 logger.error(f"记录节目信息失败: {e}")
         
@@ -2861,11 +2865,26 @@ class IPTVPlayer(QMainWindow):
             
             # 创建老的主窗口
             scan_window = MainWindow(app)
+            # 设置为独立的弹出窗口
+            scan_window.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint)
             scan_window.show()
             
             logger.info("成功打开扫描界面")
         except Exception as ex:
             logger.error(f"打开扫描界面失败: {str(ex)}")
+    
+    def open_channel_mapping(self):
+        """打开频道映射管理器"""
+        try:
+            from ui.dialogs.mapping_manager_dialog import MappingManagerDialog
+            
+            dialog = MappingManagerDialog(self)
+            dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+            dialog.exec()
+            
+            logger.info("成功打开频道映射管理器")
+        except Exception as ex:
+            logger.error(f"打开频道映射管理器失败: {str(ex)}")
     
     def player_settings(self):
         """播放器设置"""

@@ -148,47 +148,15 @@ class UIBuilder(QtCore.QObject):
 
     def _init_ui(self):
         """初始化用户界面"""
-        # 从about_dialog导入版本号
-        from ui.dialogs.about_dialog import AboutDialog
-        version = AboutDialog.CURRENT_VERSION
-        # 默认使用中文标题，语言管理器会覆盖这个设置
-        title = f"IPTV 专业扫描编辑工具 v{version}"
-        self.main_window.setWindowTitle(title)
-
-        # 加载保存的窗口布局（包括位置和大小）
-        _layout = self.main_window.config.load_window_layout()
-        x, y, width, height, dividers = _layout
-
-        # 设置窗口位置和大小
-        self.main_window.move(x, y)
-        self.main_window.resize(width, height)
+        # 使用默认窗口位置和大小
+        self.main_window.move(100, 100)
+        self.main_window.resize(1000, 700)
 
         # 连接窗口大小变化信号
         self.main_window.resizeEvent = lambda e: self._on_window_resize(e)
-        # 使用与主窗口一致的样式
-        from ui.styles import AppStyles
-        self.main_window.setStyleSheet(AppStyles.player_background_style())
 
-        # 主布局
-        main_widget = QtWidgets.QWidget()
-        self.main_window.setCentralWidget(main_widget)
-        main_layout = QtWidgets.QHBoxLayout(main_widget)
-        self._init_splitters()
-        main_layout.addWidget(self.main_window.main_splitter)
-
-        # 注意：这里不设置分割器大小，由_init_splitters统一处理
-        # 避免重复设置导致冲突
-
-        # 状态栏
-        status_bar = self.main_window.statusBar()
-        status_bar.show()
-        status_bar.setStyleSheet(AppStyles.statusbar_style())
-
-        # 添加远程映射状态标签（临时显示，不永久添加）
-        self.main_window.mapping_status_label = QtWidgets.QLabel()
-        self.main_window.mapping_status_label.setStyleSheet(AppStyles.secondary_label_style())
-
-        # 添加进度条到状态栏右下角（显示实际进度）
+        # 扫描频道窗口不需要状态栏
+        # 创建进度条用于显示扫描进度
         self.main_window.progress_indicator = QtWidgets.QProgressBar()
         self.main_window.progress_indicator.setRange(0, 100)
         self.main_window.progress_indicator.setValue(0)
@@ -197,28 +165,24 @@ class UIBuilder(QtCore.QObject):
         self.main_window.progress_indicator.setStyleSheet(AppStyles.progress_style())
         # 初始显示进度条，但设置为0
         self.main_window.progress_indicator.show()
-        status_bar.addPermanentWidget(self.main_window.progress_indicator)
-
-        # 添加统计信息标签到状态栏右下角（统一用于扫描和有效性检测）
+        
+        # 创建统计信息标签用于显示扫描状态
         self.main_window.stats_label = QtWidgets.QLabel("就绪")
         self.main_window.stats_label.setStyleSheet(AppStyles.secondary_label_style())
-        status_bar.addPermanentWidget(self.main_window.stats_label)
 
-        # 初始化时显示映射状态（临时显示，3秒后清除）
-        from models.channel_mappings import mapping_manager
-        if mapping_manager.remote_mappings:
-            mapping_status = self.main_window.language_manager.tr('mapping_loaded', 'Remote mapping loaded')
-        else:
-            mapping_status = self.main_window.language_manager.tr('mapping_failed', 'Remote mapping load failed')
+        # 主布局
+        main_widget = QtWidgets.QWidget()
+        main_layout = QtWidgets.QHBoxLayout(main_widget)
+        self._init_splitters()
+        main_layout.addWidget(self.main_window.main_splitter)
+        self.main_window.setLayout(main_layout)
 
-        # 临时显示映射状态，3秒后清除
-        status_bar.showMessage(mapping_status, 3000)
+        # 注意：这里不设置分割器大小，由_init_splitters统一处理
+        # 避免重复设置导致冲突
 
     def _on_window_resize(self, event):
         """处理窗口大小变化事件"""
         try:
-            pos = self.main_window.pos()
-            size = self.main_window.size()
             # 保存当前分割器状态
             dividers = [
                 *self.main_window.main_splitter.sizes(),
@@ -229,10 +193,6 @@ class UIBuilder(QtCore.QObject):
             # 关键修复：只有当分隔条有实际大小时才保存位置
             # 避免在窗口初始化时保存0值
             has_valid_sizes = all(size > 0 for size in dividers if size is not None)
-
-            if has_valid_sizes:
-                # 保存窗口布局（包括位置和大小）
-                self.main_window.config.save_window_layout(pos.x(), pos.y(), size.width(), size.height(), dividers)
 
             event.accept()
 
@@ -259,8 +219,8 @@ class UIBuilder(QtCore.QObject):
         self._setup_custom_splitter(self.main_window.left_splitter)
         self._setup_custom_splitter(self.main_window.channel_splitter)
 
-        # 加载保存的分隔条位置
-        _, _, _, _, dividers = self.main_window.config.load_window_layout()
+        # 使用默认分隔条位置
+        dividers = None
 
         # 视频播放面板放在左侧上方
         video_container = QtWidgets.QWidget()
@@ -396,18 +356,6 @@ class UIBuilder(QtCore.QObject):
                 sizes[1] = total - sizes[0]
 
             splitter.setSizes(sizes)
-
-            # 保存分隔条位置
-            pos = self.main_window.pos()
-            size = self.main_window.size()
-            dividers = [
-                *self.main_window.main_splitter.sizes(),
-                *self.main_window.left_splitter.sizes(),
-                *self.main_window.channel_splitter.sizes(),
-            ]
-            self.main_window.config.save_window_layout(
-                pos.x(), pos.y(), size.width(),
-                size.height(), dividers)
         else:
             self._drag_start_pos = None
 
@@ -1078,9 +1026,20 @@ class UIBuilder(QtCore.QObject):
         # 添加频道编辑区域
         self._setup_channel_edit(self.main_window.channel_splitter)
 
-        # 在应用程序启动时就创建媒体信息显示区域
-        # 延迟创建，确保UI完全初始化
-        QtCore.QTimer.singleShot(100, self._create_media_info_widget)
+        # 创建底部信息栏，包含进度条和统计信息
+        bottom_info_widget = QtWidgets.QWidget()
+        bottom_info_layout = QtWidgets.QHBoxLayout(bottom_info_widget)
+        bottom_info_layout.setContentsMargins(10, 5, 10, 5)
+        bottom_info_layout.setSpacing(10)
+        
+        # 添加进度条
+        bottom_info_layout.addWidget(self.main_window.progress_indicator)
+        
+        # 添加统计信息标签
+        bottom_info_layout.addWidget(self.main_window.stats_label)
+        
+        # 添加到分割器
+        self.main_window.channel_splitter.addWidget(bottom_info_widget)
 
         if isinstance(parent, QtWidgets.QSplitter):
             parent.addWidget(self.main_window.channel_splitter)
@@ -2269,68 +2228,8 @@ class UIBuilder(QtCore.QObject):
 
     def _setup_toolbar(self):
         """初始化工具栏"""
-        toolbar = self.main_window.addToolBar("主工具栏")
-        toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-        toolbar.setMovable(False)
-        toolbar.setIconSize(QtCore.QSize(24, 24))  # 设置合适的图标大小
-        toolbar.setStyleSheet(AppStyles.toolbar_button_style())
-
-        # 使用emoji作为文本的工具栏按钮
-        def create_action(emoji, text, tooltip=None):
-            """创建带有emoji文本的动作"""
-            action = QtGui.QAction(f"{emoji} {text}", self.main_window)
-            if tooltip:
-                action.setToolTip(tooltip)
-            return action
-
-        # 使用QToolButton并手动连接菜单项点击事件
-        self.main_window.language_button = QtWidgets.QToolButton(self.main_window)
-        self.main_window.language_button.setText("🌐 语言")
-        self.main_window.language_button.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
-        self.main_window.language_button.setStyleSheet(AppStyles.toolbar_button_style())
-
-        # 创建语言菜单
-        self.main_window.language_menu = QtWidgets.QMenu("语言", self.main_window)
-        self.main_window.language_button.setMenu(self.main_window.language_menu)
-
-        # 使用主窗口的语言管理器，避免重复加载
-        if not hasattr(self.main_window, 'language_manager') or not self.main_window.language_manager:
-            self.logger.warning("语言管理器未初始化，跳过工具栏语言设置")
-            return
-
-        # 添加语言选项并直接连接信号
-        available_languages = self.main_window.language_manager.available_languages
-        for lang_code, lang_info in available_languages.items():
-            lang_action = QtGui.QAction(lang_info['display_name'], self.main_window)
-            lang_action.setData(lang_code)
-            # 直接连接信号，不使用functools.partial
-            lang_action.triggered.connect(lambda checked, code=lang_code: self._change_language(code))
-            self.main_window.language_menu.addAction(lang_action)
-
-        # 创建QWidgetAction来包装QToolButton
-        language_action = QtWidgets.QWidgetAction(self.main_window)
-        language_action.setDefaultWidget(self.main_window.language_button)
-
-        self.main_window.about_action = create_action("ℹ️", "关于", "关于本程序")
-        self.main_window.about_action.triggered.connect(self.main_window._on_about_clicked)
-
-        # 添加映射管理器按钮
-        self.main_window.mapping_action = create_action("🗺️", "映射管理", "管理频道映射规则")
-        self.main_window.mapping_action.triggered.connect(self.main_window._on_mapping_clicked)
-
-        # 添加分隔符
-        toolbar.addSeparator()
-
-        # 添加按钮到工具栏
-        # 扫描窗口不需要打开和保存列表功能
-        # toolbar.addAction(self.main_window.open_action)
-        # toolbar.addAction(self.main_window.save_action)
-        toolbar.addAction(language_action)
-        toolbar.addAction(self.main_window.mapping_action)
-        toolbar.addAction(self.main_window.about_action)
-
-        # 立即刷新语言菜单显示
-        self.main_window.language_menu.aboutToShow.connect(self._refresh_language_menu)
+        # 扫描频道窗口不再需要独立的工具栏
+        pass
 
     def _refresh_language_menu(self):
         """刷新语言菜单，确保在打包环境中也能正确显示"""
