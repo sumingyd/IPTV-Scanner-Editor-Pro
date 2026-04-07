@@ -255,13 +255,13 @@ class IPTVPlayer(QMainWindow):
         logger.debug("开始初始化 IPTVPlayer（最小化）")
         super().__init__()
         logger.debug("设置窗口属性")
-        self.setWindowTitle("IPTV Scanner Editor Pro")
+        # 获取当前版本号并设置窗口标题
+        from ui.dialogs.about_dialog import AboutDialog
+        current_version = AboutDialog.CURRENT_VERSION
+        self.setWindowTitle(f"IPTV Scanner Editor Pro v{current_version}")
         self.setGeometry(100, 100, 1280, 780)
         self.setMinimumSize(800, 600)
-        
-        # 关键修复：在显示窗口前就设置黑色背景样式
-        self.setStyleSheet(AppStyles.player_background_style())
-        
+
         # 连接EPG状态信号到槽函数
         self.epg_status_signal.connect(self.update_status_bar)
         
@@ -940,6 +940,10 @@ class IPTVPlayer(QMainWindow):
         
         self._panels_initialized = True
         self._initialization_complete = True
+        
+        # 主窗口初始化完成后，检查更新
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(1000, self._check_for_updates_async)
         
         logger.debug("_update_recent_files_menu: 完成")
     
@@ -3413,26 +3417,152 @@ class IPTVPlayer(QMainWindow):
         if event.key() == Qt.Key.Key_Escape and self.is_fullscreen:
             self.toggle_fullscreen(False)
 
+    def _check_for_updates_async(self):
+        """异步检查新版本"""
+        try:
+            # 在后台线程中执行版本检查
+            from PyQt6.QtCore import QThread, pyqtSignal
+            import asyncio
+            import aiohttp
+
+            class UpdateCheckThread(QThread):
+                """版本检查线程"""
+                update_found = pyqtSignal(str, str)  # 最新版本号, 当前版本号
+                check_completed = pyqtSignal(bool, str)  # 是否成功, 消息
+
+                def run(self):
+                    try:
+                        # 创建新的事件循环
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+
+                        # 获取当前版本
+                        from ui.dialogs.about_dialog import AboutDialog
+                        current_version = AboutDialog.CURRENT_VERSION
+
+                        # 获取最新版本（设置超时避免长时间等待）
+                        latest_version, _, _ = loop.run_until_complete(
+                            asyncio.wait_for(self._get_latest_version(), timeout=15)
+                        )
+
+                        if latest_version and not latest_version.startswith("("):
+                            # 检查是否有新版本
+                            if self._is_newer_version(current_version, latest_version):
+                                self.update_found.emit(latest_version, current_version)
+                                self.check_completed.emit(True, f"发现新版本: {latest_version}")
+                            else:
+                                self.check_completed.emit(True, "当前已是最新版本")
+                        else:
+                            # 网络错误或其他问题，静默处理，不显示给用户
+                            self.check_completed.emit(False, f"版本检查失败: {latest_version}")
+
+                    except asyncio.TimeoutError:
+                        # 超时错误，静默处理
+                        self.check_completed.emit(False, "版本检查超时")
+                    except Exception as e:
+                        # 其他异常，静默处理
+                        self.check_completed.emit(False, f"版本检查异常: {str(e)}")
+                    finally:
+                        try:
+                            loop.close()
+                        except Exception:
+                            pass
+
+                async def _get_latest_version(self):
+                    """从GitHub获取最新版本信息"""
+                    try:
+                        async with aiohttp.ClientSession() as session:
+                            async with session.get(
+                                "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest",
+                                headers={'User-Agent': 'IPTV-Scanner-Editor-Pro'},
+                                timeout=aiohttp.ClientTimeout(total=10)
+                            ) as response:
+                                if response.status == 200:
+                                    data = await response.json()
+                                    version = data.get('tag_name', '').lstrip('v')
+                                    return version, None, None
+                                elif response.status == 403:
+                                    return "(API限制)", None, None
+                                else:
+                                    return "(获取失败)", None, None
+                    except asyncio.TimeoutError:
+                        return "(请求超时)", None, None
+                    except Exception:
+                        return "(获取失败)", None, None
+
+                def _is_newer_version(self, current_version, latest_version):
+                    """比较版本号，判断最新版本是否比当前版本新"""
+                    try:
+                        # 将版本号转换为数字列表进行比较
+                        current_parts = list(map(int, current_version.split('.')))
+                        latest_parts = list(map(int, latest_version.split('.')))
+
+                        # 确保两个版本号有相同的长度
+                        max_length = max(len(current_parts), len(latest_parts))
+                        current_parts.extend([0] * (max_length - len(current_parts)))
+                        latest_parts.extend([0] * (max_length - len(latest_parts)))
+
+                        # 逐位比较
+                        for i in range(max_length):
+                            if latest_parts[i] > current_parts[i]:
+                                return True
+                            elif latest_parts[i] < current_parts[i]:
+                                return False
+                        return False  # 版本相同
+                    except (ValueError, AttributeError):
+                        # 如果版本号格式不正确，使用字符串比较
+                        return latest_version > current_version
+
+            # 创建并启动版本检查线程
+            self.update_check_thread = UpdateCheckThread()
+            self.update_check_thread.setParent(self)
+            self.update_check_thread.update_found.connect(self._on_update_found)
+            self.update_check_thread.check_completed.connect(self._on_update_check_completed)
+            self.update_check_thread.start()
+
+        except Exception as e:
+            logger.error(f"启动版本检查失败: {str(e)}")
+
+    def _on_update_found(self, latest_version, current_version):
+        """发现新版本时的处理"""
+        try:
+            # 在窗口标题添加提示
+            original_title = self.windowTitle()
+            if " - 有新版本" not in original_title:
+                new_title = f"{original_title} - 有新版本 {latest_version}"
+                self.setWindowTitle(new_title)
+
+            # 在状态栏用红字显示提示
+            status_message = f"发现新版本 {latest_version} (当前版本 {current_version})"
+            self.status_bar.showMessage(status_message, 10000)  # 显示10秒
+
+            # 设置状态栏消息为红色
+            from ui.styles import AppStyles
+            self.status_bar.setStyleSheet(AppStyles.statusbar_error_style())
+
+            # 10秒后恢复状态栏样式
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(10000, lambda: self.status_bar.setStyleSheet(""))
+
+            logger.info(f"发现新版本: {latest_version} (当前版本: {current_version})")
+
+        except Exception as e:
+            logger.error(f"更新界面提示失败: {str(e)}")
+
+    def _on_update_check_completed(self, success, message):
+        """版本检查完成时的处理"""
+        if success:
+            logger.info(f"版本检查完成: {message}")
+        else:
+            logger.warning(f"版本检查失败: {message}")
+
 # 主函数
 if __name__ == "__main__":
     import time
     app_start_time = time.time()
-    print(f"[主程序] 开始启动 - 时间戳: {app_start_time:.3f}")
-    
     app = QApplication(sys.argv)
-    print(f"[主程序] QApplication 创建完成 - 耗时: {time.time() - app_start_time:.3f}s")
-    
     player = IPTVPlayer()
-    print(f"[主程序] IPTVPlayer 创建完成 - 耗时: {time.time() - app_start_time:.3f}s")
-    
-    # 关键修复：在显示窗口前强制处理所有待处理事件
+    # 在显示窗口前强制处理所有待处理事件
     app.processEvents()
-    
     player.show()
-    print(f"[主程序] 窗口显示完成 - 耗时: {time.time() - app_start_time:.3f}s")
-    
-    # 再次强制处理事件，确保窗口完全渲染
-    app.processEvents()
-    
-    print(f"[主程序] 进入事件循环 - 总耗时: {time.time() - app_start_time:.3f}s")
     sys.exit(app.exec())
