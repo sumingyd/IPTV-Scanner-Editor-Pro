@@ -2863,10 +2863,12 @@ class IPTVPlayer(QMainWindow):
                 logger.error("应用程序初始化失败，无法启动扫描界面")
                 return
             
-            # 创建老的主窗口
+            # 创建老的主窗口，设置主窗口为父窗口
             scan_window = MainWindow(app)
-            # 设置为独立的弹出窗口
-            scan_window.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint)
+            # 设置主窗口为父窗口
+            scan_window.setParent(self)
+            # 设置为无边框、无标题栏的独立弹出窗口
+            scan_window.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
             scan_window.show()
             
             logger.info("成功打开扫描界面")
