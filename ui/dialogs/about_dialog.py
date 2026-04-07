@@ -70,27 +70,12 @@ class AboutDialog(QtWidgets.QDialog):
         # 信息卡片
         info_card = QtWidgets.QWidget()
         info_card.setObjectName("infoCard")
-        info_card.setStyleSheet("""
-            #infoCard {
-                background-color: rgba(50, 50, 50, 200);
-                border-radius: 10px;
-                border: 1px solid rgba(100, 100, 100, 200);
-                padding: 20px;
-            }
-        """)
 
         info_layout = QtWidgets.QVBoxLayout(info_card)
         info_layout.setSpacing(12)
 
         # 版本信息
         version_group = QtWidgets.QGroupBox()
-        version_group.setStyleSheet("""
-            QGroupBox {
-                background-color: transparent;
-                border: none;
-                margin-top: 0;
-            }
-        """)
         version_layout = QtWidgets.QGridLayout(version_group)
         version_layout.setSpacing(10)
 
@@ -142,7 +127,6 @@ class AboutDialog(QtWidgets.QDialog):
         main_layout.addWidget(features_title)
 
         features_widget = QtWidgets.QWidget()
-        features_widget.setStyleSheet("background-color: transparent;")
         features_layout = QtWidgets.QVBoxLayout(features_widget)
         features_layout.setSpacing(8)
 
@@ -178,7 +162,6 @@ class AboutDialog(QtWidgets.QDialog):
         github_link.setText('<a href="https://github.com/sumingyd/IPTV-Scanner-Editor-Pro" style="color: #6a9eff; text-decoration: none;">GitHub 仓库</a>')
         github_link.setOpenExternalLinks(True)
         github_link.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        github_link.setStyleSheet("background-color: transparent;")
         bottom_layout.addWidget(github_link)
 
         main_layout.addLayout(bottom_layout)
@@ -188,22 +171,6 @@ class AboutDialog(QtWidgets.QDialog):
         button_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         close_btn = QtWidgets.QPushButton("关闭")
-        close_btn.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(50, 50, 50, 200);
-                color: white;
-                border: 1px solid rgba(100, 100, 100, 200);
-                border-radius: 4px;
-                padding: 8px 24px;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: rgba(60, 60, 60, 220);
-            }
-            QPushButton:pressed {
-                background-color: rgba(40, 40, 40, 220);
-            }
-        """)
         close_btn.clicked.connect(self.close)
         button_layout.addWidget(close_btn)
 
@@ -212,22 +179,8 @@ class AboutDialog(QtWidgets.QDialog):
         # 导入样式
         from ui.styles import AppStyles
 
-        # 使用自定义样式，确保所有元素都使用透明背景
-        self.setStyleSheet("""
-            QDialog {
-                background-color: transparent;
-            }
-            QLabel {
-                background-color: transparent;
-            }
-            QWidget {
-                background-color: transparent;
-            }
-            QGroupBox {
-                background-color: transparent;
-                border: none;
-            }
-        """)
+        # 使用自定义样式
+        self.setStyleSheet(AppStyles.about_dialog_style())
 
         # 启动版本检查
         QtCore.QTimer.singleShot(100, self._check_version_async)

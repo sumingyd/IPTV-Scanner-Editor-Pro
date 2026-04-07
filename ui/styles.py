@@ -618,6 +618,110 @@ class AppStyles:
         """
 
     @staticmethod
+    def scan_window_style() -> str:
+        """扫描频道窗口样式"""
+        return """
+            QGroupBox {
+                background-color: #2a2a2a;
+                color: #cccccc;
+                border: 1px solid #555;
+                border-radius: 8px;
+                margin-top: 12px;
+                padding-top: 16px;
+                font-weight: 600;
+                font-size: 13px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 6px;
+                color: #cccccc;
+                font-weight: 600;
+            }
+            QLabel {
+                color: #cccccc;
+                font-size: 12px;
+            }
+            QLineEdit {
+                background-color: #3a3a3a;
+                color: #cccccc;
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 6px;
+            }
+            QSpinBox {
+                background-color: #3a3a3a;
+                color: #cccccc;
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 6px;
+            }
+            QCheckBox {
+                color: #cccccc;
+                font-size: 12px;
+                spacing: 8px;
+            }
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+                border: 2px solid #555;
+                border-radius: 3px;
+                background-color: #3a3a3a;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #3a6eff;
+                border-color: #3a6eff;
+            }
+            QCheckBox::indicator:hover {
+                border-color: #3a6eff;
+            }
+            QPushButton {
+                background-color: #3a3a3a;
+                color: #cccccc;
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 8px 16px;
+                min-width: 100px;
+                font-weight: 500;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #4a4a4a;
+            }
+            QPushButton:pressed {
+                background-color: #2a2a2a;
+            }
+            QPushButton#scanButton {
+                background-color: #3a6eff;
+                color: white;
+                border: 1px solid #3a6eff;
+                font-weight: 600;
+            }
+            QPushButton#scanButton:hover {
+                background-color: #2a5eff;
+                border-color: #2a5eff;
+            }
+            QPushButton#scanButton:pressed {
+                background-color: #1a4eff;
+                border-color: #1a4eff;
+            }
+            QPushButton#saveButton {
+                background-color: #3a6eff;
+                color: white;
+                border: 1px solid #3a6eff;
+                font-weight: 600;
+            }
+            QPushButton#saveButton:hover {
+                background-color: #2a5eff;
+                border-color: #2a5eff;
+            }
+            QPushButton#saveButton:pressed {
+                background-color: #1a4eff;
+                border-color: #1a4eff;
+            }
+        """
+
+    @staticmethod
     def player_settings_dialog_style() -> str:
         """播放器设置对话框样式"""
         return """
@@ -1023,3 +1127,322 @@ class AppStyles:
                 margin-right: 0;
             }
         """
+
+    @staticmethod
+    def common_button_style() -> str:
+        """通用按钮样式(自动适应深色/浅色模式)"""
+        colors = AppStyles._get_colors()
+        return f"""
+            QPushButton {
+                background-color: {colors['button']};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+                border-radius: 4px;
+                padding: 8px 16px;
+                min-width: 100px;
+                font-weight: 500;
+                font-size: 12px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            }
+            QPushButton:hover {
+                background-color: {colors['light']};
+                border-color: {colors['accent']};
+            }
+            QPushButton:pressed {
+                background-color: {colors['dark']};
+                border-color: {colors['accent_pressed']};
+            }
+            QPushButton:disabled {
+                background-color: {colors['light']};
+                border-color: {colors['mid']};
+                color: {colors['placeholder']};
+            }
+        """
+
+    @staticmethod
+    def common_label_style() -> str:
+        """通用标签样式(自动适应深色/浅色模式)"""
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['window_text']};
+                font-size: 12px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                background-color: transparent;
+            }}
+        """
+
+    @staticmethod
+    def common_line_edit_style() -> str:
+        """通用输入框样式(自动适应深色/浅色模式)"""
+        colors = AppStyles._get_colors()
+        return f"""
+            QLineEdit {{
+                background-color: {colors['base']};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+                border-radius: 4px;
+                padding: 6px;
+                font-size: 12px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            }}
+            QLineEdit:focus {{
+                border-color: {colors['accent']};
+                outline: none;
+            }}
+            QLineEdit:disabled {{
+                background-color: {colors['light']};
+                border-color: {colors['mid']};
+                color: {colors['placeholder']};
+            }}
+        """
+
+    @staticmethod
+    def common_spin_box_style() -> str:
+        """通用SpinBox样式(自动适应深色/浅色模式)"""
+        colors = AppStyles._get_colors()
+        return f"""
+            QSpinBox {{
+                background-color: {colors['base']};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+                border-radius: 4px;
+                padding: 6px;
+                font-size: 12px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            }}
+            QSpinBox:focus {{
+                border-color: {colors['accent']};
+                outline: none;
+            }}
+            QSpinBox:disabled {{
+                background-color: {colors['light']};
+                border-color: {colors['mid']};
+                color: {colors['placeholder']};
+            }}
+        """
+
+    @staticmethod
+    def common_check_box_style() -> str:
+        """通用复选框样式(自动适应深色/浅色模式)"""
+        colors = AppStyles._get_colors()
+        return f"""
+            QCheckBox {{
+                color: {colors['window_text']};
+                font-size: 12px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                spacing: 8px;
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+                border: 2px solid {colors['mid']};
+                border-radius: 3px;
+                background-color: {colors['base']};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {colors['accent']};
+                border-color: {colors['accent']};
+            }}
+            QCheckBox::indicator:hover {{
+                border-color: {colors['accent']};
+            }}
+        """
+
+    @staticmethod
+    def common_group_box_style() -> str:
+        """通用分组框样式(自动适应深色/浅色模式)"""
+        colors = AppStyles._get_colors()
+        return f"""
+            QGroupBox {{
+                background-color: {colors['base']};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+                border-radius: 8px;
+                margin-top: 12px;
+                padding-top: 16px;
+                font-weight: 600;
+                font-size: 13px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 6px;
+                color: {colors['window_text']};
+                font-weight: 600;
+                font-size: 13px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            }}
+        """
+
+    @staticmethod
+    def common_dialog_style() -> str:
+        """通用弹窗窗口样式(自动适应深色/浅色模式)"""
+        colors = AppStyles._get_colors()
+        return f"""
+            QDialog {{
+                background-color: {colors['window']};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+                border-radius: 8px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            }}
+        """
+
+    @staticmethod
+    def common_title_style() -> str:
+        """通用标题文字样式(自动适应深色/浅色模式)"""
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['window_text']};
+                font-size: 16px;
+                font-weight: bold;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                background-color: transparent;
+            }}
+        """
+
+    @staticmethod
+    def common_link_style() -> str:
+        """通用链接文字样式(自动适应深色/浅色模式)"""
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['link']};
+                font-size: 12px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                background-color: transparent;
+                text-decoration: underline;
+            }}
+            QLabel:hover {{
+                color: {colors['accent_hover']};
+            }}
+        """
+
+    @staticmethod
+    def common_area_style() -> str:
+        """通用窗口内区域块样式(自动适应深色/浅色模式)"""
+        colors = AppStyles._get_colors()
+        return f"""
+            QWidget {{
+                background-color: {colors['base']};
+                border: 1px solid {colors['mid']};
+                border-radius: 8px;
+                padding: 12px;
+            }}
+        """
+
+    @staticmethod
+    def get_theme_name() -> str:
+        """获取当前主题名称，用于主题切换功能"""
+        try:
+            from ui.theme_manager import get_theme_manager
+            theme_manager = get_theme_manager()
+            return theme_manager.get_current_theme()
+        except Exception:
+            # 默认主题
+            return "default"
+
+    @staticmethod
+    def about_dialog_style() -> str:
+        """关于窗口样式"""
+        return """
+            QDialog {
+                background-color: transparent;
+            }
+            QLabel {
+                background-color: transparent;
+            }
+            QWidget {
+                background-color: transparent;
+            }
+            QGroupBox {
+                background-color: transparent;
+                border: none;
+            }
+            #infoCard {
+                background-color: rgba(50, 50, 50, 200);
+                border-radius: 10px;
+                border: 1px solid rgba(100, 100, 100, 200);
+                padding: 20px;
+            }
+            QPushButton {
+                background-color: rgba(50, 50, 50, 200);
+                color: white;
+                border: 1px solid rgba(100, 100, 100, 200);
+                border-radius: 4px;
+                padding: 8px 24px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: rgba(60, 60, 60, 220);
+            }
+            QPushButton:pressed {
+                background-color: rgba(40, 40, 40, 220);
+            }
+        """
+
+
+
+    @staticmethod
+    def get_theme_styles(theme_name: str = None) -> dict:
+        """获取指定主题的所有样式，用于主题切换功能"""
+        if theme_name is None:
+            theme_name = AppStyles.get_theme_name()
+        
+        # 这里可以根据主题名称返回不同的样式配置
+        # 目前只返回默认样式
+        return {
+            'common_button': AppStyles.common_button_style(),
+            'common_label': AppStyles.common_label_style(),
+            'common_line_edit': AppStyles.common_line_edit_style(),
+            'common_spin_box': AppStyles.common_spin_box_style(),
+            'common_check_box': AppStyles.common_check_box_style(),
+            'common_group_box': AppStyles.common_group_box_style(),
+            'common_dialog': AppStyles.common_dialog_style(),
+            'common_title': AppStyles.common_title_style(),
+            'common_link': AppStyles.common_link_style(),
+            'common_area': AppStyles.common_area_style(),
+            'main_window': AppStyles.main_window_style(),
+            'scan_window': AppStyles.scan_window_style(),
+            'dialog': AppStyles.dialog_style(),
+            'about_dialog': AppStyles.about_dialog_style(),
+            'player_settings_dialog': AppStyles.player_settings_dialog_style(),
+            'player_menu_bar': AppStyles.player_menu_bar_style(),
+            'player_toolbar': AppStyles.player_toolbar_style(),
+            'player_panel': AppStyles.player_panel_style(),
+            'player_button': AppStyles.player_button_style(),
+            'player_slider': AppStyles.player_slider_style(),
+            'player_volume_slider': AppStyles.player_volume_slider_style(),
+            'exit_catchup_button': AppStyles.exit_catchup_button_style(),
+            'player_label': AppStyles.player_label_style(),
+            'player_channel_name': AppStyles.player_channel_name_style(),
+            'player_program': AppStyles.player_program_style(),
+            'player_program_desc': AppStyles.player_program_desc_style(),
+            'player_date_button': AppStyles.player_date_button_style(),
+            'player_date_label': AppStyles.player_date_label_style(),
+            'player_epg_title': AppStyles.player_epg_title_style(),
+            'player_group_combo': AppStyles.player_group_combo_style(),
+            'player_playlist_title': AppStyles.player_playlist_title_style(),
+            'player_line': AppStyles.player_line_style(),
+            'player_video_placeholder': AppStyles.player_video_placeholder_style(),
+            'player_empty_label': AppStyles.player_empty_label_style(),
+            'player_list': AppStyles.player_list_style(),
+            'player_progress_label': AppStyles.player_progress_label_style(),
+            'player_channel_logo': AppStyles.player_channel_logo_style(),
+            'player_background': AppStyles.player_background_style(),
+            'list': AppStyles.list_style(),
+            'statusbar': AppStyles.statusbar_style(),
+            'statusbar_error': AppStyles.statusbar_error_style(),
+            'progress': AppStyles.progress_style(),
+            'toolbar_button': AppStyles.toolbar_button_style(),
+            'drag_list': AppStyles.drag_list_style(),
+            'drag_hint_label': AppStyles.drag_hint_label_style(),
+            'group_hint_label': AppStyles.group_hint_label_style(),
+            'apply_button': AppStyles.apply_button_style(),
+            'cancel_button': AppStyles.cancel_button_style(),
+            'secondary_label': AppStyles.secondary_label_style(),
+            'tab_widget': AppStyles.tab_widget_style(),
+        }

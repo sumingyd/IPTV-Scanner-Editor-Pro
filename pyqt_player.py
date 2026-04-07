@@ -443,6 +443,11 @@ class IPTVPlayer(QMainWindow):
         # 标记UI初始化完成
         self._ui_initialized = True
         
+        # 注册窗口到主题管理器
+        from ui.theme_manager import get_theme_manager
+        theme_manager = get_theme_manager()
+        theme_manager.register_window(self)
+        
         logger.debug("_initialize_in_order: 完成")
     
     def _handle_playlist_subscription(self, need_update, playlist_url):
@@ -778,7 +783,7 @@ class IPTVPlayer(QMainWindow):
         # 左侧EPG面板
         self.epg_panel = TranslucentPanel(opacity=180)
         self.epg_panel.setStyleSheet(AppStyles.player_panel_style())
-        self.epg_panel.setFixedWidth(200)
+        self.epg_panel.setFixedWidth(250)
         self.epg_layout = QVBoxLayout(self.epg_panel)
         
         # EPG标题
@@ -1325,6 +1330,23 @@ class IPTVPlayer(QMainWindow):
             language_menu.addAction(chinese)
             
             english = QAction("English", self, checkable=True)
+            
+            # 主题菜单
+            theme_menu = menu_bar.addMenu("主题")
+            
+            # 导入主题管理器
+            from ui.theme_manager import get_theme_manager
+            theme_manager = get_theme_manager()
+            
+            # 获取可用的主题列表
+            themes = theme_manager.get_available_themes()
+            
+            # 为每个主题创建一个动作
+            for theme in themes:
+                theme_action = QAction(theme, self, checkable=True)
+                theme_action.setChecked(theme == theme_manager.get_current_theme())
+                theme_action.triggered.connect(lambda checked, t=theme: self.set_theme(t))
+                theme_menu.addAction(theme_action)
             english.setChecked(False)
             english.triggered.connect(lambda: self.set_language("en"))
             language_menu.addAction(english)
@@ -3545,6 +3567,21 @@ class IPTVPlayer(QMainWindow):
         except Exception as e:
             logger.error(f"切换语言失败: {str(e)}")
             self.status_bar.showMessage("切换语言失败")
+    
+    def set_theme(self, theme):
+        """设置主题"""
+        try:
+            from ui.theme_manager import get_theme_manager
+            theme_manager = get_theme_manager()
+            theme_manager.set_theme(theme)
+            # 重新创建菜单栏以更新主题
+            self.menuBar().clear()
+            self.setup_menu_bar()
+            # 更新状态栏消息
+            self.status_bar.showMessage(f"主题已切换为: {theme}")
+        except Exception as e:
+            logger.error(f"切换主题失败: {str(e)}")
+            self.status_bar.showMessage("切换主题失败")
     
     def save_window_layout(self):
         """保存窗口布局（包括位置和大小）"""

@@ -167,15 +167,7 @@ class UIBuilder(QtCore.QObject):
         
         # 创建统计信息标签用于显示扫描状态
         self.main_window.stats_label = QtWidgets.QLabel("就绪")
-        self.main_window.stats_label.setStyleSheet("""
-            QLabel {
-                color: white;
-                padding: 0 5px;
-                font-size: 13px;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                opacity: 0.8;
-            }
-        """)
+        self.main_window.stats_label.setStyleSheet(AppStyles.common_label_style())
 
         # 主布局
         main_widget = QtWidgets.QWidget()
@@ -411,82 +403,8 @@ class UIBuilder(QtCore.QObject):
         # 添加所有控件到布局
         self._add_scan_controls_to_layout(scan_layout)
 
-        # 设置扫描面板样式
-        scan_group.setStyleSheet("""
-            QGroupBox {
-                background-color: #2a2a2a;
-                color: white;
-                border: 1px solid #555;
-                border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 16px;
-                font-weight: 600;
-                font-size: 13px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 6px;
-                color: white;
-                font-weight: 600;
-            }
-            QLabel {
-                color: white;
-                font-size: 12px;
-            }
-            QLineEdit {
-                background-color: #3a3a3a;
-                color: white;
-                border: 1px solid #555;
-                border-radius: 4px;
-                padding: 6px;
-            }
-            QSpinBox {
-                background-color: #3a3a3a;
-                color: white;
-                border: 1px solid #555;
-                border-radius: 4px;
-                padding: 6px;
-            }
-            QCheckBox {
-                color: white;
-                font-size: 12px;
-                spacing: 8px;
-            }
-            QCheckBox::indicator {
-                width: 16px;
-                height: 16px;
-                border: 2px solid #555;
-                border-radius: 3px;
-                background-color: #3a3a3a;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #4a7eff;
-                border-color: #4a7eff;
-            }
-            QCheckBox::indicator:hover {
-                border-color: #4a7eff;
-            }
-            QPushButton {
-                background-color: #4a7eff;
-                color: white;
-                border: 1px solid #4a7eff;
-                border-radius: 4px;
-                padding: 6px 12px;
-                min-width: 70px;
-                min-height: 30px;
-                font-weight: 500;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #3a6eff;
-                border-color: #3a6eff;
-            }
-            QPushButton:pressed {
-                background-color: #2a5eff;
-                border-color: #2a5eff;
-            }
-        """)
+        # 设置扫描面板样式，使用专门的样式函数
+        scan_group.setStyleSheet(AppStyles.scan_window_style())
 
         scan_group.setLayout(scan_layout)
         parent.addWidget(scan_group)
@@ -755,73 +673,18 @@ class UIBuilder(QtCore.QObject):
 
         # 有效性检测按钮
         self.main_window.btn_validate = QtWidgets.QPushButton("检测有效性")
-        self.main_window.btn_validate.setStyleSheet("""
-            QPushButton {
-                background-color: #4a7eff;
-                color: white;
-                border: 1px solid #4a7eff;
-                border-radius: 4px;
-                padding: 8px 16px;
-                min-width: 100px;
-                font-weight: 500;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #3a6eff;
-                border-color: #3a6eff;
-            }
-            QPushButton:pressed {
-                background-color: #2a5eff;
-                border-color: #2a5eff;
-            }
-        """)
+        self.main_window.btn_validate.setStyleSheet(AppStyles.button_style(active=True))
         self.main_window.btn_validate.setFixedHeight(36)
 
         # 隐藏无效项按钮
         self.main_window.btn_hide_invalid = QtWidgets.QPushButton("隐藏无效项")
-        self.main_window.btn_hide_invalid.setStyleSheet("""
-            QPushButton {
-                background-color: #3a3a3a;
-                color: white;
-                border: 1px solid #555;
-                border-radius: 4px;
-                padding: 8px 16px;
-                min-width: 100px;
-                font-weight: 500;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #4a4a4a;
-            }
-            QPushButton:pressed {
-                background-color: #2a2a2a;
-            }
-        """)
+        self.main_window.btn_hide_invalid.setStyleSheet(AppStyles.button_style())
         self.main_window.btn_hide_invalid.setFixedHeight(36)
         self.main_window.btn_hide_invalid.setEnabled(False)
 
         # 智能排序按钮
         self.main_window.btn_smart_sort = QtWidgets.QPushButton("智能排序")
-        self.main_window.btn_smart_sort.setStyleSheet("""
-            QPushButton {
-                background-color: #4a7eff;
-                color: white;
-                border: 1px solid #4a7eff;
-                border-radius: 4px;
-                padding: 8px 16px;
-                min-width: 100px;
-                font-weight: 500;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #3a6eff;
-                border-color: #3a6eff;
-            }
-            QPushButton:pressed {
-                background-color: #2a5eff;
-                border-color: #2a5eff;
-            }
-        """)
+        self.main_window.btn_smart_sort.setStyleSheet(AppStyles.button_style(active=True))
         self.main_window.btn_smart_sort.setFixedHeight(36)
         self.main_window.btn_smart_sort.setEnabled(True)
         self.main_window.btn_smart_sort.clicked.connect(
@@ -832,26 +695,7 @@ class UIBuilder(QtCore.QObject):
         self.main_window.btn_sort_config = QtWidgets.QPushButton(
             self.main_window.language_manager.tr('sort_config_button', 'Sort Config')
         )
-        self.main_window.btn_sort_config.setStyleSheet("""
-            QPushButton {
-                background-color: #4a7eff;
-                color: white;
-                border: 1px solid #4a7eff;
-                border-radius: 4px;
-                padding: 8px 16px;
-                min-width: 100px;
-                font-weight: 500;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #3a6eff;
-                border-color: #3a6eff;
-            }
-            QPushButton:pressed {
-                background-color: #2a5eff;
-                border-color: #2a5eff;
-            }
-        """)
+        self.main_window.btn_sort_config.setStyleSheet(AppStyles.button_style(active=True))
         self.main_window.btn_sort_config.setFixedHeight(36)
         self.main_window.btn_sort_config.setEnabled(True)
         self.main_window.btn_sort_config.clicked.connect(self._show_sort_config)
@@ -882,72 +726,7 @@ class UIBuilder(QtCore.QObject):
         self.main_window.channel_list.setModel(self.main_window.model)
 
         # 使用与主窗口一致的列表样式
-        self.main_window.channel_list.setStyleSheet("""
-            QTableView {
-                border: 1px solid #555;
-                border-radius: 8px;
-                alternate-background-color: #333333;
-                selection-background-color: #4a7eff;
-                selection-color: white;
-                gridline-color: #444444;
-                font-size: 12px;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                background-color: #2a2a2a;
-            }
-            QTableView::item {
-                padding: 6px 10px;
-                border-bottom: 1px solid #444444;
-                color: white;
-            }
-            QTableView::item:hover {
-                background-color: #3a3a3a;
-                border: 1px solid #4a7eff;
-                border-radius: 4px;
-            }
-            QTableView::item:selected {
-                background-color: #4a7eff;
-                color: white;
-                font-weight: 500;
-                border: 1px solid #2a5eff;
-                border-radius: 4px;
-            }
-            QTableView::item:selected:hover {
-                background-color: #3a6eff;
-                border-color: #2a5eff;
-            }
-            QHeaderView {
-                background-color: #3a3a3a;
-                border: none;
-            }
-            QHeaderView::section {
-                background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #444444,
-                    stop:0.5 #3a3a3a,
-                    stop:1 #333333);
-                padding: 8px 12px;
-                border: none;
-                border-right: 1px solid #555555;
-                color: white;
-                font-weight: 600;
-                font-size: 12px;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            }
-            QHeaderView::section:last {
-                border-right: none;
-            }
-            QHeaderView::section:first {
-                min-width: 60px;  /* 序号列最小宽度 */
-            }
-            QHeaderView::section:nth-child(2) {
-                min-width: 180px; /* 频道名称列最小宽度 */
-            }
-            QHeaderView::section:nth-child(3) {
-                min-width: 100px;  /* 分辨率列最小宽度 */
-            }
-            QHeaderView::section:nth-child(4) {
-                min-width: 250px; /* URL列最小宽度 */
-            }
-        """)
+        self.main_window.channel_list.setStyleSheet(AppStyles.list_style())
 
         # 设置自定义表头
         header = self.main_window.channel_list.horizontalHeader()
@@ -2036,56 +1815,8 @@ class UIBuilder(QtCore.QObject):
         edit_group = QtWidgets.QGroupBox("频道编辑")
         self.main_window.edit_group = edit_group  # 设置为属性以便语言管理器访问
         
-        # 设置频道编辑区域的样式，确保它是一个块，并且文字颜色是白色的
-        edit_group.setStyleSheet("""
-            QGroupBox {
-                background-color: #2a2a2a;
-                color: white;
-                border: 1px solid #555;
-                border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 16px;
-                font-weight: 600;
-                font-size: 13px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 6px;
-                color: white;
-                font-weight: 600;
-            }
-            QLabel {
-                color: white;
-                font-size: 12px;
-            }
-            QLineEdit {
-                background-color: #3a3a3a;
-                color: white;
-                border: 1px solid #555;
-                border-radius: 4px;
-                padding: 6px;
-            }
-            QPushButton {
-                background-color: #4a7eff;
-                color: white;
-                border: 1px solid #4a7eff;
-                border-radius: 4px;
-                padding: 6px 12px;
-                min-width: 70px;
-                min-height: 30px;
-                font-weight: 500;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #3a6eff;
-                border-color: #3a6eff;
-            }
-            QPushButton:pressed {
-                background-color: #2a5eff;
-                border-color: #2a5eff;
-            }
-        """)
+        # 设置频道编辑区域的样式，使用专门的样式函数
+        edit_group.setStyleSheet(AppStyles.scan_window_style())
 
         # 使用垂直布局作为主布局
         main_layout = QtWidgets.QVBoxLayout()

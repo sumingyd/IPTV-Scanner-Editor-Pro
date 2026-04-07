@@ -1,5 +1,5 @@
 """
-主题管理器 - 负责监听系统主题变化并更新界面样式
+主题管理器 - 负责管理应用程序的主题切换
 """
 
 from PyQt6 import QtCore, QtWidgets, QtGui
@@ -7,7 +7,10 @@ from ui.styles import AppStyles
 
 
 class ThemeManager(QtCore.QObject):
-    """主题管理器，监听系统主题变化并更新界面样式"""
+    """主题管理器，管理应用程序的主题切换"""
+
+    # 主题变化信号
+    theme_changed = QtCore.pyqtSignal(str)
 
     # 单例实例
     _instance = None
@@ -22,36 +25,21 @@ class ThemeManager(QtCore.QObject):
         if not hasattr(self, '_initialized'):
             self._initialized = True
             self._windows = []
-            self._is_dark_mode = self._detect_system_theme()
-            self._setup_theme_listener()
+            # 加载主题设置
+            from core.config_manager import ConfigManager
+            self.config = ConfigManager()
+            theme_name = self.config.load_theme_settings()
+            # 如果加载到的是 "default"，转换为 "默认主题"
+            if theme_name == "default":
+                theme_name = "默认主题"
+            self._current_theme = theme_name
+            self._themes = self._load_available_themes()
 
-    def _detect_system_theme(self) -> bool:
-        """检测当前系统主题是否为深色模式"""
-        try:
-            # 获取系统调色板
-            palette = QtGui.QGuiApplication.palette()
-            # 计算窗口背景亮度
-            bg_color = palette.color(QtGui.QPalette.ColorRole.Window)
-            # 如果亮度小于128，认为是深色模式
-            return bg_color.lightness() < 128
-        except Exception:
-            # 默认返回浅色模式
-            return False
-
-    def _setup_theme_listener(self):
-        """设置主题变化监听器"""
-        # 在Windows上，我们可以使用定时器定期检查主题变化
-        # 因为Qt没有直接提供系统主题变化信号
-        self._theme_check_timer = QtCore.QTimer()
-        self._theme_check_timer.timeout.connect(self._check_theme_change)
-        self._theme_check_timer.start(1000)  # 每秒检查一次
-
-    def _check_theme_change(self):
-        """检查系统主题是否发生变化"""
-        current_dark_mode = self._detect_system_theme()
-        if current_dark_mode != self._is_dark_mode:
-            self._is_dark_mode = current_dark_mode
-            self._update_all_windows()
+    def _load_available_themes(self) -> list:
+        """加载可用的主题列表"""
+        # 从 AppStyles.get_theme_styles() 获取主题列表
+        # 目前只支持默认主题
+        return ["默认主题"]
 
     def register_window(self, window: QtWidgets.QWidget):
         """注册窗口，使其能够接收主题变化更新"""
@@ -140,11 +128,20 @@ class ThemeManager(QtCore.QObject):
 
     def get_current_theme(self) -> str:
         """获取当前主题名称"""
-        return "dark" if self._is_dark_mode else "light"
+        return self._current_theme
 
-    def is_dark_mode(self) -> bool:
-        """检查当前是否为深色模式"""
-        return self._is_dark_mode
+    def set_theme(self, theme_name: str):
+        """设置主题"""
+        if theme_name in self._themes:
+            self._current_theme = theme_name
+            # 保存主题设置
+            self.config.save_theme_settings(theme_name)
+            self._update_all_windows()
+            self.theme_changed.emit(theme_name)
+
+    def get_available_themes(self) -> list:
+        """获取可用的主题列表"""
+        return self._themes
 
 
 # 全局主题管理器实例

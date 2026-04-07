@@ -169,21 +169,7 @@ class MainWindow(QtWidgets.QDialog):
         self._load_config()
         
         # 设置样式，确保窗口没有标题栏，并且所有组件的背景都是透明的
-        self.setStyleSheet("""
-            QDialog {
-                background-color: transparent;
-            }
-            QLabel {
-                background-color: transparent;
-            }
-            QWidget {
-                background-color: transparent;
-            }
-            QGroupBox {
-                background-color: transparent;
-                border: none;
-            }
-        """)
+        self.setStyleSheet(AppStyles.main_window_style())
         self._connect_signals()
         self._register_cleanup_handlers()
         self._register_config_observers()

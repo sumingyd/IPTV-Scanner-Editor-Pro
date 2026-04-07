@@ -362,6 +362,15 @@ class ConfigManager:
         recent_files.insert(0, file_path)
         # 保存更新后的列表
         return self.save_recent_files(recent_files)
+    
+    def save_theme_settings(self, theme_name):
+        """保存主题设置"""
+        self.set_value('Theme', 'current_theme', theme_name)
+        return self.save_config()
+    
+    def load_theme_settings(self):
+        """加载主题设置"""
+        return self.get_value('Theme', 'current_theme', 'default')
 
     def save_all_settings(self, settings_dict: dict):
         """保存所有设置"""
