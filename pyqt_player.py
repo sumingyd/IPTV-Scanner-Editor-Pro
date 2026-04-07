@@ -1043,21 +1043,8 @@ class IPTVPlayer(QMainWindow):
             player_settings.triggered.connect(self.player_settings)
             tools_menu.addAction(player_settings)
             
-            # 帮助菜单
-            help_menu = menu_bar.addMenu("帮助")
-            
-            usage_instructions = QAction("使用说明", self)
-            usage_instructions.triggered.connect(self.show_usage_instructions)
-            help_menu.addAction(usage_instructions)
-            
-            about = QAction("关于", self)
-            about.triggered.connect(self.show_about)
-            help_menu.addAction(about)
-            
-            help_menu.addSeparator()
-            
-            # 语言选择
-            language_menu = help_menu.addMenu("语言")
+            # 语言菜单
+            language_menu = menu_bar.addMenu("语言")
             
             chinese = QAction("中文", self, checkable=True)
             chinese.setChecked(True)  # 默认中文
@@ -1068,6 +1055,17 @@ class IPTVPlayer(QMainWindow):
             english.setChecked(False)
             english.triggered.connect(lambda: self.set_language("en"))
             language_menu.addAction(english)
+            
+            # 帮助菜单
+            help_menu = menu_bar.addMenu("帮助")
+            
+            usage_instructions = QAction("使用说明", self)
+            usage_instructions.triggered.connect(self.show_usage_instructions)
+            help_menu.addAction(usage_instructions)
+            
+            about = QAction("关于", self)
+            about.triggered.connect(self.show_about)
+            help_menu.addAction(about)
             
         except Exception as e:
             logger.error(f"创建菜单栏失败: {str(e)}")
