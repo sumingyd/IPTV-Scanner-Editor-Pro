@@ -333,10 +333,8 @@ class IPTVPlayer(QMainWindow):
         
         logger.debug("IPTVPlayer（最小化）初始化完成")
         
-        # 所有完整的初始化都延迟到 _full_initialization 中执行
-        # 使用 2000ms 延迟，确保窗口完全显示并进入事件循环后再开始初始化
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(2000, self._full_initialization)
+        # 立即开始初始化流程
+        self._initialize_in_order()
     
     def init_ui(self):
         """初始化UI（极简版本，只为了立即显示黑色窗口）"""
@@ -344,6 +342,69 @@ class IPTVPlayer(QMainWindow):
         # 这里什么都不用做，因为我们只需要显示黑色背景的窗口
         # 所有复杂的UI都在 _create_full_ui 中创建
         logger.debug("init_ui: 完成（极简）")
+    
+    def _initialize_in_order(self):
+        """按照顺序执行初始化流程"""
+        logger.debug("_initialize_in_order: 开始")
+        
+        # 1. 初始化基本UI
+        self.init_ui()
+        
+        # 2. 初始化视频相关组件（菜单栏、工具栏、视频区域、状态栏）
+        self._init_video_components()
+        
+        # 3. 创建视频区域
+        self._create_video_area()
+        
+        # 4. 创建状态栏
+        self._create_status_bar()
+        
+        # 5. 初始化播放器
+        self._init_player()
+        
+        # 6. 创建悬浮窗
+        self._create_floating_panels()
+        
+        # 7. 创建定时器
+        self._create_timer()
+        
+        # 8. 创建EPG面板
+        self._create_epg_panel()
+        
+        # 9. 创建播放列表面板
+        self._create_playlist_panel()
+        
+        # 10. 创建底部悬浮控制面板
+        self._create_bottom_panel()
+        
+        # 11. 显示底部悬浮控制面板
+        self._show_floating_panel()
+        
+        # 12. 显示左右面板
+        self._show_side_panels()
+        
+        # 13. 更新悬浮窗位置
+        self._update_floating_position()
+        
+        # 14. 初始化最近打开文件菜单
+        self._update_recent_files_menu()
+        
+        # 15. 启动订阅更新定时器
+        self._start_subscription_timers()
+        
+        # 16. 安装事件过滤器
+        self._install_event_filters()
+        
+        # 17. 填充频道列表
+        self._populate_channel_list()
+        
+        # 填充 EPG 列表
+        self._populate_epg_list()
+        
+        # 18. 检查版本更新
+        self._check_for_updates_async()
+        
+        logger.debug("_initialize_in_order: 完成")
     
     def _full_initialization(self):
         """完整的初始化（在窗口显示后异步执行）"""
@@ -354,7 +415,7 @@ class IPTVPlayer(QMainWindow):
         
         # 第二步：创建视频相关组件
         from PyQt6.QtCore import QTimer
-        QTimer.singleShot(100, self._init_video_components)
+        QTimer.singleShot(0, self._init_video_components)
         
         logger.debug("_full_initialization: 完成")
     
@@ -363,8 +424,7 @@ class IPTVPlayer(QMainWindow):
         logger.debug("_init_video_components: 开始")
         
         # 第一步：创建菜单栏
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._create_menu_bar)
+        self._create_menu_bar()
         
         logger.debug("_init_video_components: 完成")
     
@@ -376,8 +436,7 @@ class IPTVPlayer(QMainWindow):
         self.setup_menu_bar(skip_recent_files=True)
         
         # 第二步：创建工具栏
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._create_tool_bar)
+        self._create_tool_bar()
         
         logger.debug("_create_menu_bar: 完成")
     
@@ -389,10 +448,6 @@ class IPTVPlayer(QMainWindow):
         self.toolbar = self.addToolBar("播放控制")
         self.toolbar.setStyleSheet(AppStyles.player_toolbar_style())
         self.toolbar.hide()
-        
-        # 第三步：创建视频区域
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._create_video_area)
         
         logger.debug("_create_tool_bar: 完成")
     
@@ -422,10 +477,6 @@ class IPTVPlayer(QMainWindow):
         self.top_layout.addWidget(self.video_frame, 1)
         self.main_layout.addLayout(self.top_layout, 1)
         
-        # 第四步：创建状态栏
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._create_status_bar)
-        
         logger.debug("_create_video_area: 完成")
     
     def _create_status_bar(self):
@@ -442,10 +493,6 @@ class IPTVPlayer(QMainWindow):
         self.is_catchup_mode = False
         self.original_channel = None
         
-        # 第五步：初始化播放器
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._init_player)
-        
         logger.debug("_create_status_bar: 完成")
     
     def _init_player(self):
@@ -457,19 +504,11 @@ class IPTVPlayer(QMainWindow):
         self.player_controller.play_state_changed.connect(self.on_play_state_changed)
         self.player_controller.media_info_ready.connect(self.on_media_info_ready)
         
-        # 第四步：创建悬浮窗
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(100, self._create_floating_panels)
-        
         logger.debug("_init_player: 完成")
     
     def _create_floating_panels(self):
         """创建悬浮窗"""
         logger.debug("_create_floating_panels: 开始")
-        
-        # 第一步：创建定时器
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._create_timer)
         
         logger.debug("_create_floating_panels: 完成")
     
@@ -481,10 +520,6 @@ class IPTVPlayer(QMainWindow):
         from PyQt6.QtCore import QTimer
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_floating_panel_info)
-        
-        # 第二步：创建EPG面板
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._create_epg_panel)
         
         logger.debug("_create_timer: 完成")
     
@@ -546,10 +581,6 @@ class IPTVPlayer(QMainWindow):
         self.epg_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         self.epg_layout.addWidget(self.epg_empty_label)
         
-        # 第三步：创建播放列表面板
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._create_playlist_panel)
-        
         logger.debug("_create_epg_panel: 完成")
     
     def _create_playlist_panel(self):
@@ -589,10 +620,6 @@ class IPTVPlayer(QMainWindow):
         self.channel_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         self.playlist_layout.addWidget(self.channel_empty_label)
         
-        # 第四步：创建底部悬浮控制面板
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._create_bottom_panel)
-        
         logger.debug("_create_playlist_panel: 完成")
     
     def _create_bottom_panel(self):
@@ -600,8 +627,7 @@ class IPTVPlayer(QMainWindow):
         logger.debug("_create_bottom_panel: 开始")
         
         # 第一步：创建底部面板
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._create_panel)
+        self._create_panel()
         
         logger.debug("_create_bottom_panel: 完成")
     
@@ -619,8 +645,7 @@ class IPTVPlayer(QMainWindow):
         self.floating_layout.setSpacing(3)
         
         # 第二步：创建媒体信息行
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._create_media_row)
+        self._create_media_row()
         
         logger.debug("_create_panel: 完成")
     
@@ -660,8 +685,7 @@ class IPTVPlayer(QMainWindow):
         self.floating_layout.addWidget(line1)
         
         # 第三步：创建节目信息行
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._create_info_row)
+        self._create_info_row()
         
         logger.debug("_create_media_row: 完成")
     
@@ -731,8 +755,7 @@ class IPTVPlayer(QMainWindow):
         self.floating_layout.addWidget(line2)
         
         # 第四步：创建控制行
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._create_control_row)
+        self._create_control_row()
         
         logger.debug("_create_info_row: 完成")
     
@@ -817,19 +840,11 @@ class IPTVPlayer(QMainWindow):
         
         self.floating_layout.addLayout(self.control_row)
         
-        # 第五步：显示面板并加载数据
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._final_initialization)
-        
         logger.debug("_create_control_row: 完成")
     
     def _final_initialization(self):
         """最终初始化"""
         logger.debug("_final_initialization: 开始")
-        
-        # 第一步：显示底部悬浮控制面板
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._show_floating_panel)
         
         logger.debug("_final_initialization: 完成")
     
@@ -839,10 +854,6 @@ class IPTVPlayer(QMainWindow):
         
         # 显示底部悬浮控制面板
         self.floating_panel.show()
-        
-        # 第二步：显示左右面板
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._show_side_panels)
         
         logger.debug("_show_floating_panel: 完成")
     
@@ -859,10 +870,6 @@ class IPTVPlayer(QMainWindow):
         self.playlist_panel.setFixedHeight(self.video_frame.height() - 180)
         self.playlist_panel.show()
         
-        # 第三步：安装事件过滤器
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._install_event_filters)
-        
         logger.debug("_show_side_panels: 完成")
     
     def _install_event_filters(self):
@@ -874,7 +881,7 @@ class IPTVPlayer(QMainWindow):
         self.video_widget.installEventFilter(self)
         self.video_placeholder.installEventFilter(self)
         
-        # 第四步：填充频道列表
+        # 填充频道列表
         from PyQt6.QtCore import QTimer
         QTimer.singleShot(0, self._populate_channel_list)
         
@@ -887,12 +894,9 @@ class IPTVPlayer(QMainWindow):
         # 填充频道列表
         self.populate_channel_list()
         
-        # 第五步：填充EPG列表
+        # 填充 EPG 列表
         from PyQt6.QtCore import QTimer
-        QTimer.singleShot(5000, self._populate_epg_list)
-        
-        # 第六步：更新悬浮窗位置
-        QTimer.singleShot(100, self._update_floating_position)
+        QTimer.singleShot(0, self._populate_epg_list)
         
         logger.debug("_populate_channel_list: 完成")
     
@@ -902,10 +906,6 @@ class IPTVPlayer(QMainWindow):
         
         # 延迟填充EPG列表，等待EPG数据下载完成
         self.populate_epg_list()
-        
-        # 第七步：启动订阅更新定时器
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._start_subscription_timers)
         
         logger.debug("_populate_epg_list: 完成")
     
@@ -925,9 +925,9 @@ class IPTVPlayer(QMainWindow):
         # 启动订阅更新定时器
         self.start_subscription_timers()
         
-        # 第八步：初始化最近打开文件菜单
+        # 安装事件过滤器
         from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self._update_recent_files_menu)
+        QTimer.singleShot(0, self._install_event_filters)
         
         logger.debug("_start_subscription_timers: 完成")
     
@@ -941,9 +941,7 @@ class IPTVPlayer(QMainWindow):
         self._panels_initialized = True
         self._initialization_complete = True
         
-        # 主窗口初始化完成后，检查更新
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(1000, self._check_for_updates_async)
+
         
         logger.debug("_update_recent_files_menu: 完成")
     
@@ -954,11 +952,8 @@ class IPTVPlayer(QMainWindow):
         # 填充频道列表
         self.populate_channel_list()
         
-        # 延迟填充EPG列表，等待EPG数据下载完成
-        QTimer.singleShot(5000, self.populate_epg_list)
-        
-        # 使用定时器延迟更新悬浮窗位置，确保窗口已显示
-        QTimer.singleShot(100, self.update_floating_position)
+        # 更新悬浮窗位置
+        self.update_floating_position()
     
     def setup_menu_bar(self, skip_recent_files=False):
         """设置菜单栏"""
@@ -2765,7 +2760,7 @@ class IPTVPlayer(QMainWindow):
         dialog.exec()
     
     def start_subscription_timers(self):
-        """检查并更新订阅内容"""
+        """检查并更新订阅内容（只在启动时检查一次）"""
         try:
             # 声明全局变量
             global EPG_DATA, CHANNELS
@@ -2777,6 +2772,11 @@ class IPTVPlayer(QMainWindow):
                 self.playlist_timer.stop()
             if hasattr(self, 'epg_timer') and self.epg_timer:
                 self.epg_timer.stop()
+            
+            # 标记已经检查过订阅更新
+            if hasattr(self, '_subscription_checked') and self._subscription_checked:
+                return
+            self._subscription_checked = True
             
             # 获取订阅设置
             playlist_url = self.config.get_value('Playlist', 'url', '')
@@ -3419,6 +3419,13 @@ class IPTVPlayer(QMainWindow):
 
     def _check_for_updates_async(self):
         """异步检查新版本"""
+        # 检查是否已在检查或已检查过
+        if hasattr(self, '_update_checking') and self._update_checking:
+            return
+        if hasattr(self, '_update_checked') and self._update_checked:
+            return
+        
+        self._update_checking = True
         try:
             # 在后台线程中执行版本检查
             from PyQt6.QtCore import QThread, pyqtSignal
@@ -3522,6 +3529,10 @@ class IPTVPlayer(QMainWindow):
 
         except Exception as e:
             logger.error(f"启动版本检查失败: {str(e)}")
+        finally:
+            # 重置检查状态
+            self._update_checking = False
+            self._update_checked = True
 
     def _on_update_found(self, latest_version, current_version):
         """发现新版本时的处理"""
