@@ -92,6 +92,43 @@ class ScanChannelDialog(QtWidgets.QDialog):
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self.dragging = False
 
+    def paintEvent(self, event):
+        """自定义绘制圆角背景和边框"""
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        
+        # 获取主题颜色
+        colors = AppStyles._get_colors()
+        
+        # 创建圆角矩形路径
+        path = QtGui.QPainterPath()
+        rect = QtCore.QRectF(self.rect().adjusted(1, 1, -1, -1))
+        path.addRoundedRect(rect, 12, 12)
+        
+        # 绘制背景
+        bg_color = colors.get('window', '#2d2d2d')
+        if bg_color.startswith('#'):
+            r = int(bg_color[1:3], 16)
+            g = int(bg_color[3:5], 16)
+            b = int(bg_color[5:7], 16)
+        else:
+            r, g, b = 45, 45, 45
+        painter.fillPath(path, QtGui.QColor(r, g, b))
+        
+        # 绘制边框
+        border_color = colors.get('mid', '#555555')
+        if border_color.startswith('#'):
+            r = int(border_color[1:3], 16)
+            g = int(border_color[3:5], 16)
+            b = int(border_color[5:7], 16)
+        else:
+            r, g, b = 85, 85, 85
+        painter.setPen(QtGui.QColor(r, g, b, 200))
+        painter.drawPath(path)
+        
+        # 调用父类的 paintEvent 来绘制子控件
+        super().paintEvent(event)
+
     def _init_timers(self):
         """在主线程初始化所有定时器"""
         pass
@@ -155,91 +192,105 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
         # 主布局
         main_widget = QtWidgets.QWidget()
-        # 不设置透明背景，让ScanChannelDialog的paintEvent绘制的背景可见
-        main_layout = QtWidgets.QVBoxLayout(main_widget)
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(10)
-        
-        # 顶部标题栏
-        title_bar = QtWidgets.QHBoxLayout()
-        title_bar.setContentsMargins(0, 0, 0, 10)
-        title_bar.setSpacing(10)
-        
-        # 标题
-        title_label = QtWidgets.QLabel("扫描频道")
-        title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #ffffff;")
-        title_bar.addWidget(title_label)
-        title_bar.addStretch()
-        
-        # 关闭按钮
-        close_button = QtWidgets.QPushButton("关闭")
-        close_button.setStyleSheet(AppStyles.common_button_style())
-        close_button.setFixedSize(60, 30)
-        close_button.clicked.connect(self.close)
-        title_bar.addWidget(close_button)
-        
-        main_layout.addLayout(title_bar)
-        
-        # 主要内容区域 - 分为上下两部分
-        content_layout = QtWidgets.QVBoxLayout()
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(10)
-        
-        # 上部分：频道列表（更大）
-        list_widget = QtWidgets.QWidget()
-        list_layout = QtWidgets.QVBoxLayout(list_widget)
-        list_layout.setContentsMargins(0, 0, 0, 0)
-        list_layout.setSpacing(10)
-        self._setup_channel_list(list_layout)
-        content_layout.addWidget(list_widget, 5)
-        
-        # 下部分：分为左右两部分
-        bottom_content_layout = QtWidgets.QHBoxLayout()
-        bottom_content_layout.setContentsMargins(0, 0, 0, 0)
-        bottom_content_layout.setSpacing(10)
-        
-        # 左侧：扫描设置（带滚动条）
+        # 主布局 - 使用水平布局替代分割器
+        main_layout = QtWidgets.QHBoxLayout(main_widget)
+        main_layout.setContentsMargins(12, 12, 12, 12)
+        main_layout.setSpacing(0)
+
+        # ========== 左侧边栏：扫描设置 (固定宽度 280px) ==========
+        left_panel = QtWidgets.QWidget()
+        left_panel.setFixedWidth(280)
+        left_panel.setStyleSheet(AppStyles.side_panel_style())
+        left_layout = QtWidgets.QVBoxLayout(left_panel)
+        left_layout.setContentsMargins(12, 12, 12, 12)
+        left_layout.setSpacing(10)
+
+        # 左侧标题栏
+        left_title = QtWidgets.QLabel("⚙️ 扫描设置")
+        left_title.setStyleSheet(AppStyles.section_title_style())
+        left_layout.addWidget(left_title)
+
+        # 扫描设置内容
         scan_scroll = QtWidgets.QScrollArea()
         scan_scroll.setWidgetResizable(True)
         scan_scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
-        
+        scan_scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
         scan_widget = QtWidgets.QWidget()
         scan_layout = QtWidgets.QVBoxLayout(scan_widget)
         scan_layout.setContentsMargins(0, 0, 0, 0)
         scan_layout.setSpacing(8)
         self._setup_scan_panel(scan_layout)
-        
+
         scan_scroll.setWidget(scan_widget)
-        bottom_content_layout.addWidget(scan_scroll, 1)
-        
-        # 右侧：频道编辑（带滚动条）
-        edit_scroll = QtWidgets.QScrollArea()
-        edit_scroll.setWidgetResizable(True)
-        edit_scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
-        
-        edit_widget = QtWidgets.QWidget()
-        edit_layout = QtWidgets.QVBoxLayout(edit_widget)
-        edit_layout.setContentsMargins(0, 0, 0, 0)
-        edit_layout.setSpacing(10)
-        self._setup_channel_edit(edit_layout)
-        
-        edit_scroll.setWidget(edit_widget)
-        bottom_content_layout.addWidget(edit_scroll, 1)
-        
-        content_layout.addLayout(bottom_content_layout, 1)
-        main_layout.addLayout(content_layout, 1)
-        
-        # 底部信息栏
-        bottom_info_widget = QtWidgets.QWidget()
-        bottom_info_layout = QtWidgets.QHBoxLayout(bottom_info_widget)
-        bottom_info_layout.setContentsMargins(10, 5, 10, 5)
-        bottom_info_layout.setSpacing(10)
-        # 增加进度条的高度
-        self.progress_indicator.setFixedHeight(30)
-        bottom_info_layout.addWidget(self.progress_indicator)
-        bottom_info_layout.addWidget(self.stats_label)
-        main_layout.addWidget(bottom_info_widget)
-        
+        left_layout.addWidget(scan_scroll, 1)
+
+        # 关闭按钮放在左下角
+        close_btn = QtWidgets.QPushButton("✕ 关闭")
+        close_btn.setStyleSheet(AppStyles.common_button_style())
+        close_btn.setFixedHeight(32)
+        close_btn.clicked.connect(self.close)
+        left_layout.addWidget(close_btn)
+
+        main_layout.addWidget(left_panel)
+
+        # 中间间隔
+        main_layout.addSpacing(12)
+
+        # ========== 中间区域：频道列表 (自适应宽度) ==========
+        center_panel = QtWidgets.QWidget()
+        center_panel.setStyleSheet(AppStyles.side_panel_style())
+        center_layout = QtWidgets.QVBoxLayout(center_panel)
+        center_layout.setContentsMargins(12, 12, 12, 12)
+        center_layout.setSpacing(10)
+
+        # 频道列表标题栏（包含操作按钮）
+        list_header = QtWidgets.QHBoxLayout()
+        list_title = QtWidgets.QLabel("📺 频道列表")
+        list_title.setStyleSheet(AppStyles.section_title_style())
+        list_header.addWidget(list_title)
+        list_header.addStretch()
+
+        # 将工具栏按钮移到标题栏
+        self._setup_list_toolbar(list_header)
+        center_layout.addLayout(list_header)
+
+        # 频道列表
+        self._setup_channel_list(center_layout)
+
+        # 底部状态栏
+        status_layout = QtWidgets.QHBoxLayout()
+        status_layout.setContentsMargins(0, 5, 0, 0)
+        self.progress_indicator.setFixedHeight(24)
+        self.progress_indicator.setFixedWidth(120)
+        status_layout.addWidget(self.progress_indicator)
+        status_layout.addWidget(self.stats_label)
+        status_layout.addStretch()
+        center_layout.addLayout(status_layout)
+
+        main_layout.addWidget(center_panel, 1)
+
+        # 中间间隔
+        main_layout.addSpacing(12)
+
+        # ========== 右侧边栏：频道编辑 (固定宽度 240px) ==========
+        right_panel = QtWidgets.QWidget()
+        right_panel.setFixedWidth(240)
+        right_panel.setStyleSheet(AppStyles.side_panel_style())
+        right_layout = QtWidgets.QVBoxLayout(right_panel)
+        right_layout.setContentsMargins(12, 12, 12, 12)
+        right_layout.setSpacing(10)
+
+        # 右侧标题
+        right_title = QtWidgets.QLabel("✏️ 频道编辑")
+        right_title.setStyleSheet(AppStyles.section_title_style())
+        right_layout.addWidget(right_title)
+
+        # 频道编辑内容
+        self._setup_channel_edit(right_layout)
+
+        main_layout.addWidget(right_panel)
+
         # QDialog使用setLayout直接设置布局
         self.setLayout(main_layout)
 
@@ -260,11 +311,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
             )
 
     def _setup_scan_panel(self, parent: QtWidgets.QLayout) -> None:
-        """配置扫描面板"""
-        scan_group = QtWidgets.QGroupBox("扫描设置")
-        self.scan_group = scan_group  # 设置为属性以便语言管理器访问
+        """配置扫描面板（简化版，不含GroupBox）"""
         scan_layout = QtWidgets.QVBoxLayout()
-        scan_layout.setContentsMargins(10, 10, 10, 10)
+        scan_layout.setContentsMargins(0, 0, 0, 0)
         scan_layout.setSpacing(8)
 
         # 设置扫描按钮
@@ -273,11 +322,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 添加所有控件到布局
         self._add_scan_controls_to_layout(scan_layout)
 
-        # 设置扫描面板样式，使用专门的样式函数
-        scan_group.setStyleSheet(AppStyles.scan_window_style())
-
-        scan_group.setLayout(scan_layout)
-        parent.addWidget(scan_group)
+        parent.addLayout(scan_layout)
 
     def _setup_scan_inputs(self):
         """设置扫描输入控件"""
@@ -488,133 +533,87 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.scan_button_layout = button_layout
 
     def _add_scan_controls_to_layout(self, scan_layout):
-        """添加扫描控件到布局"""
+        """添加扫描控件到布局（优化版，适合窄边栏）"""
         # 先设置所有输入控件
         self._setup_scan_inputs()
-        
+
         # 设置扫描重试选项
         self._setup_scan_retry_options()
-        
+
         # 设置映射功能选项
         self._setup_mapping_options()
 
-        # 地址设置组
-        address_group = QtWidgets.QGroupBox("地址设置")
-        address_group_layout = QtWidgets.QVBoxLayout()
-        address_group_layout.setContentsMargins(10, 15, 10, 10)
-        address_group_layout.setSpacing(8)
+        # 地址设置（简化标题）
+        address_section = QtWidgets.QVBoxLayout()
+        address_section.setSpacing(6)
 
-        address_format_label = QtWidgets.QLabel("地址格式：")
-        self.address_format_label = address_format_label
         address_example_label = QtWidgets.QLabel(
-            "示例：http://192.168.1.1:1234/rtp/10.10.[1-20].[1-20]:5002   [1-20]表示范围"
+            "格式: http://ip:port/rtp/10.10.[1-20].[1-20]:5002"
         )
         self.address_example_label = address_example_label
         address_example_label.setWordWrap(True)
-        address_example_label.setStyleSheet("font-size: 11px; color: #999;")
-        input_address_label = QtWidgets.QLabel("输入地址：")
-        self.input_address_label = input_address_label
-        
-        address_group_layout.addWidget(address_format_label)
-        address_group_layout.addWidget(address_example_label)
-        address_group_layout.addWidget(input_address_label)
-        address_group_layout.addWidget(self.ip_range_input)
-        address_group.setLayout(address_group_layout)
-        
-        # 扫描设置组
-        scan_settings_group = QtWidgets.QGroupBox("扫描设置")
-        scan_settings_layout = QtWidgets.QVBoxLayout()
-        scan_settings_layout.setContentsMargins(10, 15, 10, 10)
-        scan_settings_layout.setSpacing(8)
-        
-        # 添加超时时间设置
-        scan_settings_layout.addLayout(self.timeout_layout)
-        
-        # 添加线程数设置
-        scan_settings_layout.addLayout(self.thread_layout)
-        
-        # 添加User-Agent设置
-        scan_settings_layout.addLayout(self.user_agent_layout)
-        
-        # 添加Referer设置
-        scan_settings_layout.addLayout(self.referer_layout)
-        
-        scan_settings_group.setLayout(scan_settings_layout)
-        
-        # 选项组
-        options_group = QtWidgets.QGroupBox("选项")
-        options_layout = QtWidgets.QVBoxLayout()
-        options_layout.setContentsMargins(10, 15, 10, 10)
-        options_layout.setSpacing(8)
-        
-        # 添加重试选项
-        options_layout.addLayout(self.retry_layout)
-        
-        # 添加映射选项
-        options_layout.addLayout(self.mapping_layout)
-        
-        options_group.setLayout(options_layout)
-        
-        # 添加所有组到主布局
-        scan_layout.addWidget(address_group)
-        scan_layout.addWidget(scan_settings_group)
-        scan_layout.addWidget(options_group)
+        address_example_label.setStyleSheet(AppStyles.hint_label_style())
+
+        address_section.addWidget(address_example_label)
+        address_section.addWidget(self.ip_range_input)
+
+        scan_layout.addLayout(address_section)
+        scan_layout.addSpacing(10)
+
+        # 扫描设置（简化标题）
+        scan_settings_section = QtWidgets.QVBoxLayout()
+        scan_settings_section.setSpacing(6)
+
+        # 超时和线程放在同一行
+        timeout_thread_layout = QtWidgets.QHBoxLayout()
+        timeout_label = QtWidgets.QLabel("超时:")
+        timeout_label.setStyleSheet(AppStyles.small_label_style())
+        timeout_thread_layout.addWidget(timeout_label)
+        timeout_thread_layout.addWidget(self.timeout_input)
+        timeout_thread_layout.addSpacing(10)
+        thread_label = QtWidgets.QLabel("线程:")
+        thread_label.setStyleSheet(AppStyles.small_label_style())
+        timeout_thread_layout.addWidget(thread_label)
+        timeout_thread_layout.addWidget(self.thread_count_input)
+        timeout_thread_layout.addStretch()
+
+        scan_settings_section.addLayout(timeout_thread_layout)
+
+        # User-Agent（简化标签）
+        ua_label = QtWidgets.QLabel("User-Agent:")
+        ua_label.setStyleSheet(AppStyles.small_label_style())
+        scan_settings_section.addWidget(ua_label)
+        scan_settings_section.addWidget(self.user_agent_input)
+
+        # Referer（简化标签）
+        ref_label = QtWidgets.QLabel("Referer:")
+        ref_label.setStyleSheet(AppStyles.small_label_style())
+        scan_settings_section.addWidget(ref_label)
+        scan_settings_section.addWidget(self.referer_input)
+
+        scan_layout.addLayout(scan_settings_section)
+        scan_layout.addSpacing(10)
+
+        # 选项（简化）
+        options_section = QtWidgets.QVBoxLayout()
+        options_section.setSpacing(6)
+        options_section.addWidget(self.enable_retry_checkbox)
+        options_section.addWidget(self.enable_mapping_checkbox)
+
+        scan_layout.addLayout(options_section)
         scan_layout.addStretch()
-        scan_layout.addLayout(self.scan_button_layout)
+
+        # 扫描按钮（垂直排列，适合窄边栏）
+        button_section = QtWidgets.QVBoxLayout()
+        button_section.setSpacing(6)
+        button_section.addWidget(self.btn_scan)
+        button_section.addWidget(self.btn_append_scan)
+        button_section.addWidget(self.btn_generate)
+
+        scan_layout.addLayout(button_section)
 
     def _setup_channel_list(self, parent: QtWidgets.QLayout) -> None:
-        """配置频道列表"""
-        # 导入样式
-        # 频道列表区域
-        list_group = QtWidgets.QGroupBox("频道列表")
-        self.list_group = list_group  # 设置为属性以便语言管理器访问
-        list_layout = QtWidgets.QVBoxLayout()
-        list_layout.setContentsMargins(15, 15, 15, 15)  # 增加边距，提升美观度
-        list_layout.setSpacing(10)  # 增加间距，提升美观度
-
-        # 工具栏
-        toolbar = QtWidgets.QHBoxLayout()
-        toolbar.setContentsMargins(0, 0, 0, 8)  # 减少底部空间
-
-        # 有效性检测按钮
-        self.btn_validate = QtWidgets.QPushButton("检测有效性")
-        self.btn_validate.setStyleSheet(AppStyles.common_button_style())
-        self.btn_validate.setFixedHeight(32)  # 减少按钮高度
-
-        # 隐藏无效项按钮
-        self.btn_hide_invalid = QtWidgets.QPushButton("隐藏无效项")
-        self.btn_hide_invalid.setStyleSheet(AppStyles.common_button_style())
-        self.btn_hide_invalid.setFixedHeight(32)  # 减少按钮高度
-        self.btn_hide_invalid.setEnabled(False)
-
-        # 智能排序按钮
-        self.btn_smart_sort = QtWidgets.QPushButton("智能排序")
-        self.btn_smart_sort.setStyleSheet(AppStyles.common_button_style())
-        self.btn_smart_sort.setFixedHeight(32)  # 减少按钮高度
-        self.btn_smart_sort.setEnabled(True)
-        self.btn_smart_sort.clicked.connect(
-            lambda: self.model.sort_channels()
-        )
-
-        # 排序配置按钮
-        self.btn_sort_config = QtWidgets.QPushButton(
-            self.language_manager.tr('sort_config_button', 'Sort Config')
-        )
-        self.btn_sort_config.setStyleSheet(AppStyles.common_button_style())
-        self.btn_sort_config.setFixedHeight(32)  # 减少按钮高度
-        self.btn_sort_config.setEnabled(True)
-        self.btn_sort_config.clicked.connect(self._show_sort_config)
-
-        toolbar.addWidget(self.btn_validate)
-        toolbar.addSpacing(4)
-        toolbar.addWidget(self.btn_hide_invalid)
-        toolbar.addSpacing(4)
-        toolbar.addWidget(self.btn_smart_sort)
-        toolbar.addSpacing(4)
-        toolbar.addWidget(self.btn_sort_config)
-        toolbar.addStretch()
-        list_layout.addLayout(toolbar)
-
+        """配置频道列表（简化版，不含工具栏和GroupBox）"""
         # 频道列表视图
         self.channel_list = QtWidgets.QTableView()
         self.channel_list.setSelectionMode(
@@ -623,10 +622,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.channel_list.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.channel_list.verticalHeader().setVisible(False)
         # 启用水平滚动条
-        self.channel_list.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        self.channel_list.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.channel_list.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        # 增加频道列表的最小宽度
-        self.channel_list.setMinimumWidth(600)
 
         # 确保模型存在并正确设置到视图中
         if not hasattr(self, 'model') or not self.model:
@@ -657,9 +654,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.header.setSortIndicator(-1, QtCore.Qt.SortOrder.AscendingOrder)  # 初始无排序
         self.header.sectionClicked.connect(self._on_header_clicked)
 
-        # 强制立即调整列宽，确保初始状态正确
-        self.header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-
         # 启用拖放排序功能 - 改进拖拽体验
         self.channel_list.setDragEnabled(True)
         self.channel_list.setAcceptDrops(True)
@@ -667,27 +661,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.channel_list.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.InternalMove)
         self.channel_list.setDefaultDropAction(QtCore.Qt.DropAction.MoveAction)
         self.channel_list.setDropIndicatorShown(True)  # 显示拖拽指示器
-
-        # 添加频道列表拖拽提示
-        self.channel_drag_hint_label = QtWidgets.QLabel("")
-        colors = AppStyles._get_colors()
-        self.channel_drag_hint_label.setStyleSheet(f"""
-            QLabel {{
-                color: {colors['accent']};
-                font-size: 12px;
-                padding: 8px 12px;
-                background-color: {colors['light']};
-                border-radius: 6px;
-                font-weight: 500;
-                border: 1px solid {colors['mid']};
-                margin-bottom: 10px;
-            }}
-        """)
-        self.channel_drag_hint_label.setWordWrap(True)
-        list_layout.addWidget(self.channel_drag_hint_label)
-
-        # 设置频道列表拖拽提示文本
-        self.update_channel_drag_hint()
 
         # 添加右键菜单
         self.channel_list.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
@@ -697,122 +670,103 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.channel_list.selectionModel().selectionChanged.connect(self._on_channel_selected)
 
         # 设置频道列表为主要内容，占据大部分空间
-        list_layout.addWidget(self.channel_list)
-        
-        # 设置频道列表面板样式
-        colors = AppStyles._get_colors()
-        list_group.setStyleSheet(f"""
-            QGroupBox {{
-                background-color: {colors['alternate_base']};
-                color: {colors['window_text']};
-                border: 1px solid {colors['mid']};
-                border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 16px;
-                font-weight: 600;
-                font-size: 13px;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 6px;
-                color: {colors['window_text']};
-                font-weight: 600;
-            }}
-        """)
+        parent.addWidget(self.channel_list, 1)
 
-        list_group.setLayout(list_layout)
-        parent.addWidget(list_group)
+    def _setup_list_toolbar(self, toolbar_layout):
+        """设置频道列表的工具栏按钮（用于标题栏）"""
+        # 有效性检测按钮
+        self.btn_validate = QtWidgets.QPushButton("检测")
+        self.btn_validate.setStyleSheet(AppStyles.common_button_style())
+        self.btn_validate.setFixedHeight(28)
+        self.btn_validate.setToolTip("检测频道有效性")
+
+        # 隐藏无效项按钮
+        self.btn_hide_invalid = QtWidgets.QPushButton("隐藏无效")
+        self.btn_hide_invalid.setStyleSheet(AppStyles.common_button_style())
+        self.btn_hide_invalid.setFixedHeight(28)
+        self.btn_hide_invalid.setEnabled(False)
+
+        # 智能排序按钮
+        self.btn_smart_sort = QtWidgets.QPushButton("排序")
+        self.btn_smart_sort.setStyleSheet(AppStyles.common_button_style())
+        self.btn_smart_sort.setFixedHeight(28)
+        self.btn_smart_sort.setToolTip("智能排序频道")
+        self.btn_smart_sort.clicked.connect(
+            lambda: self.model.sort_channels()
+        )
+
+        # 排序配置按钮
+        self.btn_sort_config = QtWidgets.QPushButton("配置")
+        self.btn_sort_config.setStyleSheet(AppStyles.common_button_style())
+        self.btn_sort_config.setFixedHeight(28)
+        self.btn_sort_config.setToolTip("排序配置")
+        self.btn_sort_config.clicked.connect(self._show_sort_config)
+
+        toolbar_layout.addWidget(self.btn_validate)
+        toolbar_layout.addSpacing(4)
+        toolbar_layout.addWidget(self.btn_hide_invalid)
+        toolbar_layout.addSpacing(4)
+        toolbar_layout.addWidget(self.btn_smart_sort)
+        toolbar_layout.addSpacing(4)
+        toolbar_layout.addWidget(self.btn_sort_config)
 
     def _setup_channel_edit(self, parent: QtWidgets.QLayout) -> None:
-        """配置频道编辑区域"""
-        # 导入样式
-        edit_group = QtWidgets.QGroupBox("频道编辑")
-        edit_layout = QtWidgets.QGridLayout()
-        edit_layout.setContentsMargins(15, 15, 15, 15)
-        edit_layout.setSpacing(10)
+        """配置频道编辑区域（简化版，不含GroupBox）"""
+        # 使用垂直布局替代网格布局，更适合窄边栏
+        edit_layout = QtWidgets.QVBoxLayout()
+        edit_layout.setContentsMargins(0, 0, 0, 0)
+        edit_layout.setSpacing(8)
 
         # 频道名称
         self.edit_name_label = QtWidgets.QLabel("频道名称:")
         self.edit_name_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_name = QtWidgets.QLineEdit()
         self.edit_name.setStyleSheet(AppStyles.common_line_edit_style())
-        self.edit_name.setMaximumWidth(300)
+        edit_layout.addWidget(self.edit_name_label)
+        edit_layout.addWidget(self.edit_name)
 
         # 频道分组
         self.edit_group_label = QtWidgets.QLabel("频道分组:")
         self.edit_group_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_group = QtWidgets.QLineEdit()
         self.edit_group.setStyleSheet(AppStyles.common_line_edit_style())
-        self.edit_group.setMaximumWidth(200)
+        edit_layout.addWidget(self.edit_group_label)
+        edit_layout.addWidget(self.edit_group)
 
         # 频道URL
         self.edit_url_label = QtWidgets.QLabel("频道URL:")
         self.edit_url_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_url = QtWidgets.QLineEdit()
         self.edit_url.setStyleSheet(AppStyles.common_line_edit_style())
-        self.edit_url.setMaximumWidth(400)
+        edit_layout.addWidget(self.edit_url_label)
+        edit_layout.addWidget(self.edit_url)
 
         # TVG-ID
         self.edit_tvg_id_label = QtWidgets.QLabel("TVG-ID:")
         self.edit_tvg_id_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_tvg_id = QtWidgets.QLineEdit()
         self.edit_tvg_id.setStyleSheet(AppStyles.common_line_edit_style())
-        self.edit_tvg_id.setMaximumWidth(200)
+        edit_layout.addWidget(self.edit_tvg_id_label)
+        edit_layout.addWidget(self.edit_tvg_id)
 
         # Logo URL
         self.edit_logo_label = QtWidgets.QLabel("Logo URL:")
         self.edit_logo_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_logo = QtWidgets.QLineEdit()
         self.edit_logo.setStyleSheet(AppStyles.common_line_edit_style())
-        self.edit_logo.setMaximumWidth(400)
+        edit_layout.addWidget(self.edit_logo_label)
+        edit_layout.addWidget(self.edit_logo)
 
-        # 添加控件到网格布局
-        edit_layout.addWidget(self.edit_name_label, 0, 0)
-        edit_layout.addWidget(self.edit_name, 0, 1)
-        edit_layout.addWidget(self.edit_group_label, 1, 0)
-        edit_layout.addWidget(self.edit_group, 1, 1)
-        edit_layout.addWidget(self.edit_url_label, 2, 0)
-        edit_layout.addWidget(self.edit_url, 2, 1)
-        edit_layout.addWidget(self.edit_tvg_id_label, 3, 0)
-        edit_layout.addWidget(self.edit_tvg_id, 3, 1)
-        edit_layout.addWidget(self.edit_logo_label, 4, 0)
-        edit_layout.addWidget(self.edit_logo, 4, 1)
+        edit_layout.addStretch()
 
         # 保存按钮
-        button_layout = QtWidgets.QHBoxLayout()
-        self.btn_save_channel = QtWidgets.QPushButton("保存修改")
+        self.btn_save_channel = QtWidgets.QPushButton("💾 保存修改")
         self.btn_save_channel.setStyleSheet(AppStyles.common_button_style())
-        self.btn_save_channel.setFixedHeight(32)
+        self.btn_save_channel.setFixedHeight(36)
         self.btn_save_channel.clicked.connect(self._on_save_channel)
-        button_layout.addWidget(self.btn_save_channel)
-        button_layout.addStretch()
-        edit_layout.addLayout(button_layout, 5, 0, 1, 2)
+        edit_layout.addWidget(self.btn_save_channel)
 
-        # 设置编辑面板样式
-        colors = AppStyles._get_colors()
-        edit_group.setStyleSheet(f"""
-            QGroupBox {{
-                background-color: {colors['alternate_base']};
-                color: {colors['window_text']};
-                border: 1px solid {colors['mid']};
-                border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 16px;
-                font-weight: 600;
-                font-size: 13px;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 6px;
-                color: {colors['window_text']};
-                font-weight: 600;
-            }}
-        """)
-
-        edit_group.setLayout(edit_layout)
-        parent.addWidget(edit_group)
+        parent.addLayout(edit_layout)
 
     def _on_channel_selected(self, selected, deselected):
         """处理频道选择事件"""

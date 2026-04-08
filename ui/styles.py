@@ -101,6 +101,185 @@ class AppStyles:
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                 spacing: 8px;
             }}
+            
+            /* SpinBox 统一样式 */
+            QSpinBox {{
+                border: 1px solid {colors['mid']};
+                border-radius: 6px;
+                padding: 6px 10px;
+                padding-right: 24px;
+                font-size: 13px;
+                background-color: {colors['alternate_base']};
+                color: {colors['window_text']};
+            }}
+            
+            QSpinBox:focus {{
+                border-color: {colors['accent']};
+                outline: none;
+            }}
+            
+            QSpinBox::up-button, QSpinBox::down-button {{
+                width: 24px;
+                border: none;
+                border-left: 1px solid {colors['mid']};
+                background-color: {colors['alternate_base']};
+            }}
+            
+            QSpinBox::up-button {{
+                subcontrol-origin: border;
+                subcontrol-position: right top;
+                border-top-right-radius: 6px;
+            }}
+            
+            QSpinBox::down-button {{
+                subcontrol-origin: border;
+                subcontrol-position: right bottom;
+                border-bottom-right-radius: 6px;
+            }}
+            
+            QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
+                background-color: {colors['accent']};
+            }}
+            
+            QSpinBox::up-button:pressed, QSpinBox::down-button:pressed {{
+                background-color: {colors['accent_pressed']};
+            }}
+            
+            QSpinBox::up-arrow {{
+                width: 8px;
+                height: 8px;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-bottom: 6px solid {colors['window_text']};
+            }}
+            
+            QSpinBox::down-arrow {{
+                width: 8px;
+                height: 8px;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid {colors['window_text']};
+            }}
+            
+            QSpinBox::up-arrow:hover, QSpinBox::down-arrow:hover {{
+                border-top-color: white;
+                border-bottom-color: white;
+            }}
+            
+            /* 滚动条统一样式 */
+            QScrollBar:vertical {{
+                border: none;
+                background-color: {colors['alternate_base']};
+                width: 14px;
+                margin: 0px;
+            }}
+            
+            QScrollBar::handle:vertical {{
+                background-color: {colors['mid']};
+                min-height: 30px;
+                border-radius: 7px;
+                margin: 2px;
+            }}
+            
+            QScrollBar::handle:vertical:hover {{
+                background-color: {colors['accent']};
+            }}
+            
+            QScrollBar::handle:vertical:pressed {{
+                background-color: {colors['accent_pressed']};
+            }}
+            
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 14px;
+                border: none;
+                background-color: {colors['alternate_base']};
+            }}
+            
+            QScrollBar::add-line:vertical:hover, QScrollBar::sub-line:vertical:hover {{
+                background-color: {colors['accent']};
+            }}
+            
+            QScrollBar::add-line:vertical:pressed, QScrollBar::sub-line:vertical:pressed {{
+                background-color: {colors['accent_pressed']};
+            }}
+            
+            QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical {{
+                width: 8px;
+                height: 8px;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                color: {colors['window_text']};
+            }}
+            
+            QScrollBar::up-arrow:vertical {{
+                border-bottom: 6px solid {colors['window_text']};
+            }}
+            
+            QScrollBar::down-arrow:vertical {{
+                border-top: 6px solid {colors['window_text']};
+            }}
+            
+            QScrollBar::up-arrow:vertical:hover, QScrollBar::down-arrow:vertical:hover {{
+                border-top-color: white;
+                border-bottom-color: white;
+            }}
+            
+            QScrollBar:horizontal {{
+                border: none;
+                background-color: {colors['alternate_base']};
+                height: 14px;
+                margin: 0px;
+            }}
+            
+            QScrollBar::handle:horizontal {{
+                background-color: {colors['mid']};
+                min-width: 30px;
+                border-radius: 7px;
+                margin: 2px;
+            }}
+            
+            QScrollBar::handle:horizontal:hover {{
+                background-color: {colors['accent']};
+            }}
+            
+            QScrollBar::handle:horizontal:pressed {{
+                background-color: {colors['accent_pressed']};
+            }}
+            
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+                width: 14px;
+                border: none;
+                background-color: {colors['alternate_base']};
+            }}
+            
+            QScrollBar::add-line:horizontal:hover, QScrollBar::sub-line:horizontal:hover {{
+                background-color: {colors['accent']};
+            }}
+            
+            QScrollBar::add-line:horizontal:pressed, QScrollBar::sub-line:horizontal:pressed {{
+                background-color: {colors['accent_pressed']};
+            }}
+            
+            QScrollBar::left-arrow:horizontal, QScrollBar::right-arrow:horizontal {{
+                width: 8px;
+                height: 8px;
+                border-top: 4px solid transparent;
+                border-bottom: 4px solid transparent;
+                color: {colors['window_text']};
+            }}
+            
+            QScrollBar::left-arrow:horizontal {{
+                border-right: 6px solid {colors['window_text']};
+            }}
+            
+            QScrollBar::right-arrow:horizontal {{
+                border-left: 6px solid {colors['window_text']};
+            }}
+            
+            QScrollBar::left-arrow:horizontal:hover, QScrollBar::right-arrow:horizontal:hover {{
+                border-left-color: white;
+                border-right-color: white;
+            }}
         """
 
     @staticmethod
@@ -1106,8 +1285,8 @@ class AppStyles:
                 font-size: 13px;
             }}
             
-            /* 输入框样式 */
-            QDialog QLineEdit, QDialog QSpinBox, QDialog QComboBox {{
+            /* 输入框样式 - 不包含 SpinBox，让它使用默认样式 */
+            QDialog QLineEdit, QDialog QComboBox {{
                 border: 1px solid {colors['mid']};
                 border-radius: 6px;
                 padding: 6px 10px;
@@ -1116,7 +1295,7 @@ class AppStyles:
                 color: {colors['window_text']};
             }}
             
-            QDialog QLineEdit:focus, QDialog QSpinBox:focus, QDialog QComboBox:focus {{
+            QDialog QLineEdit:focus, QDialog QComboBox:focus {{
                 border-color: {colors['accent']};
                 outline: none;
             }}
@@ -1135,6 +1314,28 @@ class AppStyles:
                 font-size: 13px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                 spacing: 8px;
+            }}
+            
+            QDialog QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+                border: 2px solid {colors['mid']};
+                border-radius: 4px;
+                background-color: {colors['alternate_base']};
+            }}
+            
+            QDialog QCheckBox::indicator:checked {{
+                background-color: {colors['accent']};
+                border-color: {colors['accent']};
+            }}
+            
+            QDialog QCheckBox::indicator:hover {{
+                border-color: {colors['accent']};
+            }}
+            
+            QDialog QCheckBox::indicator:pressed {{
+                background-color: {colors['accent_pressed']};
+                border-color: {colors['accent_pressed']};
             }}
             
             /* 文本编辑框样式 */
@@ -1167,6 +1368,51 @@ class AppStyles:
     def about_dialog_style() -> str:
         """关于窗口样式"""
         return AppStyles.popup_dialog_style()
+
+    @staticmethod
+    def side_panel_style() -> str:
+        """侧边栏面板样式（用于扫描设置和频道编辑面板）"""
+        colors = AppStyles._get_colors()
+        return f"""
+            QWidget {{
+                background-color: {colors['alternate_base']};
+                border-radius: 8px;
+            }}
+        """
+
+    @staticmethod
+    def section_title_style() -> str:
+        """区域标题样式"""
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                font-size: 13px;
+                font-weight: bold;
+                color: {colors['window_text']};
+            }}
+        """
+
+    @staticmethod
+    def small_label_style() -> str:
+        """小标签样式"""
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                font-size: 11px;
+                color: {colors['window_text']};
+            }}
+        """
+
+    @staticmethod
+    def hint_label_style() -> str:
+        """提示标签样式（用于地址格式提示等）"""
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                font-size: 10px;
+                color: {colors['mid']};
+            }}
+        """
 
     @staticmethod
     def get_theme_name() -> str:
