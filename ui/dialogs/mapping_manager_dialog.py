@@ -1,4 +1,4 @@
-from PyQt6 import QtWidgets
+from PyQt6 import QtWidgets, QtCore, QtGui
 from core.log_manager import LogManager
 from models.channel_mappings import mapping_manager
 from utils.error_handler import show_error, show_warning, show_info, show_confirm
@@ -13,6 +13,16 @@ class MappingManagerDialog(QtWidgets.QDialog):
         self.parent = parent
         self.setWindowTitle("频道映射管理器")
         self.setMinimumSize(800, 600)
+        self.dragging = False
+        self.offset = None
+        self.opacity = 220
+        # 设置窗口属性，与其他弹窗保持一致
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
+        # 确保窗口可以接收鼠标事件
+        self.setMouseTracking(True)
+        # 确保窗口保持活动状态
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.setup_ui()
         self.load_mappings()
 
@@ -27,6 +37,40 @@ class MappingManagerDialog(QtWidgets.QDialog):
 
         self.update_ui_texts()
 
+    def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self.dragging = True
+            self.offset = event.position().toPoint()
+
+    def mouseMoveEvent(self, event):
+        if self.dragging:
+            new_position = event.globalPosition().toPoint() - self.offset
+            self.move(new_position)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self.dragging = False
+
+    def paintEvent(self, event):
+        """自定义绘制半透明背景和边框"""
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        
+        # 创建圆角矩形路径
+        path = QtGui.QPainterPath()
+        rect = QtCore.QRectF(self.rect().adjusted(1, 1, -1, -1))
+        path.addRoundedRect(rect, 12, 12)
+        
+        # 绘制半透明背景（只在圆角内）
+        painter.fillPath(path, QtGui.QColor(30, 30, 30, self.opacity))
+        
+        # 绘制边框
+        painter.setPen(QtGui.QColor(120, 120, 120, 200))
+        painter.drawPath(path)
+        
+        # 调用父类的 paintEvent 来绘制子控件
+        super().paintEvent(event)
+
     def setup_ui(self):
         """设置用户界面"""
         layout = QtWidgets.QVBoxLayout(self)
@@ -34,8 +78,8 @@ class MappingManagerDialog(QtWidgets.QDialog):
         # 导入样式
         from ui.styles import AppStyles
 
-        # 应用统一的对话框样式和按钮样式
-        self.setStyleSheet(AppStyles.dialog_style() + AppStyles.button_style())
+        # 应用通用的弹窗样式
+        self.setStyleSheet(AppStyles.dialog_style())
 
         # 创建选项卡
         self.tab_widget = QtWidgets.QTabWidget()

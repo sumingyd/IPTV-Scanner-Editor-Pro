@@ -1,11 +1,8 @@
-from PyQt6 import QtGui
+class AppStyles:
+    """应用样式管理类"""
 
-
-class ThemeColors:
-    """主题颜色配置"""
-
-    # 浅色主题颜色
-    LIGHT_THEME = {
+    # 通用主题颜色
+    THEME_COLORS = {
         'window': '#ffffff',
         'window_text': '#333333',
         'base': '#ffffff',
@@ -38,76 +35,35 @@ class ThemeColors:
         'table_hover': '#f0f7ff',
         'table_selection': '#4a7eff',
         'table_selection_text': '#ffffff',
+        
+        # 播放器相关颜色
+        'player_background': '#000000',
+        'player_panel': '#2a2a2a',
+        'player_panel_text': '#ffffff',
+        'player_panel_secondary': '#aaaaaa',
+        'player_panel_disabled': '#888888',
+        'player_panel_hint': '#666666',
+        'player_button': 'rgba(60, 60, 60, 0.9)',
+        'player_combo': 'rgba(45, 45, 45, 0.8)',
+        'player_line': '#555555',
+        'player_accent': '#6a9eff',
+        'player_success': '#4CAF50',
+        'player_warning': '#ff6464',
+        'player_slider_track': '#555555',
+        'player_slider_fill': '#4CAF50',
+        'player_slider_handle': '#ffffff',
+        'player_volume_track': '#444444',
+        'player_video_placeholder': '#1a1a1a',
     }
-
-    # 深色主题颜色
-    DARK_THEME = {
-        'window': '#1e1e1e',
-        'window_text': '#f0f0f0',
-        'base': '#2a2a2a',
-        'alternate_base': '#333333',
-        'button': '#3a3a3a',
-        'light': '#444444',
-        'mid': '#555555',
-        'dark': '#666666',
-        'highlight': '#2a3a5a',
-        'highlighted_text': '#6a9eff',
-        'link': '#6a9eff',
-        'link_visited': '#8a7eff',
-        'tooltip_base': '#2a2a2a',
-        'tooltip_text': '#f0f0f0',
-        'placeholder': '#888888',
-        'accent': '#6a9eff',
-        'accent_hover': '#5a8eff',
-        'accent_pressed': '#4a7eff',
-        'success': '#66BB6A',
-        'warning': '#FFB74D',
-        'error': '#EF5350',
-        'info': '#42A5F5',
-        'table_header': '#3a3a3a',
-        'table_header_gradient_start': '#444444',
-        'table_header_gradient_middle': '#3a3a3a',
-        'table_header_gradient_end': '#333333',
-        'table_border': '#555555',
-        'table_grid': '#444444',
-        'table_alternate': '#333333',
-        'table_hover': '#2a3a5a',
-        'table_selection': '#6a9eff',
-        'table_selection_text': '#ffffff',
-    }
-
-    @classmethod
-    def get_colors(cls, is_dark_mode: bool = None):
-        """获取当前主题的颜色配置"""
-        if is_dark_mode is None:
-            # 自动检测当前主题
-            try:
-                from ui.theme_manager import get_theme_manager
-                theme_manager = get_theme_manager()
-                is_dark_mode = theme_manager.is_dark_mode()
-            except Exception:
-                # 默认使用浅色主题
-                is_dark_mode = False
-
-        return cls.DARK_THEME if is_dark_mode else cls.LIGHT_THEME
-
-    @classmethod
-    def get_color(cls, color_name: str, is_dark_mode: bool = None):
-        """获取特定颜色"""
-        colors = cls.get_colors(is_dark_mode)
-        return colors.get(color_name, '#000000')
-
-
-class AppStyles:
 
     @staticmethod
     def _get_colors():
         """获取当前主题的颜色"""
-        return ThemeColors.get_colors()
+        return AppStyles.THEME_COLORS
 
     @staticmethod
     def main_window_style() -> str:
-        """主窗口样式(自动适应深色/浅色模式)"""
+        """主窗口样式"""
         colors = AppStyles._get_colors()
         return f"""
             QMainWindow {{
@@ -139,7 +95,6 @@ class AppStyles:
             QSplitter::handle:hover {{
                 background-color: {colors['highlight']};
             }}
-            /* 复选框样式 - 只设置字体，让系统处理显示 */
             QCheckBox {{
                 color: {colors['window_text']};
                 font-size: 13px;
@@ -150,6 +105,7 @@ class AppStyles:
 
     @staticmethod
     def button_style(active: bool = False) -> str:
+        """按钮样式"""
         base_style = """
             QPushButton {
                 border: 1px solid #4a7eff;
@@ -199,7 +155,7 @@ class AppStyles:
 
     @staticmethod
     def list_style() -> str:
-        """列表样式(自动适应深色/浅色模式)"""
+        """列表样式"""
         colors = AppStyles._get_colors()
         return f"""
             QTableView {{
@@ -255,18 +211,17 @@ class AppStyles:
                 border-right: none;
             }}
             QHeaderView::section:first {{
-                min-width: 60px;  /* 序号列最小宽度 */
+                min-width: 60px;
             }}
             QHeaderView::section:nth-child(2) {{
-                min-width: 180px; /* 频道名称列最小宽度 */
+                min-width: 180px;
             }}
             QHeaderView::section:nth-child(3) {{
-                min-width: 100px;  /* 分辨率列最小宽度 */
+                min-width: 100px;
             }}
             QHeaderView::section:nth-child(4) {{
-                min-width: 250px; /* URL列最小宽度 */
+                min-width: 250px;
             }}
-            /* 拖拽时的视觉反馈 */
             QTableView::item:drag {{
                 background-color: {colors['table_selection']};
                 color: {colors['table_selection_text']};
@@ -283,288 +238,309 @@ class AppStyles:
 
     @staticmethod
     def statusbar_style() -> str:
-        """状态栏样式(自动适应深色/浅色模式)"""
-        return """
-            QStatusBar {
-                background-color: #2a2a2a;
-                color: white;
+        """状态栏样式"""
+        colors = AppStyles._get_colors()
+        return f"""
+            QStatusBar {{
+                background-color: {colors['player_panel']};
+                color: {colors['player_panel_text']};
                 padding: 4px;
-            }
+            }}
         """
 
     @staticmethod
     def player_toolbar_style() -> str:
         """播放器工具栏样式"""
-        return """
-            QToolBar {
-                background-color: #2a2a2a;
-                color: white;
+        colors = AppStyles._get_colors()
+        return f"""
+            QToolBar {{
+                background-color: {colors['player_panel']};
+                color: {colors['player_panel_text']};
                 padding: 4px;
-            }
-            QToolBar QPushButton {
-                background-color: #3a3a3a;
-                color: white;
-                border: 1px solid #555;
+            }}
+            QToolBar QPushButton {{
+                background-color: {colors['player_button']};
+                color: {colors['player_panel_text']};
+                border: 1px solid {colors['player_line']};
                 padding: 5px 10px;
                 border-radius: 3px;
                 margin: 2px;
-            }
-            QToolBar QPushButton:hover {
-                background-color: #4a4a4a;
-            }
+            }}
+            QToolBar QPushButton:hover {{
+                background-color: {colors['player_line']};
+            }}
         """
 
     @staticmethod
     def player_panel_style() -> str:
         """播放器面板样式"""
-        return """
-            QLabel {
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
                 border: none;
                 background-color: transparent;
-            }
-            QListWidget {
+            }}
+            QListWidget {{
                 border: none;
                 background-color: transparent;
-            }
-            QComboBox {
+            }}
+            QComboBox {{
                 border: none;
-            }
+            }}
         """
 
     @staticmethod
     def player_button_style() -> str:
         """播放器按钮样式"""
-        return """
-            QToolButton {
-                color: white;
+        colors = AppStyles._get_colors()
+        return f"""
+            QToolButton {{
+                color: {colors['player_panel_text']};
                 font-size: 14px;
-                background-color: rgba(60, 60, 60, 0.9);
+                background-color: {colors['player_button']};
                 border-radius: 4px;
                 border: none;
-            }
+            }}
         """
 
     @staticmethod
     def player_slider_style() -> str:
         """播放器滑块样式"""
-        return """
-            QSlider {
+        colors = AppStyles._get_colors()
+        return f"""
+            QSlider {{
                 background-color: transparent;
-            }
-            QSlider::groove:horizontal { 
-                background: #555555; 
+            }}
+            QSlider::groove:horizontal {{ 
+                background: {colors['player_slider_track']}; 
                 height: 4px; 
                 border-radius: 2px;
-            } 
-            QSlider::sub-page:horizontal {
-                background: #4CAF50;
+            }} 
+            QSlider::sub-page:horizontal {{
+                background: {colors['player_slider_fill']};
                 height: 4px;
                 border-radius: 2px;
-            }
-            QSlider::handle:horizontal { 
-                background: #ffffff; 
+            }}
+            QSlider::handle:horizontal {{ 
+                background: {colors['player_slider_handle']}; 
                 width: 10px; 
                 height: 10px; 
                 border-radius: 5px;
                 margin: -3px 0;
-            }
+            }}
         """
 
     @staticmethod
     def player_volume_slider_style() -> str:
         """播放器音量滑块样式"""
-        return """
-            QSlider::groove:horizontal { 
-                background: #444444; 
+        colors = AppStyles._get_colors()
+        return f"""
+            QSlider::groove:horizontal {{ 
+                background: {colors['player_volume_track']}; 
                 height: 4px; 
                 border-radius: 2px;
-            } 
-            QSlider::sub-page:horizontal {
-                background: #4CAF50;
+            }} 
+            QSlider::sub-page:horizontal {{
+                background: {colors['player_slider_fill']};
                 height: 4px;
                 border-radius: 2px;
-            }
-            QSlider::handle:horizontal { 
-                background: #ffffff; 
+            }}
+            QSlider::handle:horizontal {{ 
+                background: {colors['player_slider_handle']}; 
                 width: 12px; 
                 height: 12px; 
                 border-radius: 6px;
                 margin: -4px 0;
-            }
+            }}
         """
 
     @staticmethod
     def exit_catchup_button_style() -> str:
         """退出回看按钮样式"""
-        return """
-            QToolButton {
-                color: white;
+        colors = AppStyles._get_colors()
+        return f"""
+            QToolButton {{
+                color: {colors['player_panel_text']};
                 font-size: 12px;
-                background-color: rgba(255, 100, 100, 0.9);
+                background-color: {colors['player_warning']};
                 border-radius: 4px;
                 border: none;
-            }
+            }}
         """
 
     @staticmethod
     def player_label_style() -> str:
         """播放器标签样式"""
-        return """
-            QLabel {
-                color: #aaaaaa;
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['player_panel_secondary']};
                 font-size: 12px;
                 background-color: transparent;
-            }
+            }}
         """
 
     @staticmethod
     def player_channel_name_style() -> str:
         """播放器频道名称样式"""
-        return """
-            QLabel {
-                color: white;
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['player_panel_text']};
                 font-size: 18px;
                 font-weight: bold;
                 background-color: transparent;
-            }
+            }}
         """
 
     @staticmethod
     def player_program_style() -> str:
         """播放器节目样式"""
-        return """
-            QLabel {
-                color: #4CAF50;
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['player_success']};
                 font-size: 13px;
                 background-color: transparent;
-            }
+            }}
         """
 
     @staticmethod
     def player_program_desc_style() -> str:
         """播放器节目描述样式"""
-        return """
-            QLabel {
-                color: #cccccc;
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['player_panel_secondary']};
                 font-size: 14px;
                 background-color: transparent;
-            }
+            }}
         """
 
     @staticmethod
     def player_date_button_style() -> str:
         """播放器日期按钮样式"""
-        return """
-            QPushButton {
+        colors = AppStyles._get_colors()
+        return f"""
+            QPushButton {{
                 background-color: transparent;
-                color: #888;
+                color: {colors['player_panel_disabled']};
                 border: none;
                 font-size: 12px;
-            }
+            }}
         """
 
     @staticmethod
     def player_date_label_style() -> str:
         """播放器日期标签样式"""
-        return """
-            QLabel {
-                color: white;
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['player_panel_text']};
                 font-size: 12px;
-            }
+            }}
         """
 
     @staticmethod
     def player_epg_title_style() -> str:
         """播放器EPG标题样式"""
-        return """
-            QLabel {
-                color: white;
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['player_panel_text']};
                 font-size: 14px;
                 font-weight: bold;
                 padding: 8px;
                 background-color: transparent;
-            }
+            }}
         """
 
     @staticmethod
     def player_group_combo_style() -> str:
         """播放器分组下拉框样式"""
-        return """
-            QComboBox {
-                background-color: rgba(45, 45, 45, 0.8);
-                color: white;
+        colors = AppStyles._get_colors()
+        return f"""
+            QComboBox {{
+                background-color: {colors['player_combo']};
+                color: {colors['player_panel_text']};
                 padding: 4px;
                 border: none;
                 font-size: 12px;
-            }
+            }}
         """
 
     @staticmethod
     def player_playlist_title_style() -> str:
         """播放器播放列表标题样式"""
-        return """
-            QLabel {
-                color: white;
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['player_panel_text']};
                 font-size: 14px;
                 font-weight: bold;
                 padding: 8px;
                 background-color: transparent;
-            }
+            }}
         """
 
     @staticmethod
     def player_line_style() -> str:
         """播放器分割线样式"""
-        return """
-            QFrame {
-                background-color: #555555;
+        colors = AppStyles._get_colors()
+        return f"""
+            QFrame {{
+                background-color: {colors['player_line']};
                 max-height: 1px;
-            }
+            }}
         """
 
     @staticmethod
     def player_video_placeholder_style() -> str:
         """播放器视频占位符样式"""
-        return """
-            QLabel {
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
                 font-size: 200px;
-                color: #1a1a1a;
+                color: {colors['player_video_placeholder']};
                 background-color: transparent;
-            }
+            }}
         """
 
     @staticmethod
     def player_empty_label_style() -> str:
         """播放器空状态标签样式"""
-        return """
-            QLabel {
-                color: #666666;
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['player_panel_hint']};
                 font-size: 12px;
                 background-color: transparent;
-            }
+            }}
         """
 
     @staticmethod
     def player_list_style() -> str:
         """播放器列表样式"""
-        return """
-            QListWidget {
+        colors = AppStyles._get_colors()
+        return f"""
+            QListWidget {{
                 background-color: transparent;
-                color: white;
+                color: {colors['player_panel_text']};
                 border: none;
                 padding: 5px;
-            }
+            }}
         """
 
     @staticmethod
     def player_progress_label_style() -> str:
         """播放器进度标签样式"""
-        return """
-            QLabel {
-                color: #888888;
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['player_panel_disabled']};
                 font-size: 11px;
                 background-color: transparent;
-            }
+            }}
         """
 
     @staticmethod
@@ -580,236 +556,49 @@ class AppStyles:
     @staticmethod
     def player_background_style() -> str:
         """播放器背景样式"""
-        return """
-            background-color: #000000;
+        colors = AppStyles._get_colors()
+        return f"""
+            background-color: {colors['player_background']};
         """
 
     @staticmethod
     def player_menu_bar_style() -> str:
         """播放器菜单栏样式"""
-        return """
-            QMenuBar {
-                background-color: #2a2a2a;
-                color: white;
+        colors = AppStyles._get_colors()
+        return f"""
+            QMenuBar {{
+                background-color: {colors['player_panel']};
+                color: {colors['player_panel_text']};
                 padding: 2px;
-            }
-            QMenuBar::item {
+            }}
+            QMenuBar::item {{
                 padding: 4px 8px;
                 margin: 2px;
                 border-radius: 4px;
-            }
-            QMenuBar::item:selected {
-                background-color: #4a4a4a;
-            }
-            QMenu {
-                background-color: #2a2a2a;
-                color: white;
+            }}
+            QMenuBar::item:selected {{
+                background-color: {colors['player_line']};
+            }}
+            QMenu {{
+                background-color: {colors['player_panel']};
+                color: {colors['player_panel_text']};
                 border-radius: 4px;
                 padding: 2px;
-            }
-            QMenu::item {
+            }}
+            QMenu::item {{
                 padding: 4px 20px;
                 margin: 2px;
                 border-radius: 4px;
-            }
-            QMenu::item:selected {
-                background-color: #4a4a4a;
-            }
+            }}
+            QMenu::item:selected {{
+                background-color: {colors['player_line']};
+            }}
         """
 
     @staticmethod
     def scan_window_style() -> str:
         """扫描频道窗口样式"""
-        return """
-            QGroupBox {
-                background-color: #2a2a2a;
-                color: #cccccc;
-                border: 1px solid #555;
-                border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 16px;
-                font-weight: 600;
-                font-size: 13px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 6px;
-                color: #cccccc;
-                font-weight: 600;
-            }
-            QLabel {
-                color: #cccccc;
-                font-size: 12px;
-            }
-            QLineEdit {
-                background-color: #3a3a3a;
-                color: #cccccc;
-                border: 1px solid #555;
-                border-radius: 4px;
-                padding: 6px;
-            }
-            QSpinBox {
-                background-color: #3a3a3a;
-                color: #cccccc;
-                border: 1px solid #555;
-                border-radius: 4px;
-                padding: 6px;
-            }
-            QCheckBox {
-                color: #cccccc;
-                font-size: 12px;
-                spacing: 8px;
-            }
-            QCheckBox::indicator {
-                width: 16px;
-                height: 16px;
-                border: 2px solid #555;
-                border-radius: 3px;
-                background-color: #3a3a3a;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #3a6eff;
-                border-color: #3a6eff;
-            }
-            QCheckBox::indicator:hover {
-                border-color: #3a6eff;
-            }
-            QPushButton {
-                background-color: #3a3a3a;
-                color: #cccccc;
-                border: 1px solid #555;
-                border-radius: 4px;
-                padding: 8px 16px;
-                min-width: 100px;
-                font-weight: 500;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #4a4a4a;
-            }
-            QPushButton:pressed {
-                background-color: #2a2a2a;
-            }
-            QPushButton#scanButton {
-                background-color: #3a6eff;
-                color: white;
-                border: 1px solid #3a6eff;
-                font-weight: 600;
-            }
-            QPushButton#scanButton:hover {
-                background-color: #2a5eff;
-                border-color: #2a5eff;
-            }
-            QPushButton#scanButton:pressed {
-                background-color: #1a4eff;
-                border-color: #1a4eff;
-            }
-            QPushButton#saveButton {
-                background-color: #3a6eff;
-                color: white;
-                border: 1px solid #3a6eff;
-                font-weight: 600;
-            }
-            QPushButton#saveButton:hover {
-                background-color: #2a5eff;
-                border-color: #2a5eff;
-            }
-            QPushButton#saveButton:pressed {
-                background-color: #1a4eff;
-                border-color: #1a4eff;
-            }
-        """
-
-    @staticmethod
-    def player_settings_dialog_style() -> str:
-        """播放器设置对话框样式"""
-        return """
-            QGroupBox {
-                background-color: transparent;
-                border: none;
-                margin-top: 10px;
-                margin-left: 0;
-                margin-right: 0;
-                padding: 0;
-            }
-            QGroupBox::title {
-                color: white;
-                subcontrol-origin: margin;
-                left: 0;
-                padding: 0 5px 0 5px;
-                font-weight: bold;
-            }
-            QLabel {
-                color: white;
-                margin-left: 0;
-                margin-top: 5px;
-            }
-            QLineEdit {
-                background-color: rgba(50, 50, 50, 200);
-                color: white;
-                border: 1px solid rgba(100, 100, 100, 200);
-                border-radius: 4px;
-                padding: 6px;
-                margin-left: 0;
-                margin-right: 0;
-                margin-bottom: 10px;
-            }
-            QComboBox {
-                background-color: rgba(50, 50, 50, 200);
-                color: white;
-                border: 1px solid rgba(100, 100, 100, 200);
-                border-radius: 4px;
-                padding: 6px;
-                margin-left: 0;
-                margin-right: 0;
-                margin-bottom: 10px;
-            }
-            QComboBox QAbstractItemView {
-                background-color: rgba(30, 30, 30, 220);
-                color: white;
-                border: 1px solid rgba(100, 100, 100, 200);
-                border-radius: 4px;
-            }
-            QCheckBox {
-                color: white;
-                margin-left: 0;
-                margin-top: 5px;
-            }
-            QSpinBox {
-                background-color: rgba(50, 50, 50, 200);
-                color: white;
-                border: 1px solid rgba(100, 100, 100, 200);
-                border-radius: 4px;
-                padding: 6px;
-                margin-left: 0;
-                margin-right: 0;
-                margin-bottom: 10px;
-            }
-            QPushButton {
-                background-color: rgba(50, 50, 50, 200);
-                color: white;
-                border: 1px solid rgba(100, 100, 100, 200);
-                border-radius: 4px;
-                padding: 8px 16px;
-                margin: 10px 0;
-            }
-            QPushButton:hover {
-                background-color: rgba(60, 60, 60, 220);
-            }
-            QPushButton:pressed {
-                background-color: rgba(40, 40, 40, 220);
-            }
-        """
-
-    @staticmethod
-    def status_label_style() -> str:
-        return """
-            QLabel {
-                color: palette(windowText);
-                font-weight: bold;
-            }
-        """
+        return AppStyles.popup_dialog_style()
 
     @staticmethod
     def progress_style() -> str:
@@ -835,28 +624,28 @@ class AppStyles:
 
     @staticmethod
     def toolbar_button_style() -> str:
-        """工具栏按钮样式(emoji+文字，自动适应深色/浅色模式)"""
+        """工具栏按钮样式"""
         return """
             QToolButton {
-                border: 1px solid palette(mid);
+                border: 1px solid #cccccc;
                 border-radius: 4px;
                 padding: 4px 8px;
                 margin: 1px;
-                background-color: palette(button);
+                background-color: #f0f0f0;
                 min-width: 60px;
                 min-height: 28px;
-                color: palette(windowText);
+                color: #333333;
                 font-size: 12px;
                 font-weight: 500;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
             }
             QToolButton:hover {
-                background-color: palette(highlight);
-                border-color: palette(highlight);
+                background-color: #f0f7ff;
+                border-color: #f0f7ff;
                 color: #4a7eff;
             }
             QToolButton:pressed {
-                background-color: palette(mid);
+                background-color: #cccccc;
                 color: #2a5eff;
             }
             QToolButton::menu-indicator {
@@ -865,103 +654,14 @@ class AppStyles:
         """
 
     @staticmethod
-    def dialog_style() -> str:
-        """对话框通用样式(自动适应深色/浅色模式)"""
-        return """
-            QDialog {
-                background-color: palette(window);
-                color: palette(windowText);
-                border: 1px solid palette(mid);
-                border-radius: 8px;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            }
-            QDialog QLabel {
-                color: palette(windowText);
-                font-size: 13px;
-                opacity: 0.9;
-            }
-            QDialog QPushButton {
-                min-width: 70px;
-                padding: 6px 12px;
-                border-radius: 4px;
-                font-size: 12px;
-                font-weight: 500;
-            }
-            QDialog QGroupBox {
-                border: 1px solid palette(mid);
-                border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 18px;
-                background-color: palette(alternate-base);
-            }
-            QDialog QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 6px;
-                color: palette(windowText);
-                font-weight: 600;
-                font-size: 13px;
-            }
-            QDialog QLineEdit, QDialog QSpinBox, QDialog QComboBox {
-                border: 1px solid palette(mid);
-                border-radius: 6px;
-                padding: 6px 10px;
-                font-size: 13px;
-                background-color: palette(base);
-                color: palette(windowText);
-            }
-            QDialog QLineEdit:focus, QDialog QSpinBox:focus, QDialog QComboBox:focus {
-                border-color: #4a7eff;
-                outline: none;
-            }
-            /* 复选框样式 - 只设置字体，让系统处理显示 */
-            QCheckBox {
-                color: palette(windowText);
-                font-size: 13px;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                spacing: 8px;
-            }
-        """
-
-    @staticmethod
-    def text_color() -> QtGui.QColor:
-        """返回主题文字颜色(自动适应深色/浅色模式)"""
-        # 获取系统调色板
-        palette = QtGui.QGuiApplication.palette()
-        # 计算背景亮度来判断深浅色模式
-        bg_color = palette.color(QtGui.QPalette.ColorRole.Window)
-        is_dark = bg_color.lightness() < 128
-
-        # 深色模式返回浅色，浅色模式返回深色
-        if is_dark:
-            return QtGui.QColor('#f0f0f0')  # 浅灰色
-        else:
-            return QtGui.QColor('#333333')  # 深灰色
-
-    @staticmethod
-    def table_bg_color() -> QtGui.QColor:
-        """返回表格背景色(自动适应深色/浅色模式)"""
-        # 获取系统调色板
-        palette = QtGui.QGuiApplication.palette()
-        # 计算背景亮度来判断深浅色模式
-        bg_color = palette.color(QtGui.QPalette.ColorRole.Window)
-        is_dark = bg_color.lightness() < 128
-
-        # 深色模式返回深色背景，浅色模式返回浅色背景
-        if is_dark:
-            return QtGui.QColor('#2a2a2a')  # 深灰色
-        else:
-            return QtGui.QColor('#f8f8f8')  # 浅灰色
-
-    @staticmethod
     def drag_list_style() -> str:
-        """拖拽列表样式(自动适应深色/浅色模式)"""
+        """拖拽列表样式"""
         return """
             QListWidget {
-                border: 1px solid palette(mid);
+                border: 1px solid #cccccc;
                 border-radius: 8px;
                 padding: 4px;
-                background-color: palette(base);
+                background-color: #ffffff;
                 font-size: 13px;
             }
             QListWidget::item {
@@ -969,12 +669,12 @@ class AppStyles:
                 border-radius: 6px;
                 padding: 8px 12px;
                 margin: 2px;
-                background-color: palette(alternate-base);
-                color: palette(windowText);
+                background-color: #f8f8f8;
+                color: #333333;
             }
             QListWidget::item:hover {
-                background-color: palette(highlight);
-                border: 1px solid palette(mid);
+                background-color: #f0f7ff;
+                border: 1px solid #cccccc;
             }
             QListWidget::item:selected {
                 background-color: #4a7eff;
@@ -988,38 +688,38 @@ class AppStyles:
 
     @staticmethod
     def drag_hint_label_style() -> str:
-        """拖拽提示标签样式(自动适应深色/浅色模式)"""
+        """拖拽提示标签样式"""
         return """
             QLabel {
                 color: #4a7eff;
                 font-size: 12px;
                 padding: 8px 12px;
-                background-color: palette(alternate-base);
+                background-color: #f8f8f8;
                 border-radius: 6px;
                 font-weight: 500;
-                border: 1px solid palette(mid);
+                border: 1px solid #cccccc;
             }
         """
 
     @staticmethod
     def group_hint_label_style() -> str:
-        """分组提示标签样式(自动适应深色/浅色模式)"""
+        """分组提示标签样式"""
         return """
             QLabel {
-                color: palette(windowText);
+                color: #333333;
                 font-size: 12px;
                 padding: 8px 12px;
-                background-color: palette(alternate-base);
+                background-color: #f8f8f8;
                 border-radius: 6px;
                 font-weight: 500;
-                border: 1px solid palette(mid);
+                border: 1px solid #cccccc;
                 opacity: 0.8;
             }
         """
 
     @staticmethod
     def statusbar_error_style() -> str:
-        """状态栏错误/警告样式（红色文字）"""
+        """状态栏错误/警告样式"""
         return """
             QStatusBar {
                 color: #ff0000;
@@ -1029,7 +729,7 @@ class AppStyles:
 
     @staticmethod
     def apply_button_style() -> str:
-        """应用按钮样式（绿色）"""
+        """应用按钮样式"""
         return """
             QPushButton {
                 background-color: #4CAF50;
@@ -1046,7 +746,7 @@ class AppStyles:
 
     @staticmethod
     def cancel_button_style() -> str:
-        """取消按钮样式（红色）"""
+        """取消按钮样式"""
         return """
             QPushButton {
                 background-color: #f44336;
@@ -1062,10 +762,10 @@ class AppStyles:
 
     @staticmethod
     def secondary_label_style() -> str:
-        """次要标签样式（灰色文字，带内边距）"""
+        """次要标签样式"""
         return """
             QLabel {
-                color: palette(windowText);
+                color: #333333;
                 padding: 0 5px;
                 font-size: 13px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
@@ -1075,28 +775,28 @@ class AppStyles:
 
     @staticmethod
     def tab_widget_style() -> str:
-        """标签页控件样式(自动适应深色/浅色模式)"""
+        """标签页控件样式"""
         return """
             QTabWidget {
-                background-color: palette(window);
-                border: 1px solid palette(mid);
+                background-color: #ffffff;
+                border: 1px solid #cccccc;
                 border-radius: 8px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
             }
             QTabWidget::pane {
-                border: 1px solid palette(mid);
+                border: 1px solid #cccccc;
                 border-radius: 0 0 8px 8px;
-                background-color: palette(window);
+                background-color: #ffffff;
                 margin-top: -1px;
             }
             QTabBar {
-                background-color: palette(button);
-                border-bottom: 1px solid palette(mid);
+                background-color: #f0f0f0;
+                border-bottom: 1px solid #cccccc;
                 border-radius: 8px 8px 0 0;
             }
             QTabBar::tab {
-                background-color: palette(button);
-                border: 1px solid palette(mid);
+                background-color: #f0f0f0;
+                border: 1px solid #cccccc;
                 border-bottom: none;
                 border-radius: 6px 6px 0 0;
                 padding: 8px 16px;
@@ -1104,19 +804,19 @@ class AppStyles:
                 margin-top: 4px;
                 font-size: 13px;
                 font-weight: 500;
-                color: palette(windowText);
+                color: #333333;
                 opacity: 0.8;
             }
             QTabBar::tab:selected {
-                background-color: palette(window);
-                border-color: palette(mid);
-                border-bottom-color: palette(window);
+                background-color: #ffffff;
+                border-color: #cccccc;
+                border-bottom-color: #ffffff;
                 color: #4a7eff;
                 font-weight: 600;
                 opacity: 1.0;
             }
             QTabBar::tab:hover:!selected {
-                background-color: palette(alternate-base);
+                background-color: #f8f8f8;
                 color: #4a7eff;
                 opacity: 0.9;
             }
@@ -1128,12 +828,13 @@ class AppStyles:
             }
         """
 
+    # 通用样式
     @staticmethod
     def common_button_style() -> str:
-        """通用按钮样式(自动适应深色/浅色模式)"""
+        """通用按钮样式"""
         colors = AppStyles._get_colors()
         return f"""
-            QPushButton {
+            QPushButton {{
                 background-color: {colors['button']};
                 color: {colors['window_text']};
                 border: 1px solid {colors['mid']};
@@ -1143,25 +844,25 @@ class AppStyles:
                 font-weight: 500;
                 font-size: 12px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            }
-            QPushButton:hover {
+            }}
+            QPushButton:hover {{
                 background-color: {colors['light']};
                 border-color: {colors['accent']};
-            }
-            QPushButton:pressed {
+            }}
+            QPushButton:pressed {{
                 background-color: {colors['dark']};
                 border-color: {colors['accent_pressed']};
-            }
-            QPushButton:disabled {
+            }}
+            QPushButton:disabled {{
                 background-color: {colors['light']};
                 border-color: {colors['mid']};
                 color: {colors['placeholder']};
-            }
+            }}
         """
 
     @staticmethod
     def common_label_style() -> str:
-        """通用标签样式(自动适应深色/浅色模式)"""
+        """通用标签样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -1174,7 +875,7 @@ class AppStyles:
 
     @staticmethod
     def common_line_edit_style() -> str:
-        """通用输入框样式(自动适应深色/浅色模式)"""
+        """通用输入框样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLineEdit {{
@@ -1199,7 +900,7 @@ class AppStyles:
 
     @staticmethod
     def common_spin_box_style() -> str:
-        """通用SpinBox样式(自动适应深色/浅色模式)"""
+        """通用SpinBox样式"""
         colors = AppStyles._get_colors()
         return f"""
             QSpinBox {{
@@ -1224,7 +925,7 @@ class AppStyles:
 
     @staticmethod
     def common_check_box_style() -> str:
-        """通用复选框样式(自动适应深色/浅色模式)"""
+        """通用复选框样式"""
         colors = AppStyles._get_colors()
         return f"""
             QCheckBox {{
@@ -1251,7 +952,7 @@ class AppStyles:
 
     @staticmethod
     def common_group_box_style() -> str:
-        """通用分组框样式(自动适应深色/浅色模式)"""
+        """通用分组框样式"""
         colors = AppStyles._get_colors()
         return f"""
             QGroupBox {{
@@ -1277,22 +978,8 @@ class AppStyles:
         """
 
     @staticmethod
-    def common_dialog_style() -> str:
-        """通用弹窗窗口样式(自动适应深色/浅色模式)"""
-        colors = AppStyles._get_colors()
-        return f"""
-            QDialog {{
-                background-color: {colors['window']};
-                color: {colors['window_text']};
-                border: 1px solid {colors['mid']};
-                border-radius: 8px;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            }}
-        """
-
-    @staticmethod
     def common_title_style() -> str:
-        """通用标题文字样式(自动适应深色/浅色模式)"""
+        """通用标题文字样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -1306,7 +993,7 @@ class AppStyles:
 
     @staticmethod
     def common_link_style() -> str:
-        """通用链接文字样式(自动适应深色/浅色模式)"""
+        """通用链接文字样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -1323,7 +1010,7 @@ class AppStyles:
 
     @staticmethod
     def common_area_style() -> str:
-        """通用窗口内区域块样式(自动适应深色/浅色模式)"""
+        """通用窗口内区域块样式"""
         colors = AppStyles._get_colors()
         return f"""
             QWidget {{
@@ -1334,57 +1021,134 @@ class AppStyles:
             }}
         """
 
+    # 弹窗样式
     @staticmethod
-    def get_theme_name() -> str:
-        """获取当前主题名称，用于主题切换功能"""
-        try:
-            from ui.theme_manager import get_theme_manager
-            theme_manager = get_theme_manager()
-            return theme_manager.get_current_theme()
-        except Exception:
-            # 默认主题
-            return "default"
+    def popup_dialog_style() -> str:
+        """通用弹窗窗口样式"""
+        colors = AppStyles._get_colors()
+        return f"""
+            /* 窗口样式 */
+            QDialog {{
+                background-color: {colors['window']};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+                border-radius: 8px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            }}
+            
+            /* 标签样式 */
+            QDialog QLabel {{
+                color: {colors['window_text']};
+                font-size: 13px;
+                opacity: 0.9;
+            }}
+            
+            /* 按钮样式 */
+            QDialog QPushButton {{
+                min-width: 70px;
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: 500;
+                background-color: {colors['button']};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+            }}
+            
+            QDialog QPushButton:hover {{
+                background-color: {colors['light']};
+                border-color: {colors['accent']};
+            }}
+            
+            QDialog QPushButton:pressed {{
+                background-color: {colors['dark']};
+                border-color: {colors['accent_pressed']};
+            }}
+            
+            /* 分组框样式 */
+            QDialog QGroupBox {{
+                border: 1px solid {colors['mid']};
+                border-radius: 8px;
+                margin-top: 12px;
+                padding-top: 18px;
+                background-color: {colors['alternate_base']};
+            }}
+            
+            QDialog QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 6px;
+                color: {colors['window_text']};
+                font-weight: 600;
+                font-size: 13px;
+            }}
+            
+            /* 输入框样式 */
+            QDialog QLineEdit, QDialog QSpinBox, QDialog QComboBox {{
+                border: 1px solid {colors['mid']};
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 13px;
+                background-color: {colors['base']};
+                color: {colors['window_text']};
+            }}
+            
+            QDialog QLineEdit:focus, QDialog QSpinBox:focus, QDialog QComboBox:focus {{
+                border-color: {colors['accent']};
+                outline: none;
+            }}
+            
+            /* 下拉列表样式 */
+            QDialog QComboBox QAbstractItemView {{
+                background-color: {colors['window']};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+                border-radius: 4px;
+            }}
+            
+            /* 复选框样式 */
+            QDialog QCheckBox {{
+                color: {colors['window_text']};
+                font-size: 13px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                spacing: 8px;
+            }}
+            
+            /* 文本编辑框样式 */
+            QDialog QTextEdit {{
+                border: 1px solid {colors['mid']};
+                border-radius: 6px;
+                padding: 10px;
+                font-size: 13px;
+                background-color: {colors['base']};
+                color: {colors['window_text']};
+            }}
+            
+            QDialog QTextEdit:focus {{
+                border-color: {colors['accent']};
+                outline: none;
+            }}
+        """
+
+    @staticmethod
+    def dialog_style() -> str:
+        """对话框通用样式"""
+        return AppStyles.popup_dialog_style()
+
+    @staticmethod
+    def player_settings_dialog_style() -> str:
+        """播放器设置对话框样式"""
+        return AppStyles.popup_dialog_style()
 
     @staticmethod
     def about_dialog_style() -> str:
         """关于窗口样式"""
-        return """
-            QDialog {
-                background-color: transparent;
-            }
-            QLabel {
-                background-color: transparent;
-            }
-            QWidget {
-                background-color: transparent;
-            }
-            QGroupBox {
-                background-color: transparent;
-                border: none;
-            }
-            #infoCard {
-                background-color: rgba(50, 50, 50, 200);
-                border-radius: 10px;
-                border: 1px solid rgba(100, 100, 100, 200);
-                padding: 20px;
-            }
-            QPushButton {
-                background-color: rgba(50, 50, 50, 200);
-                color: white;
-                border: 1px solid rgba(100, 100, 100, 200);
-                border-radius: 4px;
-                padding: 8px 24px;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: rgba(60, 60, 60, 220);
-            }
-            QPushButton:pressed {
-                background-color: rgba(40, 40, 40, 220);
-            }
-        """
+        return AppStyles.popup_dialog_style()
 
-
+    @staticmethod
+    def get_theme_name() -> str:
+        """获取当前主题名称，用于主题切换功能"""
+        return "默认主题"
 
     @staticmethod
     def get_theme_styles(theme_name: str = None) -> dict:
@@ -1394,14 +1158,13 @@ class AppStyles:
         
         # 这里可以根据主题名称返回不同的样式配置
         # 目前只返回默认样式
-        return {
+        return {{
             'common_button': AppStyles.common_button_style(),
             'common_label': AppStyles.common_label_style(),
             'common_line_edit': AppStyles.common_line_edit_style(),
             'common_spin_box': AppStyles.common_spin_box_style(),
             'common_check_box': AppStyles.common_check_box_style(),
             'common_group_box': AppStyles.common_group_box_style(),
-            'common_dialog': AppStyles.common_dialog_style(),
             'common_title': AppStyles.common_title_style(),
             'common_link': AppStyles.common_link_style(),
             'common_area': AppStyles.common_area_style(),
@@ -1445,4 +1208,4 @@ class AppStyles:
             'cancel_button': AppStyles.cancel_button_style(),
             'secondary_label': AppStyles.secondary_label_style(),
             'tab_widget': AppStyles.tab_widget_style(),
-        }
+        }}

@@ -3267,12 +3267,66 @@ class IPTVPlayer(QMainWindow):
     
     def epg_settings(self):
         """EPG节目单设置"""
+        from PyQt6 import QtCore, QtGui
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QDialogButtonBox
         
-        # 创建对话框
-        dialog = QDialog(self)
+        # 创建自定义对话框
+        class FloatingDialog(QDialog):
+            def __init__(self, parent=None):
+                super().__init__(parent)
+                self.dragging = False
+                self.offset = None
+                self.opacity = 220
+                self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+                # 设置为工具窗口，无边框
+                self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
+                # 确保窗口可以接收鼠标事件
+                self.setMouseTracking(True)
+                # 确保窗口保持活动状态
+                self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
+            
+            def mousePressEvent(self, event):
+                if event.button() == QtCore.Qt.MouseButton.LeftButton:
+                    self.dragging = True
+                    self.offset = event.position().toPoint()
+            
+            def mouseMoveEvent(self, event):
+                if self.dragging:
+                    new_position = event.globalPosition().toPoint() - self.offset
+                    self.move(new_position)
+            
+            def mouseReleaseEvent(self, event):
+                if event.button() == QtCore.Qt.MouseButton.LeftButton:
+                    self.dragging = False
+            
+            def paintEvent(self, event):
+                """自定义绘制半透明背景和边框"""
+                painter = QtGui.QPainter(self)
+                painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+                
+                # 创建圆角矩形路径
+                from PyQt6.QtGui import QPainterPath
+                from PyQt6.QtCore import QRectF
+                path = QPainterPath()
+                rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
+                path.addRoundedRect(rect, 12, 12)
+                
+                # 绘制半透明背景（只在圆角内）
+                painter.fillPath(path, QtGui.QColor(30, 30, 30, self.opacity))
+                
+                # 绘制边框
+                painter.setPen(QtGui.QColor(120, 120, 120, 200))
+                painter.drawPath(path)
+                
+                # 调用父类的 paintEvent 来绘制子控件
+                super().paintEvent(event)
+        
+        dialog = FloatingDialog(self)
         dialog.setWindowTitle("EPG节目单设置")
-        dialog.setGeometry(200, 200, 400, 200)
+        dialog.setMinimumSize(400, 200)
+        # 应用样式
+        from ui.styles import AppStyles
+        dialog.setStyleSheet(AppStyles.dialog_style())
         
         # 创建布局
         layout = QVBoxLayout(dialog)
@@ -3529,9 +3583,66 @@ class IPTVPlayer(QMainWindow):
         
     def show_usage_instructions(self):
         """显示使用说明"""
-        dialog = QDialog(self)
+        from PyQt6 import QtCore, QtGui
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QHBoxLayout, QPushButton
+        from ui.styles import AppStyles
+        
+        # 创建自定义对话框
+        class FloatingDialog(QDialog):
+            def __init__(self, parent=None):
+                super().__init__(parent)
+                self.dragging = False
+                self.offset = None
+                self.opacity = 220
+                self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+                # 设置为工具窗口，无边框
+                self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
+                # 确保窗口可以接收鼠标事件
+                self.setMouseTracking(True)
+                # 确保窗口保持活动状态
+                self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
+            
+            def mousePressEvent(self, event):
+                if event.button() == QtCore.Qt.MouseButton.LeftButton:
+                    self.dragging = True
+                    self.offset = event.position().toPoint()
+            
+            def mouseMoveEvent(self, event):
+                if self.dragging:
+                    new_position = event.globalPosition().toPoint() - self.offset
+                    self.move(new_position)
+            
+            def mouseReleaseEvent(self, event):
+                if event.button() == QtCore.Qt.MouseButton.LeftButton:
+                    self.dragging = False
+            
+            def paintEvent(self, event):
+                """自定义绘制半透明背景和边框"""
+                painter = QtGui.QPainter(self)
+                painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+                
+                # 创建圆角矩形路径
+                from PyQt6.QtGui import QPainterPath
+                from PyQt6.QtCore import QRectF
+                path = QPainterPath()
+                rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
+                path.addRoundedRect(rect, 12, 12)
+                
+                # 绘制半透明背景（只在圆角内）
+                painter.fillPath(path, QtGui.QColor(30, 30, 30, self.opacity))
+                
+                # 绘制边框
+                painter.setPen(QtGui.QColor(120, 120, 120, 200))
+                painter.drawPath(path)
+                
+                # 调用父类的 paintEvent 来绘制子控件
+                super().paintEvent(event)
+        
+        dialog = FloatingDialog(self)
         dialog.setWindowTitle(self.language_manager.tr("usage_title"))
-        dialog.setGeometry(200, 200, 400, 300)
+        dialog.setMinimumSize(400, 300)
+        # 应用样式
+        dialog.setStyleSheet(AppStyles.dialog_style())
         
         layout = QVBoxLayout(dialog)
         text_edit = QTextEdit()
