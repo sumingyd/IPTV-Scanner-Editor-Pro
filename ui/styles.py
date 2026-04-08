@@ -604,55 +604,58 @@ class AppStyles:
     @staticmethod
     def progress_style() -> str:
         """进度条样式"""
-        return """
-            QProgressBar {
-                border: 1px solid #cbd5e1;
+        colors = AppStyles._get_colors()
+        return f"""
+            QProgressBar {{{{
+                border: 1px solid {colors['mid']};
                 border-radius: 6px;
                 text-align: center;
                 height: 24px;
-                background-color: #f1f5f9;
+                background-color: {colors['alternate_base']};
                 font-size: 11px;
                 font-weight: 500;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                color: #4a5568;
-            }
-            QProgressBar::chunk {
-                background-color: #4a7eff;
+                color: {colors['window_text']};
+            }}}}
+            QProgressBar::chunk {{{{
+                background-color: {colors['accent']};
                 border-radius: 5px;
                 margin: 1px;
-            }
+            }}}}
         """
 
     @staticmethod
     def toolbar_button_style() -> str:
         """工具栏按钮样式"""
-        return """
-            QToolButton {
-                border: 1px solid #cccccc;
+        colors = AppStyles._get_colors()
+        return f"""
+            QToolButton {{{{
+                border: 1px solid {colors['mid']};
                 border-radius: 4px;
                 padding: 4px 8px;
                 margin: 1px;
-                background-color: #f0f0f0;
+                background-color: {colors['button']};
                 min-width: 60px;
                 min-height: 28px;
-                color: #333333;
+                color: {colors['window_text']};
                 font-size: 12px;
                 font-weight: 500;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            }
-            QToolButton:hover {
-                background-color: #f0f7ff;
-                border-color: #f0f7ff;
-                color: #4a7eff;
-            }
-            QToolButton:pressed {
-                background-color: #cccccc;
-                color: #2a5eff;
-            }
-            QToolButton::menu-indicator {
+            }}}}
+            QToolButton:hover {{{{
+                background-color: {colors['light']};
+                border-color: {colors['accent']};
+                color: {colors['accent']};
+            }}}}
+            QToolButton:pressed {{{{
+                background-color: {colors['dark']};
+                color: {colors['accent_pressed']};
+            }}}}
+            QToolButton::menu-indicator {{{{
                 width: 0px;
-            }
+            }}}}
         """
+
 
     @staticmethod
     def drag_list_style() -> str:
@@ -724,58 +727,67 @@ class AppStyles:
     @staticmethod
     def statusbar_error_style() -> str:
         """状态栏错误/警告样式"""
-        return """
-            QStatusBar {
-                color: #ff0000;
+        colors = AppStyles._get_colors()
+        return f"""
+            QStatusBar {{{{
+                color: {colors['error']};
                 font-weight: bold;
-            }
+            }}}}
         """
+
 
     @staticmethod
     def apply_button_style() -> str:
         """应用按钮样式"""
-        return """
-            QPushButton {
-                background-color: #4CAF50;
+        colors = AppStyles._get_colors()
+        return f"""
+            QPushButton {{{{
+                background-color: {colors['success']};
                 color: white;
                 border: none;
                 padding: 8px 16px;
                 border-radius: 4px;
                 font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
+            }}}}
+            QPushButton:hover {{{{
+                background-color: {colors['success']};
+                opacity: 0.9;
+            }}}}
         """
 
     @staticmethod
     def cancel_button_style() -> str:
         """取消按钮样式"""
-        return """
-            QPushButton {
-                background-color: #f44336;
+        colors = AppStyles._get_colors()
+        return f"""
+            QPushButton {{{{
+                background-color: {colors['error']};
                 color: white;
                 border: none;
                 padding: 8px 16px;
                 border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #da190b;
-            }
+            }}}}
+            QPushButton:hover {{{{
+                background-color: {colors['error']};
+                opacity: 0.9;
+            }}}}
         """
+
 
     @staticmethod
     def secondary_label_style() -> str:
         """次要标签样式"""
-        return """
-            QLabel {
-                color: #333333;
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{{{
+                color: {colors['window_text']};
                 padding: 0 5px;
                 font-size: 13px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                 opacity: 0.8;
-            }
+            }}}}
         """
+
 
     @staticmethod
     def tab_widget_style() -> str:
