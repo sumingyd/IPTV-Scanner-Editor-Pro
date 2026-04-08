@@ -106,49 +106,50 @@ class AppStyles:
     @staticmethod
     def button_style(active: bool = False) -> str:
         """按钮样式"""
-        base_style = """
-            QPushButton {
-                border: 1px solid #4a7eff;
+        colors = AppStyles._get_colors()
+        base_style = f"""
+            QPushButton {{{{
+                border: 1px solid {colors['accent']};
                 border-radius: 4px;
                 padding: 6px 12px;
                 min-width: 70px;
                 min-height: 30px;
-                background-color: #4a7eff;
+                background-color: {colors['accent']};
                 color: white;
                 font-weight: 500;
                 font-size: 12px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            }
-            QPushButton:hover {
-                background-color: #3a6eff;
-                border-color: #3a6eff;
-            }
-            QPushButton:pressed {
-                background-color: #2a5eff;
-                border-color: #2a5eff;
-            }
-            QPushButton:disabled {
-                background-color: #cbd5e1;
-                border-color: #a0aec0;
-                color: #718096;
-            }
+            }}}}
+            QPushButton:hover {{{{
+                background-color: {colors['accent_hover']};
+                border-color: {colors['accent_hover']};
+            }}}}
+            QPushButton:pressed {{{{
+                background-color: {colors['accent_pressed']};
+                border-color: {colors['accent_pressed']};
+            }}}}
+            QPushButton:disabled {{{{
+                background-color: {colors['light']};
+                border-color: {colors['mid']};
+                color: {colors['placeholder']};
+            }}}}
         """
 
         if active:
-            active_style = """
-                QPushButton {
-                    background-color: #2a5eff;
-                    border-color: #2a5eff;
+            active_style = f"""
+                QPushButton {{{{
+                    background-color: {colors['accent_pressed']};
+                    border-color: {colors['accent_pressed']};
                     font-weight: 600;
-                }
-                QPushButton:hover {
-                    background-color: #1a4eff;
-                    border-color: #1a4eff;
-                }
-                QPushButton:pressed {
-                    background-color: #0a3eff;
-                    border-color: #0a3eff;
-                }
+                }}}}
+                QPushButton:hover {{{{
+                    background-color: {colors['accent_hover']};
+                    border-color: {colors['accent_hover']};
+                }}}}
+                QPushButton:pressed {{{{
+                    background-color: {colors['accent_pressed']};
+                    border-color: {colors['accent_pressed']};
+                }}}}
             """
             return base_style + active_style
         return base_style
