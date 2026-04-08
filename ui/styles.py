@@ -1041,16 +1041,22 @@ class AppStyles:
     # 弹窗样式
     @staticmethod
     def popup_dialog_style() -> str:
-        """通用弹窗窗口样式"""
+        """通用弹窗窗口样式 - 支持无边框圆角窗口"""
         colors = AppStyles._get_colors()
         return f"""
-            /* 窗口样式 */
+            /* 窗口样式 - 用于无边框圆角窗口 */
             QDialog {{
                 background-color: {colors['window']};
                 color: {colors['window_text']};
                 border: 1px solid {colors['mid']};
-                border-radius: 8px;
+                border-radius: 12px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            }}
+            
+            /* 当使用 WA_TranslucentBackground 时，需要给内容widget设置背景 */
+            QDialog > QWidget {{
+                background-color: {colors['window']};
+                border-radius: 12px;
             }}
             
             /* 标签样式 */

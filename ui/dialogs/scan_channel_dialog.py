@@ -3,13 +3,13 @@
 """
 
 import os
+import time
 from PyQt6 import QtWidgets, QtCore, QtGui
 
 # 导入自定义模块
 from models.channel_model import ChannelListModel
 from services.scanner_service import ScannerController
 from ui.styles import AppStyles
-from services.list_service import ListManager
 from services.url_parser_service import URLRangeParser
 from ui.optimizer import get_ui_optimizer
 from utils.error_handler import init_global_error_handler
@@ -22,6 +22,9 @@ from utils.logging_helper import (
     log_ui_info, log_ui_warning, log_ui_error, log_scan_info,
     log_scan_warning, log_config_error, log_config_info
 )
+from core.config_manager import ConfigManager
+from core.log_manager import global_logger
+from core.language_manager import LanguageManager
 
 
 class ScanChannelDialog(QtWidgets.QDialog):
@@ -36,27 +39,15 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 保存应用程序引用
         self.application = parent
         if parent:
-            self.config = getattr(parent, 'config', None)
-            if not self.config:
-                from core.config_manager import ConfigManager
-                self.config = ConfigManager()
-            
-            self.logger = getattr(parent, 'logger', None)
-            if not self.logger:
-                from core.log_manager import global_logger
-                self.logger = global_logger
-            
+            self.config = getattr(parent, 'config', None) or ConfigManager()
+            self.logger = getattr(parent, 'logger', None) or global_logger
             self.language_manager = getattr(parent, 'language_manager', None)
             if not self.language_manager:
-                from core.language_manager import LanguageManager
                 self.language_manager = LanguageManager()
                 self.language_manager.load_available_languages()
                 language_code = self.config.load_language_settings()
                 self.language_manager.set_language(language_code)
         else:
-            from core.config_manager import ConfigManager
-            from core.log_manager import global_logger
-            from core.language_manager import LanguageManager
             self.config = ConfigManager()
             self.logger = global_logger
             self.language_manager = LanguageManager()
@@ -70,9 +61,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
         # 注册重试扫描任务
         register_retry_task(self.retry_id, self)
-        
+
         self._init_ui()
-        
+
         # 立即更新UI文本到当前语言
         if hasattr(self, 'language_manager'):
             self.language_manager.update_ui_texts(self)
@@ -100,48 +91,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
     def mouseReleaseEvent(self, event):
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self.dragging = False
-    
-    def paintEvent(self, event):
-        """自定义绘制半透明背景和边框"""
-        painter = QtGui.QPainter(self)
-        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        
-        # 导入样式
-        from ui.styles import AppStyles
-        colors = AppStyles._get_colors()
-        
-        # 创建圆角矩形路径
-        path = QtGui.QPainterPath()
-        rect = QtCore.QRectF(self.rect().adjusted(1, 1, -1, -1))
-        path.addRoundedRect(rect, 12, 12)
-        
-        # 绘制半透明背景（只在圆角内）
-        # 从主题中获取背景颜色
-        bg_color = colors.get('window', '#333333')
-        # 解析颜色值
-        if bg_color.startswith('#'):
-            # 十六进制颜色
-            r = int(bg_color[1:3], 16)
-            g = int(bg_color[3:5], 16)
-            b = int(bg_color[5:7], 16)
-        else:
-            # 默认颜色
-            r, g, b = 30, 30, 30
-        painter.fillPath(path, QtGui.QColor(r, g, b, self.opacity))
-        
-        # 绘制边框
-        border_color = colors.get('mid', '#999999')
-        if border_color.startswith('#'):
-            r = int(border_color[1:3], 16)
-            g = int(border_color[3:5], 16)
-            b = int(border_color[5:7], 16)
-        else:
-            r, g, b = 120, 120, 120
-        painter.setPen(QtGui.QColor(r, g, b, 200))
-        painter.drawPath(path)
-        
-        # 调用父类的 paintEvent 来绘制子控件
-        super().paintEvent(event)
 
     def _init_timers(self):
         """在主线程初始化所有定时器"""
@@ -177,19 +126,18 @@ class ScanChannelDialog(QtWidgets.QDialog):
         """初始化用户界面"""
         # 设置窗口属性，与 AboutDialog 的实现一致
         self.setWindowTitle("")
-        self.setMinimumSize(1400, 800)
-        # 设置为工具窗口，无边框，并设置背景透明
-        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+        # 设置为工具窗口，无边框
         self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
         # 确保窗口可以接收鼠标事件
         self.setMouseTracking(True)
         # 确保窗口保持活动状态
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
-        
-        # 导入样式
-        from ui.styles import AppStyles
+
         # 使用默认窗口大小
         self.resize(1400, 800)
+
+        # 先设置窗口样式，避免闪烁
+        self.setStyleSheet(AppStyles.popup_dialog_style())
 
         # 扫描频道窗口不需要状态栏
         # 创建进度条用于显示扫描进度
@@ -198,9 +146,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.progress_indicator.setValue(0)
         self.progress_indicator.setTextVisible(True)
         self.progress_indicator.setFixedWidth(120)
-        self.progress_indicator.setStyleSheet(AppStyles.progress_style())
-        # 初始显示进度条，但设置为0
-        self.progress_indicator.show()
+        # 初始隐藏进度条，开始扫描后再显示
+        self.progress_indicator.hide()
         
         # 创建统计信息标签用于显示扫描状态
         self.stats_label = QtWidgets.QLabel("就绪")
@@ -301,19 +248,19 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 使用配置变更上下文保存网络设置
         from utils.config_notifier import config_change_context
         with config_change_context("Network", "url"):
+            enable_retry = self.enable_retry_checkbox.isChecked()
             self.config.save_network_settings(
                 self.ip_range_input.text(),
                 self.timeout_input.value(),
                 self.thread_count_input.value(),
                 self.user_agent_input.text(),
                 self.referer_input.text(),
-                self.enable_retry_checkbox.isChecked(),
-                self.loop_scan_checkbox.isChecked()
+                enable_retry,
+                enable_retry  # 简化后，启用重试即默认启用循环行为
             )
 
     def _setup_scan_panel(self, parent: QtWidgets.QLayout) -> None:
         """配置扫描面板"""
-        from ui.styles import AppStyles
         scan_group = QtWidgets.QGroupBox("扫描设置")
         self.scan_group = scan_group  # 设置为属性以便语言管理器访问
         scan_layout = QtWidgets.QVBoxLayout()
@@ -430,34 +377,18 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.retry_label = retry_label
         retry_layout.addWidget(retry_label)
 
-        # 是否启用智能重试扫描（基于失败原因）
+        # 是否启用智能重试扫描（基于失败原因，自动循环直到无新频道）
         self.enable_retry_checkbox = QtWidgets.QCheckBox("启用智能重试扫描")
         self.enable_retry_checkbox.setToolTip(
             "基于失败原因智能重试：只重试超时、连接失败等临时错误，"
-            "不重试TCP失败、404等永久错误"
+            "不重试TCP失败、404等永久错误。启用后会自动循环重试直到没有新的有效频道"
         )
         self.enable_retry_checkbox.setChecked(False)
-        self.enable_retry_checkbox.setToolTip("第一次扫描完成后，对失效频道进行再次扫描")
         retry_layout.addWidget(self.enable_retry_checkbox)
-
-        # 是否循环扫描
-        self.loop_scan_checkbox = QtWidgets.QCheckBox("循环扫描")
-        self.loop_scan_checkbox.setChecked(False)
-        self.loop_scan_checkbox.setToolTip("如果重试扫描找到有效频道，继续扫描失效频道直到没有新的有效频道")
-        self.loop_scan_checkbox.setEnabled(False)
-        retry_layout.addWidget(self.loop_scan_checkbox)
         retry_layout.addStretch()
-
-        # 连接复选框状态变化
-        self.enable_retry_checkbox.stateChanged.connect(
-            lambda state: self.loop_scan_checkbox.setEnabled(state == 2)
-        )
 
         # 连接复选框状态变化信号，保存设置
         self.enable_retry_checkbox.stateChanged.connect(
-            lambda: self._save_scan_retry_settings()
-        )
-        self.loop_scan_checkbox.stateChanged.connect(
             lambda: self._save_scan_retry_settings()
         )
 
@@ -469,17 +400,15 @@ class ScanChannelDialog(QtWidgets.QDialog):
     def _save_scan_retry_settings(self):
         """保存重试扫描设置到配置文件"""
         enable_retry = self.enable_retry_checkbox.isChecked()
-        loop_scan = self.loop_scan_checkbox.isChecked()
-        self.config.save_scan_retry_settings(enable_retry, loop_scan)
+        # 简化后，启用重试即默认启用循环行为
+        self.config.save_scan_retry_settings(enable_retry, enable_retry)
 
     def _load_scan_retry_settings(self):
         """加载重试扫描设置"""
         try:
             settings = self.config.load_scan_retry_settings()
             enable_retry = settings['enable_retry']
-            loop_scan = settings['loop_scan']
             self.enable_retry_checkbox.setChecked(enable_retry)
-            self.loop_scan_checkbox.setChecked(loop_scan)
         except Exception as e:
             self.logger.error(f"加载重试扫描设置失败: {e}")
 
@@ -532,28 +461,28 @@ class ScanChannelDialog(QtWidgets.QDialog):
     def _setup_scan_buttons(self):
         """设置扫描按钮"""
         # 扫描控制按钮
-        self.scan_btn = QtWidgets.QPushButton("完整扫描")
-        self.scan_btn.setStyleSheet(AppStyles.common_button_style())
-        self.scan_btn.setMinimumHeight(32)  # 减少按钮高度
+        self.btn_scan = QtWidgets.QPushButton("完整扫描")
+        self.btn_scan.setStyleSheet(AppStyles.common_button_style())
+        self.btn_scan.setMinimumHeight(32)  # 减少按钮高度
 
         # 新增追加扫描按钮
-        self.append_scan_btn = QtWidgets.QPushButton("追加扫描")
-        self.append_scan_btn.setStyleSheet(AppStyles.common_button_style())
-        self.append_scan_btn.setMinimumHeight(32)  # 减少按钮高度
-        self.append_scan_btn.setToolTip("不清空现有列表，扫描到的有效频道直接追加到列表末尾")
+        self.btn_append_scan = QtWidgets.QPushButton("追加扫描")
+        self.btn_append_scan.setStyleSheet(AppStyles.common_button_style())
+        self.btn_append_scan.setMinimumHeight(32)  # 减少按钮高度
+        self.btn_append_scan.setToolTip("不清空现有列表，扫描到的有效频道直接追加到列表末尾")
 
         # 新增直接生成列表按钮
-        self.generate_btn = QtWidgets.QPushButton("直接生成列表")
-        self.generate_btn.setStyleSheet(AppStyles.common_button_style())
-        self.generate_btn.setMinimumHeight(32)  # 减少按钮高度
+        self.btn_generate = QtWidgets.QPushButton("直接生成列表")
+        self.btn_generate.setStyleSheet(AppStyles.common_button_style())
+        self.btn_generate.setMinimumHeight(32)  # 减少按钮高度
 
         # 使用水平布局让按钮并排显示，自适应宽度
         button_layout = QtWidgets.QHBoxLayout()
-        button_layout.addWidget(self.scan_btn, 1)
+        button_layout.addWidget(self.btn_scan, 1)
         button_layout.addSpacing(4)
-        button_layout.addWidget(self.append_scan_btn, 1)
+        button_layout.addWidget(self.btn_append_scan, 1)
         button_layout.addSpacing(4)
-        button_layout.addWidget(self.generate_btn, 1)
+        button_layout.addWidget(self.btn_generate, 1)
         button_layout.addStretch()
 
         self.scan_button_layout = button_layout
@@ -636,7 +565,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
     def _setup_channel_list(self, parent: QtWidgets.QLayout) -> None:
         """配置频道列表"""
         # 导入样式
-        from ui.styles import AppStyles
         # 频道列表区域
         list_group = QtWidgets.QGroupBox("频道列表")
         self.list_group = list_group  # 设置为属性以便语言管理器访问
@@ -742,7 +670,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
         # 添加频道列表拖拽提示
         self.channel_drag_hint_label = QtWidgets.QLabel("")
-        from ui.styles import AppStyles
         colors = AppStyles._get_colors()
         self.channel_drag_hint_label.setStyleSheet(f"""
             QLabel {{
@@ -773,7 +700,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
         list_layout.addWidget(self.channel_list)
         
         # 设置频道列表面板样式
-        from ui.styles import AppStyles
         colors = AppStyles._get_colors()
         list_group.setStyleSheet(f"""
             QGroupBox {{
@@ -801,7 +727,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
     def _setup_channel_edit(self, parent: QtWidgets.QLayout) -> None:
         """配置频道编辑区域"""
         # 导入样式
-        from ui.styles import AppStyles
         edit_group = QtWidgets.QGroupBox("频道编辑")
         edit_layout = QtWidgets.QGridLayout()
         edit_layout.setContentsMargins(15, 15, 15, 15)
@@ -865,7 +790,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
         edit_layout.addLayout(button_layout, 5, 0, 1, 2)
 
         # 设置编辑面板样式
-        from ui.styles import AppStyles
         colors = AppStyles._get_colors()
         edit_group.setStyleSheet(f"""
             QGroupBox {{
@@ -1011,7 +935,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
         """初始化主窗口的后续设置"""
         # 确保模型存在
         if not hasattr(self, 'model') or not self.model:
-            from models.channel_model import ChannelListModel
             self.model = ChannelListModel()
             # 设置语言管理器
             if hasattr(self, 'language_manager') and self.language_manager:
@@ -1035,10 +958,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
         )
 
         self._load_config()
-        
-        # 设置样式，确保窗口没有标题栏，并且所有组件的背景都是透明的
-        from ui.styles import AppStyles
-        self.setStyleSheet(AppStyles.main_window_style())
+
+        # 样式已在_init_ui中设置，这里只需连接信号和注册处理器
         self._connect_signals()
         self._register_cleanup_handlers()
         self._register_config_observers()
@@ -1104,15 +1025,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
         except Exception as e:
             log_scan_warning(f"扫描进度更新时发生意外错误: {e}")
 
-    def _on_scan_completed_for_progress(self):
-        """处理扫描完成，隐藏进度条"""
-        try:
-            self.progress_manager.hide_progress()
-        except AttributeError as e:
-            log_ui_warning(f"隐藏进度条失败: {e}")
-        except Exception as e:
-            log_ui_warning(f"隐藏进度条时发生意外错误: {e}")
-
     def _load_config(self):
         """加载保存的配置到UI"""
         try:
@@ -1130,11 +1042,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
             if settings['referer']:
                 self.referer_input.setText(settings['referer'])
 
-            # 加载重试设置
+            # 加载重试设置（简化后只加载 enable_retry）
             if 'enable_retry' in settings:
                 self.enable_retry_checkbox.setChecked(settings['enable_retry'])
-            if 'loop_scan' in settings:
-                self.loop_scan_checkbox.setChecked(settings['loop_scan'])
 
             language_code = self.config.load_language_settings()
 
@@ -1171,18 +1081,14 @@ class ScanChannelDialog(QtWidgets.QDialog):
         elif key == 'referer':
             self.referer_input.setText(new_value)
         elif key == 'enable_retry':
-            self.enable_retry_checkbox.setChecked(new_value.lower() == 'true')
-        elif key == 'loop_scan':
-            self.loop_scan_checkbox.setChecked(new_value.lower() == 'true')
+            self.enable_retry_checkbox.setChecked(str(new_value).lower() == 'true')
 
     def _on_scan_retry_config_changed(self, section, key, old_value, new_value):
         """处理扫描重试配置变更"""
         log_config_info(f"扫描重试配置变更: {section}.{key} = {old_value} -> {new_value}")
 
         if key == 'enable_retry':
-            self.enable_retry_checkbox.setChecked(new_value.lower() == 'true')
-        elif key == 'loop_scan':
-            self.loop_scan_checkbox.setChecked(new_value.lower() == 'true')
+            self.enable_retry_checkbox.setChecked(str(new_value).lower() == 'true')
 
     def _on_language_config_changed(self, section, key, old_value, new_value):
         """处理语言配置变更"""
@@ -1196,16 +1102,15 @@ class ScanChannelDialog(QtWidgets.QDialog):
         """连接所有信号和槽"""
         log_ui_info("=== 开始连接信号 ===")
 
-        self.channel_list.selectionModel().selectionChanged.connect(
-            self._on_channel_selected
-        )
+        # 注意：channel_list的selectionChanged信号已经在_setup_channel_list中连接
+        # 这里不需要重复连接
 
-        safe_connect_button(self.scan_btn, self._on_scan_clicked)
-        safe_connect_button(self.append_scan_btn, self._on_append_scan_clicked)
+        safe_connect_button(self.btn_scan, self._on_scan_clicked)
+        safe_connect_button(self.btn_append_scan, self._on_append_scan_clicked)
 
         safe_connect_button(self.btn_validate, self._on_validate_clicked)
         safe_connect_button(self.btn_hide_invalid, self._on_hide_invalid_clicked)
-        safe_connect_button(self.generate_btn, self._on_generate_clicked)
+        safe_connect_button(self.btn_generate, self._on_generate_clicked)
 
         # 连接扫描器信号
         log_ui_info("连接扫描器信号...")
@@ -1238,10 +1143,19 @@ class ScanChannelDialog(QtWidgets.QDialog):
         except Exception as e:
             log_ui_error(f"连接stats_updated信号失败: {e}")
 
+        try:
+            self.scanner.channel_validated.connect(self._on_channel_validated)
+            log_ui_info("channel_validated信号已连接")
+        except Exception as e:
+            log_ui_error(f"连接channel_validated信号失败: {e}")
+
         log_ui_info("=== 信号连接完成 ===")
 
     def _on_scan_clicked(self):
         """处理扫描按钮点击事件"""
+        if not hasattr(self, 'scanner') or self.scanner is None:
+            log_ui_error("扫描器未初始化，无法执行扫描")
+            return
         if self.scanner.is_scanning():
             self.scanner.stop_scan()
             self._set_scan_button_text('full_scan', '完整扫描')
@@ -1257,6 +1171,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _on_append_scan_clicked(self):
         """处理追加扫描按钮点击事件"""
+        if not hasattr(self, 'scanner') or self.scanner is None:
+            log_ui_error("扫描器未初始化，无法执行扫描")
+            return
         if self.scanner.is_scanning():
             self.scanner.stop_scan()
             self._set_scan_button_text('full_scan', '完整扫描')
@@ -1272,6 +1189,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _start_scan_delayed(self, url, clear_list=True):
         """延迟启动扫描，避免UI阻塞"""
+        if not hasattr(self, 'scanner') or self.scanner is None:
+            log_ui_error("扫描器未初始化，无法启动扫描")
+            return
         if clear_list:
             self.model.clear()
             log_scan_info("开始完整扫描，清空现有列表")
@@ -1297,16 +1217,17 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _set_scan_button_text(self, translation_key, default_text):
         """设置扫描按钮文本"""
-        self._set_button_text(self.scan_btn, translation_key, default_text)
+        self._set_button_text(self.btn_scan, translation_key, default_text)
 
     def _set_append_scan_button_text(self, translation_key, default_text):
         """设置追加扫描按钮文本"""
-        self._set_button_text(self.append_scan_btn, translation_key, default_text)
+        self._set_button_text(self.btn_append_scan, translation_key, default_text)
 
     def _on_validate_clicked(self):
         """处理有效性检测按钮点击事件"""
-        # 导入样式
-        from ui.styles import AppStyles
+        if not hasattr(self, 'scanner') or self.scanner is None:
+            log_ui_error("扫描器未初始化，无法执行验证")
+            return
         if not self.model.rowCount():
             self.logger.warning("请先加载列表")
             return
@@ -1328,20 +1249,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
             self.btn_hide_invalid.setStyleSheet(
                 AppStyles.button_style(active=True)
             )
-
-            self.scanner.channel_validated.connect(self._on_channel_validated)
         else:
             self.scanner.stop_validation()
             self.btn_validate.setText("检测有效性")
-
-    def _on_channel_selected(self):
-        """处理频道选择事件"""
-        selected = self.channel_list.selectedIndexes()
-        if not selected:
-            return
-
-        row = selected[0].row()
-        self.current_channel_index = row
 
     def _on_channel_validated(self, index, valid, latency, resolution):
         """处理频道验证结果"""
@@ -1404,7 +1314,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
                     user_agent=self.user_agent_input.text(),
                     referer=self.referer_input.text(),
                     enable_retry=self.enable_retry_checkbox.isChecked(),
-                    loop_scan=self.loop_scan_checkbox.isChecked()
+                    loop_scan=self.enable_retry_checkbox.isChecked()
                 )
                 self.logger.info("配置已保存")
         except Exception as e:
@@ -1425,7 +1335,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
     def _on_scan_completed(self):
         """处理扫描完成事件 - 修复重试扫描状态管理问题"""
         # 导入样式
-        from ui.styles import AppStyles
         # 检查是否是重试扫描
         is_retry = self.scan_state_manager.is_retry_scan(self.retry_id)
 
@@ -1466,7 +1375,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
                 self.logger.error("状态栏统计标签不存在")
                 return
 
-            import time
             stats = stats_data.get('stats', stats_data)
             elapsed = time.strftime("%H:%M:%S", time.gmtime(stats.get('elapsed', 0)))
 
@@ -1601,7 +1509,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
                 # 每处理一批后稍微休息，避免UI阻塞
                 if i + batch_size < total_count:
-                    import time
                     time.sleep(0.001)  # 1ms休息，几乎不影响性能
 
             # 减少日志输出，避免日志过多
@@ -1643,6 +1550,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _start_retry_scan(self):
         """启动重试扫描"""
+        if not hasattr(self, 'scanner') or self.scanner is None:
+            log_ui_error("扫描器未初始化，无法启动重试扫描")
+            return
         self.logger.info("启动重试扫描...")
         
         # 从扫描状态管理器获取失败的频道
@@ -1668,28 +1578,23 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self._set_append_scan_button_text('stop_scan', '停止扫描')
 
     def _handle_retry_scan_completed(self):
-        """处理重试扫描完成"""
+        """处理重试扫描完成 - 简化后默认启用循环扫描"""
         self.logger.info("=== 处理重试扫描完成 ===")
         
-        # 检查是否需要循环扫描
-        if self.loop_scan_checkbox.isChecked():
-            # 统计当前有效频道数
-            current_valid_count = self._count_valid_channels()
-            # 获取上一次重试时的有效频道数
-            last_valid_count = self.scan_state_manager.get_last_retry_valid_count(self.retry_id)
-            
-            self.logger.info(f"循环扫描检查: 上次有效频道数={last_valid_count}, 当前有效频道数={current_valid_count}")
-            
-            # 如果这次重试找到了新的有效频道，继续循环扫描
-            if current_valid_count > last_valid_count:
-                self.logger.info("找到新的有效频道，继续循环扫描")
-                # 延迟启动下一次重试扫描
-                QtCore.QTimer.singleShot(100, self._handle_retry_scan)
-            else:
-                self.logger.info("没有找到新的有效频道，结束循环扫描")
-                # 重置重试扫描状态
-                self.scan_state_manager.reset_retry_scan(self.retry_id)
+        # 统计当前有效频道数
+        current_valid_count = self._count_valid_channels()
+        # 获取上一次重试时的有效频道数
+        last_valid_count = self.scan_state_manager.get_last_retry_valid_count(self.retry_id)
+        
+        self.logger.info(f"循环扫描检查: 上次有效频道数={last_valid_count}, 当前有效频道数={current_valid_count}")
+        
+        # 如果这次重试找到了新的有效频道，继续循环扫描
+        if current_valid_count > last_valid_count:
+            self.logger.info("找到新的有效频道，继续循环扫描")
+            # 延迟启动下一次重试扫描
+            QtCore.QTimer.singleShot(100, self._handle_retry_scan)
         else:
+            self.logger.info("没有找到新的有效频道，结束循环扫描")
             # 重置重试扫描状态
             self.scan_state_manager.reset_retry_scan(self.retry_id)
 

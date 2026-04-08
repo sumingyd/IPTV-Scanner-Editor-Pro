@@ -2895,8 +2895,6 @@ class IPTVPlayer(QMainWindow):
             
             # 创建扫描窗口，传递parent参数
             dialog = ScanChannelDialog(self)
-            # 设置窗口模态
-            dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
             # 使用exec()显示窗口
             dialog.exec()
             
