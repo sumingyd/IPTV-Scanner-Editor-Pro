@@ -351,6 +351,17 @@ class IPTVPlayer(QMainWindow):
         
         logger.debug("IPTVPlayer（最小化）初始化完成")
         
+        # 加载窗口布局
+        x, y, width, height, _ = self.config.load_window_layout(
+            default_x=100,
+            default_y=100,
+            default_width=1280,
+            default_height=780
+        )
+        # 增加 Y 坐标 30 像素，以补偿标题栏高度
+        y += 30
+        self.setGeometry(x, y, width, height)
+        
         # 立即显示窗口
         self.show()
         
@@ -2870,7 +2881,7 @@ class IPTVPlayer(QMainWindow):
         self.epg_panel.setVisible(True)
         self.playlist_panel.setVisible(True)
         self.floating_panel.setVisible(True)
-        self.resize(1280, 720)
+        self.resize(1280, 780)
     
     def open_scan_ui(self):
         """打开老的扫描UI界面"""
@@ -3701,11 +3712,11 @@ class IPTVPlayer(QMainWindow):
             return
             
         try:
-            pos = self.pos()
-            size = self.size()
+            # 使用 frameGeometry() 来获取窗口的几何形状，包括框架大小（标题栏和边框）
+            geometry = self.frameGeometry()
             # 保存窗口布局（包括位置和大小）
-            self.config.save_window_layout(pos.x(), pos.y(), size.width(), size.height(), [])
-            logger.debug(f"保存窗口布局: x={pos.x()}, y={pos.y()}, width={size.width()}, height={size.height()}")
+            self.config.save_window_layout(geometry.x(), geometry.y(), geometry.width(), geometry.height(), [])
+            logger.debug(f"保存窗口布局: x={geometry.x()}, y={geometry.y()}, width={geometry.width()}, height={geometry.height()}")
         except Exception as e:
             logger.error(f"保存窗口布局失败: {e}")
     

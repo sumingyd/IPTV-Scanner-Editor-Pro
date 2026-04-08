@@ -79,7 +79,7 @@ class AppStyles:
                 padding-top: 16px;
                 font-weight: 600;
                 font-size: 13px;
-                background-color: {colors['base']};
+                background-color: {colors['alternate_base']};
                 color: {colors['window_text']};
             }}
             QGroupBox::title {{
@@ -167,7 +167,7 @@ class AppStyles:
                 gridline-color: {colors['table_grid']};
                 font-size: 12px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                background-color: {colors['base']};
+                background-color: {colors['alternate_base']};
             }}
             QTableView::item {{
                 padding: 6px 10px;
@@ -879,7 +879,7 @@ class AppStyles:
         colors = AppStyles._get_colors()
         return f"""
             QLineEdit {{
-                background-color: {colors['base']};
+                background-color: {colors['alternate_base']};
                 color: {colors['window_text']};
                 border: 1px solid {colors['mid']};
                 border-radius: 4px;
@@ -904,7 +904,7 @@ class AppStyles:
         colors = AppStyles._get_colors()
         return f"""
             QSpinBox {{
-                background-color: {colors['base']};
+                background-color: {colors['alternate_base']};
                 color: {colors['window_text']};
                 border: 1px solid {colors['mid']};
                 border-radius: 4px;
@@ -939,7 +939,7 @@ class AppStyles:
                 height: 16px;
                 border: 2px solid {colors['mid']};
                 border-radius: 3px;
-                background-color: {colors['base']};
+                background-color: {colors['alternate_base']};
             }}
             QCheckBox::indicator:checked {{
                 background-color: {colors['accent']};
@@ -956,7 +956,7 @@ class AppStyles:
         colors = AppStyles._get_colors()
         return f"""
             QGroupBox {{
-                background-color: {colors['base']};
+                background-color: {colors['alternate_base']};
                 color: {colors['window_text']};
                 border: 1px solid {colors['mid']};
                 border-radius: 8px;
@@ -1014,7 +1014,7 @@ class AppStyles:
         colors = AppStyles._get_colors()
         return f"""
             QWidget {{
-                background-color: {colors['base']};
+                background-color: {colors['alternate_base']};
                 border: 1px solid {colors['mid']};
                 border-radius: 8px;
                 padding: 12px;
@@ -1089,7 +1089,7 @@ class AppStyles:
                 border-radius: 6px;
                 padding: 6px 10px;
                 font-size: 13px;
-                background-color: {colors['base']};
+                background-color: {colors['alternate_base']};
                 color: {colors['window_text']};
             }}
             
@@ -1120,7 +1120,7 @@ class AppStyles:
                 border-radius: 6px;
                 padding: 10px;
                 font-size: 13px;
-                background-color: {colors['base']};
+                background-color: {colors['alternate_base']};
                 color: {colors['window_text']};
             }}
             
