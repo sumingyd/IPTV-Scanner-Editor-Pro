@@ -3,20 +3,20 @@ class AppStyles:
 
     # 通用主题颜色
     THEME_COLORS = {
-        'window': '#ffffff',
-        'window_text': '#333333',
-        'base': '#ffffff',
-        'alternate_base': '#f8f8f8',
-        'button': '#f0f0f0',
-        'light': '#f8f8f8',
-        'mid': '#cccccc',
-        'dark': '#999999',
-        'highlight': '#f0f7ff',
-        'highlighted_text': '#4a7eff',
-        'link': '#4a7eff',
-        'link_visited': '#8a4eff',
-        'tooltip_base': '#ffffdc',
-        'tooltip_text': '#333333',
+        'window': '#000000',
+        'window_text': '#ffffff',
+        'base': '#1a1a1a',
+        'alternate_base': '#2a2a2a',
+        'button': '#3a3a3a',
+        'light': '#444444',
+        'mid': '#555555',
+        'dark': '#666666',
+        'highlight': '#2a3a5a',
+        'highlighted_text': '#6a9eff',
+        'link': '#6a9eff',
+        'link_visited': '#8a7eff',
+        'tooltip_base': '#2a2a2a',
+        'tooltip_text': '#f0f0f0',
         'placeholder': '#999999',
         'accent': '#4a7eff',
         'accent_hover': '#3a6eff',
@@ -656,65 +656,68 @@ class AppStyles:
     @staticmethod
     def drag_list_style() -> str:
         """拖拽列表样式"""
-        return """
-            QListWidget {
-                border: 1px solid #cccccc;
+        colors = AppStyles._get_colors()
+        return f"""
+            QListWidget {{
+                border: 1px solid {colors['mid']};
                 border-radius: 8px;
                 padding: 4px;
-                background-color: #ffffff;
+                background-color: {colors['alternate_base']};
                 font-size: 13px;
-            }
-            QListWidget::item {
+            }}
+            QListWidget::item {{
                 border: 1px solid transparent;
                 border-radius: 6px;
                 padding: 8px 12px;
                 margin: 2px;
-                background-color: #f8f8f8;
-                color: #333333;
-            }
-            QListWidget::item:hover {
-                background-color: #f0f7ff;
-                border: 1px solid #cccccc;
-            }
-            QListWidget::item:selected {
-                background-color: #4a7eff;
+                background-color: {colors['light']};
+                color: {colors['window_text']};
+            }}
+            QListWidget::item:hover {{
+                background-color: {colors['highlight']};
+                border: 1px solid {colors['mid']};
+            }}
+            QListWidget::item:selected {{
+                background-color: {colors['accent']};
                 color: white;
-                border: 1px solid #2a5eff;
-            }
-            QListWidget::item:selected:hover {
-                background-color: #3a6eff;
-            }
+                border: 1px solid {colors['accent_pressed']};
+            }}
+            QListWidget::item:selected:hover {{
+                background-color: {colors['accent_hover']};
+            }}
         """
 
     @staticmethod
     def drag_hint_label_style() -> str:
         """拖拽提示标签样式"""
-        return """
-            QLabel {
-                color: #4a7eff;
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['accent']};
                 font-size: 12px;
                 padding: 8px 12px;
-                background-color: #f8f8f8;
+                background-color: {colors['light']};
                 border-radius: 6px;
                 font-weight: 500;
-                border: 1px solid #cccccc;
-            }
+                border: 1px solid {colors['mid']};
+            }}
         """
 
     @staticmethod
     def group_hint_label_style() -> str:
         """分组提示标签样式"""
-        return """
-            QLabel {
-                color: #333333;
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['window_text']};
                 font-size: 12px;
                 padding: 8px 12px;
-                background-color: #f8f8f8;
+                background-color: {colors['light']};
                 border-radius: 6px;
                 font-weight: 500;
-                border: 1px solid #cccccc;
+                border: 1px solid {colors['mid']};
                 opacity: 0.8;
-            }
+            }}
         """
 
     @staticmethod
@@ -776,27 +779,28 @@ class AppStyles:
     @staticmethod
     def tab_widget_style() -> str:
         """标签页控件样式"""
-        return """
-            QTabWidget {
-                background-color: #ffffff;
-                border: 1px solid #cccccc;
+        colors = AppStyles._get_colors()
+        return f"""
+            QTabWidget {{
+                background-color: {colors['window']};
+                border: 1px solid {colors['mid']};
                 border-radius: 8px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            }
-            QTabWidget::pane {
-                border: 1px solid #cccccc;
+            }}
+            QTabWidget::pane {{
+                border: 1px solid {colors['mid']};
                 border-radius: 0 0 8px 8px;
-                background-color: #ffffff;
+                background-color: {colors['window']};
                 margin-top: -1px;
-            }
-            QTabBar {
-                background-color: #f0f0f0;
-                border-bottom: 1px solid #cccccc;
+            }}
+            QTabBar {{
+                background-color: {colors['alternate_base']};
+                border-bottom: 1px solid {colors['mid']};
                 border-radius: 8px 8px 0 0;
-            }
-            QTabBar::tab {
-                background-color: #f0f0f0;
-                border: 1px solid #cccccc;
+            }}
+            QTabBar::tab {{
+                background-color: {colors['alternate_base']};
+                border: 1px solid {colors['mid']};
                 border-bottom: none;
                 border-radius: 6px 6px 0 0;
                 padding: 8px 16px;
@@ -804,28 +808,28 @@ class AppStyles:
                 margin-top: 4px;
                 font-size: 13px;
                 font-weight: 500;
-                color: #333333;
+                color: {colors['window_text']};
                 opacity: 0.8;
-            }
-            QTabBar::tab:selected {
-                background-color: #ffffff;
-                border-color: #cccccc;
-                border-bottom-color: #ffffff;
-                color: #4a7eff;
+            }}
+            QTabBar::tab:selected {{
+                background-color: {colors['window']};
+                border-color: {colors['mid']};
+                border-bottom-color: {colors['window']};
+                color: {colors['accent']};
                 font-weight: 600;
                 opacity: 1.0;
-            }
-            QTabBar::tab:hover:!selected {
-                background-color: #f8f8f8;
-                color: #4a7eff;
+            }}
+            QTabBar::tab:hover:!selected {{
+                background-color: {colors['light']};
+                color: {colors['accent']};
                 opacity: 0.9;
-            }
-            QTabBar::tab:first {
+            }}
+            QTabBar::tab:first {{
                 margin-left: 4px;
-            }
-            QTabBar::tab:last {
+            }}
+            QTabBar::tab:last {{
                 margin-right: 0;
-            }
+            }}
         """
 
     # 通用样式

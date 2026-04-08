@@ -255,9 +255,13 @@ class AboutDialog(QtWidgets.QDialog):
         from PyQt6.QtGui import QPainter, QPainterPath
         from PyQt6.QtCore import QRectF
         from PyQt6.QtGui import QColor
+        from ui.styles import AppStyles
         
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # 从主题中获取颜色
+        colors = AppStyles._get_colors()
         
         # 创建圆角矩形路径
         path = QPainterPath()
@@ -265,10 +269,24 @@ class AboutDialog(QtWidgets.QDialog):
         path.addRoundedRect(rect, 12, 12)
         
         # 绘制半透明背景（只在圆角内）
-        painter.fillPath(path, QColor(30, 30, 30, self.opacity))
+        bg_color = colors.get('window', '#333333')
+        if bg_color.startswith('#'):
+            r = int(bg_color[1:3], 16)
+            g = int(bg_color[3:5], 16)
+            b = int(bg_color[5:7], 16)
+        else:
+            r, g, b = 30, 30, 30
+        painter.fillPath(path, QColor(r, g, b, self.opacity))
         
         # 绘制边框
-        painter.setPen(QColor(120, 120, 120, 200))
+        border_color = colors.get('mid', '#999999')
+        if border_color.startswith('#'):
+            r = int(border_color[1:3], 16)
+            g = int(border_color[3:5], 16)
+            b = int(border_color[5:7], 16)
+        else:
+            r, g, b = 120, 120, 120
+        painter.setPen(QColor(r, g, b, 200))
         painter.drawPath(path)
         
         # 调用父类的 paintEvent 来绘制子控件

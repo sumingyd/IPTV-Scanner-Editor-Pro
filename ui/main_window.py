@@ -104,16 +104,38 @@ class MainWindow(QtWidgets.QDialog):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
         
+        # 导入样式
+        from ui.styles import AppStyles
+        colors = AppStyles._get_colors()
+        
         # 创建圆角矩形路径
         path = QtGui.QPainterPath()
         rect = QtCore.QRectF(self.rect().adjusted(1, 1, -1, -1))
         path.addRoundedRect(rect, 12, 12)
         
         # 绘制半透明背景（只在圆角内）
-        painter.fillPath(path, QtGui.QColor(30, 30, 30, self.opacity))
+        # 从主题中获取背景颜色
+        bg_color = colors.get('window', '#333333')
+        # 解析颜色值
+        if bg_color.startswith('#'):
+            # 十六进制颜色
+            r = int(bg_color[1:3], 16)
+            g = int(bg_color[3:5], 16)
+            b = int(bg_color[5:7], 16)
+        else:
+            # 默认颜色
+            r, g, b = 30, 30, 30
+        painter.fillPath(path, QtGui.QColor(r, g, b, self.opacity))
         
         # 绘制边框
-        painter.setPen(QtGui.QColor(120, 120, 120, 200))
+        border_color = colors.get('mid', '#999999')
+        if border_color.startswith('#'):
+            r = int(border_color[1:3], 16)
+            g = int(border_color[3:5], 16)
+            b = int(border_color[5:7], 16)
+        else:
+            r, g, b = 120, 120, 120
+        painter.setPen(QtGui.QColor(r, g, b, 200))
         painter.drawPath(path)
 
     def _init_timers(self):
