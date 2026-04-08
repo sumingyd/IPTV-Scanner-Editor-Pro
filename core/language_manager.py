@@ -522,7 +522,7 @@ class LanguageManager(QObject):
                 main_window.validate_stats_label.setText(self.tr('please_load_list', 'Please load list first'))
 
             # 更新频道编辑区域
-            if hasattr(main_window, 'edit_group'):
+            if hasattr(main_window, 'edit_group') and hasattr(main_window.edit_group, 'setTitle'):
                 main_window.edit_group.setTitle(self.tr('channel_edit', 'Channel Edit'))
             if hasattr(main_window, 'channel_name_label'):
                 main_window.channel_name_label.setText(self.tr('channel_name', 'Channel Name'))

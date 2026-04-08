@@ -177,7 +177,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             if not channel.get('valid', True):
                 return QtGui.QColor('#ffdddd')  # 无效项背景色
             else:
-                return QtGui.QColor(AppStyles.table_bg_color())  # 使用styles中定义的表格背景色
+                from ui.styles import AppStyles
+                colors = AppStyles._get_colors()
+                return QtGui.QColor(colors['table_alternate'])  # 使用styles中定义的表格背景色
         elif role == QtCore.Qt.ItemDataRole.ForegroundRole:
             status = channel.get('status', '待检测')
             valid = channel.get('valid', True)
@@ -187,7 +189,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             elif status == '待检测':
                 return QtGui.QColor('#999999')  # 待检测文字颜色(灰色)
             else:
-                return QtGui.QColor(AppStyles.text_color())  # 使用styles中定义的主题文字颜色
+                from ui.styles import AppStyles
+                colors = AppStyles._get_colors()
+                return QtGui.QColor(colors['window_text'])  # 使用styles中定义的主题文字颜色
 
         return None
 

@@ -2887,25 +2887,18 @@ class IPTVPlayer(QMainWindow):
         self.resize(1280, 780)
     
     def open_scan_ui(self):
-        """打开老的扫描UI界面"""
+        """打开扫描频道窗口"""
         try:
-            # 导入老的UI模块
-            from ui.main_window import MainWindow
-            from core.application import create_application
+            # 导入扫描窗口模块
+            from ui.dialogs.scan_channel_dialog import ScanChannelDialog
+            from PyQt6.QtCore import Qt
             
-            # 创建应用程序实例
-            app = create_application()
-            if not app.initialize():
-                logger.error("应用程序初始化失败，无法启动扫描界面")
-                return
-            
-            # 创建老的主窗口，设置主窗口为父窗口
-            scan_window = MainWindow(app)
-            # 设置主窗口为父窗口
-            scan_window.setParent(self)
-            # 设置为无边框、无标题栏的独立弹出窗口
-            scan_window.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
-            scan_window.show()
+            # 创建扫描窗口，传递parent参数
+            dialog = ScanChannelDialog(self)
+            # 设置窗口模态
+            dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+            # 使用exec()显示窗口
+            dialog.exec()
             
             logger.info("成功打开扫描界面")
         except Exception as ex:
@@ -2915,6 +2908,7 @@ class IPTVPlayer(QMainWindow):
         """打开频道映射管理器"""
         try:
             from ui.dialogs.mapping_manager_dialog import MappingManagerDialog
+            from PyQt6.QtCore import Qt
             
             dialog = MappingManagerDialog(self)
             dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
@@ -3810,9 +3804,14 @@ class IPTVPlayer(QMainWindow):
         self.resize_timer.start(300)
     
     def closeEvent(self, event):
-        """窗口关闭时，保存窗口布局"""
+        """窗口关闭时，保存窗口布局并关闭扫描频道窗口"""
         # 保存窗口布局
         self.save_window_layout()
+        
+        # 关闭扫描频道窗口
+        if hasattr(self, 'scan_window') and self.scan_window:
+            self.scan_window.close()
+            
         super().closeEvent(event)
     
     def keyPressEvent(self, event):
