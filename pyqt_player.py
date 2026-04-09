@@ -271,8 +271,10 @@ class IPTVPlayer(QMainWindow):
         # 配置管理器
         from core.config_manager import ConfigManager
         self.config = ConfigManager()
-        
-        # 语言管理
+
+        from ui.theme_manager import get_theme_manager
+        self._theme_manager = get_theme_manager()
+
         self.language_manager = LanguageManager()
         self.language_manager.load_available_languages()
         saved_language = self.config.load_language_settings()
@@ -462,7 +464,7 @@ class IPTVPlayer(QMainWindow):
             self._check_for_updates_async()
         
         # 使用 QTimer 延迟执行，确保在主线程中执行
-        QTimer.singleShot(1000, load_data_with_delay)
+        QTimer.singleShot(200, load_data_with_delay)
         
         # 标记UI初始化完成
         self._ui_initialized = True
@@ -473,9 +475,7 @@ class IPTVPlayer(QMainWindow):
         register_cleanup(StreamValidator.terminate_all, "validator_terminate_all")
         register_cleanup(optimize_memory, "optimize_memory")
 
-        from ui.theme_manager import get_theme_manager
-        theme_manager = get_theme_manager()
-        theme_manager.register_window(self)
+        self._theme_manager.register_window(self)
         
         # 添加空格键快捷键，用于播放/暂停
         # 绑定到应用程序，这样无论哪个窗口获得焦点，快捷键都会响应
@@ -1387,8 +1387,7 @@ class IPTVPlayer(QMainWindow):
             # 主题菜单
             theme_menu = menu_bar.addMenu(tr("menu_theme", "Theme"))
 
-            from ui.theme_manager import get_theme_manager
-            theme_manager = get_theme_manager()
+            theme_manager = self._theme_manager
 
             themes = theme_manager.get_available_themes()
 
@@ -3876,9 +3875,7 @@ class IPTVPlayer(QMainWindow):
     def set_theme(self, theme):
         """设置主题"""
         try:
-            from ui.theme_manager import get_theme_manager
-            theme_manager = get_theme_manager()
-            theme_manager.set_theme(theme)
+            self._theme_manager.set_theme(theme)
             self.setStyleSheet(AppStyles.main_window_style())
             self.menuBar().clear()
             self.setup_menu_bar()
@@ -3896,6 +3893,14 @@ class IPTVPlayer(QMainWindow):
             self.status_bar.setStyleSheet(AppStyles.statusbar_style())
             if hasattr(self, 'channel_table'):
                 self.channel_table.setStyleSheet(AppStyles.list_style())
+            if hasattr(self, 'central_widget'):
+                self.central_widget.setStyleSheet(AppStyles.player_background_style())
+            if hasattr(self, 'video_frame'):
+                self.video_frame.setStyleSheet(AppStyles.player_background_style())
+            if hasattr(self, 'video_widget'):
+                self.video_widget.setStyleSheet(AppStyles.player_background_style())
+            if hasattr(self, 'video_placeholder'):
+                self.video_placeholder.setStyleSheet(AppStyles.player_video_placeholder_style())
             if hasattr(self, 'epg_panel'):
                 self.epg_panel.setStyleSheet(AppStyles.player_panel_style())
             if hasattr(self, 'playlist_panel'):
