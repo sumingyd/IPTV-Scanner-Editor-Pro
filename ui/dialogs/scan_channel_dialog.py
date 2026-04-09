@@ -35,7 +35,10 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 窗口拖动相关变量
         self.dragging = False
         self.offset = None
-        self.opacity = 220
+        # 从主题获取透明度设置
+        from ..styles import AppStyles
+        colors = AppStyles._get_colors()
+        self.opacity = colors.get('window_opacity', 220)
         # 保存应用程序引用
         self.application = parent
         if parent:
@@ -105,7 +108,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         rect = QtCore.QRectF(self.rect().adjusted(1, 1, -1, -1))
         path.addRoundedRect(rect, 12, 12)
         
-        # 绘制背景
+        # 绘制背景（使用透明度）
         bg_color = colors.get('window', '#2d2d2d')
         if bg_color.startswith('#'):
             r = int(bg_color[1:3], 16)
@@ -113,7 +116,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
             b = int(bg_color[5:7], 16)
         else:
             r, g, b = 45, 45, 45
-        painter.fillPath(path, QtGui.QColor(r, g, b))
+        painter.fillPath(path, QtGui.QColor(r, g, b, self.opacity))
         
         # 绘制边框
         border_color = colors.get('mid', '#555555')
@@ -165,6 +168,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.setWindowTitle("")
         # 设置为工具窗口，无边框
         self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
+        # 设置透明背景，实现圆角窗口效果
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
         # 确保窗口可以接收鼠标事件
         self.setMouseTracking(True)
         # 确保窗口保持活动状态
@@ -202,8 +207,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
         left_panel.setFixedWidth(280)
         left_panel.setStyleSheet(AppStyles.side_panel_style())
         left_layout = QtWidgets.QVBoxLayout(left_panel)
-        left_layout.setContentsMargins(12, 12, 12, 12)
-        left_layout.setSpacing(10)
+        left_layout.setContentsMargins(8, 8, 8, 8)
+        left_layout.setSpacing(8)
 
         # 左侧标题栏
         left_title = QtWidgets.QLabel("⚙️ 扫描设置")
@@ -278,8 +283,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
         right_panel.setFixedWidth(240)
         right_panel.setStyleSheet(AppStyles.side_panel_style())
         right_layout = QtWidgets.QVBoxLayout(right_panel)
-        right_layout.setContentsMargins(12, 12, 12, 12)
-        right_layout.setSpacing(10)
+        right_layout.setContentsMargins(8, 8, 8, 8)
+        right_layout.setSpacing(8)
 
         # 右侧标题
         right_title = QtWidgets.QLabel("✏️ 频道编辑")
@@ -360,7 +365,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
             default_timeout = 30  # 配置管理器的默认值
         self.timeout_input.setValue(default_timeout)
         self.timeout_input.setSuffix(" 秒")
-        timeout_layout.addWidget(self.timeout_input)
+
+        timeout_layout.addWidget(self.timeout_input, 1)
         self.timeout_input.valueChanged.connect(
             lambda: self._save_network_settings()
         )
@@ -379,9 +385,10 @@ class ScanChannelDialog(QtWidgets.QDialog):
             settings = self.config.load_network_settings()
             default_threads = settings['threads']
         except Exception:
-            default_threads = 5  # 配置管理器的默认值
+            default_threads = 30  # 配置管理器的默认值
         self.thread_count_input.setValue(default_threads)
-        thread_layout.addWidget(self.thread_count_input)
+
+        thread_layout.addWidget(self.thread_count_input, 1)
         self.thread_count_input.valueChanged.connect(
             lambda: self._save_network_settings()
         )
@@ -545,7 +552,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
         # 地址设置（简化标题）
         address_section = QtWidgets.QVBoxLayout()
-        address_section.setSpacing(6)
+        address_section.setSpacing(8)
 
         address_example_label = QtWidgets.QLabel(
             "格式: http://ip:port/rtp/10.10.[1-20].[1-20]:5002"
@@ -553,51 +560,64 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.address_example_label = address_example_label
         address_example_label.setWordWrap(True)
         address_example_label.setStyleSheet(AppStyles.hint_label_style())
+        address_example_label.setMinimumHeight(40)
 
         address_section.addWidget(address_example_label)
+        self.ip_range_input.setFixedHeight(32)
         address_section.addWidget(self.ip_range_input)
 
         scan_layout.addLayout(address_section)
-        scan_layout.addSpacing(10)
+        scan_layout.addSpacing(12)
 
         # 扫描设置（简化标题）
         scan_settings_section = QtWidgets.QVBoxLayout()
-        scan_settings_section.setSpacing(6)
+        scan_settings_section.setSpacing(8)
 
-        # 超时和线程放在同一行
-        timeout_thread_layout = QtWidgets.QHBoxLayout()
+        # 超时设置
+        timeout_layout = QtWidgets.QHBoxLayout()
         timeout_label = QtWidgets.QLabel("超时:")
         timeout_label.setStyleSheet(AppStyles.small_label_style())
-        timeout_thread_layout.addWidget(timeout_label)
-        timeout_thread_layout.addWidget(self.timeout_input)
-        timeout_thread_layout.addSpacing(10)
+        timeout_label.setMinimumWidth(40)
+        timeout_layout.addWidget(timeout_label)
+        self.timeout_input.setFixedHeight(28)
+        timeout_layout.addWidget(self.timeout_input)
+        timeout_layout.addStretch()
+        scan_settings_section.addLayout(timeout_layout)
+
+        # 线程设置
+        thread_layout = QtWidgets.QHBoxLayout()
         thread_label = QtWidgets.QLabel("线程:")
         thread_label.setStyleSheet(AppStyles.small_label_style())
-        timeout_thread_layout.addWidget(thread_label)
-        timeout_thread_layout.addWidget(self.thread_count_input)
-        timeout_thread_layout.addStretch()
-
-        scan_settings_section.addLayout(timeout_thread_layout)
+        thread_label.setMinimumWidth(40)
+        thread_layout.addWidget(thread_label)
+        self.thread_count_input.setFixedHeight(28)
+        thread_layout.addWidget(self.thread_count_input)
+        thread_layout.addStretch()
+        scan_settings_section.addLayout(thread_layout)
 
         # User-Agent（简化标签）
         ua_label = QtWidgets.QLabel("User-Agent:")
         ua_label.setStyleSheet(AppStyles.small_label_style())
         scan_settings_section.addWidget(ua_label)
+        self.user_agent_input.setFixedHeight(28)
         scan_settings_section.addWidget(self.user_agent_input)
 
         # Referer（简化标签）
         ref_label = QtWidgets.QLabel("Referer:")
         ref_label.setStyleSheet(AppStyles.small_label_style())
         scan_settings_section.addWidget(ref_label)
+        self.referer_input.setFixedHeight(28)
         scan_settings_section.addWidget(self.referer_input)
 
         scan_layout.addLayout(scan_settings_section)
-        scan_layout.addSpacing(10)
+        scan_layout.addSpacing(12)
 
         # 选项（简化）
         options_section = QtWidgets.QVBoxLayout()
-        options_section.setSpacing(6)
+        options_section.setSpacing(8)
+        self.enable_retry_checkbox.setFixedHeight(24)
         options_section.addWidget(self.enable_retry_checkbox)
+        self.enable_mapping_checkbox.setFixedHeight(24)
         options_section.addWidget(self.enable_mapping_checkbox)
 
         scan_layout.addLayout(options_section)
@@ -605,9 +625,12 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
         # 扫描按钮（垂直排列，适合窄边栏）
         button_section = QtWidgets.QVBoxLayout()
-        button_section.setSpacing(6)
+        button_section.setSpacing(8)
+        self.btn_scan.setFixedHeight(36)
         button_section.addWidget(self.btn_scan)
+        self.btn_append_scan.setFixedHeight(36)
         button_section.addWidget(self.btn_append_scan)
+        self.btn_generate.setFixedHeight(36)
         button_section.addWidget(self.btn_generate)
 
         scan_layout.addLayout(button_section)
@@ -677,19 +700,22 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 有效性检测按钮
         self.btn_validate = QtWidgets.QPushButton("检测")
         self.btn_validate.setStyleSheet(AppStyles.common_button_style())
-        self.btn_validate.setFixedHeight(28)
+        self.btn_validate.setFixedHeight(32)
+        self.btn_validate.setFixedWidth(60)
         self.btn_validate.setToolTip("检测频道有效性")
 
         # 隐藏无效项按钮
         self.btn_hide_invalid = QtWidgets.QPushButton("隐藏无效")
         self.btn_hide_invalid.setStyleSheet(AppStyles.common_button_style())
-        self.btn_hide_invalid.setFixedHeight(28)
+        self.btn_hide_invalid.setFixedHeight(32)
+        self.btn_hide_invalid.setFixedWidth(80)
         self.btn_hide_invalid.setEnabled(False)
 
         # 智能排序按钮
         self.btn_smart_sort = QtWidgets.QPushButton("排序")
         self.btn_smart_sort.setStyleSheet(AppStyles.common_button_style())
-        self.btn_smart_sort.setFixedHeight(28)
+        self.btn_smart_sort.setFixedHeight(32)
+        self.btn_smart_sort.setFixedWidth(60)
         self.btn_smart_sort.setToolTip("智能排序频道")
         self.btn_smart_sort.clicked.connect(
             lambda: self.model.sort_channels()
@@ -698,16 +724,17 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 排序配置按钮
         self.btn_sort_config = QtWidgets.QPushButton("配置")
         self.btn_sort_config.setStyleSheet(AppStyles.common_button_style())
-        self.btn_sort_config.setFixedHeight(28)
+        self.btn_sort_config.setFixedHeight(32)
+        self.btn_sort_config.setFixedWidth(60)
         self.btn_sort_config.setToolTip("排序配置")
         self.btn_sort_config.clicked.connect(self._show_sort_config)
 
         toolbar_layout.addWidget(self.btn_validate)
-        toolbar_layout.addSpacing(4)
+        toolbar_layout.addSpacing(6)
         toolbar_layout.addWidget(self.btn_hide_invalid)
-        toolbar_layout.addSpacing(4)
+        toolbar_layout.addSpacing(6)
         toolbar_layout.addWidget(self.btn_smart_sort)
-        toolbar_layout.addSpacing(4)
+        toolbar_layout.addSpacing(6)
         toolbar_layout.addWidget(self.btn_sort_config)
 
     def _setup_channel_edit(self, parent: QtWidgets.QLayout) -> None:
@@ -715,54 +742,75 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 使用垂直布局替代网格布局，更适合窄边栏
         edit_layout = QtWidgets.QVBoxLayout()
         edit_layout.setContentsMargins(0, 0, 0, 0)
-        edit_layout.setSpacing(8)
+        edit_layout.setSpacing(10)
 
         # 频道名称
+        name_layout = QtWidgets.QVBoxLayout()
+        name_layout.setSpacing(4)
         self.edit_name_label = QtWidgets.QLabel("频道名称:")
         self.edit_name_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_name = QtWidgets.QLineEdit()
         self.edit_name.setStyleSheet(AppStyles.common_line_edit_style())
-        edit_layout.addWidget(self.edit_name_label)
-        edit_layout.addWidget(self.edit_name)
+        self.edit_name.setFixedHeight(30)
+        name_layout.addWidget(self.edit_name_label)
+        name_layout.addWidget(self.edit_name)
+        edit_layout.addLayout(name_layout)
 
         # 频道分组
+        group_layout = QtWidgets.QVBoxLayout()
+        group_layout.setSpacing(4)
         self.edit_group_label = QtWidgets.QLabel("频道分组:")
         self.edit_group_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_group = QtWidgets.QLineEdit()
         self.edit_group.setStyleSheet(AppStyles.common_line_edit_style())
-        edit_layout.addWidget(self.edit_group_label)
-        edit_layout.addWidget(self.edit_group)
+        self.edit_group.setFixedHeight(30)
+        group_layout.addWidget(self.edit_group_label)
+        group_layout.addWidget(self.edit_group)
+        edit_layout.addLayout(group_layout)
 
         # 频道URL
+        url_layout = QtWidgets.QVBoxLayout()
+        url_layout.setSpacing(4)
         self.edit_url_label = QtWidgets.QLabel("频道URL:")
         self.edit_url_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_url = QtWidgets.QLineEdit()
         self.edit_url.setStyleSheet(AppStyles.common_line_edit_style())
-        edit_layout.addWidget(self.edit_url_label)
-        edit_layout.addWidget(self.edit_url)
+        self.edit_url.setFixedHeight(30)
+        url_layout.addWidget(self.edit_url_label)
+        url_layout.addWidget(self.edit_url)
+        edit_layout.addLayout(url_layout)
 
         # TVG-ID
+        tvg_layout = QtWidgets.QVBoxLayout()
+        tvg_layout.setSpacing(4)
         self.edit_tvg_id_label = QtWidgets.QLabel("TVG-ID:")
         self.edit_tvg_id_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_tvg_id = QtWidgets.QLineEdit()
         self.edit_tvg_id.setStyleSheet(AppStyles.common_line_edit_style())
-        edit_layout.addWidget(self.edit_tvg_id_label)
-        edit_layout.addWidget(self.edit_tvg_id)
+        self.edit_tvg_id.setFixedHeight(30)
+        tvg_layout.addWidget(self.edit_tvg_id_label)
+        tvg_layout.addWidget(self.edit_tvg_id)
+        edit_layout.addLayout(tvg_layout)
 
         # Logo URL
+        logo_layout = QtWidgets.QVBoxLayout()
+        logo_layout.setSpacing(4)
         self.edit_logo_label = QtWidgets.QLabel("Logo URL:")
         self.edit_logo_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_logo = QtWidgets.QLineEdit()
         self.edit_logo.setStyleSheet(AppStyles.common_line_edit_style())
-        edit_layout.addWidget(self.edit_logo_label)
-        edit_layout.addWidget(self.edit_logo)
+        self.edit_logo.setFixedHeight(30)
+        logo_layout.addWidget(self.edit_logo_label)
+        logo_layout.addWidget(self.edit_logo)
+        edit_layout.addLayout(logo_layout)
 
-        edit_layout.addStretch()
+        # 增加一些垂直空间，让内容分布更均匀
+        edit_layout.addStretch(1)
 
         # 保存按钮
         self.btn_save_channel = QtWidgets.QPushButton("💾 保存修改")
         self.btn_save_channel.setStyleSheet(AppStyles.common_button_style())
-        self.btn_save_channel.setFixedHeight(36)
+        self.btn_save_channel.setFixedHeight(40)
         self.btn_save_channel.clicked.connect(self._on_save_channel)
         edit_layout.addWidget(self.btn_save_channel)
 

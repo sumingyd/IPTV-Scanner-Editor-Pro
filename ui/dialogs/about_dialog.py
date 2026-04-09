@@ -20,7 +20,10 @@ class AboutDialog(QtWidgets.QDialog):
         # 窗口拖动相关变量
         self.dragging = False
         self.offset = None
-        self.opacity = 220
+        # 从主题获取透明度设置
+        from ..styles import AppStyles
+        colors = AppStyles._get_colors()
+        self.opacity = colors.get('window_opacity', 220)
         self._init_ui()
 
     def _init_ui(self):

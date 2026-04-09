@@ -1254,7 +1254,7 @@ class IPTVPlayer(QMainWindow):
             # 文件菜单
             file_menu = menu_bar.addMenu("文件")
             
-            open_playlist = QAction("打开播放列表", self)
+            open_playlist = QAction("打开列表", self)
             open_playlist.triggered.connect(self.open_playlist)
             open_playlist.setShortcut("Ctrl+O")
             file_menu.addAction(open_playlist)
@@ -1262,7 +1262,7 @@ class IPTVPlayer(QMainWindow):
             # 添加最近打开子菜单
             recent_menu = file_menu.addMenu("最近打开")
             
-            save_as = QAction("另存为...", self)
+            save_as = QAction("另存...", self)
             save_as.triggered.connect(self.save_as)
             save_as.setShortcut("Ctrl+S")
             file_menu.addAction(save_as)
@@ -1284,19 +1284,19 @@ class IPTVPlayer(QMainWindow):
             # 视图菜单
             view_menu = menu_bar.addMenu("视图")
             
-            show_epg = QAction("显示节目单", self, checkable=True)
+            show_epg = QAction("节目列表", self, checkable=True)
             show_epg.setChecked(self.epg_visible)
             show_epg.triggered.connect(self.toggle_epg)
             show_epg.setShortcut("E")
             view_menu.addAction(show_epg)
             
-            show_playlist = QAction("显示播放列表", self, checkable=True)
+            show_playlist = QAction("播放列表", self, checkable=True)
             show_playlist.setChecked(self.playlist_visible)
             show_playlist.triggered.connect(self.toggle_playlist)
             show_playlist.setShortcut("L")
             view_menu.addAction(show_playlist)
             
-            show_floating = QAction("显示控制面板", self, checkable=True)
+            show_floating = QAction("控制面板", self, checkable=True)
             show_floating.setChecked(self.floating_panel_visible)
             show_floating.triggered.connect(self.toggle_floating_panel)
             show_floating.setShortcut("M")
@@ -1309,7 +1309,7 @@ class IPTVPlayer(QMainWindow):
             fullscreen.setShortcut("F11")
             view_menu.addAction(fullscreen)
             
-            refresh = QAction("刷新", self)
+            refresh = QAction("刷新界面", self)
             refresh.triggered.connect(self.refresh_ui)
             refresh.setShortcut("F5")
             view_menu.addAction(refresh)
@@ -1325,13 +1325,13 @@ class IPTVPlayer(QMainWindow):
             scan_channels.triggered.connect(self.open_scan_ui)
             tools_menu.addAction(scan_channels)
             
-            channel_mapping = QAction("频道映射管理器", self)
+            channel_mapping = QAction("映射管理", self)
             channel_mapping.triggered.connect(self.open_channel_mapping)
             tools_menu.addAction(channel_mapping)
             
             tools_menu.addSeparator()
             
-            player_settings = QAction("播放器设置", self)
+            player_settings = QAction("订阅设置", self)
             player_settings.triggered.connect(self.player_settings)
             tools_menu.addAction(player_settings)
             
@@ -1368,7 +1368,7 @@ class IPTVPlayer(QMainWindow):
             # 帮助菜单
             help_menu = menu_bar.addMenu("帮助")
             
-            usage_instructions = QAction("使用说明", self)
+            usage_instructions = QAction("说明", self)
             usage_instructions.triggered.connect(self.show_usage_instructions)
             help_menu.addAction(usage_instructions)
             
@@ -3773,8 +3773,8 @@ class IPTVPlayer(QMainWindow):
             return
             
         try:
-            # 使用 frameGeometry() 来获取窗口的几何形状，包括框架大小（标题栏和边框）
-            geometry = self.frameGeometry()
+            # 使用 geometry() 来获取窗口的几何形状（不包括标题栏和边框）
+            geometry = self.geometry()
             # 保存窗口布局（包括位置和大小）
             self.config.save_window_layout(geometry.x(), geometry.y(), geometry.width(), geometry.height(), [])
             logger.debug(f"保存窗口布局: x={geometry.x()}, y={geometry.y()}, width={geometry.width()}, height={geometry.height()}")
