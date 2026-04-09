@@ -25,14 +25,14 @@ class AppStyles:
         'warning': '#FF9800',
         'error': '#f44336',
         'info': '#2196F3',
-        'table_header': '#f0f0f0',
-        'table_header_gradient_start': '#f8f8f8',
-        'table_header_gradient_middle': '#e8e8e8',
-        'table_header_gradient_end': '#d8d8d8',
-        'table_border': '#cccccc',
-        'table_grid': '#e0e0e0',
-        'table_alternate': '#f8f8f8',
-        'table_hover': '#f0f7ff',
+        'table_header': '#3a3a3a',
+        'table_header_gradient_start': '#444444',
+        'table_header_gradient_middle': '#3a3a3a',
+        'table_header_gradient_end': '#2a2a2a',
+        'table_border': '#555555',
+        'table_grid': '#444444',
+        'table_alternate': '#1a1a1a',
+        'table_hover': '#2a3a5a',
         'table_selection': '#4a7eff',
         'table_selection_text': '#ffffff',
         
@@ -287,7 +287,7 @@ class AppStyles:
         """按钮样式"""
         colors = AppStyles._get_colors()
         base_style = f"""
-            QPushButton {{{{
+            QPushButton {{
                 border: 1px solid {colors['accent']};
                 border-radius: 4px;
                 padding: 6px 12px;
@@ -298,37 +298,37 @@ class AppStyles:
                 font-weight: 500;
                 font-size: 12px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            }}}}
-            QPushButton:hover {{{{
+            }}
+            QPushButton:hover {{
                 background-color: {colors['accent_hover']};
                 border-color: {colors['accent_hover']};
-            }}}}
-            QPushButton:pressed {{{{
+            }}
+            QPushButton:pressed {{
                 background-color: {colors['accent_pressed']};
                 border-color: {colors['accent_pressed']};
-            }}}}
-            QPushButton:disabled {{{{
+            }}
+            QPushButton:disabled {{
                 background-color: {colors['light']};
                 border-color: {colors['mid']};
                 color: {colors['placeholder']};
-            }}}}
+            }}
         """
 
         if active:
             active_style = f"""
-                QPushButton {{{{
+                QPushButton {{
                     background-color: {colors['accent_pressed']};
                     border-color: {colors['accent_pressed']};
                     font-weight: 600;
-                }}}}
-                QPushButton:hover {{{{
+                }}
+                QPushButton:hover {{
                     background-color: {colors['accent_hover']};
                     border-color: {colors['accent_hover']};
-                }}}}
-                QPushButton:pressed {{{{
+                }}
+                QPushButton:pressed {{
                     background-color: {colors['accent_pressed']};
                     border-color: {colors['accent_pressed']};
-                }}}}
+                }}
             """
             return base_style + active_style
         return base_style
@@ -785,7 +785,7 @@ class AppStyles:
         """进度条样式"""
         colors = AppStyles._get_colors()
         return f"""
-            QProgressBar {{{{
+            QProgressBar {{
                 border: 1px solid {colors['mid']};
                 border-radius: 6px;
                 text-align: center;
@@ -795,12 +795,12 @@ class AppStyles:
                 font-weight: 500;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                 color: {colors['window_text']};
-            }}}}
-            QProgressBar::chunk {{{{
+            }}
+            QProgressBar::chunk {{
                 background-color: {colors['accent']};
                 border-radius: 5px;
                 margin: 1px;
-            }}}}
+            }}
         """
 
     @staticmethod
@@ -808,7 +808,7 @@ class AppStyles:
         """工具栏按钮样式"""
         colors = AppStyles._get_colors()
         return f"""
-            QToolButton {{{{
+            QToolButton {{
                 border: 1px solid {colors['mid']};
                 border-radius: 4px;
                 padding: 4px 8px;
@@ -820,19 +820,19 @@ class AppStyles:
                 font-size: 12px;
                 font-weight: 500;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            }}}}
-            QToolButton:hover {{{{
+            }}
+            QToolButton:hover {{
                 background-color: {colors['light']};
                 border-color: {colors['accent']};
                 color: {colors['accent']};
-            }}}}
-            QToolButton:pressed {{{{
+            }}
+            QToolButton:pressed {{
                 background-color: {colors['dark']};
                 color: {colors['accent_pressed']};
-            }}}}
-            QToolButton::menu-indicator {{{{
+            }}
+            QToolButton::menu-indicator {{
                 width: 0px;
-            }}}}
+            }}
         """
 
 
