@@ -289,7 +289,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 右侧标题
         self.right_title = QtWidgets.QLabel(f"✏️ {tr('channel_edit_title', 'Channel Edit')}")
         self.right_title.setStyleSheet(AppStyles.section_title_style())
-        self.right_layout.addWidget(self.right_title)
+        right_layout.addWidget(self.right_title)
 
         # 频道编辑内容
         self._setup_channel_edit(right_layout)

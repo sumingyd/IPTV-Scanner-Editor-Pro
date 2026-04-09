@@ -58,11 +58,20 @@ class TranslucentPanel(QFrame):
         rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
         path.addRoundedRect(rect, 8, 8)
         
-        # 绘制半透明背景（只在圆角内）
-        painter.fillPath(path, QColor(30, 30, 30, self.opacity))
-        
-        # 绘制边框
-        painter.setPen(QColor(100, 100, 100, 150))
+        from ui.styles import AppStyles
+        colors = AppStyles._get_colors()
+
+        bg_hex = colors.get('player_panel', '#1e1e1e')
+        r = int(bg_hex[1:3], 16)
+        g = int(bg_hex[3:5], 16)
+        b = int(bg_hex[5:7], 16)
+        painter.fillPath(path, QColor(r, g, b, self.opacity))
+
+        border_hex = colors.get('mid', '#646464')
+        br = int(border_hex[1:3], 16)
+        bg = int(border_hex[3:5], 16)
+        bb = int(border_hex[5:7], 16)
+        painter.setPen(QColor(br, bg, bb, 150))
         painter.drawPath(path)
         
         # 调用父类的 paintEvent 来绘制子控件
@@ -263,10 +272,16 @@ class IPTVPlayer(QMainWindow):
         from core.config_manager import ConfigManager
         self.config = ConfigManager()
         
+        # 语言管理
+        self.language_manager = LanguageManager()
+        self.language_manager.load_available_languages()
+        saved_language = self.config.load_language_settings()
+        self.language_manager.set_language(saved_language)
+        
         # 获取当前版本号并设置窗口标题
         from ui.dialogs.about_dialog import AboutDialog
         current_version = AboutDialog.CURRENT_VERSION
-        self.setWindowTitle(f"IPTV Scanner Editor Pro v{current_version}")
+        self.setWindowTitle(f"{self.language_manager.tr('app_title', 'IPTV Scanner Editor Pro')} v{current_version}")
         
         # 加载窗口布局（包括位置和大小）
         x, y, width, height, _ = self.config.load_window_layout(
@@ -284,11 +299,6 @@ class IPTVPlayer(QMainWindow):
         self.channel_list_updated.connect(self._update_channel_list_ui)
         self.epg_list_updated.connect(self._populate_epg_list)
         self.status_message.connect(self.status_bar_show_message)
-        
-        # 语言管理
-        self.language_manager = LanguageManager()
-        self.language_manager.load_available_languages()
-        self.language_manager.set_language('zh')
         
         # 频道列表模型
         self.channel_model = ChannelListModel()
@@ -3832,6 +3842,10 @@ class IPTVPlayer(QMainWindow):
             from core.config_manager import ConfigManager
             config_manager = ConfigManager()
             config_manager.save_language_settings(language)
+            # 更新窗口标题
+            from ui.dialogs.about_dialog import AboutDialog
+            current_version = AboutDialog.CURRENT_VERSION
+            self.setWindowTitle(f"{self.language_manager.tr('app_title', 'IPTV Scanner Editor Pro')} v{current_version}")
             # 重新创建菜单栏以更新语言
             self.menuBar().clear()
             self.setup_menu_bar()
@@ -3860,6 +3874,7 @@ class IPTVPlayer(QMainWindow):
 
     def _reapply_all_styles(self):
         try:
+            colors = AppStyles._get_colors()
             self.setStyleSheet(AppStyles.main_window_style())
             self.menuBar().setStyleSheet(AppStyles.player_menu_bar_style())
             self.status_bar.setStyleSheet(AppStyles.statusbar_style())
@@ -3871,18 +3886,46 @@ class IPTVPlayer(QMainWindow):
                 self.playlist_panel.setStyleSheet(AppStyles.player_panel_style())
             if hasattr(self, 'floating_panel'):
                 self.floating_panel.setStyleSheet(AppStyles.player_panel_style())
-            if hasattr(self, 'control_panel'):
-                self.control_panel.setStyleSheet(AppStyles.player_panel_style())
-            for btn in self.findChildren(QtWidgets.QPushButton):
+                self.floating_panel.opacity = colors.get('window_opacity', 220)
+                self.floating_panel.update()
+                self._reapply_floating_panel_styles()
+            for btn in self.findChildren(QPushButton):
                 btn.setStyleSheet(AppStyles.button_style())
-            for tool_btn in self.findChildren(QtWidgets.QToolButton):
+            for tool_btn in self.findChildren(QToolButton):
                 tool_btn.setStyleSheet(AppStyles.player_button_style())
-            for slider in self.findChildren(QtWidgets.QSlider):
+            for slider in self.findChildren(QSlider):
                 slider.setStyleSheet(AppStyles.player_slider_style())
-            for combo in self.findChildren(QtWidgets.QComboBox):
+            for combo in self.findChildren(QComboBox):
                 combo.setStyleSheet(AppStyles.player_group_combo_style())
+            for list_widget in self.findChildren(QListWidget):
+                list_widget.setStyleSheet(AppStyles.player_list_style())
         except Exception as e:
             logger.error(f"重新应用样式失败: {e}")
+
+    def _reapply_floating_panel_styles(self):
+        try:
+            if not hasattr(self, 'floating_panel'):
+                return
+            fp = self.floating_panel
+            for label in fp.findChildren(QLabel):
+                label.setStyleSheet(AppStyles.player_label_style())
+            if hasattr(self, 'channel_name_label'):
+                self.channel_name_label.setStyleSheet(AppStyles.player_channel_name_style())
+            if hasattr(self, 'program_label'):
+                self.program_label.setStyleSheet(AppStyles.player_program_style())
+            if hasattr(self, 'program_desc_label'):
+                self.program_desc_label.setStyleSheet(AppStyles.player_program_desc_style())
+            for btn in fp.findChildren(QPushButton):
+                btn.setStyleSheet(AppStyles.player_date_button_style())
+            for slider in fp.findChildren(QSlider):
+                slider.setStyleSheet(AppStyles.player_slider_style())
+            for combo in fp.findChildren(QComboBox):
+                combo.setStyleSheet(AppStyles.player_group_combo_style())
+            for frame in fp.findChildren(QFrame):
+                if frame.styleSheet() and 'max-height' in frame.styleSheet():
+                    frame.setStyleSheet(AppStyles.player_line_style())
+        except Exception as e:
+            logger.error(f"重新应用悬浮面板样式失败: {e}")
 
     def save_window_layout(self):
         """保存窗口布局（包括位置和大小）"""

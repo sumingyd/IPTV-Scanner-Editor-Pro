@@ -11,8 +11,6 @@ class MappingManagerDialog(QtWidgets.QDialog):
         super().__init__(parent)
         self.logger = LogManager()
         self.parent = parent
-        self.setWindowTitle("频道映射管理器")
-        self.setMinimumSize(800, 600)
         self.dragging = False
         self.offset = None
         # 从主题获取透明度设置
@@ -22,23 +20,22 @@ class MappingManagerDialog(QtWidgets.QDialog):
         # 设置窗口属性，与其他弹窗保持一致
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
-        # 确保窗口可以接收鼠标事件
         self.setMouseTracking(True)
-        # 确保窗口保持活动状态
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
-        self.setup_ui()
-        self.load_mappings()
 
         # 获取语言管理器
         if parent and hasattr(parent, 'language_manager'):
             self.language_manager = parent.language_manager
         else:
-            from language_manager import LanguageManager
+            from core.language_manager import LanguageManager
             self.language_manager = LanguageManager()
             self.language_manager.load_available_languages()
             self.language_manager.set_language('zh')
 
-        self.update_ui_texts()
+        self.setWindowTitle(self.language_manager.tr('mapping_manager', 'Channel Mapping Manager'))
+        self.setMinimumSize(800, 600)
+        self.setup_ui()
+        self.load_mappings()
 
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
@@ -99,47 +96,41 @@ class MappingManagerDialog(QtWidgets.QDialog):
     def setup_ui(self):
         """设置用户界面"""
         layout = QtWidgets.QVBoxLayout(self)
+        tr = self.language_manager.tr
 
-        # 导入样式
         from ui.styles import AppStyles
 
-        # 应用通用的弹窗样式
         self.setStyleSheet(AppStyles.dialog_style())
 
-        # 创建选项卡
         self.tab_widget = QtWidgets.QTabWidget()
         self.tab_widget.setStyleSheet(AppStyles.tab_widget_style())
 
-        # 用户映射管理选项卡
         self.user_mapping_tab = self.create_user_mapping_tab()
-        self.tab_widget.addTab(self.user_mapping_tab, "用户映射管理")
+        self.tab_widget.addTab(self.user_mapping_tab, tr('user_mapping_management', 'User Mapping Management'))
 
-        # 频道指纹查看选项卡
         self.fingerprint_tab = self.create_fingerprint_tab()
-        self.tab_widget.addTab(self.fingerprint_tab, "频道指纹")
+        self.tab_widget.addTab(self.fingerprint_tab, tr('channel_fingerprints', 'Channel Fingerprints'))
 
-        # 映射建议选项卡
         self.suggestion_tab = self.create_suggestion_tab()
-        self.tab_widget.addTab(self.suggestion_tab, "映射建议")
+        self.tab_widget.addTab(self.suggestion_tab, tr('mapping_suggestions', 'Mapping Suggestions'))
 
         layout.addWidget(self.tab_widget)
 
-        # 按钮区域
         button_layout = QtWidgets.QHBoxLayout()
 
-        self.refresh_cache_btn = QtWidgets.QPushButton("刷新远程映射缓存")
+        self.refresh_cache_btn = QtWidgets.QPushButton(tr('refresh_remote_cache', 'Refresh Remote Cache'))
         self.refresh_cache_btn.setStyleSheet(AppStyles.common_button_style())
         self.refresh_cache_btn.clicked.connect(self.refresh_cache)
 
-        self.export_mappings_btn = QtWidgets.QPushButton("导出用户映射")
+        self.export_mappings_btn = QtWidgets.QPushButton(tr('export_user_mappings', 'Export User Mappings'))
         self.export_mappings_btn.setStyleSheet(AppStyles.common_button_style())
         self.export_mappings_btn.clicked.connect(self.export_mappings)
 
-        self.import_mappings_btn = QtWidgets.QPushButton("导入用户映射")
+        self.import_mappings_btn = QtWidgets.QPushButton(tr('import_user_mappings', 'Import User Mappings'))
         self.import_mappings_btn.setStyleSheet(AppStyles.common_button_style())
         self.import_mappings_btn.clicked.connect(self.import_mappings)
 
-        self.close_btn = QtWidgets.QPushButton("关闭")
+        self.close_btn = QtWidgets.QPushButton(tr('close', 'Close'))
         self.close_btn.setStyleSheet(AppStyles.common_button_style())
         self.close_btn.clicked.connect(self.accept)
 
@@ -153,27 +144,25 @@ class MappingManagerDialog(QtWidgets.QDialog):
 
     def create_user_mapping_tab(self):
         """创建用户映射管理选项卡"""
+        tr = self.language_manager.tr
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(widget)
 
-        # 导入样式
         from ui.styles import AppStyles
 
-        # 搜索和过滤区域
         search_layout = QtWidgets.QHBoxLayout()
         self.search_input = QtWidgets.QLineEdit()
         self.search_input.setStyleSheet(AppStyles.common_line_edit_style())
-        self.search_input.setPlaceholderText("搜索频道名...")
+        self.search_input.setPlaceholderText(tr('search_channel_name', 'Search channel name...'))
         self.search_input.textChanged.connect(self.filter_mappings)
 
-        # 搜索选项
         self.search_options = QtWidgets.QComboBox()
         self.search_options.setStyleSheet(AppStyles.common_combo_box_style())
         self.search_options.currentTextChanged.connect(self.filter_mappings)
 
-        self.search_label = QtWidgets.QLabel("搜索:")
+        self.search_label = QtWidgets.QLabel(tr('search', 'Search') + ":")
         self.search_label.setStyleSheet(AppStyles.common_label_style())
-        self.search_scope_label = QtWidgets.QLabel("搜索范围:")
+        self.search_scope_label = QtWidgets.QLabel(tr('search_scope', 'Search Scope') + ":")
         self.search_scope_label.setStyleSheet(AppStyles.common_label_style())
 
         search_layout.addWidget(self.search_label)
@@ -184,29 +173,32 @@ class MappingManagerDialog(QtWidgets.QDialog):
 
         layout.addLayout(search_layout)
 
-        # 映射列表
         self.mapping_table = QtWidgets.QTableWidget()
         self.mapping_table.setStyleSheet(AppStyles.table_style())
         self.mapping_table.setColumnCount(4)
-        self.mapping_table.setHorizontalHeaderLabels(["标准名称", "原始名称", "分组", "LOGO地址"])
+        self.mapping_table.setHorizontalHeaderLabels([
+            tr('standard_name', 'Standard Name'),
+            tr('raw_name', 'Raw Name'),
+            tr('group', 'Group'),
+            tr('logo_address', 'Logo Address')
+        ])
         self.mapping_table.horizontalHeader().setStretchLastSection(True)
         self.mapping_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.mapping_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
 
         layout.addWidget(self.mapping_table)
 
-        # 操作按钮
         button_layout = QtWidgets.QHBoxLayout()
 
-        self.add_mapping_btn = QtWidgets.QPushButton("添加映射")
+        self.add_mapping_btn = QtWidgets.QPushButton(tr('add_mapping', 'Add Mapping'))
         self.add_mapping_btn.setStyleSheet(AppStyles.common_button_style())
         self.add_mapping_btn.clicked.connect(self.add_mapping)
 
-        self.edit_mapping_btn = QtWidgets.QPushButton("编辑映射")
+        self.edit_mapping_btn = QtWidgets.QPushButton(tr('edit_mapping', 'Edit Mapping'))
         self.edit_mapping_btn.setStyleSheet(AppStyles.common_button_style())
         self.edit_mapping_btn.clicked.connect(self.edit_mapping)
 
-        self.delete_mapping_btn = QtWidgets.QPushButton("删除映射")
+        self.delete_mapping_btn = QtWidgets.QPushButton(tr('delete_mapping', 'Delete Mapping'))
         self.delete_mapping_btn.setStyleSheet(AppStyles.common_button_style())
         self.delete_mapping_btn.clicked.connect(self.delete_mapping)
 
@@ -221,30 +213,34 @@ class MappingManagerDialog(QtWidgets.QDialog):
 
     def create_fingerprint_tab(self):
         """创建频道指纹查看选项卡"""
+        tr = self.language_manager.tr
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(widget)
 
-        # 导入样式
         from ui.styles import AppStyles
 
-        # 指纹列表
         self.fingerprint_table = QtWidgets.QTableWidget()
         self.fingerprint_table.setStyleSheet(AppStyles.table_style())
         self.fingerprint_table.setColumnCount(5)
-        self.fingerprint_table.setHorizontalHeaderLabels(["指纹ID", "原始名称", "映射名称", "出现次数", "最后出现"])
+        self.fingerprint_table.setHorizontalHeaderLabels([
+            tr('fingerprint_id', 'Fingerprint ID'),
+            tr('raw_name', 'Raw Name'),
+            tr('mapped_name', 'Mapped Name'),
+            tr('occurrence_count', 'Occurrence Count'),
+            tr('last_seen', 'Last Seen')
+        ])
         self.fingerprint_table.horizontalHeader().setStretchLastSection(True)
         self.fingerprint_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
 
         layout.addWidget(self.fingerprint_table)
 
-        # 操作按钮
         button_layout = QtWidgets.QHBoxLayout()
 
-        self.clear_fingerprints_btn = QtWidgets.QPushButton("清空指纹数据")
+        self.clear_fingerprints_btn = QtWidgets.QPushButton(tr('clear_fingerprint_data', 'Clear Fingerprint Data'))
         self.clear_fingerprints_btn.setStyleSheet(AppStyles.common_button_style())
         self.clear_fingerprints_btn.clicked.connect(self.clear_fingerprints)
 
-        self.analyze_fingerprints_btn = QtWidgets.QPushButton("分析不稳定映射")
+        self.analyze_fingerprints_btn = QtWidgets.QPushButton(tr('analyze_unstable_mappings', 'Analyze Unstable Mappings'))
         self.analyze_fingerprints_btn.setStyleSheet(AppStyles.common_button_style())
         self.analyze_fingerprints_btn.clicked.connect(self.analyze_fingerprints)
 
@@ -258,23 +254,26 @@ class MappingManagerDialog(QtWidgets.QDialog):
 
     def create_suggestion_tab(self):
         """创建映射建议选项卡"""
+        tr = self.language_manager.tr
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(widget)
 
-        # 导入样式
         from ui.styles import AppStyles
 
-        # 建议列表
         self.suggestion_table = QtWidgets.QTableWidget()
         self.suggestion_table.setStyleSheet(AppStyles.table_style())
         self.suggestion_table.setColumnCount(4)
-        self.suggestion_table.setHorizontalHeaderLabels(["原始名称", "建议映射", "置信度", "操作"])
+        self.suggestion_table.setHorizontalHeaderLabels([
+            tr('raw_name', 'Raw Name'),
+            tr('suggested_mapping', 'Suggested Mapping'),
+            tr('confidence', 'Confidence'),
+            tr('operation', 'Operation')
+        ])
         self.suggestion_table.horizontalHeader().setStretchLastSection(True)
 
         layout.addWidget(self.suggestion_table)
 
-        # 刷新按钮
-        self.refresh_suggestions_btn = QtWidgets.QPushButton("刷新建议")
+        self.refresh_suggestions_btn = QtWidgets.QPushButton(tr('refresh_suggestions', 'Refresh Suggestions'))
         self.refresh_suggestions_btn.setStyleSheet(AppStyles.common_button_style())
         self.refresh_suggestions_btn.clicked.connect(self.refresh_suggestions)
         layout.addWidget(self.refresh_suggestions_btn)
@@ -804,64 +803,66 @@ class MappingEditDialog(QtWidgets.QDialog):
         self.group_name = group_name
         self.logo_url = logo_url
 
-        self.setWindowTitle("编辑映射" if standard_name else "添加映射")
+        if parent and hasattr(parent, 'language_manager'):
+            self.language_manager = parent.language_manager
+        else:
+            from core.language_manager import LanguageManager
+            self.language_manager = LanguageManager()
+            self.language_manager.load_available_languages()
+            self.language_manager.set_language('zh')
+
+        tr = self.language_manager.tr
+        self.setWindowTitle(tr('edit_mapping', 'Edit Mapping') if standard_name else tr('add_mapping', 'Add Mapping'))
         self.setup_ui()
 
     def setup_ui(self):
         """设置用户界面"""
         layout = QtWidgets.QVBoxLayout(self)
+        tr = self.language_manager.tr
 
-        # 导入样式
         from ui.styles import AppStyles
 
-        # 应用通用的弹窗样式
         self.setStyleSheet(AppStyles.dialog_style())
 
-        # 表单布局
         form_layout = QtWidgets.QFormLayout()
 
-        # 标准名称输入
         self.standard_name_input = QtWidgets.QLineEdit(self.standard_name)
         self.standard_name_input.setStyleSheet(AppStyles.common_line_edit_style())
-        self.standard_name_input.setPlaceholderText("输入标准频道名称，如'CCTV-1 综合'")
-        label1 = QtWidgets.QLabel("标准名称:")
+        self.standard_name_input.setPlaceholderText(tr('standard_name_placeholder', 'Enter standard channel name'))
+        label1 = QtWidgets.QLabel(tr('standard_name', 'Standard Name') + ":")
         label1.setStyleSheet(AppStyles.common_label_style())
         form_layout.addRow(label1, self.standard_name_input)
 
-        # 原始名称输入
         self.raw_name_input = QtWidgets.QLineEdit(self.raw_name)
         self.raw_name_input.setStyleSheet(AppStyles.common_line_edit_style())
-        self.raw_name_input.setPlaceholderText("输入原始频道名称，如'CCTV1'")
-        label2 = QtWidgets.QLabel("原始名称:")
+        self.raw_name_input.setPlaceholderText(tr('raw_name_placeholder', 'Enter raw channel name'))
+        label2 = QtWidgets.QLabel(tr('raw_name', 'Raw Name') + ":")
         label2.setStyleSheet(AppStyles.common_label_style())
         form_layout.addRow(label2, self.raw_name_input)
 
-        # 分组输入
         self.group_name_input = QtWidgets.QLineEdit(self.group_name)
         self.group_name_input.setStyleSheet(AppStyles.common_line_edit_style())
-        self.group_name_input.setPlaceholderText("输入分组名称，如'央视频道'")
-        label3 = QtWidgets.QLabel("分组:")
+        self.group_name_input.setPlaceholderText(tr('group_placeholder', 'Enter group name'))
+        label3 = QtWidgets.QLabel(tr('group', 'Group') + ":")
         label3.setStyleSheet(AppStyles.common_label_style())
         form_layout.addRow(label3, self.group_name_input)
 
-        # LOGO地址输入
         self.logo_url_input = QtWidgets.QLineEdit(self.logo_url)
         self.logo_url_input.setStyleSheet(AppStyles.common_line_edit_style())
-        self.logo_url_input.setPlaceholderText("输入LOGO图片URL地址")
-        label4 = QtWidgets.QLabel("LOGO地址:")
+        self.logo_url_input.setPlaceholderText(tr('logo_url_placeholder', 'Enter logo URL'))
+        label4 = QtWidgets.QLabel(tr('logo_address', 'Logo Address') + ":")
         label4.setStyleSheet(AppStyles.common_label_style())
         form_layout.addRow(label4, self.logo_url_input)
 
         layout.addLayout(form_layout)
 
-        # 按钮区域
         button_layout = QtWidgets.QHBoxLayout()
 
-        self.ok_btn = QtWidgets.QPushButton("确定")
+        self.ok_btn = QtWidgets.QPushButton(tr('ok_button', 'OK'))
         self.ok_btn.setStyleSheet(AppStyles.common_button_style())
         self.ok_btn.clicked.connect(self.accept)
 
-        self.cancel_btn = QtWidgets.QPushButton("取消")
+        self.cancel_btn = QtWidgets.QPushButton(tr('cancel_button', 'Cancel'))
         self.cancel_btn.setStyleSheet(AppStyles.common_button_style())
         self.cancel_btn.clicked.connect(self.reject)
 
