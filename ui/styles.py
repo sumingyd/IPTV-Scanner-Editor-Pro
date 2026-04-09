@@ -250,56 +250,7 @@ class AppStyles:
             }}
         """
 
-    @staticmethod
-    def button_style(active: bool = False) -> str:
-        """按钮样式"""
-        colors = AppStyles._get_colors()
-        base_style = f"""
-            QPushButton {{
-                border: 1px solid {colors['accent']};
-                border-radius: 4px;
-                padding: 6px 12px;
-                min-width: 70px;
-                min-height: 30px;
-                background-color: {colors['accent']};
-                color: white;
-                font-weight: 500;
-                font-size: 12px;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            }}
-            QPushButton:hover {{
-                background-color: {colors['accent_hover']};
-                border-color: {colors['accent_hover']};
-            }}
-            QPushButton:pressed {{
-                background-color: {colors['accent_pressed']};
-                border-color: {colors['accent_pressed']};
-            }}
-            QPushButton:disabled {{
-                background-color: {colors['light']};
-                border-color: {colors['mid']};
-                color: {colors['placeholder']};
-            }}
-        """
 
-        if active:
-            active_style = f"""
-                QPushButton {{
-                    background-color: {colors['accent_pressed']};
-                    border-color: {colors['accent_pressed']};
-                    font-weight: 600;
-                }}
-                QPushButton:hover {{
-                    background-color: {colors['accent_hover']};
-                    border-color: {colors['accent_hover']};
-                }}
-                QPushButton:pressed {{
-                    background-color: {colors['accent_pressed']};
-                    border-color: {colors['accent_pressed']};
-                }}
-            """
-            return base_style + active_style
-        return base_style
 
     @staticmethod
     def list_style() -> str:

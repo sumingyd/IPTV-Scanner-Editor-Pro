@@ -307,8 +307,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
             enable_retry = self.enable_retry_checkbox.isChecked()
             self.config.save_network_settings(
                 self.ip_range_input.text(),
-                self.timeout_input.value(),
-                self.thread_count_input.value(),
+                int(self.timeout_input.text()),
+                int(self.thread_count_input.text()),
                 self.user_agent_input.text(),
                 self.referer_input.text(),
                 enable_retry,
@@ -355,19 +355,20 @@ class ScanChannelDialog(QtWidgets.QDialog):
         timeout_label = QtWidgets.QLabel("设置扫描超时时间（秒）")
         self.timeout_description_label = timeout_label
         timeout_layout.addWidget(timeout_label)
-        self.timeout_input = QtWidgets.QSpinBox()
-        self.timeout_input.setRange(1, 60)
+        self.timeout_input = QtWidgets.QLineEdit()
         # 从配置文件加载默认值，如果没有则使用配置管理器的默认值
         try:
             settings = self.config.load_network_settings()
             default_timeout = settings['timeout']
         except Exception:
             default_timeout = 30  # 配置管理器的默认值
-        self.timeout_input.setValue(default_timeout)
-        self.timeout_input.setSuffix(" 秒")
+        self.timeout_input.setText(str(default_timeout))
+        # 添加输入验证，确保输入是整数
+        validator = QtGui.QIntValidator(1, 60, self)
+        self.timeout_input.setValidator(validator)
 
         timeout_layout.addWidget(self.timeout_input, 1)
-        self.timeout_input.valueChanged.connect(
+        self.timeout_input.textChanged.connect(
             lambda: self._save_network_settings()
         )
         self.timeout_layout = timeout_layout
@@ -378,18 +379,20 @@ class ScanChannelDialog(QtWidgets.QDialog):
         thread_label = QtWidgets.QLabel("设置扫描使用的线程数量")
         self.thread_count_label = thread_label
         thread_layout.addWidget(thread_label)
-        self.thread_count_input = QtWidgets.QSpinBox()
-        self.thread_count_input.setRange(1, 100)
+        self.thread_count_input = QtWidgets.QLineEdit()
         # 从配置文件加载默认值，如果没有则使用配置管理器的默认值
         try:
             settings = self.config.load_network_settings()
             default_threads = settings['threads']
         except Exception:
             default_threads = 30  # 配置管理器的默认值
-        self.thread_count_input.setValue(default_threads)
+        self.thread_count_input.setText(str(default_threads))
+        # 添加输入验证，确保输入是整数
+        validator = QtGui.QIntValidator(1, 100, self)
+        self.thread_count_input.setValidator(validator)
 
         thread_layout.addWidget(self.thread_count_input, 1)
-        self.thread_count_input.valueChanged.connect(
+        self.thread_count_input.textChanged.connect(
             lambda: self._save_network_settings()
         )
         self.thread_layout = thread_layout
@@ -580,7 +583,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         timeout_label.setMinimumWidth(40)
         timeout_layout.addWidget(timeout_label)
         self.timeout_input.setFixedHeight(28)
-        timeout_layout.addWidget(self.timeout_input)
+        timeout_layout.addWidget(self.timeout_input, 1)
         timeout_layout.addStretch()
         scan_settings_section.addLayout(timeout_layout)
 
@@ -591,7 +594,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         thread_label.setMinimumWidth(40)
         thread_layout.addWidget(thread_label)
         self.thread_count_input.setFixedHeight(28)
-        thread_layout.addWidget(self.thread_count_input)
+        thread_layout.addWidget(self.thread_count_input, 1)
         thread_layout.addStretch()
         scan_settings_section.addLayout(thread_layout)
 
@@ -1035,8 +1038,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
             if settings['url']:
                 self.ip_range_input.setText(settings['url'])
 
-            self.timeout_input.setValue(int(settings['timeout']))
-            self.thread_count_input.setValue(int(settings['threads']))
+            self.timeout_input.setText(str(int(settings['timeout'])))
+            self.thread_count_input.setText(str(int(settings['threads'])))
 
             if settings['user_agent']:
                 self.user_agent_input.setText(settings['user_agent'])
@@ -1055,8 +1058,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
         except Exception as e:
             log_config_error(f"加载配置失败: {e}")
-            self.timeout_input.setValue(10)
-            self.thread_count_input.setValue(5)
+            self.timeout_input.setText('10')
+            self.thread_count_input.setText('5')
 
     def _register_config_observers(self):
         """注册配置变更观察者"""
@@ -1075,9 +1078,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
         if key == 'url':
             self.ip_range_input.setText(new_value)
         elif key == 'timeout':
-            self.timeout_input.setValue(int(new_value))
+            self.timeout_input.setText(str(int(new_value)))
         elif key == 'threads':
-            self.thread_count_input.setValue(int(new_value))
+            self.thread_count_input.setText(str(int(new_value)))
         elif key == 'user_agent':
             self.user_agent_input.setText(new_value)
         elif key == 'referer':
@@ -1200,8 +1203,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
         else:
             log_scan_info("开始追加扫描，保留现有列表")
 
-        timeout = self.timeout_input.value()
-        threads = self.thread_count_input.value()
+        timeout = int(self.timeout_input.text())
+        threads = int(self.thread_count_input.text())
 
         self.scanner.start_scan(url, threads, timeout)
 
@@ -1235,8 +1238,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
             return
 
         if not hasattr(self.scanner, 'is_validating') or not self.scanner.is_validating:
-            timeout = self.timeout_input.value()
-            threads = self.thread_count_input.value()
+            timeout = int(self.timeout_input.text())
+            threads = int(self.thread_count_input.text())
             user_agent = self.user_agent_input.text()
             referer = self.referer_input.text()
             self.scanner.start_validation(
@@ -1311,8 +1314,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
             if hasattr(self, 'config'):
                 self.config.save_network_settings(
                     url=self.ip_range_input.text(),
-                    timeout=self.timeout_input.value(),
-                    threads=self.thread_count_input.value(),
+                    timeout=int(self.timeout_input.text()),
+                    threads=int(self.thread_count_input.text()),
                     user_agent=self.user_agent_input.text(),
                     referer=self.referer_input.text(),
                     enable_retry=self.enable_retry_checkbox.isChecked(),
@@ -1570,8 +1573,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 启动扫描
         self.scanner.start_scan(
             retry_urls,
-            self.thread_count_input.value(),
-            self.timeout_input.value(),
+            int(self.thread_count_input.text()),
+            int(self.timeout_input.text()),
             is_retry=True
         )
         
