@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QFrame, QToolButton, QSlider, QGridLayout, QComboBox
 )
 from PyQt6.QtCore import Qt, QSize, QTimer, QUrl
-from PyQt6.QtGui import QIcon, QPixmap, QFont, QColor, QAction, QPainter, QBrush
+from PyQt6.QtGui import QIcon, QPixmap, QFont, QColor, QAction, QPainter, QBrush, QKeySequence, QShortcut
 
 # 导入日志管理器
 from core.log_manager import global_logger as logger
@@ -461,6 +461,16 @@ class IPTVPlayer(QMainWindow):
         from ui.theme_manager import get_theme_manager
         theme_manager = get_theme_manager()
         theme_manager.register_window(self)
+        
+        # 添加空格键快捷键，用于播放/暂停
+        # 绑定到应用程序，这样无论哪个窗口获得焦点，快捷键都会响应
+        from PyQt6.QtWidgets import QApplication
+        app = QApplication.instance()
+        # 使用正确的方式创建空格键快捷键
+        space_shortcut = QShortcut(' ', app)
+        space_shortcut.activated.connect(self.toggle_play)
+        # 确保快捷键在所有窗口中都能工作
+        space_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
         
         logger.debug("_initialize_in_order: 完成")
     
@@ -1543,7 +1553,7 @@ class IPTVPlayer(QMainWindow):
         
         # 导入需要的模块
         from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor
-        from PyQt6.QtCore import QSize
+        from PyQt6.QtCore import QSize, Qt
         
         # 过滤并排序节目列表
         filtered_programs = []
@@ -1868,6 +1878,24 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, 'catchup_program'):
             delattr(self, 'catchup_program')
         
+        # 重置节目单日期为今天
+        from datetime import datetime, timedelta
+        self.current_epg_date = datetime.now().date()
+        # 更新日期显示
+        if hasattr(self, 'epg_date_label'):
+            today = datetime.now().date()
+            if self.current_epg_date == today:
+                self.epg_date_label.setText("今天")
+            elif self.current_epg_date == today - timedelta(days=1):
+                self.epg_date_label.setText("昨天")
+            elif self.current_epg_date == today + timedelta(days=1):
+                self.epg_date_label.setText("明天")
+            else:
+                self.epg_date_label.setText(self.current_epg_date.strftime("%Y-%m-%d"))
+        # 更新节目单列表
+        if hasattr(self, '_populate_epg_list'):
+            self._populate_epg_list()
+        
         # 恢复播放原频道
         if hasattr(self, 'original_channel') and self.original_channel:
             channel_name = self.original_channel.get("name", "未知频道")
@@ -2140,19 +2168,17 @@ class IPTVPlayer(QMainWindow):
     
     def toggle_play(self):
         """切换播放/暂停"""
-        print("toggle_play 被调用")
         if self.player_controller:
-            print(f"player_controller 存在: {self.player_controller}")
             self.player_controller.toggle_pause()
-        else:
-            print("player_controller 不存在")
     
     def set_volume(self, value):
         """设置音量"""
         if self.player_controller:
             self.player_controller.set_volume(value)
             # 如果不是静音状态，更新音量图标
-            if hasattr(self, '_is_muted') and not self._is_muted:
+            if not hasattr(self, '_is_muted'):
+                self._is_muted = False
+            if not self._is_muted:
                 self._update_volume_icon(value)
     
     def toggle_mute(self):
@@ -2201,6 +2227,21 @@ class IPTVPlayer(QMainWindow):
                 # 清除回看节目信息
                 if hasattr(self, 'catchup_program'):
                     delattr(self, 'catchup_program')
+            
+            # 重置节目单日期为今天
+            from datetime import datetime, timedelta
+            self.current_epg_date = datetime.now().date()
+            # 更新日期显示
+            if hasattr(self, 'epg_date_label'):
+                today = datetime.now().date()
+                if self.current_epg_date == today:
+                    self.epg_date_label.setText("今天")
+                elif self.current_epg_date == today - timedelta(days=1):
+                    self.epg_date_label.setText("昨天")
+                elif self.current_epg_date == today + timedelta(days=1):
+                    self.epg_date_label.setText("明天")
+                else:
+                    self.epg_date_label.setText(self.current_epg_date.strftime("%Y-%m-%d"))
             
             # 切换频道时清空之前的频道信息
             if hasattr(self, 'channel_name'):
@@ -2805,8 +2846,8 @@ class IPTVPlayer(QMainWindow):
     def keyPressEvent(self, event):
         """处理键盘事件"""
         if event.key() == Qt.Key.Key_Space:
-            # 当按下空格键时，如果正在播放，则切换暂停/播放状态
-            if hasattr(self, 'player_controller') and self.player_controller and self.player_controller.is_playing:
+            # 当按下空格键时，切换暂停/播放状态
+            if hasattr(self, 'player_controller') and self.player_controller:
                 self.toggle_play()
         super().keyPressEvent(event)
     
@@ -3877,6 +3918,7 @@ class IPTVPlayer(QMainWindow):
         """键盘事件处理"""
         if event.key() == Qt.Key.Key_Escape and self.is_fullscreen:
             self.toggle_fullscreen(False)
+        super().keyPressEvent(event)
 
     def _check_for_updates_async(self):
         """异步检查新版本"""
