@@ -1,5 +1,6 @@
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QFrame
 import asyncio
 import platform
 import sys
@@ -30,131 +31,133 @@ class AboutDialog(QtWidgets.QDialog):
         self._init_ui()
 
     def _init_ui(self):
-        """初始化UI组件"""
         tr = self.language_manager.tr
+        c = self._colors
         self.setWindowTitle(tr("about_dialog_title", "About IPTV Scanner Editor Pro"))
-        self.setMinimumWidth(520)
-        self.setMinimumHeight(480)
+        self.setFixedSize(480, 420)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
 
         main_layout = QtWidgets.QVBoxLayout(self)
-        main_layout.setContentsMargins(24, 20, 24, 16)
-        main_layout.setSpacing(12)
+        main_layout.setContentsMargins(28, 24, 28, 20)
+        main_layout.setSpacing(0)
 
-        title_layout = QtWidgets.QVBoxLayout()
-        title_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_layout.setSpacing(4)
+        header_layout = QtWidgets.QHBoxLayout()
+        header_layout.setSpacing(16)
 
-        logo_label = QtWidgets.QLabel()
-        logo_label.setText("📺")
-        logo_label.setStyleSheet("font-size: 48px; background-color: transparent;")
-        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_layout.addWidget(logo_label)
+        logo_label = QtWidgets.QLabel("📺")
+        logo_label.setStyleSheet("font-size: 40px; background-color: transparent;")
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        header_layout.addWidget(logo_label)
 
-        app_name_label = QtWidgets.QLabel("IPTV Scanner Editor Pro")
-        app_name_label.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {self._colors['accent']}; background-color: transparent;")
-        app_name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_layout.addWidget(app_name_label)
+        title_col = QtWidgets.QVBoxLayout()
+        title_col.setSpacing(2)
+
+        app_name = QtWidgets.QLabel("IPTV Scanner Editor Pro")
+        app_name.setStyleSheet(f"font-size: 18px; font-weight: bold; color: {c['accent']}; background-color: transparent;")
+        app_name.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        title_col.addWidget(app_name)
 
         self.app_desc_label = QtWidgets.QLabel(tr("app_description", "IPTV Professional Scanner & Editor"))
-        self.app_desc_label.setStyleSheet(f"font-size: 12px; color: {self._colors['player_panel_secondary']}; background-color: transparent;")
-        self.app_desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_layout.addWidget(self.app_desc_label)
+        self.app_desc_label.setStyleSheet(f"font-size: 11px; color: {c['player_panel_secondary']}; background-color: transparent;")
+        self.app_desc_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        title_col.addWidget(self.app_desc_label)
 
-        main_layout.addLayout(title_layout)
+        header_layout.addLayout(title_col)
+        header_layout.addStretch()
+        main_layout.addLayout(header_layout)
 
-        info_card = QtWidgets.QWidget()
-        info_card.setObjectName("infoCard")
-        info_layout = QtWidgets.QVBoxLayout(info_card)
-        info_layout.setSpacing(6)
-        info_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.addSpacing(16)
 
-        version_group = QtWidgets.QGroupBox()
-        version_layout = QtWidgets.QGridLayout(version_group)
-        version_layout.setSpacing(6)
-        version_layout.setContentsMargins(4, 4, 4, 4)
+        card = QtWidgets.QWidget()
+        card.setStyleSheet(f"""
+            QWidget#infoCard {{
+                background-color: {c['alternate_base']};
+                border-radius: 8px;
+                padding: 4px;
+            }}
+        """)
+        card.setObjectName("infoCard")
+        card_layout = QtWidgets.QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 12, 16, 12)
+        card_layout.setSpacing(8)
 
-        label_style = f"font-weight: bold; color: {self._colors['window_text']}; background-color: transparent; font-size: 12px;"
-        value_style = f"color: {self._colors['accent']}; background-color: transparent; font-size: 12px;"
-        value_style_white = f"color: {self._colors['window_text']}; background-color: transparent; font-size: 12px;"
+        lbl_style = f"font-size: 12px; color: {c['window_text']}; background-color: transparent;"
+        val_style = f"font-size: 12px; color: {c['accent']}; background-color: transparent;"
 
-        current_version_label = QtWidgets.QLabel(f"{tr('current_version', 'Current Version')}：")
-        current_version_label.setStyleSheet(label_style)
-        current_version_value = QtWidgets.QLabel(self.current_version)
-        current_version_value.setStyleSheet(value_style)
+        rows = [
+            (f"{tr('current_version', 'Current Version')}", self.current_version, True),
+            (f"{tr('latest_version', 'Latest Version')}", None, True),
+            (f"{tr('build_date', 'Build Date')}", self.BUILD_DATE, False),
+            (f"{tr('qt_version', 'QT Version')}", QtCore.qVersion(), False),
+        ]
 
-        latest_version_label = QtWidgets.QLabel(f"{tr('latest_version', 'Latest Version')}：")
-        latest_version_label.setStyleSheet(label_style)
-        self.latest_version_value = QtWidgets.QLabel(tr("checking_update", "Checking..."))
-        self.latest_version_value.setStyleSheet(value_style)
+        self.latest_version_value = None
+        for label_text, value_text, is_accent in rows:
+            row = QtWidgets.QHBoxLayout()
+            row.setSpacing(8)
+            lbl = QtWidgets.QLabel(label_text)
+            lbl.setStyleSheet(lbl_style)
+            lbl.setFixedWidth(100)
+            val = QtWidgets.QLabel(value_text if value_text else tr("checking_update", "Checking..."))
+            val.setStyleSheet(val_style if is_accent else lbl_style)
+            if value_text is None:
+                self.latest_version_value = val
+            row.addWidget(lbl)
+            row.addWidget(val)
+            row.addStretch()
+            card_layout.addLayout(row)
 
-        build_date_label = QtWidgets.QLabel(f"{tr('build_date', 'Build Date')}：")
-        build_date_label.setStyleSheet(label_style)
-        build_date_value = QtWidgets.QLabel(self.BUILD_DATE)
-        build_date_value.setStyleSheet(value_style_white)
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setStyleSheet(f"background-color: {c['mid']}; max-height: 1px; margin: 4px 0;")
+        card_layout.addWidget(sep)
 
-        qt_version_label = QtWidgets.QLabel(f"{tr('qt_version', 'QT Version')}：")
-        qt_version_label.setStyleSheet(label_style)
-        qt_version_value = QtWidgets.QLabel(QtCore.qVersion())
-        qt_version_value.setStyleSheet(value_style_white)
+        sys_row = QtWidgets.QHBoxLayout()
+        sys_row.setSpacing(8)
+        sys_lbl = QtWidgets.QLabel(f"{tr('system_info', 'System Info')}")
+        sys_lbl.setStyleSheet(lbl_style)
+        sys_lbl.setFixedWidth(100)
+        sys_val = QtWidgets.QLabel(f"Python {sys.version.split()[0]}, {platform.system()} {platform.release()}")
+        sys_val.setStyleSheet(lbl_style)
+        sys_row.addWidget(sys_lbl)
+        sys_row.addWidget(sys_val)
+        sys_row.addStretch()
+        card_layout.addLayout(sys_row)
 
-        version_layout.addWidget(current_version_label, 0, 0)
-        version_layout.addWidget(current_version_value, 0, 1)
-        version_layout.addWidget(latest_version_label, 1, 0)
-        version_layout.addWidget(self.latest_version_value, 1, 1)
-        version_layout.addWidget(build_date_label, 2, 0)
-        version_layout.addWidget(build_date_value, 2, 1)
-        version_layout.addWidget(qt_version_label, 3, 0)
-        version_layout.addWidget(qt_version_value, 3, 1)
+        main_layout.addWidget(card)
 
-        info_layout.addWidget(version_group)
+        main_layout.addSpacing(16)
 
-        self.system_info_label = QtWidgets.QLabel(f"{tr('system_info', 'System Info')}：")
-        self.system_info_label.setStyleSheet(f"font-weight: bold; color: {self._colors['window_text']}; margin-top: 4px; background-color: transparent; font-size: 12px;")
-        info_layout.addWidget(self.system_info_label)
-
-        system_info_value = QtWidgets.QLabel(f"Python {sys.version.split()[0]}, {platform.system()} {platform.release()}")
-        system_info_value.setStyleSheet(f"color: {self._colors['window_text']}; background-color: transparent; font-size: 12px;")
-        info_layout.addWidget(system_info_value)
-
-        main_layout.addWidget(info_card)
-
-        bottom_layout = QtWidgets.QVBoxLayout()
-        bottom_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        bottom_layout.setSpacing(6)
+        bottom_layout = QtWidgets.QHBoxLayout()
+        bottom_layout.setSpacing(12)
 
         self.copyright_label = QtWidgets.QLabel(tr("copyright_text", "© 2025 IPTV Scanner Editor Pro"))
-        self.copyright_label.setStyleSheet(f"color: {self._colors['player_panel_secondary']}; font-size: 11px; background-color: transparent;")
-        self.copyright_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        bottom_layout.addWidget(self.copyright_label)
+        self.copyright_label.setStyleSheet(f"font-size: 10px; color: {c['player_panel_secondary']}; background-color: transparent;")
 
         github_link = QtWidgets.QLabel()
-        github_link.setText(f'<a href="https://github.com/sumingyd/IPTV-Scanner-Editor-Pro" style="color: {self._colors["accent"]}; text-decoration: none;">{tr("github_repo", "GitHub Repository")}</a>')
+        github_link.setText(f'<a href="https://github.com/sumingyd/IPTV-Scanner-Editor-Pro" style="color: {c["accent"]}; text-decoration: none; font-size: 10px;">{tr("github_repo", "GitHub Repository")}</a>')
         github_link.setOpenExternalLinks(True)
-        github_link.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        close_btn = QtWidgets.QPushButton(tr("close_button", "Close"))
+        close_btn.setFixedSize(72, 28)
+        from ui.styles import AppStyles
+        close_btn.setStyleSheet(AppStyles.button_style())
+        close_btn.clicked.connect(self.close)
+
+        bottom_layout.addWidget(self.copyright_label)
         bottom_layout.addWidget(github_link)
+        bottom_layout.addStretch()
+        bottom_layout.addWidget(close_btn)
 
         main_layout.addLayout(bottom_layout)
 
-        button_layout = QtWidgets.QHBoxLayout()
-        button_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        close_btn = QtWidgets.QPushButton(tr("close_button", "Close"))
-        close_btn.clicked.connect(self.close)
-        button_layout.addWidget(close_btn)
-
-        main_layout.addLayout(button_layout)
-
-        from ui.styles import AppStyles
         self.setStyleSheet(AppStyles.dialog_style())
-
         QtCore.QTimer.singleShot(100, self._check_version_async)
 
     def _check_version_async(self):
-        """异步检查版本"""
         tr = self.language_manager.tr
         try:
             loop = asyncio.new_event_loop()
@@ -174,7 +177,6 @@ class AboutDialog(QtWidgets.QDialog):
             loop.close()
 
     async def _get_latest_version(self):
-        """从GitHub获取最新版本信息"""
         tr = self.language_manager.tr
         try:
             async with aiohttp.ClientSession() as session:
@@ -198,7 +200,6 @@ class AboutDialog(QtWidgets.QDialog):
             return tr("fetch_failed_text", "(Fetch Failed)"), ""
 
     def mousePressEvent(self, event):
-        """鼠标按下事件，开始拖动"""
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             widget = self.childAt(event.position().toPoint())
             if isinstance(widget, QtWidgets.QLabel) and widget.openExternalLinks():
@@ -207,32 +208,29 @@ class AboutDialog(QtWidgets.QDialog):
             self.offset = event.position().toPoint()
 
     def mouseMoveEvent(self, event):
-        """鼠标移动事件，执行拖动"""
         if self.dragging:
             new_position = event.globalPosition().toPoint() - self.offset
             self.move(new_position)
 
     def mouseReleaseEvent(self, event):
-        """鼠标释放事件，结束拖动"""
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self.dragging = False
 
     def paintEvent(self, event):
-        """自定义绘制半透明背景和边框"""
         from PyQt6.QtGui import QPainter, QPainterPath
         from PyQt6.QtCore import QRectF
         from PyQt6.QtGui import QColor
         from ui.styles import AppStyles
-        
+
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
+
         colors = AppStyles._get_colors()
-        
+
         path = QPainterPath()
         rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
         path.addRoundedRect(rect, 12, 12)
-        
+
         bg_color = colors.get('window', '#333333')
         if bg_color.startswith('#'):
             r = int(bg_color[1:3], 16)
@@ -241,7 +239,7 @@ class AboutDialog(QtWidgets.QDialog):
         else:
             r, g, b = 30, 30, 30
         painter.fillPath(path, QColor(r, g, b, self.opacity))
-        
+
         border_color = colors.get('mid', '#999999')
         if border_color.startswith('#'):
             r = int(border_color[1:3], 16)
@@ -251,5 +249,5 @@ class AboutDialog(QtWidgets.QDialog):
             r, g, b = 120, 120, 120
         painter.setPen(QColor(r, g, b, 200))
         painter.drawPath(path)
-        
+
         super().paintEvent(event)

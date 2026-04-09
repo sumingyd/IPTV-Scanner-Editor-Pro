@@ -805,10 +805,58 @@ class AppStyles:
     @staticmethod
     def player_menu_bar_style() -> str:
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        menu_bg = colors['base']
+        menu_text = colors['window_text']
+        menu_hover_bg = colors['neumorphic_light'] if neo else colors['highlight']
+        menu_hover_text = colors['accent'] if neo else colors['highlighted_text']
+        menu_border = colors['shadow_dark'] if neo else colors['mid']
+        if neo:
+            return f"""
+                QMenuBar {{
+                    background-color: {menu_bg};
+                    color: {menu_text};
+                    padding: 2px;
+                    border-bottom: 2px solid {colors['shadow_dark']};
+                }}
+                QMenuBar::item {{
+                    padding: 4px 10px;
+                    margin: 2px;
+                    border-radius: 6px;
+                    background-color: {menu_bg};
+                }}
+                QMenuBar::item:selected {{
+                    color: {menu_hover_text};
+                    background-color: {menu_hover_bg};
+                    border: 1px solid {colors['shadow_light']};
+                }}
+                QMenu {{
+                    background-color: {menu_bg};
+                    color: {menu_text};
+                    border-radius: 8px;
+                    padding: 4px;
+                    border: 1px solid {menu_border};
+                }}
+                QMenu::item {{
+                    padding: 6px 24px;
+                    margin: 2px;
+                    border-radius: 6px;
+                }}
+                QMenu::item:selected {{
+                    color: {menu_hover_text};
+                    background-color: {menu_hover_bg};
+                    border: 1px solid {colors['shadow_light']};
+                }}
+                QMenu::separator {{
+                    height: 1px;
+                    background-color: {colors['shadow_dark']};
+                    margin: 4px 8px;
+                }}
+            """
         return f"""
             QMenuBar {{
-                background-color: {colors['player_panel']};
-                color: {colors['player_panel_text']};
+                background-color: {menu_bg};
+                color: {menu_text};
                 padding: 2px;
             }}
             QMenuBar::item {{
@@ -817,13 +865,15 @@ class AppStyles:
                 border-radius: 4px;
             }}
             QMenuBar::item:selected {{
-                background-color: {colors['player_line']};
+                background-color: {menu_hover_bg};
+                color: {menu_hover_text};
             }}
             QMenu {{
-                background-color: {colors['player_panel']};
-                color: {colors['player_panel_text']};
+                background-color: {menu_bg};
+                color: {menu_text};
                 border-radius: 4px;
                 padding: 2px;
+                border: 1px solid {menu_border};
             }}
             QMenu::item {{
                 padding: 4px 20px;
@@ -831,7 +881,8 @@ class AppStyles:
                 border-radius: 4px;
             }}
             QMenu::item:selected {{
-                background-color: {colors['player_line']};
+                background-color: {menu_hover_bg};
+                color: {menu_hover_text};
             }}
         """
 

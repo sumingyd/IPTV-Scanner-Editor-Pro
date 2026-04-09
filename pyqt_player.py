@@ -3719,71 +3719,56 @@ class IPTVPlayer(QMainWindow):
         return html
 
     def show_usage_instructions(self):
-        """显示使用说明"""
         from PyQt6 import QtCore, QtGui
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QHBoxLayout, QPushButton
+        from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QTextEdit, QHBoxLayout,
+                                     QPushButton, QFrame, QLabel)
         from ui.styles import AppStyles
-        
-        # 创建自定义对话框
+
         class FloatingDialog(QDialog):
             def __init__(self, parent=None):
                 super().__init__(parent)
                 self.dragging = False
                 self.offset = None
-                self.opacity = 220
+                from ui.styles import AppStyles
+                colors = AppStyles._get_colors()
+                self.opacity = colors.get('window_opacity', 220)
                 self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-                # 设置为工具窗口，无边框
                 self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
-                # 确保窗口可以接收鼠标事件
                 self.setMouseTracking(True)
-                # 确保窗口保持活动状态
                 self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
-            
+
             def mousePressEvent(self, event):
                 if event.button() == QtCore.Qt.MouseButton.LeftButton:
                     self.dragging = True
                     self.offset = event.position().toPoint()
-            
+
             def mouseMoveEvent(self, event):
                 if self.dragging:
                     new_position = event.globalPosition().toPoint() - self.offset
                     self.move(new_position)
-            
+
             def mouseReleaseEvent(self, event):
                 if event.button() == QtCore.Qt.MouseButton.LeftButton:
                     self.dragging = False
-            
+
             def paintEvent(self, event):
-                """自定义绘制半透明背景和边框"""
                 painter = QtGui.QPainter(self)
                 painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-                
-                # 导入样式
                 from ui.styles import AppStyles
                 colors = AppStyles._get_colors()
-                
-                # 创建圆角矩形路径
                 from PyQt6.QtGui import QPainterPath
                 from PyQt6.QtCore import QRectF
                 path = QPainterPath()
                 rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
                 path.addRoundedRect(rect, 12, 12)
-                
-                # 绘制半透明背景（只在圆角内）
-                # 从主题中获取背景颜色
                 bg_color = colors.get('window', '#333333')
-                # 解析颜色值
                 if bg_color.startswith('#'):
-                    # 十六进制颜色
                     r = int(bg_color[1:3], 16)
                     g = int(bg_color[3:5], 16)
                     b = int(bg_color[5:7], 16)
                 else:
-                    # 默认颜色
                     r, g, b = 30, 30, 30
                 painter.fillPath(path, QtGui.QColor(r, g, b, self.opacity))
-                
-                # 绘制边框
                 border_color = colors.get('mid', '#999999')
                 if border_color.startswith('#'):
                     r = int(border_color[1:3], 16)
@@ -3793,43 +3778,69 @@ class IPTVPlayer(QMainWindow):
                     r, g, b = 120, 120, 120
                 painter.setPen(QtGui.QColor(r, g, b, 200))
                 painter.drawPath(path)
-                
-                # 调用父类的 paintEvent 来绘制子控件
                 super().paintEvent(event)
-    
+
         dialog = FloatingDialog(self)
         tr = self.language_manager.tr
+        colors = AppStyles._get_colors()
         dialog.setWindowTitle(tr("usage_instructions_title", "Usage Instructions"))
-        dialog.setMinimumSize(600, 600)
-        # 应用样式
+        dialog.setMinimumSize(560, 520)
         dialog.setStyleSheet(AppStyles.dialog_style())
-        
-        layout = QVBoxLayout(dialog)
+
+        main_layout = QVBoxLayout(dialog)
+        main_layout.setContentsMargins(24, 20, 24, 16)
+        main_layout.setSpacing(12)
+
+        header_layout = QHBoxLayout()
+        header_layout.setSpacing(12)
+        header_icon = QLabel("📖")
+        header_icon.setStyleSheet("font-size: 28px; background-color: transparent;")
+        header_icon.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        header_layout.addWidget(header_icon)
+        header_title = QLabel(tr("usage_instructions_title", "Usage Instructions"))
+        header_title.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {colors['accent']}; background-color: transparent;")
+        header_title.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        header_layout.addWidget(header_title)
+        header_layout.addStretch()
+        main_layout.addLayout(header_layout)
+
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setStyleSheet(f"background-color: {colors['mid']}; max-height: 1px;")
+        main_layout.addWidget(sep)
+
         text_edit = QTextEdit()
-        # 设置为富文本模式，支持基本格式
         usage_content = tr("usage_content")
         if not usage_content:
             usage_content = '## 基本操作\n\n1. **打开播放列表**\n   - 点击"文件"菜单，选择"打开播放列表"\n   - 支持 M3U、TXT 等格式的播放列表文件\n\n2. **播放频道**\n   - 在频道列表中双击频道开始播放\n   - 使用工具栏的播放/暂停/停止按钮控制播放\n   - 调整音量和全屏显示\n\n3. **扫描频道**\n   - 点击"工具"菜单，选择"扫描频道"\n   - 在扫描窗口中输入 IP 范围或 URL\n   - 设置超时时间和线程数\n   - 点击"开始扫描"按钮\n\n4. **验证频道**\n   - 点击"工具"菜单，选择"验证频道"\n   - 系统会自动检测频道的有效性\n   - 无效频道会被标记\n\n5. **频道管理**\n   - 支持拖拽排序频道\n   - 右键菜单可进行批量操作\n   - 支持频道分组和收藏\n\n6. **频道映射**\n   - 点击"工具"菜单，选择"频道映射管理器"\n   - 管理用户映射规则\n   - 查看频道指纹和映射建议\n\n## 高级功能\n\n- **URL 解析器**：解析复杂的 URL 范围\n- **多语言支持**：切换界面语言\n- **主题切换**：支持深色/浅色主题\n- **配置管理**：自动保存和加载配置\n- **日志系统**：详细的操作日志'
-        
-        # 转换为HTML格式以支持更好的显示效果
+
         html_content = self._convert_markdown_to_html(usage_content)
         text_edit.setHtml(html_content)
         text_edit.setReadOnly(True)
-        # 设置字体和间距
         text_edit.setFont(QtGui.QFont('Microsoft YaHei', 10))
         text_edit.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         text_edit.setWordWrapMode(QtGui.QTextOption.WrapMode.WordWrap)
-        text_edit.setContentsMargins(20, 20, 20, 20)
-        layout.addWidget(text_edit)
-        
-        button_box = QHBoxLayout()
-        ok_button = QPushButton(tr("ok_button", "OK"))
-        ok_button.setStyleSheet(AppStyles.common_button_style())
-        ok_button.clicked.connect(dialog.accept)
-        button_box.addStretch()
-        button_box.addWidget(ok_button)
-        layout.addLayout(button_box)
-        
+        text_edit.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {colors['alternate_base']};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+                border-radius: 8px;
+                padding: 12px;
+                font-size: 13px;
+            }}
+        """)
+        main_layout.addWidget(text_edit)
+
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        close_btn = QPushButton(tr("close_button", "Close"))
+        close_btn.setFixedSize(72, 28)
+        close_btn.setStyleSheet(AppStyles.button_style())
+        close_btn.clicked.connect(dialog.accept)
+        button_layout.addWidget(close_btn)
+        main_layout.addLayout(button_layout)
+
         dialog.exec()
     
     def show_about(self):
