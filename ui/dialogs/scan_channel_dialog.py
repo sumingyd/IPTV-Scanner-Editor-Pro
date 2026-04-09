@@ -66,15 +66,13 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
         self._init_ui()
 
-        # 立即更新UI文本到当前语言
-        if hasattr(self, 'language_manager'):
-            self.language_manager.update_ui_texts(self)
-
-        # 初始化主窗口的后续设置
         self._init_main_window()
-        self._timers = []
-        QtCore.QTimer.singleShot(0, self._init_timers)
-    
+
+    def done(self, result):
+        self._unregister_cleanup_handlers()
+        self._unregister_config_observers()
+        super().done(result)
+
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             # 检查鼠标位置下的控件是否是滚动条
@@ -130,10 +128,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
         
         # 调用父类的 paintEvent 来绘制子控件
         super().paintEvent(event)
-
-    def _init_timers(self):
-        """在主线程初始化所有定时器"""
-        pass
 
     def _stop_all_timers(self):
         """安全停止所有定时器"""
@@ -918,17 +912,13 @@ class ScanChannelDialog(QtWidgets.QDialog):
         pass
 
     def _init_main_window(self):
-        """初始化主窗口的后续设置"""
-        # 确保模型存在
         if not hasattr(self, 'model') or not self.model:
             self.model = ChannelListModel()
-            # 设置语言管理器
             if hasattr(self, 'language_manager') and self.language_manager:
                 self.model.set_language_manager(self.language_manager)
-        
+
         self.model.setParent(self)
 
-        # 初始化进度条管理器（必须在 init_controllers 之前）
         self.progress_manager = init_progress_manager(
             self.progress_indicator,
             None
@@ -944,35 +934,20 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self._register_config_observers()
 
     def init_controllers(self):
-        """初始化所有控制器"""
-        log_ui_info("=== 初始化控制器 ===")
-
         if not hasattr(self, 'scanner') or self.scanner is None:
-            log_scan_info("创建ScannerController实例")
             self.scanner = ScannerController(self.model, self)
-            log_scan_info(f"ScannerController创建完成: {self.scanner}")
-        else:
-            log_scan_info(f"ScannerController已存在: {self.scanner}")
 
         self._connect_progress_signals()
 
-        log_ui_info("=== 控制器初始化完成 ===")
-
     def _connect_progress_signals(self):
-        """连接进度条更新信号"""
-        # 使用进度条管理器注册扫描进度回调
         self.progress_manager.register_progress_callback(
             'scan',
             self._update_scan_progress
         )
-
-        # 启动自动更新
         self.progress_manager.start_auto_update(
             self._update_scan_progress,
             interval=500
         )
-
-        log_ui_info("进度条信号已连接")
 
     def _update_scan_progress(self):
         """更新扫描进度（使用进度条管理器）"""
@@ -1025,24 +1000,15 @@ class ScanChannelDialog(QtWidgets.QDialog):
             if 'enable_retry' in settings:
                 self.enable_retry_checkbox.setChecked(settings['enable_retry'])
 
-            language_code = self.config.load_language_settings()
-
-            if hasattr(self, 'language_manager'):
-                self.language_manager.set_language(language_code)
-
         except Exception as e:
             log_config_error(f"加载配置失败: {e}")
             self.timeout_input.setText('10')
             self.thread_count_input.setText('5')
 
     def _register_config_observers(self):
-        """注册配置变更观察者"""
-        # 注册网络配置变更观察者
         register_config_observer("Network.*", self._on_network_config_changed)
         register_config_observer("ScanRetry.*", self._on_scan_retry_config_changed)
         register_config_observer("Language.current_language", self._on_language_config_changed)
-
-        log_config_info("配置变更观察者已注册")
 
     def _on_network_config_changed(self, section, key, old_value, new_value):
         """处理网络配置变更"""
@@ -1078,57 +1044,25 @@ class ScanChannelDialog(QtWidgets.QDialog):
             self.language_manager.update_ui_texts(self)
 
     def _connect_signals(self):
-        """连接所有信号和槽"""
-        log_ui_info("=== 开始连接信号 ===")
-
-        # 注意：channel_list的selectionChanged信号已经在_setup_channel_list中连接
-        # 这里不需要重复连接
-
         safe_connect_button(self.btn_scan, self._on_scan_clicked)
         safe_connect_button(self.btn_append_scan, self._on_append_scan_clicked)
-
         safe_connect_button(self.btn_validate, self._on_validate_clicked)
         safe_connect_button(self.btn_hide_invalid, self._on_hide_invalid_clicked)
         safe_connect_button(self.btn_generate, self._on_generate_clicked)
 
-        # 连接扫描器信号
-        log_ui_info("连接扫描器信号...")
-
-        # 检查scanner对象是否存在
         if not hasattr(self, 'scanner') or self.scanner is None:
-            log_ui_error("scanner对象不存在，无法连接信号")
             return
-
-        log_ui_info(f"scanner对象: {self.scanner}")
 
         try:
             self.scanner.channel_found.connect(self._on_channel_found)
-            log_ui_info("channel_found信号已连接")
-        except Exception as e:
-            log_ui_error(f"连接channel_found信号失败: {e}")
-
-        try:
             self.scanner.scan_completed.connect(self._on_scan_completed)
-            log_ui_info("scan_completed信号已连接到 _on_scan_completed")
-        except Exception as e:
-            log_ui_error(f"连接scan_completed信号失败: {e}")
-
-        try:
             self.scanner.stats_updated.connect(
                 self._update_stats_display,
                 QtCore.Qt.ConnectionType.QueuedConnection
             )
-            log_ui_info("stats_updated信号已连接")
-        except Exception as e:
-            log_ui_error(f"连接stats_updated信号失败: {e}")
-
-        try:
             self.scanner.channel_validated.connect(self._on_channel_validated)
-            log_ui_info("channel_validated信号已连接")
         except Exception as e:
-            log_ui_error(f"连接channel_validated信号失败: {e}")
-
-        log_ui_info("=== 信号连接完成 ===")
+            log_ui_error(f"连接扫描器信号失败: {e}")
 
     def _on_scan_clicked(self):
         """处理扫描按钮点击事件"""
@@ -1450,39 +1384,40 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _register_cleanup_handlers(self):
         """注册资源清理处理器"""
-        self.logger.info("注册资源清理处理器...")
+        self._cleanup_handlers = []
 
-        # 收集所有处理器名称用于整合日志
-        handler_names = []
-
-        # 注册配置保存处理器（应该在清理前执行）
-        register_cleanup(self.save_before_exit, "save_config_before_exit")
-        handler_names.append("save_config_before_exit")
-
-        register_cleanup(self._stop_all_timers, "stop_all_timers")
-        handler_names.append("stop_all_timers")
-
-        # 进度条管理器清理
-        register_cleanup(self.progress_manager.stop_auto_update, "progress_manager_stop_auto_update")
-        handler_names.append("progress_manager_stop_auto_update")
-
-        register_cleanup(self.progress_manager.hide_progress, "progress_manager_hide_progress")
-        handler_names.append("progress_manager_hide_progress")
+        self._cleanup_handlers.append((self.save_before_exit, "save_config_before_exit"))
+        self._cleanup_handlers.append((self._stop_all_timers, "stop_all_timers"))
+        self._cleanup_handlers.append((self.progress_manager.stop_auto_update, "progress_manager_stop_auto_update"))
+        self._cleanup_handlers.append((self.progress_manager.hide_progress, "progress_manager_hide_progress"))
 
         if hasattr(self, 'scanner'):
-            register_cleanup(self.scanner.stop_scan, "scanner_stop_scan")
-            handler_names.append("scanner_stop_scan")
+            self._cleanup_handlers.append((self.scanner.stop_scan, "scanner_stop_scan"))
 
-        from services.validator_service import StreamValidator
-        register_cleanup(StreamValidator.terminate_all, "validator_terminate_all")
-        handler_names.append("validator_terminate_all")
+        for handler, name in self._cleanup_handlers:
+            register_cleanup(handler, name)
 
-        from utils.memory_manager import optimize_memory
-        register_cleanup(optimize_memory, "optimize_memory")
-        handler_names.append("optimize_memory")
+    def _unregister_cleanup_handlers(self):
+        """注销资源清理处理器"""
+        if not hasattr(self, '_cleanup_handlers'):
+            return
+        from utils.resource_cleaner import unregister_cleanup
+        for handler, name in self._cleanup_handlers:
+            try:
+                unregister_cleanup(handler)
+            except Exception:
+                pass
+        self._cleanup_handlers.clear()
 
-        # 整合日志：显示所有注册的处理器
-        self.logger.info(f"已注册 {len(handler_names)} 个资源清理处理器: {', '.join(handler_names)}")
+    def _unregister_config_observers(self):
+        """注销配置变更观察者"""
+        from utils.config_notifier import unregister_config_observer
+        try:
+            unregister_config_observer("Network.*", self._on_network_config_changed)
+            unregister_config_observer("ScanRetry.*", self._on_scan_retry_config_changed)
+            unregister_config_observer("Language.current_language", self._on_language_config_changed)
+        except Exception:
+            pass
 
     def _handle_retry_scan(self):
         """处理重试扫描"""

@@ -466,8 +466,13 @@ class IPTVPlayer(QMainWindow):
         
         # 标记UI初始化完成
         self._ui_initialized = True
-        
-        # 注册窗口到主题管理器
+
+        from utils.resource_cleaner import register_cleanup
+        from services.validator_service import StreamValidator
+        from utils.memory_manager import optimize_memory
+        register_cleanup(StreamValidator.terminate_all, "validator_terminate_all")
+        register_cleanup(optimize_memory, "optimize_memory")
+
         from ui.theme_manager import get_theme_manager
         theme_manager = get_theme_manager()
         theme_manager.register_window(self)
