@@ -8,9 +8,6 @@ PyQt6>=6.4.0
 requests>=2.28.0
 urllib3>=1.26.0
 
-# 多媒体处理
-python-vlc>=3.0.0
-
 # 图像处理
 Pillow>=9.0.0
 

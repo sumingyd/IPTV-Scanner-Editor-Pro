@@ -32,13 +32,9 @@ PYINSTALLER_CMD = [
     "--onefile",  # 生成单个 EXE 文件
     "--windowed",  # 无控制台窗口
     "--name", "IPTV Scanner Editor Pro",  # 应用名称
-    "--icon", str(PROJECT_ROOT / "icons" / "1.png"),  # 图标文件
-    "--add-data", f"{PROJECT_ROOT / 'locales'};locales",  # 语言文件
-    "--add-data", f"{PROJECT_ROOT / 'ffmpeg'};ffmpeg",  # FFmpeg 工具
-    "--add-data", f"{PROJECT_ROOT / 'icons'};icons",  # 图标目录
-    "--add-data", f"{PROJECT_ROOT / 'img'};img",  # 图片目录
-    "--add-data", f"{PROJECT_ROOT / 'logo'};logo",  # Logo 目录
-    "--add-data", f"{PROJECT_ROOT / 'mpv'};mpv",  # MPV 播放器库
+    "--icon", str(PROJECT_ROOT / "resources" / "logo.ico"),
+    "--add-data", f"{PROJECT_ROOT / 'ffmpeg'};ffmpeg",
+    "--add-data", f"{PROJECT_ROOT / 'mpv'};mpv",
     "--hidden-import", "PyQt6.QtNetwork",  # 隐藏导入
     "--hidden-import", "PyQt6.QtWidgets",  # 隐藏导入
     "--hidden-import", "PyQt6.QtCore",  # 隐藏导入
