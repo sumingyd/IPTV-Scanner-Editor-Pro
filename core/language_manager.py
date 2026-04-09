@@ -246,7 +246,10 @@ class LanguageManager(QObject):
                     'epg_title': '节目单',
                     'channel_list': '频道列表',
                     'not_playing': '未播放',
-                    'language_changed': '语言已切换'
+                    'language_changed': '语言已切换',
+                    'no_epg_data': '暂无节目信息',
+                    'no_channels': '暂无频道',
+                    'media_info': '媒体信息'
             },
                 'en': {
                     'language_name': 'English',
@@ -391,7 +394,10 @@ class LanguageManager(QObject):
                 'epg_title': 'Program Guide',
                 'channel_list': 'Channel List',
                 'not_playing': 'Not playing',
-                'language_changed': 'Language changed'
+                'language_changed': 'Language changed',
+                'no_epg_data': 'No program information',
+                'no_channels': 'No channels',
+                'media_info': 'Media Info'
             }
         }
 
@@ -613,23 +619,50 @@ class LanguageManager(QObject):
             if hasattr(main_window, 'ui') and hasattr(main_window.ui, 'update_channel_drag_hint'):
                 main_window.ui.update_channel_drag_hint()
 
-            # 更新所有打开的关于对话框
-            self._update_about_dialogs(main_window)
+            # 更新悬浮窗
+            if hasattr(main_window, 'epg_panel'):
+                # 更新EPG面板
+                if hasattr(main_window, 'epg_title'):
+                    main_window.epg_title.setText(f"📅 {self.tr('epg_title', 'Program Guide')}")
+                if hasattr(main_window, 'epg_date_label'):
+                    # 日期显示可能需要动态更新，但至少确保初始文本正确
+                    pass
+                if hasattr(main_window, 'epg_empty_label'):
+                    main_window.epg_empty_label.setText(self.tr('no_epg_data', 'No program information'))
+            if hasattr(main_window, 'playlist_panel'):
+                # 更新播放列表面板
+                if hasattr(main_window, 'playlist_title'):
+                    main_window.playlist_title.setText(f"📺 {self.tr('channel_list', 'Channel List')}")
+                if hasattr(main_window, 'channel_empty_label'):
+                    main_window.channel_empty_label.setText(self.tr('no_channels', 'No channels'))
+            if hasattr(main_window, 'floating_panel'):
+                # 更新悬浮控制面板
+                if hasattr(main_window, 'video_info'):
+                    main_window.video_info.setText(f"📺 {self.tr('not_playing', 'Not playing')}")
+                if hasattr(main_window, 'audio_info'):
+                    main_window.audio_info.setText("🔊 --")
+                if hasattr(main_window, 'network_info'):
+                    main_window.network_info.setText("🌐 --")
+                if hasattr(main_window, 'media_info'):
+                    main_window.media_info.setText(self.tr('media_info', 'Media Info'))
+
+            # 更新所有打开的对话框
+            self._update_dialogs(main_window)
 
             logger.info(f"UI文本已更新到语言: {self.current_language}")
 
         except Exception as e:
             logger.error(f"更新UI文本失败: {str(e)}")
 
-    def _update_about_dialogs(self, main_window):
-        """更新所有打开的关于对话框"""
+    def _update_dialogs(self, main_window):
+        """更新所有打开的对话框"""
         try:
             # 导入QtWidgets模块
             from PyQt6 import QtWidgets
 
-            # 查找所有打开的关于对话框
+            # 查找所有打开的对话框
             for widget in main_window.findChildren(QtWidgets.QDialog):
                 if hasattr(widget, 'update_ui_texts'):
                     widget.update_ui_texts()
         except Exception as e:
-            logger.debug(f"更新关于对话框失败: {e}")
+            logger.debug(f"更新对话框失败: {e}")

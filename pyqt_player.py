@@ -1346,14 +1346,20 @@ class IPTVPlayer(QMainWindow):
             tools_menu.addAction(player_settings)
             
             # 语言菜单
-            language_menu = menu_bar.addMenu("语言")
+            language_menu = menu_bar.addMenu(self.language_manager.tr("language", "Language"))
             
-            chinese = QAction("中文", self, checkable=True)
-            chinese.setChecked(True)  # 默认中文
+            # 获取当前语言
+            current_language = self.language_manager.current_language
+            
+            chinese = QAction(self.language_manager.tr("chinese", "中文"), self, checkable=True)
+            chinese.setChecked(current_language == "zh")
             chinese.triggered.connect(lambda: self.set_language("zh"))
             language_menu.addAction(chinese)
             
-            english = QAction("English", self, checkable=True)
+            english = QAction(self.language_manager.tr("english", "English"), self, checkable=True)
+            english.setChecked(current_language == "en")
+            english.triggered.connect(lambda: self.set_language("en"))
+            language_menu.addAction(english)
             
             # 主题菜单
             theme_menu = menu_bar.addMenu("主题")
@@ -1371,9 +1377,6 @@ class IPTVPlayer(QMainWindow):
                 theme_action.setChecked(theme == theme_manager.get_current_theme())
                 theme_action.triggered.connect(lambda checked, t=theme: self.set_theme(t))
                 theme_menu.addAction(theme_action)
-            english.setChecked(False)
-            english.triggered.connect(lambda: self.set_language("en"))
-            language_menu.addAction(english)
             
             # 帮助菜单
             help_menu = menu_bar.addMenu("帮助")
@@ -3842,6 +3845,10 @@ class IPTVPlayer(QMainWindow):
         try:
             # 更新语言设置
             self.language_manager.set_language(language)
+            # 保存语言设置到配置文件
+            from core.config_manager import ConfigManager
+            config_manager = ConfigManager()
+            config_manager.save_language_settings(language)
             # 重新创建菜单栏以更新语言
             self.menuBar().clear()
             self.setup_menu_bar()
