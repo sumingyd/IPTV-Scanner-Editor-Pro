@@ -217,7 +217,7 @@ class AboutDialog(QtWidgets.QDialog):
             self.dragging = False
 
     def paintEvent(self, event):
-        from PyQt6.QtGui import QPainter, QPainterPath
+        from PyQt6.QtGui import QPainter, QPainterPath, QPen
         from PyQt6.QtCore import QRectF
         from PyQt6.QtGui import QColor
         from ui.styles import AppStyles
@@ -226,6 +226,7 @@ class AboutDialog(QtWidgets.QDialog):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
 
         path = QPainterPath()
         rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
@@ -240,14 +241,26 @@ class AboutDialog(QtWidgets.QDialog):
             r, g, b = 30, 30, 30
         painter.fillPath(path, QColor(r, g, b, self.opacity))
 
-        border_color = colors.get('mid', '#999999')
-        if border_color.startswith('#'):
-            r = int(border_color[1:3], 16)
-            g = int(border_color[3:5], 16)
-            b = int(border_color[5:7], 16)
+        if neo:
+            pen_light = QPen(QColor(colors['shadow_light']), 2)
+            pen_dark = QPen(QColor(colors['shadow_dark']), 2)
+            w = self.width()
+            h = self.height()
+            painter.setPen(pen_light)
+            painter.drawLine(2, 2, w - 3, 2)
+            painter.drawLine(2, 2, 2, h - 3)
+            painter.setPen(pen_dark)
+            painter.drawLine(w - 2, 2, w - 2, h - 2)
+            painter.drawLine(2, h - 2, w - 2, h - 2)
         else:
-            r, g, b = 120, 120, 120
-        painter.setPen(QColor(r, g, b, 200))
-        painter.drawPath(path)
+            border_color = colors.get('mid', '#999999')
+            if border_color.startswith('#'):
+                r = int(border_color[1:3], 16)
+                g = int(border_color[3:5], 16)
+                b = int(border_color[5:7], 16)
+            else:
+                r, g, b = 120, 120, 120
+            painter.setPen(QColor(r, g, b, 200))
+            painter.drawPath(path)
 
         super().paintEvent(event)

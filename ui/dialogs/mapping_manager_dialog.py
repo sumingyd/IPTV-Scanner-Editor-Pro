@@ -56,41 +56,46 @@ class MappingManagerDialog(QtWidgets.QDialog):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
         
-        # 导入样式
         from ui.styles import AppStyles
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
         
-        # 创建圆角矩形路径
         path = QtGui.QPainterPath()
         rect = QtCore.QRectF(self.rect().adjusted(1, 1, -1, -1))
         path.addRoundedRect(rect, 12, 12)
         
-        # 绘制半透明背景（只在圆角内）
-        # 从主题中获取背景颜色
         bg_color = colors.get('window', '#333333')
-        # 解析颜色值
         if bg_color.startswith('#'):
-            # 十六进制颜色
             r = int(bg_color[1:3], 16)
             g = int(bg_color[3:5], 16)
             b = int(bg_color[5:7], 16)
         else:
-            # 默认颜色
             r, g, b = 30, 30, 30
         painter.fillPath(path, QtGui.QColor(r, g, b, self.opacity))
         
-        # 绘制边框
-        border_color = colors.get('mid', '#999999')
-        if border_color.startswith('#'):
-            r = int(border_color[1:3], 16)
-            g = int(border_color[3:5], 16)
-            b = int(border_color[5:7], 16)
+        if neo:
+            from PyQt6.QtGui import QPen
+            pen_light = QtGui.QPen(QtGui.QColor(colors['shadow_light']), 2)
+            pen_dark = QtGui.QPen(QtGui.QColor(colors['shadow_dark']), 2)
+            w = self.width()
+            h = self.height()
+            painter.setPen(pen_light)
+            painter.drawLine(2, 2, w - 3, 2)
+            painter.drawLine(2, 2, 2, h - 3)
+            painter.setPen(pen_dark)
+            painter.drawLine(w - 2, 2, w - 2, h - 2)
+            painter.drawLine(2, h - 2, w - 2, h - 2)
         else:
-            r, g, b = 120, 120, 120
-        painter.setPen(QtGui.QColor(r, g, b, 200))
-        painter.drawPath(path)
+            border_color = colors.get('mid', '#999999')
+            if border_color.startswith('#'):
+                r = int(border_color[1:3], 16)
+                g = int(border_color[3:5], 16)
+                b = int(border_color[5:7], 16)
+            else:
+                r, g, b = 120, 120, 120
+            painter.setPen(QtGui.QColor(r, g, b, 200))
+            painter.drawPath(path)
         
-        # 调用父类的 paintEvent 来绘制子控件
         super().paintEvent(event)
 
     def setup_ui(self):
@@ -893,22 +898,20 @@ class MappingEditDialog(QtWidgets.QDialog):
 
     def paintEvent(self, event):
         """自定义绘制半透明背景和边框"""
-        from PyQt6.QtGui import QPainter, QPainterPath, QColor
+        from PyQt6.QtGui import QPainter, QPainterPath, QColor, QPen
         from PyQt6.QtCore import QRectF
         from ui.styles import AppStyles
         
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
-        # 从主题中获取颜色
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
         
-        # 创建圆角矩形路径
         path = QPainterPath()
         rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
         path.addRoundedRect(rect, 12, 12)
         
-        # 绘制半透明背景（只在圆角内）
         bg_color = colors.get('window', '#333333')
         if bg_color.startswith('#'):
             r = int(bg_color[1:3], 16)
@@ -918,16 +921,26 @@ class MappingEditDialog(QtWidgets.QDialog):
             r, g, b = 30, 30, 30
         painter.fillPath(path, QColor(r, g, b, 220))
         
-        # 绘制边框
-        border_color = colors.get('mid', '#999999')
-        if border_color.startswith('#'):
-            r = int(border_color[1:3], 16)
-            g = int(border_color[3:5], 16)
-            b = int(border_color[5:7], 16)
+        if neo:
+            pen_light = QPen(QColor(colors['shadow_light']), 2)
+            pen_dark = QPen(QColor(colors['shadow_dark']), 2)
+            w = self.width()
+            h = self.height()
+            painter.setPen(pen_light)
+            painter.drawLine(2, 2, w - 3, 2)
+            painter.drawLine(2, 2, 2, h - 3)
+            painter.setPen(pen_dark)
+            painter.drawLine(w - 2, 2, w - 2, h - 2)
+            painter.drawLine(2, h - 2, w - 2, h - 2)
         else:
-            r, g, b = 120, 120, 120
-        painter.setPen(QColor(r, g, b, 200))
-        painter.drawPath(path)
+            border_color = colors.get('mid', '#999999')
+            if border_color.startswith('#'):
+                r = int(border_color[1:3], 16)
+                g = int(border_color[3:5], 16)
+                b = int(border_color[5:7], 16)
+            else:
+                r, g, b = 120, 120, 120
+            painter.setPen(QColor(r, g, b, 200))
+            painter.drawPath(path)
         
-        # 调用父类的 paintEvent 来绘制子控件
         super().paintEvent(event)

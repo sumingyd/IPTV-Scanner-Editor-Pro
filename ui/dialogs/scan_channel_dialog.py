@@ -97,15 +97,13 @@ class ScanChannelDialog(QtWidgets.QDialog):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
         
-        # 获取主题颜色
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
         
-        # 创建圆角矩形路径
         path = QtGui.QPainterPath()
         rect = QtCore.QRectF(self.rect().adjusted(1, 1, -1, -1))
         path.addRoundedRect(rect, 12, 12)
         
-        # 绘制背景（使用透明度）
         bg_color = colors.get('window', '#2d2d2d')
         if bg_color.startswith('#'):
             r = int(bg_color[1:3], 16)
@@ -115,18 +113,29 @@ class ScanChannelDialog(QtWidgets.QDialog):
             r, g, b = 45, 45, 45
         painter.fillPath(path, QtGui.QColor(r, g, b, self.opacity))
         
-        # 绘制边框
-        border_color = colors.get('mid', '#555555')
-        if border_color.startswith('#'):
-            r = int(border_color[1:3], 16)
-            g = int(border_color[3:5], 16)
-            b = int(border_color[5:7], 16)
+        if neo:
+            from PyQt6.QtGui import QPen
+            pen_light = QtGui.QPen(QtGui.QColor(colors['shadow_light']), 2)
+            pen_dark = QtGui.QPen(QtGui.QColor(colors['shadow_dark']), 2)
+            w = self.width()
+            h = self.height()
+            painter.setPen(pen_light)
+            painter.drawLine(2, 2, w - 3, 2)
+            painter.drawLine(2, 2, 2, h - 3)
+            painter.setPen(pen_dark)
+            painter.drawLine(w - 2, 2, w - 2, h - 2)
+            painter.drawLine(2, h - 2, w - 2, h - 2)
         else:
-            r, g, b = 85, 85, 85
-        painter.setPen(QtGui.QColor(r, g, b, 200))
-        painter.drawPath(path)
+            border_color = colors.get('mid', '#555555')
+            if border_color.startswith('#'):
+                r = int(border_color[1:3], 16)
+                g = int(border_color[3:5], 16)
+                b = int(border_color[5:7], 16)
+            else:
+                r, g, b = 85, 85, 85
+            painter.setPen(QtGui.QColor(r, g, b, 200))
+            painter.drawPath(path)
         
-        # 调用父类的 paintEvent 来绘制子控件
         super().paintEvent(event)
 
     def _stop_all_timers(self):

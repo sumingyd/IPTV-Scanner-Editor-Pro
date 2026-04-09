@@ -173,10 +173,10 @@ class AppStyles:
             'player_volume_track': '#323248',
             'player_video_placeholder': '#1a1a28',
             'window_opacity': 255,
-            'shadow_light': 'rgba(60,60,90,0.3)',
-            'shadow_dark': 'rgba(0,0,0,0.6)',
-            'neumorphic_light': '#303048',
-            'neumorphic_dark': '#18182a',
+            'shadow_light': 'rgba(70,70,110,0.55)',
+            'shadow_dark': 'rgba(0,0,0,0.75)',
+            'neumorphic_light': '#323250',
+            'neumorphic_dark': '#141424',
         },
         'neumorphic_light': {
             'window': '#e0e5ec',
@@ -231,10 +231,10 @@ class AppStyles:
             'player_volume_track': '#c8d0da',
             'player_video_placeholder': '#d1d9e6',
             'window_opacity': 255,
-            'shadow_light': 'rgba(255,255,255,0.75)',
-            'shadow_dark': 'rgba(163,177,198,0.6)',
-            'neumorphic_light': '#e8edf4',
-            'neumorphic_dark': '#c8cdd4',
+            'shadow_light': 'rgba(255,255,255,0.95)',
+            'shadow_dark': 'rgba(163,177,198,0.7)',
+            'neumorphic_light': '#ecf1f9',
+            'neumorphic_dark': '#bec6d2',
         },
     }
 
@@ -261,12 +261,24 @@ class AppStyles:
     @staticmethod
     def _neumorphic_inset():
         c = AppStyles._get_colors()
-        return f"box-shadow: inset 3px 3px 6px {c['shadow_dark']}, inset -3px -3px 6px {c['shadow_light']};"
+        return (
+            f"border: 2px solid;"
+            f"border-top-color: {c['shadow_dark']};"
+            f"border-left-color: {c['shadow_dark']};"
+            f"border-bottom-color: {c['shadow_light']};"
+            f"border-right-color: {c['shadow_light']};"
+        )
 
     @staticmethod
     def _neumorphic_raised():
         c = AppStyles._get_colors()
-        return f"box-shadow: 4px 4px 8px {c['shadow_dark']}, -4px -4px 8px {c['shadow_light']};"
+        return (
+            f"border: 2px solid;"
+            f"border-top-color: {c['shadow_light']};"
+            f"border-left-color: {c['shadow_light']};"
+            f"border-bottom-color: {c['shadow_dark']};"
+            f"border-right-color: {c['shadow_dark']};"
+        )
 
     @staticmethod
     def main_window_style() -> str:
@@ -275,6 +287,164 @@ class AppStyles:
         btn_bg = colors['neumorphic_light'] if neo else colors['button']
         btn_hover = colors['neumorphic_dark'] if neo else colors['light']
         btn_pressed = colors['neumorphic_dark'] if neo else colors['dark']
+        if neo:
+            raised = AppStyles._neumorphic_raised()
+            inset = AppStyles._neumorphic_inset()
+            return f"""
+                QMainWindow {{
+                    background-color: {colors['window']};
+                    color: {colors['window_text']};
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                    font-size: 13px;
+                }}
+                QGroupBox {{
+                    border: none;
+                    border-radius: 10px;
+                    margin-top: 12px;
+                    padding-top: 16px;
+                    font-weight: 600;
+                    font-size: 13px;
+                    background-color: {colors['alternate_base']};
+                    color: {colors['window_text']};
+                    {raised}
+                }}
+                QGroupBox::title {{
+                    subcontrol-origin: margin;
+                    left: 12px;
+                    padding: 0 6px;
+                    color: {colors['window_text']};
+                    font-weight: 600;
+                }}
+                QSplitter::handle {{
+                    background-color: {colors['mid']};
+                }}
+                QSplitter::handle:hover {{
+                    background-color: {colors['highlight']};
+                }}
+                QCheckBox {{
+                    color: {colors['window_text']};
+                    font-size: 13px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                    spacing: 8px;
+                }}
+                QSpinBox {{
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                    padding-right: 32px;
+                    font-size: 13px;
+                    background-color: {colors['neumorphic_light']};
+                    color: {colors['window_text']};
+                    {inset}
+                }}
+                QSpinBox:focus {{
+                    border: 2px solid {colors['accent']};
+                    border-radius: 6px;
+                    outline: none;
+                }}
+                QSpinBox::up-button, QSpinBox::down-button {{
+                    width: 28px;
+                    border: none;
+                    border-left: 1px solid {colors['mid']};
+                    background-color: {btn_bg};
+                    min-width: 0;
+                    min-height: 0;
+                    padding: 0;
+                }}
+                QSpinBox::up-button {{
+                    subcontrol-origin: border;
+                    subcontrol-position: right top;
+                    border-top-right-radius: 6px;
+                }}
+                QSpinBox::down-button {{
+                    subcontrol-origin: border;
+                    subcontrol-position: right bottom;
+                    border-bottom-right-radius: 6px;
+                }}
+                QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
+                    background-color: {colors['accent']};
+                }}
+                QSpinBox::up-button:pressed, QSpinBox::down-button:pressed {{
+                    background-color: {colors['accent_pressed']};
+                }}
+                QSpinBox::up-arrow {{
+                    width: 12px;
+                    height: 12px;
+                    border-left: 6px solid transparent;
+                    border-right: 6px solid transparent;
+                    border-bottom: 8px solid {colors['window_text']};
+                    margin: 0 auto;
+                }}
+                QSpinBox::down-arrow {{
+                    width: 12px;
+                    height: 12px;
+                    border-left: 6px solid transparent;
+                    border-right: 6px solid transparent;
+                    border-top: 8px solid {colors['window_text']};
+                    margin: 0 auto;
+                }}
+                QSpinBox::up-button:hover::up-arrow {{
+                    border-bottom-color: {colors['accent']};
+                }}
+                QSpinBox::down-button:hover::down-arrow {{
+                    border-top-color: {colors['accent']};
+                }}
+                QScrollBar:vertical {{
+                    border: none;
+                    background-color: {colors['alternate_base']};
+                    width: 10px;
+                    margin: 2px 0;
+                }}
+                QScrollBar::handle:vertical {{
+                    background-color: {colors['mid']};
+                    min-height: 40px;
+                    border-radius: 5px;
+                    margin: 2px;
+                }}
+                QScrollBar::handle:vertical:hover {{
+                    background-color: {colors['accent']};
+                    border-radius: 6px;
+                }}
+                QScrollBar::handle:vertical:pressed {{
+                    background-color: {colors['accent_pressed']};
+                    border-radius: 6px;
+                }}
+                QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                    height: 0px;
+                    border: none;
+                    background-color: transparent;
+                }}
+                QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                    background-color: transparent;
+                }}
+                QScrollBar:horizontal {{
+                    border: none;
+                    background-color: {colors['alternate_base']};
+                    height: 10px;
+                    margin: 0 2px;
+                }}
+                QScrollBar::handle:horizontal {{
+                    background-color: {colors['mid']};
+                    min-width: 40px;
+                    border-radius: 5px;
+                    margin: 2px;
+                }}
+                QScrollBar::handle:horizontal:hover {{
+                    background-color: {colors['accent']};
+                    border-radius: 6px;
+                }}
+                QScrollBar::handle:horizontal:pressed {{
+                    background-color: {colors['accent_pressed']};
+                    border-radius: 6px;
+                }}
+                QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+                    width: 0px;
+                    border: none;
+                    background-color: transparent;
+                }}
+                QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+                    background-color: transparent;
+                }}
+            """
         return f"""
             QMainWindow {{
                 background-color: {colors['window']};
@@ -432,6 +602,81 @@ class AppStyles:
     @staticmethod
     def list_style() -> str:
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        if neo:
+            inset = AppStyles._neumorphic_inset()
+            raised = AppStyles._neumorphic_raised()
+            return f"""
+                QTableView {{
+                    border: none;
+                    border-radius: 6px;
+                    alternate-background-color: {colors['table_alternate']};
+                    selection-background-color: {colors['table_selection']};
+                    selection-color: {colors['table_selection_text']};
+                    gridline-color: {colors['table_grid']};
+                    font-size: 12px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                    background-color: {colors['alternate_base']};
+                    {inset}
+                }}
+                QTableView::item {{
+                    padding: 6px 10px;
+                    border-bottom: 1px solid {colors['table_grid']};
+                    color: {colors['window_text']};
+                }}
+                QTableView::item:hover {{
+                    background-color: {colors['table_hover']};
+                    border: 1px solid {colors['accent']};
+                    border-radius: 4px;
+                }}
+                QTableView::item:selected {{
+                    background-color: {colors['table_selection']};
+                    color: {colors['table_selection_text']};
+                    font-weight: 500;
+                    border: 1px solid {colors['accent_pressed']};
+                    border-radius: 4px;
+                }}
+                QTableView::item:selected:hover {{
+                    background-color: {colors['accent_hover']};
+                    border-color: {colors['accent_pressed']};
+                }}
+                QHeaderView {{
+                    background-color: {colors['table_header']};
+                    border: none;
+                }}
+                QHeaderView::section {{
+                    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 {colors['table_header_gradient_start']},
+                        stop:0.5 {colors['table_header_gradient_middle']},
+                        stop:1 {colors['table_header_gradient_end']});
+                    padding: 8px 12px;
+                    border: none;
+                    border-right: 1px solid {colors['shadow_dark']};
+                    color: {colors['window_text']};
+                    font-weight: 600;
+                    font-size: 12px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                }}
+                QHeaderView::section:last {{
+                    border-right: none;
+                }}
+                QHeaderView::section:first {{ min-width: 60px; }}
+                QHeaderView::section:nth-child(2) {{ min-width: 180px; }}
+                QHeaderView::section:nth-child(3) {{ min-width: 100px; }}
+                QHeaderView::section:nth-child(4) {{ min-width: 250px; }}
+                QTableView::item:drag {{
+                    background-color: {colors['table_selection']};
+                    color: {colors['table_selection_text']};
+                    border: 2px dashed {colors['accent_pressed']};
+                    border-radius: 4px;
+                    opacity: 0.7;
+                }}
+                QTableView::item:drop {{
+                    background-color: {colors['table_hover']};
+                    border: 2px solid {colors['accent']};
+                    border-radius: 4px;
+                }}
+            """
         return f"""
             QTableView {{
                 border: 2px solid {colors['table_border']};
@@ -824,18 +1069,24 @@ class AppStyles:
                     margin: 2px;
                     border-radius: 6px;
                     background-color: {menu_bg};
+                    {AppStyles._neumorphic_raised()}
                 }}
                 QMenuBar::item:selected {{
                     color: {menu_hover_text};
                     background-color: {menu_hover_bg};
-                    border: 1px solid {colors['shadow_light']};
+                    border: 2px solid {colors['accent']};
+                    border-radius: 6px;
                 }}
                 QMenu {{
                     background-color: {menu_bg};
                     color: {menu_text};
                     border-radius: 8px;
                     padding: 4px;
-                    border: 1px solid {menu_border};
+                    border: 2px solid;
+                    border-top-color: {colors['shadow_light']};
+                    border-left-color: {colors['shadow_light']};
+                    border-bottom-color: {colors['shadow_dark']};
+                    border-right-color: {colors['shadow_dark']};
                 }}
                 QMenu::item {{
                     padding: 6px 24px;
@@ -845,7 +1096,8 @@ class AppStyles:
                 QMenu::item:selected {{
                     color: {menu_hover_text};
                     background-color: {menu_hover_bg};
-                    border: 1px solid {colors['shadow_light']};
+                    border: 1px solid {colors['accent']};
+                    border-radius: 6px;
                 }}
                 QMenu::separator {{
                     height: 1px;
@@ -896,6 +1148,121 @@ class AppStyles:
         btn_hover = colors['neumorphic_dark'] if neo else colors['light']
         btn_pressed = colors['neumorphic_dark'] if neo else colors['dark']
         input_bg = colors['neumorphic_light'] if neo else colors['alternate_base']
+        if neo:
+            raised = AppStyles._neumorphic_raised()
+            inset = AppStyles._neumorphic_inset()
+            return f"""
+                QDialog {{
+                    background-color: {window_bg};
+                    color: {colors['window_text']};
+                    border: 1px solid {colors['mid']};
+                    border-radius: 12px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                }}
+                QDialog > QWidget {{
+                    background-color: {window_bg};
+                    border-radius: 12px;
+                }}
+                QDialog QLabel {{
+                    color: {colors['window_text']};
+                    font-size: 13px;
+                }}
+                QDialog QPushButton {{
+                    min-width: 70px;
+                    padding: 6px 12px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    font-weight: 500;
+                    background-color: {btn_bg};
+                    color: {colors['window_text']};
+                    {raised}
+                }}
+                QDialog QPushButton:hover {{
+                    background-color: {btn_hover};
+                    border: 2px solid {colors['accent']};
+                    border-radius: 6px;
+                }}
+                QDialog QPushButton:pressed {{
+                    background-color: {btn_pressed};
+                    {inset}
+                    border-radius: 6px;
+                }}
+                QDialog QGroupBox {{
+                    border: none;
+                    border-radius: 10px;
+                    margin-top: 12px;
+                    padding-top: 18px;
+                    background-color: {colors['alternate_base']};
+                    {raised}
+                }}
+                QDialog QGroupBox::title {{
+                    subcontrol-origin: margin;
+                    left: 12px;
+                    padding: 0 6px;
+                    color: {colors['window_text']};
+                    font-weight: 600;
+                    font-size: 13px;
+                }}
+                QDialog QLineEdit, QDialog QComboBox {{
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                    font-size: 13px;
+                    background-color: {input_bg};
+                    color: {colors['window_text']};
+                    {inset}
+                }}
+                QDialog QLineEdit:focus, QDialog QComboBox:focus {{
+                    border: 2px solid {colors['accent']};
+                    border-radius: 6px;
+                    outline: none;
+                }}
+                QDialog QComboBox QAbstractItemView {{
+                    background-color: {colors['window']};
+                    color: {colors['window_text']};
+                    border: 1px solid {colors['mid']};
+                    border-radius: 4px;
+                }}
+                QDialog QCheckBox {{
+                    color: {colors['window_text']};
+                    font-size: 13px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                    spacing: 8px;
+                }}
+                QDialog QCheckBox::indicator {{
+                    width: 18px;
+                    height: 18px;
+                    border-radius: 4px;
+                    background-color: {input_bg};
+                    {inset}
+                }}
+                QDialog QCheckBox::indicator:checked {{
+                    background-color: {colors['accent']};
+                    border: 2px solid {colors['accent']};
+                    border-radius: 4px;
+                }}
+                QDialog QCheckBox::indicator:hover {{
+                    border: 2px solid {colors['accent']};
+                    border-radius: 4px;
+                }}
+                QDialog QCheckBox::indicator:pressed {{
+                    background-color: {colors['accent_pressed']};
+                    border: 2px solid {colors['accent_pressed']};
+                    border-radius: 4px;
+                }}
+                QDialog QTextEdit {{
+                    border-radius: 6px;
+                    padding: 10px;
+                    font-size: 13px;
+                    background-color: {input_bg};
+                    color: {colors['window_text']};
+                    {inset}
+                }}
+                QDialog QTextEdit:focus {{
+                    border: 2px solid {colors['accent']};
+                    border-radius: 6px;
+                    outline: none;
+                }}
+            """
         return f"""
             QDialog {{
                 background-color: {window_bg};
@@ -1008,6 +1375,27 @@ class AppStyles:
     @staticmethod
     def progress_style() -> str:
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        if neo:
+            inset = AppStyles._neumorphic_inset()
+            return f"""
+                QProgressBar {{
+                    border-radius: 6px;
+                    text-align: center;
+                    height: 24px;
+                    background-color: {colors['alternate_base']};
+                    font-size: 11px;
+                    font-weight: 500;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                    color: {colors['window_text']};
+                    {inset}
+                }}
+                QProgressBar::chunk {{
+                    background-color: {colors['accent']};
+                    border-radius: 5px;
+                    margin: 1px;
+                }}
+            """
         return f"""
             QProgressBar {{
                 border: 1px solid {colors['mid']};
@@ -1030,6 +1418,41 @@ class AppStyles:
     @staticmethod
     def toolbar_button_style() -> str:
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        if neo:
+            raised = AppStyles._neumorphic_raised()
+            inset = AppStyles._neumorphic_inset()
+            return f"""
+                QToolButton {{
+                    border: none;
+                    border-radius: 6px;
+                    padding: 4px 8px;
+                    margin: 1px;
+                    background-color: {colors['neumorphic_light']};
+                    min-width: 60px;
+                    min-height: 28px;
+                    color: {colors['window_text']};
+                    font-size: 12px;
+                    font-weight: 500;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                    {raised}
+                }}
+                QToolButton:hover {{
+                    background-color: {colors['neumorphic_dark']};
+                    border: 2px solid {colors['accent']};
+                    border-radius: 6px;
+                    color: {colors['accent']};
+                }}
+                QToolButton:pressed {{
+                    background-color: {colors['neumorphic_dark']};
+                    {inset}
+                    border-radius: 6px;
+                    color: {colors['accent_pressed']};
+                }}
+                QToolButton::menu-indicator {{
+                    width: 0px;
+                }}
+            """
         return f"""
             QToolButton {{
                 border: 1px solid {colors['mid']};
@@ -1061,6 +1484,43 @@ class AppStyles:
     @staticmethod
     def drag_list_style() -> str:
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        if neo:
+            inset = AppStyles._neumorphic_inset()
+            raised = AppStyles._neumorphic_raised()
+            return f"""
+                QListWidget {{
+                    border: none;
+                    border-radius: 8px;
+                    padding: 4px;
+                    background-color: {colors['alternate_base']};
+                    font-size: 13px;
+                    {inset}
+                }}
+                QListWidget::item {{
+                    border: none;
+                    border-radius: 6px;
+                    padding: 8px 12px;
+                    margin: 2px;
+                    background-color: {colors['neumorphic_light']};
+                    color: {colors['window_text']};
+                    {raised}
+                }}
+                QListWidget::item:hover {{
+                    background-color: {colors['highlight']};
+                    border: 1px solid {colors['accent']};
+                    border-radius: 6px;
+                }}
+                QListWidget::item:selected {{
+                    background-color: {colors['accent']};
+                    color: white;
+                    border: 1px solid {colors['accent_pressed']};
+                    border-radius: 6px;
+                }}
+                QListWidget::item:selected:hover {{
+                    background-color: {colors['accent_hover']};
+                }}
+            """
         return f"""
             QListWidget {{
                 border: 1px solid {colors['mid']};
@@ -1094,6 +1554,20 @@ class AppStyles:
     @staticmethod
     def drag_hint_label_style() -> str:
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        if neo:
+            raised = AppStyles._neumorphic_raised()
+            return f"""
+                QLabel {{
+                    color: {colors['accent']};
+                    font-size: 12px;
+                    padding: 8px 12px;
+                    background-color: {colors['neumorphic_light']};
+                    border-radius: 6px;
+                    font-weight: 500;
+                    {raised}
+                }}
+            """
         return f"""
             QLabel {{
                 color: {colors['accent']};
@@ -1109,6 +1583,20 @@ class AppStyles:
     @staticmethod
     def group_hint_label_style() -> str:
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        if neo:
+            raised = AppStyles._neumorphic_raised()
+            return f"""
+                QLabel {{
+                    color: {colors['window_text']};
+                    font-size: 12px;
+                    padding: 8px 12px;
+                    background-color: {colors['neumorphic_light']};
+                    border-radius: 6px;
+                    font-weight: 500;
+                    {raised}
+                }}
+            """
         return f"""
             QLabel {{
                 color: {colors['window_text']};
@@ -1183,6 +1671,57 @@ class AppStyles:
     @staticmethod
     def tab_widget_style() -> str:
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        if neo:
+            raised = AppStyles._neumorphic_raised()
+            inset = AppStyles._neumorphic_inset()
+            return f"""
+                QTabWidget {{
+                    background-color: {colors['window']};
+                    border: none;
+                    border-radius: 8px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                }}
+                QTabWidget::pane {{
+                    border: none;
+                    border-radius: 0 0 8px 8px;
+                    background-color: {colors['window']};
+                    margin-top: -1px;
+                    {inset}
+                }}
+                QTabBar {{
+                    background-color: {colors['alternate_base']};
+                    border-bottom: none;
+                    border-radius: 8px 8px 0 0;
+                }}
+                QTabBar::tab {{
+                    background-color: {colors['alternate_base']};
+                    border: none;
+                    border-radius: 6px 6px 0 0;
+                    padding: 8px 16px;
+                    margin-right: 4px;
+                    margin-top: 4px;
+                    font-size: 13px;
+                    font-weight: 500;
+                    color: {colors['window_text']};
+                }}
+                QTabBar::tab:selected {{
+                    background-color: {colors['neumorphic_light']};
+                    color: {colors['accent']};
+                    font-weight: 600;
+                    {raised}
+                }}
+                QTabBar::tab:hover:!selected {{
+                    background-color: {colors['light']};
+                    color: {colors['accent']};
+                }}
+                QTabBar::tab:first {{
+                    margin-left: 4px;
+                }}
+                QTabBar::tab:last {{
+                    margin-right: 0;
+                }}
+            """
         return f"""
             QTabWidget {{
                 background-color: {colors['window']};
@@ -1242,6 +1781,38 @@ class AppStyles:
         btn_bg = colors['neumorphic_light'] if neo else colors['button']
         btn_hover = colors['neumorphic_dark'] if neo else colors['light']
         btn_pressed = colors['neumorphic_dark'] if neo else colors['dark']
+        if neo:
+            raised = AppStyles._neumorphic_raised()
+            inset = AppStyles._neumorphic_inset()
+            return f"""
+                QPushButton {{
+                    background-color: {btn_bg};
+                    color: {colors['window_text']};
+                    {raised}
+                    border-radius: 6px;
+                    padding: 8px 16px;
+                    min-width: 100px;
+                    font-weight: 500;
+                    font-size: 12px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                }}
+                QPushButton:hover {{
+                    background-color: {btn_hover};
+                    border: 2px solid {colors['accent']};
+                    border-radius: 6px;
+                }}
+                QPushButton:pressed {{
+                    background-color: {btn_pressed};
+                    {inset}
+                    border-radius: 6px;
+                }}
+                QPushButton:disabled {{
+                    background-color: {colors['light']};
+                    border: 1px solid {colors['mid']};
+                    border-radius: 6px;
+                    color: {colors['placeholder']};
+                }}
+            """
         return f"""
             QPushButton {{
                 background-color: {btn_bg};
@@ -1286,6 +1857,30 @@ class AppStyles:
         colors = AppStyles._get_colors()
         neo = AppStyles.is_neumorphic()
         input_bg = colors['neumorphic_light'] if neo else colors['alternate_base']
+        if neo:
+            inset = AppStyles._neumorphic_inset()
+            return f"""
+                QLineEdit {{
+                    background-color: {input_bg};
+                    color: {colors['window_text']};
+                    {inset}
+                    border-radius: 6px;
+                    padding: 6px;
+                    font-size: 12px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                }}
+                QLineEdit:focus {{
+                    border: 2px solid {colors['accent']};
+                    border-radius: 6px;
+                    outline: none;
+                }}
+                QLineEdit:disabled {{
+                    background-color: {colors['light']};
+                    border: 1px solid {colors['mid']};
+                    border-radius: 6px;
+                    color: {colors['placeholder']};
+                }}
+            """
         return f"""
             QLineEdit {{
                 background-color: {input_bg};
@@ -1312,6 +1907,55 @@ class AppStyles:
         colors = AppStyles._get_colors()
         neo = AppStyles.is_neumorphic()
         input_bg = colors['neumorphic_light'] if neo else colors['alternate_base']
+        if neo:
+            inset = AppStyles._neumorphic_inset()
+            return f"""
+                QComboBox {{
+                    background-color: {input_bg};
+                    color: {colors['window_text']};
+                    {inset}
+                    border-radius: 6px;
+                    padding: 6px;
+                    font-size: 12px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                    min-width: 120px;
+                }}
+                QComboBox:focus {{
+                    border: 2px solid {colors['accent']};
+                    border-radius: 6px;
+                    outline: none;
+                }}
+                QComboBox:disabled {{
+                    background-color: {colors['light']};
+                    border: 1px solid {colors['mid']};
+                    border-radius: 6px;
+                    color: {colors['placeholder']};
+                }}
+                QComboBox::drop-down {{
+                    border: none;
+                    padding-right: 6px;
+                }}
+                QComboBox::down-arrow {{
+                    width: 8px;
+                    height: 8px;
+                    color: {colors['window_text']};
+                }}
+                QComboBox QAbstractItemView {{
+                    background-color: {colors['alternate_base']};
+                    color: {colors['window_text']};
+                    border: 1px solid {colors['mid']};
+                    border-radius: 4px;
+                    padding: 4px;
+                }}
+                QComboBox QAbstractItemView::item {{
+                    padding: 6px 10px;
+                    margin: 2px 0;
+                }}
+                QComboBox QAbstractItemView::item:hover {{
+                    background-color: {colors['accent']};
+                    color: white;
+                }}
+            """
         return f"""
             QComboBox {{
                 background-color: {input_bg};
@@ -1367,6 +2011,32 @@ class AppStyles:
         colors = AppStyles._get_colors()
         neo = AppStyles.is_neumorphic()
         chk_bg = colors['neumorphic_light'] if neo else colors['alternate_base']
+        if neo:
+            inset = AppStyles._neumorphic_inset()
+            return f"""
+                QCheckBox {{
+                    color: {colors['window_text']};
+                    font-size: 12px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                    spacing: 8px;
+                }}
+                QCheckBox::indicator {{
+                    width: 16px;
+                    height: 16px;
+                    border-radius: 4px;
+                    background-color: {chk_bg};
+                    {inset}
+                }}
+                QCheckBox::indicator:checked {{
+                    background-color: {colors['accent']};
+                    border: 2px solid {colors['accent']};
+                    border-radius: 4px;
+                }}
+                QCheckBox::indicator:hover {{
+                    border: 2px solid {colors['accent']};
+                    border-radius: 4px;
+                }}
+            """
         return f"""
             QCheckBox {{
                 color: {colors['window_text']};
@@ -1393,6 +2063,32 @@ class AppStyles:
     @staticmethod
     def common_group_box_style() -> str:
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        if neo:
+            raised = AppStyles._neumorphic_raised()
+            return f"""
+                QGroupBox {{
+                    background-color: {colors['alternate_base']};
+                    color: {colors['window_text']};
+                    border: none;
+                    border-radius: 10px;
+                    margin-top: 12px;
+                    padding-top: 16px;
+                    font-weight: 600;
+                    font-size: 13px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                    {raised}
+                }}
+                QGroupBox::title {{
+                    subcontrol-origin: margin;
+                    left: 12px;
+                    padding: 0 6px;
+                    color: {colors['window_text']};
+                    font-weight: 600;
+                    font-size: 13px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                }}
+            """
         return f"""
             QGroupBox {{
                 background-color: {colors['alternate_base']};
@@ -1448,6 +2144,18 @@ class AppStyles:
     @staticmethod
     def common_area_style() -> str:
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        if neo:
+            raised = AppStyles._neumorphic_raised()
+            return f"""
+                QWidget {{
+                    background-color: {colors['alternate_base']};
+                    border: none;
+                    border-radius: 10px;
+                    padding: 12px;
+                    {raised}
+                }}
+            """
         return f"""
             QWidget {{
                 background-color: {colors['alternate_base']};
@@ -1460,6 +2168,17 @@ class AppStyles:
     @staticmethod
     def side_panel_style() -> str:
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        if neo:
+            raised = AppStyles._neumorphic_raised()
+            return f"""
+                QWidget {{
+                    background-color: {colors['alternate_base']};
+                    border: none;
+                    border-radius: 10px;
+                    {raised}
+                }}
+            """
         return f"""
             QWidget {{
                 background-color: {colors['alternate_base']};
@@ -1521,6 +2240,37 @@ class AppStyles:
                 }}
                 QPushButton:pressed {{
                     background-color: {colors['accent_pressed']};
+                }}
+            """
+        if neo:
+            raised = AppStyles._neumorphic_raised()
+            inset = AppStyles._neumorphic_inset()
+            return f"""
+                QPushButton {{
+                    background-color: {btn_bg};
+                    color: {colors['window_text']};
+                    {raised}
+                    border-radius: 6px;
+                    padding: 6px 12px;
+                    font-weight: 500;
+                    font-size: 12px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                }}
+                QPushButton:hover {{
+                    background-color: {btn_hover};
+                    border: 2px solid {colors['accent']};
+                    border-radius: 6px;
+                }}
+                QPushButton:pressed {{
+                    background-color: {colors['neumorphic_dark']};
+                    {inset}
+                    border-radius: 6px;
+                }}
+                QPushButton:disabled {{
+                    background-color: {colors['light']};
+                    border: 1px solid {colors['mid']};
+                    border-radius: 6px;
+                    color: {colors['placeholder']};
                 }}
             """
         return f"""
