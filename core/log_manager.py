@@ -141,7 +141,7 @@ class LogManager:
 
 
 # 全局日志管理器实例
-global_logger = LogManager()
+global_logger = LogManager(level=logging.DEBUG)
 
 
 def get_logger(name: str = 'IPTVScanner') -> logging.Logger:

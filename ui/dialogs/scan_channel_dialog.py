@@ -11,8 +11,7 @@ from models.channel_model import ChannelListModel
 from services.scanner_service import ScannerController
 from ui.styles import AppStyles
 from services.url_parser_service import URLRangeParser
-from ui.optimizer import get_ui_optimizer
-from utils.error_handler import init_global_error_handler
+
 from utils.resource_cleaner import register_cleanup
 from utils.general_utils import safe_connect_button
 from utils.progress_manager import init_progress_manager
@@ -932,10 +931,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
         """处理表头点击事件"""
         pass
 
-    def update_channel_drag_hint(self):
-        """更新频道列表拖拽提示文本"""
-        self.channel_drag_hint_label.setText("提示：拖动频道可以调整顺序")
-
     def _init_main_window(self):
         """初始化主窗口的后续设置"""
         # 确保模型存在
@@ -954,13 +949,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
         )
 
         self.init_controllers()
-
-        self.ui_optimizer = get_ui_optimizer()
-        self.error_handler = init_global_error_handler(self)
-
-        self.ui_optimizer.optimize_table_view(
-            self.channel_list
-        )
 
         self._load_config()
 

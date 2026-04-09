@@ -10,7 +10,15 @@ from PyQt6.QtGui import QImage, QPixmap
 from core.log_manager import global_logger
 
 # 设置环境变量，告诉python-mpv在哪里找到mpv
-mpv_dir = os.path.join(os.getcwd(), 'mpv')
+# 检查是否为打包后的环境
+if getattr(sys, 'frozen', False):
+    # 打包后的环境，使用sys._MEIPASS
+    base_path = sys._MEIPASS
+else:
+    # 开发环境，使用当前工作目录
+    base_path = os.getcwd()
+
+mpv_dir = os.path.join(base_path, 'mpv')
 os.environ['MPV_HOME'] = mpv_dir
 os.environ['PATH'] = mpv_dir + os.pathsep + os.environ['PATH']
 
@@ -183,6 +191,7 @@ class MpvPlayerController(QObject):
         self.channel_model = channel_model
         self.mpv_handle = None
         self.is_playing = False
+        self.is_paused = False  # 新增：内部状态变量，用于跟踪暂停状态
         self.current_url = None
         self.media_info = {}
         self.event_timer = None
@@ -250,6 +259,12 @@ class MpvPlayerController(QObject):
                 self.mpv_handle = None
                 return
             
+            # 订阅pause属性变化事件，这样当暂停状态改变时我们能收到通知
+            try:
+                libmpv.mpv_observe_property(self.mpv_handle, 1, b'pause', MPV_FORMAT_STRING)
+            except Exception as e:
+                self.logger.warning(f"订阅pause属性失败: {str(e)}")
+            
             self.logger.info("mpv播放器初始化成功")
             
             # 启动事件处理定时器
@@ -271,29 +286,9 @@ class MpvPlayerController(QObject):
             return
         
         try:
-            while True:
-                event_ptr = libmpv.mpv_wait_event(self.mpv_handle, 0)
-                if not event_ptr:
-                    break
-                
-                event = ctypes.cast(event_ptr, ctypes.POINTER(mpv_event)).contents
-                event_id = event.event_id
-                
-                if event_id == MPV_EVENT_NONE:
-                    break
-                elif event_id == MPV_EVENT_PLAYBACK_RESTART:
-                    self.is_playing = True
-                    self.play_state_changed.emit(True)
-                elif event_id == MPV_EVENT_END_FILE:
-                    self.is_playing = False
-                    self.play_state_changed.emit(False)
-                elif event_id == MPV_EVENT_ERROR:
-                    self.is_playing = False
-                    self.play_state_changed.emit(False)
-                
-                # 释放事件 - 检查mpv_event_unref函数是否存在
-                if hasattr(libmpv, 'mpv_event_unref'):
-                    libmpv.mpv_event_unref(event_ptr)
+            # 现在我们使用内部状态变量来跟踪播放状态，不再需要查询mpv的pause属性
+            # 只处理其他重要事件
+            pass
         except Exception as e:
             self.logger.error(f"处理mpv事件失败: {str(e)}")
     
@@ -305,16 +300,41 @@ class MpvPlayerController(QObject):
             **kwargs: 其他参数
         """
         try:
-            # 停止当前播放
-            self.stop()
+            # 记录当前URL
+            self.current_url = url
             
             if not self.mpv_handle:
                 self.logger.error("mpv播放器未初始化")
                 self.play_error.emit("mpv播放器未初始化")
                 return False
             
-            # 记录当前URL
-            self.current_url = url
+            # 先停止当前播放
+            # 注意：不调用self.stop()，因为它会发射停止信号导致状态错误
+            try:
+                if self.mpv_handle:
+                    cmd_stop = [b'stop', None]
+                    cmd_ptr_stop = (ctypes.c_char_p * len(cmd_stop))(*cmd_stop)
+                    libmpv.mpv_command(self.mpv_handle, cmd_ptr_stop)
+            except:
+                pass
+            
+            # 取消之前的媒体信息获取任务
+            if hasattr(self, '_media_info_timer') and self._media_info_timer:
+                self._media_info_timer.stop()
+            
+            # 取消ffprobe任务
+            if hasattr(self, '_current_ffprobe_worker') and self._current_ffprobe_worker:
+                self._current_ffprobe_worker.is_running = False
+                if hasattr(self._current_ffprobe_worker, 'process') and self._current_ffprobe_worker.process:
+                    try:
+                        self._current_ffprobe_worker.process.kill()
+                    except:
+                        pass
+                if hasattr(self, '_current_ffprobe_worker'):
+                    try:
+                        delattr(self, '_current_ffprobe_worker')
+                    except:
+                        pass
             
             # 构建播放命令
             cmd = [b'loadfile', url.encode('utf-8'), None]
@@ -327,8 +347,13 @@ class MpvPlayerController(QObject):
                 self.play_error.emit(error_msg)
                 return False
             
-            # 标记为播放中
+            # 显式设置为非暂停状态，确保开始播放
+            libmpv.mpv_set_property_string(self.mpv_handle, b'pause', b'no')
+            
+            # 重置内部状态变量
+            self.is_paused = False
             self.is_playing = True
+            # 发射播放状态改变信号
             self.play_state_changed.emit(True)
             
             # 获取媒体信息
@@ -358,9 +383,16 @@ class MpvPlayerController(QObject):
             # 取消ffprobe任务
             if hasattr(self, '_current_ffprobe_worker') and self._current_ffprobe_worker:
                 self._current_ffprobe_worker.is_running = False
+                # 终止正在运行的ffprobe进程
+                if hasattr(self._current_ffprobe_worker, 'process') and self._current_ffprobe_worker.process:
+                    try:
+                        self._current_ffprobe_worker.process.kill()
+                    except:
+                        pass
                 delattr(self, '_current_ffprobe_worker')
             
             self.is_playing = False
+            self.is_paused = False
             self.play_state_changed.emit(False)
             self.current_url = None
             self.media_info = {}
@@ -372,19 +404,32 @@ class MpvPlayerController(QObject):
     def pause(self):
         """暂停播放"""
         try:
+            self.logger.debug("开始执行pause方法")
             if self.mpv_handle:
+                self.logger.debug("执行cycle pause命令")
                 cmd = [b'cycle', b'pause', None]
                 cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
                 result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
                 if result < 0:
-                    self.logger.error(f"切换暂停状态失败，错误码: {result}")
+                    error_str = self._get_mpv_error_string(result)
+                    self.logger.error(f"切换暂停状态失败: {error_str}")
                 else:
-                    self.logger.debug("切换暂停状态")
+                    self.logger.debug("cycle pause命令执行成功")
+                    # 切换内部暂停状态
+                    self.is_paused = not self.is_paused
+                    # 根据暂停状态更新播放状态
+                    self.is_playing = not self.is_paused
+                    # 发射播放状态改变信号
+                    self.play_state_changed.emit(self.is_playing)
+                    self.logger.debug(f"切换暂停状态，当前状态: {'暂停' if self.is_paused else '播放中'}")
+            else:
+                self.logger.debug("mpv_handle为None，无法执行pause")
         except Exception as e:
             self.logger.error(f"暂停播放失败: {str(e)}")
     
     def toggle_pause(self):
         """切换暂停状态"""
+        self.logger.debug("开始执行toggle_pause方法")
         self.pause()
     
     def set_volume(self, volume):
@@ -528,26 +573,38 @@ class MpvPlayerController(QObject):
     @staticmethod
     def _get_ffprobe_path():
         """获取ffprobe路径"""
+        # 检查是否为打包后的环境
+        if getattr(sys, 'frozen', False):
+            # 打包后的环境，使用sys._MEIPASS
+            base_path = sys._MEIPASS
+        else:
+            # 开发环境，使用当前工作目录
+            base_path = os.getcwd()
+        
         # 1. 尝试从系统路径查找
         exe_path = 'ffprobe.exe'
         try:
-            subprocess.run([exe_path, '-version'], capture_output=True, check=True)
+            # 隐藏控制台窗口
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+            subprocess.run([exe_path, '-version'], capture_output=True, check=True, startupinfo=startupinfo)
             return exe_path
         except:
             pass
         
         # 2. 尝试从当前目录查找
-        exe_path = os.path.join(os.getcwd(), 'ffprobe.exe')
+        exe_path = os.path.join(base_path, 'ffprobe.exe')
         if os.path.exists(exe_path):
             return exe_path
         
         # 3. 尝试从ffmpeg目录查找
-        exe_path = os.path.join(os.getcwd(), 'ffmpeg', 'bin', 'ffprobe.exe')
+        exe_path = os.path.join(base_path, 'ffmpeg', 'bin', 'ffprobe.exe')
         if os.path.exists(exe_path):
             return exe_path
         
         # 4. 尝试从程序目录的其他位置查找
-        for root, dirs, files in os.walk(os.getcwd()):
+        for root, dirs, files in os.walk(base_path):
             for file in files:
                 if file.lower() == 'ffprobe.exe':
                     return os.path.join(root, file)
@@ -585,15 +642,26 @@ class MpvPlayerController(QObject):
                         self.callback = callback
                         self.parent = parent
                         self.is_running = True
+                        self.process = None
                     
                     def run(self):
                         try:
                             import subprocess
                             import json
                             
+                            # 获取ffprobe路径
+                            ffprobe_path = self.parent._get_ffprobe_path()
+                            if not ffprobe_path:
+                                self.callback(None)
+                                return
+                            
                             # 检查ffprobe是否存在
                             try:
-                                subprocess.run(['ffprobe', '-version'], capture_output=True, text=True, timeout=5)
+                                # 隐藏控制台窗口
+                                startupinfo = subprocess.STARTUPINFO()
+                                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                                startupinfo.wShowWindow = subprocess.SW_HIDE
+                                subprocess.run([ffprobe_path, '-version'], capture_output=True, text=True, timeout=5, startupinfo=startupinfo)
                             except Exception:
                                 self.callback(None)
                                 return
@@ -604,7 +672,7 @@ class MpvPlayerController(QObject):
                             
                             # 构建ffprobe命令
                             cmd = [
-                                'ffprobe',
+                                ffprobe_path,
                                 '-v', 'quiet',
                                 '-print_format', 'json',
                                 '-show_format',
@@ -612,16 +680,42 @@ class MpvPlayerController(QObject):
                                 self.url
                             ]
                             
-                            # 执行命令
-                            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                            # 执行命令，隐藏控制台窗口
+                            startupinfo = subprocess.STARTUPINFO()
+                            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                            startupinfo.wShowWindow = subprocess.SW_HIDE
+                            
+                            # 使用Popen以便可以终止进程
+                            self.process = subprocess.Popen(
+                                cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                text=True,
+                                startupinfo=startupinfo
+                            )
+                            
+                            # 检查是否已经被取消
+                            if not self.is_running:
+                                if self.process:
+                                    self.process.kill()
+                                return
+                            
+                            # 等待进程完成，同时检查是否被取消
+                            try:
+                                stdout, stderr = self.process.communicate(timeout=10)
+                            except subprocess.TimeoutExpired:
+                                if self.process:
+                                    self.process.kill()
+                                self.callback(None)
+                                return
                             
                             # 检查是否已经被取消
                             if not self.is_running:
                                 return
                             
-                            if result.returncode == 0:
+                            if self.process.returncode == 0:
                                 # 解析结果
-                                data = json.loads(result.stdout)
+                                data = json.loads(stdout)
                                 
                                 # 构建媒体信息
                                 media_info = {
@@ -696,32 +790,109 @@ class MpvPlayerController(QObject):
                                                 except:
                                                     pass
                                 
-                                # 记录获取到的媒体信息
-                                self.callback(media_info)
+                                # 检查parent是否还存在，避免在对象已删除时调用callback
+                                try:
+                                    if hasattr(self, 'parent') and self.parent:
+                                        # 记录获取到的媒体信息
+                                        self.callback(media_info)
+                                except:
+                                    pass
                             else:
-                                self.callback(None)
-                        except Exception:
-                            self.callback(None)
+                                try:
+                                    if hasattr(self, 'parent') and self.parent:
+                                        self.callback(None)
+                                except:
+                                    pass
+                        except Exception as e:
+                            try:
+                                if hasattr(self, 'parent') and self.parent:
+                                    self.parent.logger.error(f"获取媒体信息失败: {str(e)}")
+                                    self.callback(None)
+                            except:
+                                pass
                 
                 # 取消之前的ffprobe任务
                 if hasattr(self, '_current_ffprobe_worker') and self._current_ffprobe_worker:
                     self._current_ffprobe_worker.is_running = False
+                    # 终止正在运行的ffprobe进程
+                    if hasattr(self._current_ffprobe_worker, 'process') and self._current_ffprobe_worker.process:
+                        try:
+                            self._current_ffprobe_worker.process.kill()
+                        except:
+                            pass
                 
                 # 启动线程
                 def on_ffprobe_finished(media_info):
-                    if media_info:
-                        self.logger.info(f"使用ffprobe获取到媒体信息: {media_info}")
-                        self.media_info_ready.emit(media_info)
+                    # 检查self是否还存在，避免在对象已删除时发射信号
+                    try:
+                        if not hasattr(self, 'media_info_ready'):
+                            return
+                        
+                        if media_info:
+                            self.logger.info(f"使用ffprobe获取到媒体信息: {media_info}")
+                            self.media_info_ready.emit(media_info)
+                        else:
+                            # 即使获取失败，也发送一个默认的媒体信息，避免UI一直显示加载中
+                            default_media_info = {
+                                'format': '未知',
+                                'duration': 0,
+                                'protocol': '未知',
+                                'video': {
+                                    'codec': '未知',
+                                    'width': 0,
+                                    'height': 0,
+                                    'frame_rate': 0,
+                                    'bit_rate': 0
+                                },
+                                'audio': {
+                                    'codec': '未知',
+                                    'channels': 0,
+                                    'sample_rate': 0,
+                                    'bit_rate': 0
+                                }
+                            }
+                            self.media_info_ready.emit(default_media_info)
+                    except RuntimeError:
+                        # 对象已被删除，忽略
+                        pass
                     # 清除当前worker
                     if hasattr(self, '_current_ffprobe_worker'):
-                        delattr(self, '_current_ffprobe_worker')
+                        try:
+                            delattr(self, '_current_ffprobe_worker')
+                        except:
+                            pass
                 
                 worker = FFProbeWorker(self.current_url, on_ffprobe_finished, self)
                 self._current_ffprobe_worker = worker
                 QThreadPool.globalInstance().start(worker)
                 
         except Exception as e:
-            self.logger.error(f"获取媒体信息失败: {str(e)}")
+            try:
+                self.logger.error(f"获取媒体信息失败: {str(e)}")
+                # 发送默认媒体信息，避免UI一直显示加载中
+                default_media_info = {
+                    'format': '未知',
+                    'duration': 0,
+                    'protocol': '未知',
+                    'video': {
+                        'codec': '未知',
+                        'width': 0,
+                        'height': 0,
+                        'frame_rate': 0,
+                        'bit_rate': 0
+                    },
+                    'audio': {
+                        'codec': '未知',
+                        'channels': 0,
+                        'sample_rate': 0,
+                        'bit_rate': 0
+                    }
+                }
+                if hasattr(self, 'media_info_ready'):
+                    self.media_info_ready.emit(default_media_info)
+            except (RuntimeError, Exception):
+                # 对象已被删除，忽略
+                pass
     
     def _get_mpv_property_string(self, property_name):
         """获取mpv字符串属性"""
@@ -736,15 +907,30 @@ class MpvPlayerController(QObject):
                 ctypes.byref(value)
             )
             if result < 0:
+                error_str = self._get_mpv_error_string(result)
+                self.logger.debug(f"获取属性 {property_name} 失败: {error_str}")
                 return None
             if not value.value:
                 return None
             property_value = value.value.decode('utf-8')
             libmpv.mpv_free(value)
+            self.logger.debug(f"获取属性 {property_name} 成功: {property_value}")
             return property_value
-        except:
+        except Exception as e:
+            self.logger.error(f"获取属性 {property_name} 异常: {str(e)}")
             return None
     
+    def _get_mpv_error_string(self, error_code):
+        """获取mpv错误字符串"""
+        try:
+            if hasattr(libmpv, 'mpv_error_string'):
+                error_str = libmpv.mpv_error_string(error_code)
+                if error_str:
+                    return error_str.decode('utf-8')
+        except:
+            pass
+        return f"错误码: {error_code}"
+
     def _get_mpv_property_int(self, property_name):
         """获取mpv整数属性"""
         try:
@@ -879,33 +1065,38 @@ class FFProbeWorker(QObject):
     @staticmethod
     def _get_ffprobe_path():
         """获取ffprobe路径"""
-        # 1. 尝试从打包后的路径查找
+        # 检查是否为打包后的环境
         if getattr(sys, 'frozen', False):
-            base_path = os.path.dirname(sys.executable)
-            exe_path = os.path.join(base_path, 'ffmpeg', 'bin', 'ffprobe.exe')
-            if os.path.exists(exe_path):
-                return exe_path
+            # 打包后的环境，使用sys._MEIPASS
+            base_path = sys._MEIPASS
+        else:
+            # 开发环境，使用当前工作目录
+            base_path = os.getcwd()
         
-        # 2. 尝试从系统路径查找
+        # 1. 尝试从系统路径查找
         exe_path = 'ffprobe.exe'
         try:
-            subprocess.run([exe_path, '-version'], capture_output=True, check=True)
+            # 隐藏控制台窗口
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+            subprocess.run([exe_path, '-version'], capture_output=True, check=True, startupinfo=startupinfo)
             return exe_path
         except:
             pass
         
-        # 3. 尝试从当前目录查找
-        exe_path = os.path.join(os.getcwd(), 'ffprobe.exe')
+        # 2. 尝试从当前目录查找
+        exe_path = os.path.join(base_path, 'ffprobe.exe')
         if os.path.exists(exe_path):
             return exe_path
         
-        # 4. 尝试从ffmpeg目录查找
-        exe_path = os.path.join(os.getcwd(), 'ffmpeg', 'bin', 'ffprobe.exe')
+        # 3. 尝试从ffmpeg目录查找
+        exe_path = os.path.join(base_path, 'ffmpeg', 'bin', 'ffprobe.exe')
         if os.path.exists(exe_path):
             return exe_path
         
-        # 5. 尝试从程序目录的其他位置查找
-        for root, dirs, files in os.walk(os.getcwd()):
+        # 4. 尝试从程序目录的其他位置查找
+        for root, dirs, files in os.walk(base_path):
             for file in files:
                 if file.lower() == 'ffprobe.exe':
                     return os.path.join(root, file)

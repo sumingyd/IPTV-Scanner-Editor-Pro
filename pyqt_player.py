@@ -2140,8 +2140,12 @@ class IPTVPlayer(QMainWindow):
     
     def toggle_play(self):
         """切换播放/暂停"""
+        print("toggle_play 被调用")
         if self.player_controller:
+            print(f"player_controller 存在: {self.player_controller}")
             self.player_controller.toggle_pause()
+        else:
+            print("player_controller 不存在")
     
     def set_volume(self, value):
         """设置音量"""
@@ -2236,6 +2240,9 @@ class IPTVPlayer(QMainWindow):
                 # 确保悬浮窗在视频窗口之上
                 if hasattr(self, 'floating_panel'):
                     self.floating_panel.raise_()
+                # 更新当前频道
+                self.current_channel = channel
+                # 播放频道
                 self.player_controller.play(url, name)
     
     def on_play_state_changed(self, is_playing):
@@ -2314,6 +2321,11 @@ class IPTVPlayer(QMainWindow):
             protocol = media_info.get('protocol', '未知')
             
             # 更新显示
+            if hasattr(self, 'media_info'):
+                self.media_info.setText(f"📺 媒体信息")
+            # 修复码率显示，确保即使码率为0也能正确显示
+            video_bitrate_str = f"{video_bitrate // 1000}kbps" if video_bitrate is not None and video_bitrate >= 0 else "未知"
+            audio_bitrate_str = f"{audio_bitrate // 1000}kbps" if audio_bitrate is not None and audio_bitrate >= 0 else "未知"
             self.video_info.setText(f"📺 编码: {video_codec} | 分辨率: {video_resolution} | 码率: {video_bitrate_str}")
             self.audio_info.setText(f"🔊 编码: {audio_codec} | 声道: {channels}ch | 采样率: {sample_rate}Hz | 码率: {audio_bitrate_str}")
             self.network_info.setText(f"📡 格式: {format_name} | 协议: {protocol}")
@@ -3792,8 +3804,10 @@ class IPTVPlayer(QMainWindow):
             # 重新创建菜单栏以更新语言
             self.menuBar().clear()
             self.setup_menu_bar()
+            # 更新所有UI文本
+            self.language_manager.update_ui_texts(self)
             # 更新状态栏消息
-            self.status_bar.showMessage(f"语言已切换为: {language}")
+            self.status_bar.showMessage(self.language_manager.tr("language_changed"))
         except Exception as e:
             logger.error(f"切换语言失败: {str(e)}")
             self.status_bar.showMessage("切换语言失败")
