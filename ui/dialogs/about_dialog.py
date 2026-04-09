@@ -124,32 +124,7 @@ class AboutDialog(QtWidgets.QDialog):
 
         main_layout.addWidget(info_card)
 
-        # 功能特性
-        features_title = QtWidgets.QLabel("主要功能特性")
-        features_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #6a9eff; margin-top: 10px; background-color: transparent;")
-        main_layout.addWidget(features_title)
 
-        features_widget = QtWidgets.QWidget()
-        features_layout = QtWidgets.QVBoxLayout(features_widget)
-        features_layout.setSpacing(8)
-
-        features = [
-            "智能频道扫描：支持范围地址扫描，自动检测有效频道",
-            "高级流验证：多线程并发检测频道有效性",
-            "智能频道管理：支持拖拽排序、批量操作和频道映射",
-            "集成视频播放：双击频道直接播放，支持VLC集成",
-            "高级配置管理：自动保存配置，支持自定义样式",
-            "专业工具集成：URL解析器、频道映射管理器、排序配置工具",
-            "多语言支持：界面文本可切换",
-            "现代化UI：统一的样式管理，支持深色/浅色主题"
-        ]
-
-        for feature in features:
-            feature_label = QtWidgets.QLabel(f"• {feature}")
-            feature_label.setStyleSheet("color: white; padding-left: 10px; background-color: transparent;")
-            features_layout.addWidget(feature_label)
-
-        main_layout.addWidget(features_widget)
 
         # 底部信息
         bottom_layout = QtWidgets.QVBoxLayout()
