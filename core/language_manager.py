@@ -323,7 +323,9 @@ BUILTIN_TRANSLATIONS = {
         'loop_scan': '循环扫描',
         'loop_scan_tooltip': '如果重试扫描发现有效频道，继续扫描失败频道直到没有新的有效频道',
         'dark': '深色',
-        'light': '浅色'
+        'light': '浅色',
+        'neumorphic_dark': '拟态暗',
+        'neumorphic_light': '拟态浅'
     },
     'en': {
         'language_name': 'English',
@@ -644,7 +646,9 @@ BUILTIN_TRANSLATIONS = {
         'loop_scan': 'Loop Scan',
         'loop_scan_tooltip': 'If retry scan finds valid channels, continue scanning failed channels until no new valid channels are found',
         'dark': 'Dark',
-        'light': 'Light'
+        'light': 'Light',
+        'neumorphic_dark': 'Neumorphic Dark',
+        'neumorphic_light': 'Neumorphic Light'
     }
 }
 

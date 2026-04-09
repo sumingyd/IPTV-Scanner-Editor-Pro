@@ -1,75 +1,280 @@
 class AppStyles:
-    """应用样式管理类"""
+    """应用样式管理类 - 支持多主题"""
 
-    # 通用主题颜色
+    _current_theme = 'dark'
+
     THEME_COLORS = {
-        'window': '#000000',
-        'window_text': '#ffffff',
-        'base': '#1a1a1a',
-        'alternate_base': '#2a2a2a',
-        'button': '#3a3a3a',
-        'light': '#444444',
-        'mid': '#555555',
-        'dark': '#666666',
-        'highlight': '#2a3a5a',
-        'highlighted_text': '#6a9eff',
-        'link': '#6a9eff',
-        'link_visited': '#8a7eff',
-        'tooltip_base': '#2a2a2a',
-        'tooltip_text': '#f0f0f0',
-        'placeholder': '#999999',
-        'accent': '#4a7eff',
-        'accent_hover': '#3a6eff',
-        'accent_pressed': '#2a5eff',
-        'success': '#4CAF50',
-        'warning': '#FF9800',
-        'error': '#f44336',
-        'info': '#2196F3',
-        'table_header': '#3a3a3a',
-        'table_header_gradient_start': '#444444',
-        'table_header_gradient_middle': '#3a3a3a',
-        'table_header_gradient_end': '#2a2a2a',
-        'table_header_text': '#ffffff',
-        'table_header_hover': '#4a7eff',
-        'table_border': '#555555',
-        'table_grid': '#444444',
-        'table_alternate': '#1a1a1a',
-        'table_hover': '#2a3a5a',
-        'table_selection': '#4a7eff',
-        'table_selection_text': '#ffffff',
-        
-        # 播放器相关颜色
-        'player_background': '#000000',
-        'player_panel': '#2a2a2a',
-        'player_panel_text': '#ffffff',
-        'player_panel_secondary': '#aaaaaa',
-        'player_panel_disabled': '#888888',
-        'player_panel_hint': '#666666',
-        'player_button': 'rgba(60, 60, 60, 0.9)',
-        'player_combo': 'rgba(45, 45, 45, 0.8)',
-        'player_line': '#555555',
-        'player_accent': '#6a9eff',
-        'player_success': '#4CAF50',
-        'player_warning': '#ff6464',
-        'player_slider_track': '#555555',
-        'player_slider_fill': '#4CAF50',
-        'player_slider_handle': '#ffffff',
-        'player_volume_track': '#444444',
-        'player_video_placeholder': '#1a1a1a',
-        
-        # 窗口透明度 (0-255, 用于无边框弹窗)
-        'window_opacity': 220,
+        'dark': {
+            'window': '#000000',
+            'window_text': '#ffffff',
+            'base': '#1a1a1a',
+            'alternate_base': '#2a2a2a',
+            'button': '#3a3a3a',
+            'light': '#444444',
+            'mid': '#555555',
+            'dark': '#666666',
+            'highlight': '#2a3a5a',
+            'highlighted_text': '#6a9eff',
+            'link': '#6a9eff',
+            'link_visited': '#8a7eff',
+            'tooltip_base': '#2a2a2a',
+            'tooltip_text': '#f0f0f0',
+            'placeholder': '#999999',
+            'accent': '#4a7eff',
+            'accent_hover': '#3a6eff',
+            'accent_pressed': '#2a5eff',
+            'success': '#4CAF50',
+            'warning': '#FF9800',
+            'error': '#f44336',
+            'info': '#2196F3',
+            'table_header': '#3a3a3a',
+            'table_header_gradient_start': '#444444',
+            'table_header_gradient_middle': '#3a3a3a',
+            'table_header_gradient_end': '#2a2a2a',
+            'table_header_text': '#ffffff',
+            'table_header_hover': '#4a7eff',
+            'table_border': '#555555',
+            'table_grid': '#444444',
+            'table_alternate': '#1a1a1a',
+            'table_hover': '#2a3a5a',
+            'table_selection': '#4a7eff',
+            'table_selection_text': '#ffffff',
+            'player_background': '#000000',
+            'player_panel': '#2a2a2a',
+            'player_panel_text': '#ffffff',
+            'player_panel_secondary': '#aaaaaa',
+            'player_panel_disabled': '#888888',
+            'player_panel_hint': '#666666',
+            'player_button': 'rgba(60, 60, 60, 0.9)',
+            'player_combo': 'rgba(45, 45, 45, 0.8)',
+            'player_line': '#555555',
+            'player_accent': '#6a9eff',
+            'player_success': '#4CAF50',
+            'player_warning': '#ff6464',
+            'player_slider_track': '#555555',
+            'player_slider_fill': '#4CAF50',
+            'player_slider_handle': '#ffffff',
+            'player_volume_track': '#444444',
+            'player_video_placeholder': '#1a1a1a',
+            'window_opacity': 220,
+            'shadow_light': 'rgba(255,255,255,0.05)',
+            'shadow_dark': 'rgba(0,0,0,0.4)',
+            'neumorphic_light': '#323232',
+            'neumorphic_dark': '#0a0a0a',
+        },
+        'light': {
+            'window': '#f0f0f0',
+            'window_text': '#333333',
+            'base': '#ffffff',
+            'alternate_base': '#e8e8e8',
+            'button': '#d0d0d0',
+            'light': '#e0e0e0',
+            'mid': '#c0c0c0',
+            'dark': '#a0a0a0',
+            'highlight': '#cce0ff',
+            'highlighted_text': '#2a6eff',
+            'link': '#2a6eff',
+            'link_visited': '#6a5eff',
+            'tooltip_base': '#ffffff',
+            'tooltip_text': '#333333',
+            'placeholder': '#999999',
+            'accent': '#2a6eff',
+            'accent_hover': '#1a5eff',
+            'accent_pressed': '#0a4eff',
+            'success': '#4CAF50',
+            'warning': '#FF9800',
+            'error': '#f44336',
+            'info': '#2196F3',
+            'table_header': '#d8d8d8',
+            'table_header_gradient_start': '#e8e8e8',
+            'table_header_gradient_middle': '#d8d8d8',
+            'table_header_gradient_end': '#c8c8c8',
+            'table_header_text': '#333333',
+            'table_header_hover': '#2a6eff',
+            'table_border': '#c0c0c0',
+            'table_grid': '#d0d0d0',
+            'table_alternate': '#f5f5f5',
+            'table_hover': '#cce0ff',
+            'table_selection': '#2a6eff',
+            'table_selection_text': '#ffffff',
+            'player_background': '#e0e0e0',
+            'player_panel': '#f0f0f0',
+            'player_panel_text': '#333333',
+            'player_panel_secondary': '#666666',
+            'player_panel_disabled': '#999999',
+            'player_panel_hint': '#aaaaaa',
+            'player_button': 'rgba(200, 200, 200, 0.9)',
+            'player_combo': 'rgba(220, 220, 220, 0.8)',
+            'player_line': '#c0c0c0',
+            'player_accent': '#2a6eff',
+            'player_success': '#4CAF50',
+            'player_warning': '#ff6464',
+            'player_slider_track': '#c0c0c0',
+            'player_slider_fill': '#2a6eff',
+            'player_slider_handle': '#333333',
+            'player_volume_track': '#d0d0d0',
+            'player_video_placeholder': '#e0e0e0',
+            'window_opacity': 240,
+            'shadow_light': 'rgba(255,255,255,0.8)',
+            'shadow_dark': 'rgba(0,0,0,0.12)',
+            'neumorphic_light': '#ffffff',
+            'neumorphic_dark': '#d0d0d0',
+        },
+        'neumorphic_dark': {
+            'window': '#1e1e2e',
+            'window_text': '#e0e0f0',
+            'base': '#252538',
+            'alternate_base': '#2a2a3d',
+            'button': '#2a2a3d',
+            'light': '#323248',
+            'mid': '#3a3a50',
+            'dark': '#454560',
+            'highlight': '#3a3a5a',
+            'highlighted_text': '#8a9eff',
+            'link': '#8a9eff',
+            'link_visited': '#a08aff',
+            'tooltip_base': '#2a2a3d',
+            'tooltip_text': '#e0e0f0',
+            'placeholder': '#707090',
+            'accent': '#7c8aff',
+            'accent_hover': '#6c7aef',
+            'accent_pressed': '#5c6adf',
+            'success': '#6bcf7f',
+            'warning': '#ffb060',
+            'error': '#ff6b6b',
+            'info': '#5ca0ff',
+            'table_header': '#2a2a3d',
+            'table_header_gradient_start': '#323248',
+            'table_header_gradient_middle': '#2a2a3d',
+            'table_header_gradient_end': '#222236',
+            'table_header_text': '#c0c0e0',
+            'table_header_hover': '#7c8aff',
+            'table_border': '#3a3a50',
+            'table_grid': '#323248',
+            'table_alternate': '#222236',
+            'table_hover': '#3a3a5a',
+            'table_selection': '#5c6adf',
+            'table_selection_text': '#ffffff',
+            'player_background': '#1a1a28',
+            'player_panel': '#252538',
+            'player_panel_text': '#e0e0f0',
+            'player_panel_secondary': '#9090b0',
+            'player_panel_disabled': '#606080',
+            'player_panel_hint': '#505070',
+            'player_button': 'rgba(42, 42, 61, 0.95)',
+            'player_combo': 'rgba(37, 37, 56, 0.9)',
+            'player_line': '#3a3a50',
+            'player_accent': '#8a9eff',
+            'player_success': '#6bcf7f',
+            'player_warning': '#ff6b6b',
+            'player_slider_track': '#3a3a50',
+            'player_slider_fill': '#7c8aff',
+            'player_slider_handle': '#e0e0f0',
+            'player_volume_track': '#323248',
+            'player_video_placeholder': '#1a1a28',
+            'window_opacity': 230,
+            'shadow_light': 'rgba(60,60,90,0.3)',
+            'shadow_dark': 'rgba(0,0,0,0.6)',
+            'neumorphic_light': '#303048',
+            'neumorphic_dark': '#18182a',
+        },
+        'neumorphic_light': {
+            'window': '#e0e5ec',
+            'window_text': '#44476a',
+            'base': '#e0e5ec',
+            'alternate_base': '#d1d9e6',
+            'button': '#d1d9e6',
+            'light': '#e0e5ec',
+            'mid': '#b8bec7',
+            'dark': '#a0a6b0',
+            'highlight': '#d6e4ff',
+            'highlighted_text': '#4a6eff',
+            'link': '#4a6eff',
+            'link_visited': '#6a5eef',
+            'tooltip_base': '#e0e5ec',
+            'tooltip_text': '#44476a',
+            'placeholder': '#9ba4b5',
+            'accent': '#4a6eff',
+            'accent_hover': '#3a5eef',
+            'accent_pressed': '#2a4edf',
+            'success': '#4caf50',
+            'warning': '#ff9800',
+            'error': '#f44336',
+            'info': '#2196f3',
+            'table_header': '#d1d9e6',
+            'table_header_gradient_start': '#e0e5ec',
+            'table_header_gradient_middle': '#d1d9e6',
+            'table_header_gradient_end': '#c8d0da',
+            'table_header_text': '#44476a',
+            'table_header_hover': '#4a6eff',
+            'table_border': '#b8bec7',
+            'table_grid': '#c8d0da',
+            'table_alternate': '#e8ecf2',
+            'table_hover': '#d6e4ff',
+            'table_selection': '#4a6eff',
+            'table_selection_text': '#ffffff',
+            'player_background': '#d1d9e6',
+            'player_panel': '#e0e5ec',
+            'player_panel_text': '#44476a',
+            'player_panel_secondary': '#7a7f9a',
+            'player_panel_disabled': '#9ba4b5',
+            'player_panel_hint': '#b0b5c5',
+            'player_button': 'rgba(209, 217, 230, 0.95)',
+            'player_combo': 'rgba(224, 229, 236, 0.9)',
+            'player_line': '#b8bec7',
+            'player_accent': '#4a6eff',
+            'player_success': '#4caf50',
+            'player_warning': '#ff6464',
+            'player_slider_track': '#b8bec7',
+            'player_slider_fill': '#4a6eff',
+            'player_slider_handle': '#44476a',
+            'player_volume_track': '#c8d0da',
+            'player_video_placeholder': '#d1d9e6',
+            'window_opacity': 245,
+            'shadow_light': 'rgba(255,255,255,0.75)',
+            'shadow_dark': 'rgba(163,177,198,0.6)',
+            'neumorphic_light': '#e8edf4',
+            'neumorphic_dark': '#c8cdd4',
+        },
     }
 
     @staticmethod
     def _get_colors():
-        """获取当前主题的颜色"""
-        return AppStyles.THEME_COLORS
+        return AppStyles.THEME_COLORS.get(AppStyles._current_theme, AppStyles.THEME_COLORS['dark'])
+
+    @staticmethod
+    def set_theme(theme_name):
+        AppStyles._current_theme = theme_name
+
+    @staticmethod
+    def get_theme():
+        return AppStyles._current_theme
+
+    @staticmethod
+    def get_available_themes():
+        return list(AppStyles.THEME_COLORS.keys())
+
+    @staticmethod
+    def is_neumorphic():
+        return AppStyles._current_theme in ('neumorphic_dark', 'neumorphic_light')
+
+    @staticmethod
+    def _neumorphic_inset():
+        c = AppStyles._get_colors()
+        return f"box-shadow: inset 3px 3px 6px {c['shadow_dark']}, inset -3px -3px 6px {c['shadow_light']};"
+
+    @staticmethod
+    def _neumorphic_raised():
+        c = AppStyles._get_colors()
+        return f"box-shadow: 4px 4px 8px {c['shadow_dark']}, -4px -4px 8px {c['shadow_light']};"
 
     @staticmethod
     def main_window_style() -> str:
-        """主窗口样式"""
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        btn_bg = colors['neumorphic_light'] if neo else colors['button']
+        btn_hover = colors['neumorphic_dark'] if neo else colors['light']
+        btn_pressed = colors['neumorphic_dark'] if neo else colors['dark']
         return f"""
             QMainWindow {{
                 background-color: {colors['window']};
@@ -106,8 +311,6 @@ class AppStyles:
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                 spacing: 8px;
             }}
-            
-            /* SpinBox 统一样式 */
             QSpinBox {{
                 border: 1px solid {colors['mid']};
                 border-radius: 6px;
@@ -117,42 +320,35 @@ class AppStyles:
                 background-color: {colors['alternate_base']};
                 color: {colors['window_text']};
             }}
-            
             QSpinBox:focus {{
                 border-color: {colors['accent']};
                 outline: none;
             }}
-            
             QSpinBox::up-button, QSpinBox::down-button {{
                 width: 28px;
                 border: none;
                 border-left: 1px solid {colors['mid']};
-                background-color: {colors['button']};
+                background-color: {btn_bg};
                 min-width: 0;
                 min-height: 0;
                 padding: 0;
             }}
-            
             QSpinBox::up-button {{
                 subcontrol-origin: border;
                 subcontrol-position: right top;
                 border-top-right-radius: 6px;
             }}
-            
             QSpinBox::down-button {{
                 subcontrol-origin: border;
                 subcontrol-position: right bottom;
                 border-bottom-right-radius: 6px;
             }}
-            
             QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
                 background-color: {colors['accent']};
             }}
-            
             QSpinBox::up-button:pressed, QSpinBox::down-button:pressed {{
                 background-color: {colors['accent_pressed']};
             }}
-            
             QSpinBox::up-arrow {{
                 width: 12px;
                 height: 12px;
@@ -161,7 +357,6 @@ class AppStyles:
                 border-bottom: 8px solid {colors['window_text']};
                 margin: 0 auto;
             }}
-            
             QSpinBox::down-arrow {{
                 width: 12px;
                 height: 12px;
@@ -170,91 +365,72 @@ class AppStyles:
                 border-top: 8px solid {colors['window_text']};
                 margin: 0 auto;
             }}
-            
             QSpinBox::up-button:hover::up-arrow {{
                 border-bottom-color: {colors['accent']};
             }}
-            
             QSpinBox::down-button:hover::down-arrow {{
                 border-top-color: {colors['accent']};
             }}
-
-            
-            /* 滚动条统一样式 */
             QScrollBar:vertical {{
                 border: none;
                 background-color: {colors['alternate_base']};
                 width: 10px;
                 margin: 2px 0;
             }}
-            
             QScrollBar::handle:vertical {{
                 background-color: {colors['mid']};
                 min-height: 40px;
                 border-radius: 5px;
                 margin: 2px;
             }}
-            
             QScrollBar::handle:vertical:hover {{
                 background-color: {colors['accent']};
                 border-radius: 6px;
             }}
-            
             QScrollBar::handle:vertical:pressed {{
                 background-color: {colors['accent_pressed']};
                 border-radius: 6px;
             }}
-            
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
                 height: 0px;
                 border: none;
                 background-color: transparent;
             }}
-            
             QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
                 background-color: transparent;
             }}
-            
             QScrollBar:horizontal {{
                 border: none;
                 background-color: {colors['alternate_base']};
                 height: 10px;
                 margin: 0 2px;
             }}
-            
             QScrollBar::handle:horizontal {{
                 background-color: {colors['mid']};
                 min-width: 40px;
                 border-radius: 5px;
                 margin: 2px;
             }}
-            
             QScrollBar::handle:horizontal:hover {{
                 background-color: {colors['accent']};
                 border-radius: 6px;
             }}
-            
             QScrollBar::handle:horizontal:pressed {{
                 background-color: {colors['accent_pressed']};
                 border-radius: 6px;
             }}
-            
             QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
                 width: 0px;
                 border: none;
                 background-color: transparent;
             }}
-            
             QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
                 background-color: transparent;
             }}
         """
 
-
-
     @staticmethod
     def list_style() -> str:
-        """列表样式"""
         colors = AppStyles._get_colors()
         return f"""
             QTableView {{
@@ -309,18 +485,10 @@ class AppStyles:
             QHeaderView::section:last {{
                 border-right: none;
             }}
-            QHeaderView::section:first {{
-                min-width: 60px;
-            }}
-            QHeaderView::section:nth-child(2) {{
-                min-width: 180px;
-            }}
-            QHeaderView::section:nth-child(3) {{
-                min-width: 100px;
-            }}
-            QHeaderView::section:nth-child(4) {{
-                min-width: 250px;
-            }}
+            QHeaderView::section:first {{ min-width: 60px; }}
+            QHeaderView::section:nth-child(2) {{ min-width: 180px; }}
+            QHeaderView::section:nth-child(3) {{ min-width: 100px; }}
+            QHeaderView::section:nth-child(4) {{ min-width: 250px; }}
             QTableView::item:drag {{
                 background-color: {colors['table_selection']};
                 color: {colors['table_selection_text']};
@@ -337,7 +505,6 @@ class AppStyles:
 
     @staticmethod
     def statusbar_style() -> str:
-        """状态栏样式"""
         colors = AppStyles._get_colors()
         return f"""
             QStatusBar {{
@@ -349,7 +516,6 @@ class AppStyles:
 
     @staticmethod
     def player_toolbar_style() -> str:
-        """播放器工具栏样式"""
         colors = AppStyles._get_colors()
         return f"""
             QToolBar {{
@@ -372,8 +538,6 @@ class AppStyles:
 
     @staticmethod
     def player_panel_style() -> str:
-        """播放器面板样式"""
-        colors = AppStyles._get_colors()
         return f"""
             QLabel {{
                 border: none;
@@ -390,7 +554,6 @@ class AppStyles:
 
     @staticmethod
     def player_button_style() -> str:
-        """播放器按钮样式"""
         colors = AppStyles._get_colors()
         return f"""
             QToolButton {{
@@ -404,7 +567,6 @@ class AppStyles:
 
     @staticmethod
     def player_slider_style() -> str:
-        """播放器滑块样式"""
         colors = AppStyles._get_colors()
         return f"""
             QSlider {{
@@ -431,7 +593,6 @@ class AppStyles:
 
     @staticmethod
     def player_volume_slider_style() -> str:
-        """播放器音量滑块样式"""
         colors = AppStyles._get_colors()
         return f"""
             QSlider::groove:horizontal {{ 
@@ -455,7 +616,6 @@ class AppStyles:
 
     @staticmethod
     def exit_catchup_button_style() -> str:
-        """退出回看按钮样式"""
         colors = AppStyles._get_colors()
         return f"""
             QToolButton {{
@@ -469,7 +629,6 @@ class AppStyles:
 
     @staticmethod
     def player_label_style() -> str:
-        """播放器标签样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -481,7 +640,6 @@ class AppStyles:
 
     @staticmethod
     def player_channel_name_style() -> str:
-        """播放器频道名称样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -494,7 +652,6 @@ class AppStyles:
 
     @staticmethod
     def player_program_style() -> str:
-        """播放器节目样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -506,7 +663,6 @@ class AppStyles:
 
     @staticmethod
     def player_program_desc_style() -> str:
-        """播放器节目描述样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -518,7 +674,6 @@ class AppStyles:
 
     @staticmethod
     def player_date_button_style() -> str:
-        """播放器日期按钮样式"""
         colors = AppStyles._get_colors()
         return f"""
             QPushButton {{
@@ -531,7 +686,6 @@ class AppStyles:
 
     @staticmethod
     def player_date_label_style() -> str:
-        """播放器日期标签样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -542,7 +696,6 @@ class AppStyles:
 
     @staticmethod
     def player_epg_title_style() -> str:
-        """播放器EPG标题样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -556,7 +709,6 @@ class AppStyles:
 
     @staticmethod
     def player_group_combo_style() -> str:
-        """播放器分组下拉框样式"""
         colors = AppStyles._get_colors()
         return f"""
             QComboBox {{
@@ -570,7 +722,6 @@ class AppStyles:
 
     @staticmethod
     def player_playlist_title_style() -> str:
-        """播放器播放列表标题样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -584,7 +735,6 @@ class AppStyles:
 
     @staticmethod
     def player_line_style() -> str:
-        """播放器分割线样式"""
         colors = AppStyles._get_colors()
         return f"""
             QFrame {{
@@ -595,7 +745,6 @@ class AppStyles:
 
     @staticmethod
     def player_video_placeholder_style() -> str:
-        """播放器视频占位符样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -607,7 +756,6 @@ class AppStyles:
 
     @staticmethod
     def player_empty_label_style() -> str:
-        """播放器空状态标签样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -619,7 +767,6 @@ class AppStyles:
 
     @staticmethod
     def player_list_style() -> str:
-        """播放器列表样式"""
         colors = AppStyles._get_colors()
         return f"""
             QListWidget {{
@@ -632,7 +779,6 @@ class AppStyles:
 
     @staticmethod
     def player_progress_label_style() -> str:
-        """播放器进度标签样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -644,7 +790,6 @@ class AppStyles:
 
     @staticmethod
     def player_channel_logo_style() -> str:
-        """播放器频道LOGO样式"""
         return """
             QLabel {
                 font-size: 24px;
@@ -654,15 +799,11 @@ class AppStyles:
 
     @staticmethod
     def player_background_style() -> str:
-        """播放器背景样式"""
         colors = AppStyles._get_colors()
-        return f"""
-            background-color: {colors['player_background']};
-        """
+        return f"background-color: {colors['player_background']};"
 
     @staticmethod
     def player_menu_bar_style() -> str:
-        """播放器菜单栏样式"""
         colors = AppStyles._get_colors()
         return f"""
             QMenuBar {{
@@ -695,13 +836,126 @@ class AppStyles:
         """
 
     @staticmethod
-    def scan_window_style() -> str:
-        """扫描频道窗口样式"""
+    def popup_dialog_style() -> str:
+        colors = AppStyles._get_colors()
+        opacity = colors.get('window_opacity', 220) / 255.0
+        window_bg = colors['player_panel']
+        neo = AppStyles.is_neumorphic()
+        btn_bg = colors['neumorphic_light'] if neo else colors['button']
+        btn_hover = colors['neumorphic_dark'] if neo else colors['light']
+        btn_pressed = colors['neumorphic_dark'] if neo else colors['dark']
+        input_bg = colors['neumorphic_light'] if neo else colors['alternate_base']
+        return f"""
+            QDialog {{
+                background-color: {window_bg};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+                border-radius: 12px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            }}
+            QDialog > QWidget {{
+                background-color: {window_bg};
+                border-radius: 12px;
+            }}
+            QDialog QLabel {{
+                color: {colors['window_text']};
+                font-size: 13px;
+            }}
+            QDialog QPushButton {{
+                min-width: 70px;
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: 500;
+                background-color: {btn_bg};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+            }}
+            QDialog QPushButton:hover {{
+                background-color: {btn_hover};
+                border-color: {colors['accent']};
+            }}
+            QDialog QPushButton:pressed {{
+                background-color: {btn_pressed};
+                border-color: {colors['accent_pressed']};
+            }}
+            QDialog QGroupBox {{
+                border: 1px solid {colors['mid']};
+                border-radius: 8px;
+                margin-top: 12px;
+                padding-top: 18px;
+                background-color: {colors['alternate_base']};
+            }}
+            QDialog QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 6px;
+                color: {colors['window_text']};
+                font-weight: 600;
+                font-size: 13px;
+            }}
+            QDialog QLineEdit, QDialog QComboBox {{
+                border: 1px solid {colors['mid']};
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 13px;
+                background-color: {input_bg};
+                color: {colors['window_text']};
+            }}
+            QDialog QLineEdit:focus, QDialog QComboBox:focus {{
+                border-color: {colors['accent']};
+                outline: none;
+            }}
+            QDialog QComboBox QAbstractItemView {{
+                background-color: {colors['window']};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+                border-radius: 4px;
+            }}
+            QDialog QCheckBox {{
+                color: {colors['window_text']};
+                font-size: 13px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                spacing: 8px;
+            }}
+            QDialog QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+                border: 2px solid {colors['mid']};
+                border-radius: 4px;
+                background-color: {input_bg};
+            }}
+            QDialog QCheckBox::indicator:checked {{
+                background-color: {colors['accent']};
+                border-color: {colors['accent']};
+            }}
+            QDialog QCheckBox::indicator:hover {{
+                border-color: {colors['accent']};
+            }}
+            QDialog QCheckBox::indicator:pressed {{
+                background-color: {colors['accent_pressed']};
+                border-color: {colors['accent_pressed']};
+            }}
+            QDialog QTextEdit {{
+                border: 1px solid {colors['mid']};
+                border-radius: 6px;
+                padding: 10px;
+                font-size: 13px;
+                background-color: {input_bg};
+                color: {colors['window_text']};
+            }}
+            QDialog QTextEdit:focus {{
+                border-color: {colors['accent']};
+                outline: none;
+            }}
+        """
+
+    @staticmethod
+    def dialog_style() -> str:
         return AppStyles.popup_dialog_style()
 
     @staticmethod
     def progress_style() -> str:
-        """进度条样式"""
         colors = AppStyles._get_colors()
         return f"""
             QProgressBar {{
@@ -724,7 +978,6 @@ class AppStyles:
 
     @staticmethod
     def toolbar_button_style() -> str:
-        """工具栏按钮样式"""
         colors = AppStyles._get_colors()
         return f"""
             QToolButton {{
@@ -754,10 +1007,8 @@ class AppStyles:
             }}
         """
 
-
     @staticmethod
     def drag_list_style() -> str:
-        """拖拽列表样式"""
         colors = AppStyles._get_colors()
         return f"""
             QListWidget {{
@@ -791,7 +1042,6 @@ class AppStyles:
 
     @staticmethod
     def drag_hint_label_style() -> str:
-        """拖拽提示标签样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -807,7 +1057,6 @@ class AppStyles:
 
     @staticmethod
     def group_hint_label_style() -> str:
-        """分组提示标签样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -824,7 +1073,6 @@ class AppStyles:
 
     @staticmethod
     def statusbar_error_style() -> str:
-        """状态栏错误/警告样式"""
         colors = AppStyles._get_colors()
         return f"""
             QStatusBar {{{{
@@ -833,10 +1081,8 @@ class AppStyles:
             }}}}
         """
 
-
     @staticmethod
     def apply_button_style() -> str:
-        """应用按钮样式"""
         colors = AppStyles._get_colors()
         return f"""
             QPushButton {{{{
@@ -855,7 +1101,6 @@ class AppStyles:
 
     @staticmethod
     def cancel_button_style() -> str:
-        """取消按钮样式"""
         colors = AppStyles._get_colors()
         return f"""
             QPushButton {{{{
@@ -871,10 +1116,8 @@ class AppStyles:
             }}}}
         """
 
-
     @staticmethod
     def secondary_label_style() -> str:
-        """次要标签样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{{{
@@ -886,10 +1129,8 @@ class AppStyles:
             }}}}
         """
 
-
     @staticmethod
     def tab_widget_style() -> str:
-        """标签页控件样式"""
         colors = AppStyles._get_colors()
         return f"""
             QTabWidget {{
@@ -943,14 +1184,16 @@ class AppStyles:
             }}
         """
 
-    # 通用样式
     @staticmethod
     def common_button_style() -> str:
-        """通用按钮样式"""
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        btn_bg = colors['neumorphic_light'] if neo else colors['button']
+        btn_hover = colors['neumorphic_dark'] if neo else colors['light']
+        btn_pressed = colors['neumorphic_dark'] if neo else colors['dark']
         return f"""
             QPushButton {{
-                background-color: {colors['button']};
+                background-color: {btn_bg};
                 color: {colors['window_text']};
                 border: 1px solid {colors['mid']};
                 border-radius: 4px;
@@ -961,11 +1204,11 @@ class AppStyles:
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
             }}
             QPushButton:hover {{
-                background-color: {colors['light']};
+                background-color: {btn_hover};
                 border-color: {colors['accent']};
             }}
             QPushButton:pressed {{
-                background-color: {colors['dark']};
+                background-color: {btn_pressed};
                 border-color: {colors['accent_pressed']};
             }}
             QPushButton:disabled {{
@@ -977,7 +1220,6 @@ class AppStyles:
 
     @staticmethod
     def common_label_style() -> str:
-        """通用标签样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -990,11 +1232,12 @@ class AppStyles:
 
     @staticmethod
     def common_line_edit_style() -> str:
-        """通用输入框样式"""
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        input_bg = colors['neumorphic_light'] if neo else colors['alternate_base']
         return f"""
             QLineEdit {{
-                background-color: {colors['alternate_base']};
+                background-color: {input_bg};
                 color: {colors['window_text']};
                 border: 1px solid {colors['mid']};
                 border-radius: 4px;
@@ -1015,11 +1258,12 @@ class AppStyles:
 
     @staticmethod
     def common_combo_box_style() -> str:
-        """通用下拉框样式"""
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        input_bg = colors['neumorphic_light'] if neo else colors['alternate_base']
         return f"""
             QComboBox {{
-                background-color: {colors['alternate_base']};
+                background-color: {input_bg};
                 color: {colors['window_text']};
                 border: 1px solid {colors['mid']};
                 border-radius: 4px;
@@ -1065,66 +1309,13 @@ class AppStyles:
 
     @staticmethod
     def table_style() -> str:
-        """表格样式"""
-        colors = AppStyles._get_colors()
-        return f"""
-            QTableView, QTableWidget {{
-                border: 2px solid {colors['table_border']};
-                border-radius: 6px;
-                alternate-background-color: {colors['table_alternate']};
-                selection-background-color: {colors['table_selection']};
-                selection-color: {colors['table_selection_text']};
-                gridline-color: {colors['table_grid']};
-                font-size: 12px;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                background-color: {colors['alternate_base']};
-            }}
-            QTableView::item, QTableWidget::item {{
-                padding: 6px 10px;
-                border-bottom: 1px solid {colors['table_grid']};
-                color: {colors['window_text']};
-            }}
-            QTableView::item:hover, QTableWidget::item:hover {{
-                background-color: {colors['table_hover']};
-                border: 1px solid {colors['accent']};
-                border-radius: 4px;
-            }}
-            QTableView::item:selected, QTableWidget::item:selected {{
-                background-color: {colors['table_selection']};
-                color: {colors['table_selection_text']};
-                font-weight: 500;
-                border: 1px solid {colors['accent_pressed']};
-                border-radius: 4px;
-            }}
-            QTableView::item:selected:hover, QTableWidget::item:selected:hover {{
-                background-color: {colors['accent_hover']};
-                border-color: {colors['accent_pressed']};
-            }}
-            QHeaderView {{
-                background-color: {colors['table_header']};
-                border: none;
-            }}
-            QHeaderView::section {{
-                background-color: {colors['table_header']};
-                color: {colors['table_header_text']};
-                padding: 8px 12px;
-                border: none;
-                border-right: 1px solid {colors['table_grid']};
-                font-weight: 600;
-                font-size: 12px;
-            }}
-            QHeaderView::section:last {{
-                border-right: none;
-            }}
-            QHeaderView::section:hover {{
-                background-color: {colors['table_header_hover']};
-            }}
-        """
+        return AppStyles.list_style()
 
     @staticmethod
     def common_check_box_style() -> str:
-        """通用复选框样式"""
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        chk_bg = colors['neumorphic_light'] if neo else colors['alternate_base']
         return f"""
             QCheckBox {{
                 color: {colors['window_text']};
@@ -1137,7 +1328,7 @@ class AppStyles:
                 height: 16px;
                 border: 2px solid {colors['mid']};
                 border-radius: 3px;
-                background-color: {colors['alternate_base']};
+                background-color: {chk_bg};
             }}
             QCheckBox::indicator:checked {{
                 background-color: {colors['accent']};
@@ -1150,7 +1341,6 @@ class AppStyles:
 
     @staticmethod
     def common_group_box_style() -> str:
-        """通用分组框样式"""
         colors = AppStyles._get_colors()
         return f"""
             QGroupBox {{
@@ -1177,7 +1367,6 @@ class AppStyles:
 
     @staticmethod
     def common_title_style() -> str:
-        """通用标题文字样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -1191,7 +1380,6 @@ class AppStyles:
 
     @staticmethod
     def common_link_style() -> str:
-        """通用链接文字样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -1208,7 +1396,6 @@ class AppStyles:
 
     @staticmethod
     def common_area_style() -> str:
-        """通用窗口内区域块样式"""
         colors = AppStyles._get_colors()
         return f"""
             QWidget {{
@@ -1219,164 +1406,8 @@ class AppStyles:
             }}
         """
 
-    # 弹窗样式
-    @staticmethod
-    def popup_dialog_style() -> str:
-        """通用弹窗窗口样式 - 支持无边框圆角窗口"""
-        colors = AppStyles._get_colors()
-        # 使用主题中的透明度设置
-        opacity = colors.get('window_opacity', 220) / 255.0
-        window_bg = f"rgba(0, 0, 0, {opacity:.2f})"  # 半透明黑色背景
-        return f"""
-            /* 窗口样式 - 用于无边框圆角窗口 */
-            QDialog {{
-                background-color: {window_bg};
-                color: {colors['window_text']};
-                border: 1px solid {colors['mid']};
-                border-radius: 12px;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            }}
-            
-            /* 当使用 WA_TranslucentBackground 时，需要给内容widget设置背景 */
-            QDialog > QWidget {{
-                background-color: {window_bg};
-                border-radius: 12px;
-            }}
-            
-            /* 标签样式 */
-            QDialog QLabel {{
-                color: {colors['window_text']};
-                font-size: 13px;
-                opacity: 0.9;
-            }}
-            
-            /* 按钮样式 */
-            QDialog QPushButton {{
-                min-width: 70px;
-                padding: 6px 12px;
-                border-radius: 4px;
-                font-size: 12px;
-                font-weight: 500;
-                background-color: {colors['button']};
-                color: {colors['window_text']};
-                border: 1px solid {colors['mid']};
-            }}
-            
-            QDialog QPushButton:hover {{
-                background-color: {colors['light']};
-                border-color: {colors['accent']};
-            }}
-            
-            QDialog QPushButton:pressed {{
-                background-color: {colors['dark']};
-                border-color: {colors['accent_pressed']};
-            }}
-            
-            /* 分组框样式 */
-            QDialog QGroupBox {{
-                border: 1px solid {colors['mid']};
-                border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 18px;
-                background-color: {colors['alternate_base']};
-            }}
-            
-            QDialog QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 6px;
-                color: {colors['window_text']};
-                font-weight: 600;
-                font-size: 13px;
-            }}
-            
-            /* 输入框样式 - 不包含 SpinBox，让它使用默认样式 */
-            QDialog QLineEdit, QDialog QComboBox {{
-                border: 1px solid {colors['mid']};
-                border-radius: 6px;
-                padding: 6px 10px;
-                font-size: 13px;
-                background-color: {colors['alternate_base']};
-                color: {colors['window_text']};
-            }}
-            
-            QDialog QLineEdit:focus, QDialog QComboBox:focus {{
-                border-color: {colors['accent']};
-                outline: none;
-            }}
-            
-            /* 下拉列表样式 */
-            QDialog QComboBox QAbstractItemView {{
-                background-color: {colors['window']};
-                color: {colors['window_text']};
-                border: 1px solid {colors['mid']};
-                border-radius: 4px;
-            }}
-            
-            /* 复选框样式 */
-            QDialog QCheckBox {{
-                color: {colors['window_text']};
-                font-size: 13px;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                spacing: 8px;
-            }}
-            
-            QDialog QCheckBox::indicator {{
-                width: 18px;
-                height: 18px;
-                border: 2px solid {colors['mid']};
-                border-radius: 4px;
-                background-color: {colors['alternate_base']};
-            }}
-            
-            QDialog QCheckBox::indicator:checked {{
-                background-color: {colors['accent']};
-                border-color: {colors['accent']};
-            }}
-            
-            QDialog QCheckBox::indicator:hover {{
-                border-color: {colors['accent']};
-            }}
-            
-            QDialog QCheckBox::indicator:pressed {{
-                background-color: {colors['accent_pressed']};
-                border-color: {colors['accent_pressed']};
-            }}
-            
-            /* 文本编辑框样式 */
-            QDialog QTextEdit {{
-                border: 1px solid {colors['mid']};
-                border-radius: 6px;
-                padding: 10px;
-                font-size: 13px;
-                background-color: {colors['alternate_base']};
-                color: {colors['window_text']};
-            }}
-            
-            QDialog QTextEdit:focus {{
-                border-color: {colors['accent']};
-                outline: none;
-            }}
-        """
-
-    @staticmethod
-    def dialog_style() -> str:
-        """对话框通用样式"""
-        return AppStyles.popup_dialog_style()
-
-    @staticmethod
-    def player_settings_dialog_style() -> str:
-        """播放器设置对话框样式"""
-        return AppStyles.popup_dialog_style()
-
-    @staticmethod
-    def about_dialog_style() -> str:
-        """关于窗口样式"""
-        return AppStyles.popup_dialog_style()
-
     @staticmethod
     def side_panel_style() -> str:
-        """侧边栏面板样式（用于扫描设置和频道编辑面板）"""
         colors = AppStyles._get_colors()
         return f"""
             QWidget {{
@@ -1387,7 +1418,6 @@ class AppStyles:
 
     @staticmethod
     def section_title_style() -> str:
-        """区域标题样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -1399,7 +1429,6 @@ class AppStyles:
 
     @staticmethod
     def small_label_style() -> str:
-        """小标签样式"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -1410,7 +1439,6 @@ class AppStyles:
 
     @staticmethod
     def hint_label_style() -> str:
-        """提示标签样式（用于地址格式提示等）"""
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
@@ -1420,65 +1448,52 @@ class AppStyles:
         """
 
     @staticmethod
-    def get_theme_name() -> str:
-        """获取当前主题名称，用于主题切换功能"""
-        return "默认主题"
-
-    @staticmethod
-    def get_theme_styles(theme_name: str = None) -> dict:
-        """获取指定主题的所有样式，用于主题切换功能"""
-        if theme_name is None:
-            theme_name = AppStyles.get_theme_name()
-        
-        # 这里可以根据主题名称返回不同的样式配置
-        # 目前只返回默认样式
-        return {{
-            'common_button': AppStyles.common_button_style(),
-            'common_label': AppStyles.common_label_style(),
-            'common_line_edit': AppStyles.common_line_edit_style(),
-            'common_check_box': AppStyles.common_check_box_style(),
-            'common_group_box': AppStyles.common_group_box_style(),
-            'common_title': AppStyles.common_title_style(),
-            'common_link': AppStyles.common_link_style(),
-            'common_area': AppStyles.common_area_style(),
-            'main_window': AppStyles.main_window_style(),
-            'scan_window': AppStyles.scan_window_style(),
-            'dialog': AppStyles.dialog_style(),
-            'about_dialog': AppStyles.about_dialog_style(),
-            'player_settings_dialog': AppStyles.player_settings_dialog_style(),
-            'player_menu_bar': AppStyles.player_menu_bar_style(),
-            'player_toolbar': AppStyles.player_toolbar_style(),
-            'player_panel': AppStyles.player_panel_style(),
-            'player_button': AppStyles.player_button_style(),
-            'player_slider': AppStyles.player_slider_style(),
-            'player_volume_slider': AppStyles.player_volume_slider_style(),
-            'exit_catchup_button': AppStyles.exit_catchup_button_style(),
-            'player_label': AppStyles.player_label_style(),
-            'player_channel_name': AppStyles.player_channel_name_style(),
-            'player_program': AppStyles.player_program_style(),
-            'player_program_desc': AppStyles.player_program_desc_style(),
-            'player_date_button': AppStyles.player_date_button_style(),
-            'player_date_label': AppStyles.player_date_label_style(),
-            'player_epg_title': AppStyles.player_epg_title_style(),
-            'player_group_combo': AppStyles.player_group_combo_style(),
-            'player_playlist_title': AppStyles.player_playlist_title_style(),
-            'player_line': AppStyles.player_line_style(),
-            'player_video_placeholder': AppStyles.player_video_placeholder_style(),
-            'player_empty_label': AppStyles.player_empty_label_style(),
-            'player_list': AppStyles.player_list_style(),
-            'player_progress_label': AppStyles.player_progress_label_style(),
-            'player_channel_logo': AppStyles.player_channel_logo_style(),
-            'player_background': AppStyles.player_background_style(),
-            'list': AppStyles.list_style(),
-            'statusbar': AppStyles.statusbar_style(),
-            'statusbar_error': AppStyles.statusbar_error_style(),
-            'progress': AppStyles.progress_style(),
-            'toolbar_button': AppStyles.toolbar_button_style(),
-            'drag_list': AppStyles.drag_list_style(),
-            'drag_hint_label': AppStyles.drag_hint_label_style(),
-            'group_hint_label': AppStyles.group_hint_label_style(),
-            'apply_button': AppStyles.apply_button_style(),
-            'cancel_button': AppStyles.cancel_button_style(),
-            'secondary_label': AppStyles.secondary_label_style(),
-            'tab_widget': AppStyles.tab_widget_style(),
-        }}
+    def button_style(active=False):
+        colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        btn_bg = colors['neumorphic_light'] if neo else colors['button']
+        btn_hover = colors['neumorphic_dark'] if neo else colors['light']
+        if active:
+            return f"""
+                QPushButton {{
+                    background-color: {colors['accent']};
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 6px 12px;
+                    font-weight: 500;
+                    font-size: 12px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                }}
+                QPushButton:hover {{
+                    background-color: {colors['accent_hover']};
+                }}
+                QPushButton:pressed {{
+                    background-color: {colors['accent_pressed']};
+                }}
+            """
+        return f"""
+            QPushButton {{
+                background-color: {btn_bg};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+                border-radius: 4px;
+                padding: 6px 12px;
+                font-weight: 500;
+                font-size: 12px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            }}
+            QPushButton:hover {{
+                background-color: {btn_hover};
+                border-color: {colors['accent']};
+            }}
+            QPushButton:pressed {{
+                background-color: {colors['accent_pressed']};
+                border-color: {colors['accent_pressed']};
+            }}
+            QPushButton:disabled {{
+                background-color: {colors['light']};
+                border-color: {colors['mid']};
+                color: {colors['placeholder']};
+            }}
+        """

@@ -370,7 +370,7 @@ class ConfigManager:
     
     def load_theme_settings(self):
         """加载主题设置"""
-        return self.get_value('Theme', 'current_theme', 'default')
+        return self.get_value('Theme', 'current_theme', 'dark')
 
     def save_all_settings(self, settings_dict: dict):
         """保存所有设置"""

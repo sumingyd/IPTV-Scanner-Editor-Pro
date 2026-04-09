@@ -26,6 +26,7 @@ class AboutDialog(QtWidgets.QDialog):
             self.language_manager = LanguageManager()
             self.language_manager.load_available_languages()
             self.language_manager.set_language('zh')
+        self._colors = colors
         self._init_ui()
 
     def _init_ui(self):
@@ -54,12 +55,12 @@ class AboutDialog(QtWidgets.QDialog):
         title_layout.addWidget(logo_label)
 
         app_name_label = QtWidgets.QLabel("IPTV Scanner Editor Pro")
-        app_name_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #6a9eff; background-color: transparent;")
+        app_name_label.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {self._colors['accent']}; background-color: transparent;")
         app_name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_layout.addWidget(app_name_label)
 
         self.app_desc_label = QtWidgets.QLabel(tr("app_description", "IPTV Professional Scanner & Editor"))
-        self.app_desc_label.setStyleSheet("font-size: 12px; color: #aaaaaa; background-color: transparent;")
+        self.app_desc_label.setStyleSheet(f"font-size: 12px; color: {self._colors['player_panel_secondary']}; background-color: transparent;")
         self.app_desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_layout.addWidget(self.app_desc_label)
 
@@ -76,9 +77,9 @@ class AboutDialog(QtWidgets.QDialog):
         version_layout.setSpacing(6)
         version_layout.setContentsMargins(4, 4, 4, 4)
 
-        label_style = "font-weight: bold; color: white; background-color: transparent; font-size: 12px;"
-        value_style = "color: #6a9eff; background-color: transparent; font-size: 12px;"
-        value_style_white = "color: white; background-color: transparent; font-size: 12px;"
+        label_style = f"font-weight: bold; color: {self._colors['window_text']}; background-color: transparent; font-size: 12px;"
+        value_style = f"color: {self._colors['accent']}; background-color: transparent; font-size: 12px;"
+        value_style_white = f"color: {self._colors['window_text']}; background-color: transparent; font-size: 12px;"
 
         current_version_label = QtWidgets.QLabel(f"{tr('current_version', 'Current Version')}：")
         current_version_label.setStyleSheet(label_style)
@@ -112,11 +113,11 @@ class AboutDialog(QtWidgets.QDialog):
         info_layout.addWidget(version_group)
 
         self.system_info_label = QtWidgets.QLabel(f"{tr('system_info', 'System Info')}：")
-        self.system_info_label.setStyleSheet("font-weight: bold; color: white; margin-top: 4px; background-color: transparent; font-size: 12px;")
+        self.system_info_label.setStyleSheet(f"font-weight: bold; color: {self._colors['window_text']}; margin-top: 4px; background-color: transparent; font-size: 12px;")
         info_layout.addWidget(self.system_info_label)
 
         system_info_value = QtWidgets.QLabel(f"Python {sys.version.split()[0]}, {platform.system()} {platform.release()}")
-        system_info_value.setStyleSheet("color: white; background-color: transparent; font-size: 12px;")
+        system_info_value.setStyleSheet(f"color: {self._colors['window_text']}; background-color: transparent; font-size: 12px;")
         info_layout.addWidget(system_info_value)
 
         main_layout.addWidget(info_card)
@@ -126,12 +127,12 @@ class AboutDialog(QtWidgets.QDialog):
         bottom_layout.setSpacing(6)
 
         self.copyright_label = QtWidgets.QLabel(tr("copyright_text", "© 2025 IPTV Scanner Editor Pro"))
-        self.copyright_label.setStyleSheet("color: #aaaaaa; font-size: 11px; background-color: transparent;")
+        self.copyright_label.setStyleSheet(f"color: {self._colors['player_panel_secondary']}; font-size: 11px; background-color: transparent;")
         self.copyright_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         bottom_layout.addWidget(self.copyright_label)
 
         github_link = QtWidgets.QLabel()
-        github_link.setText(f'<a href="https://github.com/sumingyd/IPTV-Scanner-Editor-Pro" style="color: #6a9eff; text-decoration: none;">{tr("github_repo", "GitHub Repository")}</a>')
+        github_link.setText(f'<a href="https://github.com/sumingyd/IPTV-Scanner-Editor-Pro" style="color: {self._colors["accent"]}; text-decoration: none;">{tr("github_repo", "GitHub Repository")}</a>')
         github_link.setOpenExternalLinks(True)
         github_link.setAlignment(Qt.AlignmentFlag.AlignCenter)
         bottom_layout.addWidget(github_link)
@@ -148,7 +149,7 @@ class AboutDialog(QtWidgets.QDialog):
         main_layout.addLayout(button_layout)
 
         from ui.styles import AppStyles
-        self.setStyleSheet(AppStyles.about_dialog_style())
+        self.setStyleSheet(AppStyles.dialog_style())
 
         QtCore.QTimer.singleShot(100, self._check_version_async)
 

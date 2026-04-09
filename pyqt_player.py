@@ -1371,17 +1371,15 @@ class IPTVPlayer(QMainWindow):
             
             # 主题菜单
             theme_menu = menu_bar.addMenu(tr("menu_theme", "Theme"))
-            
-            # 导入主题管理器
+
             from ui.theme_manager import get_theme_manager
             theme_manager = get_theme_manager()
-            
-            # 获取可用的主题列表
+
             themes = theme_manager.get_available_themes()
-            
-            # 为每个主题创建一个动作
+
             for theme in themes:
-                theme_action = QAction(theme, self, checkable=True)
+                theme_display = tr(theme, theme)
+                theme_action = QAction(theme_display, self, checkable=True)
                 theme_action.setChecked(theme == theme_manager.get_current_theme())
                 theme_action.triggered.connect(lambda checked, t=theme: self.set_theme(t))
                 theme_menu.addAction(theme_action)
@@ -1466,6 +1464,7 @@ class IPTVPlayer(QMainWindow):
     
     def populate_epg_list(self):
         """填充EPG列表"""
+        colors = AppStyles._get_colors()
         self.epg_content.clear()
         # 设置列表的整体样式
         self.epg_content.setStyleSheet(AppStyles.player_list_style())
@@ -1706,9 +1705,9 @@ class IPTVPlayer(QMainWindow):
                 if has_catchup and end_time < now:
                     # 创建一个带有回看图标的QPixmap
                     pixmap = QPixmap(20, 20)
-                    pixmap.fill(QColor(0, 0, 0, 0))  # 透明背景
+                    pixmap.fill(QColor(0, 0, 0, 0))
                     painter = QPainter(pixmap)
-                    painter.setPen(QColor(255, 255, 255))
+                    painter.setPen(QColor(colors['player_panel_text']))
                     painter.setFont(painter.font())
                     painter.drawText(0, 0, 20, 20, 0x0004 | 0x0008, "🔄")  # 居中显示
                     painter.end()
@@ -1723,14 +1722,12 @@ class IPTVPlayer(QMainWindow):
                     font = item.font()
                     font.setBold(True)
                     item.setFont(font)
-                    item.setForeground(QColor(76, 168, 232))  # #00a8e8
+                    item.setForeground(QColor(colors['player_accent']))
                     current_program_index = item_index
                 elif start_time > now:
-                    # 未来节目
-                    item.setForeground(QColor(255, 255, 255))  # white
+                    item.setForeground(QColor(colors['player_panel_text']))
                 else:
-                    # 已播放的节目
-                    item.setForeground(QColor(102, 102, 102))  # #666666
+                    item.setForeground(QColor(colors['player_panel_disabled']))
                 
                 self.epg_content.addItem(item)
                 item_index += 1
@@ -3039,7 +3036,7 @@ class IPTVPlayer(QMainWindow):
         dialog.setWindowTitle(tr("player_settings_title", "Player Settings"))
         dialog.setMinimumSize(400, 350)
         # 设置样式表
-        dialog.setStyleSheet(AppStyles.player_settings_dialog_style())
+        dialog.setStyleSheet(AppStyles.dialog_style())
         
         # 创建布局
         main_layout = QVBoxLayout(dialog)
@@ -3677,9 +3674,10 @@ class IPTVPlayer(QMainWindow):
     def _convert_markdown_to_html(self, markdown):
         """将Markdown格式转换为HTML格式"""
         import re
+        colors = AppStyles._get_colors()
         html = markdown
-        html = re.sub(r'## (.*)', r'<h2 style="color: #6a9eff; margin-top: 12px; margin-bottom: 6px; font-size: 15px;">\1</h2>', html)
-        html = re.sub(r'\*\*(.*?)\*\*', r'<strong style="color: #ffffff;">\1</strong>', html)
+        html = re.sub(r'## (.*)', rf'<h2 style="color: {colors["accent"]}; margin-top: 12px; margin-bottom: 6px; font-size: 15px;">\1</h2>', html)
+        html = re.sub(r'\*\*(.*?)\*\*', rf'<strong style="color: {colors["window_text"]};">\1</strong>', html)
         html = re.sub(r'^1\. (.*)', r'<p style="margin: 3px 0; line-height: 1.4;">1. \1</p>', html, flags=re.MULTILINE)
         html = re.sub(r'^- (.*)', r'<p style="margin: 2px 0 2px 16px; line-height: 1.4;">• \1</p>', html, flags=re.MULTILINE)
         html = html.replace('\n\n', '<br>')
@@ -3691,7 +3689,7 @@ class IPTVPlayer(QMainWindow):
                     font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; 
                     font-size: 13px; 
                     line-height: 1.5; 
-                    color: #e0e0e0; 
+                    color: {colors['window_text']}; 
                     background-color: transparent;
                     margin: 0;
                     padding: 0;
@@ -3851,15 +3849,41 @@ class IPTVPlayer(QMainWindow):
             from ui.theme_manager import get_theme_manager
             theme_manager = get_theme_manager()
             theme_manager.set_theme(theme)
-            # 重新创建菜单栏以更新主题
+            self.setStyleSheet(AppStyles.main_window_style())
             self.menuBar().clear()
             self.setup_menu_bar()
-            # 更新状态栏消息
+            self._reapply_all_styles()
             self.status_bar.showMessage(f"{self.language_manager.tr('theme_changed', 'Theme changed to')}: {theme}")
         except Exception as e:
             logger.error(f"切换主题失败: {str(e)}")
             self.status_bar.showMessage(self.language_manager.tr("theme_change_failed", "Theme change failed"))
-    
+
+    def _reapply_all_styles(self):
+        try:
+            self.setStyleSheet(AppStyles.main_window_style())
+            self.menuBar().setStyleSheet(AppStyles.player_menu_bar_style())
+            self.status_bar.setStyleSheet(AppStyles.statusbar_style())
+            if hasattr(self, 'channel_table'):
+                self.channel_table.setStyleSheet(AppStyles.list_style())
+            if hasattr(self, 'epg_panel'):
+                self.epg_panel.setStyleSheet(AppStyles.player_panel_style())
+            if hasattr(self, 'playlist_panel'):
+                self.playlist_panel.setStyleSheet(AppStyles.player_panel_style())
+            if hasattr(self, 'floating_panel'):
+                self.floating_panel.setStyleSheet(AppStyles.player_panel_style())
+            if hasattr(self, 'control_panel'):
+                self.control_panel.setStyleSheet(AppStyles.player_panel_style())
+            for btn in self.findChildren(QtWidgets.QPushButton):
+                btn.setStyleSheet(AppStyles.button_style())
+            for tool_btn in self.findChildren(QtWidgets.QToolButton):
+                tool_btn.setStyleSheet(AppStyles.player_button_style())
+            for slider in self.findChildren(QtWidgets.QSlider):
+                slider.setStyleSheet(AppStyles.player_slider_style())
+            for combo in self.findChildren(QtWidgets.QComboBox):
+                combo.setStyleSheet(AppStyles.player_group_combo_style())
+        except Exception as e:
+            logger.error(f"重新应用样式失败: {e}")
+
     def save_window_layout(self):
         """保存窗口布局（包括位置和大小）"""
         # 只有当UI初始化完成后才保存窗口布局
