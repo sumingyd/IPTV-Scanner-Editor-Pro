@@ -27,7 +27,7 @@ from services.mpv_player_service import MpvPlayerController
 CHANNELS = []
 
 # 频道分组（从实际数据中提取，初始为空）
-CHANNEL_GROUPS = ["全部频道"]
+CHANNEL_GROUPS = ["All Channels"]
 
 # EPG 节目单数据（初始为空字典）
 EPG_DATA = {}
@@ -522,7 +522,7 @@ class IPTVPlayer(QMainWindow):
                             self.channel_list_updated.emit()
                             
                             logger.info(f"列表订阅无需更新，从缓存加载数据，共 {len(CHANNELS)} 个频道")
-                            self.status_message.emit("从缓存加载列表数据")
+                            self.status_message.emit(self.language_manager.tr("loading_from_cache", "Loading from cache"))
                         else:
                             logger.error("缓存列表文件解析失败")
                             # 尝试直接解析内容
@@ -764,7 +764,7 @@ class IPTVPlayer(QMainWindow):
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.setStyleSheet(AppStyles.statusbar_style())
-        self.status_bar.showMessage("就绪")
+        self.status_bar.showMessage(self.language_manager.tr("ready", "Ready"))
         
         # 回看相关属性
         self.is_catchup_mode = False
@@ -803,6 +803,7 @@ class IPTVPlayer(QMainWindow):
     def _create_epg_panel(self):
         """创建EPG面板"""
         logger.debug("_create_epg_panel: 开始")
+        tr = self.language_manager.tr
         
         # 左侧EPG面板
         self.epg_panel = TranslucentPanel(opacity=180)
@@ -811,7 +812,8 @@ class IPTVPlayer(QMainWindow):
         self.epg_layout = QVBoxLayout(self.epg_panel)
         
         # EPG标题
-        self.epg_title = QLabel("📅 节目单")
+        tr = self.language_manager.tr
+        self.epg_title = QLabel(f"📅 {tr('epg_title', 'Program Guide')}")
         self.epg_title.setStyleSheet(AppStyles.player_epg_title_style())
         self.epg_layout.addWidget(self.epg_title)
         
@@ -827,7 +829,7 @@ class IPTVPlayer(QMainWindow):
         date_layout.addWidget(self.epg_prev_day)
         
         # 日期显示
-        self.epg_date_label = QLabel("今天")
+        self.epg_date_label = QLabel(tr("today", "Today"))
         self.epg_date_label.setStyleSheet(AppStyles.player_date_label_style())
         self.epg_date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         date_layout.addWidget(self.epg_date_label, 1)
@@ -847,13 +849,13 @@ class IPTVPlayer(QMainWindow):
         self.epg_content.setSpacing(8)
         self.epg_content.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.epg_content.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.epg_content.addItem("加载中...")
+        self.epg_content.addItem(self.language_manager.tr("loading", "Loading..."))
         # 添加点击事件处理
         self.epg_content.itemClicked.connect(self.on_epg_item_clicked)
         self.epg_layout.addWidget(self.epg_content, 1)
         
         # EPG空提示
-        self.epg_empty_label = QLabel("暂无节目信息")
+        self.epg_empty_label = QLabel(tr("no_epg_data", "No program information"))
         self.epg_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.epg_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         self.epg_layout.addWidget(self.epg_empty_label)
@@ -866,6 +868,7 @@ class IPTVPlayer(QMainWindow):
     def _create_playlist_panel(self):
         """创建播放列表面板"""
         logger.debug("_create_playlist_panel: 开始")
+        tr = self.language_manager.tr
         
         # 右侧播放列表面板
         self.playlist_panel = TranslucentPanel(opacity=180)
@@ -875,7 +878,7 @@ class IPTVPlayer(QMainWindow):
         
         # 播放列表标题和分组选择
         self.playlist_header = QHBoxLayout()
-        self.playlist_title = QLabel("📺 频道列表")
+        self.playlist_title = QLabel(f"📺 {tr('channel_list', 'Channel List')}")
         self.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
         self.group_combo = QComboBox()
         self.group_combo.addItems(CHANNEL_GROUPS)
@@ -895,7 +898,7 @@ class IPTVPlayer(QMainWindow):
         self.playlist_layout.addWidget(self.channel_list, 1)
         
         # 频道列表空提示
-        self.channel_empty_label = QLabel("暂无频道")
+        self.channel_empty_label = QLabel(tr("no_channels", "No channels"))
         self.channel_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.channel_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         self.playlist_layout.addWidget(self.channel_empty_label)
@@ -917,6 +920,7 @@ class IPTVPlayer(QMainWindow):
     def _create_panel(self):
         """创建面板"""
         logger.debug("_create_panel: 开始")
+        tr = self.language_manager.tr
         
         # 悬浮控制面板
         self.floating_panel = TranslucentPanel(opacity=180)
@@ -938,12 +942,13 @@ class IPTVPlayer(QMainWindow):
     def _create_media_row(self):
         """创建媒体信息行"""
         logger.debug("_create_media_row: 开始")
+        tr = self.language_manager.tr
         
         # 第一行：媒体信息（详细版）
         self.media_row = QHBoxLayout()
         self.media_row.setSpacing(12)
         
-        self.video_info = QLabel("📺 未播放")
+        self.video_info = QLabel(f"📺 {tr('not_playing', 'Not playing')}")
         self.video_info.setStyleSheet(AppStyles.player_label_style())
         self.video_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.video_info.setFixedHeight(22)
@@ -978,6 +983,7 @@ class IPTVPlayer(QMainWindow):
     def _create_info_row(self):
         """创建节目信息行"""
         logger.debug("_create_info_row: 开始")
+        tr = self.language_manager.tr
         
         # 第二行：节目信息（加高布局）
         self.info_row = QHBoxLayout()
@@ -995,11 +1001,11 @@ class IPTVPlayer(QMainWindow):
         name_section = QVBoxLayout()
         name_section.setSpacing(2)
         
-        self.channel_name = QLabel("未选择频道")
+        self.channel_name = QLabel(tr("no_channel_selected", "No channel selected"))
         self.channel_name.setStyleSheet(AppStyles.player_channel_name_style())
         name_section.addWidget(self.channel_name)
         
-        self.current_program = QLabel("▶ 请选择频道开始播放")
+        self.current_program = QLabel(tr("select_channel_to_play", "▶ Select a channel to play"))
         self.current_program.setStyleSheet(AppStyles.player_program_style())
         name_section.addWidget(self.current_program)
         
@@ -1011,7 +1017,7 @@ class IPTVPlayer(QMainWindow):
         desc_section = QVBoxLayout()
         desc_section.setContentsMargins(0, 5, 0, 0)
         
-        self.program_desc = QLabel("打开播放列表文件或导入频道以开始观看")
+        self.program_desc = QLabel(tr("open_playlist_or_import", "Open a playlist file or import channels to start watching"))
         self.program_desc.setStyleSheet(AppStyles.player_program_desc_style())
         self.program_desc.setWordWrap(True)
         self.program_desc.setFixedHeight(40)
@@ -1027,7 +1033,7 @@ class IPTVPlayer(QMainWindow):
         self.time_label.setStyleSheet(AppStyles.player_label_style())
         time_section.addWidget(self.time_label)
         
-        self.remain_label = QLabel("等待播放...")
+        self.remain_label = QLabel(tr("waiting_to_play", "Waiting to play..."))
         self.remain_label.setStyleSheet(AppStyles.player_program_style())
         time_section.addWidget(self.remain_label)
         self.info_row.addLayout(time_section, 1)
@@ -1261,25 +1267,27 @@ class IPTVPlayer(QMainWindow):
         menu_bar.setStyleSheet(AppStyles.player_menu_bar_style())
         
         try:
-            # 文件菜单
-            file_menu = menu_bar.addMenu("文件")
+            tr = self.language_manager.tr
             
-            open_playlist = QAction("打开列表", self)
+            # 文件菜单
+            file_menu = menu_bar.addMenu(tr("menu_file", "File"))
+            
+            open_playlist = QAction(tr("menu_open_playlist", "Open Playlist"), self)
             open_playlist.triggered.connect(self.open_playlist)
             open_playlist.setShortcut("Ctrl+O")
             file_menu.addAction(open_playlist)
             
             # 添加最近打开子菜单
-            recent_menu = file_menu.addMenu("最近打开")
+            recent_menu = file_menu.addMenu(tr("menu_recent_open", "Recent"))
             
-            save_as = QAction("另存...", self)
+            save_as = QAction(tr("menu_save_as", "Save As..."), self)
             save_as.triggered.connect(self.save_as)
             save_as.setShortcut("Ctrl+S")
             file_menu.addAction(save_as)
             
             file_menu.addSeparator()
             
-            exit_action = QAction("退出", self)
+            exit_action = QAction(tr("menu_exit", "Exit"), self)
             exit_action.triggered.connect(self.close)
             exit_action.setShortcut("Ctrl+Q")
             file_menu.addAction(exit_action)
@@ -1292,21 +1300,21 @@ class IPTVPlayer(QMainWindow):
                 self.update_recent_files_menu()
             
             # 视图菜单
-            view_menu = menu_bar.addMenu("视图")
+            view_menu = menu_bar.addMenu(tr("menu_view", "View"))
             
-            show_epg = QAction("节目列表", self, checkable=True)
+            show_epg = QAction(tr("menu_epg_list", "EPG List"), self, checkable=True)
             show_epg.setChecked(self.epg_visible)
             show_epg.triggered.connect(self.toggle_epg)
             show_epg.setShortcut("E")
             view_menu.addAction(show_epg)
             
-            show_playlist = QAction("播放列表", self, checkable=True)
+            show_playlist = QAction(tr("menu_playlist", "Playlist"), self, checkable=True)
             show_playlist.setChecked(self.playlist_visible)
             show_playlist.triggered.connect(self.toggle_playlist)
             show_playlist.setShortcut("L")
             view_menu.addAction(show_playlist)
             
-            show_floating = QAction("控制面板", self, checkable=True)
+            show_floating = QAction(tr("menu_control_panel", "Control Panel"), self, checkable=True)
             show_floating.setChecked(self.floating_panel_visible)
             show_floating.triggered.connect(self.toggle_floating_panel)
             show_floating.setShortcut("M")
@@ -1314,55 +1322,55 @@ class IPTVPlayer(QMainWindow):
             
             view_menu.addSeparator()
             
-            fullscreen = QAction("全屏模式", self, checkable=True)
+            fullscreen = QAction(tr("menu_fullscreen", "Fullscreen"), self, checkable=True)
             fullscreen.triggered.connect(self.toggle_fullscreen)
             fullscreen.setShortcut("F11")
             view_menu.addAction(fullscreen)
             
-            refresh = QAction("刷新界面", self)
+            refresh = QAction(tr("menu_refresh", "Refresh"), self)
             refresh.triggered.connect(self.refresh_ui)
             refresh.setShortcut("F5")
             view_menu.addAction(refresh)
             
-            reset_layout = QAction("重置布局", self)
+            reset_layout = QAction(tr("menu_reset_layout", "Reset Layout"), self)
             reset_layout.triggered.connect(self.reset_layout)
             view_menu.addAction(reset_layout)
             
             # 工具菜单
-            tools_menu = menu_bar.addMenu("工具")
+            tools_menu = menu_bar.addMenu(tr("menu_tools", "Tools"))
             
-            scan_channels = QAction("扫描频道", self)
+            scan_channels = QAction(tr("menu_scan_channels", "Scan Channels"), self)
             scan_channels.triggered.connect(self.open_scan_ui)
             tools_menu.addAction(scan_channels)
             
-            channel_mapping = QAction("映射管理", self)
+            channel_mapping = QAction(tr("menu_mapping", "Mapping"), self)
             channel_mapping.triggered.connect(self.open_channel_mapping)
             tools_menu.addAction(channel_mapping)
             
             tools_menu.addSeparator()
             
-            player_settings = QAction("订阅设置", self)
+            player_settings = QAction(tr("menu_subscription_settings", "Subscription Settings"), self)
             player_settings.triggered.connect(self.player_settings)
             tools_menu.addAction(player_settings)
             
             # 语言菜单
-            language_menu = menu_bar.addMenu(self.language_manager.tr("language", "Language"))
+            language_menu = menu_bar.addMenu(tr("language", "Language"))
             
             # 获取当前语言
             current_language = self.language_manager.current_language
             
-            chinese = QAction(self.language_manager.tr("chinese", "中文"), self, checkable=True)
+            chinese = QAction(tr("chinese", "中文"), self, checkable=True)
             chinese.setChecked(current_language == "zh")
             chinese.triggered.connect(lambda: self.set_language("zh"))
             language_menu.addAction(chinese)
             
-            english = QAction(self.language_manager.tr("english", "English"), self, checkable=True)
+            english = QAction(tr("english", "English"), self, checkable=True)
             english.setChecked(current_language == "en")
             english.triggered.connect(lambda: self.set_language("en"))
             language_menu.addAction(english)
             
             # 主题菜单
-            theme_menu = menu_bar.addMenu("主题")
+            theme_menu = menu_bar.addMenu(tr("menu_theme", "Theme"))
             
             # 导入主题管理器
             from ui.theme_manager import get_theme_manager
@@ -1379,13 +1387,13 @@ class IPTVPlayer(QMainWindow):
                 theme_menu.addAction(theme_action)
             
             # 帮助菜单
-            help_menu = menu_bar.addMenu("帮助")
+            help_menu = menu_bar.addMenu(tr("menu_help", "Help"))
             
-            usage_instructions = QAction("说明", self)
+            usage_instructions = QAction(tr("menu_instructions", "Instructions"), self)
             usage_instructions.triggered.connect(self.show_usage_instructions)
             help_menu.addAction(usage_instructions)
             
-            about = QAction("关于", self)
+            about = QAction(tr("menu_about", "About"), self)
             about.triggered.connect(self.show_about)
             help_menu.addAction(about)
             
@@ -1406,7 +1414,7 @@ class IPTVPlayer(QMainWindow):
                 seen.add(group)
         
         # 更新CHANNEL_GROUPS
-        new_groups = ["全部频道"] + groups
+        new_groups = [self.language_manager.tr("all_channels", "All Channels")] + groups
         
         # 如果分组没有变化，不需要更新
         if new_groups == CHANNEL_GROUPS:
@@ -1447,12 +1455,12 @@ class IPTVPlayer(QMainWindow):
         
         for channel in CHANNELS:
             # 如果选择了特定分组，只显示该分组的频道
-            if selected_group != "全部频道":
-                channel_group = channel.get('group', '未分类')
+            if selected_group != self.language_manager.tr("all_channels", "All Channels"):
+                channel_group = channel.get('group', self.language_manager.tr("uncategorized", "Uncategorized"))
                 if channel_group != selected_group:
                     continue
             
-            item = QListWidgetItem(channel.get("name", "未命名"))
+            item = QListWidgetItem(channel.get("name", self.language_manager.tr("unnamed", "Unnamed")))
             item.setSizeHint(QSize(0, 40))  # 增加行高
             self.channel_list.addItem(item)
     
@@ -1524,7 +1532,7 @@ class IPTVPlayer(QMainWindow):
                                 end_datetime = end_datetime.replace(hour=end_hour, minute=end_minute)
                                 
                                 program = {
-                                    'title': program_data.get('title', '未知节目'),
+                                    'title': program_data.get('title', self.language_manager.tr('unknown_program', 'Unknown Program')),
                                     'desc': program_data.get('description', ''),
                                     'start': start_datetime.isoformat(),
                                     'end': end_datetime.isoformat()
@@ -1648,7 +1656,7 @@ class IPTVPlayer(QMainWindow):
         if not has_current_program and filtered_programs:
             # 创建一个提示项
             now_str = now.strftime("%H:%M")
-            item = QListWidgetItem(f"当前时间 {now_str} 没有正在播放的节目")
+            item = QListWidgetItem(f"{now_str} {self.language_manager.tr('no_current_program', 'No current program')}")
             item.setForeground(QColor(255, 165, 0))  # 橙色
             # 将提示项添加到列表的最前面
             filtered_programs.insert(0, item)
@@ -1691,7 +1699,7 @@ class IPTVPlayer(QMainWindow):
                 has_catchup = bool(catchup) and bool(catchup_source)
                 
                 # 创建节目项
-                item_text = f"{start_str}  {program.get('title', '未知节目')}"
+                item_text = f"{start_str}  {program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))}"
                 item = QListWidgetItem(item_text)
                 
                 # 给已播放的节目添加回看图标
@@ -1707,7 +1715,7 @@ class IPTVPlayer(QMainWindow):
                     
                     # 设置图标
                     item.setIcon(QIcon(pixmap))
-                    item.setToolTip("支持回看")
+                    item.setToolTip(self.language_manager.tr("catchup_supported", "Catchup supported"))
                 
                 # 设置样式
                 if start_time <= now <= end_time:
@@ -1753,7 +1761,7 @@ class IPTVPlayer(QMainWindow):
         catchup_source = self.current_channel.get('catchup_source', '')
         if not (catchup and catchup_source):
             # 不支持回看，显示提示
-            self.status_bar.showMessage("该频道不支持回看")
+            self.status_bar.showMessage(self.language_manager.tr("catchup_not_supported", "This channel does not support catchup"))
             return
         
         # 获取当前选择的日期
@@ -1784,7 +1792,7 @@ class IPTVPlayer(QMainWindow):
                 
                 # 格式化时间显示
                 start_str = start_time.strftime("%H:%M")
-                program_text = f"{start_str}  {program.get('title', '未知节目')}"
+                program_text = f"{start_str}  {program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))}"
                 
                 # 直接比较文本，因为图标不会影响文本内容
                 if program_text == item_text:
@@ -1803,14 +1811,14 @@ class IPTVPlayer(QMainWindow):
             return
         
         # 获取频道信息
-        channel_name = self.current_channel.get("name", "未知频道")
+        channel_name = self.current_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel"))
         catchup_source = self.current_channel.get('catchup_source', '')
         
         # 构建回看URL
         from datetime import datetime
         start_time = datetime.fromisoformat(program.get('start', ''))
         end_time = datetime.fromisoformat(program.get('end', ''))
-        title = program.get('title', '未知节目')
+        title = program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))
         
         # 构建回看URL
         catchup_url = catchup_source
@@ -1822,7 +1830,7 @@ class IPTVPlayer(QMainWindow):
             logger.debug(f"构建回看URL: {catchup_url}")
         
         # 显示回看状态
-        self.status_bar.showMessage(f"正在回看: {channel_name} - {title}")
+        self.status_bar.showMessage(f"{self.language_manager.tr('catchup_playing', 'Catchup: {name}')} {channel_name} - {title}")
         
         # 使用mpv播放回看
         if self.player_controller:
@@ -1888,11 +1896,11 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, 'epg_date_label'):
             today = datetime.now().date()
             if self.current_epg_date == today:
-                self.epg_date_label.setText("今天")
+                self.epg_date_label.setText(self.language_manager.tr("today", "Today"))
             elif self.current_epg_date == today - timedelta(days=1):
-                self.epg_date_label.setText("昨天")
+                self.epg_date_label.setText(self.language_manager.tr("yesterday", "Yesterday"))
             elif self.current_epg_date == today + timedelta(days=1):
-                self.epg_date_label.setText("明天")
+                self.epg_date_label.setText(self.language_manager.tr("tomorrow", "Tomorrow"))
             else:
                 self.epg_date_label.setText(self.current_epg_date.strftime("%Y-%m-%d"))
         # 更新节目单列表
@@ -1901,8 +1909,8 @@ class IPTVPlayer(QMainWindow):
         
         # 恢复播放原频道
         if hasattr(self, 'original_channel') and self.original_channel:
-            channel_name = self.original_channel.get("name", "未知频道")
-            self.status_bar.showMessage(f"返回直播: {channel_name}")
+            channel_name = self.original_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel"))
+            self.status_bar.showMessage(f"{self.language_manager.tr('back_to_live', 'Back to live')}: {channel_name}")
             # 实际播放原频道
             self.play_channel(self.original_channel)
     
@@ -1927,7 +1935,7 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, 'catchup_program') and hasattr(self, 'original_channel'):
             try:
                 # 获取频道信息
-                channel_name = self.original_channel.get("name", "未知频道")
+                channel_name = self.original_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel"))
                 catchup_source = self.original_channel.get('catchup_source', '')
                 
                 if not catchup_source:
@@ -1936,7 +1944,7 @@ class IPTVPlayer(QMainWindow):
                 # 获取回看节目的信息
                 start_time = self.catchup_program.get('start')
                 end_time = self.catchup_program.get('end')
-                title = self.catchup_program.get('title', '未知节目')
+                title = self.catchup_program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))
                 
                 if not (start_time and end_time):
                     return
@@ -1958,7 +1966,7 @@ class IPTVPlayer(QMainWindow):
                 logger.debug(f"构建新的回看URL: {catchup_url}")
                 
                 # 显示回看状态
-                self.status_bar.showMessage(f"正在回看: {channel_name} - {title}")
+                self.status_bar.showMessage(f"{self.language_manager.tr('catchup_playing', 'Catchup')}: {channel_name} - {title}")
                 
                 # 保存当前进度条位置
                 saved_progress = value
@@ -2007,8 +2015,8 @@ class IPTVPlayer(QMainWindow):
             return
         
         # 更新频道名称和LOGO
-        self.channel_name.setText(self.current_channel.get("name", "未知频道"))
-        self.current_program.setText("▶ 准备播放...")
+        self.channel_name.setText(self.current_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel")))
+        self.current_program.setText(f"▶ {self.language_manager.tr('preparing_play', 'Preparing to play...')}")
         logo = self.current_channel.get("logo", "")
         
         if logo:
@@ -2079,50 +2087,42 @@ class IPTVPlayer(QMainWindow):
                 if current_channel_epg and len(current_channel_epg) > 0:
                     current_program_data = current_channel_epg[0]
                     # 更新节目名称
-                    program_name = current_program_data.get("title", "正在播放")
+                    program_name = current_program_data.get("title", self.language_manager.tr("now_playing", "Now Playing"))
                     self.current_program.setText(f"▶ {program_name}")
-                    # 更新节目描述
-                    self.program_desc.setText(current_program_data.get("description", "暂无节目描述"))
-                    # 更新时间信息
+                    self.program_desc.setText(current_program_data.get("description", self.language_manager.tr("no_program_desc", "No program description")))
                     self.progress_start.setText(current_program_data.get("time", "--:--"))
                     self.time_label.setText(f"⏱ {current_program_data.get('time', '--:--')} - --:--")
-                    self.remain_label.setText("等待播放...")
+                    self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
                 else:
-                    # 没有节目单，显示默认信息
-                    self.current_program.setText("▶ 正在播放")
-                    self.program_desc.setText("打开播放列表文件成功，点击频道开始播放")
-                    # 显示当前系统时间
+                    self.current_program.setText(f"▶ {self.language_manager.tr('now_playing', 'Now Playing')}")
+                    self.program_desc.setText(self.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
                     from datetime import datetime
                     current_time = datetime.now().strftime("%H:%M")
                     self.time_label.setText(f"⏱ {current_time}")
-                    self.remain_label.setText("等待播放...")
+                    self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
             else:
-                # 没有节目单，显示默认信息
-                self.current_program.setText("▶ 正在播放")
-                self.program_desc.setText("打开播放列表文件成功，点击频道开始播放")
-                # 显示当前系统时间
+                self.current_program.setText(f"▶ {self.language_manager.tr('now_playing', 'Now Playing')}")
+                self.program_desc.setText(self.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
                 from datetime import datetime
                 current_time = datetime.now().strftime("%H:%M")
                 self.time_label.setText(f"⏱ {current_time}")
-                self.remain_label.setText("等待播放...")
+                self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
         except Exception:
-            # 发生异常，显示默认信息
-            self.current_program.setText("▶ 正在播放")
-            self.program_desc.setText("打开播放列表文件成功，点击频道开始播放")
-            # 显示当前系统时间
+            self.current_program.setText(f"▶ {self.language_manager.tr('now_playing', 'Now Playing')}")
+            self.program_desc.setText(self.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
             from datetime import datetime
             current_time = datetime.now().strftime("%H:%M")
             self.time_label.setText(f"⏱ {current_time}")
-            self.remain_label.setText("等待播放...")
+            self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
         
         # 重置进度条和时间
         self.program_progress.setValue(0)
         self.progress_end.setText("--:--")
         
         # 重置第一行媒体信息为默认值
-        self.video_info.setText("📺 等待播放...")
+        self.video_info.setText(f"📺 {self.language_manager.tr('waiting_to_play', 'Waiting to play...')}")
         self.audio_info.setText("🔊 --")
-        self.network_info.setText("📡 等待连接...")
+        self.network_info.setText(f"📡 {self.language_manager.tr('waiting_connect', 'Waiting to connect...')}")
     
     def toggle_epg(self, checked):
         """显示/隐藏EPG面板"""
@@ -2238,29 +2238,26 @@ class IPTVPlayer(QMainWindow):
             if hasattr(self, 'epg_date_label'):
                 today = datetime.now().date()
                 if self.current_epg_date == today:
-                    self.epg_date_label.setText("今天")
+                    self.epg_date_label.setText(self.language_manager.tr("today", "Today"))
                 elif self.current_epg_date == today - timedelta(days=1):
-                    self.epg_date_label.setText("昨天")
+                    self.epg_date_label.setText(self.language_manager.tr("yesterday", "Yesterday"))
                 elif self.current_epg_date == today + timedelta(days=1):
-                    self.epg_date_label.setText("明天")
+                    self.epg_date_label.setText(self.language_manager.tr("tomorrow", "Tomorrow"))
                 else:
                     self.epg_date_label.setText(self.current_epg_date.strftime("%Y-%m-%d"))
             
-            # 切换频道时清空之前的频道信息
             if hasattr(self, 'channel_name'):
-                self.channel_name.setText("切换频道中...")
+                self.channel_name.setText(self.language_manager.tr("switching_channel", "Switching channel..."))
             if hasattr(self, 'current_program'):
-                self.current_program.setText("▶ 正在播放")
+                self.current_program.setText(f"▶ {self.language_manager.tr('now_playing', 'Now Playing')}")
             if hasattr(self, 'program_desc'):
-                self.program_desc.setText("正在加载节目信息...")
-            if hasattr(self, 'media_info'):
-                self.media_info.setText("📺 加载中...")
+                self.program_desc.setText(self.language_manager.tr("loading_program_info", "Loading program info..."))
             if hasattr(self, 'video_info'):
-                self.video_info.setText("📺 加载中...")
+                self.video_info.setText(f"📺 {self.language_manager.tr('loading', 'Loading...')}")
             if hasattr(self, 'audio_info'):
-                self.audio_info.setText("🔊 加载中...")
+                self.audio_info.setText(f"🔊 {self.language_manager.tr('loading', 'Loading...')}")
             if hasattr(self, 'network_info'):
-                self.network_info.setText("📡 加载中...")
+                self.network_info.setText(f"📡 {self.language_manager.tr('loading', 'Loading...')}")
             if hasattr(self, 'progress_start'):
                 self.progress_start.setText("00:00")
             if hasattr(self, 'progress_end'):
@@ -2274,7 +2271,7 @@ class IPTVPlayer(QMainWindow):
             name = channel.get('name', '未知频道')
             if url:
                 # 更新状态栏消息
-                self.status_bar.showMessage(f"正在播放: {name}")
+                self.status_bar.showMessage(f"{self.language_manager.tr('playing', 'Playing')}: {name}")
                 # 播放前隐藏背景占位符
                 if hasattr(self, 'video_placeholder'):
                     self.video_placeholder.hide()
@@ -2297,6 +2294,7 @@ class IPTVPlayer(QMainWindow):
     
     def _handle_play_state_change(self, is_playing):
         """处理播放状态改变（在主线程中执行）"""
+        tr = self.language_manager.tr
         if is_playing:
             self.play_button.setText("⏸")
             # 播放时隐藏背景，显示视频窗口
@@ -2316,15 +2314,13 @@ class IPTVPlayer(QMainWindow):
             self.update_media_info()
             # 启动定时器，每500ms更新一次（减少频率，避免卡顿）
             self.update_timer.start(500)
-            # 暂时禁用自动调整窗口大小，避免程序卡死
-            # self.adjust_window_size_to_video()
             # 更新状态栏消息
             if self.current_channel:
-                channel_name = self.current_channel.get('name', '未知频道')
+                channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
                 if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
-                    self.status_bar.showMessage(f"正在回看: {channel_name}")
+                    self.status_bar.showMessage(f"{tr('catchup_playing', 'Catchup')}: {channel_name}")
                 else:
-                    self.status_bar.showMessage(f"正在播放: {channel_name}")
+                    self.status_bar.showMessage(f"{tr('playing', 'Playing')}: {channel_name}")
         else:
             self.play_button.setText("▶")
             # 暂停时不要显示背景占位符，保持视频窗口可见
@@ -2333,51 +2329,50 @@ class IPTVPlayer(QMainWindow):
                 self.update_timer.stop()
             # 更新状态栏消息
             if self.current_channel:
-                channel_name = self.current_channel.get('name', '未知频道')
+                channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
                 if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
-                    self.status_bar.showMessage(f"已暂停回看: {channel_name}")
+                    self.status_bar.showMessage(f"{tr('catchup_paused', 'Catchup Paused')}: {channel_name}")
                 else:
-                    self.status_bar.showMessage(f"已暂停: {channel_name}")
+                    self.status_bar.showMessage(f"{tr('paused', 'Paused')}: {channel_name}")
     
     def on_media_info_ready(self, media_info):
         """媒体信息获取完成时的处理"""
+        tr = self.language_manager.tr
+        unknown = tr('codec_unknown', 'Unknown')
         # 更新媒体信息显示
         if media_info:
             # 更新视频信息
             video_info = media_info.get('video', {})
-            video_codec = video_info.get('codec', '未知')
+            video_codec = video_info.get('codec', unknown)
             video_width = video_info.get('width', 0)
             video_height = video_info.get('height', 0)
-            video_resolution = f"{video_width}x{video_height}" if video_width and video_height else "未知"
+            video_resolution = f"{video_width}x{video_height}" if video_width and video_height else unknown
             video_bitrate = video_info.get('bit_rate', 0)
-            video_bitrate_str = f"{video_bitrate // 1000}kbps" if video_bitrate else "未知"
+            video_bitrate_str = f"{video_bitrate // 1000}kbps" if video_bitrate else unknown
             
             # 更新音频信息
             audio_info = media_info.get('audio', {})
-            audio_codec = audio_info.get('codec', '未知')
+            audio_codec = audio_info.get('codec', unknown)
             channels = audio_info.get('channels', 0)
             sample_rate = audio_info.get('sample_rate', 0)
             audio_bitrate = audio_info.get('bit_rate', 0)
-            audio_bitrate_str = f"{audio_bitrate // 1000}kbps" if audio_bitrate else "未知"
+            audio_bitrate_str = f"{audio_bitrate // 1000}kbps" if audio_bitrate else unknown
             
             # 更新网络信息
-            format_name = media_info.get('format', '未知')
-            protocol = media_info.get('protocol', '未知')
+            format_name = media_info.get('format', unknown)
+            protocol = media_info.get('protocol', unknown)
             
-            # 更新显示
-            if hasattr(self, 'media_info'):
-                self.media_info.setText(f"📺 媒体信息")
             # 修复码率显示，确保即使码率为0也能正确显示
-            video_bitrate_str = f"{video_bitrate // 1000}kbps" if video_bitrate is not None and video_bitrate >= 0 else "未知"
-            audio_bitrate_str = f"{audio_bitrate // 1000}kbps" if audio_bitrate is not None and audio_bitrate >= 0 else "未知"
-            self.video_info.setText(f"📺 编码: {video_codec} | 分辨率: {video_resolution} | 码率: {video_bitrate_str}")
-            self.audio_info.setText(f"🔊 编码: {audio_codec} | 声道: {channels}ch | 采样率: {sample_rate}Hz | 码率: {audio_bitrate_str}")
-            self.network_info.setText(f"📡 格式: {format_name} | 协议: {protocol}")
+            video_bitrate_str = f"{video_bitrate // 1000}kbps" if video_bitrate is not None and video_bitrate >= 0 else unknown
+            audio_bitrate_str = f"{audio_bitrate // 1000}kbps" if audio_bitrate is not None and audio_bitrate >= 0 else unknown
+            self.video_info.setText(f"📺 {tr('codec_label', 'Codec')}: {video_codec} | {tr('resolution_label', 'Resolution')}: {video_resolution} | {tr('bitrate_label', 'Bitrate')}: {video_bitrate_str}")
+            self.audio_info.setText(f"🔊 {tr('codec_label', 'Codec')}: {audio_codec} | {tr('channel_count_label', 'Channels')}: {channels}ch | {tr('sample_rate_label', 'Sample Rate')}: {sample_rate}Hz | {tr('bitrate_label', 'Bitrate')}: {audio_bitrate_str}")
+            self.network_info.setText(f"📡 {tr('format_label', 'Format')}: {format_name} | {tr('protocol_label', 'Protocol')}: {protocol}")
             
             # 更新状态栏消息
             if self.current_channel:
-                channel_name = self.current_channel.get('name', '未知频道')
-                self.status_bar.showMessage(f"正在播放: {channel_name} - {video_codec} {video_resolution} {protocol}")
+                channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
+                self.status_bar.showMessage(f"{tr('playing', 'Playing')}: {channel_name} - {video_codec} {video_resolution} {protocol}")
     
     def adjust_window_size_to_video(self):
         """根据视频分辨率调整窗口大小，保持窗口高度不变，调整宽度以适应视频比例"""
@@ -2475,7 +2470,7 @@ class IPTVPlayer(QMainWindow):
         
         # 更新第二行：频道信息
         if self.current_channel:
-            self.channel_name.setText(self.current_channel.get("name", "未知频道"))
+            self.channel_name.setText(self.current_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel")))
             
             # 回看模式下，使用回看节目的信息
             if is_catchup and hasattr(self, 'catchup_program'):
@@ -2518,8 +2513,8 @@ class IPTVPlayer(QMainWindow):
                         # 使用回看节目的信息
                         start_time = self.catchup_program.get('start')
                         end_time = self.catchup_program.get('end')
-                        title = self.catchup_program.get('title', '未知节目')
-                        desc = self.catchup_program.get('desc', '暂无节目描述')
+                        title = self.catchup_program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))
+                        desc = self.catchup_program.get('desc', self.language_manager.tr('no_program_desc', 'No program description'))
                         # 显示节目描述
                         self.program_desc.setText(desc)
                         # 显示节目名称
@@ -2528,19 +2523,18 @@ class IPTVPlayer(QMainWindow):
                             start_str = start_time.strftime("%H:%M")
                             end_str = end_time.strftime("%H:%M")
                             self.time_label.setText(f"⏱ {start_str} - {end_str}")
-                            self.remain_label.setText("回看中...")
+                            self.remain_label.setText(self.language_manager.tr("catchup_playing_label", "Catching up"))
                         else:
                             self.time_label.setText("⏱ --:-- - --:--")
-                            self.remain_label.setText("回看中...")
+                            self.remain_label.setText(self.language_manager.tr("catchup_playing_label", "Catching up"))
                     except Exception as e:
-                        # 发生异常，显示默认信息
                         logger.error(f"处理回看节目信息失败: {e}")
                         if hasattr(self, 'catchup_program'):
-                            title = self.catchup_program.get('title', '未知节目')
+                            title = self.catchup_program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))
                             self.current_program.setText(f"▶ {title}")
-                        self.program_desc.setText("正在回看当前节目")
+                        self.program_desc.setText(self.language_manager.tr("catchup_current_program", "Catching up current program"))
                         self.time_label.setText("⏱ --:-- - --:--")
-                        self.remain_label.setText("回看中...")
+                        self.remain_label.setText(self.language_manager.tr("catchup_playing_label", "Catching up"))
                 else:
                     # 非回看模式，从EPG数据获取节目描述
                     channel_name = self.current_channel.get("name", "")
@@ -2549,7 +2543,7 @@ class IPTVPlayer(QMainWindow):
                         # 首先尝试从EPG解析器获取节目描述（使用tvg-id和频道名称）
                         current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
                         if current_program:
-                            self.program_desc.setText(current_program.get("desc", "暂无节目描述"))
+                            self.program_desc.setText(current_program.get("desc", self.language_manager.tr("no_program_desc", "No program description")))
                             # 更新时间信息
                             try:
                                 from datetime import datetime
@@ -2559,29 +2553,27 @@ class IPTVPlayer(QMainWindow):
                                 end_str = end_time.strftime("%H:%M")
                                 self.progress_start.setText(start_str)
                                 self.time_label.setText(f"⏱ {start_str} - {end_str}")
-                                self.remain_label.setText("播放中...")
+                                self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
                             except:
-                                # 时间解析失败，使用默认时间
                                 from datetime import datetime
                                 current_time = datetime.now()
                                 start_hour = current_time.strftime("%H:00")
                                 end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
                                 self.progress_start.setText(start_hour)
                                 self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
-                                self.remain_label.setText("播放中...")
+                                self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
                         # 然后尝试从EPG_DATA获取节目描述
                         elif EPG_DATA and channel_name in EPG_DATA:
                             current_channel_epg = EPG_DATA[channel_name]
                             if current_channel_epg and len(current_channel_epg) > 0:
                                 current_program_data = current_channel_epg[0]
-                                self.program_desc.setText(current_program_data.get("description", "暂无节目描述"))
+                                self.program_desc.setText(current_program_data.get("description", self.language_manager.tr("no_program_desc", "No program description")))
                                 # 更新时间信息
                                 self.progress_start.setText(current_program_data.get("time", "--:--"))
                                 self.time_label.setText(f"⏱ {current_program_data.get('time', '--:--')} - --:--")
-                                self.remain_label.setText("播放中...")
+                                self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
                             else:
-                                # 没有节目单，显示默认信息
-                                self.program_desc.setText("正在播放当前频道")
+                                self.program_desc.setText(self.language_manager.tr("playing_current_channel", "Playing current channel"))
                                 # 显示当前系统时间
                                 from datetime import datetime
                                 current_time = datetime.now()
@@ -2590,16 +2582,13 @@ class IPTVPlayer(QMainWindow):
                                 self.progress_start.setText(start_hour)
                                 self.progress_end.setText(end_hour)
                                 self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
-                                self.remain_label.setText("播放中...")
-                                # 设置进度条
-                            minutes = current_time.minute
-                            seconds = current_time.second
-                            progress = int(((minutes * 60) + seconds) / 3600 * 100)
-                            self.program_progress.setValue(progress)
+                                self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
+                                minutes = current_time.minute
+                                seconds = current_time.second
+                                progress = int(((minutes * 60) + seconds) / 3600 * 100)
+                                self.program_progress.setValue(progress)
                     else:
-                        # 没有节目单，显示默认信息
-                        self.program_desc.setText("正在播放当前频道")
-                        # 显示当前系统时间
+                        self.program_desc.setText(self.language_manager.tr("playing_current_channel", "Playing current channel"))
                         from datetime import datetime
                         current_time = datetime.now()
                         start_hour = current_time.strftime("%H:00")
@@ -2607,21 +2596,18 @@ class IPTVPlayer(QMainWindow):
                         self.progress_start.setText(start_hour)
                         self.progress_end.setText(end_hour)
                         self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
-                        self.remain_label.setText("播放中...")
-                        # 设置进度条
+                        self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
                         minutes = current_time.minute
                         seconds = current_time.second
                         progress = int(((minutes * 60) + seconds) / 3600 * 100)
                         self.program_progress.setValue(progress)
         except Exception:
-            # 发生异常，显示默认信息
             if is_catchup:
-                self.program_desc.setText("正在回看当前节目")
+                self.program_desc.setText(self.language_manager.tr("catchup_current_program", "Catching up current program"))
                 self.time_label.setText("⏱ --:-- - --:--")
-                self.remain_label.setText("回看中...")
+                self.remain_label.setText(self.language_manager.tr("catchup_playing_label", "Catching up"))
             else:
-                self.program_desc.setText("正在播放当前频道")
-                # 显示当前系统时间
+                self.program_desc.setText(self.language_manager.tr("playing_current_channel", "Playing current channel"))
                 from datetime import datetime
                 current_time = datetime.now()
                 start_hour = current_time.strftime("%H:00")
@@ -2629,8 +2615,7 @@ class IPTVPlayer(QMainWindow):
                 self.progress_start.setText(start_hour)
                 self.progress_end.setText(end_hour)
                 self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
-                self.remain_label.setText("播放中...")
-                # 设置进度条
+                self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
                 minutes = current_time.minute
                 seconds = current_time.second
                 progress = int(((minutes * 60) + seconds) / 3600 * 100)
@@ -3050,7 +3035,8 @@ class IPTVPlayer(QMainWindow):
                 super().paintEvent(event)
         
         dialog = FloatingDialog(self)
-        dialog.setWindowTitle("播放器设置")
+        tr = self.language_manager.tr
+        dialog.setWindowTitle(tr("player_settings_title", "Player Settings"))
         dialog.setMinimumSize(400, 350)
         # 设置样式表
         dialog.setStyleSheet(AppStyles.player_settings_dialog_style())
@@ -3059,10 +3045,10 @@ class IPTVPlayer(QMainWindow):
         main_layout = QVBoxLayout(dialog)
         
         # 回放协议类型选择
-        protocol_group = QGroupBox("回放协议设置")
+        protocol_group = QGroupBox(tr("protocol_settings", "Protocol Settings"))
         protocol_layout = QVBoxLayout()
         
-        protocol_label = QLabel("协议类型:")
+        protocol_label = QLabel(tr("protocol_type_colon", "Protocol Type:"))
         self.protocol_combo = QComboBox()
         self.protocol_combo.addItems(["HTTP", "HTTPS", "RTSP", "RTMP", "HLS"])
         
@@ -3078,18 +3064,18 @@ class IPTVPlayer(QMainWindow):
         main_layout.addWidget(protocol_group)
         
         # 列表订阅设置
-        playlist_group = QGroupBox("列表订阅设置")
+        playlist_group = QGroupBox(tr("playlist_subscription", "Playlist Subscription"))
         playlist_layout = QVBoxLayout()
         
-        playlist_url_label = QLabel("订阅地址:")
+        playlist_url_label = QLabel(tr("subscription_url_colon", "Subscription URL:"))
         self.playlist_url_edit = QLineEdit()
-        self.playlist_url_edit.setPlaceholderText("请输入列表订阅地址")
+        self.playlist_url_edit.setPlaceholderText(tr("enter_playlist_url", "Enter playlist subscription URL"))
         
-        playlist_name_label = QLabel("订阅名称:")
+        playlist_name_label = QLabel(tr("subscription_name_colon", "Subscription Name:"))
         self.playlist_name_edit = QLineEdit()
-        self.playlist_name_edit.setPlaceholderText("请输入订阅名称")
+        self.playlist_name_edit.setPlaceholderText(tr("enter_subscription_name", "Enter subscription name"))
         
-        playlist_interval_label = QLabel("更新间隔时间 (分钟):")
+        playlist_interval_label = QLabel(tr("update_interval_colon", "Update interval (minutes):"))
         self.playlist_interval_combo = QComboBox()
         self.playlist_interval_combo.addItems(["15", "30", "60", "120", "240", "480", "720"])
         
@@ -3113,18 +3099,18 @@ class IPTVPlayer(QMainWindow):
         main_layout.addWidget(playlist_group)
         
         # 节目单订阅设置
-        epg_group = QGroupBox("节目单订阅设置")
+        epg_group = QGroupBox(tr("epg_subscription", "EPG Subscription"))
         epg_layout = QVBoxLayout()
         
-        epg_url_label = QLabel("订阅地址:")
+        epg_url_label = QLabel(tr("subscription_url_colon", "Subscription URL:"))
         self.epg_url_edit = QLineEdit()
-        self.epg_url_edit.setPlaceholderText("请输入节目单订阅地址")
+        self.epg_url_edit.setPlaceholderText(tr("enter_epg_url", "Enter EPG subscription URL"))
         
-        epg_name_label = QLabel("订阅名称:")
+        epg_name_label = QLabel(tr("subscription_name_colon", "Subscription Name:"))
         self.epg_name_edit = QLineEdit()
-        self.epg_name_edit.setPlaceholderText("请输入订阅名称")
+        self.epg_name_edit.setPlaceholderText(tr("enter_subscription_name", "Enter subscription name"))
         
-        epg_interval_label = QLabel("更新间隔时间 (分钟):")
+        epg_interval_label = QLabel(tr("update_interval_colon", "Update interval (minutes):"))
         self.epg_interval_combo = QComboBox()
         self.epg_interval_combo.addItems(["15", "30", "60", "120", "240", "480", "720"])
         
@@ -3149,8 +3135,8 @@ class IPTVPlayer(QMainWindow):
         
         # 按钮区域
         button_layout = QHBoxLayout()
-        save_button = QPushButton("保存")
-        cancel_button = QPushButton("取消")
+        save_button = QPushButton(tr("save_button", "Save"))
+        cancel_button = QPushButton(tr("cancel_button", "Cancel"))
         
         save_button.clicked.connect(lambda: self.save_player_settings(dialog))
         cancel_button.clicked.connect(dialog.close)
@@ -3272,13 +3258,13 @@ class IPTVPlayer(QMainWindow):
                     logger.error(f"保存列表缓存失败: {ex}")
                 
                 logger.info(f"列表订阅更新成功，共 {len(CHANNELS)} 个频道")
-                self.status_bar.showMessage("列表订阅更新成功")
+                self.status_bar.showMessage(self.language_manager.tr("playlist_sub_updated", "Playlist subscription updated"))
             else:
                 logger.error("列表订阅内容解析失败")
-                self.status_bar.showMessage("列表订阅内容解析失败")
+                self.status_bar.showMessage(self.language_manager.tr("playlist_sub_parse_failed", "Playlist subscription parse failed"))
         except Exception as ex:
             logger.error(f"更新列表订阅失败: {str(ex)}")
-            self.status_bar.showMessage(f"更新列表订阅失败: {str(ex)}")
+            self.status_bar.showMessage(f"{self.language_manager.tr('playlist_sub_update_failed', 'Failed to update playlist subscription')}: {str(ex)}")
     
     def update_epg_subscription(self):
         """更新节目单订阅"""
@@ -3303,19 +3289,19 @@ class IPTVPlayer(QMainWindow):
                 self.config.set_value('EPG', 'last_update', datetime.now().isoformat())
                 self.config.save_config()
                 logger.info(f"节目单订阅更新成功，共 {len(EPG_DATA)} 个频道的节目单，已使用最新数据")
-                self.status_bar_show_message("节目单订阅更新成功")
+                self.status_bar_show_message(self.language_manager.tr("epg_sub_updated", "EPG subscription updated"))
             else:
                 # 如果加载失败，从缓存加载
                 if global_epg_parser.epg_data:
                     EPG_DATA = global_epg_parser.epg_data
                     logger.info(f"使用缓存的EPG数据，包含 {len(EPG_DATA)} 个频道")
-                    self.status_bar_show_message("使用缓存的EPG数据")
+                    self.status_bar_show_message(self.language_manager.tr("epg_using_cache", "Using cached EPG data"))
                 else:
                     logger.error("节目单订阅内容解析失败")
-                    self.status_bar_show_message("节目单订阅内容解析失败")
+                    self.status_bar_show_message(self.language_manager.tr("epg_sub_parse_failed", "EPG subscription parse failed"))
         except Exception as ex:
             logger.error(f"更新节目单订阅失败: {str(ex)}")
-            self.status_bar_show_message(f"更新节目单订阅失败: {str(ex)}")
+            self.status_bar_show_message(f"{self.language_manager.tr('epg_sub_update_failed', 'Failed to update EPG subscription')}: {str(ex)}")
     
     def save_player_settings(self, dialog):
         """保存播放器设置"""
@@ -3343,11 +3329,11 @@ class IPTVPlayer(QMainWindow):
             self.start_subscription_timers()
             
             logger.info("播放器设置保存成功")
-            self.status_bar.showMessage("播放器设置保存成功")
+            self.status_bar.showMessage(self.language_manager.tr("player_settings_saved", "Player settings saved"))
             dialog.accept()
         except Exception as ex:
             logger.error(f"保存播放器设置失败: {str(ex)}")
-            self.status_bar.showMessage(f"保存播放器设置失败: {str(ex)}")
+            self.status_bar.showMessage(f"{self.language_manager.tr('player_settings_save_failed', 'Failed to save player settings')}: {str(ex)}")
     
     def epg_settings(self):
         """EPG节目单设置"""
@@ -3428,7 +3414,8 @@ class IPTVPlayer(QMainWindow):
                 super().paintEvent(event)
         
         dialog = FloatingDialog(self)
-        dialog.setWindowTitle("EPG节目单设置")
+        tr = self.language_manager.tr
+        dialog.setWindowTitle(tr("epg_settings_title", "EPG Settings"))
         dialog.setMinimumSize(400, 200)
         # 应用样式
         from ui.styles import AppStyles
@@ -3441,14 +3428,14 @@ class IPTVPlayer(QMainWindow):
         epg_settings = self.config.load_epg_settings()
         
         # EPG URL输入
-        url_label = QLabel("EPG节目单URL:")
+        url_label = QLabel(tr("epg_url_colon", "EPG URL:"))
         layout.addWidget(url_label)
         url_input = QLineEdit()
         url_input.setText(epg_settings['epg_url'])
         layout.addWidget(url_input)
         
         # EPG 来源输入
-        source_label = QLabel("EPG节目单来源:")
+        source_label = QLabel(tr("epg_source_colon", "EPG Source:"))
         layout.addWidget(source_label)
         source_input = QLineEdit()
         source_input.setText(epg_settings['epg_source'])
@@ -3468,7 +3455,7 @@ class IPTVPlayer(QMainWindow):
             epg_url = url_input.text()
             epg_source = source_input.text()
             self.config.save_epg_settings(epg_url, epg_source)
-            self.status_bar.showMessage("EPG节目单设置已保存")
+            self.status_bar.showMessage(self.language_manager.tr("epg_settings_saved", "EPG settings saved"))
     
     def update_recent_files_menu(self):
         """更新最近打开文件菜单"""
@@ -3483,7 +3470,7 @@ class IPTVPlayer(QMainWindow):
         
         if not recent_files:
             # 如果没有最近打开的文件，添加一个禁用的菜单项
-            no_recent_action = QAction("无最近打开的文件", self)
+            no_recent_action = QAction(self.language_manager.tr("no_recent_files", "No recent files"), self)
             no_recent_action.setEnabled(False)
             self.recent_menu.addAction(no_recent_action)
         else:
@@ -3512,10 +3499,10 @@ class IPTVPlayer(QMainWindow):
             self.update_recent_files_menu()
             
             logger.info(f"成功打开最近文件: {file_path}")
-            self.status_bar.showMessage(f"成功打开文件: {file_path}")
+            self.status_bar.showMessage(f"{self.language_manager.tr('file_opened', 'File opened')}: {file_path}")
         except Exception as ex:
             logger.error(f"打开最近文件失败: {str(ex)}")
-            self.status_bar.showMessage(f"打开文件失败: {str(ex)}")
+            self.status_bar.showMessage(f"{self.language_manager.tr('file_open_failed', 'Failed to open file')}: {str(ex)}")
     
     def open_playlist(self):
         """打开播放列表"""
@@ -3614,9 +3601,9 @@ class IPTVPlayer(QMainWindow):
                     logger.info(f"成功创建CHANNELS列表，包含 {len(CHANNELS)} 个频道")
                     if CHANNELS:
                         self.current_channel = CHANNELS[0]
-                        self.channel_name.setText(self.current_channel.get("name", "未知频道"))
-                        self.current_program.setText("▶ 请选择频道播放")
-                        self.program_desc.setText("打开播放列表文件成功，点击频道开始播放")
+                        self.channel_name.setText(self.current_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel")))
+                        self.current_program.setText(f"▶ {self.language_manager.tr('select_channel_play', 'Select a channel to play')}")
+                        self.program_desc.setText(self.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
                         # 重置 LOGO 显示为默认图标，等待用户选择频道时加载
                         self.channel_logo.setPixmap(QPixmap())
                         self.channel_logo.setText("📺")
@@ -3689,29 +3676,27 @@ class IPTVPlayer(QMainWindow):
         
     def _convert_markdown_to_html(self, markdown):
         """将Markdown格式转换为HTML格式"""
-        # 转换标题
         import re
         html = markdown
-        # 转换标题
-        html = re.sub(r'## (.*)', r'<h2 style="color: #6a9eff; margin-top: 20px; margin-bottom: 10px;">\1</h2>', html)
-        # 转换粗体
+        html = re.sub(r'## (.*)', r'<h2 style="color: #6a9eff; margin-top: 12px; margin-bottom: 6px; font-size: 15px;">\1</h2>', html)
         html = re.sub(r'\*\*(.*?)\*\*', r'<strong style="color: #ffffff;">\1</strong>', html)
-        # 转换列表项
-        html = re.sub(r'^1\. (.*)', r'<p style="margin: 5px 0;"><span style="color: #6a9eff;">1. </span>\1</p>', html, flags=re.MULTILINE)
-        html = re.sub(r'^- (.*)', r'<p style="margin: 5px 0; margin-left: 20px;"><span style="color: #6a9eff;">- </span>\1</p>', html, flags=re.MULTILINE)
-        # 转换换行
-        html = html.replace('\n', '<br>')
-        # 添加整体样式
+        html = re.sub(r'^1\. (.*)', r'<p style="margin: 3px 0; line-height: 1.4;">1. \1</p>', html, flags=re.MULTILINE)
+        html = re.sub(r'^- (.*)', r'<p style="margin: 2px 0 2px 16px; line-height: 1.4;">• \1</p>', html, flags=re.MULTILINE)
+        html = html.replace('\n\n', '<br>')
+        html = html.replace('\n', ' ')
         html = f'''<html>
         <head>
             <style>
                 body {{ 
-                    font-family: 'Microsoft YaHei', sans-serif; 
-                    font-size: 14px; 
-                    line-height: 1.6; 
+                    font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; 
+                    font-size: 13px; 
+                    line-height: 1.5; 
                     color: #e0e0e0; 
                     background-color: transparent;
+                    margin: 0;
+                    padding: 0;
                 }}
+                p {{ margin: 3px 0; }}
             </style>
         </head>
         <body>
@@ -3800,7 +3785,8 @@ class IPTVPlayer(QMainWindow):
                 super().paintEvent(event)
     
         dialog = FloatingDialog(self)
-        dialog.setWindowTitle(self.language_manager.tr("usage_title"))
+        tr = self.language_manager.tr
+        dialog.setWindowTitle(tr("usage_instructions_title", "Usage Instructions"))
         dialog.setMinimumSize(600, 600)
         # 应用样式
         dialog.setStyleSheet(AppStyles.dialog_style())
@@ -3808,10 +3794,9 @@ class IPTVPlayer(QMainWindow):
         layout = QVBoxLayout(dialog)
         text_edit = QTextEdit()
         # 设置为富文本模式，支持基本格式
-        usage_content = self.language_manager.tr("usage_content")
+        usage_content = tr("usage_content")
         if not usage_content:
-            # 添加默认说明内容
-            usage_content = '## 基本操作\n\n1. **打开播放列表**\n   - 点击"文件"菜单，选择"打开播放列表"\n   - 支持 M3U、TXT 等格式的播放列表文件\n\n2. **播放频道**\n   - 在频道列表中双击频道开始播放\n   - 使用工具栏的播放/暂停/停止按钮控制播放\n   - 调整音量和全屏显示\n\n3. **扫描频道**\n   - 点击"工具"菜单，选择"扫描频道"\n   - 在扫描窗口中输入 IP 范围或 URL\n   - 设置超时时间和线程数\n   - 点击"开始扫描"按钮\n\n4. **验证频道**\n   - 点击"工具"菜单，选择"验证频道"\n   - 系统会自动检测频道的有效性\n   - 无效频道会被标记\n\n5. **频道管理**\n   - 支持拖拽排序频道\n   - 右键菜单可进行批量操作\n   - 支持频道分组和收藏\n\n6. **频道映射**\n   - 点击"工具"菜单，选择"频道映射管理器"\n   - 管理用户映射规则\n   - 查看频道指纹和映射建议\n\n7. **排序配置**\n   - 点击"工具"菜单，选择"排序配置"\n   - 自定义频道分组和排序规则\n   - 支持拖拽调整分组顺序\n\n## 高级功能\n\n- **URL 解析器**：解析复杂的 URL 范围\n- **多语言支持**：切换界面语言\n- **主题切换**：支持深色/浅色主题\n- **配置管理**：自动保存和加载配置\n- **日志系统**：详细的操作日志'
+            usage_content = '## 基本操作\n\n1. **打开播放列表**\n   - 点击"文件"菜单，选择"打开播放列表"\n   - 支持 M3U、TXT 等格式的播放列表文件\n\n2. **播放频道**\n   - 在频道列表中双击频道开始播放\n   - 使用工具栏的播放/暂停/停止按钮控制播放\n   - 调整音量和全屏显示\n\n3. **扫描频道**\n   - 点击"工具"菜单，选择"扫描频道"\n   - 在扫描窗口中输入 IP 范围或 URL\n   - 设置超时时间和线程数\n   - 点击"开始扫描"按钮\n\n4. **验证频道**\n   - 点击"工具"菜单，选择"验证频道"\n   - 系统会自动检测频道的有效性\n   - 无效频道会被标记\n\n5. **频道管理**\n   - 支持拖拽排序频道\n   - 右键菜单可进行批量操作\n   - 支持频道分组和收藏\n\n6. **频道映射**\n   - 点击"工具"菜单，选择"频道映射管理器"\n   - 管理用户映射规则\n   - 查看频道指纹和映射建议\n\n## 高级功能\n\n- **URL 解析器**：解析复杂的 URL 范围\n- **多语言支持**：切换界面语言\n- **主题切换**：支持深色/浅色主题\n- **配置管理**：自动保存和加载配置\n- **日志系统**：详细的操作日志'
         
         # 转换为HTML格式以支持更好的显示效果
         html_content = self._convert_markdown_to_html(usage_content)
@@ -3825,7 +3810,7 @@ class IPTVPlayer(QMainWindow):
         layout.addWidget(text_edit)
         
         button_box = QHBoxLayout()
-        ok_button = QPushButton("确定")
+        ok_button = QPushButton(tr("ok_button", "OK"))
         ok_button.setStyleSheet(AppStyles.common_button_style())
         ok_button.clicked.connect(dialog.accept)
         button_box.addStretch()
@@ -3858,7 +3843,7 @@ class IPTVPlayer(QMainWindow):
             self.status_bar.showMessage(self.language_manager.tr("language_changed"))
         except Exception as e:
             logger.error(f"切换语言失败: {str(e)}")
-            self.status_bar.showMessage("切换语言失败")
+            self.status_bar.showMessage(self.language_manager.tr("language_change_failed", "Language change failed"))
     
     def set_theme(self, theme):
         """设置主题"""
@@ -3870,10 +3855,10 @@ class IPTVPlayer(QMainWindow):
             self.menuBar().clear()
             self.setup_menu_bar()
             # 更新状态栏消息
-            self.status_bar.showMessage(f"主题已切换为: {theme}")
+            self.status_bar.showMessage(f"{self.language_manager.tr('theme_changed', 'Theme changed to')}: {theme}")
         except Exception as e:
             logger.error(f"切换主题失败: {str(e)}")
-            self.status_bar.showMessage("切换主题失败")
+            self.status_bar.showMessage(self.language_manager.tr("theme_change_failed", "Theme change failed"))
     
     def save_window_layout(self):
         """保存窗口布局（包括位置和大小）"""
@@ -4049,12 +4034,12 @@ class IPTVPlayer(QMainWindow):
         try:
             # 在窗口标题添加提示
             original_title = self.windowTitle()
-            if " - 有新版本" not in original_title:
-                new_title = f"{original_title} - 有新版本 {latest_version}"
+            new_version_text = self.language_manager.tr("new_version_available", "New Version Available")
+            if new_version_text not in original_title:
+                new_title = f"{original_title} - {new_version_text} {latest_version}"
                 self.setWindowTitle(new_title)
 
-            # 在状态栏用红字显示提示
-            status_message = f"发现新版本 {latest_version} (当前版本 {current_version})"
+            status_message = f"{self.language_manager.tr('new_version_found', 'New version found')} {latest_version} ({self.language_manager.tr('current_version', 'Current Version')} {current_version})"
             self.status_bar.showMessage(status_message, 10000)  # 显示10秒
 
             # 设置状态栏消息为红色

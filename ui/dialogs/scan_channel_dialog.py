@@ -163,6 +163,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _init_ui(self):
         """初始化用户界面"""
+        tr = self.language_manager.tr
         # 设置窗口属性，与 AboutDialog 的实现一致
         self.setWindowTitle("")
         # 设置为工具窗口，无边框
@@ -191,7 +192,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.progress_indicator.hide()
         
         # 创建统计信息标签用于显示扫描状态
-        self.stats_label = QtWidgets.QLabel("就绪")
+        self.stats_label = QtWidgets.QLabel(tr("ready", "Ready"))
         self.stats_label.setStyleSheet(AppStyles.common_label_style())
 
         # 主布局
@@ -210,9 +211,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
         left_layout.setSpacing(8)
 
         # 左侧标题栏
-        left_title = QtWidgets.QLabel("⚙️ 扫描设置")
-        left_title.setStyleSheet(AppStyles.section_title_style())
-        left_layout.addWidget(left_title)
+        self.left_title = QtWidgets.QLabel(f"⚙️ {tr('scan_settings_title', 'Scan Settings')}")
+        self.left_title.setStyleSheet(AppStyles.section_title_style())
+        left_layout.addWidget(self.left_title)
 
         # 扫描设置内容
         scan_scroll = QtWidgets.QScrollArea()
@@ -230,11 +231,11 @@ class ScanChannelDialog(QtWidgets.QDialog):
         left_layout.addWidget(scan_scroll, 1)
 
         # 关闭按钮放在左下角
-        close_btn = QtWidgets.QPushButton("✕ 关闭")
-        close_btn.setStyleSheet(AppStyles.common_button_style())
-        close_btn.setFixedHeight(32)
-        close_btn.clicked.connect(self.close)
-        left_layout.addWidget(close_btn)
+        self.close_btn = QtWidgets.QPushButton(f"✕ {tr('close_button', 'Close')}")
+        self.close_btn.setStyleSheet(AppStyles.common_button_style())
+        self.close_btn.setFixedHeight(32)
+        self.close_btn.clicked.connect(self.close)
+        left_layout.addWidget(self.close_btn)
 
         main_layout.addWidget(left_panel)
 
@@ -250,9 +251,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
         # 频道列表标题栏（包含操作按钮）
         list_header = QtWidgets.QHBoxLayout()
-        list_title = QtWidgets.QLabel("📺 频道列表")
-        list_title.setStyleSheet(AppStyles.section_title_style())
-        list_header.addWidget(list_title)
+        self.list_title = QtWidgets.QLabel(f"📺 {tr('channel_list_title', 'Channel List')}")
+        self.list_title.setStyleSheet(AppStyles.section_title_style())
+        list_header.addWidget(self.list_title)
         list_header.addStretch()
 
         # 将工具栏按钮移到标题栏
@@ -286,9 +287,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
         right_layout.setSpacing(8)
 
         # 右侧标题
-        right_title = QtWidgets.QLabel("✏️ 频道编辑")
-        right_title.setStyleSheet(AppStyles.section_title_style())
-        right_layout.addWidget(right_title)
+        self.right_title = QtWidgets.QLabel(f"✏️ {tr('channel_edit_title', 'Channel Edit')}")
+        self.right_title.setStyleSheet(AppStyles.section_title_style())
+        self.right_layout.addWidget(self.right_title)
 
         # 频道编辑内容
         self._setup_channel_edit(right_layout)
@@ -350,8 +351,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _setup_timeout_input(self):
         """设置超时时间输入控件"""
+        tr = self.language_manager.tr
         timeout_layout = QtWidgets.QHBoxLayout()
-        timeout_label = QtWidgets.QLabel("设置扫描超时时间（秒）")
+        timeout_label = QtWidgets.QLabel(tr("set_scan_timeout", "Set scan timeout (seconds)"))
         self.timeout_description_label = timeout_label
         timeout_layout.addWidget(timeout_label)
         self.timeout_input = QtWidgets.QLineEdit()
@@ -374,8 +376,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _setup_thread_input(self):
         """设置线程数输入控件"""
+        tr = self.language_manager.tr
         thread_layout = QtWidgets.QHBoxLayout()
-        thread_label = QtWidgets.QLabel("设置扫描使用的线程数量")
+        thread_label = QtWidgets.QLabel(tr("set_scan_threads", "Set number of scan threads"))
         self.thread_count_label = thread_label
         thread_layout.addWidget(thread_label)
         self.thread_count_input = QtWidgets.QLineEdit()
@@ -398,12 +401,13 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _setup_user_agent_input(self):
         """设置User-Agent输入控件"""
+        tr = self.language_manager.tr
         user_agent_layout = QtWidgets.QHBoxLayout()
         user_agent_label = QtWidgets.QLabel("User-Agent:")
         self.user_agent_label = user_agent_label
         user_agent_layout.addWidget(user_agent_label)
         self.user_agent_input = QtWidgets.QLineEdit()
-        self.user_agent_input.setPlaceholderText("可选，留空使用默认")
+        self.user_agent_input.setPlaceholderText(tr("optional_default_input", "Optional, use default if empty"))
         user_agent_layout.addWidget(self.user_agent_input)
         self.user_agent_input.textChanged.connect(
             lambda: self._save_network_settings()
@@ -412,12 +416,13 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _setup_referer_input(self):
         """设置Referer输入控件"""
+        tr = self.language_manager.tr
         referer_layout = QtWidgets.QHBoxLayout()
         referer_label = QtWidgets.QLabel("Referer:")
         self.referer_label = referer_label
         referer_layout.addWidget(referer_label)
         self.referer_input = QtWidgets.QLineEdit()
-        self.referer_input.setPlaceholderText("可选，留空不使用")
+        self.referer_input.setPlaceholderText(tr("optional_not_used_input", "Optional, not used if empty"))
         referer_layout.addWidget(self.referer_input)
         self.referer_input.textChanged.connect(
             lambda: self._save_network_settings()
@@ -426,16 +431,16 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _setup_scan_retry_options(self):
         """设置扫描重试选项"""
+        tr = self.language_manager.tr
         retry_layout = QtWidgets.QHBoxLayout()
-        retry_label = QtWidgets.QLabel("扫描重试选项：")
+        retry_label = QtWidgets.QLabel(f"{tr('scan_retry_options', 'Scan Retry Options')}：")
         self.retry_label = retry_label
         retry_layout.addWidget(retry_label)
 
         # 是否启用智能重试扫描（基于失败原因，自动循环直到无新频道）
-        self.enable_retry_checkbox = QtWidgets.QCheckBox("启用智能重试扫描")
+        self.enable_retry_checkbox = QtWidgets.QCheckBox(tr("enable_smart_retry", "Enable Smart Retry"))
         self.enable_retry_checkbox.setToolTip(
-            "基于失败原因智能重试：只重试超时、连接失败等临时错误，"
-            "不重试TCP失败、404等永久错误。启用后会自动循环重试直到没有新的有效频道"
+            tr("smart_retry_tooltip", "Smart retry based on failure reasons")
         )
         self.enable_retry_checkbox.setChecked(False)
         retry_layout.addWidget(self.enable_retry_checkbox)
@@ -468,15 +473,16 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _setup_mapping_options(self):
         """设置映射功能选项"""
+        tr = self.language_manager.tr
         mapping_layout = QtWidgets.QHBoxLayout()
-        mapping_label = QtWidgets.QLabel("映射功能选项：")
+        mapping_label = QtWidgets.QLabel(f"{tr('mapping_options', 'Mapping Options')}：")
         self.mapping_label = mapping_label
         mapping_layout.addWidget(mapping_label)
 
         # 是否启用频道映射
-        self.enable_mapping_checkbox = QtWidgets.QCheckBox("启用频道映射")
+        self.enable_mapping_checkbox = QtWidgets.QCheckBox(tr("enable_channel_mapping", "Enable Channel Mapping"))
         self.enable_mapping_checkbox.setToolTip(
-            "启用后，扫描到的频道会根据映射文件自动匹配频道名称、Logo、分组等信息"
+            tr("mapping_tooltip", "When enabled, scanned channels will auto-match from mapping file")
         )
         self.enable_mapping_checkbox.setChecked(True)
         mapping_layout.addWidget(self.enable_mapping_checkbox)
@@ -514,19 +520,20 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _setup_scan_buttons(self):
         """设置扫描按钮"""
+        tr = self.language_manager.tr
         # 扫描控制按钮
-        self.btn_scan = QtWidgets.QPushButton("完整扫描")
+        self.btn_scan = QtWidgets.QPushButton(tr("full_scan", "Full Scan"))
         self.btn_scan.setStyleSheet(AppStyles.common_button_style())
         self.btn_scan.setMinimumHeight(32)  # 减少按钮高度
 
         # 新增追加扫描按钮
-        self.btn_append_scan = QtWidgets.QPushButton("追加扫描")
+        self.btn_append_scan = QtWidgets.QPushButton(tr("append_scan", "Append Scan"))
         self.btn_append_scan.setStyleSheet(AppStyles.common_button_style())
         self.btn_append_scan.setMinimumHeight(32)  # 减少按钮高度
-        self.btn_append_scan.setToolTip("不清空现有列表，扫描到的有效频道直接追加到列表末尾")
+        self.btn_append_scan.setToolTip(tr("append_scan_tooltip", "Append valid channels to existing list without clearing"))
 
         # 新增直接生成列表按钮
-        self.btn_generate = QtWidgets.QPushButton("直接生成列表")
+        self.btn_generate = QtWidgets.QPushButton(tr("generate_list", "Generate List"))
         self.btn_generate.setStyleSheet(AppStyles.common_button_style())
         self.btn_generate.setMinimumHeight(32)  # 减少按钮高度
 
@@ -543,6 +550,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _add_scan_controls_to_layout(self, scan_layout):
         """添加扫描控件到布局（优化版，适合窄边栏）"""
+        tr = self.language_manager.tr
         # 先设置所有输入控件
         self._setup_scan_inputs()
 
@@ -557,7 +565,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         address_section.setSpacing(8)
 
         address_example_label = QtWidgets.QLabel(
-            "格式: http://ip:port/rtp/10.10.[1-20].[1-20]:5002"
+            tr("address_format_hint", "Format: http://ip:port/rtp/...")
         )
         self.address_example_label = address_example_label
         address_example_label.setWordWrap(True)
@@ -577,7 +585,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
         # 超时设置
         timeout_layout = QtWidgets.QHBoxLayout()
-        timeout_label = QtWidgets.QLabel("超时:")
+        timeout_label = QtWidgets.QLabel(f"{tr('timeout_small', 'Timeout')}:")
         timeout_label.setStyleSheet(AppStyles.small_label_style())
         timeout_label.setMinimumWidth(40)
         timeout_layout.addWidget(timeout_label)
@@ -588,7 +596,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
         # 线程设置
         thread_layout = QtWidgets.QHBoxLayout()
-        thread_label = QtWidgets.QLabel("线程:")
+        thread_label = QtWidgets.QLabel(f"{tr('thread_small', 'Threads')}:")
         thread_label.setStyleSheet(AppStyles.small_label_style())
         thread_label.setMinimumWidth(40)
         thread_layout.addWidget(thread_label)
@@ -699,48 +707,28 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _setup_list_toolbar(self, toolbar_layout):
         """设置频道列表的工具栏按钮（用于标题栏）"""
+        tr = self.language_manager.tr
         # 有效性检测按钮
-        self.btn_validate = QtWidgets.QPushButton("检测")
+        self.btn_validate = QtWidgets.QPushButton(tr("validate_button", "Validate"))
         self.btn_validate.setStyleSheet(AppStyles.common_button_style())
         self.btn_validate.setFixedHeight(32)
         self.btn_validate.setFixedWidth(60)
-        self.btn_validate.setToolTip("检测频道有效性")
+        self.btn_validate.setToolTip(tr("validate_tooltip", "Validate channel effectiveness"))
 
         # 隐藏无效项按钮
-        self.btn_hide_invalid = QtWidgets.QPushButton("隐藏无效")
+        self.btn_hide_invalid = QtWidgets.QPushButton(tr("hide_invalid_button", "Hide Invalid"))
         self.btn_hide_invalid.setStyleSheet(AppStyles.common_button_style())
         self.btn_hide_invalid.setFixedHeight(32)
         self.btn_hide_invalid.setFixedWidth(80)
         self.btn_hide_invalid.setEnabled(False)
 
-        # 智能排序按钮
-        self.btn_smart_sort = QtWidgets.QPushButton("排序")
-        self.btn_smart_sort.setStyleSheet(AppStyles.common_button_style())
-        self.btn_smart_sort.setFixedHeight(32)
-        self.btn_smart_sort.setFixedWidth(60)
-        self.btn_smart_sort.setToolTip("智能排序频道")
-        self.btn_smart_sort.clicked.connect(
-            lambda: self.model.sort_channels()
-        )
-
-        # 排序配置按钮
-        self.btn_sort_config = QtWidgets.QPushButton("配置")
-        self.btn_sort_config.setStyleSheet(AppStyles.common_button_style())
-        self.btn_sort_config.setFixedHeight(32)
-        self.btn_sort_config.setFixedWidth(60)
-        self.btn_sort_config.setToolTip("排序配置")
-        self.btn_sort_config.clicked.connect(self._show_sort_config)
-
         toolbar_layout.addWidget(self.btn_validate)
         toolbar_layout.addSpacing(6)
         toolbar_layout.addWidget(self.btn_hide_invalid)
-        toolbar_layout.addSpacing(6)
-        toolbar_layout.addWidget(self.btn_smart_sort)
-        toolbar_layout.addSpacing(6)
-        toolbar_layout.addWidget(self.btn_sort_config)
 
     def _setup_channel_edit(self, parent: QtWidgets.QLayout) -> None:
         """配置频道编辑区域（简化版，不含GroupBox）"""
+        tr = self.language_manager.tr
         # 使用垂直布局替代网格布局，更适合窄边栏
         edit_layout = QtWidgets.QVBoxLayout()
         edit_layout.setContentsMargins(0, 0, 0, 0)
@@ -749,7 +737,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 频道名称
         name_layout = QtWidgets.QVBoxLayout()
         name_layout.setSpacing(4)
-        self.edit_name_label = QtWidgets.QLabel("频道名称:")
+        self.edit_name_label = QtWidgets.QLabel(f"{tr('channel_name', 'Channel Name')}:")
         self.edit_name_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_name = QtWidgets.QLineEdit()
         self.edit_name.setStyleSheet(AppStyles.common_line_edit_style())
@@ -761,7 +749,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 频道分组
         group_layout = QtWidgets.QVBoxLayout()
         group_layout.setSpacing(4)
-        self.edit_group_label = QtWidgets.QLabel("频道分组:")
+        self.edit_group_label = QtWidgets.QLabel(f"{tr('channel_group', 'Channel Group')}:")
         self.edit_group_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_group = QtWidgets.QLineEdit()
         self.edit_group.setStyleSheet(AppStyles.common_line_edit_style())
@@ -773,7 +761,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 频道URL
         url_layout = QtWidgets.QVBoxLayout()
         url_layout.setSpacing(4)
-        self.edit_url_label = QtWidgets.QLabel("频道URL:")
+        self.edit_url_label = QtWidgets.QLabel(f"{tr('channel_url', 'Channel URL')}:")
         self.edit_url_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_url = QtWidgets.QLineEdit()
         self.edit_url.setStyleSheet(AppStyles.common_line_edit_style())
@@ -797,7 +785,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # Logo URL
         logo_layout = QtWidgets.QVBoxLayout()
         logo_layout.setSpacing(4)
-        self.edit_logo_label = QtWidgets.QLabel("Logo URL:")
+        self.edit_logo_label = QtWidgets.QLabel(f"{tr('logo_address', 'Logo Address')}:")
         self.edit_logo_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_logo = QtWidgets.QLineEdit()
         self.edit_logo.setStyleSheet(AppStyles.common_line_edit_style())
@@ -810,7 +798,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         edit_layout.addStretch(1)
 
         # 保存按钮
-        self.btn_save_channel = QtWidgets.QPushButton("💾 保存修改")
+        self.btn_save_channel = QtWidgets.QPushButton(tr("save_changes", "💾 Save Changes"))
         self.btn_save_channel.setStyleSheet(AppStyles.common_button_style())
         self.btn_save_channel.setFixedHeight(40)
         self.btn_save_channel.clicked.connect(self._on_save_channel)
@@ -855,6 +843,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _show_channel_context_menu(self, pos):
         """显示频道列表的右键菜单"""
+        tr = self.language_manager.tr
         index = self.channel_list.indexAt(pos)
         if not index.isValid():
             return
@@ -866,31 +855,31 @@ class ScanChannelDialog(QtWidgets.QDialog):
         name = self.model.data(self.model.index(index.row(), 1))  # 名称在第1列
 
         # 添加复制频道名菜单项
-        copy_name_action = QtGui.QAction("复制频道名", self)
+        copy_name_action = QtGui.QAction(tr("copy_channel_name", "Copy Channel Name"), self)
         copy_name_action.triggered.connect(lambda: self._copy_channel_name(name))
         menu.addAction(copy_name_action)
 
         # 添加复制URL菜单项
-        copy_url_action = QtGui.QAction("复制URL", self)
+        copy_url_action = QtGui.QAction(tr("copy_url", "Copy URL"), self)
         copy_url_action.triggered.connect(lambda: self._copy_channel_url(url))
         menu.addAction(copy_url_action)
 
         # 添加复制TVG-ID菜单项
         tvg_id = self.model.data(self.model.index(index.row(), 8))  # TVG-ID在第8列
-        copy_tvg_id_action = QtGui.QAction("复制TVG-ID", self)
+        copy_tvg_id_action = QtGui.QAction(tr("copy_tvg_id", "Copy TVG-ID"), self)
         copy_tvg_id_action.triggered.connect(lambda: self._copy_channel_tvg_id(tvg_id))
         menu.addAction(copy_tvg_id_action)
 
         # 添加复制分组菜单项
         group = self.model.data(self.model.index(index.row(), 4))  # 分组在第4列
-        copy_group_action = QtGui.QAction("复制分组", self)
+        copy_group_action = QtGui.QAction(tr("copy_group", "Copy Group"), self)
         copy_group_action.triggered.connect(lambda: self._copy_channel_group(group))
         menu.addAction(copy_group_action)
 
         menu.addSeparator()
 
         # 添加删除频道菜单项
-        delete_action = QtGui.QAction("删除频道", self)
+        delete_action = QtGui.QAction(tr("delete_channel", "Delete Channel"), self)
         delete_action.triggered.connect(lambda: self._delete_selected_channel(index))
         menu.addAction(delete_action)
 
@@ -919,13 +908,10 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _delete_selected_channel(self, index):
         """删除选中的频道"""
+        tr = self.language_manager.tr
         from utils.error_handler import show_confirm
-        if show_confirm("确认删除", "确定要删除选中的频道吗？", parent=self):
+        if show_confirm(tr("confirm_delete", "Confirm Delete"), tr("confirm_delete_message", "Are you sure you want to delete the selected channel?"), parent=self):
             self.model.remove_channel(index.row())
-
-    def _show_sort_config(self):
-        """显示排序配置对话框"""
-        pass
 
     def _on_header_clicked(self, logical_index):
         """处理表头点击事件"""
@@ -1237,14 +1223,14 @@ class ScanChannelDialog(QtWidgets.QDialog):
                 user_agent,
                 referer
             )
-            self.btn_validate.setText("停止检测")
+            self.btn_validate.setText(self.language_manager.tr("stop_validate", "Stop Validate"))
             self.btn_hide_invalid.setEnabled(True)
             self.btn_hide_invalid.setStyleSheet(
                 AppStyles.button_style(active=True)
             )
         else:
             self.scanner.stop_validation()
-            self.btn_validate.setText("检测有效性")
+            self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
 
     def _on_channel_validated(self, index, valid, latency, resolution):
         """处理频道验证结果"""
@@ -1271,15 +1257,18 @@ class ScanChannelDialog(QtWidgets.QDialog):
         url_generator = url_parser.parse_url(url)
 
         count = 0
+        tr = self.language_manager.tr
+        gen_name = tr("generated_channel", "Generated Channel")
+        gen_group = tr("generated_group", "Generated")
         for batch in url_generator:
             for url in batch:
                 channel = {
-                    'name': f"生成频道-{count+1}",
-                    'group': "生成频道",
+                    'name': f"{gen_name}-{count+1}",
+                    'group': gen_group,
                     'url': url,
                     'valid': False,
                     'latency': 0,
-                    'status': '未检测'
+                    'status': tr("not_tested", "Not Tested")
                 }
                 self.model.add_channel(channel)
                 count += 1
@@ -1289,12 +1278,14 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _on_hide_invalid_clicked(self):
         """处理隐藏无效项按钮点击事件"""
-        if self.btn_hide_invalid.text() == "隐藏无效项":
+        tr = self.language_manager.tr
+        hide_text = tr("hide_invalid", "Hide Invalid")
+        if self.btn_hide_invalid.text() == hide_text:
             self.model.hide_invalid()
-            self.btn_hide_invalid.setText("恢复隐藏项")
+            self.btn_hide_invalid.setText(tr("show_hidden", "Show Hidden"))
         else:
             self.model.show_all()
-            self.btn_hide_invalid.setText("隐藏无效项")
+            self.btn_hide_invalid.setText(hide_text)
 
     def save_before_exit(self):
         """退出前保存配置"""
@@ -1338,13 +1329,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self._set_scan_button_text('full_scan', '完整扫描')
         self._set_append_scan_button_text('append_scan', '追加扫描')
 
-        self.btn_validate.setText("检测有效性")
+        self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
 
         # 更新UI状态
-        self.btn_smart_sort.setEnabled(True)
-        self.btn_smart_sort.setStyleSheet(
-            AppStyles.button_style(active=True)
-        )
 
         if hasattr(self, 'channel_list'):
             header = self.channel_list.horizontalHeader()
@@ -1377,41 +1364,89 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
             # 如果是重试扫描，显示重试次数
             scan_type = ""
+            tr = self.language_manager.tr
             if is_retry_scan:
-                scan_type = f"第{retry_count}次重试"
+                scan_type = f"{tr('retry_nth', 'Retry')} #{retry_count}"
             elif retry_count > 0:
-                scan_type = f"第{retry_count + 1}次扫描"
+                scan_type = f"{tr('scan_nth', 'Scan')} #{retry_count + 1}"
             else:
-                scan_type = "第1次扫描"
+                scan_type = f"{tr('scan_nth', 'Scan')} #1"
 
-            if hasattr(self, 'language_manager') and self.language_manager:
-                # 使用更清晰的文本
-                scan_text = self.language_manager.tr('scan', '扫描')
-                total_text = self.language_manager.tr('scan_total', '本次总数')
-                valid_text = self.language_manager.tr('valid', '有效')
-                invalid_text = self.language_manager.tr('invalid', '无效')
-                time_text = self.language_manager.tr('time_elapsed', '耗时')
+            scan_text = tr('scan', 'Scan')
+            total_text = tr('scan_total', 'Total')
+            valid_text = tr('valid', 'Valid')
+            invalid_text = tr('invalid', 'Invalid')
+            time_text = tr('time_elapsed', 'Time')
 
-                stats_text = (
-                    f"{scan_text}: {scan_type} | "
-                    f"{total_text}: {stats.get('total', 0)} | "
-                    f"{valid_text}: {stats.get('valid', 0)} | "
-                    f"{invalid_text}: {stats.get('invalid', 0)} | "
-                    f"{time_text}: {elapsed}"
-                )
-                self.stats_label.setText(stats_text)
-            else:
-                # 使用更清晰的文本："本次总数"而不是"总数"
-                stats_text = (
-                    f"扫描: {scan_type} | "
-                    f"本次总数: {stats.get('total', 0)} | "
-                    f"有效: {stats.get('valid', 0)} | "
-                    f"无效: {stats.get('invalid', 0)} | "
-                    f"耗时: {elapsed}"
-                )
-                self.stats_label.setText(stats_text)
+            stats_text = (
+                f"{scan_text}: {scan_type} | "
+                f"{total_text}: {stats.get('total', 0)} | "
+                f"{valid_text}: {stats.get('valid', 0)} | "
+                f"{invalid_text}: {stats.get('invalid', 0)} | "
+                f"{time_text}: {elapsed}"
+            )
+            self.stats_label.setText(stats_text)
         except Exception as e:
             self.logger.error(f"更新统计信息显示失败: {e}", exc_info=True)
+
+    def update_ui_texts(self):
+        """语言切换时更新UI文本"""
+        try:
+            tr = self.language_manager.tr
+            if hasattr(self, 'left_title'):
+                self.left_title.setText(f"⚙️ {tr('scan_settings_title', 'Scan Settings')}")
+            if hasattr(self, 'list_title'):
+                self.list_title.setText(f"📺 {tr('channel_list_title', 'Channel List')}")
+            if hasattr(self, 'right_title'):
+                self.right_title.setText(f"✏️ {tr('channel_edit_title', 'Channel Edit')}")
+            if hasattr(self, 'close_btn'):
+                self.close_btn.setText(f"✕ {tr('close_button', 'Close')}")
+            if hasattr(self, 'btn_validate'):
+                self.btn_validate.setText(tr("validate_button", "Validate"))
+            if hasattr(self, 'btn_hide_invalid'):
+                self.btn_hide_invalid.setText(tr("hide_invalid_button", "Hide Invalid"))
+            if hasattr(self, 'btn_scan'):
+                self.btn_scan.setText(tr("full_scan", "Full Scan"))
+            if hasattr(self, 'btn_append_scan'):
+                self.btn_append_scan.setText(tr("append_scan", "Append Scan"))
+            if hasattr(self, 'btn_generate'):
+                self.btn_generate.setText(tr("generate_list", "Generate List"))
+            if hasattr(self, 'stats_label'):
+                self.stats_label.setText(tr("ready", "Ready"))
+            if hasattr(self, 'edit_name_label'):
+                self.edit_name_label.setText(f"{tr('channel_name', 'Channel Name')}:")
+            if hasattr(self, 'edit_group_label'):
+                self.edit_group_label.setText(f"{tr('channel_group', 'Channel Group')}:")
+            if hasattr(self, 'edit_url_label'):
+                self.edit_url_label.setText(f"{tr('channel_url', 'Channel URL')}:")
+            if hasattr(self, 'edit_logo_label'):
+                self.edit_logo_label.setText(f"{tr('logo_address', 'Logo Address')}:")
+            if hasattr(self, 'btn_save_channel'):
+                self.btn_save_channel.setText(tr("save_changes", "💾 Save Changes"))
+            if hasattr(self, 'address_example_label'):
+                self.address_example_label.setText(tr("address_format_hint", "Format: http://ip:port/rtp/..."))
+            if hasattr(self, 'timeout_description_label'):
+                self.timeout_description_label.setText(tr("set_scan_timeout", "Set scan timeout (seconds)"))
+            if hasattr(self, 'thread_count_label'):
+                self.thread_count_label.setText(tr("set_scan_threads", "Set number of scan threads"))
+            if hasattr(self, 'user_agent_label'):
+                self.user_agent_label.setText("User-Agent:")
+            if hasattr(self, 'referer_label'):
+                self.referer_label.setText("Referer:")
+            if hasattr(self, 'retry_label'):
+                self.retry_label.setText(f"{tr('scan_retry_options', 'Scan Retry Options')}：")
+            if hasattr(self, 'enable_retry_checkbox'):
+                self.enable_retry_checkbox.setText(tr("enable_smart_retry", "Enable Smart Retry"))
+            if hasattr(self, 'mapping_label'):
+                self.mapping_label.setText(f"{tr('mapping_options', 'Mapping Options')}：")
+            if hasattr(self, 'enable_mapping_checkbox'):
+                self.enable_mapping_checkbox.setText(tr("enable_channel_mapping", "Enable Channel Mapping"))
+            if hasattr(self, 'user_agent_input'):
+                self.user_agent_input.setPlaceholderText(tr("optional_default_input", "Optional, use default if empty"))
+            if hasattr(self, 'referer_input'):
+                self.referer_input.setPlaceholderText(tr("optional_not_used_input", "Optional, not used if empty"))
+        except Exception as e:
+            self.logger.error(f"更新扫描窗口UI文本失败: {e}")
 
     def _register_cleanup_handlers(self):
         """注册资源清理处理器"""

@@ -1,423 +1,685 @@
-import json
 import os
-import glob
-from pathlib import Path
 from core.log_manager import LogManager
 from PyQt6.QtCore import QObject, pyqtSignal
 
 logger = LogManager()
 
+BUILTIN_TRANSLATIONS = {
+    'zh': {
+        'language_name': '中文',
+        'app_title': 'IPTV扫描编辑器专业版',
+        'video_playback': '视频播放',
+        'play': '播放',
+        'pause': '暂停',
+        'stop': '停止',
+        'volume': '音量',
+        'scan_settings': '扫描设置',
+        'address_format': '地址格式',
+        'address_example': '地址示例',
+        'input_address': '输入地址',
+        'timeout_description': '设置扫描超时时间（秒）',
+        'thread_count_description': '设置扫描线程数',
+        'user_agent': 'User-Agent',
+        'referer': 'Referer',
+        'progress': '进度',
+        'timeout': '超时',
+        'thread_count': '线程数',
+        'full_scan': '完整扫描',
+        'stop_scan': '停止扫描',
+        'generate_list': '生成列表',
+        'total_channels': '总数',
+        'valid': '有效',
+        'invalid': '无效',
+        'time_elapsed': '耗时',
+        'channel_list': '频道列表',
+        'validate_effectiveness': '检测有效性',
+        'hide_invalid': '隐藏无效项',
+        'smart_sort': '智能排序',
+        'please_load_list': '请先加载列表',
+        'channel_edit': '频道编辑',
+        'channel_name': '频道名称',
+        'channel_group': '频道分组',
+        'logo_address': 'Logo地址',
+        'channel_url': '频道URL',
+        'edit_channel': '编辑频道',
+        'add_channel': '添加频道',
+        'operation': '操作',
+        'open_list': '打开列表',
+        'save_list': '保存列表',
+        'language': '语言',
+        'about': '关于',
+        'required': '必填',
+        'optional': '可选',
+        'optional_default': '可选，为空使用默认值',
+        'optional_not_used': '可选，为空不使用',
+        'serial_number': '序号',
+        'resolution': '分辨率',
+        'status': '状态',
+        'latency_ms': '延迟(ms)',
+        'tvg_id': 'TVG-ID',
+        'tvg_chno': 'TVG频道号',
+        'tvg_shift': 'TVG时移',
+        'catchup': '回看',
+        'catchup_days': '回看天数',
+        'catchup_source': '回看源',
+        'about_dialog_title': '关于 IPTV Scanner Editor Pro',
+        'current_version': '当前版本',
+        'latest_version': '最新版本',
+        'build_date': '编译日期',
+        'qt_version': 'QT版本',
+        'close_button': '关闭',
+        'checking_update': '检测中...',
+        'update_timeout': '请求超时',
+        'update_failed': '获取失败',
+        'api_limit': 'API限制',
+        'update_progress_title': '在线更新',
+        'update_checking': '正在检查更新...',
+        'update_downloading': '正在下载更新...',
+        'update_complete': '更新下载完成，请重启应用',
+        'update_error': '更新失败',
+        'network_error': '网络错误',
+        'feature_intro': '主要功能说明',
+        'smart_scan': '智能频道扫描',
+        'advanced_validation': '高级流验证',
+        'intelligent_management': '智能频道管理',
+        'integrated_playback': '集成视频播放',
+        'advanced_config': '高级配置管理',
+        'professional_tools': '专业工具集成',
+        'usage_method': '使用方法',
+        'scan_usage': '在扫描设置中输入地址格式，点击"完整扫描"开始',
+        'validation_usage': '打开播放列表后点击"检测有效性"按钮',
+        'management_usage': '右键频道列表或拖拽调整顺序',
+        'playback_usage': '双击频道列表中的任意频道',
+        'config_usage': '所有设置自动保存，无需手动操作',
+        'tools_usage': '通过工具栏访问各专业工具',
+        'cancel_button': '取消',
+        'update_success': '更新完成',
+        'file': '文件',
+        'edit': '编辑',
+        'view': '视图',
+        'tools': '工具',
+        'help': '帮助',
+        'new_playlist': '新建播放列表',
+        'open_playlist': '打开播放列表',
+        'save_playlist': '保存播放列表',
+        'save_as': '另存为...',
+        'import_channels': '导入频道',
+        'export_channels': '导出频道',
+        'exit': '退出',
+        'undo': '撤销',
+        'redo': '重做',
+        'select_all': '全选',
+        'delete_selected': '删除选中',
+        'show_epg': '显示节目单',
+        'show_playlist': '显示播放列表',
+        'fullscreen': '全屏模式',
+        'refresh': '刷新',
+        'reset_layout': '重置布局',
+        'scan_channels': '扫描频道',
+        'verify_channels': '验证频道',
+        'restore_hidden': '恢复隐藏项',
+        'channel_management': '频道管理',
+        'channel_mapping': '频道映射',
+        'favorite_management': '收藏管理',
+        'network_settings': '网络设置',
+        'player_settings': '播放器设置',
+        'usage_instructions': '使用说明',
+        'chinese': '中文',
+        'english': 'English',
+        'loading_channels': '正在加载频道...',
+        'channels_loaded': '成功加载 {count} 个频道',
+        'file_format_error': '文件格式不正确或为空',
+        'open_file_error': '打开文件失败: {error}',
+        'save_success': '保存成功',
+        'save_error': '保存文件失败: {error}',
+        'no_content': '没有可保存的内容',
+        'file_selection_error': '文件选择失败: {error}',
+        'app_name': 'IPTV Scanner Editor Pro',
+        'version': '版本 1.0.0',
+        'description': 'IPTV 频道扫描和编辑工具',
+        'usage_title': '使用说明',
+        'usage_content': '## 基本操作\n\n1. **打开播放列表**\n   - 点击"文件"菜单，选择"打开播放列表"\n   - 支持 M3U、TXT 等格式的播放列表文件\n\n2. **播放频道**\n   - 在频道列表中双击频道开始播放\n   - 使用工具栏的播放/暂停/停止按钮控制播放\n   - 调整音量和全屏显示\n\n3. **扫描频道**\n   - 点击"工具"菜单，选择"扫描频道"\n   - 在扫描窗口中输入 IP 范围或 URL\n   - 设置超时时间和线程数\n   - 点击"开始扫描"按钮\n\n4. **验证频道**\n   - 点击"工具"菜单，选择"验证频道"\n   - 系统会自动检测频道的有效性\n   - 无效频道会被标记\n\n5. **频道管理**\n   - 支持拖拽排序频道\n   - 右键菜单可进行批量操作\n   - 支持频道分组和收藏\n\n6. **频道映射**\n   - 点击"工具"菜单，选择"频道映射管理器"\n   - 管理用户映射规则\n   - 查看频道指纹和映射建议\n\n## 高级功能\n\n- **URL 解析器**：解析复杂的 URL 范围\n- **多语言支持**：切换界面语言\n- **主题切换**：支持深色/浅色主题\n- **配置管理**：自动保存和加载配置\n- **日志系统**：详细的操作日志',
+        'about_title': '关于',
+        'about_content': 'IPTV Scanner Editor Pro\n版本 1.0.0\n\nIPTV 频道扫描和编辑工具\n\n© 2026 IPTV Scanner Editor Pro',
+        'epg_title': '节目单',
+        'not_playing': '未播放',
+        'language_changed': '语言已切换',
+        'no_epg_data': '暂无节目信息',
+        'no_channels': '暂无频道',
+        'media_info': '媒体信息',
+        'menu_file': '文件',
+        'menu_open_playlist': '打开列表',
+        'menu_recent_open': '最近打开',
+        'menu_save_as': '另存...',
+        'menu_exit': '退出',
+        'menu_view': '视图',
+        'menu_epg_list': '节目列表',
+        'menu_playlist': '播放列表',
+        'menu_control_panel': '控制面板',
+        'menu_fullscreen': '全屏模式',
+        'menu_refresh': '刷新界面',
+        'menu_reset_layout': '重置布局',
+        'menu_tools': '工具',
+        'menu_scan_channels': '扫描频道',
+        'menu_mapping': '映射管理',
+        'menu_subscription_settings': '订阅设置',
+        'menu_theme': '主题',
+        'menu_help': '帮助',
+        'menu_instructions': '说明',
+        'menu_about': '关于',
+        'today': '今天',
+        'yesterday': '昨天',
+        'tomorrow': '明天',
+        'no_channel_selected': '未选择频道',
+        'select_channel_to_play': '▶ 请选择频道开始播放',
+        'open_playlist_or_import': '打开播放列表文件或导入频道以开始观看',
+        'waiting_to_play': '等待播放...',
+        'exit_catchup': '⏪ 退出回看',
+        'playing': '正在播放',
+        'paused': '已暂停',
+        'stopped': '已停止',
+        'playing_channel': '正在播放: {name}',
+        'paused_channel': '已暂停: {name}',
+        'stopped_play': '停止播放',
+        'catchup_playing': '正在回看: {name}',
+        'catchup_paused': '已暂停回看: {name}',
+        'subscription_settings_title': '订阅设置',
+        'protocol_settings': '回放协议设置',
+        'protocol_type': '协议类型',
+        'playlist_subscription': '列表订阅设置',
+        'subscription_url': '订阅地址',
+        'subscription_name': '订阅名称',
+        'update_interval': '更新间隔(分钟)',
+        'epg_subscription': '节目单订阅设置',
+        'save_button': '保存',
+        'usage_instructions_title': '使用说明',
+        'ok_button': '确定',
+        'loading': '加载中...',
+        'current_program': '正在播放',
+        'upcoming_program': '即将播放',
+        'finished_program': '已结束',
+        'bitrate_unknown': '未知',
+        'codec_unknown': '未知',
+        'resolution_unknown': '未知',
+        'back_to_live': '返回直播',
+        'ready': '就绪',
+        'catchup_not_supported': '该频道不支持回看',
+        'playlist_sub_updated': '列表订阅更新成功',
+        'playlist_sub_parse_failed': '列表订阅内容解析失败',
+        'playlist_sub_update_failed': '更新列表订阅失败',
+        'player_settings_saved': '播放器设置保存成功',
+        'player_settings_save_failed': '保存播放器设置失败',
+        'epg_settings_saved': 'EPG节目单设置已保存',
+        'file_opened': '成功打开文件',
+        'file_open_failed': '打开文件失败',
+        'language_change_failed': '切换语言失败',
+        'theme_changed': '主题已切换为',
+        'theme_change_failed': '切换主题失败',
+        'epg_sub_updated': '节目单订阅更新成功',
+        'epg_sub_parse_failed': '节目单订阅内容解析失败',
+        'epg_sub_update_failed': '更新节目单订阅失败',
+        'epg_using_cache': '使用缓存的EPG数据',
+        'codec_label': '编码',
+        'resolution_label': '分辨率',
+        'bitrate_label': '码率',
+        'channel_count_label': '声道',
+        'sample_rate_label': '采样率',
+        'format_label': '格式',
+        'protocol_label': '协议',
+        'player_settings_title': '播放器设置',
+        'update_interval_minutes': '更新间隔时间 (分钟)',
+        'enter_playlist_url': '请输入列表订阅地址',
+        'enter_subscription_name': '请输入订阅名称',
+        'enter_epg_url': '请输入节目单订阅地址',
+        'epg_settings_title': 'EPG节目单设置',
+        'epg_url_label': 'EPG节目单URL',
+        'epg_source_label': 'EPG节目单来源',
+        'app_description': 'IPTV 专业扫描编辑工具',
+        'system_info': '系统信息',
+        'copyright_text': '© 2025 IPTV Scanner Editor Pro 版权所有',
+        'github_repo': 'GitHub 仓库',
+        'request_timeout_text': '(请求超时)',
+        'fetch_failed_text': '(获取失败)',
+        'api_limit_text': '(API限制)',
+        'scan_settings_title': '扫描设置',
+        'channel_list_title': '频道列表',
+        'channel_edit_title': '频道编辑',
+        'validate_button': '检测',
+        'hide_invalid_button': '隐藏无效',
+        'append_scan': '追加扫描',
+        'address_format_hint': '格式: http://ip:port/rtp/10.10.[1-20].[1-20]:5002',
+        'timeout_small': '超时',
+        'thread_small': '线程',
+        'scan_retry_options': '扫描重试选项',
+        'enable_smart_retry': '启用智能重试扫描',
+        'mapping_options': '映射功能选项',
+        'enable_channel_mapping': '启用频道映射',
+        'save_changes': '💾 保存修改',
+        'copy_channel_name': '复制频道名',
+        'copy_url': '复制URL',
+        'copy_tvg_id': '复制TVG-ID',
+        'copy_group': '复制分组',
+        'delete_channel': '删除频道',
+        'confirm_delete': '确认删除',
+        'confirm_delete_message': '确定要删除选中的频道吗？',
+        'scan_progress': '扫描进度',
+        'scan_complete': '扫描完成',
+        'append_scan_tooltip': '不清空现有列表，扫描到的有效频道直接追加到列表末尾',
+        'smart_retry_tooltip': '基于失败原因智能重试：只重试超时、连接失败等临时错误，不重试TCP失败、404等永久错误。启用后会自动循环重试直到没有新的有效频道',
+        'mapping_tooltip': '启用后，扫描到的频道会根据映射文件自动匹配频道名称、Logo、分组等信息',
+        'set_scan_timeout': '设置扫描超时时间（秒）',
+        'set_scan_threads': '设置扫描使用的线程数量',
+        'validate_tooltip': '检测频道有效性',
+        'no_recent_files': '无最近打开的文件',
+        'select_channel_play': '▶ 请选择频道播放',
+        'open_playlist_success': '打开播放列表文件成功，点击频道开始播放',
+        'catchup_playing_label': '正在回看',
+        'unknown_channel': '未知频道',
+        'unnamed': '未命名',
+        'uncategorized': '未分类',
+        'all_channels': '全部频道',
+        'media_info_label': '📺 媒体信息',
+        'epg_url_colon': 'EPG节目单URL:',
+        'epg_source_colon': 'EPG节目单来源:',
+        'protocol_type_colon': '协议类型:',
+        'subscription_url_colon': '订阅地址:',
+        'subscription_name_colon': '订阅名称:',
+        'update_interval_colon': '更新间隔时间 (分钟):',
+        'optional_default_input': '可选，留空使用默认',
+        'optional_not_used_input': '可选，留空不使用',
+        'stop_validate': '停止检测',
+        'show_hidden': '恢复隐藏项',
+        'retry_nth': '第{n}次重试',
+        'scan_nth': '第{n}次扫描',
+        'generated_channel': '生成频道',
+        'generated_group': '生成频道',
+        'not_tested': '未检测',
+        'now_playing': '正在播放',
+        'no_program_desc': '暂无节目描述',
+        'waiting_connect': '等待连接...',
+        'switching_channel': '切换频道中...',
+        'loading_program_info': '正在加载节目信息...',
+        'catchup_current_program': '正在回看当前节目',
+        'playing_current_channel': '正在播放当前频道',
+        'playing_label': '播放中...',
+        'unknown_program': '未知节目',
+        'new_version_available': '有新版本',
+        'new_version_found': '发现新版本',
+        'preparing_play': '准备播放...',
+        'no_current_program': '没有正在播放的节目',
+        'catchup_supported': '支持回看',
+        'loading_from_cache': '从缓存加载列表数据',
+        'dark_theme': '深色主题',
+        'light_theme': '浅色主题',
+        'scan': '扫描',
+        'scan_total': '本次总数',
+        'retry_scan': '重试扫描',
+        'mapping_manager': '频道映射管理器',
+        'mapping_loaded': '远程映射已加载',
+        'mapping_failed': '远程映射加载失败',
+        'retry_options': '扫描重试选项',
+        'enable_retry_scan': '启用重试扫描',
+        'retry_scan_tooltip': '首次扫描完成后，重试扫描失败的频道',
+        'loop_scan': '循环扫描',
+        'loop_scan_tooltip': '如果重试扫描发现有效频道，继续扫描失败频道直到没有新的有效频道',
+        'dark': '深色',
+        'light': '浅色'
+    },
+    'en': {
+        'language_name': 'English',
+        'app_title': 'IPTV Scanner Editor Pro',
+        'app_title_zh': 'IPTV Professional Scanner & Editor',
+        'video_playback': 'Video Playback',
+        'play': 'Play',
+        'pause': 'Pause',
+        'stop': 'Stop',
+        'volume': 'Volume',
+        'scan_settings': 'Scan Settings',
+        'address_format': 'Address Format',
+        'address_example': 'Address Example',
+        'input_address': 'Input Address',
+        'timeout_description': 'Set scan timeout (seconds)',
+        'thread_count_description': 'Set number of scan threads',
+        'user_agent': 'User-Agent',
+        'referer': 'Referer',
+        'progress': 'Progress',
+        'timeout': 'Timeout',
+        'thread_count': 'Thread Count',
+        'full_scan': 'Full Scan',
+        'stop_scan': 'Stop Scan',
+        'generate_list': 'Generate List',
+        'total_channels': 'Total Channels',
+        'valid': 'Valid',
+        'invalid': 'Invalid',
+        'time_elapsed': 'Time Elapsed',
+        'channel_list': 'Channel List',
+        'validate_effectiveness': 'Validate Effectiveness',
+        'hide_invalid': 'Hide Invalid',
+        'smart_sort': 'Smart Sort',
+        'please_load_list': 'Please load list first',
+        'channel_edit': 'Channel Edit',
+        'channel_name': 'Channel Name',
+        'channel_group': 'Channel Group',
+        'logo_address': 'Logo Address',
+        'channel_url': 'Channel URL',
+        'edit_channel': 'Edit Channel',
+        'add_channel': 'Add Channel',
+        'operation': 'Operation',
+        'open_list': 'Open List',
+        'save_list': 'Save List',
+        'language': 'Language',
+        'about': 'About',
+        'required': 'Required',
+        'optional': 'Optional',
+        'optional_default': 'Optional, use default if empty',
+        'optional_not_used': 'Optional, not used if empty',
+        'serial_number': 'No.',
+        'resolution': 'Resolution',
+        'status': 'Status',
+        'latency_ms': 'Latency(ms)',
+        'tvg_id': 'TVG-ID',
+        'tvg_chno': 'TVG Channel No.',
+        'tvg_shift': 'TVG Shift',
+        'catchup': 'Catchup',
+        'catchup_days': 'Catchup Days',
+        'catchup_source': 'Catchup Source',
+        'about_dialog_title': 'About IPTV Scanner Editor Pro',
+        'current_version': 'Current Version',
+        'latest_version': 'Latest Version',
+        'build_date': 'Build Date',
+        'qt_version': 'QT Version',
+        'close_button': 'Close',
+        'checking_update': 'Checking...',
+        'update_timeout': 'Request Timeout',
+        'update_failed': 'Failed to Fetch',
+        'api_limit': 'API Limit',
+        'update_progress_title': 'Online Update',
+        'update_checking': 'Checking for updates...',
+        'update_downloading': 'Downloading update...',
+        'update_complete': 'Update downloaded, please restart the application',
+        'update_error': 'Update Failed',
+        'network_error': 'Network Error',
+        'feature_intro': 'Main Features',
+        'smart_scan': 'Smart Channel Scanning',
+        'advanced_validation': 'Advanced Stream Validation',
+        'intelligent_management': 'Intelligent Channel Management',
+        'integrated_playback': 'Integrated Video Playback',
+        'advanced_config': 'Advanced Configuration Management',
+        'professional_tools': 'Professional Tools Integration',
+        'usage_method': 'Usage Method',
+        'scan_usage': 'Enter address format in scan settings, click "Full Scan" to start',
+        'validation_usage': 'Open playlist and click "Validate Effectiveness" button',
+        'management_usage': 'Right-click channel list or drag to adjust order',
+        'playback_usage': 'Double-click any channel in the channel list',
+        'config_usage': 'All settings are automatically saved, no manual operation required',
+        'tools_usage': 'Access professional tools through the toolbar',
+        'cancel_button': 'Cancel',
+        'update_success': 'Update Complete',
+        'file': 'File',
+        'edit': 'Edit',
+        'view': 'View',
+        'tools': 'Tools',
+        'help': 'Help',
+        'new_playlist': 'New Playlist',
+        'open_playlist': 'Open Playlist',
+        'save_playlist': 'Save Playlist',
+        'save_as': 'Save As...',
+        'import_channels': 'Import Channels',
+        'export_channels': 'Export Channels',
+        'exit': 'Exit',
+        'undo': 'Undo',
+        'redo': 'Redo',
+        'select_all': 'Select All',
+        'delete_selected': 'Delete Selected',
+        'show_epg': 'Show EPG',
+        'show_playlist': 'Show Playlist',
+        'fullscreen': 'Fullscreen',
+        'refresh': 'Refresh',
+        'reset_layout': 'Reset Layout',
+        'scan_channels': 'Scan Channels',
+        'verify_channels': 'Verify Channels',
+        'restore_hidden': 'Restore Hidden',
+        'channel_management': 'Channel Management',
+        'channel_mapping': 'Channel Mapping',
+        'favorite_management': 'Favorite Management',
+        'network_settings': 'Network Settings',
+        'player_settings': 'Player Settings',
+        'usage_instructions': 'Usage Instructions',
+        'chinese': '中文',
+        'english': 'English',
+        'loading_channels': 'Loading channels...',
+        'channels_loaded': 'Successfully loaded {count} channels',
+        'file_format_error': 'File format is incorrect or empty',
+        'open_file_error': 'Failed to open file: {error}',
+        'save_success': 'Save successful',
+        'save_error': 'Failed to save file: {error}',
+        'no_content': 'No content to save',
+        'file_selection_error': 'File selection failed: {error}',
+        'app_name': 'IPTV Scanner Editor Pro',
+        'version': 'Version 1.0.0',
+        'description': 'IPTV channel scanning and editing tool',
+        'usage_title': 'Usage Instructions',
+        'usage_content': '## Basic Operations\n\n1. **Open Playlist**\n   - Click "File" menu, select "Open Playlist"\n   - Supports M3U, TXT and other playlist formats\n\n2. **Play Channel**\n   - Double-click a channel in the channel list to start playing\n   - Use toolbar play/pause/stop buttons to control playback\n   - Adjust volume and fullscreen\n\n3. **Scan Channels**\n   - Click "Tools" menu, select "Scan Channels"\n   - Enter IP range or URL in the scan window\n   - Set timeout and thread count\n   - Click "Start Scan" button\n\n4. **Verify Channels**\n   - Click "Tools" menu, select "Verify Channels"\n   - The system will automatically check channel validity\n   - Invalid channels will be marked\n\n5. **Channel Management**\n   - Support drag-and-drop channel sorting\n   - Right-click menu for batch operations\n   - Support channel grouping and favorites\n\n6. **Channel Mapping**\n   - Click "Tools" menu, select "Channel Mapping Manager"\n   - Manage user mapping rules\n   - View channel fingerprints and mapping suggestions\n\n## Advanced Features\n\n- **URL Parser**: Parse complex URL ranges\n- **Multi-language Support**: Switch interface language\n- **Theme Switching**: Support dark/light themes\n- **Configuration Management**: Auto-save and load settings\n- **Logging System**: Detailed operation logs',
+        'about_title': 'About',
+        'about_content': 'IPTV Scanner Editor Pro\nVersion 1.0.0\n\nIPTV channel scanning and editing tool\n\n© 2026 IPTV Scanner Editor Pro',
+        'epg_title': 'Program Guide',
+        'not_playing': 'Not playing',
+        'language_changed': 'Language changed',
+        'no_epg_data': 'No program information',
+        'no_channels': 'No channels',
+        'media_info': 'Media Info',
+        'menu_file': 'File',
+        'menu_open_playlist': 'Open Playlist',
+        'menu_recent_open': 'Recent',
+        'menu_save_as': 'Save As...',
+        'menu_exit': 'Exit',
+        'menu_view': 'View',
+        'menu_epg_list': 'EPG List',
+        'menu_playlist': 'Playlist',
+        'menu_control_panel': 'Control Panel',
+        'menu_fullscreen': 'Fullscreen',
+        'menu_refresh': 'Refresh',
+        'menu_reset_layout': 'Reset Layout',
+        'menu_tools': 'Tools',
+        'menu_scan_channels': 'Scan Channels',
+        'menu_mapping': 'Mapping',
+        'menu_subscription_settings': 'Subscription Settings',
+        'menu_theme': 'Theme',
+        'menu_help': 'Help',
+        'menu_instructions': 'Instructions',
+        'menu_about': 'About',
+        'today': 'Today',
+        'yesterday': 'Yesterday',
+        'tomorrow': 'Tomorrow',
+        'no_channel_selected': 'No channel selected',
+        'select_channel_to_play': '▶ Select a channel to play',
+        'open_playlist_or_import': 'Open a playlist file or import channels to start watching',
+        'waiting_to_play': 'Waiting to play...',
+        'exit_catchup': '⏪ Exit Catchup',
+        'playing': 'Playing',
+        'paused': 'Paused',
+        'stopped': 'Stopped',
+        'playing_channel': 'Playing: {name}',
+        'paused_channel': 'Paused: {name}',
+        'stopped_play': 'Stopped',
+        'catchup_playing': 'Catchup: {name}',
+        'catchup_paused': 'Catchup Paused: {name}',
+        'subscription_settings_title': 'Subscription Settings',
+        'protocol_settings': 'Protocol Settings',
+        'protocol_type': 'Protocol Type',
+        'playlist_subscription': 'Playlist Subscription',
+        'subscription_url': 'Subscription URL',
+        'subscription_name': 'Subscription Name',
+        'update_interval': 'Update Interval (min)',
+        'epg_subscription': 'EPG Subscription',
+        'save_button': 'Save',
+        'usage_instructions_title': 'Usage Instructions',
+        'ok_button': 'OK',
+        'loading': 'Loading...',
+        'current_program': 'Now Playing',
+        'upcoming_program': 'Upcoming',
+        'finished_program': 'Ended',
+        'bitrate_unknown': 'Unknown',
+        'codec_unknown': 'Unknown',
+        'resolution_unknown': 'Unknown',
+        'back_to_live': 'Back to Live',
+        'ready': 'Ready',
+        'catchup_not_supported': 'This channel does not support catchup',
+        'playlist_sub_updated': 'Playlist subscription updated',
+        'playlist_sub_parse_failed': 'Playlist subscription parse failed',
+        'playlist_sub_update_failed': 'Failed to update playlist subscription',
+        'player_settings_saved': 'Player settings saved',
+        'player_settings_save_failed': 'Failed to save player settings',
+        'epg_settings_saved': 'EPG settings saved',
+        'file_opened': 'File opened',
+        'file_open_failed': 'Failed to open file',
+        'language_change_failed': 'Language change failed',
+        'theme_changed': 'Theme changed to',
+        'theme_change_failed': 'Theme change failed',
+        'epg_sub_updated': 'EPG subscription updated',
+        'epg_sub_parse_failed': 'EPG subscription parse failed',
+        'epg_sub_update_failed': 'Failed to update EPG subscription',
+        'epg_using_cache': 'Using cached EPG data',
+        'codec_label': 'Codec',
+        'resolution_label': 'Resolution',
+        'bitrate_label': 'Bitrate',
+        'channel_count_label': 'Channels',
+        'sample_rate_label': 'Sample Rate',
+        'format_label': 'Format',
+        'protocol_label': 'Protocol',
+        'player_settings_title': 'Player Settings',
+        'update_interval_minutes': 'Update interval (minutes)',
+        'enter_playlist_url': 'Enter playlist subscription URL',
+        'enter_subscription_name': 'Enter subscription name',
+        'enter_epg_url': 'Enter EPG subscription URL',
+        'epg_settings_title': 'EPG Settings',
+        'epg_url_label': 'EPG URL',
+        'epg_source_label': 'EPG Source',
+        'app_description': 'IPTV Professional Scanner & Editor',
+        'system_info': 'System Info',
+        'copyright_text': '© 2025 IPTV Scanner Editor Pro',
+        'github_repo': 'GitHub Repository',
+        'request_timeout_text': '(Request Timeout)',
+        'fetch_failed_text': '(Fetch Failed)',
+        'api_limit_text': '(API Limit)',
+        'scan_settings_title': 'Scan Settings',
+        'channel_list_title': 'Channel List',
+        'channel_edit_title': 'Channel Edit',
+        'validate_button': 'Validate',
+        'hide_invalid_button': 'Hide Invalid',
+        'append_scan': 'Append Scan',
+        'address_format_hint': 'Format: http://ip:port/rtp/10.10.[1-20].[1-20]:5002',
+        'timeout_small': 'Timeout',
+        'thread_small': 'Threads',
+        'scan_retry_options': 'Scan Retry Options',
+        'enable_smart_retry': 'Enable Smart Retry',
+        'mapping_options': 'Mapping Options',
+        'enable_channel_mapping': 'Enable Channel Mapping',
+        'save_changes': '💾 Save Changes',
+        'copy_channel_name': 'Copy Channel Name',
+        'copy_url': 'Copy URL',
+        'copy_tvg_id': 'Copy TVG-ID',
+        'copy_group': 'Copy Group',
+        'delete_channel': 'Delete Channel',
+        'confirm_delete': 'Confirm Delete',
+        'confirm_delete_message': 'Are you sure you want to delete the selected channel?',
+        'scan_progress': 'Scan Progress',
+        'scan_complete': 'Scan Complete',
+        'append_scan_tooltip': 'Append valid channels to existing list without clearing',
+        'smart_retry_tooltip': 'Smart retry based on failure reasons: only retry timeout and connection failures, not TCP failures or 404 errors. Automatically loops until no new valid channels found',
+        'mapping_tooltip': 'When enabled, scanned channels will auto-match name, logo, group from mapping file',
+        'set_scan_timeout': 'Set scan timeout (seconds)',
+        'set_scan_threads': 'Set number of scan threads',
+        'validate_tooltip': 'Validate channel effectiveness',
+        'no_recent_files': 'No recent files',
+        'select_channel_play': '▶ Select a channel to play',
+        'open_playlist_success': 'Playlist opened, click a channel to play',
+        'catchup_playing_label': 'Catching up',
+        'unknown_channel': 'Unknown Channel',
+        'unnamed': 'Unnamed',
+        'uncategorized': 'Uncategorized',
+        'all_channels': 'All Channels',
+        'media_info_label': '📺 Media Info',
+        'epg_url_colon': 'EPG URL:',
+        'epg_source_colon': 'EPG Source:',
+        'protocol_type_colon': 'Protocol Type:',
+        'subscription_url_colon': 'Subscription URL:',
+        'subscription_name_colon': 'Subscription Name:',
+        'update_interval_colon': 'Update interval (minutes):',
+        'optional_default_input': 'Optional, use default if empty',
+        'optional_not_used_input': 'Optional, not used if empty',
+        'stop_validate': 'Stop Validate',
+        'show_hidden': 'Show Hidden',
+        'retry_nth': 'Retry #{n}',
+        'scan_nth': 'Scan #{n}',
+        'generated_channel': 'Generated Channel',
+        'generated_group': 'Generated',
+        'not_tested': 'Not Tested',
+        'now_playing': 'Now Playing',
+        'no_program_desc': 'No program description',
+        'waiting_connect': 'Waiting to connect...',
+        'switching_channel': 'Switching channel...',
+        'loading_program_info': 'Loading program info...',
+        'catchup_current_program': 'Catching up current program',
+        'playing_current_channel': 'Playing current channel',
+        'playing_label': 'Playing...',
+        'unknown_program': 'Unknown Program',
+        'new_version_available': 'New Version Available',
+        'new_version_found': 'New version found',
+        'preparing_play': 'Preparing to play...',
+        'no_current_program': 'No current program',
+        'catchup_supported': 'Catchup supported',
+        'loading_from_cache': 'Loading from cache',
+        'dark_theme': 'Dark Theme',
+        'light_theme': 'Light Theme',
+        'scan': 'Scan',
+        'scan_total': 'Total This Scan',
+        'retry_scan': 'Retry Scan',
+        'mapping_manager': 'Channel Mapping Manager',
+        'mapping_loaded': 'Remote mapping loaded',
+        'mapping_failed': 'Remote mapping load failed',
+        'retry_options': 'Scan Retry Options',
+        'enable_retry_scan': 'Enable Retry Scan',
+        'retry_scan_tooltip': 'After the first scan completes, retry scanning failed channels',
+        'loop_scan': 'Loop Scan',
+        'loop_scan_tooltip': 'If retry scan finds valid channels, continue scanning failed channels until no new valid channels are found',
+        'dark': 'Dark',
+        'light': 'Light'
+    }
+}
+
 
 class LanguageManager(QObject):
-    # 定义语言切换信号
     language_changed = pyqtSignal()
 
-    def __init__(self, locales_dir='locales'):
+    def __init__(self):
         super().__init__()
-        self.locales_dir = locales_dir
-        self.current_language = 'zh'  # 默认中文
+        self.current_language = 'zh'
         self.translations = {}
         self.available_languages = {}
 
     def load_available_languages(self):
-        """加载所有可用的语言文件"""
-        # 如果已经加载过，直接返回缓存结果
         if hasattr(self, '_languages_loaded') and self._languages_loaded:
             return self.available_languages
 
         self.available_languages = {}
-        try:
-            # 首先尝试从打包后的路径查找
-            import sys
-            if getattr(sys, 'frozen', False):
-                # 打包后的路径 - 尝试多个可能的路径
-                base_path = os.path.dirname(sys.executable)
+        for lang_code, data in BUILTIN_TRANSLATIONS.items():
+            self.available_languages[lang_code] = {
+                'file': f'builtin:{lang_code}',
+                'display_name': data.get('language_name', lang_code),
+                'data': data
+            }
 
-                # 尝试1: 可执行文件同目录下的locales文件夹
-                locales_path = os.path.join(base_path, 'locales')
-                if os.path.exists(locales_path):
-                    self.locales_dir = locales_path
-                else:
-                    # 尝试2: _MEIPASS临时解压目录 (PyInstaller运行时)
-                    if hasattr(sys, '_MEIPASS'):
-                        meipass_locales = os.path.join(sys._MEIPASS, 'locales')
-                        if os.path.exists(meipass_locales):
-                            self.locales_dir = meipass_locales
-                    # 尝试3: 当前工作目录下的locales文件夹
-                    cwd_locales = os.path.join(os.getcwd(), 'locales')
-                    if os.path.exists(cwd_locales):
-                        self.locales_dir = cwd_locales
-
-            if not os.path.exists(self.locales_dir):
-                # 如果目录不存在，尝试创建
-                try:
-                    os.makedirs(self.locales_dir)
-                    logger.warning(f"语言目录不存在，已创建: {self.locales_dir}")
-                except OSError as e:
-                    logger.error(f"无法创建语言目录 {self.locales_dir}: {e}")
-                except Exception as e:
-                    logger.error(f"创建语言目录时发生意外错误: {e}")
-                self._languages_loaded = True
-                return self.available_languages
-
-            # 查找所有json语言文件
-            json_files = glob.glob(os.path.join(self.locales_dir, '*.json'))
-
-            # 如果没有找到文件，加载内置的语言文件
-            if not json_files:
-                # 尝试加载内置的语言文件
-                self._load_builtin_languages()
-            else:
-                for json_file in json_files:
-                    lang_code = Path(json_file).stem
-                    try:
-                        with open(json_file, 'r', encoding='utf-8') as f:
-                            data = json.load(f)
-                            # 获取语言的显示名称
-                            display_name = data.get('language_name', lang_code)
-                            self.available_languages[lang_code] = {
-                                'file': json_file,
-                                'display_name': display_name,
-                                'data': data
-                            }
-                    except Exception as e:
-                        logger.error(f"加载语言文件失败 {json_file}: {str(e)}")
-
-        except Exception as e:
-            logger.error(f"扫描语言文件失败: {str(e)}")
-
-        # 整合日志：记录加载结果
-        if self.available_languages:
-            loaded_languages = list(self.available_languages.keys())
-            logger.info(f"成功加载 {len(loaded_languages)} 种语言: {', '.join(loaded_languages)}")
-        else:
-            logger.warning("未找到可用的语言文件")
+        loaded_languages = list(self.available_languages.keys())
+        logger.info(f"成功加载 {len(loaded_languages)} 种内置语言: {', '.join(loaded_languages)}")
 
         self._languages_loaded = True
         return self.available_languages
 
-    def _load_builtin_languages(self):
-        """加载内置的语言文件（用于打包环境）"""
-        try:
-            # 内置的语言文件数据
-            builtin_languages = {
-                'zh': {
-                    'language_name': '中文',
-                    'app_title': 'IPTV扫描编辑器专业版',
-                    'video_playback': '视频播放',
-                    'play': '播放',
-                    'pause': '暂停',
-                    'stop': '停止',
-                    'volume': '音量',
-                    'scan_settings': '扫描设置',
-                    'address_format': '地址格式',
-                    'address_example': '地址示例',
-                    'input_address': '输入地址',
-                    'timeout_description': '设置扫描超时时间（秒）',
-                    'thread_count_description': '设置扫描线程数',
-                    'user_agent': 'User-Agent',
-                    'referer': 'Referer',
-                    'progress': '进度',
-                    'timeout': '超时',
-                    'thread_count': '线程数',
-                    'full_scan': '完整扫描',
-                    'stop_scan': '停止扫描',
-                    'generate_list': '生成列表',
-                    'total_channels': '总数',
-                    'valid': '有效',
-                    'invalid': '无效',
-                    'time_elapsed': '耗时',
-                    'channel_list': '频道列表',
-                    'validate_effectiveness': '检测有效性',
-                    'hide_invalid': '隐藏无效项',
-                    'smart_sort': '智能排序',
-                    'please_load_list': '请先加载列表',
-                    'channel_edit': '频道编辑',
-                    'channel_name': '频道名称',
-                    'channel_group': '频道分组',
-                    'logo_address': 'Logo地址',
-                    'channel_url': '频道URL',
-                    'edit_channel': '编辑频道',
-                    'add_channel': '添加频道',
-                    'operation': '操作',
-                    'open_list': '打开列表',
-                    'save_list': '保存列表',
-                    'language': '语言',
-                    'about': '关于',
-                    'required': '必填',
-                    'optional': '可选',
-                    'optional_default': '可选，为空使用默认值',
-                    'optional_not_used': '可选，为空不使用',
-                    'serial_number': '序号',
-                    'resolution': '分辨率',
-                    'status': '状态',
-                    'latency_ms': '延迟(ms)',
-                    'tvg_id': 'TVG-ID',
-                    'tvg_chno': 'TVG频道号',
-                    'tvg_shift': 'TVG时移',
-                    'catchup': '回看',
-                    'catchup_days': '回看天数',
-                    'catchup_source': '回看源',
-                    'about_dialog_title': '关于 IPTV Scanner Editor Pro',
-                    'current_version': '当前版本',
-                    'latest_version': '最新版本',
-                    'build_date': '编译日期',
-                    'qt_version': 'QT版本',
-                    'close_button': '关闭',
-                    'checking_update': '检测中...',
-                    'update_timeout': '请求超时',
-                    'update_failed': '获取失败',
-                    'api_limit': 'API限制',
-                    'update_progress_title': '在线更新',
-                    'update_checking': '正在检查更新...',
-                    'update_downloading': '正在下载更新...',
-                    'update_complete': '更新下载完成，请重启应用',
-                    'update_error': '更新失败',
-                    'network_error': '网络错误',
-                    'feature_intro': '主要功能说明',
-                    'smart_scan': '智能频道扫描',
-                    'advanced_validation': '高级流验证',
-                    'intelligent_management': '智能频道管理',
-                    'integrated_playback': '集成视频播放',
-                    'advanced_config': '高级配置管理',
-                    'professional_tools': '专业工具集成',
-                    'usage_method': '使用方法',
-                    'scan_usage': '在扫描设置中输入地址格式，点击"完整扫描"开始',
-                    'validation_usage': '打开播放列表后点击"检测有效性"按钮',
-                    'management_usage': '右键频道列表或拖拽调整顺序',
-                    'playback_usage': '双击频道列表中的任意频道',
-                    'config_usage': '所有设置自动保存，无需手动操作',
-                    'tools_usage': '通过工具栏访问各专业工具',
-                    'cancel_button': '取消',
-                    'update_complete': '更新下载完成，请重启应用',
-                    'update_success': '更新完成',
-                    'file': '文件',
-                    'edit': '编辑',
-                    'view': '视图',
-                    'tools': '工具',
-                    'help': '帮助',
-                    'new_playlist': '新建播放列表',
-                    'open_playlist': '打开播放列表',
-                    'save_playlist': '保存播放列表',
-                    'save_as': '另存为...',
-                    'import_channels': '导入频道',
-                    'export_channels': '导出频道',
-                    'exit': '退出',
-                    'undo': '撤销',
-                    'redo': '重做',
-                    'select_all': '全选',
-                    'delete_selected': '删除选中',
-                    'add_channel': '添加频道',
-                    'show_epg': '显示节目单',
-                    'show_playlist': '显示播放列表',
-                    'fullscreen': '全屏模式',
-                    'refresh': '刷新',
-                    'reset_layout': '重置布局',
-                    'scan_channels': '扫描频道',
-                    'verify_channels': '验证频道',
-                    'smart_sort': '智能排序',
-                    'hide_invalid': '隐藏无效项',
-                    'restore_hidden': '恢复隐藏项',
-                    'channel_management': '频道管理',
-                    'channel_mapping': '频道映射',
-                    'favorite_management': '收藏管理',
-                    'network_settings': '网络设置',
-                    'player_settings': '播放器设置',
-                    'usage_instructions': '使用说明',
-                    'about': '关于',
-                    'language': '语言',
-                    'chinese': '中文',
-                    'english': 'English',
-                    'loading_channels': '正在加载频道...',
-                    'channels_loaded': '成功加载 {count} 个频道',
-                    'file_format_error': '文件格式不正确或为空',
-                    'open_file_error': '打开文件失败: {error}',
-                    'save_success': '保存成功',
-                    'save_error': '保存文件失败: {error}',
-                    'no_content': '没有可保存的内容',
-                    'file_selection_error': '文件选择失败: {error}',
-                    'app_name': 'IPTV Scanner Editor Pro',
-                    'version': '版本 1.0.0',
-                    'description': 'IPTV 频道扫描和编辑工具',
-                    'usage_title': '使用说明',
-                    'usage_content': '## 基本操作\n\n1. **打开播放列表**\n   - 点击"文件"菜单，选择"打开播放列表"\n   - 支持 M3U、TXT 等格式的播放列表文件\n\n2. **播放频道**\n   - 在频道列表中双击频道开始播放\n   - 使用工具栏的播放/暂停/停止按钮控制播放\n   - 调整音量和全屏显示\n\n3. **扫描频道**\n   - 点击"工具"菜单，选择"扫描频道"\n   - 在扫描窗口中输入 IP 范围或 URL\n   - 设置超时时间和线程数\n   - 点击"开始扫描"按钮\n\n4. **验证频道**\n   - 点击"工具"菜单，选择"验证频道"\n   - 系统会自动检测频道的有效性\n   - 无效频道会被标记\n\n5. **频道管理**\n   - 支持拖拽排序频道\n   - 右键菜单可进行批量操作\n   - 支持频道分组和收藏\n\n6. **频道映射**\n   - 点击"工具"菜单，选择"频道映射管理器"\n   - 管理用户映射规则\n   - 查看频道指纹和映射建议\n\n7. **排序配置**\n   - 点击"工具"菜单，选择"排序配置"\n   - 自定义频道分组和排序规则\n   - 支持拖拽调整分组顺序\n\n## 高级功能\n\n- **URL 解析器**：解析复杂的 URL 范围\n- **多语言支持**：切换界面语言\n- **主题切换**：支持深色/浅色主题\n- **配置管理**：自动保存和加载配置\n- **日志系统**：详细的操作日志',
-                    'about_title': '关于',
-                    'about_content': 'IPTV Scanner Editor Pro\n版本 1.0.0\n\nIPTV 频道扫描和编辑工具\n\n© 2026 IPTV Scanner Editor Pro',
-                    'epg_title': '节目单',
-                    'channel_list': '频道列表',
-                    'not_playing': '未播放',
-                    'language_changed': '语言已切换',
-                    'no_epg_data': '暂无节目信息',
-                    'no_channels': '暂无频道',
-                    'media_info': '媒体信息'
-            },
-                'en': {
-                    'language_name': 'English',
-                    'app_title': 'IPTV Scanner Editor Pro',
-                    'app_title_zh': 'IPTV 专业扫描编辑工具',
-                    'video_playback': 'Video Playback',
-                    'play': 'Play',
-                    'pause': 'Pause',
-                    'stop': 'Stop',
-                    'volume': 'Volume',
-                    'scan_settings': 'Scan Settings',
-                    'address_format': 'Address Format',
-                    'address_example': 'Address Example',
-                    'input_address': 'Input Address',
-                    'timeout_description': 'Set scan timeout (seconds)',
-                    'thread_count_description': 'Set number of scan threads',
-                    'user_agent': 'User-Agent',
-                    'referer': 'Referer',
-                    'progress': 'Progress',
-                    'timeout': 'Timeout',
-                    'thread_count': 'Thread Count',
-                    'full_scan': 'Full Scan',
-                    'stop_scan': 'Stop Scan',
-                    'generate_list': 'Generate List',
-                    'total_channels': 'Total Channels',
-                    'valid': 'Valid',
-                    'invalid': 'Invalid',
-                    'time_elapsed': 'Time Elapsed',
-                    'channel_list': 'Channel List',
-                    'validate_effectiveness': 'Validate Effectiveness',
-                    'hide_invalid': 'Hide Invalid',
-                    'smart_sort': 'Smart Sort',
-                    'please_load_list': 'Please load list first',
-                    'channel_edit': 'Channel Edit',
-                    'channel_name': 'Channel Name',
-                    'channel_group': 'Channel Group',
-                    'logo_address': 'Logo Address',
-                    'channel_url': 'Channel URL',
-                    'edit_channel': 'Edit Channel',
-                    'add_channel': 'Add Channel',
-                    'operation': 'Operation',
-                    'open_list': 'Open List',
-                    'save_list': 'Save List',
-                    'language': 'Language',
-                    'about': 'About',
-                    'required': 'Required',
-                    'optional': 'Optional',
-                    'optional_default': 'Optional, use default if empty',
-                    'optional_not_used': 'Optional, not used if empty',
-                    'serial_number': 'No.',
-                    'resolution': 'Resolution',
-                    'status': 'Status',
-                    'latency_ms': 'Latency(ms)',
-                    'tvg_id': 'TVG-ID',
-                    'tvg_chno': 'TVG Channel No.',
-                    'tvg_shift': 'TVG Shift',
-                    'catchup': 'Catchup',
-                    'catchup_days': 'Catchup Days',
-                    'catchup_source': 'Catchup Source',
-                    'about_dialog_title': 'About IPTV Scanner Editor Pro',
-                    'current_version': 'Current Version',
-                    'latest_version': 'Latest Version',
-                    'build_date': 'Build Date',
-                    'qt_version': 'QT Version',
-                    'close_button': 'Close',
-                    'checking_update': 'Checking...',
-                    'update_timeout': 'Request Timeout',
-                    'update_failed': 'Failed to Fetch',
-                    'api_limit': 'API Limit',
-                    'update_progress_title': 'Online Update',
-                    'update_checking': 'Checking for updates...',
-                    'update_downloading': 'Downloading update...',
-                    'update_complete': 'Update downloaded, please restart the application',
-                    'update_error': 'Update Failed',
-                    'network_error': 'Network Error',
-                    'feature_intro': 'Main Features',
-                    'smart_scan': 'Smart Channel Scanning',
-                    'advanced_validation': 'Advanced Stream Validation',
-                    'intelligent_management': 'Intelligent Channel Management',
-                    'integrated_playback': 'Integrated Video Playback',
-                    'advanced_config': 'Advanced Configuration Management',
-                    'professional_tools': 'Professional Tools Integration',
-                    'usage_method': 'Usage Method',
-                'scan_usage': 'Enter address format in scan settings, click "Full Scan" to start',
-                'validation_usage': 'Open playlist and click "Validate Effectiveness" button',
-                'management_usage': 'Right-click channel list or drag to adjust order',
-                'playback_usage': 'Double-click any channel in the channel list',
-                'config_usage': 'All settings are automatically saved, no manual operation required',
-                'tools_usage': 'Access professional tools through the toolbar',
-                'file': 'File',
-                'edit': 'Edit',
-                'view': 'View',
-                'tools': 'Tools',
-                'help': 'Help',
-                'new_playlist': 'New Playlist',
-                'open_playlist': 'Open Playlist',
-                'save_playlist': 'Save Playlist',
-                'save_as': 'Save As...',
-                'import_channels': 'Import Channels',
-                'export_channels': 'Export Channels',
-                'exit': 'Exit',
-                'undo': 'Undo',
-                'redo': 'Redo',
-                'select_all': 'Select All',
-                'delete_selected': 'Delete Selected',
-                'add_channel': 'Add Channel',
-                'show_epg': 'Show EPG',
-                'show_playlist': 'Show Playlist',
-                'fullscreen': 'Fullscreen',
-                'refresh': 'Refresh',
-                'reset_layout': 'Reset Layout',
-                'scan_channels': 'Scan Channels',
-                'verify_channels': 'Verify Channels',
-                'smart_sort': 'Smart Sort',
-                'hide_invalid': 'Hide Invalid',
-                'restore_hidden': 'Restore Hidden',
-                'channel_management': 'Channel Management',
-                'channel_mapping': 'Channel Mapping',
-                'favorite_management': 'Favorite Management',
-                'network_settings': 'Network Settings',
-                'player_settings': 'Player Settings',
-                'usage_instructions': 'Usage Instructions',
-                'about': 'About',
-                'language': 'Language',
-                'chinese': '中文',
-                'english': 'English',
-                'loading_channels': 'Loading channels...',
-                'channels_loaded': 'Successfully loaded {count} channels',
-                'file_format_error': 'File format is incorrect or empty',
-                'open_file_error': 'Failed to open file: {error}',
-                'save_success': 'Save successful',
-                'save_error': 'Failed to save file: {error}',
-                'no_content': 'No content to save',
-                'file_selection_error': 'File selection failed: {error}',
-                'app_name': 'IPTV Scanner Editor Pro',
-                'version': 'Version 1.0.0',
-                'description': 'IPTV channel scanning and editing tool',
-                'usage_title': 'Usage Instructions',
-                'usage_content': '1. Click \'File\' menu to open playlist\n2. Select channel to start playing\n3. Use toolbar to control playback\n4. Click \'Tools\' menu to scan and verify channels',
-                'about_title': 'About',
-                'about_content': 'IPTV Scanner Editor Pro\nVersion 1.0.0\n\nIPTV channel scanning and editing tool\n\n© 2026 IPTV Scanner Editor Pro',
-                'epg_title': 'Program Guide',
-                'channel_list': 'Channel List',
-                'not_playing': 'Not playing',
-                'language_changed': 'Language changed',
-                'no_epg_data': 'No program information',
-                'no_channels': 'No channels',
-                'media_info': 'Media Info'
-            }
-        }
-
-            for lang_code, data in builtin_languages.items():
-                self.available_languages[lang_code] = {
-                    'file': f'builtin:{lang_code}',
-                    'display_name': data.get('language_name', lang_code),
-                    'data': data
-                }
-                logger.info(f"成功加载内置语言: {lang_code}")
-
-        except Exception as e:
-            logger.error(f"加载内置语言失败: {str(e)}")
-
     def set_language(self, lang_code):
-        """设置当前语言"""
         if lang_code in self.available_languages:
             self.current_language = lang_code
             self.translations = self.available_languages[lang_code]['data']
-            # 发出语言切换信号
             self.language_changed.emit()
             return True
         else:
@@ -425,15 +687,12 @@ class LanguageManager(QObject):
             return False
 
     def get_translation(self, key, default=None):
-        """获取翻译文本"""
         return self.translations.get(key, default)
 
     def tr(self, key, default=None):
-        """翻译文本的快捷方法"""
         return self.get_translation(key, default)
 
     def get_language_list(self):
-        """获取语言列表用于显示"""
         languages = []
         for lang_code, lang_info in self.available_languages.items():
             languages.append({
@@ -444,12 +703,10 @@ class LanguageManager(QObject):
         return languages
 
     def update_ui_texts(self, main_window):
-        """更新UI文本到当前语言"""
         if not self.translations:
             return
 
         try:
-            # 更新窗口标题（包含版本号）
             from ui.dialogs.about_dialog import AboutDialog
             version = AboutDialog.CURRENT_VERSION
             if self.current_language == 'zh':
@@ -457,196 +714,41 @@ class LanguageManager(QObject):
             else:
                 main_window.setWindowTitle(f"IPTV Scanner Editor Pro v{version}")
 
-            # 更新视频播放区域
-            if hasattr(main_window, 'player_group'):
-                main_window.player_group.setTitle(self.tr('video_playback', 'Video Playback'))
-            if hasattr(main_window, 'pause_btn'):
-                main_window.pause_btn.setText(self.tr('play', 'Play'))
-            if hasattr(main_window, 'stop_btn'):
-                main_window.stop_btn.setText(self.tr('stop', 'Stop'))
-            if hasattr(main_window, 'volume_label'):
-                main_window.volume_label.setText(self.tr('volume', 'Volume'))
+            if hasattr(main_window, 'epg_title'):
+                main_window.epg_title.setText(f"📅 {self.tr('epg_title', 'Program Guide')}")
+            if hasattr(main_window, 'epg_date_label'):
+                current_text = main_window.epg_date_label.text()
+                zh_day_map = {'今天': 'today', '昨天': 'yesterday', '明天': 'tomorrow'}
+                en_day_map = {'Today': 'today', 'Yesterday': 'yesterday', 'Tomorrow': 'tomorrow'}
+                day_key = zh_day_map.get(current_text) or en_day_map.get(current_text)
+                if day_key:
+                    main_window.epg_date_label.setText(self.tr(day_key, current_text))
+            if hasattr(main_window, 'epg_empty_label'):
+                main_window.epg_empty_label.setText(self.tr('no_epg_data', 'No program information'))
 
-            # 更新扫描设置区域
-            if hasattr(main_window, 'scan_group'):
-                main_window.scan_group.setTitle(self.tr('scan_settings', 'Scan Settings'))
-            if hasattr(main_window, 'address_format_label'):
-                main_window.address_format_label.setText(self.tr('address_format', 'Address Format'))
-            if hasattr(main_window, 'address_example_label'):
-                main_window.address_example_label.setText(self.tr('address_example', 'Address Example'))
-            if hasattr(main_window, 'input_address_label'):
-                main_window.input_address_label.setText(self.tr('input_address', 'Input Address'))
-            if hasattr(main_window, 'timeout_description_label'):
-                main_window.timeout_description_label.setText(
-                    self.tr('timeout_description', 'Set scan timeout (seconds)'))
-            if hasattr(main_window, 'thread_count_label'):
-                main_window.thread_count_label.setText(
-                    self.tr('thread_count_description', 'Set number of scan threads'))
-            if hasattr(main_window, 'user_agent_label'):
-                main_window.user_agent_label.setText(self.tr('user_agent', 'User-Agent'))
-            if hasattr(main_window, 'referer_label'):
-                main_window.referer_label.setText(self.tr('referer', 'Referer'))
-            if hasattr(main_window, 'progress_label'):
-                main_window.progress_label.setText(self.tr('progress', 'Progress'))
-            if hasattr(main_window, 'timeout_row_label'):
-                main_window.timeout_row_label.setText(self.tr('timeout', 'Timeout') + "：")
-            if hasattr(main_window, 'thread_row_label'):
-                main_window.thread_row_label.setText(self.tr('thread_count', 'Thread Count') + "：")
-            if hasattr(main_window, 'user_agent_row_label'):
-                main_window.user_agent_row_label.setText(self.tr('user_agent', 'User-Agent') + "：")
-            if hasattr(main_window, 'referer_row_label'):
-                main_window.referer_row_label.setText(self.tr('referer', 'Referer') + "：")
-            if hasattr(main_window, 'scan_btn'):
-                # 根据扫描状态设置正确的按钮文本
-                if hasattr(main_window, 'scanner') and main_window.scanner.is_scanning():
-                    main_window.scan_btn.setText(self.tr('stop_scan', 'Stop Scan'))
-                else:
-                    main_window.scan_btn.setText(self.tr('full_scan', 'Full Scan'))
-            if hasattr(main_window, 'generate_btn'):
-                main_window.generate_btn.setText(self.tr('generate_list', 'Generate List'))
-            if hasattr(main_window, 'detailed_stats_label'):
-                # 详细统计标签需要动态更新，这里只设置初始文本
-                main_window.detailed_stats_label.setText(
-                    f"{self.tr('total_channels', 'Total Channels')}: 0 | "
-                    f"{self.tr('valid', 'Valid')}: 0 | "
-                    f"{self.tr('invalid', 'Invalid')}: 0 | "
-                    f"{self.tr('time_elapsed', 'Time Elapsed')}: 0s"
-                )
+            if hasattr(main_window, 'playlist_title'):
+                main_window.playlist_title.setText(f"📺 {self.tr('channel_list', 'Channel List')}")
+            if hasattr(main_window, 'channel_empty_label'):
+                main_window.channel_empty_label.setText(self.tr('no_channels', 'No channels'))
 
-            # 更新频道列表区域
-            if hasattr(main_window, 'list_group'):
-                main_window.list_group.setTitle(self.tr('channel_list', 'Channel List'))
-            if hasattr(main_window, 'btn_validate'):
-                main_window.btn_validate.setText(self.tr('validate_effectiveness', 'Validate Effectiveness'))
-            if hasattr(main_window, 'btn_hide_invalid'):
-                main_window.btn_hide_invalid.setText(self.tr('hide_invalid', 'Hide Invalid'))
-            if hasattr(main_window, 'btn_smart_sort'):
-                main_window.btn_smart_sort.setText(self.tr('smart_sort', 'Smart Sort'))
-            if hasattr(main_window, 'btn_sort_config'):
-                main_window.btn_sort_config.setText(self.tr('sort_config_button', 'Sort Config'))
-            if hasattr(main_window, 'validate_stats_label'):
-                main_window.validate_stats_label.setText(self.tr('please_load_list', 'Please load list first'))
+            if hasattr(main_window, 'video_info'):
+                main_window.video_info.setText(f"📺 {self.tr('not_playing', 'Not playing')}")
+            if hasattr(main_window, 'audio_info'):
+                main_window.audio_info.setText("🔊 --")
+            if hasattr(main_window, 'network_info'):
+                main_window.network_info.setText("🌐 --")
 
-            # 更新频道编辑区域
-            if hasattr(main_window, 'edit_group') and hasattr(main_window.edit_group, 'setTitle'):
-                main_window.edit_group.setTitle(self.tr('channel_edit', 'Channel Edit'))
-            if hasattr(main_window, 'channel_name_label'):
-                main_window.channel_name_label.setText(self.tr('channel_name', 'Channel Name'))
-            if hasattr(main_window, 'channel_group_label'):
-                main_window.channel_group_label.setText(self.tr('channel_group', 'Channel Group'))
-            if hasattr(main_window, 'logo_address_label'):
-                main_window.logo_address_label.setText(self.tr('logo_address', 'Logo Address'))
-            if hasattr(main_window, 'channel_url_label'):
-                main_window.channel_url_label.setText(self.tr('channel_url', 'Channel URL'))
-            if hasattr(main_window, 'edit_channel_btn'):
-                main_window.edit_channel_btn.setText(self.tr('edit_channel', 'Edit Channel'))
-            if hasattr(main_window, 'add_channel_btn'):
-                main_window.add_channel_btn.setText(self.tr('add_channel', 'Add Channel'))
-            if hasattr(main_window, 'operation_label'):
-                main_window.operation_label.setText(self.tr('operation', 'Operation') + ":")
+            if hasattr(main_window, 'channel_name'):
+                main_window.channel_name.setText(self.tr('no_channel_selected', 'No channel selected'))
+            if hasattr(main_window, 'current_program'):
+                main_window.current_program.setText(self.tr('select_channel_to_play', '▶ Select a channel to play'))
+            if hasattr(main_window, 'program_desc'):
+                main_window.program_desc.setText(self.tr('open_playlist_or_import', 'Open a playlist file or import channels to start watching'))
+            if hasattr(main_window, 'remain_label'):
+                main_window.remain_label.setText(self.tr('waiting_to_play', 'Waiting to play...'))
+            if hasattr(main_window, 'exit_catchup_button'):
+                main_window.exit_catchup_button.setText(self.tr('exit_catchup', '⏪ Exit Catchup'))
 
-            # 更新工具栏按钮文本
-            if hasattr(main_window, 'open_action'):
-                main_window.open_action.setText(f"📂 {self.tr('open_list', 'Open List')}")
-            if hasattr(main_window, 'save_action'):
-                main_window.save_action.setText(f"💾 {self.tr('save_list', 'Save List')}")
-            if hasattr(main_window, 'language_button'):
-                main_window.language_button.setText(f"🌐 {self.tr('language', 'Language')}")
-            if hasattr(main_window, 'language_menu'):
-                main_window.language_menu.setTitle(self.tr('language', 'Language'))
-            if hasattr(main_window, 'about_action'):
-                main_window.about_action.setText(f"ℹ️ {self.tr('about', 'About')}")
-            if hasattr(main_window, 'mapping_action'):
-                main_window.mapping_action.setText(f"🗺️ {self.tr('mapping_manager', 'Channel Mapping Manager')}")
-
-            # 更新占位符文本
-            if hasattr(main_window, 'channel_name_edit'):
-                main_window.channel_name_edit.setPlaceholderText(
-                    self.tr('channel_name', 'Channel Name') + ' (' + self.tr('required', 'Required') + ')'
-                )
-            if hasattr(main_window, 'channel_group_edit'):
-                main_window.channel_group_edit.setPlaceholderText(
-                    self.tr('channel_group', 'Channel Group') + ' (' + self.tr('optional', 'Optional') + ')'
-                )
-            if hasattr(main_window, 'channel_logo_edit'):
-                main_window.channel_logo_edit.setPlaceholderText(
-                    self.tr('logo_address', 'Logo Address') + ' (' + self.tr('optional', 'Optional') + ')'
-                )
-            if hasattr(main_window, 'channel_url_edit'):
-                main_window.channel_url_edit.setPlaceholderText(
-                    self.tr('channel_url', 'Channel URL') + ' (' + self.tr('required', 'Required') + ')'
-                )
-            if hasattr(main_window, 'user_agent_input'):
-                main_window.user_agent_input.setPlaceholderText(
-                    self.tr('optional_default', 'Optional, use default if empty'))
-            if hasattr(main_window, 'referer_input'):
-                main_window.referer_input.setPlaceholderText(
-                    self.tr('optional_not_used', 'Optional, not used if empty'))
-
-            # 更新频道列表表头
-            if hasattr(main_window, 'model') and main_window.model:
-                main_window.model.set_language_manager(self)
-
-            # 更新映射状态标签
-            if hasattr(main_window, 'mapping_status_label'):
-                from models.channel_mappings import mapping_manager
-                if mapping_manager.remote_mappings:
-                    main_window.mapping_status_label.setText(
-                        self.tr('mapping_loaded', 'Remote mapping loaded')
-                    )
-                else:
-                    main_window.mapping_status_label.setText(
-                        self.tr('mapping_failed', 'Remote mapping load failed')
-                    )
-
-            # 更新重试扫描选项
-            if hasattr(main_window, 'retry_label'):
-                main_window.retry_label.setText(self.tr('retry_options', 'Scan Retry Options') + "：")
-            if hasattr(main_window, 'enable_retry_checkbox'):
-                main_window.enable_retry_checkbox.setText(self.tr('enable_retry_scan', 'Enable Retry Scan'))
-                main_window.enable_retry_checkbox.setToolTip(
-                    self.tr('retry_scan_tooltip', 'After the first scan completes, retry scanning failed channels'))
-            if hasattr(main_window, 'loop_scan_checkbox'):
-                main_window.loop_scan_checkbox.setText(self.tr('loop_scan', 'Loop Scan'))
-                main_window.loop_scan_checkbox.setToolTip(
-                    self.tr('loop_scan_tooltip',
-                            'If retry scan finds valid channels, continue scanning failed channels '
-                            'until no new valid channels are found'))
-            if hasattr(main_window, 'retry_row_label'):
-                main_window.retry_row_label.setText(self.tr('retry_options', 'Scan Retry Options') + "：")
-
-            # 更新频道列表拖拽提示
-            if hasattr(main_window, 'ui') and hasattr(main_window.ui, 'update_channel_drag_hint'):
-                main_window.ui.update_channel_drag_hint()
-
-            # 更新悬浮窗
-            if hasattr(main_window, 'epg_panel'):
-                # 更新EPG面板
-                if hasattr(main_window, 'epg_title'):
-                    main_window.epg_title.setText(f"📅 {self.tr('epg_title', 'Program Guide')}")
-                if hasattr(main_window, 'epg_date_label'):
-                    # 日期显示可能需要动态更新，但至少确保初始文本正确
-                    pass
-                if hasattr(main_window, 'epg_empty_label'):
-                    main_window.epg_empty_label.setText(self.tr('no_epg_data', 'No program information'))
-            if hasattr(main_window, 'playlist_panel'):
-                # 更新播放列表面板
-                if hasattr(main_window, 'playlist_title'):
-                    main_window.playlist_title.setText(f"📺 {self.tr('channel_list', 'Channel List')}")
-                if hasattr(main_window, 'channel_empty_label'):
-                    main_window.channel_empty_label.setText(self.tr('no_channels', 'No channels'))
-            if hasattr(main_window, 'floating_panel'):
-                # 更新悬浮控制面板
-                if hasattr(main_window, 'video_info'):
-                    main_window.video_info.setText(f"📺 {self.tr('not_playing', 'Not playing')}")
-                if hasattr(main_window, 'audio_info'):
-                    main_window.audio_info.setText("🔊 --")
-                if hasattr(main_window, 'network_info'):
-                    main_window.network_info.setText("🌐 --")
-                if hasattr(main_window, 'media_info'):
-                    main_window.media_info.setText(self.tr('media_info', 'Media Info'))
-
-            # 更新所有打开的对话框
             self._update_dialogs(main_window)
 
             logger.info(f"UI文本已更新到语言: {self.current_language}")
@@ -655,12 +757,8 @@ class LanguageManager(QObject):
             logger.error(f"更新UI文本失败: {str(e)}")
 
     def _update_dialogs(self, main_window):
-        """更新所有打开的对话框"""
         try:
-            # 导入QtWidgets模块
             from PyQt6 import QtWidgets
-
-            # 查找所有打开的对话框
             for widget in main_window.findChildren(QtWidgets.QDialog):
                 if hasattr(widget, 'update_ui_texts'):
                     widget.update_ui_texts()
