@@ -360,7 +360,8 @@ BUILTIN_TRANSLATIONS = {
         'dark': '深色',
         'light': '浅色',
         'neumorphic_dark': '拟态暗',
-        'neumorphic_light': '拟态浅'
+        'neumorphic_light': '拟态浅',
+        'apple_tv': 'Apple TV'
     },
     'en': {
         'language_name': 'English',
@@ -718,7 +719,8 @@ BUILTIN_TRANSLATIONS = {
         'dark': 'Dark',
         'light': 'Light',
         'neumorphic_dark': 'Neumorphic Dark',
-        'neumorphic_light': 'Neumorphic Light'
+        'neumorphic_light': 'Neumorphic Light',
+        'apple_tv': 'Apple TV'
     }
 }
 

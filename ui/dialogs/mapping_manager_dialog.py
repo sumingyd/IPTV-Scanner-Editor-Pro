@@ -73,19 +73,7 @@ class MappingManagerDialog(QtWidgets.QDialog):
             r, g, b = 30, 30, 30
         painter.fillPath(path, QtGui.QColor(r, g, b, self.opacity))
         
-        if neo:
-            from PyQt6.QtGui import QPen
-            pen_light = QtGui.QPen(QtGui.QColor(colors['shadow_light']), 2)
-            pen_dark = QtGui.QPen(QtGui.QColor(colors['shadow_dark']), 2)
-            w = self.width()
-            h = self.height()
-            painter.setPen(pen_light)
-            painter.drawLine(2, 2, w - 3, 2)
-            painter.drawLine(2, 2, 2, h - 3)
-            painter.setPen(pen_dark)
-            painter.drawLine(w - 2, 2, w - 2, h - 2)
-            painter.drawLine(2, h - 2, w - 2, h - 2)
-        else:
+        if not neo:
             border_color = colors.get('mid', '#999999')
             if border_color.startswith('#'):
                 r = int(border_color[1:3], 16)
@@ -921,18 +909,7 @@ class MappingEditDialog(QtWidgets.QDialog):
             r, g, b = 30, 30, 30
         painter.fillPath(path, QColor(r, g, b, 220))
         
-        if neo:
-            pen_light = QPen(QColor(colors['shadow_light']), 2)
-            pen_dark = QPen(QColor(colors['shadow_dark']), 2)
-            w = self.width()
-            h = self.height()
-            painter.setPen(pen_light)
-            painter.drawLine(2, 2, w - 3, 2)
-            painter.drawLine(2, 2, 2, h - 3)
-            painter.setPen(pen_dark)
-            painter.drawLine(w - 2, 2, w - 2, h - 2)
-            painter.drawLine(2, h - 2, w - 2, h - 2)
-        else:
+        if not neo:
             border_color = colors.get('mid', '#999999')
             if border_color.startswith('#'):
                 r = int(border_color[1:3], 16)
