@@ -353,15 +353,19 @@ class ConfigManager:
         return recent_files
     
     def add_recent_file(self, file_path):
-        """添加一个最近打开的文件"""
         recent_files = self.load_recent_files()
-        # 如果文件已经在列表中，先移除它
         if file_path in recent_files:
             recent_files.remove(file_path)
-        # 将新文件添加到列表开头
         recent_files.insert(0, file_path)
-        # 保存更新后的列表
         return self.save_recent_files(recent_files)
+
+    def remove_recent_file(self, file_path):
+        recent_files = self.load_recent_files()
+        if file_path in recent_files:
+            recent_files.remove(file_path)
+            self.save_recent_files(recent_files)
+            return True
+        return False
     
     def save_theme_settings(self, theme_name):
         """保存主题设置"""

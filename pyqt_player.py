@@ -3495,6 +3495,12 @@ class IPTVPlayer(QMainWindow):
                 logger.info(f"成功打开最近文件: {file_path}, 共 {len(CHANNELS)} 个频道")
             else:
                 self.status_bar.showMessage(self.language_manager.tr("file_format_error"))
+        except FileNotFoundError:
+            from core.config_manager import ConfigManager
+            ConfigManager().remove_recent_file(file_path)
+            self.update_recent_files_menu()
+            self.status_bar.showMessage(self.language_manager.tr('file_not_found', 'File not found, removed from recent list'))
+            logger.warning(f"最近文件不存在，已从列表移除: {file_path}")
         except Exception as ex:
             logger.error(f"打开最近文件失败: {str(ex)}")
             self.status_bar.showMessage(f"{self.language_manager.tr('file_open_failed', 'Failed to open file')}: {str(ex)}")
