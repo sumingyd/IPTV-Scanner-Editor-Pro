@@ -3,6 +3,7 @@ import os
 
 import re
 from datetime import datetime, timedelta
+from models.channel_mappings import extract_channel_name_from_url
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QListWidget, QListWidgetItem, QStackedWidget,
@@ -18,6 +19,7 @@ from core.log_manager import global_logger as logger
 # 导入语言管理器
 from core.language_manager import LanguageManager
 from ui.styles import AppStyles
+from ui.floating_dialog import TranslucentPanel, FloatingDialog
 
 # 导入播放器服务
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -32,51 +34,6 @@ CHANNEL_GROUPS = ["All Channels"]
 # EPG 节目单数据（初始为空字典）
 EPG_DATA = {}
 
-# 自定义半透明面板类（独立窗口）
-class TranslucentPanel(QFrame):
-    """支持真正半透明背景的悬浮面板（独立窗口）"""
-    def __init__(self, parent=None, opacity=180):
-        super().__init__(parent)
-        self.opacity = opacity
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        # 设置为工具窗口，无边框
-        self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint)
-        # 确保面板可以接收鼠标事件
-        self.setMouseTracking(True)
-        # 确保面板保持活动状态
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        
-    def paintEvent(self, event):
-        """自定义绘制半透明背景和边框"""
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        from PyQt6.QtGui import QPainterPath
-        from PyQt6.QtCore import QRectF
-        path = QPainterPath()
-        rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
-        path.addRoundedRect(rect, 8, 8)
-        
-        from ui.styles import AppStyles
-        colors = AppStyles._get_colors()
-        neo = AppStyles.is_neumorphic()
-
-        bg_hex = colors.get('player_panel', '#1e1e1e')
-        r = int(bg_hex[1:3], 16)
-        g = int(bg_hex[3:5], 16)
-        b = int(bg_hex[5:7], 16)
-        painter.fillPath(path, QColor(r, g, b, self.opacity))
-
-        if not neo:
-            border_hex = colors.get('mid', '#646464')
-            br = int(border_hex[1:3], 16)
-            bg = int(border_hex[3:5], 16)
-            bb = int(border_hex[5:7], 16)
-            painter.setPen(QColor(br, bg, bb, 150))
-            painter.drawPath(path)
-        
-        super().paintEvent(event)
-
 # 频道列表模型
 class ChannelListModel:
     def __init__(self):
@@ -88,14 +45,14 @@ class ChannelListModel:
         self.original_data = ""
     
     def load_from_file(self, content: str) -> bool:
-        """从文件内容加载频道"""
         try:
             self.clear()
             self.original_data = content
             lines = content.splitlines()
             current_channel = None
-            
-            # 解析x-tvg-url属性
+            current_group = '未分类'
+            genre_group_active = False
+
             if lines:
                 first_line = lines[0]
                 if first_line.startswith('#EXTM3U'):
@@ -103,29 +60,47 @@ class ChannelListModel:
                     tvg_url_match = re.search(r'x-tvg-url=["\']([^"\']*)["\']', first_line)
                     if tvg_url_match:
                         tvg_url = tvg_url_match.group(1)
-                        # 检查是否已手动设置EPG地址
                         from core.config_manager import ConfigManager
                         config = ConfigManager()
                         epg_settings = config.load_epg_settings()
                         if not epg_settings.get('epg_url'):
-                            # 如果没有手动设置EPG地址，使用M3U文件中的地址
                             config.save_epg_settings(tvg_url, "M3U文件")
-                            # 加载EPG数据
                             from core.epg_parser import global_epg_parser
                             import threading
                             threading.Thread(target=global_epg_parser.load_epg_from_url, args=(tvg_url,), daemon=True).start()
-            
+
             for line in lines:
                 line = line.strip()
                 if not line:
                     continue
-                
-                if line == "#EXTM3U":
+
+                if line.startswith("#EXTM3U"):
                     continue
-                
+
+                if line.startswith("#EXTGRP:"):
+                    current_group = line[8:].strip()
+                    if current_group.startswith('"') and current_group.endswith('"'):
+                        current_group = current_group[1:-1]
+                    continue
+
                 if line.startswith("#EXTINF:"):
                     extinf_content = line[8:].strip()
-                    # 查找最后一个逗号，忽略引号内的逗号
+
+                    import re
+                    genre_match = re.search(r',\s*#genre#\s*', extinf_content)
+                    if genre_match:
+                        before_genre = extinf_content[:genre_match.start()].strip()
+                        group_name = before_genre
+                        comma_pos = before_genre.rfind(',')
+                        if comma_pos >= 0:
+                            group_name = before_genre[comma_pos+1:].strip()
+                        group_name = group_name.strip('=').strip()
+                        if group_name:
+                            current_group = group_name
+                        genre_group_active = True
+                        current_channel = None
+                        continue
+
                     last_comma = -1
                     in_quotes = False
                     for i, char in enumerate(extinf_content):
@@ -133,21 +108,21 @@ class ChannelListModel:
                             in_quotes = not in_quotes
                         elif char == ',' and not in_quotes:
                             last_comma = i
-                    
+
                     if last_comma > 0:
                         attrs_part = extinf_content[:last_comma].strip()
                         name = extinf_content[last_comma+1:].strip()
                     else:
                         attrs_part = extinf_content
                         name = ""
-                    
+
                     if name.startswith('"') and name.endswith('"'):
                         name = name[1:-1]
-                    
+
                     current_channel = {
                         'name': name if name else '未命名',
                         'url': '',
-                        'group': '未分类',
+                        'group': current_group if genre_group_active else '未分类',
                         'logo': '',
                         'tvg_id': '',
                         'tvg_chno': '',
@@ -159,57 +134,106 @@ class ChannelListModel:
                         'status': '待检测',
                         'valid': False
                     }
-                    
-                    # 解析属性
+
                     tvg_name_match = re.search(r"tvg-name=[\"']([^\"']*)[\"']", attrs_part)
                     if tvg_name_match and tvg_name_match.group(1):
                         current_channel['name'] = tvg_name_match.group(1)
-                    
+
                     tvg_id_match = re.search(r"tvg-id=[\"']([^\"']*)[\"']", attrs_part)
                     if tvg_id_match:
                         current_channel['tvg_id'] = tvg_id_match.group(1)
-                    
+
                     tvg_logo_match = re.search(r"tvg-logo=[\"']([^\"']*)[\"']", attrs_part)
                     if tvg_logo_match:
                         current_channel['logo'] = tvg_logo_match.group(1)
-                    
+
                     group_match = re.search(r"group-title=[\"']([^\"']*)[\"']", attrs_part)
                     if group_match and group_match.group(1):
-                        current_channel['group'] = group_match.group(1)
-                    
+                        current_group = group_match.group(1)
+                        current_channel['group'] = current_group
+                        genre_group_active = False
+
                     tvg_chno_match = re.search(r"tvg-chno=[\"']([^\"']*)[\"']", attrs_part)
                     if tvg_chno_match:
                         current_channel['tvg_chno'] = tvg_chno_match.group(1)
-                    
+
                     resolution_match = re.search(r"resolution=[\"']([^\"']*)[\"']", attrs_part)
                     if resolution_match:
                         current_channel['resolution'] = resolution_match.group(1)
-                    
+
                     tvg_shift_match = re.search(r"tvg-shift=[\"']([^\"']*)[\"']", attrs_part)
                     if tvg_shift_match:
                         current_channel['tvg_shift'] = tvg_shift_match.group(1)
-                    
+
                     catchup_match = re.search(r"catchup=[\"']([^\"']*)[\"']", attrs_part)
                     if catchup_match:
                         current_channel['catchup'] = catchup_match.group(1)
-                    
+
                     catchup_days_match = re.search(r"catchup-days=[\"']([^\"']*)[\"']", attrs_part)
                     if catchup_days_match:
                         current_channel['catchup_days'] = catchup_days_match.group(1)
-                    
+
                     catchup_source_match = re.search(r"catchup-source=[\"']([^\"']*)[\"']", attrs_part)
                     if catchup_source_match:
                         current_channel['catchup_source'] = catchup_source_match.group(1)
-                    
+
                 elif current_channel and line and not line.startswith("#"):
-                    current_channel['url'] = line
-                    self.channels.append(current_channel)
+                    if self._is_valid_channel_url(line):
+                        current_channel['url'] = line
+                        self.channels.append(current_channel)
                     current_channel = None
-            
+                elif not current_channel and line and not line.startswith("#"):
+                    if self._is_valid_channel_url(line):
+                        self.channels.append({
+                            'name': extract_channel_name_from_url(line),
+                            'url': line,
+                            'group': current_group,
+                            'logo': '',
+                            'tvg_id': '',
+                            'tvg_chno': '',
+                            'tvg_shift': '',
+                            'catchup': '',
+                            'catchup_days': '',
+                            'catchup_source': '',
+                            'resolution': '',
+                            'status': '待检测',
+                            'valid': False
+                        })
+
             return len(self.channels) > 0
         except Exception as e:
-            print(f"解析文件失败: {e}")
+            logger.error(f"解析文件失败: {e}")
             return False
+
+    @staticmethod
+    def _is_valid_channel_url(url):
+        if not url:
+            return False
+        url = url.strip()
+        if not url:
+            return False
+        if '://' not in url:
+            return False
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            host = parsed.hostname
+            if not host:
+                return False
+            if host in ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
+                return False
+            octets = host.split('.')
+            if len(octets) == 4:
+                try:
+                    if all(0 <= int(o) <= 255 for o in octets):
+                        first = int(octets[0])
+                        if first == 0:
+                            return False
+                except ValueError:
+                    pass
+            return True
+        except Exception:
+            return True
     
     def to_m3u(self) -> str:
         """转换为M3U格式"""
@@ -536,33 +560,50 @@ class IPTVPlayer(QMainWindow):
                             # 更新频道列表UI
                             self.channel_list_updated.emit()
                             
-                            logger.info(f"列表订阅无需更新，从缓存加载数据，共 {len(CHANNELS)} 个频道")
+                            logger.debug(f"列表订阅无需更新，从缓存加载数据，共 {len(CHANNELS)} 个频道")
                             self.status_message.emit(self.language_manager.tr("loading_from_cache", "Loading from cache"))
                         else:
                             logger.error("缓存列表文件解析失败")
                             # 尝试直接解析内容
-                            logger.info("尝试直接解析缓存内容...")
+                            logger.debug("尝试直接解析缓存内容...")
                             try:
-                                # 手动解析M3U内容
                                 lines = content.strip().split('\n')
                                 channels = []
                                 current_channel = {}
+                                current_group = '未分类'
                                 for line in lines:
                                     line = line.strip()
                                     if line.startswith('#EXTINF:'):
-                                        # 解析频道信息
+                                        extinf_content = line[8:].strip()
+                                        genre_match = re.search(r',\s*#genre#\s*', extinf_content)
+                                        if genre_match:
+                                            before_genre = extinf_content[:genre_match.start()].strip()
+                                            group_name = before_genre
+                                            comma_pos = before_genre.rfind(',')
+                                            if comma_pos >= 0:
+                                                group_name = before_genre[comma_pos+1:].strip()
+                                            group_name = group_name.strip('=').strip()
+                                            if group_name:
+                                                current_group = group_name
+                                            current_channel = {}
+                                            continue
                                         parts = line.split(',', 1)
                                         if len(parts) > 1:
-                                            current_channel['name'] = parts[1]
+                                            name = parts[1].strip()
+                                            current_channel['name'] = name
+                                            current_channel['group'] = current_group
+                                    elif line.startswith('#EXTGRP:'):
+                                        current_group = line[8:].strip()
                                     elif not line.startswith('#') and line:
-                                        # 解析频道URL
                                         if current_channel:
-                                            current_channel['url'] = line
-                                            channels.append(current_channel.copy())
+                                            url = line.strip()
+                                            if self._is_valid_channel_url(url):
+                                                current_channel['url'] = url
+                                                channels.append(current_channel.copy())
                                             current_channel = {}
                                 
                                 if channels:
-                                    logger.info(f"手动解析成功，共 {len(channels)} 个频道")
+                                    logger.debug(f"手动解析成功，共 {len(channels)} 个频道")
                                     # 更新CHANNELS列表
                                     CHANNELS = []
                                     for i, ch in enumerate(channels):
@@ -585,7 +626,7 @@ class IPTVPlayer(QMainWindow):
                                     # 更新频道列表UI
                                     self.channel_list_updated.emit()
                                     
-                                    logger.info(f"手动解析后更新列表UI，共 {len(CHANNELS)} 个频道")
+                                    logger.debug(f"手动解析后更新列表UI，共 {len(CHANNELS)} 个频道")
                                     self.status_message.emit("手动解析后更新列表")
                                 else:
                                     logger.error("手动解析也失败")
@@ -594,9 +635,9 @@ class IPTVPlayer(QMainWindow):
                     except Exception as ex:
                         logger.error(f"加载缓存列表失败: {ex}")
                 else:
-                    logger.info("缓存文件不存在")
+                    logger.debug("缓存文件不存在")
                     # 如果缓存文件不存在，强制更新列表
-                    logger.info("缓存文件不存在，强制更新列表")
+                    logger.debug("缓存文件不存在，强制更新列表")
                     self.update_playlist_subscription()
         except Exception as ex:
             logger.error(f"处理列表订阅失败: {ex}")
@@ -606,13 +647,8 @@ class IPTVPlayer(QMainWindow):
         self._update_channel_list_ui()
     
     def _update_channel_list_ui(self):
-        """更新频道列表UI"""
         try:
-            self.channel_list.clear()
-            for ch in CHANNELS:
-                item = QListWidgetItem(ch['name'])
-                item.setData(Qt.ItemDataRole.UserRole, ch)
-                self.channel_list.addItem(item)
+            self.populate_channel_list()
         except Exception as ex:
             logger.error(f"更新频道列表UI失败: {ex}")
     
@@ -639,12 +675,12 @@ class IPTVPlayer(QMainWindow):
                     time_since_update = datetime.now() - last_update
                     if time_since_update.total_seconds() < epg_interval * 60:
                         need_update = False
-                        logger.info(f"节目单订阅无需立即更新，上次更新时间: {last_update}")
+                        logger.debug(f"节目单订阅无需立即更新，上次更新时间: {last_update}")
                 except Exception as e:
                     logger.error(f"解析EPG上次更新时间失败: {e}")
                     pass
             else:
-                logger.info("未找到EPG上次更新时间，需要更新")
+                logger.debug("未找到EPG上次更新时间，需要更新")
             
             if need_update:
                 logger.info("节目单订阅需要更新，开始下载最新数据")
@@ -656,12 +692,12 @@ class IPTVPlayer(QMainWindow):
                 global_epg_parser.load_cached_epg_data()
                 if global_epg_parser.epg_data:
                     EPG_DATA = global_epg_parser.epg_data
-                    logger.info(f"节目单订阅无需更新，从缓存加载数据，共 {len(EPG_DATA)} 个频道")
+                    logger.debug(f"节目单订阅无需更新，从缓存加载数据，共 {len(EPG_DATA)} 个频道")
                     # 更新EPG列表UI
                     self.epg_list_updated.emit()
                 else:
                     # 如果缓存数据为空，强制更新
-                    logger.info("EPG缓存数据为空，强制更新")
+                    logger.debug("EPG缓存数据为空，强制更新")
                     self.update_epg_subscription()
         except Exception as ex:
             logger.error(f"处理节目单订阅失败: {ex}")
@@ -795,6 +831,7 @@ class IPTVPlayer(QMainWindow):
         self.player_controller = MpvPlayerController(self.video_widget)
         self.player_controller.play_state_changed.connect(self.on_play_state_changed)
         self.player_controller.media_info_ready.connect(self.on_media_info_ready)
+        self.player_controller.play_error.connect(self.on_play_error)
         
         logger.debug("_init_player: 完成")
     
@@ -1464,16 +1501,16 @@ class IPTVPlayer(QMainWindow):
         
         # 获取当前选中的分组
         selected_group = self.group_combo.currentText()
-        
-        for channel in CHANNELS:
-            # 如果选择了特定分组，只显示该分组的频道
+
+        for idx, channel in enumerate(CHANNELS):
             if selected_group != self.language_manager.tr("all_channels", "All Channels"):
                 channel_group = channel.get('group', self.language_manager.tr("uncategorized", "Uncategorized"))
                 if channel_group != selected_group:
                     continue
-            
+
             item = QListWidgetItem(channel.get("name", self.language_manager.tr("unnamed", "Unnamed")))
-            item.setSizeHint(QSize(0, 40))  # 增加行高
+            item.setSizeHint(QSize(0, 40))
+            item.setData(Qt.ItemDataRole.UserRole, idx)
             self.channel_list.addItem(item)
     
     def populate_epg_list(self):
@@ -1816,6 +1853,84 @@ class IPTVPlayer(QMainWindow):
                 logger.error(f"处理节目失败: {e}")
                 continue
     
+    def _replace_catchup_variables(self, catchup_source, start_time, end_time):
+        if not catchup_source:
+            return catchup_source
+
+        url = catchup_source
+
+        def format_time(dt, fmt):
+            fmt_map = {
+                'yyyy': dt.strftime('%Y'),
+                'yy': dt.strftime('%y'),
+                'MM': dt.strftime('%m'),
+                'dd': dt.strftime('%d'),
+                'HH': dt.strftime('%H'),
+                'mm': dt.strftime('%M'),
+                'ss': dt.strftime('%S'),
+                'yyyyMMddHHmmss': dt.strftime('%Y%m%d%H%M%S'),
+                'yyyyMMddHHmm': dt.strftime('%Y%m%d%H%M'),
+                'yyyyMMdd': dt.strftime('%Y%m%d'),
+                'HHmmss': dt.strftime('%H%M%S'),
+                'HHmm': dt.strftime('%H%M'),
+                'yyyy-MM-dd': dt.strftime('%Y-%m-%d'),
+                'yyyy-MM-ddTHH:mm:ss': dt.strftime('%Y-%m-%dT%H:%M:%S'),
+                'yyyy-MM-dd HH:mm:ss': dt.strftime('%Y-%m-%d %H:%M:%S'),
+                'unix': str(int(dt.timestamp())),
+                'unix_ms': str(int(dt.timestamp() * 1000)),
+                '10': str(int(dt.timestamp())),
+                '13': str(int(dt.timestamp() * 1000)),
+            }
+            return fmt_map.get(fmt, dt.strftime(fmt))
+
+        def replace_braced_vars(url, dt, prefix):
+            for m in re.finditer(r'\$\{\(' + re.escape(prefix) + r'\)([^}]+)\}', url):
+                fmt = m.group(1)
+                replacement = format_time(dt, fmt)
+                url = url.replace(m.group(0), replacement)
+            return url
+
+        url = replace_braced_vars(url, start_time, 'b')
+        url = replace_braced_vars(url, end_time, 'e')
+        url = replace_braced_vars(url, start_time, 'start')
+        url = replace_braced_vars(url, end_time, 'end')
+
+        start_ts = str(int(start_time.timestamp()))
+        end_ts = str(int(end_time.timestamp()))
+        start_ts_ms = str(int(start_time.timestamp() * 1000))
+        end_ts_ms = str(int(end_time.timestamp() * 1000))
+
+        url = url.replace('${start}', start_ts)
+        url = url.replace('${end}', end_ts)
+        url = url.replace('${timestamp}', start_ts)
+        url = url.replace('${start_utc}', start_ts)
+        url = url.replace('${end_utc}', end_ts)
+        url = url.replace('${start_ms}', start_ts_ms)
+        url = url.replace('${end_ms}', end_ts_ms)
+        url = url.replace('${offset}', start_ts)
+        url = url.replace('${duration}', str(int((end_time - start_time).total_seconds())))
+        url = url.replace('${duration_ms}', str(int((end_time - start_time).total_seconds() * 1000)))
+
+        url = url.replace('${start_year}', start_time.strftime('%Y'))
+        url = url.replace('${start_month}', start_time.strftime('%m'))
+        url = url.replace('${start_day}', start_time.strftime('%d'))
+        url = url.replace('${start_hour}', start_time.strftime('%H'))
+        url = url.replace('${start_minute}', start_time.strftime('%M'))
+        url = url.replace('${start_second}', start_time.strftime('%S'))
+        url = url.replace('${end_year}', end_time.strftime('%Y'))
+        url = url.replace('${end_month}', end_time.strftime('%m'))
+        url = url.replace('${end_day}', end_time.strftime('%d'))
+        url = url.replace('${end_hour}', end_time.strftime('%H'))
+        url = url.replace('${end_minute}', end_time.strftime('%M'))
+        url = url.replace('${end_second}', end_time.strftime('%S'))
+
+        url = url.replace('{start}', start_ts)
+        url = url.replace('{end}', end_ts)
+        url = url.replace('{timestamp}', start_ts)
+        url = url.replace('{offset}', start_ts)
+
+        return url
+
     def start_catchup(self, program):
         """启动回看功能"""
         if not self.current_channel:
@@ -1831,13 +1946,9 @@ class IPTVPlayer(QMainWindow):
         end_time = datetime.fromisoformat(program.get('end', ''))
         title = program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))
         
-        # 构建回看URL
         catchup_url = catchup_source
         if catchup_source:
-            # 替换时间占位符
-            catchup_url = catchup_source.replace('${(b)yyyyMMddHHmmss}', start_time.strftime('%Y%m%d%H%M%S'))
-            catchup_url = catchup_url.replace('${(e)yyyyMMddHHmmss}', end_time.strftime('%Y%m%d%H%M%S'))
-            # 记录构建的回看URL
+            catchup_url = self._replace_catchup_variables(catchup_source, start_time, end_time)
             logger.debug(f"构建回看URL: {catchup_url}")
         
         # 显示回看状态
@@ -1968,10 +2079,8 @@ class IPTVPlayer(QMainWindow):
                 new_start_seconds = total_duration * (value / 100.0)
                 new_start_time = start_time + timedelta(seconds=new_start_seconds)
                 
-                # 构建新的回看URL
                 catchup_url = catchup_source
-                catchup_url = catchup_url.replace('${(b)yyyyMMddHHmmss}', new_start_time.strftime('%Y%m%d%H%M%S'))
-                catchup_url = catchup_url.replace('${(e)yyyyMMddHHmmss}', end_time.strftime('%Y%m%d%H%M%S'))
+                catchup_url = self._replace_catchup_variables(catchup_source, new_start_time, end_time)
                 
                 # 记录构建的回看URL
                 logger.debug(f"构建新的回看URL: {catchup_url}")
@@ -2006,19 +2115,19 @@ class IPTVPlayer(QMainWindow):
         self.populate_channel_list()
     
     def select_channel(self, item):
-        """选择频道并播放"""
-        index = self.channel_list.row(item)
-        if 0 <= index < len(CHANNELS):
-            self.current_channel = CHANNELS[index]
-            
-            # 立即更新悬浮窗信息
-            self.update_channel_info_on_selection()
-            
-            # 更新EPG列表
-            self.populate_epg_list()
-            
-            # 播放选中的频道
-            self.play_channel(self.current_channel)
+        idx = item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(idx, int) and 0 <= idx < len(CHANNELS):
+            self.current_channel = CHANNELS[idx]
+        else:
+            index = self.channel_list.row(item)
+            if 0 <= index < len(CHANNELS):
+                self.current_channel = CHANNELS[index]
+            else:
+                return
+
+        self.update_channel_info_on_selection()
+        self.populate_epg_list()
+        self.play_channel(self.current_channel)
     
     def update_channel_info_on_selection(self):
         """选择频道时立即更新悬浮窗信息"""
@@ -2044,7 +2153,6 @@ class IPTVPlayer(QMainWindow):
                 return
             
             # 使用 QNetworkAccessManager 加载网络图片
-            from PyQt6.QtGui import QPixmap
             from PyQt6.QtCore import QUrl, QByteArray
             from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
             
@@ -2346,6 +2454,15 @@ class IPTVPlayer(QMainWindow):
                 else:
                     self.status_bar.showMessage(f"{tr('paused', 'Paused')}: {channel_name}")
     
+    def on_play_error(self, error_msg):
+        tr = self.language_manager.tr
+        logger.error(f"播放错误: {error_msg}")
+        if self.current_channel:
+            channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
+            self.status_bar.showMessage(f"{tr('play_error', 'Play Error')}: {channel_name} - {error_msg}")
+        else:
+            self.status_bar.showMessage(f"{tr('play_error', 'Play Error')}: {error_msg}")
+
     def on_media_info_ready(self, media_info):
         """媒体信息获取完成时的处理"""
         tr = self.language_manager.tr
@@ -2441,12 +2558,11 @@ class IPTVPlayer(QMainWindow):
             
             new_x = center_x - new_window_width // 2
             new_y = center_y - current_height // 2
-            
-            print(f"DEBUG: setting geometry to {new_window_width}x{current_height}")
+
             self.setGeometry(new_x, new_y, new_window_width, current_height)
-            
+
         except Exception as e:
-            print(f"DEBUG: exception = {e}")
+            logger.debug(f"调整窗口大小异常: {e}")
     
     def _try_adjust_window_size(self):
         """尝试调整窗口大小，最多尝试10次"""
@@ -2842,14 +2958,6 @@ class IPTVPlayer(QMainWindow):
             self.update_floating_position()
         super().mousePressEvent(event)
     
-    def keyPressEvent(self, event):
-        """处理键盘事件"""
-        if event.key() == Qt.Key.Key_Space:
-            # 当按下空格键时，切换暂停/播放状态
-            if hasattr(self, 'player_controller') and self.player_controller:
-                self.toggle_play()
-        super().keyPressEvent(event)
-    
     def update_floating_position(self):
         """更新悬浮窗位置（带日志节流）"""
         # 检查必要的属性是否存在
@@ -2947,8 +3055,7 @@ class IPTVPlayer(QMainWindow):
             
             # 创建扫描窗口，传递parent参数
             dialog = ScanChannelDialog(self)
-            # 使用exec()显示窗口
-            dialog.exec()
+            dialog.show()
             
             logger.info("成功打开扫描界面")
         except Exception as ex:
@@ -2973,71 +3080,6 @@ class IPTVPlayer(QMainWindow):
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QLineEdit, QGroupBox
         
         # 创建对话框
-        class FloatingDialog(QDialog):
-            def __init__(self, parent=None):
-                super().__init__(parent)
-                self.dragging = False
-                self.offset = None
-                self.opacity = 220
-                self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-                # 设置为工具窗口，无边框
-                self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
-                # 确保窗口可以接收鼠标事件
-                self.setMouseTracking(True)
-                # 确保窗口保持活动状态
-                self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-            
-            def mousePressEvent(self, event):
-                if event.button() == Qt.MouseButton.LeftButton:
-                    self.dragging = True
-                    self.offset = event.position().toPoint()
-            
-            def mouseMoveEvent(self, event):
-                if self.dragging:
-                    new_position = event.globalPosition().toPoint() - self.offset
-                    self.move(new_position)
-            
-            def mouseReleaseEvent(self, event):
-                if event.button() == Qt.MouseButton.LeftButton:
-                    self.dragging = False
-            
-            def paintEvent(self, event):
-                """自定义绘制半透明背景和边框"""
-                painter = QPainter(self)
-                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-                
-                from ui.styles import AppStyles
-                colors = AppStyles._get_colors()
-                neo = AppStyles.is_neumorphic()
-                
-                from PyQt6.QtGui import QPainterPath
-                from PyQt6.QtCore import QRectF
-                path = QPainterPath()
-                rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
-                path.addRoundedRect(rect, 12, 12)
-                
-                bg_color = colors.get('window', '#333333')
-                if bg_color.startswith('#'):
-                    r = int(bg_color[1:3], 16)
-                    g = int(bg_color[3:5], 16)
-                    b = int(bg_color[5:7], 16)
-                else:
-                    r, g, b = 30, 30, 30
-                painter.fillPath(path, QColor(r, g, b, self.opacity))
-                
-                if not neo:
-                    border_color = colors.get('mid', '#999999')
-                    if border_color.startswith('#'):
-                        r = int(border_color[1:3], 16)
-                        g = int(border_color[3:5], 16)
-                        b = int(border_color[5:7], 16)
-                    else:
-                        r, g, b = 120, 120, 120
-                    painter.setPen(QColor(r, g, b, 200))
-                    painter.drawPath(path)
-                
-                super().paintEvent(event)
-        
         dialog = FloatingDialog(self)
         tr = self.language_manager.tr
         dialog.setWindowTitle(tr("player_settings_title", "Player Settings"))
@@ -3257,7 +3299,7 @@ class IPTVPlayer(QMainWindow):
                 try:
                     with open(playlist_cache_file, 'w', encoding='utf-8') as f:
                         f.write(content)
-                    logger.info(f"列表已保存到缓存文件: {playlist_cache_file}")
+                    logger.debug(f"列表已保存到缓存文件: {playlist_cache_file}")
                 except Exception as ex:
                     logger.error(f"保存列表缓存失败: {ex}")
                 
@@ -3298,7 +3340,7 @@ class IPTVPlayer(QMainWindow):
                 # 如果加载失败，从缓存加载
                 if global_epg_parser.epg_data:
                     EPG_DATA = global_epg_parser.epg_data
-                    logger.info(f"使用缓存的EPG数据，包含 {len(EPG_DATA)} 个频道")
+                    logger.debug(f"使用缓存的EPG数据，包含 {len(EPG_DATA)} 个频道")
                     self.status_bar_show_message(self.language_manager.tr("epg_using_cache", "Using cached EPG data"))
                 else:
                     logger.error("节目单订阅内容解析失败")
@@ -3345,71 +3387,6 @@ class IPTVPlayer(QMainWindow):
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QDialogButtonBox
         
         # 创建自定义对话框
-        class FloatingDialog(QDialog):
-            def __init__(self, parent=None):
-                super().__init__(parent)
-                self.dragging = False
-                self.offset = None
-                self.opacity = 220
-                self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-                # 设置为工具窗口，无边框
-                self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
-                # 确保窗口可以接收鼠标事件
-                self.setMouseTracking(True)
-                # 确保窗口保持活动状态
-                self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
-            
-            def mousePressEvent(self, event):
-                if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                    self.dragging = True
-                    self.offset = event.position().toPoint()
-            
-            def mouseMoveEvent(self, event):
-                if self.dragging:
-                    new_position = event.globalPosition().toPoint() - self.offset
-                    self.move(new_position)
-            
-            def mouseReleaseEvent(self, event):
-                if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                    self.dragging = False
-            
-            def paintEvent(self, event):
-                """自定义绘制半透明背景和边框"""
-                painter = QtGui.QPainter(self)
-                painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-                
-                from ui.styles import AppStyles
-                colors = AppStyles._get_colors()
-                neo = AppStyles.is_neumorphic()
-                
-                from PyQt6.QtGui import QPainterPath
-                from PyQt6.QtCore import QRectF
-                path = QPainterPath()
-                rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
-                path.addRoundedRect(rect, 12, 12)
-                
-                bg_color = colors.get('window', '#333333')
-                if bg_color.startswith('#'):
-                    r = int(bg_color[1:3], 16)
-                    g = int(bg_color[3:5], 16)
-                    b = int(bg_color[5:7], 16)
-                else:
-                    r, g, b = 30, 30, 30
-                painter.fillPath(path, QtGui.QColor(r, g, b, self.opacity))
-                
-                if not neo:
-                    border_color = colors.get('mid', '#999999')
-                    if border_color.startswith('#'):
-                        r = int(border_color[1:3], 16)
-                        g = int(border_color[3:5], 16)
-                        b = int(border_color[5:7], 16)
-                    else:
-                        r, g, b = 120, 120, 120
-                    painter.setPen(QtGui.QColor(r, g, b, 200))
-                    painter.drawPath(path)
-                
-                super().paintEvent(event)
-        
         dialog = FloatingDialog(self)
         tr = self.language_manager.tr
         dialog.setWindowTitle(tr("epg_settings_title", "EPG Settings"))
@@ -3478,25 +3455,46 @@ class IPTVPlayer(QMainWindow):
                 self.recent_menu.addAction(action)
     
     def open_recent_file(self, file_path):
-        """打开最近打开的文件"""
         from core.log_manager import global_logger as logger
-        
+
         try:
-            # 加载文件内容
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
-            
-            # 解析M3U内容
-            self.channel_model.load_from_file(content)
-            
-            # 更新最近打开文件列表
-            from core.config_manager import ConfigManager
-            config_manager = ConfigManager()
-            config_manager.add_recent_file(file_path)
-            self.update_recent_files_menu()
-            
-            logger.info(f"成功打开最近文件: {file_path}")
-            self.status_bar.showMessage(f"{self.language_manager.tr('file_opened', 'File opened')}: {file_path}")
+
+            if self.channel_model.load_from_file(content):
+                global CHANNELS
+                CHANNELS = []
+                for i, ch in enumerate(self.channel_model.channels):
+                    CHANNELS.append({
+                        "id": i + 1,
+                        "name": ch.get('name', '未命名'),
+                        "url": ch.get('url', ''),
+                        "logo": ch.get('logo', ''),
+                        "group": ch.get('group', '未分类'),
+                        "tvg_id": ch.get('tvg_id', ''),
+                        "tvg_chno": ch.get('tvg_chno', ''),
+                        "tvg_shift": ch.get('tvg_shift', ''),
+                        "catchup": ch.get('catchup', ''),
+                        "catchup_days": ch.get('catchup_days', ''),
+                        "catchup_source": ch.get('catchup_source', ''),
+                        "resolution": ch.get('resolution', ''),
+                        "current_program": ''
+                    })
+
+                from core.config_manager import ConfigManager
+                config_manager = ConfigManager()
+                config_manager.add_recent_file(file_path)
+                self.update_recent_files_menu()
+
+                if CHANNELS:
+                    self.current_channel = CHANNELS[0]
+                    self.channel_name.setText(self.current_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel")))
+
+                self.populate_channel_list()
+                self.status_bar.showMessage(f"{self.language_manager.tr('file_opened', 'File opened')}: {file_path}")
+                logger.info(f"成功打开最近文件: {file_path}, 共 {len(CHANNELS)} 个频道")
+            else:
+                self.status_bar.showMessage(self.language_manager.tr("file_format_error"))
         except Exception as ex:
             logger.error(f"打开最近文件失败: {str(ex)}")
             self.status_bar.showMessage(f"{self.language_manager.tr('file_open_failed', 'Failed to open file')}: {str(ex)}")
@@ -3709,64 +3707,6 @@ class IPTVPlayer(QMainWindow):
                                      QPushButton, QFrame, QLabel)
         from ui.styles import AppStyles
 
-        class FloatingDialog(QDialog):
-            def __init__(self, parent=None):
-                super().__init__(parent)
-                self.dragging = False
-                self.offset = None
-                from ui.styles import AppStyles
-                colors = AppStyles._get_colors()
-                self.opacity = colors.get('window_opacity', 220)
-                self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-                self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
-                self.setMouseTracking(True)
-                self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
-
-            def mousePressEvent(self, event):
-                if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                    self.dragging = True
-                    self.offset = event.position().toPoint()
-
-            def mouseMoveEvent(self, event):
-                if self.dragging:
-                    new_position = event.globalPosition().toPoint() - self.offset
-                    self.move(new_position)
-
-            def mouseReleaseEvent(self, event):
-                if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                    self.dragging = False
-
-            def paintEvent(self, event):
-                painter = QtGui.QPainter(self)
-                painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-                from ui.styles import AppStyles
-                colors = AppStyles._get_colors()
-                neo = AppStyles.is_neumorphic()
-                from PyQt6.QtGui import QPainterPath
-                from PyQt6.QtCore import QRectF
-                path = QPainterPath()
-                rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
-                path.addRoundedRect(rect, 12, 12)
-                bg_color = colors.get('window', '#333333')
-                if bg_color.startswith('#'):
-                    r = int(bg_color[1:3], 16)
-                    g = int(bg_color[3:5], 16)
-                    b = int(bg_color[5:7], 16)
-                else:
-                    r, g, b = 30, 30, 30
-                painter.fillPath(path, QtGui.QColor(r, g, b, self.opacity))
-                if not neo:
-                    border_color = colors.get('mid', '#999999')
-                    if border_color.startswith('#'):
-                        r = int(border_color[1:3], 16)
-                        g = int(border_color[3:5], 16)
-                        b = int(border_color[5:7], 16)
-                    else:
-                        r, g, b = 120, 120, 120
-                    painter.setPen(QtGui.QColor(r, g, b, 200))
-                    painter.drawPath(path)
-                super().paintEvent(event)
-
         dialog = FloatingDialog(self)
         tr = self.language_manager.tr
         colors = AppStyles._get_colors()
@@ -3972,21 +3912,32 @@ class IPTVPlayer(QMainWindow):
         self.resize_timer.start(300)
     
     def closeEvent(self, event):
-        """窗口关闭时，保存窗口布局并关闭扫描频道窗口"""
-        # 保存窗口布局
         self.save_window_layout()
-        
-        # 关闭扫描频道窗口
+
+        if hasattr(self, 'player_controller') and self.player_controller:
+            self.player_controller.stop()
+
         if hasattr(self, 'scan_window') and self.scan_window:
             self.scan_window.close()
-            
+
+        for panel_name in ['floating_panel', 'epg_panel', 'playlist_panel']:
+            panel = getattr(self, panel_name, None)
+            if panel:
+                panel.close()
+
+        if hasattr(self, 'update_timer') and self.update_timer:
+            self.update_timer.stop()
+
         super().closeEvent(event)
     
     def keyPressEvent(self, event):
-        """键盘事件处理"""
         if event.key() == Qt.Key.Key_Escape and self.is_fullscreen:
             self.toggle_fullscreen(False)
-        super().keyPressEvent(event)
+        elif event.key() == Qt.Key.Key_Space:
+            if hasattr(self, 'player_controller') and self.player_controller:
+                self.toggle_play()
+        else:
+            super().keyPressEvent(event)
 
     def _check_for_updates_async(self):
         """异步检查新版本"""

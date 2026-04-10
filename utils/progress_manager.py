@@ -6,24 +6,14 @@
 from PyQt6 import QtWidgets, QtCore
 from typing import Optional, Callable
 from core.log_manager import global_logger
+from utils.singleton import Singleton
 
 logger = global_logger
 
 
-class ProgressManager:
-    """统一的进度条管理器"""
-
-    _instance: Optional['ProgressManager'] = None
-
-    def __new__(cls):
-        """单例模式"""
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
+class ProgressManager(Singleton):
 
     def __init__(self):
-        """初始化进度条管理器"""
         if self._initialized:
             return
 

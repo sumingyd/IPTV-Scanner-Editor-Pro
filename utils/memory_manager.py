@@ -4,22 +4,12 @@ import threading
 import time
 from typing import Dict, Any, Optional
 from core.log_manager import global_logger
+from utils.singleton import Singleton
 
 logger = global_logger
 
 
-class MemoryManager:
-    """内存管理器，提供内存优化功能"""
-    _instance: Optional['MemoryManager'] = None
-    _lock = threading.Lock()
-
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._initialized = False
-        return cls._instance
+class MemoryManager(Singleton):
 
     def __init__(self):
         if self._initialized:

@@ -259,38 +259,39 @@ class EPGParser:
                 for epg_channel_id, programs in self.epg_data.items():
                     if epg_channel_id.lower() == channel_name_lower:
                         return programs
-            # 尝试使用频道名称的一部分匹配
             if channel_name:
                 channel_name_lower = channel_name.lower()
                 for epg_channel_id, programs in self.epg_data.items():
-                    if channel_name_lower in epg_channel_id.lower() or epg_channel_id.lower() in channel_name_lower:
-                        return programs
-            # 尝试使用频道名称的前几个字符匹配
+                    epg_lower = epg_channel_id.lower()
+                    if len(channel_name_lower) >= 3 and (channel_name_lower in epg_lower or epg_lower in channel_name_lower):
+                        if len(channel_name_lower) >= len(epg_lower) * 0.6 or len(epg_lower) >= len(channel_name_lower) * 0.6:
+                            return programs
             if channel_name:
-                channel_name_short = channel_name[:8]  # 取前8个字符
+                channel_name_short = channel_name[:8]
                 channel_name_short_lower = channel_name_short.lower()
-                for epg_channel_id, programs in self.epg_data.items():
-                    if channel_name_short_lower in epg_channel_id.lower() or epg_channel_id.lower() in channel_name_short_lower:
-                        return programs
-            # 尝试使用频道名称中的数字部分匹配
+                if len(channel_name_short_lower) >= 3:
+                    for epg_channel_id, programs in self.epg_data.items():
+                        epg_lower = epg_channel_id.lower()
+                        if channel_name_short_lower in epg_lower or epg_lower in channel_name_short_lower:
+                            if len(channel_name_short_lower) >= len(epg_lower) * 0.6 or len(epg_lower) >= len(channel_name_short_lower) * 0.6:
+                                return programs
             if channel_name:
                 import re
-                # 提取频道名称中的数字
                 numbers = re.findall(r'\d+', channel_name)
                 if numbers:
-                    for epg_channel_id, programs in self.epg_data.items():
-                        for number in numbers:
-                            if number in epg_channel_id:
+                    longest_number = max(numbers, key=len)
+                    if len(longest_number) >= 2:
+                        for epg_channel_id, programs in self.epg_data.items():
+                            if longest_number in epg_channel_id and channel_name[:2].lower() in epg_channel_id.lower():
                                 return programs
-            # 尝试使用频道名称的简化形式匹配（去除空格和特殊字符）
             if channel_name:
                 import re
-                # 去除空格和特殊字符
                 simplified_name = re.sub(r'[^a-zA-Z0-9]', '', channel_name).lower()
-                for epg_channel_id, programs in self.epg_data.items():
-                    simplified_epg_channel = re.sub(r'[^a-zA-Z0-9]', '', epg_channel_id).lower()
-                    if simplified_name in simplified_epg_channel or simplified_epg_channel in simplified_name:
-                        return programs
+                if len(simplified_name) >= 3:
+                    for epg_channel_id, programs in self.epg_data.items():
+                        simplified_epg_channel = re.sub(r'[^a-zA-Z0-9]', '', epg_channel_id).lower()
+                        if simplified_name == simplified_epg_channel:
+                            return programs
             return []
     
     def get_current_program(self, channel_name, tvg_id=None):

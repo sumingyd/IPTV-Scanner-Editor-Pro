@@ -5,25 +5,14 @@
 
 from typing import Dict, Any, List, Optional
 from core.log_manager import global_logger
+from utils.singleton import Singleton
 import threading
 import time
 
 logger = global_logger
 
 
-class ScanStateManager:
-    """扫描状态管理器（单例模式）"""
-
-    _instance = None
-    _lock = threading.Lock()
-
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._initialized = False
-        return cls._instance
+class ScanStateManager(Singleton):
 
     def __init__(self):
         if self._initialized:

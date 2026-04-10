@@ -1,6 +1,7 @@
 import threading
 import queue
 import time
+import functools
 from typing import List, Dict
 from services.url_parser_service import URLRangeParser
 from core.log_manager import global_logger
@@ -55,7 +56,6 @@ class ScannerController(QObject):
         self.scan_id = 'main_scan'
 
     def _force_ui_refresh(self):
-        """强制刷新UI"""
         try:
             if hasattr(self.model, 'update_view'):
                 self.model.update_view()
@@ -63,6 +63,10 @@ class ScannerController(QObject):
                 self.model.layoutChanged.emit()
         except Exception:
             pass
+
+    @staticmethod
+    def _run_on_main(func, *args):
+        QtCore.QTimer.singleShot(0, functools.partial(func, *args))
 
     def _worker(self) -> None:
         """工作线程函数"""
@@ -88,49 +92,28 @@ class ScannerController(QObject):
                     url, valid, latency, resolution, result
                     )
                 if not channel_info:
-                    # 即使构建失败，也要确保统计信息更新
                     with self.stats_lock:
                         self.stats['invalid'] += 1
-
                         current = self.stats['valid'] + self.stats['invalid']
                         total = self.stats['total']
-
-                        # 立即更新进度，确保状态栏进度条正常显示
-                        import functools
-                        QtCore.QTimer.singleShot(
-                            0, functools.partial(
-                                self.progress_updated.emit, current, total
-                                ),
-                            )
+                        self._run_on_main(self.progress_updated.emit, current, total)
                     continue
 
-                # 确保频道信息包含必要字段
                 channel_info.setdefault(
                     'name', channel_info.get(
                         'raw_name', extract_channel_name_from_url(url)
                         )
                     )
 
-                # 只添加有效频道到列表
                 if valid:
-                    # 使用 functools.partial 确保频道信息正确传递
-                    import functools
-                    QtCore.QTimer.singleShot(
-                        0, functools.partial(
-                            self._handle_channel_add, channel_info.copy()
-                            )
-                    )
-
-                    # 重要：启动异步映射检查（如果有需要）
+                    self._run_on_main(self._handle_channel_add, channel_info.copy())
                     self._start_async_mapping_check(channel_info.copy())
 
-                # 统计信息更新 - 确保无论有效还是无效都更新
                 with self.stats_lock:
                     if valid:
                         self.stats['valid'] += 1
                     else:
                         self.stats['invalid'] += 1
-                        # 记录无效URL和错误类型（如果可用）
                         error_type = result.get('error_type')
                         with self.invalid_urls_lock:
                             self.invalid_urls.append({
@@ -138,68 +121,34 @@ class ScannerController(QObject):
                                 'error_type': error_type,
                                 'error': result.get('error', '')
                             })
-
-                        # 更新扫描状态管理器中的无效URL（带错误类型）
                         self.scan_state_manager.add_invalid_url(self.scan_id, url, error_type)
 
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
 
                 if total <= 0:
-                    # 使用一个合理的估计值，避免除零错误
-                    estimated_total = 100
-                    total = estimated_total
-
-                    # 发送进度更新信号
-                    import functools
-                    QtCore.QTimer.singleShot(
-                        0, functools.partial(
-                            self.progress_updated.emit, current, total
-                        )
-                    )
+                    total = 100
+                    self._run_on_main(self.progress_updated.emit, current, total)
 
             except Exception:
-                # 即使出现异常，也要确保统计信息更新
                 with self.stats_lock:
                     self.stats['invalid'] += 1
-
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
-
                     if total <= 0:
-                        # 使用一个合理的估计值，避免除零错误
-                        estimated_total = 100
-                        total = estimated_total
-
-                    # 发送进度更新信号
-                    import functools
-                    QtCore.QTimer.singleShot(
-                        0, functools.partial(
-                            self.progress_updated.emit, current, total
-                        )
-                    )
+                        total = 100
+                    self._run_on_main(self.progress_updated.emit, current, total)
 
                 # 继续处理下一个URL，不中断线程
                 continue
 
-        # 工作线程结束时强制刷新UI
         QtCore.QTimer.singleShot(0, self._force_ui_refresh)
 
-        # 确保发送最终的进度更新
         with self.stats_lock:
             current = self.stats['valid'] + self.stats['invalid']
             total = self.stats['total']
             if current < total:
-                # 使用QTimer在主线程中安全地更新进度
-                import functools
-                QtCore.QTimer.singleShot(
-                    0, functools.partial(
-                        self.progress_updated.emit, total, total
-                    )
-                )
-
-        # 注意：不再在工作线程中触发扫描完成信号
-        # 扫描完成信号由 _update_stats 线程统一处理，避免重复触发
+                self._run_on_main(self.progress_updated.emit, total, total)
 
     def _process_valid_channel(self, channel_info: dict):
         """处理有效频道"""
@@ -351,16 +300,9 @@ class ScannerController(QObject):
                         url, channel_info_for_fingerprint
                     )
 
-                # 标记详细信息已获取
                 updated_info['needs_details'] = False
 
-                # 在主线程中更新频道信息
-                import functools
-                QtCore.QTimer.singleShot(
-                    0, functools.partial(self._update_channel_details, updated_info)
-                )
-
-                # 成功获取，跳出重试循环
+                self._run_on_main(self._update_channel_details, updated_info)
                 return
 
             except Exception as e:
@@ -370,13 +312,8 @@ class ScannerController(QObject):
                 if retry_count < max_retries - 1:
                     time.sleep(retry_delays[retry_count])
                 else:
-                    # 即使失败，也标记为不需要再获取
                     channel_info['needs_details'] = False
-                    # 使用functools.partial避免lambda作用域问题
-                    import functools
-                    QtCore.QTimer.singleShot(
-                        0, functools.partial(self._update_channel_details, channel_info)
-                    )
+                    self._run_on_main(self._update_channel_details, channel_info)
 
     def _start_async_mapping_check(self, channel_info: dict):
         """启动异步映射检查 - 所有有效频道都检查映射"""
@@ -453,7 +390,7 @@ class ScannerController(QObject):
         except Exception as e:
             self.logger.debug(f"队列填充线程异常: {e}")
         finally:
-            self.logger.info(f"队列填充完成，共处理 {batch_count} 个批次")
+            self.logger.debug(f"队列填充完成，共处理 {batch_count} 个批次")
 
     def is_scanning(self):
         """检查是否正在扫描"""
@@ -813,7 +750,6 @@ class ScannerController(QObject):
         # 不再记录验证停止日志，避免控制台输出
 
     def _validation_worker(self):
-        """有效性验证工作线程 - 修改为与扫描逻辑相同"""
         while not self.stop_event.is_set():
             try:
                 url, index = self.validation_queue.get_nowait()
@@ -822,43 +758,25 @@ class ScannerController(QObject):
                 latency = result['latency']
                 resolution = result.get('resolution', '')
 
-                # 使用QTimer在主线程中安全地更新模型状态 - 使用functools.partial避免lambda作用域问题
-                import functools
-                QtCore.QTimer.singleShot(0, functools.partial(self.model.set_channel_valid, url, valid))
+                self._run_on_main(self.model.set_channel_valid, url, valid)
 
-                # 每10次更新批量刷新一次视图
                 if index % 10 == 0:
                     QtCore.QTimer.singleShot(0, self.model.update_view)
 
-                # 使用QTimer在主线程中安全地发射信号 - 使用functools.partial避免lambda作用域问题
-                QtCore.QTimer.singleShot(
-                    0, functools.partial(
-                        self.channel_validated.emit, index, valid,
-                        latency, resolution
-                    )
-                )
+                self._run_on_main(self.channel_validated.emit, index, valid, latency, resolution)
 
                 with self.stats_lock:
-                    # 统计所有被检测的频道，无论是否映射成功
-                    if valid:  # 使用valid字段判断有效性
+                    if valid:
                         self.stats['valid'] += 1
                     else:
                         self.stats['invalid'] += 1
 
-                    # 发送进度更新信号
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
-
-                    # 即使total为0也发送进度更新信号，但使用默认值
                     if total <= 0:
-                        total = 1  # 避免除零错误
+                        total = 1
 
-                    # 使用QTimer在主线程中安全地更新进度
-                    QtCore.QTimer.singleShot(
-                        0, functools.partial(
-                            self.progress_updated.emit, current, total
-                        )
-                    )
+                    self._run_on_main(self.progress_updated.emit, current, total)
             except queue.Empty:
                 break
             except Exception as e:
@@ -881,19 +799,13 @@ class ScannerController(QObject):
 
                         # 直接调用主窗口的更新方法，避免信号连接问题
                         if self.main_window and hasattr(self.main_window, '_update_stats_display'):
-                            # 修复：使用functools.partial确保参数正确传递
-                            import functools
                             stats_copy = self.stats.copy()
                             is_validating = self.is_validating
-                            QtCore.QTimer.singleShot(0, functools.partial(
+                            self._run_on_main(
                                 self.main_window._update_stats_display,
-                                {
-                                    'stats': stats_copy,
-                                    'is_validation': is_validating
-                                }
-                            ))
+                                {'stats': stats_copy, 'is_validation': is_validating}
+                            )
                         else:
-                            # 备用方案：仍然使用信号
                             QtCore.QTimer.singleShot(0, lambda: self.stats_updated.emit({
                                 'stats': self.stats.copy(),
                                 'is_validation': self.is_validating
@@ -957,16 +869,12 @@ class ScannerController(QObject):
                     self.stats['elapsed'] = time.time() - self.stats['start_time']
 
                     if self.main_window and hasattr(self.main_window, '_update_stats_display'):
-                        import functools
                         stats_copy = self.stats.copy()
                         is_validating = self.is_validating
-                        QtCore.QTimer.singleShot(0, functools.partial(
+                        self._run_on_main(
                             self.main_window._update_stats_display,
-                            {
-                                'stats': stats_copy,
-                                'is_validation': is_validating
-                            }
-                        ))
+                            {'stats': stats_copy, 'is_validation': is_validating}
+                        )
                     else:
                         QtCore.QTimer.singleShot(0, lambda: self.stats_updated.emit({
                             'stats': self.stats.copy(),

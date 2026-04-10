@@ -5,23 +5,12 @@ import threading
 import weakref
 from typing import List, Callable, Optional
 from core.log_manager import global_logger
+from utils.singleton import Singleton
 
 logger = global_logger
 
 
-class ResourceCleaner:
-    """全局资源清理器"""
-
-    _instance: Optional['ResourceCleaner'] = None
-    _lock = threading.Lock()
-
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._initialized = False
-        return cls._instance
+class ResourceCleaner(Singleton):
 
     def __init__(self):
         if self._initialized:

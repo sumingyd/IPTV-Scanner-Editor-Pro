@@ -5,30 +5,20 @@
 
 from typing import Dict, Callable
 from core.log_manager import global_logger
+from utils.singleton import Singleton
 import functools
 import time
 
 logger = global_logger
 
 
-class LoggingHelper:
-    """日志记录辅助工具（单例模式）"""
-
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
+class LoggingHelper(Singleton):
 
     def __init__(self):
         if self._initialized:
             return
 
-        # 日志模式缓存，避免重复记录相同的错误
         self._logged_patterns: Dict[str, int] = {}
-        # 日志级别映射
         self._level_mapping = {
             'config_error': 'error',
             'network_error': 'error',
@@ -53,8 +43,7 @@ class LoggingHelper:
             'player_info': 'info',
         }
 
-        # 重复日志抑制阈值（秒）
-        self._suppression_threshold = 60  # 60秒内不重复记录相同错误
+        self._suppression_threshold = 60
 
         self._initialized = True
 

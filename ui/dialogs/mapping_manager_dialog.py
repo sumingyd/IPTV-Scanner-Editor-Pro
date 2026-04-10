@@ -19,7 +19,7 @@ class MappingManagerDialog(QtWidgets.QDialog):
         self.opacity = colors.get('window_opacity', 220)
         # 设置窗口属性，与其他弹窗保持一致
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
+        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
 

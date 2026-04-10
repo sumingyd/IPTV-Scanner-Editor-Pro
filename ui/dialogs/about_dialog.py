@@ -36,7 +36,7 @@ class AboutDialog(QtWidgets.QDialog):
         self.setWindowTitle(tr("about_dialog_title", "About IPTV Scanner Editor Pro"))
         self.setFixedSize(480, 420)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
+        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
 
@@ -47,9 +47,19 @@ class AboutDialog(QtWidgets.QDialog):
         header_layout = QtWidgets.QHBoxLayout()
         header_layout.setSpacing(16)
 
-        logo_label = QtWidgets.QLabel("📺")
+        logo_label = QtWidgets.QLabel()
+        from PyQt6.QtGui import QPixmap
+        import os
+        ico_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'resources', 'logo.ico')
+        if os.path.exists(ico_path):
+            pixmap = QPixmap(ico_path)
+            if not pixmap.isNull():
+                logo_label.setPixmap(pixmap.scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        else:
+            logo_label.setText("📺")
         logo_label.setStyleSheet("font-size: 40px; background-color: transparent;")
         logo_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        logo_label.setFixedSize(48, 48)
         header_layout.addWidget(logo_label)
 
         title_col = QtWidgets.QVBoxLayout()

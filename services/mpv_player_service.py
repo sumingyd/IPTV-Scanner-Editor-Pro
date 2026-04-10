@@ -5,9 +5,10 @@ import os
 import time
 import ctypes
 from ctypes import wintypes
-from PyQt6.QtCore import QObject, pyqtSignal, QThread, QCoreApplication, QTimer, QRunnable
+from PyQt6.QtCore import QObject, pyqtSignal, QThread, QCoreApplication, QTimer, QRunnable, QThreadPool
 from PyQt6.QtGui import QImage, QPixmap
 from core.log_manager import global_logger
+from services.ffprobe_service import get_ffprobe_path, FFProbeWorker as UnifiedFFProbeWorker
 
 # 设置环境变量，告诉python-mpv在哪里找到mpv
 # 检查是否为打包后的环境
@@ -396,7 +397,10 @@ class MpvPlayerController(QObject):
             self.play_state_changed.emit(False)
             self.current_url = None
             self.media_info = {}
-            
+
+            if hasattr(self, 'event_timer') and self.event_timer:
+                self.event_timer.stop()
+
             self.logger.info("停止播放")
         except Exception as e:
             self.logger.error(f"停止播放失败: {str(e)}")
@@ -570,47 +574,6 @@ class MpvPlayerController(QObject):
     
 
 
-    @staticmethod
-    def _get_ffprobe_path():
-        """获取ffprobe路径"""
-        # 检查是否为打包后的环境
-        if getattr(sys, 'frozen', False):
-            # 打包后的环境，使用sys._MEIPASS
-            base_path = sys._MEIPASS
-        else:
-            # 开发环境，使用当前工作目录
-            base_path = os.getcwd()
-        
-        # 1. 尝试从系统路径查找
-        exe_path = 'ffprobe.exe'
-        try:
-            # 隐藏控制台窗口
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = subprocess.SW_HIDE
-            subprocess.run([exe_path, '-version'], capture_output=True, check=True, startupinfo=startupinfo)
-            return exe_path
-        except:
-            pass
-        
-        # 2. 尝试从当前目录查找
-        exe_path = os.path.join(base_path, 'ffprobe.exe')
-        if os.path.exists(exe_path):
-            return exe_path
-        
-        # 3. 尝试从ffmpeg目录查找
-        exe_path = os.path.join(base_path, 'ffmpeg', 'bin', 'ffprobe.exe')
-        if os.path.exists(exe_path):
-            return exe_path
-        
-        # 4. 尝试从程序目录的其他位置查找
-        for root, dirs, files in os.walk(base_path):
-            for file in files:
-                if file.lower() == 'ffprobe.exe':
-                    return os.path.join(root, file)
-        
-        return None
-    
     def _get_media_info(self, url):
         """使用libmpv获取媒体信息
         Args:
@@ -625,273 +588,52 @@ class MpvPlayerController(QObject):
         self._media_info_timer.singleShot(2000, self._try_get_media_info)
     
     def _try_get_media_info(self):
-        """尝试获取媒体信息"""
         if not self.mpv_handle:
             return
-        
+
         try:
-            # 直接使用ffprobe获取媒体信息
             if hasattr(self, 'current_url') and self.current_url:
-                # 使用线程执行ffprobe，避免UI卡顿
-                from PyQt6.QtCore import QThreadPool, QRunnable
-                
-                class FFProbeWorker(QRunnable):
-                    def __init__(self, url, callback, parent):
-                        super().__init__()
-                        self.url = url
-                        self.callback = callback
-                        self.parent = parent
-                        self.is_running = True
-                        self.process = None
-                    
-                    def run(self):
-                        try:
-                            import subprocess
-                            import json
-                            
-                            # 获取ffprobe路径
-                            ffprobe_path = self.parent._get_ffprobe_path()
-                            if not ffprobe_path:
-                                self.callback(None)
-                                return
-                            
-                            # 检查ffprobe是否存在
-                            try:
-                                # 隐藏控制台窗口
-                                startupinfo = subprocess.STARTUPINFO()
-                                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                                startupinfo.wShowWindow = subprocess.SW_HIDE
-                                subprocess.run([ffprobe_path, '-version'], capture_output=True, text=True, timeout=5, startupinfo=startupinfo)
-                            except Exception:
-                                self.callback(None)
-                                return
-                            
-                            # 检查是否已经被取消
-                            if not self.is_running:
-                                return
-                            
-                            # 构建ffprobe命令
-                            cmd = [
-                                ffprobe_path,
-                                '-v', 'quiet',
-                                '-print_format', 'json',
-                                '-show_format',
-                                '-show_streams',
-                                self.url
-                            ]
-                            
-                            # 执行命令，隐藏控制台窗口
-                            startupinfo = subprocess.STARTUPINFO()
-                            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                            startupinfo.wShowWindow = subprocess.SW_HIDE
-                            
-                            # 使用Popen以便可以终止进程
-                            self.process = subprocess.Popen(
-                                cmd,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                text=True,
-                                startupinfo=startupinfo
-                            )
-                            
-                            # 检查是否已经被取消
-                            if not self.is_running:
-                                if self.process:
-                                    self.process.kill()
-                                return
-                            
-                            # 等待进程完成，同时检查是否被取消
-                            try:
-                                stdout, stderr = self.process.communicate(timeout=10)
-                            except subprocess.TimeoutExpired:
-                                if self.process:
-                                    self.process.kill()
-                                self.callback(None)
-                                return
-                            
-                            # 检查是否已经被取消
-                            if not self.is_running:
-                                return
-                            
-                            if self.process.returncode == 0:
-                                # 解析结果
-                                data = json.loads(stdout)
-                                
-                                # 构建媒体信息
-                                media_info = {
-                                    'format': '未知',
-                                    'duration': 0,
-                                    'protocol': '未知',
-                                    'video': {
-                                        'codec': '未知',
-                                        'width': 0,
-                                        'height': 0,
-                                        'frame_rate': 0,
-                                        'bit_rate': 0
-                                    },
-                                    'audio': {
-                                        'codec': '未知',
-                                        'channels': 0,
-                                        'sample_rate': 0,
-                                        'bit_rate': 0
-                                    }
-                                }
-                                
-                                # 从当前URL获取协议信息
-                                if '://' in self.url:
-                                    media_info['protocol'] = self.url.split('://')[0].upper()
-                                
-                                # 处理格式信息
-                                if 'format' in data:
-                                    format_data = data['format']
-                                    if 'format_name' in format_data:
-                                        media_info['format'] = format_data['format_name']
-                                    if 'duration' in format_data:
-                                        try:
-                                            media_info['duration'] = float(format_data['duration'])
-                                        except:
-                                            pass
-                                
-                                # 处理流信息
-                                if 'streams' in data:
-                                    for stream in data['streams']:
-                                        if stream.get('codec_type') == 'video':
-                                            if 'codec_name' in stream:
-                                                media_info['video']['codec'] = stream['codec_name']
-                                            if 'width' in stream:
-                                                media_info['video']['width'] = stream['width']
-                                            if 'height' in stream:
-                                                media_info['video']['height'] = stream['height']
-                                            if 'r_frame_rate' in stream:
-                                                try:
-                                                    num, den = map(int, stream['r_frame_rate'].split('/'))
-                                                    if den > 0:
-                                                        media_info['video']['frame_rate'] = num / den
-                                                except:
-                                                    pass
-                                            if 'bit_rate' in stream:
-                                                try:
-                                                    media_info['video']['bit_rate'] = int(stream['bit_rate'])
-                                                except:
-                                                    pass
-                                        elif stream.get('codec_type') == 'audio':
-                                            if 'codec_name' in stream:
-                                                media_info['audio']['codec'] = stream['codec_name']
-                                            if 'channels' in stream:
-                                                media_info['audio']['channels'] = stream['channels']
-                                            if 'sample_rate' in stream:
-                                                try:
-                                                    media_info['audio']['sample_rate'] = int(stream['sample_rate'])
-                                                except:
-                                                    pass
-                                            if 'bit_rate' in stream:
-                                                try:
-                                                    media_info['audio']['bit_rate'] = int(stream['bit_rate'])
-                                                except:
-                                                    pass
-                                
-                                # 检查parent是否还存在，避免在对象已删除时调用callback
-                                try:
-                                    if hasattr(self, 'parent') and self.parent:
-                                        # 记录获取到的媒体信息
-                                        self.callback(media_info)
-                                except:
-                                    pass
-                            else:
-                                try:
-                                    if hasattr(self, 'parent') and self.parent:
-                                        self.callback(None)
-                                except:
-                                    pass
-                        except Exception as e:
-                            try:
-                                if hasattr(self, 'parent') and self.parent:
-                                    self.parent.logger.error(f"获取媒体信息失败: {str(e)}")
-                                    self.callback(None)
-                            except:
-                                pass
-                
-                # 取消之前的ffprobe任务
                 if hasattr(self, '_current_ffprobe_worker') and self._current_ffprobe_worker:
-                    self._current_ffprobe_worker.is_running = False
-                    # 终止正在运行的ffprobe进程
-                    if hasattr(self._current_ffprobe_worker, 'process') and self._current_ffprobe_worker.process:
-                        try:
-                            self._current_ffprobe_worker.process.kill()
-                        except:
-                            pass
-                
-                # 启动线程
+                    self._current_ffprobe_worker.cancel()
+
                 def on_ffprobe_finished(media_info):
-                    # 检查self是否还存在，避免在对象已删除时发射信号
                     try:
                         if not hasattr(self, 'media_info_ready'):
                             return
-                        
+
                         if media_info:
-                            self.logger.info(f"使用ffprobe获取到媒体信息: {media_info}")
+                            self.logger.debug(f"ffprobe获取到媒体信息: {media_info}")
                             self.media_info_ready.emit(media_info)
                         else:
-                            # 即使获取失败，也发送一个默认的媒体信息，避免UI一直显示加载中
                             default_media_info = {
-                                'format': '未知',
-                                'duration': 0,
-                                'protocol': '未知',
-                                'video': {
-                                    'codec': '未知',
-                                    'width': 0,
-                                    'height': 0,
-                                    'frame_rate': 0,
-                                    'bit_rate': 0
-                                },
-                                'audio': {
-                                    'codec': '未知',
-                                    'channels': 0,
-                                    'sample_rate': 0,
-                                    'bit_rate': 0
-                                }
+                                'format': '未知', 'duration': 0, 'protocol': '未知',
+                                'video': {'codec': '未知', 'width': 0, 'height': 0, 'frame_rate': 0, 'bit_rate': 0},
+                                'audio': {'codec': '未知', 'channels': 0, 'sample_rate': 0, 'bit_rate': 0},
                             }
                             self.media_info_ready.emit(default_media_info)
                     except RuntimeError:
-                        # 对象已被删除，忽略
                         pass
-                    # 清除当前worker
                     if hasattr(self, '_current_ffprobe_worker'):
                         try:
                             delattr(self, '_current_ffprobe_worker')
-                        except:
+                        except Exception:
                             pass
-                
-                worker = FFProbeWorker(self.current_url, on_ffprobe_finished, self)
+
+                worker = UnifiedFFProbeWorker(self.current_url, on_ffprobe_finished)
                 self._current_ffprobe_worker = worker
                 QThreadPool.globalInstance().start(worker)
-                
+
         except Exception as e:
             try:
                 self.logger.error(f"获取媒体信息失败: {str(e)}")
-                # 发送默认媒体信息，避免UI一直显示加载中
                 default_media_info = {
-                    'format': '未知',
-                    'duration': 0,
-                    'protocol': '未知',
-                    'video': {
-                        'codec': '未知',
-                        'width': 0,
-                        'height': 0,
-                        'frame_rate': 0,
-                        'bit_rate': 0
-                    },
-                    'audio': {
-                        'codec': '未知',
-                        'channels': 0,
-                        'sample_rate': 0,
-                        'bit_rate': 0
-                    }
+                    'format': '未知', 'duration': 0, 'protocol': '未知',
+                    'video': {'codec': '未知', 'width': 0, 'height': 0, 'frame_rate': 0, 'bit_rate': 0},
+                    'audio': {'codec': '未知', 'channels': 0, 'sample_rate': 0, 'bit_rate': 0},
                 }
                 if hasattr(self, 'media_info_ready'):
                     self.media_info_ready.emit(default_media_info)
             except (RuntimeError, Exception):
-                # 对象已被删除，忽略
                 pass
     
     def _get_mpv_property_string(self, property_name):
@@ -951,11 +693,10 @@ class MpvPlayerController(QObject):
             return None
     
     def _get_mpv_property_double(self, property_name):
-        """获取mpv浮点数属性"""
         try:
             if not self.mpv_handle:
                 return None
-            
+
             value = ctypes.c_double()
             result = libmpv.mpv_get_property(
                 self.mpv_handle,
@@ -968,6 +709,16 @@ class MpvPlayerController(QObject):
             return value.value
         except:
             return None
+
+    def get_video_resolution(self):
+        try:
+            width = self._get_mpv_property_int('width')
+            height = self._get_mpv_property_int('height')
+            if width and height and width > 0 and height > 0:
+                return f"{width}x{height}"
+            return None
+        except Exception:
+            return None
     
     from PyQt6.QtCore import pyqtSlot
     
@@ -979,197 +730,4 @@ class MpvPlayerController(QObject):
     
     @pyqtSlot(str)
     def _on_media_info_thread_error(self, error):
-        """媒体信息获取错误"""
         self.logger.error(f"获取媒体信息失败: {error}")
-
-class FFProbeWorker(QObject):
-    """ffprobe工作线程"""
-    finished = pyqtSignal(dict)
-    error = pyqtSignal(str)
-    
-    def __init__(self, url, ffprobe_path, logger):
-        super().__init__()
-        self.url = url
-        self.ffprobe_path = ffprobe_path
-        self.logger = logger
-    
-    def run(self):
-        """执行ffprobe命令"""
-        try:
-            if not self.ffprobe_path:
-                self.error.emit("未找到ffprobe可执行文件")
-                return
-            
-            # 构建ffprobe命令
-            cmd = [
-                self.ffprobe_path,
-                '-v', 'quiet',
-                '-print_format', 'json',
-                '-show_format',
-                '-show_streams',
-                self.url
-            ]
-            
-            # 执行ffprobe命令，隐藏窗口
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = subprocess.SW_HIDE
-            
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=10,
-                startupinfo=startupinfo
-            )
-            
-            if result.returncode != 0:
-                self.error.emit(f"ffprobe执行失败: {result.stderr}")
-                return
-            
-            data = json.loads(result.stdout)
-            
-            # 构建媒体信息
-            info = {
-                'format': data.get('format', {}).get('format_name', ''),
-                'duration': float(data.get('format', {}).get('duration', 0)),
-                'size': data.get('format', {}).get('size', 0),
-                'bit_rate': data.get('format', {}).get('bit_rate', 0),
-                'video': {},
-                'audio': {}
-            }
-            
-            # 提取视频流信息
-            for stream in data.get('streams', []):
-                if stream.get('codec_type') == 'video':
-                    info['video']['codec'] = VIDEO_CODEC_MAP.get(stream.get('codec_name', '').lower(), stream.get('codec_name', ''))
-                    info['video']['width'] = stream.get('width', 0)
-                    info['video']['height'] = stream.get('height', 0)
-                    info['video']['frame_rate'] = stream.get('r_frame_rate', '0/1').split('/')[0] if 'r_frame_rate' in stream else 0
-                    info['video']['bit_rate'] = stream.get('bit_rate', 0)
-                    break
-            
-            # 提取音频流信息
-            for stream in data.get('streams', []):
-                if stream.get('codec_type') == 'audio':
-                    info['audio']['codec'] = AUDIO_CODEC_MAP.get(stream.get('codec_name', '').lower(), stream.get('codec_name', ''))
-                    info['audio']['channels'] = stream.get('channels', 0)
-                    info['audio']['sample_rate'] = stream.get('sample_rate', 0)
-                    info['audio']['bit_rate'] = stream.get('bit_rate', 0)
-                    break
-            
-            self.finished.emit(info)
-        except Exception as e:
-            self.error.emit(str(e))
-
-    @staticmethod
-    def _get_ffprobe_path():
-        """获取ffprobe路径"""
-        # 检查是否为打包后的环境
-        if getattr(sys, 'frozen', False):
-            # 打包后的环境，使用sys._MEIPASS
-            base_path = sys._MEIPASS
-        else:
-            # 开发环境，使用当前工作目录
-            base_path = os.getcwd()
-        
-        # 1. 尝试从系统路径查找
-        exe_path = 'ffprobe.exe'
-        try:
-            # 隐藏控制台窗口
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = subprocess.SW_HIDE
-            subprocess.run([exe_path, '-version'], capture_output=True, check=True, startupinfo=startupinfo)
-            return exe_path
-        except:
-            pass
-        
-        # 2. 尝试从当前目录查找
-        exe_path = os.path.join(base_path, 'ffprobe.exe')
-        if os.path.exists(exe_path):
-            return exe_path
-        
-        # 3. 尝试从ffmpeg目录查找
-        exe_path = os.path.join(base_path, 'ffmpeg', 'bin', 'ffprobe.exe')
-        if os.path.exists(exe_path):
-            return exe_path
-        
-        # 4. 尝试从程序目录的其他位置查找
-        for root, dirs, files in os.walk(base_path):
-            for file in files:
-                if file.lower() == 'ffprobe.exe':
-                    return os.path.join(root, file)
-        
-        return None
-
-    def _get_ffprobe_info(self, url):
-        """使用ffprobe获取媒体信息
-        Args:
-            url: 媒体URL
-        Returns:
-            媒体信息字典
-        """
-        ffprobe_path = self._get_ffprobe_path()
-        if not ffprobe_path:
-            return None
-        
-        try:
-            cmd = [
-                ffprobe_path,
-                '-v', 'quiet',
-                '-print_format', 'json',
-                '-show_format',
-                '-show_streams',
-                url
-            ]
-            
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-            if result.returncode != 0:
-                self.logger.error(f"ffprobe执行失败: {result.stderr}")
-                return None
-            
-            data = json.loads(result.stdout)
-            
-            # 构建媒体信息
-            info = {
-                'format': data.get('format', {}).get('format_name', ''),
-                'duration': float(data.get('format', {}).get('duration', 0)),
-                'size': data.get('format', {}).get('size', 0),
-                'bit_rate': data.get('format', {}).get('bit_rate', 0),
-                'video': {},
-                'audio': {}
-            }
-            
-            # 提取视频流信息
-            for stream in data.get('streams', []):
-                if stream.get('codec_type') == 'video':
-                    info['video']['codec'] = VIDEO_CODEC_MAP.get(stream.get('codec_name', '').lower(), stream.get('codec_name', ''))
-                    info['video']['width'] = stream.get('width', 0)
-                    info['video']['height'] = stream.get('height', 0)
-                    info['video']['frame_rate'] = stream.get('r_frame_rate', '0/1').split('/')[0] if 'r_frame_rate' in stream else 0
-                    info['video']['bit_rate'] = stream.get('bit_rate', 0)
-                    break
-            
-            # 提取音频流信息
-            for stream in data.get('streams', []):
-                if stream.get('codec_type') == 'audio':
-                    info['audio']['codec'] = AUDIO_CODEC_MAP.get(stream.get('codec_name', '').lower(), stream.get('codec_name', ''))
-                    info['audio']['channels'] = stream.get('channels', 0)
-                    info['audio']['sample_rate'] = stream.get('sample_rate', 0)
-                    info['audio']['bit_rate'] = stream.get('bit_rate', 0)
-                    break
-            
-            return info
-        except Exception as e:
-            self.logger.error(f"使用ffprobe获取媒体信息失败: {str(e)}")
-            return None
-
-# FFProbeRunnable类
-class FFProbeRunnable(QRunnable):
-    def __init__(self, worker):
-        super().__init__()
-        self.worker = worker
-    
-    def run(self):
-        self.worker.run()

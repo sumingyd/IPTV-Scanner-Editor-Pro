@@ -33,9 +33,11 @@
 
 ### 🎬 集成视频播放
 - **双击播放**: 双击频道列表直接播放当前频道
-- **播放控制**: 支持播放、暂停、停止、音量调节
+- **播放控制**: 支持播放、暂停、音量调节
 - **多格式支持**: 支持多种视频流格式
 - **实时预览**: 播放时显示当前播放状态
+- **键盘快捷键**: 空格键暂停/播放，Escape退出全屏
+- **错误反馈**: 播放失败时状态栏显示错误信息
 
 ### 📊 数据导入导出
 - **M3U格式**: 支持标准M3U格式导入导出
@@ -49,6 +51,7 @@
 - **错误处理系统**: 智能恢复和错误报告
 - **性能优化**: 支持大规模频道列表处理
 - **多语言支持**: 支持中英文界面切换
+- **主题切换**: 支持暗色、亮色、拟态暗色、拟态亮色、Apple TV 五种主题
 - **配置管理**: 自动保存和恢复用户设置
 
 ## 🚀 快速开始
@@ -160,18 +163,22 @@ IPTV-Scanner-Editor-Pro/
 ├── services/              # 服务层
 │   ├── scanner_service.py # 扫描服务
 │   ├── validator_service.py # 验证服务
-│   ├── player_service.py  # 播放服务
+│   ├── mpv_player_service.py # MPV播放服务
+│   ├── ffprobe_service.py # FFProbe统一服务
 │   ├── list_service.py    # 列表服务
 │   └── url_parser_service.py # URL解析服务
 ├── models/                # 数据模型
 │   ├── channel_model.py   # 频道数据模型
 │   └── channel_mappings.py # 频道映射
 ├── utils/                 # 工具类
+│   ├── singleton.py       # 统一单例基类
 │   ├── error_handler.py   # 错误处理
 │   ├── progress_manager.py # 进度管理
 │   ├── scan_state_manager.py # 扫描状态管理
 │   ├── config_notifier.py # 配置通知
-│   └── logging_helper.py  # 日志助手
+│   ├── logging_helper.py  # 日志助手
+│   ├── memory_manager.py  # 内存管理
+│   └── resource_cleaner.py # 资源清理
 ├── resources/             # 资源文件
 │   └── logo.ico           # 程序图标
 ├── locales/               # 语言文件
@@ -189,7 +196,6 @@ IPTV-Scanner-Editor-Pro/
 ### 依赖说明
 - **PyQt6**: GUI框架
 - **requests**: HTTP客户端库
-- **python-vlc**: 视频播放支持
 - **Pillow**: 图像处理库
 - **openpyxl**: Excel文件处理
 - **pypinyin**: 中文拼音转换（用于排序）
@@ -259,4 +265,4 @@ IPTV-Scanner-Editor-Pro/
 
 **注意**: 本工具仅供学习和研究使用，请遵守相关法律法规。
 
-**版本信息**: 当前版本基于模块化架构重构，包含完整的扫描、验证、播放和管理功能，支持多语言界面和智能重试扫描机制。
+**版本信息**: 当前版本基于模块化架构重构，包含完整的扫描、验证、播放和管理功能，支持多语言界面、5种主题切换、智能重试扫描机制、非模态扫描对话框、双击预览播放、表头排序等功能。

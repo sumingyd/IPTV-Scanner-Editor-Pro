@@ -1,7 +1,9 @@
+import re
 from PyQt6 import QtCore, QtGui
 from typing import List, Dict, Any
 from core.log_manager import LogManager
 from ui.styles import AppStyles
+from models.channel_mappings import extract_channel_name_from_url
 logger = LogManager()
 
 
@@ -1200,43 +1202,60 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         return status_priority.get(status, 3)
 
     def parse_file_content(self, content: str) -> List[Dict[str, Any]]:
-        """解析文件内容并返回频道列表"""
         try:
             channels = []
             name_cache = set()
             group_cache = set()
             lines = content.splitlines()
             current_channel = None
+            current_group = "未分类"
+            genre_group_active = False
 
             for line in lines:
                 line = line.strip()
                 if not line:
                     continue
 
-                # 处理M3U文件头
-                if line == "#EXTM3U":
+                if line.startswith("#EXTM3U"):
                     continue
 
-                # 处理EXTINF行
+                if line.startswith("#EXTGRP:"):
+                    current_group = line[8:].strip()
+                    if current_group.startswith('"') and current_group.endswith('"'):
+                        current_group = current_group[1:-1]
+                    continue
+
                 if line.startswith("#EXTINF:"):
-                    # 找到最后一个逗号作为频道名分隔符
+                    extinf_content = line[8:].strip()
+
+                    genre_match = re.search(r',\s*#genre#\s*', extinf_content)
+                    if genre_match:
+                        before_genre = extinf_content[:genre_match.start()].strip()
+                        group_name = before_genre
+                        comma_pos = before_genre.rfind(',')
+                        if comma_pos >= 0:
+                            group_name = before_genre[comma_pos+1:].strip()
+                        group_name = group_name.strip('=').strip()
+                        if group_name:
+                            current_group = group_name
+                        genre_group_active = True
+                        current_channel = None
+                        continue
+
                     last_comma = line.rfind(",")
                     if last_comma > 0:
-                        # 分割属性部分和频道名称部分
-                        attrs_part = line[8:last_comma].strip()  # 去掉#EXTINF:
+                        attrs_part = line[8:last_comma].strip()
                         name = line[last_comma+1:].strip()
 
-                        # 处理带引号的频道名
                         if name.startswith('"') and name.endswith('"'):
                             name = name[1:-1]
 
-                        # 初始化频道信息 - 包含所有可能的M3U属性
                         current_channel = {
-                            'name': name,
-                            'group': "未分类",
+                            'name': name if name else '未命名',
+                            'group': current_group if genre_group_active else "未分类",
                             'tvg_id': "",
                             'logo': "",
-                            'resolution': "",  # 添加分辨率字段
+                            'resolution': "",
                             'tvg_chno': "",
                             'tvg_shift': "",
                             'catchup': "",
@@ -1246,13 +1265,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                             'status': '待检测'
                         }
 
-                        # 解析各个属性 - 使用正则表达式提取所有属性
-                        import re
-                        # 匹配所有 key="value" 格式的属性
                         attr_pattern = r'(\S+)="([^"]*)"'
                         matches = re.findall(attr_pattern, attrs_part)
 
-                        # 预定义的标签映射
                         tag_mapping = {
                             "group-title": "group",
                             "tvg-id": "tvg_id",
@@ -1270,39 +1285,112 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                             "parent-code": "parent_code"
                         }
 
-                        # 存储所有解析到的标签
                         all_tags = {}
 
                         for key, value in matches:
-                            # 使用映射表获取字段名，如果没有映射则使用原始key
                             field_name = tag_mapping.get(key, key.replace('-', '_'))
+                            if key == "tvg-name" and value:
+                                pass
+                            if key == "group-title" and value:
+                                current_group = value
+                                genre_group_active = False
                             current_channel[field_name] = value
                             all_tags[key] = value
 
-                        # 保存所有原始标签（用于调试和保存）
+                        if not current_channel.get('name') or current_channel['name'] in ('', '未命名'):
+                            tvg_name = all_tags.get('tvg-name', '')
+                            if tvg_name:
+                                current_channel['name'] = tvg_name
+
+                        current_channel['group'] = current_group
                         current_channel['_all_tags'] = all_tags
+                    else:
+                        current_channel = {
+                            'name': '未命名',
+                            'group': current_group,
+                            'tvg_id': "",
+                            'logo': "",
+                            'resolution': "",
+                            'tvg_chno': "",
+                            'tvg_shift': "",
+                            'catchup': "",
+                            'catchup_days': "",
+                            'catchup_source': "",
+                            'valid': False,
+                            'status': '待检测'
+                        }
                     continue
 
-                # 处理分辨率标签（兼容旧格式）
                 if line.startswith("#EXTVLCOPT:video-resolution=") and current_channel:
                     resolution = line.split("=")[1].strip()
                     current_channel['resolution'] = resolution
+                    continue
 
-                # 处理URL行
-                if line and not line.startswith("#") and current_channel:
-                    current_channel['url'] = line
-                    channels.append(current_channel)
-                    # 更新名称和分组缓存
-                    if 'name' in current_channel:
-                        name_cache.add(current_channel['name'])
-                    if 'group' in current_channel:
-                        group_cache.add(current_channel['group'])
+                if line.startswith("#"):
+                    continue
+
+                if line and current_channel:
+                    url = line.strip()
+                    if self._is_valid_channel_url(url):
+                        current_channel['url'] = url
+                        channels.append(current_channel)
+                        if 'name' in current_channel:
+                            name_cache.add(current_channel['name'])
+                        if 'group' in current_channel:
+                            group_cache.add(current_channel['group'])
                     current_channel = None
+                elif line and not current_channel:
+                    if self._is_valid_channel_url(line):
+                        channels.append({
+                            'name': extract_channel_name_from_url(line),
+                            'url': line,
+                            'group': current_group,
+                            'tvg_id': "",
+                            'logo': "",
+                            'resolution': "",
+                            'tvg_chno': "",
+                            'tvg_shift': "",
+                            'catchup': "",
+                            'catchup_days': "",
+                            'catchup_source': "",
+                            'valid': False,
+                            'status': '待检测'
+                        })
 
             return channels
         except Exception as e:
             logger.error(f"频道模型-解析文件内容失败: {str(e)}", exc_info=True)
             return None
+
+    @staticmethod
+    def _is_valid_channel_url(url):
+        if not url:
+            return False
+        url = url.strip()
+        if not url:
+            return False
+        if '://' not in url:
+            return False
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            host = parsed.hostname
+            if not host:
+                return False
+            if host in ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
+                return False
+            octets = host.split('.')
+            if len(octets) == 4:
+                try:
+                    if all(0 <= int(o) <= 255 for o in octets):
+                        first = int(octets[0])
+                        if first == 0:
+                            return False
+                except ValueError:
+                    pass
+            return True
+        except Exception:
+            return True
 
     def _natural_sort_key(self, s):
         """自然排序键函数，将字符串中的数字部分转换为整数用于排序"""

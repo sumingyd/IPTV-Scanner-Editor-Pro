@@ -5,20 +5,12 @@
 
 from typing import Dict, Any, Callable, List
 from core.log_manager import global_logger
+from utils.singleton import Singleton
 
 logger = global_logger
 
 
-class ConfigChangeNotifier:
-    """配置变更通知器（观察者模式）"""
-
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
+class ConfigChangeNotifier(Singleton):
 
     def __init__(self):
         if self._initialized:

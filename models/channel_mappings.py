@@ -195,12 +195,11 @@ def load_remote_mappings() -> Dict[str, dict]:
         # 简化版本：只尝试一次，不重试
         try:
             # 先尝试CSV格式
-            response = requests.get(remote_url, timeout=5, verify=False)  # 减少超时时间到5秒
+            response = requests.get(remote_url, timeout=5)
             if response.status_code == 404:
-                # 如果CSV格式不存在，尝试TXT格式（向后兼容）
                 txt_url = remote_url.replace('.csv', '.txt')
                 logger.info(f"CSV映射文件不存在，尝试TXT格式: {txt_url}")
-                response = requests.get(txt_url, timeout=5, verify=False)
+                response = requests.get(txt_url, timeout=5)
 
             response.raise_for_status()
 
@@ -264,10 +263,10 @@ class ChannelMappingManager:
                     # 检查缓存是否过期（24小时）且不为空
                     mappings = data.get('mappings', {})
                     if time.time() - data.get('timestamp', 0) < 24 * 3600 and mappings:
-                        self.logger.info(f"从缓存加载远程映射规则，共 {len(mappings)} 条映射")
+                        self.logger.debug(f"从缓存加载远程映射规则，共 {len(mappings)} 条映射")
                         return mappings
                     else:
-                        self.logger.info("缓存已过期或为空，重新加载远程映射")
+                        self.logger.debug("缓存已过期或为空，重新加载远程映射")
         except Exception as e:
             self.logger.error(f"加载缓存映射失败: {e}")
 
@@ -287,7 +286,7 @@ class ChannelMappingManager:
                 }
                 with open(self.cache_file, 'w', encoding='utf-8') as f:
                     json.dump(cache_data, f, ensure_ascii=False, indent=2)
-                self.logger.info(f"远程映射已缓存到本地，共 {len(mappings)} 条映射")
+                self.logger.debug(f"远程映射已缓存到本地，共 {len(mappings)} 条映射")
         except Exception as e:
             self.logger.error(f"缓存远程映射失败: {e}")
 
@@ -450,7 +449,7 @@ class ChannelMappingManager:
 
         # 检查是否找到了映射（标准名称与输入名称不同）
         if result['standard_name'] != cleaned_name:  # 如果找到了映射
-            self.logger.info(f"找到映射: '{raw_name}' -> '{result['standard_name']}'")
+            self.logger.debug(f"找到映射: '{raw_name}' -> '{result['standard_name']}'")
             # 记录学习数据
             if url and channel_info:
                 self.learn_from_scan_result(url, raw_name, channel_info, result['standard_name'])
@@ -462,7 +461,7 @@ class ChannelMappingManager:
             if fingerprint in self.channel_fingerprints:
                 mapped_name = self.channel_fingerprints[fingerprint]['mapped_name']
                 if mapped_name != raw_name:
-                    self.logger.info(f"通过指纹匹配找到映射: {raw_name} -> {mapped_name}")
+                    self.logger.debug(f"通过指纹匹配找到映射: {raw_name} -> {mapped_name}")
                     # 通过指纹匹配找到映射后，再次尝试获取完整的频道信息
                     fingerprint_result = self._get_exact_match(mapped_name)
                     if fingerprint_result['standard_name'] != mapped_name:  # 如果找到了完整映射

@@ -158,7 +158,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 设置窗口属性，与 AboutDialog 的实现一致
         self.setWindowTitle("")
         # 设置为工具窗口，无边框
-        self.setWindowFlags(QtCore.Qt.WindowType.Tool | QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
+        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
         # 设置透明背景，实现圆角窗口效果
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
         # 确保窗口可以接收鼠标事件
@@ -678,6 +678,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.header.setSortIndicator(-1, QtCore.Qt.SortOrder.AscendingOrder)  # 初始无排序
         self.header.sectionClicked.connect(self._on_header_clicked)
 
+        self.channel_list.doubleClicked.connect(self._on_channel_double_clicked)
+
         # 启用拖放排序功能 - 改进拖拽体验
         self.channel_list.setDragEnabled(True)
         self.channel_list.setAcceptDrops(True)
@@ -811,7 +813,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
             self.edit_group.setText(channel.get('group', ''))
             self.edit_url.setText(channel.get('url', ''))
             self.edit_tvg_id.setText(channel.get('tvg_id', ''))
-            self.edit_logo.setText(channel.get('logo', ''))
+            self.edit_logo.setText(channel.get('logo_url', channel.get('logo', '')))
 
     def _on_save_channel(self):
         """处理保存频道修改"""
@@ -825,6 +827,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
             'group': self.edit_group.text(),
             'url': self.edit_url.text(),
             'tvg_id': self.edit_tvg_id.text(),
+            'logo_url': self.edit_logo.text(),
             'logo': self.edit_logo.text()
         }
 
@@ -905,8 +908,28 @@ class ScanChannelDialog(QtWidgets.QDialog):
             self.model.remove_channel(index.row())
 
     def _on_header_clicked(self, logical_index):
-        """处理表头点击事件"""
-        pass
+        """处理表头点击排序"""
+        if not hasattr(self, 'model') or not self.model:
+            return
+        current_sort = self.header.sortIndicatorSection()
+        current_order = self.header.sortIndicatorOrder()
+        if current_sort == logical_index:
+            new_order = QtCore.Qt.SortOrder.DescendingOrder if current_order == QtCore.Qt.SortOrder.AscendingOrder else QtCore.Qt.SortOrder.AscendingOrder
+        else:
+            new_order = QtCore.Qt.SortOrder.AscendingOrder
+        self.header.setSortIndicator(logical_index, new_order)
+        self.model.sort(logical_index, new_order)
+
+    def _on_channel_double_clicked(self, index):
+        """双击频道列表项预览播放"""
+        if not index.isValid():
+            return
+        channel = self.model.get_channel(index.row())
+        if not channel or not channel.get('url'):
+            return
+        parent = self.parent()
+        if parent and hasattr(parent, 'play_channel'):
+            parent.play_channel(channel)
 
     def _init_main_window(self):
         if not hasattr(self, 'model') or not self.model:
@@ -1297,11 +1320,11 @@ class ScanChannelDialog(QtWidgets.QDialog):
             scan_type = ""
             tr = self.language_manager.tr
             if is_retry_scan:
-                scan_type = f"{tr('retry_nth', 'Retry')} #{retry_count}"
+                scan_type = tr('retry_nth', 'Retry #{n}').format(n=retry_count)
             elif retry_count > 0:
-                scan_type = f"{tr('scan_nth', 'Scan')} #{retry_count + 1}"
+                scan_type = tr('scan_nth', 'Scan #{n}').format(n=retry_count + 1)
             else:
-                scan_type = f"{tr('scan_nth', 'Scan')} #1"
+                scan_type = tr('scan_nth', 'Scan #{n}').format(n=1)
 
             scan_text = tr('scan', 'Scan')
             total_text = tr('scan_total', 'Total')
@@ -1418,7 +1441,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _handle_retry_scan(self):
         """处理重试扫描"""
-        self.logger.info("=== _handle_retry_scan 方法开始 ===")
+        self.logger.debug("=== _handle_retry_scan 方法开始 ===")
 
         # 使用重试扫描状态上下文管理器
         with RetryScanStateContext(self.retry_id, self):
@@ -1430,23 +1453,21 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self._collect_failed_channels()
 
         failed_channels = self.scan_state_manager.get_failed_channels(self.retry_id)
-        self.logger.info(f"收集到的失败频道数量: {len(failed_channels)}")
+        self.logger.debug(f"收集到的失败频道数量: {len(failed_channels)}")
 
         if not failed_channels:
-            self.logger.info("没有失败的频道需要重试")
-            # 扫描频道窗口没有状态栏，直接在日志中记录
-            self.logger.info("=== _handle_retry_scan 方法结束（无失败频道）===")
+            self.logger.debug("没有失败的频道需要重试")
+            self.logger.debug("=== _handle_retry_scan 方法结束（无失败频道）===")
             return
 
         # 记录当前的有效频道数，用于判断是否找到了新的有效频道
         current_valid_count = self._count_valid_channels()
         self.scan_state_manager.update_last_retry_valid_count(self.retry_id, current_valid_count)
-        self.logger.info(f"当前有效频道数: {current_valid_count}")
+        self.logger.debug(f"当前有效频道数: {current_valid_count}")
 
-        # 启动重试扫描
         self._start_retry_scan()
 
-        self.logger.info("=== _handle_retry_scan 方法结束 ===")
+        self.logger.debug("=== _handle_retry_scan 方法结束 ===")
 
     def _collect_failed_channels(self):
         """收集失败的频道URL，基于失败原因进行智能重试"""
@@ -1473,31 +1494,31 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
             # 减少日志输出，避免日志过多
             if total_count > 1000:
-                self.logger.info(f"智能重试: 基于失败原因筛选出 {total_count} 个需要重试的URL (大量URL，简化日志)")
+                self.logger.debug(f"智能重试: 基于失败原因筛选出 {total_count} 个需要重试的URL (大量URL，简化日志)")
                 # 只记录前2个需要重试的URL
                 for i in range(min(2, total_count)):
                     url = retry_urls[i]
-                    self.logger.info(f"重试URL示例 {i}: {url[:50]}")
+                    self.logger.debug(f"重试URL示例 {i}: {url[:50]}")
                 if total_count > 2:
-                    self.logger.info(f"... 还有 {total_count - 2} 个URL")
+                    self.logger.debug(f"... 还有 {total_count - 2} 个URL")
             else:
-                self.logger.info(f"智能重试: 基于失败原因筛选出 {total_count} 个需要重试的URL")
+                self.logger.debug(f"智能重试: 基于失败原因筛选出 {total_count} 个需要重试的URL")
                 # 只记录前3个需要重试的URL
                 for i in range(min(3, total_count)):
                     url = retry_urls[i]
-                    self.logger.info(f"重试URL {i}: {url[:50]}")
+                    self.logger.debug(f"重试URL {i}: {url[:50]}")
         else:
             self.logger.warning("ScannerController不存在，无法获取需要重试的URL列表")
 
         failed_channels = self.scan_state_manager.get_failed_channels(self.retry_id)
-        self.logger.info(f"智能重试收集完成: 需要重试的URL数={len(failed_channels)}")
+        self.logger.debug(f"智能重试收集完成: 需要重试的URL数={len(failed_channels)}")
 
         # 如果重试URL数量很大，记录警告信息
         if len(failed_channels) > 10000:
             self.logger.warning(f"警告: 有 {len(failed_channels)} 个URL需要重试，可能需要较长时间")
         elif len(failed_channels) > 0:
             # 记录智能重试信息
-            self.logger.info("智能重试开始，准备扫描失败的频道")
+            self.logger.debug("智能重试开始，准备扫描失败的频道")
 
     def _count_valid_channels(self):
         """统计当前有效频道数量"""
@@ -1513,13 +1534,13 @@ class ScanChannelDialog(QtWidgets.QDialog):
         if not hasattr(self, 'scanner') or self.scanner is None:
             log_ui_error("扫描器未初始化，无法启动重试扫描")
             return
-        self.logger.info("启动重试扫描...")
+        self.logger.debug("启动重试扫描...")
         
         # 从扫描状态管理器获取失败的频道
         failed_channels = self.scan_state_manager.get_failed_channels(self.retry_id)
         
         if not failed_channels:
-            self.logger.info("没有失败的频道需要重试")
+            self.logger.debug("没有失败的频道需要重试")
             return
         
         # 直接使用failed_channels作为retry_urls，因为它们都是URL字符串的列表
@@ -1538,23 +1559,26 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _handle_retry_scan_completed(self):
         """处理重试扫描完成 - 简化后默认启用循环扫描"""
-        self.logger.info("=== 处理重试扫描完成 ===")
+        self.logger.debug("=== 处理重试扫描完成 ===")
         
-        # 统计当前有效频道数
+        retry_count = self.scan_state_manager.get_retry_count(self.retry_id)
+        max_retries = 5
+        
+        if retry_count >= max_retries:
+            self.logger.info(f"已达到最大重试次数({max_retries})，结束循环扫描")
+            self.scan_state_manager.reset_retry_scan(self.retry_id)
+            return
+        
         current_valid_count = self._count_valid_channels()
-        # 获取上一次重试时的有效频道数
         last_valid_count = self.scan_state_manager.get_last_retry_valid_count(self.retry_id)
         
-        self.logger.info(f"循环扫描检查: 上次有效频道数={last_valid_count}, 当前有效频道数={current_valid_count}")
+        self.logger.debug(f"循环扫描检查: 上次有效频道数={last_valid_count}, 当前有效频道数={current_valid_count}, 重试次数={retry_count}")
         
-        # 如果这次重试找到了新的有效频道，继续循环扫描
         if current_valid_count > last_valid_count:
             self.logger.info("找到新的有效频道，继续循环扫描")
-            # 延迟启动下一次重试扫描
             QtCore.QTimer.singleShot(100, self._handle_retry_scan)
         else:
-            self.logger.info("没有找到新的有效频道，结束循环扫描")
-            # 重置重试扫描状态
+            self.logger.debug("没有找到新的有效频道，结束循环扫描")
             self.scan_state_manager.reset_retry_scan(self.retry_id)
 
 

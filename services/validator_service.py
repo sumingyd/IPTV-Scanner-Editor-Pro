@@ -8,6 +8,7 @@ import urllib.parse
 from typing import Dict
 from core.log_manager import global_logger
 from core.language_manager import LanguageManager
+from services.ffprobe_service import get_ffprobe_path as _get_ffprobe_path_global
 
 
 class StreamValidator:
@@ -71,55 +72,9 @@ class StreamValidator:
                     failed_count += 1
 
     def _get_ffprobe_path(self):
-        """获取ffprobe路径 - 带缓存版本"""
-        if self._ffprobe_path_cache is not None:
-            return self._ffprobe_path_cache
-
-        import os
-        import sys
-
-        # 记录所有尝试的路径
-        tried_paths = []
-
-        # 1. 尝试从打包后的路径查找
-        if getattr(sys, 'frozen', False):
-            base_path = os.path.dirname(sys.executable)
-            exe_path = os.path.join(base_path, 'ffmpeg', 'bin', 'ffprobe.exe')
-            tried_paths.append(f"打包路径: {exe_path}")
-            if os.path.exists(exe_path):
-                self._ffprobe_path_cache = exe_path
-                return exe_path
-
-        # 2. 尝试从开发环境路径查找 - 项目根目录
-        # 获取项目根目录（当前文件向上两级）
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(current_dir)  # 从services目录到项目根目录
-        dev_path = os.path.join(project_root, 'ffmpeg', 'bin', 'ffprobe.exe')
-        tried_paths.append(f"开发路径: {dev_path}")
-        if os.path.exists(dev_path):
-            self._ffprobe_path_cache = dev_path
-            return dev_path
-
-        # 3. 尝试从系统PATH查找
-        try:
-            from shutil import which
-            path = which('ffprobe')
-            tried_paths.append("系统PATH查找")
-            if path:
-                self._ffprobe_path_cache = path
-                return path
-        except ImportError:
-            tried_paths.append("无法导入shutil.which")
-            self.logger.debug("shutil.which导入失败，使用备用方案")
-
-        # 记录所有尝试过的路径
-        self.logger.warning(
-            "无法找到ffprobe，尝试了以下路径:\n" +
-            "\n".join(tried_paths) +
-            "\n将尝试直接调用'ffprobe'"
-        )
-        self._ffprobe_path_cache = 'ffprobe'  # 缓存结果
-        return 'ffprobe'  # 最后尝试直接调用
+        result = _get_ffprobe_path_global()
+        self._ffprobe_path_cache = result
+        return result
 
     def _is_multicast_url(self, url: str) -> bool:
         """判断是否为组播地址"""
