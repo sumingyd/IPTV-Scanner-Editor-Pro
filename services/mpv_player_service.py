@@ -51,8 +51,8 @@ try:
     libmpv.mpv_wait_event.restype = ctypes.c_void_p
     libmpv.mpv_wait_event.argtypes = [ctypes.c_void_p, ctypes.c_double]
 
-    libmpv.mpv_get_property_string.restype = ctypes.c_int
-    libmpv.mpv_get_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_char_p)]
+    libmpv.mpv_get_property_string.restype = ctypes.c_char_p
+    libmpv.mpv_get_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 
     libmpv.mpv_free.restype = None
     libmpv.mpv_free.argtypes = [ctypes.c_void_p]
@@ -267,6 +267,31 @@ class MpvPlayerController(QObject):
         except Exception:
             pass
 
+    def _extract_original_url(self, url):
+        """从 FCC URL 中提取原始 URL"""
+        # 检测是否是 FCC 代理 URL: http://proxy/rtp/...?fcc=server
+        if '/rtp/' in url and 'fcc=' in url:
+            try:
+                # 解析 URL
+                from urllib.parse import urlparse, parse_qs
+                parsed = urlparse(url)
+                query = parse_qs(parsed.query)
+                
+                # 提取 fcc 参数
+                if 'fcc' in query:
+                    fcc_server = query['fcc'][0]  # 例如：150.138.8.132:8027
+                    # 提取路径中的 RTP 部分
+                    path_parts = parsed.path.split('/rtp/')
+                    if len(path_parts) > 1:
+                        rtp_part = path_parts[1]  # 例如：239.21.1.120:5002
+                        # 构建原始 RTP URL
+                        original_url = f'rtp://{rtp_part}'
+                        self.logger.info(f"从 FCC URL 提取原始地址：{original_url}")
+                        return original_url
+            except Exception as e:
+                self.logger.debug(f"提取原始 URL 失败：{str(e)}")
+        return url
+    
     def _setup_protocol_options(self, url):
         if not self.mpv_handle or not url:
             return
@@ -365,12 +390,47 @@ class MpvPlayerController(QObject):
                 self._set_mpv_string('user-agent', ua)
 
     def _process_events(self):
+        """处理 MPV 事件"""
         if not self.mpv_handle:
             return
         try:
-            pass
+            # 等待事件（非阻塞）
+            event_ptr = libmpv.mpv_wait_event(self.mpv_handle, 0.0)
+            if not event_ptr:
+                return
+            
+            # 将指针转换为事件结构
+            event = ctypes.cast(event_ptr, ctypes.POINTER(mpv_event)).contents
+            
+            # 检查事件类型
+            if event.event_id == MPV_EVENT_NONE:
+                return
+            
+            # 处理属性变化事件
+            if event.event_id == MPV_EVENT_PROPERTY_CHANGE:
+                self.logger.debug(f"收到属性变化事件，userdata={event.reply_userdata}")
+                # 可以从 event.data 读取属性值，但需要使用 mpv_get_property 获取
+                # 这里我们只是触发一次媒体信息获取
+                if hasattr(self, '_live_info_timer') and self._live_info_timer:
+                    # 属性变化时立即获取一次信息
+                    info = self.get_live_media_info()
+                    if info:
+                        try:
+                            self.live_media_info_updated.emit(info)
+                        except RuntimeError:
+                            pass
+            
+            # 处理文件加载完成事件
+            elif event.event_id == MPV_EVENT_FILE_LOADED:
+                self.logger.info("文件加载完成事件")
+                # 文件加载完成后，延迟开始获取媒体信息
+                if hasattr(self, '_media_info_timer'):
+                    self._media_info_timer.stop()
+                self._media_info_timer = QTimer(self)
+                self._media_info_timer.singleShot(1000, self._start_live_info_timer)
+                
         except Exception as e:
-            self.logger.error(f"处理mpv事件失败: {str(e)}")
+            self.logger.error(f"处理 mpv 事件失败：{str(e)}")
 
     def play(self, url, channel_name=None, **kwargs):
         try:
@@ -671,105 +731,110 @@ class MpvPlayerController(QObject):
             self.logger.error(f"设置播放位置失败: {str(e)}")
 
     def get_live_media_info(self):
+        """获取实时媒体信息 - 参考 SRCBOX，统一使用字符串获取方式"""
         if not self.mpv_handle:
             return None
         try:
-            w = self._get_mpv_property_int('width') or 0
-            h = self._get_mpv_property_int('height') or 0
-            fps = self._get_mpv_property_double('estimated-vf-fps') or self._get_mpv_property_double('fps') or 0
-            hw = self._get_mpv_property_string('hwdec-current') or ''
-            vcodec = self._get_mpv_property_string('video-codec') or ''
-            acodec = self._get_mpv_property_string('audio-codec') or ''
-            br_kbit = self._get_mpv_property_double('video-params/bitrate')
-            br_raw = self._get_mpv_property_double('demuxer-bitrate') or self._get_mpv_property_double('video-bitrate')
-            container = self._get_mpv_property_string('file-format') or ''
-            audio_channels = self._get_mpv_property_int('audio-params/channel-count') or 0
-            sample_rate = int(self._get_mpv_property_double('audio-params/samplerate') or 0)
-            pix_fmt = self._get_mpv_property_string('video-params/pixelformat') or ''
-            v_br = self._get_mpv_property_double('video-params/bitrate') or 0
-            a_br = self._get_mpv_property_double('audio-params/bitrate') or 0
-
-            br_str = '-'
-            if br_kbit and br_kbit > 0:
-                mb = br_kbit / 8000.0
-                br_str = f"{mb:.1f}MB/s"
-            elif br_raw and br_raw > 0:
-                v = br_raw
-                if v < 900:
-                    mbps = v
-                elif v < 9000:
-                    mbps = v / 1000.0
-                elif v < 2_000_000:
-                    mbps = v / 8000.0
-                else:
-                    mbps = v / 8_000_000.0
-                if 0 < mbps <= 500:
-                    br_str = f"{mbps:.1f}MB/s"
-
-            tags = []
-            tags.append('HW' if hw and hw != 'no' else 'SW')
-
-            if vcodec:
-                up = vcodec.upper()
-                if 'HEVC' in up or 'H265' in up:
-                    tags.append('HEVC')
-                elif 'H264' in up or 'AVC' in up:
-                    tags.append('H.264')
-                else:
-                    tags.append(up)
-
-            if acodec:
-                up = acodec.upper()
-                if 'E-AC-3' in up or 'EAC3' in up:
-                    tags.append('EAC3')
-                elif 'AC-3' in up or 'AC3' in up:
-                    tags.append('AC3')
-                elif 'OPUS' in up:
-                    tags.append('OPUS')
-                elif 'AAC' in up:
-                    tags.append('AAC')
-                elif 'MP3' in up or 'MPEG AUDIO LAYER 3' in up:
-                    tags.append('MP3')
-                elif 'MP2' in up or 'MPEG LAYER II' in up:
-                    tags.append('MP2')
-                elif 'FLAC' in up:
-                    tags.append('FLAC')
-                elif 'DTS' in up:
-                    tags.append('DTS')
-                elif 'TRUEHD' in up:
-                    tags.append('TRUEHD')
-                elif 'PCM' in up:
-                    tags.append('PCM')
-                elif 'VORBIS' in up:
-                    tags.append('VORBIS')
-                elif 'WMA' in up:
-                    tags.append('WMA')
-                else:
-                    tags.append(up)
-
-            if h >= 2160:
-                tags.append('4K')
-            elif h >= 1080:
-                tags.append('FHD')
-            elif h >= 720:
-                tags.append('HD')
-            elif h > 0:
-                tags.append('SD')
-
-            if fps > 0:
-                tags.append(f"{fps:.2f}fps")
-            tags.append(br_str)
-
+            # 统一使用字符串获取，然后解析（参考 SRCBOX 的实现方式）
+            def get_str(prop):
+                return self._get_mpv_property_string(prop)
+            
+            def get_int(prop):
+                # 直接获取整数值，不通过字符串转换
+                val = self._get_mpv_property_int(prop)
+                if val is not None:
+                    return val
+                # 回退到字符串方式
+                s = get_str(prop)
+                if s:
+                    try:
+                        return int(s)
+                    except ValueError:
+                        return 0
+                return 0
+            
+            def get_double(prop):
+                # 直接获取浮点数值，不通过字符串转换
+                val = self._get_mpv_property_double(prop)
+                if val is not None:
+                    return val
+                # 回退到字符串方式
+                s = get_str(prop)
+                if s:
+                    try:
+                        return float(s)
+                    except ValueError:
+                        return 0.0
+                return 0.0
+            
+            # 视频信息
+            w = get_int('width')
+            h = get_int('height')
+            fps = get_double('estimated-vf-fps')
+            if fps == 0:
+                fps = get_double('fps')
+            
+            hw = get_str('hwdec-current') or ''
+            vcodec = get_str('video-codec') or ''
+            acodec = get_str('audio-codec') or ''
+            
+            # 码率信息 - 使用 demuxer-bitrate 作为备选
+            v_br = get_double('video-params/bitrate')
+            if v_br == 0:
+                v_br = get_double('demuxer-bitrate')
+            a_br = get_double('audio-params/bitrate')
+            
+            # 容器格式
+            container = get_str('file-format') or ''
+            
+            # 音频信息
+            audio_channels = get_int('audio-params/channel-count')
+            sample_rate = get_int('audio-params/samplerate')
+            
+            # 像素格式
+            pix_fmt = get_str('video-params/pixelformat') or ''
+            
+            # 详细调试日志：只在值变化时输出
+            if not hasattr(self, '_last_info_debug') or self._last_info_debug != (w, h, vcodec, acodec):
+                self._last_info_debug = (w, h, vcodec, acodec)
+                self.logger.info(f"媒体信息：width={w}, height={h}, vcodec='{vcodec}', acodec='{acodec}', fps={fps}, container='{container}'")
+            
+            # 如果获取不到关键信息，尝试获取所有可能的属性
+            if not vcodec and not acodec and w == 0:
+                self.logger.info("尝试获取备选属性...")
+                # 尝试其他可能的属性名
+                alt_vcodec = get_str('video-format') or get_str('hwdec') or ''
+                alt_acodec = get_str('audio-format') or ''
+                self.logger.info(f"备选：video-format='{alt_vcodec}', audio-format='{alt_acodec}', hwdec='{get_str('hwdec')}'")
+                
+                # 对于直播流，尝试从 track-list 获取信息
+                try:
+                    track_list_ptr = libmpv.mpv_get_property_string(
+                        self.mpv_handle,
+                        b'track-list',
+                        ctypes.byref(ctypes.c_char_p())
+                    )
+                    if track_list_ptr >= 0:
+                        self.logger.info(f"track-list 属性可用")
+                except:
+                    pass
+                
+                # 尝试获取 demuxer 信息
+                demuxer = get_str('demuxer') or ''
+                self.logger.info(f"demuxer: {demuxer}")
+                
+                # 尝试获取 stream-format 信息
+                v_format = get_str('video-format') or ''
+                a_format = get_str('audio-format') or ''
+                self.logger.info(f"video-format: {v_format}, audio-format: {a_format}")
+            
             info = {
-                'tags': tags,
-                'info_text': '  '.join(tags),
                 'width': w,
                 'height': h,
                 'fps': fps,
                 'hwdec': hw,
                 'video_codec': vcodec,
                 'audio_codec': acodec,
-                'bitrate': br_str,
                 'container': container,
                 'audio_channels': audio_channels,
                 'sample_rate': sample_rate,
@@ -778,7 +843,8 @@ class MpvPlayerController(QObject):
                 'audio_bitrate': a_br,
             }
             return info
-        except Exception:
+        except Exception as e:
+            self.logger.error(f"获取媒体信息失败：{str(e)}")
             return None
 
     def _start_live_info_timer(self):
@@ -793,27 +859,27 @@ class MpvPlayerController(QObject):
             self._live_info_timer.stop()
 
     def _update_live_info(self):
-        if not self.is_playing or not self.mpv_handle:
-            self._stop_live_info_timer()
+        """持续更新媒体信息 - 参考 SRCBOX"""
+        if not self.mpv_handle:
             return
         info = self.get_live_media_info()
         if info:
             try:
                 self.live_media_info_updated.emit(info)
-            except RuntimeError:
+            except RuntimeError as e:
+                self.logger.error(f"_update_live_info: 信号发送失败 {str(e)}")
                 self._stop_live_info_timer()
 
     def _get_media_info(self, url):
-        """获取媒体信息 - 简化版本，只获取一次"""
-        # 停止所有定时器
-        if hasattr(self, '_media_info_timer') and self._media_info_timer:
-            self._media_info_timer.stop()
+        """获取媒体信息 - 参考 SRCBOX，简单轮询方式"""
+        # 停止之前的定时器
         if hasattr(self, '_live_info_timer') and self._live_info_timer:
             self._live_info_timer.stop()
         
-        # 延迟 1.5 秒获取媒体信息，确保 MPV 已经加载视频
+        # 参考 SRCBOX：延迟 1 秒后就开始持续更新
+        # SRCBOX 不会等待很长时间，而是立即开始轮询
         self._media_info_timer = QTimer(self)
-        self._media_info_timer.singleShot(1500, self._get_media_info_once)
+        self._media_info_timer.singleShot(1000, self._start_live_info_timer)
 
     def _get_media_info_once(self):
         """一次性获取媒体信息，不重试"""
@@ -959,23 +1025,24 @@ class MpvPlayerController(QObject):
         return '未知'
 
     def _get_mpv_property_string(self, property_name):
+        """获取 MPV 属性字符串 - 参考 SRCBOX，使用正确的 API 签名"""
         try:
             if not self.mpv_handle:
                 return None
-            value = ctypes.c_char_p()
+            # 正确的调用方式：mpv_get_property_string(handle, name) 返回 char*
             result = libmpv.mpv_get_property_string(
                 self.mpv_handle,
-                property_name.encode('utf-8'),
-                ctypes.byref(value)
+                property_name.encode('utf-8')
             )
-            if result < 0:
+            
+            # 参考 SRCBOX：只检查指针是否为空，不检查返回值
+            if not result:
                 return None
-            if not value.value:
-                return None
-            property_value = value.value.decode('utf-8')
-            libmpv.mpv_free(value)
+            property_value = result.decode('utf-8')
+            # mpv_get_property_string 返回的字符串由 MPV 内部管理，不需要手动释放
             return property_value
-        except Exception:
+        except Exception as e:
+            self.logger.debug(f"_get_mpv_property_string('{property_name}'): 异常 {str(e)}")
             return None
 
     def _get_mpv_error_string(self, error_code):

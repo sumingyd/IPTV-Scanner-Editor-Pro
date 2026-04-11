@@ -766,8 +766,8 @@ class IPTVPlayer(QMainWindow):
         self.player_controller = MpvPlayerController(self.video_widget)
         self.player_controller.play_state_changed.connect(self.on_play_state_changed)
         self.player_controller.media_info_ready.connect(self.on_media_info_ready)
+        self.player_controller.live_media_info_updated.connect(self.on_live_media_info_updated)
         self.player_controller.play_error.connect(self.on_play_error)
-        # 不再使用 live_media_info_updated，避免重复更新
 
         from services.logo_cache_service import LogoCacheService
         self._logo_cache_service = LogoCacheService(self)
@@ -2428,7 +2428,7 @@ class IPTVPlayer(QMainWindow):
             # 像素格式
             pixel_format = video_info.get('pixel_format', '')
             if pixel_format and pixel_format != '未知':
-                video_parts.append(f"Pixel: {pixel_format}")
+                video_parts.append(f"{tr('pixel_format_label', 'Pixel Format')}: {pixel_format}")
             
             # 更新视频信息标签
             if video_parts:
@@ -2502,6 +2502,175 @@ class IPTVPlayer(QMainWindow):
                     status_msg += f" {protocol}"
                 
                 self.status_bar.showMessage(status_msg)
+    
+    def on_live_media_info_updated(self, info):
+        """持续更新媒体信息 - 参考 SRCBOX，每 500ms 更新一次"""
+        if not info:
+            return
+        try:
+            tr = self.language_manager.tr
+            
+            # 构建视频信息标签（只显示有值的字段）
+            video_parts = []
+            
+            # 硬件解码状态（优先显示）
+            hw = info.get('hwdec', '')
+            if hw and hw != 'no':
+                video_parts.append('HW')
+            
+            # 视频编码（简化显示）
+            video_codec = info.get('video_codec', '')
+            if video_codec and video_codec != '未知':
+                # 简化 codec 名称
+                codec_short = self._shorten_codec_name(video_codec)
+                video_parts.append(codec_short)
+            
+            # 音频编码（简化显示）
+            audio_codec = info.get('audio_codec', '')
+            if audio_codec and audio_codec != '未知':
+                codec_short = self._shorten_codec_name(audio_codec)
+                video_parts.append(codec_short)
+            
+            # 分辨率（简化显示为 FHD/QHD 等）
+            video_width = info.get('width', 0)
+            video_height = info.get('height', 0)
+            if video_width > 0 and video_height > 0:
+                res_label = self._get_resolution_label(video_width, video_height)
+                video_parts.append(res_label)
+            
+            # 帧率
+            fps = info.get('fps', 0)
+            if fps and fps > 0:
+                video_parts.append(f"{fps:.0f}fps")
+            
+            # 总码率（视频 + 音频）
+            v_br = info.get('video_bitrate', 0)
+            a_br = info.get('audio_bitrate', 0)
+            total_br = v_br + a_br
+            if total_br and total_br > 0:
+                if total_br >= 1_000_000:
+                    br_str = f"{total_br / 1_000_000:.1f}MB/s"
+                elif total_br >= 1000:
+                    br_str = f"{total_br / 1000:.1f}KB/s"
+                else:
+                    br_str = f"{total_br}B/s"
+                video_parts.append(br_str)
+            
+            # 更新视频信息标签
+            if video_parts:
+                self.video_info.setText(f"  {'  •  '.join(video_parts)}")
+            else:
+                # 如果没有视频信息，显示"直播流"（对于直播流这是正常的）
+                self.video_info.setText(f"  {tr('live_stream', 'Live Stream')}")
+            
+            # 构建音频信息标签（详细信息）
+            audio_parts = []
+            
+            # 音频编码
+            if audio_codec and audio_codec != '未知':
+                audio_parts.append(f"{tr('codec_label', 'Codec')}: {audio_codec}")
+            
+            # 声道数
+            channels = info.get('audio_channels', 0)
+            if channels and channels > 0:
+                audio_parts.append(f"{tr('channel_count_label', 'Channels')}: {channels}ch")
+            
+            # 采样率
+            sample_rate = info.get('sample_rate', 0)
+            if sample_rate and sample_rate > 0:
+                audio_parts.append(f"{tr('sample_rate_label', 'Sample Rate')}: {sample_rate}Hz")
+            
+            # 音频码率
+            if a_br and a_br > 0:
+                if a_br >= 1000:
+                    audio_bitrate_str = f"{a_br / 1000:.1f}KB/s"
+                else:
+                    audio_bitrate_str = f"{a_br}B/s"
+                audio_parts.append(f"{tr('bitrate_label', 'Bitrate')}: {audio_bitrate_str}")
+            
+            # 更新音频信息标签
+            if audio_parts:
+                self.audio_info.setText(f"🔊 {' | '.join(audio_parts)}")
+            else:
+                # 如果没有音频信息，显示提示信息
+                self.audio_info.setText(f"🔊 {tr('no_audio_info', 'No audio info available')}")
+            
+            # 网络/格式信息
+            network_parts = []
+            container = info.get('container', '')
+            proto = info.get('protocol', self.player_controller._guess_protocol(self.current_channel.get('url', '') if self.current_channel else ''))
+            
+            if container and container != '未知':
+                network_parts.append(f"{tr('format_label', 'Format')}: {container}")
+            if proto and proto != '未知':
+                network_parts.append(f"{tr('protocol_label', 'Protocol')}: {proto}")
+            
+            # 更新网络信息标签
+            if network_parts:
+                self.network_info.setText(f"📡 {' | '.join(network_parts)}")
+            else:
+                self.network_info.setText(f"📡 {tr('no_network_info', 'No network info available')}")
+        
+        except RuntimeError:
+            pass  # UI 对象可能已被销毁
+    
+    def _shorten_codec_name(self, codec_name):
+        """简化编解码器名称"""
+        if not codec_name:
+            return ''
+        
+        # H.264
+        if 'H.264' in codec_name or 'AVC' in codec_name or 'h264' in codec_name.lower():
+            return 'H.264'
+        
+        # H.265/HEVC
+        if 'H.265' in codec_name or 'HEVC' in codec_name or 'hevc' in codec_name.lower():
+            return 'H.265'
+        
+        # MPEG
+        if 'MPEG-2' in codec_name or 'mpeg2' in codec_name.lower():
+            return 'MPEG-2'
+        if 'MPEG-4' in codec_name or 'mpeg4' in codec_name.lower():
+            return 'MPEG-4'
+        
+        # MP3
+        if 'MP3' in codec_name or 'MPEG audio layer 3' in codec_name:
+            return 'MP3'
+        
+        # AAC
+        if 'AAC' in codec_name or 'aac' in codec_name.lower():
+            return 'AAC'
+        
+        # AC3
+        if 'AC-3' in codec_name or 'AC3' in codec_name or 'ac3' in codec_name.lower():
+            return 'AC3'
+        
+        # 默认返回原名称（截取前 10 个字符）
+        return codec_name[:10] if len(codec_name) > 10 else codec_name
+    
+    def _get_resolution_label(self, width, height):
+        """获取分辨率标签（FHD、QHD 等）"""
+        if width <= 0 or height <= 0:
+            return ''
+        
+        # SD
+        if width <= 720:
+            return 'SD'
+        # HD
+        elif width <= 1280:
+            return 'HD'
+        # FHD
+        elif width <= 1920:
+            return 'FHD'
+        # QHD
+        elif width <= 2560:
+            return 'QHD'
+        # 4K
+        elif width <= 3840:
+            return '4K'
+        # 8K
+        else:
+            return '8K'
     
     def adjust_window_size_to_video(self):
         """根据视频分辨率调整窗口大小，保持窗口高度不变，调整宽度以适应视频比例"""
