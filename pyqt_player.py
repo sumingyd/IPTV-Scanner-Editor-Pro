@@ -2002,7 +2002,7 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, 'original_channel') and self.original_channel:
             channel_name = self.original_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel"))
             self.status_bar.showMessage(f"{self.language_manager.tr('back_to_live', 'Back to live')}: {channel_name}")
-            # 实际播放原频道
+            # 实际播放原频道（play_channel 会处理清理工作）
             self.play_channel(self.original_channel)
     
     def on_progress_slider_released(self):
@@ -2030,6 +2030,8 @@ class IPTVPlayer(QMainWindow):
                 catchup_source = self.original_channel.get('catchup_source', '')
                 
                 if not catchup_source:
+                    # 不支持回看，显示提示
+                    self.status_bar.showMessage(self.language_manager.tr("catchup_not_supported", "This channel does not support catchup"))
                     return
                 
                 # 获取回看节目的信息
@@ -2038,6 +2040,8 @@ class IPTVPlayer(QMainWindow):
                 title = self.catchup_program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))
                 
                 if not (start_time and end_time):
+                    logger.error("回看节目信息不完整")
+                    self.status_bar.showMessage(self.language_manager.tr("catchup_error", "Catchup error: Missing program information"))
                     return
                 
                 # 计算总时长
@@ -2057,27 +2061,16 @@ class IPTVPlayer(QMainWindow):
                 # 显示回看状态
                 self.status_bar.showMessage(f"{self.language_manager.tr('catchup_playing', 'Catchup')}: {channel_name} - {title}")
                 
-                # 保存当前进度条位置
-                saved_progress = value
-                
-                # 播放新的回看URL
+                # 播放新的回看 URL
                 if hasattr(self, 'player_controller') and self.player_controller:
                     # 播放新的回看
                     self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
-                    
-                    # 强制设置进度条位置
-                    if hasattr(self, 'program_progress'):
-                        self.program_progress.setValue(saved_progress)
-                        # 强制更新显示
-                        self.program_progress.repaint()
             except Exception as e:
-                logger.error(f"重新构建回看URL失败: {e}")
-                # 如果失败，尝试使用播放器的seek方法
-                if hasattr(self, 'player_controller') and self.player_controller:
-                    # 计算对应的播放位置（0-1之间的浮点数）
-                    position = value / 100.0
-                    # 调用seek方法
-                    self.player_controller.seek(position)
+                logger.error(f"重新构建回看 URL 失败：{e}")
+                self.status_bar.showMessage(self.language_manager.tr("catchup_seek_error", "Catchup seek failed"))
+        else:
+            logger.error("回看模式但缺少必要信息")
+            self.status_bar.showMessage(self.language_manager.tr("catchup_error", "Catchup error: Missing information"))
     
     def on_group_changed(self, group_name):
         """分组切换时重新填充频道列表"""
@@ -2267,25 +2260,28 @@ class IPTVPlayer(QMainWindow):
     
     def play_channel(self, channel):
         if self.player_controller and channel:
+            # 如果当前处于回看模式，先退出回看
             if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
                 self.is_catchup_mode = False
                 if hasattr(self, 'exit_catchup_button'):
                     self.exit_catchup_button.hide()
                 if hasattr(self, 'catchup_program'):
                     delattr(self, 'catchup_program')
-
+            
+            # 重置节目单日期为今天（只在非回看模式下执行）
             from datetime import datetime, timedelta
-            self.current_epg_date = datetime.now().date()
-            if hasattr(self, 'epg_date_label'):
-                today = datetime.now().date()
-                if self.current_epg_date == today:
-                    self.epg_date_label.setText(self.language_manager.tr("today", "Today"))
-                elif self.current_epg_date == today - timedelta(days=1):
-                    self.epg_date_label.setText(self.language_manager.tr("yesterday", "Yesterday"))
-                elif self.current_epg_date == today + timedelta(days=1):
-                    self.epg_date_label.setText(self.language_manager.tr("tomorrow", "Tomorrow"))
-                else:
-                    self.epg_date_label.setText(self.current_epg_date.strftime("%Y-%m-%d"))
+            if not hasattr(self, 'is_catchup_mode') or not self.is_catchup_mode:
+                self.current_epg_date = datetime.now().date()
+                if hasattr(self, 'epg_date_label'):
+                    today = datetime.now().date()
+                    if self.current_epg_date == today:
+                        self.epg_date_label.setText(self.language_manager.tr("today", "Today"))
+                    elif self.current_epg_date == today - timedelta(days=1):
+                        self.epg_date_label.setText(self.language_manager.tr("yesterday", "Yesterday"))
+                    elif self.current_epg_date == today + timedelta(days=1):
+                        self.epg_date_label.setText(self.language_manager.tr("tomorrow", "Tomorrow"))
+                    else:
+                        self.epg_date_label.setText(self.current_epg_date.strftime("%Y-%m-%d"))
             
             if hasattr(self, 'channel_name'):
                 self.channel_name.setText(self.language_manager.tr("switching_channel", "Switching channel..."))

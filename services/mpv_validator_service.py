@@ -28,8 +28,8 @@ try:
     _libmpv.mpv_destroy.argtypes = [ctypes.c_void_p]
     _libmpv.mpv_wait_event.restype = ctypes.c_void_p
     _libmpv.mpv_wait_event.argtypes = [ctypes.c_void_p, ctypes.c_double]
-    _libmpv.mpv_get_property_string.restype = ctypes.c_int
-    _libmpv.mpv_get_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_char_p)]
+    _libmpv.mpv_get_property_string.restype = ctypes.c_char_p
+    _libmpv.mpv_get_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
     _libmpv.mpv_free.restype = None
     _libmpv.mpv_free.argtypes = [ctypes.c_void_p]
     _libmpv.mpv_get_property.restype = ctypes.c_int
@@ -90,14 +90,14 @@ def _destroy_mpv(handle):
 
 
 def _get_property_string(handle, name):
+    """获取 MPV 属性字符串 - 使用正确的 API 签名"""
     try:
-        value = ctypes.c_char_p()
-        result = _libmpv.mpv_get_property_string(handle, name.encode('utf-8'), ctypes.byref(value))
-        if result < 0 or not value.value:
+        # 正确的调用方式：mpv_get_property_string(handle, name) 返回 char*
+        result = _libmpv.mpv_get_property_string(handle, name.encode('utf-8'))
+        if not result:
             return None
-        s = value.value.decode('utf-8')
-        _libmpv.mpv_free(value)
-        return s
+        return result.decode('utf-8')
+        # mpv_get_property_string 返回的字符串由 MPV 内部管理，不需要手动释放
     except Exception:
         return None
 
