@@ -1,13 +1,9 @@
 import sys
-import json
-import subprocess
 import os
 import time
 import ctypes
 import threading
-from ctypes import wintypes
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QThread, QCoreApplication, QTimer, QRunnable, QThreadPool
-from PyQt6.QtGui import QImage, QPixmap
+from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QThread, QCoreApplication, QTimer
 from core.log_manager import global_logger
 
 if getattr(sys, 'frozen', False):
@@ -399,17 +395,6 @@ class MpvPlayerController(QObject):
 
             if hasattr(self, '_media_info_timer') and self._media_info_timer:
                 self._media_info_timer.stop()
-            if hasattr(self, '_current_ffprobe_worker') and self._current_ffprobe_worker:
-                self._current_ffprobe_worker.is_running = False
-                if hasattr(self._current_ffprobe_worker, 'process') and self._current_ffprobe_worker.process:
-                    try:
-                        self._current_ffprobe_worker.process.kill()
-                    except:
-                        pass
-                try:
-                    delattr(self, '_current_ffprobe_worker')
-                except:
-                    pass
 
             self._setup_protocol_options(url)
 
@@ -504,14 +489,6 @@ class MpvPlayerController(QObject):
                 self._media_info_timer.stop()
             if hasattr(self, '_live_info_timer') and self._live_info_timer:
                 self._live_info_timer.stop()
-            if hasattr(self, '_current_ffprobe_worker') and self._current_ffprobe_worker:
-                self._current_ffprobe_worker.is_running = False
-                if hasattr(self._current_ffprobe_worker, 'process') and self._current_ffprobe_worker.process:
-                    try:
-                        self._current_ffprobe_worker.process.kill()
-                    except:
-                        pass
-                delattr(self, '_current_ffprobe_worker')
 
             self.is_playing = False
             self.is_paused = False
@@ -705,6 +682,12 @@ class MpvPlayerController(QObject):
             acodec = self._get_mpv_property_string('audio-codec') or ''
             br_kbit = self._get_mpv_property_double('video-params/bitrate')
             br_raw = self._get_mpv_property_double('demuxer-bitrate') or self._get_mpv_property_double('video-bitrate')
+            container = self._get_mpv_property_string('file-format') or ''
+            audio_channels = self._get_mpv_property_int('audio-params/channel-count') or 0
+            sample_rate = int(self._get_mpv_property_double('audio-params/samplerate') or 0)
+            pix_fmt = self._get_mpv_property_string('video-params/pixelformat') or ''
+            v_br = self._get_mpv_property_double('video-params/bitrate') or 0
+            a_br = self._get_mpv_property_double('audio-params/bitrate') or 0
 
             br_str = '-'
             if br_kbit and br_kbit > 0:
@@ -787,6 +770,12 @@ class MpvPlayerController(QObject):
                 'video_codec': vcodec,
                 'audio_codec': acodec,
                 'bitrate': br_str,
+                'container': container,
+                'audio_channels': audio_channels,
+                'sample_rate': sample_rate,
+                'pixel_format': pix_fmt,
+                'video_bitrate': v_br,
+                'audio_bitrate': a_br,
             }
             return info
         except Exception:
@@ -797,7 +786,7 @@ class MpvPlayerController(QObject):
             self._live_info_timer.stop()
         self._live_info_timer = QTimer(self)
         self._live_info_timer.timeout.connect(self._update_live_info)
-        self._live_info_timer.start(3000)
+        self._live_info_timer.start(500)
 
     def _stop_live_info_timer(self):
         if hasattr(self, '_live_info_timer') and self._live_info_timer:
@@ -817,8 +806,9 @@ class MpvPlayerController(QObject):
     def _get_media_info(self, url):
         if hasattr(self, '_media_info_timer') and self._media_info_timer:
             self._media_info_timer.stop()
+        self._media_info_retry_count = 0
         self._media_info_timer = QTimer(self)
-        self._media_info_timer.singleShot(2000, self._try_get_media_info)
+        self._media_info_timer.singleShot(1000, self._try_get_media_info)
         self._start_live_info_timer()
 
     def _try_get_media_info(self):
@@ -826,9 +816,11 @@ class MpvPlayerController(QObject):
             return
         try:
             info = self.get_live_media_info()
-            if info and info.get('width', 0) > 0:
+            if info and (info.get('width', 0) > 0 or info.get('video_codec') or info.get('audio_codec')):
+                v_br = info.get('video_bitrate', 0)
+                a_br = info.get('audio_bitrate', 0)
                 media_info = {
-                    'format': self._get_mpv_property_string('file-format') or '未知',
+                    'format': info.get('container', '') or self._get_mpv_property_string('file-format') or '未知',
                     'duration': self.get_total_time(),
                     'protocol': self._guess_protocol(self.current_url or ''),
                     'video': {
@@ -836,13 +828,14 @@ class MpvPlayerController(QObject):
                         'width': info.get('width', 0),
                         'height': info.get('height', 0),
                         'frame_rate': info.get('fps', 0),
-                        'bit_rate': 0,
+                        'bit_rate': int(v_br) if v_br else 0,
+                        'pixel_format': info.get('pixel_format', ''),
                     },
                     'audio': {
                         'codec': info.get('audio_codec', '未知'),
-                        'channels': self._get_mpv_property_int('audio-params/channel-count') or 0,
-                        'sample_rate': int(self._get_mpv_property_double('audio-params/samplerate') or 0),
-                        'bit_rate': 0,
+                        'channels': info.get('audio_channels', 0),
+                        'sample_rate': info.get('sample_rate', 0),
+                        'bit_rate': int(a_br) if a_br else 0,
                     },
                     'tags': info.get('tags', []),
                     'info_text': info.get('info_text', ''),
@@ -852,42 +845,29 @@ class MpvPlayerController(QObject):
                 self.media_info_ready.emit(media_info)
                 return
 
-            if hasattr(self, 'current_url') and self.current_url:
-                from services.ffprobe_service import FFProbeWorker as UnifiedFFProbeWorker
-                if hasattr(self, '_current_ffprobe_worker') and self._current_ffprobe_worker:
-                    self._current_ffprobe_worker.cancel()
-
-                def on_ffprobe_finished(media_info):
-                    try:
-                        if not hasattr(self, 'media_info_ready'):
-                            return
-                        if media_info:
-                            self.media_info_ready.emit(media_info)
-                        else:
-                            default_media_info = {
-                                'format': '未知', 'duration': 0, 'protocol': '未知',
-                                'video': {'codec': '未知', 'width': 0, 'height': 0, 'frame_rate': 0, 'bit_rate': 0},
-                                'audio': {'codec': '未知', 'channels': 0, 'sample_rate': 0, 'bit_rate': 0},
-                            }
-                            self.media_info_ready.emit(default_media_info)
-                    except RuntimeError:
-                        pass
-                    if hasattr(self, '_current_ffprobe_worker'):
-                        try:
-                            delattr(self, '_current_ffprobe_worker')
-                        except Exception:
-                            pass
-
-                worker = UnifiedFFProbeWorker(self.current_url, on_ffprobe_finished)
-                self._current_ffprobe_worker = worker
-                QThreadPool.globalInstance().start(worker)
+            if not hasattr(self, '_media_info_retry_count'):
+                self._media_info_retry_count = 0
+            self._media_info_retry_count += 1
+            if self._media_info_retry_count <= 3:
+                QTimer.singleShot(1500, self._try_get_media_info)
+            else:
+                self._media_info_retry_count = 0
+                default_media_info = {
+                    'format': self._get_mpv_property_string('file-format') or '未知',
+                    'duration': 0,
+                    'protocol': self._guess_protocol(self.current_url or ''),
+                    'video': {'codec': '未知', 'width': 0, 'height': 0, 'frame_rate': 0, 'bit_rate': 0, 'pixel_format': ''},
+                    'audio': {'codec': '未知', 'channels': 0, 'sample_rate': 0, 'bit_rate': 0},
+                }
+                self.media_info = default_media_info
+                self.media_info_ready.emit(default_media_info)
 
         except Exception as e:
             try:
                 self.logger.error(f"获取媒体信息失败: {str(e)}")
                 default_media_info = {
                     'format': '未知', 'duration': 0, 'protocol': '未知',
-                    'video': {'codec': '未知', 'width': 0, 'height': 0, 'frame_rate': 0, 'bit_rate': 0},
+                    'video': {'codec': '未知', 'width': 0, 'height': 0, 'frame_rate': 0, 'bit_rate': 0, 'pixel_format': ''},
                     'audio': {'codec': '未知', 'channels': 0, 'sample_rate': 0, 'bit_rate': 0},
                 }
                 if hasattr(self, 'media_info_ready'):

@@ -164,34 +164,22 @@ class ScanStateManager(Singleton):
             return retry_urls
 
     def _should_retry_url(self, error_type: str) -> bool:
-        """判断是否需要重试某个URL（基于错误类型）"""
         if not error_type:
-            return False  # 没有错误类型，不重试
+            return True
 
-        # 需要重试的错误类型
-        retry_error_types = [
-            'timeout',            # 超时
-            'connection_failed',  # 连接失败（但不是TCP连接失败）
-            'ffprobe_error'       # ffprobe错误（可能是临时错误）
-        ]
-
-        # 不需要重试的错误类型
         no_retry_error_types = [
-            'tcp_failed',        # TCP连接失败（服务器不存在）
-            'not_found',         # 404错误
-            'permission_denied'  # 权限拒绝
+            'mpv_unavailable',
+            'mpv_create_failed',
+            'stream_ended',
+            'tcp_failed',
+            'not_found',
+            'permission_denied',
         ]
 
-        # 优先检查不需要重试的类型
         if error_type in no_retry_error_types:
             return False
 
-        # 检查需要重试的类型
-        if error_type in retry_error_types:
-            return True
-
-        # 其他错误类型默认不重试
-        return False
+        return True
 
     def clear_invalid_urls(self, scan_id: str):
         """清空无效URL列表"""

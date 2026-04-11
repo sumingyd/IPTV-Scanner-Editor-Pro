@@ -34,8 +34,6 @@ try:
     _libmpv.mpv_free.argtypes = [ctypes.c_void_p]
     _libmpv.mpv_get_property.restype = ctypes.c_int
     _libmpv.mpv_get_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p]
-    _libmpv.mpv_set_wakeup_callback.restype = None
-    _libmpv.mpv_set_wakeup_callback.argtypes = [ctypes.c_void_p, ctypes.CFUNCTYPE(None, ctypes.c_void_p), ctypes.c_void_p]
 
     class _mpv_event(ctypes.Structure):
         _fields_ = [
@@ -48,129 +46,181 @@ try:
     _MPV_EVENT_FILE_LOADED = 8
     _MPV_EVENT_END_FILE = 7
     _MPV_EVENT_SHUTDOWN = 1
+    _MPV_EVENT_START_FILE = 6
     _MPV_FORMAT_INT64 = 3
-    _MPV_FORMAT_DOUBLE = 4
     _MPV_AVAILABLE = True
 except Exception:
     _MPV_AVAILABLE = False
 
 
+def _create_lightweight_mpv():
+    if not _MPV_AVAILABLE:
+        return None
+    try:
+        handle = _libmpv.mpv_create()
+        if not handle:
+            return None
+        _libmpv.mpv_set_property_string(handle, b'vo', b'null')
+        _libmpv.mpv_set_property_string(handle, b'ao', b'null')
+        _libmpv.mpv_set_property_string(handle, b'hwdec', b'no')
+        _libmpv.mpv_set_property_string(handle, b'osc', b'no')
+        _libmpv.mpv_set_property_string(handle, b'osd-bar', b'no')
+        _libmpv.mpv_set_property_string(handle, b'idle', b'yes')
+        _libmpv.mpv_set_property_string(handle, b'ytdl', b'no')
+        _libmpv.mpv_set_property_string(handle, b'keep-open', b'yes')
+        _libmpv.mpv_set_property_string(handle, b'log-level', b'error')
+        _libmpv.mpv_set_property_string(handle, b'config', b'no')
+        _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-probesize', b'50000')
+        _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-analyzeduration', b'100000')
+        result = _libmpv.mpv_initialize(handle)
+        if result < 0:
+            _libmpv.mpv_destroy(handle)
+            return None
+        return handle
+    except Exception:
+        return None
+
+
+def _destroy_mpv(handle):
+    if handle:
+        try:
+            _libmpv.mpv_destroy(handle)
+        except Exception:
+            pass
+
+
+def _get_property_string(handle, name):
+    try:
+        value = ctypes.c_char_p()
+        result = _libmpv.mpv_get_property_string(handle, name.encode('utf-8'), ctypes.byref(value))
+        if result < 0 or not value.value:
+            return None
+        s = value.value.decode('utf-8')
+        _libmpv.mpv_free(value)
+        return s
+    except Exception:
+        return None
+
+
+def _get_property_int(handle, name):
+    try:
+        value = ctypes.c_int64()
+        result = _libmpv.mpv_get_property(handle, name.encode('utf-8'), _MPV_FORMAT_INT64, ctypes.byref(value))
+        if result < 0:
+            return None
+        return value.value
+    except Exception:
+        return None
+
+
+def _stop_mpv(handle):
+    if not handle:
+        return
+    try:
+        cmd = [b'stop', None]
+        cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+        _libmpv.mpv_command(handle, cmd_ptr)
+    except Exception:
+        pass
+    try:
+        _libmpv.mpv_set_property_string(handle, b'playlist-pos', b'0')
+    except Exception:
+        pass
+
+
+def _wait_for_event(handle, timeout_sec, target_events):
+    deadline = time.time() + timeout_sec
+    while time.time() < deadline:
+        try:
+            event_ptr = _libmpv.mpv_wait_event(handle, 0.05)
+            if event_ptr:
+                event = ctypes.cast(event_ptr, ctypes.POINTER(_mpv_event)).contents
+                if event.event_id in target_events:
+                    return event.event_id, event.error
+                if event.event_id == _MPV_EVENT_SHUTDOWN:
+                    return _MPV_EVENT_SHUTDOWN, 0
+        except Exception:
+            break
+    return 0, 0
+
+
+def _drain_events(handle):
+    if not handle:
+        return
+    try:
+        for _ in range(20):
+            event_ptr = _libmpv.mpv_wait_event(handle, 0.01)
+            if event_ptr:
+                event = ctypes.cast(event_ptr, ctypes.POINTER(_mpv_event)).contents
+                if event.event_id == 0:
+                    break
+    except Exception:
+        pass
+
+
+class _MpvHandlePool:
+    _instance = None
+    _lock = threading.Lock()
+
+    def __init__(self):
+        self._pool = []
+        self._pool_lock = threading.Lock()
+        self._created_count = 0
+        self._max_pool_size = 16
+
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = _MpvHandlePool()
+        return cls._instance
+
+    def acquire(self):
+        with self._pool_lock:
+            if self._pool:
+                return self._pool.pop()
+        handle = _create_lightweight_mpv()
+        if handle:
+            self._created_count += 1
+        return handle
+
+    def release(self, handle):
+        if not handle:
+            return
+        _stop_mpv(handle)
+        _drain_events(handle)
+        with self._pool_lock:
+            if len(self._pool) < self._max_pool_size:
+                self._pool.append(handle)
+                return
+        _destroy_mpv(handle)
+        self._created_count -= 1
+
+    def cleanup_all(self):
+        with self._pool_lock:
+            for handle in self._pool:
+                _destroy_mpv(handle)
+            self._pool.clear()
+            self._created_count = 0
+
+
+def get_optimal_thread_count():
+    cpu = os.cpu_count() or 4
+    return min(max(cpu * 2, 8), 64)
+
+
 class MpvStreamValidator:
     _lock = threading.Lock()
     _active_count = 0
-    _max_active = 8
+    _max_active = get_optimal_thread_count()
     _count_lock = threading.Lock()
 
     def __init__(self, main_window=None):
         self.logger = global_logger
         self.main_window = main_window
-        self._mpv_handle = None
 
-    def _create_mpv(self):
-        if not _MPV_AVAILABLE:
-            return None
-        try:
-            handle = _libmpv.mpv_create()
-            if not handle:
-                return None
-
-            _libmpv.mpv_set_property_string(handle, b'vo', b'null')
-            _libmpv.mpv_set_property_string(handle, b'ao', b'null')
-            _libmpv.mpv_set_property_string(handle, b'hwdec', b'no')
-            _libmpv.mpv_set_property_string(handle, b'osc', b'no')
-            _libmpv.mpv_set_property_string(handle, b'osd-bar', b'no')
-            _libmpv.mpv_set_property_string(handle, b'idle', b'yes')
-            _libmpv.mpv_set_property_string(handle, b'ytdl', b'no')
-            _libmpv.mpv_set_property_string(handle, b'keep-open', b'yes')
-            _libmpv.mpv_set_property_string(handle, b'log-level', b'error')
-            _libmpv.mpv_set_property_string(handle, b'config', b'no')
-
-            result = _libmpv.mpv_initialize(handle)
-            if result < 0:
-                _libmpv.mpv_destroy(handle)
-                return None
-
-            return handle
-        except Exception:
-            return None
-
-    def _destroy_mpv(self, handle):
-        if handle:
-            try:
-                _libmpv.mpv_destroy(handle)
-            except Exception:
-                pass
-
-    def _get_property_string(self, handle, name):
-        try:
-            value = ctypes.c_char_p()
-            result = _libmpv.mpv_get_property_string(handle, name.encode('utf-8'), ctypes.byref(value))
-            if result < 0 or not value.value:
-                return None
-            s = value.value.decode('utf-8')
-            _libmpv.mpv_free(value)
-            return s
-        except Exception:
-            return None
-
-    def _get_property_int(self, handle, name):
-        try:
-            value = ctypes.c_int64()
-            result = _libmpv.mpv_get_property(handle, name.encode('utf-8'), _MPV_FORMAT_INT64, ctypes.byref(value))
-            if result < 0:
-                return None
-            return value.value
-        except Exception:
-            return None
-
-    def _setup_protocol_options(self, handle, url):
-        if not handle or not url:
-            return
-        u = url.lower()
-
-        if u.startswith('rtsp://'):
-            _libmpv.mpv_set_property_string(handle, b'rtsp-transport', b'tcp')
-            _libmpv.mpv_set_property_string(handle, b'cache', b'no')
-            _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-probesize', b'50000')
-            _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-analyzeduration', b'100000')
-            return
-
-        looks_ts = ('/rtp/' in u or u.endswith('.ts') or u.startswith('udp://'))
-        if looks_ts:
-            _libmpv.mpv_set_property_string(handle, b'demuxer', b'lavf')
-            _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-format', b'mpegts')
-            _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-probesize', b'50000')
-            _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-analyzeduration', b'100000')
-            if u.startswith('udp://'):
-                _libmpv.mpv_set_property_string(handle, b'cache', b'yes')
-                _libmpv.mpv_set_property_string(handle, b'cache-secs', b'2')
-            return
-
-        if u.endswith('.m3u8') or 'format=hls' in u:
-            _libmpv.mpv_set_property_string(handle, b'cache', b'yes')
-            _libmpv.mpv_set_property_string(handle, b'demuxer-max-bytes', b'4MiB')
-            _libmpv.mpv_set_property_string(handle, b'demuxer-readahead-secs', b'2')
-            return
-
-        _libmpv.mpv_set_property_string(handle, b'cache', b'yes')
-        _libmpv.mpv_set_property_string(handle, b'demuxer-max-bytes', b'4MiB')
-
-    def _wait_for_event(self, handle, timeout_sec, target_events):
-        deadline = time.time() + timeout_sec
-        while time.time() < deadline:
-            try:
-                event_ptr = _libmpv.mpv_wait_event(handle, 0.1)
-                if event_ptr:
-                    event = ctypes.cast(event_ptr, ctypes.POINTER(_mpv_event)).contents
-                    if event.event_id in target_events:
-                        return event.event_id, event.error
-                    if event.event_id == _MPV_EVENT_SHUTDOWN:
-                        return _MPV_EVENT_SHUTDOWN, 0
-            except Exception:
-                break
-        return 0, 0
-
-    def validate_stream(self, url: str, raw_channel_name: str = None, timeout: int = 5) -> Dict:
+    def validate_stream(self, url: str, raw_channel_name: str = None, timeout: int = 3) -> Dict:
         result = {
             'url': url,
             'valid': False,
@@ -191,19 +241,26 @@ class MpvStreamValidator:
         with self._count_lock:
             while MpvStreamValidator._active_count >= MpvStreamValidator._max_active:
                 self._count_lock.release()
-                time.sleep(0.1)
+                time.sleep(0.05)
                 self._count_lock.acquire()
             MpvStreamValidator._active_count += 1
 
+        pool = _MpvHandlePool.get_instance()
         handle = None
         try:
-            handle = self._create_mpv()
+            handle = pool.acquire()
             if not handle:
                 result['error'] = '创建mpv实例失败'
                 result['error_type'] = 'mpv_create_failed'
                 return result
 
-            self._setup_protocol_options(handle, url)
+            u = url.lower()
+            if u.startswith('rtsp://'):
+                _libmpv.mpv_set_property_string(handle, b'rtsp-transport', b'tcp')
+            elif '/rtp/' in u or u.endswith('.ts') or u.startswith('udp://'):
+                _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-format', b'mpegts')
+            elif u.endswith('.m3u8') or 'format=hls' in u:
+                pass
 
             start_time = time.time()
 
@@ -211,7 +268,7 @@ class MpvStreamValidator:
             cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
             _libmpv.mpv_command(handle, cmd_ptr)
 
-            event_id, error_code = self._wait_for_event(
+            event_id, error_code = _wait_for_event(
                 handle, timeout,
                 {_MPV_EVENT_FILE_LOADED, _MPV_EVENT_END_FILE}
             )
@@ -222,12 +279,12 @@ class MpvStreamValidator:
                 result['valid'] = True
                 result['latency'] = latency
 
-                w = self._get_property_int(handle, 'width')
-                h = self._get_property_int(handle, 'height')
+                w = _get_property_int(handle, 'width')
+                h = _get_property_int(handle, 'height')
                 if w and h and w > 0 and h > 0:
                     result['resolution'] = f"{w}x{h}"
 
-                codec = self._get_property_string(handle, 'video-codec')
+                codec = _get_property_string(handle, 'video-codec')
                 if codec:
                     result['codec'] = codec
 
@@ -257,7 +314,7 @@ class MpvStreamValidator:
             result['error_type'] = 'unknown_error'
         finally:
             if handle:
-                self._destroy_mpv(handle)
+                pool.release(handle)
             with self._count_lock:
                 MpvStreamValidator._active_count -= 1
 
@@ -269,4 +326,5 @@ class MpvStreamValidator:
 
     @classmethod
     def terminate_all(cls):
-        pass
+        pool = _MpvHandlePool.get_instance()
+        pool.cleanup_all()

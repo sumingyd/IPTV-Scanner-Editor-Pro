@@ -9,6 +9,7 @@ from PyQt6 import QtWidgets, QtCore, QtGui
 # 导入自定义模块
 from models.channel_model import ChannelListModel
 from services.scanner_service import ScannerController
+from services.mpv_validator_service import get_optimal_thread_count
 from ui.styles import AppStyles
 from services.url_parser_service import URLRangeParser
 
@@ -298,8 +299,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
             enable_retry = self.enable_retry_checkbox.isChecked()
             self.config.save_network_settings(
                 self.ip_range_input.text(),
-                int(self.timeout_input.text()),
-                int(self.thread_count_input.text()),
+                3,
+                get_optimal_thread_count(),
                 self.user_agent_input.text(),
                 self.referer_input.text(),
                 enable_retry,
@@ -328,67 +329,11 @@ class ScanChannelDialog(QtWidgets.QDialog):
             lambda: self._save_network_settings()
         )
 
-        # 超时时间设置
-        self._setup_timeout_input()
-
-        # 线程数设置
-        self._setup_thread_input()
-
         # User-Agent设置
         self._setup_user_agent_input()
 
         # Referer设置
         self._setup_referer_input()
-
-    def _setup_timeout_input(self):
-        """设置超时时间输入控件"""
-        tr = self.language_manager.tr
-        timeout_layout = QtWidgets.QHBoxLayout()
-        timeout_label = QtWidgets.QLabel(tr("set_scan_timeout", "Set scan timeout (seconds)"))
-        self.timeout_description_label = timeout_label
-        timeout_layout.addWidget(timeout_label)
-        self.timeout_input = QtWidgets.QLineEdit()
-        # 从配置文件加载默认值，如果没有则使用配置管理器的默认值
-        try:
-            settings = self.config.load_network_settings()
-            default_timeout = settings['timeout']
-        except Exception:
-            default_timeout = 30  # 配置管理器的默认值
-        self.timeout_input.setText(str(default_timeout))
-        # 添加输入验证，确保输入是整数
-        validator = QtGui.QIntValidator(1, 60, self)
-        self.timeout_input.setValidator(validator)
-
-        timeout_layout.addWidget(self.timeout_input, 1)
-        self.timeout_input.textChanged.connect(
-            lambda: self._save_network_settings()
-        )
-        self.timeout_layout = timeout_layout
-
-    def _setup_thread_input(self):
-        """设置线程数输入控件"""
-        tr = self.language_manager.tr
-        thread_layout = QtWidgets.QHBoxLayout()
-        thread_label = QtWidgets.QLabel(tr("set_scan_threads", "Set number of scan threads"))
-        self.thread_count_label = thread_label
-        thread_layout.addWidget(thread_label)
-        self.thread_count_input = QtWidgets.QLineEdit()
-        # 从配置文件加载默认值，如果没有则使用配置管理器的默认值
-        try:
-            settings = self.config.load_network_settings()
-            default_threads = settings['threads']
-        except Exception:
-            default_threads = 30  # 配置管理器的默认值
-        self.thread_count_input.setText(str(default_threads))
-        # 添加输入验证，确保输入是整数
-        validator = QtGui.QIntValidator(1, 100, self)
-        self.thread_count_input.setValidator(validator)
-
-        thread_layout.addWidget(self.thread_count_input, 1)
-        self.thread_count_input.textChanged.connect(
-            lambda: self._save_network_settings()
-        )
-        self.thread_layout = thread_layout
 
     def _setup_user_agent_input(self):
         """设置User-Agent输入控件"""
@@ -574,28 +519,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
         scan_settings_section = QtWidgets.QVBoxLayout()
         scan_settings_section.setSpacing(8)
 
-        # 超时设置
-        timeout_layout = QtWidgets.QHBoxLayout()
-        timeout_label = QtWidgets.QLabel(f"{tr('timeout_small', 'Timeout')}:")
-        timeout_label.setStyleSheet(AppStyles.small_label_style())
-        timeout_label.setMinimumWidth(40)
-        timeout_layout.addWidget(timeout_label)
-        self.timeout_input.setFixedHeight(28)
-        timeout_layout.addWidget(self.timeout_input, 1)
-        timeout_layout.addStretch()
-        scan_settings_section.addLayout(timeout_layout)
-
-        # 线程设置
-        thread_layout = QtWidgets.QHBoxLayout()
-        thread_label = QtWidgets.QLabel(f"{tr('thread_small', 'Threads')}:")
-        thread_label.setStyleSheet(AppStyles.small_label_style())
-        thread_label.setMinimumWidth(40)
-        thread_layout.addWidget(thread_label)
-        self.thread_count_input.setFixedHeight(28)
-        thread_layout.addWidget(self.thread_count_input, 1)
-        thread_layout.addStretch()
-        scan_settings_section.addLayout(thread_layout)
-
         # User-Agent（简化标签）
         ua_label = QtWidgets.QLabel("User-Agent:")
         ua_label.setStyleSheet(AppStyles.small_label_style())
@@ -701,6 +624,13 @@ class ScanChannelDialog(QtWidgets.QDialog):
     def _setup_list_toolbar(self, toolbar_layout):
         """设置频道列表的工具栏按钮（用于标题栏）"""
         tr = self.language_manager.tr
+        # 打开列表按钮
+        self.btn_open_list = QtWidgets.QPushButton(tr("open_list", "Open List"))
+        self.btn_open_list.setStyleSheet(AppStyles.common_button_style())
+        self.btn_open_list.setFixedHeight(32)
+        self.btn_open_list.setFixedWidth(70)
+        self.btn_open_list.setToolTip(tr("open_list_tooltip", "Import M3U file to channel list for validation"))
+
         # 有效性检测按钮
         self.btn_validate = QtWidgets.QPushButton(tr("validate_button", "Validate"))
         self.btn_validate.setStyleSheet(AppStyles.common_button_style())
@@ -715,6 +645,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.btn_hide_invalid.setFixedWidth(80)
         self.btn_hide_invalid.setEnabled(False)
 
+        toolbar_layout.addWidget(self.btn_open_list)
+        toolbar_layout.addSpacing(6)
         toolbar_layout.addWidget(self.btn_validate)
         toolbar_layout.addSpacing(6)
         toolbar_layout.addWidget(self.btn_hide_invalid)
@@ -1007,23 +939,17 @@ class ScanChannelDialog(QtWidgets.QDialog):
             if settings['url']:
                 self.ip_range_input.setText(settings['url'])
 
-            self.timeout_input.setText(str(int(settings['timeout'])))
-            self.thread_count_input.setText(str(int(settings['threads'])))
-
             if settings['user_agent']:
                 self.user_agent_input.setText(settings['user_agent'])
 
             if settings['referer']:
                 self.referer_input.setText(settings['referer'])
 
-            # 加载重试设置（简化后只加载 enable_retry）
             if 'enable_retry' in settings:
                 self.enable_retry_checkbox.setChecked(settings['enable_retry'])
 
         except Exception as e:
             log_config_error(f"加载配置失败: {e}")
-            self.timeout_input.setText('10')
-            self.thread_count_input.setText('5')
 
     def _register_config_observers(self):
         register_config_observer("Network.*", self._on_network_config_changed)
@@ -1037,10 +963,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 更新对应的UI控件
         if key == 'url':
             self.ip_range_input.setText(new_value)
-        elif key == 'timeout':
-            self.timeout_input.setText(str(int(new_value)))
-        elif key == 'threads':
-            self.thread_count_input.setText(str(int(new_value)))
         elif key == 'user_agent':
             self.user_agent_input.setText(new_value)
         elif key == 'referer':
@@ -1069,6 +991,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         safe_connect_button(self.btn_validate, self._on_validate_clicked)
         safe_connect_button(self.btn_hide_invalid, self._on_hide_invalid_clicked)
         safe_connect_button(self.btn_generate, self._on_generate_clicked)
+        safe_connect_button(self.btn_open_list, self._on_open_list_clicked)
 
         if not hasattr(self, 'scanner') or self.scanner is None:
             return
@@ -1131,10 +1054,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         else:
             log_scan_info("开始追加扫描，保留现有列表")
 
-        timeout = int(self.timeout_input.text())
-        threads = int(self.thread_count_input.text())
-
-        self.scanner.start_scan(url, threads, timeout)
+        self.scanner.start_scan(url, get_optimal_thread_count(), 3)
 
         if clear_list:
             self._set_scan_button_text('stop_scan', '停止扫描')
@@ -1166,14 +1086,12 @@ class ScanChannelDialog(QtWidgets.QDialog):
             return
 
         if not hasattr(self.scanner, 'is_validating') or not self.scanner.is_validating:
-            timeout = int(self.timeout_input.text())
-            threads = int(self.thread_count_input.text())
             user_agent = self.user_agent_input.text()
             referer = self.referer_input.text()
             self.scanner.start_validation(
                 self.model,
-                threads,
-                timeout,
+                get_optimal_thread_count(),
+                3,
                 user_agent,
                 referer
             )
@@ -1196,6 +1114,41 @@ class ScanChannelDialog(QtWidgets.QDialog):
         }
 
         self.model.update_channel(index, channel_info)
+
+    def _on_open_list_clicked(self):
+        """打开M3U文件，将频道导入到扫描列表用于有效性检测"""
+        tr = self.language_manager.tr
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            tr("open_list_for_validation", "Open List for Validation"),
+            "",
+            "M3U文件 (*.m3u *.m3u8);;文本文件 (*.txt);;所有文件 (*.*)"
+        )
+        if not file_path:
+            return
+
+        try:
+            from services.m3u_parser import load_m3u_file
+            content = load_m3u_file(file_path)
+
+            if not self.model.load_from_file(content):
+                self.logger.warning("解析M3U文件失败")
+                return
+
+            count = self.model.rowCount()
+            self.logger.info(f"已导入 {count} 个频道到扫描列表")
+
+            if hasattr(self, 'channel_list'):
+                header = self.channel_list.horizontalHeader()
+                header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+
+            self.btn_hide_invalid.setEnabled(True)
+            self.btn_hide_invalid.setStyleSheet(AppStyles.button_style(active=True))
+
+        except FileNotFoundError:
+            self.logger.warning(f"文件不存在: {file_path}")
+        except Exception as e:
+            self.logger.error(f"打开列表文件失败: {str(e)}")
 
     def _on_generate_clicked(self):
         """处理直接生成列表按钮点击事件"""
@@ -1247,8 +1200,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
             if hasattr(self, 'config'):
                 self.config.save_network_settings(
                     url=self.ip_range_input.text(),
-                    timeout=int(self.timeout_input.text()),
-                    threads=int(self.thread_count_input.text()),
+                    timeout=3,
+                    threads=get_optimal_thread_count(),
                     user_agent=self.user_agent_input.text(),
                     referer=self.referer_input.text(),
                     enable_retry=self.enable_retry_checkbox.isChecked(),
@@ -1357,6 +1310,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
                 self.close_btn.setText(f"✕ {tr('close_button', 'Close')}")
             if hasattr(self, 'btn_validate'):
                 self.btn_validate.setText(tr("validate_button", "Validate"))
+            if hasattr(self, 'btn_open_list'):
+                self.btn_open_list.setText(tr("open_list", "Open List"))
             if hasattr(self, 'btn_hide_invalid'):
                 self.btn_hide_invalid.setText(tr("hide_invalid_button", "Hide Invalid"))
             if hasattr(self, 'btn_scan'):
@@ -1379,10 +1334,6 @@ class ScanChannelDialog(QtWidgets.QDialog):
                 self.btn_save_channel.setText(tr("save_changes", "💾 Save Changes"))
             if hasattr(self, 'address_example_label'):
                 self.address_example_label.setText(tr("address_format_hint", "Format: http://ip:port/rtp/..."))
-            if hasattr(self, 'timeout_description_label'):
-                self.timeout_description_label.setText(tr("set_scan_timeout", "Set scan timeout (seconds)"))
-            if hasattr(self, 'thread_count_label'):
-                self.thread_count_label.setText(tr("set_scan_threads", "Set number of scan threads"))
             if hasattr(self, 'user_agent_label'):
                 self.user_agent_label.setText("User-Agent:")
             if hasattr(self, 'referer_label'):
@@ -1549,8 +1500,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 启动扫描
         self.scanner.start_scan_from_urls(
             retry_urls,
-            int(self.thread_count_input.text()),
-            int(self.timeout_input.text())
+            get_optimal_thread_count(),
+            3
         )
         
         # 更新按钮文本
@@ -1558,27 +1509,26 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self._set_append_scan_button_text('stop_scan', '停止扫描')
 
     def _handle_retry_scan_completed(self):
-        """处理重试扫描完成 - 简化后默认启用循环扫描"""
-        self.logger.debug("=== 处理重试扫描完成 ===")
-        
         retry_count = self.scan_state_manager.get_retry_count(self.retry_id)
-        max_retries = 5
-        
+        max_retries = 3
+
         if retry_count >= max_retries:
-            self.logger.info(f"已达到最大重试次数({max_retries})，结束循环扫描")
+            self.logger.info(f"已达到最大重试次数({max_retries})，结束重试扫描")
             self.scan_state_manager.reset_retry_scan(self.retry_id)
             return
-        
+
         current_valid_count = self._count_valid_channels()
         last_valid_count = self.scan_state_manager.get_last_retry_valid_count(self.retry_id)
-        
-        self.logger.debug(f"循环扫描检查: 上次有效频道数={last_valid_count}, 当前有效频道数={current_valid_count}, 重试次数={retry_count}")
-        
-        if current_valid_count > last_valid_count:
-            self.logger.info("找到新的有效频道，继续循环扫描")
+
+        new_valid = current_valid_count - last_valid_count
+        self.logger.info(f"重试扫描完成: 新增有效={new_valid}, 总有效={current_valid_count}, 重试次数={retry_count}")
+
+        if new_valid > 0:
+            self.logger.info(f"重试发现{new_valid}个新有效频道，继续重试")
+            self.scan_state_manager.update_last_retry_valid_count(self.retry_id, current_valid_count)
             QtCore.QTimer.singleShot(100, self._handle_retry_scan)
         else:
-            self.logger.debug("没有找到新的有效频道，结束循环扫描")
+            self.logger.info("重试未发现新有效频道，结束重试扫描")
             self.scan_state_manager.reset_retry_scan(self.retry_id)
 
 

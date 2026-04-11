@@ -430,9 +430,9 @@ class IPTVPlayer(QMainWindow):
         self._ui_initialized = True
 
         from utils.resource_cleaner import register_cleanup
-        from services.validator_service import StreamValidator
+        from services.mpv_validator_service import MpvStreamValidator
         from utils.memory_manager import optimize_memory
-        register_cleanup(StreamValidator.terminate_all, "validator_terminate_all")
+        register_cleanup(MpvStreamValidator.terminate_all, "mpv_validator_terminate_all")
         register_cleanup(optimize_memory, "optimize_memory")
 
         self._theme_manager.register_window(self)
@@ -2392,37 +2392,38 @@ class IPTVPlayer(QMainWindow):
         """媒体信息获取完成时的处理"""
         tr = self.language_manager.tr
         unknown = tr('codec_unknown', 'Unknown')
-        # 更新媒体信息显示
         if media_info:
-            # 更新视频信息
             video_info = media_info.get('video', {})
             video_codec = video_info.get('codec', unknown)
             video_width = video_info.get('width', 0)
             video_height = video_info.get('height', 0)
             video_resolution = f"{video_width}x{video_height}" if video_width and video_height else unknown
             video_bitrate = video_info.get('bit_rate', 0)
-            video_bitrate_str = f"{video_bitrate // 1000}kbps" if video_bitrate else unknown
-            
-            # 更新音频信息
+            if video_bitrate and video_bitrate > 0:
+                if video_bitrate >= 1_000_000:
+                    video_bitrate_str = f"{video_bitrate / 1_000_000:.1f}Mbps"
+                else:
+                    video_bitrate_str = f"{video_bitrate // 1000}kbps"
+            else:
+                video_bitrate_str = unknown
+
             audio_info = media_info.get('audio', {})
             audio_codec = audio_info.get('codec', unknown)
             channels = audio_info.get('channels', 0)
             sample_rate = audio_info.get('sample_rate', 0)
             audio_bitrate = audio_info.get('bit_rate', 0)
-            audio_bitrate_str = f"{audio_bitrate // 1000}kbps" if audio_bitrate else unknown
-            
-            # 更新网络信息
+            if audio_bitrate and audio_bitrate > 0:
+                audio_bitrate_str = f"{audio_bitrate // 1000}kbps"
+            else:
+                audio_bitrate_str = unknown
+
             format_name = media_info.get('format', unknown)
             protocol = media_info.get('protocol', unknown)
-            
-            # 修复码率显示，确保即使码率为0也能正确显示
-            video_bitrate_str = f"{video_bitrate // 1000}kbps" if video_bitrate is not None and video_bitrate >= 0 else unknown
-            audio_bitrate_str = f"{audio_bitrate // 1000}kbps" if audio_bitrate is not None and audio_bitrate >= 0 else unknown
+
             self.video_info.setText(f"📺 {tr('codec_label', 'Codec')}: {video_codec} | {tr('resolution_label', 'Resolution')}: {video_resolution} | {tr('bitrate_label', 'Bitrate')}: {video_bitrate_str}")
             self.audio_info.setText(f"🔊 {tr('codec_label', 'Codec')}: {audio_codec} | {tr('channel_count_label', 'Channels')}: {channels}ch | {tr('sample_rate_label', 'Sample Rate')}: {sample_rate}Hz | {tr('bitrate_label', 'Bitrate')}: {audio_bitrate_str}")
             self.network_info.setText(f"📡 {tr('format_label', 'Format')}: {format_name} | {tr('protocol_label', 'Protocol')}: {protocol}")
-            
-            # 更新状态栏消息
+
             if self.current_channel:
                 channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
                 self.status_bar.showMessage(f"{tr('playing', 'Playing')}: {channel_name} - {video_codec} {video_resolution} {protocol}")
@@ -4041,13 +4042,28 @@ class IPTVPlayer(QMainWindow):
         if not info:
             return
         try:
+            tr = self.language_manager.tr
             if hasattr(self, 'video_info') and info.get('info_text'):
-                hw = info.get('hwdec', '')
-                hw_tag = 'HW' if hw and hw != 'no' else 'SW'
                 self.video_info.setText(f"📺 {info['info_text']}")
+            if hasattr(self, 'audio_info') and info.get('audio_codec'):
+                acodec = info.get('audio_codec', '')
+                channels = info.get('audio_channels', 0)
+                sample_rate = info.get('sample_rate', 0)
+                a_br = info.get('audio_bitrate', 0)
+                if a_br and a_br > 0:
+                    audio_bitrate_str = f"{int(a_br) // 1000}kbps"
+                else:
+                    audio_bitrate_str = tr('codec_unknown', 'Unknown')
+                self.audio_info.setText(f"🔊 {tr('codec_label', 'Codec')}: {acodec} | {tr('channel_count_label', 'Channels')}: {channels}ch | {tr('sample_rate_label', 'Sample Rate')}: {sample_rate}Hz | {tr('bitrate_label', 'Bitrate')}: {audio_bitrate_str}")
             if hasattr(self, 'network_info'):
                 proto = MpvPlayerController._guess_protocol(self.current_channel.get('url', '') if self.current_channel else '')
-                self.network_info.setText(f"📡 {proto} | {hw_tag}")
+                hw = info.get('hwdec', '')
+                hw_tag = 'HW' if hw and hw != 'no' else 'SW'
+                container = info.get('container', '')
+                if container:
+                    self.network_info.setText(f"📡 {container} | {proto} | {hw_tag}")
+                else:
+                    self.network_info.setText(f"📡 {proto} | {hw_tag}")
         except RuntimeError:
             pass
 
