@@ -383,6 +383,117 @@ class ConfigManager:
                 self.set_value(section, key, str(value))
         return self.save_config()
 
+    def save_playback_settings(self, settings=None):
+        defaults = {
+            'hwdec': True,
+            'cache_secs': 1.0,
+            'demuxer_max_bytes_mib': 16,
+            'demuxer_max_back_bytes_mib': 4,
+            'fcc_prefetch_count': 2,
+            'source_timeout_sec': 3,
+            'enable_protocol_adaptive': True,
+            'hls_start_at_live_edge': False,
+            'hls_readahead_secs': 0,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'tls_verify': False,
+            'http_headers': '',
+            'rtsp_transport': 'tcp',
+            'rtsp_user_agent': 'VLC/3.0.18Libmpv',
+            'network_timeout_sec': 0,
+        }
+        if settings:
+            defaults.update(settings)
+        for key, value in defaults.items():
+            if isinstance(value, bool):
+                self.set_value('Playback', key, str(value))
+            elif isinstance(value, float):
+                self.set_value('Playback', key, str(value))
+            elif isinstance(value, int):
+                self.set_value('Playback', key, str(value))
+            else:
+                self.set_value('Playback', key, str(value))
+        return self.save_config()
+
+    def load_playback_settings(self):
+        defaults = {
+            'hwdec': True,
+            'cache_secs': 1.0,
+            'demuxer_max_bytes_mib': 16,
+            'demuxer_max_back_bytes_mib': 4,
+            'fcc_prefetch_count': 2,
+            'source_timeout_sec': 3,
+            'enable_protocol_adaptive': True,
+            'hls_start_at_live_edge': False,
+            'hls_readahead_secs': 0,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'tls_verify': False,
+            'http_headers': '',
+            'rtsp_transport': 'tcp',
+            'rtsp_user_agent': 'VLC/3.0.18Libmpv',
+            'network_timeout_sec': 0,
+        }
+        result = {}
+        for key, default in defaults.items():
+            raw = self.get_value('Playback', key)
+            if raw is None:
+                result[key] = default
+            elif isinstance(default, bool):
+                result[key] = raw.lower() == 'true'
+            elif isinstance(default, float):
+                try:
+                    result[key] = float(raw)
+                except (ValueError, TypeError):
+                    result[key] = default
+            elif isinstance(default, int):
+                try:
+                    result[key] = int(raw)
+                except (ValueError, TypeError):
+                    result[key] = default
+            else:
+                result[key] = raw
+        return result
+
+    def save_last_channel(self, file_path, channel_name, channel_index):
+        self.set_value('Player', 'last_channel_file', file_path or '')
+        self.set_value('Player', 'last_channel_name', channel_name or '')
+        self.set_value('Player', 'last_channel_index', str(channel_index if channel_index is not None else -1))
+        return self.save_config()
+
+    def load_last_channel(self):
+        return {
+            'file': self.get_value('Player', 'last_channel_file', ''),
+            'name': self.get_value('Player', 'last_channel_name', ''),
+            'index': int(self.get_value('Player', 'last_channel_index', '-1')),
+        }
+
+    def save_timeshift_settings(self, settings):
+        for key, value in settings.items():
+            self.set_value('Timeshift', key, str(value))
+        return self.save_config()
+
+    def load_timeshift_settings(self):
+        return {
+            'enabled': self.get_value('Timeshift', 'enabled', 'True').lower() == 'true',
+            'default_offset_minutes': int(self.get_value('Timeshift', 'default_offset_minutes', '30')),
+            'url_format': self.get_value('Timeshift', 'url_format', ''),
+            'time_encoding': self.get_value('Timeshift', 'time_encoding', 'unix'),
+            'start_key': self.get_value('Timeshift', 'start_key', 'startTime'),
+            'end_key': self.get_value('Timeshift', 'end_key', 'endTime'),
+            'layout': self.get_value('Timeshift', 'layout', 'start_end'),
+        }
+
+    def save_channel_merge_settings(self, settings):
+        for key, value in settings.items():
+            self.set_value('ChannelMerge', key, str(value))
+        return self.save_config()
+
+    def load_channel_merge_settings(self):
+        return {
+            'enabled': self.get_value('ChannelMerge', 'enabled', 'True').lower() == 'true',
+            'merge_mode': self.get_value('ChannelMerge', 'merge_mode', 'append'),
+            'prefer_source': self.get_value('ChannelMerge', 'prefer_source', 'file'),
+        }
+
     def load_all_settings(self) -> dict:
         """加载所有设置"""
         all_settings = {}

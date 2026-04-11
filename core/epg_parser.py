@@ -237,60 +237,39 @@ class EPGParser:
             return {}
     
     def get_channel_epg(self, channel_name, tvg_id=None):
-        """获取指定频道的节目单"""
         with self.update_lock:
-            # 首先尝试使用tvg-id匹配
             if tvg_id:
-                # 直接使用tvg_id匹配
                 if tvg_id in self.epg_data:
                     return self.epg_data[tvg_id]
-                # 尝试使用tvg_id的小写形式匹配
                 tvg_id_lower = tvg_id.lower()
                 for epg_channel_id, programs in self.epg_data.items():
                     if epg_channel_id.lower() == tvg_id_lower:
                         return programs
-            # 然后尝试使用频道名称匹配
             if channel_name:
-                # 直接使用频道名称匹配
                 if channel_name in self.epg_data:
                     return self.epg_data[channel_name]
-                # 尝试使用频道名称的小写形式匹配
                 channel_name_lower = channel_name.lower()
                 for epg_channel_id, programs in self.epg_data.items():
                     if epg_channel_id.lower() == channel_name_lower:
                         return programs
+
+            try:
+                from services.epg_matcher import EpgMatcher
+                epg_channels = {}
+                for epg_id, programs in self.epg_data.items():
+                    epg_channels[epg_id] = epg_id
+                matched_id = EpgMatcher.match(channel_name, epg_channels, tvg_id=tvg_id)
+                if matched_id and matched_id in self.epg_data:
+                    return self.epg_data[matched_id]
+            except Exception:
+                pass
+
             if channel_name:
                 channel_name_lower = channel_name.lower()
                 for epg_channel_id, programs in self.epg_data.items():
                     epg_lower = epg_channel_id.lower()
                     if len(channel_name_lower) >= 3 and (channel_name_lower in epg_lower or epg_lower in channel_name_lower):
                         if len(channel_name_lower) >= len(epg_lower) * 0.6 or len(epg_lower) >= len(channel_name_lower) * 0.6:
-                            return programs
-            if channel_name:
-                channel_name_short = channel_name[:8]
-                channel_name_short_lower = channel_name_short.lower()
-                if len(channel_name_short_lower) >= 3:
-                    for epg_channel_id, programs in self.epg_data.items():
-                        epg_lower = epg_channel_id.lower()
-                        if channel_name_short_lower in epg_lower or epg_lower in channel_name_short_lower:
-                            if len(channel_name_short_lower) >= len(epg_lower) * 0.6 or len(epg_lower) >= len(channel_name_short_lower) * 0.6:
-                                return programs
-            if channel_name:
-                import re
-                numbers = re.findall(r'\d+', channel_name)
-                if numbers:
-                    longest_number = max(numbers, key=len)
-                    if len(longest_number) >= 2:
-                        for epg_channel_id, programs in self.epg_data.items():
-                            if longest_number in epg_channel_id and channel_name[:2].lower() in epg_channel_id.lower():
-                                return programs
-            if channel_name:
-                import re
-                simplified_name = re.sub(r'[^a-zA-Z0-9]', '', channel_name).lower()
-                if len(simplified_name) >= 3:
-                    for epg_channel_id, programs in self.epg_data.items():
-                        simplified_epg_channel = re.sub(r'[^a-zA-Z0-9]', '', epg_channel_id).lower()
-                        if simplified_name == simplified_epg_channel:
                             return programs
             return []
     

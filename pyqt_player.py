@@ -119,71 +119,40 @@ class ChannelListModel:
                     if name.startswith('"') and name.endswith('"'):
                         name = name[1:-1]
 
+                    from services.m3u_parser import parse_attributes, is_valid_channel_url
+                    attrs = parse_attributes(attrs_part)
+
                     current_channel = {
-                        'name': name if name else '未命名',
+                        'name': attrs.get('tvg-name', name if name else '未命名'),
                         'url': '',
                         'group': current_group if genre_group_active else '未分类',
-                        'logo': '',
-                        'tvg_id': '',
-                        'tvg_chno': '',
-                        'tvg_shift': '',
-                        'catchup': '',
-                        'catchup_days': '',
-                        'catchup_source': '',
-                        'resolution': '',
+                        'logo': attrs.get('tvg-logo', ''),
+                        'tvg_id': attrs.get('tvg-id', ''),
+                        'tvg_chno': attrs.get('tvg-chno', ''),
+                        'tvg_shift': attrs.get('tvg-shift', ''),
+                        'catchup': attrs.get('catchup', ''),
+                        'catchup_days': attrs.get('catchup-days', ''),
+                        'catchup_source': attrs.get('catchup-source', ''),
+                        'resolution': attrs.get('resolution', ''),
                         'status': '待检测',
                         'valid': False
                     }
 
-                    tvg_name_match = re.search(r"tvg-name=[\"']([^\"']*)[\"']", attrs_part)
-                    if tvg_name_match and tvg_name_match.group(1):
-                        current_channel['name'] = tvg_name_match.group(1)
+                    if name and name != '未命名':
+                        current_channel['name'] = name
 
-                    tvg_id_match = re.search(r"tvg-id=[\"']([^\"']*)[\"']", attrs_part)
-                    if tvg_id_match:
-                        current_channel['tvg_id'] = tvg_id_match.group(1)
-
-                    tvg_logo_match = re.search(r"tvg-logo=[\"']([^\"']*)[\"']", attrs_part)
-                    if tvg_logo_match:
-                        current_channel['logo'] = tvg_logo_match.group(1)
-
-                    group_match = re.search(r"group-title=[\"']([^\"']*)[\"']", attrs_part)
-                    if group_match and group_match.group(1):
-                        current_group = group_match.group(1)
+                    if attrs.get('group-title'):
+                        current_group = attrs['group-title']
                         current_channel['group'] = current_group
                         genre_group_active = False
 
-                    tvg_chno_match = re.search(r"tvg-chno=[\"']([^\"']*)[\"']", attrs_part)
-                    if tvg_chno_match:
-                        current_channel['tvg_chno'] = tvg_chno_match.group(1)
-
-                    resolution_match = re.search(r"resolution=[\"']([^\"']*)[\"']", attrs_part)
-                    if resolution_match:
-                        current_channel['resolution'] = resolution_match.group(1)
-
-                    tvg_shift_match = re.search(r"tvg-shift=[\"']([^\"']*)[\"']", attrs_part)
-                    if tvg_shift_match:
-                        current_channel['tvg_shift'] = tvg_shift_match.group(1)
-
-                    catchup_match = re.search(r"catchup=[\"']([^\"']*)[\"']", attrs_part)
-                    if catchup_match:
-                        current_channel['catchup'] = catchup_match.group(1)
-
-                    catchup_days_match = re.search(r"catchup-days=[\"']([^\"']*)[\"']", attrs_part)
-                    if catchup_days_match:
-                        current_channel['catchup_days'] = catchup_days_match.group(1)
-
-                    catchup_source_match = re.search(r"catchup-source=[\"']([^\"']*)[\"']", attrs_part)
-                    if catchup_source_match:
-                        current_channel['catchup_source'] = catchup_source_match.group(1)
-
                 elif current_channel and line and not line.startswith("#"):
-                    if self._is_valid_channel_url(line):
+                    if is_valid_channel_url(line):
                         current_channel['url'] = line
                         self.channels.append(current_channel)
                     current_channel = None
                 elif not current_channel and line and not line.startswith("#"):
-                    if self._is_valid_channel_url(line):
+                    if is_valid_channel_url(line):
                         self.channels.append({
                             'name': extract_channel_name_from_url(line),
                             'url': line,
@@ -205,36 +174,6 @@ class ChannelListModel:
             logger.error(f"解析文件失败: {e}")
             return False
 
-    @staticmethod
-    def _is_valid_channel_url(url):
-        if not url:
-            return False
-        url = url.strip()
-        if not url:
-            return False
-        if '://' not in url:
-            return False
-        try:
-            from urllib.parse import urlparse
-            parsed = urlparse(url)
-            host = parsed.hostname
-            if not host:
-                return False
-            if host in ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
-                return False
-            octets = host.split('.')
-            if len(octets) == 4:
-                try:
-                    if all(0 <= int(o) <= 255 for o in octets):
-                        first = int(octets[0])
-                        if first == 0:
-                            return False
-                except ValueError:
-                    pass
-            return True
-        except Exception:
-            return True
-    
     def to_m3u(self) -> str:
         """转换为M3U格式"""
         if self.original_data:
@@ -341,9 +280,6 @@ class IPTVPlayer(QMainWindow):
         
         # 全屏状态
         self.is_fullscreen = False
-        
-        # LOGO 缓存
-        self.logo_cache = {}
         
         # EPG解析器
         from core.epg_parser import global_epg_parser
@@ -567,6 +503,7 @@ class IPTVPlayer(QMainWindow):
                             # 尝试直接解析内容
                             logger.debug("尝试直接解析缓存内容...")
                             try:
+                                from services.m3u_parser import is_valid_channel_url as _is_valid_url
                                 lines = content.strip().split('\n')
                                 channels = []
                                 current_channel = {}
@@ -597,7 +534,7 @@ class IPTVPlayer(QMainWindow):
                                     elif not line.startswith('#') and line:
                                         if current_channel:
                                             url = line.strip()
-                                            if self._is_valid_channel_url(url):
+                                            if _is_valid_url(url):
                                                 current_channel['url'] = url
                                                 channels.append(current_channel.copy())
                                             current_channel = {}
@@ -824,15 +761,29 @@ class IPTVPlayer(QMainWindow):
         logger.debug("_create_status_bar: 完成")
     
     def _init_player(self):
-        """初始化播放器"""
         logger.debug("_init_player: 开始")
         
-        # 初始化播放器控制器
         self.player_controller = MpvPlayerController(self.video_widget)
         self.player_controller.play_state_changed.connect(self.on_play_state_changed)
         self.player_controller.media_info_ready.connect(self.on_media_info_ready)
         self.player_controller.play_error.connect(self.on_play_error)
-        
+        self.player_controller.live_media_info_updated.connect(self.on_live_media_info_updated)
+
+        from services.logo_cache_service import LogoCacheService
+        self._logo_cache_service = LogoCacheService(self)
+        self._logo_cache_service.logo_loaded.connect(self._on_logo_cache_loaded)
+
+        from services.network_preheat_service import DnsPrefetcher, ConnectionPreheater
+        self._dns_prefetcher = DnsPrefetcher(self)
+        self._connection_preheater = ConnectionPreheater(self)
+
+        self._source_timeout_timer = None
+        self._current_source_index = {}
+        self._timeshift_active = False
+        self._timeshift_start_time = None
+
+        self._load_last_channel()
+
         logger.debug("_init_player: 完成")
     
     def _create_floating_panels(self):
@@ -1173,6 +1124,22 @@ class IPTVPlayer(QMainWindow):
         self.exit_catchup_button.clicked.connect(self.exit_catchup)
         self.exit_catchup_button.hide()
         self.control_row.addWidget(self.exit_catchup_button)
+
+        # 7.5 速度控制按钮
+        self.speed_button = QToolButton()
+        self.speed_button.setText("1.0x")
+        self.speed_button.setFixedSize(42, 26)
+        self.speed_button.setStyleSheet(AppStyles.player_button_style())
+        self.speed_button.clicked.connect(self._cycle_speed)
+        self.control_row.addWidget(self.speed_button)
+
+        # 7.6 画面比例按钮
+        self.aspect_button = QToolButton()
+        self.aspect_button.setText("📐")
+        self.aspect_button.setFixedSize(28, 26)
+        self.aspect_button.setStyleSheet(AppStyles.player_button_style())
+        self.aspect_button.clicked.connect(self._cycle_aspect_ratio)
+        self.control_row.addWidget(self.aspect_button)
         
         # 8. 全屏图标
         self.fullscreen_button = QToolButton()
@@ -1968,6 +1935,8 @@ class IPTVPlayer(QMainWindow):
             # 标记当前处于回看模式
             self.is_catchup_mode = True
             
+            self._cancel_source_timeout()
+            
             # 播放前隐藏背景占位符
             if hasattr(self, 'video_placeholder'):
                 self.video_placeholder.hide()
@@ -2140,59 +2109,18 @@ class IPTVPlayer(QMainWindow):
         logo = self.current_channel.get("logo", "")
         
         if logo:
-            # 去除 URL 中的各种引号
             logo = logo.strip('`"\'')
-            
-            # 检查缓存中是否已有该 LOGO
-            if logo in self.logo_cache:
-                pixmap = self.logo_cache[logo]
-                # 缩放图片以适应 QLabel 大小
-                scaled_pixmap = pixmap.scaled(self.channel_logo.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+
+            cached = self._logo_cache_service.get(logo)
+            if cached:
+                scaled_pixmap = cached.scaled(self.channel_logo.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
                 self.channel_logo.setPixmap(scaled_pixmap)
-                self.channel_logo.setText("")  # 清除文本
+                self.channel_logo.setText("")
                 return
-            
-            # 使用 QNetworkAccessManager 加载网络图片
-            from PyQt6.QtCore import QUrl, QByteArray
-            from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
-            
-            # 创建网络管理器（作为实例属性，避免被垃圾回收）
-            if not hasattr(self, 'logo_manager'):
-                self.logo_manager = QNetworkAccessManager()
-            
-            def on_logo_loaded(reply):
-                if reply.error() == QNetworkReply.NetworkError.NoError:
-                    data = reply.readAll()
-                    pixmap = QPixmap()
-                    if pixmap.loadFromData(data):
-                        # 缓存 LOGO
-                        self.logo_cache[logo] = pixmap
-                        # 缩放图片以适应 QLabel 大小
-                        scaled_pixmap = pixmap.scaled(self.channel_logo.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                        self.channel_logo.setPixmap(scaled_pixmap)
-                        self.channel_logo.setText("")  # 清除文本
-                    else:
-                        # 加载失败，显示默认图标
-                        self.channel_logo.setPixmap(QPixmap())
-                        self.channel_logo.setText("📺")
-                else:
-                    # 加载失败，显示默认图标
-                    self.channel_logo.setPixmap(QPixmap())
-                    self.channel_logo.setText("📺")
-                reply.deleteLater()
-            
-            # 断开之前的信号连接，避免重复回调
-            try:
-                self.logo_manager.finished.disconnect()
-            except:
-                pass
-            
-            # 连接信号
-            self.logo_manager.finished.connect(on_logo_loaded)
-            
-            # 发送请求
-            request = QNetworkRequest(QUrl(logo))
-            self.logo_manager.get(request)
+
+            self._logo_cache_service.fetch_async(logo)
+            self.channel_logo.setPixmap(QPixmap())
+            self.channel_logo.setText("📺")
         else:
             # 没有 logo，显示默认图标
             self.channel_logo.setPixmap(QPixmap())
@@ -2338,22 +2266,16 @@ class IPTVPlayer(QMainWindow):
             self.volume_button.setText("🔊")
     
     def play_channel(self, channel):
-        """播放指定频道"""
         if self.player_controller and channel:
-            # 退出回看模式
             if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
                 self.is_catchup_mode = False
-                # 隐藏退出回看按钮
                 if hasattr(self, 'exit_catchup_button'):
                     self.exit_catchup_button.hide()
-                # 清除回看节目信息
                 if hasattr(self, 'catchup_program'):
                     delattr(self, 'catchup_program')
-            
-            # 重置节目单日期为今天
+
             from datetime import datetime, timedelta
             self.current_epg_date = datetime.now().date()
-            # 更新日期显示
             if hasattr(self, 'epg_date_label'):
                 today = datetime.now().date()
                 if self.current_epg_date == today:
@@ -2389,21 +2311,29 @@ class IPTVPlayer(QMainWindow):
             url = channel.get('url')
             name = channel.get('name', '未知频道')
             if url:
-                # 更新状态栏消息
                 self.status_bar.showMessage(f"{self.language_manager.tr('playing', 'Playing')}: {name}")
-                # 播放前隐藏背景占位符
                 if hasattr(self, 'video_placeholder'):
                     self.video_placeholder.hide()
-                # 确保视频窗口位置正确
                 if hasattr(self, 'video_widget'):
                     self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
-                # 确保悬浮窗在视频窗口之上
                 if hasattr(self, 'floating_panel'):
                     self.floating_panel.raise_()
-                # 更新当前频道
                 self.current_channel = channel
-                # 播放频道
-                self.player_controller.play(url, name)
+
+                self._dns_prefetcher.prefetch(url)
+                self._connection_preheater.preheat(url)
+
+                next_urls = self._get_next_channel_urls(channel)
+                if next_urls:
+                    self.player_controller.play_with_prefetch(url, next_urls)
+                else:
+                    self.player_controller.play(url, name)
+
+                self._start_source_timeout(channel)
+
+                self._save_last_channel(channel)
+
+                self._warmup_logos_around(channel)
     
     def on_play_state_changed(self, is_playing):
         """播放状态改变时的处理"""
@@ -2412,28 +2342,23 @@ class IPTVPlayer(QMainWindow):
         QTimer.singleShot(0, lambda: self._handle_play_state_change(is_playing))
     
     def _handle_play_state_change(self, is_playing):
-        """处理播放状态改变（在主线程中执行）"""
         tr = self.language_manager.tr
         if is_playing:
             self.play_button.setText("⏸")
-            # 播放时隐藏背景，显示视频窗口
+            self._cancel_source_timeout()
             if hasattr(self, 'video_placeholder'):
                 self.video_placeholder.hide()
             if hasattr(self, 'video_widget'):
                 self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
                 self.video_widget.show()
-            # 确保悬浮控件在视频窗口之上
             if hasattr(self, 'epg_panel'):
                 self.epg_panel.raise_()
             if hasattr(self, 'playlist_panel'):
                 self.playlist_panel.raise_()
             if hasattr(self, 'floating_panel'):
                 self.floating_panel.raise_()
-            # 更新媒体信息
             self.update_media_info()
-            # 启动定时器，每500ms更新一次（减少频率，避免卡顿）
             self.update_timer.start(500)
-            # 更新状态栏消息
             if self.current_channel:
                 channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
                 if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
@@ -3458,8 +3383,8 @@ class IPTVPlayer(QMainWindow):
         from core.log_manager import global_logger as logger
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+            from services.m3u_parser import load_m3u_file
+            content = load_m3u_file(file_path)
 
             if self.channel_model.load_from_file(content):
                 global CHANNELS
@@ -3548,8 +3473,8 @@ class IPTVPlayer(QMainWindow):
         if file_path:
             try:
                 logger.info(f"开始打开播放列表文件: {file_path}")
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
+                from services.m3u_parser import load_m3u_file
+                content = load_m3u_file(file_path)
                 logger.info(f"成功读取文件，文件大小: {len(content)} 字节")
                 
                 # 解析x-tvg-url属性，但优先使用手动设置的EPG地址
@@ -3934,6 +3859,9 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, 'update_timer') and self.update_timer:
             self.update_timer.stop()
 
+        if hasattr(self, '_source_timeout_timer') and self._source_timeout_timer:
+            self._source_timeout_timer.stop()
+
         super().closeEvent(event)
     
     def keyPressEvent(self, event):
@@ -4093,11 +4021,287 @@ class IPTVPlayer(QMainWindow):
         self.status_bar.setStyleSheet("")
     
     def _on_update_check_completed(self, success, message):
-        """版本检查完成时的处理"""
         if success:
             logger.info(f"版本检查完成: {message}")
         else:
             logger.warning(f"版本检查失败: {message}")
+
+    def _on_logo_cache_loaded(self, url, pixmap):
+        if not self.current_channel:
+            return
+        logo = self.current_channel.get('logo', '')
+        if logo:
+            logo = logo.strip('`"\'')
+            if logo == url and hasattr(self, 'channel_logo'):
+                scaled = pixmap.scaled(self.channel_logo.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                self.channel_logo.setPixmap(scaled)
+                self.channel_logo.setText("")
+
+    def on_live_media_info_updated(self, info):
+        if not info:
+            return
+        try:
+            if hasattr(self, 'video_info') and info.get('info_text'):
+                hw = info.get('hwdec', '')
+                hw_tag = 'HW' if hw and hw != 'no' else 'SW'
+                self.video_info.setText(f"📺 {info['info_text']}")
+            if hasattr(self, 'network_info'):
+                proto = MpvPlayerController._guess_protocol(self.current_channel.get('url', '') if self.current_channel else '')
+                self.network_info.setText(f"📡 {proto} | {hw_tag}")
+        except RuntimeError:
+            pass
+
+    def _get_next_channel_urls(self, current_channel):
+        if not CHANNELS or not current_channel:
+            return []
+        current_idx = -1
+        for i, ch in enumerate(CHANNELS):
+            if ch is current_channel:
+                current_idx = i
+                break
+        if current_idx < 0:
+            return []
+        next_urls = []
+        for j in range(current_idx + 1, min(current_idx + 3, len(CHANNELS))):
+            url = CHANNELS[j].get('url', '')
+            if url:
+                next_urls.append(url)
+        return next_urls
+
+    def _start_source_timeout(self, channel):
+        if hasattr(self, '_source_timeout_timer') and self._source_timeout_timer:
+            self._source_timeout_timer.stop()
+        try:
+            from core.config_manager import ConfigManager
+            timeout = ConfigManager().load_playback_settings().get('source_timeout_sec', 10)
+        except Exception:
+            timeout = 10
+        if timeout <= 0:
+            return
+        self._source_timeout_timer = QTimer(self)
+        self._source_timeout_timer.setSingleShot(True)
+        self._source_timeout_timer.timeout.connect(lambda: self._on_source_timeout(channel))
+        self._source_timeout_timer.start(timeout * 1000)
+
+    def _cancel_source_timeout(self):
+        if hasattr(self, '_source_timeout_timer') and self._source_timeout_timer:
+            self._source_timeout_timer.stop()
+
+    def _on_source_timeout(self, channel):
+        if not self.player_controller or not self.player_controller.is_playing:
+            return
+        if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
+            return
+        logger.debug(f"源超时（无备用源可切换）: {channel.get('name', '')}")
+
+    def _save_last_channel(self, channel):
+        if not channel:
+            return
+        try:
+            name = channel.get('name', '')
+            idx = -1
+            for i, ch in enumerate(CHANNELS):
+                if ch is channel:
+                    idx = i
+                    break
+            file_path = ''
+            if hasattr(self, 'channel_model') and hasattr(self.channel_model, 'original_data'):
+                pass
+            self.config.save_last_channel(file_path, name, idx)
+        except Exception:
+            pass
+
+    def _load_last_channel(self):
+        try:
+            last = self.config.load_last_channel()
+            if last.get('name') and last.get('index', -1) >= 0:
+                self._pending_last_channel = last
+        except Exception:
+            pass
+
+    def _try_restore_last_channel(self):
+        if not hasattr(self, '_pending_last_channel'):
+            return
+        last = self._pending_last_channel
+        delattr(self, '_pending_last_channel')
+        if not CHANNELS:
+            return
+        idx = last.get('index', -1)
+        if 0 <= idx < len(CHANNELS):
+            ch = CHANNELS[idx]
+            if ch.get('name') == last.get('name'):
+                self.current_channel = ch
+                self.select_channel_by_index(idx)
+
+    def select_channel_by_index(self, idx):
+        if not hasattr(self, 'channel_list') or idx < 0:
+            return
+        for i in range(self.channel_list.count()):
+            item = self.channel_list.item(i)
+            if item.data(Qt.ItemDataRole.UserRole) == idx:
+                self.channel_list.setCurrentItem(item)
+                self.select_channel(item)
+                return
+
+    def _warmup_logos_around(self, channel):
+        if not CHANNELS:
+            return
+        current_idx = -1
+        for i, ch in enumerate(CHANNELS):
+            if ch is channel:
+                current_idx = i
+                break
+        if current_idx < 0:
+            return
+        urls = []
+        for j in range(max(0, current_idx - 5), min(current_idx + 10, len(CHANNELS))):
+            logo = CHANNELS[j].get('logo', '')
+            if logo:
+                urls.append(logo.strip('`"\''))
+        if urls:
+            self._logo_cache_service.warmup(urls)
+
+    def start_timeshift(self, offset_minutes=None):
+        if not self.current_channel:
+            return
+        if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
+            return
+        try:
+            from core.config_manager import ConfigManager
+            ts_settings = ConfigManager().load_timeshift_settings()
+        except Exception:
+            ts_settings = {}
+
+        if offset_minutes is None:
+            offset_minutes = ts_settings.get('default_offset_minutes', 30)
+
+        catchup_source = self.current_channel.get('catchup_source', '')
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        start_time = now - timedelta(minutes=offset_minutes)
+        end_time = now
+
+        if catchup_source:
+            timeshift_url = self._replace_catchup_variables(catchup_source, start_time, end_time)
+        else:
+            url_format = ts_settings.get('url_format', '')
+            if url_format:
+                base_url = self.current_channel.get('url', '')
+                if url_format.startswith('?') or url_format.startswith('&'):
+                    timeshift_url = base_url + url_format
+                else:
+                    timeshift_url = url_format
+                time_encoding = ts_settings.get('time_encoding', 'unix')
+                start_key = ts_settings.get('start_key', 'startTime')
+                end_key = ts_settings.get('end_key', 'endTime')
+                layout = ts_settings.get('layout', 'start_end')
+
+                if time_encoding == 'unix':
+                    sv = str(int(start_time.timestamp()))
+                    ev = str(int(end_time.timestamp()))
+                elif time_encoding == 'unix_ms':
+                    sv = str(int(start_time.timestamp() * 1000))
+                    ev = str(int(end_time.timestamp() * 1000))
+                else:
+                    sv = start_time.strftime('%Y%m%d%H%M%S')
+                    ev = end_time.strftime('%Y%m%d%H%M%S')
+
+                sep = '&' if '?' in timeshift_url else '?'
+                if layout == 'start_end':
+                    timeshift_url += f"{sep}{start_key}={sv}&{end_key}={ev}"
+                elif layout == 'start_duration':
+                    duration = str(int((end_time - start_time).total_seconds()))
+                    timeshift_url += f"{sep}{start_key}={sv}&duration={duration}"
+                elif layout == 'playseek':
+                    timeshift_url += f"{sep}playseek={sv}"
+            else:
+                logger.warning("时移无可用URL格式")
+                return
+
+        self._timeshift_active = True
+        self._timeshift_start_time = start_time
+        self.is_catchup_mode = True
+        self.catchup_program = {
+            'start': start_time,
+            'end': end_time,
+            'title': f'时移 -{offset_minutes}分钟',
+            'desc': '',
+        }
+        self.original_channel = self.current_channel.copy()
+
+        if self.player_controller:
+            self.player_controller.play(timeshift_url, f"{self.current_channel.get('name', '')} (时移)")
+        self.add_exit_catchup_button()
+
+    def merge_channels_from_content(self, content, mode='append'):
+        from services.m3u_parser import detect_and_decode_text
+        if isinstance(content, bytes):
+            content = detect_and_decode_text(content)
+
+        merge_model = ChannelListModel()
+        if not merge_model.load_from_file(content):
+            return False
+
+        global CHANNELS
+        new_channels = []
+        for i, ch in enumerate(merge_model.channels):
+            new_channels.append({
+                "id": len(CHANNELS) + i + 1,
+                "name": ch.get('name', '未命名'),
+                "url": ch.get('url', ''),
+                "logo": ch.get('logo', ''),
+                "group": ch.get('group', '未分类'),
+                "tvg_id": ch.get('tvg_id', ''),
+                "tvg_chno": ch.get('tvg_chno', ''),
+                "tvg_shift": ch.get('tvg_shift', ''),
+                "catchup": ch.get('catchup', ''),
+                "catchup_days": ch.get('catchup_days', ''),
+                "catchup_source": ch.get('catchup_source', ''),
+                "resolution": ch.get('resolution', ''),
+                "current_program": ''
+            })
+
+        if mode == 'replace':
+            CHANNELS = new_channels
+        else:
+            existing_names = {ch.get('name', '') for ch in CHANNELS}
+            for ch in new_channels:
+                if mode == 'append' or ch.get('name', '') not in existing_names:
+                    CHANNELS.append(ch)
+
+        self.populate_channel_list()
+        return True
+
+    _SPEED_STEPS = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 5.0]
+
+    def _cycle_speed(self):
+        if not self.player_controller:
+            return
+        current = self.player_controller.get_speed()
+        idx = 0
+        for i, s in enumerate(self._SPEED_STEPS):
+            if abs(current - s) < 0.01:
+                idx = i
+                break
+        next_idx = (idx + 1) % len(self._SPEED_STEPS)
+        new_speed = self._SPEED_STEPS[next_idx]
+        self.player_controller.set_speed(new_speed)
+        if hasattr(self, 'speed_button'):
+            self.speed_button.setText(f"{new_speed}x")
+
+    _ASPECT_CYCLE = ['default', '16:9', '4:3', 'stretch', 'fill']
+
+    def _cycle_aspect_ratio(self):
+        if not self.player_controller:
+            return
+        if not hasattr(self, '_current_aspect_idx'):
+            self._current_aspect_idx = 0
+        self._current_aspect_idx = (self._current_aspect_idx + 1) % len(self._ASPECT_CYCLE)
+        ratio = self._ASPECT_CYCLE[self._current_aspect_idx]
+        self.player_controller.set_aspect_ratio(ratio)
+        labels = {'default': '📐', '16:9': '16:9', '4:3': '4:3', 'stretch': '↔', 'fill': '⬛'}
+        if hasattr(self, 'aspect_button'):
+            self.aspect_button.setText(labels.get(ratio, '📐'))
 
 # 主函数
 if __name__ == "__main__":

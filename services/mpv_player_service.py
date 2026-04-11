@@ -4,76 +4,63 @@ import subprocess
 import os
 import time
 import ctypes
+import threading
 from ctypes import wintypes
-from PyQt6.QtCore import QObject, pyqtSignal, QThread, QCoreApplication, QTimer, QRunnable, QThreadPool
+from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QThread, QCoreApplication, QTimer, QRunnable, QThreadPool
 from PyQt6.QtGui import QImage, QPixmap
 from core.log_manager import global_logger
-from services.ffprobe_service import get_ffprobe_path, FFProbeWorker as UnifiedFFProbeWorker
 
-# 设置环境变量，告诉python-mpv在哪里找到mpv
-# 检查是否为打包后的环境
 if getattr(sys, 'frozen', False):
-    # 打包后的环境，使用sys._MEIPASS
     base_path = sys._MEIPASS
 else:
-    # 开发环境，使用当前工作目录
     base_path = os.getcwd()
 
 mpv_dir = os.path.join(base_path, 'mpv')
 os.environ['MPV_HOME'] = mpv_dir
 os.environ['PATH'] = mpv_dir + os.pathsep + os.environ['PATH']
 
-# 检查是否存在libmpv-2.dll
 libmpv_path = os.path.join(mpv_dir, 'libmpv-2.dll')
 if os.path.exists(libmpv_path):
-    # 设置MPV_LIBRARY环境变量，指定libmpv-2.dll的路径
     os.environ['MPV_LIBRARY'] = libmpv_path
-
 else:
     print(f"未找到libmpv-2.dll: {libmpv_path}")
 
-# 定义libmpv相关的结构体和函数
 try:
-    # 加载libmpv-2.dll
     libmpv = ctypes.CDLL(libmpv_path)
 
-    
-    # 定义函数类型
     libmpv.mpv_create.restype = ctypes.c_void_p
     libmpv.mpv_create.argtypes = []
-    
+
     libmpv.mpv_initialize.restype = ctypes.c_int
     libmpv.mpv_initialize.argtypes = [ctypes.c_void_p]
-    
+
     libmpv.mpv_set_property_string.restype = ctypes.c_int
     libmpv.mpv_set_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
-    
+
     libmpv.mpv_set_property.restype = ctypes.c_int
     libmpv.mpv_set_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p]
-    
+
     libmpv.mpv_command.restype = ctypes.c_int
     libmpv.mpv_command.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_char_p)]
-    
+
     libmpv.mpv_destroy.restype = None
     libmpv.mpv_destroy.argtypes = [ctypes.c_void_p]
-    
+
     libmpv.mpv_observe_property.restype = ctypes.c_int
     libmpv.mpv_observe_property.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.c_char_p, ctypes.c_int]
-    
+
     libmpv.mpv_set_wakeup_callback.restype = None
     libmpv.mpv_set_wakeup_callback.argtypes = [ctypes.c_void_p, ctypes.CFUNCTYPE(None, ctypes.c_void_p), ctypes.c_void_p]
-    
+
     libmpv.mpv_wait_event.restype = ctypes.c_void_p
     libmpv.mpv_wait_event.argtypes = [ctypes.c_void_p, ctypes.c_double]
-    
-    # 添加获取属性的函数
+
     libmpv.mpv_get_property_string.restype = ctypes.c_int
     libmpv.mpv_get_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_char_p)]
-    
+
     libmpv.mpv_free.restype = None
     libmpv.mpv_free.argtypes = [ctypes.c_void_p]
-    
-    # 定义事件结构体
+
     class mpv_event(ctypes.Structure):
         _fields_ = [
             ('event_id', ctypes.c_int),
@@ -81,8 +68,7 @@ try:
             ('reply_userdata', ctypes.c_uint64),
             ('data', ctypes.c_void_p)
         ]
-    
-    # 事件ID
+
     MPV_EVENT_NONE = 0
     MPV_EVENT_SHUTDOWN = 1
     MPV_EVENT_LOG_MESSAGE = 2
@@ -100,90 +86,80 @@ try:
     MPV_EVENT_PROPERTY_CHANGE = 14
     MPV_EVENT_QUEUE_OVERFLOW = 15
     MPV_EVENT_ERROR = 16
-    
-    # 属性格式
+
     MPV_FORMAT_STRING = 0
     MPV_FORMAT_OSD_STRING = 1
     MPV_FORMAT_FLAG = 2
     MPV_FORMAT_INT64 = 3
     MPV_FORMAT_DOUBLE = 4
     MPV_FORMAT_NODE = 5
-    
 
 except Exception as e:
     print(f"使用ctypes加载libmpv-2.dll失败: {str(e)}")
     libmpv = None
 
-# 尝试导入mpv
 try:
     import mpv
-
 except Exception as e:
     print(f"导入mpv模块失败: {str(e)}")
     mpv = None
 
-# 编码映射表 - 将 FourCC 编码转换为人类可读的名称
 VIDEO_CODEC_MAP = {
-    'h264': 'H.264',
-    'avc1': 'H.264',
-    'h265': 'H.265',
-    'hevc': 'H.265',
-    'vp9': 'VP9',
-    'vp8': 'VP8',
-    'av01': 'AV1',
-    'mpeg': 'MPEG-2',
-    'mp2v': 'MPEG-2',
-    'mp4v': 'MPEG-4',
-    'divx': 'DivX',
-    'xvid': 'XviD',
-    'wmv3': 'WMV3',
-    'wmv2': 'WMV2',
-    'wmv1': 'WMV1',
-    'theo': 'Theora',
-    'flv1': 'FLV',
-    'rv40': 'RealVideo 4',
-    'rv30': 'RealVideo 3',
-    '462h': 'H.264',  # 常见的 H.264 变体
-    '462H': 'H.264',
-    'avc3': 'H.264',
-    'hvc1': 'H.265',
-    'hev1': 'H.265',
-    'vp09': 'VP9',
-    'av00': 'AV1',
+    'h264': 'H.264', 'avc1': 'H.264', 'h265': 'H.265', 'hevc': 'H.265',
+    'vp9': 'VP9', 'vp8': 'VP8', 'av01': 'AV1', 'mpeg': 'MPEG-2',
+    'mp2v': 'MPEG-2', 'mp4v': 'MPEG-4', 'divx': 'DivX', 'xvid': 'XviD',
+    'wmv3': 'WMV3', 'wmv2': 'WMV2', 'wmv1': 'WMV1', 'theo': 'Theora',
+    'flv1': 'FLV', 'rv40': 'RealVideo 4', 'rv30': 'RealVideo 3',
+    '462h': 'H.264', '462H': 'H.264', 'avc3': 'H.264',
+    'hvc1': 'H.265', 'hev1': 'H.265', 'vp09': 'VP9', 'av00': 'AV1',
 }
 
 AUDIO_CODEC_MAP = {
-    'aac': 'AAC',
-    'mp3': 'MP3',
-    'mp2': 'MP2',
-    'mp1': 'MP1',
-    'ac3': 'AC-3',
-    'eac3': 'E-AC-3',
-    'dts': 'DTS',
-    'dtsh': 'DTS-HD',
-    'opus': 'Opus',
-    'vorb': 'Vorbis',
-    'flac': 'FLAC',
-    'alac': 'ALAC',
-    'wma': 'WMA',
-    'pcm': 'PCM',
-    'twos': 'PCM',
-    'sowt': 'PCM',
-    'lpcm': 'PCM',
-    'agpm': 'AAC',  # 常见的 AAC 变体
-    'aacp': 'AAC+',
-    'aach': 'AAC-HE',
-    'mp4a': 'AAC',
-    'ac-3': 'AC-3',
-    'dtsc': 'DTS',
-    'dtsh': 'DTS-HD',
-    'dtse': 'DTS-HD Master Audio',
+    'aac': 'AAC', 'mp3': 'MP3', 'mp2': 'MP2', 'mp1': 'MP1',
+    'ac3': 'AC-3', 'eac3': 'E-AC-3', 'dts': 'DTS', 'dtsh': 'DTS-HD',
+    'opus': 'Opus', 'vorb': 'Vorbis', 'flac': 'FLAC', 'alac': 'ALAC',
+    'wma': 'WMA', 'pcm': 'PCM', 'twos': 'PCM', 'sowt': 'PCM', 'lpcm': 'PCM',
+    'agpm': 'AAC', 'aacp': 'AAC+', 'aach': 'AAC-HE', 'mp4a': 'AAC',
+    'ac-3': 'AC-3', 'dtsc': 'DTS', 'dtse': 'DTS-HD Master Audio',
+    'truehd': 'TrueHD',
 }
+
+DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+
+def _load_playback_settings():
+    settings = {
+        'hwdec': True,
+        'cache_secs': 1.0,
+        'demuxer_max_bytes_mib': 16,
+        'demuxer_max_back_bytes_mib': 4,
+        'fcc_prefetch_count': 2,
+        'source_timeout_sec': 3,
+        'enable_protocol_adaptive': True,
+        'hls_start_at_live_edge': False,
+        'hls_readahead_secs': 0,
+        'user_agent': DEFAULT_USER_AGENT,
+        'tls_verify': False,
+        'http_headers': '',
+        'rtsp_transport': 'tcp',
+        'rtsp_user_agent': 'VLC/3.0.18Libmpv',
+        'network_timeout_sec': 0,
+    }
+    try:
+        from core.config_manager import ConfigManager
+        config = ConfigManager()
+        s = config.load_playback_settings()
+        settings.update(s)
+    except Exception:
+        pass
+    return settings
+
 
 class MpvPlayerController(QObject):
     play_error = pyqtSignal(str)
-    play_state_changed = pyqtSignal(bool)  # True=播放中, False=停止
-    media_info_ready = pyqtSignal(dict)  # 当获取到信息时发射此信号
+    play_state_changed = pyqtSignal(bool)
+    media_info_ready = pyqtSignal(dict)
+    live_media_info_updated = pyqtSignal(dict)
 
     def __init__(self, video_widget, channel_model=None):
         super().__init__()
@@ -192,65 +168,74 @@ class MpvPlayerController(QObject):
         self.channel_model = channel_model
         self.mpv_handle = None
         self.is_playing = False
-        self.is_paused = False  # 新增：内部状态变量，用于跟踪暂停状态
+        self.is_paused = False
         self.current_url = None
         self.media_info = {}
         self.event_timer = None
-        
-        # 初始化mpv播放器
+        self._playback_settings = _load_playback_settings()
+        self._current_speed = 1.0
+        self._live_info_timer = None
+
         try:
-            # 检查libmpv是否加载成功
             if libmpv is None:
                 error_msg = "libmpv-2.dll加载失败"
                 self.logger.error(error_msg)
                 self.play_error.emit(error_msg)
                 return
-            
-            # 创建mpv实例
+
             self.mpv_handle = libmpv.mpv_create()
             if not self.mpv_handle:
                 error_msg = "创建mpv实例失败"
                 self.logger.error(error_msg)
                 self.play_error.emit(error_msg)
                 return
-            
-            # 获取视频窗口的句柄
+
             window_id = self.video_widget.winId()
-            # 确保window_id是整数
             if hasattr(window_id, 'value'):
                 window_id = window_id.value
-            
-            # 设置窗口ID，确保mpv嵌入到PyQt窗口中
+
             try:
-                # 直接使用字符串形式设置窗口ID
                 window_id_int = int(window_id)
                 window_id_str = f"{window_id_int}".encode('utf-8')
                 result = libmpv.mpv_set_property_string(self.mpv_handle, b'wid', window_id_str)
                 if result < 0:
-                    self.logger.error(f"使用字符串设置窗口ID失败: {result}")
-                else:
-                    self.logger.debug(f"成功使用字符串设置窗口ID: {window_id_int}")
+                    self.logger.error(f"设置窗口ID失败: {result}")
             except Exception as e:
                 self.logger.error(f"设置窗口ID失败: {str(e)}")
-            
-            # 设置其他属性 - 优化内嵌渲染模式
-            # 使用gpu渲染器，并指定窗口嵌入模式
+
             libmpv.mpv_set_property_string(self.mpv_handle, b'vo', b'gpu')
-            # 启用硬件解码
-            libmpv.mpv_set_property_string(self.mpv_handle, b'hwdec', b'auto')
-            # 禁用内置控制器
+            hwdec = b'd3d11va' if self._playback_settings.get('hwdec', True) else b'no'
+            libmpv.mpv_set_property_string(self.mpv_handle, b'hwdec', hwdec)
+            libmpv.mpv_set_property_string(self.mpv_handle, b'gpu-api', b'd3d11')
             libmpv.mpv_set_property_string(self.mpv_handle, b'osc', b'no')
             libmpv.mpv_set_property_string(self.mpv_handle, b'osd-bar', b'no')
-            # 设置日志级别
             libmpv.mpv_set_property_string(self.mpv_handle, b'log-level', b'error')
-            # 禁用窗口装饰
             libmpv.mpv_set_property_string(self.mpv_handle, b'no-window-dragging', b'yes')
-            # 确保视频渲染在正确的层级
             libmpv.mpv_set_property_string(self.mpv_handle, b'window-scale', b'1.0')
-            # 禁用窗口边框
             libmpv.mpv_set_property_string(self.mpv_handle, b'border', b'no')
-            
-            # 初始化mpv
+
+            libmpv.mpv_set_property_string(self.mpv_handle, b'keep-open', b'yes')
+            libmpv.mpv_set_property_string(self.mpv_handle, b'idle', b'yes')
+            libmpv.mpv_set_property_string(self.mpv_handle, b'ytdl', b'no')
+
+            ua = self._playback_settings.get('user_agent', DEFAULT_USER_AGENT)
+            if ua:
+                libmpv.mpv_set_property_string(self.mpv_handle, b'user-agent', ua.encode('utf-8'))
+
+            if not self._playback_settings.get('tls_verify', True):
+                libmpv.mpv_set_property_string(self.mpv_handle, b'tls-verify', b'no')
+
+            libmpv.mpv_set_property_string(self.mpv_handle, b'mute', b'no')
+            libmpv.mpv_set_property_string(self.mpv_handle, b'audio', b'yes')
+            libmpv.mpv_set_property_string(self.mpv_handle, b'audio-device', b'auto')
+
+            net_to = self._playback_settings.get('network_timeout_sec', 0)
+            if net_to > 0:
+                libmpv.mpv_set_property_string(self.mpv_handle, b'network-timeout', str(net_to).encode('utf-8'))
+
+            threads = max(2, os.cpu_count() // 2 or 2)
+            libmpv.mpv_set_property_string(self.mpv_handle, b'vd-lavc-threads', str(threads).encode('utf-8'))
+
             result = libmpv.mpv_initialize(self.mpv_handle)
             if result < 0:
                 error_msg = f"初始化mpv失败: {result}"
@@ -259,20 +244,18 @@ class MpvPlayerController(QObject):
                 libmpv.mpv_destroy(self.mpv_handle)
                 self.mpv_handle = None
                 return
-            
-            # 订阅pause属性变化事件，这样当暂停状态改变时我们能收到通知
+
             try:
                 libmpv.mpv_observe_property(self.mpv_handle, 1, b'pause', MPV_FORMAT_STRING)
             except Exception as e:
                 self.logger.warning(f"订阅pause属性失败: {str(e)}")
-            
+
             self.logger.info("mpv播放器初始化成功")
-            
-            # 启动事件处理定时器
+
             self.event_timer = QTimer(self)
             self.event_timer.timeout.connect(self._process_events)
-            self.event_timer.start(100)  # 每100毫秒处理一次事件
-            
+            self.event_timer.start(100)
+
         except Exception as e:
             error_msg = f"初始化mpv播放器失败: {str(e)}"
             self.logger.error(error_msg)
@@ -280,37 +263,193 @@ class MpvPlayerController(QObject):
             if self.mpv_handle:
                 libmpv.mpv_destroy(self.mpv_handle)
                 self.mpv_handle = None
-    
+
+    def _set_mpv_string(self, name, value):
+        try:
+            if self.mpv_handle:
+                libmpv.mpv_set_property_string(self.mpv_handle, name.encode('utf-8'), str(value).encode('utf-8'))
+        except Exception:
+            pass
+
+    def _setup_protocol_options(self, url):
+        if not self.mpv_handle or not url:
+            return
+        u = url.lower()
+        settings = self._playback_settings
+
+        is_vod = ('playseek' in u or 'starttime=' in u or 'endtime=' in u or
+                  'catchup' in u or 'timeshift' in u or 'playback' in u)
+
+        if u.startswith('rtsp://'):
+            rtsp_transport = settings.get('rtsp_transport', 'tcp')
+            self._set_mpv_string('rtsp-transport', rtsp_transport)
+            rtsp_ua = settings.get('rtsp_user_agent', 'VLC/3.0.18Libmpv')
+            self._set_mpv_string('user-agent', rtsp_ua)
+            cache_secs = settings.get('cache_secs', 1.0)
+            self._set_mpv_string('cache', 'yes' if cache_secs > 0 else 'no')
+            if cache_secs > 0:
+                self._set_mpv_string('cache-secs', str(cache_secs))
+            self._set_mpv_string('demuxer-lavf-format', '')
+            if is_vod:
+                self._set_mpv_string('demuxer-lavf-probesize', '5000000')
+                self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
+                self._set_mpv_string('force-seekable', 'yes')
+                self.logger.debug(f"[mpv] rtsp-vod cache={cache_secs} transport={rtsp_transport}")
+            else:
+                self._set_mpv_string('demuxer-lavf-probesize', '32')
+                self._set_mpv_string('demuxer-lavf-analyzeduration', '0')
+                self.logger.debug(f"[mpv] rtsp-live cache={cache_secs} transport={rtsp_transport}")
+            return
+
+        looks_ts = ('/rtp/' in u or u.endswith('.ts') or 'proto=http' in u or u.startswith('udp://'))
+        if looks_ts:
+            self._set_mpv_string('demuxer', 'lavf')
+            self._set_mpv_string('demuxer-lavf-format', 'mpegts')
+            if is_vod:
+                self._set_mpv_string('demuxer-lavf-probesize', '5000000')
+                self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
+                self._set_mpv_string('force-seekable', 'yes')
+            else:
+                self._set_mpv_string('demuxer-lavf-probesize', '32')
+                self._set_mpv_string('demuxer-lavf-analyzeduration', '0')
+            self._set_mpv_string('demuxer-lavf-buffersize', '128000')
+
+            if u.startswith('udp://'):
+                self._set_mpv_string('cache', 'yes')
+                cache_secs = settings.get('cache_secs', 10)
+                self._set_mpv_string('cache-secs', str(max(1, cache_secs)))
+                self._set_mpv_string('demuxer-max-back-bytes', '128MiB')
+                self.logger.debug(f"[mpv] udp-ts demux=mpegts cache=yes max-back=128MiB")
+            else:
+                cache_secs = settings.get('cache_secs', 1.0)
+                self._set_mpv_string('cache', 'yes' if cache_secs > 0 else 'no')
+                if cache_secs > 0:
+                    self._set_mpv_string('cache-secs', str(cache_secs))
+                max_mib = settings.get('demuxer_max_bytes_mib', 16)
+                back_mib = settings.get('demuxer_max_back_bytes_mib', 4)
+                self._set_mpv_string('demuxer-max-bytes', f'{max_mib}MiB')
+                self._set_mpv_string('demuxer-max-back-bytes', f'{back_mib}MiB')
+                self.logger.debug(f"[mpv] http-ts demux=mpegts cache={cache_secs}")
+            return
+
+        if u.endswith('.m3u8') or 'format=hls' in u:
+            self._set_mpv_string('demuxer-lavf-format', '')
+            self._set_mpv_string('cache', 'yes')
+            self._set_mpv_string('demuxer-max-bytes', '512MiB')
+            self._set_mpv_string('demuxer-max-back-bytes', '256MiB')
+            self._set_mpv_string('force-seekable', 'yes')
+            self._set_mpv_string('demuxer-readahead-secs', '60')
+
+            if settings.get('hls_start_at_live_edge', False):
+                self._set_mpv_string('hls-playlist-start', 'no')
+            readahead = settings.get('hls_readahead_secs', 0)
+            if readahead > 0:
+                self._set_mpv_string('demuxer-readahead-secs', str(readahead))
+            self.logger.debug(f"[mpv] hls cache=yes seekable=yes")
+            return
+
+        self._set_mpv_string('demuxer-lavf-format', '')
+        self._set_mpv_string('cache', 'yes')
+        self._set_mpv_string('demuxer-max-bytes', '512MiB')
+        self._set_mpv_string('demuxer-max-back-bytes', '256MiB')
+        self._set_mpv_string('force-seekable', 'yes')
+        self._set_mpv_string('demuxer-readahead-secs', '60')
+        self._set_mpv_string('demuxer-cache-wait', 'no')
+        self.logger.debug(f"[mpv] generic http cache=yes seekable=yes")
+
+        if (u.startswith('http://') or u.startswith('https://')):
+            headers = settings.get('http_headers', '')
+            if headers:
+                header_val = headers.replace('\r\n', '\n').replace('\n', '\\n')
+                self._set_mpv_string('http-header-fields', header_val)
+                self.logger.debug(f"[mpv] http-headers set")
+
+            ua = settings.get('user_agent', DEFAULT_USER_AGENT)
+            if ua:
+                self._set_mpv_string('user-agent', ua)
+
     def _process_events(self):
-        """处理mpv事件"""
         if not self.mpv_handle:
             return
-        
         try:
-            # 现在我们使用内部状态变量来跟踪播放状态，不再需要查询mpv的pause属性
-            # 只处理其他重要事件
             pass
         except Exception as e:
             self.logger.error(f"处理mpv事件失败: {str(e)}")
-    
+
     def play(self, url, channel_name=None, **kwargs):
-        """播放媒体
-        Args:
-            url: 媒体URL
-            channel_name: 频道名称
-            **kwargs: 其他参数
-        """
         try:
-            # 记录当前URL
             self.current_url = url
-            
+
             if not self.mpv_handle:
                 self.logger.error("mpv播放器未初始化")
                 self.play_error.emit("mpv播放器未初始化")
                 return False
-            
-            # 先停止当前播放
-            # 注意：不调用self.stop()，因为它会发射停止信号导致状态错误
+
+            try:
+                if self.mpv_handle:
+                    cmd_stop = [b'stop', None]
+                    cmd_ptr_stop = (ctypes.c_char_p * len(cmd_stop))(*cmd_stop)
+                    libmpv.mpv_command(self.mpv_handle, cmd_ptr_stop)
+                    time.sleep(0.05)
+                    cmd_clear = [b'playlist-clear', None]
+                    cmd_ptr_clear = (ctypes.c_char_p * len(cmd_clear))(*cmd_clear)
+                    libmpv.mpv_command(self.mpv_handle, cmd_ptr_clear)
+            except:
+                pass
+
+            if hasattr(self, '_media_info_timer') and self._media_info_timer:
+                self._media_info_timer.stop()
+            if hasattr(self, '_current_ffprobe_worker') and self._current_ffprobe_worker:
+                self._current_ffprobe_worker.is_running = False
+                if hasattr(self._current_ffprobe_worker, 'process') and self._current_ffprobe_worker.process:
+                    try:
+                        self._current_ffprobe_worker.process.kill()
+                    except:
+                        pass
+                try:
+                    delattr(self, '_current_ffprobe_worker')
+                except:
+                    pass
+
+            self._setup_protocol_options(url)
+
+            cmd = [b'loadfile', url.encode('utf-8'), None]
+            cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+            result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+
+            if result < 0:
+                error_msg = f"播放失败: {result}"
+                self.logger.error(error_msg)
+                self.play_error.emit(error_msg)
+                return False
+
+            libmpv.mpv_set_property_string(self.mpv_handle, b'pause', b'no')
+
+            if self._current_speed != 1.0:
+                self._set_mpv_string('speed', str(self._current_speed))
+
+            self.is_paused = False
+            self.is_playing = True
+            self.play_state_changed.emit(True)
+
+            self._get_media_info(url)
+
+            self.logger.info(f"开始播放: {url}")
+            return True
+        except Exception as e:
+            error_msg = f"播放失败: {str(e)}"
+            self.logger.error(error_msg)
+            self.play_error.emit(error_msg)
+            return False
+
+    def play_with_prefetch(self, url, next_urls=None):
+        try:
+            self.current_url = url
+
+            if not self.mpv_handle:
+                self.play_error.emit("mpv播放器未初始化")
+                return False
+
             try:
                 if self.mpv_handle:
                     cmd_stop = [b'stop', None]
@@ -318,80 +457,62 @@ class MpvPlayerController(QObject):
                     libmpv.mpv_command(self.mpv_handle, cmd_ptr_stop)
             except:
                 pass
-            
-            # 取消之前的媒体信息获取任务
-            if hasattr(self, '_media_info_timer') and self._media_info_timer:
-                self._media_info_timer.stop()
-            
-            # 取消ffprobe任务
-            if hasattr(self, '_current_ffprobe_worker') and self._current_ffprobe_worker:
-                self._current_ffprobe_worker.is_running = False
-                if hasattr(self._current_ffprobe_worker, 'process') and self._current_ffprobe_worker.process:
-                    try:
-                        self._current_ffprobe_worker.process.kill()
-                    except:
-                        pass
-                if hasattr(self, '_current_ffprobe_worker'):
-                    try:
-                        delattr(self, '_current_ffprobe_worker')
-                    except:
-                        pass
-            
-            # 构建播放命令
+
+            self._setup_protocol_options(url)
+            self._set_mpv_string('prefetch-playlist', 'yes')
+
+            cmd_clear = [b'playlist-clear', None]
+            cmd_ptr_clear = (ctypes.c_char_p * len(cmd_clear))(*cmd_clear)
+            libmpv.mpv_command(self.mpv_handle, cmd_ptr_clear)
+
             cmd = [b'loadfile', url.encode('utf-8'), None]
             cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
-            result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
-            
-            if result < 0:
-                error_msg = f"播放失败: {result}"
-                self.logger.error(error_msg)
-                self.play_error.emit(error_msg)
-                return False
-            
-            # 显式设置为非暂停状态，确保开始播放
+            libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+
+            if next_urls:
+                prefetch_count = self._playback_settings.get('fcc_prefetch_count', 2)
+                for i, next_url in enumerate(next_urls[:prefetch_count]):
+                    if not next_url or not next_url.strip():
+                        continue
+                    cmd_next = [b'loadfile', next_url.encode('utf-8'), b'append-play', None]
+                    cmd_ptr_next = (ctypes.c_char_p * len(cmd_next))(*cmd_next)
+                    libmpv.mpv_command(self.mpv_handle, cmd_ptr_next)
+
             libmpv.mpv_set_property_string(self.mpv_handle, b'pause', b'no')
-            
-            # 重置内部状态变量
+            if self._current_speed != 1.0:
+                self._set_mpv_string('speed', str(self._current_speed))
+
             self.is_paused = False
             self.is_playing = True
-            # 发射播放状态改变信号
             self.play_state_changed.emit(True)
-            
-            # 获取媒体信息
             self._get_media_info(url)
-            
-            self.logger.info(f"开始播放: {url}")
-            
+
+            self.logger.info(f"开始播放(预取模式): {url}")
             return True
         except Exception as e:
-            error_msg = f"播放失败: {str(e)}"
-            self.logger.error(error_msg)
-            self.play_error.emit(error_msg)
-            return False
-    
+            self.logger.error(f"预取播放失败: {str(e)}")
+            return self.play(url)
+
     def stop(self):
-        """停止播放"""
         try:
             if self.mpv_handle:
                 cmd = [b'stop', None]
                 cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
                 libmpv.mpv_command(self.mpv_handle, cmd_ptr)
-            
-            # 取消媒体信息获取任务
+
             if hasattr(self, '_media_info_timer') and self._media_info_timer:
                 self._media_info_timer.stop()
-            
-            # 取消ffprobe任务
+            if hasattr(self, '_live_info_timer') and self._live_info_timer:
+                self._live_info_timer.stop()
             if hasattr(self, '_current_ffprobe_worker') and self._current_ffprobe_worker:
                 self._current_ffprobe_worker.is_running = False
-                # 终止正在运行的ffprobe进程
                 if hasattr(self._current_ffprobe_worker, 'process') and self._current_ffprobe_worker.process:
                     try:
                         self._current_ffprobe_worker.process.kill()
                     except:
                         pass
                 delattr(self, '_current_ffprobe_worker')
-            
+
             self.is_playing = False
             self.is_paused = False
             self.play_state_changed.emit(False)
@@ -404,195 +525,335 @@ class MpvPlayerController(QObject):
             self.logger.info("停止播放")
         except Exception as e:
             self.logger.error(f"停止播放失败: {str(e)}")
-    
+
     def pause(self):
-        """暂停播放"""
         try:
-            self.logger.debug("开始执行pause方法")
             if self.mpv_handle:
-                self.logger.debug("执行cycle pause命令")
                 cmd = [b'cycle', b'pause', None]
                 cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
                 result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
                 if result < 0:
-                    error_str = self._get_mpv_error_string(result)
-                    self.logger.error(f"切换暂停状态失败: {error_str}")
+                    self.logger.error(f"切换暂停状态失败: {result}")
                 else:
-                    self.logger.debug("cycle pause命令执行成功")
-                    # 切换内部暂停状态
                     self.is_paused = not self.is_paused
-                    # 根据暂停状态更新播放状态
                     self.is_playing = not self.is_paused
-                    # 发射播放状态改变信号
                     self.play_state_changed.emit(self.is_playing)
-                    self.logger.debug(f"切换暂停状态，当前状态: {'暂停' if self.is_paused else '播放中'}")
-            else:
-                self.logger.debug("mpv_handle为None，无法执行pause")
         except Exception as e:
             self.logger.error(f"暂停播放失败: {str(e)}")
-    
+
     def toggle_pause(self):
-        """切换暂停状态"""
-        self.logger.debug("开始执行toggle_pause方法")
         self.pause()
-    
+
     def set_volume(self, volume):
-        """设置音量
-        Args:
-            volume: 音量值 (0-100)
-        """
         try:
-            # 保存音量
             self._last_volume = volume
-            
             if self.mpv_handle:
-                # 使用字符串设置音量
                 volume_str = f"{volume}".encode('utf-8')
                 result = libmpv.mpv_set_property_string(self.mpv_handle, b'volume', volume_str)
                 if result < 0:
                     self.logger.error(f"设置音量失败，错误码: {result}")
-                else:
-                    self.logger.debug(f"设置音量: {volume}")
         except Exception as e:
             self.logger.error(f"设置音量失败: {str(e)}")
-    
+
     def get_volume(self):
-        """获取当前音量
-        Returns:
-            音量值 (0-100)
-        """
         try:
             if not hasattr(self, '_last_volume'):
-                self._last_volume = 80  # 默认音量
-            
-            # 尝试从mpv获取音量
+                self._last_volume = 80
             volume_value = self._get_mpv_property_double('volume')
             if volume_value is not None:
                 self._last_volume = int(volume_value)
             return self._last_volume
         except Exception:
-            # 如果失败，返回上次保存的音量
             return getattr(self, '_last_volume', 80)
-    
+
+    def set_speed(self, speed):
+        try:
+            self._current_speed = speed
+            if self.mpv_handle:
+                self._set_mpv_string('speed', str(speed))
+                self.logger.debug(f"设置播放速度: {speed}x")
+        except Exception as e:
+            self.logger.error(f"设置播放速度失败: {str(e)}")
+
+    def get_speed(self):
+        return self._current_speed
+
+    def set_aspect_ratio(self, ratio):
+        try:
+            if not self.mpv_handle:
+                return
+            ratio_lower = ratio.lower() if ratio else 'default'
+            if ratio_lower == '16:9':
+                self._set_mpv_string('video-aspect-override', '16:9')
+                self._set_mpv_string('keepaspect', 'yes')
+                self._set_mpv_string('panscan', '0.0')
+            elif ratio_lower == '4:3':
+                self._set_mpv_string('video-aspect-override', '4:3')
+                self._set_mpv_string('keepaspect', 'yes')
+                self._set_mpv_string('panscan', '0.0')
+            elif ratio_lower == 'stretch':
+                self._set_mpv_string('video-aspect-override', '-1')
+                self._set_mpv_string('keepaspect', 'no')
+                self._set_mpv_string('panscan', '0.0')
+            elif ratio_lower == 'fill':
+                self._set_mpv_string('video-aspect-override', '-1')
+                self._set_mpv_string('keepaspect', 'yes')
+                self._set_mpv_string('panscan', '1.0')
+            elif ratio_lower == 'crop':
+                self._set_mpv_string('video-aspect-override', '-1')
+                self._set_mpv_string('keepaspect', 'yes')
+                self._set_mpv_string('panscan', '1.0')
+            else:
+                self._set_mpv_string('video-aspect-override', '-1')
+                self._set_mpv_string('keepaspect', 'yes')
+                self._set_mpv_string('panscan', '0.0')
+            self.logger.debug(f"设置画面比例: {ratio}")
+        except Exception as e:
+            self.logger.error(f"设置画面比例失败: {str(e)}")
+
+    def set_mute(self, muted):
+        try:
+            if self.mpv_handle:
+                val = b'yes' if muted else b'no'
+                libmpv.mpv_set_property_string(self.mpv_handle, b'mute', val)
+        except Exception as e:
+            self.logger.error(f"设置静音失败: {str(e)}")
+
+    def get_mute(self):
+        try:
+            val = self._get_mpv_property_string('mute')
+            return val == 'yes'
+        except Exception:
+            return False
+
+    def seek_relative(self, seconds):
+        try:
+            if self.mpv_handle:
+                cmd = [b'seek', f'{seconds}'.encode('utf-8'), b'relative', None]
+                cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+                libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+        except Exception as e:
+            self.logger.error(f"相对跳转失败: {str(e)}")
+
+    def seek_absolute(self, seconds):
+        try:
+            if self.mpv_handle:
+                cmd = [b'seek', f'{seconds}'.encode('utf-8'), b'absolute', None]
+                cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+                libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+        except Exception as e:
+            self.logger.error(f"绝对跳转失败: {str(e)}")
+
     def get_current_time(self):
-        """获取当前播放时间
-        Returns:
-            当前播放时间（毫秒）
-        """
         try:
             time_seconds = self._get_mpv_property_double('time-pos')
             if time_seconds:
                 return int(time_seconds * 1000)
             return 0
         except Exception:
-            # 静默处理异常，避免产生大量日志
             return 0
-    
+
     def get_total_time(self):
-        """获取总播放时间
-        Returns:
-            总播放时间（毫秒）
-        """
         try:
             duration_seconds = self._get_mpv_property_double('duration')
             if duration_seconds:
                 return int(duration_seconds * 1000)
             return 0
         except Exception:
-            # 静默处理异常，避免产生大量日志
             return 0
 
     def get_position(self):
-        """获取当前播放位置
-        Returns:
-            当前播放位置（0-1之间的浮点数）
-        """
         try:
             percent_pos = self._get_mpv_property_double('percent-pos')
             if percent_pos:
                 return percent_pos / 100.0
             return 0
         except Exception:
-            # 静默处理异常，避免产生大量日志
             return 0
-    
+
     def seek(self, position):
-        """设置播放位置
-        Args:
-            position: 播放位置（0-1之间的浮点数）
-        """
         try:
             if self.mpv_handle:
-                # 保存当前播放状态
-                is_playing = not self._get_mpv_property_string('pause') or self._get_mpv_property_string('pause') == 'no'
-                
-                # 使用绝对位置（秒）进行seek
-                # 先获取总时长
                 duration_seconds = self._get_mpv_property_double('duration')
                 if duration_seconds:
-                    # 计算目标位置（秒）
                     target_position = duration_seconds * position
-                    # 使用绝对位置进行seek
                     cmd = [b'seek', f'{target_position}'.encode('utf-8'), b'absolute', None]
                     cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
                     result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
-                    
                     if result < 0:
-                        self.logger.error(f"使用绝对位置设置播放位置失败，错误码: {result}")
-                        # 如果失败，尝试使用百分比
                         seek_percent = position * 100.0
                         cmd = [b'seek', f'{seek_percent}'.encode('utf-8'), b'absolute-percent', None]
                         cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
-                        result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
-                        
-                        if result < 0:
-                            self.logger.error(f"使用百分比设置播放位置失败，错误码: {result}")
-                        else:
-                            self.logger.debug(f"使用百分比设置播放位置: {position}")
-                    else:
-                        self.logger.debug(f"使用绝对位置设置播放位置: {position}")
+                        libmpv.mpv_command(self.mpv_handle, cmd_ptr)
                 else:
-                    # 如果获取不到总时长，使用百分比
                     seek_percent = position * 100.0
                     cmd = [b'seek', f'{seek_percent}'.encode('utf-8'), b'absolute-percent', None]
-                    cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
-                    result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
-                    
-                    if result < 0:
-                        self.logger.error(f"设置播放位置失败，错误码: {result}")
-                    else:
-                        self.logger.debug(f"设置播放位置: {position}")
-                
-                # 恢复播放状态
-                if is_playing:
-                    # 确保视频继续播放
-                    cmd = [b'cycle', b'pause', None]
                     cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
                     libmpv.mpv_command(self.mpv_handle, cmd_ptr)
         except Exception as e:
             self.logger.error(f"设置播放位置失败: {str(e)}")
-    
 
+    def get_live_media_info(self):
+        if not self.mpv_handle:
+            return None
+        try:
+            w = self._get_mpv_property_int('width') or 0
+            h = self._get_mpv_property_int('height') or 0
+            fps = self._get_mpv_property_double('estimated-vf-fps') or self._get_mpv_property_double('fps') or 0
+            hw = self._get_mpv_property_string('hwdec-current') or ''
+            vcodec = self._get_mpv_property_string('video-codec') or ''
+            acodec = self._get_mpv_property_string('audio-codec') or ''
+            br_kbit = self._get_mpv_property_double('video-params/bitrate')
+            br_raw = self._get_mpv_property_double('demuxer-bitrate') or self._get_mpv_property_double('video-bitrate')
+
+            br_str = '-'
+            if br_kbit and br_kbit > 0:
+                mb = br_kbit / 8000.0
+                br_str = f"{mb:.1f}MB/s"
+            elif br_raw and br_raw > 0:
+                v = br_raw
+                if v < 900:
+                    mbps = v
+                elif v < 9000:
+                    mbps = v / 1000.0
+                elif v < 2_000_000:
+                    mbps = v / 8000.0
+                else:
+                    mbps = v / 8_000_000.0
+                if 0 < mbps <= 500:
+                    br_str = f"{mbps:.1f}MB/s"
+
+            tags = []
+            tags.append('HW' if hw and hw != 'no' else 'SW')
+
+            if vcodec:
+                up = vcodec.upper()
+                if 'HEVC' in up or 'H265' in up:
+                    tags.append('HEVC')
+                elif 'H264' in up or 'AVC' in up:
+                    tags.append('H.264')
+                else:
+                    tags.append(up)
+
+            if acodec:
+                up = acodec.upper()
+                if 'E-AC-3' in up or 'EAC3' in up:
+                    tags.append('EAC3')
+                elif 'AC-3' in up or 'AC3' in up:
+                    tags.append('AC3')
+                elif 'OPUS' in up:
+                    tags.append('OPUS')
+                elif 'AAC' in up:
+                    tags.append('AAC')
+                elif 'MP3' in up or 'MPEG AUDIO LAYER 3' in up:
+                    tags.append('MP3')
+                elif 'MP2' in up or 'MPEG LAYER II' in up:
+                    tags.append('MP2')
+                elif 'FLAC' in up:
+                    tags.append('FLAC')
+                elif 'DTS' in up:
+                    tags.append('DTS')
+                elif 'TRUEHD' in up:
+                    tags.append('TRUEHD')
+                elif 'PCM' in up:
+                    tags.append('PCM')
+                elif 'VORBIS' in up:
+                    tags.append('VORBIS')
+                elif 'WMA' in up:
+                    tags.append('WMA')
+                else:
+                    tags.append(up)
+
+            if h >= 2160:
+                tags.append('4K')
+            elif h >= 1080:
+                tags.append('FHD')
+            elif h >= 720:
+                tags.append('HD')
+            elif h > 0:
+                tags.append('SD')
+
+            if fps > 0:
+                tags.append(f"{fps:.2f}fps")
+            tags.append(br_str)
+
+            info = {
+                'tags': tags,
+                'info_text': '  '.join(tags),
+                'width': w,
+                'height': h,
+                'fps': fps,
+                'hwdec': hw,
+                'video_codec': vcodec,
+                'audio_codec': acodec,
+                'bitrate': br_str,
+            }
+            return info
+        except Exception:
+            return None
+
+    def _start_live_info_timer(self):
+        if hasattr(self, '_live_info_timer') and self._live_info_timer:
+            self._live_info_timer.stop()
+        self._live_info_timer = QTimer(self)
+        self._live_info_timer.timeout.connect(self._update_live_info)
+        self._live_info_timer.start(3000)
+
+    def _stop_live_info_timer(self):
+        if hasattr(self, '_live_info_timer') and self._live_info_timer:
+            self._live_info_timer.stop()
+
+    def _update_live_info(self):
+        if not self.is_playing or not self.mpv_handle:
+            self._stop_live_info_timer()
+            return
+        info = self.get_live_media_info()
+        if info:
+            try:
+                self.live_media_info_updated.emit(info)
+            except RuntimeError:
+                self._stop_live_info_timer()
 
     def _get_media_info(self, url):
-        """使用libmpv获取媒体信息
-        Args:
-            url: 媒体URL
-        """
-        # 取消之前的媒体信息获取任务
         if hasattr(self, '_media_info_timer') and self._media_info_timer:
             self._media_info_timer.stop()
-        
-        # 延迟获取媒体信息，确保媒体已加载
         self._media_info_timer = QTimer(self)
         self._media_info_timer.singleShot(2000, self._try_get_media_info)
-    
+        self._start_live_info_timer()
+
     def _try_get_media_info(self):
         if not self.mpv_handle:
             return
-
         try:
+            info = self.get_live_media_info()
+            if info and info.get('width', 0) > 0:
+                media_info = {
+                    'format': self._get_mpv_property_string('file-format') or '未知',
+                    'duration': self.get_total_time(),
+                    'protocol': self._guess_protocol(self.current_url or ''),
+                    'video': {
+                        'codec': info.get('video_codec', '未知'),
+                        'width': info.get('width', 0),
+                        'height': info.get('height', 0),
+                        'frame_rate': info.get('fps', 0),
+                        'bit_rate': 0,
+                    },
+                    'audio': {
+                        'codec': info.get('audio_codec', '未知'),
+                        'channels': self._get_mpv_property_int('audio-params/channel-count') or 0,
+                        'sample_rate': int(self._get_mpv_property_double('audio-params/samplerate') or 0),
+                        'bit_rate': 0,
+                    },
+                    'tags': info.get('tags', []),
+                    'info_text': info.get('info_text', ''),
+                    'hwdec': info.get('hwdec', ''),
+                }
+                self.media_info = media_info
+                self.media_info_ready.emit(media_info)
+                return
+
             if hasattr(self, 'current_url') and self.current_url:
+                from services.ffprobe_service import FFProbeWorker as UnifiedFFProbeWorker
                 if hasattr(self, '_current_ffprobe_worker') and self._current_ffprobe_worker:
                     self._current_ffprobe_worker.cancel()
 
@@ -600,9 +861,7 @@ class MpvPlayerController(QObject):
                     try:
                         if not hasattr(self, 'media_info_ready'):
                             return
-
                         if media_info:
-                            self.logger.debug(f"ffprobe获取到媒体信息: {media_info}")
                             self.media_info_ready.emit(media_info)
                         else:
                             default_media_info = {
@@ -635,13 +894,32 @@ class MpvPlayerController(QObject):
                     self.media_info_ready.emit(default_media_info)
             except (RuntimeError, Exception):
                 pass
-    
+
+    @staticmethod
+    def _guess_protocol(url):
+        if not url:
+            return '未知'
+        u = url.lower()
+        if '.m3u8' in u or u.startswith('hls+'):
+            return 'HLS'
+        if '.mpd' in u or u.startswith('dash+'):
+            return 'DASH'
+        if u.startswith('rtsp://'):
+            return 'RTSP'
+        if u.startswith('rtp://') or u.startswith('udp://'):
+            return 'RTP/UDP'
+        if u.startswith('srt://'):
+            return 'SRT'
+        if u.startswith('http://') or u.startswith('https://'):
+            return 'HTTP'
+        if u.startswith('file://') or ('://' not in url):
+            return 'FILE'
+        return '未知'
+
     def _get_mpv_property_string(self, property_name):
-        """获取mpv字符串属性"""
         try:
             if not self.mpv_handle:
                 return None
-            
             value = ctypes.c_char_p()
             result = libmpv.mpv_get_property_string(
                 self.mpv_handle,
@@ -649,21 +927,16 @@ class MpvPlayerController(QObject):
                 ctypes.byref(value)
             )
             if result < 0:
-                error_str = self._get_mpv_error_string(result)
-                self.logger.debug(f"获取属性 {property_name} 失败: {error_str}")
                 return None
             if not value.value:
                 return None
             property_value = value.value.decode('utf-8')
             libmpv.mpv_free(value)
-            self.logger.debug(f"获取属性 {property_name} 成功: {property_value}")
             return property_value
-        except Exception as e:
-            self.logger.error(f"获取属性 {property_name} 异常: {str(e)}")
+        except Exception:
             return None
-    
+
     def _get_mpv_error_string(self, error_code):
-        """获取mpv错误字符串"""
         try:
             if hasattr(libmpv, 'mpv_error_string'):
                 error_str = libmpv.mpv_error_string(error_code)
@@ -674,11 +947,9 @@ class MpvPlayerController(QObject):
         return f"错误码: {error_code}"
 
     def _get_mpv_property_int(self, property_name):
-        """获取mpv整数属性"""
         try:
             if not self.mpv_handle:
                 return None
-            
             value = ctypes.c_int64()
             result = libmpv.mpv_get_property(
                 self.mpv_handle,
@@ -691,12 +962,11 @@ class MpvPlayerController(QObject):
             return value.value
         except:
             return None
-    
+
     def _get_mpv_property_double(self, property_name):
         try:
             if not self.mpv_handle:
                 return None
-
             value = ctypes.c_double()
             result = libmpv.mpv_get_property(
                 self.mpv_handle,
@@ -719,15 +989,45 @@ class MpvPlayerController(QObject):
             return None
         except Exception:
             return None
-    
-    from PyQt6.QtCore import pyqtSlot
-    
+
+    def ensure_ready_for_load(self):
+        try:
+            if not self.mpv_handle:
+                return
+            libmpv.mpv_set_property_string(self.mpv_handle, b'pause', b'no')
+            eof = self._get_mpv_property_string('eof-reached')
+            if eof and eof.lower() == 'yes':
+                cmd = [b'stop', None]
+                cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+                libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+                time.sleep(0.08)
+        except Exception:
+            pass
+
+    def is_eof_reached(self):
+        try:
+            eof = self._get_mpv_property_string('eof-reached')
+            return eof and eof.lower() == 'yes'
+        except Exception:
+            return False
+
+    def get_property_string(self, name):
+        return self._get_mpv_property_string(name)
+
+    def get_property_double(self, name):
+        return self._get_mpv_property_double(name)
+
+    def get_property_int(self, name):
+        return self._get_mpv_property_int(name)
+
+    def set_property_string(self, name, value):
+        self._set_mpv_string(name, value)
+
     @pyqtSlot(dict)
     def _on_media_info_thread_finished(self, info):
-        """媒体信息获取完成"""
         if info:
             self.media_info_ready.emit(info)
-    
+
     @pyqtSlot(str)
     def _on_media_info_thread_error(self, error):
         self.logger.error(f"获取媒体信息失败: {error}")
