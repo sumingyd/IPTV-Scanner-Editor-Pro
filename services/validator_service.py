@@ -77,11 +77,27 @@ class StreamValidator:
         return result
 
     def _is_multicast_url(self, url: str) -> bool:
-        """判断是否为组播地址"""
         url_lower = url.lower()
-        # 包含/rtp/、/udp/、/rtsp/或以rtp://、udp://、rtsp://开头的URL视为组播
-        return (url_lower.startswith(('rtp://', 'udp://', 'rtsp://')) or
-                any(x in url_lower for x in ['/rtp/', '/udp/', '/rtsp/']))
+        if url_lower.startswith(('rtp://', 'udp://')):
+            return True
+        if '/rtp/' in url_lower or '/udp/' in url_lower:
+            return True
+        if url_lower.startswith('rtsp://'):
+            try:
+                from urllib.parse import urlparse
+                parsed = urlparse(url)
+                host = parsed.hostname or ''
+                import socket
+                try:
+                    socket.inet_aton(host)
+                    first_octet = int(host.split('.')[0])
+                    if 224 <= first_octet <= 239:
+                        return True
+                except socket.error:
+                    pass
+            except Exception:
+                pass
+        return False
 
     def _clean_channel_name(self, name: str) -> str:
         """清理频道名"""
@@ -121,7 +137,7 @@ class StreamValidator:
             # 对于UDP/RTP协议，不进行TCP检查，直接返回True
             # 因为这些是面向无连接的协议，TCP检查没有意义
             scheme = parsed.scheme.lower()
-            if scheme in ['udp', 'rtp', 'rtsp']:
+            if scheme in ['udp', 'rtp']:
                 return True
 
             # 获取端口
@@ -184,45 +200,41 @@ class StreamValidator:
             with self._semaphore:
                 ffprobe_path = self._get_ffprobe_path()
 
-                # 检查是否为组播URL
                 is_multicast = self._is_multicast_url(url)
+                is_rtsp = url.lower().startswith('rtsp://')
 
-                # 构建优化的ffprobe命令
-                # 方案2：简化ffprobe参数，提高速度
                 cmd = [
                     ffprobe_path,
-                    '-hide_banner',  # 隐藏横幅信息
+                    '-hide_banner',
                     '-v', 'error',
-                    '-timeout', f'{timeout * 1000000}',  # 使用传入的timeout（秒转微秒）
-                    '-probesize', '100000',  # 进一步减少到100KB
-                    '-analyzeduration', '300000',  # 分析时长0.3秒
-                    '-show_entries', 'stream=codec_type',  # 只检查是否有视频流
-                    '-of', 'json',  # JSON格式输出
+                    '-timeout', f'{timeout * 1000000}',
+                    '-probesize', '100000',
+                    '-analyzeduration', '300000',
+                    '-show_entries', 'stream=codec_type',
+                    '-of', 'json',
                 ]
 
-                # 为组播URL添加特殊参数
-                if is_multicast:
+                if is_rtsp:
+                    if is_multicast:
+                        cmd.extend([
+                            '-rtsp_transport', 'udp',
+                            '-max_delay', '5000000',
+                        ])
+                    else:
+                        cmd.extend([
+                            '-rtsp_transport', 'tcp',
+                        ])
+
+                if not is_rtsp:
                     cmd.extend([
-                        '-rtsp_transport', 'udp',  # 强制使用UDP传输
-                        '-max_delay', '5000000',  # 最大延迟5秒
+                        '-reconnect', '1',
+                        '-reconnect_at_eof', '1',
+                        '-reconnect_streamed', '1',
+                        '-reconnect_delay_max', '3',
                     ])
 
-                # 添加网络优化参数
-                cmd.extend([
-                    '-reconnect', '1',  # 启用自动重连
-                    '-reconnect_at_eof', '1',  # 在EOF时重连
-                    '-reconnect_streamed', '1',  # 对流式内容重连
-                    '-reconnect_delay_max', '3',  # 最大重连延迟3秒
-                ])
-
-                # 添加URL（所有选项必须在URL之前）
                 cmd.append(url)
 
-                # 在Windows上需要处理特殊字符
-                if sys.platform == 'win32':
-                    cmd = [arg.replace('^', '^^').replace('&', '^&') for arg in cmd]
-
-                # 设置环境变量和工作目录
                 env = os.environ.copy()
                 env['PATH'] = os.path.dirname(self._get_ffprobe_path()) + os.pathsep + env['PATH']
                 # 添加网络相关环境变量
@@ -317,120 +329,6 @@ class StreamValidator:
         except Exception as e:
             result['error'] = str(e)
             result['error_type'] = 'unknown_error'
-
-        return result
-
-    def _run_ffprobe(self, url: str, timeout: int) -> Dict:
-        """执行ffprobe命令获取流详细信息 - 简化日志输出"""
-        result = {}
-
-        try:
-            ffprobe_path = self._get_ffprobe_path()
-            cmd = [
-                ffprobe_path,
-                '-v', 'quiet',
-                '-print_format', 'json',
-                '-show_format',
-                '-show_streams',
-                '-show_programs',
-                url
-            ]
-
-            # 在Windows上需要处理特殊字符
-            if sys.platform == 'win32':
-                cmd = [arg.replace('^', '^^').replace('&', '^&') for arg in cmd]
-
-            # 设置环境变量和工作目录
-            env = os.environ.copy()
-            env['PATH'] = os.path.dirname(self._get_ffprobe_path()) + os.pathsep + env['PATH']
-
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=False,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
-                shell=True if sys.platform == 'win32' else False,  # Windows上使用shell=True
-                env=env,
-                cwd=os.path.dirname(self._get_ffprobe_path())
-            )
-
-            # 跟踪活动进程
-            with self._process_lock:
-                self._active_processes.append(process)
-            self._current_process = process
-
-            try:
-                stdout_bytes, stderr_bytes = process.communicate(timeout=timeout)
-                stdout = stdout_bytes.decode('utf-8', errors='replace')
-                stderr = stderr_bytes.decode('utf-8', errors='replace')
-
-                if process.returncode == 0:
-                    try:
-                        if stdout.strip():  # 确保stdout不为空
-                            data = json.loads(stdout)
-                            result.update(self._parse_ffprobe_output(data))
-                        else:
-                            result['error'] = "ffprobe返回空输出"
-                    except json.JSONDecodeError:
-                        result['error'] = "JSON解析失败"
-                    except Exception as e:
-                        result['error'] = str(e)
-                else:
-                    result['error'] = stderr.strip() or f"返回代码: {process.returncode}"
-
-            except subprocess.TimeoutExpired:
-                process.kill()
-                result['error'] = "ffprobe超时"
-            except Exception as e:
-                result['error'] = str(e)
-            finally:
-                # 清理已完成进程
-                with self._process_lock:
-                    if process in self._active_processes:
-                        self._active_processes.remove(process)
-        except Exception as e:
-            result['error'] = str(e)
-
-        return result
-
-    def _parse_ffprobe_output(self, data: Dict) -> Dict:
-        """解析ffprobe输出"""
-        result = {}
-
-        # 获取频道名
-        service_name = None
-        if 'programs' in data and data['programs']:
-            program = data['programs'][0]
-            if 'tags' in program and 'service_name' in program['tags']:
-                service_name = program['tags']['service_name']
-        elif 'streams' in data and data['streams']:
-            for stream in data['streams']:
-                if 'tags' in stream and 'service_name' in stream['tags']:
-                    service_name = stream['tags']['service_name']
-                    break
-        elif 'format' in data and 'tags' in data['format'] and 'service_name' in data['format']['tags']:
-            service_name = data['format']['tags']['service_name']
-
-        if service_name:
-            result['service_name'] = self._clean_channel_name(service_name)
-        else:
-            result['service_name'] = ''
-
-        # 获取分辨率
-        if 'streams' in data and data['streams']:
-            stream = next((s for s in data['streams'] if s.get('codec_type') == 'video'), data['streams'][0])
-            if 'width' in stream and 'height' in stream:
-                result['resolution'] = f"{stream['width']}x{stream['height']}"
-            elif 'coded_width' in stream and 'coded_height' in stream:
-                result['resolution'] = f"{stream['coded_width']}x{stream['coded_height']}"
-            else:
-                result['resolution'] = ''
-
-            if 'codec_name' in stream:
-                result['codec'] = stream['codec_name']
-            if 'bit_rate' in stream:
-                result['bitrate'] = stream['bit_rate']
 
         return result
 

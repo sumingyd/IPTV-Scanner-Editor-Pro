@@ -158,7 +158,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 设置窗口属性，与 AboutDialog 的实现一致
         self.setWindowTitle("")
         # 设置为工具窗口，无边框
-        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
+        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Window)
         # 设置透明背景，实现圆角窗口效果
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
         # 确保窗口可以接收鼠标事件

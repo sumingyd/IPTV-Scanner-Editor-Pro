@@ -54,6 +54,7 @@ class ScannerController(QObject):
         # 扫描状态管理器
         self.scan_state_manager = get_scan_state_manager()
         self.scan_id = 'main_scan'
+        self._validator = None
 
     def _force_ui_refresh(self):
         try:
@@ -349,11 +350,10 @@ class ScannerController(QObject):
     def _check_channel(
         self, url: str, raw_channel_name: str = None
     ) -> Dict[str, any]:
-        """检查频道有效性"""
-        from services.validator_service import StreamValidator
-        # 使用主窗口的语言管理器（如果可用）
-        validator = StreamValidator(self.main_window)
-        return validator.validate_stream(
+        if self._validator is None:
+            from services.mpv_validator_service import MpvStreamValidator
+            self._validator = MpvStreamValidator(self.main_window)
+        return self._validator.validate_stream(
             url,
             raw_channel_name=raw_channel_name,
             timeout=self.timeout
@@ -418,15 +418,12 @@ class ScannerController(QObject):
         # 保存超时时间和线程数到实例变量
         self.timeout = timeout
 
-        from services.validator_service import StreamValidator
-        StreamValidator.timeout = timeout
-        # 设置最大并发进程数
-        StreamValidator._max_concurrent_processes = thread_count
-        StreamValidator._semaphore = threading.Semaphore(thread_count)
+        from services.mpv_validator_service import MpvStreamValidator
+        MpvStreamValidator.set_max_concurrent(thread_count)
         if user_agent:
-            StreamValidator.headers['User-Agent'] = user_agent
+            pass
         if referer:
-            StreamValidator.headers['Referer'] = referer
+            pass
 
         # 初始化统计信息
         self.stats = {
@@ -471,12 +468,12 @@ class ScannerController(QObject):
             worker.start()
             self.workers.append(worker)
 
-        stats_thread = threading.Thread(
+        self.stats_thread = threading.Thread(
             target=self._update_stats,
             name="StatsUpdater",
             daemon=True
         )
-        stats_thread.start()
+        self.stats_thread.start()
 
         # 扫描开始时发送进度更新信号
         QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(0, 1))
@@ -507,12 +504,12 @@ class ScannerController(QObject):
     ):
         """内部从URL列表开始扫描方法"""
 
-        from services.validator_service import StreamValidator
-        StreamValidator.timeout = timeout
+        from services.mpv_validator_service import MpvStreamValidator
+        MpvStreamValidator.set_max_concurrent(thread_count)
         if user_agent:
-            StreamValidator.headers['User-Agent'] = user_agent
+            pass
         if referer:
-            StreamValidator.headers['Referer'] = referer
+            pass
 
         # 初始化统计信息
         self.stats = {
@@ -548,12 +545,12 @@ class ScannerController(QObject):
             worker.start()
             self.workers.append(worker)
 
-        stats_thread = threading.Thread(
+        self.stats_thread = threading.Thread(
             target=self._update_stats,
             name="RetryStatsUpdater",
             daemon=True
         )
-        stats_thread.start()
+        self.stats_thread.start()
 
     def stop_scan(self):
         """停止扫描 - 快速响应版本，避免程序假死"""
@@ -598,10 +595,9 @@ class ScannerController(QObject):
             pass
 
     def _terminate_all_processes(self):
-        """终止所有FFmpeg/VLC进程"""
         try:
-            from services.validator_service import StreamValidator
-            StreamValidator.terminate_all()
+            from services.mpv_validator_service import MpvStreamValidator
+            MpvStreamValidator.terminate_all()
         except Exception:
             pass
 
@@ -680,12 +676,12 @@ class ScannerController(QObject):
         })
 
         # 设置验证器的headers，与扫描逻辑相同
-        from services.validator_service import StreamValidator
-        StreamValidator.timeout = timeout
+        from services.mpv_validator_service import MpvStreamValidator
+        MpvStreamValidator.set_max_concurrent(threads)
         if user_agent:
-            StreamValidator.headers['User-Agent'] = user_agent
+            pass
         if referer:
-            StreamValidator.headers['Referer'] = referer
+            pass
 
         self.stats = {
             'total': model.rowCount(),
@@ -709,12 +705,12 @@ class ScannerController(QObject):
             worker.start()
             self.workers.append(worker)
 
-        stats_thread = threading.Thread(
+        self.stats_thread = threading.Thread(
             target=self._update_stats,
             name="ValidationStatsUpdater",
             daemon=True
         )
-        stats_thread.start()
+        self.stats_thread.start()
 
         # 验证开始时发送进度更新信号
         QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(0, 1))
@@ -737,8 +733,8 @@ class ScannerController(QObject):
                 break
 
         # 终止所有验证进程
-        from services.validator_service import StreamValidator
-        StreamValidator.terminate_all()
+        from services.mpv_validator_service import MpvStreamValidator
+        MpvStreamValidator.terminate_all()
 
         # 立即终止工作线程
         for worker in self.workers:
@@ -752,7 +748,13 @@ class ScannerController(QObject):
     def _validation_worker(self):
         while not self.stop_event.is_set():
             try:
-                url, index = self.validation_queue.get_nowait()
+                try:
+                    url, index = self.validation_queue.get(timeout=0.5)
+                except queue.Empty:
+                    if not any(w.is_alive() for w in self.workers if w is not threading.current_thread()):
+                        break
+                    continue
+
                 result = self._check_channel(url)
                 valid = result['valid']
                 latency = result['latency']
