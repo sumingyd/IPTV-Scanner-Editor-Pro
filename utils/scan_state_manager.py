@@ -198,7 +198,8 @@ class ScanStateManager(Singleton):
                     'retry_count': 0,
                     'last_retry_valid_count': 0,
                     'main_window': main_window,
-                    'last_update': time.time()
+                    'last_update': time.time(),
+                    'retried_urls': set()  # 新增：记录已经重试过的 URL
                 }
 
     def update_retry_state(self, retry_id: str, state: Dict[str, Any]):
@@ -294,6 +295,28 @@ class ScanStateManager(Singleton):
             if retry_id in self._retry_states:
                 return self._retry_states[retry_id].get('last_retry_valid_count', 0)
             return 0
+
+    def add_retried_url(self, retry_id: str, url: str):
+        """添加已重试的 URL"""
+        with self._lock:
+            if retry_id in self._retry_states:
+                retried_urls = self._retry_states[retry_id].get('retried_urls', set())
+                retried_urls.add(url)
+
+    def is_url_retried(self, retry_id: str, url: str) -> bool:
+        """检查 URL 是否已经被重试过"""
+        with self._lock:
+            if retry_id in self._retry_states:
+                retried_urls = self._retry_states[retry_id].get('retried_urls', set())
+                return url in retried_urls
+            return False
+
+    def get_retried_urls(self, retry_id: str) -> set:
+        """获取所有已重试的 URL"""
+        with self._lock:
+            if retry_id in self._retry_states:
+                return self._retry_states[retry_id].get('retried_urls', set())
+            return set()
 
     def clear_all_states(self):
         """清除所有状态"""

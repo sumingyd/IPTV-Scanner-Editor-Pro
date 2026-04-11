@@ -804,12 +804,74 @@ class MpvPlayerController(QObject):
                 self._stop_live_info_timer()
 
     def _get_media_info(self, url):
+        """获取媒体信息 - 简化版本，只获取一次"""
+        # 停止所有定时器
         if hasattr(self, '_media_info_timer') and self._media_info_timer:
             self._media_info_timer.stop()
-        self._media_info_retry_count = 0
+        if hasattr(self, '_live_info_timer') and self._live_info_timer:
+            self._live_info_timer.stop()
+        
+        # 延迟 1.5 秒获取媒体信息，确保 MPV 已经加载视频
         self._media_info_timer = QTimer(self)
-        self._media_info_timer.singleShot(1000, self._try_get_media_info)
-        self._start_live_info_timer()
+        self._media_info_timer.singleShot(1500, self._get_media_info_once)
+
+    def _get_media_info_once(self):
+        """一次性获取媒体信息，不重试"""
+        if not self.mpv_handle:
+            return
+        try:
+            info = self.get_live_media_info()
+            if info and (info.get('width', 0) > 0 or info.get('video_codec') or info.get('audio_codec')):
+                # 成功获取到有效信息
+                v_br = info.get('video_bitrate', 0)
+                a_br = info.get('audio_bitrate', 0)
+                media_info = {
+                    'format': info.get('container', '') or self._get_mpv_property_string('file-format') or '未知',
+                    'duration': self.get_total_time(),
+                    'protocol': self._guess_protocol(self.current_url or ''),
+                    'video': {
+                        'codec': info.get('video_codec', '未知'),
+                        'width': info.get('width', 0),
+                        'height': info.get('height', 0),
+                        'frame_rate': info.get('fps', 0),
+                        'bit_rate': int(v_br) if v_br else 0,
+                        'pixel_format': info.get('pixel_format', ''),
+                    },
+                    'audio': {
+                        'codec': info.get('audio_codec', '未知'),
+                        'channels': info.get('audio_channels', 0),
+                        'sample_rate': info.get('sample_rate', 0),
+                        'bit_rate': int(a_br) if a_br else 0,
+                    },
+                    'tags': info.get('tags', []),
+                    'info_text': info.get('info_text', ''),
+                    'hwdec': info.get('hwdec', ''),
+                }
+                self.media_info = media_info
+                self.media_info_ready.emit(media_info)
+            else:
+                # 未获取到有效信息，发送默认值
+                default_media_info = {
+                    'format': self._get_mpv_property_string('file-format') or '未知',
+                    'duration': 0,
+                    'protocol': self._guess_protocol(self.current_url or ''),
+                    'video': {'codec': '未知', 'width': 0, 'height': 0, 'frame_rate': 0, 'bit_rate': 0, 'pixel_format': ''},
+                    'audio': {'codec': '未知', 'channels': 0, 'sample_rate': 0, 'bit_rate': 0},
+                }
+                self.media_info = default_media_info
+                self.media_info_ready.emit(default_media_info)
+        except Exception as e:
+            try:
+                self.logger.error(f"获取媒体信息失败：{str(e)}")
+                default_media_info = {
+                    'format': '未知', 'duration': 0, 'protocol': '未知',
+                    'video': {'codec': '未知', 'width': 0, 'height': 0, 'frame_rate': 0, 'bit_rate': 0, 'pixel_format': ''},
+                    'audio': {'codec': '未知', 'channels': 0, 'sample_rate': 0, 'bit_rate': 0},
+                }
+                if hasattr(self, 'media_info_ready'):
+                    self.media_info_ready.emit(default_media_info)
+            except (RuntimeError, Exception):
+                pass
 
     def _try_get_media_info(self):
         if not self.mpv_handle:

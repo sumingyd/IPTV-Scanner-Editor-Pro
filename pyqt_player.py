@@ -767,7 +767,7 @@ class IPTVPlayer(QMainWindow):
         self.player_controller.play_state_changed.connect(self.on_play_state_changed)
         self.player_controller.media_info_ready.connect(self.on_media_info_ready)
         self.player_controller.play_error.connect(self.on_play_error)
-        self.player_controller.live_media_info_updated.connect(self.on_live_media_info_updated)
+        # 不再使用 live_media_info_updated，避免重复更新
 
         from services.logo_cache_service import LogoCacheService
         self._logo_cache_service = LogoCacheService(self)
@@ -2389,44 +2389,119 @@ class IPTVPlayer(QMainWindow):
             self.status_bar.showMessage(f"{tr('play_error', 'Play Error')}: {error_msg}")
 
     def on_media_info_ready(self, media_info):
-        """媒体信息获取完成时的处理"""
+        """媒体信息获取完成时的处理 - 只显示能获取到的信息，参考 SRCBOX"""
         tr = self.language_manager.tr
-        unknown = tr('codec_unknown', 'Unknown')
         if media_info:
             video_info = media_info.get('video', {})
-            video_codec = video_info.get('codec', unknown)
+            audio_info = media_info.get('audio', {})
+            
+            # 构建视频信息标签（只显示有值的字段）
+            video_parts = []
+            
+            # 视频编码
+            video_codec = video_info.get('codec')
+            if video_codec and video_codec != '未知':
+                video_parts.append(f"{tr('codec_label', 'Codec')}: {video_codec}")
+            
+            # 分辨率
             video_width = video_info.get('width', 0)
             video_height = video_info.get('height', 0)
-            video_resolution = f"{video_width}x{video_height}" if video_width and video_height else unknown
+            if video_width > 0 and video_height > 0:
+                video_parts.append(f"{tr('resolution_label', 'Resolution')}: {video_width}x{video_height}")
+            
+            # 帧率
+            frame_rate = video_info.get('frame_rate', 0)
+            if frame_rate and frame_rate > 0:
+                video_parts.append(f"{tr('frame_rate_label', 'Frame Rate')}: {frame_rate:.2f}fps")
+            
+            # 视频码率
             video_bitrate = video_info.get('bit_rate', 0)
             if video_bitrate and video_bitrate > 0:
                 if video_bitrate >= 1_000_000:
-                    video_bitrate_str = f"{video_bitrate / 1_000_000:.1f}Mbps"
+                    video_bitrate_str = f"{video_bitrate / 1_000_000:.1f}MB/s"
+                elif video_bitrate >= 1000:
+                    video_bitrate_str = f"{video_bitrate / 1000:.1f}KB/s"
                 else:
-                    video_bitrate_str = f"{video_bitrate // 1000}kbps"
+                    video_bitrate_str = f"{video_bitrate}B/s"
+                video_parts.append(f"{tr('bitrate_label', 'Bitrate')}: {video_bitrate_str}")
+            
+            # 像素格式
+            pixel_format = video_info.get('pixel_format', '')
+            if pixel_format and pixel_format != '未知':
+                video_parts.append(f"Pixel: {pixel_format}")
+            
+            # 更新视频信息标签
+            if video_parts:
+                self.video_info.setText(f"📺 {' | '.join(video_parts)}")
             else:
-                video_bitrate_str = unknown
-
-            audio_info = media_info.get('audio', {})
-            audio_codec = audio_info.get('codec', unknown)
+                self.video_info.setText(f"📺 {tr('no_video_info', 'No video info available')}")
+            
+            # 构建音频信息标签（只显示有值的字段）
+            audio_parts = []
+            
+            # 音频编码
+            audio_codec = audio_info.get('codec')
+            if audio_codec and audio_codec != '未知':
+                audio_parts.append(f"{tr('codec_label', 'Codec')}: {audio_codec}")
+            
+            # 声道数
             channels = audio_info.get('channels', 0)
+            if channels and channels > 0:
+                audio_parts.append(f"{tr('channel_count_label', 'Channels')}: {channels}ch")
+            
+            # 采样率
             sample_rate = audio_info.get('sample_rate', 0)
+            if sample_rate and sample_rate > 0:
+                audio_parts.append(f"{tr('sample_rate_label', 'Sample Rate')}: {sample_rate}Hz")
+            
+            # 音频码率
             audio_bitrate = audio_info.get('bit_rate', 0)
             if audio_bitrate and audio_bitrate > 0:
-                audio_bitrate_str = f"{audio_bitrate // 1000}kbps"
+                if audio_bitrate >= 1000:
+                    audio_bitrate_str = f"{audio_bitrate / 1000:.1f}KB/s"
+                else:
+                    audio_bitrate_str = f"{audio_bitrate}B/s"
+                audio_parts.append(f"{tr('bitrate_label', 'Bitrate')}: {audio_bitrate_str}")
+            
+            # 更新音频信息标签
+            if audio_parts:
+                self.audio_info.setText(f"🔊 {' | '.join(audio_parts)}")
             else:
-                audio_bitrate_str = unknown
+                self.audio_info.setText(f"🔊 {tr('no_audio_info', 'No audio info available')}")
+            
+            # 构建网络/格式信息标签（只显示有值的字段）
+            network_parts = []
+            
+            # 格式
+            format_name = media_info.get('format')
+            if format_name and format_name != '未知':
+                network_parts.append(f"{tr('format_label', 'Format')}: {format_name}")
+            
+            # 协议
+            protocol = media_info.get('protocol')
+            if protocol and protocol != '未知':
+                network_parts.append(f"{tr('protocol_label', 'Protocol')}: {protocol}")
+            
+            # 更新网络信息标签
+            if network_parts:
+                self.network_info.setText(f"📡 {' | '.join(network_parts)}")
+            else:
+                self.network_info.setText(f"📡 {tr('no_network_info', 'No network info available')}")
 
-            format_name = media_info.get('format', unknown)
-            protocol = media_info.get('protocol', unknown)
-
-            self.video_info.setText(f"📺 {tr('codec_label', 'Codec')}: {video_codec} | {tr('resolution_label', 'Resolution')}: {video_resolution} | {tr('bitrate_label', 'Bitrate')}: {video_bitrate_str}")
-            self.audio_info.setText(f"🔊 {tr('codec_label', 'Codec')}: {audio_codec} | {tr('channel_count_label', 'Channels')}: {channels}ch | {tr('sample_rate_label', 'Sample Rate')}: {sample_rate}Hz | {tr('bitrate_label', 'Bitrate')}: {audio_bitrate_str}")
-            self.network_info.setText(f"📡 {tr('format_label', 'Format')}: {format_name} | {tr('protocol_label', 'Protocol')}: {protocol}")
-
+            # 状态栏消息
             if self.current_channel:
                 channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
-                self.status_bar.showMessage(f"{tr('playing', 'Playing')}: {channel_name} - {video_codec} {video_resolution} {protocol}")
+                status_msg = f"{tr('playing', 'Playing')}: {channel_name}"
+                
+                # 添加可用的视频信息
+                if video_codec and video_codec != '未知':
+                    status_msg += f" - {video_codec}"
+                if video_width > 0 and video_height > 0:
+                    status_msg += f" {video_width}x{video_height}"
+                if protocol and protocol != '未知':
+                    status_msg += f" {protocol}"
+                
+                self.status_bar.showMessage(status_msg)
     
     def adjust_window_size_to_video(self):
         """根据视频分辨率调整窗口大小，保持窗口高度不变，调整宽度以适应视频比例"""
@@ -4038,34 +4113,7 @@ class IPTVPlayer(QMainWindow):
                 self.channel_logo.setPixmap(scaled)
                 self.channel_logo.setText("")
 
-    def on_live_media_info_updated(self, info):
-        if not info:
-            return
-        try:
-            tr = self.language_manager.tr
-            if hasattr(self, 'video_info') and info.get('info_text'):
-                self.video_info.setText(f"📺 {info['info_text']}")
-            if hasattr(self, 'audio_info') and info.get('audio_codec'):
-                acodec = info.get('audio_codec', '')
-                channels = info.get('audio_channels', 0)
-                sample_rate = info.get('sample_rate', 0)
-                a_br = info.get('audio_bitrate', 0)
-                if a_br and a_br > 0:
-                    audio_bitrate_str = f"{int(a_br) // 1000}kbps"
-                else:
-                    audio_bitrate_str = tr('codec_unknown', 'Unknown')
-                self.audio_info.setText(f"🔊 {tr('codec_label', 'Codec')}: {acodec} | {tr('channel_count_label', 'Channels')}: {channels}ch | {tr('sample_rate_label', 'Sample Rate')}: {sample_rate}Hz | {tr('bitrate_label', 'Bitrate')}: {audio_bitrate_str}")
-            if hasattr(self, 'network_info'):
-                proto = MpvPlayerController._guess_protocol(self.current_channel.get('url', '') if self.current_channel else '')
-                hw = info.get('hwdec', '')
-                hw_tag = 'HW' if hw and hw != 'no' else 'SW'
-                container = info.get('container', '')
-                if container:
-                    self.network_info.setText(f"📡 {container} | {proto} | {hw_tag}")
-                else:
-                    self.network_info.setText(f"📡 {proto} | {hw_tag}")
-        except RuntimeError:
-            pass
+    # 不再使用 on_live_media_info_updated 方法，避免重复更新媒体信息
 
     def _get_next_channel_urls(self, current_channel):
         if not CHANNELS or not current_channel:

@@ -1400,6 +1400,19 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _handle_retry_scan_internal(self):
         """内部重试扫描处理方法"""
+        # 增加重试计数（每次进入重试扫描时）
+        self.scan_state_manager.increment_retry_count(self.retry_id)
+        retry_count = self.scan_state_manager.get_retry_count(self.retry_id)
+        self.logger.debug(f"当前重试次数：{retry_count}")
+        
+        # 检查是否超过最大重试次数
+        max_retries = 3
+        if retry_count > max_retries:
+            self.logger.info(f"已达到最大重试次数 ({max_retries})，停止重试")
+            # 使用 clear_failed_channels 代替不存在的 reset_retry_scan
+            self.scan_state_manager.clear_failed_channels(self.retry_id)
+            return
+        
         # 收集失败的频道
         self._collect_failed_channels()
 
@@ -1422,26 +1435,36 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
     def _collect_failed_channels(self):
         """收集失败的频道URL，基于失败原因进行智能重试"""
-        # 从扫描状态管理器获取需要重试的URL列表（基于失败原因）
+        # 从扫描状态管理器获取需要重试的 URL 列表（基于失败原因）
         if hasattr(self, 'scanner') and self.scanner:
-            # 获取需要重试的URL（基于失败原因过滤）
+            # 获取需要重试的 URL（基于失败原因过滤）
             retry_urls = self.scan_state_manager.get_retry_urls(self.scanner.scan_id)
+
+            # 获取已经重试过的 URL，避免重复重试
+            retried_urls = self.scan_state_manager.get_retried_urls(self.retry_id)
+            
+            # 过滤掉已经重试过的 URL
+            new_retry_urls = [url for url in retry_urls if url not in retried_urls]
+            
+            self.logger.debug(f"智能重试：原始={len(retry_urls)}, 已重试={len(retried_urls)}, 新重试={len(new_retry_urls)}")
 
             # 清空之前的失败频道列表，避免累积
             self.scan_state_manager.clear_failed_channels(self.retry_id)
 
             # 批量添加到重试扫描状态管理器，优化内存使用
             batch_size = 1000
-            total_count = len(retry_urls)
+            total_count = len(new_retry_urls)
 
             for i in range(0, total_count, batch_size):
-                batch = retry_urls[i:i+batch_size]
+                batch = new_retry_urls[i:i+batch_size]
                 for url in batch:
                     self.scan_state_manager.add_failed_channel(self.retry_id, url)
+                    # 立即标记为已重试，避免重复
+                    self.scan_state_manager.add_retried_url(self.retry_id, url)
 
-                # 每处理一批后稍微休息，避免UI阻塞
+                # 每处理一批后稍微休息，避免 UI 阻塞
                 if i + batch_size < total_count:
-                    time.sleep(0.001)  # 1ms休息，几乎不影响性能
+                    time.sleep(0.001)  # 1ms 休息，几乎不影响性能
 
             # 减少日志输出，避免日志过多
             if total_count > 1000:
@@ -1513,8 +1536,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
         max_retries = 3
 
         if retry_count >= max_retries:
-            self.logger.info(f"已达到最大重试次数({max_retries})，结束重试扫描")
-            self.scan_state_manager.reset_retry_scan(self.retry_id)
+            self.logger.info(f"已达到最大重试次数 ({max_retries})，结束重试扫描")
+            self.scan_state_manager.clear_failed_channels(self.retry_id)
             return
 
         current_valid_count = self._count_valid_channels()
@@ -1523,13 +1546,19 @@ class ScanChannelDialog(QtWidgets.QDialog):
         new_valid = current_valid_count - last_valid_count
         self.logger.info(f"重试扫描完成: 新增有效={new_valid}, 总有效={current_valid_count}, 重试次数={retry_count}")
 
-        if new_valid > 0:
-            self.logger.info(f"重试发现{new_valid}个新有效频道，继续重试")
+        # 只有当发现新有效频道且重试次数未达上限时，才继续重试
+        if new_valid > 0 and retry_count < max_retries:
+            self.logger.info(f"重试发现{new_valid}个新有效频道，继续重试 (第{retry_count + 1}次)")
             self.scan_state_manager.update_last_retry_valid_count(self.retry_id, current_valid_count)
-            QtCore.QTimer.singleShot(100, self._handle_retry_scan)
+            # 延迟启动下一次重试，让状态有时间更新
+            QtCore.QTimer.singleShot(500, self._handle_retry_scan)
         else:
-            self.logger.info("重试未发现新有效频道，结束重试扫描")
-            self.scan_state_manager.reset_retry_scan(self.retry_id)
+            if new_valid <= 0:
+                self.logger.info("重试未发现新有效频道，结束重试扫描")
+            else:
+                self.logger.info(f"重试次数已达上限 ({max_retries})，结束重试扫描")
+            # 使用 clear_failed_channels 代替不存在的 reset_retry_scan
+            self.scan_state_manager.clear_failed_channels(self.retry_id)
 
 
 class HeaderDelegate(QtWidgets.QHeaderView):
