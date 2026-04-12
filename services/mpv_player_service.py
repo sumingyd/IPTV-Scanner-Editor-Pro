@@ -687,14 +687,14 @@ class MpvPlayerController(QObject):
             time_seconds = self._get_mpv_property_double('time-pos')
             if time_seconds:
                 result = int(time_seconds * 1000)
-                self.logger.info(f"get_current_time: time-pos={time_seconds}s = {result}ms")
+                self.logger.debug(f"get_current_time: time-pos={time_seconds}s = {result}ms")
                 return result
             
             # 如果 time-pos 失败，尝试 playback-time
             time_seconds = self._get_mpv_property_double('playback-time')
             if time_seconds:
                 result = int(time_seconds * 1000)
-                self.logger.info(f"get_current_time: playback-time={time_seconds}s = {result}ms")
+                self.logger.debug(f"get_current_time: playback-time={time_seconds}s = {result}ms")
                 return result
             
             # 如果 playback-time 失败，尝试 percent-pos 并计算时间
@@ -705,13 +705,13 @@ class MpvPlayerController(QObject):
                 if duration_seconds:
                     time_seconds = duration_seconds * (percent / 100.0)
                     result = int(time_seconds * 1000)
-                    self.logger.info(f"get_current_time: percent-pos={percent}%, duration={duration_seconds}s = {result}ms")
+                    self.logger.debug(f"get_current_time: percent-pos={percent}%, duration={duration_seconds}s = {result}ms")
                     return result
             
-            self.logger.info(f"get_current_time: 所有属性都返回None或0")
+            self.logger.debug(f"get_current_time: 所有属性都返回None或0")
             return 0
         except Exception as e:
-            self.logger.info(f"get_current_time exception: {e}")
+            self.logger.debug(f"get_current_time exception: {e}")
             return 0
 
     def get_total_time(self):
@@ -720,14 +720,14 @@ class MpvPlayerController(QObject):
             duration_seconds = self._get_mpv_property_double('duration')
             if duration_seconds:
                 result = int(duration_seconds * 1000)
-                self.logger.info(f"get_total_time: duration={duration_seconds}s = {result}ms")
+                self.logger.debug(f"get_total_time: duration={duration_seconds}s = {result}ms")
                 return result
             
             # 如果 duration 失败，尝试 length
             duration_seconds = self._get_mpv_property_double('length')
             if duration_seconds:
                 result = int(duration_seconds * 1000)
-                self.logger.info(f"get_total_time: length={duration_seconds}s = {result}ms")
+                self.logger.debug(f"get_total_time: length={duration_seconds}s = {result}ms")
                 return result
             
             # 如果 length 失败，尝试 file-size 并估计时长
@@ -737,13 +737,13 @@ class MpvPlayerController(QObject):
                 # 这只是一个估计，不准确
                 duration_seconds = file_size / (1024 * 1024) * 60  # MB * 60秒
                 result = int(duration_seconds * 1000)
-                self.logger.info(f"get_total_time: file-size={file_size} bytes, estimated={duration_seconds}s = {result}ms")
+                self.logger.debug(f"get_total_time: file-size={file_size} bytes, estimated={duration_seconds}s = {result}ms")
                 return result
             
-            self.logger.info(f"get_total_time: 所有属性都返回None或0")
+            self.logger.debug(f"get_total_time: 所有属性都返回None或0")
             return 0
         except Exception as e:
-            self.logger.info(f"get_total_time exception: {e}")
+            self.logger.debug(f"get_total_time exception: {e}")
             return 0
 
     def get_position(self):

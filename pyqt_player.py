@@ -1961,7 +1961,7 @@ class IPTVPlayer(QMainWindow):
             # 重置进度条为0（新节目从0开始）
             if hasattr(self, 'program_progress'):
                 self.program_progress.setValue(0)
-                logger.info("play_catchup: 新回看节目，重置进度条为0")
+                logger.debug("play_catchup: 新回看节目，重置进度条为0")
             
             # 播放回看
             self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
@@ -2019,11 +2019,11 @@ class IPTVPlayer(QMainWindow):
     
     def on_progress_slider_released(self):
         """进度条拖动释放时的处理"""
-        logger.info(f"进度条拖动释放事件触发，当前值：{self.program_progress.value()}%")
+        logger.debug(f"进度条拖动释放事件触发，当前值：{self.program_progress.value()}%")
         
         # 检查是否处于回看模式
         is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
-        logger.info(f"是否处于回看模式：{is_catchup}")
+        logger.debug(f"是否处于回看模式：{is_catchup}")
         
         if not is_catchup:
             # 直播模式下，立即更新进度条到当前时间
@@ -2033,7 +2033,7 @@ class IPTVPlayer(QMainWindow):
             seconds = current_time.second
             progress = int(((minutes * 60) + seconds) / 3600 * 100)
             self.program_progress.setValue(progress)
-            logger.info(f"直播模式，设置进度条到当前时间：{progress}%")
+            logger.debug(f"直播模式，设置进度条到当前时间：{progress}%")
             return
         
         # 获取进度条的当前值
@@ -2042,7 +2042,7 @@ class IPTVPlayer(QMainWindow):
         # 重新构建回看URL并重新播放
         has_catchup_program = hasattr(self, 'catchup_program')
         has_original_channel = hasattr(self, 'original_channel')
-        logger.info(f"检查必要属性：catchup_program={has_catchup_program}, original_channel={has_original_channel}")
+        logger.debug(f"检查必要属性：catchup_program={has_catchup_program}, original_channel={has_original_channel}")
         
         if has_catchup_program and has_original_channel:
             try:
@@ -2084,17 +2084,17 @@ class IPTVPlayer(QMainWindow):
                 
                 # 保存目标进度值，用于在播放开始后设置进度条
                 self._pending_catchup_progress = value
-                logger.info(f"保存回看进度目标值：{value}%")
+                logger.debug(f"保存回看进度目标值：{value}%")
                 
                 # 记录拖动时间点（用于模拟进度条移动）
                 import time
                 self._catchup_start_time = time.time()
                 self._catchup_start_progress = value
-                logger.info(f"记录回看开始时间：{self._catchup_start_time}，开始进度：{value}%")
+                logger.debug(f"记录回看开始时间：{self._catchup_start_time}，开始进度：{value}%")
                 
                 # 设置标志，禁用进度条自动更新
                 self._disable_progress_auto_update = True
-                logger.info(f"禁用进度条自动更新，等待播放位置达到目标值")
+                logger.debug(f"禁用进度条自动更新，等待播放位置达到目标值")
                 
                 # 播放新的回看 URL
                 if hasattr(self, 'player_controller') and self.player_controller:
@@ -2195,7 +2195,7 @@ class IPTVPlayer(QMainWindow):
         is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
         if not is_catchup:
             self.program_progress.setValue(0)
-            logger.info("update_channel_info_on_selection: 重置进度条为0（非回看模式）")
+            logger.debug("update_channel_info_on_selection: 重置进度条为0（非回看模式）")
         self.progress_end.setText("--:--")
         
         # 重置第一行媒体信息为默认值
@@ -2357,7 +2357,7 @@ class IPTVPlayer(QMainWindow):
                 is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
                 if not is_catchup:
                     self.program_progress.setValue(0)
-                    logger.info("play_channel: 重置进度条为0（非回看模式）")
+                    logger.debug("play_channel: 重置进度条为0（非回看模式）")
             
             url = channel.get('url')
             name = channel.get('name', '未知频道')
@@ -2418,7 +2418,7 @@ class IPTVPlayer(QMainWindow):
                     if hasattr(self, '_pending_catchup_progress'):
                         try:
                             progress_value = self._pending_catchup_progress
-                            logger.info(f"设置回看进度条到目标值：{progress_value}%")
+                            logger.debug(f"设置回看进度条到目标值：{progress_value}%")
                             self.program_progress.setValue(progress_value)
                             
                             # 保存目标进度值，用于在update_floating_panel_info中检查
@@ -2428,12 +2428,12 @@ class IPTVPlayer(QMainWindow):
                             import time
                             self._catchup_start_time = time.time()
                             self._catchup_start_progress = progress_value
-                            logger.info(f"记录回看开始时间：{self._catchup_start_time}，开始进度：{progress_value}%")
+                            logger.debug(f"记录回看开始时间：{self._catchup_start_time}，开始进度：{progress_value}%")
                             
                             # 清除待处理值，但保留禁用标志
                             # 禁用标志会在update_floating_panel_info中根据播放位置自动清除
                             delattr(self, '_pending_catchup_progress')
-                            logger.info(f"已设置回看进度条，保存目标值：{progress_value}%，保留禁用标志")
+                            logger.debug(f"已设置回看进度条，保存目标值：{progress_value}%，保留禁用标志")
                         except Exception as e:
                             logger.error(f"设置回看进度条失败：{e}")
                 else:
@@ -3107,7 +3107,7 @@ class IPTVPlayer(QMainWindow):
                         # 获取当前播放位置（秒）
                         if current_time_ms is not None:
                             current_position = current_time_ms / 1000
-                            logger.info(f"回看模式 - 获取播放位置: {current_time_ms}ms = {current_position:.1f}s")
+                            logger.debug(f"回看模式 - 获取播放位置: {current_time_ms}ms = {current_position:.1f}s")
                         else:
                             current_position = 0
                             logger.warning(f"回看模式 - 播放位置为None，使用0")
@@ -3124,19 +3124,19 @@ class IPTVPlayer(QMainWindow):
                                 progress_value = min(int(self._catchup_start_progress + progress_increment), 100)
                                 
                                 self.program_progress.setValue(progress_value)
-                                logger.info(f"回看进度条模拟更新: {progress_value}% (开始: {self._catchup_start_progress}%，经过: {elapsed_seconds:.1f}s，增量: {progress_increment:.2f}%)")
+                                logger.debug(f"回看进度条模拟更新: {progress_value}% (开始: {self._catchup_start_progress}%，经过: {elapsed_seconds:.1f}s，增量: {progress_increment:.2f}%)")
                             else:
                                 # 如果没有开始时间记录，检查是否禁用进度条自动更新
                                 if hasattr(self, '_disable_progress_auto_update') and self._disable_progress_auto_update:
-                                    logger.info(f"进度条自动更新被禁用，跳过更新")
+                                    logger.debug(f"进度条自动更新被禁用，跳过更新")
                                     # 检查播放位置是否已经达到目标位置
                                     target_progress = getattr(self, '_target_catchup_progress', 0)
                                     target_position = total_duration * (target_progress / 100.0)
-                                    logger.info(f"检查播放位置: current={current_position:.1f}s, target={target_position:.1f}s (进度={target_progress}%)")
+                                    logger.debug(f"检查播放位置: current={current_position:.1f}s, target={target_position:.1f}s (进度={target_progress}%)")
                                     
                                     # 如果当前播放位置已经接近目标位置，清除禁用标志
                                     if current_position >= target_position * 0.9:  # 达到目标位置的90%
-                                        logger.info(f"播放位置已达到目标位置附近，清除禁用标志")
+                                        logger.debug(f"播放位置已达到目标位置附近，清除禁用标志")
                                         delattr(self, '_disable_progress_auto_update')
                                 else:
                                     # 计算进度百分比
@@ -3146,12 +3146,12 @@ class IPTVPlayer(QMainWindow):
                                         # 如果获取不到播放位置，使用0作为初始值
                                         progress_value = 0
                                     self.program_progress.setValue(progress_value)
-                                    logger.info(f"回看进度条实时更新: {progress_value}% (位置: {current_position:.1f}s / 总时长: {total_duration:.1f}s)")
+                                    logger.debug(f"回看进度条实时更新: {progress_value}% (位置: {current_position:.1f}s / 总时长: {total_duration:.1f}s)")
                         else:
                             # 只有在非回看拖动模式下才重置为0
                             if not (hasattr(self, '_disable_progress_auto_update') and self._disable_progress_auto_update):
                                 self.program_progress.setValue(0)
-                                logger.info("update_floating_panel_info: 总时长为0，重置进度条为0")
+                                logger.debug("update_floating_panel_info: 总时长为0，重置进度条为0")
                 except Exception as e:
                     logger.error(f"处理回看时间显示失败: {e}")
                     # 如果出错，使用视频播放时间
@@ -3159,14 +3159,14 @@ class IPTVPlayer(QMainWindow):
                         progress_value = int(position * 100)
                         self.program_progress.setValue(progress_value)
                         # 记录进度条实时变化（回看时间显示失败时）
-                        logger.info(f"回看进度条实时更新（时间显示失败）: {progress_value}% (位置: {position*100:.1f}%)")
+                        logger.debug(f"回看进度条实时更新（时间显示失败）: {progress_value}% (位置: {position*100:.1f}%)")
                         self.progress_start.setText(current_time_str)
                         self.progress_end.setText(total_time_str)
                     else:
                         # 只有在非回看拖动模式下才重置为0
                         if not (hasattr(self, '_disable_progress_auto_update') and self._disable_progress_auto_update):
                             self.program_progress.setValue(0)
-                            logger.info("update_floating_panel_info: 处理回看时间显示失败，重置进度条为0")
+                            logger.debug("update_floating_panel_info: 处理回看时间显示失败，重置进度条为0")
             # 回看模式下，继续执行后面的代码，确保更新节目描述
             # 不再直接返回
         elif has_epg:
@@ -3187,7 +3187,7 @@ class IPTVPlayer(QMainWindow):
                         progress_value = int((current_position / total_duration) * 100)
                         self.program_progress.setValue(progress_value)
                         # 记录进度条实时变化（EPG模式）
-                        logger.info(f"EPG进度条实时更新: {progress_value}% (位置: {current_position:.1f}s / 总时长: {total_duration:.1f}s)")
+                        logger.debug(f"EPG进度条实时更新: {progress_value}% (位置: {current_position:.1f}s / 总时长: {total_duration:.1f}s)")
                         
                         # 格式化时间显示
                         start_str = start_time.strftime("%H:%M")
@@ -3199,14 +3199,14 @@ class IPTVPlayer(QMainWindow):
                         is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
                         if not is_catchup:
                             self.program_progress.setValue(0)
-                            logger.info("update_floating_panel_info: EPG总时长为0，重置进度条为0")
+                            logger.debug("update_floating_panel_info: EPG总时长为0，重置进度条为0")
                 except:
                     # 如果EPG时间解析失败，使用视频播放时间
                     if total_time_ms > 0:
                         progress_value = int(position * 100)
                         self.program_progress.setValue(progress_value)
                         # 记录进度条实时变化（EPG时间解析失败）
-                        logger.info(f"进度条实时更新（EPG解析失败）: {progress_value}% (位置: {position*100:.1f}%)")
+                        logger.debug(f"进度条实时更新（EPG解析失败）: {progress_value}% (位置: {position*100:.1f}%)")
                         self.progress_start.setText(current_time_str)
                         self.progress_end.setText(total_time_str)
                     else:
@@ -3214,14 +3214,14 @@ class IPTVPlayer(QMainWindow):
                         is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
                         if not is_catchup:
                             self.program_progress.setValue(0)
-                            logger.info("update_floating_panel_info: EPG时间解析失败且无视频时间，重置进度条为0")
+                            logger.debug("update_floating_panel_info: EPG时间解析失败且无视频时间，重置进度条为0")
             else:
                 # 使用视频播放时间
                 if total_time_ms > 0:
                     progress_value = int(position * 100)
                     self.program_progress.setValue(progress_value)
                     # 记录进度条实时变化（无EPG模式）
-                    logger.info(f"进度条实时更新（无EPG）: {progress_value}% (位置: {position*100:.1f}%)")
+                    logger.debug(f"进度条实时更新（无EPG）: {progress_value}% (位置: {position*100:.1f}%)")
                     self.progress_start.setText(current_time_str)
                     self.progress_end.setText(total_time_str)
                 else:
@@ -3229,7 +3229,7 @@ class IPTVPlayer(QMainWindow):
                     is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
                     if not is_catchup:
                         self.program_progress.setValue(0)
-                        logger.info("update_floating_panel_info: 无EPG且无视频时间，重置进度条为0")
+                        logger.debug("update_floating_panel_info: 无EPG且无视频时间，重置进度条为0")
         else:
             # 没有节目单，使用当前系统时间和小时段
             from datetime import datetime
@@ -3246,7 +3246,7 @@ class IPTVPlayer(QMainWindow):
             progress = int(((minutes * 60) + seconds) / 3600 * 100)
             self.program_progress.setValue(progress)
             # 记录进度条实时变化（无节目单模式）
-            logger.info(f"进度条实时更新（无节目单）: {progress}% (时间: {current_time.strftime('%H:%M:%S')})")
+            logger.debug(f"进度条实时更新（无节目单）: {progress}% (时间: {current_time.strftime('%H:%M:%S')})")
         
         # 不再更新音量，避免音量拖动后自动恢复的问题
         
