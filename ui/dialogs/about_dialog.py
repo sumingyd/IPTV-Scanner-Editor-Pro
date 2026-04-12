@@ -9,9 +9,9 @@ from core.log_manager import global_logger as logger
 
 
 class AboutDialog(QtWidgets.QDialog):
-    CURRENT_VERSION = "43.0.0.0"
+    CURRENT_VERSION = "44.0.0.0"
     DEFAULT_VERSION = None
-    BUILD_DATE = "2026-04-10"
+    BUILD_DATE = "2026-04-12"
 
     def __init__(self, parent=None):
         super().__init__(parent)
