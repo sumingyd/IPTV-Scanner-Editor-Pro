@@ -190,6 +190,9 @@ channel_fingerprints.json
 channel_mappings_cache.json
 epg_cache/
 
+# 台标缓存
+logo_cache/
+
 # 本地频道映射
 user_channel_mappings.json
 编译助手.bat

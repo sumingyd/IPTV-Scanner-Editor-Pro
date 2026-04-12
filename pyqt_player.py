@@ -8,8 +8,9 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QListWidget, QListWidgetItem, QStackedWidget,
     QMenuBar, QMenu, QFileDialog, QDialog, QTextEdit, QStatusBar,
-    QFrame, QToolButton, QSlider, QGridLayout, QComboBox
+    QFrame, QToolButton, QSlider, QGridLayout, QComboBox, QLabel as QtWidgets_QLabel
 )
+from PyQt6 import QtWidgets
 from PyQt6.QtCore import Qt, QSize, QTimer, QUrl
 from PyQt6.QtGui import QIcon, QPixmap, QFont, QColor, QAction, QPainter, QBrush, QKeySequence, QShortcut
 
@@ -1491,10 +1492,108 @@ class IPTVPlayer(QMainWindow):
                 if channel_group != selected_group:
                     continue
 
-            item = QListWidgetItem(channel.get("name", self.language_manager.tr("unnamed", "Unnamed")))
-            item.setSizeHint(QSize(0, 40))
+            # 创建自定义的频道项 widget
+            channel_name = channel.get("name", self.language_manager.tr("unnamed", "Unnamed"))
+            logo_url = channel.get('logo', '')
+            
+            # 创建一个容器 widget
+            item_widget = QtWidgets.QWidget()
+            item_layout = QHBoxLayout(item_widget)
+            item_layout.setContentsMargins(5, 5, 5, 5)
+            item_layout.setSpacing(10)
+            
+            # 台标标签
+            logo_label = QtWidgets.QLabel()
+            logo_label.setFixedSize(60, 60)
+            logo_label.setStyleSheet("background-color: transparent; border: none;")
+            logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            logo_label.setMinimumSize(60, 60)
+            logo_label.setMaximumSize(60, 60)
+            
+            # 如果有台标，加载它
+            if logo_url:
+                logo_url = logo_url.strip('`"\'')
+                cached = self._logo_cache_service.get(logo_url)
+                if cached:
+                    # 缩放台标到 60x60 区域，保持宽高比
+                    scaled = cached.scaled(60, 60, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                    logo_label.setPixmap(scaled)
+                else:
+                    # 异步加载台标
+                    self._logo_cache_service.fetch_async(logo_url)
+            
+            # 频道名称标签
+            name_label = QtWidgets.QLabel(channel_name)
+            name_label.setStyleSheet("font-size: 14px; font-weight: bold; color: #FFFFFF;")
+            name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+            name_label.setWordWrap(False)
+            
+            # 添加到布局
+            item_layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignVCenter)
+            item_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
+            
+            # 创建 QListWidgetItem 并设置大小
+            item = QListWidgetItem()
+            item.setSizeHint(QSize(0, 70))
             item.setData(Qt.ItemDataRole.UserRole, idx)
+            
+            # 将自定义 widget 设置为 item 的 widget
             self.channel_list.addItem(item)
+            self.channel_list.setItemWidget(item, item_widget)
+        
+        # 连接滚动信号，实现懒加载
+        self.channel_list.verticalScrollBar().valueChanged.connect(self._on_channel_list_scrolled)
+    
+    def _on_channel_list_scrolled(self, value):
+        """频道列表滚动时，加载可见区域的台标"""
+        # 获取可见区域的项
+        viewport_rect = self.channel_list.viewport().rect()
+        top_index = self.channel_list.indexAt(viewport_rect.topLeft())
+        bottom_index = self.channel_list.indexAt(viewport_rect.bottomLeft())
+        
+        first_visible = top_index.row() if top_index.isValid() else 0
+        last_visible = bottom_index.row() if bottom_index.isValid() else self.channel_list.count() - 1
+        
+        # 扩大加载范围，提前加载上下各 5 个项
+        first_visible = max(0, first_visible - 5)
+        last_visible = min(self.channel_list.count() - 1, last_visible + 5)
+        
+        # 加载可见区域的台标
+        for i in range(first_visible, last_visible + 1):
+            item = self.channel_list.item(i)
+            if not item:
+                continue
+            
+            # 获取自定义 widget
+            item_widget = self.channel_list.itemWidget(item)
+            if not item_widget:
+                continue
+            
+            # 获取台标标签
+            logo_label = item_widget.findChild(QtWidgets.QLabel)
+            if not logo_label:
+                continue
+            # 检查是否已经有台标
+            if logo_label.pixmap() and not logo_label.pixmap().isNull():
+                continue  # 已经有台标了
+            
+            channel_idx = item.data(Qt.ItemDataRole.UserRole)
+            if channel_idx is None or channel_idx >= len(CHANNELS):
+                continue
+            
+            channel = CHANNELS[channel_idx]
+            logo_url = channel.get('logo', '')
+            if logo_url:
+                logo_url = logo_url.strip('`"\'')
+                # 尝试从缓存获取
+                cached = self._logo_cache_service.get(logo_url)
+                if cached:
+                    # 缩放台标到 60x60 区域，保持宽高比
+                    scaled = cached.scaled(60, 60, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                    logo_label.setPixmap(scaled)
+                else:
+                    # 异步加载台标
+                    self._logo_cache_service.fetch_async(logo_url)
     
     def populate_epg_list(self):
         """填充EPG列表"""
@@ -4433,6 +4532,7 @@ class IPTVPlayer(QMainWindow):
             logger.warning(f"版本检查失败: {message}")
 
     def _on_logo_cache_loaded(self, url, pixmap):
+        """台标加载完成的回调"""
         if not self.current_channel:
             return
         logo = self.current_channel.get('logo', '')
@@ -4442,6 +4542,31 @@ class IPTVPlayer(QMainWindow):
                 scaled = pixmap.scaled(self.channel_logo.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
                 self.channel_logo.setPixmap(scaled)
                 self.channel_logo.setText("")
+        
+        # 更新频道列表中的图标
+        for i in range(self.channel_list.count()):
+            item = self.channel_list.item(i)
+            if not item:
+                continue
+            
+            channel_idx = item.data(Qt.ItemDataRole.UserRole)
+            if channel_idx is None or channel_idx >= len(CHANNELS):
+                continue
+            
+            channel = CHANNELS[channel_idx]
+            channel_logo = channel.get('logo', '')
+            if channel_logo:
+                channel_logo = channel_logo.strip('`"\'')
+                if channel_logo == url:
+                    # 获取自定义 widget 并更新台标
+                    item_widget = self.channel_list.itemWidget(item)
+                    if item_widget:
+                        logo_label = item_widget.findChild(QtWidgets.QLabel)
+                        if logo_label:
+                            # 缩放台标到 60x60 区域，保持宽高比
+                            scaled = pixmap.scaled(60, 60, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                            logo_label.setPixmap(scaled)
+                    break
 
     def _get_next_channel_urls(self, current_channel):
         if not CHANNELS or not current_channel:
