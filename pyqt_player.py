@@ -249,6 +249,13 @@ class IPTVPlayer(QMainWindow):
         current_version = AboutDialog.CURRENT_VERSION
         self.setWindowTitle(f"{self.language_manager.tr('app_title', 'IPTV Scanner Editor Pro')} v{current_version}")
         
+        # 设置窗口图标
+        from PyQt6.QtGui import QIcon
+        import os
+        ico_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources', 'logo.ico')
+        if os.path.exists(ico_path):
+            self.setWindowIcon(QIcon(ico_path))
+        
         # 加载窗口布局（包括位置和大小）
         x, y, width, height, _ = self.config.load_window_layout(
             default_x=100,
