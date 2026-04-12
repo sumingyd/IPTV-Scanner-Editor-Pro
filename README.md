@@ -164,7 +164,6 @@ IPTV-Scanner-Editor-Pro/
 │   ├── scanner_service.py # 扫描服务
 │   ├── validator_service.py # 验证服务
 │   ├── mpv_player_service.py # MPV播放服务
-│   ├── ffprobe_service.py # FFProbe统一服务
 │   ├── list_service.py    # 列表服务
 │   └── url_parser_service.py # URL解析服务
 ├── models/                # 数据模型
@@ -207,9 +206,6 @@ IPTV-Scanner-Editor-Pro/
 ### 编译说明
 项目提供多种编译方式：
 - `一键编译.bat`: 完整编译（包含VLC和FFmpeg）
-- `一键编译-无vlc+ffprobe.bat`: 精简编译（不包含VLC和FFmpeg）
-- `IPTV.spec`: PyInstaller打包配置文件
-- `IPTV-novlc-noffprobe.spec`: 精简版打包配置
 
 ## 🤝 贡献指南
 

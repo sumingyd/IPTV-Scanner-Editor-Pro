@@ -6,9 +6,10 @@ import platform
 import sys
 import aiohttp
 from core.log_manager import global_logger as logger
+from ..floating_dialog import FloatingDialog
 
 
-class AboutDialog(QtWidgets.QDialog):
+class AboutDialog(FloatingDialog):
     CURRENT_VERSION = "44.0.0.0"
     DEFAULT_VERSION = None
     BUILD_DATE = "2026-04-12"
@@ -16,68 +17,54 @@ class AboutDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.current_version = self.CURRENT_VERSION
-        self.dragging = False
-        self.offset = None
-        from ..styles import AppStyles
-        colors = AppStyles._get_colors()
-        self.opacity = colors.get('window_opacity', 220)
         self.language_manager = getattr(parent, 'language_manager', None)
         if not self.language_manager:
             from core.language_manager import LanguageManager
             self.language_manager = LanguageManager()
             self.language_manager.load_available_languages()
             self.language_manager.set_language('zh')
-        self._colors = colors
+        from ..styles import AppStyles
+        self._colors = AppStyles._get_colors()
         self._init_ui()
-
+    
     def _init_ui(self):
+        """初始化 UI"""
         tr = self.language_manager.tr
         c = self._colors
         self.setWindowTitle(tr("about_dialog_title", "About IPTV Scanner Editor Pro"))
         self.setFixedSize(480, 420)
-        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
-        self.setMouseTracking(True)
-        self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
 
         main_layout = QtWidgets.QVBoxLayout(self)
         main_layout.setContentsMargins(28, 24, 28, 20)
         main_layout.setSpacing(0)
 
-        header_layout = QtWidgets.QHBoxLayout()
-        header_layout.setSpacing(16)
-
+        # 图标居中显示
         logo_label = QtWidgets.QLabel()
-        from PyQt6.QtGui import QPixmap
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        from PyQt6.QtGui import QPixmap, QIcon
         import os
         ico_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'resources', 'logo.ico')
         if os.path.exists(ico_path):
-            pixmap = QPixmap(ico_path)
+            # 使用 QIcon 读取 ICO 文件，然后获取最大尺寸的 pixmap
+            icon = QIcon(ico_path)
+            # 获取所有可用尺寸
+            available_sizes = icon.availableSizes()
+            if available_sizes:
+                # 找到最大的尺寸
+                max_size = max(available_sizes, key=lambda s: s.width() * s.height())
+                pixmap = icon.pixmap(max_size)
+            else:
+                pixmap = icon.pixmap(256, 256)  # 默认使用 256x256
+            
             if not pixmap.isNull():
-                logo_label.setPixmap(pixmap.scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+                # 缩放到 128x128，保持宽高比，使用平滑变换
+                scaled = pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                logo_label.setPixmap(scaled)
         else:
             logo_label.setText("📺")
-        logo_label.setStyleSheet("font-size: 40px; background-color: transparent;")
-        logo_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-        logo_label.setFixedSize(48, 48)
-        header_layout.addWidget(logo_label)
-
-        title_col = QtWidgets.QVBoxLayout()
-        title_col.setSpacing(2)
-
-        app_name = QtWidgets.QLabel("IPTV Scanner Editor Pro")
-        app_name.setStyleSheet(f"font-size: 18px; font-weight: bold; color: {c['accent']}; background-color: transparent;")
-        app_name.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        title_col.addWidget(app_name)
-
-        self.app_desc_label = QtWidgets.QLabel(tr("app_description", "IPTV Professional Scanner & Editor"))
-        self.app_desc_label.setStyleSheet(f"font-size: 11px; color: {c['player_panel_secondary']}; background-color: transparent;")
-        self.app_desc_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        title_col.addWidget(self.app_desc_label)
-
-        header_layout.addLayout(title_col)
-        header_layout.addStretch()
-        main_layout.addLayout(header_layout)
+            logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo_label.setStyleSheet("background-color: transparent;")
+        main_layout.addWidget(logo_label)
 
         main_layout.addSpacing(16)
 
@@ -165,26 +152,51 @@ class AboutDialog(QtWidgets.QDialog):
         main_layout.addLayout(bottom_layout)
 
         self.setStyleSheet(AppStyles.dialog_style())
-        QtCore.QTimer.singleShot(100, self._check_version_async)
-
-    def _check_version_async(self):
+        # 使用线程异步检查版本，不阻塞 UI
+        import threading
+        thread = threading.Thread(target=self._check_version_thread, daemon=True)
+        thread.start()
+    
+    def _check_version_thread(self):
+        """在线程中检查版本（不阻塞 UI）"""
         tr = self.language_manager.tr
+        from core.log_manager import global_logger as logger
+        logger.info("开始检查版本...")
         try:
+            # 在线程中运行异步代码
+            import asyncio
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            latest_version, publish_date = loop.run_until_complete(
-                asyncio.wait_for(self._get_latest_version(), timeout=5)
-            )
-            if latest_version and latest_version not in (tr("request_timeout_text", "(Request Timeout)"), tr("fetch_failed_text", "(Fetch Failed)")):
-                self.latest_version_value.setText(latest_version)
-            else:
-                self.latest_version_value.setText(latest_version)
+            try:
+                logger.debug("开始获取最新版本...")
+                latest_version, publish_date = loop.run_until_complete(
+                    asyncio.wait_for(self._get_latest_version(), timeout=5)
+                )
+                logger.debug(f"获取到最新版本：{latest_version}")
+                # 保存结果到实例变量
+                self._latest_version_result = latest_version
+                # 在主线程中更新 UI
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(0, self._update_version_ui)
+            finally:
+                loop.close()
         except asyncio.TimeoutError:
-            self.latest_version_value.setText(tr("request_timeout_text", "(Request Timeout)"))
-        except Exception:
-            self.latest_version_value.setText(tr("fetch_failed_text", "(Fetch Failed)"))
-        finally:
-            loop.close()
+            logger.error("版本检查超时")
+            self._latest_version_result = tr("request_timeout_text", "(Request Timeout)")
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(0, self._update_version_ui)
+        except Exception as e:
+            logger.error(f"版本检查失败：{e}")
+            self._latest_version_result = tr("fetch_failed_text", "(Fetch Failed)")
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(0, self._update_version_ui)
+    
+    def _update_version_ui(self):
+        """在主线程中更新版本显示"""
+        from core.log_manager import global_logger as logger
+        logger.debug(f"更新 UI 版本号：{self._latest_version_result}")
+        if hasattr(self, 'latest_version_value'):
+            self.latest_version_value.setText(self._latest_version_result)
 
     async def _get_latest_version(self):
         tr = self.language_manager.tr

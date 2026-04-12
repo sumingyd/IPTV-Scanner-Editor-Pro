@@ -2,26 +2,20 @@ from PyQt6 import QtWidgets, QtCore, QtGui
 from core.log_manager import LogManager
 from models.channel_mappings import mapping_manager
 from utils.error_handler import show_error, show_warning, show_info, show_confirm
+from ..floating_dialog import FloatingDialog
 
 
-class MappingManagerDialog(QtWidgets.QDialog):
+class MappingManagerDialog(FloatingDialog):
     """频道映射管理器对话框"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.logger = LogManager()
         self.parent = parent
-        self.dragging = False
-        self.offset = None
         # 从主题获取透明度设置
         from ..styles import AppStyles
         colors = AppStyles._get_colors()
         self.opacity = colors.get('window_opacity', 220)
-        # 设置窗口属性，与其他弹窗保持一致
-        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
-        self.setMouseTracking(True)
-        self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
 
         # 获取语言管理器
         if parent and hasattr(parent, 'language_manager'):
