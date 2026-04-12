@@ -1947,13 +1947,21 @@ class IPTVPlayer(QMainWindow):
             if hasattr(self, 'floating_panel'):
                 self.floating_panel.raise_()
             
-            # 重置进度条（只在非回看模式下重置）
+            # 清除回看模拟相关的属性
+            # 当用户从EPG选择新的回看节目时，应该清除之前的模拟状态
+            if hasattr(self, '_catchup_start_time'):
+                delattr(self, '_catchup_start_time')
+            if hasattr(self, '_catchup_start_progress'):
+                delattr(self, '_catchup_start_progress')
+            if hasattr(self, '_target_catchup_progress'):
+                delattr(self, '_target_catchup_progress')
+            if hasattr(self, '_disable_progress_auto_update'):
+                delattr(self, '_disable_progress_auto_update')
+            
+            # 重置进度条为0（新节目从0开始）
             if hasattr(self, 'program_progress'):
-                # 检查是否处于回看模式
-                # 注意：这里使用self.is_catchup_mode，因为我们在第1936行设置了它
-                if not hasattr(self, 'is_catchup_mode') or not self.is_catchup_mode:
-                    self.program_progress.setValue(0)
-                    logger.info("play_catchup: 重置进度条为0（非回看模式）")
+                self.program_progress.setValue(0)
+                logger.info("play_catchup: 新回看节目，重置进度条为0")
             
             # 播放回看
             self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
@@ -2077,6 +2085,12 @@ class IPTVPlayer(QMainWindow):
                 # 保存目标进度值，用于在播放开始后设置进度条
                 self._pending_catchup_progress = value
                 logger.info(f"保存回看进度目标值：{value}%")
+                
+                # 记录拖动时间点（用于模拟进度条移动）
+                import time
+                self._catchup_start_time = time.time()
+                self._catchup_start_progress = value
+                logger.info(f"记录回看开始时间：{self._catchup_start_time}，开始进度：{value}%")
                 
                 # 设置标志，禁用进度条自动更新
                 self._disable_progress_auto_update = True
@@ -2292,6 +2306,18 @@ class IPTVPlayer(QMainWindow):
                     self.exit_catchup_button.hide()
                 if hasattr(self, 'catchup_program'):
                     delattr(self, 'catchup_program')
+                
+                # 清除回看模拟相关的属性
+                if hasattr(self, '_catchup_start_time'):
+                    delattr(self, '_catchup_start_time')
+                if hasattr(self, '_catchup_start_progress'):
+                    delattr(self, '_catchup_start_progress')
+                if hasattr(self, '_target_catchup_progress'):
+                    delattr(self, '_target_catchup_progress')
+                if hasattr(self, '_disable_progress_auto_update'):
+                    delattr(self, '_disable_progress_auto_update')
+                if hasattr(self, '_pending_catchup_progress'):
+                    delattr(self, '_pending_catchup_progress')
             
             # 重置节目单日期为今天（只在非回看模式下执行）
             from datetime import datetime, timedelta
@@ -2394,8 +2420,16 @@ class IPTVPlayer(QMainWindow):
                             progress_value = self._pending_catchup_progress
                             logger.info(f"设置回看进度条到目标值：{progress_value}%")
                             self.program_progress.setValue(progress_value)
+                            
                             # 保存目标进度值，用于在update_floating_panel_info中检查
                             self._target_catchup_progress = progress_value
+                            
+                            # 记录开始时间（用于模拟进度条移动）
+                            import time
+                            self._catchup_start_time = time.time()
+                            self._catchup_start_progress = progress_value
+                            logger.info(f"记录回看开始时间：{self._catchup_start_time}，开始进度：{progress_value}%")
+                            
                             # 清除待处理值，但保留禁用标志
                             # 禁用标志会在update_floating_panel_info中根据播放位置自动清除
                             delattr(self, '_pending_catchup_progress')
@@ -3079,28 +3113,40 @@ class IPTVPlayer(QMainWindow):
                             logger.warning(f"回看模式 - 播放位置为None，使用0")
                         
                         if total_duration > 0:
-                            # 检查是否禁用进度条自动更新
-                            if hasattr(self, '_disable_progress_auto_update') and self._disable_progress_auto_update:
-                                logger.info(f"进度条自动更新被禁用，跳过更新")
-                                # 检查播放位置是否已经达到目标位置
-                                target_progress = getattr(self, '_target_catchup_progress', 0)
-                                target_position = total_duration * (target_progress / 100.0)
-                                logger.info(f"检查播放位置: current={current_position:.1f}s, target={target_position:.1f}s (进度={target_progress}%)")
+                            # 在回看模式下，总是使用系统时间模拟进度条移动
+                            if hasattr(self, '_catchup_start_time') and hasattr(self, '_catchup_start_progress'):
+                                import time
+                                current_time = time.time()
+                                elapsed_seconds = current_time - self._catchup_start_time
                                 
-                                # 如果当前播放位置已经接近目标位置，清除禁用标志
-                                if current_position >= target_position * 0.9:  # 达到目标位置的90%
-                                    logger.info(f"播放位置已达到目标位置附近，清除禁用标志")
-                                    delattr(self, '_disable_progress_auto_update')
+                                # 计算进度：开始进度 + (经过时间 / 总时长) * 100
+                                progress_increment = (elapsed_seconds / total_duration) * 100
+                                progress_value = min(int(self._catchup_start_progress + progress_increment), 100)
+                                
+                                self.program_progress.setValue(progress_value)
+                                logger.info(f"回看进度条模拟更新: {progress_value}% (开始: {self._catchup_start_progress}%，经过: {elapsed_seconds:.1f}s，增量: {progress_increment:.2f}%)")
                             else:
-                                # 在回看模式下，根据播放位置更新进度条
-                                if current_position > 0:
-                                    progress_value = min(int((current_position / total_duration) * 100), 100)
-                                    self.program_progress.setValue(progress_value)
-                                    logger.info(f"回看进度条动态更新: {progress_value}% (位置: {current_position:.1f}s / 总时长: {total_duration:.1f}s)")
+                                # 如果没有开始时间记录，检查是否禁用进度条自动更新
+                                if hasattr(self, '_disable_progress_auto_update') and self._disable_progress_auto_update:
+                                    logger.info(f"进度条自动更新被禁用，跳过更新")
+                                    # 检查播放位置是否已经达到目标位置
+                                    target_progress = getattr(self, '_target_catchup_progress', 0)
+                                    target_position = total_duration * (target_progress / 100.0)
+                                    logger.info(f"检查播放位置: current={current_position:.1f}s, target={target_position:.1f}s (进度={target_progress}%)")
+                                    
+                                    # 如果当前播放位置已经接近目标位置，清除禁用标志
+                                    if current_position >= target_position * 0.9:  # 达到目标位置的90%
+                                        logger.info(f"播放位置已达到目标位置附近，清除禁用标志")
+                                        delattr(self, '_disable_progress_auto_update')
                                 else:
-                                    # 如果获取不到播放位置，保持当前进度条值
-                                    current_progress = self.program_progress.value()
-                                    logger.info(f"回看播放位置: 0s，保持进度条在: {current_progress}%")
+                                    # 计算进度百分比
+                                    if current_position > 0:
+                                        progress_value = min(int((current_position / total_duration) * 100), 100)
+                                    else:
+                                        # 如果获取不到播放位置，使用0作为初始值
+                                        progress_value = 0
+                                    self.program_progress.setValue(progress_value)
+                                    logger.info(f"回看进度条实时更新: {progress_value}% (位置: {current_position:.1f}s / 总时长: {total_duration:.1f}s)")
                         else:
                             # 只有在非回看拖动模式下才重置为0
                             if not (hasattr(self, '_disable_progress_auto_update') and self._disable_progress_auto_update):

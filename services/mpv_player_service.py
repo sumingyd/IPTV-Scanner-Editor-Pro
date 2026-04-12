@@ -683,20 +683,67 @@ class MpvPlayerController(QObject):
 
     def get_current_time(self):
         try:
+            # 首先尝试 time-pos
             time_seconds = self._get_mpv_property_double('time-pos')
             if time_seconds:
-                return int(time_seconds * 1000)
+                result = int(time_seconds * 1000)
+                self.logger.info(f"get_current_time: time-pos={time_seconds}s = {result}ms")
+                return result
+            
+            # 如果 time-pos 失败，尝试 playback-time
+            time_seconds = self._get_mpv_property_double('playback-time')
+            if time_seconds:
+                result = int(time_seconds * 1000)
+                self.logger.info(f"get_current_time: playback-time={time_seconds}s = {result}ms")
+                return result
+            
+            # 如果 playback-time 失败，尝试 percent-pos 并计算时间
+            percent = self._get_mpv_property_double('percent-pos')
+            if percent:
+                # 获取总时长
+                duration_seconds = self._get_mpv_property_double('duration')
+                if duration_seconds:
+                    time_seconds = duration_seconds * (percent / 100.0)
+                    result = int(time_seconds * 1000)
+                    self.logger.info(f"get_current_time: percent-pos={percent}%, duration={duration_seconds}s = {result}ms")
+                    return result
+            
+            self.logger.info(f"get_current_time: 所有属性都返回None或0")
             return 0
-        except Exception:
+        except Exception as e:
+            self.logger.info(f"get_current_time exception: {e}")
             return 0
 
     def get_total_time(self):
         try:
+            # 首先尝试 duration
             duration_seconds = self._get_mpv_property_double('duration')
             if duration_seconds:
-                return int(duration_seconds * 1000)
+                result = int(duration_seconds * 1000)
+                self.logger.info(f"get_total_time: duration={duration_seconds}s = {result}ms")
+                return result
+            
+            # 如果 duration 失败，尝试 length
+            duration_seconds = self._get_mpv_property_double('length')
+            if duration_seconds:
+                result = int(duration_seconds * 1000)
+                self.logger.info(f"get_total_time: length={duration_seconds}s = {result}ms")
+                return result
+            
+            # 如果 length 失败，尝试 file-size 并估计时长
+            file_size = self._get_mpv_property_double('file-size')
+            if file_size:
+                # 粗略估计：1MB ≈ 1分钟（对于标准视频）
+                # 这只是一个估计，不准确
+                duration_seconds = file_size / (1024 * 1024) * 60  # MB * 60秒
+                result = int(duration_seconds * 1000)
+                self.logger.info(f"get_total_time: file-size={file_size} bytes, estimated={duration_seconds}s = {result}ms")
+                return result
+            
+            self.logger.info(f"get_total_time: 所有属性都返回None或0")
             return 0
-        except Exception:
+        except Exception as e:
+            self.logger.info(f"get_total_time exception: {e}")
             return 0
 
     def get_position(self):
