@@ -18,7 +18,7 @@ class LoggingHelper(Singleton):
         if self._initialized:
             return
 
-        self._logged_patterns: Dict[str, int] = {}
+        self._logged_patterns: Dict[str, float] = {}
         self._level_mapping = {
             'config_error': 'error',
             'network_error': 'error',

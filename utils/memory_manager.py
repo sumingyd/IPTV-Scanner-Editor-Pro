@@ -2,7 +2,7 @@ import gc
 import weakref
 import threading
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable, List
 from core.log_manager import global_logger
 from utils.singleton import Singleton
 
@@ -15,7 +15,7 @@ class MemoryManager(Singleton):
         if self._initialized:
             return
 
-        self._object_pools: Dict[str, list] = {}
+        self._object_pools: Dict[str, Dict[str, Any]] = {}
         self._weak_refs: Dict[str, weakref.WeakValueDictionary] = {}
         self._cache: Dict[str, Any] = {}
         self._lock = threading.Lock()
@@ -23,7 +23,7 @@ class MemoryManager(Singleton):
 
         logger.info("内存管理器已初始化")
 
-    def create_object_pool(self, pool_name: str, factory_func, max_size: int = 100):
+    def create_object_pool(self, pool_name: str, factory_func: Callable, max_size: int = 100):
         """创建对象池"""
         with self._lock:
             if pool_name not in self._object_pools:

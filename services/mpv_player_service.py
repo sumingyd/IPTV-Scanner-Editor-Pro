@@ -229,7 +229,8 @@ class MpvPlayerController(QObject):
             if net_to > 0:
                 libmpv.mpv_set_property_string(self.mpv_handle, b'network-timeout', str(net_to).encode('utf-8'))
 
-            threads = max(2, os.cpu_count() // 2 or 2)
+            cpu_count = os.cpu_count() or 1
+            threads = max(2, cpu_count // 2)
             libmpv.mpv_set_property_string(self.mpv_handle, b'vd-lavc-threads', str(threads).encode('utf-8'))
 
             result = libmpv.mpv_initialize(self.mpv_handle)
@@ -844,15 +845,15 @@ class MpvPlayerController(QObject):
             # 详细调试日志：只在值变化时输出
             if not hasattr(self, '_last_info_debug') or self._last_info_debug != (w, h, vcodec, acodec):
                 self._last_info_debug = (w, h, vcodec, acodec)
-                self.logger.info(f"媒体信息：width={w}, height={h}, vcodec='{vcodec}', acodec='{acodec}', fps={fps}, container='{container}'")
+                self.logger.debug(f"媒体信息：width={w}, height={h}, vcodec='{vcodec}', acodec='{acodec}', fps={fps}, container='{container}'")
             
             # 如果获取不到关键信息，尝试获取所有可能的属性
             if not vcodec and not acodec and w == 0:
-                self.logger.info("尝试获取备选属性...")
+                self.logger.debug("尝试获取备选属性...")
                 # 尝试其他可能的属性名
                 alt_vcodec = get_str('video-format') or get_str('hwdec') or ''
                 alt_acodec = get_str('audio-format') or ''
-                self.logger.info(f"备选：video-format='{alt_vcodec}', audio-format='{alt_acodec}', hwdec='{get_str('hwdec')}'")
+                self.logger.debug(f"备选：video-format='{alt_vcodec}', audio-format='{alt_acodec}', hwdec='{get_str('hwdec')}'")
                 
                 # 对于直播流，尝试从 track-list 获取信息
                 try:
@@ -862,7 +863,7 @@ class MpvPlayerController(QObject):
                         ctypes.byref(ctypes.c_char_p())
                     )
                     if track_list_ptr >= 0:
-                        self.logger.info(f"track-list 属性可用")
+                        self.logger.debug(f"track-list 属性可用")
                 except:
                     pass
                 

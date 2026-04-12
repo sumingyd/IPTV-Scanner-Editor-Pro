@@ -42,7 +42,7 @@ def is_valid_url(url: str) -> bool:
     return any(url.startswith(scheme) for scheme in valid_schemes)
 
 
-def format_file_size(size_bytes: int) -> str:
+def format_file_size(size_bytes: float) -> str:
     """格式化文件大小"""
     if size_bytes == 0:
         return "0 B"

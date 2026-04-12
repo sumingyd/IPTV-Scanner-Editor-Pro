@@ -55,10 +55,10 @@ class ConfigManager:
             default_dividers=None
             ):
         """加载窗口布局（包括位置和大小）"""
-        x = int(self.get_value('UI', 'window_x', default_x))
-        y = int(self.get_value('UI', 'window_y', default_y))
-        width = int(self.get_value('UI', 'window_width', default_width))
-        height = int(self.get_value('UI', 'window_height', default_height))
+        x = int(self.get_value('UI', 'window_x', default_x) or default_x)
+        y = int(self.get_value('UI', 'window_y', default_y) or default_y)
+        width = int(self.get_value('UI', 'window_width', default_width) or default_width)
+        height = int(self.get_value('UI', 'window_height', default_height) or default_height)
         dividers = []
         i = 0
         while True:
@@ -89,8 +89,8 @@ class ConfigManager:
         """加载网络设置"""
         return {
             'url': self.get_value('Network', 'url', ''),
-            'timeout': int(self.get_value('Network', 'timeout', '30')),
-            'threads': int(self.get_value('Network', 'threads', '5')),
+            'timeout': int(self.get_value('Network', 'timeout', '30') or '30'),
+            'threads': int(self.get_value('Network', 'threads', '5') or '5'),
             'user_agent': self.get_value('Network', 'user_agent', ''),
             'referer': self.get_value('Network', 'referer', ''),
             'enable_retry': self.get_value('Network', 'enable_retry', 'False').lower() == 'true',
@@ -164,7 +164,7 @@ class ConfigManager:
             }
 
             # 加载分组优先级
-            group_count = int(self.get_value('SortConfig', 'group_priority_count', '0'))
+            group_count = int(self.get_value('SortConfig', 'group_priority_count', '0') or '0')
             for i in range(group_count):
                 group = self.get_value('SortConfig', f'group_priority_{i}')
                 if group:
@@ -250,8 +250,8 @@ class ConfigManager:
             self.set_value('UI', key, str(value))
         return self.save_config()
 
-    def load_ui_settings(self, defaults: dict = None) -> dict:
-        """加载UI相关设置"""
+    def load_ui_settings(self, defaults: dict | None = None) -> dict:
+        """加载 UI 相关设置"""
         defaults = defaults or {}
         settings = {}
         for key, default_value in defaults.items():
@@ -279,7 +279,7 @@ class ConfigManager:
     def load_player_settings(self) -> dict:
         """加载播放器设置"""
         return {
-            'volume': int(self.get_value('Player', 'volume', '50')),
+            'volume': int(self.get_value('Player', 'volume', '50') or '50'),
             'mute': self.get_value('Player', 'mute', 'False').lower() == 'true'
         }
 
@@ -293,7 +293,7 @@ class ConfigManager:
         """加载列表相关设置"""
         return {
             'auto_save': self.get_value('List', 'auto_save', 'True').lower() == 'true',
-            'backup_count': int(self.get_value('List', 'backup_count', '3'))
+            'backup_count': int(self.get_value('List', 'backup_count', '3') or '3')
         }
 
     def save_validation_settings(self, auto_validate: bool = False, validate_timeout: int = 10):
@@ -306,7 +306,7 @@ class ConfigManager:
         """加载验证相关设置"""
         return {
             'auto_validate': self.get_value('Validation', 'auto_validate', 'False').lower() == 'true',
-            'validate_timeout': int(self.get_value('Validation', 'validate_timeout', '10'))
+            'validate_timeout': int(self.get_value('Validation', 'validate_timeout', '10') or '10')
         }
 
     def save_mapping_settings(self, enable_mapping: bool = True):
@@ -345,7 +345,7 @@ class ConfigManager:
     def load_recent_files(self):
         """加载最近打开的文件列表"""
         recent_files = []
-        count = int(self.get_value('RecentFiles', 'count', '0'))
+        count = int(self.get_value('RecentFiles', 'count', '0') or '0')
         for i in range(count):
             file_path = self.get_value('RecentFiles', f'file_{i}')
             if file_path:
@@ -463,7 +463,7 @@ class ConfigManager:
         return {
             'file': self.get_value('Player', 'last_channel_file', ''),
             'name': self.get_value('Player', 'last_channel_name', ''),
-            'index': int(self.get_value('Player', 'last_channel_index', '-1')),
+            'index': int(self.get_value('Player', 'last_channel_index', '-1') or '-1'),
         }
 
     def save_timeshift_settings(self, settings):
@@ -474,7 +474,7 @@ class ConfigManager:
     def load_timeshift_settings(self):
         return {
             'enabled': self.get_value('Timeshift', 'enabled', 'True').lower() == 'true',
-            'default_offset_minutes': int(self.get_value('Timeshift', 'default_offset_minutes', '30')),
+            'default_offset_minutes': int(self.get_value('Timeshift', 'default_offset_minutes', '30') or '30'),
             'url_format': self.get_value('Timeshift', 'url_format', ''),
             'time_encoding': self.get_value('Timeshift', 'time_encoding', 'unix'),
             'start_key': self.get_value('Timeshift', 'start_key', 'startTime'),

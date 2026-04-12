@@ -7,7 +7,8 @@ from typing import Dict
 from core.log_manager import global_logger
 
 if getattr(sys, 'frozen', False):
-    base_path = sys._MEIPASS
+    # PyInstaller打包时设置的属性
+    base_path = getattr(sys, '_MEIPASS', os.getcwd())
 else:
     base_path = os.getcwd()
 
@@ -220,7 +221,7 @@ class MpvStreamValidator:
         self.logger = global_logger
         self.main_window = main_window
 
-    def validate_stream(self, url: str, raw_channel_name: str = None, timeout: int = 3) -> Dict:
+    def validate_stream(self, url: str, raw_channel_name: str | None = None, timeout: int = 3) -> Dict:
         result = {
             'url': url,
             'valid': False,

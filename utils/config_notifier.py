@@ -90,7 +90,7 @@ class ConfigChangeNotifier(Singleton):
 
 
 # 全局配置变更通知器实例
-_global_config_notifier: ConfigChangeNotifier = None
+_global_config_notifier: ConfigChangeNotifier | None = None
 
 
 def get_config_notifier() -> ConfigChangeNotifier:

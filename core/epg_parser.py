@@ -25,11 +25,11 @@ class EPGParser:
                 pass
     
     def load_cached_epg_data(self):
-        """从缓存文件加载EPG数据"""
+        """从缓存文件加载 EPG 数据"""
         import os
         from core.config_manager import ConfigManager
         config = ConfigManager()
-        cache_dir = config.get_value('General', 'cache_dir', 'cache')
+        cache_dir = config.get_value('General', 'cache_dir', 'cache') or 'cache'
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         
@@ -44,11 +44,11 @@ class EPGParser:
                 self.epg_data = {}
     
     def save_cached_epg_data(self):
-        """保存EPG数据到缓存文件"""
+        """保存 EPG 数据到缓存文件"""
         import os
         from core.config_manager import ConfigManager
         config = ConfigManager()
-        cache_dir = config.get_value('General', 'cache_dir', 'cache')
+        cache_dir = config.get_value('General', 'cache_dir', 'cache') or 'cache'
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         

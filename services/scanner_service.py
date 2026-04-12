@@ -115,7 +115,7 @@ class ScannerController(QObject):
                         self.stats['valid'] += 1
                     else:
                         self.stats['invalid'] += 1
-                        error_type = result.get('error_type')
+                        error_type = result.get('error_type') or 'unknown_error'
                         with self.invalid_urls_lock:
                             self.invalid_urls.append({
                                 'url': url,
@@ -348,7 +348,7 @@ class ScannerController(QObject):
             pass
 
     def _check_channel(
-        self, url: str, raw_channel_name: str = None
+        self, url: str, raw_channel_name: str | None = None
     ) -> Dict[str, any]:
         if self._validator is None:
             from services.mpv_validator_service import MpvStreamValidator
@@ -398,7 +398,7 @@ class ScannerController(QObject):
 
     def start_scan(
         self, base_url: str, thread_count: int = 10, timeout: int = 10,
-        user_agent: str = None, referer: str = None
+        user_agent: str | None = None, referer: str | None = None
     ) -> None:
         """开始扫描 - 优化版本"""
         # 确保停止之前的扫描
@@ -411,7 +411,7 @@ class ScannerController(QObject):
 
     def _start_scan_internal(
         self, base_url: str, thread_count: int = 10, timeout: int = 10,
-        user_agent: str = None, referer: str = None
+        user_agent: str | None = None, referer: str | None = None
     ) -> None:
         """内部扫描启动方法"""
 
@@ -480,7 +480,7 @@ class ScannerController(QObject):
 
     def start_scan_from_urls(
         self, urls: list, thread_count: int = 10, timeout: int = 10,
-        user_agent: str = None, referer: str = None
+        user_agent: str | None = None, referer: str | None = None
     ):
         """从URL列表开始扫描（用于重试扫描）"""
         # 确保停止之前的扫描
@@ -500,7 +500,7 @@ class ScannerController(QObject):
 
     def _start_scan_from_urls_internal(
         self, urls: list, thread_count: int = 10, timeout: int = 10,
-        user_agent: str = None, referer: str = None
+        user_agent: str | None = None, referer: str | None = None
     ):
         """内部从URL列表开始扫描方法"""
 

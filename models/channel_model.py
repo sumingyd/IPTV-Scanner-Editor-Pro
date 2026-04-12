@@ -1288,14 +1288,14 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         all_tags = {}
 
                         for key, value in matches:
-                            field_name = tag_mapping.get(key, key.replace('-', '_'))
-                            if key == "tvg-name" and value:
-                                pass
-                            if key == "group-title" and value:
-                                current_group = value
-                                genre_group_active = False
-                            current_channel[field_name] = value
-                            all_tags[key] = value
+                            field_name = tag_mapping.get(key, key.replace('-', '_')) or key.replace('-', '_')
+                        if key == "tvg-name" and value:
+                            pass
+                        if key == "group-title" and value:
+                            current_group = value
+                            genre_group_active = False
+                        current_channel[field_name] = value
+                        all_tags[key] = value
 
                         if not current_channel.get('name') or current_channel['name'] in ('', '未命名'):
                             tvg_name = all_tags.get('tvg-name', '')
@@ -1359,8 +1359,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
             return channels
         except Exception as e:
-            logger.error(f"频道模型-解析文件内容失败: {str(e)}", exc_info=True)
-            return None
+            logger.error(f"频道模型 - 解析文件内容失败：{str(e)}", exc_info=True)
+            return []
 
     @staticmethod
     def _is_valid_channel_url(url):

@@ -1,0 +1,22 @@
+{
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "extraPaths": []
+    }
+  ],
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Windows",
+  "typeCheckingMode": "basic",
+  "reportMissingTypeStubs": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownParameterType": false,
+  "reportUnknownVariableType": false,
+  "reportUnknownArgumentType": false,
+  "reportOptionalMemberAccess": false,
+  "reportOptionalSubscript": false,
+  "reportOptionalCall": false,
+  "reportAttributeAccessIssue": false,
+  "reportGeneralTypeIssues": false,
+  "useLibraryCodeForTypes": true
+}

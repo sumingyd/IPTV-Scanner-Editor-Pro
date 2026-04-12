@@ -19,9 +19,9 @@ class EpgMatcher:
     _smart_cache = {}
 
     @classmethod
-    def _cn_num_to_arabic(cls, s):
-        def replacer(m):
-            return cls._CN_NUM_MAP.get(m.group(), m.group())
+    def _cn_num_to_arabic(cls, s: str) -> str:
+        def replacer(m: re.Match) -> str:
+            return cls._CN_NUM_MAP.get(m.group(), m.group()) or m.group()
         return cls._CN_NUM_RE.sub(replacer, s)
 
     @classmethod

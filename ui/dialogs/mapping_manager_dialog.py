@@ -153,9 +153,9 @@ class MappingManagerDialog(QtWidgets.QDialog):
         self.search_options.setStyleSheet(AppStyles.common_combo_box_style())
         self.search_options.currentTextChanged.connect(self.filter_mappings)
 
-        self.search_label = QtWidgets.QLabel(tr('search', 'Search') + ":")
+        self.search_label = QtWidgets.QLabel((tr('search', 'Search') or 'Search') + ":")
         self.search_label.setStyleSheet(AppStyles.common_label_style())
-        self.search_scope_label = QtWidgets.QLabel(tr('search_scope', 'Search Scope') + ":")
+        self.search_scope_label = QtWidgets.QLabel((tr('search_scope', 'Search Scope') or 'Search Scope') + ":")
         self.search_scope_label.setStyleSheet(AppStyles.common_label_style())
 
         search_layout.addWidget(self.search_label)
@@ -446,11 +446,9 @@ class MappingManagerDialog(QtWidgets.QDialog):
         selected_rows = self.mapping_table.selectionModel().selectedRows()
         if not selected_rows:
             # 使用统一的错误处理
-            show_warning(
-                self.language_manager.tr('warning', 'Warning'),
-                self.language_manager.tr('select_mapping_to_edit', 'Please select a mapping to edit'),
-                parent=self
-            )
+            title = self.language_manager.tr('warning', 'Warning') or 'Warning'
+            message = self.language_manager.tr('select_mapping_to_edit', 'Please select a mapping to edit') or 'Please select a mapping to edit'
+            show_warning(title, message, parent=self)
             return
 
         row = selected_rows[0].row()
@@ -478,12 +476,9 @@ class MappingManagerDialog(QtWidgets.QDialog):
         """删除选中的映射"""
         selected_rows = self.mapping_table.selectionModel().selectedRows()
         if not selected_rows:
-            # 使用统一的错误处理
-            show_warning(
-                self.language_manager.tr('warning', 'Warning'),
-                self.language_manager.tr('select_mapping_to_delete', 'Please select a mapping to delete'),
-                parent=self
-            )
+            title = self.language_manager.tr('warning', 'Warning') or 'Warning'
+            message = self.language_manager.tr('select_mapping_to_delete', 'Please select a mapping to delete') or 'Please select a mapping to delete'
+            show_warning(title, message, parent=self)
             return
 
         row = selected_rows[0].row()
@@ -736,17 +731,18 @@ class MappingManagerDialog(QtWidgets.QDialog):
                 self.language_manager.tr('search_channel_name', 'Search channel name...'))
 
             # 更新搜索标签
-            self.search_label.setText(self.language_manager.tr('search', 'Search') + ":")
-            self.search_scope_label.setText(self.language_manager.tr('search_scope', 'Search Scope') + ":")
+            search_text = self.language_manager.tr('search', 'Search') or 'Search'
+            search_scope_text = self.language_manager.tr('search_scope', 'Search Scope') or 'Search Scope'
+            self.search_label.setText(search_text + ":")
+            self.search_scope_label.setText(search_scope_text + ":")
 
             # 更新搜索选项
             self.search_options.clear()
-            self.search_options.addItems([
-                self.language_manager.tr('search_all_fields', 'Search All Fields'),
-                self.language_manager.tr('search_standard_name_only', 'Search Standard Name Only'),
-                self.language_manager.tr('search_raw_name_only', 'Search Raw Name Only'),
-                self.language_manager.tr('search_group_only', 'Search Group Only')
-            ])
+            search_all = self.language_manager.tr('search_all_fields', 'Search All Fields') or 'Search All Fields'
+            search_standard = self.language_manager.tr('search_standard_name_only', 'Search Standard Name Only') or 'Search Standard Name Only'
+            search_raw = self.language_manager.tr('search_raw_name_only', 'Search Raw Name Only') or 'Search Raw Name Only'
+            search_group = self.language_manager.tr('search_group_only', 'Search Group Only') or 'Search Group Only'
+            self.search_options.addItems([search_all, search_standard, search_raw, search_group])
 
             self.mapping_table.setHorizontalHeaderLabels([
                 self.language_manager.tr('standard_name', 'Standard Name'),
@@ -821,29 +817,29 @@ class MappingEditDialog(QtWidgets.QDialog):
 
         self.standard_name_input = QtWidgets.QLineEdit(self.standard_name)
         self.standard_name_input.setStyleSheet(AppStyles.common_line_edit_style())
-        self.standard_name_input.setPlaceholderText(tr('standard_name_placeholder', 'Enter standard channel name'))
-        label1 = QtWidgets.QLabel(tr('standard_name', 'Standard Name') + ":")
+        self.standard_name_input.setPlaceholderText(tr('standard_name_placeholder', 'Enter standard channel name') or 'Enter standard channel name')
+        label1 = QtWidgets.QLabel((tr('standard_name', 'Standard Name') or 'Standard Name') + ":")
         label1.setStyleSheet(AppStyles.common_label_style())
         form_layout.addRow(label1, self.standard_name_input)
 
         self.raw_name_input = QtWidgets.QLineEdit(self.raw_name)
         self.raw_name_input.setStyleSheet(AppStyles.common_line_edit_style())
-        self.raw_name_input.setPlaceholderText(tr('raw_name_placeholder', 'Enter raw channel name'))
-        label2 = QtWidgets.QLabel(tr('raw_name', 'Raw Name') + ":")
+        self.raw_name_input.setPlaceholderText(tr('raw_name_placeholder', 'Enter raw channel name') or 'Enter raw channel name')
+        label2 = QtWidgets.QLabel((tr('raw_name', 'Raw Name') or 'Raw Name') + ":")
         label2.setStyleSheet(AppStyles.common_label_style())
         form_layout.addRow(label2, self.raw_name_input)
 
         self.group_name_input = QtWidgets.QLineEdit(self.group_name)
         self.group_name_input.setStyleSheet(AppStyles.common_line_edit_style())
-        self.group_name_input.setPlaceholderText(tr('group_placeholder', 'Enter group name'))
-        label3 = QtWidgets.QLabel(tr('group', 'Group') + ":")
+        self.group_name_input.setPlaceholderText(tr('group_placeholder', 'Enter group name') or 'Enter group name')
+        label3 = QtWidgets.QLabel((tr('group', 'Group') or 'Group') + ":")
         label3.setStyleSheet(AppStyles.common_label_style())
         form_layout.addRow(label3, self.group_name_input)
 
         self.logo_url_input = QtWidgets.QLineEdit(self.logo_url)
         self.logo_url_input.setStyleSheet(AppStyles.common_line_edit_style())
-        self.logo_url_input.setPlaceholderText(tr('logo_url_placeholder', 'Enter logo URL'))
-        label4 = QtWidgets.QLabel(tr('logo_address', 'Logo Address') + ":")
+        self.logo_url_input.setPlaceholderText(tr('logo_url_placeholder', 'Enter logo URL') or 'Enter logo URL')
+        label4 = QtWidgets.QLabel((tr('logo_address', 'Logo Address') or 'Logo Address') + ":")
         label4.setStyleSheet(AppStyles.common_label_style())
         form_layout.addRow(label4, self.logo_url_input)
 

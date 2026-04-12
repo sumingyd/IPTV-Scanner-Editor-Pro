@@ -140,9 +140,13 @@ class ErrorHandler:
         if log_level == 'error':
             logger.error(error_info['log_message'], exc_info=True)
         elif log_level == 'warning':
-            logger.warning(error_info['log_message'], exc_info=True)
+            logger.warning(error_info['log_message'])
+            if error_info.get('exc_info'):
+                logger.exception("Exception info:")
         else:
-            logger.info(error_info['log_message'], exc_info=True)
+            logger.info(error_info['log_message'])
+            if error_info.get('exc_info'):
+                logger.exception("Exception info:")
 
         # 显示错误对话框
         if show_dialog and self.parent_window:
@@ -424,9 +428,11 @@ def handle_exceptions(
                     if log_level == 'error':
                         logger.error(full_msg, exc_info=True)
                     elif log_level == 'warning':
-                        logger.warning(full_msg, exc_info=True)
+                        logger.warning(full_msg)
+                        logger.exception("Exception info:")
                     else:
-                        logger.info(full_msg, exc_info=True)
+                        logger.info(full_msg)
+                        logger.exception("Exception info:")
 
                     return default_return
 
@@ -497,9 +503,11 @@ def handle_specific_exceptions(
                     if log_level == 'error':
                         logger.error(full_msg, exc_info=True)
                     elif log_level == 'warning':
-                        logger.warning(full_msg, exc_info=True)
+                        logger.warning(full_msg)
+                        logger.exception("Exception info:")
                     else:
-                        logger.info(full_msg, exc_info=True)
+                        logger.info(full_msg)
+                        logger.exception("Exception info:")
 
                     return default_return
 

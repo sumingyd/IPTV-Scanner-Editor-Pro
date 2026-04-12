@@ -180,16 +180,16 @@ def load_remote_mappings() -> Dict[str, dict]:
             except AttributeError:
                 remote_url = DEFAULT_REMOTE_URL
         except ImportError:
-            # 如果core.config_manager导入失败，尝试直接导入config_manager（旧结构）
+            # 如果 core.config_manager 导入失败，尝试直接导入 config_manager（旧结构）
             try:
-                from config_manager import ConfigManager
+                from config_manager import ConfigManager  # type: ignore[import-not-found]
                 config = ConfigManager()
                 try:
                     remote_url = config.get('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
                 except AttributeError:
                     remote_url = DEFAULT_REMOTE_URL
             except ImportError:
-                # 如果都失败，使用默认URL
+                # 如果都失败，使用默认 URL
                 remote_url = DEFAULT_REMOTE_URL
 
         # 简化版本：只尝试一次，不重试
@@ -336,7 +336,7 @@ class ChannelMappingManager:
         combined.update(self.user_mappings)
         return combined
 
-    def add_user_mapping(self, raw_name: str, standard_name: str, logo_url: str = None, group_name: str = None):
+    def add_user_mapping(self, raw_name: str, standard_name: str, logo_url: str | None = None, group_name: str | None = None):
         """添加用户自定义映射"""
         if standard_name not in self.user_mappings:
             self.user_mappings[standard_name] = {
@@ -417,7 +417,7 @@ class ChannelMappingManager:
 
         self._save_channel_fingerprints()
 
-    def get_channel_info(self, raw_name: str, url: str = None, channel_info: dict = None) -> dict:
+    def get_channel_info(self, raw_name: str, url: str | None = None, channel_info: dict | None = None) -> dict:
         """获取频道信息，支持智能学习和指纹匹配"""
         # 如果映射功能关闭，直接返回原始名称
         if not self.enable_mapping:

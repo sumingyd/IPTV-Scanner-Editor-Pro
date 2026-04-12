@@ -41,9 +41,9 @@ class URLRangeParser:
     def parse_url(
         self, url: str, batch_size: int = 10000
     ) -> Generator[List[str], None, None]:
-        """解析带范围的URL，分批生成URL列表"""
+        """解析带范围的 URL，分批生成 URL 列表"""
         if not self.has_range(url):
-            yield url
+            yield [url]
             return
 
         self.logger.info(f"开始解析范围URL: {url}")
@@ -77,7 +77,7 @@ class URLRangeParser:
             })
 
         if not ranges_info:
-            yield url
+            yield [url]
             return
 
         # 计算生成的URL总数

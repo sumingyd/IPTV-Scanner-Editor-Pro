@@ -619,7 +619,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.channel_list.selectionModel().selectionChanged.connect(self._on_channel_selected)
 
         # 设置频道列表为主要内容，占据大部分空间
-        parent.addWidget(self.channel_list, 1)
+        parent.addWidget(self.channel_list)
 
     def _setup_list_toolbar(self, toolbar_layout):
         """设置频道列表的工具栏按钮（用于标题栏）"""
@@ -836,7 +836,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
         """删除选中的频道"""
         tr = self.language_manager.tr
         from utils.error_handler import show_confirm
-        if show_confirm(tr("confirm_delete", "Confirm Delete"), tr("confirm_delete_message", "Are you sure you want to delete the selected channel?"), parent=self):
+        title = tr("confirm_delete", "Confirm Delete") or "Confirm Delete"
+        message = tr("confirm_delete_message", "Are you sure you want to delete the selected channel?") or "Are you sure you want to delete the selected channel?"
+        if show_confirm(title, message, parent=self):
             self.model.remove_channel(index.row())
 
     def _on_header_clicked(self, logical_index):
@@ -999,11 +1001,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
         try:
             self.scanner.channel_found.connect(self._on_channel_found)
             self.scanner.scan_completed.connect(self._on_scan_completed)
-            self.scanner.stats_updated.connect(
-                self._update_stats_display,
-                QtCore.Qt.ConnectionType.QueuedConnection
-            )
             self.scanner.channel_validated.connect(self._on_channel_validated)
+            # 对于 stats_updated，使用默认的 DirectConnection
+            self.scanner.stats_updated.connect(self._update_stats_display)
         except Exception as e:
             log_ui_error(f"连接扫描器信号失败: {e}")
 

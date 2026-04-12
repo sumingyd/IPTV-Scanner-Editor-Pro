@@ -94,7 +94,7 @@ class ScanStateManager(Singleton):
                 return self._scan_states[scan_id].get('stats')
             return None
 
-    def add_invalid_url(self, scan_id: str, url: str, error_type: str = None):
+    def add_invalid_url(self, scan_id: str, url: str, error_type: str | None = None):
         """添加无效URL - 优化版，支持大量URL和错误类型"""
         with self._lock:
             if scan_id in self._scan_states:
@@ -327,7 +327,7 @@ class ScanStateManager(Singleton):
 
 
 # 全局扫描状态管理器实例
-_global_scan_state_manager: ScanStateManager = None
+_global_scan_state_manager: ScanStateManager | None = None
 
 
 def get_scan_state_manager() -> ScanStateManager:
