@@ -1202,93 +1202,92 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         return status_priority.get(status, 3)
 
     def parse_file_content(self, content: str) -> List[Dict[str, Any]]:
-        try:
-            channels = []
-            name_cache = set()
-            group_cache = set()
-            lines = content.splitlines()
-            current_channel = None
-            current_group = "未分类"
-            genre_group_active = False
+        channels = []
+        name_cache = set()
+        group_cache = set()
+        lines = content.splitlines()
+        current_channel = None
+        current_group = "未分类"
+        genre_group_active = False
 
-            for line in lines:
-                line = line.strip()
-                if not line:
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            if line.startswith("#EXTM3U"):
+                continue
+
+            if line.startswith("#EXTGRP:"):
+                current_group = line[8:].strip()
+                if current_group.startswith('"') and current_group.endswith('"'):
+                    current_group = current_group[1:-1]
+                continue
+
+            if line.startswith("#EXTINF:"):
+                extinf_content = line[8:].strip()
+
+                genre_match = re.search(r',\s*#genre#\s*', extinf_content)
+                if genre_match:
+                    before_genre = extinf_content[:genre_match.start()].strip()
+                    group_name = before_genre
+                    comma_pos = before_genre.rfind(',')
+                    if comma_pos >= 0:
+                        group_name = before_genre[comma_pos+1:].strip()
+                    group_name = group_name.strip('=').strip()
+                    if group_name:
+                        current_group = group_name
+                    genre_group_active = True
+                    current_channel = None
                     continue
 
-                if line.startswith("#EXTM3U"):
-                    continue
+                last_comma = line.rfind(",")
+                if last_comma > 0:
+                    attrs_part = line[8:last_comma].strip()
+                    name = line[last_comma+1:].strip()
 
-                if line.startswith("#EXTGRP:"):
-                    current_group = line[8:].strip()
-                    if current_group.startswith('"') and current_group.endswith('"'):
-                        current_group = current_group[1:-1]
-                    continue
+                    if name.startswith('"') and name.endswith('"'):
+                        name = name[1:-1]
 
-                if line.startswith("#EXTINF:"):
-                    extinf_content = line[8:].strip()
+                    current_channel = {
+                        'name': name if name else '未命名',
+                        'group': current_group if genre_group_active else "未分类",
+                        'tvg_id': "",
+                        'logo': "",
+                        'resolution': "",
+                        'tvg_chno': "",
+                        'tvg_shift': "",
+                        'catchup': "",
+                        'catchup_days': "",
+                        'catchup_source': "",
+                        'valid': False,
+                        'status': '待检测'
+                    }
 
-                    genre_match = re.search(r',\s*#genre#\s*', extinf_content)
-                    if genre_match:
-                        before_genre = extinf_content[:genre_match.start()].strip()
-                        group_name = before_genre
-                        comma_pos = before_genre.rfind(',')
-                        if comma_pos >= 0:
-                            group_name = before_genre[comma_pos+1:].strip()
-                        group_name = group_name.strip('=').strip()
-                        if group_name:
-                            current_group = group_name
-                        genre_group_active = True
-                        current_channel = None
-                        continue
+                    attr_pattern = r'(\S+)="([^"]*)"'
+                    matches = re.findall(attr_pattern, attrs_part)
 
-                    last_comma = line.rfind(",")
-                    if last_comma > 0:
-                        attrs_part = line[8:last_comma].strip()
-                        name = line[last_comma+1:].strip()
+                    tag_mapping = {
+                        "group-title": "group",
+                        "tvg-id": "tvg_id",
+                        "tvg-name": "name",
+                        "tvg-logo": "logo",
+                        "tvg-chno": "tvg_chno",
+                        "tvg-shift": "tvg_shift",
+                        "catchup": "catchup",
+                        "catchup-days": "catchup_days",
+                        "catchup-source": "catchup_source",
+                        "resolution": "resolution",
+                        "tvg-language": "tvg_language",
+                        "audio-track": "audio_track",
+                        "aspect-ratio": "aspect_ratio",
+                        "parent-code": "parent_code"
+                    }
 
-                        if name.startswith('"') and name.endswith('"'):
-                            name = name[1:-1]
+                    all_tags = {}
 
-                        current_channel = {
-                            'name': name if name else '未命名',
-                            'group': current_group if genre_group_active else "未分类",
-                            'tvg_id': "",
-                            'logo': "",
-                            'resolution': "",
-                            'tvg_chno': "",
-                            'tvg_shift': "",
-                            'catchup': "",
-                            'catchup_days': "",
-                            'catchup_source': "",
-                            'valid': False,
-                            'status': '待检测'
-                        }
-
-                        attr_pattern = r'(\S+)="([^"]*)"'
-                        matches = re.findall(attr_pattern, attrs_part)
-
-                        tag_mapping = {
-                            "group-title": "group",
-                            "tvg-id": "tvg_id",
-                            "tvg-name": "name",
-                            "tvg-logo": "logo",
-                            "tvg-chno": "tvg_chno",
-                            "tvg-shift": "tvg_shift",
-                            "catchup": "catchup",
-                            "catchup-days": "catchup_days",
-                            "catchup-source": "catchup_source",
-                            "resolution": "resolution",
-                            "tvg-language": "tvg_language",
-                            "audio-track": "audio_track",
-                            "aspect-ratio": "aspect_ratio",
-                            "parent-code": "parent_code"
-                        }
-
-                        all_tags = {}
-
-                        for key, value in matches:
-                            field_name = tag_mapping.get(key, key.replace('-', '_')) or key.replace('-', '_')
+                    for key, value in matches:
+                        field_name = tag_mapping.get(key, key.replace('-', '_')) or key.replace('-', '_')
                         if key == "tvg-name" and value:
                             pass
                         if key == "group-title" and value:
@@ -1297,70 +1296,71 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         current_channel[field_name] = value
                         all_tags[key] = value
 
-                        if not current_channel.get('name') or current_channel['name'] in ('', '未命名'):
-                            tvg_name = all_tags.get('tvg-name', '')
-                            if tvg_name:
-                                current_channel['name'] = tvg_name
+                    if not current_channel.get('name') or current_channel['name'] in ('', '未命名'):
+                        tvg_name = all_tags.get('tvg-name', '')
+                        if tvg_name:
+                            current_channel['name'] = tvg_name
 
-                        current_channel['group'] = current_group
-                        current_channel['_all_tags'] = all_tags
-                    else:
-                        current_channel = {
-                            'name': '未命名',
-                            'group': current_group,
-                            'tvg_id': "",
-                            'logo': "",
-                            'resolution': "",
-                            'tvg_chno': "",
-                            'tvg_shift': "",
-                            'catchup': "",
-                            'catchup_days': "",
-                            'catchup_source': "",
-                            'valid': False,
-                            'status': '待检测'
-                        }
-                    continue
+                    current_channel['group'] = current_group
+                    current_channel['_all_tags'] = all_tags
+                else:
+                    current_channel = {
+                        'name': extinf_content if extinf_content else '未命名',
+                        'group': current_group,
+                        'tvg_id': "",
+                        'logo': "",
+                        'resolution': "",
+                        'tvg_chno': "",
+                        'tvg_shift': "",
+                        'catchup': "",
+                        'catchup_days': "",
+                        'catchup_source': "",
+                        'valid': False,
+                        'status': '待检测'
+                    }
+                continue
 
-                if line.startswith("#EXTVLCOPT:video-resolution=") and current_channel:
-                    resolution = line.split("=")[1].strip()
-                    current_channel['resolution'] = resolution
-                    continue
+            if line.startswith("#EXTVLCOPT:video-resolution=") and current_channel:
+                resolution = line.split("=")[1].strip()
+                current_channel['resolution'] = resolution
+                continue
 
-                if line.startswith("#"):
-                    continue
+            if line.startswith("#"):
+                continue
 
-                if line and current_channel:
-                    url = line.strip()
-                    if self._is_valid_channel_url(url):
-                        current_channel['url'] = url
-                        channels.append(current_channel)
-                        if 'name' in current_channel:
-                            name_cache.add(current_channel['name'])
-                        if 'group' in current_channel:
-                            group_cache.add(current_channel['group'])
-                    current_channel = None
-                elif line and not current_channel:
-                    if self._is_valid_channel_url(line):
-                        channels.append({
-                            'name': extract_channel_name_from_url(line),
-                            'url': line,
-                            'group': current_group,
-                            'tvg_id': "",
-                            'logo': "",
-                            'resolution': "",
-                            'tvg_chno': "",
-                            'tvg_shift': "",
-                            'catchup': "",
-                            'catchup_days': "",
-                            'catchup_source': "",
-                            'valid': False,
-                            'status': '待检测'
-                        })
+            if line and current_channel:
+                url = line.strip()
+                if self._is_valid_channel_url(url):
+                    current_channel['url'] = url
+                    channels.append(current_channel)
+                    if 'name' in current_channel:
+                        name_cache.add(current_channel['name'])
+                    if 'group' in current_channel:
+                        group_cache.add(current_channel['group'])
+                current_channel = None
+            elif line and not current_channel:
+                if self._is_valid_channel_url(line):
+                    try:
+                        ch_name = extract_channel_name_from_url(line)
+                    except Exception:
+                        ch_name = ''
+                    channels.append({
+                        'name': ch_name if ch_name else '未命名',
+                        'url': line,
+                        'group': current_group,
+                        'tvg_id': "",
+                        'logo': "",
+                        'resolution': "",
+                        'tvg_chno': "",
+                        'tvg_shift': "",
+                        'catchup': "",
+                        'catchup_days': "",
+                        'catchup_source': "",
+                        'valid': False,
+                        'status': '待检测'
+                    })
 
-            return channels
-        except Exception as e:
-            logger.error(f"频道模型 - 解析文件内容失败：{str(e)}", exc_info=True)
-            return []
+        return channels
 
     @staticmethod
     def _is_valid_channel_url(url):
