@@ -85,21 +85,49 @@ class EPGParser:
             status_callback("正在下载EPG数据...")
         
         try:
-            response = requests.get(epg_url, timeout=30)
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': '*/*'
+            }
+
+            logger.info(f"正在下载 EPG 数据: {epg_url}")
+            response = requests.get(epg_url, timeout=30, headers=headers, allow_redirects=True)
             response.raise_for_status()
-            
+
+            logger.info(f"EPG 数据下载成功: Content-Length={len(response.content)}")
+
             # 检查是否是.gz压缩文件
             content = response.content
-            if epg_url.endswith('.gz') or response.headers.get('Content-Encoding') == 'gzip':
-                logger.info("检测到.gz压缩文件，正在解压...")
-                import gzip
-                from io import BytesIO
-                try:
-                    with gzip.GzipFile(fileobj=BytesIO(content)) as f:
-                        content = f.read()
-                except Exception as e:
-                    logger.error(f"解压.gz文件失败: {e}")
-                    return False
+            is_gz_file = epg_url.endswith('.gz') or response.headers.get('Content-Encoding') == 'gzip'
+
+            if is_gz_file:
+                # 验证是否真的是 gzip 文件（检查 magic bytes: 0x1f 0x8b）
+                is_really_gzip = len(content) >= 2 and content[0] == 0x1f and content[1] == 0x8b
+
+                if is_really_gzip:
+                    logger.info("检测到.gz压缩文件，正在解压...")
+                    import gzip
+                    from io import BytesIO
+                    try:
+                        with gzip.GzipFile(fileobj=BytesIO(content)) as f:
+                            content = f.read()
+                    except Exception as e:
+                        logger.error(f"解压.gz文件失败: {e}")
+                        return False
+                else:
+                    # Content-Encoding 说 gzip 但实际不是（可能是服务器自动压缩的 XML）
+                    logger.info("响应头标记为 gzip 但实际内容非 gzip 格式，跳过解压")
+
+            # 验证数据新鲜度：检查是否包含今天或昨天的节目
+            today_str = datetime.now().strftime('%Y%m%d')
+            yesterday_str = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
+
+            # 在内容中搜索今天的日期
+            has_today = today_str in content.decode('utf-8', errors='ignore')
+            has_yesterday = yesterday_str in content.decode('utf-8', errors='ignore')
+
+            if not has_today and not has_yesterday:
+                logger.warning(f"EPG数据可能已过期！不包含今天({today_str})或昨天({yesterday_str})的节目")
             
             # 转换为文本
             try:
@@ -245,24 +273,19 @@ class EPGParser:
                 for epg_channel_id, programs in self.epg_data.items():
                     if epg_channel_id.lower() == tvg_id_lower:
                         return programs
+
             if channel_name:
                 if channel_name in self.epg_data:
                     return self.epg_data[channel_name]
-                channel_name_lower = channel_name.lower()
-                for epg_channel_id, programs in self.epg_data.items():
-                    if epg_channel_id.lower() == channel_name_lower:
-                        return programs
 
             try:
                 from services.epg_matcher import EpgMatcher
-                epg_channels = {}
-                for epg_id, programs in self.epg_data.items():
-                    epg_channels[epg_id] = epg_id
+                epg_channels = {epg_id: epg_id for epg_id in self.epg_data.keys()}
                 matched_id = EpgMatcher.match(channel_name, epg_channels, tvg_id=tvg_id)
                 if matched_id and matched_id in self.epg_data:
                     return self.epg_data[matched_id]
-            except Exception:
-                pass
+            except Exception as ex:
+                logger.warning(f"EpgMatcher 匹配异常: {ex}")
 
             if channel_name:
                 channel_name_lower = channel_name.lower()

@@ -3,18 +3,60 @@ import hashlib
 import time
 import json
 import threading
-from PyQt6.QtCore import QObject, pyqtSignal, QUrl, QTimer, Qt, QBuffer, QIODevice
+from PyQt6.QtCore import QObject, pyqtSignal, QUrl, QTimer, Qt, QBuffer, QIODevice, QThread
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from PyQt6.QtGui import QPixmap, QImage
+from utils.thread_safety import ThreadSafeQObject
 
 
-class LogoCacheService(QObject):
+class LogoCacheService(ThreadSafeQObject):
     logo_loaded = pyqtSignal(str, QPixmap)
 
     CACHE_DIR_NAME = 'logo_cache'
     META_FILE = 'meta.json'
     DEFAULT_TTL = 7 * 24 * 3600
     MAX_CACHE_SIZE = 500
+
+    @staticmethod
+    def scale_logo_pixmap(pixmap, size=60):
+        if pixmap.isNull():
+            return pixmap
+
+        from PyQt6.QtWidgets import QApplication
+        screen = QApplication.primaryScreen()
+        if screen:
+            device_pixel_ratio = screen.devicePixelRatio()
+        else:
+            device_pixel_ratio = 1.0
+
+        target_size = int(size * device_pixel_ratio)
+        scaled = pixmap.scaled(target_size, target_size,
+                               Qt.AspectRatioMode.KeepAspectRatio,
+                               Qt.TransformationMode.SmoothTransformation)
+        scaled.setDevicePixelRatio(device_pixel_ratio)
+
+        return scaled
+
+    @staticmethod
+    def scale_logo_pixmap_to_fit(pixmap, width, height):
+        if pixmap.isNull():
+            return pixmap
+
+        from PyQt6.QtWidgets import QApplication
+        screen = QApplication.primaryScreen()
+        if screen:
+            device_pixel_ratio = screen.devicePixelRatio()
+        else:
+            device_pixel_ratio = 1.0
+
+        target_w = int(width * device_pixel_ratio)
+        target_h = int(height * device_pixel_ratio)
+        scaled = pixmap.scaled(target_w, target_h,
+                               Qt.AspectRatioMode.KeepAspectRatio,
+                               Qt.TransformationMode.SmoothTransformation)
+        scaled.setDevicePixelRatio(device_pixel_ratio)
+
+        return scaled
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -111,6 +153,8 @@ class LogoCacheService(QObject):
     def fetch_async(self, url):
         if not url:
             return
+        if not self._ensure_main_thread(self.fetch_async, url):
+            return
         with self._lock:
             if url in self._memory_cache:
                 self.logo_loaded.emit(url, self._memory_cache[url])
@@ -162,10 +206,8 @@ class LogoCacheService(QObject):
 
             pixmap = QPixmap()
             if pixmap.loadFromData(data.data()):
-                scaled = pixmap.scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio,
-                                       Qt.TransformationMode.SmoothTransformation)
-                self.put(url, scaled)
-                self.logo_loaded.emit(url, scaled)
+                self.put(url, pixmap)
+                self.logo_loaded.emit(url, pixmap)
             else:
                 self.mark_negative(url)
         except Exception:
@@ -175,6 +217,8 @@ class LogoCacheService(QObject):
 
     def warmup(self, urls):
         if not urls:
+            return
+        if not self._ensure_main_thread(self.warmup, urls):
             return
         self._warmup_queue.extend(urls)
         if not self._warmup_timer.isActive():

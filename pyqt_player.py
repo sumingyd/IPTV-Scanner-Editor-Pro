@@ -461,10 +461,21 @@ class IPTVPlayer(QMainWindow):
         """在后台线程中处理列表订阅"""
         try:
             global CHANNELS
-            
+
+            # 检查 URL 是否变化
+            last_url = self.config.get_value('Playlist', 'last_url', '')
+            url_changed = (last_url != playlist_url)
+
+            if url_changed:
+                logger.info(f"列表订阅地址已变化: '{last_url}' -> '{playlist_url}'，强制更新")
+                need_update = True
+
             if need_update:
                 logger.info("列表订阅需要更新，开始下载最新数据")
                 self.update_playlist_subscription()
+                # 保存当前 URL
+                self.config.set_value('Playlist', 'last_url', playlist_url)
+                self.config.save_config()
             else:
                 # 检查是否有本地缓存的列表文件
                 import os
@@ -607,46 +618,52 @@ class IPTVPlayer(QMainWindow):
     
     def _handle_epg_subscription(self, epg_url, epg_interval):
         """在后台线程中处理节目单订阅"""
+        logger.info(f"开始处理节目单订阅: {epg_url}")
         try:
             global EPG_DATA
-            
+
             from datetime import datetime, timedelta
-            
-            # 检查是否需要立即更新
+
+            # 检查 URL 是否变化
+            last_url = self.config.get_value('EPG', 'last_url', '')
+            url_changed = (last_url != epg_url)
+
+            if url_changed:
+                logger.info(f"EPG 订阅地址已变化: '{last_url}' -> '{epg_url}'，强制更新")
+
             last_update_str = self.config.get_value('EPG', 'last_update', None)
             need_update = True
-            if last_update_str:
+            if last_update_str and not url_changed:
                 try:
                     last_update = datetime.fromisoformat(last_update_str)
                     time_since_update = datetime.now() - last_update
                     if time_since_update.total_seconds() < epg_interval * 60:
                         need_update = False
-                        logger.debug(f"节目单订阅无需立即更新，上次更新时间: {last_update}")
+                        logger.debug(f"节目单订阅无需立即更新，上次更新时间: {last_update}，距下次更新还有 {(epg_interval * 60 - time_since_update.total_seconds()) / 60:.1f} 分钟")
                 except Exception as e:
                     logger.error(f"解析EPG上次更新时间失败: {e}")
                     pass
             else:
                 logger.debug("未找到EPG上次更新时间，需要更新")
-            
-            if need_update:
-                logger.info("节目单订阅需要更新，开始下载最新数据")
+
+            if need_update or url_changed:
+                logger.info(f"节目单订阅需要更新（间隔: {epg_interval} 分钟），开始下载最新数据")
                 self.update_epg_subscription()
+                # 保存当前 URL
+                self.config.set_value('EPG', 'last_url', epg_url)
+                self.config.save_config()
             else:
-                # 从缓存加载EPG数据
                 from core.epg_parser import global_epg_parser
-                # 加载缓存的EPG数据
                 global_epg_parser.load_cached_epg_data()
                 if global_epg_parser.epg_data:
                     EPG_DATA = global_epg_parser.epg_data
-                    logger.debug(f"节目单订阅无需更新，从缓存加载数据，共 {len(EPG_DATA)} 个频道")
-                    # 更新EPG列表UI
+                    logger.info(f"节目单订阅无需更新，从缓存加载数据，共 {len(EPG_DATA)} 个频道")
                     self.epg_list_updated.emit()
                 else:
-                    # 如果缓存数据为空，强制更新
                     logger.debug("EPG缓存数据为空，强制更新")
                     self.update_epg_subscription()
         except Exception as ex:
-            logger.error(f"处理节目单订阅失败: {ex}")
+            logger.error(f"处理节目单订阅失败: {ex}", exc_info=True)
     
     def _load_data_in_background(self):
         """在后台线程中加载数据"""
@@ -737,16 +754,30 @@ class IPTVPlayer(QMainWindow):
         self.video_frame = QFrame()
         self.video_frame.setStyleSheet(AppStyles.player_background_style())
         
-        # 创建默认背景
-        self.video_placeholder = QLabel("📺", self.video_frame)
+        # 创建默认背景（使用软件图标）
+        ico_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources', 'logo.ico')
+        self.video_placeholder = QLabel(self.video_frame)
         self.video_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_placeholder.setStyleSheet(AppStyles.player_video_placeholder_style())
-        self.video_placeholder.show()
-        
-        # 创建视频播放窗口
+        if os.path.exists(ico_path):
+            icon = QIcon(ico_path)
+            from PyQt6.QtWidgets import QApplication
+            screen = QApplication.primaryScreen()
+            dpr = screen.devicePixelRatio() if screen else 1.0
+            size = int(256 * dpr)
+            pixmap = icon.pixmap(size, size, QIcon.Mode.Normal, QIcon.State.On)
+            if not pixmap.isNull():
+                pixmap.setDevicePixelRatio(dpr)
+                self.video_placeholder.setPixmap(pixmap)
+            else:
+                self.video_placeholder.setText("📺")
+        else:
+            self.video_placeholder.setText("📺")
+
+        # 创建视频播放窗口（初始隐藏，播放时才显示）
         self.video_widget = QWidget(self.video_frame)
         self.video_widget.setStyleSheet(AppStyles.player_background_style())
-        self.video_widget.show()
+        self.video_widget.hide()
         
         # 添加视频区域到布局
         self.top_layout.addWidget(self.video_frame, 1)
@@ -1079,6 +1110,14 @@ class IPTVPlayer(QMainWindow):
         self.play_button.setStyleSheet(AppStyles.player_button_style())
         self.play_button.clicked.connect(self.toggle_play)
         self.control_row.addWidget(self.play_button)
+
+        # 停止按钮
+        self.stop_button = QToolButton()
+        self.stop_button.setText("■")
+        self.stop_button.setFixedSize(28, 26)
+        self.stop_button.setStyleSheet(AppStyles.player_button_style())
+        self.stop_button.clicked.connect(self.stop_playback)
+        self.control_row.addWidget(self.stop_button)
         
         self.control_row.addStretch()
         
@@ -1522,8 +1561,7 @@ class IPTVPlayer(QMainWindow):
                 logo_url = logo_url.strip('`"\'')
                 cached = self._logo_cache_service.get(logo_url)
                 if cached:
-                    # 缩放台标到 60x60 区域，保持宽高比
-                    scaled = cached.scaled(60, 60, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                    scaled = self._logo_cache_service.scale_logo_pixmap(cached, 60)
                     logo_label.setPixmap(scaled)
                 else:
                     # 异步加载台标
@@ -1595,8 +1633,7 @@ class IPTVPlayer(QMainWindow):
                 # 尝试从缓存获取
                 cached = self._logo_cache_service.get(logo_url)
                 if cached:
-                    # 缩放台标到 60x60 区域，保持宽高比
-                    scaled = cached.scaled(60, 60, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                    scaled = self._logo_cache_service.scale_logo_pixmap(cached, 60)
                     logo_label.setPixmap(scaled)
                 else:
                     # 异步加载台标
@@ -1700,34 +1737,30 @@ class IPTVPlayer(QMainWindow):
         current_program_index = -1
         item_index = 0
         has_date_program = False
-        
+
         # 导入需要的模块
         from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor
         from PyQt6.QtCore import QSize, Qt
-        
+
         # 过滤并排序节目列表
         filtered_programs = []
         yesterday_programs = []
-        
+
         for program in epg_list:
             try:
                 start_time = datetime.fromisoformat(program.get('start', ''))
                 end_time = datetime.fromisoformat(program.get('end', ''))
-                
+
                 # 检查节目是否在当前选择的日期或与当前日期相关
                 if start_time.date() == self.current_epg_date or end_time.date() == self.current_epg_date:
                     filtered_programs.append(program)
-                    # 记录节目信息，用于调试
-                    logger.debug(f"添加节目: {program.get('title', '未知节目')}, 开始: {start_time}, 结束: {end_time}")
                 # 检查节目是否是昨天的节目
                 elif start_time.date() == self.current_epg_date - timedelta(days=1):
                     yesterday_programs.append(program)
-                    # 记录节目信息，用于调试
-                    logger.debug(f"添加昨天的节目: {program.get('title', '未知节目')}, 开始: {start_time}, 结束: {end_time}")
             except Exception as e:
                 logger.error(f"过滤节目失败: {e}")
                 continue
-        
+
         # 按开始时间排序节目列表
         filtered_programs.sort(key=lambda x: datetime.fromisoformat(x.get('start', '')))
         
@@ -2263,7 +2296,7 @@ class IPTVPlayer(QMainWindow):
 
             cached = self._logo_cache_service.get(logo)
             if cached:
-                scaled_pixmap = cached.scaled(self.channel_logo.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                scaled_pixmap = self._logo_cache_service.scale_logo_pixmap_to_fit(cached, self.channel_logo.width(), self.channel_logo.height())
                 self.channel_logo.setPixmap(scaled_pixmap)
                 self.channel_logo.setText("")
                 return
@@ -2374,6 +2407,63 @@ class IPTVPlayer(QMainWindow):
         """切换播放/暂停"""
         if self.player_controller:
             self.player_controller.toggle_pause()
+
+    def stop_playback(self):
+        """停止播放，恢复到初始状态"""
+        if self.player_controller:
+            self.player_controller.stop()
+        if hasattr(self, 'video_widget') and self.video_widget:
+            self.video_widget.hide()
+        if hasattr(self, 'video_placeholder') and self.video_placeholder:
+            self.video_placeholder.show()
+            ico_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources', 'logo.ico')
+            if os.path.exists(ico_path):
+                icon = QIcon(ico_path)
+                from PyQt6.QtWidgets import QApplication
+                screen = QApplication.primaryScreen()
+                dpr = screen.devicePixelRatio() if screen else 1.0
+                size = int(256 * dpr)
+                pixmap = icon.pixmap(size, size, QIcon.Mode.Normal, QIcon.State.On)
+                if not pixmap.isNull():
+                    pixmap.setDevicePixelRatio(dpr)
+                    self.video_placeholder.setPixmap(pixmap)
+                else:
+                    self.video_placeholder.setText("📺")
+            else:
+                self.video_placeholder.setText("📺")
+        if hasattr(self, 'play_button'):
+            self.play_button.setText("▶")
+        if hasattr(self, 'channel_name'):
+            tr = self.language_manager.tr
+            self.channel_name.setText(tr("no_channel_selected", "No channel selected"))
+        if hasattr(self, 'current_program'):
+            tr = self.language_manager.tr
+            self.current_program.setText(tr("select_channel_to_play", "▶ Select a channel to play"))
+        if hasattr(self, 'channel_logo'):
+            self.channel_logo.setPixmap(QPixmap())
+            self.channel_logo.setText("📺")
+        if hasattr(self, 'video_info'):
+            tr = self.language_manager.tr
+            self.video_info.setText(f"📺 {tr('not_playing', 'Not playing')}")
+        if hasattr(self, 'audio_info'):
+            self.audio_info.setText("🔊 --")
+        if hasattr(self, 'network_info'):
+            self.network_info.setText("📡 --")
+        if hasattr(self, 'program_desc'):
+            tr = self.language_manager.tr
+            self.program_desc.setText(tr("open_playlist_or_import", "Open a playlist file or import channels to start watching"))
+        if hasattr(self, 'time_label'):
+            self.time_label.setText("⏱ --:-- - --:--")
+        if hasattr(self, 'remain_label'):
+            tr = self.language_manager.tr
+            self.remain_label.setText(tr("waiting_to_play", "Waiting to play..."))
+        if hasattr(self, 'progress_start'):
+            self.progress_start.setText("--:--")
+        if hasattr(self, 'progress_end'):
+            self.progress_end.setText("--:--")
+        if hasattr(self, 'program_progress'):
+            self.program_progress.setValue(0)
+        self.current_channel = None
     
     def set_volume(self, value):
         """设置音量"""
@@ -2517,7 +2607,7 @@ class IPTVPlayer(QMainWindow):
     def _handle_play_state_change(self, is_playing):
         tr = self.language_manager.tr
         if is_playing:
-            self.play_button.setText("⏸")
+            self.play_button.setText("▮▮")
             self._cancel_source_timeout()
             if hasattr(self, 'video_placeholder') and self.video_placeholder:
                 self.video_placeholder.hide()
@@ -3678,28 +3768,31 @@ class IPTVPlayer(QMainWindow):
             logger.error(f"检查订阅内容失败: {str(ex)}")
     
     def update_playlist_subscription(self):
-        """更新列表订阅"""
+        """更新列表订阅 - 线程安全版本"""
+        from PyQt6.QtCore import QThread, QTimer
         try:
-            # 声明全局变量
             global CHANNELS
-            
+
             import requests
-            
-            # 获取订阅设置
+
             playlist_url = self.config.get_value('Playlist', 'url', '')
             if not playlist_url:
                 return
-            
+
             logger.info(f"开始更新列表订阅: {playlist_url}")
-            
-            # 下载订阅内容
-            response = requests.get(playlist_url, timeout=30)
+
+            import requests
+
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+
+            response = requests.get(playlist_url, timeout=30, headers=headers, allow_redirects=True)
             response.raise_for_status()
+
             content = response.text
-            
-            # 解析M3U内容
+
             if self.channel_model.load_from_file(content):
-                # 更新CHANNELS列表
                 CHANNELS = []
                 for i, ch in enumerate(self.channel_model.channels):
                     CHANNELS.append({
@@ -3717,21 +3810,16 @@ class IPTVPlayer(QMainWindow):
                         "resolution": ch.get('resolution', ''),
                         "current_program": ''
                     })
-                
-                # 更新频道列表UI
-                self._update_channel_list_ui()
-                
-                # 保存最后更新时间
+
                 from datetime import datetime
                 self.config.set_value('Playlist', 'last_update', datetime.now().isoformat())
                 self.config.save_config()
-                
-                # 保存列表到缓存文件
+
                 import os
                 cache_dir = self.config.get_value('General', 'cache_dir', 'cache')
                 if cache_dir and not os.path.exists(cache_dir):
                     os.makedirs(cache_dir)
-                
+
                 playlist_cache_file = os.path.join(cache_dir, 'playlist_cache.m3u') if cache_dir else 'playlist_cache.m3u'
                 try:
                     with open(playlist_cache_file, 'w', encoding='utf-8') as f:
@@ -3739,52 +3827,106 @@ class IPTVPlayer(QMainWindow):
                     logger.debug(f"列表已保存到缓存文件: {playlist_cache_file}")
                 except Exception as ex:
                     logger.error(f"保存列表缓存失败: {ex}")
-                
+
                 logger.info(f"列表订阅更新成功，共 {len(CHANNELS)} 个频道")
-                self.status_bar.showMessage(self.language_manager.tr("playlist_sub_updated", "Playlist subscription updated"))
+
+                if QThread.currentThread() != self.thread():
+                    QTimer.singleShot(0, lambda: self._on_playlist_updated_in_main_thread(
+                        self.language_manager.tr("playlist_sub_updated", "Playlist subscription updated")
+                    ))
+                else:
+                    self._update_channel_list_ui()
+                    self.status_bar.showMessage(self.language_manager.tr("playlist_sub_updated", "Playlist subscription updated"))
             else:
                 logger.error("列表订阅内容解析失败")
-                self.status_bar.showMessage(self.language_manager.tr("playlist_sub_parse_failed", "Playlist subscription parse failed"))
+                if QThread.currentThread() != self.thread():
+                    QTimer.singleShot(0, lambda: self.status_bar.showMessage(
+                        self.language_manager.tr("playlist_sub_parse_failed", "Playlist subscription parse failed")
+                    ))
+                else:
+                    self.status_bar.showMessage(self.language_manager.tr("playlist_sub_parse_failed", "Playlist subscription parse failed"))
         except Exception as ex:
             logger.error(f"更新列表订阅失败: {str(ex)}")
-            self.status_bar.showMessage(f"{self.language_manager.tr('playlist_sub_update_failed', 'Failed to update playlist subscription')}: {str(ex)}")
+            if QThread.currentThread() != self.thread():
+                QTimer.singleShot(0, lambda: self.status_bar.showMessage(
+                    f"{self.language_manager.tr('playlist_sub_update_failed', 'Failed to update playlist subscription')}: {str(ex)}"
+                ))
+            else:
+                self.status_bar.showMessage(f"{self.language_manager.tr('playlist_sub_update_failed', 'Failed to update playlist subscription')}: {str(ex)}")
+
+    def _on_playlist_updated_in_main_thread(self, message):
+        """在主线程中处理订阅更新完成后的UI操作"""
+        try:
+            self._update_channel_list_ui()
+            self.status_bar.showMessage(message)
+        except Exception as ex:
+            logger.error(f"在主线程更新UI失败: {ex}")
     
     def update_epg_subscription(self):
-        """更新节目单订阅"""
+        """更新节目单订阅 - 线程安全版本"""
+        from PyQt6.QtCore import QThread, QTimer
         try:
-            # 声明全局变量
             global EPG_DATA
-            
-            # 获取订阅设置
+
             epg_url = self.config.get_value('EPG', 'epg_url', '')
             if not epg_url:
                 return
-            
+
             logger.info(f"开始更新节目单订阅: {epg_url}")
-            
-            # 使用EPGParser的load_epg_from_url方法
+
             from core.epg_parser import global_epg_parser
+
             if global_epg_parser.load_epg_from_url(epg_url):
-                # 更新全局EPG_DATA
                 EPG_DATA = global_epg_parser.epg_data
-                # 保存最后更新时间
+
+                if EPG_DATA:
+                    sample_channel = list(EPG_DATA.keys())[0] if EPG_DATA else None
+                    if sample_channel and EPG_DATA[sample_channel]:
+                        sample_date = EPG_DATA[sample_channel][0].get('start', 'N/A')
+                        logger.info(f"EPG 数据样本日期: {sample_date}")
+
                 from datetime import datetime
                 self.config.set_value('EPG', 'last_update', datetime.now().isoformat())
                 self.config.save_config()
                 logger.info(f"节目单订阅更新成功，共 {len(EPG_DATA)} 个频道的节目单，已使用最新数据")
-                self.status_bar_show_message(self.language_manager.tr("epg_sub_updated", "EPG subscription updated"))
+
+                def _on_epg_success():
+                    self.epg_list_updated.emit()
+                    self.status_bar_show_message(self.language_manager.tr("epg_sub_updated", "EPG subscription updated"))
+
+                if QThread.currentThread() != self.thread():
+                    QTimer.singleShot(0, _on_epg_success)
+                else:
+                    _on_epg_success()
             else:
-                # 如果加载失败，从缓存加载
                 if global_epg_parser.epg_data:
                     EPG_DATA = global_epg_parser.epg_data
                     logger.debug(f"使用缓存的EPG数据，包含 {len(EPG_DATA)} 个频道")
-                    self.status_bar_show_message(self.language_manager.tr("epg_using_cache", "Using cached EPG data"))
+
+                    def _on_epg_cache():
+                        self.epg_list_updated.emit()
+                        self.status_bar_show_message(self.language_manager.tr("epg_using_cache", "Using cached EPG data"))
+
+                    if QThread.currentThread() != self.thread():
+                        QTimer.singleShot(0, _on_epg_cache)
+                    else:
+                        _on_epg_cache()
                 else:
                     logger.error("节目单订阅内容解析失败")
-                    self.status_bar_show_message(self.language_manager.tr("epg_sub_parse_failed", "EPG subscription parse failed"))
+                    if QThread.currentThread() != self.thread():
+                        QTimer.singleShot(0, lambda: self.status_bar_show_message(
+                            self.language_manager.tr("epg_sub_parse_failed", "EPG subscription parse failed")
+                        ))
+                    else:
+                        self.status_bar.show_message(self.language_manager.tr("epg_sub_parse_failed", "EPG subscription parse failed"))
         except Exception as ex:
             logger.error(f"更新节目单订阅失败: {str(ex)}")
-            self.status_bar_show_message(f"{self.language_manager.tr('epg_sub_update_failed', 'Failed to update EPG subscription')}: {str(ex)}")
+            if QThread.currentThread() != self.thread():
+                QTimer.singleShot(0, lambda: self.status_bar_show_message(
+                    f"{self.language_manager.tr('epg_sub_update_failed', 'Failed to update EPG subscription')}: {str(ex)}"
+                ))
+            else:
+                self.status_bar_show_message(f"{self.language_manager.tr('epg_sub_update_failed', 'Failed to update EPG subscription')}: {str(ex)}")
     
     def save_player_settings(self, dialog):
         """保存播放器设置"""
@@ -4276,6 +4418,7 @@ class IPTVPlayer(QMainWindow):
                 self.epg_panel.setStyleSheet(AppStyles.player_panel_style())
             if hasattr(self, 'playlist_panel'):
                 self.playlist_panel.setStyleSheet(AppStyles.player_panel_style())
+            self._reapply_side_panel_styles()
             if hasattr(self, 'floating_panel'):
                 self.floating_panel.setStyleSheet(AppStyles.player_panel_style())
                 self.floating_panel.opacity = colors.get('window_opacity', 220)
@@ -4287,6 +4430,10 @@ class IPTVPlayer(QMainWindow):
                 tool_btn.setStyleSheet(AppStyles.player_button_style())
             for slider in self.findChildren(QSlider):
                 slider.setStyleSheet(AppStyles.player_slider_style())
+            if hasattr(self, 'volume_slider'):
+                self.volume_slider.setStyleSheet(AppStyles.player_volume_slider_style())
+            if hasattr(self, 'exit_catchup_button'):
+                self.exit_catchup_button.setStyleSheet(AppStyles.exit_catchup_button_style())
             for combo in self.findChildren(QComboBox):
                 combo.setStyleSheet(AppStyles.player_group_combo_style())
             for list_widget in self.findChildren(QListWidget):
@@ -4294,23 +4441,54 @@ class IPTVPlayer(QMainWindow):
         except Exception as e:
             logger.error(f"重新应用样式失败: {e}")
 
+    def _reapply_side_panel_styles(self):
+        try:
+            if hasattr(self, 'epg_prev_day'):
+                self.epg_prev_day.setStyleSheet(AppStyles.player_date_button_style())
+            if hasattr(self, 'epg_next_day'):
+                self.epg_next_day.setStyleSheet(AppStyles.player_date_button_style())
+            if hasattr(self, 'epg_date_label'):
+                self.epg_date_label.setStyleSheet(AppStyles.player_date_label_style())
+            if hasattr(self, 'playlist_title'):
+                self.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
+            if hasattr(self, 'group_combo'):
+                self.group_combo.setStyleSheet(AppStyles.player_group_combo_style())
+        except Exception as e:
+            logger.error(f"重新应用侧边栏样式失败: {e}")
+
     def _reapply_floating_panel_styles(self):
         try:
             if not hasattr(self, 'floating_panel'):
                 return
             fp = self.floating_panel
-            for label in fp.findChildren(QLabel):
-                label.setStyleSheet(AppStyles.player_label_style())
-            if hasattr(self, 'channel_name_label'):
-                self.channel_name_label.setStyleSheet(AppStyles.player_channel_name_style())
-            if hasattr(self, 'program_label'):
-                self.program_label.setStyleSheet(AppStyles.player_program_style())
-            if hasattr(self, 'program_desc_label'):
-                self.program_desc_label.setStyleSheet(AppStyles.player_program_desc_style())
+            if hasattr(self, 'video_info'):
+                self.video_info.setStyleSheet(AppStyles.player_label_style())
+            if hasattr(self, 'audio_info'):
+                self.audio_info.setStyleSheet(AppStyles.player_label_style())
+            if hasattr(self, 'network_info'):
+                self.network_info.setStyleSheet(AppStyles.player_label_style())
+            if hasattr(self, 'channel_logo'):
+                self.channel_logo.setStyleSheet(AppStyles.player_channel_logo_style())
+            if hasattr(self, 'channel_name'):
+                self.channel_name.setStyleSheet(AppStyles.player_channel_name_style())
+            if hasattr(self, 'current_program'):
+                self.current_program.setStyleSheet(AppStyles.player_program_style())
+            if hasattr(self, 'program_desc'):
+                self.program_desc.setStyleSheet(AppStyles.player_program_desc_style())
+            if hasattr(self, 'time_label'):
+                self.time_label.setStyleSheet(AppStyles.player_label_style())
+            if hasattr(self, 'remain_label'):
+                self.remain_label.setStyleSheet(AppStyles.player_program_style())
+            if hasattr(self, 'progress_start'):
+                self.progress_start.setStyleSheet(AppStyles.player_progress_label_style())
+            if hasattr(self, 'progress_end'):
+                self.progress_end.setStyleSheet(AppStyles.player_progress_label_style())
             for btn in fp.findChildren(QPushButton):
                 btn.setStyleSheet(AppStyles.player_date_button_style())
             for slider in fp.findChildren(QSlider):
                 slider.setStyleSheet(AppStyles.player_slider_style())
+            if hasattr(self, 'volume_slider'):
+                self.volume_slider.setStyleSheet(AppStyles.player_volume_slider_style())
             for combo in fp.findChildren(QComboBox):
                 combo.setStyleSheet(AppStyles.player_group_combo_style())
             for frame in fp.findChildren(QFrame):
@@ -4387,16 +4565,20 @@ class IPTVPlayer(QMainWindow):
 
     def _check_for_updates_async(self):
         """异步检查新版本"""
+        from PyQt6.QtCore import QThread, QTimer
+        if QThread.currentThread() != self.thread():
+            QTimer.singleShot(0, self._check_for_updates_async)
+            return
         # 检查是否已在检查或已检查过
         if hasattr(self, '_update_checking') and self._update_checking:
             return
         if hasattr(self, '_update_checked') and self._update_checked:
             return
-        
+
         self._update_checking = True
         try:
             # 在后台线程中执行版本检查
-            from PyQt6.QtCore import QThread, pyqtSignal
+            from PyQt6.QtCore import pyqtSignal
             import asyncio
             import aiohttp
 
@@ -4546,7 +4728,7 @@ class IPTVPlayer(QMainWindow):
         if logo:
             logo = logo.strip('`"\'')
             if logo == url and hasattr(self, 'channel_logo'):
-                scaled = pixmap.scaled(self.channel_logo.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(pixmap, self.channel_logo.width(), self.channel_logo.height())
                 self.channel_logo.setPixmap(scaled)
                 self.channel_logo.setText("")
         
@@ -4570,8 +4752,7 @@ class IPTVPlayer(QMainWindow):
                     if item_widget:
                         logo_label = item_widget.findChild(QtWidgets.QLabel)
                         if logo_label:
-                            # 缩放台标到 60x60 区域，保持宽高比
-                            scaled = pixmap.scaled(60, 60, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                            scaled = self._logo_cache_service.scale_logo_pixmap(pixmap, 60)
                             logo_label.setPixmap(scaled)
                     break
 
@@ -4683,7 +4864,8 @@ class IPTVPlayer(QMainWindow):
             if logo:
                 urls.append(logo.strip('`"\''))
         if urls:
-            self._logo_cache_service.warmup(urls)
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(3000, lambda: self._logo_cache_service.warmup(urls))
 
     def start_timeshift(self, offset_minutes=None):
         if not self.current_channel:

@@ -39,7 +39,7 @@ class AppStyles:
             'table_hover': '#2a3a5a',
             'table_selection': '#4a7eff',
             'table_selection_text': '#ffffff',
-            'player_background': '#000000',
+            'player_background': '#1a1a1a',
             'player_panel': '#2a2a2a',
             'player_panel_text': '#ffffff',
             'player_panel_secondary': '#aaaaaa',
@@ -865,6 +865,14 @@ class AppStyles:
                 background-color: {colors['player_button']};
                 border-radius: 4px;
                 border: none;
+                padding: 2px;
+            }}
+            QToolButton:hover {{
+                background-color: {colors['player_accent']};
+            }}
+            QToolButton:pressed {{
+                background-color: {colors['player_panel_text']};
+                color: {colors['player_button']};
             }}
         """
 
@@ -1017,9 +1025,37 @@ class AppStyles:
             QComboBox {{
                 background-color: {colors['player_combo']};
                 color: {colors['player_panel_text']};
-                padding: 4px;
-                border: none;
+                padding: 4px 8px;
+                border: 1px solid {colors['player_line']};
+                border-radius: 4px;
                 font-size: 12px;
+                min-width: 80px;
+            }}
+            QComboBox:hover {{
+                border: 1px solid {colors['player_accent']};
+            }}
+            QComboBox::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: right center;
+                width: 16px;
+                border-left: none;
+                border-top-right-radius: 4px;
+                border-bottom-right-radius: 4px;
+            }}
+            QComboBox::down-arrow {{
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 5px solid {colors['player_panel_secondary']};
+                margin-right: 4px;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {colors['player_panel']};
+                color: {colors['player_panel_text']};
+                selection-background-color: {colors['player_accent']};
+                selection-color: #ffffff;
+                border: 1px solid {colors['player_line']};
+                outline: none;
             }}
         """
 
