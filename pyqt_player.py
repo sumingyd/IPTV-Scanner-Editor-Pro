@@ -73,8 +73,8 @@ class IPTVPlayer(QMainWindow):
         
         # 设置窗口图标
         from PyQt6.QtGui import QIcon
-        import os
-        ico_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources', 'logo.ico')
+        from utils.general_utils import get_icon_path
+        ico_path = get_icon_path()
         if os.path.exists(ico_path):
             self.setWindowIcon(QIcon(ico_path))
         
@@ -577,7 +577,8 @@ class IPTVPlayer(QMainWindow):
         self.video_frame.setStyleSheet(AppStyles.player_background_style())
         
         # 创建默认背景（使用软件图标）
-        ico_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources', 'logo.ico')
+        from utils.general_utils import get_icon_path
+        ico_path = get_icon_path()
         self.video_placeholder = QLabel(self.video_frame)
         self.video_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_placeholder.setStyleSheet(AppStyles.player_video_placeholder_style())
@@ -1347,6 +1348,7 @@ class IPTVPlayer(QMainWindow):
         self.update_channel_groups()
         
         if not CHANNELS:
+            logger.debug(f"populate_channel_list: CHANNELS为空，显示空提示")
             self.channel_empty_label.show()
             return
         self.channel_empty_label.hide()
@@ -1408,6 +1410,7 @@ class IPTVPlayer(QMainWindow):
             self.channel_list.addItem(item)
             self.channel_list.setItemWidget(item, item_widget)
         
+        logger.info(f"populate_channel_list: 填充完成，共 {self.channel_list.count()} 个频道项")
         # 连接滚动信号，实现懒加载
         self.channel_list.verticalScrollBar().valueChanged.connect(self._on_channel_list_scrolled)
     
@@ -2238,7 +2241,8 @@ class IPTVPlayer(QMainWindow):
             self.video_widget.hide()
         if hasattr(self, 'video_placeholder') and self.video_placeholder:
             self.video_placeholder.show()
-            ico_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources', 'logo.ico')
+            from utils.general_utils import get_icon_path
+            ico_path = get_icon_path()
             if os.path.exists(ico_path):
                 icon = QIcon(ico_path)
                 from PyQt6.QtWidgets import QApplication
@@ -2424,7 +2428,7 @@ class IPTVPlayer(QMainWindow):
         """播放状态改变时的处理"""
         # 确保在主线程中执行
         from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, lambda: self._handle_play_state_change(is_playing))
+        QTimer.singleShot(0, self, lambda: self._handle_play_state_change(is_playing))
     
     def _handle_play_state_change(self, is_playing):
         tr = self.language_manager.tr
@@ -3657,7 +3661,7 @@ class IPTVPlayer(QMainWindow):
                 logger.info(f"列表订阅更新成功，共 {len(CHANNELS)} 个频道")
 
                 if QThread.currentThread() != self.thread():
-                    QTimer.singleShot(0, lambda: self._on_playlist_updated_in_main_thread(
+                    QTimer.singleShot(0, self, lambda: self._on_playlist_updated_in_main_thread(
                         self.language_manager.tr("playlist_sub_updated", "Playlist subscription updated")
                     ))
                 else:
@@ -3666,7 +3670,7 @@ class IPTVPlayer(QMainWindow):
             else:
                 logger.error("列表订阅内容解析失败")
                 if QThread.currentThread() != self.thread():
-                    QTimer.singleShot(0, lambda: self.status_bar.showMessage(
+                    QTimer.singleShot(0, self, lambda: self.status_bar.showMessage(
                         self.language_manager.tr("playlist_sub_parse_failed", "Playlist subscription parse failed")
                     ))
                 else:
@@ -3674,7 +3678,7 @@ class IPTVPlayer(QMainWindow):
         except Exception as ex:
             logger.error(f"更新列表订阅失败: {str(ex)}")
             if QThread.currentThread() != self.thread():
-                QTimer.singleShot(0, lambda: self.status_bar.showMessage(
+                QTimer.singleShot(0, self, lambda: self.status_bar.showMessage(
                     f"{self.language_manager.tr('playlist_sub_update_failed', 'Failed to update playlist subscription')}: {str(ex)}"
                 ))
             else:
@@ -3683,8 +3687,10 @@ class IPTVPlayer(QMainWindow):
     def _on_playlist_updated_in_main_thread(self, message):
         """在主线程中处理订阅更新完成后的UI操作"""
         try:
+            logger.info(f"_on_playlist_updated_in_main_thread: 开始更新UI, CHANNELS数量={len(CHANNELS)}")
             self._update_channel_list_ui()
             self.status_bar.showMessage(message)
+            logger.info("_on_playlist_updated_in_main_thread: UI更新完成")
         except Exception as ex:
             logger.error(f"在主线程更新UI失败: {ex}")
     
@@ -3740,7 +3746,7 @@ class IPTVPlayer(QMainWindow):
                 else:
                     logger.error("节目单订阅内容解析失败")
                     if QThread.currentThread() != self.thread():
-                        QTimer.singleShot(0, lambda: self.status_bar_show_message(
+                        QTimer.singleShot(0, self, lambda: self.status_bar_show_message(
                             self.language_manager.tr("epg_sub_parse_failed", "EPG subscription parse failed")
                         ))
                     else:
@@ -3748,7 +3754,7 @@ class IPTVPlayer(QMainWindow):
         except Exception as ex:
             logger.error(f"更新节目单订阅失败: {str(ex)}")
             if QThread.currentThread() != self.thread():
-                QTimer.singleShot(0, lambda: self.status_bar_show_message(
+                QTimer.singleShot(0, self, lambda: self.status_bar_show_message(
                     f"{self.language_manager.tr('epg_sub_update_failed', 'Failed to update EPG subscription')}: {str(ex)}"
                 ))
             else:

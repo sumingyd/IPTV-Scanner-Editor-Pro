@@ -1,3 +1,5 @@
+import os
+
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFrame
@@ -42,8 +44,8 @@ class AboutDialog(FloatingDialog):
         logo_label = QtWidgets.QLabel()
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         from PyQt6.QtGui import QPixmap, QIcon
-        import os
-        ico_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'resources', 'logo.ico')
+        from utils.general_utils import get_icon_path
+        ico_path = get_icon_path()
         if os.path.exists(ico_path):
             # 使用 QIcon 读取 ICO 文件，然后获取最大尺寸的 pixmap
             icon = QIcon(ico_path)
