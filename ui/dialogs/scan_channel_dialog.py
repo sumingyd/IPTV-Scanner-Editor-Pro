@@ -159,7 +159,11 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 设置窗口属性，与 AboutDialog 的实现一致
         self.setWindowTitle("")
         # 设置为工具窗口，无边框
-        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Window)
+        self.setWindowFlags(
+            QtCore.Qt.WindowType.FramelessWindowHint |
+            QtCore.Qt.WindowType.Tool |
+            QtCore.Qt.WindowType.WindowStaysOnTopHint
+        )
         # 设置透明背景，实现圆角窗口效果
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
         # 确保窗口可以接收鼠标事件
@@ -645,11 +649,29 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.btn_hide_invalid.setFixedWidth(80)
         self.btn_hide_invalid.setEnabled(False)
 
+        # 保存M3U按钮
+        self.btn_save_m3u = QtWidgets.QPushButton(tr("save_m3u", "Save M3U"))
+        self.btn_save_m3u.setStyleSheet(AppStyles.common_button_style())
+        self.btn_save_m3u.setFixedHeight(32)
+        self.btn_save_m3u.setFixedWidth(70)
+        self.btn_save_m3u.setToolTip(tr("save_m3u_tooltip", "Save channel list as M3U format"))
+
+        # 保存TXT按钮
+        self.btn_save_txt = QtWidgets.QPushButton(tr("save_txt", "Save TXT"))
+        self.btn_save_txt.setStyleSheet(AppStyles.common_button_style())
+        self.btn_save_txt.setFixedHeight(32)
+        self.btn_save_txt.setFixedWidth(70)
+        self.btn_save_txt.setToolTip(tr("save_txt_tooltip", "Save channel list as TXT format"))
+
         toolbar_layout.addWidget(self.btn_open_list)
         toolbar_layout.addSpacing(6)
         toolbar_layout.addWidget(self.btn_validate)
         toolbar_layout.addSpacing(6)
         toolbar_layout.addWidget(self.btn_hide_invalid)
+        toolbar_layout.addSpacing(6)
+        toolbar_layout.addWidget(self.btn_save_m3u)
+        toolbar_layout.addSpacing(6)
+        toolbar_layout.addWidget(self.btn_save_txt)
 
     def _setup_channel_edit(self, parent: QtWidgets.QLayout) -> None:
         """配置频道编辑区域（简化版，不含GroupBox）"""
@@ -864,6 +886,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
         parent = self.parent()
         if parent and hasattr(parent, 'play_channel'):
             parent.play_channel(channel)
+            parent.activateWindow()
+            parent.raise_()
 
     def _init_main_window(self):
         if not hasattr(self, 'model') or not self.model:
@@ -994,6 +1018,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
         safe_connect_button(self.btn_hide_invalid, self._on_hide_invalid_clicked)
         safe_connect_button(self.btn_generate, self._on_generate_clicked)
         safe_connect_button(self.btn_open_list, self._on_open_list_clicked)
+        safe_connect_button(self.btn_save_m3u, self._on_save_m3u_clicked)
+        safe_connect_button(self.btn_save_txt, self._on_save_txt_clicked)
 
         if not hasattr(self, 'scanner') or self.scanner is None:
             return
@@ -1183,6 +1209,47 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 扫描频道窗口没有状态栏，直接在日志中记录
         self.logger.info(f"已生成 {count} 个频道")
 
+    def _save_list_as(self, fmt: str):
+        tr = self.language_manager.tr
+        if not self.model or self.model.rowCount() == 0:
+            self.logger.warning(tr("no_channels_to_save", "No channels to save"))
+            return
+
+        if fmt == 'm3u':
+            filter_str = "M3U文件 (*.m3u);;M3U8文件 (*.m3u8);;所有文件 (*.*)"
+            default_name = "scan_result.m3u"
+        else:
+            filter_str = "TXT文件 (*.txt);;所有文件 (*.*)"
+            default_name = "scan_result.txt"
+
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            tr("save_scan_result", "Save Scan Result"),
+            default_name,
+            filter_str
+        )
+        if not file_path:
+            return
+
+        try:
+            if fmt == 'm3u':
+                content = self.model.to_m3u()
+            else:
+                content = self.model.to_txt()
+
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+
+            self.logger.info(f"已保存 {self.model.rowCount()} 个频道到 {file_path}")
+        except Exception as e:
+            self.logger.error(f"保存失败: {e}")
+
+    def _on_save_m3u_clicked(self):
+        self._save_list_as('m3u')
+
+    def _on_save_txt_clicked(self):
+        self._save_list_as('txt')
+
     def _on_hide_invalid_clicked(self):
         """处理隐藏无效项按钮点击事件"""
         tr = self.language_manager.tr
@@ -1314,6 +1381,12 @@ class ScanChannelDialog(QtWidgets.QDialog):
                 self.btn_open_list.setText(tr("open_list", "Open List"))
             if hasattr(self, 'btn_hide_invalid'):
                 self.btn_hide_invalid.setText(tr("hide_invalid_button", "Hide Invalid"))
+            if hasattr(self, 'btn_save_m3u'):
+                self.btn_save_m3u.setText(tr("save_m3u", "Save M3U"))
+                self.btn_save_m3u.setToolTip(tr("save_m3u_tooltip", "Save channel list as M3U format"))
+            if hasattr(self, 'btn_save_txt'):
+                self.btn_save_txt.setText(tr("save_txt", "Save TXT"))
+                self.btn_save_txt.setToolTip(tr("save_txt_tooltip", "Save channel list as TXT format"))
             if hasattr(self, 'btn_scan'):
                 self.btn_scan.setText(tr("full_scan", "Full Scan"))
             if hasattr(self, 'btn_append_scan'):
