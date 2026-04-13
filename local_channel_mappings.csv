@@ -195,7 +195,7 @@ CGTN阿拉伯语,239.21.2.34:5002,https://raw.githubusercontent.com/sumingyd/IPT
 桓台综合,239.21.1.105:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博桓台.png,🏘️ 县级频道,桓台综合,716,0,none,0,,720x576
 高青综合,239.21.2.140:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博高青.png,🏘️ 县级频道,高青综合,717,0,none,0,,720x576
 沂源综合,239.21.1.114:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博沂源.png,🏘️ 县级频道,沂源综合,718,0,none,0,,720x576
-临淄综合,239.21.2.192:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/淄博临淄.png,🏘️ 县级频道,临淄综合,719,0,none,0,,1920x1080
+临淄综合,239.21.2.192:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/临淄综合.png,🏘️ 县级频道,临淄综合,719,0,none,0,,1920x1080
 广饶综合,239.21.1.193:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/东营广饶.png,🏘️ 县级频道,广饶综合,720,0,none,0,,1920x1080
 龙口综合,239.21.2.146:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台龙口.png,🏘️ 县级频道,龙口综合,721,0,none,0,,1920x1080
 招远综合,239.21.2.145:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台招远.png,🏘️ 县级频道,招远综合,722,0,none,0,,1920x1080
@@ -444,10 +444,10 @@ CGTN阿拉伯语,CHANNEL00000356,https://raw.githubusercontent.com/sumingyd/IPTV
 烟台经济,CHANNEL00000282,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png,🏙️ 市级频道,烟台经济,616,0,none,0,,1920x1080
 烟台影视,CHANNEL00000283,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png,🏙️ 市级频道,烟台影视,617,0,none,0,,1920x1080
 烟台公共,CHANNEL00000281,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/烟台.png,🏙️ 市级频道,烟台公共,618,0,none,0,,720x576
-潍坊综合,CHANNEL00000215,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊新闻.png,🏙️ 市级频道,潍坊综合,619,0,none,0,,1920x1080
+潍坊综合,CHANNEL00000215,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊综合.png,🏙️ 市级频道,潍坊综合,619,0,none,0,,1920x1080
 潍坊生活,CHANNEL00000216,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊生活.png,🏙️ 市级频道,潍坊生活,620,0,none,0,,1920x1080
-潍坊公共,CHANNEL00000217,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊影视.png,🏙️ 市级频道,潍坊公共,621,0,none,0,,1920x1080
-潍坊科教,CHANNEL00000218,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊文旅.png,🏙️ 市级频道,潍坊科教,622,0,none,0,,1920x1080
+潍坊公共,CHANNEL00000217,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊公共.png,🏙️ 市级频道,潍坊公共,621,0,none,0,,1920x1080
+潍坊科教,CHANNEL00000218,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊科教.png,🏙️ 市级频道,潍坊科教,622,0,none,0,,1920x1080
 潍坊高新区,CHANNEL00001106,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/潍坊高新.png,🏙️ 市级频道,潍坊高新区,623,0,none,0,,1920x1080
 济宁综合,CHANNEL00000240,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png,🏙️ 市级频道,济宁综合,624,0,none,0,,1920x1080
 济宁生活,CHANNEL00000239,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济宁.png,🏙️ 市级频道,济宁生活,625,0,none,0,,720x576
@@ -576,7 +576,7 @@ CGTN阿拉伯语,CHANNEL00000356,https://raw.githubusercontent.com/sumingyd/IPTV
 山东经济广播,CHANNEL00003001,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东经济广播.png,⏸️ 备用频道,山东经济广播,802,0,none,0,,1920x1080
 山东交通广播,CHANNEL00003002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东交通广播.png,⏸️ 备用频道,山东交通广播,803,0,none,0,,1920x1080
 山东文旅,CHANNEL00000650,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东文旅.png,⏸️ 备用频道,山东文旅,804,0,none,0,,1920x1080
-央广购物,CHANNEL00000704,,⏸️ 备用频道,央广购物,805,0,none,0,,720x576
+央广购物,CHANNEL00000704,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/CCTV/央广购物.png,⏸️ 备用频道,央广购物,805,0,none,0,,720x576
 已停用,CHANNEL00000504,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/停用频道.png,⏸️ 备用频道,已停用,806,0,none,0,,720x576
 已停用,CHANNEL00002021,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/停用频道.png,⏸️ 备用频道,已停用,807,0,none,0,,1920x1080
 已停用,CHANNEL00000654,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/停用频道.png,⏸️ 备用频道,已停用,808,0,none,0,,720x576
