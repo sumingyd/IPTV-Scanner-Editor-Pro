@@ -1362,6 +1362,56 @@ class ScanChannelDialog(QtWidgets.QDialog):
         except Exception as e:
             self.logger.error(f"更新统计信息显示失败: {e}", exc_info=True)
 
+    def closeEvent(self, event):
+        if hasattr(self, 'application') and self.application:
+            if hasattr(self.application, '_scan_dialog'):
+                self.application._scan_dialog = None
+        event.accept()
+
+    def reapply_styles(self):
+        try:
+            self.setStyleSheet(AppStyles.popup_dialog_style())
+            if hasattr(self, 'stats_label'):
+                self.stats_label.setStyleSheet(AppStyles.common_label_style())
+            if hasattr(self, 'left_panel'):
+                self.left_panel.setStyleSheet(AppStyles.side_panel_style())
+            if hasattr(self, 'left_title'):
+                self.left_title.setStyleSheet(AppStyles.section_title_style())
+            if hasattr(self, 'close_btn'):
+                self.close_btn.setStyleSheet(AppStyles.common_button_style())
+            if hasattr(self, 'center_panel'):
+                self.center_panel.setStyleSheet(AppStyles.side_panel_style())
+            if hasattr(self, 'list_title'):
+                self.list_title.setStyleSheet(AppStyles.section_title_style())
+            if hasattr(self, 'right_panel'):
+                self.right_panel.setStyleSheet(AppStyles.side_panel_style())
+            if hasattr(self, 'right_title'):
+                self.right_title.setStyleSheet(AppStyles.section_title_style())
+            for btn in [self.btn_scan, self.btn_append_scan, self.btn_generate,
+                        self.btn_open_list, self.btn_validate, self.btn_hide_invalid,
+                        self.btn_save_m3u, self.btn_save_txt, self.btn_save_channel]:
+                if hasattr(btn, 'setStyleSheet'):
+                    btn.setStyleSheet(AppStyles.common_button_style())
+            if hasattr(self, 'channel_list'):
+                self.channel_list.setStyleSheet(AppStyles.list_style())
+            for label in [self.edit_name_label, self.edit_group_label,
+                          self.edit_url_label, self.edit_tvg_id_label, self.edit_logo_label]:
+                if hasattr(label, 'setStyleSheet'):
+                    label.setStyleSheet(AppStyles.common_label_style())
+            for edit in [self.edit_name, self.edit_group, self.edit_url,
+                         self.edit_tvg_id, self.edit_logo]:
+                if hasattr(edit, 'setStyleSheet'):
+                    edit.setStyleSheet(AppStyles.common_line_edit_style())
+            if hasattr(self, 'address_example_label'):
+                self.address_example_label.setStyleSheet(AppStyles.hint_label_style())
+            if hasattr(self, 'ua_label'):
+                self.ua_label.setStyleSheet(AppStyles.small_label_style())
+            if hasattr(self, 'ref_label'):
+                self.ref_label.setStyleSheet(AppStyles.small_label_style())
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                self.logger.error(f"重新应用扫描窗口样式失败: {e}")
+
     def update_ui_texts(self):
         """语言切换时更新UI文本"""
         try:

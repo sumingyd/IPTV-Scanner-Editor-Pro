@@ -3405,6 +3405,7 @@ class IPTVPlayer(QMainWindow):
             dialog.application = self
             dialog.config = self.config
             dialog.language_manager = self.language_manager
+            self._scan_dialog = dialog
             dialog.show()
             
             logger.info("成功打开扫描界面")
@@ -4263,6 +4264,9 @@ class IPTVPlayer(QMainWindow):
                 combo.setStyleSheet(AppStyles.player_group_combo_style())
             for list_widget in self.findChildren(QListWidget):
                 list_widget.setStyleSheet(AppStyles.player_list_style())
+            if hasattr(self, '_scan_dialog') and self._scan_dialog:
+                if hasattr(self._scan_dialog, 'reapply_styles'):
+                    self._scan_dialog.reapply_styles()
         except Exception as e:
             logger.error(f"重新应用样式失败: {e}")
 
