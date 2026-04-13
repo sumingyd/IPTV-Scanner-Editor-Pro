@@ -12,7 +12,7 @@ from ..floating_dialog import FloatingDialog
 class AboutDialog(FloatingDialog):
     CURRENT_VERSION = "44.0.0.0"
     DEFAULT_VERSION = None
-    BUILD_DATE = "2026-04-12"
+    BUILD_DATE = "2026-04-13"
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -131,7 +131,7 @@ class AboutDialog(FloatingDialog):
         bottom_layout = QtWidgets.QHBoxLayout()
         bottom_layout.setSpacing(12)
 
-        self.copyright_label = QtWidgets.QLabel(tr("copyright_text", "© 2025 IPTV Scanner Editor Pro"))
+        self.copyright_label = QtWidgets.QLabel(tr("copyright_text", "© 2025-2026 IPTV Scanner Editor Pro"))
         self.copyright_label.setStyleSheet(f"font-size: 10px; color: {c['player_panel_secondary']}; background-color: transparent;")
 
         github_link = QtWidgets.QLabel()
