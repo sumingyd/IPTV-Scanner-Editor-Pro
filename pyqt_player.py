@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QFrame, QToolButton, QSlider, QGridLayout, QComboBox, QLabel as QtWidgets_QLabel
 )
 from PyQt6 import QtWidgets
-from PyQt6.QtCore import Qt, QSize, QTimer, QUrl
+from PyQt6.QtCore import Qt, QSize, QTimer, QUrl, QThread, pyqtSlot, QMetaObject
 from PyQt6.QtGui import QIcon, QPixmap, QFont, QColor, QAction, QPainter, QBrush, QKeySequence, QShortcut
 
 # 导入日志管理器
@@ -2426,9 +2426,18 @@ class IPTVPlayer(QMainWindow):
     
     def on_play_state_changed(self, is_playing):
         """播放状态改变时的处理"""
-        # 确保在主线程中执行
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(0, self, lambda: self._handle_play_state_change(is_playing))
+        if QThread.currentThread() != self.thread():
+            self._pending_play_state = is_playing
+            QMetaObject.invokeMethod(self, "_do_handle_play_state_change", Qt.ConnectionType.QueuedConnection)
+        else:
+            self._handle_play_state_change(is_playing)
+
+    @pyqtSlot()
+    def _do_handle_play_state_change(self):
+        is_playing = getattr(self, '_pending_play_state', False)
+        if hasattr(self, '_pending_play_state'):
+            delattr(self, '_pending_play_state')
+        self._handle_play_state_change(is_playing)
     
     def _handle_play_state_change(self, is_playing):
         tr = self.language_manager.tr
@@ -3599,7 +3608,6 @@ class IPTVPlayer(QMainWindow):
     
     def update_playlist_subscription(self):
         """更新列表订阅 - 线程安全版本"""
-        from PyQt6.QtCore import QThread, QTimer
         try:
             global CHANNELS
 
@@ -3661,42 +3669,68 @@ class IPTVPlayer(QMainWindow):
                 logger.info(f"列表订阅更新成功，共 {len(CHANNELS)} 个频道")
 
                 if QThread.currentThread() != self.thread():
-                    QTimer.singleShot(0, self, lambda: self._on_playlist_updated_in_main_thread(
-                        self.language_manager.tr("playlist_sub_updated", "Playlist subscription updated")
-                    ))
+                    self._pending_update_message = self.language_manager.tr("playlist_sub_updated", "Playlist subscription updated")
+                    QMetaObject.invokeMethod(self, "_do_on_playlist_updated_in_main_thread", Qt.ConnectionType.QueuedConnection)
                 else:
                     self._update_channel_list_ui()
                     self.status_bar.showMessage(self.language_manager.tr("playlist_sub_updated", "Playlist subscription updated"))
             else:
                 logger.error("列表订阅内容解析失败")
                 if QThread.currentThread() != self.thread():
-                    QTimer.singleShot(0, self, lambda: self.status_bar.showMessage(
-                        self.language_manager.tr("playlist_sub_parse_failed", "Playlist subscription parse failed")
-                    ))
+                    self._pending_status_msg = self.language_manager.tr("playlist_sub_parse_failed", "Playlist subscription parse failed")
+                    QMetaObject.invokeMethod(self, "_do_show_status_message", Qt.ConnectionType.QueuedConnection)
                 else:
                     self.status_bar.showMessage(self.language_manager.tr("playlist_sub_parse_failed", "Playlist subscription parse failed"))
         except Exception as ex:
             logger.error(f"更新列表订阅失败: {str(ex)}")
             if QThread.currentThread() != self.thread():
-                QTimer.singleShot(0, self, lambda: self.status_bar.showMessage(
-                    f"{self.language_manager.tr('playlist_sub_update_failed', 'Failed to update playlist subscription')}: {str(ex)}"
-                ))
+                self._pending_status_msg = f"{self.language_manager.tr('playlist_sub_update_failed', 'Failed to update playlist subscription')}: {str(ex)}"
+                QMetaObject.invokeMethod(self, "_do_show_status_message", Qt.ConnectionType.QueuedConnection)
             else:
                 self.status_bar.showMessage(f"{self.language_manager.tr('playlist_sub_update_failed', 'Failed to update playlist subscription')}: {str(ex)}")
 
-    def _on_playlist_updated_in_main_thread(self, message):
+    @pyqtSlot()
+    def _do_on_playlist_updated_in_main_thread(self):
         """在主线程中处理订阅更新完成后的UI操作"""
         try:
-            logger.info(f"_on_playlist_updated_in_main_thread: 开始更新UI, CHANNELS数量={len(CHANNELS)}")
+            message = getattr(self, '_pending_update_message', '')
+            if hasattr(self, '_pending_update_message'):
+                delattr(self, '_pending_update_message')
+            logger.info(f"_do_on_playlist_updated_in_main_thread: 开始更新UI, CHANNELS数量={len(CHANNELS)}")
             self._update_channel_list_ui()
             self.status_bar.showMessage(message)
-            logger.info("_on_playlist_updated_in_main_thread: UI更新完成")
+            logger.info("_do_on_playlist_updated_in_main_thread: UI更新完成")
         except Exception as ex:
             logger.error(f"在主线程更新UI失败: {ex}")
-    
+
+    @pyqtSlot()
+    def _do_show_status_message(self):
+        msg = getattr(self, '_pending_status_msg', '')
+        if hasattr(self, '_pending_status_msg'):
+            delattr(self, '_pending_status_msg')
+        if self.status_bar:
+            self.status_bar.showMessage(msg)
+
+    @pyqtSlot()
+    def _do_show_status_bar_message(self):
+        msg = getattr(self, '_pending_status_bar_msg', '')
+        if hasattr(self, '_pending_status_bar_msg'):
+            delattr(self, '_pending_status_bar_msg')
+        self.status_bar_show_message(msg)
+
+    @pyqtSlot()
+    def _do_on_epg_cache(self):
+        self.epg_list_updated.emit()
+        self.status_bar_show_message(self.language_manager.tr("epg_using_cache", "Using cached EPG data"))
+
+    @pyqtSlot()
+    def _do_on_epg_success(self):
+        self.epg_list_updated.emit()
+        self.status_bar_show_message(self.language_manager.tr("epg_sub_updated", "EPG subscription updated"))
+
     def update_epg_subscription(self):
         """更新节目单订阅 - 线程安全版本"""
-        from PyQt6.QtCore import QThread, QTimer
+        from PyQt6.QtCore import QTimer
         try:
             global EPG_DATA
 
@@ -3722,14 +3756,10 @@ class IPTVPlayer(QMainWindow):
                 self.config.save_config()
                 logger.info(f"节目单订阅更新成功，共 {len(EPG_DATA)} 个频道的节目单，已使用最新数据")
 
-                def _on_epg_success():
-                    self.epg_list_updated.emit()
-                    self.status_bar_show_message(self.language_manager.tr("epg_sub_updated", "EPG subscription updated"))
-
                 if QThread.currentThread() != self.thread():
-                    QTimer.singleShot(0, _on_epg_success)
+                    QMetaObject.invokeMethod(self, "_do_on_epg_success", Qt.ConnectionType.QueuedConnection)
                 else:
-                    _on_epg_success()
+                    self._do_on_epg_success()
             else:
                 if global_epg_parser.epg_data:
                     EPG_DATA = global_epg_parser.epg_data
@@ -3740,23 +3770,21 @@ class IPTVPlayer(QMainWindow):
                         self.status_bar_show_message(self.language_manager.tr("epg_using_cache", "Using cached EPG data"))
 
                     if QThread.currentThread() != self.thread():
-                        QTimer.singleShot(0, _on_epg_cache)
+                        QMetaObject.invokeMethod(self, "_do_on_epg_cache", Qt.ConnectionType.QueuedConnection)
                     else:
-                        _on_epg_cache()
+                        self._do_on_epg_cache()
                 else:
                     logger.error("节目单订阅内容解析失败")
                     if QThread.currentThread() != self.thread():
-                        QTimer.singleShot(0, self, lambda: self.status_bar_show_message(
-                            self.language_manager.tr("epg_sub_parse_failed", "EPG subscription parse failed")
-                        ))
+                        self._pending_status_bar_msg = self.language_manager.tr("epg_sub_parse_failed", "EPG subscription parse failed")
+                        QMetaObject.invokeMethod(self, "_do_show_status_bar_message", Qt.ConnectionType.QueuedConnection)
                     else:
                         self.status_bar.show_message(self.language_manager.tr("epg_sub_parse_failed", "EPG subscription parse failed"))
         except Exception as ex:
             logger.error(f"更新节目单订阅失败: {str(ex)}")
             if QThread.currentThread() != self.thread():
-                QTimer.singleShot(0, self, lambda: self.status_bar_show_message(
-                    f"{self.language_manager.tr('epg_sub_update_failed', 'Failed to update EPG subscription')}: {str(ex)}"
-                ))
+                self._pending_status_bar_msg = f"{self.language_manager.tr('epg_sub_update_failed', 'Failed to update EPG subscription')}: {str(ex)}"
+                QMetaObject.invokeMethod(self, "_do_show_status_bar_message", Qt.ConnectionType.QueuedConnection)
             else:
                 self.status_bar_show_message(f"{self.language_manager.tr('epg_sub_update_failed', 'Failed to update EPG subscription')}: {str(ex)}")
     
@@ -4400,10 +4428,13 @@ class IPTVPlayer(QMainWindow):
 
     def _check_for_updates_async(self):
         """异步检查新版本"""
-        from PyQt6.QtCore import QThread, QTimer
         if QThread.currentThread() != self.thread():
-            QTimer.singleShot(0, self._check_for_updates_async)
+            QMetaObject.invokeMethod(self, "_do_check_for_updates_async", Qt.ConnectionType.QueuedConnection)
             return
+        self._do_check_for_updates_async()
+
+    @pyqtSlot()
+    def _do_check_for_updates_async(self):
         # 检查是否已在检查或已检查过
         if hasattr(self, '_update_checking') and self._update_checking:
             return
@@ -4537,7 +4568,6 @@ class IPTVPlayer(QMainWindow):
             self.status_bar.setStyleSheet(AppStyles.statusbar_error_style())
 
             # 10秒后恢复状态栏样式
-            from PyQt6.QtCore import QMetaObject, Qt
             QMetaObject.invokeMethod(self, "_reset_statusbar_style", Qt.ConnectionType.QueuedConnection)
 
             logger.info(f"发现新版本: {latest_version} (当前版本: {current_version})")
