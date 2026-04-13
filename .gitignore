@@ -186,6 +186,7 @@ iptv_manager.log
 config.ini
 
 # 缓存文件
+cache/
 channel_fingerprints.json
 channel_mappings_cache.json
 epg_cache/
