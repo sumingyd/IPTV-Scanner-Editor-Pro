@@ -157,8 +157,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
         """初始化用户界面"""
         tr = self.language_manager.tr
         self.setWindowTitle(tr("scan_window_title", "IPTV Scanner"))
-        import os
-        ico_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'resources', 'logo.ico')
+        from utils.general_utils import get_icon_path
+        ico_path = get_icon_path()
         if os.path.exists(ico_path):
             from PyQt6.QtGui import QIcon
             self.setWindowIcon(QIcon(ico_path))
@@ -1211,7 +1211,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
     def _save_list_as(self, fmt: str):
         tr = self.language_manager.tr
         if not self.model or self.model.rowCount() == 0:
-            self.logger.warning(tr("no_channels_to_save", "No channels to save"))
+            self.logger.warning(str(tr("no_channels_to_save", "No channels to save")))
             return
 
         if fmt == 'm3u':
