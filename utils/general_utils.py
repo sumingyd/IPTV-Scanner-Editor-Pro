@@ -18,6 +18,15 @@ def get_resource_path(relative_path: str) -> str:
     return os.path.join(base_path, relative_path)
 
 
+def get_icon_path() -> str:
+    """获取程序图标logo.ico的绝对路径（兼容PyInstaller打包和开发环境）"""
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, 'resources', 'logo.ico')
+
+
 def get_project_root() -> str:
     """获取项目根目录"""
     if getattr(sys, 'frozen', False):
