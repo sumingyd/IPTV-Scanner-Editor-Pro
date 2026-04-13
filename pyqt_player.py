@@ -3401,7 +3401,10 @@ class IPTVPlayer(QMainWindow):
             from PyQt6.QtCore import Qt
             
             # 创建扫描窗口，传递parent参数
-            dialog = ScanChannelDialog(self)
+            dialog = ScanChannelDialog()
+            dialog.application = self
+            dialog.config = self.config
+            dialog.language_manager = self.language_manager
             dialog.show()
             
             logger.info("成功打开扫描界面")

@@ -156,14 +156,13 @@ class ScanChannelDialog(QtWidgets.QDialog):
     def _init_ui(self):
         """初始化用户界面"""
         tr = self.language_manager.tr
-        # 设置窗口属性，与 AboutDialog 的实现一致
-        self.setWindowTitle("")
-        # 设置为工具窗口，无边框
-        self.setWindowFlags(
-            QtCore.Qt.WindowType.FramelessWindowHint |
-            QtCore.Qt.WindowType.Tool |
-            QtCore.Qt.WindowType.WindowStaysOnTopHint
-        )
+        self.setWindowTitle(tr("scan_window_title", "IPTV Scanner"))
+        import os
+        ico_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'resources', 'logo.ico')
+        if os.path.exists(ico_path):
+            from PyQt6.QtGui import QIcon
+            self.setWindowIcon(QIcon(ico_path))
+        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Window)
         # 设置透明背景，实现圆角窗口效果
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
         # 确保窗口可以接收鼠标事件
