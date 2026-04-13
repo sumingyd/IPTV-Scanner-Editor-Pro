@@ -34,6 +34,7 @@ PYINSTALLER_CMD = [
     "--name", "IPTV Scanner Editor Pro",  # 应用名称
     "--icon", str(PROJECT_ROOT / "resources" / "logo.ico"),
     "--add-data", f"{PROJECT_ROOT / 'mpv'};mpv",
+    "--add-data", f"{PROJECT_ROOT / 'resources'};resources",
     "--hidden-import", "PyQt6.QtNetwork",  # 隐藏导入
     "--hidden-import", "PyQt6.QtWidgets",  # 隐藏导入
     "--hidden-import", "PyQt6.QtCore",  # 隐藏导入
