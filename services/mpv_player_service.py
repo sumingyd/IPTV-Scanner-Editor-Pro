@@ -541,6 +541,9 @@ class MpvPlayerController(QObject):
 
     def stop(self):
         try:
+            # 记录是否真正在播放，用于决定是否记录日志
+            was_playing = self.is_playing or self.current_url
+
             if self.mpv_handle:
                 cmd = [b'stop', None]
                 cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
@@ -560,7 +563,9 @@ class MpvPlayerController(QObject):
             if hasattr(self, 'event_timer') and self.event_timer:
                 self.event_timer.stop()
 
-            self.logger.info("停止播放")
+            # 只在之前有播放活动时才记录日志，避免关闭程序时的无效日志
+            if was_playing:
+                self.logger.info("停止播放")
         except Exception as e:
             self.logger.error(f"停止播放失败: {str(e)}")
 

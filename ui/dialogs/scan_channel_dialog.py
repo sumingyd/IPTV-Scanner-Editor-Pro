@@ -1097,19 +1097,36 @@ class ScanChannelDialog(QtWidgets.QDialog):
         else:
             log_scan_info("开始追加扫描，保留现有列表")
 
-        # 从配置读取超时时间（默认10秒），不再硬编码3秒
-        scan_timeout = 10
+        # 智能两阶段扫描策略
+        # 第一阶段：快速扫描（5秒超时），快速筛选有效频道
+        # 第二阶段：对失败的URL自动重试（15秒超时），提高检出率
+        scan_timeout_phase1 = 5  # 第一阶段快速超时
+
+        # 智能动态线程数：5-8线程范围
+        # 根据CPU核心数和内存情况自适应，但限制在安全范围内避免mpv句柄污染
+        cpu_count = os.cpu_count() or 4
+        if cpu_count <= 2:
+            scan_threads = 5  # 低配机器用5线程
+        elif cpu_count <= 4:
+            scan_threads = 6  # 中等配置用6线程
+        elif cpu_count <= 8:
+            scan_threads = 7  # 高配机器用7线程
+        else:
+            scan_threads = 8  # 顶级配置最多8线程
+
+        self.logger.debug(f"智能线程数: CPU={cpu_count}核, 使用{scan_threads}线程")
+
         try:
             if hasattr(self, 'config') and self.config:
                 network_settings = self.config.load_network_settings()
                 configured_timeout = network_settings.get('timeout', 30)
                 if configured_timeout and configured_timeout > 0:
-                    # 配置值单位是秒，合理范围3-60秒
-                    scan_timeout = max(3, min(60, int(configured_timeout)))
+                    # 配置值作为参考，实际使用优化后的两阶段策略
+                    scan_timeout_phase1 = max(3, min(10, int(configured_timeout) // 2))
         except Exception as e:
             self.logger.debug(f"读取超时配置失败，使用默认值: {e}")
 
-        self.scanner.start_scan(url, get_optimal_thread_count(), scan_timeout)
+        self.scanner.start_scan(url, scan_threads, scan_timeout_phase1)
 
         if clear_list:
             self._set_scan_button_text('stop_scan', '停止扫描')
@@ -1656,27 +1673,51 @@ class ScanChannelDialog(QtWidgets.QDialog):
         return count
 
     def _start_retry_scan(self):
-        """启动重试扫描"""
+        """启动重试扫描 - 第二阶段深度扫描"""
         if not hasattr(self, 'scanner') or self.scanner is None:
             log_ui_error("扫描器未初始化，无法启动重试扫描")
             return
-        self.logger.debug("启动重试扫描...")
-        
+        self.logger.debug("启动重试扫描（第二阶段深度扫描）...")
+
         # 从扫描状态管理器获取失败的频道
         failed_channels = self.scan_state_manager.get_failed_channels(self.retry_id)
-        
+
         if not failed_channels:
             self.logger.debug("没有失败的频道需要重试")
             return
-        
+
         # 直接使用failed_channels作为retry_urls，因为它们都是URL字符串的列表
         retry_urls = failed_channels
-        
-        # 启动扫描
+
+        # 第二阶段使用更长的超时时间（15秒），提高慢速频道的检出率
+        retry_timeout = 15
+        try:
+            if hasattr(self, 'config') and self.config:
+                network_settings = self.config.load_network_settings()
+                configured_timeout = network_settings.get('timeout', 30)
+                if configured_timeout and configured_timeout > 0:
+                    retry_timeout = max(10, min(30, int(configured_timeout)))
+        except Exception:
+            pass
+
+        self.logger.info(f"第二阶段深度扫描: {len(retry_urls)} 个URL, 超时={retry_timeout}秒")
+
+        # 使用与第一阶段相同的智能线程数
+        cpu_count = os.cpu_count() or 4
+        if cpu_count <= 2:
+            retry_threads = 5
+        elif cpu_count <= 4:
+            retry_threads = 6
+        elif cpu_count <= 8:
+            retry_threads = 7
+        else:
+            retry_threads = 8
+
+        # 启动深度重试扫描
         self.scanner.start_scan_from_urls(
             retry_urls,
-            get_optimal_thread_count(),
-            3
+            retry_threads,
+            retry_timeout
         )
         
         # 更新按钮文本

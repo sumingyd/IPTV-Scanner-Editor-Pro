@@ -116,6 +116,9 @@ class ScannerController(QObject):
                     else:
                         self.stats['invalid'] += 1
                         error_type = result.get('error_type') or 'unknown_error'
+                        # 每50个无效URL记录一次日志，避免日志过多
+                        if self.stats['invalid'] % 50 == 1:
+                            self.logger.debug(f"扫描进度: 有效={self.stats['valid']}, 无效={self.stats['invalid']}, 最新错误类型={error_type}")
                         with self.invalid_urls_lock:
                             self.invalid_urls.append({
                                 'url': url,
@@ -849,6 +852,19 @@ class ScannerController(QObject):
                     f"有效={self.stats['valid']}, "
                     f"无效={self.stats['invalid']}"
                 )
+
+                # 统计错误类型分布，帮助诊断问题
+                if self.invalid_urls:
+                    from collections import Counter
+                    error_types = [item.get('error_type', 'unknown') for item in self.invalid_urls]
+                    error_counts = Counter(error_types)
+                    top_errors = error_counts.most_common(5)
+                    error_summary = ", ".join([f"{err}({cnt})" for err, cnt in top_errors])
+                    self.logger.info(f"无效URL错误类型分布（前5）: {error_summary}")
+                    if 'timeout' in error_counts:
+                        self.logger.warning(f"⚠️ 有 {error_counts['timeout']} 个URL因超时被标记为无效，考虑增加超时时间")
+                    if 'mpv_create_failed' in error_counts:
+                        self.logger.error(f"❌ 有 {error_counts['mpv_create_failed']} 个mpv实例创建失败，可能是资源不足")
 
                 # 直接调用主窗口的方法
                 try:

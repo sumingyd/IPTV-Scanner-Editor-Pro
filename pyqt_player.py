@@ -1088,15 +1088,22 @@ class IPTVPlayer(QMainWindow):
         self._check_for_updates_async()
     
     def _populate_channel_list(self):
-        """填充频道列表"""
+        """填充频道列表（带防重复机制）"""
+        # 防止短时间内重复调用（500ms内只执行一次）
+        current_time = time.time()
+        if hasattr(self, '_last_populate_time') and current_time - self._last_populate_time < 0.5:
+            logger.debug(f"_populate_channel_list: 跳过重复调用（距上次{current_time - self._last_populate_time:.2f}秒）")
+            return
+        self._last_populate_time = current_time
+
         logger.debug("_populate_channel_list: 开始")
-        
+
         # 填充频道列表
         self.populate_channel_list()
-        
+
         # 填充 EPG 列表
         self._populate_epg_list()
-        
+
         logger.debug("_populate_channel_list: 完成")
     
     def _populate_epg_list(self):
@@ -3441,15 +3448,15 @@ class IPTVPlayer(QMainWindow):
             # 导入扫描窗口模块
             from ui.dialogs.scan_channel_dialog import ScanChannelDialog
             from PyQt6.QtCore import Qt
-            
-            # 创建扫描窗口，传递parent参数
-            dialog = ScanChannelDialog()
-            dialog.application = self
+
+            # 创建扫描窗口，必须传递parent参数（主窗口self）
+            # 这样scan_dialog.parent()才能返回主窗口，双击播放功能才能正常工作
+            dialog = ScanChannelDialog(self)
             dialog.config = self.config
             dialog.language_manager = self.language_manager
             self._scan_dialog = dialog
             dialog.show()
-            
+
             logger.info("成功打开扫描界面")
         except Exception as ex:
             logger.error(f"打开扫描界面失败: {str(ex)}")
