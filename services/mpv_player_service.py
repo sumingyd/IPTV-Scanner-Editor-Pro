@@ -578,8 +578,17 @@ class MpvPlayerController(QObject):
                 if result < 0:
                     self.logger.error(f"切换暂停状态失败: {result}")
                 else:
+                    was_paused = self.is_paused
                     self.is_paused = not self.is_paused
                     self.is_playing = not self.is_paused
+                    
+                    if self.is_paused:
+                        # 暂停：mpv会保持连接并继续缓冲数据
+                        self.logger.info("播放已暂停（继续缓冲中）")
+                    else:
+                        # 恢复播放
+                        self.logger.info("恢复播放")
+                    
                     self.play_state_changed.emit(self.is_playing)
         except Exception as e:
             self.logger.error(f"暂停播放失败: {str(e)}")

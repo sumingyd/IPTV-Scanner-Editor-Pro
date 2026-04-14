@@ -1008,7 +1008,7 @@ class IPTVPlayer(QMainWindow):
         # 7.6 画面比例按钮
         self.aspect_button = QToolButton()
         self.aspect_button.setText("📐")
-        self.aspect_button.setFixedSize(28, 26)
+        self.aspect_button.setFixedSize(48, 26)  # 增大宽度以完整显示"16:9"等比例文字
         self.aspect_button.setStyleSheet(AppStyles.player_button_style())
         self.aspect_button.clicked.connect(self._cycle_aspect_ratio)
         self.control_row.addWidget(self.aspect_button)
@@ -1976,6 +1976,14 @@ class IPTVPlayer(QMainWindow):
                 self.program_progress.setValue(0)
                 logger.debug("play_catchup: 新回看节目，重置进度条为0")
             
+            # 进入回看时重置倍速到1.0x
+            if hasattr(self, 'speed_button') and self.player_controller:
+                current_speed = self.player_controller.get_speed()
+                if abs(current_speed - 1.0) > 0.01:
+                    self.player_controller.set_speed(1.0)
+                    self.speed_button.setText("1.0x")
+                    logger.debug("play_catchup: 进入回看，重置倍速到1.0x")
+            
             # 播放回看
             self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
             # 添加退出回看按钮
@@ -2447,6 +2455,15 @@ class IPTVPlayer(QMainWindow):
                 self._connection_preheater.preheat(url)
 
                 next_urls = self._get_next_channel_urls(channel)
+                
+                # 切换频道时重置倍速到1.0x
+                if hasattr(self, 'speed_button') and self.player_controller:
+                    current_speed = self.player_controller.get_speed()
+                    if abs(current_speed - 1.0) > 0.01:
+                        self.player_controller.set_speed(1.0)
+                        self.speed_button.setText("1.0x")
+                        logger.debug("play_channel: 重置倍速到1.0x")
+                
                 if next_urls:
                     self.player_controller.play_with_prefetch(url, next_urls)
                 else:
@@ -3205,6 +3222,14 @@ class IPTVPlayer(QMainWindow):
                                 # 计算进度：开始进度 + (经过时间 / 总时长) * 100
                                 progress_increment = (elapsed_seconds / total_duration) * 100
                                 progress_value = min(int(self._catchup_start_progress + progress_increment), 100)
+                                
+                                # 追上直播时自动恢复1.0x倍速
+                                if progress_value >= 98 and hasattr(self, 'speed_button') and self.player_controller:
+                                    current_speed = self.player_controller.get_speed()
+                                    if abs(current_speed - 1.0) > 0.01:
+                                        self.player_controller.set_speed(1.0)
+                                        self.speed_button.setText("1.0x")
+                                        logger.info("回看已追上直播，自动恢复倍速到1.0x")
                                 
                                 self.program_progress.setValue(progress_value)
                                 logger.debug(f"回看进度条模拟更新: {progress_value}% (开始: {self._catchup_start_progress}%，经过: {elapsed_seconds:.1f}s，增量: {progress_increment:.2f}%)")
