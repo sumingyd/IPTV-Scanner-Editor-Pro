@@ -1807,28 +1807,53 @@ class IPTVPlayer(QMainWindow):
         url = catchup_source
 
         def format_time(dt, fmt):
+            # 支持时区标识符：|utc |local :utc :local
+            timezone = None
+            base_fmt = fmt
+
+            if '|utc' in fmt.lower() or ':utc' in fmt.lower():
+                timezone = 'utc'
+                base_fmt = re.split(r'[|:]', fmt)[0]
+            elif '|local' in fmt.lower() or ':local' in fmt.lower():
+                timezone = 'local'
+                base_fmt = re.split(r'[|:]', fmt)[0]
+            
+            # 根据时区选择时间对象
+            target_dt = dt
+            if timezone == 'utc':
+                # 转换为UTC时间（减去本地时区偏移）
+                import datetime as dt_module
+                if dt.tzinfo is None:
+                    # 本地时间转UTC
+                    utc_offset = dt_module.datetime.now() - dt_module.datetime.utcnow()
+                    target_dt = dt - utc_offset
+                else:
+                    target_dt = dt.astimezone(dt_module.timezone.utc)
+            elif timezone == 'local':
+                target_dt = dt
+            
             fmt_map = {
-                'yyyy': dt.strftime('%Y'),
-                'yy': dt.strftime('%y'),
-                'MM': dt.strftime('%m'),
-                'dd': dt.strftime('%d'),
-                'HH': dt.strftime('%H'),
-                'mm': dt.strftime('%M'),
-                'ss': dt.strftime('%S'),
-                'yyyyMMddHHmmss': dt.strftime('%Y%m%d%H%M%S'),
-                'yyyyMMddHHmm': dt.strftime('%Y%m%d%H%M'),
-                'yyyyMMdd': dt.strftime('%Y%m%d'),
-                'HHmmss': dt.strftime('%H%M%S'),
-                'HHmm': dt.strftime('%H%M'),
-                'yyyy-MM-dd': dt.strftime('%Y-%m-%d'),
-                'yyyy-MM-ddTHH:mm:ss': dt.strftime('%Y-%m-%dT%H:%M:%S'),
-                'yyyy-MM-dd HH:mm:ss': dt.strftime('%Y-%m-%d %H:%M:%S'),
-                'unix': str(int(dt.timestamp())),
-                'unix_ms': str(int(dt.timestamp() * 1000)),
-                '10': str(int(dt.timestamp())),
-                '13': str(int(dt.timestamp() * 1000)),
+                'yyyy': target_dt.strftime('%Y'),
+                'yy': target_dt.strftime('%y'),
+                'MM': target_dt.strftime('%m'),
+                'dd': target_dt.strftime('%d'),
+                'HH': target_dt.strftime('%H'),
+                'mm': target_dt.strftime('%M'),
+                'ss': target_dt.strftime('%S'),
+                'yyyyMMddHHmmss': target_dt.strftime('%Y%m%d%H%M%S'),
+                'yyyyMMddHHmm': target_dt.strftime('%Y%m%d%H%M'),
+                'yyyyMMdd': target_dt.strftime('%Y%m%d'),
+                'HHmmss': target_dt.strftime('%H%M%S'),
+                'HHmm': target_dt.strftime('%H%M'),
+                'yyyy-MM-dd': target_dt.strftime('%Y-%m-%d'),
+                'yyyy-MM-ddTHH:mm:ss': target_dt.strftime('%Y-%m-%dT%H:%M:%S'),
+                'yyyy-MM-dd HH:mm:ss': target_dt.strftime('%Y-%m-%d %H:%M:%S'),
+                'unix': str(int(target_dt.timestamp())),
+                'unix_ms': str(int(target_dt.timestamp() * 1000)),
+                '10': str(int(target_dt.timestamp())),
+                '13': str(int(target_dt.timestamp() * 1000)),
             }
-            return fmt_map.get(fmt, dt.strftime(fmt))
+            return fmt_map.get(base_fmt, target_dt.strftime(base_fmt))
 
         def replace_braced_vars(url, dt, prefix):
             for m in re.finditer(r'\$\{\(' + re.escape(prefix) + r'\)([^}]+)\}', url):
