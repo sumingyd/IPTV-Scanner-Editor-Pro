@@ -12,7 +12,8 @@ from PyQt6.QtWidgets import (
     QFrame, QToolButton, QSlider, QGridLayout, QComboBox, QLabel as QtWidgets_QLabel
 )
 from PyQt6 import QtWidgets
-from PyQt6.QtCore import Qt, QSize, QTimer, QUrl, QThread, pyqtSlot, QMetaObject
+from PyQt6.QtCore import Qt, QSize, QTimer, QUrl, QThread, pyqtSlot, QMetaObject, QPoint
+from PyQt6 import QtCore
 from PyQt6.QtGui import QIcon, QPixmap, QFont, QColor, QAction, QPainter, QBrush, QKeySequence, QShortcut
 
 # 导入日志管理器
@@ -54,6 +55,11 @@ class IPTVPlayer(QMainWindow):
         logger.debug("开始初始化 IPTVPlayer（最小化）")
         super().__init__()
         logger.debug("设置窗口属性")
+
+        # 窗口拖动相关变量
+        self._dragging = False
+        self._drag_offset = None
+
         # 配置管理器
         from core.config_manager import ConfigManager
         self.config = ConfigManager()
@@ -65,19 +71,20 @@ class IPTVPlayer(QMainWindow):
         self.language_manager.load_available_languages()
         saved_language = self.config.load_language_settings()
         self.language_manager.set_language(saved_language)
-        
+
         # 获取当前版本号并设置窗口标题
         from ui.dialogs.about_dialog import AboutDialog
         current_version = AboutDialog.CURRENT_VERSION
-        self.setWindowTitle(f"{self.language_manager.tr('app_title', 'IPTV Scanner Editor Pro')} v{current_version}")
-        
+        self._window_title = f"{self.language_manager.tr('app_title', 'IPTV Scanner Editor Pro')} v{current_version}"
+        self.setWindowTitle(self._window_title)
+
         # 设置窗口图标
         from PyQt6.QtGui import QIcon
         from utils.general_utils import get_icon_path
         ico_path = get_icon_path()
         if os.path.exists(ico_path):
             self.setWindowIcon(QIcon(ico_path))
-        
+
         # 加载窗口布局（包括位置和大小）
         x, y, width, height, _ = self.config.load_window_layout(
             default_x=100,
@@ -144,12 +151,34 @@ class IPTVPlayer(QMainWindow):
         
         # 创建最最基本的UI，只为了显示黑色背景的窗口
         logger.debug("创建最最基本的UI")
-        self.central_widget = QWidget()
-        self.central_widget.setStyleSheet(AppStyles.player_background_style())
-        self.setCentralWidget(self.central_widget)
-        self.main_layout = QVBoxLayout(self.central_widget)
+
+        # 设置无边框窗口（使用自定义标题栏）
+        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Window)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setMouseTracking(True)
+
+        # 创建主容器（用于实现圆角和背景色）
+        self._main_container = QWidget()
+        self._main_container.setObjectName("mainContainer")
+        self.setCentralWidget(self._main_container)
+
+        # 主布局
+        self.main_layout = QVBoxLayout(self._main_container)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
+
+        # 创建自定义标题栏
+        self._create_custom_title_bar()
+
+        # 内容区域（后续所有UI组件都放在这里）
+        self.central_widget = QWidget()
+        self.central_widget.setStyleSheet(AppStyles.player_background_style())
+        self.central_widget.setObjectName("contentArea")
+        self.main_layout.addWidget(self.central_widget)
+
+        self.content_layout = QVBoxLayout(self.central_widget)
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
+        self.content_layout.setSpacing(0)
         
         logger.debug("IPTVPlayer（最小化）初始化完成")
         
@@ -160,8 +189,6 @@ class IPTVPlayer(QMainWindow):
             default_width=1280,
             default_height=780
         )
-        # 增加 Y 坐标 30 像素，以补偿标题栏高度
-        y += 30
         self.setGeometry(x, y, width, height)
         
         # 设置主窗口样式
@@ -178,6 +205,165 @@ class IPTVPlayer(QMainWindow):
         
         # 执行初始化流程
         self._initialize_in_order()
+
+    def _create_custom_title_bar(self):
+        """创建自定义标题栏（与主题颜色一致）"""
+        from PyQt6.QtWidgets import QLabel, QPushButton, QHBoxLayout
+        from PyQt6.QtCore import Qt
+
+        # 获取当前主题颜色
+        colors = AppStyles._get_colors()
+        title_bg = colors.get('window', '#1e1e1e')
+        title_text = colors.get('window_text', '#ffffff')
+        accent_color = colors.get('accent', '#0078d4')
+
+        # 标题栏容器
+        self._title_bar = QWidget()
+        self._title_bar.setFixedHeight(32)
+        self._title_bar.setObjectName("titleBar")
+        self._title_bar.setStyleSheet(f"""
+            QWidget#titleBar {{
+                background-color: {title_bg};
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;
+            }}
+            QWidget#titleBar > QPushButton {{
+                background-color: transparent;
+                color: {title_text};
+                border: none;
+                font-size: 14px;
+                padding: 4px 12px;
+                margin: 2px;
+                border-radius: 4px;
+            }}
+            QWidget#titleBar > QPushButton:hover {{
+                background-color: {accent_color};
+            }}
+            QWidget#titleBar > QPushButton#closeButton:hover {{
+                background-color: #e81123;
+            }}
+        """)
+
+        # 标题栏布局
+        title_layout = QHBoxLayout(self._title_bar)
+        title_layout.setContentsMargins(12, 0, 8, 0)
+        title_layout.setSpacing(0)
+
+        # 窗口图标（左侧）
+        icon_label = QLabel("📺")
+        icon_label.setStyleSheet(f"color: {accent_color}; font-size: 14px; background: transparent;")
+
+        # 窗口标题
+        self._title_label = QLabel(self._window_title)
+        self._title_label.setStyleSheet(f"color: {title_text}; font-size: 13px; font-weight: bold; background: transparent; padding-left: 6px;")
+
+        # 弹性空间
+        title_layout.addWidget(icon_label)
+        title_layout.addWidget(self._title_label, 1)
+
+        # 窗口控制按钮
+        btn_style = f"QPushButton {{ min-width: 40px; max-width: 40px; height: 28px; }}"
+
+        # 最小化按钮
+        self._minimize_btn = QPushButton("─")
+        self._minimize_btn.setObjectName("minimizeBtn")
+        self._minimize_btn.setToolTip("最小化")
+        self._minimize_btn.clicked.connect(self.showMinimized)
+        self._minimize_btn.setStyleSheet(btn_style)
+        title_layout.addWidget(self._minimize_btn)
+
+        # 最大化/还原按钮
+        self._maximize_btn = QPushButton("□")
+        self._maximize_btn.setObjectName("maximizeBtn")
+        self._maximize_btn.setToolTip("最大化")
+        self._maximize_btn.clicked.connect(self._toggle_maximize)
+        self._maximize_btn.setStyleSheet(btn_style)
+        title_layout.addWidget(self._maximize_btn)
+
+        # 关闭按钮
+        self._close_btn = QPushButton("✕")
+        self._close_btn.setObjectName("closeButton")
+        self._close_btn.setToolTip("关闭")
+        self._close_btn.clicked.connect(self.close)
+        self._close_btn.setStyleSheet(btn_style)
+        title_layout.addWidget(self._close_btn)
+
+        # 将标题栏添加到主布局顶部
+        self.main_layout.addWidget(self._title_bar)
+
+    def _toggle_maximize(self):
+        """切换最大化/还原状态"""
+        if self.isMaximized():
+            self.showNormal()
+            self._maximize_btn.setText("□")
+            self._maximize_btn.setToolTip("最大化")
+        else:
+            self.showMaximized()
+            self._maximize_btn.setText("❐")
+            self._maximize_btn.setToolTip("还原")
+
+    def mousePressEvent(self, event):
+        """鼠标按下事件 - 用于窗口拖动"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            # 检查是否点击在标题栏区域（实现窗口拖动）
+            if hasattr(self, '_title_bar') and self._title_bar:
+                title_bar_geo = self._title_bar.geometry()
+                # 转换为全局坐标
+                title_global_pos = self._title_bar.mapToGlobal(QtCore.QPoint(0, 0))
+                mouse_global_pos = event.globalPosition().toPoint()
+
+                if (title_global_pos.x() <= mouse_global_pos.x() <= title_global_pos.x() + title_bar_geo.width() and
+                    title_global_pos.y() <= mouse_global_pos.y() <= title_global_pos.y() + title_bar_geo.height()):
+
+                    # 排除按钮区域
+                    child = self.childAt(event.position().toPoint())
+                    if child and isinstance(child, (QPushButton,)):
+                        pass
+                    else:
+                        self._dragging = True
+                        self._drag_offset = (event.globalPosition().toPoint() - self.frameGeometry().topLeft())
+                        event.accept()
+                        return
+
+        # 原有逻辑：点击窗口时显示悬浮窗
+        if hasattr(self, 'floating_panel_visible') and self.floating_panel_visible:
+            self.update_floating_position()
+
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        """鼠标移动事件 - 实现窗口拖动"""
+        if self._dragging and self._drag_offset is not None:
+            if event.buttons() & Qt.MouseButton.LeftButton:
+                new_pos = event.globalPosition().toPoint() - self._drag_offset
+                self.move(new_pos)
+                event.accept()
+                return
+
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        """鼠标释放事件 - 结束拖动"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._dragging = False
+            self._drag_offset = None
+
+        super().mouseReleaseEvent(event)
+
+    def mouseDoubleClickEvent(self, event):
+        """鼠标双击事件 - 标题栏双击最大化/还原"""
+        if hasattr(self, '_title_bar') and self._title_bar:
+            title_bar_geo = self._title_bar.geometry()
+            title_global_pos = self._title_bar.mapToGlobal(QtCore.QPoint(0, 0))
+            mouse_global_pos = event.globalPosition().toPoint()
+
+            if (title_global_pos.x() <= mouse_global_pos.x() <= title_global_pos.x() + title_bar_geo.width() and
+                title_global_pos.y() <= mouse_global_pos.y() <= title_global_pos.y() + title_bar_geo.height()):
+                self._toggle_maximize()
+                event.accept()
+                return
+
+        super().mouseDoubleClickEvent(event)
     
     def init_ui(self):
         """初始化UI（极简版本，只为了立即显示黑色窗口）"""
@@ -604,7 +790,7 @@ class IPTVPlayer(QMainWindow):
         
         # 添加视频区域到布局
         self.top_layout.addWidget(self.video_frame, 1)
-        self.main_layout.addLayout(self.top_layout, 1)
+        self.content_layout.addLayout(self.top_layout, 1)
         
         logger.debug("_create_video_area: 完成")
     
@@ -1163,10 +1349,15 @@ class IPTVPlayer(QMainWindow):
     
     def setup_menu_bar(self, skip_recent_files=False):
         """设置菜单栏"""
-        menu_bar = self.menuBar()
-        if not menu_bar:
-            return
-        
+        from PyQt6.QtWidgets import QMenuBar
+        if hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
+            menu_bar = self._custom_menu_bar
+            menu_bar.clear()
+        else:
+            menu_bar = QMenuBar()
+            menu_bar.setObjectName("customMenuBar")
+            self._custom_menu_bar = menu_bar
+
         # 设置菜单栏样式
         menu_bar.setStyleSheet(AppStyles.player_menu_bar_style())
         
@@ -1308,6 +1499,11 @@ class IPTVPlayer(QMainWindow):
             
         except Exception as e:
             logger.error(f"创建菜单栏失败: {str(e)}")
+
+        # 将自定义菜单栏插入到标题栏和内容区域之间（仅首次插入）
+        if hasattr(self, '_custom_menu_bar') and self._custom_menu_bar and hasattr(self, 'main_layout'):
+            if self._custom_menu_bar.parent() != self._main_container:
+                self.main_layout.insertWidget(1, self._custom_menu_bar)
     
     def update_channel_groups(self):
         """从CHANNELS中提取分组并更新下拉框"""
@@ -3372,13 +3568,6 @@ class IPTVPlayer(QMainWindow):
                     self.update_floating_position()
         return super().eventFilter(obj, event)
     
-    def mousePressEvent(self, event):
-        """处理鼠标点击事件"""
-        # 当点击窗口时，显示悬浮窗
-        if self.floating_panel_visible:
-            self.update_floating_position()
-        super().mousePressEvent(event)
-    
     def update_floating_position(self):
         """更新悬浮窗位置（带日志节流）"""
         # 检查必要的属性是否存在
@@ -4296,7 +4485,8 @@ class IPTVPlayer(QMainWindow):
             current_version = AboutDialog.CURRENT_VERSION
             self.setWindowTitle(f"{self.language_manager.tr('app_title', 'IPTV Scanner Editor Pro')} v{current_version}")
             # 重新创建菜单栏以更新语言
-            self.menuBar().clear()
+            if hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
+                self._custom_menu_bar.clear()
             self.setup_menu_bar()
             # 更新所有UI文本
             self.language_manager.update_ui_texts(self)
@@ -4311,7 +4501,8 @@ class IPTVPlayer(QMainWindow):
         try:
             self._theme_manager.set_theme(theme)
             self.setStyleSheet(AppStyles.main_window_style())
-            self.menuBar().clear()
+            if hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
+                self._custom_menu_bar.clear()
             self.setup_menu_bar()
             self._reapply_all_styles()
             self.status_bar.showMessage(f"{self.language_manager.tr('theme_changed', 'Theme changed to')}: {theme}")
@@ -4323,7 +4514,39 @@ class IPTVPlayer(QMainWindow):
         try:
             colors = AppStyles._get_colors()
             self.setStyleSheet(AppStyles.main_window_style())
-            self.menuBar().setStyleSheet(AppStyles.player_menu_bar_style())
+            if hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
+                self._custom_menu_bar.setStyleSheet(AppStyles.player_menu_bar_style())
+            if hasattr(self, '_title_bar') and self._title_bar:
+                colors = AppStyles._get_colors()
+                title_bg = colors.get('window', '#1e1e1e')
+                title_text = colors.get('window_text', '#ffffff')
+                accent_color = colors.get('accent', '#0078d4')
+                self._title_bar.setStyleSheet(f"""
+                    QWidget#titleBar {{
+                        background-color: {title_bg};
+                        border-top-left-radius: 10px;
+                        border-top-right-radius: 10px;
+                    }}
+                    QWidget#titleBar > QPushButton {{
+                        background-color: transparent;
+                        color: {title_text};
+                        border: none;
+                        font-size: 14px;
+                        padding: 4px 12px;
+                        margin: 2px;
+                        border-radius: 4px;
+                    }}
+                    QWidget#titleBar > QPushButton:hover {{
+                        background-color: {accent_color};
+                    }}
+                    QWidget#titleBar > QPushButton#closeButton:hover {{
+                        background-color: #e81123;
+                    }}
+                """)
+            if hasattr(self, '_title_label') and self._title_label:
+                colors = AppStyles._get_colors()
+                title_text = colors.get('window_text', '#ffffff')
+                self._title_label.setStyleSheet(f"color: {title_text}; font-size: 13px; font-weight: bold; background: transparent; padding-left: 6px;")
             self.status_bar.setStyleSheet(AppStyles.statusbar_style())
             if hasattr(self, 'channel_table'):
                 self.channel_table.setStyleSheet(AppStyles.list_style())

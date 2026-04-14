@@ -350,10 +350,20 @@ class AppStyles:
             inset = AppStyles._neumorphic_inset()
             return f"""
                 QMainWindow {{
-                    background-color: {colors['window']};
+                    background-color: transparent;
                     color: {colors['window_text']};
                     font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                     font-size: 13px;
+                }}
+                QWidget#mainContainer {{
+                    background-color: {colors['window']};
+                    border-radius: 10px;
+                    border: 1px solid {colors['mid']};
+                }}
+                QWidget#contentArea {{
+                    background-color: {colors['player_background']};
+                    border-bottom-left-radius: 10px;
+                    border-bottom-right-radius: 10px;
                 }}
                 QGroupBox {{
                     border: none;
@@ -505,10 +515,20 @@ class AppStyles:
             """
         return f"""
             QMainWindow {{
-                background-color: {colors['window']};
+                background-color: transparent;
                 color: {colors['window_text']};
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                 font-size: 13px;
+            }}
+            QWidget#mainContainer {{
+                background-color: {colors['window']};
+                border-radius: 10px;
+                border: 1px solid {colors['mid']};
+            }}
+            QWidget#contentArea {{
+                background-color: {colors['player_background']};
+                border-bottom-left-radius: 10px;
+                border-bottom-right-radius: 10px;
             }}
             QGroupBox {{
                 border: 1px solid {colors['mid']};
