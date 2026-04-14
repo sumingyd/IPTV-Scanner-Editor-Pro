@@ -1898,8 +1898,9 @@ class IPTVPlayer(QMainWindow):
             catchup_url = self._replace_catchup_variables(catchup_source, start_time, end_time)
             logger.debug(f"构建回看URL: {catchup_url}")
         
-        # 显示回看状态
-        self.status_bar_show_message(f"{self.language_manager.tr('catchup_playing', 'Catchup: {name}')} {channel_name} - {title}")
+        # 显示回看状态（使用format替换占位符）
+        catchup_template = self.language_manager.tr('catchup_playing', '正在回看: {name}')
+        self.status_bar_show_message(f"{catchup_template.format(name=channel_name)} - {title}")
         
         # 使用mpv播放回看
         if self.player_controller:
@@ -2060,7 +2061,8 @@ class IPTVPlayer(QMainWindow):
                 logger.debug(f"构建新的回看URL: {catchup_url}")
                 
                 # 显示回看状态
-                self.status_bar.showMessage(f"{self.language_manager.tr('catchup_playing', 'Catchup')}: {channel_name} - {title}")
+                catchup_msg = self.language_manager.tr('catchup_playing', '正在回看: {name}')
+                self.status_bar.showMessage(f"{catchup_msg.format(name=channel_name)} - {title}")
                 
                 # 保存目标进度值，用于在播放开始后设置进度条
                 self._pending_catchup_progress = value
@@ -2460,7 +2462,8 @@ class IPTVPlayer(QMainWindow):
             if self.current_channel:
                 channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
                 if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
-                    self.status_bar.showMessage(f"{tr('catchup_playing', 'Catchup')}: {channel_name}")
+                    catchup_playing_text = tr('catchup_playing', '正在回看: {name}')
+                    self.status_bar.showMessage(catchup_playing_text.format(name=channel_name))
                     # 检查是否有待处理的回看进度值
                     if hasattr(self, '_pending_catchup_progress'):
                         try:
@@ -2495,7 +2498,8 @@ class IPTVPlayer(QMainWindow):
             if self.current_channel:
                 channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
                 if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
-                    self.status_bar_show_message(f"{tr('catchup_paused', 'Catchup Paused')}: {channel_name}")
+                    catchup_paused_text = tr('catchup_paused', '回看暂停: {name}')
+                    self.status_bar_show_message(catchup_paused_text.format(name=channel_name))
                 else:
                     self.status_bar_show_message(f"{tr('paused', 'Paused')}: {channel_name}")
     
@@ -4401,8 +4405,16 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, 'player_controller') and self.player_controller:
             self.player_controller.stop()
 
-        if hasattr(self, 'scan_window') and self.scan_window:
-            self.scan_window.close()
+        # 关闭扫描窗口（检查两种可能的属性名以兼容）
+        scan_dialog = getattr(self, '_scan_dialog', None) or getattr(self, 'scan_window', None)
+        if scan_dialog:
+            try:
+                scan_dialog.close()
+                scan_dialog.deleteLater()
+            except Exception:
+                pass
+            self._scan_dialog = None
+            self.scan_window = None
 
         for panel_name in ['floating_panel', 'epg_panel', 'playlist_panel']:
             panel = getattr(self, panel_name, None)

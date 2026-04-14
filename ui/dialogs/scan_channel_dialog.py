@@ -866,14 +866,32 @@ class ScanChannelDialog(QtWidgets.QDialog):
         """处理表头点击排序"""
         if not hasattr(self, 'model') or not self.model:
             return
-        current_sort = self.header.sortIndicatorSection()
-        current_order = self.header.sortIndicatorOrder()
-        if current_sort == logical_index:
-            new_order = QtCore.Qt.SortOrder.DescendingOrder if current_order == QtCore.Qt.SortOrder.AscendingOrder else QtCore.Qt.SortOrder.AscendingOrder
+        
+        # 使用实例变量跟踪排序状态，避免被model.reset()重置
+        if not hasattr(self, '_last_sort_column'):
+            self._last_sort_column = -1
+            self._last_sort_order = QtCore.Qt.SortOrder.AscendingOrder
+        
+        # 判断是否点击了同一列
+        if self._last_sort_column == logical_index:
+            # 同一列：切换排序顺序
+            if self._last_sort_order == QtCore.Qt.SortOrder.AscendingOrder:
+                new_order = QtCore.Qt.SortOrder.DescendingOrder
+            else:
+                new_order = QtCore.Qt.SortOrder.AscendingOrder
         else:
+            # 不同列：默认升序
             new_order = QtCore.Qt.SortOrder.AscendingOrder
-        self.header.setSortIndicator(logical_index, new_order)
+        
+        # 保存当前排序状态
+        self._last_sort_column = logical_index
+        self._last_sort_order = new_order
+        
+        # 先执行排序
         self.model.sort(logical_index, new_order)
+        
+        # 排序完成后重新设置指示器（重要：必须在sort之后！）
+        self.header.setSortIndicator(logical_index, new_order)
 
     def _on_channel_double_clicked(self, index):
         """双击频道列表项预览播放"""
@@ -1079,7 +1097,19 @@ class ScanChannelDialog(QtWidgets.QDialog):
         else:
             log_scan_info("开始追加扫描，保留现有列表")
 
-        self.scanner.start_scan(url, get_optimal_thread_count(), 3)
+        # 从配置读取超时时间（默认10秒），不再硬编码3秒
+        scan_timeout = 10
+        try:
+            if hasattr(self, 'config') and self.config:
+                network_settings = self.config.load_network_settings()
+                configured_timeout = network_settings.get('timeout', 30)
+                if configured_timeout and configured_timeout > 0:
+                    # 配置值单位是秒，合理范围3-60秒
+                    scan_timeout = max(3, min(60, int(configured_timeout)))
+        except Exception as e:
+            self.logger.debug(f"读取超时配置失败，使用默认值: {e}")
+
+        self.scanner.start_scan(url, get_optimal_thread_count(), scan_timeout)
 
         if clear_list:
             self._set_scan_button_text('stop_scan', '停止扫描')
@@ -1668,17 +1698,23 @@ class ScanChannelDialog(QtWidgets.QDialog):
         new_valid = current_valid_count - last_valid_count
         self.logger.info(f"重试扫描完成: 新增有效={new_valid}, 总有效={current_valid_count}, 重试次数={retry_count}")
 
-        # 只有当发现新有效频道且重试次数未达上限时，才继续重试
-        if new_valid > 0 and retry_count < max_retries:
-            self.logger.info(f"重试发现{new_valid}个新有效频道，继续重试 (第{retry_count + 1}次)")
+        # 改进的重试策略：只要还有失败的频道且未达上限，就继续重试
+        # 不再要求必须发现新有效频道才继续（因为超时短可能导致误判）
+        failed_channels = self.scan_state_manager.get_failed_channels(self.retry_id)
+        
+        if retry_count < max_retries and failed_channels and len(failed_channels) > 0:
+            # 还有失败频道且重试次数未达上限，继续重试
+            self.logger.info(f"还有{len(failed_channels)}个失败频道，继续重试 (第{retry_count + 1}次)")
             self.scan_state_manager.update_last_retry_valid_count(self.retry_id, current_valid_count)
             # 延迟启动下一次重试，让状态有时间更新
             QtCore.QTimer.singleShot(500, self._handle_retry_scan)
         else:
-            if new_valid <= 0:
-                self.logger.info("重试未发现新有效频道，结束重试扫描")
-            else:
+            if not failed_channels or len(failed_channels) == 0:
+                self.logger.info("没有更多失败频道需要重试，结束重试扫描")
+            elif retry_count >= max_retries:
                 self.logger.info(f"重试次数已达上限 ({max_retries})，结束重试扫描")
+            else:
+                self.logger.info("结束重试扫描")
             # 使用 clear_failed_channels 代替不存在的 reset_retry_scan
             self.scan_state_manager.clear_failed_channels(self.retry_id)
 
