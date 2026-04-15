@@ -864,7 +864,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         
         # 左侧EPG面板
-        self.epg_panel = TranslucentPanel(self, opacity=180)
+        self.epg_panel = TranslucentPanel(opacity=180)
         self.epg_panel.setStyleSheet(AppStyles.player_panel_style())
         self.epg_panel.setFixedWidth(250)
         self.epg_layout = QVBoxLayout(self.epg_panel)
@@ -929,7 +929,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         
         # 右侧播放列表面板
-        self.playlist_panel = TranslucentPanel(self, opacity=180)
+        self.playlist_panel = TranslucentPanel(opacity=180)
         self.playlist_panel.setStyleSheet(AppStyles.player_panel_style())
         self.playlist_panel.setFixedWidth(250)
         self.playlist_layout = QVBoxLayout(self.playlist_panel)
@@ -981,7 +981,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         
         # 悬浮控制面板
-        self.floating_panel = TranslucentPanel(self, opacity=180)
+        self.floating_panel = TranslucentPanel(opacity=180)
         self.floating_panel.setStyleSheet(AppStyles.player_panel_style())
         self.floating_panel.setFixedHeight(150)
         self.floating_panel.setFixedWidth(1000)
@@ -3758,24 +3758,31 @@ class IPTVPlayer(QMainWindow):
         import ctypes
 
         HWND_TOP = 0
+        HWND_NOTOPMOST = -2
         SWP_NOACTIVATE = 0x0010
         SWP_NOMOVE = 0x0002
         SWP_NOSIZE = 0x0001
-        SWP_FLAGS = SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE
+        SWP_NOOWNERZORDER = 0x0200
+        SWP_FLAGS = SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_NOOWNERZORDER
 
         user32 = ctypes.windll.user32
 
-        self.raise_()
-        user32.SetWindowPos(int(self.winId()), HWND_TOP, 0, 0, 0, 0, SWP_FLAGS)
+        main_hwnd = int(self.winId())
+
+        user32.SetWindowPos(main_hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_FLAGS)
+        user32.SetWindowPos(main_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_FLAGS)
 
         for panel in [self.epg_panel, self.playlist_panel, self.floating_panel]:
             if panel and panel.isVisible():
-                panel.raise_()
-                user32.SetWindowPos(int(panel.winId()), HWND_TOP, 0, 0, 0, 0, SWP_FLAGS)
+                panel_hwnd = int(panel.winId())
+                user32.SetWindowPos(panel_hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_FLAGS)
+                user32.SetWindowPos(panel_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_FLAGS)
 
         scan_dialog = getattr(self, '_scan_dialog', None) or getattr(self, 'scan_window', None)
         if scan_dialog and scan_dialog.isVisible():
-            user32.SetWindowPos(int(scan_dialog.winId()), int(self.winId()), 0, 0, 0, 0, SWP_FLAGS)
+            scan_hwnd = int(scan_dialog.winId())
+            user32.SetWindowPos(scan_hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_FLAGS)
+            user32.SetWindowPos(scan_hwnd, main_hwnd, 0, 0, 0, 0, SWP_FLAGS)
     
     def open_channel_mapping(self):
         """打开频道映射管理器"""
