@@ -3668,14 +3668,54 @@ class IPTVPlayer(QMainWindow):
     
     def toggle_fullscreen(self, checked=False):
         """切换全屏"""
-        # 无论从哪里调用，都切换状态
-        # 忽略checked参数，因为我们只是需要切换全屏状态
         self.is_fullscreen = not self.is_fullscreen
         
         if self.is_fullscreen:
+            self._fullscreen_saved_states = {
+                'title_bar': hasattr(self, '_title_bar') and self._title_bar and self._title_bar.isVisible(),
+                'menu_bar': hasattr(self, '_custom_menu_bar') and self._custom_menu_bar and self._custom_menu_bar.isVisible(),
+                'status_bar': bool(self.status_bar and self.status_bar.isVisible()),
+                'epg': self.epg_visible,
+                'playlist': self.playlist_visible,
+                'floating': self.floating_panel_visible
+            }
+            if hasattr(self, '_title_bar') and self._title_bar:
+                self._title_bar.hide()
+            if hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
+                self._custom_menu_bar.hide()
+            if self.status_bar:
+                self.status_bar.hide()
+            if hasattr(self, 'epg_panel') and self.epg_panel:
+                self.epg_panel.hide()
+            if hasattr(self, 'playlist_panel') and self.playlist_panel:
+                self.playlist_panel.hide()
+            if hasattr(self, 'floating_panel') and self.floating_panel:
+                self.floating_panel.hide()
             self.showFullScreen()
         else:
+            saved = getattr(self, '_fullscreen_saved_states', {})
             self.showNormal()
+            if saved.get('title_bar', True) and hasattr(self, '_title_bar') and self._title_bar:
+                self._title_bar.show()
+            if saved.get('menu_bar', True) and hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
+                self._custom_menu_bar.show()
+            if saved.get('status_bar', True) and self.status_bar:
+                self.status_bar.show()
+            if saved.get('epg', True) and hasattr(self, 'epg_panel') and self.epg_panel:
+                self.epg_panel.show()
+                self.epg_visible = True
+            else:
+                self.epg_visible = False
+            if saved.get('playlist', True) and hasattr(self, 'playlist_panel') and self.playlist_panel:
+                self.playlist_panel.show()
+                self.playlist_visible = True
+            else:
+                self.playlist_visible = False
+            if saved.get('floating', True) and hasattr(self, 'floating_panel') and self.floating_panel:
+                self.floating_panel.show()
+                self.floating_panel_visible = True
+            else:
+                self.floating_panel_visible = False
     
     def refresh_ui(self):
         """刷新界面"""
@@ -4751,6 +4791,51 @@ class IPTVPlayer(QMainWindow):
         elif event.key() == Qt.Key.Key_Space:
             if hasattr(self, 'player_controller') and self.player_controller:
                 self.toggle_play()
+        elif self.is_fullscreen:
+            key = event.key()
+            modifiers = event.modifiers()
+            if modifiers == Qt.KeyboardModifier.NoModifier:
+                if key == Qt.Key.Key_E:
+                    self.epg_visible = not self.epg_visible
+                    if hasattr(self, 'epg_panel') and self.epg_panel:
+                        self.epg_panel.setVisible(self.epg_visible)
+                elif key == Qt.Key.Key_L:
+                    self.playlist_visible = not self.playlist_visible
+                    if hasattr(self, 'playlist_panel') and self.playlist_panel:
+                        self.playlist_panel.setVisible(self.playlist_visible)
+                elif key == Qt.Key.Key_M:
+                    self.floating_panel_visible = not self.floating_panel_visible
+                    if hasattr(self, 'floating_panel') and self.floating_panel:
+                        self.floating_panel.setVisible(self.floating_panel_visible)
+                elif key == Qt.Key.Key_Y:
+                    self._floating_hidden = not self._floating_hidden
+                    if self._floating_hidden:
+                        self._saved_floating_states = {
+                            'epg': self.epg_visible,
+                            'playlist': self.playlist_visible,
+                            'floating': self.floating_panel_visible
+                        }
+                        if hasattr(self, 'epg_panel') and self.epg_panel:
+                            self.epg_panel.hide()
+                        if hasattr(self, 'playlist_panel') and self.playlist_panel:
+                            self.playlist_panel.hide()
+                        if hasattr(self, 'floating_panel') and self.floating_panel:
+                            self.floating_panel.hide()
+                    else:
+                        saved = self._saved_floating_states
+                        if saved.get('epg', False) and hasattr(self, 'epg_panel') and self.epg_panel:
+                            self.epg_panel.show()
+                            self.epg_visible = True
+                        if saved.get('playlist', False) and hasattr(self, 'playlist_panel') and self.playlist_panel:
+                            self.playlist_panel.show()
+                            self.playlist_visible = True
+                        if saved.get('floating', False) and hasattr(self, 'floating_panel') and self.floating_panel:
+                            self.floating_panel.show()
+                            self.floating_panel_visible = True
+                else:
+                    super().keyPressEvent(event)
+            else:
+                super().keyPressEvent(event)
         else:
             super().keyPressEvent(event)
 
