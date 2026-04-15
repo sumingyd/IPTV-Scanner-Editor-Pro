@@ -351,6 +351,7 @@ class IPTVPlayer(QMainWindow):
         if event.button() == Qt.MouseButton.LeftButton:
             self._dragging = False
             self._drag_offset = None
+            self._raise_floating_panels()
 
         super().mouseReleaseEvent(event)
 
@@ -863,7 +864,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         
         # 左侧EPG面板
-        self.epg_panel = TranslucentPanel(opacity=180)
+        self.epg_panel = TranslucentPanel(self, opacity=180)
         self.epg_panel.setStyleSheet(AppStyles.player_panel_style())
         self.epg_panel.setFixedWidth(250)
         self.epg_layout = QVBoxLayout(self.epg_panel)
@@ -928,7 +929,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         
         # 右侧播放列表面板
-        self.playlist_panel = TranslucentPanel(opacity=180)
+        self.playlist_panel = TranslucentPanel(self, opacity=180)
         self.playlist_panel.setStyleSheet(AppStyles.player_panel_style())
         self.playlist_panel.setFixedWidth(250)
         self.playlist_layout = QVBoxLayout(self.playlist_panel)
@@ -980,7 +981,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         
         # 悬浮控制面板
-        self.floating_panel = TranslucentPanel(opacity=180)
+        self.floating_panel = TranslucentPanel(self, opacity=180)
         self.floating_panel.setStyleSheet(AppStyles.player_panel_style())
         self.floating_panel.setFixedHeight(150)
         self.floating_panel.setFixedWidth(1000)
@@ -3644,25 +3645,22 @@ class IPTVPlayer(QMainWindow):
                 x = video_frame_global_pos.x() + 10
                 y = video_frame_global_pos.y() + 10
                 self.epg_panel.move(x, y)
-                self.epg_panel.raise_()
-            
+
             # 更新右侧播放列表面板位置和高度
             if hasattr(self, 'playlist_panel') and self.playlist_panel:
                 self.playlist_panel.setFixedHeight(self.video_frame.height() - 180)
                 x = video_frame_global_pos.x() + self.video_frame.width() - self.playlist_panel.width() - 10
                 y = video_frame_global_pos.y() + 10
                 self.playlist_panel.move(x, y)
-                self.playlist_panel.raise_()
-            
+
             # 更新底部悬浮控制面板位置
             if hasattr(self, 'floating_panel') and self.floating_panel:
                 x = video_frame_global_pos.x() + (self.video_frame.width() - self.floating_panel.width()) // 2
                 y = video_frame_global_pos.y() + self.video_frame.height() - self.floating_panel.height() - 20
                 self.floating_panel.move(x, y)
-                self.floating_panel.raise_()
         except Exception as e:
             logger.error(f"update_floating_position: 出错 - {e}")
-        
+
         if should_log:
             logger.debug("update_floating_position: 完成")
     
@@ -3750,6 +3748,34 @@ class IPTVPlayer(QMainWindow):
             logger.info("成功打开扫描界面")
         except Exception as ex:
             logger.error(f"打开扫描界面失败: {str(ex)}")
+    
+    def _raise_floating_panels(self):
+        """主窗口激活时，将悬浮窗与主窗口一起提升到上层（悬浮窗和主窗口视为整体）"""
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(50, self._do_raise_floating_panels)
+
+    def _do_raise_floating_panels(self):
+        import ctypes
+
+        HWND_TOP = 0
+        SWP_NOACTIVATE = 0x0010
+        SWP_NOMOVE = 0x0002
+        SWP_NOSIZE = 0x0001
+        SWP_FLAGS = SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE
+
+        user32 = ctypes.windll.user32
+
+        self.raise_()
+        user32.SetWindowPos(int(self.winId()), HWND_TOP, 0, 0, 0, 0, SWP_FLAGS)
+
+        for panel in [self.epg_panel, self.playlist_panel, self.floating_panel]:
+            if panel and panel.isVisible():
+                panel.raise_()
+                user32.SetWindowPos(int(panel.winId()), HWND_TOP, 0, 0, 0, 0, SWP_FLAGS)
+
+        scan_dialog = getattr(self, '_scan_dialog', None) or getattr(self, 'scan_window', None)
+        if scan_dialog and scan_dialog.isVisible():
+            user32.SetWindowPos(int(scan_dialog.winId()), int(self.winId()), 0, 0, 0, 0, SWP_FLAGS)
     
     def open_channel_mapping(self):
         """打开频道映射管理器"""
@@ -4734,6 +4760,12 @@ class IPTVPlayer(QMainWindow):
             logger.debug(f"保存窗口布局: x={geometry.x()}, y={geometry.y()}, width={geometry.width()}, height={geometry.height()}")
         except Exception as e:
             logger.error(f"保存窗口布局失败: {e}")
+    
+    def changeEvent(self, event):
+        """主窗口状态变化时，确保悬浮窗层级正确"""
+        super().changeEvent(event)
+        if event.type() == QtCore.QEvent.Type.ActivationChange and self.isActiveWindow():
+            self._raise_floating_panels()
     
     def moveEvent(self, event):
         """主窗口移动时，更新悬浮窗口位置"""
