@@ -115,6 +115,10 @@ class IPTVPlayer(QMainWindow):
         # 悬浮面板显示状态
         self.floating_panel_visible = True
         
+        # 悬浮窗统一隐藏状态（用于一键隐藏/恢复所有悬浮窗）
+        self._floating_hidden = False
+        self._saved_floating_states = {}
+        
         # 全屏状态
         self.is_fullscreen = False
         
@@ -1419,6 +1423,13 @@ class IPTVPlayer(QMainWindow):
             show_floating.setShortcut("M")
             view_menu.addAction(show_floating)
             
+            hide_all_floating = QAction(tr("menu_hide_floating", "Hide Floating Panels"), self)
+            hide_all_floating.setCheckable(True)
+            hide_all_floating.setChecked(self._floating_hidden)
+            hide_all_floating.triggered.connect(self.toggle_hide_floating)
+            hide_all_floating.setShortcut("Y")
+            view_menu.addAction(hide_all_floating)
+            
             view_menu.addSeparator()
             
             fullscreen = QAction(tr("menu_fullscreen", "Fullscreen"), self)
@@ -2465,6 +2476,31 @@ class IPTVPlayer(QMainWindow):
         """显示/隐藏底部控制面板"""
         self.floating_panel_visible = checked
         self.floating_panel.setVisible(checked)
+    
+    def toggle_hide_floating(self, checked):
+        """一键隐藏/恢复所有悬浮窗"""
+        if checked:
+            self._saved_floating_states = {
+                'epg': self.epg_visible,
+                'playlist': self.playlist_visible,
+                'floating': self.floating_panel_visible
+            }
+            if hasattr(self, 'epg_panel') and self.epg_panel:
+                self.epg_panel.hide()
+            if hasattr(self, 'playlist_panel') and self.playlist_panel:
+                self.playlist_panel.hide()
+            if hasattr(self, 'floating_panel') and self.floating_panel:
+                self.floating_panel.hide()
+            self._floating_hidden = True
+        else:
+            saved = self._saved_floating_states
+            if saved.get('epg', False) and hasattr(self, 'epg_panel') and self.epg_panel:
+                self.epg_panel.show()
+            if saved.get('playlist', False) and hasattr(self, 'playlist_panel') and self.playlist_panel:
+                self.playlist_panel.show()
+            if saved.get('floating', False) and hasattr(self, 'floating_panel') and self.floating_panel:
+                self.floating_panel.show()
+            self._floating_hidden = False
     
     def toggle_play(self):
         """切换播放/暂停"""
