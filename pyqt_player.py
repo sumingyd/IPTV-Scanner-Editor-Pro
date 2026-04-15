@@ -949,7 +949,7 @@ class IPTVPlayer(QMainWindow):
         # 频道列表
         self.channel_list = QListWidget()
         self.channel_list.setStyleSheet(AppStyles.player_list_style())
-        self.channel_list.setSpacing(6)
+        self.channel_list.setSpacing(2)
         self.channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.channel_list.itemClicked.connect(self.select_channel)
@@ -1589,18 +1589,17 @@ class IPTVPlayer(QMainWindow):
             
             # 台标标签
             logo_label = QtWidgets.QLabel()
-            logo_label.setFixedSize(60, 60)
+            logo_label.setFixedHeight(34)
+            logo_label.setMinimumWidth(56)
             logo_label.setStyleSheet("background-color: transparent; border: none;")
             logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            logo_label.setMinimumSize(60, 60)
-            logo_label.setMaximumSize(60, 60)
             
             # 如果有台标，加载它
             if logo_url:
                 logo_url = logo_url.strip('`"\'')
                 cached = self._logo_cache_service.get(logo_url)
                 if cached:
-                    scaled = self._logo_cache_service.scale_logo_pixmap(cached, 60)
+                    scaled = self._logo_cache_service.scale_logo_pixmap(cached, 34)
                     logo_label.setPixmap(scaled)
                 else:
                     # 异步加载台标
@@ -1608,7 +1607,7 @@ class IPTVPlayer(QMainWindow):
             
             # 频道名称标签
             name_label = QtWidgets.QLabel(channel_name)
-            name_label.setStyleSheet("font-size: 14px; font-weight: bold; color: #FFFFFF;")
+            name_label.setStyleSheet("font-size: 12px; font-weight: bold; color: #FFFFFF;")
             name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
             name_label.setWordWrap(False)
             
@@ -1618,7 +1617,7 @@ class IPTVPlayer(QMainWindow):
             
             # 创建 QListWidgetItem 并设置大小
             item = QListWidgetItem()
-            item.setSizeHint(QSize(0, 70))
+            item.setSizeHint(QSize(0, 42))
             item.setData(Qt.ItemDataRole.UserRole, idx)
             
             # 将自定义 widget 设置为 item 的 widget

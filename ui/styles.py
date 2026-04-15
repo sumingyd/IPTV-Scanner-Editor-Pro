@@ -1132,7 +1132,12 @@ class AppStyles:
                 background-color: transparent;
                 color: {colors['player_panel_text']};
                 border: none;
-                padding: 5px;
+                padding: 2px;
+            }}
+            QListWidget::item {{
+                padding: 2px 4px;
+                min-height: 26px;
+                max-height: 32px;
             }}
         """
 
