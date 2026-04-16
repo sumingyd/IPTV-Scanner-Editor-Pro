@@ -1278,16 +1278,26 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         current_channel[field_name] = value
                         all_tags[key] = value
 
+                    # 频道名优先级：逗号后内容 > tvg-name 属性
+                    comma_name = ''
+                    if extinf_content and ',' in extinf_content:
+                        comma_name = extinf_content.split(',', 1)[-1].strip()
                     if not current_channel.get('name') or current_channel['name'] in ('', '未命名'):
-                        tvg_name = all_tags.get('tvg-name', '')
-                        if tvg_name:
-                            current_channel['name'] = tvg_name
+                        if comma_name:
+                            current_channel['name'] = comma_name
+                        else:
+                            tvg_name = all_tags.get('tvg-name', '')
+                            if tvg_name:
+                                current_channel['name'] = tvg_name
 
                     current_channel['group'] = current_group
                     current_channel['_all_tags'] = all_tags
                 else:
+                    comma_name = ''
+                    if extinf_content and ',' in extinf_content:
+                        comma_name = extinf_content.split(',', 1)[-1].strip()
                     current_channel = {
-                        'name': extinf_content if extinf_content else '未命名',
+                        'name': comma_name if comma_name else (extinf_content if extinf_content else '未命名'),
                         'group': current_group,
                         'tvg_id': "",
                         'logo': "",
