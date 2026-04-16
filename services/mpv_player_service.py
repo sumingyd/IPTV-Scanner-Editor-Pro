@@ -128,7 +128,7 @@ def _load_playback_settings():
         'hwdec': True,
         'cache_secs': 1.0,
         'demuxer_max_bytes_mib': 16,
-        'demuxer_max_back_bytes_mib': 4,
+        'demuxer_max_back_bytes_mib': 512,
         'fcc_prefetch_count': 2,
         'source_timeout_sec': 3,
         'enable_protocol_adaptive': True,
@@ -348,10 +348,10 @@ class MpvPlayerController(QObject):
                 if cache_secs > 0:
                     self._set_mpv_string('cache-secs', str(cache_secs))
                 max_mib = settings.get('demuxer_max_bytes_mib', 16)
-                back_mib = settings.get('demuxer_max_back_bytes_mib', 4)
+                back_mib = settings.get('demuxer_max_back_bytes_mib', 512)
                 self._set_mpv_string('demuxer-max-bytes', f'{max_mib}MiB')
                 self._set_mpv_string('demuxer-max-back-bytes', f'{back_mib}MiB')
-                self.logger.debug(f"[mpv] http-ts demux=mpegts cache={cache_secs}")
+                self.logger.debug(f"[mpv] http-ts demux=mpegts cache={cache_secs} back={back_mib}MiB")
             return
 
         if u.endswith('.m3u8') or 'format=hls' in u:
@@ -770,6 +770,30 @@ class MpvPlayerController(QObject):
         except Exception:
             return 0
 
+    def get_timeshift_range(self):
+        """获取时移可用的时间范围（秒），返回 (earliest, latest)"""
+        try:
+            if not self.mpv_handle:
+                return (0, 0)
+            current = self._get_mpv_property_double('time-pos') or 0
+            return (max(0, current - 900), current)
+        except Exception:
+            return (0, 0)
+
+    def seek_absolute(self, target_seconds):
+        """绝对位置 seek（秒），用于时移精确定位"""
+        try:
+            if self.mpv_handle and target_seconds >= 0:
+                cmd = [b'seek', f'{target_seconds:.3f}'.encode('utf-8'), b'absolute', None]
+                cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+                result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+                if result < 0:
+                    self.logger.warning(f"绝对seek到{target_seconds:.1f}秒失败，错误码: {result}")
+                else:
+                    self.logger.debug(f"绝对seek: {target_seconds:.1f}秒")
+        except Exception as e:
+            self.logger.error(f"绝对seek失败: {str(e)}")
+
     def seek(self, position):
         try:
             if self.mpv_handle:
@@ -791,6 +815,20 @@ class MpvPlayerController(QObject):
                     libmpv.mpv_command(self.mpv_handle, cmd_ptr)
         except Exception as e:
             self.logger.error(f"设置播放位置失败: {str(e)}")
+
+    def seek_relative_seconds(self, seconds):
+        """按秒数相对 seek（正数前进，负数后退），用于时移功能"""
+        try:
+            if self.mpv_handle and seconds != 0:
+                cmd = [b'seek', f'{seconds:.1f}'.encode('utf-8'), b'relative', None]
+                cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+                result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+                if result < 0:
+                    self.logger.warning(f"相对seek {seconds}秒失败，错误码: {result}")
+                else:
+                    self.logger.debug(f"相对seek: {seconds}秒")
+        except Exception as e:
+            self.logger.error(f"相对seek失败: {str(e)}")
 
     def get_live_media_info(self):
         """获取实时媒体信息 - 参考 SRCBOX，统一使用字符串获取方式"""
