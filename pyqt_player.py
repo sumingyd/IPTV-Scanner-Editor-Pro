@@ -2625,6 +2625,9 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, 'program_progress'):
             self.program_progress.setValue(0)
         self.current_channel = None
+        self._is_stopped = True
+        tr = self.language_manager.tr
+        self.status_bar_show_message(tr('playback_stopped', 'Playback stopped'))
     
     def set_volume(self, value):
         """设置音量"""
@@ -2832,6 +2835,9 @@ class IPTVPlayer(QMainWindow):
                     self.status_bar_show_message(f"{tr('playing', 'Playing')}: {channel_name}")
         else:
             self.play_button.setText("▶")
+            if getattr(self, '_is_stopped', False):
+                self._is_stopped = False
+                return
             # 暂停时不要显示背景占位符，保持视频窗口可见
             # 停止定时器
             if hasattr(self, 'update_timer'):
