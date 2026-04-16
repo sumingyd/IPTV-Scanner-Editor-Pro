@@ -2257,14 +2257,58 @@ class IPTVPlayer(QMainWindow):
         logger.debug(f"是否处于回看模式：{is_catchup}")
         
         if not is_catchup:
-            # 直播模式下，立即更新进度条到当前时间
-            from datetime import datetime
-            current_time = datetime.now()
-            minutes = current_time.minute
-            seconds = current_time.second
-            progress = int(((minutes * 60) + seconds) / 3600 * 100)
-            self.program_progress.setValue(progress)
-            logger.debug(f"直播模式，设置进度条到当前时间：{progress}%")
+            # 直播模式下，检查是否支持时移
+            if not self.current_channel:
+                return
+            
+            catchup = self.current_channel.get('catchup', '')
+            catchup_source = self.current_channel.get('catchup_source', '')
+            
+            # 检查是否支持时移（有catchup_source或配置了timeshift）
+            try:
+                from core.config_manager import ConfigManager
+                ts_settings = ConfigManager().load_timeshift_settings()
+                has_timeshift_config = bool(ts_settings.get('url_format', ''))
+            except Exception:
+                ts_settings = {}
+                has_timeshift_config = False
+            
+            if not (catchup and catchup_source) and not has_timeshift_config:
+                logger.debug("直播模式，频道不支持时移，重置进度条")
+                from datetime import datetime
+                current_time = datetime.now()
+                minutes = current_time.minute
+                seconds = current_time.second
+                progress = int(((minutes * 60) + seconds) / 3600 * 100)
+                self.program_progress.setValue(progress)
+                return
+            
+            # 支持时移，根据进度条位置计算偏移并进入时移
+            value = self.program_progress.value()
+            
+            # 进度条 100% 表示当前时间(不触发时移)，接近100%时不触发
+            if value >= 98:
+                from datetime import datetime
+                current_time = datetime.now()
+                minutes = current_time.minute
+                seconds = current_time.second
+                progress = int(((minutes * 60) + seconds) / 3600 * 100)
+                self.program_progress.setValue(progress)
+                return
+            
+            # 计算最大可回退分钟数
+            if catchup and catchup_source:
+                catchup_days = int(self.current_channel.get('catchup_days', '1'))
+                max_offset_minutes = catchup_days * 24 * 60
+            else:
+                max_offset_minutes = ts_settings.get('default_offset_minutes', 30) * 6
+            
+            # 进度条 0%=最大回退, 100%=当前时间
+            offset_minutes = max_offset_minutes * (1 - value / 100.0)
+            offset_minutes = max(1, int(offset_minutes))
+            
+            logger.info(f"直播拖动进度条 -> 进入时移模式, 偏移-{offset_minutes}分钟 (进度{value}%)")
+            self.start_timeshift(offset_minutes=offset_minutes)
             return
         
         # 获取进度条的当前值

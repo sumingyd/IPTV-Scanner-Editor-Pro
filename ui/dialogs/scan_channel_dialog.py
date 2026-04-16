@@ -464,12 +464,14 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.btn_scan = QtWidgets.QPushButton(tr("full_scan", "Full Scan"))
         self.btn_scan.setStyleSheet(AppStyles.common_button_style())
         self.btn_scan.setMinimumHeight(32)  # 减少按钮高度
+        self.btn_scan.setAutoDefault(False)
 
         # 新增追加扫描按钮
         self.btn_append_scan = QtWidgets.QPushButton(tr("append_scan", "Append Scan"))
         self.btn_append_scan.setStyleSheet(AppStyles.common_button_style())
         self.btn_append_scan.setMinimumHeight(32)  # 减少按钮高度
         self.btn_append_scan.setToolTip(tr("append_scan_tooltip", "Append valid channels to existing list without clearing"))
+        self.btn_append_scan.setAutoDefault(False)
 
         # 新增直接生成列表按钮
         self.btn_generate = QtWidgets.QPushButton(tr("generate_list", "Generate List"))
@@ -747,6 +749,7 @@ class ScanChannelDialog(QtWidgets.QDialog):
         self.btn_save_channel = QtWidgets.QPushButton(tr("save_changes", "💾 Save Changes"))
         self.btn_save_channel.setStyleSheet(AppStyles.common_button_style())
         self.btn_save_channel.setFixedHeight(40)
+        self.btn_save_channel.setDefault(True)
         self.btn_save_channel.clicked.connect(self._on_save_channel)
         edit_layout.addWidget(self.btn_save_channel)
 
