@@ -1236,15 +1236,18 @@ class IPTVPlayer(QMainWindow):
         """显示左右面板"""
         logger.debug("_show_side_panels: 开始")
         
+        bottom_reserve = 180 if self.is_fullscreen else (self.floating_panel.height() + 40 if hasattr(self, 'floating_panel') and self.floating_panel and self.floating_panel.isVisible() else 180)
+        panel_height = max(100, self.video_frame.height() - bottom_reserve)
+        
         # 设置左右侧边栏为独立窗口（悬浮效果）
         # 左侧 EPG 面板悬浮
         if self.epg_panel and self.video_frame:
-            self.epg_panel.setFixedHeight(self.video_frame.height() - 180)
+            self.epg_panel.setFixedHeight(panel_height)
             self.epg_panel.show()
         
         # 右侧播放列表面板悬浮
         if self.playlist_panel and self.video_frame:
-            self.playlist_panel.setFixedHeight(self.video_frame.height() - 180)
+            self.playlist_panel.setFixedHeight(panel_height)
             self.playlist_panel.show()
         
         logger.debug("_show_side_panels: 完成")
@@ -3638,24 +3641,30 @@ class IPTVPlayer(QMainWindow):
             # 获取 video_frame 在屏幕上的位置
             video_frame_global_pos = self.video_frame.mapToGlobal(self.video_frame.rect().topLeft())
             
+            bottom_reserve = 180 if self.is_fullscreen else (self.floating_panel.height() + 40 if hasattr(self, 'floating_panel') and self.floating_panel and self.floating_panel.isVisible() else 180)
+            
             # 更新左侧EPG面板位置和高度
             if hasattr(self, 'epg_panel') and self.epg_panel:
-                self.epg_panel.setFixedHeight(self.video_frame.height() - 180)
+                panel_height = max(100, self.video_frame.height() - bottom_reserve)
+                self.epg_panel.setFixedHeight(panel_height)
                 x = video_frame_global_pos.x() + 10
                 y = video_frame_global_pos.y() + 10
                 self.epg_panel.move(x, y)
 
             # 更新右侧播放列表面板位置和高度
             if hasattr(self, 'playlist_panel') and self.playlist_panel:
-                self.playlist_panel.setFixedHeight(self.video_frame.height() - 180)
+                panel_height = max(100, self.video_frame.height() - bottom_reserve)
+                self.playlist_panel.setFixedHeight(panel_height)
                 x = video_frame_global_pos.x() + self.video_frame.width() - self.playlist_panel.width() - 10
                 y = video_frame_global_pos.y() + 10
                 self.playlist_panel.move(x, y)
 
             # 更新底部悬浮控制面板位置
             if hasattr(self, 'floating_panel') and self.floating_panel:
+                bottom_gap = 8 if not self.is_fullscreen else 20
                 x = video_frame_global_pos.x() + (self.video_frame.width() - self.floating_panel.width()) // 2
-                y = video_frame_global_pos.y() + self.video_frame.height() - self.floating_panel.height() - 20
+                status_bar_height = self.status_bar.height() if self.status_bar and self.status_bar.isVisible() else 0
+                y = video_frame_global_pos.y() + self.video_frame.height() - self.floating_panel.height() - bottom_gap - status_bar_height
                 self.floating_panel.move(x, y)
         except Exception as e:
             logger.error(f"update_floating_position: 出错 - {e}")
@@ -3698,21 +3707,27 @@ class IPTVPlayer(QMainWindow):
                 self._custom_menu_bar.show()
             if saved.get('status_bar', True) and self.status_bar:
                 self.status_bar.show()
-            if saved.get('epg', True) and hasattr(self, 'epg_panel') and self.epg_panel:
-                self.epg_panel.show()
-                self.epg_visible = True
-            else:
-                self.epg_visible = False
-            if saved.get('playlist', True) and hasattr(self, 'playlist_panel') and self.playlist_panel:
-                self.playlist_panel.show()
-                self.playlist_visible = True
-            else:
-                self.playlist_visible = False
-            if saved.get('floating', True) and hasattr(self, 'floating_panel') and self.floating_panel:
-                self.floating_panel.show()
-                self.floating_panel_visible = True
-            else:
-                self.floating_panel_visible = False
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(100, self._restore_floating_panels_after_fullscreen)
+    
+    def _restore_floating_panels_after_fullscreen(self):
+        saved = getattr(self, '_fullscreen_saved_states', {})
+        if saved.get('epg', True) and hasattr(self, 'epg_panel') and self.epg_panel:
+            self.epg_panel.show()
+            self.epg_visible = True
+        else:
+            self.epg_visible = False
+        if saved.get('playlist', True) and hasattr(self, 'playlist_panel') and self.playlist_panel:
+            self.playlist_panel.show()
+            self.playlist_visible = True
+        else:
+            self.playlist_visible = False
+        if saved.get('floating', True) and hasattr(self, 'floating_panel') and self.floating_panel:
+            self.floating_panel.show()
+            self.floating_panel_visible = True
+        else:
+            self.floating_panel_visible = False
+        self.update_floating_position()
     
     def refresh_ui(self):
         """刷新界面"""
@@ -4766,6 +4781,19 @@ class IPTVPlayer(QMainWindow):
             logger.debug(f"保存窗口布局: x={geometry.x()}, y={geometry.y()}, width={geometry.width()}, height={geometry.height()}")
         except Exception as e:
             logger.error(f"保存窗口布局失败: {e}")
+    
+    def showEvent(self, event):
+        """窗口首次显示时，多阶段渐进式修正悬浮窗位置"""
+        super().showEvent(event)
+        from PyQt6.QtCore import QTimer
+        if not getattr(self, '_initial_position_fixed', False):
+            self._initial_position_fixed = True
+            # 多阶段渐进式修正：Qt布局系统是异步的，单次延迟不可靠
+            # 50ms: 早期修正（可能还不稳定）
+            # 150ms: 中期修正（布局基本稳定）
+            # 300ms: 最终修正（确保完全稳定）
+            for delay in (50, 150, 300):
+                QTimer.singleShot(delay, self.update_floating_position)
     
     def changeEvent(self, event):
         """主窗口状态变化时，确保悬浮窗层级正确"""
