@@ -366,18 +366,26 @@ class ScannerController(QObject):
         """动态填充扫描队列 - 优化版，避免内存爆炸"""
         try:
             batch_count = 0
+            skip_urls = getattr(self, '_skip_urls', set())
             for batch in self.url_generator:
                 if self.stop_event.is_set():
                     break
 
                 batch_count += 1
 
-                # 只更新统计信息，不记录所有URL
-                with self.stats_lock:
-                    self.stats['total'] += len(batch)
+                if skip_urls:
+                    filtered = [url for url in batch if url not in skip_urls]
+                    skipped = len(batch) - len(filtered)
+                    with self.stats_lock:
+                        self.stats['total'] += len(filtered)
+                    if skipped > 0:
+                        self.logger.debug(f"追加扫描跳过 {skipped} 个已存在URL")
+                else:
+                    filtered = batch
+                    with self.stats_lock:
+                        self.stats['total'] += len(batch)
 
-                # 只填充队列，不记录到列表
-                for url in batch:
+                for url in filtered:
                     if self.stop_event.is_set():
                         break
                     self.scan_queue.put(url)
@@ -401,12 +409,15 @@ class ScannerController(QObject):
 
     def start_scan(
         self, base_url: str, thread_count: int = 10, timeout: int = 10,
-        user_agent: str | None = None, referer: str | None = None
+        user_agent: str | None = None, referer: str | None = None,
+        skip_urls: set | None = None
     ) -> None:
         """开始扫描 - 优化版本"""
         # 确保停止之前的扫描
         self.stop_scan()
         self.stop_event.clear()
+
+        self._skip_urls = skip_urls or set()
 
         # 使用扫描状态上下文管理器
         with ScanStateContext(self.scan_id, self):

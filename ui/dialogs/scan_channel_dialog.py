@@ -1119,7 +1119,11 @@ class ScanChannelDialog(QtWidgets.QDialog):
         except Exception as e:
             self.logger.debug(f"读取超时配置失败，使用默认值: {e}")
 
-        self.scanner.start_scan(url, scan_threads, scan_timeout_phase1)
+        skip_urls = None
+        if not clear_list:
+            skip_urls = {ch.get('url', '') for ch in self.model.channels if ch.get('url')}
+
+        self.scanner.start_scan(url, scan_threads, scan_timeout_phase1, skip_urls=skip_urls)
 
         if clear_list:
             self._set_scan_button_text('stop_scan', '停止扫描')
