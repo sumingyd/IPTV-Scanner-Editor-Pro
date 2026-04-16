@@ -327,16 +327,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 break
 
         if existing_index >= 0:
-            # 更新现有频道信息
-            self.channels[existing_index].update(channel_info)
-            # 通知视图更新
-            index = self.index(existing_index, 0)
-            self.dataChanged.emit(index, index)
-            # 更新名称和分组缓存
-            if 'name' in channel_info:
-                self._name_cache.add(channel_info['name'])
-            if 'group' in channel_info:
-                self._group_cache.add(channel_info['group'])
+            return
         else:
             # 添加新频道
             self.beginInsertRows(QtCore.QModelIndex(), len(self.channels), len(self.channels))
