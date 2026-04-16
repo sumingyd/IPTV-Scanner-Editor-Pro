@@ -3806,7 +3806,8 @@ class IPTVPlayer(QMainWindow):
         self.epg_panel.setVisible(True)
         self.playlist_panel.setVisible(True)
         self.floating_panel.setVisible(True)
-        self.resize(1280, 780)
+        # 视频区域目标 1280×720，加上标题栏(32)+菜单栏(~28)+状态栏(~26)=806
+        self.resize(1280, 806)
     
     def open_scan_ui(self):
         """打开扫描频道窗口"""
