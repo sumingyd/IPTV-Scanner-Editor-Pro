@@ -150,7 +150,7 @@ BUILTIN_TRANSLATIONS = {
         'menu_file': '文件',
         'menu_open_playlist': '打开列表',
         'menu_recent_open': '最近打开',
-        'menu_save_as': '另存...',
+        'menu_save_as': '另存为...',
         'menu_exit': '退出',
         'menu_view': '视图',
         'menu_epg_list': '节目列表',
@@ -375,7 +375,8 @@ BUILTIN_TRANSLATIONS = {
         'light': '浅色',
         'neumorphic_dark': '拟态暗',
         'neumorphic_light': '拟态浅',
-        'apple_tv': 'Apple TV'
+        'apple_tv': 'Apple TV',
+        'menu_hide_floating': '隐藏悬浮'
     },
     'en': {
         'language_name': 'English',
@@ -748,7 +749,8 @@ BUILTIN_TRANSLATIONS = {
         'light': 'Light',
         'neumorphic_dark': 'Neumorphic Dark',
         'neumorphic_light': 'Neumorphic Light',
-        'apple_tv': 'Apple TV'
+        'apple_tv': 'Apple TV',
+        'menu_hide_floating': 'Hide Floating Panels'
     }
 }
 
