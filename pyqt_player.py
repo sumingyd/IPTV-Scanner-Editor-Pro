@@ -5381,7 +5381,7 @@ class IPTVPlayer(QMainWindow):
         self.populate_channel_list()
         return True
 
-    _SPEED_STEPS = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 5.0]
+    _SPEED_STEPS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 5.0]
 
     def _cycle_speed(self):
         if not self.player_controller:
