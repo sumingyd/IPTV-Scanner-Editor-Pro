@@ -1105,19 +1105,9 @@ class ScanChannelDialog(QtWidgets.QDialog):
         # 第二阶段：对失败的URL自动重试（15秒超时），提高检出率
         scan_timeout_phase1 = 5  # 第一阶段快速超时
 
-        # 智能动态线程数：5-8线程范围
-        # 根据CPU核心数和内存情况自适应，但限制在安全范围内避免mpv句柄污染
-        cpu_count = os.cpu_count() or 4
-        if cpu_count <= 2:
-            scan_threads = 5  # 低配机器用5线程
-        elif cpu_count <= 4:
-            scan_threads = 6  # 中等配置用6线程
-        elif cpu_count <= 8:
-            scan_threads = 7  # 高配机器用7线程
-        else:
-            scan_threads = 8  # 顶级配置最多8线程
-
-        self.logger.debug(f"智能线程数: CPU={cpu_count}核, 使用{scan_threads}线程")
+        # 固定使用4个扫描线程
+        scan_threads = 4
+        self.logger.debug(f"使用固定{scan_threads}线程")
 
         try:
             if hasattr(self, 'config') and self.config:
@@ -1705,16 +1695,8 @@ class ScanChannelDialog(QtWidgets.QDialog):
 
         self.logger.info(f"第二阶段深度扫描: {len(retry_urls)} 个URL, 超时={retry_timeout}秒")
 
-        # 使用与第一阶段相同的智能线程数
-        cpu_count = os.cpu_count() or 4
-        if cpu_count <= 2:
-            retry_threads = 5
-        elif cpu_count <= 4:
-            retry_threads = 6
-        elif cpu_count <= 8:
-            retry_threads = 7
-        else:
-            retry_threads = 8
+        # 固定使用4个扫描线程
+        retry_threads = 4
 
         # 启动深度重试扫描
         self.scanner.start_scan_from_urls(
