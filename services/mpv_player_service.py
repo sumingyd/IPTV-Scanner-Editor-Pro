@@ -678,24 +678,6 @@ class MpvPlayerController(QObject):
         except Exception:
             return False
 
-    def seek_relative(self, seconds):
-        try:
-            if self.mpv_handle:
-                cmd = [b'seek', f'{seconds}'.encode('utf-8'), b'relative', None]
-                cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
-                libmpv.mpv_command(self.mpv_handle, cmd_ptr)
-        except Exception as e:
-            self.logger.error(f"相对跳转失败: {str(e)}")
-
-    def seek_absolute(self, seconds):
-        try:
-            if self.mpv_handle:
-                cmd = [b'seek', f'{seconds}'.encode('utf-8'), b'absolute', None]
-                cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
-                libmpv.mpv_command(self.mpv_handle, cmd_ptr)
-        except Exception as e:
-            self.logger.error(f"绝对跳转失败: {str(e)}")
-
     def get_current_time(self):
         try:
             # 首先尝试 time-pos

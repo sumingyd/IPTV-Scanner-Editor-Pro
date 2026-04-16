@@ -73,6 +73,7 @@ class LogoCacheService(ThreadSafeQObject):
         self._warmup_timer = QTimer(self)
         self._warmup_timer.setInterval(100)
         self._warmup_timer.timeout.connect(self._process_warmup_queue)
+        self._migrate_old_cache()
 
     def _load_meta(self):
         try:
@@ -93,8 +94,78 @@ class LogoCacheService(ThreadSafeQObject):
     def _url_to_key(self, url):
         return hashlib.sha1(url.encode('utf-8')).hexdigest()
 
-    def _disk_path(self, key):
-        return os.path.join(self._cache_dir, key)
+    def _guess_ext_from_url(self, url):
+        from urllib.parse import urlparse, unquote
+        path = unquote(urlparse(url).path).lower()
+        for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.ico'):
+            if path.endswith(ext):
+                return ext
+        return '.png'
+
+    def _ext_from_content_type(self, content_type):
+        if not content_type or not isinstance(content_type, str):
+            return None
+        ct = content_type.lower()
+        if 'png' in ct:
+            return '.png'
+        if 'jpeg' in ct or 'jpg' in ct:
+            return '.jpg'
+        if 'gif' in ct:
+            return '.gif'
+        if 'webp' in ct:
+            return '.webp'
+        if 'bmp' in ct:
+            return '.bmp'
+        if 'svg' in ct:
+            return '.svg'
+        if 'ico' in ct or 'icon' in ct:
+            return '.ico'
+        return None
+
+    def _disk_path(self, key, ext='.png'):
+        return os.path.join(self._cache_dir, key + ext)
+
+    def _find_disk_path(self, key):
+        if key in self._meta:
+            ext = self._meta[key].get('ext', '.png')
+            path = self._disk_path(key, ext)
+            if os.path.exists(path):
+                return path
+        for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.ico'):
+            path = self._disk_path(key, ext)
+            if os.path.exists(path):
+                return path
+        path = self._disk_path(key, '')
+        if os.path.exists(path):
+            return path
+        return None
+
+    def _migrate_old_cache(self):
+        try:
+            migrated = False
+            for key, meta in list(self._meta.items()):
+                if 'ext' not in meta:
+                    old_path = self._disk_path(key, '')
+                    if os.path.exists(old_path):
+                        ext = '.' + meta.get('format', 'png') if 'format' in meta else '.png'
+                        new_path = self._disk_path(key, ext)
+                        os.rename(old_path, new_path)
+                        meta['ext'] = ext
+                        migrated = True
+                    else:
+                        found = self._find_disk_path(key)
+                        if found:
+                            ext = os.path.splitext(found)[1]
+                            meta['ext'] = ext if ext else '.png'
+                            migrated = True
+                        else:
+                            ext = self._guess_ext_from_url(meta.get('url', ''))
+                            meta['ext'] = ext
+                            migrated = True
+            if migrated:
+                self._save_meta()
+        except Exception:
+            pass
 
     def get(self, url):
         if not url:
@@ -109,15 +180,16 @@ class LogoCacheService(ThreadSafeQObject):
                 return self._memory_cache[url]
 
         key = self._url_to_key(url)
-        disk_path = self._disk_path(key)
+        disk_path = self._find_disk_path(key)
 
-        if os.path.exists(disk_path):
+        if disk_path and os.path.exists(disk_path):
             meta_entry = self._meta.get(key, {})
             cached_at = meta_entry.get('time', 0)
             if time.time() - cached_at > self.DEFAULT_TTL:
                 try:
                     os.remove(disk_path)
                     self._meta.pop(key, None)
+                    self._save_meta()
                 except Exception:
                     pass
                 return None
@@ -129,19 +201,29 @@ class LogoCacheService(ThreadSafeQObject):
                 return pixmap
         return None
 
-    def put(self, url, pixmap):
+    def put(self, url, pixmap, ext='.png', content_hash=None):
         if not url or pixmap.isNull():
             return
         with self._lock:
             self._memory_cache[url] = pixmap
         key = self._url_to_key(url)
-        disk_path = self._disk_path(key)
+
+        old_path = self._find_disk_path(key)
+        new_ext = ext if ext else '.png'
+        disk_path = self._disk_path(key, new_ext)
+
         try:
+            if old_path and old_path != disk_path and os.path.exists(old_path):
+                os.remove(old_path)
             pixmap.save(disk_path, 'PNG')
-            self._meta[key] = {
+            meta_entry = {
                 'url': url,
                 'time': time.time(),
+                'ext': new_ext,
             }
+            if content_hash:
+                meta_entry['content_hash'] = content_hash
+            self._meta[key] = meta_entry
             self._save_meta()
         except Exception:
             pass
@@ -150,28 +232,31 @@ class LogoCacheService(ThreadSafeQObject):
         with self._lock:
             self._negative_cache[url] = time.time()
 
-    def fetch_async(self, url):
+    def fetch_async(self, url, force=False):
         if not url:
             return
-        if not self._ensure_main_thread(self.fetch_async, url):
+        if not self._ensure_main_thread(self.fetch_async, url, force):
             return
         with self._lock:
-            if url in self._memory_cache:
-                self.logo_loaded.emit(url, self._memory_cache[url])
-                return
             if url in self._negative_cache:
                 if time.time() - self._negative_cache[url] < 3600:
                     return
                 del self._negative_cache[url]
 
-        cached = self.get(url)
-        if cached:
-            self.logo_loaded.emit(url, cached)
-            return
+        if not force:
+            cached = self.get(url)
+            if cached:
+                self.logo_loaded.emit(url, cached)
+                if url not in self._pending_replies:
+                    self._start_download(url)
+                return
 
         if url in self._pending_replies:
             return
 
+        self._start_download(url)
+
+    def _start_download(self, url):
         try:
             request = QNetworkRequest(QUrl(url))
             request.setHeader(QNetworkRequest.KnownHeaders.UserAgentHeader,
@@ -204,9 +289,28 @@ class LogoCacheService(ThreadSafeQObject):
                 reply.deleteLater()
                 return
 
+            raw_data = data.data()
+            content_hash = hashlib.md5(raw_data).hexdigest()
+
+            key = self._url_to_key(url)
+            meta_entry = self._meta.get(key, {})
+            old_hash = meta_entry.get('content_hash')
+
+            ext = self._ext_from_content_type(content_type)
+            if not ext:
+                ext = self._guess_ext_from_url(url)
+
+            if old_hash and old_hash == content_hash:
+                meta_entry['time'] = time.time()
+                meta_entry['ext'] = ext
+                self._meta[key] = meta_entry
+                self._save_meta()
+                reply.deleteLater()
+                return
+
             pixmap = QPixmap()
-            if pixmap.loadFromData(data.data()):
-                self.put(url, pixmap)
+            if pixmap.loadFromData(raw_data):
+                self.put(url, pixmap, ext=ext, content_hash=content_hash)
                 self.logo_loaded.emit(url, pixmap)
             else:
                 self.mark_negative(url)
@@ -259,9 +363,9 @@ class LogoCacheService(ThreadSafeQObject):
             if now - meta.get('time', 0) > self.DEFAULT_TTL:
                 expired_keys.append(key)
         for key in expired_keys:
-            disk_path = self._disk_path(key)
+            disk_path = self._find_disk_path(key)
             try:
-                if os.path.exists(disk_path):
+                if disk_path and os.path.exists(disk_path):
                     os.remove(disk_path)
             except Exception:
                 pass
