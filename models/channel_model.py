@@ -335,8 +335,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             # 更新名称和分组缓存
             if 'name' in channel_info:
                 self._name_cache.add(channel_info['name'])
-            if 'group' in channel_info:
-                self._group_cache.add(channel_info['group'])
+            for g in channel_info.get('_groups', [channel_info.get('group', '')]):
+                if g:
+                    self._group_cache.add(g)
             self.endInsertRows()
 
             # 如果是从文件加载的频道，保存原始数据
@@ -642,7 +643,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
                     self.channels.append(channel)
                     self._name_cache.add(channel['name'])
-                    self._group_cache.add(channel['group'])
+                    for g in channel.get('_groups', [channel.get('group', '')]):
+                        if g:
+                            self._group_cache.add(g)
                     logger.debug(f"成功加载频道: {channel['name']}")
                 except Exception as e:
                     logger.error(f"处理Excel行失败: {row}, 错误: {str(e)}")
@@ -676,8 +679,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         # 更新名称和分组缓存
         if 'name' in channel:
             self._name_cache.discard(channel['name'])
-        if 'group' in channel:
-            self._group_cache.discard(channel['group'])
+        for g in channel.get('_groups', [channel.get('group', '')]):
+            if g:
+                self._group_cache.discard(g)
 
         # 完成删除操作
         self.endRemoveRows()
@@ -709,6 +713,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 # 记录原始数据用于调试
                 old_name = channel.get('name', '')
                 old_group = channel.get('group', '')
+                old_groups = channel.get('_groups', [])
 
                 # 更新频道数据
                 self.channels[i].update(channel_info)
@@ -726,14 +731,14 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 # 更新名称和分组缓存
                 if 'name' in channel_info:
                     self._name_cache.add(channel_info['name'])
-                    # 如果名称改变，从缓存中移除旧名称
                     if old_name and old_name != channel_info['name']:
                         self._name_cache.discard(old_name)
-                if 'group' in channel_info:
-                    self._group_cache.add(channel_info['group'])
-                    # 如果分组改变，从缓存中移除旧分组
-                    if old_group and old_group != channel_info['group']:
-                        self._group_cache.discard(old_group)
+                for g in channel_info.get('_groups', [channel_info.get('group', '')]):
+                    if g:
+                        self._group_cache.add(g)
+                for g in old_groups:
+                    if g:
+                        self._group_cache.discard(g)
 
                 # 发送数据变化信号，确保特定行更新 - 使用更全面的角色列表
                 top_left = self.index(i, 0)
@@ -766,6 +771,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         # 记录原始数据用于调试
         old_name = channel.get('name', '')
         old_group = channel.get('group', '')
+        old_groups = channel.get('_groups', [])
 
         # 更新频道数据
         self.channels[index].update(new_channel)
@@ -783,14 +789,14 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         # 更新名称和分组缓存
         if 'name' in new_channel:
             self._name_cache.add(new_channel['name'])
-            # 如果名称改变，从缓存中移除旧名称
             if old_name and old_name != new_channel['name']:
                 self._name_cache.discard(old_name)
-        if 'group' in new_channel:
-            self._group_cache.add(new_channel['group'])
-            # 如果分组改变，从缓存中移除旧分组
-            if old_group and old_group != new_channel['group']:
-                self._group_cache.discard(old_group)
+        for g in new_channel.get('_groups', [new_channel.get('group', '')]):
+            if g:
+                self._group_cache.add(g)
+        for g in old_groups:
+            if g:
+                self._group_cache.discard(g)
 
         # 发送数据变化信号，确保特定行更新
         top_left = self.index(index, 0)
@@ -1273,7 +1279,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         if key == "tvg-name" and value:
                             pass
                         if key == "group-title" and value:
-                            current_group = value
+                            current_group = [g.strip() for g in value.split(';') if g.strip()]
                             genre_group_active = False
                         current_channel[field_name] = value
                         all_tags[key] = value
@@ -1290,15 +1296,24 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                             if tvg_name:
                                 current_channel['name'] = tvg_name
 
-                    current_channel['group'] = current_group
+                    # 分组支持 ; 分隔的多分组，存储为列表，group 取第一个作为主分组
+                    if isinstance(current_group, list):
+                        current_channel['_groups'] = current_group
+                        current_channel['group'] = current_group[0] if current_group else '未分类'
+                    else:
+                        current_channel['_groups'] = [current_group] if current_group else ['未分类']
+                        current_channel['group'] = current_group if current_group else '未分类'
                     current_channel['_all_tags'] = all_tags
                 else:
                     comma_name = ''
                     if extinf_content and ',' in extinf_content:
                         comma_name = extinf_content.split(',', 1)[-1].strip()
+                    groups_list = [g.strip() for g in current_group.split(';') if g.strip()] if isinstance(current_group, str) else (current_group if isinstance(current_group, list) else ['未分类'])
+                    primary_group = groups_list[0] if groups_list else '未分类'
                     current_channel = {
                         'name': comma_name if comma_name else (extinf_content if extinf_content else '未命名'),
-                        'group': current_group,
+                        'group': primary_group,
+                        '_groups': groups_list,
                         'tvg_id': "",
                         'logo': "",
                         'resolution': "",
@@ -1327,8 +1342,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                     channels.append(current_channel)
                     if 'name' in current_channel:
                         name_cache.add(current_channel['name'])
-                    if 'group' in current_channel:
-                        group_cache.add(current_channel['group'])
+                    for g in current_channel.get('_groups', [current_channel.get('group', '')]):
+                        if g:
+                            group_cache.add(g)
                 current_channel = None
             elif line and not current_channel:
                 if self._is_valid_channel_url(line):
@@ -1336,10 +1352,13 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         ch_name = extract_channel_name_from_url(line)
                     except Exception:
                         ch_name = ''
+                    groups_list = [g.strip() for g in current_group.split(';') if g.strip()] if isinstance(current_group, str) else (current_group if isinstance(current_group, list) else ['未分类'])
+                    primary_group = groups_list[0] if groups_list else '未分类'
                     channels.append({
                         'name': ch_name if ch_name else '未命名',
                         'url': line,
-                        'group': current_group,
+                        'group': primary_group,
+                        '_groups': groups_list,
                         'tvg_id': "",
                         'logo': "",
                         'resolution': "",

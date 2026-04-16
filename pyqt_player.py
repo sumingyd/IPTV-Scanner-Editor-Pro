@@ -1524,14 +1524,14 @@ class IPTVPlayer(QMainWindow):
         """从CHANNELS中提取分组并更新下拉框"""
         global CHANNEL_GROUPS
         
-        # 提取所有唯一的分组，保持出现顺序
+        # 提取所有唯一的分组（支持多分组），保持出现顺序
         groups = []
         seen = set()
         for channel in CHANNELS:
-            group = channel.get('group', '') or '未分类'
-            if group not in seen:
-                groups.append(group)
-                seen.add(group)
+            for g in channel.get('_groups', [channel.get('group', '') or '未分类']):
+                if g and g not in seen:
+                    groups.append(g)
+                    seen.add(g)
         
         # 更新CHANNEL_GROUPS
         new_groups = [self.language_manager.tr("all_channels", "All Channels")] + groups
@@ -1576,8 +1576,8 @@ class IPTVPlayer(QMainWindow):
 
         for idx, channel in enumerate(CHANNELS):
             if selected_group != self.language_manager.tr("all_channels", "All Channels"):
-                channel_group = channel.get('group', self.language_manager.tr("uncategorized", "Uncategorized"))
-                if channel_group != selected_group:
+                channel_groups = channel.get('_groups', [channel.get('group', '')])
+                if selected_group not in channel_groups:
                     continue
 
             # 创建自定义的频道项 widget
