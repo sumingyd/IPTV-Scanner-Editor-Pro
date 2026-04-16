@@ -790,9 +790,11 @@ class MpvPlayerController(QObject):
                 if result < 0:
                     self.logger.warning(f"绝对seek到{target_seconds:.1f}秒失败，错误码: {result}")
                 else:
-                    self.logger.debug(f"绝对seek: {target_seconds:.1f}秒")
+                    self.logger.info(f"绝对seek成功: {target_seconds:.1f}秒")
+                return result
         except Exception as e:
             self.logger.error(f"绝对seek失败: {str(e)}")
+        return -1
 
     def seek(self, position):
         try:

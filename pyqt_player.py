@@ -2212,11 +2212,7 @@ class IPTVPlayer(QMainWindow):
                 logger.error(f"显示退出回看按钮失败: {e}")
     
     def exit_catchup(self):
-        """退出回看/时移，返回直播"""
-        if getattr(self, '_is_timeshift_mode', False):
-            self._exit_timeshift()
-            return
-        
+        """退出回看，返回直播"""
         # 隐藏退出回看按钮
         if hasattr(self, 'exit_catchup_button'):
             self.exit_catchup_button.hide()
@@ -2265,24 +2261,23 @@ class IPTVPlayer(QMainWindow):
                 logger.error(f"显示退出时移按钮失败: {e}")
     
     def _on_timeshift_slider_seek(self):
-        """时移模式下拖动进度条，value直接是偏移秒数"""
-        value = self.program_progress.value()
+        """时移模式下拖动进度条，value=偏移秒数，用相对seek调整"""
+        new_offset = int(self.program_progress.value())
+        max_shift = getattr(self, '_ts_max_shift', 300)
+        new_offset = max(0, min(new_offset, max_shift))
         
-        ts_range = getattr(self, '_ts_range', None)
-        if not ts_range:
-            return
-        ts_min, ts_max = ts_range
+        current_offset = getattr(self, '_ts_current_offset', 0)
+        delta = new_offset - current_offset
+        self._ts_current_offset = new_offset
         
-        # value 就是偏移秒数，直接 seek
-        target_time = ts_min + float(value)
-        
-        logger.info(f"时移模式拖动进度条 -> seek到 {target_time:.1f}s (偏移{value:.0f}s)")
-        self.player_controller.seek_absolute(target_time)
+        logger.info(f"时移模式拖动: {current_offset}s -> {new_offset}s (delta={delta:+d}s)")
+        self.player_controller.seek_relative_seconds(delta)
     
     def _exit_timeshift(self):
         """退出时移模式，取消暂停恢复直播"""
         self._is_timeshift_mode = False
-        for attr in ['_ts_range', '_timeshift_enter_time_ms', '_timeshift_active', '_timeshift_start_time',
+        self.is_catchup_mode = False
+        for attr in ['_ts_max_shift', '_ts_current_offset', '_ts_range', '_timeshift_enter_time_ms', '_timeshift_active', '_timeshift_start_time',
                       '_catchup_start_time', '_catchup_start_progress',
                       '_target_catchup_progress', '_disable_progress_auto_update']:
             if hasattr(self, attr):
@@ -2304,46 +2299,28 @@ class IPTVPlayer(QMainWindow):
     
     def on_progress_slider_released(self):
         """进度条拖动释放时的处理"""
-        logger.debug(f"进度条拖动释放事件触发，当前值：{self.program_progress.value()}%")
         
-        # 优先检查是否处于时移模式
-        is_timeshift = getattr(self, '_is_timeshift_mode', False)
-        if is_timeshift:
-            self._on_timeshift_slider_seek()
-            return
-        
-        # 检查是否处于回看模式（非时移的回看）
+        # 检查是否处于回看模式
         is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
-        logger.debug(f"是否处于回看模式：{is_catchup}")
         
         if not is_catchup:
-            # 直播模式下拖动进度条 -> 播放器级时移（按秒数拖动）
+            # 直播模式：跟本地视频一样，拖动=seek
             if not self.current_channel or not self.player_controller:
                 return
             
-            # 获取时移时间范围
-            ts_min, ts_max = self.player_controller.get_timeshift_range()
-            ts_span = ts_max - ts_min
-            if ts_span <= 0:
+            value = float(self.program_progress.value())
+            
+            # 100% 附近不触发（接近live点）
+            if value >= 98:
                 return
             
-            value = self.program_progress.value()
+            # 进度条映射为回退秒数：0%=300秒前, 100%=live点
+            max_back = 300
+            offset_seconds = int(max_back * (1 - value / 100.0))
+            offset_seconds = max(1, offset_seconds)
             
-            # 进度条值直接就是偏移秒数
-            offset_seconds = float(value)
-            
-            # 首次进入：暂停 + 设置进度条为秒数刻度 + 记录时间轴范围
-            if not getattr(self, '_is_timeshift_mode', False):
-                self.player_controller.pause()
-                self._is_timeshift_mode = True
-                self._ts_range = (ts_min, ts_max)
-                self.program_progress.setRange(0, max(1, int(ts_span)))
-                self.program_progress.setValue(int(offset_seconds))
-                self._show_exit_timeshift_button()
-            
-            target_time = ts_min + offset_seconds
-            logger.info(f"直播拖动进度条 -> 时移 seek到 {target_time:.1f}s (偏移{offset_seconds:.0f}s)")
-            self.player_controller.seek_absolute(target_time)
+            logger.info(f"直播拖动进度条 -> seek 回退 {offset_seconds}s")
+            self.player_controller.seek_relative_seconds(-offset_seconds)
             return
         
         # 获取进度条的当前值
@@ -3593,18 +3570,6 @@ class IPTVPlayer(QMainWindow):
                             logger.debug("update_floating_panel_info: 处理回看时间显示失败，重置进度条为0")
             # 回看模式下，继续执行后面的代码，确保更新节目描述
             # 不再直接返回
-        elif getattr(self, '_is_timeshift_mode', False):
-            ts_range = getattr(self, '_ts_range', None)
-            if ts_range and self.player_controller:
-                try:
-                    ts_min, ts_max = ts_range
-                    current_pos = (self.player_controller.get_current_time() or 0) / 1000.0
-                    offset_seconds = max(0, current_pos - ts_min)
-                    self.program_progress.setValue(int(offset_seconds))
-                    self.progress_start.setText(f"{int(ts_min // 60):02d}:{int(ts_min % 60):02d}")
-                    self.progress_end.setText(f"{int(ts_max // 60):02d}:{int(ts_max % 60):02d}")
-                except Exception as e:
-                    logger.debug(f"时移进度条更新失败: {e}")
         elif has_epg:
             if current_program:
                 # 使用EPG节目单的时间信息
