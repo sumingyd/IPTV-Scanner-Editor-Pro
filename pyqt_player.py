@@ -2507,6 +2507,8 @@ class IPTVPlayer(QMainWindow):
     
     def toggle_play(self):
         """切换播放/暂停"""
+        if not self.current_channel:
+            return
         if self.player_controller:
             self.player_controller.toggle_pause()
 
