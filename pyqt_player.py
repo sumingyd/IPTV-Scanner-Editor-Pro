@@ -189,16 +189,7 @@ class IPTVPlayer(QMainWindow):
         self.content_layout.setSpacing(0)
         
         logger.debug("IPTVPlayer（最小化）初始化完成")
-        
-        # 加载窗口布局
-        x, y, width, height, _ = self.config.load_window_layout(
-            default_x=100,
-            default_y=100,
-            default_width=1280,
-            default_height=780
-        )
-        self.setGeometry(x, y, width, height)
-        
+
         # 设置主窗口样式
         self.setStyleSheet(AppStyles.main_window_style())
         

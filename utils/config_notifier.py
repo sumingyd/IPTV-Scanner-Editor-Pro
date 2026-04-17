@@ -142,6 +142,7 @@ def on_config_change(config_key: str):
 # 配置变更上下文管理器
 class ConfigChangeContext:
     """配置变更上下文管理器"""
+    _config = None
 
     def __init__(self, section: str, key: str, old_value: Any):
         self.section = section
@@ -155,14 +156,13 @@ class ConfigChangeContext:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """退出上下文时通知变更"""
         if exc_type is None:
-            # 没有异常，通知变更
-            from core.config_manager import ConfigManager
-            config = ConfigManager()
-            new_value = config.get_value(self.section, self.key)
+            if self._config is None:
+                from core.config_manager import ConfigManager
+                ConfigChangeContext._config = ConfigManager()
+            new_value = self._config.get_value(self.section, self.key)
             if new_value != self.old_value:
                 notify_config_change(self.section, self.key, self.old_value, new_value)
 
-        # 不处理异常，让异常正常传播
         return False
 
 
@@ -177,7 +177,8 @@ def config_change_context(section: str, key: str):
     Returns:
         配置变更上下文管理器
     """
-    from core.config_manager import ConfigManager
-    config = ConfigManager()
-    old_value = config.get_value(section, key)
+    if ConfigChangeContext._config is None:
+        from core.config_manager import ConfigManager
+        ConfigChangeContext._config = ConfigManager()
+    old_value = ConfigChangeContext._config.get_value(section, key)
     return ConfigChangeContext(section, key, old_value)

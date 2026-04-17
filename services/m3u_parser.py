@@ -193,4 +193,24 @@ def is_valid_channel_url(url):
         return False
     if u.startswith('rtp://0.') or u.startswith('udp://0.'):
         return False
-    return True
+    if '://' not in u:
+        return False
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(u)
+        host = parsed.hostname
+        if not host:
+            return False
+        if host in ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
+            return False
+        octets = host.split('.')
+        if len(octets) == 4:
+            try:
+                if all(0 <= int(o) <= 255 for o in octets):
+                    if int(octets[0]) == 0:
+                        return False
+            except ValueError:
+                pass
+        return True
+    except Exception:
+        return True

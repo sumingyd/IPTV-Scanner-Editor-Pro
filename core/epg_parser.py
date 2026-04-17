@@ -13,23 +13,20 @@ class EPGParser:
         self.epg_data = {}
         self.last_update = None
         self.update_lock = threading.Lock()
-        # 从配置文件加载last_update
         from core.config_manager import ConfigManager
-        config = ConfigManager()
-        last_update_str = config.get_value('EPG', 'last_update', None)
+        self._config = ConfigManager()
+        last_update_str = self._config.get_value('EPG', 'last_update', None)
         if last_update_str:
             try:
                 from datetime import datetime
                 self.last_update = datetime.fromisoformat(last_update_str)
             except Exception:
                 pass
-    
+
     def load_cached_epg_data(self):
         """从缓存文件加载 EPG 数据"""
         import os
-        from core.config_manager import ConfigManager
-        config = ConfigManager()
-        cache_dir = config.get_value('General', 'cache_dir', 'cache') or 'cache'
+        cache_dir = self._config.get_value('General', 'cache_dir', 'cache') or 'cache'
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         
@@ -46,9 +43,7 @@ class EPGParser:
     def save_cached_epg_data(self):
         """保存 EPG 数据到缓存文件"""
         import os
-        from core.config_manager import ConfigManager
-        config = ConfigManager()
-        cache_dir = config.get_value('General', 'cache_dir', 'cache') or 'cache'
+        cache_dir = self._config.get_value('General', 'cache_dir', 'cache') or 'cache'
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         
@@ -151,11 +146,8 @@ class EPGParser:
             
             self.epg_data = self.parse_epg_data(epg_content)
             self.last_update = datetime.now()
-            # 保存last_update到配置文件
-            from core.config_manager import ConfigManager
-            config = ConfigManager()
-            config.set_value('EPG', 'last_update', self.last_update.isoformat())
-            config.save_config()
+            self._config.set_value('EPG', 'last_update', self.last_update.isoformat())
+            self._config.save_config()
             
             # 保存EPG数据到缓存文件
             self.save_cached_epg_data()
@@ -278,21 +270,22 @@ class EPGParser:
                 if channel_name in self.epg_data:
                     return self.epg_data[channel_name]
 
-            try:
-                from services.epg_matcher import EpgMatcher
-                epg_channels = {epg_id: epg_id for epg_id in self.epg_data.keys()}
-                matched_id = EpgMatcher.match(channel_name, epg_channels, tvg_id=tvg_id)
-                if matched_id and matched_id in self.epg_data:
-                    return self.epg_data[matched_id]
-            except Exception as ex:
-                logger.warning(f"EpgMatcher 匹配异常: {ex}")
+        try:
+            from services.epg_matcher import EpgMatcher
+            epg_channels = {epg_id: epg_id for epg_id in self.epg_data.keys()}
+            matched_id = EpgMatcher.match(channel_name, epg_channels, tvg_id=tvg_id)
+            if matched_id and matched_id in self.epg_data:
+                return self.epg_data[matched_id]
+        except Exception as ex:
+            logger.warning(f"EpgMatcher 匹配异常: {ex}")
 
+        with self.update_lock:
             if channel_name:
                 channel_name_lower = channel_name.lower()
                 for epg_channel_id, programs in self.epg_data.items():
                     epg_lower = epg_channel_id.lower()
                     if len(channel_name_lower) >= 3 and (channel_name_lower in epg_lower or epg_lower in channel_name_lower):
-                        if len(channel_name_lower) >= len(epg_lower) * 0.6 or len(epg_lower) >= len(channel_name_lower) * 0.6:
+                        if len(channel_name_lower) >= len(epg_lower) * 0.7 or len(epg_lower) >= len(channel_name_lower) * 0.7:
                             return programs
             return []
     

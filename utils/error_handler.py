@@ -387,7 +387,8 @@ def handle_exceptions(
     user_message: Optional[str] = None,
     show_dialog: bool = True,
     default_return: Any = None,
-    log_level: str = 'error'
+    log_level: str = 'error',
+    exceptions: tuple = (Exception,)
 ):
     """
     异常处理装饰器，用于自动处理函数中的异常
@@ -397,6 +398,7 @@ def handle_exceptions(
         show_dialog: 是否显示错误对话框
         default_return: 异常发生时的默认返回值
         log_level: 日志级别 ('error', 'warning', 'info')
+        exceptions: 要捕获的异常类型元组，默认为 (Exception,)
 
     使用示例:
         @handle_exceptions(user_message="加载文件失败", default_return=[])
@@ -409,7 +411,7 @@ def handle_exceptions(
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
-            except Exception as e:
+            except exceptions as e:
                 # 获取错误处理器
                 try:
                     handler = get_global_error_handler()
@@ -461,75 +463,13 @@ def handle_specific_exceptions(
     default_return: Any = None,
     log_level: str = 'error'
 ):
-    """
-    处理特定异常的装饰器
-
-    参数:
-        exceptions: 要处理的异常类型元组
-        user_message: 用户友好的错误消息
-        show_dialog: 是否显示错误对话框
-        default_return: 异常发生时的默认返回值
-        log_level: 日志级别
-
-    使用示例:
-        @handle_specific_exceptions(
-            exceptions=(FileNotFoundError, PermissionError),
-            user_message="文件操作失败",
-            default_return=None
-        )
-        def open_file(file_path):
-            return open(file_path, 'r')
-    """
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except exceptions as e:
-                # 获取错误处理器
-                try:
-                    handler = get_global_error_handler()
-                except RuntimeError:
-                    # 如果没有全局错误处理器，使用默认日志记录
-                    logger = getattr(func, '__logger__', None)
-                    if not logger:
-                        from core.log_manager import global_logger
-                        logger = global_logger
-
-                    # 构建错误消息
-                    error_msg = user_message or f"执行 {func.__name__} 失败"
-                    full_msg = f"{error_msg}: {type(e).__name__}: {str(e)}"
-
-                    # 记录日志
-                    if log_level == 'error':
-                        logger.error(full_msg, exc_info=True)
-                    elif log_level == 'warning':
-                        logger.warning(full_msg)
-                        logger.exception("Exception info:")
-                    else:
-                        logger.info(full_msg)
-                        logger.exception("Exception info:")
-
-                    return default_return
-
-                # 使用错误处理器处理异常
-                handler.handle_exception(
-                    exception=e,
-                    user_message=user_message or f"执行 {func.__name__} 失败",
-                    show_dialog=show_dialog,
-                    log_level=log_level
-                )
-                return default_return
-            except Exception:
-                # 其他异常重新抛出
-                raise
-
-        # 复制原始函数的元数据
-        wrapper.__name__ = func.__name__
-        wrapper.__doc__ = func.__doc__
-        wrapper.__module__ = func.__module__
-
-        return wrapper
-    return decorator
+    return handle_exceptions(
+        user_message=user_message,
+        show_dialog=show_dialog,
+        default_return=default_return,
+        log_level=log_level,
+        exceptions=exceptions
+    )
 
 
 def retry_on_exception(

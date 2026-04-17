@@ -154,20 +154,16 @@ class ScannerController(QObject):
             if current < total:
                 self._run_on_main(self.progress_updated.emit, total, total)
 
-    def _process_valid_channel(self, channel_info: dict):
-        """处理有效频道"""
-        self.model.add_channel(channel_info)
-
-    def _add_channel_and_refresh(self, channel_info: dict):
-        """添加频道并强制刷新UI"""
-        # 扫描生成的频道，不是从文件加载的
+    def _handle_channel_add(self, channel_info: dict):
+        """处理频道添加：添加到模型、刷新UI、调整列宽"""
         self.model.add_channel(channel_info, is_from_file=False)
-        # 强制刷新UI
         self._force_ui_refresh()
 
-    def _handle_channel_add(self, channel_info: dict):
-        """处理频道添加"""
-        self._add_channel_and_refresh(channel_info)
+        if hasattr(self.model, 'parent') and self.model.parent():
+            view = self.model.parent()
+            if hasattr(view, 'resizeColumnsToContents'):
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(0, view.resizeColumnsToContents)
 
         # 添加频道后强制触发列宽调整
         if hasattr(self.model, 'parent') and self.model.parent():

@@ -17,7 +17,7 @@ class AboutDialog(FloatingDialog):
     BUILD_DATE = "2026-04-17"
 
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(parent, tool_window=True)
         self.current_version = self.CURRENT_VERSION
         self.language_manager = getattr(parent, 'language_manager', None)
         if not self.language_manager:
@@ -228,52 +228,4 @@ class AboutDialog(FloatingDialog):
             widget = self.childAt(event.position().toPoint())
             if isinstance(widget, QtWidgets.QLabel) and widget.openExternalLinks():
                 return
-            self.dragging = True
-            self.offset = event.position().toPoint()
-
-    def mouseMoveEvent(self, event):
-        if self.dragging:
-            new_position = event.globalPosition().toPoint() - self.offset
-            self.move(new_position)
-
-    def mouseReleaseEvent(self, event):
-        if event.button() == QtCore.Qt.MouseButton.LeftButton:
-            self.dragging = False
-
-    def paintEvent(self, event):
-        from PyQt6.QtGui import QPainter, QPainterPath
-        from PyQt6.QtCore import QRectF
-        from PyQt6.QtGui import QColor
-        from ui.styles import AppStyles
-
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        colors = AppStyles._get_colors()
-        neo = AppStyles.is_neumorphic()
-
-        path = QPainterPath()
-        rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
-        path.addRoundedRect(rect, 12, 12)
-
-        bg_color = colors.get('window', '#333333')
-        if bg_color.startswith('#'):
-            r = int(bg_color[1:3], 16)
-            g = int(bg_color[3:5], 16)
-            b = int(bg_color[5:7], 16)
-        else:
-            r, g, b = 30, 30, 30
-        painter.fillPath(path, QColor(r, g, b, self.opacity))
-
-        if not neo:
-            border_color = colors.get('mid', '#999999')
-            if border_color.startswith('#'):
-                r = int(border_color[1:3], 16)
-                g = int(border_color[3:5], 16)
-                b = int(border_color[5:7], 16)
-            else:
-                r, g, b = 120, 120, 120
-            painter.setPen(QColor(r, g, b, 200))
-            painter.drawPath(path)
-
-        super().paintEvent(event)
+        super().mousePressEvent(event)

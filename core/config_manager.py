@@ -13,24 +13,20 @@ class ConfigManager:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    # 初始化实例属性
-                    cls._instance._initialized = False
-                    # 初始化配置文件路径
+                    instance = super().__new__(cls)
+                    instance._initialized = False
                     import sys
                     if getattr(sys, 'frozen', False):
-                        # 打包成exe的情况
                         config_dir = os.path.dirname(sys.executable)
                     else:
-                        # 开发环境 - 使用项目根目录
                         current_dir = os.path.dirname(os.path.abspath(__file__))
-                        config_dir = os.path.dirname(current_dir)  # 从core目录到项目根目录
-                    cls._instance.config_file = os.path.join(config_dir, config_file)
-                    cls._instance.config = configparser.ConfigParser()
-                    cls._instance._lock = threading.Lock()
-                    # 初始化时立即加载已有配置
-                    cls._instance.load_config()
-                    cls._instance._initialized = True
+                        config_dir = os.path.dirname(current_dir)
+                    instance.config_file = os.path.join(config_dir, config_file)
+                    instance.config = configparser.ConfigParser()
+                    instance._lock = threading.Lock()
+                    instance.load_config()
+                    instance._initialized = True
+                    cls._instance = instance
         return cls._instance
 
     def __init__(self, config_file='config.ini'):

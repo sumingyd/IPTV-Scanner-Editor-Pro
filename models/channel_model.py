@@ -1374,34 +1374,10 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         return channels
 
     @staticmethod
+    @staticmethod
     def _is_valid_channel_url(url):
-        if not url:
-            return False
-        url = url.strip()
-        if not url:
-            return False
-        if '://' not in url:
-            return False
-        try:
-            from urllib.parse import urlparse
-            parsed = urlparse(url)
-            host = parsed.hostname
-            if not host:
-                return False
-            if host in ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
-                return False
-            octets = host.split('.')
-            if len(octets) == 4:
-                try:
-                    if all(0 <= int(o) <= 255 for o in octets):
-                        first = int(octets[0])
-                        if first == 0:
-                            return False
-                except ValueError:
-                    pass
-            return True
-        except Exception:
-            return True
+        from services.m3u_parser import is_valid_channel_url
+        return is_valid_channel_url(url)
 
     def _natural_sort_key(self, s):
         """自然排序键函数，将字符串中的数字部分转换为整数用于排序"""

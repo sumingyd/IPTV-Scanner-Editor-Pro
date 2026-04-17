@@ -24,7 +24,7 @@ class URLRangeParser:
             results.append((val, val, zero_pad))
         return results
 
-    def _parse_bracket_content(self, content: str) -> List[Tuple[int, int, int]]:
+    def _parse_bracket_content(self, content: str) -> Tuple[List[Tuple[int, int, int]], int]:
         all_values = []
         first_pad = None
         for segment in content.split(','):
@@ -47,41 +47,31 @@ class URLRangeParser:
                     values.append(str(num).zfill(pad_width))
         return values
 
-    def has_range(self, url: str) -> bool:
-        range_matches = list(self.range_pattern.finditer(url))
+    def _find_valid_ranges(self, url):
+        ipv6_spans = [m.span() for m in self.ipv6_pattern.finditer(url)]
         valid_ranges = []
-        for match in range_matches:
+        for match in self.range_pattern.finditer(url):
             match_start, match_end = match.span()
-            is_inside_ipv6 = False
-            for ipv6_match in self.ipv6_pattern.finditer(url):
-                ipv6_start, ipv6_end = ipv6_match.span()
-                if ipv6_start <= match_start and match_end <= ipv6_end:
-                    is_inside_ipv6 = True
-                    break
-            if not is_inside_ipv6:
+            if not any(ipv6_start <= match_start and match_end <= ipv6_end
+                       for ipv6_start, ipv6_end in ipv6_spans):
                 valid_ranges.append(match)
-        return len(valid_ranges) > 0
+        return valid_ranges
+
+    def has_range(self, url: str) -> bool:
+        return len(self._find_valid_ranges(url)) > 0
 
     def parse_url(
         self, url: str, batch_size: int = 10000
     ) -> Generator[List[str], None, None]:
-        if not self.has_range(url):
+        valid_matches = self._find_valid_ranges(url)
+        if not valid_matches:
             yield [url]
             return
 
         self.logger.info(f"开始解析范围URL: {url}")
 
         ranges_info = []
-        for match in self.range_pattern.finditer(url):
-            match_start, match_end = match.span()
-            is_inside_ipv6 = False
-            for ipv6_match in self.ipv6_pattern.finditer(url):
-                ipv6_start, ipv6_end = ipv6_match.span()
-                if ipv6_start <= match_start and match_end <= ipv6_end:
-                    is_inside_ipv6 = True
-                    break
-            if is_inside_ipv6:
-                continue
+        for match in valid_matches:
 
             content = match.group(1)
             parsed_segments, min_pad = self._parse_bracket_content(content)
@@ -120,8 +110,8 @@ class URLRangeParser:
 
         batch = []
         for values in self._generate_range_values(ranges_info):
-            url = self._build_url_from_parts(url_parts, ranges_info, values)
-            batch.append(url)
+            expanded = self._build_url_from_parts(url_parts, len(ranges_info), values)
+            batch.append(expanded)
             if len(batch) >= batch_size:
                 yield batch
                 batch = []
@@ -140,22 +130,12 @@ class URLRangeParser:
                     yield (val,) + rest
         return lazy_product(ranges_info)
 
-    def _build_url_from_parts(self, url_parts, ranges_info, values):
+    def _build_url_from_parts(self, url_parts, range_count, values):
         url = ""
-        for i in range(len(ranges_info)):
+        for i in range(range_count):
             url += url_parts[i] + values[i]
         url += url_parts[-1]
         return url
-
-    def test_parse_url(self, url: str):
-        print(f"\n测试URL: {url}")
-        for i, batch in enumerate(self.parse_url(url, batch_size=5)):
-            print(f"批次 {i+1}:")
-            for url in batch:
-                print(url)
-            if i >= 2:
-                print("...")
-                break
 
     def _find_all_ranges(self, url: str) -> List[Tuple[int, int, str]]:
         ranges = []

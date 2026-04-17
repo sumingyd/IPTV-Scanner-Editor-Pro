@@ -253,6 +253,7 @@ class ChannelMappingManager:
         # 组合所有映射
         self.combined_mappings = self._combine_mappings()
         self.reverse_mappings = create_reverse_mappings(self.combined_mappings)
+        self._normalized_index = self._build_normalized_index()
 
     def _load_cached_mappings(self) -> Dict[str, dict]:
         """加载缓存的远程映射规则"""
@@ -499,63 +500,45 @@ class ChannelMappingManager:
             'resolution': None
         }
 
+    def _build_normalized_index(self):
+        index = {}
+        for raw_pattern, info in self.reverse_mappings.items():
+            if not raw_pattern or raw_pattern.isspace():
+                continue
+            norm = re.sub(r'\s+', ' ', raw_pattern.strip()).lower()
+            index[norm] = info
+        for unique_key, info in self.combined_mappings.items():
+            standard_name = unique_key.split('||')[0] if '||' in unique_key else unique_key
+            if not standard_name or standard_name.isspace():
+                continue
+            norm = re.sub(r'\s+', ' ', standard_name.strip()).lower()
+            if norm not in index:
+                index[norm] = {
+                    'standard_name': standard_name,
+                    'logo_url': info['logo_url'],
+                    'group_name': info.get('group_name'),
+                    'tvg_id': info.get('tvg_id'),
+                    'tvg_chno': info.get('tvg_chno'),
+                    'tvg_shift': info.get('tvg_shift'),
+                    'catchup': info.get('catchup'),
+                    'catchup_days': info.get('catchup_days'),
+                    'catchup_source': info.get('catchup_source'),
+                    'resolution': info.get('resolution')
+                }
+        return index
+
     def _get_exact_match(self, cleaned_name: str) -> dict:
         """精确匹配映射规则"""
-        # 重要修改：支持原始大小写匹配，同时保持向后兼容性
-
-        # 1. 首先尝试原始大小写精确匹配（直接查找）
         try:
             if cleaned_name in self.reverse_mappings:
-                result = self.reverse_mappings[cleaned_name]
-                return result
+                return self.reverse_mappings[cleaned_name]
         except Exception as e:
             self.logger.error(f"反向映射查找失败: {e}")
 
-        # 2. 如果原始大小写匹配失败，尝试小写匹配（保持向后兼容）
-        try:
-            # 将输入名称转换为小写进行匹配
-            normalized_name = re.sub(r'\s+', ' ', cleaned_name.strip()).lower()
+        normalized_name = re.sub(r'\s+', ' ', cleaned_name.strip()).lower()
+        if normalized_name in self._normalized_index:
+            return self._normalized_index[normalized_name]
 
-            # 检查反向映射（小写匹配）
-            for raw_pattern, info in self.reverse_mappings.items():
-                if not raw_pattern or raw_pattern.isspace():
-                    continue
-                normalized_pattern = re.sub(r'\s+', ' ', raw_pattern.strip()).lower()
-                if normalized_name == normalized_pattern:
-                    return info
-        except Exception as e:
-            self.logger.error(f"反向映射遍历查找失败: {e}")
-
-        # 3. 检查标准名称映射（小写匹配）
-        try:
-            for unique_key, info in self.combined_mappings.items():
-                # 从unique_key中提取标准名称（格式为"标准名称||原始名称"）
-                if '||' in unique_key:
-                    standard_name = unique_key.split('||')[0]
-                else:
-                    standard_name = unique_key
-
-                if not standard_name or standard_name.isspace():
-                    continue
-                normalized_standard = re.sub(r'\s+', ' ', standard_name.strip()).lower()
-                if normalized_name == normalized_standard:
-                    result = {
-                        'standard_name': standard_name,
-                        'logo_url': info['logo_url'],
-                        'group_name': info.get('group_name'),
-                        'tvg_id': info.get('tvg_id'),
-                        'tvg_chno': info.get('tvg_chno'),
-                        'tvg_shift': info.get('tvg_shift'),
-                        'catchup': info.get('catchup'),
-                        'catchup_days': info.get('catchup_days'),
-                        'catchup_source': info.get('catchup_source'),
-                        'resolution': info.get('resolution')
-                    }
-                    return result
-        except Exception as e:
-            self.logger.error(f"标准名称查找失败: {e}")
-
-        # 4. 没有找到匹配，返回原始名称（包含所有字段）
         return {
             'standard_name': cleaned_name,
             'logo_url': None,
@@ -652,7 +635,7 @@ class MappingManagerProxy:
 
     def _get_manager(self):
         if self._manager is None:
-            self._manager = get_mapping_manager()
+            self._manager = ChannelMappingManager()
         return self._manager
 
     def __getattr__(self, name):
@@ -798,7 +781,4 @@ def get_channel_info(raw_name: str) -> dict:
     return mapping_manager.get_channel_info(raw_name)
 
 
-# 兼容性函数，保持原有接口
-def get_channel_info_legacy(raw_name: str) -> dict:
-    """旧版获取频道信息函数，保持向后兼容"""
-    return mapping_manager.get_channel_info(raw_name)
+# 创建代理实例

@@ -3,6 +3,12 @@ from PyQt6.QtGui import QPainter, QColor
 from PyQt6.QtCore import Qt
 
 
+def _parse_hex_color(hex_str, default=(0, 0, 0)):
+    if hex_str and hex_str.startswith('#') and len(hex_str) == 7:
+        return int(hex_str[1:3], 16), int(hex_str[3:5], 16), int(hex_str[5:7], 16)
+    return default
+
+
 class TranslucentPanel(QFrame):
     def __init__(self, parent=None, opacity=180):
         super().__init__(parent)
@@ -27,17 +33,11 @@ class TranslucentPanel(QFrame):
         colors = AppStyles._get_colors()
         neo = AppStyles.is_neumorphic()
 
-        bg_hex = colors.get('player_panel', '#1e1e1e')
-        r = int(bg_hex[1:3], 16)
-        g = int(bg_hex[3:5], 16)
-        b = int(bg_hex[5:7], 16)
+        r, g, b = _parse_hex_color(colors.get('player_panel', '#1e1e1e'))
         painter.fillPath(path, QColor(r, g, b, self.opacity))
 
         if not neo:
-            border_hex = colors.get('mid', '#646464')
-            br = int(border_hex[1:3], 16)
-            bg = int(border_hex[3:5], 16)
-            bb = int(border_hex[5:7], 16)
+            br, bg, bb = _parse_hex_color(colors.get('mid', '#646464'))
             painter.setPen(QColor(br, bg, bb, 150))
             painter.drawPath(path)
 
@@ -45,15 +45,24 @@ class TranslucentPanel(QFrame):
 
 
 class FloatingDialog(QDialog):
-    def __init__(self, parent=None):
+    _bg_color_key = 'window'
+    _border_color_key = 'mid'
+    _corner_radius = 12
+
+    def __init__(self, parent=None, frameless=True, tool_window=False):
         super().__init__(parent)
         self.dragging = False
         self.offset = None
         from ui.styles import AppStyles
         colors = AppStyles._get_colors()
         self.opacity = colors.get('window_opacity', 220)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool)
+
+        flags = Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool if tool_window else Qt.WindowType.WindowStaysOnTopHint
+        if frameless:
+            flags |= Qt.WindowType.FramelessWindowHint
+        self.setWindowFlags(flags)
+        if frameless:
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
@@ -64,7 +73,6 @@ class FloatingDialog(QDialog):
 
     def mouseMoveEvent(self, event):
         if self.dragging and self.offset is not None:
-            from PyQt6.QtCore import QPoint
             new_position = event.globalPosition().toPoint() - self.offset
             self.move(new_position)
 
@@ -85,26 +93,14 @@ class FloatingDialog(QDialog):
 
         path = QPainterPath()
         rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
-        path.addRoundedRect(rect, 12, 12)
+        path.addRoundedRect(rect, self._corner_radius, self._corner_radius)
 
-        bg_color = colors.get('window', '#333333')
-        if bg_color.startswith('#'):
-            r = int(bg_color[1:3], 16)
-            g = int(bg_color[3:5], 16)
-            b = int(bg_color[5:7], 16)
-        else:
-            r, g, b = 30, 30, 30
+        r, g, b = _parse_hex_color(colors.get(self._bg_color_key, '#333333'))
         painter.fillPath(path, QColor(r, g, b, self.opacity))
 
         if not neo:
-            border_color = colors.get('mid', '#999999')
-            if border_color.startswith('#'):
-                r = int(border_color[1:3], 16)
-                g = int(border_color[3:5], 16)
-                b = int(border_color[5:7], 16)
-            else:
-                r, g, b = 120, 120, 120
-            painter.setPen(QColor(r, g, b, 200))
+            br, bg, bb = _parse_hex_color(colors.get(self._border_color_key, '#999999'))
+            painter.setPen(QColor(br, bg, bb, 200))
             painter.drawPath(path)
 
         super().paintEvent(event)

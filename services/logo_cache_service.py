@@ -215,7 +215,9 @@ class LogoCacheService(ThreadSafeQObject):
         try:
             if old_path and old_path != disk_path and os.path.exists(old_path):
                 os.remove(old_path)
-            pixmap.save(disk_path, 'PNG')
+            fmt_map = {'.png': 'PNG', '.jpg': 'JPEG', '.jpeg': 'JPEG', '.gif': 'GIF', '.webp': 'WEBP', '.bmp': 'BMP'}
+            save_fmt = fmt_map.get(new_ext.lower(), 'PNG')
+            pixmap.save(disk_path, save_fmt)
             meta_entry = {
                 'url': url,
                 'time': time.time(),

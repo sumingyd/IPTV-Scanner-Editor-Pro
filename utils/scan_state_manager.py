@@ -95,47 +95,23 @@ class ScanStateManager(Singleton):
             return None
 
     def add_invalid_url(self, scan_id: str, url: str, error_type: str | None = None):
-        """添加无效URL - 优化版，支持大量URL和错误类型"""
+        """添加无效URL - 始终使用集合去重，O(1)查找"""
         with self._lock:
             if scan_id in self._scan_states:
-                invalid_urls = self._scan_states[scan_id]['invalid_urls']
+                state = self._scan_states[scan_id]
+                invalid_urls = state['invalid_urls']
 
-                # 存储URL和错误类型
-                url_entry = {
-                    'url': url,
-                    'error_type': error_type
-                }
+                if '_url_set' not in state:
+                    state['_url_set'] = set(entry['url'] for entry in invalid_urls)
 
-                # 对于大量URL，使用集合来快速去重，但需要定期清理
-                if len(invalid_urls) < 100000:  # 小于10万时使用列表
-                    # 检查是否已存在相同的URL
-                    existing_entry = next((entry for entry in invalid_urls if entry['url'] == url), None)
-                    if not existing_entry:
-                        invalid_urls.append(url_entry)
-                else:
-                    # 大于10万时，转换为集合去重，然后转回列表
-                    # 注意：这会有性能开销，但可以避免内存爆炸
-                    if hasattr(self._scan_states[scan_id], '_url_set'):
-                        url_set = self._scan_states[scan_id]['_url_set']
-                    else:
-                        url_set = set(entry['url'] for entry in invalid_urls)
-                        self._scan_states[scan_id]['_url_set'] = url_set
+                url_set = state['_url_set']
 
-                    if url not in url_set:
-                        url_set.add(url)
-                        invalid_urls.append(url_entry)
-
-                        # 定期清理，避免列表过大
-                        if len(invalid_urls) % 10000 == 0:
-                            # 每1万个URL清理一次重复项
-                            unique_entries = []
-                            seen_urls = set()
-                            for entry in invalid_urls:
-                                if entry['url'] not in seen_urls:
-                                    seen_urls.add(entry['url'])
-                                    unique_entries.append(entry)
-                            self._scan_states[scan_id]['invalid_urls'] = unique_entries
-                            self._scan_states[scan_id]['_url_set'] = seen_urls
+                if url not in url_set:
+                    url_set.add(url)
+                    invalid_urls.append({
+                        'url': url,
+                        'error_type': error_type
+                    })
 
     def get_invalid_urls(self, scan_id: str) -> List[dict]:
         """获取无效URL列表（带错误类型）"""
@@ -186,6 +162,7 @@ class ScanStateManager(Singleton):
         with self._lock:
             if scan_id in self._scan_states:
                 self._scan_states[scan_id]['invalid_urls'] = []
+                self._scan_states[scan_id].pop('_url_set', None)
 
     # 重试扫描状态管理
     def register_retry_scan(self, retry_id: str, main_window=None):

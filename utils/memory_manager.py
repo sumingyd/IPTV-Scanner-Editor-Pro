@@ -170,30 +170,36 @@ class MemoryManager(Singleton):
 
     def get_memory_stats(self) -> Dict[str, Any]:
         """获取内存统计信息"""
-        import psutil
-        import os
+        try:
+            import psutil
+            import os
 
-        process = psutil.Process(os.getpid())
-        memory_info = process.memory_info()
+            process = psutil.Process(os.getpid())
+            memory_info = process.memory_info()
 
-        stats = {
-            'rss': memory_info.rss,  # 物理内存使用
-            'vms': memory_info.vms,  # 虚拟内存使用
-            'object_pools': {},
-            'cache_size': len(self._cache),
-            'weak_refs': sum(len(refs) for refs in self._weak_refs.values())
-        }
-
-        # 对象池统计
-        for pool_name, pool_info in self._object_pools.items():
-            stats['object_pools'][pool_name] = {
-                'pool_size': len(pool_info['pool']),
-                'created': pool_info['created'],
-                'reused': pool_info['reused'],
-                'max_size': pool_info['max_size']
+            stats = {
+                'rss': memory_info.rss,
+                'vms': memory_info.vms,
+                'object_pools': {},
+                'cache_size': len(self._cache),
+                'weak_refs': sum(len(refs) for refs in self._weak_refs.values())
             }
 
-        return stats
+            for pool_name, pool_info in self._object_pools.items():
+                stats['object_pools'][pool_name] = {
+                    'pool_size': len(pool_info['pool']),
+                    'created': pool_info['created'],
+                    'reused': pool_info['reused'],
+                    'max_size': pool_info['max_size']
+                }
+
+            return stats
+        except ImportError:
+            return {
+                'rss': 0, 'vms': 0, 'object_pools': {},
+                'cache_size': len(self._cache),
+                'weak_refs': sum(len(refs) for refs in self._weak_refs.values())
+            }
 
     def log_memory_stats(self):
         """记录内存统计信息到日志"""

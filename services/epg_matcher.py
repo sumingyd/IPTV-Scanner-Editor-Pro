@@ -1,4 +1,5 @@
 import re
+import threading
 from core.log_manager import global_logger
 
 
@@ -7,7 +8,7 @@ class EpgMatcher:
         r'(?:HD|SD|UHD|4K|8K|HEVC|H\.?265|H\.?264|AVC|HDR|FHD|超清|高清|标清|高清频道|频道|备用|测试|源\d*)',
         re.IGNORECASE
     )
-    _PAREN_CONTENT = re.compile(r'[()（）\[\]【】].*?[()（）\[\]【】]')
+    _PAREN_CONTENT = re.compile(r'[()（）\[\]【】].*?[()（）\[\]【]]]')
     _CN_NUM_MAP = {
         '一': '1', '二': '2', '三': '3', '四': '4', '五': '5',
         '六': '6', '七': '7', '八': '8', '九': '9', '十': '10',
@@ -17,6 +18,7 @@ class EpgMatcher:
     _SATELLITE_SUFFIX = re.compile(r'(卫视|台|电视|频道)$')
     _NUMBER_RE = re.compile(r'(\d+)')
     _smart_cache = {}
+    _cache_lock = threading.Lock()
 
     @classmethod
     def _cn_num_to_arabic(cls, s: str) -> str:
@@ -78,8 +80,9 @@ class EpgMatcher:
             return None
 
         cache_key = (channel_name, tvg_id, tvg_name, tuple(sorted(epg_channels.keys())) if isinstance(epg_channels, dict) else '')
-        if cache_key in cls._smart_cache:
-            return cls._smart_cache[cache_key]
+        with cls._cache_lock:
+            if cache_key in cls._smart_cache:
+                return cls._smart_cache[cache_key]
 
         best_match = None
         best_score = 0
@@ -113,11 +116,14 @@ class EpgMatcher:
                 best_match = epg_id
 
         if best_score >= 55:
-            cls._smart_cache[cache_key] = best_match
+            with cls._cache_lock:
+                cls._smart_cache[cache_key] = best_match
             return best_match
-        cls._smart_cache[cache_key] = None
+        with cls._cache_lock:
+            cls._smart_cache[cache_key] = None
         return None
 
     @classmethod
     def clear_cache(cls):
-        cls._smart_cache.clear()
+        with cls._cache_lock:
+            cls._smart_cache.clear()

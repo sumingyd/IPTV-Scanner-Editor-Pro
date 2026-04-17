@@ -83,14 +83,11 @@ def safe_connect(signal, slot):
         bool: 连接是否成功
     """
     try:
-        # 先尝试断开现有连接
-        signal.disconnect()
+        signal.disconnect(slot)
     except (TypeError, RuntimeError):
-        # 如果没有连接，会抛出TypeError或RuntimeError
         pass
 
     try:
-        # 建立新连接
         signal.connect(slot)
         return True
     except Exception as e:
@@ -184,24 +181,3 @@ def sanitize_filename(filename: str) -> str:
     return filename.strip()
 
 
-def parse_url_range(url_pattern: str) -> List[str]:
-    """解析URL范围模式
-
-    Args:
-        url_pattern: URL模式，支持 {start-end} 格式
-
-    Returns:
-        List[str]: 生成的URL列表
-    """
-    urls = []
-    # 查找 {start-end} 模式
-    match = re.search(r'\{([0-9]+)-([0-9]+)\}', url_pattern)
-    if match:
-        start = int(match.group(1))
-        end = int(match.group(2))
-        for i in range(start, end + 1):
-            url = url_pattern.replace(match.group(0), str(i))
-            urls.append(url)
-    else:
-        urls.append(url_pattern)
-    return urls
