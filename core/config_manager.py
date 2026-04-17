@@ -22,7 +22,7 @@ class ConfigManager:
                         current_dir = os.path.dirname(os.path.abspath(__file__))
                         config_dir = os.path.dirname(current_dir)
                     instance.config_file = os.path.join(config_dir, config_file)
-                    instance.config = configparser.ConfigParser()
+                    instance.config = configparser.ConfigParser(interpolation=None)
                     instance._lock = threading.Lock()
                     instance.load_config()
                     instance._initialized = True

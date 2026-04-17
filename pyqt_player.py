@@ -3960,13 +3960,27 @@ class IPTVPlayer(QMainWindow):
             logger.info("成功打开频道映射管理器")
         except Exception as ex:
             logger.error(f"打开频道映射管理器失败: {str(ex)}")
-    
+
+    def _center_dialog_on_screen(self, dialog):
+        """将对话框居中显示到屏幕中心（修复多显示器环境下窗口不显示的问题）"""
+        from PyQt6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app:
+            screen = app.primaryScreen()
+            if screen:
+                screen_geometry = screen.availableGeometry()
+                dialog.adjustSize()
+                dialog_size = dialog.size()
+                x = (screen_geometry.width() - dialog_size.width()) // 2 + screen_geometry.x()
+                y = (screen_geometry.height() - dialog_size.height()) // 2 + screen_geometry.y()
+                dialog.move(x, y)
+
     def player_settings(self):
         """播放器设置"""
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QLineEdit, QGroupBox
-        
-        # 创建对话框
-        dialog = FloatingDialog(self)
+
+        # 创建对话框（不传parent，避免显示在主窗口内部导致卡死）
+        dialog = FloatingDialog(None)
         tr = self.language_manager.tr
         dialog.setWindowTitle(tr("player_settings_title", "Player Settings"))
         dialog.setMinimumSize(400, 350)
@@ -4077,7 +4091,10 @@ class IPTVPlayer(QMainWindow):
         button_layout.addWidget(save_button)
         button_layout.addWidget(cancel_button)
         main_layout.addLayout(button_layout)
-        
+
+        # 手动将对话框居中显示到屏幕（修复多显示器环境下窗口不显示的问题）
+        self._center_dialog_on_screen(dialog)
+
         dialog.exec()
     
     def start_subscription_timers(self):
@@ -4324,7 +4341,7 @@ class IPTVPlayer(QMainWindow):
             epg_url = self.epg_url_edit.text()
             epg_name = self.epg_name_edit.text()
             epg_interval = self.epg_interval_combo.currentText()
-            
+
             # 保存到配置文件
             self.config.set_value('Player', 'protocol', protocol)
             self.config.set_value('Playlist', 'url', playlist_url)
@@ -4334,10 +4351,14 @@ class IPTVPlayer(QMainWindow):
             self.config.set_value('EPG', 'epg_source', epg_name)
             self.config.set_value('EPG', 'update_interval', epg_interval)
             self.config.save_config()
-            
-            # 启动订阅更新定时器
+
+            # 重置订阅检查标志，允许立即执行新的订阅
+            if hasattr(self, '_subscription_checked'):
+                self._subscription_checked = False
+
+            # 启动订阅更新定时器（会立即执行订阅）
             self.start_subscription_timers()
-            
+
             logger.info("播放器设置保存成功")
             self.status_bar.showMessage(self.language_manager.tr("player_settings_saved", "Player settings saved"))
             dialog.accept()
@@ -4350,8 +4371,8 @@ class IPTVPlayer(QMainWindow):
         from PyQt6 import QtCore, QtGui
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QDialogButtonBox
         
-        # 创建自定义对话框
-        dialog = FloatingDialog(self)
+        # 创建自定义对话框（不传parent，避免显示在主窗口内部导致卡死）
+        dialog = FloatingDialog(None)
         tr = self.language_manager.tr
         dialog.setWindowTitle(tr("epg_settings_title", "EPG Settings"))
         dialog.setMinimumSize(400, 200)
@@ -4386,7 +4407,10 @@ class IPTVPlayer(QMainWindow):
         # 连接信号
         button_box.accepted.connect(dialog.accept)
         button_box.rejected.connect(dialog.reject)
-        
+
+        # 手动将对话框居中显示到屏幕（修复多显示器环境下窗口不显示的问题）
+        self._center_dialog_on_screen(dialog)
+
         # 显示对话框
         if dialog.exec() == QDialog.DialogCode.Accepted:
             # 保存设置
