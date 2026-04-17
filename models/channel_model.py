@@ -1249,7 +1249,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         'catchup_days': "",
                         'catchup_source': "",
                         'valid': False,
-                        'status': '待检测'
+                        'status': '待检测',
+                        '_raw_extinf': extinf_content
                     }
 
                     attr_pattern = r'(\S+)="([^"]*)"'
@@ -1276,25 +1277,25 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
                     for key, value in matches:
                         field_name = tag_mapping.get(key, key.replace('-', '_')) or key.replace('-', '_')
-                        if key == "tvg-name" and value:
-                            pass
                         if key == "group-title" and value:
                             current_group = [g.strip() for g in value.split(';') if g.strip()]
                             genre_group_active = False
-                        current_channel[field_name] = value
+                        if key != "tvg-name":
+                            current_channel[field_name] = value
                         all_tags[key] = value
 
-                    # 频道名优先级：逗号后内容 > tvg-name 属性
-                    comma_name = ''
+                    # 频道名优先级：逗号后内容 > tvg-name 属性 > 原始name
+                    final_comma_name = ''
                     if extinf_content and ',' in extinf_content:
-                        comma_name = extinf_content.split(',', 1)[-1].strip()
-                    if not current_channel.get('name') or current_channel['name'] in ('', '未命名'):
-                        if comma_name:
-                            current_channel['name'] = comma_name
-                        else:
-                            tvg_name = all_tags.get('tvg-name', '')
-                            if tvg_name:
-                                current_channel['name'] = tvg_name
+                        final_comma_name = extinf_content.split(',', 1)[-1].strip()
+                        if final_comma_name.startswith('"') and final_comma_name.endswith('"'):
+                            final_comma_name = final_comma_name[1:-1]
+                    if final_comma_name:
+                        current_channel['name'] = final_comma_name
+                    else:
+                        tvg_name = all_tags.get('tvg-name', '')
+                        if tvg_name:
+                            current_channel['name'] = tvg_name
 
                     # 分组支持 ; 分隔的多分组，存储为列表，group 取第一个作为主分组
                     if isinstance(current_group, list):
@@ -1323,7 +1324,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         'catchup_days': "",
                         'catchup_source': "",
                         'valid': False,
-                        'status': '待检测'
+                        'status': '待检测',
+                        '_raw_extinf': extinf_content
                     }
                 continue
 

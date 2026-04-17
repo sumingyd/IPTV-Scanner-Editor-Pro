@@ -517,7 +517,9 @@ class IPTVPlayer(QMainWindow):
                                     "catchup_days": ch.get('catchup_days', ''),
                                     "catchup_source": ch.get('catchup_source', ''),
                                     "resolution": ch.get('resolution', ''),
-                                    "current_program": ''
+                                    "current_program": '',
+                                    "_raw_extinf": ch.get('_raw_extinf', ''),
+                                    "_all_tags": ch.get('_all_tags', {})
                                 })
                             
                             # 更新频道列表UI
@@ -584,7 +586,9 @@ class IPTVPlayer(QMainWindow):
                                             "catchup_days": ch.get('catchup_days', ''),
                                             "catchup_source": ch.get('catchup_source', ''),
                                             "resolution": ch.get('resolution', ''),
-                                            "current_program": ''
+                                            "current_program": '',
+                                            "_raw_extinf": ch.get('_raw_extinf', ''),
+                                            "_all_tags": ch.get('_all_tags', {})
                                         })
                                     
                                     # 更新频道列表UI
@@ -2423,13 +2427,37 @@ class IPTVPlayer(QMainWindow):
         self.populate_epg_list()
         self.play_channel(self.current_channel)
     
+    def _get_display_channel_name(self, channel):
+        """获取用于显示的频道名称，优先级：逗号后的名字 > tvg-name > name"""
+        if not channel:
+            return self.language_manager.tr("unknown_channel", "Unknown Channel")
+
+        all_tags = channel.get('_all_tags', {})
+
+        comma_name = ''
+        raw_extinf = channel.get('_raw_extinf', '')
+        if raw_extinf and ',' in raw_extinf:
+            comma_name = raw_extinf.split(',', 1)[-1].strip()
+            if comma_name.startswith('"') and comma_name.endswith('"'):
+                comma_name = comma_name[1:-1]
+
+        tvg_name = all_tags.get('tvg-name', '')
+
+        if comma_name:
+            return comma_name
+        elif tvg_name:
+            return tvg_name
+        else:
+            return channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel"))
+
     def update_channel_info_on_selection(self):
         """选择频道时立即更新悬浮窗信息"""
         if not self.current_channel:
             return
-        
+
         # 更新频道名称和LOGO
-        self.channel_name.setText(self.current_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel")))
+        display_name = self._get_display_channel_name(self.current_channel)
+        self.channel_name.setText(display_name)
         self.current_program.setText(f"▶ {self.language_manager.tr('preparing_play', 'Preparing to play...')}")
         logo = self.current_channel.get("logo", "")
         
@@ -3299,7 +3327,8 @@ class IPTVPlayer(QMainWindow):
         
         # 更新第二行：频道信息
         if self.current_channel:
-            self.channel_name.setText(self.current_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel")))
+            display_name = self._get_display_channel_name(self.current_channel)
+            self.channel_name.setText(display_name)
             
             # 回看模式下，使用回看节目的信息
             if is_catchup and hasattr(self, 'catchup_program'):
@@ -4137,7 +4166,9 @@ class IPTVPlayer(QMainWindow):
                         "catchup_days": ch.get('catchup_days', ''),
                         "catchup_source": ch.get('catchup_source', ''),
                         "resolution": ch.get('resolution', ''),
-                        "current_program": ''
+                        "current_program": '',
+                        "_raw_extinf": ch.get('_raw_extinf', ''),
+                        "_all_tags": ch.get('_all_tags', {})
                     })
 
                 from datetime import datetime
@@ -4408,7 +4439,9 @@ class IPTVPlayer(QMainWindow):
                         "catchup_days": ch.get('catchup_days', ''),
                         "catchup_source": ch.get('catchup_source', ''),
                         "resolution": ch.get('resolution', ''),
-                        "current_program": ''
+                        "current_program": '',
+                        "_raw_extinf": ch.get('_raw_extinf', ''),
+                        "_all_tags": ch.get('_all_tags', {})
                     })
 
                 from core.config_manager import ConfigManager
@@ -4418,7 +4451,8 @@ class IPTVPlayer(QMainWindow):
 
                 if CHANNELS:
                     self.current_channel = CHANNELS[0]
-                    self.channel_name.setText(self.current_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel")))
+                    display_name = self._get_display_channel_name(self.current_channel)
+                    self.channel_name.setText(display_name)
 
                 self.populate_channel_list()
                 self.status_bar.showMessage(f"{self.language_manager.tr('file_opened', 'File opened')}: {file_path}")
@@ -4527,12 +4561,15 @@ class IPTVPlayer(QMainWindow):
                             "catchup_days": ch.get('catchup_days', ''),
                             "catchup_source": ch.get('catchup_source', ''),
                             "resolution": ch.get('resolution', ''),
-                            "current_program": ''
+                            "current_program": '',
+                            "_raw_extinf": ch.get('_raw_extinf', ''),
+                            "_all_tags": ch.get('_all_tags', {})
                         })
                     logger.info(f"成功创建CHANNELS列表，包含 {len(CHANNELS)} 个频道")
                     if CHANNELS:
                         self.current_channel = CHANNELS[0]
-                        self.channel_name.setText(self.current_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel")))
+                        display_name = self._get_display_channel_name(self.current_channel)
+                        self.channel_name.setText(display_name)
                         self.current_program.setText(f"▶ {self.language_manager.tr('select_channel_play', 'Select a channel to play')}")
                         self.program_desc.setText(self.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
                         # 重置 LOGO 显示为默认图标，等待用户选择频道时加载
@@ -5427,7 +5464,9 @@ class IPTVPlayer(QMainWindow):
                 "catchup_days": ch.get('catchup_days', ''),
                 "catchup_source": ch.get('catchup_source', ''),
                 "resolution": ch.get('resolution', ''),
-                "current_program": ''
+                "current_program": '',
+                "_raw_extinf": ch.get('_raw_extinf', ''),
+                "_all_tags": ch.get('_all_tags', {})
             })
 
         if mode == 'replace':
