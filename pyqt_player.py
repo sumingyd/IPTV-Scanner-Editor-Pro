@@ -9,7 +9,8 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QListWidget, QListWidgetItem, QStackedWidget,
     QMenuBar, QMenu, QFileDialog, QDialog, QTextEdit, QStatusBar,
-    QFrame, QToolButton, QSlider, QGridLayout, QComboBox, QLabel as QtWidgets_QLabel
+    QFrame, QToolButton, QSlider, QGridLayout, QComboBox, QLabel as QtWidgets_QLabel,
+    QAbstractItemView
 )
 from PyQt6 import QtWidgets
 from PyQt6.QtCore import Qt, QSize, QTimer, QUrl, QThread, pyqtSlot, QMetaObject, QPoint
@@ -1991,7 +1992,10 @@ class IPTVPlayer(QMainWindow):
         # 滚动到当前正在播放的节目
         if current_program_index >= 0:
             self.epg_content.setCurrentRow(current_program_index)
-            self.epg_content.scrollToItem(self.epg_content.item(current_program_index))
+            self.epg_content.scrollToItem(
+                self.epg_content.item(current_program_index),
+                QAbstractItemView.ScrollHint.PositionAtCenter
+            )
     
     def on_epg_item_clicked(self, item):
         """EPG节目项点击事件"""
@@ -2451,6 +2455,7 @@ class IPTVPlayer(QMainWindow):
                     name = self.current_channel.get('name', '')
                     program_duration = self._get_current_program_duration()
                     self.player_controller.play(url, name, program_duration=program_duration)
+                    self.populate_epg_list()
                 
                 self._last_program_id = program_id
             else:
@@ -3689,6 +3694,13 @@ class IPTVPlayer(QMainWindow):
         
         if hasattr(self.player_controller, '_heartbeat'):
             self.player_controller._heartbeat()
+        
+        import time as _time
+        now = _time.monotonic()
+        if now - getattr(self, '_last_epg_refresh', 0) >= 30:
+            self._last_epg_refresh = now
+            if hasattr(self, 'epg_content') and self.epg_content.isVisible():
+                self.populate_epg_list()
         
         self._check_program_change()
         
