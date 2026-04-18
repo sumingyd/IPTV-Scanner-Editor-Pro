@@ -866,7 +866,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         
         # 左侧EPG面板
-        self.epg_panel = TranslucentPanel(opacity=180)
+        self.epg_panel = TranslucentPanel(self, opacity=180)
         self.epg_panel.setStyleSheet(AppStyles.player_panel_style())
         self.epg_panel.setFixedWidth(250)
         self.epg_layout = QVBoxLayout(self.epg_panel)
@@ -931,7 +931,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         
         # 右侧播放列表面板
-        self.playlist_panel = TranslucentPanel(opacity=180)
+        self.playlist_panel = TranslucentPanel(self, opacity=180)
         self.playlist_panel.setStyleSheet(AppStyles.player_panel_style())
         self.playlist_panel.setFixedWidth(250)
         self.playlist_layout = QVBoxLayout(self.playlist_panel)
@@ -983,7 +983,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         
         # 悬浮控制面板
-        self.floating_panel = TranslucentPanel(opacity=180)
+        self.floating_panel = TranslucentPanel(self, opacity=180)
         self.floating_panel.setStyleSheet(AppStyles.player_panel_style())
         self.floating_panel.setFixedHeight(150)
         self.floating_panel.setFixedWidth(1000)
@@ -2408,6 +2408,56 @@ class IPTVPlayer(QMainWindow):
         """获取进度条当前值（秒数）"""
         return self.program_progress.value()
     
+    def _get_current_program_duration(self):
+        """获取当前节目的时长（秒），用于设置缓存大小"""
+        try:
+            if self.current_channel:
+                channel_name = self.current_channel.get("name", "")
+                tvg_id = self.current_channel.get("tvg_id", "")
+                current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
+                if current_program:
+                    from datetime import datetime
+                    start_time = datetime.fromisoformat(current_program.get('start', ''))
+                    end_time = datetime.fromisoformat(current_program.get('end', ''))
+                    duration = int((end_time - start_time).total_seconds())
+                    if duration > 0:
+                        return duration
+        except:
+            pass
+        return 0
+    
+    def _check_program_change(self):
+        """检测节目是否切换，切换时重新播放以清空旧缓存"""
+        is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
+        if is_catchup:
+            return
+        
+        try:
+            if not self.current_channel or not self.player_controller:
+                return
+            
+            channel_name = self.current_channel.get("name", "")
+            tvg_id = self.current_channel.get("tvg_id", "")
+            current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
+            
+            if current_program:
+                program_id = current_program.get('start', '') + current_program.get('end', '')
+                last_id = getattr(self, '_last_program_id', None)
+                
+                if last_id is not None and last_id != program_id:
+                    logger.info(f"检测到节目切换，重新播放以清空旧缓存")
+                    self._live_timeshift_seconds = 0
+                    url = self.current_channel.get('url', '')
+                    name = self.current_channel.get('name', '')
+                    program_duration = self._get_current_program_duration()
+                    self.player_controller.play(url, name, program_duration=program_duration)
+                
+                self._last_program_id = program_id
+            else:
+                self._last_program_id = None
+        except:
+            pass
+    
     def on_progress_slider_released(self):
         """进度条拖动释放时的处理"""
         
@@ -2442,9 +2492,16 @@ class IPTVPlayer(QMainWindow):
             
             target_pos = max(buffer_start, min(target_pos, buffer_end))
             
-            effective_pos = time_pos if time_pos > 1 else buffer_end
+            timeshift = getattr(self, '_live_timeshift_seconds', 0)
+            if timeshift > 0 and time_pos < 1:
+                effective_pos = buffer_end - timeshift
+            elif time_pos > 1:
+                effective_pos = time_pos
+            else:
+                effective_pos = buffer_end
+            
             if abs(target_pos - effective_pos) < 1:
-                logger.info(f"直播拖动进度条 -> 跳过（目标{target_pos:.1f}s与当前位置{effective_pos:.1f}s差<1s）")
+                logger.info(f"直播拖动进度条 -> 跳过（目标{target_pos:.1f}s与当前位置{effective_pos:.1f}s差<1s, timeshift={timeshift}s）")
                 return
             
             logger.info(f"直播拖动进度条 -> seek到 {target_pos:.1f}s")
@@ -2885,6 +2942,7 @@ class IPTVPlayer(QMainWindow):
     def _do_play_channel(self, channel):
         if self.player_controller and channel:
             self._live_timeshift_seconds = 0
+            self._last_program_id = None
             
             if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
                 self.is_catchup_mode = False
@@ -2968,10 +3026,12 @@ class IPTVPlayer(QMainWindow):
                         self.player_controller.set_speed(1.0)
                         self.speed_button.setText("1.0x")
                 
+                program_duration = self._get_current_program_duration()
+                
                 if next_urls:
-                    self.player_controller.play_with_prefetch(url, next_urls)
+                    self.player_controller.play_with_prefetch(url, next_urls, program_duration=program_duration)
                 else:
-                    self.player_controller.play(url, name)
+                    self.player_controller.play(url, name, program_duration=program_duration)
 
                 self._start_source_timeout(channel)
                 self._save_last_channel(channel)
@@ -3629,6 +3689,8 @@ class IPTVPlayer(QMainWindow):
         
         if hasattr(self.player_controller, '_heartbeat'):
             self.player_controller._heartbeat()
+        
+        self._check_program_change()
         
         _slider_dragging = hasattr(self, 'program_progress') and self.program_progress.isSliderDown()
         

@@ -252,7 +252,7 @@ class MpvPlayerController(QObject):
                 self.logger.debug(f"提取原始 URL 失败：{str(e)}")
         return url
     
-    def _setup_protocol_options(self, url):
+    def _setup_protocol_options(self, url, program_duration=0):
         if not self.mpv_handle or not url:
             return
         u = url.lower()
@@ -261,25 +261,27 @@ class MpvPlayerController(QObject):
         is_vod = ('playseek' in u or 'starttime=' in u or 'endtime=' in u or
                   'catchup' in u or 'timeshift' in u or 'playback' in u)
 
+        cache_secs = max(program_duration, 3600) if program_duration > 0 else 3600
+        cache_secs = min(cache_secs, 14400)
+        max_bytes_mib = min(max(cache_secs * 2 // 60, 256), 4096)
+
         if u.startswith('rtsp://'):
             rtsp_transport = settings.get('rtsp_transport', 'tcp')
             self._set_mpv_string('rtsp-transport', rtsp_transport)
             rtsp_ua = settings.get('rtsp_user_agent', 'VLC/3.0.18Libmpv')
             self._set_mpv_string('user-agent', rtsp_ua)
-            cache_secs = settings.get('cache_secs', 1.0)
-            self._set_mpv_string('cache', 'yes' if cache_secs > 0 else 'no')
-            if cache_secs > 0:
-                self._set_mpv_string('cache-secs', str(cache_secs))
+            self._set_mpv_string('cache', 'yes')
+            self._set_mpv_string('cache-secs', str(cache_secs))
             self._set_mpv_string('demuxer-lavf-format', '')
             if is_vod:
                 self._set_mpv_string('demuxer-lavf-probesize', '5000000')
                 self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
                 self._set_mpv_string('force-seekable', 'yes')
-                self.logger.debug(f"[mpv] rtsp-vod cache={cache_secs} transport={rtsp_transport}")
+                self.logger.debug(f"[mpv] rtsp-vod cache={cache_secs}s transport={rtsp_transport}")
             else:
                 self._set_mpv_string('demuxer-lavf-probesize', '32')
                 self._set_mpv_string('demuxer-lavf-analyzeduration', '0')
-                self.logger.debug(f"[mpv] rtsp-live cache={cache_secs} transport={rtsp_transport}")
+                self.logger.debug(f"[mpv] rtsp-live cache={cache_secs}s transport={rtsp_transport}")
             return
 
         looks_ts = ('/rtp/' in u or u.endswith('.ts') or 'proto=http' in u or u.startswith('udp://'))
@@ -296,45 +298,39 @@ class MpvPlayerController(QObject):
             self._set_mpv_string('cache', 'yes')
             self._set_mpv_string('force-seekable', 'yes')
             self._set_mpv_string('demuxer-seekable-cache', 'yes')
-
-            if u.startswith('udp://'):
-                self._set_mpv_string('cache-secs', '10')
-                self._set_mpv_string('demuxer-max-bytes', '256MiB')
-                self._set_mpv_string('demuxer-max-back-bytes', '256MiB')
-                self._set_mpv_string('demuxer-readahead-secs', '120')
-                self.logger.debug(f"[mpv] udp-ts demux=mpegts cache=yes")
-            else:
-                self._set_mpv_string('cache-secs', '10')
-                self._set_mpv_string('demuxer-max-bytes', '512MiB')
-                self._set_mpv_string('demuxer-max-back-bytes', '512MiB')
-                self._set_mpv_string('demuxer-readahead-secs', '300')
-                self.logger.debug(f"[mpv] http-ts demux=mpegts cache=10s back=512MiB")
+            self._set_mpv_string('cache-secs', str(cache_secs))
+            self._set_mpv_string('demuxer-max-bytes', f'{max_bytes_mib}MiB')
+            self._set_mpv_string('demuxer-max-back-bytes', f'{max_bytes_mib}MiB')
+            self._set_mpv_string('demuxer-readahead-secs', '300')
+            self.logger.debug(f"[mpv] ts demux=mpegts cache={cache_secs}s back={max_bytes_mib}MiB dur={program_duration}s")
             return
 
         if u.endswith('.m3u8') or 'format=hls' in u:
             self._set_mpv_string('demuxer-lavf-format', '')
             self._set_mpv_string('cache', 'yes')
-            self._set_mpv_string('demuxer-max-bytes', '256MiB')        # 平衡值：支持回退但不至于耗尽资源
-            self._set_mpv_string('demuxer-max-back-bytes', '256MiB')    # 后向缓冲256MB
+            self._set_mpv_string('cache-secs', str(cache_secs))
+            self._set_mpv_string('demuxer-max-bytes', f'{max_bytes_mib}MiB')
+            self._set_mpv_string('demuxer-max-back-bytes', f'{max_bytes_mib}MiB')
             self._set_mpv_string('force-seekable', 'yes')
-            self._set_mpv_string('demuxer-readahead-secs', '120')         # 预读2分钟
+            self._set_mpv_string('demuxer-readahead-secs', '120')
 
             if settings.get('hls_start_at_live_edge', False):
                 self._set_mpv_string('hls-playlist-start', 'no')
             readahead = settings.get('hls_readahead_secs', 0)
             if readahead > 0:
                 self._set_mpv_string('demuxer-readahead-secs', str(readahead))
-            self.logger.debug(f"[mpv] hls cache=yes seekable=yes")
+            self.logger.debug(f"[mpv] hls cache={cache_secs}s back={max_bytes_mib}MiB")
             return
 
         self._set_mpv_string('demuxer-lavf-format', '')
         self._set_mpv_string('cache', 'yes')
-        self._set_mpv_string('demuxer-max-bytes', '256MiB')        # 平衡值
-        self._set_mpv_string('demuxer-max-back-bytes', '256MiB')    # 后向缓冲256MB
+        self._set_mpv_string('cache-secs', str(cache_secs))
+        self._set_mpv_string('demuxer-max-bytes', f'{max_bytes_mib}MiB')
+        self._set_mpv_string('demuxer-max-back-bytes', f'{max_bytes_mib}MiB')
         self._set_mpv_string('force-seekable', 'yes')
-        self._set_mpv_string('demuxer-readahead-secs', '120')         # 预读2分钟
+        self._set_mpv_string('demuxer-readahead-secs', '120')
         self._set_mpv_string('demuxer-cache-wait', 'no')
-        self.logger.debug(f"[mpv] generic http cache=yes seekable=yes")
+        self.logger.debug(f"[mpv] generic cache={cache_secs}s back={max_bytes_mib}MiB")
 
         if (u.startswith('http://') or u.startswith('https://')):
             headers = settings.get('http_headers', '')
@@ -433,7 +429,7 @@ class MpvPlayerController(QObject):
         """主线程心跳，由定时器调用"""
         self._main_thread_heartbeat = time.monotonic()
 
-    def play(self, url, channel_name=None, **kwargs):
+    def play(self, url, channel_name=None, program_duration=0, **kwargs):
         self.current_url = url
 
         if not self.mpv_handle:
@@ -464,7 +460,7 @@ class MpvPlayerController(QObject):
                 except:
                     pass
 
-                self._setup_protocol_options(url)
+                self._setup_protocol_options(url, program_duration)
 
                 cmd = [b'loadfile', url.encode('utf-8'), None]
                 cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
@@ -492,7 +488,7 @@ class MpvPlayerController(QObject):
         threading.Thread(target=_do_play, daemon=True, name="mpv-play").start()
         return True
 
-    def play_with_prefetch(self, url, next_urls=None):
+    def play_with_prefetch(self, url, next_urls=None, program_duration=0):
         self.current_url = url
 
         if not self.mpv_handle:
@@ -518,7 +514,7 @@ class MpvPlayerController(QObject):
                 except:
                     pass
 
-                self._setup_protocol_options(url)
+                self._setup_protocol_options(url, program_duration)
                 self._set_mpv_string('prefetch-playlist', 'yes')
 
                 cmd_clear = [b'playlist-clear', None]
