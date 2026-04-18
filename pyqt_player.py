@@ -2625,6 +2625,18 @@ class IPTVPlayer(QMainWindow):
     
     def _on_mouse_activity(self):
         """鼠标活动时，恢复自动隐藏的悬浮窗并重启定时器"""
+        # 检查当前焦点窗口是否是主窗口或其子窗口
+        # 如果用户正在操作其他窗口（如扫描窗口），不恢复悬浮窗
+        from PyQt6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app:
+            active_window = app.activeWindow()
+            if active_window and active_window != self and not self.isAncestorOf(active_window):
+                # 用户在其他窗口操作（如扫描窗口），跳过悬浮窗恢复
+                if self._auto_hide_timer:
+                    self._auto_hide_timer.start()
+                return
+
         if self._auto_hidden and not self._floating_hidden:
             if self.epg_visible and hasattr(self, 'epg_panel') and self.epg_panel:
                 self.epg_panel.show()
@@ -3918,34 +3930,17 @@ class IPTVPlayer(QMainWindow):
         QTimer.singleShot(50, self._do_raise_floating_panels)
 
     def _do_raise_floating_panels(self):
-        import ctypes
-
-        HWND_TOP = 0
-        HWND_NOTOPMOST = -2
-        SWP_NOACTIVATE = 0x0010
-        SWP_NOMOVE = 0x0002
-        SWP_NOSIZE = 0x0001
-        SWP_NOOWNERZORDER = 0x0200
-        SWP_FLAGS = SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_NOOWNERZORDER
-
-        user32 = ctypes.windll.user32
-
-        main_hwnd = int(self.winId())
-
-        user32.SetWindowPos(main_hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_FLAGS)
-        user32.SetWindowPos(main_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_FLAGS)
+        """主窗口激活时，将悬浮窗与主窗口一起提升到上层（只在主窗口层级内，不覆盖其他应用）"""
+        # 使用 Qt 原生方法，只提升到父窗口层级的最上层，不使用系统级 HWND_TOP
+        self.raise_()
 
         for panel in [self.epg_panel, self.playlist_panel, self.floating_panel]:
             if panel and panel.isVisible():
-                panel_hwnd = int(panel.winId())
-                user32.SetWindowPos(panel_hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_FLAGS)
-                user32.SetWindowPos(panel_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_FLAGS)
+                panel.raise_()
 
         scan_dialog = getattr(self, '_scan_dialog', None) or getattr(self, 'scan_window', None)
         if scan_dialog and scan_dialog.isVisible():
-            scan_hwnd = int(scan_dialog.winId())
-            user32.SetWindowPos(scan_hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_FLAGS)
-            user32.SetWindowPos(scan_hwnd, main_hwnd, 0, 0, 0, 0, SWP_FLAGS)
+            scan_dialog.raise_()
     
     def open_channel_mapping(self):
         """打开频道映射管理器"""
