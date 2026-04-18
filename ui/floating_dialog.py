@@ -49,7 +49,7 @@ class FloatingDialog(QDialog):
     _border_color_key = 'mid'
     _corner_radius = 12
 
-    def __init__(self, parent=None, frameless=True, tool_window=False):
+    def __init__(self, parent=None, frameless=True, tool_window=False, stay_on_top=True):
         super().__init__(parent)
         self.dragging = False
         self.offset = None
@@ -57,7 +57,11 @@ class FloatingDialog(QDialog):
         colors = AppStyles._get_colors()
         self.opacity = colors.get('window_opacity', 220)
 
-        flags = Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool if tool_window else Qt.WindowType.WindowStaysOnTopHint
+        flags = Qt.WindowType.Dialog
+        if stay_on_top:
+            flags |= Qt.WindowType.WindowStaysOnTopHint
+        if tool_window:
+            flags |= Qt.WindowType.Tool
         if frameless:
             flags |= Qt.WindowType.FramelessWindowHint
         self.setWindowFlags(flags)

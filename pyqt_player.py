@@ -3979,8 +3979,8 @@ class IPTVPlayer(QMainWindow):
         """播放器设置"""
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QLineEdit, QGroupBox
 
-        # 创建对话框（不传parent，避免显示在主窗口内部导致卡死）
-        dialog = FloatingDialog(None)
+        # 创建对话框（不传parent，避免显示在主窗口内部导致卡死；关闭置顶，避免覆盖其他应用）
+        dialog = FloatingDialog(None, stay_on_top=False)
         tr = self.language_manager.tr
         dialog.setWindowTitle(tr("player_settings_title", "Player Settings"))
         dialog.setMinimumSize(400, 350)
@@ -4371,8 +4371,8 @@ class IPTVPlayer(QMainWindow):
         from PyQt6 import QtCore, QtGui
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QDialogButtonBox
         
-        # 创建自定义对话框（不传parent，避免显示在主窗口内部导致卡死）
-        dialog = FloatingDialog(None)
+        # 创建自定义对话框（不传parent，避免显示在主窗口内部导致卡死；关闭置顶，避免覆盖其他应用）
+        dialog = FloatingDialog(None, stay_on_top=False)
         tr = self.language_manager.tr
         dialog.setWindowTitle(tr("epg_settings_title", "EPG Settings"))
         dialog.setMinimumSize(400, 200)
