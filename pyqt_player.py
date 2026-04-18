@@ -4726,7 +4726,7 @@ class IPTVPlayer(QMainWindow):
                 content = load_m3u_file(file_path)
                 logger.info(f"成功读取文件，文件大小: {len(content)} 字节")
                 
-                # 解析x-tvg-url属性，但优先使用手动设置的EPG地址
+                # 解析x-tvg-url属性，自动添加到EPG源列表并重新整合所有源
                 import re
                 first_line = content.splitlines()[0]
                 if first_line.startswith('#EXTM3U'):
@@ -4738,13 +4738,15 @@ class IPTVPlayer(QMainWindow):
                         existing_sources = global_subscription_manager.get_epg_sources()
                         if not existing_sources or not any(s.get('url') == tvg_url for s in existing_sources):
                             global_subscription_manager.add_epg_source(tvg_url, "M3U文件")
-                            # 加载EPG数据
-                            import threading
-                            # 定义状态回调函数
-                            def epg_status_callback(message):
-                                # 使用信号更新状态栏
-                                self.epg_status_signal.emit(message)
-                            threading.Thread(target=self.epg_parser.load_single_epg, args=(tvg_url, epg_status_callback), daemon=True).start()
+                        # 重新加载并整合所有EPG源（包括刚添加的）
+                        import threading
+                        def epg_status_callback(message):
+                            self.epg_status_signal.emit(message)
+                        threading.Thread(
+                            target=global_subscription_manager.load_all_epg_data,
+                            args=(epg_status_callback,),
+                            daemon=True
+                        ).start()
                 
                 logger.info("开始解析M3U文件内容")
                 if self.channel_model.load_from_file(content):
