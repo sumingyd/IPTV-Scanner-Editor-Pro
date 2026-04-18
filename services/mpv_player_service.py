@@ -150,6 +150,14 @@ class MpvPlayerController(QObject):
             libmpv.mpv_set_property_string(self.mpv_handle, b'window-scale', b'1.0')
             libmpv.mpv_set_property_string(self.mpv_handle, b'border', b'no')
 
+            # ========== 保守的色彩管理配置 ==========
+            
+            # 基础色调映射（只在需要时自动启用）
+            libmpv.mpv_set_property_string(self.mpv_handle, b'tone-mapping', b'auto')  # MPV自动选择
+            
+            # 轻微抖动处理（减少色带但不影响性能）
+            libmpv.mpv_set_property_string(self.mpv_handle, b'dither', b'ordered')  # 低开销算法
+
             libmpv.mpv_set_property_string(self.mpv_handle, b'keep-open', b'yes')
             libmpv.mpv_set_property_string(self.mpv_handle, b'idle', b'yes')
             libmpv.mpv_set_property_string(self.mpv_handle, b'ytdl', b'no')

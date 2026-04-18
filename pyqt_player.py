@@ -3124,7 +3124,6 @@ class IPTVPlayer(QMainWindow):
                 video_parts.append(res_label)
             
             # HDR/动态范围检测
-            from services.mpv_player_service import MpvPlayerController
             hdr_type = MpvPlayerController.detect_hdr_type(
                 info.get('colormatrix', ''),
                 info.get('gamma', ''),
