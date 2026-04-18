@@ -376,7 +376,11 @@ BUILTIN_TRANSLATIONS = {
         'neumorphic_dark': '拟态暗',
         'neumorphic_light': '拟态浅',
         'apple_tv': 'Apple TV',
-        'menu_hide_floating': '隐藏悬浮'
+        'menu_hide_floating': '隐藏悬浮',
+        'menu_reload_subscription': '重载订阅',
+        'no_subscription_url': '未配置订阅地址',
+        'reloading_subscription': '正在重新加载订阅...',
+        'reload_subscription_failed': '重新加载订阅失败'
     },
     'en': {
         'language_name': 'English',
@@ -750,7 +754,11 @@ BUILTIN_TRANSLATIONS = {
         'neumorphic_dark': 'Neumorphic Dark',
         'neumorphic_light': 'Neumorphic Light',
         'apple_tv': 'Apple TV',
-        'menu_hide_floating': 'Hide Floating Panels'
+        'menu_hide_floating': 'Hide Floating Panels',
+        'menu_reload_subscription': 'Reload Subscription',
+        'no_subscription_url': 'No subscription URL configured',
+        'reloading_subscription': 'Reloading subscription...',
+        'reload_subscription_failed': 'Failed to reload subscription'
     }
 }
 

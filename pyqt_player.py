@@ -1403,8 +1403,12 @@ class IPTVPlayer(QMainWindow):
                 save_as.triggered.connect(self.save_as)
                 save_as.setShortcut("Ctrl+S")
                 file_menu.addAction(save_as)
-                
+
                 file_menu.addSeparator()
+
+                reload_subscription = QAction(tr("menu_reload_subscription", "Reload Subscription"), self)
+                reload_subscription.triggered.connect(self.reload_subscription)
+                file_menu.addAction(reload_subscription)
                 
                 exit_action = QAction(tr("menu_exit", "Exit"), self)
                 exit_action.triggered.connect(self.close)
@@ -3969,6 +3973,34 @@ class IPTVPlayer(QMainWindow):
                 x = (screen_geometry.width() - dialog_size.width()) // 2 + screen_geometry.x()
                 y = (screen_geometry.height() - dialog_size.height()) // 2 + screen_geometry.y()
                 dialog.move(x, y)
+
+    def reload_subscription(self):
+        """重新加载订阅列表（强制从服务器获取最新数据）"""
+        try:
+            playlist_url = self.config.get_value('Playlist', 'url', '')
+            if not playlist_url:
+                self.status_bar.showMessage(
+                    self.language_manager.tr("no_subscription_url", "No subscription URL configured")
+                )
+                return
+
+            logger.info(f"手动触发订阅重新加载: {playlist_url}")
+            self.status_bar.showMessage(
+                self.language_manager.tr("reloading_subscription", "Reloading subscription...")
+            )
+
+            # 重置订阅检查标志，强制执行
+            if hasattr(self, '_subscription_checked'):
+                self._subscription_checked = False
+
+            # 强制更新订阅
+            self.update_playlist_subscription()
+
+        except Exception as ex:
+            logger.error(f"重新加载订阅失败: {ex}")
+            self.status_bar.showMessage(
+                f"{self.language_manager.tr('reload_subscription_failed', 'Failed to reload subscription')}: {str(ex)}"
+            )
 
     def player_settings(self):
         """播放器设置"""
