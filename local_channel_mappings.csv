@@ -132,7 +132,7 @@ CGTN阿拉伯语,239.21.2.34:5002,https://raw.githubusercontent.com/sumingyd/IPT
 山东教育卫视,239.21.1.169:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东教育.png,🏠 山东省级,山东教育,509,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226219/10000100000000060000000003301182_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss},1920x1080
 居家购物,239.21.1.112:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/山东居家购物.png,🏠 山东省级,居家购物,510,0,default,7,rtsp://150.138.8.132/PLTV/88888888/224/3221226091/10000100000000060000000002859311_0.smil?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss},1920x1080
 济南综合,239.21.1.62:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南新闻.png,🏙️ 市级频道,济南综合,601,0,none,0,,1920x1080
-济南综合,239.21.1.94:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南新闻.png,🏙️ 市级频道,济南综合,602,0,none,0,,720x576
+济南综合,239.21.1.94:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南新闻.png,🏙️ 市级频道,济南综合,602,0,none,0,,1920x1080
 济南生活,239.21.1.64:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南生活.png,🏙️ 市级频道,济南生活,603,0,none,0,,720x576
 济南都市,239.21.1.63:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南都市.png,🏙️ 市级频道,济南都市,604,0,none,0,,720x576
 济南娱乐,239.21.1.66:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/logo/山东/济南娱乐.png,🏙️ 市级频道,济南娱乐,605,0,none,0,,720x576

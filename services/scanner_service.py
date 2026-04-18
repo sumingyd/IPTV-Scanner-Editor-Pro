@@ -2,6 +2,7 @@ import threading
 import queue
 import time
 import functools
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict
 from services.url_parser_service import URLRangeParser
 from core.log_manager import global_logger
@@ -55,6 +56,10 @@ class ScannerController(QObject):
         self.scan_state_manager = get_scan_state_manager()
         self.scan_id = 'main_scan'
         self._validator = None
+        self._mapping_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mapper")
+        self._pending_ui_updates = []
+        self._ui_batch_timer = None
+        self._ui_batch_lock = threading.Lock()
 
     def _force_ui_refresh(self):
         try:
@@ -155,22 +160,27 @@ class ScannerController(QObject):
                 self._run_on_main(self.progress_updated.emit, total, total)
 
     def _handle_channel_add(self, channel_info: dict):
-        """处理频道添加：添加到模型、刷新UI、调整列宽"""
+        """处理频道添加：添加到模型、批量刷新UI"""
         self.model.add_channel(channel_info, is_from_file=False)
-        self._force_ui_refresh()
+        self._schedule_ui_refresh()
 
-        if hasattr(self.model, 'parent') and self.model.parent():
-            view = self.model.parent()
-            if hasattr(view, 'resizeColumnsToContents'):
-                from PyQt6.QtCore import QTimer
-                QTimer.singleShot(0, view.resizeColumnsToContents)
-
-        # 添加频道后强制触发列宽调整
-        if hasattr(self.model, 'parent') and self.model.parent():
-            view = self.model.parent()
-            if hasattr(view, 'resizeColumnsToContents'):
-                from PyQt6.QtCore import QTimer
-                QTimer.singleShot(0, view.resizeColumnsToContents)
+    def _schedule_ui_refresh(self):
+        """批量延迟刷新UI，避免每个频道都刷新"""
+        with self._ui_batch_lock:
+            if self._ui_batch_timer is not None:
+                return
+            self._ui_batch_timer = True
+        
+        def _do_refresh():
+            with self._ui_batch_lock:
+                self._ui_batch_timer = None
+            self._force_ui_refresh()
+            if hasattr(self.model, 'parent') and self.model.parent():
+                view = self.model.parent()
+                if hasattr(view, 'resizeColumnsToContents'):
+                    view.resizeColumnsToContents()
+        
+        QtCore.QTimer.singleShot(200, _do_refresh)
 
     def _build_channel_info(
         self, url: str, valid: bool, latency: int,
@@ -225,15 +235,8 @@ class ScannerController(QObject):
             }
 
     def _start_async_details_fetch(self, channel_info: dict):
-        """启动异步获取频道详细信息"""
-        # 创建线程来获取详细信息
-        thread = threading.Thread(
-            target=self._fetch_channel_details,
-            args=(channel_info,),
-            name=f"DetailsFetcher-{channel_info['url'][-20:]}",
-            daemon=True
-        )
-        thread.start()
+        """启动异步获取频道详细信息（使用线程池）"""
+        self._mapping_executor.submit(self._fetch_channel_details, channel_info)
 
     def _fetch_channel_details(self, channel_info: dict):
         """获取频道详细信息（仅用于有映射的频道）"""

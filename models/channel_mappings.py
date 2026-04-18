@@ -241,6 +241,8 @@ class ChannelMappingManager:
         self.cache_lock = threading.Lock()
         self.user_mappings_lock = threading.Lock()
         self.fingerprint_lock = threading.Lock()
+        self._fingerprint_dirty = False
+        self._fingerprint_save_timer = None
 
         # 映射功能开关（默认开启）
         self.enable_mapping = True
@@ -331,6 +333,22 @@ class ChannelMappingManager:
         except Exception as e:
             self.logger.error(f"保存频道指纹失败: {e}")
 
+    def _schedule_fingerprint_save(self):
+        """延迟批量保存指纹数据，避免频繁写磁盘"""
+        self._fingerprint_dirty = True
+        if self._fingerprint_save_timer is not None:
+            return
+        
+        def _do_save():
+            self._fingerprint_save_timer = None
+            if self._fingerprint_dirty:
+                self._fingerprint_dirty = False
+                self._save_channel_fingerprints()
+        
+        self._fingerprint_save_timer = threading.Timer(5.0, _do_save)
+        self._fingerprint_save_timer.daemon = True
+        self._fingerprint_save_timer.start()
+
     def _combine_mappings(self) -> Dict[str, dict]:
         """组合远程映射和用户自定义映射（用户映射优先级更高）"""
         combined = self.remote_mappings.copy()
@@ -416,7 +434,7 @@ class ChannelMappingManager:
                 mapped_name != raw_name):       # 原始名称不算有效映射
                 self.logger.warning(f"频道映射不稳定: {raw_name} -> {current_mapped} vs {mapped_name}")
 
-        self._save_channel_fingerprints()
+        self._schedule_fingerprint_save()
 
     def get_channel_info(self, raw_name: str, url: str | None = None, channel_info: dict | None = None) -> dict:
         """获取频道信息，支持智能学习和指纹匹配"""

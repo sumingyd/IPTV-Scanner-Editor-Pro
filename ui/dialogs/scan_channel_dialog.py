@@ -1057,11 +1057,10 @@ class ScanChannelDialog(FloatingDialog):
         # 智能两阶段扫描策略
         # 第一阶段：快速扫描（5秒超时），快速筛选有效频道
         # 第二阶段：对失败的URL自动重试（15秒超时），提高检出率
-        scan_timeout_phase1 = 5  # 第一阶段快速超时
+        scan_timeout_phase1 = 5
 
-        # 固定使用4个扫描线程
-        scan_threads = 4
-        self.logger.debug(f"使用固定{scan_threads}线程")
+        scan_threads = get_optimal_thread_count()
+        self.logger.debug(f"使用{scan_threads}线程扫描")
 
         try:
             if hasattr(self, 'config') and self.config:
