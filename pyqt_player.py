@@ -3123,6 +3123,16 @@ class IPTVPlayer(QMainWindow):
                 res_label = self._get_resolution_label(video_width, video_height)
                 video_parts.append(res_label)
             
+            # HDR/动态范围检测
+            from services.mpv_player_service import MpvPlayerController
+            hdr_type = MpvPlayerController.detect_hdr_type(
+                info.get('colormatrix', ''),
+                info.get('gamma', ''),
+                info.get('sig_peak', 0)
+            )
+            if hdr_type and hdr_type != 'SDR':
+                video_parts.append(hdr_type)
+            
             # 帧率
             fps = info.get('fps', 0)
             if fps and fps > 0:

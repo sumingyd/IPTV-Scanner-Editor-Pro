@@ -818,6 +818,14 @@ class MpvPlayerController(QObject):
             # 像素格式
             pix_fmt = get_str('video-params/pixelformat') or ''
             
+            # HDR/动态范围相关属性
+            colormatrix = get_str('video-params/colormatrix') or ''
+            color_primaries = get_str('video-params/primaries') or ''
+            gamma = get_str('video-params/gamma') or ''
+            colorlevels = get_str('video-params/colorlevels') or ''
+            sig_peak = get_double('video-params/sig-peak')
+            sig_avg = get_double('video-params/sig-avg')
+            
             # 详细调试日志：只在值变化时输出
             if not hasattr(self, '_last_info_debug') or self._last_info_debug != (w, h, vcodec, acodec):
                 self._last_info_debug = (w, h, vcodec, acodec)
@@ -865,11 +873,68 @@ class MpvPlayerController(QObject):
                 'pixel_format': pix_fmt,
                 'video_bitrate': v_br,
                 'audio_bitrate': a_br,
+                
+                # HDR/动态范围信息
+                'colormatrix': colormatrix,
+                'color_primaries': color_primaries,
+                'gamma': gamma,
+                'colorlevels': colorlevels,
+                'sig_peak': sig_peak,
+                'sig_avg': sig_avg,
             }
             return info
         except Exception as e:
             self.logger.error(f"获取媒体信息失败：{str(e)}")
             return None
+    
+    @staticmethod
+    def detect_hdr_type(colormatrix: str, gamma: str, sig_peak: float) -> str:
+        """检测视频的HDR类型
+
+        Args:
+            colormatrix: 色彩矩阵 (bt.709/bt.2020-ncl/bt.2020-c)
+            gamma: Gamma曲线 (bt.1886/bt.2100-pq/bt.2100-hlg)
+            sig_peak: 信号峰值亮度 (nits)
+
+        Returns:
+            HDR类型字符串：SDR / HLG / HDR10 / HDR10+ / Dolby Vision
+        """
+        if not colormatrix and not gamma:
+            return 'SDR'
+        
+        # 检测 Dolby Vision
+        if gamma and 'pq' in gamma.lower() and sig_peak > 4000:
+            # Dolby Vision 通常使用 PQ 且峰值 > 4000 nits
+            if 'bt.2020' in colormatrix.lower():
+                return 'DV'
+        
+        # 检测 HDR10+
+        if gamma and 'pq' in gamma.lower() and sig_peak > 1000:
+            return 'HDR10+'
+        
+        # 检测 HDR10 (PQ 传输函数)
+        if gamma and ('pq' in gamma.lower() or 'smpte2084' in gamma.lower()):
+            return 'HDR10'
+        
+        # 检测 HLG (Hybrid Log-Gamma)
+        if gamma and ('hlg' in gamma.lower() or 'arib-std-b67' in gamma.lower()):
+            return 'HLG'
+        
+        # 通过色彩矩阵判断
+        if colormatrix:
+            cm_lower = colormatrix.lower()
+            if 'bt.2020' in cm_lower or 'bt.2100' in cm_lower:
+                # BT.2020 色彩空间但没有明确的 HDR 标记，可能是 HLG 或 SDR WCG
+                if sig_peak > 100:
+                    return 'HLG'
+                else:
+                    return 'WCG'
+            
+            if 'bt.709' in cm_lower or 'bt.601' in cm_lower:
+                return 'SDR'
+        
+        # 默认 SDR
+        return 'SDR'
 
     def _start_live_info_timer(self):
         if hasattr(self, '_live_info_timer') and self._live_info_timer:
