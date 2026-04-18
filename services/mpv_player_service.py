@@ -289,28 +289,26 @@ class MpvPlayerController(QObject):
             if is_vod:
                 self._set_mpv_string('demuxer-lavf-probesize', '5000000')
                 self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
-                self._set_mpv_string('force-seekable', 'yes')
             else:
-                self._set_mpv_string('demuxer-lavf-probesize', '32')
-                self._set_mpv_string('demuxer-lavf-analyzeduration', '0')
+                self._set_mpv_string('demuxer-lavf-probesize', '500000')
+                self._set_mpv_string('demuxer-lavf-analyzeduration', '500000')
             self._set_mpv_string('demuxer-lavf-buffersize', '128000')
+            self._set_mpv_string('cache', 'yes')
+            self._set_mpv_string('force-seekable', 'yes')
+            self._set_mpv_string('demuxer-seekable-cache', 'yes')
 
             if u.startswith('udp://'):
-                self._set_mpv_string('cache', 'yes')
-                cache_secs = settings.get('cache_secs', 10)
-                self._set_mpv_string('cache-secs', str(max(1, cache_secs)))
-                self._set_mpv_string('demuxer-max-back-bytes', '128MiB')
-                self.logger.debug(f"[mpv] udp-ts demux=mpegts cache=yes max-back=128MiB")
+                self._set_mpv_string('cache-secs', '10')
+                self._set_mpv_string('demuxer-max-bytes', '256MiB')
+                self._set_mpv_string('demuxer-max-back-bytes', '256MiB')
+                self._set_mpv_string('demuxer-readahead-secs', '120')
+                self.logger.debug(f"[mpv] udp-ts demux=mpegts cache=yes")
             else:
-                cache_secs = settings.get('cache_secs', 1.0)
-                self._set_mpv_string('cache', 'yes' if cache_secs > 0 else 'no')
-                if cache_secs > 0:
-                    self._set_mpv_string('cache-secs', str(cache_secs))
-                max_mib = settings.get('demuxer_max_bytes_mib', 16)
-                back_mib = settings.get('demuxer_max_back_bytes_mib', 512)
-                self._set_mpv_string('demuxer-max-bytes', f'{max_mib}MiB')
-                self._set_mpv_string('demuxer-max-back-bytes', f'{back_mib}MiB')
-                self.logger.debug(f"[mpv] http-ts demux=mpegts cache={cache_secs} back={back_mib}MiB")
+                self._set_mpv_string('cache-secs', '10')
+                self._set_mpv_string('demuxer-max-bytes', '512MiB')
+                self._set_mpv_string('demuxer-max-back-bytes', '512MiB')
+                self._set_mpv_string('demuxer-readahead-secs', '300')
+                self.logger.debug(f"[mpv] http-ts demux=mpegts cache=10s back=512MiB")
             return
 
         if u.endswith('.m3u8') or 'format=hls' in u:
@@ -834,57 +832,62 @@ class MpvPlayerController(QObject):
 
     def get_available_seek_range(self) -> dict:
         """获取当前可用的回退/前进范围（秒）
-
-        Returns:
-            dict: {
-                'max_back': int,      # 最大可回退秒数（负值或0）
-                'max_forward': int,   # 最大可前进秒数
-                'current_pos': float, # 当前位置（相对于live点的偏移，负数=落后）
-                'cache_duration': float  # 缓冲区总时长（秒）
-            }
+        
+        返回值说明:
+        - buffer_start: 缓冲区起始位置（绝对秒数，可用于绝对seek）
+        - buffer_end: 缓冲区结束位置/直播点（绝对秒数）
+        - time_pos: 当前播放位置（绝对秒数）
+        - max_back: 从直播点(buffer_end)可回退的秒数 = buffer_end - buffer_start
+        - max_forward: 从直播点可前进的秒数
+        - cache_duration: 缓冲区总时长 = buffer_end - buffer_start
         """
+        empty = {'max_back': 0, 'max_forward': 0, 'cache_duration': 0,
+                 'buffer_start': 0, 'buffer_end': 0, 'time_pos': 0}
         if not self.mpv_handle:
-            return {'max_back': 0, 'max_forward': 0, 'current_pos': 0, 'cache_duration': 0}
+            return empty
         
         try:
-            def get_double(prop):
-                val = self._get_mpv_property_double(prop)
-                if val is not None:
-                    return val
-                s = self._get_mpv_property_string(prop)
-                if s:
-                    try:
-                        return float(s)
-                    except:
-                        return 0.0
-                return 0.0
+            time_pos = self._get_mpv_property_double('time-pos') or 0
             
-            # 获取demuxer缓存状态
-            cache_duration = get_double('demuxer-cache-duration') or 0
-            cache_speed = get_double('demuxer-cache-speed') or 0
+            buffer_start = 0.0
+            buffer_end = 0.0
+            cache_duration = 0.0
             
-            # 获取播放位置信息
-            playback_time = get_double('playback-time') or 0
-            time_pos = get_double('time-pos') or 0
+            cache_state_str = self._get_mpv_property_string('demuxer-cache-state')
+            if cache_state_str:
+                try:
+                    import json
+                    cache_state = json.loads(cache_state_str)
+                    seekable_ranges = cache_state.get('seekable-ranges', [])
+                    if seekable_ranges:
+                        first = seekable_ranges[0]
+                        buffer_start = first.get('start', 0)
+                        buffer_end = first.get('end', 0)
+                        cache_duration = buffer_end - buffer_start
+                except:
+                    pass
             
-            # 计算可用范围
-            # 对于直播流：缓存持续时间 ≈ 可回退的最大时间
+            if cache_duration <= 0:
+                cache_dur = self._get_mpv_property_double('demuxer-cache-duration') or 0
+                if cache_dur > 0:
+                    cache_duration = cache_dur
+                    buffer_start = max(0, time_pos - cache_duration)
+                    buffer_end = time_pos
+            
             max_back = int(cache_duration) if cache_duration > 0 else 0
+            max_forward = min(60, max(0, int(cache_duration * 0.1)))
             
-            # 前进能力（对于直播流通常很小或为0）
-            max_forward = min(60, max(0, int(cache_duration * 0.2)))  # 最多前进60秒
-            
-            result = {
+            return {
                 'max_back': max_back,
                 'max_forward': max_forward,
-                'current_pos': -time_pos if time_pos > 0 else 0,
-                'cache_duration': cache_duration
+                'cache_duration': cache_duration,
+                'buffer_start': buffer_start,
+                'buffer_end': buffer_end,
+                'time_pos': time_pos
             }
-            
-            return result
         except Exception as e:
             self.logger.debug(f"获取可回退范围失败: {e}")
-            return {'max_back': 0, 'max_forward': 0, 'current_pos': 0, 'cache_duration': 0}
+            return empty
 
     def get_live_media_info(self):
         """获取实时媒体信息 - 参考 SRCBOX，统一使用字符串获取方式"""

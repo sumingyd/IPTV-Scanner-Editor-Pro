@@ -1148,11 +1148,14 @@ class IPTVPlayer(QMainWindow):
         
         # 时间进度条
         self.program_progress = QSlider(Qt.Orientation.Horizontal)
-        self.program_progress.setRange(0, 100)
+        self.program_progress.setRange(0, 3600)
         self.program_progress.setValue(0)
+        self.program_progress.setSingleStep(1)
+        self.program_progress.setPageStep(30)
         self.program_progress.setFixedWidth(450)
         self.program_progress.setStyleSheet(AppStyles.player_slider_style())
         self.program_progress.sliderReleased.connect(self.on_progress_slider_released)
+        self._progress_total_seconds = 3600
         self.progress_group.addWidget(self.program_progress)
         
         # 当前节目结束时间
@@ -2210,7 +2213,7 @@ class IPTVPlayer(QMainWindow):
             
             # 重置进度条为0（新节目从0开始）
             if hasattr(self, 'program_progress'):
-                self.program_progress.setValue(0)
+                self._set_progress_value(0)
                 logger.debug("play_catchup: 新回看节目，重置进度条为0")
             
             # 进入回看时重置倍速到1.0x
@@ -2315,8 +2318,8 @@ class IPTVPlayer(QMainWindow):
         
         # 恢复进度条为百分比模式
         if hasattr(self, 'program_progress') and self.program_progress:
-            self.program_progress.setRange(0, 100)
-            self.program_progress.setValue(0)
+            self._set_progress_range(100)
+            self._set_progress_value(0)
         
         if self.player_controller:
             self.player_controller.pause()
@@ -2324,91 +2327,152 @@ class IPTVPlayer(QMainWindow):
         channel_name = self.current_channel.get("name", "") if self.current_channel else ""
         self.status_bar_show_message(f"{self.language_manager.tr('back_to_live', 'Back to live')}: {channel_name}")
     
+    def _update_progress_range_for_live(self):
+        """根据当前节目时长动态设置进度条范围"""
+        from datetime import datetime, timedelta
+        
+        try:
+            channel_name = self.current_channel.get("name", "")
+            tvg_id = self.current_channel.get("tvg_id", "")
+            current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
+            
+            if current_program:
+                start_time = datetime.fromisoformat(current_program.get('start', ''))
+                end_time = datetime.fromisoformat(current_program.get('end', ''))
+                total_seconds = int((end_time - start_time).total_seconds())
+                if total_seconds > 0:
+                    self._set_progress_range(total_seconds)
+                    self._progress_time_mode = 'epg'
+                    self._progress_program_start = start_time
+                    self._progress_program_end = end_time
+                    return
+        except:
+            pass
+        
+        self._set_progress_range(3600)
+        self._progress_time_mode = 'hour'
+        self._progress_program_start = None
+        self._progress_program_end = None
+    
+    def _map_slider_to_stream_position(self, slider_seconds, seek_range):
+        """将进度条值(秒，从节目起始算)映射到MPV流内的绝对位置(秒)
+        
+        核心思路：buffer_end 是直播点（对应当前墙钟时间 now），
+        目标位置 = buffer_end - (now - target_wallclock).total_seconds()
+        不依赖 time_pos（直播流中 time_pos 经常为0或不可靠）
+        """
+        from datetime import datetime, timedelta
+        
+        buffer_start = seek_range.get('buffer_start', 0)
+        buffer_end = seek_range.get('buffer_end', 0)
+        
+        if getattr(self, '_progress_time_mode', None) == 'epg' and self._progress_program_start:
+            try:
+                target_wallclock = self._progress_program_start + timedelta(seconds=slider_seconds)
+                now = datetime.now()
+                offset_from_live = (now - target_wallclock).total_seconds()
+                target_pos = buffer_end - offset_from_live
+                return target_pos
+            except:
+                pass
+        
+        try:
+            now = datetime.now()
+            hour_start = now.replace(minute=0, second=0, microsecond=0)
+            target_wallclock = hour_start + timedelta(seconds=slider_seconds)
+            offset_from_live = (now - target_wallclock).total_seconds()
+            target_pos = buffer_end - offset_from_live
+            return target_pos
+        except:
+            pass
+        
+        total_seconds = self._progress_total_seconds
+        if total_seconds <= 0:
+            total_seconds = 3600
+        ratio = slider_seconds / total_seconds
+        return buffer_start + (buffer_end - buffer_start) * ratio
+    
+    def _set_progress_range(self, total_seconds):
+        """设置进度条范围（秒级精度，1单位=1秒）"""
+        self._progress_total_seconds = total_seconds
+        self.program_progress.setRange(0, int(total_seconds))
+    
+    def _set_progress_value(self, seconds):
+        """设置进度条位置（输入为秒数），用户拖动时跳过"""
+        if self.program_progress.isSliderDown():
+            return
+        v = max(0, min(int(seconds), self.program_progress.maximum()))
+        self.program_progress.setValue(v)
+    
+    def _get_progress_seconds(self):
+        """获取进度条当前值（秒数）"""
+        return self.program_progress.value()
+    
     def on_progress_slider_released(self):
         """进度条拖动释放时的处理"""
         
-        # 检查是否处于回看模式
         is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
         
         if not is_catchup:
-            # 直播模式：进度条控制时移偏移量
             if not self.current_channel or not self.player_controller:
                 return
             
-            value = float(self.program_progress.value())
+            slider_seconds = self._get_progress_seconds()
             
-            # 获取实际可回退范围
             seek_range = self.player_controller.get_available_seek_range()
             max_back = seek_range.get('max_back', 0)
-            max_forward = seek_range.get('max_forward', 60)
             cache_duration = seek_range.get('cache_duration', 0)
+            buffer_start = seek_range.get('buffer_start', 0)
+            buffer_end = seek_range.get('buffer_end', 0)
+            time_pos = seek_range.get('time_pos', 0)
             
-            # 如果没有缓冲数据，提示用户
+            logger.info(f"直播拖动进度条 -> slider={slider_seconds}s, "
+                        f"time_pos={time_pos:.1f}s, buffer={buffer_start:.1f}s~{buffer_end:.1f}s, "
+                        f"max_back={max_back}s, mode={getattr(self, '_progress_time_mode', '?')}")
+            
             if max_back == 0 and cache_duration < 5:
                 logger.warning(f"直播拖动进度条 -> 无法回退（缓冲区为空，cache={cache_duration:.1f}s）")
                 self.status_bar_show_message(self.language_manager.tr("cannot_seek_live", "无法回退：直播流缓冲区不足"))
-                # 重置进度条到中间位置（live点）
-                if hasattr(self, 'program_progress'):
-                    self.program_progress.setValue(50)
                 return
             
-            # 记录上次释放的位置，用于计算相对变化
-            if not hasattr(self, '_last_progress_value'):
-                self._last_progress_value = 50.0  # 默认中间位置
+            target_pos = self._map_slider_to_stream_position(slider_seconds, seek_range)
             
-            # 计算相对移动方向和距离
-            delta = value - self._last_progress_value
-            self._last_progress_value = value
+            logger.info(f"直播拖动进度条 -> 映射后 target_pos={target_pos:.1f}s, "
+                        f"clamp后={max(buffer_start, min(target_pos, buffer_end)):.1f}s")
             
-            # 如果变化太小（<2%），忽略（避免误触）
-            if abs(delta) < 2:
+            target_pos = max(buffer_start, min(target_pos, buffer_end))
+            
+            effective_pos = time_pos if time_pos > 1 else buffer_end
+            if abs(target_pos - effective_pos) < 1:
+                logger.info(f"直播拖动进度条 -> 跳过（目标{target_pos:.1f}s与当前位置{effective_pos:.1f}s差<1s）")
                 return
             
-            # 映射：进度条范围 0~100 对应时间范围 -max_back ~ +max_forward
-            # 50% = live点（当前时间），<50% 回退，>50% 前进（追赶）
-            if value < 50:
-                # 左半边：回退（0%=最远回退，50%=live）
-                back_ratio = (50 - value) / 50.0
-                offset_seconds = -int(max_back * back_ratio)
-                direction = "回退"
-                
-                # 限制在可用范围内
-                if abs(offset_seconds) > max_back:
-                    offset_seconds = -max_back
-                    logger.info(f"直播拖动 -> 回退请求 {abs(offset_seconds)}s，但最大可回退 {max_back}s")
+            logger.info(f"直播拖动进度条 -> seek到 {target_pos:.1f}s")
+            
+            self.player_controller.seek_absolute(target_pos)
+            
+            if target_pos < buffer_end - 1:
+                self._live_timeshift_seconds = buffer_end - target_pos
             else:
-                # 右半边：前进/追赶（50%=live，100%=前进到最快）
-                forward_ratio = (value - 50) / 50.0
-                offset_seconds = int(max_forward * forward_ratio)
-                direction = "前进"
+                self._live_timeshift_seconds = 0
             
-            if offset_seconds == 0:
-                return
-            
-            logger.info(f"直播拖动进度条 -> seek {direction} {abs(offset_seconds)}s (可用范围: -{max_back}s ~ +{max_forward}s, 缓冲: {cache_duration:.0f}s)")
-            self.player_controller.seek_relative_seconds(offset_seconds)
             return
         
-        # 获取进度条的当前值
-        value = self.program_progress.value()
+        value = self._get_progress_seconds()
         
-        # 重新构建回看URL并重新播放
         has_catchup_program = hasattr(self, 'catchup_program')
         has_original_channel = hasattr(self, 'original_channel')
         logger.debug(f"检查必要属性：catchup_program={has_catchup_program}, original_channel={has_original_channel}")
         
         if has_catchup_program and has_original_channel:
             try:
-                # 获取频道信息
                 channel_name = self.original_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel"))
                 catchup_source = self.original_channel.get('catchup_source', '')
                 
                 if not catchup_source:
-                    # 不支持回看，显示提示
                     self.status_bar_show_message(self.language_manager.tr("catchup_not_supported", "This channel does not support catchup"))
                     return
                 
-                # 获取回看节目的信息
                 start_time = self.catchup_program.get('start')
                 end_time = self.catchup_program.get('end')
                 title = self.catchup_program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))
@@ -2418,33 +2482,25 @@ class IPTVPlayer(QMainWindow):
                     self.status_bar.showMessage(self.language_manager.tr("catchup_error", "Catchup error: Missing program information"))
                     return
                 
-                # 计算总时长
                 total_duration = (end_time - start_time).total_seconds()
                 
-                # 根据进度条位置计算新的开始时间
                 from datetime import timedelta
-                new_start_seconds = total_duration * (value / 100.0)
+                new_start_seconds = value
                 new_start_time = start_time + timedelta(seconds=new_start_seconds)
                 
                 catchup_url = catchup_source
                 catchup_url = self._replace_catchup_variables(catchup_source, new_start_time, end_time)
                 
-                # 记录构建的回看URL
                 logger.debug(f"构建新的回看URL: {catchup_url}")
                 
-                # 显示回看状态
                 catchup_msg = self.language_manager.tr('catchup_playing', '正在回看: {name}')
                 self.status_bar.showMessage(f"{catchup_msg.format(name=channel_name)} - {title}")
                 
-                # 保存目标进度值，用于在播放开始后设置进度条
                 self._pending_catchup_progress = value
-                logger.debug(f"保存回看进度目标值：{value}%")
                 
-                # 记录拖动时间点（用于模拟进度条移动）
                 import time
                 self._catchup_start_time = time.time()
                 self._catchup_start_progress = value
-                logger.debug(f"记录回看开始时间：{self._catchup_start_time}，开始进度：{value}%")
                 
                 # 设置标志，禁用进度条自动更新
                 self._disable_progress_auto_update = True
@@ -2572,7 +2628,7 @@ class IPTVPlayer(QMainWindow):
         # 检查是否处于回看模式
         is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
         if not is_catchup:
-            self.program_progress.setValue(0)
+            self._set_progress_value(0)
             logger.debug("update_channel_info_on_selection: 重置进度条为0（非回看模式）")
         self.progress_end.setText("--:--")
         
@@ -2762,7 +2818,7 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, 'progress_end'):
             self.progress_end.setText("--:--")
         if hasattr(self, 'program_progress'):
-            self.program_progress.setValue(0)
+            self._set_progress_value(0)
         self.current_channel = None
         self._is_stopped = True
         tr = self.language_manager.tr
@@ -2828,7 +2884,8 @@ class IPTVPlayer(QMainWindow):
     
     def _do_play_channel(self, channel):
         if self.player_controller and channel:
-            # 如果当前处于回看模式，先退出回看
+            self._live_timeshift_seconds = 0
+            
             if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
                 self.is_catchup_mode = False
                 if hasattr(self, 'exit_catchup_button'):
@@ -2885,7 +2942,7 @@ class IPTVPlayer(QMainWindow):
                 # 检查是否处于回看模式
                 is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
                 if not is_catchup:
-                    self.program_progress.setValue(0)
+                    self._set_progress_value(0)
                     logger.debug("play_channel: 重置进度条为0（非回看模式）")
             
             url = channel.get('url')
@@ -2962,8 +3019,7 @@ class IPTVPlayer(QMainWindow):
                     if hasattr(self, '_pending_catchup_progress'):
                         try:
                             progress_value = self._pending_catchup_progress
-                            logger.debug(f"设置回看进度条到目标值：{progress_value}%")
-                            self.program_progress.setValue(progress_value)
+                            self._set_progress_value(progress_value)
                             
                             # 保存目标进度值，用于在update_floating_panel_info中检查
                             self._target_catchup_progress = progress_value
@@ -3527,8 +3583,7 @@ class IPTVPlayer(QMainWindow):
                                 self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
                                 minutes = current_time.minute
                                 seconds = current_time.second
-                                progress = int(((minutes * 60) + seconds) / 3600 * 100)
-                                self.program_progress.setValue(progress)
+                                self._set_progress_value(minutes * 60 + seconds)
                     else:
                         self.program_desc.setText(self.language_manager.tr("playing_current_channel", "Playing current channel"))
                         from datetime import datetime
@@ -3541,8 +3596,7 @@ class IPTVPlayer(QMainWindow):
                         self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
                         minutes = current_time.minute
                         seconds = current_time.second
-                        progress = int(((minutes * 60) + seconds) / 3600 * 100)
-                        self.program_progress.setValue(progress)
+                        self._set_progress_value(minutes * 60 + seconds)
         except Exception:
             if is_catchup:
                 self.program_desc.setText(self.language_manager.tr("catchup_current_program", "Catching up current program"))
@@ -3560,8 +3614,7 @@ class IPTVPlayer(QMainWindow):
                 self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
                 minutes = current_time.minute
                 seconds = current_time.second
-                progress = int(((minutes * 60) + seconds) / 3600 * 100)
-                self.program_progress.setValue(progress)
+                self._set_progress_value(minutes * 60 + seconds)
     
     def _on_playback_position_updated(self, current_time_ms, total_time_ms, position):
         """接收后台线程获取的播放位置（避免主线程调用MPV API）"""
@@ -3576,6 +3629,8 @@ class IPTVPlayer(QMainWindow):
         
         if hasattr(self.player_controller, '_heartbeat'):
             self.player_controller._heartbeat()
+        
+        _slider_dragging = hasattr(self, 'program_progress') and self.program_progress.isSliderDown()
         
         current_time_ms = getattr(self, '_cached_current_time_ms', 0)
         total_time_ms = getattr(self, '_cached_total_time_ms', 0)
@@ -3623,179 +3678,148 @@ class IPTVPlayer(QMainWindow):
         
         # 更新进度条和时间显示
         if is_catchup:
-            # 回看模式，使用EPG节目单的时间信息
             if hasattr(self, 'catchup_program'):
                 try:
-                    # 使用回看节目的时间信息
                     start_time = self.catchup_program.get('start')
                     end_time = self.catchup_program.get('end')
                     if start_time and end_time:
-                        # 计算节目总时长
                         total_duration = (end_time - start_time).total_seconds()
                         
-                        # 格式化时间显示
                         start_str = start_time.strftime("%H:%M")
                         end_str = end_time.strftime("%H:%M")
-                        # 确保时间显示正确
                         self.progress_start.setText(start_str)
                         self.progress_end.setText(end_str)
-                        # 强制更新显示
                         self.progress_start.repaint()
                         self.progress_end.repaint()
-                        # 记录日志
-                        logger.debug(f"回看模式 - 设置时间显示: {start_str} - {end_str}")
                         
-                        # 获取当前播放位置（秒）
                         if current_time_ms is not None:
                             current_position = current_time_ms / 1000
-                            logger.debug(f"回看模式 - 获取播放位置: {current_time_ms}ms = {current_position:.1f}s")
                         else:
                             current_position = 0
-                            logger.warning(f"回看模式 - 播放位置为None，使用0")
                         
                         if total_duration > 0:
-                            # 在回看模式下，总是使用系统时间模拟进度条移动
+                            if abs(self._progress_total_seconds - int(total_duration)) > 1:
+                                self._set_progress_range(int(total_duration))
+                            
                             if hasattr(self, '_catchup_start_time') and hasattr(self, '_catchup_start_progress'):
                                 import time
                                 current_time = time.time()
                                 elapsed_seconds = current_time - self._catchup_start_time
+                                progress_seconds = min(int(self._catchup_start_progress + elapsed_seconds), int(total_duration))
                                 
-                                # 计算进度：开始进度 + (经过时间 / 总时长) * 100
-                                progress_increment = (elapsed_seconds / total_duration) * 100
-                                progress_value = min(int(self._catchup_start_progress + progress_increment), 100)
-                                
-                                # 追上直播时自动恢复1.0x倍速
-                                if progress_value >= 98 and hasattr(self, 'speed_button') and self.player_controller:
+                                if progress_seconds >= int(total_duration) * 0.98 and hasattr(self, 'speed_button') and self.player_controller:
                                     current_speed = self.player_controller.get_speed()
                                     if abs(current_speed - 1.0) > 0.01:
                                         self.player_controller.set_speed(1.0)
                                         self.speed_button.setText("1.0x")
                                         logger.info("回看已追上直播，自动恢复倍速到1.0x")
                                 
-                                self.program_progress.setValue(progress_value)
-                                logger.debug(f"回看进度条模拟更新: {progress_value}% (开始: {self._catchup_start_progress}%，经过: {elapsed_seconds:.1f}s，增量: {progress_increment:.2f}%)")
+                                self._set_progress_value(progress_seconds)
                             else:
-                                # 如果没有开始时间记录，检查是否禁用进度条自动更新
                                 if hasattr(self, '_disable_progress_auto_update') and self._disable_progress_auto_update:
-                                    logger.debug(f"进度条自动更新被禁用，跳过更新")
-                                    # 检查播放位置是否已经达到目标位置
                                     target_progress = getattr(self, '_target_catchup_progress', 0)
-                                    target_position = total_duration * (target_progress / 100.0)
-                                    logger.debug(f"检查播放位置: current={current_position:.1f}s, target={target_position:.1f}s (进度={target_progress}%)")
-                                    
-                                    # 如果当前播放位置已经接近目标位置，清除禁用标志
-                                    if current_position >= target_position * 0.9:  # 达到目标位置的90%
-                                        logger.debug(f"播放位置已达到目标位置附近，清除禁用标志")
+                                    if current_position >= target_progress * 0.9:
                                         delattr(self, '_disable_progress_auto_update')
                                 else:
-                                    # 计算进度百分比
                                     if current_position > 0:
-                                        progress_value = min(int((current_position / total_duration) * 100), 100)
+                                        progress_seconds = min(int(current_position), int(total_duration))
                                     else:
-                                        # 如果获取不到播放位置，使用0作为初始值
-                                        progress_value = 0
-                                    self.program_progress.setValue(progress_value)
-                                    logger.debug(f"回看进度条实时更新: {progress_value}% (位置: {current_position:.1f}s / 总时长: {total_duration:.1f}s)")
+                                        progress_seconds = 0
+                                    self._set_progress_value(progress_seconds)
                         else:
-                            # 只有在非回看拖动模式下才重置为0
                             if not (hasattr(self, '_disable_progress_auto_update') and self._disable_progress_auto_update):
-                                self.program_progress.setValue(0)
-                                logger.debug("update_floating_panel_info: 总时长为0，重置进度条为0")
+                                self._set_progress_value(0)
                 except Exception as e:
                     logger.error(f"处理回看时间显示失败: {e}")
-                    # 如果出错，使用视频播放时间
                     if total_time_ms > 0:
-                        progress_value = int(position * 100)
-                        self.program_progress.setValue(progress_value)
-                        # 记录进度条实时变化（回看时间显示失败时）
-                        logger.debug(f"回看进度条实时更新（时间显示失败）: {progress_value}% (位置: {position*100:.1f}%)")
+                        self._set_progress_value(position * total_time_ms / 1000)
                         self.progress_start.setText(current_time_str)
                         self.progress_end.setText(total_time_str)
                     else:
-                        # 只有在非回看拖动模式下才重置为0
                         if not (hasattr(self, '_disable_progress_auto_update') and self._disable_progress_auto_update):
-                            self.program_progress.setValue(0)
-                            logger.debug("update_floating_panel_info: 处理回看时间显示失败，重置进度条为0")
+                            self._set_progress_value(0)
             # 回看模式下，继续执行后面的代码，确保更新节目描述
             # 不再直接返回
         elif has_epg:
             if current_program:
-                # 使用EPG节目单的时间信息
                 try:
-                    from datetime import datetime
+                    from datetime import datetime, timedelta
                     start_time = datetime.fromisoformat(current_program.get('start', ''))
                     end_time = datetime.fromisoformat(current_program.get('end', ''))
                     now = datetime.now()
                     
-                    # 计算节目总时长和当前播放位置
                     total_duration = (end_time - start_time).total_seconds()
-                    current_position = (now - start_time).total_seconds()
                     
                     if total_duration > 0:
-                        # 计算进度百分比
-                        progress_value = int((current_position / total_duration) * 100)
-                        self.program_progress.setValue(progress_value)
-                        # 记录进度条实时变化（EPG模式）
-                        logger.debug(f"EPG进度条实时更新: {progress_value}% (位置: {current_position:.1f}s / 总时长: {total_duration:.1f}s)")
+                        if abs(self._progress_total_seconds - int(total_duration)) > 1:
+                            self._set_progress_range(int(total_duration))
+                            self._progress_time_mode = 'epg'
+                            self._progress_program_start = start_time
+                            self._progress_program_end = end_time
                         
-                        # 格式化时间显示
+                        timeshift = getattr(self, '_live_timeshift_seconds', 0)
+                        if timeshift > 0:
+                            current_position = (now - timedelta(seconds=timeshift) - start_time).total_seconds()
+                            live_position = (now - start_time).total_seconds()
+                            if current_position >= live_position - 1:
+                                self._live_timeshift_seconds = 0
+                                current_position = live_position
+                            else:
+                                current_position = max(0, current_position)
+                        else:
+                            current_position = (now - start_time).total_seconds()
+                        
+                        self._set_progress_value(current_position)
+                        
                         start_str = start_time.strftime("%H:%M")
                         end_str = end_time.strftime("%H:%M")
                         self.progress_start.setText(start_str)
                         self.progress_end.setText(end_str)
                     else:
-                        # 只有在非回看模式下才重置为0
                         is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
                         if not is_catchup:
-                            self.program_progress.setValue(0)
-                            logger.debug("update_floating_panel_info: EPG总时长为0，重置进度条为0")
+                            self._set_progress_value(0)
                 except:
-                    # 如果EPG时间解析失败，使用视频播放时间
                     if total_time_ms > 0:
-                        progress_value = int(position * 100)
-                        self.program_progress.setValue(progress_value)
-                        # 记录进度条实时变化（EPG时间解析失败）
-                        logger.debug(f"进度条实时更新（EPG解析失败）: {progress_value}% (位置: {position*100:.1f}%)")
+                        self._set_progress_value(position * total_time_ms / 1000)
                         self.progress_start.setText(current_time_str)
                         self.progress_end.setText(total_time_str)
                     else:
-                        # 只有在非回看模式下才重置为0
                         is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
                         if not is_catchup:
-                            self.program_progress.setValue(0)
-                            logger.debug("update_floating_panel_info: EPG时间解析失败且无视频时间，重置进度条为0")
+                            self._set_progress_value(0)
             else:
-                # 使用视频播放时间
                 if total_time_ms > 0:
-                    progress_value = int(position * 100)
-                    self.program_progress.setValue(progress_value)
-                    # 记录进度条实时变化（无EPG模式）
-                    logger.debug(f"进度条实时更新（无EPG）: {progress_value}% (位置: {position*100:.1f}%)")
+                    self._set_progress_value(position * total_time_ms / 1000)
                     self.progress_start.setText(current_time_str)
                     self.progress_end.setText(total_time_str)
                 else:
-                    # 只有在非回看模式下才重置为0
                     is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
                     if not is_catchup:
-                        self.program_progress.setValue(0)
-                        logger.debug("update_floating_panel_info: 无EPG且无视频时间，重置进度条为0")
+                        self._set_progress_value(0)
         else:
-            # 没有节目单，使用当前系统时间和小时段
-            from datetime import datetime
+            from datetime import datetime, timedelta
             current_time = datetime.now()
-            start_hour = current_time.strftime("%H:00")
-            end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+            
+            if self._progress_total_seconds != 3600:
+                self._set_progress_range(3600)
+                self._progress_time_mode = 'hour'
+                self._progress_program_start = None
+                self._progress_program_end = None
+            
+            timeshift = getattr(self, '_live_timeshift_seconds', 0)
+            if timeshift > 0:
+                effective_time = current_time - timedelta(seconds=timeshift)
+            else:
+                effective_time = current_time
+            
+            start_hour = effective_time.strftime("%H:00")
+            end_hour = (effective_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
             self.progress_start.setText(start_hour)
             self.progress_end.setText(end_hour)
-            # 更新time_label显示当前系统时间
             self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
-            # 设置进度条
-            minutes = current_time.minute
-            seconds = current_time.second
-            progress = int(((minutes * 60) + seconds) / 3600 * 100)
-            self.program_progress.setValue(progress)
-            # 记录进度条实时变化（无节目单模式）
-            logger.debug(f"进度条实时更新（无节目单）: {progress}% (时间: {current_time.strftime('%H:%M:%S')})")
+            seconds_from_hour = effective_time.minute * 60 + effective_time.second
+            self._set_progress_value(seconds_from_hour)
         
     
     def eventFilter(self, obj, event):
@@ -5273,6 +5297,19 @@ class IPTVPlayer(QMainWindow):
         elif event.key() == Qt.Key.Key_Space:
             if hasattr(self, 'player_controller') and self.player_controller:
                 self.toggle_play()
+        elif event.key() in (Qt.Key.Key_Left, Qt.Key.Key_Right):
+            if hasattr(self, 'player_controller') and self.player_controller and self.player_controller.is_playing:
+                is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
+                if not is_catchup:
+                    delta = -5 if event.key() == Qt.Key.Key_Left else 5
+                    if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                        delta *= 6
+                    logger.info(f"键盘seek: {delta:+d}s")
+                    self.player_controller.seek_relative_seconds(delta)
+                else:
+                    super().keyPressEvent(event)
+            else:
+                super().keyPressEvent(event)
         elif self.is_fullscreen:
             key = event.key()
             modifiers = event.modifiers()
