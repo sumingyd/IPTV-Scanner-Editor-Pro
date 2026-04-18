@@ -1611,8 +1611,7 @@ class IPTVPlayer(QMainWindow):
             
             # 台标标签
             logo_label = QtWidgets.QLabel()
-            logo_label.setFixedHeight(34)
-            logo_label.setMinimumWidth(56)
+            logo_label.setFixedSize(48, 34)
             logo_label.setStyleSheet("background-color: transparent; border: none;")
             logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             
@@ -1621,7 +1620,11 @@ class IPTVPlayer(QMainWindow):
                 logo_url = logo_url.strip('`"\'')
                 cached = self._logo_cache_service.get(logo_url)
                 if cached:
-                    scaled = self._logo_cache_service.scale_logo_pixmap(cached, 34)
+                    scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(
+                        cached, 
+                        logo_label.width() if logo_label.width() > 0 else 34,
+                        logo_label.height() if logo_label.height() > 0 else 34
+                    )
                     logo_label.setPixmap(scaled)
                 else:
                     # 异步加载台标
@@ -1694,7 +1697,11 @@ class IPTVPlayer(QMainWindow):
                 # 尝试从缓存获取
                 cached = self._logo_cache_service.get(logo_url)
                 if cached:
-                    scaled = self._logo_cache_service.scale_logo_pixmap(cached, 60)
+                    scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(
+                        cached,
+                        logo_label.width() if logo_label.width() > 0 else 60,
+                        logo_label.height() if logo_label.height() > 0 else 60
+                    )
                     logo_label.setPixmap(scaled)
                 else:
                     # 异步加载台标
@@ -5463,7 +5470,11 @@ class IPTVPlayer(QMainWindow):
                     if item_widget:
                         logo_label = item_widget.findChild(QtWidgets.QLabel)
                         if logo_label:
-                            scaled = self._logo_cache_service.scale_logo_pixmap(pixmap, 60)
+                            scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(
+                                pixmap,
+                                logo_label.width() if logo_label.width() > 0 else 34,
+                                logo_label.height() if logo_label.height() > 0 else 34
+                            )
                             logo_label.setPixmap(scaled)
                     break
 
