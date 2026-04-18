@@ -27,7 +27,7 @@ class SubscriptionManager:
         self._config = ConfigManager()
         self._epg_data = {}
         self._last_epg_update = None
-        self._epg_lock = threading.Lock()
+        self._epg_lock = threading.RLock()
         self._update_callbacks = []
         self._initialized = True
     
@@ -94,7 +94,7 @@ class SubscriptionManager:
         if source:
             logger.info(f"已切换到直播源: {source.get('name', 'Unknown')} ({source.get('url', '')})")
     
-    def get_active_playlist_source(self) -> dict:
+    def get_active_playlist_source(self) -> dict | None:
         """获取当前启用的直播源
 
         Returns:
@@ -165,59 +165,59 @@ class SubscriptionManager:
                 status_callback("没有配置任何EPG源")
             return False
         
-        with self._epg_lock:
-            merged_data = {}
-            total_sources = len(sources)
+        merged_data = {}
+        total_sources = len(sources)
+        
+        for i, source in enumerate(sources):
+            if status_callback:
+                status_callback(f"正在加载EPG源 {i+1}/{total_sources}: {source.get('name', '')}")
             
-            for i, source in enumerate(sources):
-                if status_callback:
-                    status_callback(f"正在加载EPG源 {i+1}/{total_sources}: {source.get('name', '')}")
+            try:
+                data = self._load_single_epg(source['url'])
                 
-                try:
-                    data = self._load_single_epg(source['url'])
+                if data:
+                    for channel_id, programs in data.items():
+                        if channel_id not in merged_data:
+                            merged_data[channel_id] = programs
+                        else:
+                            existing_programs = merged_data[channel_id]
+                            existing_start_times = {
+                                p.get('start', '')
+                                for p in existing_programs
+                            }
+                            
+                            for program in programs:
+                                if program.get('start') not in existing_start_times:
+                                    existing_programs.append(program)
+                            
+                            merged_data[channel_id] = sorted(
+                                merged_data[channel_id],
+                                key=lambda x: x.get('start', '')
+                            )
                     
-                    if data:
-                        for channel_id, programs in data.items():
-                            if channel_id not in merged_data:
-                                merged_data[channel_id] = programs
-                            else:
-                                existing_programs = merged_data[channel_id]
-                                existing_start_times = {
-                                    p.get('start', '')
-                                    for p in existing_programs
-                                }
-                                
-                                for program in programs:
-                                    if program.get('start') not in existing_start_times:
-                                        existing_programs.append(program)
-                                
-                                merged_data[channel_id] = sorted(
-                                    merged_data[channel_id],
-                                    key=lambda x: x.get('start', '')
-                                )
-                        
-                        logger.info(f"成功加载EPG源: {source.get('name', '')}, 包含 {len(data)} 个频道")
-                    else:
-                        logger.warning(f"EPG源加载失败或无数据: {source.get('name', '')}")
-                
-                except Exception as e:
-                    logger.error(f"加载EPG源异常: {source.get('name', '')} - {str(e)}")
+                    logger.info(f"成功加载EPG源: {source.get('name', '')}, 包含 {len(data)} 个频道")
+                else:
+                    logger.warning(f"EPG源加载失败或无数据: {source.get('name', '')}")
             
+            except Exception as e:
+                logger.error(f"加载EPG源异常: {source.get('name', '')} - {str(e)}")
+        
+        with self._epg_lock:
             self._epg_data = merged_data
             self._last_epg_update = datetime.now()
-            
-            total_channels = len(merged_data)
-            total_programs = sum(len(progs) for progs in merged_data.values())
-            
-            logger.info(f"EPG数据整合完成: 共 {total_sources} 个源, {total_channels} 个频道, {total_programs} 个节目")
-            
-            if status_callback:
-                status_callback(f"EPG数据整合完成: {total_channels} 个频道, {total_programs} 个节目")
-            
-            self._save_epg_cache(merged_data)
-            self._notify_update_callbacks()
-            
-            return len(merged_data) > 0
+        
+        total_channels = len(merged_data)
+        total_programs = sum(len(progs) for progs in merged_data.values())
+        
+        logger.info(f"EPG数据整合完成: 共 {total_sources} 个源, {total_channels} 个频道, {total_programs} 个节目")
+        
+        if status_callback:
+            status_callback(f"EPG数据整合完成: {total_channels} 个频道, {total_programs} 个节目")
+        
+        self._save_epg_cache(merged_data)
+        self._notify_update_callbacks()
+        
+        return len(merged_data) > 0
     
     def load_single_epg(self, epg_url: str, status_callback=None) -> bool:
         """加载单个EPG源的数据（用于从M3U文件的tvg-url等场景）
@@ -416,7 +416,7 @@ class SubscriptionManager:
             logger.error(f"XML格式EPG解析失败: {e}")
             return {}
     
-    def get_channel_epg(self, channel_name: str, tvg_id: str = None) -> list:
+    def get_channel_epg(self, channel_name: str, tvg_id: str | None = None) -> list:
         """获取频道的EPG节目列表
 
         Args:
@@ -449,20 +449,19 @@ class SubscriptionManager:
             except Exception as ex:
                 logger.warning(f"EpgMatcher 匹配异常: {ex}")
             
-            with self._epg_lock:
-                if channel_name:
-                    channel_name_lower = channel_name.lower()
-                    for epg_channel_id, programs in self._epg_data.items():
-                        epg_lower = epg_channel_id.lower()
-                        if len(channel_name_lower) >= 3 and (
-                            channel_name_lower in epg_lower or epg_lower in channel_name_lower
-                        ):
-                            if len(channel_name_lower) >= len(epg_lower) * 0.7 or \
-                               len(epg_lower) >= len(channel_name_lower) * 0.7:
-                                return programs
+            if channel_name:
+                channel_name_lower = channel_name.lower()
+                for epg_channel_id, programs in self._epg_data.items():
+                    epg_lower = epg_channel_id.lower()
+                    if len(channel_name_lower) >= 3 and (
+                        channel_name_lower in epg_lower or epg_lower in channel_name_lower
+                    ):
+                        if len(channel_name_lower) >= len(epg_lower) * 0.7 or \
+                           len(epg_lower) >= len(channel_name_lower) * 0.7:
+                            return programs
             return []
     
-    def get_current_program(self, channel_name: str, tvg_id: str = None) -> dict:
+    def get_current_program(self, channel_name: str, tvg_id: str | None = None) -> dict | None:
         """获取当前正在播放的节目
 
         Args:
@@ -487,7 +486,7 @@ class SubscriptionManager:
                 continue
         return None
     
-    def get_next_program(self, channel_name: str, tvg_id: str = None) -> dict:
+    def get_next_program(self, channel_name: str, tvg_id: str | None = None) -> dict | None:
         """获取下一个节目
 
         Args:

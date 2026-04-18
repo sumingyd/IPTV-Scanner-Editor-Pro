@@ -856,6 +856,7 @@ class IPTVPlayer(QMainWindow):
         from PyQt6.QtCore import QTimer
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_floating_panel_info)
+        self.player_controller.playback_position_updated.connect(self._on_playback_position_updated)
         
         logger.debug("_create_timer: 完成")
     
@@ -2330,23 +2331,62 @@ class IPTVPlayer(QMainWindow):
         is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
         
         if not is_catchup:
-            # 直播模式：跟本地视频一样，拖动=seek
+            # 直播模式：进度条控制时移偏移量
             if not self.current_channel or not self.player_controller:
                 return
             
             value = float(self.program_progress.value())
             
-            # 100% 附近不触发（接近live点）
-            if value >= 98:
+            # 获取实际可回退范围
+            seek_range = self.player_controller.get_available_seek_range()
+            max_back = seek_range.get('max_back', 0)
+            max_forward = seek_range.get('max_forward', 60)
+            cache_duration = seek_range.get('cache_duration', 0)
+            
+            # 如果没有缓冲数据，提示用户
+            if max_back == 0 and cache_duration < 5:
+                logger.warning(f"直播拖动进度条 -> 无法回退（缓冲区为空，cache={cache_duration:.1f}s）")
+                self.status_bar_show_message(self.language_manager.tr("cannot_seek_live", "无法回退：直播流缓冲区不足"))
+                # 重置进度条到中间位置（live点）
+                if hasattr(self, 'program_progress'):
+                    self.program_progress.setValue(50)
                 return
             
-            # 进度条映射为回退秒数：0%=300秒前, 100%=live点
-            max_back = 300
-            offset_seconds = int(max_back * (1 - value / 100.0))
-            offset_seconds = max(1, offset_seconds)
+            # 记录上次释放的位置，用于计算相对变化
+            if not hasattr(self, '_last_progress_value'):
+                self._last_progress_value = 50.0  # 默认中间位置
             
-            logger.info(f"直播拖动进度条 -> seek 回退 {offset_seconds}s")
-            self.player_controller.seek_relative_seconds(-offset_seconds)
+            # 计算相对移动方向和距离
+            delta = value - self._last_progress_value
+            self._last_progress_value = value
+            
+            # 如果变化太小（<2%），忽略（避免误触）
+            if abs(delta) < 2:
+                return
+            
+            # 映射：进度条范围 0~100 对应时间范围 -max_back ~ +max_forward
+            # 50% = live点（当前时间），<50% 回退，>50% 前进（追赶）
+            if value < 50:
+                # 左半边：回退（0%=最远回退，50%=live）
+                back_ratio = (50 - value) / 50.0
+                offset_seconds = -int(max_back * back_ratio)
+                direction = "回退"
+                
+                # 限制在可用范围内
+                if abs(offset_seconds) > max_back:
+                    offset_seconds = -max_back
+                    logger.info(f"直播拖动 -> 回退请求 {abs(offset_seconds)}s，但最大可回退 {max_back}s")
+            else:
+                # 右半边：前进/追赶（50%=live，100%=前进到最快）
+                forward_ratio = (value - 50) / 50.0
+                offset_seconds = int(max_forward * forward_ratio)
+                direction = "前进"
+            
+            if offset_seconds == 0:
+                return
+            
+            logger.info(f"直播拖动进度条 -> seek {direction} {abs(offset_seconds)}s (可用范围: -{max_back}s ~ +{max_forward}s, 缓冲: {cache_duration:.0f}s)")
+            self.player_controller.seek_relative_seconds(offset_seconds)
             return
         
         # 获取进度条的当前值
@@ -2773,6 +2813,20 @@ class IPTVPlayer(QMainWindow):
             self.volume_button.setText("🔊")
     
     def play_channel(self, channel):
+        if hasattr(self, '_is_switching') and self._is_switching:
+            logger.debug("play_channel: 忽略重复的频道切换请求")
+            return
+        self._is_switching = True
+        
+        try:
+            logger.info(f"play_channel: 开始切换频道 {channel.get('name', '?')} url={channel.get('url', '?')}")
+            self._do_play_channel(channel)
+        finally:
+            # 使用 QTimer 延迟重置标志，确保本次操作完全完成
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(500, lambda: setattr(self, '_is_switching', False))
+    
+    def _do_play_channel(self, channel):
         if self.player_controller and channel:
             # 如果当前处于回看模式，先退出回看
             if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
@@ -2851,13 +2905,11 @@ class IPTVPlayer(QMainWindow):
 
                 next_urls = self._get_next_channel_urls(channel)
                 
-                # 切换频道时重置倍速到1.0x
                 if hasattr(self, 'speed_button') and self.player_controller:
                     current_speed = self.player_controller.get_speed()
                     if abs(current_speed - 1.0) > 0.01:
                         self.player_controller.set_speed(1.0)
                         self.speed_button.setText("1.0x")
-                        logger.debug("play_channel: 重置倍速到1.0x")
                 
                 if next_urls:
                     self.player_controller.play_with_prefetch(url, next_urls)
@@ -2865,9 +2917,7 @@ class IPTVPlayer(QMainWindow):
                     self.player_controller.play(url, name)
 
                 self._start_source_timeout(channel)
-
                 self._save_last_channel(channel)
-
                 self._warmup_logos_around(channel)
     
     def on_play_state_changed(self, is_playing):
@@ -3513,40 +3563,23 @@ class IPTVPlayer(QMainWindow):
                 progress = int(((minutes * 60) + seconds) / 3600 * 100)
                 self.program_progress.setValue(progress)
     
+    def _on_playback_position_updated(self, current_time_ms, total_time_ms, position):
+        """接收后台线程获取的播放位置（避免主线程调用MPV API）"""
+        self._cached_current_time_ms = current_time_ms
+        self._cached_total_time_ms = total_time_ms
+        self._cached_position = position
+    
     def update_floating_panel_info(self):
         """定期更新悬浮窗信息（进度条、时间、媒体信息等）"""
         if not self.player_controller or not self.current_channel:
             return
         
-        # 减少对VLC的调用频率，避免录屏时卡死
-        if not hasattr(self, 'update_count'):
-            self.update_count = 0
+        if hasattr(self.player_controller, '_heartbeat'):
+            self.player_controller._heartbeat()
         
-        # 每2次更新才获取一次播放进度，减少VLC交互
-        if self.update_count % 2 == 0:
-            # 更新播放进度
-            current_time_ms = self.player_controller.get_current_time()
-            total_time_ms = self.player_controller.get_total_time()
-            position = self.player_controller.get_position()
-        else:
-            # 使用上次的值
-            if hasattr(self, 'last_current_time_ms'):
-                current_time_ms = self.last_current_time_ms
-                total_time_ms = self.last_total_time_ms
-                position = self.last_position
-            else:
-                # 第一次获取
-                current_time_ms = self.player_controller.get_current_time()
-                total_time_ms = self.player_controller.get_total_time()
-                position = self.player_controller.get_position()
-        
-        # 保存当前值
-        self.last_current_time_ms = current_time_ms
-        self.last_total_time_ms = total_time_ms
-        self.last_position = position
-        
-        # 增加更新计数
-        self.update_count += 1
+        current_time_ms = getattr(self, '_cached_current_time_ms', 0)
+        total_time_ms = getattr(self, '_cached_total_time_ms', 0)
+        position = getattr(self, '_cached_position', 0)
         
         # 格式化时间
         def format_time(ms):
