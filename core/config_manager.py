@@ -316,18 +316,108 @@ class ConfigManager:
             'enable_mapping': self.get_value('Mapping', 'enable_mapping', 'True').lower() == 'true'
         }
     
-    def save_epg_settings(self, epg_url: str, epg_source: str):
-        """保存EPG节目单设置"""
-        self.set_value('EPG', 'epg_url', epg_url)
-        self.set_value('EPG', 'epg_source', epg_source)
+    def save_playlist_sources(self, sources: list):
+        """保存多个直播源配置
+
+        Args:
+            sources: 直播源列表，每个元素为字典格式：
+                    {'url': str, 'name': str, 'enabled': bool}
+        """
+        self.set_value('PlaylistSources', 'count', str(len(sources)))
+        for i, source in enumerate(sources):
+            self.set_value('PlaylistSources', f'url_{i}', source.get('url', ''))
+            self.set_value('PlaylistSources', f'name_{i}', source.get('name', f'Source {i+1}'))
+            self.set_value('PlaylistSources', f'enabled_{i}', str(source.get('enabled', True)))
         return self.save_config()
     
-    def load_epg_settings(self) -> dict:
-        """加载EPG节目单设置"""
-        return {
-            'epg_url': self.get_value('EPG', 'epg_url', ''),
-            'epg_source': self.get_value('EPG', 'epg_source', '默认')
-        }
+    def load_playlist_sources(self) -> list:
+        """加载多个直播源配置
+
+        Returns:
+            直播源列表
+        """
+        sources = []
+        count = int(self.get_value('PlaylistSources', 'count', '0') or '0')
+        for i in range(count):
+            url = self.get_value('PlaylistSources', f'url_{i}')
+            if url:
+                sources.append({
+                    'url': url,
+                    'name': self.get_value('PlaylistSources', f'name_{i}', f'Source {i+1}'),
+                    'enabled': self.get_value('PlaylistSources', f'enabled_{i}', 'True').lower() == 'true'
+                })
+        
+        if not sources:
+            legacy_url = self.get_value('Playlist', 'url', '')
+            if legacy_url:
+                sources.append({
+                    'url': legacy_url,
+                    'name': self.get_value('Playlist', 'name', 'Default'),
+                    'enabled': True
+                })
+        return sources
+    
+    def get_active_playlist_source(self) -> dict | None:
+        """获取当前启用的直播源
+
+        Returns:
+            当前启用的直播源字典，如果没有则返回None
+        """
+        sources = self.load_playlist_sources()
+        for source in sources:
+            if source.get('enabled'):
+                return source
+        return sources[0] if sources else None
+    
+    def set_active_playlist_source(self, index: int):
+        """设置指定索引的直播源为启用状态
+
+        Args:
+            index: 直播源索引
+        """
+        sources = self.load_playlist_sources()
+        if 0 <= index < len(sources):
+            for i, source in enumerate(sources):
+                source['enabled'] = (i == index)
+            self.save_playlist_sources(sources)
+    
+    def save_epg_sources(self, sources: list):
+        """保存多个EPG源配置
+
+        Args:
+            sources: EPG源列表，每个元素为字典格式：
+                    {'url': str, 'name': str}
+        """
+        self.set_value('EPGSources', 'count', str(len(sources)))
+        for i, source in enumerate(sources):
+            self.set_value('EPGSources', f'url_{i}', source.get('url', ''))
+            self.set_value('EPGSources', f'name_{i}', source.get('name', f'EPG {i+1}'))
+        return self.save_config()
+    
+    def load_epg_sources(self) -> list:
+        """加载多个EPG源配置
+
+        Returns:
+            EPG源列表
+        """
+        sources = []
+        count = int(self.get_value('EPGSources', 'count', '0') or '0')
+        for i in range(count):
+            url = self.get_value('EPGSources', f'url_{i}')
+            if url:
+                sources.append({
+                    'url': url,
+                    'name': self.get_value('EPGSources', f'name_{i}', f'EPG {i+1}')
+                })
+        
+        if not sources:
+            legacy_url = self.get_value('EPG', 'epg_url', '')
+            if legacy_url:
+                sources.append({
+                    'url': legacy_url,
+                    'name': self.get_value('EPG', 'epg_source', 'Default')
+                })
+        return sources
     
     def save_recent_files(self, recent_files):
         """保存最近打开的文件列表"""
