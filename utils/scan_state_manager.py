@@ -146,7 +146,6 @@ class ScanStateManager(Singleton):
         no_retry_error_types = [
             'mpv_unavailable',
             'mpv_create_failed',
-            'stream_ended',
             'tcp_failed',
             'not_found',
             'permission_denied',
