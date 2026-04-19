@@ -862,6 +862,9 @@ class AppStyles:
     @staticmethod
     def player_panel_style() -> str:
         return f"""
+            * {{
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            }}
             QLabel {{
                 border: none;
                 background-color: transparent;

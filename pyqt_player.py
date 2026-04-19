@@ -867,7 +867,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         
         # 左侧EPG面板
-        self.epg_panel = TranslucentPanel(self, opacity=180)
+        self.epg_panel = TranslucentPanel(opacity=180)
         self.epg_panel.setStyleSheet(AppStyles.player_panel_style())
         self.epg_panel.setFixedWidth(250)
         self.epg_layout = QVBoxLayout(self.epg_panel)
@@ -932,7 +932,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         
         # 右侧播放列表面板
-        self.playlist_panel = TranslucentPanel(self, opacity=180)
+        self.playlist_panel = TranslucentPanel(opacity=180)
         self.playlist_panel.setStyleSheet(AppStyles.player_panel_style())
         self.playlist_panel.setFixedWidth(250)
         self.playlist_layout = QVBoxLayout(self.playlist_panel)
@@ -984,7 +984,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         
         # 悬浮控制面板
-        self.floating_panel = TranslucentPanel(self, opacity=180)
+        self.floating_panel = TranslucentPanel(opacity=180)
         self.floating_panel.setStyleSheet(AppStyles.player_panel_style())
         self.floating_panel.setFixedHeight(150)
         self.floating_panel.setFixedWidth(1000)

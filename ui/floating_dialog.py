@@ -19,13 +19,12 @@ class TranslucentPanel(QFrame):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     def keyPressEvent(self, event):
-        main_window = self.parent()
-        while main_window and not hasattr(main_window, 'player_controller'):
-            main_window = main_window.parent()
-        if main_window and hasattr(main_window, 'keyPressEvent'):
-            main_window.keyPressEvent(event)
-        else:
-            super().keyPressEvent(event)
+        from PyQt6.QtWidgets import QApplication
+        for widget in QApplication.topLevelWidgets():
+            if hasattr(widget, 'player_controller'):
+                widget.keyPressEvent(event)
+                return
+        super().keyPressEvent(event)
 
     def paintEvent(self, event):
         from PyQt6.QtGui import QPainterPath
