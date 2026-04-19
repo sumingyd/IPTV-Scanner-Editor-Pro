@@ -6022,15 +6022,14 @@ class IPTVPlayer(QMainWindow):
 
     def _on_logo_cache_loaded(self, url, pixmap):
         """台标加载完成的回调"""
-        if not self.current_channel:
-            return
-        logo = self.current_channel.get('logo', '')
-        if logo:
-            logo = logo.strip('`"\'')
-            if logo == url and hasattr(self, 'channel_logo'):
-                scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(pixmap, self.channel_logo.width(), self.channel_logo.height())
-                self.channel_logo.setPixmap(scaled)
-                self.channel_logo.setText("")
+        if self.current_channel:
+            logo = self.current_channel.get('logo', '')
+            if logo:
+                logo = logo.strip('`"\'')
+                if logo == url and hasattr(self, 'channel_logo'):
+                    scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(pixmap, self.channel_logo.width(), self.channel_logo.height())
+                    self.channel_logo.setPixmap(scaled)
+                    self.channel_logo.setText("")
         
         # 更新频道列表中的图标
         for i in range(self.channel_list.count()):
