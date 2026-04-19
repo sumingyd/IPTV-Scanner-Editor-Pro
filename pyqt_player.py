@@ -1015,7 +1015,7 @@ class IPTVPlayer(QMainWindow):
         # 悬浮控制面板
         self.floating_panel = TranslucentPanel(opacity=180)
         self.floating_panel.setStyleSheet(AppStyles.player_panel_style())
-        self.floating_panel.setFixedHeight(150)
+        self.floating_panel.setFixedHeight(155)
         self.floating_panel.setFixedWidth(1000)
         self.floating_layout = QVBoxLayout(self.floating_panel)
         self.floating_layout.setContentsMargins(15, 6, 15, 8)
@@ -1110,7 +1110,7 @@ class IPTVPlayer(QMainWindow):
         self.program_desc = QLabel(tr("open_playlist_or_import", "Open a playlist file or import channels to start watching"))
         self.program_desc.setStyleSheet(AppStyles.player_program_desc_style())
         self.program_desc.setWordWrap(True)
-        self.program_desc.setFixedHeight(40)
+        self.program_desc.setMaximumHeight(120)
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop)
         desc_section.addWidget(self.program_desc)
         self.info_row.addLayout(desc_section, 3)
@@ -5525,7 +5525,11 @@ class IPTVPlayer(QMainWindow):
         for panel_name in ['floating_panel', 'epg_panel', 'playlist_panel']:
             panel = getattr(self, panel_name, None)
             if panel:
-                panel.close()
+                try:
+                    panel.close()
+                    panel.deleteLater()
+                except Exception:
+                    pass
 
         if hasattr(self, 'update_timer') and self.update_timer:
             self.update_timer.stop()
@@ -5533,6 +5537,9 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, '_source_timeout_timer') and self._source_timeout_timer:
             self._source_timeout_timer.stop()
 
+        from PyQt6.QtWidgets import QApplication
+        QApplication.instance().quit()
+        event.accept()
         super().closeEvent(event)
     
     def keyPressEvent(self, event):
