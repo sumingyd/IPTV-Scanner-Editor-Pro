@@ -1015,8 +1015,8 @@ class IPTVPlayer(QMainWindow):
         # 悬浮控制面板
         self.floating_panel = TranslucentPanel(opacity=180)
         self.floating_panel.setStyleSheet(AppStyles.player_panel_style())
-        self.floating_panel.setFixedHeight(155)
-        self.floating_panel.setFixedWidth(1000)
+        self.floating_panel.setFixedHeight(170)
+        self.floating_panel.setFixedWidth(1050)
         self.floating_layout = QVBoxLayout(self.floating_panel)
         self.floating_layout.setContentsMargins(15, 6, 15, 8)
         self.floating_layout.setSpacing(3)
@@ -1097,11 +1097,11 @@ class IPTVPlayer(QMainWindow):
         
         self.current_program = QLabel(tr("select_channel_to_play", "▶ Select a channel to play"))
         self.current_program.setStyleSheet(AppStyles.player_program_style())
+        self.current_program.setWordWrap(True)
         name_section.addWidget(self.current_program)
         
         left_section.addLayout(name_section)
-        left_section.addStretch()
-        self.info_row.addLayout(left_section, 2)
+        self.info_row.addLayout(left_section, 1)
         
         # 中间：节目描述（直接显示内容，无标题）
         desc_section = QVBoxLayout()
@@ -1110,7 +1110,7 @@ class IPTVPlayer(QMainWindow):
         self.program_desc = QLabel(tr("open_playlist_or_import", "Open a playlist file or import channels to start watching"))
         self.program_desc.setStyleSheet(AppStyles.player_program_desc_style())
         self.program_desc.setWordWrap(True)
-        self.program_desc.setMaximumHeight(120)
+        self.program_desc.setMaximumHeight(135)
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop)
         desc_section.addWidget(self.program_desc)
         self.info_row.addLayout(desc_section, 3)
