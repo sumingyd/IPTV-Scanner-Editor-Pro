@@ -22,17 +22,77 @@ else:
     print(f"未找到libmpv-2.dll: {libmpv_path}")
 
 try:
-    from services.mpv_bindings import (
-        libmpv, MPV_AVAILABLE, mpv_event,
-        MPV_EVENT_NONE, MPV_EVENT_SHUTDOWN, MPV_EVENT_START_FILE, MPV_EVENT_END_FILE,
-        MPV_EVENT_FILE_LOADED, MPV_EVENT_PROPERTY_CHANGE,
-        MPV_FORMAT_STRING, MPV_FORMAT_INT64, MPV_FORMAT_DOUBLE,
-    )
+    libmpv = ctypes.CDLL(libmpv_path)
+
+    libmpv.mpv_create.restype = ctypes.c_void_p
+    libmpv.mpv_create.argtypes = []
+
+    libmpv.mpv_initialize.restype = ctypes.c_int
+    libmpv.mpv_initialize.argtypes = [ctypes.c_void_p]
+
+    libmpv.mpv_set_property_string.restype = ctypes.c_int
+    libmpv.mpv_set_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
+
+    libmpv.mpv_set_property.restype = ctypes.c_int
+    libmpv.mpv_set_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p]
+
+    libmpv.mpv_command.restype = ctypes.c_int
+    libmpv.mpv_command.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_char_p)]
+
+    libmpv.mpv_destroy.restype = None
+    libmpv.mpv_destroy.argtypes = [ctypes.c_void_p]
+
+    libmpv.mpv_observe_property.restype = ctypes.c_int
+    libmpv.mpv_observe_property.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.c_char_p, ctypes.c_int]
+
+    libmpv.mpv_set_wakeup_callback.restype = None
+    libmpv.mpv_set_wakeup_callback.argtypes = [ctypes.c_void_p, ctypes.CFUNCTYPE(None, ctypes.c_void_p), ctypes.c_void_p]
+
+    libmpv.mpv_wait_event.restype = ctypes.c_void_p
+    libmpv.mpv_wait_event.argtypes = [ctypes.c_void_p, ctypes.c_double]
+
+    libmpv.mpv_get_property_string.restype = ctypes.c_char_p
+    libmpv.mpv_get_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+
+    libmpv.mpv_free.restype = None
+    libmpv.mpv_free.argtypes = [ctypes.c_void_p]
+
+    class mpv_event(ctypes.Structure):
+        _fields_ = [
+            ('event_id', ctypes.c_int),
+            ('error', ctypes.c_int),
+            ('reply_userdata', ctypes.c_uint64),
+            ('data', ctypes.c_void_p)
+        ]
+
+    MPV_EVENT_NONE = 0
+    MPV_EVENT_SHUTDOWN = 1
+    MPV_EVENT_LOG_MESSAGE = 2
+    MPV_EVENT_GET_PROPERTY_REPLY = 3
+    MPV_EVENT_SET_PROPERTY_REPLY = 4
+    MPV_EVENT_COMMAND_REPLY = 5
+    MPV_EVENT_START_FILE = 6
+    MPV_EVENT_END_FILE = 7
+    MPV_EVENT_FILE_LOADED = 8
+    MPV_EVENT_CLIENT_MESSAGE = 9
+    MPV_EVENT_VIDEO_RECONFIG = 10
+    MPV_EVENT_AUDIO_RECONFIG = 11
+    MPV_EVENT_SEEK = 12
+    MPV_EVENT_PLAYBACK_RESTART = 13
+    MPV_EVENT_PROPERTY_CHANGE = 14
+    MPV_EVENT_QUEUE_OVERFLOW = 15
+    MPV_EVENT_ERROR = 16
+
+    MPV_FORMAT_STRING = 0
+    MPV_FORMAT_OSD_STRING = 1
+    MPV_FORMAT_FLAG = 2
+    MPV_FORMAT_INT64 = 3
+    MPV_FORMAT_DOUBLE = 4
+    MPV_FORMAT_NODE = 5
+
 except Exception as e:
     print(f"使用ctypes加载libmpv-2.dll失败: {str(e)}")
     libmpv = None
-    mpv_event = None
-    MPV_AVAILABLE = False
 
 try:
     import mpv
@@ -96,8 +156,6 @@ class MpvPlayerController(QObject):
     play_state_changed = pyqtSignal(bool)
     media_info_ready = pyqtSignal(dict)
     live_media_info_updated = pyqtSignal(dict)
-    file_loaded = pyqtSignal()
-    _start_info_timer_signal = pyqtSignal()
     playback_position_updated = pyqtSignal(float, float, float)
 
     def __init__(self, video_widget, channel_model=None):
@@ -110,11 +168,10 @@ class MpvPlayerController(QObject):
         self.is_paused = False
         self.current_url = None
         self.media_info = {}
-        self._event_thread = None
+        self.event_timer = None
         self._playback_settings = _load_playback_settings()
         self._current_speed = 1.0
         self._live_info_timer = None
-        self._info_fetching = False
 
         try:
             if libmpv is None:
@@ -153,17 +210,6 @@ class MpvPlayerController(QObject):
             libmpv.mpv_set_property_string(self.mpv_handle, b'no-window-dragging', b'yes')
             libmpv.mpv_set_property_string(self.mpv_handle, b'window-scale', b'1.0')
             libmpv.mpv_set_property_string(self.mpv_handle, b'border', b'no')
-
-            # ========== 画质优化配置 ==========
-            
-            # 高质量视频缩放算法（保证清晰度）
-            libmpv.mpv_set_property_string(self.mpv_handle, b'scale', b'bilinear')  # 平衡质量和性能
-            
-            # 帧插值（可选，让运动更流畅）
-            libmpv.mpv_set_property_string(self.mpv_handle, b'interpolation', b'no')  # 关闭以避免伪影
-            
-            # 视频同步模式
-            libmpv.mpv_set_property_string(self.mpv_handle, b'video-sync', b'audio')  # 音频为主同步
 
             libmpv.mpv_set_property_string(self.mpv_handle, b'keep-open', b'yes')
             libmpv.mpv_set_property_string(self.mpv_handle, b'idle', b'yes')
@@ -204,13 +250,9 @@ class MpvPlayerController(QObject):
 
             self.logger.info("mpv播放器初始化成功")
 
-            self._event_thread_stop = threading.Event()
-            self._start_event_thread()
-
-            self.file_loaded.connect(self._on_file_loaded_main_thread)
-            self._start_info_timer_signal.connect(self._get_media_info_main_thread)
-
-            self._start_watchdog()
+            self.event_timer = QTimer(self)
+            self.event_timer.timeout.connect(self._process_events)
+            self.event_timer.start(100)
 
         except Exception as e:
             error_msg = f"初始化mpv播放器失败: {str(e)}"
@@ -277,11 +319,11 @@ class MpvPlayerController(QObject):
                 self._set_mpv_string('demuxer-lavf-probesize', '5000000')
                 self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
                 self._set_mpv_string('force-seekable', 'yes')
-                self.logger.debug(f"[mpv] rtsp-vod cache={cache_secs}s transport={rtsp_transport}")
+                self.logger.debug(f"[mpv] rtsp-vod cache={cache_secs} transport={rtsp_transport}")
             else:
                 self._set_mpv_string('demuxer-lavf-probesize', '32')
                 self._set_mpv_string('demuxer-lavf-analyzeduration', '0')
-                self.logger.debug(f"[mpv] rtsp-live cache={cache_secs}s transport={rtsp_transport}")
+                self.logger.debug(f"[mpv] rtsp-live cache={cache_secs} transport={rtsp_transport}")
             return
 
         looks_ts = ('/rtp/' in u or u.endswith('.ts') or 'proto=http' in u or u.startswith('udp://'))
@@ -291,9 +333,10 @@ class MpvPlayerController(QObject):
             if is_vod:
                 self._set_mpv_string('demuxer-lavf-probesize', '5000000')
                 self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
+                self._set_mpv_string('force-seekable', 'yes')
             else:
-                self._set_mpv_string('demuxer-lavf-probesize', '500000')
-                self._set_mpv_string('demuxer-lavf-analyzeduration', '500000')
+                self._set_mpv_string('demuxer-lavf-probesize', '32')
+                self._set_mpv_string('demuxer-lavf-analyzeduration', '0')
             self._set_mpv_string('demuxer-lavf-buffersize', '128000')
             self._set_mpv_string('cache', 'yes')
             self._set_mpv_string('force-seekable', 'yes')
@@ -319,7 +362,7 @@ class MpvPlayerController(QObject):
             readahead = settings.get('hls_readahead_secs', 0)
             if readahead > 0:
                 self._set_mpv_string('demuxer-readahead-secs', str(readahead))
-            self.logger.debug(f"[mpv] hls cache={cache_secs}s back={max_bytes_mib}MiB")
+            self.logger.debug(f"[mpv] hls cache=yes seekable=yes")
             return
 
         self._set_mpv_string('demuxer-lavf-format', '')
@@ -330,7 +373,7 @@ class MpvPlayerController(QObject):
         self._set_mpv_string('force-seekable', 'yes')
         self._set_mpv_string('demuxer-readahead-secs', '120')
         self._set_mpv_string('demuxer-cache-wait', 'no')
-        self.logger.debug(f"[mpv] generic cache={cache_secs}s back={max_bytes_mib}MiB")
+        self.logger.debug(f"[mpv] generic http cache=yes seekable=yes")
 
         if (u.startswith('http://') or u.startswith('https://')):
             headers = settings.get('http_headers', '')
@@ -343,243 +386,184 @@ class MpvPlayerController(QObject):
             if ua:
                 self._set_mpv_string('user-agent', ua)
 
-    def _start_event_thread(self):
-        """启动MPV事件处理后台线程"""
-        self._event_thread_stop.clear()
-        
-        def _event_loop():
-            while not self._event_thread_stop.is_set():
-                try:
-                    if not self.mpv_handle:
-                        break
-                    event_ptr = libmpv.mpv_wait_event(self.mpv_handle, 0.1)
-                    if not event_ptr:
-                        continue
-                    
-                    event = ctypes.cast(event_ptr, ctypes.POINTER(mpv_event)).contents
-                    
-                    if event.event_id == MPV_EVENT_NONE:
-                        continue
-                    
-                    if event.event_id == MPV_EVENT_SHUTDOWN:
-                        break
-                    
-                    if event.event_id == MPV_EVENT_PROPERTY_CHANGE:
-                        pass
-                    
-                    elif event.event_id == MPV_EVENT_FILE_LOADED:
-                        self.logger.info("文件加载完成事件")
+    def _process_events(self):
+        """处理 MPV 事件"""
+        if not self.mpv_handle:
+            return
+        try:
+            # 等待事件（非阻塞）
+            event_ptr = libmpv.mpv_wait_event(self.mpv_handle, 0.0)
+            if not event_ptr:
+                return
+            
+            # 将指针转换为事件结构
+            event = ctypes.cast(event_ptr, ctypes.POINTER(mpv_event)).contents
+            
+            # 检查事件类型
+            if event.event_id == MPV_EVENT_NONE:
+                return
+            
+            # 处理属性变化事件
+            if event.event_id == MPV_EVENT_PROPERTY_CHANGE:
+                self.logger.debug(f"收到属性变化事件，userdata={event.reply_userdata}")
+                # 可以从 event.data 读取属性值，但需要使用 mpv_get_property 获取
+                # 这里我们只是触发一次媒体信息获取
+                if hasattr(self, '_live_info_timer') and self._live_info_timer:
+                    # 属性变化时立即获取一次信息
+                    info = self.get_live_media_info()
+                    if info:
                         try:
-                            self.file_loaded.emit()
+                            self.live_media_info_updated.emit(info)
                         except RuntimeError:
                             pass
-                    
-                    elif event.event_id == MPV_EVENT_END_FILE:
-                        pass
+            
+            # 处理文件加载完成事件
+            elif event.event_id == MPV_EVENT_FILE_LOADED:
+                self.logger.info("文件加载完成事件")
+                # 文件加载完成后，延迟开始获取媒体信息
+                if hasattr(self, '_media_info_timer'):
+                    self._media_info_timer.stop()
+                self._media_info_timer = QTimer(self)
+                self._media_info_timer.singleShot(1000, self._start_live_info_timer)
                 
-                except Exception as e:
-                    self.logger.error(f"事件线程处理失败: {e}")
-                    time.sleep(0.1)
-        
-        t = threading.Thread(target=_event_loop, daemon=True, name="mpv-events")
-        t.start()
-        self._event_thread = t
-
-    def _stop_event_thread(self):
-        """停止MPV事件处理线程"""
-        self._event_thread_stop.set()
-        t = getattr(self, '_event_thread', None)
-        if t and t.is_alive():
-            t.join(timeout=1.0)
-
-    def _start_watchdog(self):
-        """启动看门狗线程，监控主线程是否阻塞"""
-        import traceback
-        main_thread = threading.main_thread()
-        self._watchdog_alive = True
-        self._main_thread_heartbeat = time.monotonic()
-        self._watchdog_reported = False
-        
-        def _watchdog_loop():
-            while self._watchdog_alive:
-                time.sleep(3)
-                if not self._watchdog_alive:
-                    break
-                elapsed = time.monotonic() - self._main_thread_heartbeat
-                if elapsed > 10:
-                    if not self._watchdog_reported:
-                        self._watchdog_reported = True
-                        tid = main_thread.ident if main_thread else None
-                        if tid is not None:
-                            frame = sys._current_frames().get(tid)
-                            if frame:
-                                stack = ''.join(traceback.format_stack(frame))
-                                self.logger.warning(f"主线程阻塞{elapsed:.0f}s")
-                            else:
-                                self.logger.warning(f"主线程阻塞{elapsed:.0f}s")
-                        else:
-                            self.logger.warning(f"主线程阻塞{elapsed:.0f}s")
-                else:
-                    self._watchdog_reported = False
-        
-        t = threading.Thread(target=_watchdog_loop, daemon=True, name="watchdog")
-        t.start()
-
-    def _heartbeat(self):
-        """主线程心跳，由定时器调用"""
-        self._main_thread_heartbeat = time.monotonic()
+        except Exception as e:
+            self.logger.error(f"处理 mpv 事件失败：{str(e)}")
 
     def play(self, url, channel_name=None, program_duration=0, **kwargs):
-        self.current_url = url
+        try:
+            self.current_url = url
 
-        if not self.mpv_handle:
-            self.logger.error("mpv播放器未初始化")
-            self.play_error.emit("mpv播放器未初始化")
-            return False
+            if not self.mpv_handle:
+                self.logger.error("mpv播放器未初始化")
+                self.play_error.emit("mpv播放器未初始化")
+                return False
 
-        self.logger.info(f"play: 准备播放 {url}")
-
-        if hasattr(self, '_media_info_timer') and self._media_info_timer:
-            self._media_info_timer.stop()
-        if hasattr(self, '_live_info_timer') and self._live_info_timer:
-            self._live_info_timer.stop()
-        self._info_fetching = False
-        self._wait_info_thread(0.3)
-
-        def _do_play():
             try:
-                try:
-                    if self.mpv_handle:
-                        cmd_stop = [b'stop', None]
-                        cmd_ptr_stop = (ctypes.c_char_p * len(cmd_stop))(*cmd_stop)
-                        libmpv.mpv_command(self.mpv_handle, cmd_ptr_stop)
-                        time.sleep(0.05)
-                        cmd_clear = [b'playlist-clear', None]
-                        cmd_ptr_clear = (ctypes.c_char_p * len(cmd_clear))(*cmd_clear)
-                        libmpv.mpv_command(self.mpv_handle, cmd_ptr_clear)
-                except:
-                    pass
+                if self.mpv_handle:
+                    cmd_stop = [b'stop', None]
+                    cmd_ptr_stop = (ctypes.c_char_p * len(cmd_stop))(*cmd_stop)
+                    libmpv.mpv_command(self.mpv_handle, cmd_ptr_stop)
+                    time.sleep(0.05)
+                    cmd_clear = [b'playlist-clear', None]
+                    cmd_ptr_clear = (ctypes.c_char_p * len(cmd_clear))(*cmd_clear)
+                    libmpv.mpv_command(self.mpv_handle, cmd_ptr_clear)
+            except:
+                pass
 
-                self._setup_protocol_options(url, program_duration)
+            if hasattr(self, '_media_info_timer') and self._media_info_timer:
+                self._media_info_timer.stop()
 
-                cmd = [b'loadfile', url.encode('utf-8'), None]
-                cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
-                result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+            self._setup_protocol_options(url, program_duration)
 
-                if result < 0:
-                    self.play_error.emit(f"播放失败: {result}")
-                    return
+            cmd = [b'loadfile', url.encode('utf-8'), None]
+            cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+            result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
 
-                libmpv.mpv_set_property_string(self.mpv_handle, b'pause', b'no')
+            if result < 0:
+                error_msg = f"播放失败: {result}"
+                self.logger.error(error_msg)
+                self.play_error.emit(error_msg)
+                return False
 
-                if self._current_speed != 1.0:
-                    self._set_mpv_string('speed', str(self._current_speed))
+            libmpv.mpv_set_property_string(self.mpv_handle, b'pause', b'no')
 
-                self.is_paused = False
-                self.is_playing = True
-                self.play_state_changed.emit(True)
-                self._start_info_timer_signal.emit()
+            if self._current_speed != 1.0:
+                self._set_mpv_string('speed', str(self._current_speed))
 
-                self.logger.info(f"开始播放: {url}")
-            except Exception as e:
-                self.logger.error(f"播放失败: {str(e)}")
-                self.play_error.emit(f"播放失败: {str(e)}")
+            self.is_paused = False
+            self.is_playing = True
+            self.play_state_changed.emit(True)
 
-        threading.Thread(target=_do_play, daemon=True, name="mpv-play").start()
-        return True
+            self._get_media_info(url)
+
+            self.logger.info(f"开始播放: {url}")
+            return True
+        except Exception as e:
+            error_msg = f"播放失败: {str(e)}"
+            self.logger.error(error_msg)
+            self.play_error.emit(error_msg)
+            return False
 
     def play_with_prefetch(self, url, next_urls=None, program_duration=0):
-        self.current_url = url
+        try:
+            self.current_url = url
 
-        if not self.mpv_handle:
-            self.play_error.emit("mpv播放器未初始化")
-            return False
+            if not self.mpv_handle:
+                self.play_error.emit("mpv播放器未初始化")
+                return False
 
-        self.logger.info(f"play_prefetch: 准备播放 {url}")
-
-        if hasattr(self, '_media_info_timer') and self._media_info_timer:
-            self._media_info_timer.stop()
-        if hasattr(self, '_live_info_timer') and self._live_info_timer:
-            self._live_info_timer.stop()
-        self._info_fetching = False
-        self._wait_info_thread(0.3)
-
-        def _do_play_prefetch():
             try:
-                try:
-                    if self.mpv_handle:
-                        cmd_stop = [b'stop', None]
-                        cmd_ptr_stop = (ctypes.c_char_p * len(cmd_stop))(*cmd_stop)
-                        libmpv.mpv_command(self.mpv_handle, cmd_ptr_stop)
-                except:
-                    pass
+                if self.mpv_handle:
+                    cmd_stop = [b'stop', None]
+                    cmd_ptr_stop = (ctypes.c_char_p * len(cmd_stop))(*cmd_stop)
+                    libmpv.mpv_command(self.mpv_handle, cmd_ptr_stop)
+            except:
+                pass
 
-                self._setup_protocol_options(url, program_duration)
-                self._set_mpv_string('prefetch-playlist', 'yes')
+            self._setup_protocol_options(url, program_duration)
+            self._set_mpv_string('prefetch-playlist', 'yes')
 
-                cmd_clear = [b'playlist-clear', None]
-                cmd_ptr_clear = (ctypes.c_char_p * len(cmd_clear))(*cmd_clear)
-                libmpv.mpv_command(self.mpv_handle, cmd_ptr_clear)
+            cmd_clear = [b'playlist-clear', None]
+            cmd_ptr_clear = (ctypes.c_char_p * len(cmd_clear))(*cmd_clear)
+            libmpv.mpv_command(self.mpv_handle, cmd_ptr_clear)
 
-                cmd = [b'loadfile', url.encode('utf-8'), None]
+            cmd = [b'loadfile', url.encode('utf-8'), None]
+            cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+            libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+
+            if next_urls:
+                prefetch_count = self._playback_settings.get('fcc_prefetch_count', 2)
+                for i, next_url in enumerate(next_urls[:prefetch_count]):
+                    if not next_url or not next_url.strip():
+                        continue
+                    cmd_next = [b'loadfile', next_url.encode('utf-8'), b'append-play', None]
+                    cmd_ptr_next = (ctypes.c_char_p * len(cmd_next))(*cmd_next)
+                    libmpv.mpv_command(self.mpv_handle, cmd_ptr_next)
+
+            libmpv.mpv_set_property_string(self.mpv_handle, b'pause', b'no')
+            if self._current_speed != 1.0:
+                self._set_mpv_string('speed', str(self._current_speed))
+
+            self.is_paused = False
+            self.is_playing = True
+            self.play_state_changed.emit(True)
+            self._get_media_info(url)
+
+            self.logger.info(f"开始播放(预取模式): {url}")
+            return True
+        except Exception as e:
+            self.logger.error(f"预取播放失败: {str(e)}")
+            return self.play(url)
+
+    def stop(self):
+        try:
+            # 记录是否真正在播放，用于决定是否记录日志
+            was_playing = self.is_playing or self.current_url
+
+            if self.mpv_handle:
+                cmd = [b'stop', None]
                 cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
                 libmpv.mpv_command(self.mpv_handle, cmd_ptr)
 
-                if next_urls:
-                    prefetch_count = self._playback_settings.get('fcc_prefetch_count', 2)
-                    for i, next_url in enumerate(next_urls[:prefetch_count]):
-                        if not next_url or not next_url.strip():
-                            continue
-                        cmd_next = [b'loadfile', next_url.encode('utf-8'), b'append', None]
-                        cmd_ptr_next = (ctypes.c_char_p * len(cmd_next))(*cmd_next)
-                        libmpv.mpv_command(self.mpv_handle, cmd_ptr_next)
+            if hasattr(self, '_media_info_timer') and self._media_info_timer:
+                self._media_info_timer.stop()
+            if hasattr(self, '_live_info_timer') and self._live_info_timer:
+                self._live_info_timer.stop()
 
-                libmpv.mpv_set_property_string(self.mpv_handle, b'pause', b'no')
+            self.is_playing = False
+            self.is_paused = False
+            self.play_state_changed.emit(False)
+            self.current_url = None
+            self.media_info = {}
 
-                if self._current_speed != 1.0:
-                    self._set_mpv_string('speed', str(self._current_speed))
+            if hasattr(self, 'event_timer') and self.event_timer:
+                self.event_timer.stop()
 
-                self.is_paused = False
-                self.is_playing = True
-                self.play_state_changed.emit(True)
-                self._start_info_timer_signal.emit()
-
-                self.logger.info(f"开始播放(预取模式): {url}")
-            except Exception as e:
-                self.logger.error(f"预取播放失败: {str(e)}")
-
-        threading.Thread(target=_do_play_prefetch, daemon=True, name="mpv-play").start()
-        return True
-
-    def stop(self):
-        was_playing = self.is_playing or self.current_url
-
-        if hasattr(self, '_media_info_timer') and self._media_info_timer:
-            self._media_info_timer.stop()
-        if hasattr(self, '_live_info_timer') and self._live_info_timer:
-            self._live_info_timer.stop()
-        self._info_fetching = False
-
-        self.is_playing = False
-        self.is_paused = False
-        self.current_url = None
-        self.media_info = {}
-        self.play_state_changed.emit(False)
-
-        if was_playing:
-            self.logger.info("停止播放")
-
-        def _do_stop():
-            try:
-                if self.mpv_handle:
-                    cmd = [b'stop', None]
-                    cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
-                    libmpv.mpv_command(self.mpv_handle, cmd_ptr)
-            except Exception as e:
-                self.logger.error(f"停止播放失败: {str(e)}")
-
-        if self.mpv_handle:
-            threading.Thread(target=_do_stop, daemon=True, name="mpv-stop").start()
+            # 只在之前有播放活动时才记录日志，避免关闭程序时的无效日志
+            if was_playing:
+                self.logger.info("停止播放")
+        except Exception as e:
+            self.logger.error(f"停止播放失败: {str(e)}")
 
     def pause(self):
         try:
@@ -820,89 +804,23 @@ class MpvPlayerController(QObject):
                 cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
                 result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
                 if result < 0:
-                    self.logger.warning(f"相对seek {seconds}秒失败，错误码: {result} (可能超出缓冲区范围)")
+                    self.logger.warning(f"相对seek {seconds}秒失败，错误码: {result}")
                 else:
-                    self.logger.info(f"相对seek成功: {seconds:+.1f}秒")
+                    self.logger.debug(f"相对seek: {seconds}秒")
         except Exception as e:
             self.logger.error(f"相对seek失败: {str(e)}")
-
-    def get_available_seek_range(self) -> dict:
-        """获取当前可用的回退/前进范围（秒）
-        
-        返回值说明:
-        - buffer_start: 缓冲区起始位置（绝对秒数，可用于绝对seek）
-        - buffer_end: 缓冲区结束位置/直播点（绝对秒数）
-        - time_pos: 当前播放位置（绝对秒数）
-        - max_back: 从直播点(buffer_end)可回退的秒数 = buffer_end - buffer_start
-        - max_forward: 从直播点可前进的秒数
-        - cache_duration: 缓冲区总时长 = buffer_end - buffer_start
-        """
-        empty = {'max_back': 0, 'max_forward': 0, 'cache_duration': 0,
-                 'buffer_start': 0, 'buffer_end': 0, 'time_pos': 0}
-        if not self.mpv_handle:
-            return empty
-        
-        try:
-            time_pos = self._get_mpv_property_double('time-pos') or 0
-            
-            buffer_start = 0.0
-            buffer_end = 0.0
-            cache_duration = 0.0
-            
-            cache_state_str = self._get_mpv_property_string('demuxer-cache-state')
-            if cache_state_str:
-                try:
-                    import json
-                    cache_state = json.loads(cache_state_str)
-                    seekable_ranges = cache_state.get('seekable-ranges', [])
-                    if seekable_ranges:
-                        first = seekable_ranges[0]
-                        buffer_start = first.get('start', 0)
-                        buffer_end = first.get('end', 0)
-                        cache_duration = buffer_end - buffer_start
-                except:
-                    pass
-            
-            if cache_duration <= 0:
-                cache_dur = self._get_mpv_property_double('demuxer-cache-duration') or 0
-                if cache_dur > 0:
-                    cache_duration = cache_dur
-                    buffer_start = max(0, time_pos - cache_duration)
-                    buffer_end = time_pos
-            
-            max_back = int(cache_duration) if cache_duration > 0 else 0
-            max_forward = min(60, max(0, int(cache_duration * 0.1)))
-            
-            return {
-                'max_back': max_back,
-                'max_forward': max_forward,
-                'cache_duration': cache_duration,
-                'buffer_start': buffer_start,
-                'buffer_end': buffer_end,
-                'time_pos': time_pos
-            }
-        except Exception as e:
-            self.logger.debug(f"获取可回退范围失败: {e}")
-            return empty
 
     def get_live_media_info(self):
         """获取实时媒体信息 - 参考 SRCBOX，统一使用字符串获取方式"""
         if not self.mpv_handle:
             return None
-        
-        _timeout = time.monotonic() + 2.0
-        def _check_timeout():
-            if time.monotonic() > _timeout:
-                raise TimeoutError("媒体信息获取超时")
-        
         try:
             # 统一使用字符串获取，然后解析（参考 SRCBOX 的实现方式）
             def get_str(prop):
-                _check_timeout()
                 return self._get_mpv_property_string(prop)
             
             def get_int(prop):
-                _check_timeout()
+                # 直接获取整数值，不通过字符串转换
                 val = self._get_mpv_property_int(prop)
                 if val is not None:
                     return val
@@ -916,7 +834,7 @@ class MpvPlayerController(QObject):
                 return 0
             
             def get_double(prop):
-                _check_timeout()
+                # 直接获取浮点数值，不通过字符串转换
                 val = self._get_mpv_property_double(prop)
                 if val is not None:
                     return val
@@ -932,7 +850,9 @@ class MpvPlayerController(QObject):
             # 视频信息
             w = get_int('width')
             h = get_int('height')
-            fps = get_double('estimated-vf-fps')
+            fps = get_double('container-fps')
+            if fps == 0:
+                fps = get_double('estimated-vf-fps')
             if fps == 0:
                 fps = get_double('fps')
             
@@ -955,7 +875,7 @@ class MpvPlayerController(QObject):
             
             # 像素格式
             pix_fmt = get_str('video-params/pixelformat') or ''
-            
+
             # HDR/动态范围相关属性
             colormatrix = get_str('video-params/colormatrix') or ''
             color_primaries = get_str('video-params/primaries') or ''
@@ -972,13 +892,28 @@ class MpvPlayerController(QObject):
             # 如果获取不到关键信息，尝试获取所有可能的属性
             if not vcodec and not acodec and w == 0:
                 self.logger.debug("尝试获取备选属性...")
+                # 尝试其他可能的属性名
                 alt_vcodec = get_str('video-format') or get_str('hwdec') or ''
                 alt_acodec = get_str('audio-format') or ''
                 self.logger.debug(f"备选：video-format='{alt_vcodec}', audio-format='{alt_acodec}', hwdec='{get_str('hwdec')}'")
                 
+                # 对于直播流，尝试从 track-list 获取信息
+                try:
+                    track_list_ptr = libmpv.mpv_get_property_string(
+                        self.mpv_handle,
+                        b'track-list',
+                        ctypes.byref(ctypes.c_char_p())
+                    )
+                    if track_list_ptr >= 0:
+                        self.logger.debug(f"track-list 属性可用")
+                except:
+                    pass
+                
+                # 尝试获取 demuxer 信息
                 demuxer = get_str('demuxer') or ''
                 self.logger.info(f"demuxer: {demuxer}")
                 
+                # 尝试获取 stream-format 信息
                 v_format = get_str('video-format') or ''
                 a_format = get_str('audio-format') or ''
                 self.logger.info(f"video-format: {v_format}, audio-format: {a_format}")
@@ -996,7 +931,7 @@ class MpvPlayerController(QObject):
                 'pixel_format': pix_fmt,
                 'video_bitrate': v_br,
                 'audio_bitrate': a_br,
-                
+
                 # HDR/动态范围信息
                 'colormatrix': colormatrix,
                 'color_primaries': color_primaries,
@@ -1006,61 +941,9 @@ class MpvPlayerController(QObject):
                 'sig_avg': sig_avg,
             }
             return info
-        except TimeoutError:
-            self.logger.warning("获取媒体信息超时(>2s)，可能流异常，跳过本次更新")
-            return None
         except Exception as e:
             self.logger.error(f"获取媒体信息失败：{str(e)}")
             return None
-    
-    @staticmethod
-    def detect_hdr_type(colormatrix: str, gamma: str, sig_peak: float) -> str:
-        """检测视频的HDR类型
-
-        Args:
-            colormatrix: 色彩矩阵 (bt.709/bt.2020-ncl/bt.2020-c)
-            gamma: Gamma曲线 (bt.1886/bt.2100-pq/bt.2100-hlg)
-            sig_peak: 信号峰值亮度 (nits)
-
-        Returns:
-            HDR类型字符串：SDR / HLG / HDR10 / HDR10+ / Dolby Vision
-        """
-        if not colormatrix and not gamma:
-            return 'SDR'
-        
-        # 检测 Dolby Vision
-        if gamma and 'pq' in gamma.lower() and sig_peak > 4000:
-            # Dolby Vision 通常使用 PQ 且峰值 > 4000 nits
-            if 'bt.2020' in colormatrix.lower():
-                return 'DV'
-        
-        # 检测 HDR10+
-        if gamma and 'pq' in gamma.lower() and sig_peak > 1000:
-            return 'HDR10+'
-        
-        # 检测 HDR10 (PQ 传输函数)
-        if gamma and ('pq' in gamma.lower() or 'smpte2084' in gamma.lower()):
-            return 'HDR10'
-        
-        # 检测 HLG (Hybrid Log-Gamma)
-        if gamma and ('hlg' in gamma.lower() or 'arib-std-b67' in gamma.lower()):
-            return 'HLG'
-        
-        # 通过色彩矩阵判断
-        if colormatrix:
-            cm_lower = colormatrix.lower()
-            if 'bt.2020' in cm_lower or 'bt.2100' in cm_lower:
-                # BT.2020 色彩空间但没有明确的 HDR 标记，可能是 HLG 或 SDR WCG
-                if sig_peak > 100:
-                    return 'HLG'
-                else:
-                    return 'WCG'
-            
-            if 'bt.709' in cm_lower or 'bt.601' in cm_lower:
-                return 'SDR'
-        
-        # 默认 SDR
-        return 'SDR'
 
     def _start_live_info_timer(self):
         if hasattr(self, '_live_info_timer') and self._live_info_timer:
@@ -1074,71 +957,28 @@ class MpvPlayerController(QObject):
             self._live_info_timer.stop()
 
     def _update_live_info(self):
-        """持续更新媒体信息 - 在后台线程中获取，避免阻塞主线程"""
+        """持续更新媒体信息 - 参考 SRCBOX"""
         if not self.mpv_handle:
             return
-        if getattr(self, '_info_fetching', False):
-            return
-        self._info_fetching = True
-        
-        def _fetch_in_thread():
+        info = self.get_live_media_info()
+        if info:
             try:
-                info = self.get_live_media_info()
-                if info:
-                    try:
-                        self.live_media_info_updated.emit(info)
-                    except RuntimeError:
-                        self._stop_live_info_timer()
-                
-                if self.is_playing:
-                    try:
-                        current_time = self.get_current_time()
-                        total_time = self.get_total_time()
-                        position = self.get_position()
-                        self.playback_position_updated.emit(
-                            float(current_time or 0),
-                            float(total_time or 0),
-                            float(position or 0)
-                        )
-                    except RuntimeError:
-                        pass
-            except Exception as e:
-                self.logger.debug(f"后台获取媒体信息异常: {e}")
-            finally:
-                self._info_fetching = False
-        
-        self._info_thread = threading.Thread(target=_fetch_in_thread, daemon=True, name="mpv-info")
-        self._info_thread.start()
-
-    def _wait_info_thread(self, timeout=0.5):
-        """等待后台信息获取线程结束，避免MPV锁竞争"""
-        t = getattr(self, '_info_thread', None)
-        if t and t.is_alive():
-            t.join(timeout=timeout)
-            if t.is_alive():
-                self.logger.warning(f"后台信息线程未在{timeout}s内结束，可能存在MPV锁竞争")
-
-    @pyqtSlot()
-    def _on_file_loaded_main_thread(self):
-        """文件加载完成事件的主线程处理槽（跨线程安全）"""
-        try:
-            if hasattr(self, '_media_info_timer') and self._media_info_timer:
-                self._media_info_timer.stop()
-            self._media_info_timer = QTimer(self)
-            self._media_info_timer.singleShot(1000, self._start_live_info_timer)
-        except Exception as e:
-            self.logger.warning(f"file_loaded主线程处理失败: {e}")
-
-    @pyqtSlot()
-    def _get_media_info_main_thread(self):
-        """在主线程中启动媒体信息定时器（从后台线程通过信号调用）"""
-        try:
-            if hasattr(self, '_live_info_timer') and self._live_info_timer:
-                self._live_info_timer.stop()
-            self._media_info_timer = QTimer(self)
-            self._media_info_timer.singleShot(1000, self._start_live_info_timer)
-        except Exception as e:
-            self.logger.warning(f"启动媒体信息定时器失败: {e}")
+                self.live_media_info_updated.emit(info)
+            except RuntimeError as e:
+                self.logger.error(f"_update_live_info: 信号发送失败 {str(e)}")
+                self._stop_live_info_timer()
+        if self.is_playing:
+            try:
+                current_time = self.get_current_time()
+                total_time = self.get_total_time()
+                position = self.get_position()
+                self.playback_position_updated.emit(
+                    float(current_time or 0),
+                    float(total_time or 0),
+                    float(position or 0)
+                )
+            except RuntimeError:
+                pass
 
     def _get_media_info(self, url):
         """获取媒体信息 - 参考 SRCBOX，简单轮询方式"""
@@ -1410,3 +1250,70 @@ class MpvPlayerController(QObject):
     @pyqtSlot(str)
     def _on_media_info_thread_error(self, error):
         self.logger.error(f"获取媒体信息失败: {error}")
+
+    @staticmethod
+    def detect_hdr_type(colormatrix: str, gamma: str, sig_peak: float) -> str:
+        if not colormatrix and not gamma:
+            return 'SDR'
+        if gamma and 'pq' in gamma.lower() and sig_peak > 4000:
+            if 'bt.2020' in colormatrix.lower():
+                return 'DV'
+        if gamma and 'pq' in gamma.lower() and sig_peak > 1000:
+            return 'HDR10+'
+        if gamma and ('pq' in gamma.lower() or 'smpte2084' in gamma.lower()):
+            return 'HDR10'
+        if gamma and ('hlg' in gamma.lower() or 'arib-std-b67' in gamma.lower()):
+            return 'HLG'
+        if colormatrix:
+            cm_lower = colormatrix.lower()
+            if 'bt.2020' in cm_lower or 'bt.2100' in cm_lower:
+                if sig_peak > 100:
+                    return 'HLG'
+                else:
+                    return 'WCG'
+            if 'bt.709' in cm_lower or 'bt.601' in cm_lower:
+                return 'SDR'
+        return 'SDR'
+
+    def get_available_seek_range(self) -> dict:
+        empty = {'max_back': 0, 'max_forward': 0, 'cache_duration': 0,
+                 'buffer_start': 0, 'buffer_end': 0, 'time_pos': 0}
+        if not self.mpv_handle:
+            return empty
+        try:
+            time_pos = self._get_mpv_property_double('time-pos') or 0
+            buffer_start = 0.0
+            buffer_end = 0.0
+            cache_duration = 0.0
+            cache_state_str = self._get_mpv_property_string('demuxer-cache-state')
+            if cache_state_str:
+                try:
+                    import json
+                    cache_state = json.loads(cache_state_str)
+                    seekable_ranges = cache_state.get('seekable-ranges', [])
+                    if seekable_ranges:
+                        first = seekable_ranges[0]
+                        buffer_start = first.get('start', 0)
+                        buffer_end = first.get('end', 0)
+                        cache_duration = buffer_end - buffer_start
+                except:
+                    pass
+            if cache_duration <= 0:
+                cache_dur = self._get_mpv_property_double('demuxer-cache-duration') or 0
+                if cache_dur > 0:
+                    cache_duration = cache_dur
+                    buffer_start = max(0, time_pos - cache_dur)
+                    buffer_end = time_pos
+            max_back = int(cache_duration) if cache_duration > 0 else 0
+            max_forward = min(60, max(0, int(cache_duration * 0.1)))
+            return {
+                'max_back': max_back,
+                'max_forward': max_forward,
+                'cache_duration': cache_duration,
+                'buffer_start': buffer_start,
+                'buffer_end': buffer_end,
+                'time_pos': time_pos
+            }
+        except Exception as e:
+            self.logger.debug(f"获取可回退范围失败: {e}")
+            return empty

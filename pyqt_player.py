@@ -3016,6 +3016,7 @@ class IPTVPlayer(QMainWindow):
                     self.video_placeholder.hide()
                 if hasattr(self, 'video_widget') and self.video_widget and self.video_frame:
                     self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
+                    self.video_widget.show()
                 if hasattr(self, 'floating_panel') and self.floating_panel:
                     self.floating_panel.raise_()
                 self.current_channel = channel
