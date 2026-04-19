@@ -83,6 +83,32 @@ class SubscriptionManager:
             self._config.save_playlist_sources(sources)
             logger.info(f"已删除直播源: {removed.get('name', 'Unknown')}")
     
+    def update_playlist_source(self, index: int, url: str, name: str | None = None):
+        """更新指定索引的直播源
+
+        Args:
+            index: 要更新的源索引
+            url: 新的URL
+            name: 新的名称（可选，不传则保留原名）
+        """
+        sources = self.get_playlist_sources()
+        if 0 <= index < len(sources):
+            source = sources[index]
+            source['url'] = url
+            if name:
+                source['name'] = name
+            self._config.save_playlist_sources(sources)
+            logger.info(f"已更新直播源: {source.get('name', 'Unknown')} ({url})")
+    
+    def update_playlist_source_last_update(self, index: int, timestamp: str):
+        """更新指定索引的直播源更新时间
+
+        Args:
+            index: 源索引
+            timestamp: ISO格式时间字符串
+        """
+        self._config.update_playlist_source_last_update(index, timestamp)
+    
     def set_active_playlist_source(self, index: int):
         """设置指定索引的直播源为当前启用状态
 
@@ -93,6 +119,14 @@ class SubscriptionManager:
         source = self.get_active_playlist_source()
         if source:
             logger.info(f"已切换到直播源: {source.get('name', 'Unknown')} ({source.get('url', '')})")
+    
+    def get_active_playlist_source_index(self) -> int:
+        """获取当前启用的直播源索引
+
+        Returns:
+            启用源的索引，没有则返回 -1
+        """
+        return self._config.get_active_playlist_source_index()
     
     def get_active_playlist_source(self) -> dict | None:
         """获取当前启用的直播源
@@ -147,6 +181,23 @@ class SubscriptionManager:
             removed = sources.pop(index)
             self._config.save_epg_sources(sources)
             logger.info(f"已删除EPG源: {removed.get('name', 'Unknown')}")
+    
+    def update_epg_source(self, index: int, url: str, name: str | None = None):
+        """更新指定索引的EPG源
+
+        Args:
+            index: 要更新的源索引
+            url: 新的URL
+            name: 新的名称（可选，不传则保留原名）
+        """
+        sources = self.get_epg_sources()
+        if 0 <= index < len(sources):
+            source = sources[index]
+            source['url'] = url
+            if name:
+                source['name'] = name
+            self._config.save_epg_sources(sources)
+            logger.info(f"已更新EPG源: {source.get('name', 'Unknown')} ({url})")
     
     def load_all_epg_data(self, status_callback=None) -> bool:
         """加载并整合所有EPG源的数据
@@ -218,6 +269,75 @@ class SubscriptionManager:
         self._notify_update_callbacks()
         
         return len(merged_data) > 0
+    
+    def reload_single_epg_source(self, index: int, status_callback=None) -> bool:
+        """增量重载单个EPG源，合并到现有数据中
+
+        Args:
+            index: 要重载的源索引
+            status_callback: 状态回调函数
+
+        Returns:
+            是否成功
+        """
+        sources = self.get_epg_sources()
+        if not (0 <= index < len(sources)):
+            if status_callback:
+                status_callback("无效的EPG源索引")
+            return False
+        
+        source = sources[index]
+        
+        if status_callback:
+            status_callback(f"正在更新EPG源: {source.get('name', '')}")
+        
+        try:
+            data = self._load_single_epg(source['url'])
+            
+            if not data:
+                logger.warning(f"EPG源增量加载失败或无数据: {source.get('name', '')}")
+                if status_callback:
+                    status_callback(f"EPG源加载失败: {source.get('name', '')}")
+                return False
+            
+            with self._epg_lock:
+                for channel_id, programs in data.items():
+                    if channel_id not in self._epg_data:
+                        self._epg_data[channel_id] = programs
+                    else:
+                        existing_programs = self._epg_data[channel_id]
+                        existing_start_times = {
+                            p.get('start', '')
+                            for p in existing_programs
+                        }
+                        
+                        for program in programs:
+                            if program.get('start') not in existing_start_times:
+                                existing_programs.append(program)
+                        
+                        self._epg_data[channel_id] = sorted(
+                            self._epg_data[channel_id],
+                            key=lambda x: x.get('start', '')
+                        )
+                
+                self._last_epg_update = datetime.now()
+            
+            total_channels = len(self._epg_data)
+            total_programs = sum(len(progs) for progs in self._epg_data.values())
+            
+            logger.info(f"EPG源增量更新成功: {source.get('name', '')}, 包含 {len(data)} 个频道, 合并后共 {total_channels} 个频道, {total_programs} 个节目")
+            
+            if status_callback:
+                status_callback(f"EPG源更新完成: {total_channels} 个频道, {total_programs} 个节目")
+            
+            self._save_epg_cache(self._epg_data)
+            self._notify_update_callbacks()
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"EPG源增量重载异常: {source.get('name', '')} - {str(e)}")
+            return False
     
     def load_single_epg(self, epg_url: str, status_callback=None) -> bool:
         """加载单个EPG源的数据（用于从M3U文件的tvg-url等场景）

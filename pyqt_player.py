@@ -496,32 +496,30 @@ class IPTVPlayer(QMainWindow):
         logger.debug("_initialize_in_order: 完成")
     
     def _handle_playlist_subscription(self, need_update, playlist_url):
-        """在后台线程中处理列表订阅"""
+        """在后台线程中处理列表订阅（按活跃源独立判断）"""
         try:
             global CHANNELS
 
-            # 检查 URL 是否变化
-            last_url = self.config.get_value('Playlist', 'last_url', '')
-            url_changed = (last_url != playlist_url)
+            from core.subscription_manager import global_subscription_manager
+            import os
 
-            if url_changed:
-                logger.info(f"列表订阅地址已变化: '{last_url}' -> '{playlist_url}'，强制更新")
-                need_update = True
+            source_index = global_subscription_manager.get_active_playlist_source_index()
 
+            update_ok = True
             if need_update:
-                logger.info("列表订阅需要更新，开始下载最新数据")
-                self.update_playlist_subscription()
-                # 保存当前 URL
-                self.config.set_value('Playlist', 'last_url', playlist_url)
-                self.config.save_config()
-            else:
-                # 检查是否有本地缓存的列表文件
-                import os
+                logger.info(f"源#{source_index} 列表订阅需要更新，开始下载最新数据")
+                try:
+                    self.update_playlist_subscription(source_index)
+                except Exception as update_ex:
+                    update_ok = False
+                    logger.warning(f"源#{source_index} 在线更新失败({update_ex})，尝试从缓存加载")
+
+            if not need_update or not update_ok:
                 cache_dir = self.config.get_value('General', 'cache_dir', 'cache')
                 if cache_dir and not os.path.exists(cache_dir):
                     os.makedirs(cache_dir)
                 
-                playlist_cache_file = os.path.join(cache_dir, 'playlist_cache.m3u') if cache_dir else 'playlist_cache.m3u'
+                playlist_cache_file = os.path.join(cache_dir or '', f'playlist_cache_{source_index}.m3u')
                 
                 if os.path.exists(playlist_cache_file):
                     try:
@@ -635,10 +633,13 @@ class IPTVPlayer(QMainWindow):
                     except Exception as ex:
                         logger.error(f"加载缓存列表失败: {ex}")
                 else:
-                    logger.debug("缓存文件不存在")
-                    # 如果缓存文件不存在，强制更新列表
-                    logger.debug("缓存文件不存在，强制更新列表")
-                    self.update_playlist_subscription()
+                    logger.debug(f"源#{source_index} 缓存文件不存在，强制更新列表")
+                    self.update_playlist_subscription(source_index)
+            
+            if not need_update or not update_ok:
+                if not CHANNELS:
+                    logger.warning(f"源#{source_index} 缓存加载后频道列表为空，强制在线更新")
+                    self.update_playlist_subscription(source_index)
         except Exception as ex:
             logger.error(f"处理列表订阅失败: {ex}")
     
@@ -2871,6 +2872,12 @@ class IPTVPlayer(QMainWindow):
                 is_live = (total_time or 0) <= 0
 
                 lines = [channel_name] if channel_name else []
+                
+                play_url = ''
+                if hasattr(self, 'current_channel') and self.current_channel and isinstance(self.current_channel, dict):
+                    play_url = self.current_channel.get('url', '') or ''
+                if play_url:
+                    lines.append(play_url)
 
                 vline_parts = []
                 if w > 0 and h > 0:
@@ -4461,12 +4468,21 @@ class IPTVPlayer(QMainWindow):
         
         self._load_subscription_sources_to_ui()
         
-        playlist_add_btn.clicked.connect(lambda: self._add_playlist_source_from_ui())
+        self._editing_playlist_index = -1
+        self._editing_epg_index = -1
+        self._playlist_add_btn = playlist_add_btn
+        self._epg_add_btn = epg_add_btn
+        
+        playlist_add_btn.clicked.connect(lambda: self._add_or_update_playlist_source())
         playlist_remove_btn.clicked.connect(lambda: self._remove_selected_playlist_source())
         self.playlist_list_widget.itemClicked.connect(lambda item: self._activate_playlist_source(item))
+        self.playlist_list_widget.itemDoubleClicked.connect(lambda item: self._edit_playlist_source(item))
+        self.playlist_new_url_edit.textChanged.connect(self._on_playlist_url_changed)
         
-        epg_add_btn.clicked.connect(lambda: self._add_epg_source_from_ui())
+        epg_add_btn.clicked.connect(lambda: self._add_or_update_epg_source())
         epg_remove_btn.clicked.connect(lambda: self._remove_selected_epg_source())
+        self.epg_list_widget.itemDoubleClicked.connect(lambda item: self._edit_epg_source(item))
+        self.epg_new_url_edit.textChanged.connect(self._on_epg_url_changed)
         
         self._center_dialog_on_screen(dialog)
         dialog.exec()
@@ -4483,16 +4499,23 @@ class IPTVPlayer(QMainWindow):
                 return
             self._subscription_checked = True
             
-            playlist_url = self.config.get_value('Playlist', 'url', '')
+            active_source = global_subscription_manager.get_active_playlist_source()
+            source_index = global_subscription_manager.get_active_playlist_source_index()
+            
+            playlist_url = ''
+            if active_source:
+                playlist_url = active_source.get('url', '')
+            if not playlist_url:
+                playlist_url = self.config.get_value('Playlist', 'url', '')
+            
             playlist_interval_str = self.config.get_value('Playlist', 'update_interval', '60')
             playlist_interval = int(playlist_interval_str) if playlist_interval_str else 60
             
-            active_source = global_subscription_manager.get_active_playlist_source()
-            if active_source:
-                playlist_url = active_source.get('url', playlist_url)
-            
             if playlist_url:
-                last_update_str = self.config.get_value('Playlist', 'last_update', None)
+                sources = global_subscription_manager.get_playlist_sources()
+                last_update_str = None
+                if 0 <= source_index < len(sources):
+                    last_update_str = sources[source_index].get('last_update')
                 need_update = True
                 if last_update_str:
                     try:
@@ -4500,7 +4523,7 @@ class IPTVPlayer(QMainWindow):
                         time_since_update = datetime.now() - last_update
                         if time_since_update.total_seconds() < playlist_interval * 60:
                             need_update = False
-                            logger.info(f"列表订阅无需立即更新，上次更新时间: {last_update}")
+                            logger.info(f"源#{source_index} 列表订阅无需立即更新，上次更新时间: {last_update}")
                     except Exception:
                         pass
                 
@@ -4512,7 +4535,24 @@ class IPTVPlayer(QMainWindow):
             epg_interval = int(epg_interval_str) if epg_interval_str else 60
             
             if epg_sources:
+                import os
+                cache_dir = self.config.get_value('General', 'cache_dir', 'cache')
+                epg_cache_file = os.path.join(cache_dir or '', 'epg_cache.json')
+                
+                need_epg_update = True
+                if os.path.exists(epg_cache_file):
+                    try:
+                        cache_mtime = datetime.fromtimestamp(os.path.getmtime(epg_cache_file))
+                        time_since_cache = datetime.now() - cache_mtime
+                        if time_since_cache.total_seconds() < epg_interval * 60:
+                            need_epg_update = False
+                            logger.info(f"EPG数据无需立即更新，缓存时间: {cache_mtime}")
+                    except Exception:
+                        pass
+                
                 import threading
+                
+                final_need_epg = [need_epg_update]
                 
                 def load_all_epg_with_callback():
                     global EPG_DATA
@@ -4520,7 +4560,13 @@ class IPTVPlayer(QMainWindow):
                     def status_callback(msg):
                         logger.info(f"EPG加载状态: {msg}")
                     
-                    success = global_subscription_manager.load_all_epg_data(status_callback)
+                    if final_need_epg[0]:
+                        success = global_subscription_manager.load_all_epg_data(status_callback)
+                    else:
+                        success = global_subscription_manager.load_cached_epg_data()
+                        if success:
+                            logger.info(f"EPG从缓存加载成功, 共 {len(global_subscription_manager._epg_data)} 个频道")
+                            status_callback("从缓存加载EPG数据")
                     
                     if success:
                         EPG_DATA = global_subscription_manager._epg_data
@@ -4537,40 +4583,56 @@ class IPTVPlayer(QMainWindow):
                         else:
                             update_ui()
                     else:
-                        cached_loaded = global_subscription_manager.load_cached_epg_data()
-                        if cached_loaded:
-                            EPG_DATA = global_subscription_manager._epg_data
-                            
-                            def on_cache():
-                                self.epg_list_updated.emit()
-                                self.status_bar_show_message(
-                                    self.language_manager.tr("epg_using_cache", "Using cached EPG data")
-                                )
-                            
-                            from PyQt6.QtCore import QMetaObject, Qt
-                            if QThread.currentThread() != self.thread():
-                                QMetaObject.invokeMethod(self, "_do_on_epg_cache", Qt.ConnectionType.QueuedConnection)
-                            else:
-                                on_cache()
+                        if final_need_epg[0]:
+                            cached_loaded = global_subscription_manager.load_cached_epg_data()
+                            if cached_loaded:
+                                EPG_DATA = global_subscription_manager._epg_data
+                                
+                                def on_cache():
+                                    self.epg_list_updated.emit()
+                                    self.status_bar_show_message(
+                                        self.language_manager.tr("epg_using_cache", "Using cached EPG data")
+                                    )
+                                
+                                from PyQt6.QtCore import QMetaObject, Qt
+                                if QThread.currentThread() != self.thread():
+                                    QMetaObject.invokeMethod(self, "_do_on_epg_cache", Qt.ConnectionType.QueuedConnection)
+                                else:
+                                    on_cache()
                 
                 threading.Thread(target=load_all_epg_with_callback, daemon=True).start()
         except Exception as ex:
             logger.error(f"检查订阅内容失败: {str(ex)}")
     
-    def update_playlist_subscription(self):
-        """更新列表订阅 - 线程安全版本"""
+    def update_playlist_subscription(self, source_index=None):
+        """更新列表订阅 - 线程安全版本，按源索引独立缓存和更新时间"""
         try:
             global CHANNELS
 
             import requests
+            from core.subscription_manager import global_subscription_manager
+            from datetime import datetime
+            import os
 
-            playlist_url = self.config.get_value('Playlist', 'url', '')
+            if source_index is None:
+                source_index = global_subscription_manager.get_active_playlist_source_index()
+
+            active_source = global_subscription_manager.get_active_playlist_source()
+            if not active_source and source_index < 0:
+                return
+
+            playlist_url = ''
+            if active_source:
+                playlist_url = active_source.get('url', '')
+            if not playlist_url:
+                sources = global_subscription_manager.get_playlist_sources()
+                if 0 <= source_index < len(sources):
+                    playlist_url = sources[source_index].get('url', '')
+
             if not playlist_url:
                 return
 
-            logger.info(f"开始更新列表订阅: {playlist_url}")
-
-            import requests
+            logger.info(f"开始更新列表订阅(源#{source_index}): {playlist_url}")
 
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -4603,24 +4665,25 @@ class IPTVPlayer(QMainWindow):
                         "_all_tags": ch.get('_all_tags', {})
                     })
 
-                from datetime import datetime
-                self.config.set_value('Playlist', 'last_update', datetime.now().isoformat())
-                self.config.save_config()
+                if not self.channel_model.channels:
+                    raise ValueError(f"源#{source_index} 下载内容解析后频道数为空，可能不是有效的M3U文件")
 
-                import os
+                now_iso = datetime.now().isoformat()
+                global_subscription_manager.update_playlist_source_last_update(source_index, now_iso)
+
                 cache_dir = self.config.get_value('General', 'cache_dir', 'cache')
                 if cache_dir and not os.path.exists(cache_dir):
                     os.makedirs(cache_dir)
 
-                playlist_cache_file = os.path.join(cache_dir, 'playlist_cache.m3u') if cache_dir else 'playlist_cache.m3u'
+                playlist_cache_file = os.path.join(cache_dir or '', f'playlist_cache_{source_index}.m3u')
                 try:
                     with open(playlist_cache_file, 'w', encoding='utf-8') as f:
                         f.write(content)
-                    logger.debug(f"列表已保存到缓存文件: {playlist_cache_file}")
+                    logger.debug(f"源#{source_index} 列表已保存到缓存文件: {playlist_cache_file}")
                 except Exception as ex:
-                    logger.error(f"保存列表缓存失败: {ex}")
+                    logger.error(f"保存源#{source_index} 列表缓存失败: {ex}")
 
-                logger.info(f"列表订阅更新成功，共 {len(CHANNELS)} 个频道")
+                logger.info(f"源#{source_index} 列表订阅更新成功，共 {len(CHANNELS)} 个频道")
 
                 if QThread.currentThread() != self.thread():
                     self._pending_update_message = self.language_manager.tr("playlist_sub_updated", "Playlist subscription updated")
@@ -4629,14 +4692,15 @@ class IPTVPlayer(QMainWindow):
                     self._update_channel_list_ui()
                     self.status_bar.showMessage(self.language_manager.tr("playlist_sub_updated", "Playlist subscription updated"))
             else:
-                logger.error("列表订阅内容解析失败")
+                logger.error(f"源#{source_index} 列表订阅内容解析失败")
                 if QThread.currentThread() != self.thread():
                     self._pending_status_msg = self.language_manager.tr("playlist_sub_parse_failed", "Playlist subscription parse failed")
                     QMetaObject.invokeMethod(self, "_do_show_status_message", Qt.ConnectionType.QueuedConnection)
                 else:
                     self.status_bar.showMessage(self.language_manager.tr("playlist_sub_parse_failed", "Playlist subscription parse failed"))
         except Exception as ex:
-            logger.error(f"更新列表订阅失败: {str(ex)}")
+            idx_str = str(source_index) if source_index is not None else '?'
+            logger.error(f"更新源#{idx_str} 列表订阅失败: {str(ex)}")
             if QThread.currentThread() != self.thread():
                 self._pending_status_msg = f"{self.language_manager.tr('playlist_sub_update_failed', 'Failed to update playlist subscription')}: {str(ex)}"
                 QMetaObject.invokeMethod(self, "_do_show_status_message", Qt.ConnectionType.QueuedConnection)
@@ -4760,33 +4824,97 @@ class IPTVPlayer(QMainWindow):
             self.config.set_value('Playlist', 'update_interval', playlist_interval)
             self.config.set_value('EPG', 'update_interval', epg_interval)
             
-            playlist_sources = []
+            old_playlist_sources = global_subscription_manager.get_playlist_sources()
+            old_epg_sources = global_subscription_manager.get_epg_sources()
+            old_active_index = global_subscription_manager.get_active_playlist_source_index()
+            
+            new_playlist_sources = []
             for i in range(self.playlist_list_widget.count()):
                 item = self.playlist_list_widget.item(i)
                 source_data = item.data(QtCore.Qt.ItemDataRole.UserRole)
                 if source_data:
                     source_data['enabled'] = item.checkState() == QtCore.Qt.CheckState.Checked
-                    playlist_sources.append(source_data)
+                    new_playlist_sources.append(source_data)
             
-            if playlist_sources:
-                global_subscription_manager._config.save_playlist_sources(playlist_sources)
+            if new_playlist_sources:
+                global_subscription_manager._config.save_playlist_sources(new_playlist_sources)
             
-            epg_sources = []
+            new_epg_sources = []
             for i in range(self.epg_list_widget.count()):
                 item = self.epg_list_widget.item(i)
                 source_data = item.data(QtCore.Qt.ItemDataRole.UserRole)
                 if source_data:
-                    epg_sources.append(source_data)
+                    new_epg_sources.append(source_data)
             
-            if epg_sources:
-                global_subscription_manager._config.save_epg_sources(epg_sources)
+            if new_epg_sources:
+                global_subscription_manager._config.save_epg_sources(new_epg_sources)
             
             self.config.save_config()
             
-            if hasattr(self, '_subscription_checked'):
-                self._subscription_checked = False
+            import threading
             
-            self.start_subscription_timers()
+            new_active_index = global_subscription_manager.get_active_playlist_source_index()
+            
+            playlist_changed = False
+            if len(old_playlist_sources) != len(new_playlist_sources):
+                playlist_changed = True
+            elif old_active_index != new_active_index:
+                playlist_changed = True
+            else:
+                for i, (old_s, new_s) in enumerate(zip(old_playlist_sources, new_playlist_sources)):
+                    if old_s.get('url') != new_s.get('url'):
+                        playlist_changed = True
+                        break
+                    if old_s.get('enabled') != new_s.get('enabled'):
+                        playlist_changed = True
+                        break
+            
+            if playlist_changed:
+                active = global_subscription_manager.get_active_playlist_source()
+                if active:
+                    source_index = global_subscription_manager.get_active_playlist_source_index()
+                    threading.Thread(
+                        target=self._handle_playlist_subscription,
+                        args=(True, active.get('url', '')),
+                        daemon=True
+                    ).start()
+            
+            epg_changed_indices = []
+            if len(old_epg_sources) != len(new_epg_sources):
+                epg_changed_indices = list(range(len(new_epg_sources)))
+            else:
+                for i, (old_s, new_s) in enumerate(zip(old_epg_sources, new_epg_sources)):
+                    if old_s.get('url') != new_s.get('url'):
+                        epg_changed_indices.append(i)
+            
+            if epg_changed_indices:
+                def _reload_epg_incremental():
+                    global EPG_DATA
+                    
+                    def status_callback(msg):
+                        logger.info(f"EPG加载状态: {msg}")
+                    
+                    if len(epg_changed_indices) == len(new_epg_sources):
+                        success = global_subscription_manager.load_all_epg_data(status_callback)
+                    else:
+                        all_ok = True
+                        for idx in epg_changed_indices:
+                            ok = global_subscription_manager.reload_single_epg_source(idx, status_callback)
+                            if not ok:
+                                all_ok = False
+                        success = all_ok
+                    
+                    if success:
+                        EPG_DATA = global_subscription_manager._epg_data
+                        
+                        from PyQt6.QtCore import QMetaObject, Qt
+                        if QThread.currentThread() != self.thread():
+                            QMetaObject.invokeMethod(self, "_do_on_epg_success", Qt.ConnectionType.QueuedConnection)
+                        else:
+                            self.epg_list_updated.emit()
+                            self.status_bar_show_message(self.language_manager.tr("epg_loaded", "EPG data loaded successfully"))
+                
+                threading.Thread(target=_reload_epg_incremental, daemon=True).start()
             
             logger.info("播放器设置保存成功")
             self.status_bar.showMessage(self.language_manager.tr("player_settings_saved", "Player settings saved"))
@@ -4821,9 +4949,10 @@ class IPTVPlayer(QMainWindow):
             item.setToolTip(source.get('url', ''))
             self.epg_list_widget.addItem(item)
     
-    def _add_playlist_source_from_ui(self):
-        """从UI添加新的直播源"""
+    def _add_or_update_playlist_source(self):
+        """从UI添加或更新直播源"""
         from core.subscription_manager import global_subscription_manager
+        tr = self.language_manager.tr
         
         url = self.playlist_new_url_edit.text().strip()
         name = self.playlist_new_name_edit.text().strip() or None
@@ -4831,26 +4960,60 @@ class IPTVPlayer(QMainWindow):
         if not url:
             return
         
-        index = global_subscription_manager.add_playlist_source(url, name)
-        
-        sources = global_subscription_manager.get_playlist_sources()
-        new_source = sources[index]
-        
-        item = QListWidgetItem(f"{'✓ ' if new_source.get('enabled') else '  '}{new_source.get('name', 'Unnamed')}")
-        item.setData(QtCore.Qt.ItemDataRole.UserRole, new_source)
-        item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsUserCheckable)
-        item.setCheckState(
-            QtCore.Qt.CheckState.Checked if new_source.get('enabled') else QtCore.Qt.CheckState.Unchecked
-        )
-        item.setToolTip(new_source.get('url', ''))
-        self.playlist_list_widget.addItem(item)
+        if self._editing_playlist_index >= 0:
+            global_subscription_manager.update_playlist_source(self._editing_playlist_index, url, name)
+            sources = global_subscription_manager.get_playlist_sources()
+            updated_source = sources[self._editing_playlist_index]
+            
+            item = self.playlist_list_widget.item(self._editing_playlist_index)
+            if item:
+                item.setText(f"{'✓ ' if updated_source.get('enabled') else '  '}{updated_source.get('name', 'Unnamed')}")
+                item.setData(QtCore.Qt.ItemDataRole.UserRole, updated_source)
+                item.setToolTip(updated_source.get('url', ''))
+            
+            self._editing_playlist_index = -1
+            self._playlist_add_btn.setText(tr("add_source", "+ Add Source"))
+        else:
+            index = global_subscription_manager.add_playlist_source(url, name)
+            sources = global_subscription_manager.get_playlist_sources()
+            new_source = sources[index]
+            
+            item = QListWidgetItem(f"{'✓ ' if new_source.get('enabled') else '  '}{new_source.get('name', 'Unnamed')}")
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, new_source)
+            item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(
+                QtCore.Qt.CheckState.Checked if new_source.get('enabled') else QtCore.Qt.CheckState.Unchecked
+            )
+            item.setToolTip(new_source.get('url', ''))
+            self.playlist_list_widget.addItem(item)
         
         self.playlist_new_url_edit.clear()
         self.playlist_new_name_edit.clear()
     
+    def _edit_playlist_source(self, item):
+        """编辑选中的直播源：将数据回填到输入框"""
+        if not item:
+            return
+        
+        current_row = self.playlist_list_widget.row(item)
+        if current_row < 0:
+            return
+        
+        source = item.data(QtCore.Qt.ItemDataRole.UserRole)
+        if not source:
+            return
+        
+        self.playlist_new_url_edit.setText(source.get('url', ''))
+        self.playlist_new_name_edit.setText(source.get('name', ''))
+        
+        self._editing_playlist_index = current_row
+        tr = self.language_manager.tr
+        self._playlist_add_btn.setText(tr("update_source", "✎ Update"))
+    
     def _remove_selected_playlist_source(self):
         """删除选中的直播源"""
         from core.subscription_manager import global_subscription_manager
+        tr = self.language_manager.tr
         
         current_row = self.playlist_list_widget.currentRow()
         if current_row < 0:
@@ -4858,6 +5021,14 @@ class IPTVPlayer(QMainWindow):
         
         global_subscription_manager.remove_playlist_source(current_row)
         self.playlist_list_widget.takeItem(current_row)
+        
+        if self._editing_playlist_index == current_row:
+            self._editing_playlist_index = -1
+            self._playlist_add_btn.setText(tr("add_source", "+ Add Source"))
+            self.playlist_new_url_edit.clear()
+            self.playlist_new_name_edit.clear()
+        elif self._editing_playlist_index > current_row:
+            self._editing_playlist_index -= 1
     
     def _activate_playlist_source(self, item):
         """激活指定的直播源（点击切换）"""
@@ -4883,10 +5054,33 @@ class IPTVPlayer(QMainWindow):
                 list_item.setCheckState(
                     QtCore.Qt.CheckState.Checked if is_enabled else QtCore.Qt.CheckState.Unchecked
                 )
+            
+            active = global_subscription_manager.get_active_playlist_source()
+            if active:
+                from datetime import datetime
+                source_index = global_subscription_manager.get_active_playlist_source_index()
+                sources = global_subscription_manager.get_playlist_sources()
+                
+                need_update = True
+                if 0 <= source_index < len(sources):
+                    last_update_str = sources[source_index].get('last_update')
+                    if last_update_str:
+                        try:
+                            last_update = datetime.fromisoformat(last_update_str)
+                            playlist_interval = int(self.config.get_value('Playlist', 'update_interval', '60') or '60')
+                            time_since_update = datetime.now() - last_update
+                            if time_since_update.total_seconds() < playlist_interval * 60:
+                                need_update = False
+                        except Exception:
+                            pass
+                
+                import threading
+                threading.Thread(target=self._handle_playlist_subscription, args=(need_update, active.get('url', '')), daemon=True).start()
     
-    def _add_epg_source_from_ui(self):
-        """从UI添加新的EPG源"""
+    def _add_or_update_epg_source(self):
+        """从UI添加或更新EPG源"""
         from core.subscription_manager import global_subscription_manager
+        tr = self.language_manager.tr
         
         url = self.epg_new_url_edit.text().strip()
         name = self.epg_new_name_edit.text().strip() or None
@@ -4894,22 +5088,70 @@ class IPTVPlayer(QMainWindow):
         if not url:
             return
         
-        index = global_subscription_manager.add_epg_source(url, name)
-        
-        sources = global_subscription_manager.get_epg_sources()
-        new_source = sources[index]
-        
-        item = QListWidgetItem(new_source.get('name', 'Unnamed'))
-        item.setData(QtCore.Qt.ItemDataRole.UserRole, new_source)
-        item.setToolTip(new_source.get('url', ''))
-        self.epg_list_widget.addItem(item)
+        if self._editing_epg_index >= 0:
+            global_subscription_manager.update_epg_source(self._editing_epg_index, url, name)
+            sources = global_subscription_manager.get_epg_sources()
+            updated_source = sources[self._editing_epg_index]
+            
+            item = self.epg_list_widget.item(self._editing_epg_index)
+            if item:
+                item.setText(updated_source.get('name', 'Unnamed'))
+                item.setData(QtCore.Qt.ItemDataRole.UserRole, updated_source)
+                item.setToolTip(updated_source.get('url', ''))
+            
+            self._editing_epg_index = -1
+            self._epg_add_btn.setText(tr("add_source", "+ Add Source"))
+        else:
+            index = global_subscription_manager.add_epg_source(url, name)
+            sources = global_subscription_manager.get_epg_sources()
+            new_source = sources[index]
+            
+            item = QListWidgetItem(new_source.get('name', 'Unnamed'))
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, new_source)
+            item.setToolTip(new_source.get('url', ''))
+            self.epg_list_widget.addItem(item)
         
         self.epg_new_url_edit.clear()
         self.epg_new_name_edit.clear()
     
+    def _edit_epg_source(self, item):
+        """编辑选中的EPG源：将数据回填到输入框"""
+        if not item:
+            return
+        
+        current_row = self.epg_list_widget.row(item)
+        if current_row < 0:
+            return
+        
+        source = item.data(QtCore.Qt.ItemDataRole.UserRole)
+        if not source:
+            return
+        
+        self.epg_new_url_edit.setText(source.get('url', ''))
+        self.epg_new_name_edit.setText(source.get('name', ''))
+        
+        self._editing_epg_index = current_row
+        tr = self.language_manager.tr
+        self._epg_add_btn.setText(tr("update_source", "✎ Update"))
+    
+    def _on_playlist_url_changed(self):
+        """Playlist URL输入框文本变化时，清空则退出编辑模式"""
+        if self._editing_playlist_index >= 0 and not self.playlist_new_url_edit.text().strip():
+            self._editing_playlist_index = -1
+            tr = self.language_manager.tr
+            self._playlist_add_btn.setText(tr("add_source", "+ Add Source"))
+    
+    def _on_epg_url_changed(self):
+        """EPG URL输入框文本变化时，清空则退出编辑模式"""
+        if self._editing_epg_index >= 0 and not self.epg_new_url_edit.text().strip():
+            self._editing_epg_index = -1
+            tr = self.language_manager.tr
+            self._epg_add_btn.setText(tr("add_source", "+ Add Source"))
+    
     def _remove_selected_epg_source(self):
         """删除选中的EPG源"""
         from core.subscription_manager import global_subscription_manager
+        tr = self.language_manager.tr
         
         current_row = self.epg_list_widget.currentRow()
         if current_row < 0:
@@ -4917,6 +5159,14 @@ class IPTVPlayer(QMainWindow):
         
         global_subscription_manager.remove_epg_source(current_row)
         self.epg_list_widget.takeItem(current_row)
+        
+        if self._editing_epg_index == current_row:
+            self._editing_epg_index = -1
+            self._epg_add_btn.setText(tr("add_source", "+ Add Source"))
+            self.epg_new_url_edit.clear()
+            self.epg_new_name_edit.clear()
+        elif self._editing_epg_index > current_row:
+            self._editing_epg_index -= 1
     
     def update_recent_files_menu(self):
         """更新最近打开文件菜单"""

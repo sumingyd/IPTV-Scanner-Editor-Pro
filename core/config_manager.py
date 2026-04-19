@@ -321,13 +321,14 @@ class ConfigManager:
 
         Args:
             sources: 直播源列表，每个元素为字典格式：
-                    {'url': str, 'name': str, 'enabled': bool}
+                    {'url': str, 'name': str, 'enabled': bool, 'last_update': str|None}
         """
         self.set_value('PlaylistSources', 'count', str(len(sources)))
         for i, source in enumerate(sources):
             self.set_value('PlaylistSources', f'url_{i}', source.get('url', ''))
             self.set_value('PlaylistSources', f'name_{i}', source.get('name', f'Source {i+1}'))
             self.set_value('PlaylistSources', f'enabled_{i}', str(source.get('enabled', True)))
+            self.set_value('PlaylistSources', f'last_update_{i}', source.get('last_update', '') or '')
         return self.save_config()
     
     def load_playlist_sources(self) -> list:
@@ -344,7 +345,8 @@ class ConfigManager:
                 sources.append({
                     'url': url,
                     'name': self.get_value('PlaylistSources', f'name_{i}', f'Source {i+1}'),
-                    'enabled': self.get_value('PlaylistSources', f'enabled_{i}', 'True').lower() == 'true'
+                    'enabled': self.get_value('PlaylistSources', f'enabled_{i}', 'True').lower() == 'true',
+                    'last_update': self.get_value('PlaylistSources', f'last_update_{i}', '') or None
                 })
         
         if not sources:
@@ -379,6 +381,30 @@ class ConfigManager:
         if 0 <= index < len(sources):
             for i, source in enumerate(sources):
                 source['enabled'] = (i == index)
+            self.save_playlist_sources(sources)
+    
+    def get_active_playlist_source_index(self) -> int:
+        """获取当前启用的直播源索引
+
+        Returns:
+            启用源的索引，没有则返回 -1
+        """
+        sources = self.load_playlist_sources()
+        for i, source in enumerate(sources):
+            if source.get('enabled'):
+                return i
+        return 0 if sources else -1
+    
+    def update_playlist_source_last_update(self, index: int, timestamp: str):
+        """更新指定索引直播源的更新时间
+
+        Args:
+            index: 源索引
+            timestamp: ISO格式时间字符串
+        """
+        sources = self.load_playlist_sources()
+        if 0 <= index < len(sources):
+            sources[index]['last_update'] = timestamp
             self.save_playlist_sources(sources)
     
     def save_epg_sources(self, sources: list):
