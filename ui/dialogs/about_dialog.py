@@ -17,7 +17,7 @@ class AboutDialog(FloatingDialog):
     BUILD_DATE = "2026-04-17"
 
     def __init__(self, parent=None):
-        super().__init__(parent, tool_window=True)
+        super().__init__(parent, stay_on_top=False)
         self.current_version = self.CURRENT_VERSION
         self.language_manager = getattr(parent, 'language_manager', None)
         if not self.language_manager:

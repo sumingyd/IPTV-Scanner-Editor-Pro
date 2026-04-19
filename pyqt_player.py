@@ -4156,10 +4156,10 @@ class IPTVPlayer(QMainWindow):
                                      QPushButton, QComboBox, QLineEdit, QGroupBox,
                                      QListWidget, QListWidgetItem, QWidget, QFormLayout)
 
-        # 创建对话框（不传parent，避免显示在主窗口内部导致卡死；关闭置顶，避免覆盖其他应用）
-        dialog = FloatingDialog(None, stay_on_top=False)
+        # 创建对话框（使用Tool标志避免任务栏图标，关闭置顶）
+        dialog = FloatingDialog(self, stay_on_top=False)
         tr = self.language_manager.tr
-        dialog.setWindowTitle(tr("player_settings_title", "Player Settings"))
+        dialog.setWindowTitle(tr("subscription_settings_title", "Subscription Settings"))
         dialog.setMinimumSize(600, 550)
         dialog.setStyleSheet(AppStyles.dialog_style())
         
@@ -5040,7 +5040,7 @@ class IPTVPlayer(QMainWindow):
                                      QPushButton, QFrame, QLabel)
         from ui.styles import AppStyles
 
-        dialog = FloatingDialog(self)
+        dialog = FloatingDialog(self, stay_on_top=False)
         tr = self.language_manager.tr
         colors = AppStyles._get_colors()
         dialog.setWindowTitle(tr("usage_instructions_title", "Usage Instructions"))

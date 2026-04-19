@@ -34,7 +34,7 @@ class ScanChannelDialog(FloatingDialog):
     _border_color_key = 'mid'
 
     def __init__(self, parent=None):
-        super().__init__(parent, frameless=False)
+        super().__init__(parent, frameless=False, stay_on_top=False)
         # 从主题获取透明度设置
         from ..styles import AppStyles
         colors = AppStyles._get_colors()
