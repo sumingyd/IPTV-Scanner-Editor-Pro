@@ -88,6 +88,13 @@ class MappingManagerDialog(FloatingDialog):
         refresh_layout.addWidget(self.refresh_cache_btn)
         refresh_layout.addStretch()
         layout.addLayout(refresh_layout)
+
+        self.update_status_label = QtWidgets.QLabel('')
+        self.update_status_label.setStyleSheet(
+            "color: #90a0b0; font-size: 11px; border: none; background: transparent; padding: 4px 8px;"
+        )
+        self.update_status_label.setWordWrap(True)
+        layout.addWidget(self.update_status_label)
         layout.addSpacing(4)
 
         manual_group = QtWidgets.QGroupBox(_('manual_mapping_section', '⚙ Manual Mapping (Advanced)'))
@@ -192,6 +199,38 @@ class MappingManagerDialog(FloatingDialog):
 
     def load_data(self):
         self.load_user_mappings()
+        self._check_update_status()
+
+    def _check_update_status(self):
+        try:
+            status = mapping_manager.check_remote_update_status()
+            _ = self._tr
+            if status.get('error'):
+                text = _('update_check_failed', 'Update check failed: {}').format(status['error'])
+                color = '#c07050'
+            elif status['has_update']:
+                text = _('update_available',
+                    '🔄 New version available! Click the button above to refresh.')
+                color = '#f0a030'
+            else:
+                last_time = status['last_cache_time']
+                local_count = status['local_count']
+                if last_time > 0:
+                    from datetime import datetime
+                    dt = datetime.fromtimestamp(last_time)
+                    time_str = dt.strftime('%Y-%m-%d %H:%M')
+                    text = _('mapping_status_ok',
+                        '✅ Up to date | Loaded: {} mappings | Last: {}').format(local_count, time_str)
+                else:
+                    text = _('mapping_status_no_cache',
+                        '⏳ No cached data yet ({} mappings loaded)').format(local_count)
+                color = '#60a080'
+            self.update_status_label.setText(text)
+            self.update_status_label.setStyleSheet(
+                f"color: {color}; font-size: 11px; border: none; background: transparent; padding: 4px 8px;"
+            )
+        except Exception as e:
+            self.logger.debug(f"检查更新状态失败: {e}")
 
     def load_user_mappings(self):
         self.mapping_table.setRowCount(0)
@@ -292,8 +331,8 @@ class MappingManagerDialog(FloatingDialog):
         standard_name = self.mapping_table.item(row, 0).text()
         raw_name = self.mapping_table.item(row, 1).text()
         reply = show_confirm(
-            self._tr('confirm_delete', 'Confirm Delete'),
-            f"Delete mapping '{raw_name} -> {standard_name}'?",
+            self._tr('confirm_delete_mapping', 'Confirm Delete Mapping'),
+            self._tr('delete_mapping_confirm', "Delete mapping '{}' → '{}'?").format(raw_name, standard_name),
             parent=self
         )
         if reply == QtWidgets.QMessageBox.StandardButton.Yes:
@@ -303,6 +342,7 @@ class MappingManagerDialog(FloatingDialog):
 
     def refresh_cache(self):
         mapping_manager.refresh_cache()
+        self._check_update_status()
         show_info(
             self._tr('success', 'Success'),
             self._tr('cache_refreshed', 'Remote mapping cache refreshed'),

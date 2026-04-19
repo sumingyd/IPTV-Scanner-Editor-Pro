@@ -30,108 +30,66 @@ def load_mappings_from_file(file_path: str) -> Dict[str, dict]:
     """从文件加载映射规则，支持txt和csv格式"""
     mappings = {}
     try:
-        if file_path.lower().endswith('.csv'):
-            # 加载CSV格式
-            import csv
-            with open(file_path, 'r', encoding='utf-8-sig') as f:  # 使用utf-8-sig处理BOM
-                reader = csv.DictReader(f)
-                for row in reader:
-                    # 处理可能的BOM字符
-                    standard_name = row.get('standard_name', '').strip().lstrip('\ufeff')
-
-                    # 跳过分组标题行
-                    if standard_name.startswith('##########') and standard_name.endswith('##########'):
-                        continue
-
-                    raw_names = (
-                        [name.strip() for name in row.get('raw_names', '').split(',')]
-                        if row.get('raw_names')
-                        else []
-                    )
-                    logo_url = row.get('logo_url', '').strip() if row.get('logo_url') else None
-                    group_name = row.get('group_name', '').strip() if row.get('group_name') else None
-
-                    # 新增字段
-                    tvg_id = row.get('tvg_id', '').strip() if row.get('tvg_id') else None
-                    tvg_chno = row.get('tvg_chno', '').strip() if row.get('tvg_chno') else None
-                    tvg_shift = row.get('tvg_shift', '').strip() if row.get('tvg_shift') else None
-
-                    # 修复catchup字段处理：保留字符串"none"，空字符串转换为None
-                    catchup_raw = row.get('catchup', '')
-                    if catchup_raw is not None:
-                        catchup = catchup_raw.strip()
-                        if catchup == '':
-                            catchup = None
-                    else:
-                        catchup = None
-
-                    catchup_days = row.get('catchup_days', '').strip() if row.get('catchup_days') else None
-                    catchup_source = row.get('catchup_source', '').strip() if row.get('catchup_source') else None
-                    resolution = row.get('resolution', '').strip() if row.get('resolution') else None
-
-                    if standard_name:  # 确保标准名称不为空
-                        # 为每个原始名称创建独立的映射条目
-                        # 使用标准名称 + 原始名称作为键，确保每个IP地址都有独立的映射
-                        for raw_name in raw_names:
-                            if raw_name:  # 确保原始名称不为空
-                                # 创建唯一的键：标准名称 + 原始名称
-                                unique_key = f"{standard_name}||{raw_name}"
-
-                                # 创建映射条目
-                                mappings[unique_key] = {
-                                    'standard_name': standard_name,
-                                    'raw_names': [raw_name],  # 只包含当前原始名称
-                                    'logo_url': (
-                                        logo_url if logo_url and
-                                        logo_url.lower() not in ['', 'none', 'null']
-                                        else None
-                                    ),
-                                    'group_name': (
-                                        group_name if group_name and
-                                        group_name.lower() not in ['', 'none', 'null']
-                                        else None
-                                    ),
-                                    'tvg_id': (
-                                        tvg_id if tvg_id and
-                                        tvg_id.lower() not in ['', 'none', 'null']
-                                        else None
-                                    ),
-                                    'tvg_chno': (
-                                        tvg_chno if tvg_chno and
-                                        tvg_chno.lower() not in ['', 'none', 'null']
-                                        else None
-                                    ),
-                                    'tvg_shift': (
-                                        tvg_shift if tvg_shift and
-                                        tvg_shift.lower() not in ['', 'none', 'null']
-                                        else None
-                                    ),
-                                    'catchup': catchup,  # 直接使用catchup值，第68-75行已经处理了空字符串转换
-                                    'catchup_days': (
-                                        catchup_days if catchup_days and
-                                        catchup_days.lower() not in ['', 'none', 'null']
-                                        else None
-                                    ),
-                                    'catchup_source': (
-                                        catchup_source if catchup_source and
-                                        catchup_source.lower() not in ['', 'none', 'null']
-                                        else None
-                                    ),
-                                    'resolution': (
-                                        resolution if resolution and
-                                        resolution.lower() not in ['', 'none', 'null']
-                                        else None
-                                    )
-                                }
-        else:
-            # 加载txt格式（向后兼容）
-            with open(file_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#'):
-                        mappings.update(parse_mapping_line(line))
+        with open(file_path, 'r', encoding='utf-8-sig') as f:
+            content = f.read()
+        return _parse_mappings_content(content, file_path)
     except Exception as e:
-        logger.error(f"加载映射文件 {file_path} 失败: {e}")
+        logger.error(f"加载映射文件失败 {file_path}: {e}")
+        return {}
+
+
+def _parse_mappings_content(content: str, source_hint: str = '') -> Dict[str, dict]:
+    """从文本内容解析映射规则"""
+    mappings = {}
+    try:
+        if source_hint.lower().endswith('.csv') or (content.strip() and content.strip()[0].isalpha()):
+            import csv
+            from io import StringIO
+            reader = csv.DictReader(StringIO(content))
+            for row in reader:
+                standard_name = row.get('standard_name', '').strip().lstrip('\ufeff')
+                if standard_name.startswith('##########') and standard_name.endswith('##########'):
+                    continue
+                raw_names = (
+                    [name.strip() for name in row.get('raw_names', '').split(',')]
+                    if row.get('raw_names')
+                    else []
+                )
+                logo_url = row.get('logo_url', '').strip() if row.get('logo_url') else None
+                group_name = row.get('group_name', '').strip() if row.get('group_name') else None
+                tvg_id = row.get('tvg_id', '').strip() if row.get('tvg_id') else None
+                tvg_chno = row.get('tvg_chno', '').strip() if row.get('tvg_chno') else None
+                tvg_shift = row.get('tvg_shift', '').strip() if row.get('tvg_shift') else None
+                catchup_raw = row.get('catchup', '')
+                catchup = catchup_raw.strip() if catchup_raw is not None and catchup_raw.strip() else None
+                catchup_days = row.get('catchup_days', '').strip() if row.get('catchup_days') else None
+                catchup_source = row.get('catchup_source', '').strip() if row.get('catchup_source') else None
+                resolution = row.get('resolution', '').strip() if row.get('resolution') else None
+
+                if standard_name:
+                    for raw_name in raw_names:
+                        if raw_name:
+                            unique_key = f"{standard_name}||{raw_name}"
+                            mappings[unique_key] = {
+                                'standard_name': standard_name,
+                                'raw_names': [raw_name],
+                                'logo_url': logo_url if logo_url and logo_url.lower() not in ['', 'none', 'null'] else None,
+                                'group_name': group_name if group_name and group_name.lower() not in ['', 'none', 'null'] else None,
+                                'tvg_id': tvg_id if tvg_id and tvg_id.lower() not in ['', 'none', 'null'] else None,
+                                'tvg_chno': tvg_chno if tvg_chno and tvg_chno.lower() not in ['', 'none', 'null'] else None,
+                                'tvg_shift': tvg_shift if tvg_shift and tvg_shift.lower() not in ['', 'none', 'null'] else None,
+                                'catchup': catchup,
+                                'catchup_days': catchup_days if catchup_days and catchup_days.lower() not in ['', 'none', 'null'] else None,
+                                'catchup_source': catchup_source if catchup_source and catchup_source.lower() not in ['', 'none', 'null'] else None,
+                                'resolution': resolution if resolution and resolution.lower() not in ['', 'none', 'null'] else None
+                            }
+        else:
+            for line in content.splitlines():
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    mappings.update(parse_mapping_line(line))
+    except Exception as e:
+        logger.error(f"解析映射内容失败: {e}")
     return mappings
 
 
@@ -209,14 +167,7 @@ def load_remote_mappings() -> Dict[str, dict]:
             else:
                 file_ext = '.txt'
 
-            # 创建临时文件保存远程内容
-            temp_file = f"remote_mappings{file_ext}"
-            with open(temp_file, 'w', encoding='utf-8') as f:
-                f.write(response.text)
-
-            # 从临时文件加载映射
-            mappings = load_mappings_from_file(temp_file)
-            os.remove(temp_file)
+            mappings = _parse_mappings_content(response.text, remote_url)
             logger.info(f"成功加载远程映射规则，共 {len(mappings)} 条映射")
             return mappings
 
@@ -625,11 +576,105 @@ class ChannelMappingManager:
             self.logger.error(f"获取映射条目失败: {e}")
             return []
 
+    def check_remote_update_status(self) -> dict:
+        """检查远程映射是否有更新，返回状态信息"""
+        result = {
+            'has_update': False,
+            'last_cache_time': 0,
+            'local_count': len(self.remote_mappings),
+            'remote_count': 0,
+            'error': None
+        }
+
+        try:
+            if os.path.exists(self.cache_file):
+                with open(self.cache_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                result['last_cache_time'] = data.get('timestamp', 0)
+
+            if not REQUESTS_AVAILABLE:
+                result['error'] = 'requests模块不可用'
+                return result
+
+            remote_url = DEFAULT_REMOTE_URL
+            try:
+                from core.config_manager import ConfigManager
+                config = ConfigManager()
+                remote_url = config.get('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
+            except Exception:
+                pass
+
+            try:
+                head_resp = requests.head(remote_url, timeout=5, allow_redirects=True)
+                remote_etag = ''
+                if head_resp.status_code == 200:
+                    remote_etag = head_resp.headers.get('ETag', '')
+                    remote_last_modified = head_resp.headers.get('Last-Modified', '')
+
+                    etag_file = self.cache_file + '.etag'
+                    local_etag = ''
+                    if os.path.exists(etag_file):
+                        with open(etag_file, 'r') as f:
+                            local_etag = f.read().strip()
+
+                    if remote_etag and local_etag and remote_etag != local_etag:
+                        result['has_update'] = True
+                        return result
+                    if not remote_etag and not remote_last_modified:
+                        pass
+                else:
+                    get_resp = requests.get(remote_url, timeout=5, stream=True)
+                    if get_resp.status_code == 200:
+                        content_hash = hashlib.md5(get_resp.content).hexdigest()
+                        hash_file = self.cache_file + '.hash'
+                        local_hash = ''
+                        if os.path.exists(hash_file):
+                            with open(hash_file, 'r') as f:
+                                local_hash = f.read().strip()
+                        if local_hash and content_hash != local_hash:
+                            result['has_update'] = True
+                        result['remote_count'] = len(_parse_mappings_content(
+                            get_resp.text, remote_url))
+                        if not local_hash:
+                            with open(hash_file, 'w') as f:
+                                f.write(content_hash)
+                        if remote_etag:
+                            etag_file = self.cache_file + '.etag'
+                            with open(etag_file, 'w') as f:
+                                f.write(remote_etag)
+                        return result
+            except requests.exceptions.RequestException as e:
+                result['error'] = str(e)
+
+        except Exception as e:
+            result['error'] = str(e)
+
+        return result
+
     def refresh_cache(self):
         """刷新远程映射缓存"""
         self.remote_mappings = self._load_and_cache_remote_mappings()
         self.combined_mappings = self._combine_mappings()
         self.reverse_mappings = create_reverse_mappings(self.combined_mappings)
+        try:
+            if REQUESTS_AVAILABLE:
+                remote_url = DEFAULT_REMOTE_URL
+                try:
+                    from core.config_manager import ConfigManager
+                    config = ConfigManager()
+                    remote_url = config.get('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
+                except Exception:
+                    pass
+                try:
+                    head_resp = requests.head(remote_url, timeout=5)
+                    if head_resp.status_code == 200 and head_resp.headers.get('ETag'):
+                        etag_file = self.cache_file + '.etag'
+                        with open(etag_file, 'w') as f:
+                            f.write(head_resp.headers['ETag'])
+                except Exception:
+                    pass
+        except Exception:
+            pass
         self.logger.info("远程映射缓存已刷新")
 
 
