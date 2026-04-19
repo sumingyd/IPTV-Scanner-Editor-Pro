@@ -551,8 +551,8 @@ class ScanChannelDialog(FloatingDialog):
         self.header.setMaximumSectionSize(1000)  # 最大列宽
 
         # 设置表头属性
-        self.header.setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-        self.header.setDefaultSectionSize(100)  # 默认列宽
+        self.header.setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Interactive)
+        self.header.setDefaultSectionSize(100)
 
         # 启用表头点击排序
         self.header.setSectionsClickable(True)
@@ -1278,12 +1278,6 @@ class ScanChannelDialog(FloatingDialog):
     def _on_channel_found(self, channel_info):
         """处理发现有效频道事件"""
         self.model.add_channel(channel_info)
-
-        if hasattr(self, 'channel_list'):
-            header = self.channel_list.horizontalHeader()
-            QtCore.QTimer.singleShot(
-                0, lambda: header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-                )
 
     @QtCore.pyqtSlot()
     def _on_scan_completed(self):

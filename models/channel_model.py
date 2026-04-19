@@ -360,12 +360,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                     }
                     self._original_channel_data[url] = original_channel
 
-            # 添加新频道后强制触发列宽调整
-            view = self.parent()
-            if view and hasattr(view, 'resizeColumnsToContents'):
-                from PyQt6.QtCore import QTimer
-                QTimer.singleShot(0, view.resizeColumnsToContents)
-
     def hide_invalid(self):
         """隐藏无效频道"""
         if not hasattr(self, '_original_channels'):
