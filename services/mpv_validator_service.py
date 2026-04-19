@@ -71,8 +71,8 @@ def _create_lightweight_mpv():
         _libmpv.mpv_set_property_string(handle, b'keep-open', b'yes')
         _libmpv.mpv_set_property_string(handle, b'log-level', b'error')
         _libmpv.mpv_set_property_string(handle, b'config', b'no')
-        _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-probesize', b'50000')
-        _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-analyzeduration', b'100000')
+        _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-probesize', b'500000')
+        _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-analyzeduration', b'500000')
         result = _libmpv.mpv_initialize(handle)
         if result < 0:
             _libmpv.mpv_destroy(handle)
@@ -211,7 +211,7 @@ class _MpvHandlePool:
 
 def get_optimal_thread_count():
     cpu = os.cpu_count() or 4
-    return min(max(cpu * 2, 8), 64)
+    return min(max(cpu, 4), 32)
 
 
 class MpvStreamValidator:
@@ -259,6 +259,8 @@ class MpvStreamValidator:
                 return result
 
             u = url.lower()
+            _libmpv.mpv_set_property_string(handle, b'rtsp-transport', b'')
+            _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-format', b'')
             if u.startswith('rtsp://'):
                 _libmpv.mpv_set_property_string(handle, b'rtsp-transport', b'tcp')
             elif '/rtp/' in u or u.endswith('.ts') or u.startswith('udp://'):

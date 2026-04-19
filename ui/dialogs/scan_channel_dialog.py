@@ -1110,10 +1110,19 @@ class ScanChannelDialog(FloatingDialog):
         if not hasattr(self.scanner, 'is_validating') or not self.scanner.is_validating:
             user_agent = self.user_agent_input.text()
             referer = self.referer_input.text()
+            validate_timeout = 5
+            try:
+                if hasattr(self, 'config') and self.config:
+                    network_settings = self.config.load_network_settings()
+                    configured_timeout = network_settings.get('timeout', 5)
+                    if configured_timeout and configured_timeout > 0:
+                        validate_timeout = max(3, min(15, int(configured_timeout)))
+            except Exception as e:
+                self.logger.debug(f"读取超时配置失败，使用默认值: {e}")
             self.scanner.start_validation(
                 self.model,
                 get_optimal_thread_count(),
-                3,
+                validate_timeout,
                 user_agent,
                 referer
             )
@@ -1136,6 +1145,14 @@ class ScanChannelDialog(FloatingDialog):
         }
 
         self.model.update_channel(index, channel_info)
+
+    def _on_validation_completed(self):
+        """处理验证完成事件"""
+        self.progress_manager.hide_progress()
+        self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
+        if hasattr(self, 'channel_list'):
+            header = self.channel_list.horizontalHeader()
+            header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
     def _on_open_list_clicked(self):
         """打开M3U文件，将频道导入到扫描列表用于有效性检测"""

@@ -78,14 +78,15 @@ class ScannerController(QObject):
         """工作线程函数"""
         while not self.stop_event.is_set():
             try:
-                # 使用超时等待，避免CPU空转，同时给队列填充时间
                 url = self.scan_queue.get(timeout=0.5)
             except queue.Empty:
-                # 如果队列为空且填充线程已结束，则退出
                 if hasattr(self, 'filler_thread') and not self.filler_thread.is_alive():
-                    break
-                # 否则继续等待
-                continue
+                    try:
+                        url = self.scan_queue.get_nowait()
+                    except queue.Empty:
+                        break
+                else:
+                    continue
 
             try:
                 result = self._check_channel(url)
@@ -139,16 +140,23 @@ class ScannerController(QObject):
                     total = 100
                     self._run_on_main(self.progress_updated.emit, current, total)
 
-            except Exception:
+            except Exception as e:
+                self.logger.debug(f"扫描URL异常: {url} - {e}")
                 with self.stats_lock:
                     self.stats['invalid'] += 1
+                    with self.invalid_urls_lock:
+                        self.invalid_urls.append({
+                            'url': url,
+                            'error_type': 'scan_exception',
+                            'error': str(e)
+                        })
+                    self.scan_state_manager.add_invalid_url(self.scan_id, url, 'scan_exception')
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
                     if total <= 0:
                         total = 100
                     self._run_on_main(self.progress_updated.emit, current, total)
 
-                # 继续处理下一个URL，不中断线程
                 continue
 
         QtCore.QTimer.singleShot(0, self._force_ui_refresh)
@@ -764,9 +772,7 @@ class ScannerController(QObject):
                 try:
                     url, index = self.validation_queue.get(timeout=0.5)
                 except queue.Empty:
-                    if not any(w.is_alive() for w in self.workers if w is not threading.current_thread()):
-                        break
-                    continue
+                    break
 
                 result = self._check_channel(url)
                 valid = result['valid']
@@ -852,18 +858,27 @@ class ScannerController(QObject):
                 except RuntimeError:
                     break
 
-            # 检查扫描是否被用户停止
             if self.stop_event.is_set():
                 self.logger.info("扫描被用户停止")
+            elif self.is_validating:
+                self.is_validating = False
+                self.scan_state_manager.update_scan_state(self.scan_id, {
+                    'is_validating': False
+                })
+                self.logger.info(
+                    f"验证完成: 总数={self.stats['total']}, "
+                    f"有效={self.stats['valid']}, "
+                    f"无效={self.stats['invalid']}"
+                )
+                if self.main_window and hasattr(self.main_window, '_on_validation_completed'):
+                    QtCore.QTimer.singleShot(0, self.main_window._on_validation_completed)
             else:
-                # 整合日志：扫描完成，触发重试扫描
                 self.logger.info(
                     f"扫描完成: 总数={self.stats['total']}, "
                     f"有效={self.stats['valid']}, "
                     f"无效={self.stats['invalid']}"
                 )
 
-                # 统计错误类型分布，帮助诊断问题
                 if self.invalid_urls:
                     from collections import Counter
                     error_types = [item.get('error_type', 'unknown') for item in self.invalid_urls]
@@ -876,7 +891,6 @@ class ScannerController(QObject):
                     if 'mpv_create_failed' in error_counts:
                         self.logger.error(f"❌ 有 {error_counts['mpv_create_failed']} 个mpv实例创建失败，可能是资源不足")
 
-                # 直接调用主窗口的方法
                 try:
                     if self.main_window and hasattr(self.main_window, '_on_scan_completed'):
                         callback = self.main_window._on_scan_completed
