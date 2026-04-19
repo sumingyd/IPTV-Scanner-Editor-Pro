@@ -1242,6 +1242,22 @@ class MpvPlayerController(QObject):
     def set_property_string(self, name, value):
         self._set_mpv_string(name, value)
 
+    def send_command(self, cmd_args):
+        if not self.mpv_handle:
+            return -1
+        try:
+            cmd = [arg.encode('utf-8') if isinstance(arg, str) else arg for arg in cmd_args]
+            cmd.append(None)
+            cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+            result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+            return result
+        except Exception as e:
+            self.logger.error(f"发送MPV命令失败: {e}")
+            return -1
+
+    def show_osd(self, text: str, duration: int = 3000):
+        self.send_command([b'show-text', text.encode('utf-8'), str(duration).encode('utf-8')])
+
     @pyqtSlot(dict)
     def _on_media_info_thread_finished(self, info):
         if info:

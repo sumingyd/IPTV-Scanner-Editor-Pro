@@ -119,6 +119,9 @@ class IPTVPlayer(QMainWindow):
         # 悬浮窗统一隐藏状态（用于一键隐藏/恢复所有悬浮窗）
         self._floating_hidden = False
         self._saved_floating_states = {}
+
+        self._osd_visible = False
+        self._osd_saved_panel_states = {}
         
         # 悬浮窗自动隐藏状态（鼠标5秒不动自动隐藏）
         self._auto_hidden = False
@@ -264,6 +267,15 @@ class IPTVPlayer(QMainWindow):
         # 窗口控制按钮
         btn_style = f"QPushButton {{ min-width: 40px; max-width: 40px; height: 28px; }}"
 
+        # 置顶按钮
+        self._stay_on_top_btn = QPushButton("📌")
+        self._stay_on_top_btn.setObjectName("stayOnTopBtn")
+        self._stay_on_top_btn.setToolTip(self.language_manager.tr('tooltip_stay_on_top', 'Stay on Top'))
+        self._stay_on_top_btn.clicked.connect(self._toggle_stay_on_top)
+        self._stay_on_top_btn.setStyleSheet(btn_style)
+        self._stay_on_top_active = False
+        title_layout.addWidget(self._stay_on_top_btn)
+
         # 最小化按钮
         self._minimize_btn = QPushButton("─")
         self._minimize_btn.setObjectName("minimizeBtn")
@@ -301,6 +313,23 @@ class IPTVPlayer(QMainWindow):
             self.showMaximized()
             self._maximize_btn.setText("❐")
             self._maximize_btn.setToolTip("还原")
+
+    def _toggle_stay_on_top(self):
+        self._stay_on_top_active = not self._stay_on_top_active
+        flags = self.windowFlags()
+        if self._stay_on_top_active:
+            self.setWindowFlags(flags | QtCore.Qt.WindowType.WindowStaysOnTopHint)
+            self._stay_on_top_btn.setText("📍")
+            self._stay_on_top_btn.setStyleSheet(
+                f"QPushButton {{ min-width: 40px; max-width: 40px; height: 28px; "
+                f"background-color: {AppStyles._get_colors().get('accent', '#0078d4')}; }}"
+            )
+        else:
+            self.setWindowFlags(flags & ~QtCore.Qt.WindowType.WindowStaysOnTopHint)
+            btn_style = f"QPushButton {{ min-width: 40px; max-width: 40px; height: 28px; }}"
+            self._stay_on_top_btn.setText("📌")
+            self._stay_on_top_btn.setStyleSheet(btn_style)
+        self.show()
 
     def mousePressEvent(self, event):
         """鼠标按下事件 - 用于窗口拖动"""
@@ -1457,7 +1486,15 @@ class IPTVPlayer(QMainWindow):
             hide_all_floating.triggered.connect(self.toggle_hide_floating)
             hide_all_floating.setShortcut("Y")
             view_menu.addAction(hide_all_floating)
-            
+
+            show_osd = QAction(tr("menu_osd_toggle", "OSD Mask"), self)
+            show_osd.setCheckable(True)
+            show_osd.setChecked(self._osd_visible)
+            show_osd.setShortcut("Tab")
+            show_osd.triggered.connect(lambda c: self.toggle_osd(c))
+            view_menu.addAction(show_osd)
+            self._osd_menu_action = show_osd
+
             view_menu.addSeparator()
             
             fullscreen = QAction(tr("menu_fullscreen", "Fullscreen"), self)
@@ -2431,37 +2468,40 @@ class IPTVPlayer(QMainWindow):
         return 0
     
     def _check_program_change(self):
-        """检测节目是否切换，切换时重新播放以清空旧缓存"""
+        """检测节目是否切换，更新UI信息"""
         is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
         if is_catchup:
             return
-        
+
         try:
             if not self.current_channel or not self.player_controller:
                 return
-            
+
             channel_name = self.current_channel.get("name", "")
             tvg_id = self.current_channel.get("tvg_id", "")
             current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
-            
+
             if current_program:
                 program_id = current_program.get('start', '') + current_program.get('end', '')
                 last_id = getattr(self, '_last_program_id', None)
-                
+
                 if last_id is not None and last_id != program_id:
-                    logger.info(f"检测到节目切换，重新播放以清空旧缓存")
+                    logger.info("检测到节目切换，更新UI信息")
                     self._live_timeshift_seconds = 0
-                    url = self.current_channel.get('url', '')
-                    name = self.current_channel.get('name', '')
-                    program_duration = self._get_current_program_duration()
-                    self.player_controller.play(url, name, program_duration=program_duration)
-                    self.populate_epg_list()
-                
+                    desc = current_program.get('description', '') or self.language_manager.tr('no_program_desc', 'No program description')
+                    if hasattr(self, 'program_desc') and self.program_desc:
+                        self.program_desc.setText(desc)
+                    if hasattr(self, 'program_progress'):
+                        new_duration = self._get_current_program_duration()
+                        if new_duration > 0:
+                            self._set_progress_range(new_duration)
+                            self._set_progress_value(0)
+
                 self._last_program_id = program_id
             else:
                 self._last_program_id = None
-        except:
-            pass
+        except Exception as e:
+            logger.debug("节目切换检测异常: {}".format(e))
     
     def on_progress_slider_released(self):
         """进度条拖动释放时的处理"""
@@ -2773,7 +2813,153 @@ class IPTVPlayer(QMainWindow):
             self._floating_hidden = False
             if self._auto_hide_timer:
                 self._auto_hide_timer.start()
-    
+
+    def toggle_osd(self, checked=None):
+        if checked is None:
+            self._osd_visible = not self._osd_visible
+        else:
+            self._osd_visible = checked
+        if hasattr(self, '_osd_menu_action') and self._osd_menu_action:
+            self._osd_menu_action.setChecked(self._osd_visible)
+
+        if self._osd_visible:
+            if not hasattr(self, '_osd_saved_panel_states'):
+                self._osd_saved_panel_states = {}
+            self._osd_saved_panel_states['epg'] = self.epg_visible
+            self._osd_saved_panel_states['playlist'] = self.playlist_visible
+            if hasattr(self, 'epg_panel') and self.epg_panel and self.epg_panel.isVisible():
+                self.epg_panel.hide()
+            if hasattr(self, 'playlist_panel') and self.playlist_panel and self.playlist_panel.isVisible():
+                self.playlist_panel.hide()
+            if hasattr(self, 'player_controller') and self.player_controller and self.player_controller.is_playing:
+                try:
+                    info = self.player_controller.get_live_media_info()
+                except Exception:
+                    info = None
+                if not info:
+                    info = {}
+                channel_name = ''
+                if hasattr(self, 'current_channel') and self.current_channel and isinstance(self.current_channel, dict):
+                    channel_name = self.current_channel.get('name', '') or ''
+                w = info.get('width', 0) or 0
+                h = info.get('height', 0) or 0
+                fps = info.get('fps', 0) or 0
+                vcodec = info.get('video_codec', '') or ''
+                acodec = info.get('audio_codec', '') or ''
+                hw = info.get('hwdec', '') or ''
+                colormatrix = info.get('colormatrix', '') or ''
+                color_primaries = info.get('color_primaries', '') or ''
+                gamma = info.get('gamma', '') or ''
+                colorlevels = info.get('colorlevels', '') or ''
+                sig_peak = info.get('sig_peak', 0) or 0
+                sig_avg = info.get('sig_avg', 0) or 0
+                try:
+                    hdr_type = MpvPlayerController.detect_hdr_type(colormatrix, gamma, sig_peak)
+                except Exception:
+                    hdr_type = ''
+                v_br = info.get('video_bitrate', 0) or 0
+                a_br = info.get('audio_bitrate', 0) or 0
+                container = info.get('container', '') or ''
+                pix_fmt = info.get('pixel_format', '') or ''
+                audio_channels = info.get('audio_channels', 0) or 0
+                sample_rate = info.get('sample_rate', 0) or 0
+                cached_media = getattr(self.player_controller, 'media_info', None) or {}
+                protocol = ''
+                if isinstance(cached_media, dict):
+                    protocol = cached_media.get('protocol', '') or ''
+                total_time = self.player_controller.get_total_time() if hasattr(self.player_controller, 'get_total_time') else 0
+                is_live = (total_time or 0) <= 0
+
+                lines = [channel_name] if channel_name else []
+
+                vline_parts = []
+                if w > 0 and h > 0:
+                    vline_parts.append("{}x{}".format(w, h))
+                if vcodec:
+                    vline_parts.append(vcodec)
+                if fps > 0:
+                    vline_parts.append("{:.1f}fps".format(fps))
+                if hw and hw != 'no':
+                    vline_parts.append("[{}]".format(hw))
+                if hdr_type and hdr_type != 'SDR':
+                    vline_parts.append(hdr_type)
+                if vline_parts:
+                    lines.append("  ".join(vline_parts))
+
+                pix_line = []
+                if pix_fmt:
+                    pix_line.append(pix_fmt)
+                if colormatrix:
+                    pix_line.append(colormatrix)
+                if color_primaries:
+                    pix_line.append(color_primaries)
+                if gamma:
+                    pix_line.append(gamma)
+                if colorlevels:
+                    pix_line.append(colorlevels)
+                if sig_peak > 0:
+                    pix_line.append("peak:{:.0f}".format(sig_peak))
+                if sig_avg > 0:
+                    pix_line.append("avg:{:.0f}".format(sig_avg))
+                if pix_line:
+                    lines.append("  ".join(pix_line))
+
+                aline_parts = []
+                if acodec:
+                    aline_parts.append(acodec)
+                if audio_channels > 0:
+                    aline_parts.append("{}ch".format(audio_channels))
+                if sample_rate > 0:
+                    aline_parts.append("{}Hz".format(sample_rate))
+                if a_br > 0:
+                    if a_br >= 1000000:
+                        aline_parts.append("{:.1f}Mbps".format(a_br / 1000000))
+                    elif a_br >= 1000:
+                        aline_parts.append("{:.0f}Kbps".format(a_br / 1000))
+                    else:
+                        aline_parts.append("{}bps".format(a_br))
+                if v_br > 0:
+                    if v_br >= 1000000:
+                        aline_parts.append("v:{:.1f}M".format(v_br / 1000000))
+                    elif v_br >= 1000:
+                        aline_parts.append("v:{:.0f}K".format(v_br / 1000))
+                    else:
+                        aline_parts.append("v:{}".format(v_br))
+                if aline_parts:
+                    lines.append("  ".join(aline_parts))
+
+                net_parts = []
+                if container and container != '未知':
+                    net_parts.append(container)
+                if protocol and protocol != '未知':
+                    net_parts.append(protocol)
+                if net_parts:
+                    lines.append("[{}]".format("  ".join(net_parts)))
+
+                if is_live:
+                    lines.append("\u25cf LIVE")
+                else:
+                    current_time = self.player_controller.get_current_time() if hasattr(self.player_controller, 'get_current_time') else 0
+                    from datetime import timedelta
+                    cur_td = timedelta(seconds=current_time) if current_time else None
+                    tot_td = timedelta(seconds=total_time) if total_time else None
+                    cur_str = str(cur_td).split('.')[0] if cur_td else '--:--:--'
+                    tot_str = str(tot_td).split('.')[0] if tot_td else '--:--:--'
+                    lines.append("{} / {}".format(cur_str, tot_str))
+
+                osd_text = '\n'.join(lines)
+                self.player_controller.show_osd(osd_text, 86400000)
+        else:
+            saved = getattr(self, '_osd_saved_panel_states', {})
+            if saved.get('epg', False) and hasattr(self, 'epg_panel') and self.epg_panel:
+                self.epg_panel.show()
+                self.epg_visible = True
+            if saved.get('playlist', False) and hasattr(self, 'playlist_panel') and self.playlist_panel:
+                self.playlist_panel.show()
+                self.playlist_visible = True
+            if hasattr(self, 'player_controller') and self.player_controller:
+                self.player_controller.send_command([b'show-text', b'', b'0'])
+
     def _on_auto_hide_timeout(self):
         """5秒无鼠标活动，自动隐藏悬浮窗"""
         if self._floating_hidden or self._auto_hidden:
@@ -3267,47 +3453,34 @@ class IPTVPlayer(QMainWindow):
                 # 当前信息有效，更新缓存
                 self._last_media_info = info.copy()
             
-            # 构建视频信息标签（只显示有值的字段）
+            # 构建视频信息标签（带参数标题，与音频/网络对齐）
             video_parts = []
-            
-            # 硬件解码状态（优先显示）
+
             hw = info.get('hwdec', '')
             if hw and hw != 'no':
-                video_parts.append('HW')
-            
-            # 视频编码（简化显示）
+                video_parts.append("{}: {}".format(tr('hwdec_label', 'HW') or 'HW', hw))
+
             video_codec = info.get('video_codec', '')
             if video_codec and video_codec != '未知':
-                # 简化 codec 名称
                 codec_short = self._shorten_codec_name(video_codec)
-                video_parts.append(codec_short)
-            
-            # 音频编码（简化显示）
-            audio_codec = info.get('audio_codec', '')
-            if audio_codec and audio_codec != '未知':
-                codec_short = self._shorten_codec_name(audio_codec)
-                video_parts.append(codec_short)
-            
-            # 分辨率（简化显示为 FHD/QHD 等）
+                video_parts.append("{}: {}".format(tr('vcodec_label', 'Video') or 'Video', codec_short))
+
             video_width = info.get('width', 0)
             video_height = info.get('height', 0)
             if video_width > 0 and video_height > 0:
-                res_label = self._get_resolution_label(video_width, video_height)
-                video_parts.append(res_label)
-            
-            # HDR/动态范围检测
+                video_parts.append("{}: {}x{}".format(tr('resolution_label', 'Resolution') or 'Resolution', video_width, video_height))
+
             hdr_type = MpvPlayerController.detect_hdr_type(
                 info.get('colormatrix', ''),
                 info.get('gamma', ''),
                 info.get('sig_peak', 0)
             )
-            if hdr_type and hdr_type != 'SDR':
-                video_parts.append(hdr_type)
-            
-            # 帧率
+            if hdr_type:
+                video_parts.append("{}: {}".format(tr('hdr_label', 'HDR') or 'HDR', hdr_type))
+
             fps = info.get('fps', 0)
             if fps and fps > 0:
-                video_parts.append(f"{fps:.0f}fps")
+                video_parts.append("{}: {:.0f}fps".format(tr('frame_rate_label', 'FPS') or 'FPS', fps))
             
             # 总码率（视频 + 音频）
             v_br = info.get('video_bitrate', 0)
@@ -3324,35 +3497,31 @@ class IPTVPlayer(QMainWindow):
             
             # 更新视频信息标签
             if video_parts:
-                self.video_info.setText(f"  {'  •  '.join(video_parts)}")
+                self.video_info.setText("\U0001f4fa  {}".format(" | ".join(video_parts)))
             else:
-                # 如果没有视频信息，显示"直播流"（对于直播流这是正常的）
-                self.video_info.setText(f"  {tr('live_stream', 'Live Stream')}")
-            
+                self.video_info.setText("\U0001f4fa  {}".format(tr('live_stream', 'Live Stream') or 'Live Stream'))
+
             # 构建音频信息标签（详细信息）
             audio_parts = []
-            
-            # 音频编码
+
+            audio_codec = info.get('audio_codec', '')
             if audio_codec and audio_codec != '未知':
-                audio_parts.append(f"{tr('codec_label', 'Codec')}: {audio_codec}")
-            
-            # 声道数
+                audio_parts.append("{}: {}".format(tr('acodec_label', 'Audio') or 'Audio', audio_codec))
+
             channels = info.get('audio_channels', 0)
             if channels and channels > 0:
-                audio_parts.append(f"{tr('channel_count_label', 'Channels')}: {channels}ch")
-            
-            # 采样率
+                audio_parts.append("{}: {}ch".format(tr('channel_count_label', 'Channels') or 'Channels', channels))
+
             sample_rate = info.get('sample_rate', 0)
             if sample_rate and sample_rate > 0:
-                audio_parts.append(f"{tr('sample_rate_label', 'Sample Rate')}: {sample_rate}Hz")
-            
-            # 音频码率
+                audio_parts.append("{}: {}Hz".format(tr('sample_rate_label', 'Sample Rate') or 'Sample Rate', sample_rate))
+
             if a_br and a_br > 0:
                 if a_br >= 1000:
-                    audio_bitrate_str = f"{a_br / 1000:.1f}KB/s"
+                    audio_bitrate_str = "{:.1f}KB/s".format(a_br / 1000)
                 else:
-                    audio_bitrate_str = f"{a_br}B/s"
-                audio_parts.append(f"{tr('bitrate_label', 'Bitrate')}: {audio_bitrate_str}")
+                    audio_bitrate_str = "{}B/s".format(a_br)
+                audio_parts.append("{}: {}".format(tr('bitrate_label', 'Bitrate') or 'Bitrate', audio_bitrate_str))
             
             # 更新音频信息标签
             if audio_parts:
@@ -5385,6 +5554,8 @@ class IPTVPlayer(QMainWindow):
                     super().keyPressEvent(event)
             else:
                 super().keyPressEvent(event)
+        elif event.key() == Qt.Key.Key_Tab:
+            self.toggle_osd()
         elif self.is_fullscreen:
             key = event.key()
             modifiers = event.modifiers()
