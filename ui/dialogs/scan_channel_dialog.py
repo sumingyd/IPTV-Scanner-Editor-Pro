@@ -77,8 +77,20 @@ class ScanChannelDialog(FloatingDialog):
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             widget = QtWidgets.QApplication.widgetAt(event.globalPosition().toPoint())
-            if widget and (isinstance(widget, QtWidgets.QScrollBar) or isinstance(widget, QtWidgets.QTableView)):
-                return
+            if widget:
+                interactive_types = (
+                    QtWidgets.QAbstractButton,
+                    QtWidgets.QLineEdit,
+                    QtWidgets.QComboBox,
+                    QtWidgets.QCheckBox,
+                    QtWidgets.QScrollBar,
+                    QtWidgets.QTableView,
+                    QtWidgets.QTreeView,
+                    QtWidgets.QListView,
+                    QtWidgets.QAbstractSlider,
+                )
+                if isinstance(widget, interactive_types):
+                    return
         super().mousePressEvent(event)
 
     def _stop_all_timers(self):
@@ -256,9 +268,9 @@ class ScanChannelDialog(FloatingDialog):
             timeout_val = 5
             threads_val = 4
             if hasattr(self, 'timeout_input'):
-                timeout_val = self.timeout_input.value()
+                timeout_val = self.timeout_input.text()
             if hasattr(self, 'threads_input'):
-                threads_val = self.threads_input.value()
+                threads_val = self.threads_input.text()
             self.config.save_network_settings(
                 self.ip_range_input.text(),
                 timeout_val,
@@ -331,37 +343,40 @@ class ScanChannelDialog(FloatingDialog):
         self.referer_layout = referer_layout
 
     def _setup_timeout_threads_input(self):
-        """设置超时和线程数输入控件"""
+        """设置超时和线程数输入控件（两行独立布局）"""
         tr = self.language_manager.tr
 
-        timeout_threads_layout = QtWidgets.QHBoxLayout()
-        timeout_threads_layout.setSpacing(8)
+        timeout_threads_layout = QtWidgets.QVBoxLayout()
+        timeout_threads_layout.setSpacing(4)
 
-        # 超时
+        # 超时行
+        timeout_row = QtWidgets.QHBoxLayout()
+        timeout_row.setSpacing(6)
         timeout_label = QtWidgets.QLabel(tr("timeout_colon", "Timeout(s):"))
         self.timeout_label = timeout_label
-        timeout_threads_layout.addWidget(timeout_label)
-        self.timeout_input = QtWidgets.QSpinBox()
-        self.timeout_input.setRange(1, 60)
-        self.timeout_input.setValue(5)
-        self.timeout_input.setFixedWidth(60)
-        self.timeout_input.setFixedHeight(28)
-        self.timeout_input.valueChanged.connect(lambda: self._save_network_settings())
-        timeout_threads_layout.addWidget(self.timeout_input)
+        timeout_row.addWidget(timeout_label)
+        self.timeout_input = QtWidgets.QLineEdit("5")
+        self.timeout_input.setFixedHeight(26)
+        self.timeout_input.setPlaceholderText("1-60")
+        self.timeout_input.textChanged.connect(lambda: self._save_network_settings())
+        timeout_row.addWidget(self.timeout_input)
+        timeout_row.addStretch()
+        timeout_threads_layout.addLayout(timeout_row)
 
-        # 线程数
+        # 线程数行
+        threads_row = QtWidgets.QHBoxLayout()
+        threads_row.setSpacing(6)
         threads_label = QtWidgets.QLabel(tr("threads_colon", "Threads:"))
         self.threads_label = threads_label
-        timeout_threads_layout.addWidget(threads_label)
-        self.threads_input = QtWidgets.QSpinBox()
-        self.threads_input.setRange(1, 64)
-        self.threads_input.setValue(4)
-        self.threads_input.setFixedWidth(60)
-        self.threads_input.setFixedHeight(28)
-        self.threads_input.valueChanged.connect(lambda: self._save_network_settings())
-        timeout_threads_layout.addWidget(self.threads_input)
+        threads_row.addWidget(threads_label)
+        self.threads_input = QtWidgets.QLineEdit("4")
+        self.threads_input.setFixedHeight(26)
+        self.threads_input.setPlaceholderText("1-64")
+        self.threads_input.textChanged.connect(lambda: self._save_network_settings())
+        threads_row.addWidget(self.threads_input)
+        threads_row.addStretch()
+        timeout_threads_layout.addLayout(threads_row)
 
-        timeout_threads_layout.addStretch()
         self.timeout_threads_layout = timeout_threads_layout
 
         # 加载已保存的值
@@ -417,9 +432,9 @@ class ScanChannelDialog(FloatingDialog):
                 timeout = network_settings.get('timeout', 5)
                 threads = network_settings.get('threads', 4)
                 if hasattr(self, 'timeout_input'):
-                    self.timeout_input.setValue(int(timeout))
+                    self.timeout_input.setText(str(timeout))
                 if hasattr(self, 'threads_input'):
-                    self.threads_input.setValue(int(threads))
+                    self.threads_input.setText(str(threads))
         except Exception as e:
             self.logger.debug(f"加载超时线程设置失败: {e}")
 
@@ -1012,9 +1027,9 @@ class ScanChannelDialog(FloatingDialog):
                 self.enable_retry_checkbox.setChecked(settings['enable_retry'])
 
             if hasattr(self, 'timeout_input'):
-                self.timeout_input.setValue(int(settings.get('timeout', 5)))
+                self.timeout_input.setText(str(settings.get('timeout', 5)))
             if hasattr(self, 'threads_input'):
-                self.threads_input.setValue(int(settings.get('threads', 4)))
+                self.threads_input.setText(str(settings.get('threads', 4)))
 
         except Exception as e:
             log_config_error(f"加载配置失败: {e}")
@@ -1038,12 +1053,12 @@ class ScanChannelDialog(FloatingDialog):
             self.enable_retry_checkbox.setChecked(str(new_value).lower() == 'true')
         elif key == 'timeout' and hasattr(self, 'timeout_input'):
             try:
-                self.timeout_input.setValue(int(new_value))
+                self.timeout_input.setText(str(new_value))
             except (ValueError, TypeError):
                 pass
         elif key == 'threads' and hasattr(self, 'threads_input'):
             try:
-                self.threads_input.setValue(int(new_value))
+                self.threads_input.setText(str(new_value))
             except (ValueError, TypeError):
                 pass
 
@@ -1424,9 +1439,9 @@ class ScanChannelDialog(FloatingDialog):
                 timeout_val = 5
                 threads_val = 4
                 if hasattr(self, 'timeout_input'):
-                    timeout_val = self.timeout_input.value()
+                    timeout_val = self.timeout_input.text()
                 if hasattr(self, 'threads_input'):
-                    threads_val = self.threads_input.value()
+                    threads_val = self.threads_input.text()
                 self.config.save_network_settings(
                     url=self.ip_range_input.text(),
                     timeout=timeout_val,
