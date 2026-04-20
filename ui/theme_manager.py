@@ -47,6 +47,8 @@ class ThemeManager(QtCore.QObject):
             elif isinstance(window, QtWidgets.QDialog):
                 window.setStyleSheet(AppStyles.dialog_style())
                 self._update_child_widgets(window)
+                if hasattr(window, 'reapply_styles'):
+                    window.reapply_styles()
             window.update()
             QtWidgets.QApplication.processEvents()
         except Exception as e:
@@ -76,6 +78,35 @@ class ThemeManager(QtCore.QObject):
 
             for tool_button in parent.findChildren(QtWidgets.QToolButton):
                 tool_button.setStyleSheet(AppStyles.toolbar_button_style())
+
+            for line_edit in parent.findChildren(QtWidgets.QLineEdit):
+                if not line_edit.styleSheet() or 'common_line_edit' not in line_edit.styleSheet():
+                    line_edit.setStyleSheet(AppStyles.common_line_edit_style())
+
+            for combo_box in parent.findChildren(QtWidgets.QComboBox):
+                if not combo_box.styleSheet() or 'common_combo' not in combo_box.styleSheet():
+                    combo_box.setStyleSheet(AppStyles.common_combo_box_style())
+
+            for label in parent.findChildren(QtWidgets.QLabel):
+                if not label.styleSheet():
+                    label.setStyleSheet(AppStyles.common_label_style())
+
+            for check_box in parent.findChildren(QtWidgets.QCheckBox):
+                if not check_box.styleSheet():
+                    check_box.setStyleSheet(AppStyles.common_check_box_style())
+
+            for progress_bar in parent.findChildren(QtWidgets.QProgressBar):
+                if not progress_bar.styleSheet():
+                    progress_bar.setStyleSheet(AppStyles.progress_style())
+
+            for group_box in parent.findChildren(QtWidgets.QGroupBox):
+                if not group_box.styleSheet():
+                    group_box.setStyleSheet(AppStyles.common_group_box_style())
+
+            for spin_box in parent.findChildren(QtWidgets.QSpinBox):
+                if not spin_box.styleSheet():
+                    spin_box.setStyleSheet(AppStyles.common_spin_box_style()) if hasattr(AppStyles, 'common_spin_box_style') else None
+
         except Exception as e:
             print(f"更新子控件样式失败: {e}")
 

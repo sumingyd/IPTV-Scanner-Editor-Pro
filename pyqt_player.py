@@ -253,15 +253,25 @@ class IPTVPlayer(QMainWindow):
         title_layout.setSpacing(0)
 
         # 窗口图标（左侧）
-        icon_label = QLabel("📺")
-        icon_label.setStyleSheet(f"color: {accent_color}; font-size: 14px; background: transparent;")
+        self._title_icon_label = QLabel()
+        self._title_icon_label.setFixedSize(16, 16)
+        from utils.general_utils import get_icon_path
+        ico_path = get_icon_path()
+        if os.path.exists(ico_path):
+            from PyQt6.QtGui import QPixmap
+            pixmap = QPixmap(ico_path).scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self._title_icon_label.setPixmap(pixmap)
+        else:
+            self._title_icon_label.setText("📺")
+            self._title_icon_label.setStyleSheet(f"color: {accent_color}; font-size: 14px; background: transparent;")
+        self._title_icon_label.setStyleSheet("background: transparent;")
 
         # 窗口标题
         self._title_label = QLabel(self._window_title)
         self._title_label.setStyleSheet(f"color: {title_text}; font-size: 13px; font-weight: bold; background: transparent; padding-left: 6px;")
 
         # 弹性空间
-        title_layout.addWidget(icon_label)
+        title_layout.addWidget(self._title_icon_label)
         title_layout.addWidget(self._title_label, 1)
 
         # 窗口控制按钮
@@ -1040,6 +1050,7 @@ class IPTVPlayer(QMainWindow):
         self.channel_logo = QLabel("📺")
         self.channel_logo.setStyleSheet(AppStyles.player_channel_logo_style())
         self.channel_logo.setFixedSize(100, 36)
+        self.channel_logo.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignCenter)
         top_row.addWidget(self.channel_logo)
         
         # 频道名称（按内容宽度，不拉伸）
@@ -1633,7 +1644,9 @@ class IPTVPlayer(QMainWindow):
             
             # 频道名称标签
             name_label = QtWidgets.QLabel(channel_name)
-            name_label.setStyleSheet("font-size: 12px; font-weight: bold; color: #FFFFFF;")
+            from ui.styles import AppStyles
+            colors = AppStyles._get_colors()
+            name_label.setStyleSheet(f"font-size: 12px; font-weight: bold; color: {colors['player_panel_text']};")
             name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
             name_label.setWordWrap(False)
             
@@ -5316,25 +5329,24 @@ class IPTVPlayer(QMainWindow):
                 self.raise_floating_panels()
     
     def raise_floating_panels(self):
-        """重新显示并提升三个悬浮窗到最前面"""
-        # 更新位置
+        """重新显示并提升三个悬浮窗（与主窗口保持在一起，不抢夺焦点）"""
         self.update_floating_position()
-        
-        # 显示并提升三个面板
+
         if hasattr(self, 'epg_panel') and self.epg_panel:
             self.epg_panel.show()
             self.epg_panel.raise_()
-            self.epg_panel.activateWindow()
-        
+
         if hasattr(self, 'playlist_panel') and self.playlist_panel:
             self.playlist_panel.show()
             self.playlist_panel.raise_()
-            self.playlist_panel.activateWindow()
-        
+
         if hasattr(self, 'floating_panel') and self.floating_panel:
             self.floating_panel.show()
             self.floating_panel.raise_()
-            self.floating_panel.activateWindow()
+
+        scan_dialog = getattr(self, '_scan_dialog', None) or getattr(self, 'scan_window', None)
+        if scan_dialog and scan_dialog.isVisible():
+            scan_dialog.raise_()
     
     def save_as(self):
         """另存为"""
@@ -5548,6 +5560,10 @@ class IPTVPlayer(QMainWindow):
                 colors = AppStyles._get_colors()
                 title_text = colors.get('window_text', '#ffffff')
                 self._title_label.setStyleSheet(f"color: {title_text}; font-size: 13px; font-weight: bold; background: transparent; padding-left: 6px;")
+            if hasattr(self, '_title_icon_label') and self._title_icon_label:
+                colors = AppStyles._get_colors()
+                accent_color = colors.get('accent', '#0078d4')
+                self._title_icon_label.setStyleSheet(f"color: {accent_color}; font-size: 14px; background: transparent;")
             self.status_bar.setStyleSheet(AppStyles.statusbar_style())
             if hasattr(self, 'channel_table'):
                 self.channel_table.setStyleSheet(AppStyles.list_style())
@@ -5561,12 +5577,16 @@ class IPTVPlayer(QMainWindow):
                 self.video_placeholder.setStyleSheet(AppStyles.player_video_placeholder_style())
             if hasattr(self, 'epg_panel'):
                 self.epg_panel.setStyleSheet(AppStyles.player_panel_style())
+                self.epg_panel.opacity = 180
+                self.epg_panel.update()
             if hasattr(self, 'playlist_panel'):
                 self.playlist_panel.setStyleSheet(AppStyles.player_panel_style())
+                self.playlist_panel.opacity = 180
+                self.playlist_panel.update()
             self._reapply_side_panel_styles()
             if hasattr(self, 'floating_panel'):
                 self.floating_panel.setStyleSheet(AppStyles.player_panel_style())
-                self.floating_panel.opacity = colors.get('window_opacity', 220)
+                self.floating_panel.opacity = 180
                 self.floating_panel.update()
                 self._reapply_floating_panel_styles()
             for btn in self.findChildren(QPushButton):
@@ -5586,6 +5606,40 @@ class IPTVPlayer(QMainWindow):
             if hasattr(self, '_scan_dialog') and self._scan_dialog:
                 if hasattr(self._scan_dialog, 'reapply_styles'):
                     self._scan_dialog.reapply_styles()
+            
+            # 刷新播放列表中所有频道项的文字颜色
+            if hasattr(self, 'playlist_panel'):
+                playlist_list = self.playlist_panel.findChild(QtWidgets.QListWidget)
+                if playlist_list:
+                    colors = AppStyles._get_colors()
+                    text_color = colors.get('player_panel_text', '#ffffff')
+                    for i in range(playlist_list.count()):
+                        item = playlist_list.item(i)
+                        if item:
+                            widget = playlist_list.itemWidget(item)
+                            if widget:
+                                for label in widget.findChildren(QtWidgets.QLabel):
+                                    style = label.styleSheet()
+                                    if 'color:' in style or 'font-size: 12px' in style:
+                                        label.setStyleSheet(f"font-size: 12px; font-weight: bold; color: {text_color};")
+            
+            # 刷新所有未设置特殊样式的QLabel（避免文字颜色不跟随主题）
+            for label in self.findChildren(QtWidgets.QLabel):
+                style = label.styleSheet()
+                if not style or len(style.strip()) == 0 or (style == "background: transparent;" or style == "background-color: transparent;"):
+                    label.setStyleSheet(AppStyles.common_label_style())
+            
+            # 刷新所有QLineEdit
+            for line_edit in self.findChildren(QtWidgets.QLineEdit):
+                line_edit.setStyleSheet(AppStyles.common_line_edit_style())
+            
+            # 刷新所有QTextEdit
+            for text_edit in self.findChildren(QtWidgets.QTextEdit):
+                text_edit.setStyleSheet(f"background-color: {AppStyles._get_colors().get('alternate_base', '#ffffff')}; color: {AppStyles._get_colors().get('window_text', '#333333')}; border: 1px solid {AppStyles._get_colors().get('mid', '#999999')}; border-radius: 4px; padding: 6px;")
+            
+            # 刷新所有QProgressBar
+            for progress_bar in self.findChildren(QtWidgets.QProgressBar):
+                progress_bar.setStyleSheet(AppStyles.progress_style())
         except Exception as e:
             logger.error(f"重新应用样式失败: {e}")
 

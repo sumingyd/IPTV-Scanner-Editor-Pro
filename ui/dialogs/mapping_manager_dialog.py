@@ -29,6 +29,9 @@ class MappingManagerDialog(FloatingDialog):
         self.setup_ui()
         self.load_data()
 
+        from ..theme_manager import get_theme_manager
+        get_theme_manager().register_window(self)
+
     def _tr(self, key: str, fallback: str) -> str:
         v = self.language_manager.tr(key, fallback)
         return v if v else fallback

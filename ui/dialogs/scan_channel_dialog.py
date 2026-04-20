@@ -69,9 +69,14 @@ class ScanChannelDialog(FloatingDialog):
 
         self._init_main_window()
 
+        from ..theme_manager import get_theme_manager
+        get_theme_manager().register_window(self)
+
     def done(self, result):
         self._unregister_cleanup_handlers()
         self._unregister_config_observers()
+        from ..theme_manager import get_theme_manager
+        get_theme_manager().unregister_window(self)
         super().done(result)
 
     def mousePressEvent(self, event):

@@ -28,6 +28,9 @@ class AboutDialog(FloatingDialog):
         from ..styles import AppStyles
         self._colors = AppStyles._get_colors()
         self._init_ui()
+
+        from ..theme_manager import get_theme_manager
+        get_theme_manager().register_window(self)
     
     def _init_ui(self):
         """初始化 UI"""

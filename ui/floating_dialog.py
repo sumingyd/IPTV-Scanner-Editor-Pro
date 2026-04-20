@@ -1,6 +1,24 @@
 from PyQt6.QtWidgets import QFrame, QDialog
 from PyQt6.QtGui import QPainter, QColor
 from PyQt6.QtCore import Qt
+import sys
+
+
+def _hide_from_taskbar(window):
+    """隐藏窗口的任务栏图标（仅 Windows 平台）"""
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            from ctypes import wintypes
+            GWL_EXSTYLE = -20
+            WS_EX_TOOLWINDOW = 0x00000080
+            WS_EX_APPWINDOW = 0x00040000
+            hwnd = int(window.winId())
+            style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+            style = (style | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW
+            ctypes.windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style)
+        except Exception:
+            pass
 
 
 def _parse_hex_color(hex_str, default=(0, 0, 0)):
@@ -14,9 +32,16 @@ class TranslucentPanel(QFrame):
         super().__init__(parent)
         self.opacity = opacity
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool)
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.Window
+        )
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+    def show(self):
+        super().show()
+        _hide_from_taskbar(self)
 
     def keyPressEvent(self, event):
         from PyQt6.QtWidgets import QApplication
