@@ -250,14 +250,19 @@ class ScanChannelDialog(FloatingDialog):
 
     def _save_network_settings(self):
         """保存网络设置到配置文件（提取的重复代码）"""
-        # 使用配置变更上下文保存网络设置
         from utils.config_notifier import config_change_context
         with config_change_context("Network", "url"):
             enable_retry = self.enable_retry_checkbox.isChecked()
+            timeout_val = 5
+            threads_val = 4
+            if hasattr(self, 'timeout_input'):
+                timeout_val = self.timeout_input.value()
+            if hasattr(self, 'threads_input'):
+                threads_val = self.threads_input.value()
             self.config.save_network_settings(
                 self.ip_range_input.text(),
-                3,
-                get_optimal_thread_count(),
+                timeout_val,
+                threads_val,
                 self.user_agent_input.text(),
                 self.referer_input.text(),
                 enable_retry,
@@ -292,6 +297,9 @@ class ScanChannelDialog(FloatingDialog):
         # Referer设置
         self._setup_referer_input()
 
+        # 超时和线程数设置
+        self._setup_timeout_threads_input()
+
     def _setup_user_agent_input(self):
         """设置User-Agent输入控件"""
         tr = self.language_manager.tr
@@ -321,6 +329,43 @@ class ScanChannelDialog(FloatingDialog):
             lambda: self._save_network_settings()
         )
         self.referer_layout = referer_layout
+
+    def _setup_timeout_threads_input(self):
+        """设置超时和线程数输入控件"""
+        tr = self.language_manager.tr
+
+        timeout_threads_layout = QtWidgets.QHBoxLayout()
+        timeout_threads_layout.setSpacing(8)
+
+        # 超时
+        timeout_label = QtWidgets.QLabel(tr("timeout_colon", "Timeout(s):"))
+        self.timeout_label = timeout_label
+        timeout_threads_layout.addWidget(timeout_label)
+        self.timeout_input = QtWidgets.QSpinBox()
+        self.timeout_input.setRange(1, 60)
+        self.timeout_input.setValue(5)
+        self.timeout_input.setFixedWidth(60)
+        self.timeout_input.setFixedHeight(28)
+        self.timeout_input.valueChanged.connect(lambda: self._save_network_settings())
+        timeout_threads_layout.addWidget(self.timeout_input)
+
+        # 线程数
+        threads_label = QtWidgets.QLabel(tr("threads_colon", "Threads:"))
+        self.threads_label = threads_label
+        timeout_threads_layout.addWidget(threads_label)
+        self.threads_input = QtWidgets.QSpinBox()
+        self.threads_input.setRange(1, 64)
+        self.threads_input.setValue(4)
+        self.threads_input.setFixedWidth(60)
+        self.threads_input.setFixedHeight(28)
+        self.threads_input.valueChanged.connect(lambda: self._save_network_settings())
+        timeout_threads_layout.addWidget(self.threads_input)
+
+        timeout_threads_layout.addStretch()
+        self.timeout_threads_layout = timeout_threads_layout
+
+        # 加载已保存的值
+        self._load_timeout_threads_settings()
 
     def _setup_scan_retry_options(self):
         """设置扫描重试选项"""
@@ -363,6 +408,20 @@ class ScanChannelDialog(FloatingDialog):
             self.enable_retry_checkbox.setChecked(enable_retry)
         except Exception as e:
             self.logger.error(f"加载重试扫描设置失败: {e}")
+
+    def _load_timeout_threads_settings(self):
+        """加载超时和线程数设置"""
+        try:
+            if hasattr(self, 'config') and self.config:
+                network_settings = self.config.load_network_settings()
+                timeout = network_settings.get('timeout', 5)
+                threads = network_settings.get('threads', 4)
+                if hasattr(self, 'timeout_input'):
+                    self.timeout_input.setValue(int(timeout))
+                if hasattr(self, 'threads_input'):
+                    self.threads_input.setValue(int(threads))
+        except Exception as e:
+            self.logger.debug(f"加载超时线程设置失败: {e}")
 
     def _setup_mapping_options(self):
         """设置映射功能选项"""
@@ -491,6 +550,10 @@ class ScanChannelDialog(FloatingDialog):
         scan_settings_section.addWidget(ref_label)
         self.referer_input.setFixedHeight(28)
         scan_settings_section.addWidget(self.referer_input)
+
+        # 超时和线程数
+        if hasattr(self, 'timeout_threads_layout'):
+            scan_settings_section.addLayout(self.timeout_threads_layout)
 
         scan_layout.addLayout(scan_settings_section)
         scan_layout.addSpacing(12)
@@ -948,6 +1011,11 @@ class ScanChannelDialog(FloatingDialog):
             if 'enable_retry' in settings:
                 self.enable_retry_checkbox.setChecked(settings['enable_retry'])
 
+            if hasattr(self, 'timeout_input'):
+                self.timeout_input.setValue(int(settings.get('timeout', 5)))
+            if hasattr(self, 'threads_input'):
+                self.threads_input.setValue(int(settings.get('threads', 4)))
+
         except Exception as e:
             log_config_error(f"加载配置失败: {e}")
 
@@ -960,7 +1028,6 @@ class ScanChannelDialog(FloatingDialog):
         """处理网络配置变更"""
         log_config_info(f"网络配置变更: {section}.{key} = {old_value} -> {new_value}")
 
-        # 更新对应的UI控件
         if key == 'url':
             self.ip_range_input.setText(new_value)
         elif key == 'user_agent':
@@ -969,6 +1036,16 @@ class ScanChannelDialog(FloatingDialog):
             self.referer_input.setText(new_value)
         elif key == 'enable_retry':
             self.enable_retry_checkbox.setChecked(str(new_value).lower() == 'true')
+        elif key == 'timeout' and hasattr(self, 'timeout_input'):
+            try:
+                self.timeout_input.setValue(int(new_value))
+            except (ValueError, TypeError):
+                pass
+        elif key == 'threads' and hasattr(self, 'threads_input'):
+            try:
+                self.threads_input.setValue(int(new_value))
+            except (ValueError, TypeError):
+                pass
 
     def _on_scan_retry_config_changed(self, section, key, old_value, new_value):
         """处理扫描重试配置变更"""
@@ -1344,10 +1421,16 @@ class ScanChannelDialog(FloatingDialog):
         """退出前保存配置"""
         try:
             if hasattr(self, 'config'):
+                timeout_val = 5
+                threads_val = 4
+                if hasattr(self, 'timeout_input'):
+                    timeout_val = self.timeout_input.value()
+                if hasattr(self, 'threads_input'):
+                    threads_val = self.threads_input.value()
                 self.config.save_network_settings(
                     url=self.ip_range_input.text(),
-                    timeout=5,
-                    threads=4,
+                    timeout=timeout_val,
+                    threads=threads_val,
                     user_agent=self.user_agent_input.text(),
                     referer=self.referer_input.text(),
                     enable_retry=self.enable_retry_checkbox.isChecked(),
