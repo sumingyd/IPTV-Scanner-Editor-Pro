@@ -7,6 +7,7 @@ from PyQt6.QtCore import QObject, pyqtSignal, QUrl, QTimer, Qt, QBuffer, QIODevi
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from PyQt6.QtGui import QPixmap, QImage
 from utils.thread_safety import ThreadSafeQObject
+from core.log_manager import global_logger as logger
 
 
 class LogoCacheService(ThreadSafeQObject):
@@ -230,9 +231,11 @@ class LogoCacheService(ThreadSafeQObject):
         except Exception:
             pass
 
-    def mark_negative(self, url):
+    def mark_negative(self, url, reason=''):
         with self._lock:
             self._negative_cache[url] = time.time()
+        if reason:
+            logger.debug(f"台标标记为无效: {reason} | {url[:80]}")
 
     def fetch_async(self, url, force=False):
         if not url:
@@ -266,14 +269,15 @@ class LogoCacheService(ThreadSafeQObject):
             reply = self._network_manager.get(request)
             self._pending_replies[url] = reply
             reply.finished.connect(lambda: self._on_download_finished(url, reply))
-        except Exception:
-            self.mark_negative(url)
+        except Exception as ex:
+            self.mark_negative(url, f"创建请求异常: {ex}")
 
     def _on_download_finished(self, url, reply):
         self._pending_replies.pop(url, None)
         try:
             if reply.error() != QNetworkReply.NetworkError.NoError:
-                self.mark_negative(url)
+                err = reply.error()
+                self.mark_negative(url, f"网络错误: {err}")
                 reply.deleteLater()
                 return
 
@@ -281,13 +285,13 @@ class LogoCacheService(ThreadSafeQObject):
             if content_type and isinstance(content_type, str):
                 ct = content_type.lower()
                 if 'text/' in ct or 'html' in ct or 'json' in ct:
-                    self.mark_negative(url)
+                    self.mark_negative(url, f"非图片Content-Type: {ct}")
                     reply.deleteLater()
                     return
 
             data = reply.readAll()
             if not data or len(data) < 100:
-                self.mark_negative(url)
+                self.mark_negative(url, f"数据过小: {len(data) if data else 0}字节")
                 reply.deleteLater()
                 return
 
@@ -315,9 +319,9 @@ class LogoCacheService(ThreadSafeQObject):
                 self.put(url, pixmap, ext=ext, content_hash=content_hash)
                 self.logo_loaded.emit(url, pixmap)
             else:
-                self.mark_negative(url)
-        except Exception:
-            self.mark_negative(url)
+                self.mark_negative(url, f"QPixmap无法解析图片数据({len(raw_data)}字节)")
+        except Exception as e:
+            self.mark_negative(url, f"下载回调异常: {e}")
         finally:
             reply.deleteLater()
 

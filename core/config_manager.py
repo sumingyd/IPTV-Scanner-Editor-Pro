@@ -85,8 +85,8 @@ class ConfigManager:
         """加载网络设置"""
         return {
             'url': self.get_value('Network', 'url', ''),
-            'timeout': int(self.get_value('Network', 'timeout', '30') or '30'),
-            'threads': int(self.get_value('Network', 'threads', '5') or '5'),
+            'timeout': int(self.get_value('Network', 'timeout', '5') or '5'),
+            'threads': int(self.get_value('Network', 'threads', '4') or '4'),
             'user_agent': self.get_value('Network', 'user_agent', ''),
             'referer': self.get_value('Network', 'referer', ''),
             'enable_retry': self.get_value('Network', 'enable_retry', 'False').lower() == 'true',
@@ -329,7 +329,25 @@ class ConfigManager:
             self.set_value('PlaylistSources', f'name_{i}', source.get('name', f'Source {i+1}'))
             self.set_value('PlaylistSources', f'enabled_{i}', str(source.get('enabled', True)))
             self.set_value('PlaylistSources', f'last_update_{i}', source.get('last_update', '') or '')
+        self._cleanup_legacy_playlist_keys()
         return self.save_config()
+    
+    def _cleanup_legacy_playlist_keys(self):
+        """清理旧[Playlist]段中已迁移到[PlaylistSources]的遗留键"""
+        legacy_keys = ['url', 'name', 'last_update', 'last_url']
+        for key in legacy_keys:
+            if self.config.has_option('Playlist', key):
+                self.config.remove_option('Playlist', key)
+                logger.debug(f"配置清理-移除旧键: Playlist.{key}")
+        if self.config.has_option('Playlist', 'update_interval'):
+            old_val = self.get_value('Playlist', 'update_interval')
+            if old_val and not self.config.has_option('PlaylistSources', 'update_interval'):
+                self.set_value('PlaylistSources', 'update_interval', old_val)
+            self.config.remove_option('Playlist', 'update_interval')
+            logger.debug("配置清理-迁移 Playlist.update_interval -> PlaylistSources.update_interval")
+        if self.config.has_section('Playlist') and not self.config.options('Playlist'):
+            self.config.remove_section('Playlist')
+            logger.debug("配置清理-移除空段: [Playlist]")
     
     def load_playlist_sources(self) -> list:
         """加载多个直播源配置
@@ -357,6 +375,9 @@ class ConfigManager:
                     'name': self.get_value('Playlist', 'name', 'Default'),
                     'enabled': True
                 })
+                self._cleanup_legacy_playlist_keys()
+                if sources:
+                    self.save_playlist_sources(sources)
         return sources
     
     def get_active_playlist_source(self) -> dict | None:
@@ -418,7 +439,25 @@ class ConfigManager:
         for i, source in enumerate(sources):
             self.set_value('EPGSources', f'url_{i}', source.get('url', ''))
             self.set_value('EPGSources', f'name_{i}', source.get('name', f'EPG {i+1}'))
+        self._cleanup_legacy_epg_keys()
         return self.save_config()
+    
+    def _cleanup_legacy_epg_keys(self):
+        """清理旧[EPG]段中已迁移到[EPGSources]的遗留键"""
+        legacy_keys = ['epg_url', 'epg_source', 'last_update', 'last_url']
+        for key in legacy_keys:
+            if self.config.has_option('EPG', key):
+                self.config.remove_option('EPG', key)
+                logger.debug(f"配置清理-移除旧键: EPG.{key}")
+        if self.config.has_option('EPG', 'update_interval'):
+            old_val = self.get_value('EPG', 'update_interval')
+            if old_val and not self.config.has_option('EPGSources', 'update_interval'):
+                self.set_value('EPGSources', 'update_interval', old_val)
+            self.config.remove_option('EPG', 'update_interval')
+            logger.debug("配置清理-迁移 EPG.update_interval -> EPGSources.update_interval")
+        if self.config.has_section('EPG') and not self.config.options('EPG'):
+            self.config.remove_section('EPG')
+            logger.debug("配置清理-移除空段: [EPG]")
     
     def load_epg_sources(self) -> list:
         """加载多个EPG源配置
@@ -443,6 +482,9 @@ class ConfigManager:
                     'url': legacy_url,
                     'name': self.get_value('EPG', 'epg_source', 'Default')
                 })
+                self._cleanup_legacy_epg_keys()
+                if sources:
+                    self.save_epg_sources(sources)
         return sources
     
     def save_recent_files(self, recent_files):

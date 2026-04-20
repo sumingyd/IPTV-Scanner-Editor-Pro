@@ -1054,29 +1054,30 @@ class ScanChannelDialog(FloatingDialog):
         else:
             log_scan_info("开始追加扫描，保留现有列表")
 
-        # 智能两阶段扫描策略
-        # 第一阶段：快速扫描（5秒超时），快速筛选有效频道
-        # 第二阶段：对失败的URL自动重试（15秒超时），提高检出率
-        scan_timeout_phase1 = 5
-
-        scan_threads = get_optimal_thread_count()
-        self.logger.debug(f"使用{scan_threads}线程扫描")
+        # 统一扫描参数：超时5秒，4线程
+        # 智能重试时使用更长的重试超时（10秒）
+        scan_timeout = 5
+        scan_threads = 4
 
         try:
             if hasattr(self, 'config') and self.config:
                 network_settings = self.config.load_network_settings()
-                configured_timeout = network_settings.get('timeout', 30)
+                configured_timeout = network_settings.get('timeout', 5)
                 if configured_timeout and configured_timeout > 0:
-                    # 配置值作为参考，实际使用优化后的两阶段策略
-                    scan_timeout_phase1 = max(3, min(10, int(configured_timeout) // 2))
+                    scan_timeout = max(3, min(30, int(configured_timeout)))
+                configured_threads = network_settings.get('threads', 4)
+                if configured_threads and configured_threads > 0:
+                    scan_threads = max(1, min(32, int(configured_threads)))
         except Exception as e:
-            self.logger.debug(f"读取超时配置失败，使用默认值: {e}")
+            self.logger.debug(f"读取扫描配置失败，使用默认值: {e}")
+
+        self.logger.debug(f"使用{scan_threads}线程，{scan_timeout}秒超时")
 
         skip_urls = None
         if not clear_list:
             skip_urls = {ch.get('url', '') for ch in self.model.channels if ch.get('url')}
 
-        self.scanner.start_scan(url, scan_threads, scan_timeout_phase1, skip_urls=skip_urls)
+        self.scanner.start_scan(url, scan_threads, scan_timeout, skip_urls=skip_urls)
 
         if clear_list:
             self._set_scan_button_text('stop_scan', '停止扫描')
@@ -1111,17 +1112,21 @@ class ScanChannelDialog(FloatingDialog):
             user_agent = self.user_agent_input.text()
             referer = self.referer_input.text()
             validate_timeout = 5
+            validate_threads = 4
             try:
                 if hasattr(self, 'config') and self.config:
                     network_settings = self.config.load_network_settings()
                     configured_timeout = network_settings.get('timeout', 5)
                     if configured_timeout and configured_timeout > 0:
-                        validate_timeout = max(3, min(15, int(configured_timeout)))
+                        validate_timeout = max(3, min(30, int(configured_timeout)))
+                    configured_threads = network_settings.get('threads', 4)
+                    if configured_threads and configured_threads > 0:
+                        validate_threads = max(1, min(32, int(configured_threads)))
             except Exception as e:
-                self.logger.debug(f"读取超时配置失败，使用默认值: {e}")
+                self.logger.debug(f"读取检测配置失败，使用默认值: {e}")
             self.scanner.start_validation(
                 self.model,
-                get_optimal_thread_count(),
+                validate_threads,
                 validate_timeout,
                 user_agent,
                 referer
@@ -1153,6 +1158,67 @@ class ScanChannelDialog(FloatingDialog):
         if hasattr(self, 'channel_list'):
             header = self.channel_list.horizontalHeader()
             header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+
+        # 智能重试：对检测为无效的频道进行重试验证
+        if self.enable_retry_checkbox.isChecked():
+            invalid_urls = []
+            for ch in self.model.channels:
+                if not ch.get('valid', True) and ch.get('url'):
+                    invalid_urls.append(ch.get('url'))
+            if invalid_urls:
+                self.logger.info(f"检测有效性完成，{len(invalid_urls)}个无效频道，启动智能重试...")
+                self._validation_retry_urls = invalid_urls
+                self._validation_retry_count = 0
+                QtCore.QTimer.singleShot(100, self._start_validation_retry)
+            else:
+                self.logger.info("检测有效性完成，所有频道均有效")
+                self.status_label.setText(self.language_manager.tr("all_channels_valid", "All channels are valid"))
+        else:
+            valid_count = sum(1 for ch in self.model.channels if ch.get('valid', True))
+            total = len(self.model.channels)
+            self.status_label.setText(
+                f"有效: {valid_count}/{total}"
+            )
+
+    def _start_validation_retry(self):
+        """对无效频道进行智能重试验证"""
+        if not hasattr(self, '_validation_retry_urls') or not self._validation_retry_urls:
+            return
+
+        max_retries = 3
+        if hasattr(self, '_validation_retry_count') and self._validation_retry_count >= max_retries:
+            self.logger.info(f"智能重试已达最大次数({max_retries}次)，停止重试")
+            self.status_label.setText(
+                self.language_manager.tr("retry_completed", "Smart retry completed")
+            )
+            return
+
+        retry_timeout = 10
+        try:
+            if hasattr(self, 'config') and self.config:
+                network_settings = self.config.load_network_settings()
+                configured_timeout = network_settings.get('timeout', 5)
+                if configured_timeout and configured_timeout > 0:
+                    retry_timeout = max(5, min(30, int(configured_timeout) * 2))
+        except Exception:
+            pass
+
+        retry_threads = 4
+        self._validation_retry_count = (getattr(self, '_validation_retry_count', 0) or 0) + 1
+
+        self.logger.info(
+            f"智能重试验证(第{self._validation_retry_count}次): "
+            f"{len(self._validation_retry_urls)}个URL, 超时={retry_timeout}秒"
+        )
+        self.status_label.setText(
+            f"{self.language_manager.tr('smart_retry', 'Smart Retry')} #{self._validation_retry_count}..."
+        )
+
+        self.scanner.start_scan_from_urls(
+            self._validation_retry_urls,
+            retry_threads,
+            retry_timeout
+        )
 
     def _on_open_list_clicked(self):
         """打开M3U文件，将频道导入到扫描列表用于有效性检测"""
@@ -1280,8 +1346,8 @@ class ScanChannelDialog(FloatingDialog):
             if hasattr(self, 'config'):
                 self.config.save_network_settings(
                     url=self.ip_range_input.text(),
-                    timeout=3,
-                    threads=get_optimal_thread_count(),
+                    timeout=5,
+                    threads=4,
                     user_agent=self.user_agent_input.text(),
                     referer=self.referer_input.text(),
                     enable_retry=self.enable_retry_checkbox.isChecked(),
@@ -1298,9 +1364,13 @@ class ScanChannelDialog(FloatingDialog):
 
     @QtCore.pyqtSlot()
     def _on_scan_completed(self):
-        """处理扫描完成事件 - 修复重试扫描状态管理问题"""
-        # 导入样式
-        # 检查是否是重试扫描
+        """处理扫描完成事件"""
+        # 检查是否是验证重试扫描
+        if hasattr(self, '_validation_retry_urls') and self._validation_retry_urls:
+            self._on_validation_retry_completed()
+            return
+
+        # 检查是否是普通重试扫描
         is_retry = self.scan_state_manager.is_retry_scan(self.retry_id)
 
         # 隐藏进度条
@@ -1320,13 +1390,53 @@ class ScanChannelDialog(FloatingDialog):
 
         # 检查是否需要重试扫描
         if not is_retry:
-            # 这是第一次扫描完成，检查是否需要重试
             if self.enable_retry_checkbox.isChecked():
-                # 延迟启动重试扫描，避免状态冲突
                 QtCore.QTimer.singleShot(100, self._handle_retry_scan)
         else:
-            # 这是重试扫描完成，处理循环扫描逻辑
             self._handle_retry_scan_completed()
+
+    def _on_validation_retry_completed(self):
+        """处理验证重试扫描完成事件"""
+        self.progress_manager.hide_progress()
+        self._set_scan_button_text('full_scan', '完整扫描')
+        self._set_append_scan_button_text('append_scan', '追加扫描')
+
+        # 将本次重试发现的有效频道更新到模型中
+        newly_valid = 0
+        found_urls = {ch.get('url', '') for ch in self.scanner.found_channels} if hasattr(self.scanner, 'found_channels') else set()
+        
+        remaining_invalid = []
+        for url in getattr(self, '_validation_retry_urls', []):
+            if url in found_urls:
+                for i in range(self.model.rowCount()):
+                    ch = self.model.channels[i]
+                    if ch.get('url') == url and not ch.get('valid', True):
+                        self.model.update_channel(i, {'valid': True})
+                        newly_valid += 1
+                        break
+            else:
+                remaining_invalid.append(url)
+        
+        self._validation_retry_urls = remaining_invalid
+        
+        if newly_valid > 0:
+            self.logger.info(f"验证重试发现 {newly_valid} 个新有效频道")
+        
+        max_retries = 3
+        current_count = getattr(self, '_validation_retry_count', 0) or 0
+        
+        if remaining_invalid and current_count < max_retries:
+            self.logger.info(f"仍有 {len(remaining_invalid)} 个无效频道，继续智能重试(第{current_count + 1}/{max_retries}次)...")
+            QtCore.QTimer.singleShot(500, self._start_validation_retry)
+        else:
+            if remaining_invalid:
+                self.logger.info(f"智能重试完成({max_retries}次)，仍剩{len(remaining_invalid)}个无效频道")
+            else:
+                self.logger.info("智能重试完成，所有无效频道已全部恢复有效")
+            self.status_label.setText(
+                self.language_manager.tr("retry_completed", "Smart retry completed")
+            )
+            delattr(self, '_validation_retry_urls')
 
     @QtCore.pyqtSlot(dict)
     def _update_stats_display(self, stats_data):
@@ -1650,20 +1760,20 @@ class ScanChannelDialog(FloatingDialog):
         # 直接使用failed_channels作为retry_urls，因为它们都是URL字符串的列表
         retry_urls = failed_channels
 
-        # 第二阶段使用更长的超时时间（15秒），提高慢速频道的检出率
-        retry_timeout = 15
+        # 智能重试使用更长的超时时间（10秒），提高慢速频道的检出率
+        retry_timeout = 10
         try:
             if hasattr(self, 'config') and self.config:
                 network_settings = self.config.load_network_settings()
-                configured_timeout = network_settings.get('timeout', 30)
+                configured_timeout = network_settings.get('timeout', 5)
                 if configured_timeout and configured_timeout > 0:
-                    retry_timeout = max(10, min(30, int(configured_timeout)))
+                    retry_timeout = max(5, min(30, int(configured_timeout) * 2))
         except Exception:
             pass
 
-        self.logger.info(f"第二阶段深度扫描: {len(retry_urls)} 个URL, 超时={retry_timeout}秒")
+        self.logger.info(f"智能重试扫描: {len(retry_urls)} 个URL, 超时={retry_timeout}秒")
 
-        # 固定使用4个扫描线程
+        # 使用4个扫描线程（与主扫描一致）
         retry_threads = 4
 
         # 启动深度重试扫描
