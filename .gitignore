@@ -189,6 +189,7 @@ config.ini
 cache/
 channel_fingerprints.json
 channel_mappings_cache.json
+channel_mappings_cache.json.etag
 epg_cache/
 
 # 台标缓存
