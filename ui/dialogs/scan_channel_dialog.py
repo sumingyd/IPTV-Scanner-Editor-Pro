@@ -352,29 +352,27 @@ class ScanChannelDialog(FloatingDialog):
         # 超时行
         timeout_row = QtWidgets.QHBoxLayout()
         timeout_row.setSpacing(6)
-        timeout_label = QtWidgets.QLabel(tr("timeout_colon", "Timeout(s):"))
+        timeout_label = QtWidgets.QLabel(tr("scan_timeout", "Timeout(s):"))
         self.timeout_label = timeout_label
         timeout_row.addWidget(timeout_label)
         self.timeout_input = QtWidgets.QLineEdit("5")
-        self.timeout_input.setFixedHeight(26)
+        self.timeout_input.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         self.timeout_input.setPlaceholderText("1-60")
         self.timeout_input.textChanged.connect(lambda: self._save_network_settings())
         timeout_row.addWidget(self.timeout_input)
-        timeout_row.addStretch()
         timeout_threads_layout.addLayout(timeout_row)
 
         # 线程数行
         threads_row = QtWidgets.QHBoxLayout()
         threads_row.setSpacing(6)
-        threads_label = QtWidgets.QLabel(tr("threads_colon", "Threads:"))
+        threads_label = QtWidgets.QLabel(tr("scan_threads", "Threads:"))
         self.threads_label = threads_label
         threads_row.addWidget(threads_label)
         self.threads_input = QtWidgets.QLineEdit("4")
-        self.threads_input.setFixedHeight(26)
+        self.threads_input.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         self.threads_input.setPlaceholderText("1-64")
         self.threads_input.textChanged.connect(lambda: self._save_network_settings())
         threads_row.addWidget(self.threads_input)
-        threads_row.addStretch()
         timeout_threads_layout.addLayout(threads_row)
 
         self.timeout_threads_layout = timeout_threads_layout
