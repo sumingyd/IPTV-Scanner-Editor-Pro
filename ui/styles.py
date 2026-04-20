@@ -121,62 +121,62 @@ class AppStyles:
             'neumorphic_dark': '#d0d0d0',
         },
         'neumorphic_dark': {
-            'window': '#1e1e2e',
-            'window_text': '#e0e0f0',
-            'base': '#252538',
-            'alternate_base': '#2a2a3d',
-            'button': '#2a2a3d',
-            'light': '#323248',
-            'mid': '#3a3a50',
-            'dark': '#454560',
-            'highlight': '#3a3a5a',
-            'highlighted_text': '#8a9eff',
-            'link': '#8a9eff',
-            'link_visited': '#a08aff',
-            'tooltip_base': '#2a2a3d',
-            'tooltip_text': '#e0e0f0',
-            'placeholder': '#707090',
-            'accent': '#7c8aff',
-            'accent_hover': '#6c7aef',
-            'accent_pressed': '#5c6adf',
-            'success': '#6bcf7f',
-            'warning': '#ffb060',
-            'error': '#ff6b6b',
-            'info': '#5ca0ff',
-            'table_header': '#2a2a3d',
-            'table_header_gradient_start': '#323248',
-            'table_header_gradient_middle': '#2a2a3d',
-            'table_header_gradient_end': '#222236',
-            'table_header_text': '#c0c0e0',
-            'table_header_hover': '#7c8aff',
-            'table_border': '#3a3a50',
-            'table_grid': '#323248',
-            'table_alternate': '#222236',
-            'table_hover': '#3a3a5a',
-            'table_selection': '#5c6adf',
+            'window': '#1a1a2e',
+            'window_text': '#eaeaea',
+            'base': '#222240',
+            'alternate_base': '#28284a',
+            'button': '#28284a',
+            'light': '#303055',
+            'mid': '#3a3a60',
+            'dark': '#454570',
+            'highlight': '#2a2a50',
+            'highlighted_text': '#7c8aff',
+            'link': '#7c8aff',
+            'link_visited': '#9580ff',
+            'tooltip_base': '#28284a',
+            'tooltip_text': '#eaeaea',
+            'placeholder': '#808090',
+            'accent': '#6b7bff',
+            'accent_hover': '#5b6bef',
+            'accent_pressed': '#4b5bdf',
+            'success': '#5fcf73',
+            'warning': '#ffaa70',
+            'error': '#ff6060',
+            'info': '#5090ff',
+            'table_header': '#28284a',
+            'table_header_gradient_start': '#303055',
+            'table_header_gradient_middle': '#28284a',
+            'table_header_gradient_end': '#202038',
+            'table_header_text': '#d0d0e0',
+            'table_header_hover': '#6b7bff',
+            'table_border': '#3a3a60',
+            'table_grid': '#303055',
+            'table_alternate': '#202038',
+            'table_hover': '#2a2a50',
+            'table_selection': '#5b6bef',
             'table_selection_text': '#ffffff',
-            'player_background': '#1a1a28',
-            'player_panel': '#252538',
-            'player_panel_text': '#e0e0f0',
-            'player_panel_secondary': '#9090b0',
-            'player_panel_disabled': '#606080',
-            'player_panel_hint': '#505070',
-            'player_button': 'rgba(42, 42, 61, 0.95)',
-            'player_combo': 'rgba(37, 37, 56, 0.9)',
-            'player_line': '#3a3a50',
-            'player_accent': '#8a9eff',
-            'player_success': '#6bcf7f',
-            'player_warning': '#ff6b6b',
-            'player_slider_track': '#3a3a50',
-            'player_slider_fill': '#7c8aff',
-            'player_slider_handle': '#e0e0f0',
-            'player_volume_track': '#323248',
-            'player_video_placeholder': '#1a1a28',
+            'player_background': '#16162a',
+            'player_panel': '#222240',
+            'player_panel_text': '#eaeaea',
+            'player_panel_secondary': '#888898',
+            'player_panel_disabled': '#585878',
+            'player_panel_hint': '#484868',
+            'player_button': 'rgba(40, 40, 74, 0.95)',
+            'player_combo': 'rgba(34, 34, 64, 0.9)',
+            'player_line': '#3a3a60',
+            'player_accent': '#7c8aff',
+            'player_success': '#5fcf73',
+            'player_warning': '#ff6060',
+            'player_slider_track': '#3a3a60',
+            'player_slider_fill': '#6b7bff',
+            'player_slider_handle': '#eaeaea',
+            'player_volume_track': '#303055',
+            'player_video_placeholder': '#16162a',
             'window_opacity': 255,
-            'shadow_light': 'rgba(70,70,110,0.55)',
-            'shadow_dark': 'rgba(0,0,0,0.75)',
-            'neumorphic_light': '#323250',
-            'neumorphic_dark': '#141424',
+            'shadow_light': 'rgba(100,100,160,0.5)',
+            'shadow_dark': 'rgba(0,0,0,0.7)',
+            'neumorphic_light': '#303055',
+            'neumorphic_dark': '#181830',
         },
         'neumorphic_light': {
             'window': '#e0e5ec',
@@ -237,62 +237,62 @@ class AppStyles:
             'neumorphic_dark': '#bec6d2',
         },
         'apple_tv': {
-            'window': '#0e1117',
+            'window': '#000000',
             'window_text': '#f5f5f7',
-            'base': '#161b22',
-            'alternate_base': '#1c2128',
-            'button': '#21262d',
-            'light': '#30363d',
-            'mid': '#484f58',
-            'dark': '#6e7681',
-            'highlight': '#0d2137',
-            'highlighted_text': '#58a6ff',
-            'link': '#58a6ff',
-            'link_visited': '#bc8cff',
-            'tooltip_base': '#1c2128',
+            'base': '#1c1c1e',
+            'alternate_base': '#2c2c2e',
+            'button': '#3a3a3c',
+            'light': '#48484a',
+            'mid': '#636366',
+            'dark': '#8e8e93',
+            'highlight': '#0a2540',
+            'highlighted_text': '#007aff',
+            'link': '#007aff',
+            'link_visited': '#5856d6',
+            'tooltip_base': '#2c2c2e',
             'tooltip_text': '#f5f5f7',
-            'placeholder': '#8b949e',
-            'accent': '#0a84ff',
-            'accent_hover': '#409cff',
-            'accent_pressed': '#0066cc',
+            'placeholder': '#8e8e93',
+            'accent': '#007aff',
+            'accent_hover': '#0066d6',
+            'accent_pressed': '#0055b3',
             'success': '#30d158',
             'warning': '#ff9f0a',
             'error': '#ff453a',
-            'info': '#58a6ff',
-            'table_header': '#161b22',
-            'table_header_gradient_start': '#21262d',
-            'table_header_gradient_middle': '#161b22',
-            'table_header_gradient_end': '#0e1117',
-            'table_header_text': '#e6edf3',
-            'table_header_hover': '#0a84ff',
-            'table_border': '#30363d',
-            'table_grid': '#21262d',
-            'table_alternate': '#0e1117',
-            'table_hover': '#0d2137',
-            'table_selection': '#0a84ff',
+            'info': '#007aff',
+            'table_header': '#1c1c1e',
+            'table_header_gradient_start': '#2c2c2e',
+            'table_header_gradient_middle': '#1c1c1e',
+            'table_header_gradient_end': '#0f0f10',
+            'table_header_text': '#f5f5f7',
+            'table_header_hover': '#007aff',
+            'table_border': '#3a3a3c',
+            'table_grid': '#2c2c2e',
+            'table_alternate': '#161618',
+            'table_hover': '#0a2540',
+            'table_selection': '#007aff',
             'table_selection_text': '#ffffff',
-            'player_background': '#0a0d12',
-            'player_panel': '#161b22',
-            'player_panel_text': '#e6edf3',
-            'player_panel_secondary': '#8b949e',
-            'player_panel_disabled': '#484f58',
-            'player_panel_hint': '#30363d',
-            'player_button': 'rgba(33, 38, 45, 0.92)',
-            'player_combo': 'rgba(22, 27, 34, 0.88)',
-            'player_line': '#30363d',
-            'player_accent': '#58a6ff',
+            'player_background': '#000000',
+            'player_panel': '#1c1c1e',
+            'player_panel_text': '#f5f5f7',
+            'player_panel_secondary': '#98989d',
+            'player_panel_disabled': '#636366',
+            'player_panel_hint': '#48484a',
+            'player_button': 'rgba(58, 58, 60, 0.9)',
+            'player_combo': 'rgba(28, 28, 30, 0.85)',
+            'player_line': '#38383a',
+            'player_accent': '#007aff',
             'player_success': '#30d158',
             'player_warning': '#ff453a',
-            'player_slider_track': '#30363d',
-            'player_slider_fill': '#0a84ff',
-            'player_slider_handle': '#e6edf3',
-            'player_volume_track': '#21262d',
-            'player_video_placeholder': '#0a0d12',
-            'window_opacity': 235,
-            'shadow_light': 'rgba(88,166,255,0.06)',
-            'shadow_dark': 'rgba(0,0,0,0.45)',
-            'neumorphic_light': '#21262d',
-            'neumorphic_dark': '#0e1117',
+            'player_slider_track': '#3a3a3c',
+            'player_slider_fill': '#007aff',
+            'player_slider_handle': '#f5f5f7',
+            'player_volume_track': '#2c2c2e',
+            'player_video_placeholder': '#000000',
+            'window_opacity': 240,
+            'shadow_light': 'rgba(255,255,255,0.08)',
+            'shadow_dark': 'rgba(0,0,0,0.5)',
+            'neumorphic_light': '#2c2c2e',
+            'neumorphic_dark': '#0f0f10',
         },
     }
 
@@ -861,6 +861,7 @@ class AppStyles:
 
     @staticmethod
     def player_panel_style() -> str:
+        colors = AppStyles._get_colors()
         return f"""
             * {{
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
@@ -868,13 +869,17 @@ class AppStyles:
             QLabel {{
                 border: none;
                 background-color: transparent;
+                color: {colors['player_panel_text']};
             }}
             QListWidget {{
                 border: none;
-                background-color: transparent;
+                background-color: {colors['player_panel']};
+                color: {colors['player_panel_text']};
             }}
             QComboBox {{
                 border: none;
+                background-color: {colors['player_combo']};
+                color: {colors['player_panel_text']};
             }}
         """
 
@@ -1076,7 +1081,7 @@ class AppStyles:
                 background-color: {colors['player_panel']};
                 color: {colors['player_panel_text']};
                 selection-background-color: {colors['player_accent']};
-                selection-color: #ffffff;
+                selection-color: {colors['player_panel_text']};
                 border: 1px solid {colors['player_line']};
                 outline: none;
             }}
@@ -1111,8 +1116,8 @@ class AppStyles:
         return f"""
             QLabel {{
                 font-size: 200px;
-                color: {colors['player_video_placeholder']};
-                background-color: transparent;
+                color: {colors['player_panel_hint']};
+                background-color: {colors['player_video_placeholder']};
             }}
         """
 
@@ -1157,11 +1162,13 @@ class AppStyles:
 
     @staticmethod
     def player_channel_logo_style() -> str:
-        return """
-            QLabel {
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
                 font-size: 24px;
                 background-color: transparent;
-            }
+                color: {colors['player_panel_secondary']};
+            }}
         """
 
     @staticmethod
@@ -1736,45 +1743,49 @@ class AppStyles:
     def statusbar_error_style() -> str:
         colors = AppStyles._get_colors()
         return f"""
-            QStatusBar {{{{
+            QStatusBar {{
                 color: {colors['error']};
                 font-weight: bold;
-            }}}}
+            }}
         """
 
     @staticmethod
     def apply_button_style() -> str:
         colors = AppStyles._get_colors()
         return f"""
-            QPushButton {{{{
+            QPushButton {{
                 background-color: {colors['success']};
                 color: white;
                 border: none;
                 padding: 8px 16px;
                 border-radius: 4px;
                 font-weight: bold;
-            }}}}
-            QPushButton:hover {{{{
-                background-color: {colors['success']};
-                opacity: 0.9;
-            }}}}
+            }}
+            QPushButton:hover {{
+                background-color: #45a049;
+            }}
+            QPushButton:pressed {{
+                background-color: #388e3c;
+            }}
         """
 
     @staticmethod
     def cancel_button_style() -> str:
         colors = AppStyles._get_colors()
         return f"""
-            QPushButton {{{{
+            QPushButton {{
                 background-color: {colors['error']};
                 color: white;
                 border: none;
                 padding: 8px 16px;
                 border-radius: 4px;
-            }}}}
-            QPushButton:hover {{{{
-                background-color: {colors['error']};
-                opacity: 0.9;
-            }}}}
+            }}
+            QPushButton:hover {{
+                background-color: #da190b;
+            }}
+            QPushButton:pressed {{
+                background-color: #c62828;
+            }}
         """
 
     @staticmethod
@@ -2183,6 +2194,60 @@ class AppStyles:
         """
 
     @staticmethod
+    def common_radio_button_style() -> str:
+        colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        chk_bg = colors['neumorphic_light'] if neo else colors['alternate_base']
+        if neo:
+            inset = AppStyles._neumorphic_inset()
+            return f"""
+                QRadioButton {{
+                    color: {colors['window_text']};
+                    font-size: 12px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                    spacing: 8px;
+                }}
+                QRadioButton::indicator {{
+                    width: 16px;
+                    height: 16px;
+                    border-radius: 8px;
+                    background-color: {chk_bg};
+                    {inset}
+                }}
+                QRadioButton::indicator:checked {{
+                    background-color: {colors['accent']};
+                    border: 3px solid {colors['accent']};
+                    border-radius: 8px;
+                }}
+                QRadioButton::indicator:hover {{
+                    border: 2px solid {colors['accent']};
+                    border-radius: 8px;
+                }}
+            """
+        return f"""
+            QRadioButton {{
+                color: {colors['window_text']};
+                font-size: 12px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                spacing: 8px;
+            }}
+            QRadioButton::indicator {{
+                width: 16px;
+                height: 16px;
+                border: 2px solid {colors['mid']};
+                border-radius: 8px;
+                background-color: {chk_bg};
+            }}
+            QRadioButton::indicator:checked {{
+                background-color: {colors['accent']};
+                border-color: {colors['accent']};
+            }}
+            QRadioButton::indicator:hover {{
+                border-color: {colors['accent']};
+            }}
+        """
+
+    @staticmethod
     def common_group_box_style() -> str:
         colors = AppStyles._get_colors()
         neo = AppStyles.is_neumorphic()
@@ -2346,6 +2411,29 @@ class AppStyles:
         btn_bg = colors['neumorphic_light'] if neo else colors['button']
         btn_hover = colors['neumorphic_dark'] if neo else colors['light']
         if active:
+            if neo:
+                raised = AppStyles._neumorphic_raised()
+                inset = AppStyles._neumorphic_inset()
+                return f"""
+                    QPushButton {{
+                        background-color: {colors['accent']};
+                        color: white;
+                        {raised}
+                        border-radius: 6px;
+                        padding: 6px 12px;
+                        font-weight: 500;
+                        font-size: 12px;
+                        font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                    }}
+                    QPushButton:hover {{
+                        background-color: {colors['accent_hover']};
+                    }}
+                    QPushButton:pressed {{
+                        background-color: {colors['accent_pressed']};
+                        {inset}
+                        border-radius: 6px;
+                    }}
+                """
             return f"""
                 QPushButton {{
                     background-color: {colors['accent']};

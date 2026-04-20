@@ -495,15 +495,16 @@ class IPTVPlayer(QMainWindow):
         
         logger.debug("_initialize_in_order: 完成")
     
-    def _handle_playlist_subscription(self, need_update, playlist_url):
-        """在后台线程中处理列表订阅（按活跃源独立判断）"""
+    def _handle_playlist_subscription(self, need_update, playlist_url, source_index=None):
+        """在后台线程中处理列表订阅（按源索引独立判断）"""
         try:
             global CHANNELS
 
             from core.subscription_manager import global_subscription_manager
             import os
 
-            source_index = global_subscription_manager.get_active_playlist_source_index()
+            if source_index is None:
+                source_index = global_subscription_manager.get_active_playlist_source_index()
 
             update_ok = True
             if need_update:
@@ -4256,21 +4257,18 @@ class IPTVPlayer(QMainWindow):
                 dialog.move(x, y)
 
     def reload_subscription(self):
-        """重新加载订阅列表（强制从服务器获取最新数据）"""
+        """重新加载订阅列表（强制从服务器获取最新数据，处理所有源）"""
         try:
             from core.subscription_manager import global_subscription_manager
-            
-            active_source = global_subscription_manager.get_active_playlist_source()
-            if not active_source:
+
+            sources = global_subscription_manager.get_playlist_sources()
+            if not sources:
                 self.status_bar.showMessage(
                     self.language_manager.tr("no_subscription_url", "No subscription URL configured")
                 )
                 return
 
-            playlist_url = active_source.get('url', '')
-            source_index = global_subscription_manager.get_active_playlist_source_index()
-
-            logger.info(f"手动触发订阅重新加载(源#{source_index}): {playlist_url}")
+            logger.info(f"手动触发订阅重新加载，共 {len(sources)} 个源")
             self.status_bar.showMessage(
                 self.language_manager.tr("reloading_subscription", "Reloading subscription...")
             )
@@ -4279,11 +4277,18 @@ class IPTVPlayer(QMainWindow):
                 self._subscription_checked = False
 
             import threading
-            threading.Thread(
-                target=self._handle_playlist_subscription,
-                args=(True, playlist_url),
-                daemon=True
-            ).start()
+            for source_index, source in enumerate(sources):
+                playlist_url = source.get('url', '')
+                if not playlist_url:
+                    logger.warning(f"源#{source_index} ({source.get('name', 'Unknown')}) 没有配置URL，跳过")
+                    continue
+
+                logger.info(f"强制重载订阅(源#{source_index}): {playlist_url}")
+                threading.Thread(
+                    target=self._handle_playlist_subscription,
+                    args=(True, playlist_url, source_index),
+                    daemon=True
+                ).start()
 
         except Exception as ex:
             logger.error(f"重新加载订阅失败: {ex}")
