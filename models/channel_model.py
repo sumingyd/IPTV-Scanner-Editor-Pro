@@ -853,21 +853,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             '淄博': 22
         }
 
-        def get_resolution_value(resolution):
-            """解析分辨率字符串，返回宽度值"""
-            if not resolution:
-                return 0
-            try:
-                parts = resolution.split('x')
-                if len(parts) == 2:
-                    return int(parts[0]) * int(parts[1])  # 返回像素总数
-                return 0
-            except (ValueError, IndexError) as e:
-                logger.debug(f"解析分辨率失败: {resolution}, 错误: {e}")
-                return 0
-            except Exception as e:
-                logger.warning(f"解析分辨率时发生意外错误: {resolution}, 错误: {e}")
-                return 0
+        # 使用类方法解析分辨率（避免重复定义）
 
         def get_cctv_number(name):
             """解析CCTV频道编号"""
@@ -925,7 +911,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         # 先按分辨率分组(1920x1080及以上为一组)
         hd_threshold = 1920 * 1080
         self.channels.sort(key=lambda x: (
-            get_resolution_value(x.get('resolution', '')) < hd_threshold,  # False(高分辨率)在前
+            self._get_resolution_value(x.get('resolution', '')) < hd_threshold,  # False(高分辨率)在前
             get_group_priority(x.get('group', '')),  # 按组优先级
             get_cctv_number(x.get('name', '')) if '央视频道' in x.get('group', '') else 0,  # CCTV频道特殊排序
             x.get('name', '')  # 按频道名称字母顺序
@@ -1369,7 +1355,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
         return channels
 
-    @staticmethod
     @staticmethod
     def _is_valid_channel_url(url):
         from services.m3u_parser import is_valid_channel_url

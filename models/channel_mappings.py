@@ -1,11 +1,32 @@
 import os
+import sys
 import re
 import json
 import hashlib
 import time
 import threading
-from typing import Dict, List
+from typing import Dict, List, Optional
 from core.log_manager import global_logger as logger
+
+
+def get_app_data_dir() -> str:
+    """获取应用数据目录（兼容PyInstaller打包和开发环境）
+    
+    Returns:
+        str: 应用数据目录的绝对路径
+        
+    Note:
+        - 打包后: exe文件所在目录
+        - 开发环境: 项目根目录
+    """
+    if getattr(sys, 'frozen', False):
+        # PyInstaller 打包后的情况
+        return os.path.dirname(sys.executable)
+    else:
+        # 开发环境：从models目录向上两级到项目根目录
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        return os.path.dirname(current_dir)
+
 
 # 尝试导入requests，如果失败则提供备用方案
 try:
@@ -20,10 +41,10 @@ DEFAULT_REMOTE_URL = (
     "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/local_channel_mappings.csv"
 )
 
-# 本地缓存文件路径
-CACHE_FILE = "channel_mappings_cache.json"
-USER_MAPPINGS_FILE = "user_channel_mappings.json"
-CHANNEL_FINGERPRINT_FILE = "channel_fingerprints.json"
+# 本地缓存文件路径（使用绝对路径，兼容PyInstaller打包）
+CACHE_FILE = os.path.join(get_app_data_dir(), "channel_mappings_cache.json")
+USER_MAPPINGS_FILE = os.path.join(get_app_data_dir(), "user_channel_mappings.json")
+CHANNEL_FINGERPRINT_FILE = os.path.join(get_app_data_dir(), "channel_fingerprints.json")
 
 
 def load_mappings_from_file(file_path: str) -> Dict[str, dict]:

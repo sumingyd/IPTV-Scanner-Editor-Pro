@@ -12,14 +12,22 @@ else:
     base_path = os.getcwd()
 
 mpv_dir = os.path.join(base_path, 'mpv')
+
+# 保存原始环境变量值，用于可能的恢复
+_original_path = os.environ.get('PATH', '')
+_original_mpv_home = os.environ.get('MPV_HOME', None)
+_original_mpv_library = os.environ.get('MPV_LIBRARY', None)
+
+# 设置MPV相关环境变量（模块级一次性操作）
+# 注意：这是为了让ctypes能找到libmpv-2.dll及其依赖
 os.environ['MPV_HOME'] = mpv_dir
-os.environ['PATH'] = mpv_dir + os.pathsep + os.environ['PATH']
+os.environ['PATH'] = mpv_dir + os.pathsep + os.environ.get('PATH', '')
 
 libmpv_path = os.path.join(mpv_dir, 'libmpv-2.dll')
 if os.path.exists(libmpv_path):
     os.environ['MPV_LIBRARY'] = libmpv_path
 else:
-    print(f"未找到libmpv-2.dll: {libmpv_path}")
+    global_logger.warning(f"未找到libmpv-2.dll: {libmpv_path}")
 
 try:
     libmpv = ctypes.CDLL(libmpv_path)
@@ -41,6 +49,9 @@ try:
 
     libmpv.mpv_destroy.restype = None
     libmpv.mpv_destroy.argtypes = [ctypes.c_void_p]
+
+    libmpv.mpv_terminate_destroy.restype = None
+    libmpv.mpv_terminate_destroy.argtypes = [ctypes.c_void_p]
 
     libmpv.mpv_observe_property.restype = ctypes.c_int
     libmpv.mpv_observe_property.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.c_char_p, ctypes.c_int]
@@ -123,12 +134,32 @@ AUDIO_CODEC_MAP = {
 DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
 
+def restore_environment_variables():
+    """恢复被修改的环境变量（可选操作，通常不需要调用）"""
+    try:
+        if _original_mpv_home is None:
+            os.environ.pop('MPV_HOME', None)
+        else:
+            os.environ['MPV_HOME'] = _original_mpv_home
+        
+        os.environ['PATH'] = _original_path
+        
+        if _original_mpv_library is None:
+            os.environ.pop('MPV_LIBRARY', None)
+        else:
+            os.environ['MPV_LIBRARY'] = _original_mpv_library
+        
+        global_logger.debug("环境变量已恢复到原始状态")
+    except Exception as e:
+        global_logger.warning(f"恢复环境变量失败: {e}")
+
+
 def _load_playback_settings():
     settings = {
         'hwdec': True,
         'cache_secs': 1.0,
         'demuxer_max_bytes_mib': 16,
-        'demuxer_max_back_bytes_mib': 512,
+        'demuxer_max_back_bytes_mib': 4,  # 与ConfigManager保持一致
         'fcc_prefetch_count': 2,
         'source_timeout_sec': 3,
         'enable_protocol_adaptive': True,
@@ -537,7 +568,6 @@ class MpvPlayerController(QObject):
 
     def stop(self):
         try:
-            # 记录是否真正在播放，用于决定是否记录日志
             was_playing = self.is_playing or self.current_url
 
             if self.mpv_handle:
@@ -559,11 +589,61 @@ class MpvPlayerController(QObject):
             if hasattr(self, 'event_timer') and self.event_timer:
                 self.event_timer.stop()
 
-            # 只在之前有播放活动时才记录日志，避免关闭程序时的无效日志
             if was_playing:
                 self.logger.info("停止播放")
         except Exception as e:
             self.logger.error(f"停止播放失败: {str(e)}")
+
+    def terminate(self):
+        """彻底终止MPV进程并释放所有资源（用于程序退出时调用）"""
+        try:
+            self.logger.info("正在终止MPV播放器...")
+
+            # 1. 停止所有定时器
+            for timer_attr in ['_media_info_timer', '_live_info_timer', 'event_timer']:
+                timer = getattr(self, timer_attr, None)
+                if timer:
+                    try:
+                        timer.stop()
+                    except:
+                        pass
+
+            # 2. 如果MPV句柄存在，发送quit命令并销毁
+            if self.mpv_handle:
+                try:
+                    # 发送quit命令给MPV
+                    cmd = [b'quit', None]
+                    cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
+                    libmpv.mpv_command(self.mpv_handle, cmd_ptr)
+
+                    import time
+                    time.sleep(0.1)  # 给MPV一点时间处理quit命令
+                except Exception as e:
+                    self.logger.debug(f"发送quit命令失败（可能已关闭）: {e}")
+
+                try:
+                    # 强制销毁MPV实例
+                    libmpv.mpv_terminate_destroy(self.mpv_handle)
+                    self.logger.info("MPV实例已销毁")
+                except Exception as e:
+                    # 如果terminate_destroy失败，尝试普通destroy
+                    try:
+                        libmpv.mpv_destroy(self.mpv_handle)
+                        self.logger.info("MPV实例已destroy")
+                    except Exception as e2:
+                        self.logger.warning(f"销毁MPV失败: {e2}")
+
+                self.mpv_handle = None
+
+            # 3. 重置状态
+            self.is_playing = False
+            self.is_paused = False
+            self.current_url = None
+            self.media_info = {}
+
+            self.logger.info("MPV播放器已完全终止")
+        except Exception as e:
+            self.logger.error(f"终止MPV播放器失败: {str(e)}")
 
     def pause(self):
         try:

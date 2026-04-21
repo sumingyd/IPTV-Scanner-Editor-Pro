@@ -1149,10 +1149,9 @@ class ScanChannelDialog(FloatingDialog):
         else:
             log_scan_info("开始追加扫描，保留现有列表")
 
-        # 统一扫描参数：超时5秒，4线程
-        # 智能重试时使用更长的重试超时（10秒）
-        scan_timeout = 5
-        scan_threads = 4
+        # 从配置统一读取扫描参数（避免硬编码）
+        scan_timeout = 5  # 默认值（会被配置覆盖）
+        scan_threads = 4   # 默认值（会被配置覆盖）
 
         try:
             if hasattr(self, 'config') and self.config:
@@ -1803,9 +1802,13 @@ class ScanChannelDialog(FloatingDialog):
                     # 立即标记为已重试，避免重复
                     self.scan_state_manager.add_retried_url(self.retry_id, url)
 
-                # 每处理一批后稍微休息，避免 UI 阻塞
+                # 每处理一批后处理事件，避免UI卡顿（替代time.sleep）
                 if i + batch_size < total_count:
-                    time.sleep(0.001)  # 1ms 休息，几乎不影响性能
+                    from PyQt6.QtWidgets import QApplication
+                    QApplication.processEvents(
+                        QApplication.ProcessEventsFlags.ExcludeUserInputEvents |
+                        QApplication.ProcessEventsFlags.ExcludeSocketNotifiers
+                    )
 
             # 减少日志输出，避免日志过多
             if total_count > 1000:

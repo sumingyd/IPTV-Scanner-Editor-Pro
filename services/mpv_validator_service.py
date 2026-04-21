@@ -73,6 +73,14 @@ def _create_lightweight_mpv():
         _libmpv.mpv_set_property_string(handle, b'config', b'no')
         _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-probesize', b'500000')
         _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-analyzeduration', b'500000')
+
+        # 应用自定义HTTP headers
+        headers = MpvStreamValidator.get_headers()
+        if headers:
+            import json
+            headers_json = json.dumps(headers).encode('utf-8')
+            _libmpv.mpv_set_property_string(handle, b'http-header-fields', headers_json)
+
         result = _libmpv.mpv_initialize(handle)
         if result < 0:
             _libmpv.mpv_destroy(handle)
@@ -219,6 +227,9 @@ class MpvStreamValidator:
     _active_count = 0
     _max_active = get_optimal_thread_count()
     _count_lock = threading.Lock()
+    _user_agent: str | None = None  # 使用 Optional 类型，允许None值
+    _referer: str | None = None   # 使用 Optional 类型，允许None值
+    _headers_lock = threading.Lock()
 
     def __init__(self, main_window=None):
         self.logger = global_logger
@@ -396,6 +407,26 @@ class MpvStreamValidator:
     @classmethod
     def set_max_concurrent(cls, max_count):
         cls._max_active = max(1, max_count)
+
+    @classmethod
+    def set_user_agent(cls, user_agent: str):
+        with cls._headers_lock:
+            cls._user_agent = user_agent
+
+    @classmethod
+    def set_referer(cls, referer: str):
+        with cls._headers_lock:
+            cls._referer = referer
+
+    @classmethod
+    def get_headers(cls) -> dict:
+        with cls._headers_lock:
+            headers = {}
+            if cls._user_agent:
+                headers['user-agent'] = cls._user_agent
+            if cls._referer:
+                headers['referer'] = cls._referer
+            return headers
 
     @classmethod
     def terminate_all(cls):

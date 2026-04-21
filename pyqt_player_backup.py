@@ -1,11 +1,5 @@
 import sys
 import os
-import logging
-
-# 禁用 urllib3 的 SSL 警告（因为使用了 verify=False）
-logging.captureWarnings(True)
-urllib3_logger = logging.getLogger('urllib3.connectionpool')
-urllib3_logger.setLevel(logging.CRITICAL)
 
 import re
 from datetime import datetime, timedelta
@@ -33,19 +27,6 @@ from core.application_state import app_state
 from core.language_manager import LanguageManager
 from ui.styles import AppStyles
 from ui.floating_dialog import TranslucentPanel, FloatingDialog
-
-# 导入控制器包（重构：将业务逻辑拆分为独立模块）
-from controllers import (
-    WindowController,
-    PlaybackController,
-    EPGController,
-    ChannelController,
-    SettingsFileOperations,
-    EventHandler,
-    UIController,
-    SubscriptionController,
-    SubscriptionUIController
-)
 
 
 def calculate_adaptive_delay(base_delay_ms: int = 200, min_delay_ms: int = 50, max_delay_ms: int = 500) -> int:
@@ -226,39 +207,6 @@ class IPTVPlayer(QMainWindow):
         from datetime import datetime
         self.current_epg_date = datetime.now().date()
         
-
-        # ========== 重构：必须先初始化控制器，才能在后续UI创建中使用 ==========
-        logger.debug("初始化业务控制器...")
-
-        # 1. 窗口框架控制器（管理标题栏、拖动、缩放、置顶）
-        self.window_ctrl = WindowController(self)
-
-        # 2. 播放控制核心（管理播放/暂停/停止、音量、频道切换）
-        self.playback_ctrl = PlaybackController(self)
-
-        # 3. EPG节目单控制器（管理EPG数据、显示、交互）
-        self.epg_ctrl = EPGController(self)
-
-        # 4. 频道列表控制器（管理频道列表、分组过滤、选择）
-        self.channel_ctrl = ChannelController(self)
-
-        # 5. 设置和文件操作处理器（管理配置、文件I/O、语言/主题）
-        self.settings_ops = SettingsFileOperations(self)
-
-        # 6. 事件处理器（管理快捷键、事件过滤、窗口生命周期）
-        self.event_handler = EventHandler(self)
-
-        # 7. UI控制器（管理OSD、媒体信息显示、样式等）
-        self.ui_ctrl = UIController(self)
-
-        # 8. 订阅控制器（管理订阅源、EPG加载、频道分组等）
-        self.subscription_ctrl = SubscriptionController(self)
-
-        # 9. 订阅UI控制器（管理订阅设置对话框中的UI逻辑）
-        self.subscription_ui_ctrl = SubscriptionUIController(self)
-
-        logger.debug("业务控制器初始化完成")
-
         # 创建最最基本的UI，只为了显示黑色背景的窗口
         logger.debug("创建最最基本的UI")
 
@@ -308,51 +256,198 @@ class IPTVPlayer(QMainWindow):
         self._initialize_in_order()
 
     def _create_custom_title_bar(self):
-        """创建自定义标题栏（委托给WindowController）"""
-        title_bar = self.window_ctrl.create_custom_title_bar(self._window_title)
-        
-        # 保存引用（兼容原有代码）
-        self._title_bar = title_bar
-        self._title_icon_label = self.window_ctrl._title_icon_label
-        self._title_label = self.window_ctrl._title_label
-        self._stay_on_top_btn = self.window_ctrl._stay_on_top_btn
-        self._minimize_btn = self.window_ctrl._minimize_btn
-        self._maximize_btn = self.window_ctrl._maximize_btn
-        self._close_btn = self.window_ctrl._close_btn
-        
+        """创建自定义标题栏（与主题颜色一致）"""
+        from PyQt6.QtWidgets import QLabel, QPushButton, QHBoxLayout
+        from PyQt6.QtCore import Qt
+
+        # 获取当前主题颜色
+        colors = AppStyles._get_colors()
+        title_bg = colors.get('window', '#1e1e1e')
+        title_text = colors.get('window_text', '#ffffff')
+        accent_color = colors.get('accent', '#0078d4')
+
+        # 标题栏容器
+        self._title_bar = QWidget()
+        self._title_bar.setFixedHeight(32)
+        self._title_bar.setObjectName("titleBar")
+        self._title_bar.setStyleSheet(f"""
+            QWidget#titleBar {{
+                background-color: {title_bg};
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;
+            }}
+            QWidget#titleBar > QPushButton {{
+                background-color: transparent;
+                color: {title_text};
+                border: none;
+                font-size: 14px;
+                padding: 4px 12px;
+                margin: 2px;
+                border-radius: 4px;
+            }}
+            QWidget#titleBar > QPushButton:hover {{
+                background-color: {accent_color};
+            }}
+            QWidget#titleBar > QPushButton#closeButton:hover {{
+                background-color: #e81123;
+            }}
+        """)
+
+        # 标题栏布局
+        title_layout = QHBoxLayout(self._title_bar)
+        title_layout.setContentsMargins(12, 0, 8, 0)
+        title_layout.setSpacing(0)
+
+        # 窗口图标（左侧）
+        self._title_icon_label = QLabel()
+        self._title_icon_label.setFixedSize(16, 16)
+        from utils.general_utils import get_icon_path
+        ico_path = get_icon_path()
+        if os.path.exists(ico_path):
+            from PyQt6.QtGui import QPixmap
+            pixmap = QPixmap(ico_path).scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self._title_icon_label.setPixmap(pixmap)
+        else:
+            self._title_icon_label.setText("📺")
+            self._title_icon_label.setStyleSheet(f"color: {accent_color}; font-size: 14px; background: transparent;")
+        self._title_icon_label.setStyleSheet("background: transparent;")
+
+        # 窗口标题
+        self._title_label = QLabel(self._window_title)
+        self._title_label.setStyleSheet(f"color: {title_text}; font-size: 13px; font-weight: bold; background: transparent; padding-left: 6px;")
+
+        # 弹性空间
+        title_layout.addWidget(self._title_icon_label)
+        title_layout.addWidget(self._title_label, 1)
+
+        # 窗口控制按钮
+        btn_style = f"QPushButton {{ min-width: 40px; max-width: 40px; height: 28px; }}"
+
+        # 置顶按钮
+        self._stay_on_top_btn = QPushButton("📌")
+        self._stay_on_top_btn.setObjectName("stayOnTopBtn")
+        self._stay_on_top_btn.setToolTip(self.language_manager.tr('tooltip_stay_on_top', 'Stay on Top'))
+        self._stay_on_top_btn.clicked.connect(self._toggle_stay_on_top)
+        self._stay_on_top_btn.setStyleSheet(btn_style)
+        self._stay_on_top_active = False
+        title_layout.addWidget(self._stay_on_top_btn)
+
+        # 最小化按钮
+        self._minimize_btn = QPushButton("─")
+        self._minimize_btn.setObjectName("minimizeBtn")
+        self._minimize_btn.setToolTip("最小化")
+        self._minimize_btn.clicked.connect(self.showMinimized)
+        self._minimize_btn.setStyleSheet(btn_style)
+        title_layout.addWidget(self._minimize_btn)
+
+        # 最大化/还原按钮
+        self._maximize_btn = QPushButton("□")
+        self._maximize_btn.setObjectName("maximizeBtn")
+        self._maximize_btn.setToolTip("最大化")
+        self._maximize_btn.clicked.connect(self._toggle_maximize)
+        self._maximize_btn.setStyleSheet(btn_style)
+        title_layout.addWidget(self._maximize_btn)
+
+        # 关闭按钮
+        self._close_btn = QPushButton("✕")
+        self._close_btn.setObjectName("closeButton")
+        self._close_btn.setToolTip("关闭")
+        self._close_btn.clicked.connect(self.close)
+        self._close_btn.setStyleSheet(btn_style)
+        title_layout.addWidget(self._close_btn)
+
         # 将标题栏添加到主布局顶部
         self.main_layout.addWidget(self._title_bar)
 
     def _toggle_maximize(self):
-        """切换最大化/还原状态（委托给WindowController）"""
-        self.window_ctrl.toggle_maximize()
+        """切换最大化/还原状态"""
+        if self.isMaximized():
+            self.showNormal()
+            self._maximize_btn.setText("□")
+            self._maximize_btn.setToolTip("最大化")
+        else:
+            self.showMaximized()
+            self._maximize_btn.setText("❐")
+            self._maximize_btn.setToolTip("还原")
 
     def _toggle_stay_on_top(self):
-        """切换置顶状态（委托给WindowController）"""
-        self.window_ctrl.toggle_stay_on_top()
+        self._stay_on_top_active = not self._stay_on_top_active
+        flags = self.windowFlags()
+        if self._stay_on_top_active:
+            self.setWindowFlags(flags | QtCore.Qt.WindowType.WindowStaysOnTopHint)
+            self._stay_on_top_btn.setText("📍")
+            self._stay_on_top_btn.setStyleSheet(
+                f"QPushButton {{ min-width: 40px; max-width: 40px; height: 28px; "
+                f"background-color: {AppStyles._get_colors().get('accent', '#0078d4')}; }}"
+            )
+        else:
+            self.setWindowFlags(flags & ~QtCore.Qt.WindowType.WindowStaysOnTopHint)
+            btn_style = f"QPushButton {{ min-width: 40px; max-width: 40px; height: 28px; }}"
+            self._stay_on_top_btn.setText("📌")
+            self._stay_on_top_btn.setStyleSheet(btn_style)
+        self.show()
 
     def mousePressEvent(self, event):
-        """鼠标按下事件（委托给WindowController）"""
-        if not self.window_ctrl.handle_mouse_press_event(event):
-            # 原有逻辑：点击窗口时显示悬浮窗
-            if hasattr(self, 'floating_panel_visible') and self.floating_panel_visible:
-                self.update_floating_position()
-            super().mousePressEvent(event)
+        """鼠标按下事件 - 用于窗口拖动"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            # 检查是否点击在标题栏区域（实现窗口拖动）
+            if hasattr(self, '_title_bar') and self._title_bar:
+                title_bar_geo = self._title_bar.geometry()
+                # 转换为全局坐标
+                title_global_pos = self._title_bar.mapToGlobal(QtCore.QPoint(0, 0))
+                mouse_global_pos = event.globalPosition().toPoint()
+
+                if (title_global_pos.x() <= mouse_global_pos.x() <= title_global_pos.x() + title_bar_geo.width() and
+                    title_global_pos.y() <= mouse_global_pos.y() <= title_global_pos.y() + title_bar_geo.height()):
+
+                    # 排除按钮区域
+                    child = self.childAt(event.position().toPoint())
+                    if child and isinstance(child, (QPushButton,)):
+                        pass
+                    else:
+                        self._dragging = True
+                        self._drag_offset = (event.globalPosition().toPoint() - self.frameGeometry().topLeft())
+                        event.accept()
+                        return
+
+        # 原有逻辑：点击窗口时显示悬浮窗
+        if hasattr(self, 'floating_panel_visible') and self.floating_panel_visible:
+            self.update_floating_position()
+
+        super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
-        """鼠标移动事件（委托给WindowController）"""
-        if not self.window_ctrl.handle_mouse_move_event(event):
-            super().mouseMoveEvent(event)
+        """鼠标移动事件 - 实现窗口拖动"""
+        if self._dragging and self._drag_offset is not None:
+            if event.buttons() & Qt.MouseButton.LeftButton:
+                new_pos = event.globalPosition().toPoint() - self._drag_offset
+                self.move(new_pos)
+                event.accept()
+                return
+
+        super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
-        """鼠标释放事件（委托给WindowController）"""
-        self.window_ctrl.handle_mouse_release_event(event)
+        """鼠标释放事件 - 结束拖动"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._dragging = False
+            self._drag_offset = None
+            self._raise_floating_panels()
+
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):
-        """鼠标双击事件（委托给WindowController）"""
-        if not self.window_ctrl.handle_mouse_double_click_event(event):
-            super().mouseDoubleClickEvent(event)
+        """鼠标双击事件 - 标题栏双击最大化/还原"""
+        if hasattr(self, '_title_bar') and self._title_bar:
+            title_bar_geo = self._title_bar.geometry()
+            title_global_pos = self._title_bar.mapToGlobal(QtCore.QPoint(0, 0))
+            mouse_global_pos = event.globalPosition().toPoint()
+
+            if (title_global_pos.x() <= mouse_global_pos.x() <= title_global_pos.x() + title_bar_geo.width() and
+                title_global_pos.y() <= mouse_global_pos.y() <= title_global_pos.y() + title_bar_geo.height()):
+                self._toggle_maximize()
+                event.accept()
+                return
 
         super().mouseDoubleClickEvent(event)
     
@@ -396,10 +491,8 @@ class IPTVPlayer(QMainWindow):
         # 8. 创建并显示播放列表面板
         self._create_playlist_panel()
         
-        # 9. 创建悬浮窗（但不立即显示，等窗口完全显示后再定位）
-        self._create_epg_panel(show=False)
-        self._create_playlist_panel(show=False)
-        self._create_bottom_panel(show=False)
+        # 9. 创建并显示底部悬浮控制面板
+        self._create_bottom_panel()
         
         # 10. 初始化最近打开文件菜单
         self._update_recent_files_menu()
@@ -459,11 +552,156 @@ class IPTVPlayer(QMainWindow):
         space_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
         
         logger.debug("_initialize_in_order: 完成")
-
+    
     def _handle_playlist_subscription(self, need_update, playlist_url, source_index=None):
-        """在后台线程中处理列表订阅（委托给SubscriptionController）"""
-        self.subscription_ctrl.handle_playlist_subscription(need_update, playlist_url, source_index)
+        """在后台线程中处理列表订阅（按源索引独立判断）"""
+        try:
+            global CHANNELS
 
+            from core.subscription_manager import global_subscription_manager
+            import os
+
+            if source_index is None:
+                source_index = global_subscription_manager.get_active_playlist_source_index()
+
+            update_ok = True
+            if need_update:
+                logger.info(f"源#{source_index} 列表订阅需要更新，开始下载最新数据")
+                try:
+                    self.update_playlist_subscription(source_index)
+                except Exception as update_ex:
+                    update_ok = False
+                    logger.warning(f"源#{source_index} 在线更新失败({update_ex})，尝试从缓存加载")
+
+            if not need_update or not update_ok:
+                cache_dir = self.config.get_value('General', 'cache_dir', 'cache')
+                if cache_dir and not os.path.exists(cache_dir):
+                    os.makedirs(cache_dir)
+                
+                playlist_cache_file = os.path.join(cache_dir or '', f'playlist_cache_{source_index}.m3u')
+                
+                if os.path.exists(playlist_cache_file):
+                    try:
+                        with open(playlist_cache_file, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                        
+                        # 解析M3U内容
+                        if self.channel_model.load_from_file(content):
+                            # 更新CHANNELS列表
+                            global CHANNELS
+                            CHANNELS = []
+                            for i, ch in enumerate(self.channel_model.channels):
+                                CHANNELS.append({
+                                    "id": i + 1,
+                                    "name": ch.get('name', '未命名'),
+                                    "url": ch.get('url', ''),
+                                    "logo": ch.get('logo', ''),
+                                    "group": ch.get('group', '未分类'),
+                                    "_groups": ch.get('_groups', [ch.get('group', '未分类')]),
+                                    "tvg_id": ch.get('tvg_id', ''),
+                                    "tvg_chno": ch.get('tvg_chno', ''),
+                                    "tvg_shift": ch.get('tvg_shift', ''),
+                                    "catchup": ch.get('catchup', ''),
+                                    "catchup_days": ch.get('catchup_days', ''),
+                                    "catchup_source": ch.get('catchup_source', ''),
+                                    "resolution": ch.get('resolution', ''),
+                                    "current_program": '',
+                                    "_raw_extinf": ch.get('_raw_extinf', ''),
+                                    "_all_tags": ch.get('_all_tags', {})
+                                })
+                            
+                            # 更新频道列表UI
+                            self.channel_list_updated.emit()
+                            
+                            logger.debug(f"列表订阅无需更新，从缓存加载数据，共 {len(CHANNELS)} 个频道")
+                            self.status_message.emit(self.language_manager.tr("loading_from_cache", "Loading from cache"))
+                        else:
+                            logger.error("缓存列表文件解析失败")
+                            # 尝试直接解析内容
+                            logger.debug("尝试直接解析缓存内容...")
+                            try:
+                                from services.m3u_parser import is_valid_channel_url as _is_valid_url
+                                lines = content.strip().split('\n')
+                                channels = []
+                                current_channel = {}
+                                current_group = '未分类'
+                                for line in lines:
+                                    line = line.strip()
+                                    if line.startswith('#EXTINF:'):
+                                        extinf_content = line[8:].strip()
+                                        genre_match = re.search(r',\s*#genre#\s*', extinf_content)
+                                        if genre_match:
+                                            before_genre = extinf_content[:genre_match.start()].strip()
+                                            group_name = before_genre
+                                            comma_pos = before_genre.rfind(',')
+                                            if comma_pos >= 0:
+                                                group_name = before_genre[comma_pos+1:].strip()
+                                            group_name = group_name.strip('=').strip()
+                                            if group_name:
+                                                current_group = group_name
+                                            current_channel = {}
+                                            continue
+                                        parts = line.split(',', 1)
+                                        if len(parts) > 1:
+                                            name = parts[1].strip()
+                                            current_channel['name'] = name
+                                            current_channel['group'] = current_group
+                                    elif line.startswith('#EXTGRP:'):
+                                        current_group = line[8:].strip()
+                                    elif not line.startswith('#') and line:
+                                        if current_channel:
+                                            url = line.strip()
+                                            if _is_valid_url(url):
+                                                current_channel['url'] = url
+                                                channels.append(current_channel.copy())
+                                            current_channel = {}
+                                
+                                if channels:
+                                    logger.debug(f"手动解析成功，共 {len(channels)} 个频道")
+                                    # 更新CHANNELS列表
+                                    CHANNELS = []
+                                    for i, ch in enumerate(channels):
+                                        CHANNELS.append({
+                                            "id": i + 1,
+                                            "name": ch.get('name', '未命名'),
+                                            "url": ch.get('url', ''),
+                                            "logo": ch.get('logo', ''),
+                                            "group": ch.get('group', '未分类'),
+                                            "_groups": ch.get('_groups', [ch.get('group', '未分类')]),
+                                            "tvg_id": ch.get('tvg_id', ''),
+                                            "tvg_chno": ch.get('tvg_chno', ''),
+                                            "tvg_shift": ch.get('tvg_shift', ''),
+                                            "catchup": ch.get('catchup', ''),
+                                            "catchup_days": ch.get('catchup_days', ''),
+                                            "catchup_source": ch.get('catchup_source', ''),
+                                            "resolution": ch.get('resolution', ''),
+                                            "current_program": '',
+                                            "_raw_extinf": ch.get('_raw_extinf', ''),
+                                            "_all_tags": ch.get('_all_tags', {})
+                                        })
+                                    
+                                    # 更新频道列表UI
+                                    self.channel_list_updated.emit()
+                                    
+                                    logger.debug(f"手动解析后更新列表UI，共 {len(CHANNELS)} 个频道")
+                                    self.status_message.emit("手动解析后更新列表")
+                                else:
+                                    logger.error("手动解析也失败")
+                            except Exception as ex:
+                                logger.error(f"手动解析失败: {ex}")
+                    except Exception as ex:
+                        logger.error(f"加载缓存列表失败: {ex}")
+                else:
+                    logger.debug(f"源#{source_index} 缓存文件不存在，强制更新列表")
+                    self.update_playlist_subscription(source_index)
+            
+            if not need_update or not update_ok:
+                if not CHANNELS:
+                    logger.warning(f"源#{source_index} 缓存加载后频道列表为空，强制在线更新")
+                    self.update_playlist_subscription(source_index)
+        except Exception as ex:
+            logger.error(f"处理列表订阅失败: {ex}")
+    
     def update_channel_list_ui(self):
         """更新频道列表UI（公共方法，用于 QMetaObject.invokeMethod 调用）"""
         self._update_channel_list_ui()
@@ -663,7 +901,7 @@ class IPTVPlayer(QMainWindow):
         
         logger.debug("_create_timer: 完成")
     
-    def _create_epg_panel(self, show=True):
+    def _create_epg_panel(self):
         """创建EPG面板"""
         logger.debug("_create_epg_panel: 开始")
         tr = self.language_manager.tr
@@ -682,27 +920,24 @@ class IPTVPlayer(QMainWindow):
         
         # 日期选择器
         date_layout = QHBoxLayout()
-        date_layout.setContentsMargins(8, 4, 8, 4)
-        date_layout.setSpacing(8)
-
+        date_layout.setContentsMargins(8, 0, 8, 8)
+        
         # 上一天按钮
         self.epg_prev_day = QPushButton("◀")
-        self.epg_prev_day.setMinimumSize(32, 28)
-        self.epg_prev_day.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.epg_prev_day.setFixedSize(24, 24)
         self.epg_prev_day.setStyleSheet(AppStyles.player_date_button_style())
         self.epg_prev_day.clicked.connect(self.on_prev_day)
         date_layout.addWidget(self.epg_prev_day)
-
+        
         # 日期显示
         self.epg_date_label = QLabel(tr("today", "Today"))
         self.epg_date_label.setStyleSheet(AppStyles.player_date_label_style())
         self.epg_date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         date_layout.addWidget(self.epg_date_label, 1)
-
+        
         # 下一天按钮
         self.epg_next_day = QPushButton("▶")
-        self.epg_next_day.setMinimumSize(32, 28)
-        self.epg_next_day.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.epg_next_day.setFixedSize(24, 24)
         self.epg_next_day.setStyleSheet(AppStyles.player_date_button_style())
         self.epg_next_day.clicked.connect(self.on_next_day)
         date_layout.addWidget(self.epg_next_day)
@@ -726,13 +961,12 @@ class IPTVPlayer(QMainWindow):
         self.epg_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         self.epg_layout.addWidget(self.epg_empty_label)
         
-        # 显示面板（如果show参数为True）
-        if show:
-            self.epg_panel.show()
+        # 显示面板
+        self.epg_panel.show()
         
         logger.debug("_create_epg_panel: 完成")
     
-    def _create_playlist_panel(self, show=True):
+    def _create_playlist_panel(self):
         """创建播放列表面板"""
         logger.debug("_create_playlist_panel: 开始")
         tr = self.language_manager.tr
@@ -770,22 +1004,21 @@ class IPTVPlayer(QMainWindow):
         self.channel_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         self.playlist_layout.addWidget(self.channel_empty_label)
         
-        # 显示面板（如果show参数为True）
-        if show:
-            self.playlist_panel.show()
+        # 显示面板
+        self.playlist_panel.show()
         
         logger.debug("_create_playlist_panel: 完成")
     
-    def _create_bottom_panel(self, show=True):
+    def _create_bottom_panel(self):
         """创建底部悬浮控制面板"""
         logger.debug("_create_bottom_panel: 开始")
         
         # 第一步：创建底部面板
-        self._create_panel(show=show)
+        self._create_panel()
         
         logger.debug("_create_bottom_panel: 完成")
     
-    def _create_panel(self, show=True):
+    def _create_panel(self):
         """创建面板"""
         logger.debug("_create_panel: 开始")
         tr = self.language_manager.tr
@@ -802,9 +1035,8 @@ class IPTVPlayer(QMainWindow):
         # 第二步：创建媒体信息行
         self._create_media_row()
         
-        # 显示面板（如果show参数为True）
-        if show:
-            self.floating_panel.show()
+        # 显示面板
+        self.floating_panel.show()
         
         logger.debug("_create_panel: 完成")
     
@@ -867,7 +1099,6 @@ class IPTVPlayer(QMainWindow):
         self.channel_logo.setStyleSheet(AppStyles.player_channel_logo_style())
         self.channel_logo.setFixedSize(100, 36)
         self.channel_logo.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignCenter)
-        self.channel_logo.setScaledContents(True)  # 确保图片缩放并居中
         top_row.addWidget(self.channel_logo)
         
         # 频道名称（按内容宽度，不拉伸）
@@ -1106,9 +1337,9 @@ class IPTVPlayer(QMainWindow):
         logger.debug("_install_event_filters: 完成")
     
     def populate_channel_list_ui(self):
-        """填充频道列表UI（委托给ChannelController）"""
-        self.channel_ctrl.populate_channel_list()
-
+        """填充频道列表（公共方法，用于 QMetaObject.invokeMethod 调用）"""
+        self._populate_channel_list()
+    
     def populate_epg_list_ui(self):
         """填充EPG列表（公共方法，用于 QMetaObject.invokeMethod 调用）"""
         self._populate_epg_list()
@@ -1367,137 +1598,120 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, '_custom_menu_bar') and self._custom_menu_bar and hasattr(self, 'main_layout'):
             if self._custom_menu_bar.parent() != self._main_container:
                 self.main_layout.insertWidget(1, self._custom_menu_bar)
-
+    
     def update_channel_groups(self):
-        """从CHANNELS中提取分组并更新下拉框（委托给SubscriptionController）"""
-        self.subscription_ctrl.update_channel_groups()
-
+        """从CHANNELS中提取分组并更新下拉框"""
+        global CHANNEL_GROUPS
+        
+        # 提取所有唯一的分组（支持多分组），保持出现顺序
+        groups = []
+        seen = set()
+        for channel in CHANNELS:
+            for g in channel.get('_groups', [channel.get('group', '') or '未分类']):
+                if g and g not in seen:
+                    groups.append(g)
+                    seen.add(g)
+        
+        # 更新CHANNEL_GROUPS
+        new_groups = [self.language_manager.tr("all_channels", "All Channels")] + groups
+        
+        # 如果分组没有变化，不需要更新
+        if new_groups == CHANNEL_GROUPS:
+            return
+        
+        CHANNEL_GROUPS = new_groups
+        
+        # 暂时断开信号连接，避免递归
+        self.group_combo.blockSignals(True)
+        
+        # 更新下拉框
+        current_text = self.group_combo.currentText()
+        self.group_combo.clear()
+        self.group_combo.addItems(CHANNEL_GROUPS)
+        
+        # 尝试恢复之前的选择
+        index = self.group_combo.findText(current_text)
+        if index >= 0:
+            self.group_combo.setCurrentIndex(index)
+        
+        # 恢复信号连接
+        self.group_combo.blockSignals(False)
+    
     def populate_channel_list(self):
         """填充频道列表"""
-        from core.log_manager import global_logger as logger
-
         self.channel_list.clear()
-
+        
         # 更新分组下拉框
         self.update_channel_groups()
-
-        logger.info(f"populate_channel_list: 开始, CHANNELS 长度={len(CHANNELS)}")
-
+        
         if not CHANNELS:
-            logger.warning(f"populate_channel_list: CHANNELS为空，显示空提示")
+            logger.debug(f"populate_channel_list: CHANNELS为空，显示空提示")
             self.channel_empty_label.show()
             return
         self.channel_empty_label.hide()
-
+        
         # 获取当前选中的分组
         selected_group = self.group_combo.currentText()
 
-        # 检查是否选中了"全部分组"（支持多语言）
-        all_channels_text = self.language_manager.tr("all_channels", "All Channels")
-        is_all_channels = (
-            not selected_group or  # 空字符串
-            selected_group.lower() == 'all channels' or  # 英文
-            selected_group == all_channels_text or  # 翻译后的文本
-            selected_group == 'All Channels'  # 英文（大小写敏感）
-        )
-
-        added_count = 0
-        error_count = 0
-        skipped_count = 0
-
         for idx, channel in enumerate(CHANNELS):
-            try:
-                if not is_all_channels:
-                    channel_groups = channel.get('_groups', [channel.get('group', '')])
-                    if selected_group not in channel_groups:
-                        skipped_count += 1
-                        continue
+            if selected_group != self.language_manager.tr("all_channels", "All Channels"):
+                channel_groups = channel.get('_groups', [channel.get('group', '')])
+                if selected_group not in channel_groups:
+                    continue
 
-                # 获取频道名称
-                channel_name = channel.get("name", self.language_manager.tr("unnamed", "Unnamed"))
-                logo_url = channel.get('logo', '')
-
-                # 调试：记录前5个频道的logo情况
-                if idx < 5:
-                    logger.info(f"频道{idx} '{channel_name[:15]}': logo={'有' if logo_url else '无'} ({(logo_url[:50] + '...') if logo_url and len(logo_url) > 50 else (logo_url or '空')})")
-
-                # 所有频道都使用自定义widget（支持台标显示和懒加载）
-                try:
-                    # 创建一个容器 widget
-                    item_widget = QtWidgets.QWidget()
-                    item_layout = QHBoxLayout(item_widget)
-                    item_layout.setContentsMargins(5, 5, 5, 5)
-                    item_layout.setSpacing(10)
-
-                    # 台标标签
-                    logo_label = QtWidgets.QLabel()
-                    logo_label.setFixedSize(48, 34)
-                    logo_label.setStyleSheet("background-color: transparent; border: none;")
-                    logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                    # 设置对象名，便于懒加载时查找
-                    logo_label.setObjectName("channel_logo_label")
-
-                    # 如果有台标且在缓存中，立即显示
-                    if logo_url:
-                        logo_url = logo_url.strip('`"\'')
-                        cached = self._logo_cache_service.get(logo_url)
-                        if cached:
-                            if idx < 5:
-                                logger.info(f"频道{idx} '{channel_name[:15]}': 从缓存加载台标, pixmap有效: {not cached.isNull()}")
-                            scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(
-                                cached,
-                                logo_label.width() if logo_label.width() > 0 else 34,
-                                logo_label.height() if logo_label.height() > 0 else 34
-                            )
-                            logo_label.setPixmap(scaled)
-                        else:
-                            if idx < 5:
-                                logger.info(f"频道{idx} '{channel_name[:15]}': 缓存未命中，开始异步下载台标")
-                            self._logo_cache_service.fetch_async(logo_url)
-
-                    # 频道名称标签
-                    name_label = QtWidgets.QLabel(channel_name)
-                    from ui.styles import AppStyles
-                    colors = AppStyles._get_colors()
-                    name_label.setStyleSheet(f"font-size: 12px; font-weight: bold; color: {colors['player_panel_text']};")
-                    name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-                    name_label.setWordWrap(False)
-
-                    # 添加到布局
-                    item_layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignVCenter)
-                    item_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
-
-                    # 创建 QListWidgetItem 并设置大小
-                    item = QListWidgetItem()
-                    item.setSizeHint(QSize(0, 42))
-                    item.setData(Qt.ItemDataRole.UserRole, idx)
-
-                    # 将自定义 widget 设置为 item 的 widget
-                    self.channel_list.addItem(item)
-                    self.channel_list.setItemWidget(item, item_widget)
-                    added_count += 1
-
-                except Exception as widget_ex:
-                    # 如果自定义widget创建失败，回退到简单文本项
-                    simple_item = QListWidgetItem(channel_name)
-                    simple_item.setData(Qt.ItemDataRole.UserRole, idx)
-                    self.channel_list.addItem(simple_item)
-                    added_count += 1
-                    error_count += 1
-                    if error_count <= 3:
-                        logger.warning(f"第{idx}个频道的自定义widget创建失败，使用简单文本: {widget_ex}")
-
-            except Exception as e:
-                error_count += 1
-                if error_count <= 3:
-                    logger.error(f"populate_channel_list: 添加第{idx}个频道失败: {e}")
-
-        if error_count > 0:
-            logger.warning(f"populate_channel_list: 共 {error_count} 个频道添加失败")
-        if skipped_count > 0:
-            logger.warning(f"populate_channel_list: 共 {skipped_count} 个频道被分组过滤跳过")
-
-        logger.info(f"populate_channel_list: 填充完成，共 {self.channel_list.count()} 个频道项（实际添加: {added_count}, 跳过: {skipped_count}, 总数据: {len(CHANNELS)}）")
+            # 创建自定义的频道项 widget
+            channel_name = channel.get("name", self.language_manager.tr("unnamed", "Unnamed"))
+            logo_url = channel.get('logo', '')
+            
+            # 创建一个容器 widget
+            item_widget = QtWidgets.QWidget()
+            item_layout = QHBoxLayout(item_widget)
+            item_layout.setContentsMargins(5, 5, 5, 5)
+            item_layout.setSpacing(10)
+            
+            # 台标标签
+            logo_label = QtWidgets.QLabel()
+            logo_label.setFixedSize(48, 34)
+            logo_label.setStyleSheet("background-color: transparent; border: none;")
+            logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            
+            # 如果有台标，加载它
+            if logo_url:
+                logo_url = logo_url.strip('`"\'')
+                cached = self._logo_cache_service.get(logo_url)
+                if cached:
+                    scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(
+                        cached, 
+                        logo_label.width() if logo_label.width() > 0 else 34,
+                        logo_label.height() if logo_label.height() > 0 else 34
+                    )
+                    logo_label.setPixmap(scaled)
+                else:
+                    # 异步加载台标
+                    self._logo_cache_service.fetch_async(logo_url)
+            
+            # 频道名称标签
+            name_label = QtWidgets.QLabel(channel_name)
+            from ui.styles import AppStyles
+            colors = AppStyles._get_colors()
+            name_label.setStyleSheet(f"font-size: 12px; font-weight: bold; color: {colors['player_panel_text']};")
+            name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+            name_label.setWordWrap(False)
+            
+            # 添加到布局
+            item_layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignVCenter)
+            item_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
+            
+            # 创建 QListWidgetItem 并设置大小
+            item = QListWidgetItem()
+            item.setSizeHint(QSize(0, 42))
+            item.setData(Qt.ItemDataRole.UserRole, idx)
+            
+            # 将自定义 widget 设置为 item 的 widget
+            self.channel_list.addItem(item)
+            self.channel_list.setItemWidget(item, item_widget)
+        
+        logger.info(f"populate_channel_list: 填充完成，共 {self.channel_list.count()} 个频道项")
         # 连接滚动信号，实现懒加载
         self.channel_list.verticalScrollBar().valueChanged.connect(self._on_channel_list_scrolled)
     
@@ -1526,8 +1740,8 @@ class IPTVPlayer(QMainWindow):
             if not item_widget:
                 continue
             
-            # 获取台标标签（按 objectName 查找，避免找到 name_label）
-            logo_label = item_widget.findChild(QtWidgets.QLabel, "channel_logo_label")
+            # 获取台标标签
+            logo_label = item_widget.findChild(QtWidgets.QLabel)
             if not logo_label:
                 continue
             # 检查是否已经有台标
@@ -1556,13 +1770,344 @@ class IPTVPlayer(QMainWindow):
                     self._logo_cache_service.fetch_async(logo_url)
     
     def populate_epg_list(self):
-        """填充EPG列表（委托给EPGController）"""
-        self.epg_ctrl.populate_epg_list()
+        """填充EPG列表"""
+        colors = AppStyles._get_colors()
+        self.epg_content.clear()
+        # 设置列表的整体样式
+        self.epg_content.setStyleSheet(AppStyles.player_list_style())
+        
+        # 检查是否有当前频道
+        if not self.current_channel:
+            self.epg_empty_label.show()
+            return
+        
+        # 从EPG解析器获取真实数据
+        channel_name = self.current_channel.get("name", "")
+        tvg_id = self.current_channel.get("tvg_id", "")
+        
+        # 获取当前频道的节目单
+        epg_list = self.epg_parser.get_channel_epg(channel_name, tvg_id)
+        
+        # 处理从EPG解析器获取的节目数据
+        if epg_list:
+            # 确保节目数据按开始时间排序
+            from datetime import datetime
+            epg_list.sort(key=lambda x: datetime.fromisoformat(x.get('start', '')))
+        
+        # 如果EPG解析器没有数据，尝试从EPG_DATA获取
+        if not epg_list and EPG_DATA and channel_name in EPG_DATA:
+            current_channel_epg = EPG_DATA[channel_name]
+            if current_channel_epg and len(current_channel_epg) > 0:
+                # 转换EPG_DATA格式为与epg_parser返回的格式一致
+                epg_list = []
+                from datetime import datetime
+                for program_data in current_channel_epg:
+                    try:
+                        # 解析时间格式
+                        time_str = program_data.get('time', '')
+                        if time_str:
+                            # 假设时间格式为 "HH:MM-HH:MM"
+                            time_parts = time_str.split('-')
+                            if len(time_parts) == 2:
+                                # 创建一个简单的节目对象
+                                # 处理跨天节目
+                                from datetime import timedelta
+                                start_hour, start_minute = map(int, time_parts[0].split(':'))
+                                end_hour, end_minute = map(int, time_parts[1].split(':'))
+                                
+                                # 确定开始和结束日期
+                                now = datetime.now()
+                                today = now.date()
+                                current_hour = now.hour
+                                
+                                start_date = today
+                                end_date = today
+                                
+                                # 如果结束时间小于开始时间，说明是跨天节目
+                                if end_hour < start_hour:
+                                    # 如果当前时间在00:00-开始时间之间，说明节目是昨天开始的
+                                    if current_hour < start_hour:
+                                        start_date = today - timedelta(days=1)
+                                    end_date = today + timedelta(days=1)
+                                
+                                # 创建开始和结束时间
+                                start_datetime = datetime.combine(start_date, datetime.min.time())
+                                start_datetime = start_datetime.replace(hour=start_hour, minute=start_minute)
+                                
+                                end_datetime = datetime.combine(end_date, datetime.min.time())
+                                end_datetime = end_datetime.replace(hour=end_hour, minute=end_minute)
+                                
+                                program = {
+                                    'title': program_data.get('title', self.language_manager.tr('unknown_program', 'Unknown Program')),
+                                    'desc': program_data.get('description', ''),
+                                    'start': start_datetime.isoformat(),
+                                    'end': end_datetime.isoformat()
+                                }
+                                epg_list.append(program)
+                    except Exception as e:
+                        logger.error(f"处理EPG_DATA节目失败: {e}")
+                        continue
+            
+            # 确保节目数据按开始时间排序
+            if epg_list:
+                from datetime import datetime
+                epg_list.sort(key=lambda x: datetime.fromisoformat(x.get('start', '')))
+        
+        # 如果没有节目数据，显示空提示
+        if not epg_list:
+            self.epg_empty_label.show()
+            return
+        
+        # 隐藏空提示
+        self.epg_empty_label.hide()
+        
+        # 显示节目单数据
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        current_program_index = -1
+        item_index = 0
+        has_date_program = False
 
+        # 导入需要的模块
+        from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor
+        from PyQt6.QtCore import QSize, Qt
+
+        # 过滤并排序节目列表
+        filtered_programs = []
+        yesterday_programs = []
+
+        for program in epg_list:
+            try:
+                start_time = datetime.fromisoformat(program.get('start', ''))
+                end_time = datetime.fromisoformat(program.get('end', ''))
+
+                # 检查节目是否在当前选择的日期或与当前日期相关
+                if start_time.date() == self.current_epg_date or end_time.date() == self.current_epg_date:
+                    filtered_programs.append(program)
+                # 检查节目是否是昨天的节目
+                elif start_time.date() == self.current_epg_date - timedelta(days=1):
+                    yesterday_programs.append(program)
+            except Exception as e:
+                logger.error(f"过滤节目失败: {e}")
+                continue
+
+        # 按开始时间排序节目列表
+        filtered_programs.sort(key=lambda x: datetime.fromisoformat(x.get('start', '')))
+        
+        # 检查是否有当前时间正在播放的节目
+        has_current_program = False
+        current_program_index = -1
+        item_index = 0
+        
+        # 首先检查是否有当前时间正在播放的节目
+        for i, program in enumerate(filtered_programs):
+            try:
+                start_time = datetime.fromisoformat(program.get('start', ''))
+                end_time = datetime.fromisoformat(program.get('end', ''))
+                if start_time <= now <= end_time:
+                    has_current_program = True
+                    current_program_index = i
+                    break
+            except Exception as e:
+                logger.error(f"检查当前节目失败: {e}")
+                continue
+        
+        # 如果没有当前时间正在播放的节目，尝试从昨天的节目中查找
+        if not has_current_program and yesterday_programs:
+            # 按结束时间排序昨天的节目，找到结束时间最晚的节目
+            yesterday_programs.sort(key=lambda x: datetime.fromisoformat(x.get('end', '')))
+            
+            # 查找昨天的节目中，结束时间大于当前时间的节目
+            for program in reversed(yesterday_programs):
+                try:
+                    start_time = datetime.fromisoformat(program.get('start', ''))
+                    end_time = datetime.fromisoformat(program.get('end', ''))
+                    
+                    # 检查节目是否在当前时间仍在播放
+                    if start_time <= now <= end_time:
+                        # 将这个节目添加到过滤列表的最前面
+                        filtered_programs.insert(0, program)
+                        logger.debug(f"添加昨天的跨天节目: {program.get('title', '未知节目')}, 开始: {start_time}, 结束: {end_time}")
+                        has_current_program = True
+                        current_program_index = 0
+                        break
+                except Exception as e:
+                    logger.error(f"检查昨天节目失败: {e}")
+                    continue
+        
+        # 如果仍然没有找到，尝试从所有节目中查找
+        if not has_current_program:
+            for program in epg_list:
+                try:
+                    start_time = datetime.fromisoformat(program.get('start', ''))
+                    end_time = datetime.fromisoformat(program.get('end', ''))
+                    
+                    # 检查节目是否在当前时间正在播放
+                    if start_time <= now <= end_time:
+                        # 将这个节目添加到过滤列表的最前面
+                        filtered_programs.insert(0, program)
+                        logger.debug(f"添加当前播放的节目: {program.get('title', '未知节目')}, 开始: {start_time}, 结束: {end_time}")
+                        has_current_program = True
+                        current_program_index = 0
+                        break
+                except Exception as e:
+                    logger.error(f"检查节目失败: {e}")
+                    continue
+        
+        # 如果仍然没有当前时间正在播放的节目，显示一个提示
+        if not has_current_program and filtered_programs:
+            # 创建一个提示项
+            now_str = now.strftime("%H:%M")
+            item = QListWidgetItem(f"{now_str} {self.language_manager.tr('no_current_program', 'No current program')}")
+            item.setForeground(QColor(255, 165, 0))  # 橙色
+            # 将提示项添加到列表的最前面
+            filtered_programs.insert(0, item)
+            logger.info(f"添加提示项: 当前时间 {now_str} 没有正在播放的节目")
+        
+        # 记录排序后的节目信息，用于调试
+        logger.debug(f"排序后的节目列表:")
+        for i, program in enumerate(filtered_programs):
+            try:
+                # 检查是否是QListWidgetItem对象（提示项）
+                if isinstance(program, QListWidgetItem):
+                    logger.info(f"{i+1}. {program.text()}")
+                else:
+                    start_time = datetime.fromisoformat(program.get('start', ''))
+                    end_time = datetime.fromisoformat(program.get('end', ''))
+                    logger.debug(f"{i+1}. {program.get('title', '未知节目')}, 开始: {start_time}, 结束: {end_time}")
+            except Exception as e:
+                logger.error(f"记录节目信息失败: {e}")
+        
+        # 遍历排序后的节目列表
+        for program in filtered_programs:
+            try:
+                # 检查是否是QListWidgetItem对象（提示项）
+                if isinstance(program, QListWidgetItem):
+                    self.epg_content.addItem(program)
+                    item_index += 1
+                    continue
+                
+                start_time = datetime.fromisoformat(program.get('start', ''))
+                end_time = datetime.fromisoformat(program.get('end', ''))
+                
+                has_date_program = True
+                
+                # 格式化时间显示
+                start_str = start_time.strftime("%H:%M")
+                
+                # 检查频道是否支持回看
+                catchup = self.current_channel.get('catchup', '')
+                catchup_source = self.current_channel.get('catchup_source', '')
+                has_catchup = bool(catchup) and bool(catchup_source)
+                
+                # 创建节目项
+                item_text = f"{start_str}  {program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))}"
+                item = QListWidgetItem(item_text)
+                
+                # 给已播放的节目添加回看图标
+                if has_catchup and end_time < now:
+                    # 创建一个带有回看图标的QPixmap
+                    pixmap = QPixmap(20, 20)
+                    pixmap.fill(QColor(0, 0, 0, 0))
+                    painter = QPainter(pixmap)
+                    painter.setPen(QColor(colors['player_panel_text']))
+                    painter.setFont(painter.font())
+                    painter.drawText(0, 0, 20, 20, 0x0004 | 0x0008, "🔄")  # 居中显示
+                    painter.end()
+                    
+                    # 设置图标
+                    item.setIcon(QIcon(pixmap))
+                    item.setToolTip(self.language_manager.tr("catchup_supported", "Catchup supported"))
+                
+                # 设置样式
+                if start_time <= now <= end_time:
+                    # 当前正在播放的节目
+                    font = item.font()
+                    font.setBold(True)
+                    item.setFont(font)
+                    item.setForeground(QColor(colors['player_accent']))
+                    current_program_index = item_index
+                elif start_time > now:
+                    item.setForeground(QColor(colors['player_panel_text']))
+                else:
+                    item.setForeground(QColor(colors['player_panel_disabled']))
+                
+                self.epg_content.addItem(item)
+                item_index += 1
+            except Exception as e:
+                logger.error(f"处理节目失败: {e}")
+                continue
+        
+        # 如果没有当前日期的节目，显示空提示
+        if not has_date_program:
+            self.epg_empty_label.show()
+            return
+        
+        # 隐藏空提示
+        self.epg_empty_label.hide()
+        
+        # 滚动到当前正在播放的节目
+        if current_program_index >= 0:
+            self.epg_content.setCurrentRow(current_program_index)
+            self.epg_content.scrollToItem(
+                self.epg_content.item(current_program_index),
+                QAbstractItemView.ScrollHint.PositionAtCenter
+            )
+    
     def on_epg_item_clicked(self, item):
-        """处理EPG列表项点击事件（委托给EPGController）"""
-        self.epg_ctrl.on_epg_item_clicked(item)
-
+        """EPG节目项点击事件"""
+        if not self.current_channel:
+            return
+        
+        # 检查频道是否支持回看
+        catchup = self.current_channel.get('catchup', '')
+        catchup_source = self.current_channel.get('catchup_source', '')
+        if not (catchup and catchup_source):
+            # 不支持回看，显示提示
+            self.status_bar_show_message(self.language_manager.tr("catchup_not_supported", "This channel does not support catchup"))
+            return
+        
+        # 获取当前选择的日期
+        from datetime import datetime
+        now = datetime.now()
+        
+        # 获取当前频道的节目单
+        channel_name = self.current_channel.get("name", "")
+        tvg_id = self.current_channel.get("tvg_id", "")
+        epg_list = self.epg_parser.get_channel_epg(channel_name, tvg_id)
+        
+        if not epg_list:
+            return
+        
+        # 查找被点击的节目
+        item_text = item.text()
+        for program in epg_list:
+            try:
+                start_time = datetime.fromisoformat(program.get('start', ''))
+                end_time = datetime.fromisoformat(program.get('end', ''))
+                
+                # 检查节目是否在当前选择的日期或与当前日期相关
+                # 情况1：节目完全在当前日期内
+                # 情况2：跨天节目，开始时间在上一天，结束时间在今天
+                # 情况3：跨天节目，开始时间在今天，结束时间在明天
+                if not (start_time.date() == self.current_epg_date or end_time.date() == self.current_epg_date):
+                    continue
+                
+                # 格式化时间显示
+                start_str = start_time.strftime("%H:%M")
+                program_text = f"{start_str}  {program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))}"
+                
+                # 直接比较文本，因为图标不会影响文本内容
+                if program_text == item_text:
+                    # 检查节目是否已播放
+                    if end_time < now:
+                        # 已播放的节目，启动回看
+                        self.start_catchup(program)
+                    break
+            except Exception as e:
+                logger.error(f"处理节目失败: {e}")
+                continue
+    
     def _replace_catchup_variables(self, catchup_source, start_time, end_time):
         if not catchup_source:
             return catchup_source
@@ -2095,29 +2640,23 @@ class IPTVPlayer(QMainWindow):
             self.status_bar.showMessage(self.language_manager.tr("catchup_error", "Catchup error: Missing information"))
     
     def on_group_changed(self, group_name):
-        """处理分组切换事件（委托给ChannelController）"""
-        self.channel_ctrl.on_group_changed(group_name)
-
+        """分组切换时重新填充频道列表"""
+        self.populate_channel_list()
+    
     def select_channel(self, item):
-        from core.log_manager import global_logger as logger
-        try:
-            idx = item.data(Qt.ItemDataRole.UserRole)
-            if isinstance(idx, int) and 0 <= idx < len(CHANNELS):
-                self.current_channel = CHANNELS[idx]
+        idx = item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(idx, int) and 0 <= idx < len(CHANNELS):
+            self.current_channel = CHANNELS[idx]
+        else:
+            index = self.channel_list.row(item)
+            if 0 <= index < len(CHANNELS):
+                self.current_channel = CHANNELS[index]
             else:
-                index = self.channel_list.row(item)
-                if 0 <= index < len(CHANNELS):
-                    self.current_channel = CHANNELS[index]
-                else:
-                    logger.warning(f"select_channel: 无效的索引 idx={idx}, row={index}, CHANNELS长度={len(CHANNELS)}")
-                    return
+                return
 
-            logger.info(f"select_channel: 选中频道 {self.current_channel.get('name', '?')}")
-            self.update_channel_info_on_selection()
-            self.populate_epg_list()
-            self.play_channel(self.current_channel)
-        except Exception as e:
-            logger.error(f"select_channel: 选择频道失败: {e}", exc_info=True)
+        self.update_channel_info_on_selection()
+        self.populate_epg_list()
+        self.play_channel(self.current_channel)
     
     def _get_display_channel_name(self, channel):
         """获取用于显示的频道名称，优先级：逗号后的名字 > tvg-name > name"""
@@ -2221,29 +2760,26 @@ class IPTVPlayer(QMainWindow):
         self.network_info.setText(f"📡 {self.language_manager.tr('waiting_connect', 'Waiting to connect...')}")
     
     def toggle_epg(self, checked):
-        """切换EPG面板显示/隐藏（委托给EPGController）"""
-        self.epg_ctrl.toggle_epg(checked)
-
-    def set_language(self, language: str):
-        """设置界面语言（委托给SettingsFileOperations）"""
-        self.settings_ops.set_language(language)
-
-    def set_theme(self, theme: str):
-        """设置界面主题（委托给SettingsFileOperations）"""
-        self.settings_ops.set_theme(theme)
-
-    def show_about(self):
-        """显示关于对话框（委托给SettingsFileOperations）"""
-        self.settings_ops.show_about()
-
-    def player_settings(self):
-        """打开播放器设置（委托给SettingsFileOperations）"""
-        self.settings_ops.player_settings()
-
+        """显示/隐藏EPG面板"""
+        self.epg_visible = checked
+        self.epg_panel.setVisible(checked)
+    
     def update_epg_date_display(self):
-        """更新EPG日期显示（委托给EPGController）"""
-        self.epg_ctrl.update_epg_date_display()
-
+        """更新EPG日期显示"""
+        from datetime import datetime, timedelta
+        today = datetime.now().date()
+        
+        if self.current_epg_date == today:
+            date_str = "今天"
+        elif self.current_epg_date == today - timedelta(days=1):
+            date_str = "昨天"
+        elif self.current_epg_date == today + timedelta(days=1):
+            date_str = "明天"
+        else:
+            date_str = self.current_epg_date.strftime("%m-%d")
+        
+        self.epg_date_label.setText(date_str)
+    
     def on_prev_day(self):
         """上一天按钮点击事件"""
         from datetime import timedelta
@@ -2299,13 +2835,175 @@ class IPTVPlayer(QMainWindow):
                 self._auto_hide_timer.start()
 
     def toggle_osd(self, checked=None):
-        """切换OSD显示/隐藏（委托给UIController）"""
-        self.ui_ctrl.toggle_osd(checked)
+        if checked is None:
+            self._osd_visible = not self._osd_visible
+        else:
+            self._osd_visible = checked
+        if hasattr(self, '_osd_menu_action') and self._osd_menu_action:
+            self._osd_menu_action.setChecked(self._osd_visible)
+
+        if self._osd_visible:
+            if not hasattr(self, '_osd_saved_panel_states'):
+                self._osd_saved_panel_states = {}
+            self._osd_saved_panel_states['epg'] = self.epg_visible
+            self._osd_saved_panel_states['playlist'] = self.playlist_visible
+            if hasattr(self, 'epg_panel') and self.epg_panel and self.epg_panel.isVisible():
+                self.epg_panel.hide()
+            if hasattr(self, 'playlist_panel') and self.playlist_panel and self.playlist_panel.isVisible():
+                self.playlist_panel.hide()
+            if hasattr(self, 'player_controller') and self.player_controller and self.player_controller.is_playing:
+                try:
+                    info = self.player_controller.get_live_media_info()
+                except Exception:
+                    info = None
+                if not info:
+                    info = {}
+                channel_name = ''
+                if hasattr(self, 'current_channel') and self.current_channel and isinstance(self.current_channel, dict):
+                    channel_name = self.current_channel.get('name', '') or ''
+                w = info.get('width', 0) or 0
+                h = info.get('height', 0) or 0
+                fps = info.get('fps', 0) or 0
+                vcodec = info.get('video_codec', '') or ''
+                acodec = info.get('audio_codec', '') or ''
+                hw = info.get('hwdec', '') or ''
+                colormatrix = info.get('colormatrix', '') or ''
+                color_primaries = info.get('color_primaries', '') or ''
+                gamma = info.get('gamma', '') or ''
+                colorlevels = info.get('colorlevels', '') or ''
+                sig_peak = info.get('sig_peak', 0) or 0
+                sig_avg = info.get('sig_avg', 0) or 0
+                try:
+                    hdr_type = MpvPlayerController.detect_hdr_type(colormatrix, gamma, sig_peak)
+                except Exception:
+                    hdr_type = ''
+                v_br = info.get('video_bitrate', 0) or 0
+                a_br = info.get('audio_bitrate', 0) or 0
+                container = info.get('container', '') or ''
+                pix_fmt = info.get('pixel_format', '') or ''
+                audio_channels = info.get('audio_channels', 0) or 0
+                sample_rate = info.get('sample_rate', 0) or 0
+                cached_media = getattr(self.player_controller, 'media_info', None) or {}
+                protocol = ''
+                if isinstance(cached_media, dict):
+                    protocol = cached_media.get('protocol', '') or ''
+                total_time = self.player_controller.get_total_time() if hasattr(self.player_controller, 'get_total_time') else 0
+                is_live = (total_time or 0) <= 0
+
+                lines = [channel_name] if channel_name else []
+                
+                play_url = ''
+                if hasattr(self, 'current_channel') and self.current_channel and isinstance(self.current_channel, dict):
+                    play_url = self.current_channel.get('url', '') or ''
+                if play_url:
+                    lines.append(play_url)
+
+                vline_parts = []
+                if w > 0 and h > 0:
+                    vline_parts.append("{}x{}".format(w, h))
+                if vcodec:
+                    vline_parts.append(vcodec)
+                if fps > 0:
+                    vline_parts.append("{:.1f}fps".format(fps))
+                if hw and hw != 'no':
+                    vline_parts.append("[{}]".format(hw))
+                if hdr_type and hdr_type != 'SDR':
+                    vline_parts.append(hdr_type)
+                if vline_parts:
+                    lines.append("  ".join(vline_parts))
+
+                pix_line = []
+                if pix_fmt:
+                    pix_line.append(pix_fmt)
+                if colormatrix:
+                    pix_line.append(colormatrix)
+                if color_primaries:
+                    pix_line.append(color_primaries)
+                if gamma:
+                    pix_line.append(gamma)
+                if colorlevels:
+                    pix_line.append(colorlevels)
+                if sig_peak > 0:
+                    pix_line.append("peak:{:.0f}".format(sig_peak))
+                if sig_avg > 0:
+                    pix_line.append("avg:{:.0f}".format(sig_avg))
+                if pix_line:
+                    lines.append("  ".join(pix_line))
+
+                aline_parts = []
+                if acodec:
+                    aline_parts.append(acodec)
+                if audio_channels > 0:
+                    aline_parts.append("{}ch".format(audio_channels))
+                if sample_rate > 0:
+                    aline_parts.append("{}Hz".format(sample_rate))
+                if a_br > 0:
+                    if a_br >= 1000000:
+                        aline_parts.append("{:.1f}Mbps".format(a_br / 1000000))
+                    elif a_br >= 1000:
+                        aline_parts.append("{:.0f}Kbps".format(a_br / 1000))
+                    else:
+                        aline_parts.append("{}bps".format(a_br))
+                if v_br > 0:
+                    if v_br >= 1000000:
+                        aline_parts.append("v:{:.1f}M".format(v_br / 1000000))
+                    elif v_br >= 1000:
+                        aline_parts.append("v:{:.0f}K".format(v_br / 1000))
+                    else:
+                        aline_parts.append("v:{}".format(v_br))
+                if aline_parts:
+                    lines.append("  ".join(aline_parts))
+
+                net_parts = []
+                if container and container != '未知':
+                    net_parts.append(container)
+                if protocol and protocol != '未知':
+                    net_parts.append(protocol)
+                if net_parts:
+                    lines.append("[{}]".format("  ".join(net_parts)))
+
+                if is_live:
+                    lines.append("\u25cf LIVE")
+                else:
+                    current_time = self.player_controller.get_current_time() if hasattr(self.player_controller, 'get_current_time') else 0
+                    from datetime import timedelta
+                    cur_td = timedelta(seconds=current_time) if current_time else None
+                    tot_td = timedelta(seconds=total_time) if total_time else None
+                    cur_str = str(cur_td).split('.')[0] if cur_td else '--:--:--'
+                    tot_str = str(tot_td).split('.')[0] if tot_td else '--:--:--'
+                    lines.append("{} / {}".format(cur_str, tot_str))
+
+                osd_text = '\n'.join(lines)
+                self.player_controller.show_osd(osd_text, 86400000)
+        else:
+            saved = getattr(self, '_osd_saved_panel_states', {})
+            if saved.get('epg', False) and hasattr(self, 'epg_panel') and self.epg_panel:
+                self.epg_panel.show()
+                self.epg_visible = True
+            if saved.get('playlist', False) and hasattr(self, 'playlist_panel') and self.playlist_panel:
+                self.playlist_panel.show()
+                self.playlist_visible = True
+            if hasattr(self, 'player_controller') and self.player_controller:
+                self.player_controller.send_command([b'show-text', b'', b'0'])
 
     def _on_auto_hide_timeout(self):
-        """5秒无鼠标活动，自动隐藏悬浮窗（委托给UIController）"""
-        self.ui_ctrl.handle_auto_hide_timeout()
-
+        """5秒无鼠标活动，自动隐藏悬浮窗"""
+        if self._floating_hidden or self._auto_hidden:
+            return
+        if not any([
+            hasattr(self, 'epg_panel') and self.epg_panel and self.epg_panel.isVisible(),
+            hasattr(self, 'playlist_panel') and self.playlist_panel and self.playlist_panel.isVisible(),
+            hasattr(self, 'floating_panel') and self.floating_panel and self.floating_panel.isVisible()
+        ]):
+            return
+        if hasattr(self, 'epg_panel') and self.epg_panel and self.epg_panel.isVisible():
+            self.epg_panel.hide()
+        if hasattr(self, 'playlist_panel') and self.playlist_panel and self.playlist_panel.isVisible():
+            self.playlist_panel.hide()
+        if hasattr(self, 'floating_panel') and self.floating_panel and self.floating_panel.isVisible():
+            self.floating_panel.hide()
+        self._auto_hidden = True
+    
     def _on_mouse_activity(self):
         """鼠标活动时，恢复自动隐藏的悬浮窗并重启定时器"""
         # 检查当前焦点窗口是否是主窗口或其子窗口
@@ -2320,43 +3018,242 @@ class IPTVPlayer(QMainWindow):
                     self._auto_hide_timer.start()
                 return
 
-        self.ui_ctrl.handle_mouse_activity()
+        if self._auto_hidden and not self._floating_hidden:
+            if self.epg_visible and hasattr(self, 'epg_panel') and self.epg_panel:
+                self.epg_panel.show()
+            if self.playlist_visible and hasattr(self, 'playlist_panel') and self.playlist_panel:
+                self.playlist_panel.show()
+            if self.floating_panel_visible and hasattr(self, 'floating_panel') and self.floating_panel:
+                self.floating_panel.show()
+            self._auto_hidden = False
+            self.update_floating_position()
+        if not self._floating_hidden and self._auto_hide_timer:
+            self._auto_hide_timer.start()
     
     def toggle_play(self):
-        """切换播放/暂停（委托给PlaybackController）"""
-        self.playback_ctrl.toggle_play()
+        """切换播放/暂停"""
+        if not self.current_channel:
+            return
+        if self.player_controller:
+            self.player_controller.toggle_pause()
 
     def stop_playback(self):
-        """停止播放（委托给PlaybackController）"""
-        self.playback_ctrl.stop_playback()
-
-    def set_volume(self, value):
-        """设置音量（委托给PlaybackController）"""
-        self.playback_ctrl.set_volume(value)
-
-    def toggle_mute(self):
-        """切换静音/取消静音（委托给PlaybackController）"""
-        self.playback_ctrl.toggle_mute()
-
-    def _update_volume_icon(self, volume):
-        """根据音量更新音量图标（保留兼容性）"""
-        if hasattr(self, 'playback_ctrl'):
-            self.playback_ctrl._update_volume_icon(volume)
-        elif hasattr(self, 'volume_button'):
-            if volume == 0:
-                self.volume_button.setText("🔇")
-            elif volume < 50:
-                self.volume_button.setText("🔉")
+        """停止播放，恢复到初始状态"""
+        if self.player_controller:
+            self.player_controller.stop()
+        if hasattr(self, 'video_widget') and self.video_widget:
+            self.video_widget.hide()
+        if hasattr(self, 'video_placeholder') and self.video_placeholder:
+            self.video_placeholder.show()
+            from utils.general_utils import get_icon_path
+            ico_path = get_icon_path()
+            if os.path.exists(ico_path):
+                icon = QIcon(ico_path)
+                from PyQt6.QtWidgets import QApplication
+                screen = QApplication.primaryScreen()
+                dpr = screen.devicePixelRatio() if screen else 1.0
+                size = int(256 * dpr)
+                pixmap = icon.pixmap(size, size, QIcon.Mode.Normal, QIcon.State.On)
+                if not pixmap.isNull():
+                    pixmap.setDevicePixelRatio(dpr)
+                    self.video_placeholder.setPixmap(pixmap)
+                else:
+                    self.video_placeholder.setText("📺")
             else:
-                self.volume_button.setText("🔊")
-
+                self.video_placeholder.setText("📺")
+        if hasattr(self, 'play_button'):
+            self.play_button.setText("▶")
+        if hasattr(self, 'channel_name'):
+            tr = self.language_manager.tr
+            self.channel_name.setText(tr("no_channel_selected", "No channel selected"))
+        if hasattr(self, 'current_program'):
+            tr = self.language_manager.tr
+            self.current_program.setText(tr("select_channel_to_play", "▶ Select a channel to play"))
+        if hasattr(self, 'channel_logo'):
+            self.channel_logo.setPixmap(QPixmap())
+            self.channel_logo.setText("📺")
+        if hasattr(self, 'video_info'):
+            tr = self.language_manager.tr
+            self.video_info.setText(f"📺 {tr('not_playing', 'Not playing')}")
+        if hasattr(self, 'audio_info'):
+            self.audio_info.setText("🔊 --")
+        if hasattr(self, 'network_info'):
+            self.network_info.setText("📡 --")
+        if hasattr(self, 'program_desc'):
+            tr = self.language_manager.tr
+            self.program_desc.setText(tr("open_playlist_or_import", "Open a playlist file or import channels to start watching"))
+        if hasattr(self, 'time_label'):
+            self.time_label.setText("⏱ --:-- - --:--")
+        if hasattr(self, 'remain_label'):
+            tr = self.language_manager.tr
+            self.remain_label.setText(tr("waiting_to_play", "Waiting to play..."))
+        if hasattr(self, 'progress_start'):
+            self.progress_start.setText("--:--")
+        if hasattr(self, 'progress_end'):
+            self.progress_end.setText("--:--")
+        if hasattr(self, 'program_progress'):
+            self._set_progress_value(0)
+        self.current_channel = None
+        self._is_stopped = True
+        tr = self.language_manager.tr
+        self.status_bar_show_message(tr('playback_stopped', 'Playback stopped'))
+    
+    def set_volume(self, value):
+        """设置音量"""
+        if self.player_controller:
+            self.player_controller.set_volume(value)
+            # 如果不是静音状态，更新音量图标
+            if not hasattr(self, '_is_muted'):
+                self._is_muted = False
+            if not self._is_muted:
+                self._update_volume_icon(value)
+    
+    def toggle_mute(self):
+        """切换静音/取消静音"""
+        if not hasattr(self, '_is_muted'):
+            self._is_muted = False
+        
+        if self.player_controller:
+            if self._is_muted:
+                # 取消静音
+                self._is_muted = False
+                # 恢复之前的音量
+                if hasattr(self, '_pre_mute_volume'):
+                    self.player_controller.set_volume(self._pre_mute_volume)
+                    self.volume_slider.setValue(self._pre_mute_volume)
+                    self._update_volume_icon(self._pre_mute_volume)
+            else:
+                # 静音
+                self._is_muted = True
+                # 保存当前音量
+                self._pre_mute_volume = self.player_controller.get_volume()
+                # 设置音量为0
+                self.player_controller.set_volume(0)
+                self.volume_slider.setValue(0)
+                # 更新音量图标
+                self.volume_button.setText("🔇")
+    
+    def _update_volume_icon(self, volume):
+        """根据音量更新音量图标"""
+        if volume == 0:
+            self.volume_button.setText("🔇")
+        elif volume < 50:
+            self.volume_button.setText("🔉")
+        else:
+            self.volume_button.setText("🔊")
+    
     def play_channel(self, channel):
-        """播放指定频道（委托给PlaybackController）"""
-        self.playback_ctrl.play_channel(channel)
-
+        if hasattr(self, '_is_switching') and self._is_switching:
+            logger.debug("play_channel: 忽略重复的频道切换请求")
+            return
+        self._is_switching = True
+        
+        try:
+            logger.info(f"play_channel: 开始切换频道 {channel.get('name', '?')} url={channel.get('url', '?')}")
+            self._do_play_channel(channel)
+        finally:
+            # 使用 QTimer 延迟重置标志，确保本次操作完全完成
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(500, lambda: setattr(self, '_is_switching', False))
+    
     def _do_play_channel(self, channel):
-        """实际执行频道切换（委托给PlaybackController）"""
-        self.playback_ctrl._do_play_channel(channel)
+        if self.player_controller and channel:
+            self._live_timeshift_seconds = 0
+            self._last_program_id = None
+            
+            if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
+                self.is_catchup_mode = False
+                if hasattr(self, 'exit_catchup_button'):
+                    self.exit_catchup_button.hide()
+                if hasattr(self, 'catchup_program'):
+                    delattr(self, 'catchup_program')
+                
+                # 清除回看模拟相关的属性
+                if hasattr(self, '_catchup_start_time'):
+                    delattr(self, '_catchup_start_time')
+                if hasattr(self, '_catchup_start_progress'):
+                    delattr(self, '_catchup_start_progress')
+                if hasattr(self, '_target_catchup_progress'):
+                    delattr(self, '_target_catchup_progress')
+                if hasattr(self, '_disable_progress_auto_update'):
+                    delattr(self, '_disable_progress_auto_update')
+                if hasattr(self, '_pending_catchup_progress'):
+                    delattr(self, '_pending_catchup_progress')
+            
+            # 重置节目单日期为今天（只在非回看模式下执行）
+            from datetime import datetime, timedelta
+            if not hasattr(self, 'is_catchup_mode') or not self.is_catchup_mode:
+                self.current_epg_date = datetime.now().date()
+                if hasattr(self, 'epg_date_label'):
+                    today = datetime.now().date()
+                    if self.current_epg_date == today:
+                        self.epg_date_label.setText(self.language_manager.tr("today", "Today"))
+                    elif self.current_epg_date == today - timedelta(days=1):
+                        self.epg_date_label.setText(self.language_manager.tr("yesterday", "Yesterday"))
+                    elif self.current_epg_date == today + timedelta(days=1):
+                        self.epg_date_label.setText(self.language_manager.tr("tomorrow", "Tomorrow"))
+                    else:
+                        self.epg_date_label.setText(self.current_epg_date.strftime("%Y-%m-%d"))
+            
+            if hasattr(self, 'channel_name'):
+                self.channel_name.setText(self.language_manager.tr("switching_channel", "Switching channel..."))
+            if hasattr(self, 'current_program'):
+                self.current_program.setText(f"▶ {self.language_manager.tr('now_playing', 'Now Playing')}")
+            if hasattr(self, 'program_desc'):
+                self.program_desc.setText(self.language_manager.tr("loading_program_info", "Loading program info..."))
+            if hasattr(self, 'video_info'):
+                self.video_info.setText(f"📺 {self.language_manager.tr('loading', 'Loading...')}")
+            if hasattr(self, 'audio_info'):
+                self.audio_info.setText(f"🔊 {self.language_manager.tr('loading', 'Loading...')}")
+            if hasattr(self, 'network_info'):
+                self.network_info.setText(f"📡 {self.language_manager.tr('loading', 'Loading...')}")
+            if hasattr(self, 'progress_start'):
+                self.progress_start.setText("00:00")
+            if hasattr(self, 'progress_end'):
+                self.progress_end.setText("00:00")
+            if hasattr(self, 'time_label'):
+                self.time_label.setText("⏱ 00:00")
+            if hasattr(self, 'program_progress'):
+                # 检查是否处于回看模式
+                is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
+                if not is_catchup:
+                    self._set_progress_value(0)
+                    logger.debug("play_channel: 重置进度条为0（非回看模式）")
+            
+            url = channel.get('url')
+            name = channel.get('name', '未知频道')
+            if url:
+                self.status_bar_show_message(f"{self.language_manager.tr('playing', 'Playing')}: {name}")
+                if hasattr(self, 'video_placeholder') and self.video_placeholder:
+                    self.video_placeholder.hide()
+                if hasattr(self, 'video_widget') and self.video_widget and self.video_frame:
+                    self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
+                    self.video_widget.show()
+                if hasattr(self, 'floating_panel') and self.floating_panel:
+                    self.floating_panel.raise_()
+                self.current_channel = channel
+
+                self._dns_prefetcher.prefetch(url)
+                self._connection_preheater.preheat(url)
+
+                next_urls = self._get_next_channel_urls(channel)
+                
+                if hasattr(self, 'speed_button') and self.player_controller:
+                    current_speed = self.player_controller.get_speed()
+                    if abs(current_speed - 1.0) > 0.01:
+                        self.player_controller.set_speed(1.0)
+                        self.speed_button.setText("1.0x")
+                
+                program_duration = self._get_current_program_duration()
+                
+                if next_urls:
+                    self.player_controller.play_with_prefetch(url, next_urls, program_duration=program_duration)
+                else:
+                    self.player_controller.play(url, name, program_duration=program_duration)
+
+                self._start_source_timeout(channel)
+                self._save_last_channel(channel)
+                self._warmup_logos_around(channel)
     
     def on_play_state_changed(self, is_playing):
         """播放状态改变时的处理"""
@@ -2447,29 +3344,119 @@ class IPTVPlayer(QMainWindow):
             self.status_bar_show_message(f"{tr('play_error', 'Play Error')}: {error_msg}")
 
     def on_media_info_ready(self, media_info):
-        """媒体信息获取完成时的处理（委托给UIController）"""
-        self.ui_ctrl.update_media_info_display(media_info)
-
-        # 状态栏消息
-        if self.current_channel and media_info:
-            tr = self.language_manager.tr
-            channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
+        """媒体信息获取完成时的处理 - 只显示能获取到的信息，参考 SRCBOX"""
+        tr = self.language_manager.tr
+        if media_info:
             video_info = media_info.get('video', {})
-            status_msg = f"{tr('playing', 'Playing')}: {channel_name}"
-
-            # 添加可用的视频信息
+            audio_info = media_info.get('audio', {})
+            
+            # 构建视频信息标签（只显示有值的字段）
+            video_parts = []
+            
+            # 视频编码
             video_codec = video_info.get('codec')
             if video_codec and video_codec != '未知':
-                status_msg += f" - {video_codec}"
+                video_parts.append(f"{tr('codec_label', 'Codec')}: {video_codec}")
+            
+            # 分辨率
             video_width = video_info.get('width', 0)
             video_height = video_info.get('height', 0)
             if video_width > 0 and video_height > 0:
-                status_msg += f" {video_width}x{video_height}"
+                video_parts.append(f"{tr('resolution_label', 'Resolution')}: {video_width}x{video_height}")
+            
+            # 帧率
+            frame_rate = video_info.get('frame_rate', 0)
+            if frame_rate and frame_rate > 0:
+                video_parts.append(f"{tr('frame_rate_label', 'Frame Rate')}: {frame_rate:.2f}fps")
+            
+            # 视频码率
+            video_bitrate = video_info.get('bit_rate', 0)
+            if video_bitrate and video_bitrate > 0:
+                if video_bitrate >= 1_000_000:
+                    video_bitrate_str = f"{video_bitrate / 1_000_000:.1f}MB/s"
+                elif video_bitrate >= 1000:
+                    video_bitrate_str = f"{video_bitrate / 1000:.1f}KB/s"
+                else:
+                    video_bitrate_str = f"{video_bitrate}B/s"
+                video_parts.append(f"{tr('bitrate_label', 'Bitrate')}: {video_bitrate_str}")
+            
+            # 像素格式
+            pixel_format = video_info.get('pixel_format', '')
+            if pixel_format and pixel_format != '未知':
+                video_parts.append(f"{tr('pixel_format_label', 'Pixel Format')}: {pixel_format}")
+            
+            # 更新视频信息标签
+            if video_parts:
+                self.video_info.setText(f"📺 {' | '.join(video_parts)}")
+            else:
+                self.video_info.setText(f"📺 {tr('no_video_info', 'No video info available')}")
+            
+            # 构建音频信息标签（只显示有值的字段）
+            audio_parts = []
+            
+            # 音频编码
+            audio_codec = audio_info.get('codec')
+            if audio_codec and audio_codec != '未知':
+                audio_parts.append(f"{tr('codec_label', 'Codec')}: {audio_codec}")
+            
+            # 声道数
+            channels = audio_info.get('channels', 0)
+            if channels and channels > 0:
+                audio_parts.append(f"{tr('channel_count_label', 'Channels')}: {channels}ch")
+            
+            # 采样率
+            sample_rate = audio_info.get('sample_rate', 0)
+            if sample_rate and sample_rate > 0:
+                audio_parts.append(f"{tr('sample_rate_label', 'Sample Rate')}: {sample_rate}Hz")
+            
+            # 音频码率
+            audio_bitrate = audio_info.get('bit_rate', 0)
+            if audio_bitrate and audio_bitrate > 0:
+                if audio_bitrate >= 1000:
+                    audio_bitrate_str = f"{audio_bitrate / 1000:.1f}KB/s"
+                else:
+                    audio_bitrate_str = f"{audio_bitrate}B/s"
+                audio_parts.append(f"{tr('bitrate_label', 'Bitrate')}: {audio_bitrate_str}")
+            
+            # 更新音频信息标签
+            if audio_parts:
+                self.audio_info.setText(f"🔊 {' | '.join(audio_parts)}")
+            else:
+                self.audio_info.setText(f"🔊 {tr('no_audio_info', 'No audio info available')}")
+            
+            # 构建网络/格式信息标签（只显示有值的字段）
+            network_parts = []
+            
+            # 格式
+            format_name = media_info.get('format')
+            if format_name and format_name != '未知':
+                network_parts.append(f"{tr('format_label', 'Format')}: {format_name}")
+            
+            # 协议
             protocol = media_info.get('protocol')
             if protocol and protocol != '未知':
-                status_msg += f" {protocol}"
+                network_parts.append(f"{tr('protocol_label', 'Protocol')}: {protocol}")
+            
+            # 更新网络信息标签
+            if network_parts:
+                self.network_info.setText(f"📡 {' | '.join(network_parts)}")
+            else:
+                self.network_info.setText(f"📡 {tr('no_network_info', 'No network info available')}")
 
-            self.status_bar.showMessage(status_msg)
+            # 状态栏消息
+            if self.current_channel:
+                channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
+                status_msg = f"{tr('playing', 'Playing')}: {channel_name}"
+                
+                # 添加可用的视频信息
+                if video_codec and video_codec != '未知':
+                    status_msg += f" - {video_codec}"
+                if video_width > 0 and video_height > 0:
+                    status_msg += f" {video_width}x{video_height}"
+                if protocol and protocol != '未知':
+                    status_msg += f" {protocol}"
+                
+                self.status_bar.showMessage(status_msg)
     
     def on_live_media_info_updated(self, info):
         """持续更新媒体信息 - 参考 SRCBOX，每 500ms 更新一次"""
@@ -3106,9 +4093,22 @@ class IPTVPlayer(QMainWindow):
         
     
     def eventFilter(self, obj, event):
-        """事件过滤器（委托给EventHandler）"""
-        return self.event_handler.eventFilter(obj, event)
-
+        """事件过滤器，处理鼠标事件和窗口大小变化"""
+        from PyQt6.QtCore import QEvent
+        if event.type() == QEvent.Type.MouseMove:
+            if self._auto_hide_timer:
+                self._on_mouse_activity()
+        if obj in (self.video_frame, self.video_widget, self.video_placeholder):
+            if event.type() == event.Type.Resize:
+                import time
+                current_time = time.time()
+                if not hasattr(self, '_last_resize_log_time'):
+                    self._last_resize_log_time = 0
+                if current_time - self._last_resize_log_time >= 0.1:
+                    self._last_resize_log_time = current_time
+                    self.update_floating_position()
+        return super().eventFilter(obj, event)
+    
     def update_floating_position(self):
         """更新悬浮窗位置（带日志节流）"""
         # 检查必要的属性是否存在
@@ -3142,31 +4142,9 @@ class IPTVPlayer(QMainWindow):
             
             # 获取 video_frame 在屏幕上的位置
             video_frame_global_pos = self.video_frame.mapToGlobal(self.video_frame.rect().topLeft())
-
-            # 计算底部预留空间（为悬浮控制面板+状态栏留出空间）
-            # 使用固定最小值 + 实际高度，确保即使面板未显示也能正确计算
-            MIN_FLOATING_PANEL_HEIGHT = 180  # 底部控制面板的最小高度（略增大以确保不重叠）
-            floating_panel_height = MIN_FLOATING_PANEL_HEIGHT
-
-            if hasattr(self, 'floating_panel') and self.floating_panel and self.floating_panel.isVisible():
-                actual_height = self.floating_panel.height()
-                if actual_height > 0:
-                    floating_panel_height = max(MIN_FLOATING_PANEL_HEIGHT, actual_height)
-                    logger.debug(f"使用实际控制面板高度: {actual_height}px")
-
-            status_bar_height = self.status_bar.height() if self.status_bar and self.status_bar.isVisible() else 25
-            bottom_gap = 25 if not self.is_fullscreen else 35  # 增加底部间距
-
-            # 总预留空间 = 控制面板高度 + 状态栏高度 + 底部间距 + 额外安全间距(40px)
-            bottom_reserve = floating_panel_height + status_bar_height + bottom_gap + 40
-
-            if self.is_fullscreen:
-                bottom_reserve = max(bottom_reserve, 250)  # 全屏模式最少250px
-
-            logger.debug(f"悬浮窗位置计算: floating_panel={floating_panel_height}px, "
-                        f"status_bar={status_bar_height}px, gap={bottom_gap}px, "
-                        f"total_reserve={bottom_reserve}px, video_frame={self.video_frame.height()}px")
-
+            
+            bottom_reserve = 180 if self.is_fullscreen else (self.floating_panel.height() + 40 if hasattr(self, 'floating_panel') and self.floating_panel and self.floating_panel.isVisible() else 180)
+            
             # 更新左侧EPG面板位置和高度
             if hasattr(self, 'epg_panel') and self.epg_panel:
                 panel_height = max(100, self.video_frame.height() - bottom_reserve)
@@ -3183,11 +4161,12 @@ class IPTVPlayer(QMainWindow):
                 y = video_frame_global_pos.y() + 10
                 self.playlist_panel.move(x, y)
 
-            # 更新底部悬浮控制面板位置（紧贴状态栏上方）
+            # 更新底部悬浮控制面板位置
             if hasattr(self, 'floating_panel') and self.floating_panel:
+                bottom_gap = 8 if not self.is_fullscreen else 20
                 x = video_frame_global_pos.x() + (self.video_frame.width() - self.floating_panel.width()) // 2
-                # 控制面板 y 坐标 = 视频区域底部 - 控制面板高度 - 状态栏高度 - 小间距(5px)
-                y = video_frame_global_pos.y() + self.video_frame.height() - floating_panel_height - status_bar_height - 5
+                status_bar_height = self.status_bar.height() if self.status_bar and self.status_bar.isVisible() else 0
+                y = video_frame_global_pos.y() + self.video_frame.height() - self.floating_panel.height() - bottom_gap - status_bar_height
                 self.floating_panel.move(x, y)
         except Exception as e:
             logger.error(f"update_floating_position: 出错 - {e}")
@@ -3339,16 +4318,423 @@ class IPTVPlayer(QMainWindow):
                 dialog.move(x, y)
 
     def reload_subscription(self):
-        """重新加载订阅源（委托给SettingsFileOperations）"""
-        self.settings_ops.reload_subscription()
+        """重新加载订阅列表（强制从服务器获取最新数据，处理所有源）"""
+        try:
+            from core.subscription_manager import global_subscription_manager
 
+            sources = global_subscription_manager.get_playlist_sources()
+            if not sources:
+                self.status_bar.showMessage(
+                    self.language_manager.tr("no_subscription_url", "No subscription URL configured")
+                )
+                return
+
+            logger.info(f"手动触发订阅重新加载，共 {len(sources)} 个源")
+            self.status_bar.showMessage(
+                self.language_manager.tr("reloading_subscription", "Reloading subscription...")
+            )
+
+            if hasattr(self, '_subscription_checked'):
+                self._subscription_checked = False
+
+            import threading
+            for source_index, source in enumerate(sources):
+                playlist_url = source.get('url', '')
+                if not playlist_url:
+                    logger.warning(f"源#{source_index} ({source.get('name', 'Unknown')}) 没有配置URL，跳过")
+                    continue
+
+                logger.info(f"强制重载订阅(源#{source_index}): {playlist_url}")
+                threading.Thread(
+                    target=self._handle_playlist_subscription,
+                    args=(True, playlist_url, source_index),
+                    daemon=True
+                ).start()
+
+        except Exception as ex:
+            logger.error(f"重新加载订阅失败: {ex}")
+            self.status_bar.showMessage(
+                f"{self.language_manager.tr('reload_subscription_failed', 'Failed to reload subscription')}: {str(ex)}"
+            )
+
+    def player_settings(self):
+        """播放器设置"""
+        from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
+                                     QPushButton, QComboBox, QLineEdit, QGroupBox,
+                                     QListWidget, QListWidgetItem, QWidget, QFormLayout)
+
+        # 创建对话框（使用Tool标志避免任务栏图标，关闭置顶）
+        dialog = FloatingDialog(self, stay_on_top=False)
+        tr = self.language_manager.tr
+        dialog.setWindowTitle(tr("subscription_settings_title", "Subscription Settings"))
+        dialog.setMinimumSize(600, 550)
+        dialog.setStyleSheet(AppStyles.dialog_style())
+        
+        main_layout = QVBoxLayout(dialog)
+        
+        protocol_group = QGroupBox(tr("protocol_settings", "Protocol Settings"))
+        protocol_layout = QVBoxLayout()
+        
+        protocol_label = QLabel(tr("protocol_type_colon", "Protocol Type:"))
+        self.protocol_combo = QComboBox()
+        self.protocol_combo.addItems(["HTTP", "HTTPS", "RTSP", "RTMP", "HLS"])
+        
+        protocol = self.config.get_value('Player', 'protocol', 'HTTP')
+        index = self.protocol_combo.findText(protocol)
+        if index >= 0:
+            self.protocol_combo.setCurrentIndex(index)
+        
+        protocol_layout.addWidget(protocol_label)
+        protocol_layout.addWidget(self.protocol_combo)
+        protocol_group.setLayout(protocol_layout)
+        main_layout.addWidget(protocol_group)
+        
+        playlist_group = QGroupBox(tr("playlist_subscription", "Playlist Subscription"))
+        playlist_layout = QVBoxLayout()
+        
+        playlist_sources_label = QLabel(tr("playlist_sources", "Playlist Sources (click to activate):"))
+        self.playlist_list_widget = QListWidget()
+        self.playlist_list_widget.setMaximumHeight(120)
+        
+        playlist_add_btn = QPushButton(tr("add_source", "+ Add Source"))
+        playlist_remove_btn = QPushButton(tr("remove_source", "- Remove Selected"))
+        
+        playlist_input_widget = QWidget()
+        playlist_input_layout = QHBoxLayout(playlist_input_widget)
+        playlist_input_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.playlist_new_url_edit = QLineEdit()
+        self.playlist_new_url_edit.setPlaceholderText(tr("enter_playlist_url", "Enter playlist URL"))
+        self.playlist_new_name_edit = QLineEdit()
+        self.playlist_new_name_edit.setPlaceholderText(tr("enter_source_name", "Source name (optional)"))
+        self.playlist_new_name_edit.setMaximumWidth(150)
+        
+        playlist_input_layout.addWidget(QLabel("URL:"))
+        playlist_input_layout.addWidget(self.playlist_new_url_edit)
+        playlist_input_layout.addWidget(QLabel("Name:"))
+        playlist_input_layout.addWidget(self.playlist_new_name_edit)
+        
+        playlist_btn_layout = QHBoxLayout()
+        playlist_btn_layout.addWidget(playlist_add_btn)
+        playlist_btn_layout.addWidget(playlist_remove_btn)
+        playlist_btn_layout.addStretch()
+        
+        playlist_interval_label = QLabel(tr("update_interval_colon", "Update interval (minutes):"))
+        self.playlist_interval_combo = QComboBox()
+        self.playlist_interval_combo.addItems(["15", "30", "60", "120", "240", "480", "720"])
+        
+        playlist_interval_value = self.config.get_value('PlaylistSources', 'update_interval', '60')
+        index = self.playlist_interval_combo.findText(playlist_interval_value)
+        if index >= 0:
+            self.playlist_interval_combo.setCurrentIndex(index)
+        
+        playlist_layout.addWidget(playlist_sources_label)
+        playlist_layout.addWidget(self.playlist_list_widget)
+        playlist_layout.addWidget(playlist_input_widget)
+        playlist_layout.addLayout(playlist_btn_layout)
+        playlist_layout.addWidget(playlist_interval_label)
+        playlist_layout.addWidget(self.playlist_interval_combo)
+        playlist_group.setLayout(playlist_layout)
+        main_layout.addWidget(playlist_group)
+        
+        epg_group = QGroupBox(tr("epg_subscription", "EPG Subscription (all sources will be merged)"))
+        epg_layout = QVBoxLayout()
+        
+        epg_sources_label = QLabel(tr("epg_sources", "EPG Sources:"))
+        self.epg_list_widget = QListWidget()
+        self.epg_list_widget.setMaximumHeight(120)
+        
+        epg_add_btn = QPushButton(tr("add_source", "+ Add Source"))
+        epg_remove_btn = QPushButton(tr("remove_source", "- Remove Selected"))
+        
+        epg_input_widget = QWidget()
+        epg_input_layout = QHBoxLayout(epg_input_widget)
+        epg_input_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.epg_new_url_edit = QLineEdit()
+        self.epg_new_url_edit.setPlaceholderText(tr("enter_epg_url", "Enter EPG URL"))
+        self.epg_new_name_edit = QLineEdit()
+        self.epg_new_name_edit.setPlaceholderText(tr("enter_source_name", "Source name (optional)"))
+        self.epg_new_name_edit.setMaximumWidth(150)
+        
+        epg_input_layout.addWidget(QLabel("URL:"))
+        epg_input_layout.addWidget(self.epg_new_url_edit)
+        epg_input_layout.addWidget(QLabel("Name:"))
+        epg_input_layout.addWidget(self.epg_new_name_edit)
+        
+        epg_btn_layout = QHBoxLayout()
+        epg_btn_layout.addWidget(epg_add_btn)
+        epg_btn_layout.addWidget(epg_remove_btn)
+        epg_btn_layout.addStretch()
+        
+        epg_interval_label = QLabel(tr("update_interval_colon", "Update interval (minutes):"))
+        self.epg_interval_combo = QComboBox()
+        self.epg_interval_combo.addItems(["15", "30", "60", "120", "240", "480", "720"])
+        
+        epg_interval_value = self.config.get_value('EPGSources', 'update_interval', '60')
+        index = self.epg_interval_combo.findText(epg_interval_value)
+        if index >= 0:
+            self.epg_interval_combo.setCurrentIndex(index)
+        
+        epg_layout.addWidget(epg_sources_label)
+        epg_layout.addWidget(self.epg_list_widget)
+        epg_layout.addWidget(epg_input_widget)
+        epg_layout.addLayout(epg_btn_layout)
+        epg_layout.addWidget(epg_interval_label)
+        epg_layout.addWidget(self.epg_interval_combo)
+        epg_group.setLayout(epg_layout)
+        main_layout.addWidget(epg_group)
+        
+        button_layout = QHBoxLayout()
+        save_button = QPushButton(tr("save_button", "Save"))
+        cancel_button = QPushButton(tr("cancel_button", "Cancel"))
+        
+        save_button.clicked.connect(lambda: self.save_player_settings(dialog))
+        cancel_button.clicked.connect(dialog.close)
+        
+        button_layout.addStretch()
+        button_layout.addWidget(save_button)
+        button_layout.addWidget(cancel_button)
+        main_layout.addLayout(button_layout)
+        
+        self._load_subscription_sources_to_ui()
+        
+        self._editing_playlist_index = -1
+        self._editing_epg_index = -1
+        self._playlist_add_btn = playlist_add_btn
+        self._epg_add_btn = epg_add_btn
+        
+        playlist_add_btn.clicked.connect(lambda: self._add_or_update_playlist_source())
+        playlist_remove_btn.clicked.connect(lambda: self._remove_selected_playlist_source())
+        self.playlist_list_widget.itemClicked.connect(lambda item: self._activate_playlist_source(item))
+        self.playlist_list_widget.itemDoubleClicked.connect(lambda item: self._edit_playlist_source(item))
+        self.playlist_new_url_edit.textChanged.connect(self._on_playlist_url_changed)
+        
+        epg_add_btn.clicked.connect(lambda: self._add_or_update_epg_source())
+        epg_remove_btn.clicked.connect(lambda: self._remove_selected_epg_source())
+        self.epg_list_widget.itemDoubleClicked.connect(lambda item: self._edit_epg_source(item))
+        self.epg_new_url_edit.textChanged.connect(self._on_epg_url_changed)
+        
+        self._center_dialog_on_screen(dialog)
+        dialog.exec()
+    
     def start_subscription_timers(self):
-        """检查并更新订阅内容（委托给SubscriptionController）"""
-        self.subscription_ctrl.start_subscription_timers()
-
+        """检查并更新订阅内容（只在启动时检查一次）"""
+        try:
+            global EPG_DATA, CHANNELS
+            
+            from datetime import datetime, timedelta
+            from core.subscription_manager import global_subscription_manager
+            
+            if hasattr(self, '_subscription_checked') and self._subscription_checked:
+                return
+            self._subscription_checked = True
+            
+            active_source = global_subscription_manager.get_active_playlist_source()
+            source_index = global_subscription_manager.get_active_playlist_source_index()
+            
+            playlist_url = ''
+            if active_source:
+                playlist_url = active_source.get('url', '')
+            
+            playlist_interval_str = self.config.get_value('PlaylistSources', 'update_interval', '60')
+            playlist_interval = int(playlist_interval_str) if playlist_interval_str else 60
+            
+            if playlist_url:
+                sources = global_subscription_manager.get_playlist_sources()
+                last_update_str = None
+                if 0 <= source_index < len(sources):
+                    last_update_str = sources[source_index].get('last_update')
+                need_update = True
+                if last_update_str:
+                    try:
+                        last_update = datetime.fromisoformat(last_update_str)
+                        time_since_update = datetime.now() - last_update
+                        if time_since_update.total_seconds() < playlist_interval * 60:
+                            need_update = False
+                            logger.info(f"源#{source_index} 列表订阅无需立即更新，上次更新时间: {last_update}")
+                    except Exception:
+                        pass
+                
+                import threading
+                threading.Thread(target=self._handle_playlist_subscription, args=(need_update, playlist_url), daemon=True).start()
+            
+            epg_sources = global_subscription_manager.get_epg_sources()
+            epg_interval_str = self.config.get_value('EPGSources', 'update_interval', '60')
+            epg_interval = int(epg_interval_str) if epg_interval_str else 60
+            
+            if epg_sources:
+                import os
+                cache_dir = self.config.get_value('General', 'cache_dir', 'cache')
+                epg_cache_file = os.path.join(cache_dir or '', 'epg_cache.json')
+                
+                need_epg_update = True
+                if os.path.exists(epg_cache_file):
+                    try:
+                        cache_mtime = datetime.fromtimestamp(os.path.getmtime(epg_cache_file))
+                        time_since_cache = datetime.now() - cache_mtime
+                        if time_since_cache.total_seconds() < epg_interval * 60:
+                            need_epg_update = False
+                            logger.info(f"EPG数据无需立即更新，缓存时间: {cache_mtime}")
+                    except Exception:
+                        pass
+                
+                import threading
+                
+                final_need_epg = [need_epg_update]
+                
+                def load_all_epg_with_callback():
+                    global EPG_DATA
+                    
+                    def status_callback(msg):
+                        logger.info(f"EPG加载状态: {msg}")
+                    
+                    if final_need_epg[0]:
+                        success = global_subscription_manager.load_all_epg_data(status_callback)
+                    else:
+                        success = global_subscription_manager.load_cached_epg_data()
+                        if success:
+                            logger.info(f"EPG从缓存加载成功, 共 {len(global_subscription_manager._epg_data)} 个频道")
+                            status_callback("从缓存加载EPG数据")
+                    
+                    if success:
+                        EPG_DATA = global_subscription_manager._epg_data
+                        
+                        def update_ui():
+                            self.epg_list_updated.emit()
+                            self.status_bar_show_message(
+                                self.language_manager.tr("epg_loaded", "EPG data loaded successfully")
+                            )
+                        
+                        from PyQt6.QtCore import QMetaObject, Qt
+                        if QThread.currentThread() != self.thread():
+                            QMetaObject.invokeMethod(self, "_do_on_epg_success", Qt.ConnectionType.QueuedConnection)
+                        else:
+                            update_ui()
+                    else:
+                        if final_need_epg[0]:
+                            cached_loaded = global_subscription_manager.load_cached_epg_data()
+                            if cached_loaded:
+                                EPG_DATA = global_subscription_manager._epg_data
+                                
+                                def on_cache():
+                                    self.epg_list_updated.emit()
+                                    self.status_bar_show_message(
+                                        self.language_manager.tr("epg_using_cache", "Using cached EPG data")
+                                    )
+                                
+                                from PyQt6.QtCore import QMetaObject, Qt
+                                if QThread.currentThread() != self.thread():
+                                    QMetaObject.invokeMethod(self, "_do_on_epg_cache", Qt.ConnectionType.QueuedConnection)
+                                else:
+                                    on_cache()
+                
+                threading.Thread(target=load_all_epg_with_callback, daemon=True).start()
+        except Exception as ex:
+            logger.error(f"检查订阅内容失败: {str(ex)}")
+    
     def update_playlist_subscription(self, source_index=None):
-        """更新列表订阅 - 线程安全版本（委托给SubscriptionController）"""
-        self.subscription_ctrl.update_playlist_subscription(source_index)
+        """更新列表订阅 - 线程安全版本，按源索引独立缓存和更新时间"""
+        try:
+            global CHANNELS
+
+            import requests
+            from core.subscription_manager import global_subscription_manager
+            from datetime import datetime
+            import os
+
+            if source_index is None:
+                source_index = global_subscription_manager.get_active_playlist_source_index()
+
+            active_source = global_subscription_manager.get_active_playlist_source()
+            if not active_source and source_index < 0:
+                return
+
+            playlist_url = ''
+            if active_source:
+                playlist_url = active_source.get('url', '')
+            if not playlist_url:
+                sources = global_subscription_manager.get_playlist_sources()
+                if 0 <= source_index < len(sources):
+                    playlist_url = sources[source_index].get('url', '')
+
+            if not playlist_url:
+                return
+
+            logger.info(f"开始更新列表订阅(源#{source_index}): {playlist_url}")
+
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+
+            response = requests.get(playlist_url, timeout=30, headers=headers, allow_redirects=True)
+            response.raise_for_status()
+
+            content = response.text
+
+            if self.channel_model.load_from_file(content):
+                CHANNELS = []
+                for i, ch in enumerate(self.channel_model.channels):
+                    CHANNELS.append({
+                        "id": i + 1,
+                        "name": ch.get('name', '未命名'),
+                        "url": ch.get('url', ''),
+                        "logo": ch.get('logo', ''),
+                        "group": ch.get('group', '未分类'),
+                        "_groups": ch.get('_groups', [ch.get('group', '未分类')]),
+                        "tvg_id": ch.get('tvg_id', ''),
+                        "tvg_chno": ch.get('tvg_chno', ''),
+                        "tvg_shift": ch.get('tvg_shift', ''),
+                        "catchup": ch.get('catchup', ''),
+                        "catchup_days": ch.get('catchup_days', ''),
+                        "catchup_source": ch.get('catchup_source', ''),
+                        "resolution": ch.get('resolution', ''),
+                        "current_program": '',
+                        "_raw_extinf": ch.get('_raw_extinf', ''),
+                        "_all_tags": ch.get('_all_tags', {})
+                    })
+
+                if not self.channel_model.channels:
+                    raise ValueError(f"源#{source_index} 下载内容解析后频道数为空，可能不是有效的M3U文件")
+
+                now_iso = datetime.now().isoformat()
+                global_subscription_manager.update_playlist_source_last_update(source_index, now_iso)
+
+                cache_dir = self.config.get_value('General', 'cache_dir', 'cache')
+                if cache_dir and not os.path.exists(cache_dir):
+                    os.makedirs(cache_dir)
+
+                playlist_cache_file = os.path.join(cache_dir or '', f'playlist_cache_{source_index}.m3u')
+                try:
+                    with open(playlist_cache_file, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    logger.debug(f"源#{source_index} 列表已保存到缓存文件: {playlist_cache_file}")
+                except Exception as ex:
+                    logger.error(f"保存源#{source_index} 列表缓存失败: {ex}")
+
+                logger.info(f"源#{source_index} 列表订阅更新成功，共 {len(CHANNELS)} 个频道")
+
+                if QThread.currentThread() != self.thread():
+                    self._pending_update_message = self.language_manager.tr("playlist_sub_updated", "Playlist subscription updated")
+                    QMetaObject.invokeMethod(self, "_do_on_playlist_updated_in_main_thread", Qt.ConnectionType.QueuedConnection)
+                else:
+                    self._update_channel_list_ui()
+                    self.status_bar.showMessage(self.language_manager.tr("playlist_sub_updated", "Playlist subscription updated"))
+            else:
+                logger.error(f"源#{source_index} 列表订阅内容解析失败")
+                if QThread.currentThread() != self.thread():
+                    self._pending_status_msg = self.language_manager.tr("playlist_sub_parse_failed", "Playlist subscription parse failed")
+                    QMetaObject.invokeMethod(self, "_do_show_status_message", Qt.ConnectionType.QueuedConnection)
+                else:
+                    self.status_bar.showMessage(self.language_manager.tr("playlist_sub_parse_failed", "Playlist subscription parse failed"))
+        except Exception as ex:
+            idx_str = str(source_index) if source_index is not None else '?'
+            logger.error(f"更新源#{idx_str} 列表订阅失败: {str(ex)}")
+            if QThread.currentThread() != self.thread():
+                self._pending_status_msg = f"{self.language_manager.tr('playlist_sub_update_failed', 'Failed to update playlist subscription')}: {str(ex)}"
+                QMetaObject.invokeMethod(self, "_do_show_status_message", Qt.ConnectionType.QueuedConnection)
+            else:
+                self.status_bar.showMessage(f"{self.language_manager.tr('playlist_sub_update_failed', 'Failed to update playlist subscription')}: {str(ex)}")
 
     @pyqtSlot()
     def _do_on_playlist_updated_in_main_thread(self):
@@ -3569,34 +4955,190 @@ class IPTVPlayer(QMainWindow):
             logger.error(f"保存播放器设置失败: {str(ex)}")
             self.status_bar.showMessage(f"{self.language_manager.tr('player_settings_save_failed', 'Failed to save player settings')}: {str(ex)}")
     
-    def _load_subscription_sources_to_ui(self, playlist_list_widget=None, epg_list_widget=None):
-        """加载订阅源到UI控件（委托给SubscriptionUIController）"""
-        self.subscription_ui_ctrl.load_subscription_sources_to_ui(playlist_list_widget, epg_list_widget)
-
+    def _load_subscription_sources_to_ui(self):
+        """加载订阅源到UI控件"""
+        from core.subscription_manager import global_subscription_manager
+        
+        self.playlist_list_widget.clear()
+        
+        playlist_sources = global_subscription_manager.get_playlist_sources()
+        for source in playlist_sources:
+            item = QListWidgetItem(f"{'✓ ' if source.get('enabled') else '  '}{source.get('name', 'Unnamed')}")
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, source)
+            item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(
+                QtCore.Qt.CheckState.Checked if source.get('enabled') else QtCore.Qt.CheckState.Unchecked
+            )
+            item.setToolTip(source.get('url', ''))
+            self.playlist_list_widget.addItem(item)
+        
+        self.epg_list_widget.clear()
+        
+        epg_sources = global_subscription_manager.get_epg_sources()
+        for source in epg_sources:
+            item = QListWidgetItem(f"{source.get('name', 'Unnamed')}")
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, source)
+            item.setToolTip(source.get('url', ''))
+            self.epg_list_widget.addItem(item)
+    
     def _add_or_update_playlist_source(self):
-        """从UI添加或更新直播源（委托给SubscriptionUIController）"""
-        self.subscription_ui_ctrl.add_or_update_playlist_source()
-
+        """从UI添加或更新直播源"""
+        from core.subscription_manager import global_subscription_manager
+        tr = self.language_manager.tr
+        
+        url = self.playlist_new_url_edit.text().strip()
+        name = self.playlist_new_name_edit.text().strip() or None
+        
+        if not url:
+            return
+        
+        if self._editing_playlist_index >= 0:
+            global_subscription_manager.update_playlist_source(self._editing_playlist_index, url, name)
+            sources = global_subscription_manager.get_playlist_sources()
+            updated_source = sources[self._editing_playlist_index]
+            
+            item = self.playlist_list_widget.item(self._editing_playlist_index)
+            if item:
+                item.setText(f"{'✓ ' if updated_source.get('enabled') else '  '}{updated_source.get('name', 'Unnamed')}")
+                item.setData(QtCore.Qt.ItemDataRole.UserRole, updated_source)
+                item.setToolTip(updated_source.get('url', ''))
+            
+            self._editing_playlist_index = -1
+            self._playlist_add_btn.setText(tr("add_source", "+ Add Source"))
+        else:
+            index = global_subscription_manager.add_playlist_source(url, name)
+            sources = global_subscription_manager.get_playlist_sources()
+            new_source = sources[index]
+            
+            item = QListWidgetItem(f"{'✓ ' if new_source.get('enabled') else '  '}{new_source.get('name', 'Unnamed')}")
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, new_source)
+            item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(
+                QtCore.Qt.CheckState.Checked if new_source.get('enabled') else QtCore.Qt.CheckState.Unchecked
+            )
+            item.setToolTip(new_source.get('url', ''))
+            self.playlist_list_widget.addItem(item)
+        
+        self.playlist_new_url_edit.clear()
+        self.playlist_new_name_edit.clear()
+    
     def _edit_playlist_source(self, item):
-        """编辑选中的直播源（委托给SubscriptionUIController）"""
-        self.subscription_ui_ctrl.edit_playlist_source(item)
-
+        """编辑选中的直播源：将数据回填到输入框"""
+        if not item:
+            return
+        
+        current_row = self.playlist_list_widget.row(item)
+        if current_row < 0:
+            return
+        
+        source = item.data(QtCore.Qt.ItemDataRole.UserRole)
+        if not source:
+            return
+        
+        self.playlist_new_url_edit.setText(source.get('url', ''))
+        self.playlist_new_name_edit.setText(source.get('name', ''))
+        
+        self._editing_playlist_index = current_row
+        tr = self.language_manager.tr
+        self._playlist_add_btn.setText(tr("update_source", "✎ Update"))
+    
     def _remove_selected_playlist_source(self):
-        """删除选中的直播源（委托给SubscriptionUIController）"""
-        self.subscription_ui_ctrl.remove_selected_playlist_source()
-
+        """删除选中的直播源"""
+        from core.subscription_manager import global_subscription_manager
+        tr = self.language_manager.tr
+        
+        current_row = self.playlist_list_widget.currentRow()
+        if current_row < 0:
+            return
+        
+        global_subscription_manager.remove_playlist_source(current_row)
+        self.playlist_list_widget.takeItem(current_row)
+        
+        if self._editing_playlist_index == current_row:
+            self._editing_playlist_index = -1
+            self._playlist_add_btn.setText(tr("add_source", "+ Add Source"))
+            self.playlist_new_url_edit.clear()
+            self.playlist_new_name_edit.clear()
+        elif self._editing_playlist_index > current_row:
+            self._editing_playlist_index -= 1
+    
     def _activate_playlist_source(self, item):
-        """激活指定的直播源（委托给SubscriptionUIController）"""
-        self.subscription_ui_ctrl.activate_playlist_source(item)
+        """激活指定的直播源（点击切换，仅更新UI，保存时才生效）"""
+        index = self.playlist_list_widget.row(item)
+        if index >= 0:
+            for i in range(self.playlist_list_widget.count()):
+                list_item = self.playlist_list_widget.item(i)
+                source = list_item.data(QtCore.Qt.ItemDataRole.UserRole)
+                
+                is_enabled = i == index
+                
+                if source:
+                    source['enabled'] = is_enabled
+                    list_item.setData(QtCore.Qt.ItemDataRole.UserRole, source)
+                
+                text = source.get('name', 'Unnamed') if source else f'Source {i+1}'
+                list_item.setText(f"{'✓ ' if is_enabled else '  '}{text}")
+                list_item.setCheckState(
+                    QtCore.Qt.CheckState.Checked if is_enabled else QtCore.Qt.CheckState.Unchecked
+                )
     
     def _add_or_update_epg_source(self):
-        """从UI添加或更新EPG源（委托给SubscriptionUIController）"""
-        self.subscription_ui_ctrl.add_or_update_epg_source()
-
+        """从UI添加或更新EPG源"""
+        from core.subscription_manager import global_subscription_manager
+        tr = self.language_manager.tr
+        
+        url = self.epg_new_url_edit.text().strip()
+        name = self.epg_new_name_edit.text().strip() or None
+        
+        if not url:
+            return
+        
+        if self._editing_epg_index >= 0:
+            global_subscription_manager.update_epg_source(self._editing_epg_index, url, name)
+            sources = global_subscription_manager.get_epg_sources()
+            updated_source = sources[self._editing_epg_index]
+            
+            item = self.epg_list_widget.item(self._editing_epg_index)
+            if item:
+                item.setText(updated_source.get('name', 'Unnamed'))
+                item.setData(QtCore.Qt.ItemDataRole.UserRole, updated_source)
+                item.setToolTip(updated_source.get('url', ''))
+            
+            self._editing_epg_index = -1
+            self._epg_add_btn.setText(tr("add_source", "+ Add Source"))
+        else:
+            index = global_subscription_manager.add_epg_source(url, name)
+            sources = global_subscription_manager.get_epg_sources()
+            new_source = sources[index]
+            
+            item = QListWidgetItem(new_source.get('name', 'Unnamed'))
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, new_source)
+            item.setToolTip(new_source.get('url', ''))
+            self.epg_list_widget.addItem(item)
+        
+        self.epg_new_url_edit.clear()
+        self.epg_new_name_edit.clear()
+    
     def _edit_epg_source(self, item):
-        """编辑选中的EPG源（委托给SubscriptionUIController）"""
-        self.subscription_ui_ctrl.edit_epg_source(item)
-
+        """编辑选中的EPG源：将数据回填到输入框"""
+        if not item:
+            return
+        
+        current_row = self.epg_list_widget.row(item)
+        if current_row < 0:
+            return
+        
+        source = item.data(QtCore.Qt.ItemDataRole.UserRole)
+        if not source:
+            return
+        
+        self.epg_new_url_edit.setText(source.get('url', ''))
+        self.epg_new_name_edit.setText(source.get('name', ''))
+        
+        self._editing_epg_index = current_row
+        tr = self.language_manager.tr
+        self._epg_add_btn.setText(tr("update_source", "✎ Update"))
+    
     def _on_playlist_url_changed(self):
         """Playlist URL输入框文本变化时，清空则退出编辑模式"""
         if self._editing_playlist_index >= 0 and not self.playlist_new_url_edit.text().strip():
@@ -3612,8 +5154,24 @@ class IPTVPlayer(QMainWindow):
             self._epg_add_btn.setText(tr("add_source", "+ Add Source"))
     
     def _remove_selected_epg_source(self):
-        """删除选中的EPG源（委托给SubscriptionUIController）"""
-        self.subscription_ui_ctrl.remove_selected_epg_source()
+        """删除选中的EPG源"""
+        from core.subscription_manager import global_subscription_manager
+        tr = self.language_manager.tr
+        
+        current_row = self.epg_list_widget.currentRow()
+        if current_row < 0:
+            return
+        
+        global_subscription_manager.remove_epg_source(current_row)
+        self.epg_list_widget.takeItem(current_row)
+        
+        if self._editing_epg_index == current_row:
+            self._editing_epg_index = -1
+            self._epg_add_btn.setText(tr("add_source", "+ Add Source"))
+            self.epg_new_url_edit.clear()
+            self.epg_new_name_edit.clear()
+        elif self._editing_epg_index > current_row:
+            self._editing_epg_index -= 1
     
     def update_recent_files_menu(self):
         """更新最近打开文件菜单"""
@@ -3646,11 +5204,10 @@ class IPTVPlayer(QMainWindow):
             content = load_m3u_file(file_path)
 
             if self.channel_model.load_from_file(content):
-                global CHANNELS, app_state
-                # 使用 clear + extend 保持引用一致性（避免创建新列表对象）
-                new_channels = []
+                global CHANNELS
+                CHANNELS = []
                 for i, ch in enumerate(self.channel_model.channels):
-                    new_channels.append({
+                    CHANNELS.append({
                         "id": i + 1,
                         "name": ch.get('name', '未命名'),
                         "url": ch.get('url', ''),
@@ -3668,12 +5225,6 @@ class IPTVPlayer(QMainWindow):
                         "_raw_extinf": ch.get('_raw_extinf', ''),
                         "_all_tags": ch.get('_all_tags', {})
                     })
-
-                # 原地更新列表，保持所有引用一致
-                CHANNELS.clear()
-                CHANNELS.extend(new_channels)
-                app_state._channels.clear()
-                app_state._channels.extend(new_channels)
 
                 from core.config_manager import ConfigManager
                 config_manager = ConfigManager()
@@ -3701,9 +5252,130 @@ class IPTVPlayer(QMainWindow):
             self.status_bar.showMessage(f"{self.language_manager.tr('file_open_failed', 'Failed to open file')}: {str(ex)}")
     
     def open_playlist(self):
-        """打开播放列表（委托给SettingsFileOperations）"""
-        self.settings_ops.open_playlist()
-
+        """打开播放列表"""
+        from core.log_manager import global_logger as logger
+        from core.config_manager import ConfigManager
+        
+        # 临时隐藏悬浮窗，避免遮挡文件选择对话框
+        epg_visible = False
+        playlist_visible = False
+        floating_visible = False
+        
+        if hasattr(self, 'epg_panel') and self.epg_panel:
+            epg_visible = self.epg_panel.isVisible()
+            self.epg_panel.hide()
+        
+        if hasattr(self, 'playlist_panel') and self.playlist_panel:
+            playlist_visible = self.playlist_panel.isVisible()
+            self.playlist_panel.hide()
+        
+        if hasattr(self, 'floating_panel') and self.floating_panel:
+            floating_visible = self.floating_panel.isVisible()
+            self.floating_panel.hide()
+        
+        # 打开文件选择对话框
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            self.language_manager.tr("open_playlist"),
+            "",
+            "M3U文件 (*.m3u *.m3u8);;文本文件 (*.txt);;所有文件 (*.*)"
+        )
+        
+        # 重新显示悬浮窗
+        if hasattr(self, 'epg_panel') and self.epg_panel and epg_visible:
+            self.epg_panel.show()
+        
+        if hasattr(self, 'playlist_panel') and self.playlist_panel and playlist_visible:
+            self.playlist_panel.show()
+        
+        if hasattr(self, 'floating_panel') and self.floating_panel and floating_visible:
+            self.floating_panel.show()
+        
+        if file_path:
+            try:
+                logger.info(f"开始打开播放列表文件: {file_path}")
+                from services.m3u_parser import load_m3u_file
+                content = load_m3u_file(file_path)
+                logger.info(f"成功读取文件，文件大小: {len(content)} 字节")
+                
+                # 解析x-tvg-url属性，自动添加到EPG源列表并重新整合所有源
+                import re
+                first_line = content.splitlines()[0]
+                if first_line.startswith('#EXTM3U'):
+                    tvg_url_match = re.search(r'x-tvg-url=["\']([^"\']*)["\']', first_line)
+                    if tvg_url_match:
+                        tvg_url = tvg_url_match.group(1)
+                        logger.info(f"从M3U文件中解析到EPG URL: {tvg_url}")
+                        from core.subscription_manager import global_subscription_manager
+                        existing_sources = global_subscription_manager.get_epg_sources()
+                        if not existing_sources or not any(s.get('url') == tvg_url for s in existing_sources):
+                            global_subscription_manager.add_epg_source(tvg_url, "M3U文件")
+                        # 重新加载并整合所有EPG源（包括刚添加的）
+                        import threading
+                        def epg_status_callback(message):
+                            self.epg_status_signal.emit(message)
+                        threading.Thread(
+                            target=global_subscription_manager.load_all_epg_data,
+                            args=(epg_status_callback,),
+                            daemon=True
+                        ).start()
+                
+                logger.info("开始解析M3U文件内容")
+                if self.channel_model.load_from_file(content):
+                    # 添加到最近打开文件列表
+                    config_manager = ConfigManager()
+                    config_manager.add_recent_file(file_path)
+                    self.update_recent_files_menu()
+                    
+                    logger.info(f"解析成功，共解析到 {len(self.channel_model.channels)} 个频道")
+                    global CHANNELS
+                    CHANNELS = []
+                    for i, ch in enumerate(self.channel_model.channels):
+                        CHANNELS.append({
+                            "id": i + 1,
+                            "name": ch.get('name', '未命名'),
+                            "url": ch.get('url', ''),
+                            "logo": ch.get('logo', ''),
+                            "group": ch.get('group', '未分类'),
+                            "_groups": ch.get('_groups', [ch.get('group', '未分类')]),
+                            "tvg_id": ch.get('tvg_id', ''),
+                            "tvg_chno": ch.get('tvg_chno', ''),
+                            "tvg_shift": ch.get('tvg_shift', ''),
+                            "catchup": ch.get('catchup', ''),
+                            "catchup_days": ch.get('catchup_days', ''),
+                            "catchup_source": ch.get('catchup_source', ''),
+                            "resolution": ch.get('resolution', ''),
+                            "current_program": '',
+                            "_raw_extinf": ch.get('_raw_extinf', ''),
+                            "_all_tags": ch.get('_all_tags', {})
+                        })
+                    logger.info(f"成功创建CHANNELS列表，包含 {len(CHANNELS)} 个频道")
+                    if CHANNELS:
+                        self.current_channel = CHANNELS[0]
+                        display_name = self._get_display_channel_name(self.current_channel)
+                        self.channel_name.setText(display_name)
+                        self.current_program.setText(f"▶ {self.language_manager.tr('select_channel_play', 'Select a channel to play')}")
+                        self.program_desc.setText(self.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
+                        # 重置 LOGO 显示为默认图标，等待用户选择频道时加载
+                        self.channel_logo.setPixmap(QPixmap())
+                        self.channel_logo.setText("📺")
+                    
+                    logger.info("开始填充频道列表")
+                    self.populate_channel_list()
+                    self.status_bar.showMessage(self.language_manager.tr("channels_loaded").format(count=len(CHANNELS)))
+                    logger.info(f"频道列表填充完成，显示 {len(CHANNELS)} 个频道")
+                    
+                    # 重新显示并提升三个悬浮窗
+                    self.raise_floating_panels()
+                else:
+                    logger.error("M3U文件解析失败")
+                    self.status_bar.showMessage(self.language_manager.tr("file_format_error"))
+            except Exception as ex:
+                logger.error(f"打开播放列表文件失败: {ex}")
+                self.status_bar.showMessage(self.language_manager.tr("open_file_error").format(error=str(ex)))
+                # 发生异常也要重新显示悬浮窗
+                self.raise_floating_panels()
+    
     def raise_floating_panels(self):
         """重新显示并提升三个悬浮窗（与主窗口保持在一起，不抢夺焦点）"""
         self.update_floating_position()
@@ -3725,9 +5397,34 @@ class IPTVPlayer(QMainWindow):
             scan_dialog.raise_()
     
     def save_as(self):
-        """另存为（委托给SettingsFileOperations）"""
-        self.settings_ops.save_as()
-
+        """另存为"""
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            self.language_manager.tr("save_as"),
+            "playlist.m3u",
+            "M3U文件 (*.m3u);;M3U8文件 (*.m3u8);;文本文件 (*.txt);;所有文件 (*.*)"
+        )
+        
+        if file_path:
+            try:
+                content = self.channel_model.to_m3u()
+                if not content or content == "#EXTM3U":
+                    if CHANNELS:
+                        content = "#EXTM3U\n"
+                        for ch in CHANNELS:
+                            content += f'#EXTINF:-1 tvg-name="{ch["name"]}",{ch["name"]}\n{ch["url"]}\n'
+                        content += f"\n# Generated by IPTV Scanner Editor Pro\n"
+                        content += f"# Saved at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                
+                if content:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    self.status_bar.showMessage(self.language_manager.tr("save_success"))
+                else:
+                    self.status_bar.showMessage(self.language_manager.tr("no_content"))
+            except Exception as ex:
+                self.status_bar.showMessage(self.language_manager.tr("save_error").format(error=str(ex)))
+        
     def _convert_markdown_to_html(self, markdown):
         """将Markdown格式转换为HTML格式"""
         import re
@@ -3761,12 +5458,238 @@ class IPTVPlayer(QMainWindow):
         return html
 
     def show_usage_instructions(self):
-        """显示使用说明（委托给SettingsFileOperations）"""
-        self.settings_ops.show_usage_instructions()
+        from PyQt6 import QtCore, QtGui
+        from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QTextEdit, QHBoxLayout,
+                                     QPushButton, QFrame, QLabel)
+        from ui.styles import AppStyles
+
+        dialog = FloatingDialog(self, stay_on_top=False)
+        tr = self.language_manager.tr
+        colors = AppStyles._get_colors()
+        dialog.setWindowTitle(tr("usage_instructions_title", "Usage Instructions"))
+        dialog.setMinimumSize(560, 520)
+        dialog.setStyleSheet(AppStyles.dialog_style())
+
+        main_layout = QVBoxLayout(dialog)
+        main_layout.setContentsMargins(24, 20, 24, 16)
+        main_layout.setSpacing(12)
+
+        header_layout = QHBoxLayout()
+        header_layout.setSpacing(12)
+        header_icon = QLabel("📖")
+        header_icon.setStyleSheet("font-size: 28px; background-color: transparent;")
+        header_icon.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        header_layout.addWidget(header_icon)
+        header_title = QLabel(tr("usage_instructions_title", "Usage Instructions"))
+        header_title.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {colors['accent']}; background-color: transparent;")
+        header_title.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        header_layout.addWidget(header_title)
+        header_layout.addStretch()
+        main_layout.addLayout(header_layout)
+
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setStyleSheet(f"background-color: {colors['mid']}; max-height: 1px;")
+        main_layout.addWidget(sep)
+
+        text_edit = QTextEdit()
+        usage_content = tr("usage_content")
+        if not usage_content:
+            usage_content = '## 基本操作\n\n### 1. 打开播放列表\n- 点击"文件"菜单 → "打开播放列表"（快捷键 Ctrl+O）\n- 支持 M3U、M3U8、TXT 格式的播放列表文件\n- 支持最近打开的文件快速访问\n\n### 2. 播放频道\n- 在右侧频道列表中**双击**任意频道开始播放\n- 底部控制面板操作：\n  - **▶ 播放 / ▮▮ 暂停 / ■ 停止**：控制播放状态\n  - **🔊 音量滑块**：调节音量，点击图标静音/取消静音\n  - **倍速按钮**：循环切换播放速度（1.0x / 1.25x / 1.5x / 2.0x）\n  - **📐 比例按钮**：切换画面比例（原始/16:9/4:3/填充）\n  - **⛶ 全屏按钮**：进入/退出全屏模式（F11）\n- 键盘快捷键：空格键播放/暂停，Escape 退出全屏\n\n### 3. EPG 电子节目单\n- 左侧面板显示当前选中频道的节目安排\n- 点击 **◀ / ▶** 切换查看不同日期的节目\n- 进度条实时显示当前节目播放进度和时间轴\n- 支持配置远程 EPG 数据源自动订阅更新\n\n### 4. 扫描频道\n- 点击"工具"菜单 → "扫描频道"\n- 输入 IP 范围或流地址（如 `239.3.1.[1-100]:8000`）\n- 设置超时时间和线程数，支持追加扫描和重试\n\n### 5. 验证频道\n- 打开播放列表后可批量检测频道有效性\n- 显示检测进度、有效/无效数量及延迟等参数\n\n### 6. 频道管理\n- **拖拽排序**：在频道列表中拖动调整顺序\n- **分组筛选**：使用顶部下拉框按分组过滤频道\n- **右键菜单**：删除、复制频道名及 URL 等操作\n- **导出保存**：另存为 M3U / TXT / Excel 格式\n\n## 高级功能\n\n### 订阅设置\n- 工具菜单 → 订阅设置\n- 配置播放列表订阅 URL 和 EPG 数据源地址\n- 支持过期自动刷新和 URL 变更强制重新下载\n\n### 频道映射\n- 工具菜单 → 频道映射管理器\n- 可视化编辑频道名称、LOGO、分组的映射规则\n\n### 界面定制\n- **主题切换**：主题菜单提供 5 种主题（深色/浅色/暗蓝/新拟态/GitHub暗色）\n- **语言切换**：语言菜单支持中文/English\n- **面板控制**：视图菜单或快捷键控制各面板显隐\n  - **E** — EPG 节目单面板\n  - **L** — 频道列表面板\n  - **M** — 播放控制面板\n- **F5** 刷新界面，**F11** 全屏，**Ctrl+Q** 退出'
+
+        html_content = self._convert_markdown_to_html(usage_content)
+        text_edit.setHtml(html_content)
+        text_edit.setReadOnly(True)
+        text_edit.setFont(QtGui.QFont('Microsoft YaHei', 10))
+        text_edit.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+        text_edit.setWordWrapMode(QtGui.QTextOption.WrapMode.WordWrap)
+        text_edit.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {colors['alternate_base']};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+                border-radius: 8px;
+                padding: 12px;
+                font-size: 13px;
+            }}
+        """)
+        main_layout.addWidget(text_edit)
+
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        close_btn = QPushButton(tr("close_button", "Close"))
+        close_btn.setFixedSize(72, 28)
+        close_btn.setStyleSheet(AppStyles.button_style())
+        close_btn.clicked.connect(dialog.accept)
+        button_layout.addWidget(close_btn)
+        main_layout.addLayout(button_layout)
+
+        dialog.exec()
+    
+    def show_about(self):
+        """显示关于"""
+        from ui.dialogs.about_dialog import AboutDialog
+        dialog = AboutDialog(self)
+        dialog.exec()
+    
+    def set_language(self, language):
+        """设置语言"""
+        try:
+            # 更新语言设置
+            self.language_manager.set_language(language)
+            # 保存语言设置到配置文件
+            from core.config_manager import ConfigManager
+            config_manager = ConfigManager()
+            config_manager.save_language_settings(language)
+            # 更新窗口标题
+            from ui.dialogs.about_dialog import AboutDialog
+            current_version = AboutDialog.CURRENT_VERSION
+            self.setWindowTitle(f"{self.language_manager.tr('app_title', 'IPTV Scanner Editor Pro')} v{current_version}")
+            # 重新创建菜单栏以更新语言
+            if hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
+                self._custom_menu_bar.clear()
+            self.setup_menu_bar()
+            # 更新所有UI文本
+            self.language_manager.update_ui_texts(self)
+            # 更新状态栏消息
+            self.status_bar.showMessage(self.language_manager.tr("language_changed"))
+        except Exception as e:
+            logger.error(f"切换语言失败: {str(e)}")
+            self.status_bar.showMessage(self.language_manager.tr("language_change_failed", "Language change failed"))
+    
+    def set_theme(self, theme):
+        """设置主题"""
+        try:
+            self._theme_manager.set_theme(theme)
+            self.setStyleSheet(AppStyles.main_window_style())
+            if hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
+                self._custom_menu_bar.clear()
+            self.setup_menu_bar()
+            self._reapply_all_styles()
+            self.status_bar.showMessage(f"{self.language_manager.tr('theme_changed', 'Theme changed to')}: {theme}")
+        except Exception as e:
+            logger.error(f"切换主题失败: {str(e)}")
+            self.status_bar.showMessage(self.language_manager.tr("theme_change_failed", "Theme change failed"))
 
     def _reapply_all_styles(self):
-        """重新应用所有样式（委托给UIController）"""
-        self.ui_ctrl.reapply_all_styles()
+        try:
+            colors = AppStyles._get_colors()
+            self.setStyleSheet(AppStyles.main_window_style())
+            if hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
+                self._custom_menu_bar.setStyleSheet(AppStyles.player_menu_bar_style())
+            if hasattr(self, '_title_bar') and self._title_bar:
+                colors = AppStyles._get_colors()
+                title_bg = colors.get('window', '#1e1e1e')
+                title_text = colors.get('window_text', '#ffffff')
+                accent_color = colors.get('accent', '#0078d4')
+                self._title_bar.setStyleSheet(f"""
+                    QWidget#titleBar {{
+                        background-color: {title_bg};
+                        border-top-left-radius: 10px;
+                        border-top-right-radius: 10px;
+                    }}
+                    QWidget#titleBar > QPushButton {{
+                        background-color: transparent;
+                        color: {title_text};
+                        border: none;
+                        font-size: 14px;
+                        padding: 4px 12px;
+                        margin: 2px;
+                        border-radius: 4px;
+                    }}
+                    QWidget#titleBar > QPushButton:hover {{
+                        background-color: {accent_color};
+                    }}
+                    QWidget#titleBar > QPushButton#closeButton:hover {{
+                        background-color: #e81123;
+                    }}
+                """)
+            if hasattr(self, '_title_label') and self._title_label:
+                colors = AppStyles._get_colors()
+                title_text = colors.get('window_text', '#ffffff')
+                self._title_label.setStyleSheet(f"color: {title_text}; font-size: 13px; font-weight: bold; background: transparent; padding-left: 6px;")
+            if hasattr(self, '_title_icon_label') and self._title_icon_label:
+                colors = AppStyles._get_colors()
+                accent_color = colors.get('accent', '#0078d4')
+                self._title_icon_label.setStyleSheet(f"color: {accent_color}; font-size: 14px; background: transparent;")
+            self.status_bar.setStyleSheet(AppStyles.statusbar_style())
+            if hasattr(self, 'channel_table'):
+                self.channel_table.setStyleSheet(AppStyles.list_style())
+            if hasattr(self, 'central_widget'):
+                self.central_widget.setStyleSheet(AppStyles.player_background_style())
+            if hasattr(self, 'video_frame'):
+                self.video_frame.setStyleSheet(AppStyles.player_background_style())
+            if hasattr(self, 'video_widget'):
+                self.video_widget.setStyleSheet(AppStyles.player_background_style())
+            if hasattr(self, 'video_placeholder'):
+                self.video_placeholder.setStyleSheet(AppStyles.player_video_placeholder_style())
+            if hasattr(self, 'epg_panel'):
+                self.epg_panel.setStyleSheet(AppStyles.player_panel_style())
+                self.epg_panel.opacity = 180
+                self.epg_panel.update()
+            if hasattr(self, 'playlist_panel'):
+                self.playlist_panel.setStyleSheet(AppStyles.player_panel_style())
+                self.playlist_panel.opacity = 180
+                self.playlist_panel.update()
+            self._reapply_side_panel_styles()
+            if hasattr(self, 'floating_panel'):
+                self.floating_panel.setStyleSheet(AppStyles.player_panel_style())
+                self.floating_panel.opacity = 180
+                self.floating_panel.update()
+                self._reapply_floating_panel_styles()
+            for btn in self.findChildren(QPushButton):
+                btn.setStyleSheet(AppStyles.button_style())
+            for tool_btn in self.findChildren(QToolButton):
+                tool_btn.setStyleSheet(AppStyles.player_button_style())
+            for slider in self.findChildren(QSlider):
+                slider.setStyleSheet(AppStyles.player_slider_style())
+            if hasattr(self, 'volume_slider'):
+                self.volume_slider.setStyleSheet(AppStyles.player_volume_slider_style())
+            if hasattr(self, 'exit_catchup_button'):
+                self.exit_catchup_button.setStyleSheet(AppStyles.exit_catchup_button_style())
+            for combo in self.findChildren(QComboBox):
+                combo.setStyleSheet(AppStyles.player_group_combo_style())
+            for list_widget in self.findChildren(QListWidget):
+                list_widget.setStyleSheet(AppStyles.player_list_style())
+            if hasattr(self, '_scan_dialog') and self._scan_dialog:
+                if hasattr(self._scan_dialog, 'reapply_styles'):
+                    self._scan_dialog.reapply_styles()
+            
+            # 刷新播放列表中所有频道项的文字颜色
+            if hasattr(self, 'playlist_panel'):
+                playlist_list = self.playlist_panel.findChild(QtWidgets.QListWidget)
+                if playlist_list:
+                    colors = AppStyles._get_colors()
+                    text_color = colors.get('player_panel_text', '#ffffff')
+                    for i in range(playlist_list.count()):
+                        item = playlist_list.item(i)
+                        if item:
+                            widget = playlist_list.itemWidget(item)
+                            if widget:
+                                for label in widget.findChildren(QtWidgets.QLabel):
+                                    style = label.styleSheet()
+                                    if 'color:' in style or 'font-size: 12px' in style:
+                                        label.setStyleSheet(f"font-size: 12px; font-weight: bold; color: {text_color};")
+            
+            # 刷新所有未设置特殊样式的QLabel（避免文字颜色不跟随主题）
+            for label in self.findChildren(QtWidgets.QLabel):
+                style = label.styleSheet()
+                if not style or len(style.strip()) == 0 or (style == "background: transparent;" or style == "background-color: transparent;"):
+                    label.setStyleSheet(AppStyles.common_label_style())
+            
+            # 刷新所有QLineEdit
+            for line_edit in self.findChildren(QtWidgets.QLineEdit):
+                line_edit.setStyleSheet(AppStyles.common_line_edit_style())
+            
+            # 刷新所有QTextEdit
+            for text_edit in self.findChildren(QtWidgets.QTextEdit):
+                text_edit.setStyleSheet(f"background-color: {AppStyles._get_colors().get('alternate_base', '#ffffff')}; color: {AppStyles._get_colors().get('window_text', '#333333')}; border: 1px solid {AppStyles._get_colors().get('mid', '#999999')}; border-radius: 4px; padding: 6px;")
+            
+            # 刷新所有QProgressBar
+            for progress_bar in self.findChildren(QtWidgets.QProgressBar):
+                progress_bar.setStyleSheet(AppStyles.progress_style())
+        except Exception as e:
+            logger.error(f"重新应用样式失败: {e}")
 
     def _reapply_side_panel_styles(self):
         try:
@@ -3825,43 +5748,164 @@ class IPTVPlayer(QMainWindow):
             logger.error(f"重新应用悬浮面板样式失败: {e}")
 
     def save_window_layout(self):
-        """保存窗口布局（委托给SettingsFileOperations）"""
-        self.settings_ops.save_window_layout()
-
+        """保存窗口布局（包括位置和大小）"""
+        # 只有当UI初始化完成后才保存窗口布局
+        if not hasattr(self, '_ui_initialized') or not self._ui_initialized:
+            return
+            
+        try:
+            # 使用 geometry() 来获取窗口的几何形状（不包括标题栏和边框）
+            geometry = self.geometry()
+            # 保存窗口布局（包括位置和大小）
+            self.config.save_window_layout(geometry.x(), geometry.y(), geometry.width(), geometry.height(), [])
+            logger.debug(f"保存窗口布局: x={geometry.x()}, y={geometry.y()}, width={geometry.width()}, height={geometry.height()}")
+        except Exception as e:
+            logger.error(f"保存窗口布局失败: {e}")
+    
     def showEvent(self, event):
-        """窗口显示事件（委托给EventHandler）"""
-        if hasattr(self, 'event_handler') and self.event_handler:
-            self.event_handler.showEvent(event)
-        else:
-            super().showEvent(event)
-
+        """窗口首次显示时，多阶段渐进式修正悬浮窗位置"""
+        super().showEvent(event)
+        from PyQt6.QtCore import QTimer
+        if not getattr(self, '_initial_position_fixed', False):
+            self._initial_position_fixed = True
+            # 多阶段渐进式修正：Qt布局系统是异步的，单次延迟不可靠
+            # 50ms: 早期修正（可能还不稳定）
+            # 150ms: 中期修正（布局基本稳定）
+            # 300ms: 最终修正（确保完全稳定）
+            for delay in (50, 150, 300):
+                QTimer.singleShot(delay, self.update_floating_position)
+    
     def changeEvent(self, event):
-        """窗口状态变化事件（委托给EventHandler）"""
-        if hasattr(self, 'event_handler') and self.event_handler:
-            self.event_handler.changeEvent(event)
-        else:
-            super().changeEvent(event)
-
+        """主窗口状态变化时，确保悬浮窗层级正确"""
+        super().changeEvent(event)
+        if event.type() == QtCore.QEvent.Type.ActivationChange and self.isActiveWindow():
+            self._raise_floating_panels()
+    
     def moveEvent(self, event):
-        """窗口移动事件（委托给EventHandler）"""
-        if hasattr(self, 'event_handler') and self.event_handler:
-            self.event_handler.moveEvent(event)
-        else:
-            super().moveEvent(event)
-
+        """主窗口移动时，更新悬浮窗口位置"""
+        super().moveEvent(event)
+        self.update_floating_position()
+    
     def resizeEvent(self, event):
-        """窗口大小变化事件（委托给EventHandler）"""
-        if hasattr(self, 'event_handler') and self.event_handler:
-            self.event_handler.resizeEvent(event)
-        else:
-            super().resizeEvent(event)
-
+        """主窗口调整大小时，更新悬浮窗口位置"""
+        super().resizeEvent(event)
+        self.update_floating_position()
+        
+        # 使用防抖机制，避免频繁保存配置
+        if self.resize_timer:
+            self.resize_timer.stop()
+        
+        # 创建新的定时器，300毫秒后保存配置
+        self.resize_timer = QTimer(self)
+        self.resize_timer.setSingleShot(True)
+        self.resize_timer.timeout.connect(self.save_window_layout)
+        self.resize_timer.start(300)
+    
     def closeEvent(self, event):
-        """窗口关闭事件（委托给EventHandler）"""
-        if hasattr(self, 'event_handler') and self.event_handler:
-            self.event_handler.closeEvent(event)
+        self.save_window_layout()
+
+        if hasattr(self, 'player_controller') and self.player_controller:
+            self.player_controller.stop()
+
+        # 关闭扫描窗口（检查两种可能的属性名以兼容）
+        scan_dialog = getattr(self, '_scan_dialog', None) or getattr(self, 'scan_window', None)
+        if scan_dialog:
+            try:
+                scan_dialog.close()
+                scan_dialog.deleteLater()
+            except Exception:
+                pass
+            self._scan_dialog = None
+            self.scan_window = None
+
+        for panel_name in ['floating_panel', 'epg_panel', 'playlist_panel']:
+            panel = getattr(self, panel_name, None)
+            if panel:
+                try:
+                    panel.close()
+                    panel.deleteLater()
+                except Exception:
+                    pass
+
+        if hasattr(self, 'update_timer') and self.update_timer:
+            self.update_timer.stop()
+
+        if hasattr(self, '_source_timeout_timer') and self._source_timeout_timer:
+            self._source_timeout_timer.stop()
+
+        from PyQt6.QtWidgets import QApplication
+        QApplication.instance().quit()
+        event.accept()
+        super().closeEvent(event)
+    
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape and self.is_fullscreen:
+            self.toggle_fullscreen(False)
+        elif event.key() == Qt.Key.Key_Space:
+            if hasattr(self, 'player_controller') and self.player_controller:
+                self.toggle_play()
+        elif event.key() in (Qt.Key.Key_Left, Qt.Key.Key_Right):
+            if hasattr(self, 'player_controller') and self.player_controller and self.player_controller.is_playing:
+                is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
+                if not is_catchup:
+                    delta = -5 if event.key() == Qt.Key.Key_Left else 5
+                    if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                        delta *= 6
+                    logger.info(f"键盘seek: {delta:+d}s")
+                    self.player_controller.seek_relative_seconds(delta)
+                else:
+                    super().keyPressEvent(event)
+            else:
+                super().keyPressEvent(event)
+        elif event.key() == Qt.Key.Key_Tab:
+            self.toggle_osd()
+        elif self.is_fullscreen:
+            key = event.key()
+            modifiers = event.modifiers()
+            if modifiers == Qt.KeyboardModifier.NoModifier:
+                if key == Qt.Key.Key_E:
+                    self.epg_visible = not self.epg_visible
+                    if hasattr(self, 'epg_panel') and self.epg_panel:
+                        self.epg_panel.setVisible(self.epg_visible)
+                elif key == Qt.Key.Key_L:
+                    self.playlist_visible = not self.playlist_visible
+                    if hasattr(self, 'playlist_panel') and self.playlist_panel:
+                        self.playlist_panel.setVisible(self.playlist_visible)
+                elif key == Qt.Key.Key_M:
+                    self.floating_panel_visible = not self.floating_panel_visible
+                    if hasattr(self, 'floating_panel') and self.floating_panel:
+                        self.floating_panel.setVisible(self.floating_panel_visible)
+                elif key == Qt.Key.Key_Y:
+                    self._floating_hidden = not self._floating_hidden
+                    if self._floating_hidden:
+                        self._saved_floating_states = {
+                            'epg': self.epg_visible,
+                            'playlist': self.playlist_visible,
+                            'floating': self.floating_panel_visible
+                        }
+                        if hasattr(self, 'epg_panel') and self.epg_panel:
+                            self.epg_panel.hide()
+                        if hasattr(self, 'playlist_panel') and self.playlist_panel:
+                            self.playlist_panel.hide()
+                        if hasattr(self, 'floating_panel') and self.floating_panel:
+                            self.floating_panel.hide()
+                    else:
+                        saved = self._saved_floating_states
+                        if saved.get('epg', False) and hasattr(self, 'epg_panel') and self.epg_panel:
+                            self.epg_panel.show()
+                            self.epg_visible = True
+                        if saved.get('playlist', False) and hasattr(self, 'playlist_panel') and self.playlist_panel:
+                            self.playlist_panel.show()
+                            self.playlist_visible = True
+                        if saved.get('floating', False) and hasattr(self, 'floating_panel') and self.floating_panel:
+                            self.floating_panel.show()
+                            self.floating_panel_visible = True
+                else:
+                    super().keyPressEvent(event)
+            else:
+                super().keyPressEvent(event)
         else:
-            super().closeEvent(event)
+            super().keyPressEvent(event)
 
     def _check_for_updates_async(self):
         """异步检查新版本"""
@@ -4024,8 +6068,6 @@ class IPTVPlayer(QMainWindow):
 
     def _on_logo_cache_loaded(self, url, pixmap):
         """台标加载完成的回调"""
-        logger.info(f"台标加载完成: {url[:50]}..., pixmap有效: {not pixmap.isNull()}, 更新列表项...")
-
         if self.current_channel:
             logo = self.current_channel.get('logo', '')
             if logo:
@@ -4050,10 +6092,10 @@ class IPTVPlayer(QMainWindow):
             if channel_logo:
                 channel_logo = channel_logo.strip('`"\'')
                 if channel_logo == url:
-                    # 获取自定义 widget 并更新台标（按 objectName 查找，避免找到 name_label）
+                    # 获取自定义 widget 并更新台标
                     item_widget = self.channel_list.itemWidget(item)
                     if item_widget:
-                        logo_label = item_widget.findChild(QtWidgets.QLabel, "channel_logo_label")
+                        logo_label = item_widget.findChild(QtWidgets.QLabel)
                         if logo_label:
                             scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(
                                 pixmap,
@@ -4256,7 +6298,7 @@ class IPTVPlayer(QMainWindow):
         if not merge_model.load_from_file(content):
             return False
 
-        global CHANNELS, app_state
+        global CHANNELS
         new_channels = []
         for i, ch in enumerate(merge_model.channels):
             new_channels.append({
@@ -4278,12 +6320,8 @@ class IPTVPlayer(QMainWindow):
                 "_all_tags": ch.get('_all_tags', {})
             })
 
-        # 使用 clear + extend 保持引用一致性（避免创建新列表对象）
         if mode == 'replace':
-            CHANNELS.clear()
-            CHANNELS.extend(new_channels)
-            app_state._channels.clear()
-            app_state._channels.extend(new_channels)
+            CHANNELS = new_channels
         else:
             existing_names = {ch.get('name', '') for ch in CHANNELS}
             for ch in new_channels:

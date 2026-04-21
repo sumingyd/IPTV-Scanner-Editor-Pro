@@ -216,40 +216,88 @@ class SubscriptionManager:
                 status_callback("没有配置任何EPG源")
             return False
         
+        import re
+
+        def _clean_epg_title(title):
+            """清理EPG节目标题中的日期/集数后缀"""
+            if not title:
+                return title
+            t = title.strip()
+            t = re.sub(r'\s*[-–—]\d{4}[-–—]\d+\s*$', '', t)
+            t = re.sub(r'\s*[-–—]\s*\(\d+\)\s*$', '', t)
+            t = re.sub(r'\s*\(\d+\)\s*$', '', t)
+            return t.strip()
+
+        def _time_overlap_sec(p1, p2):
+            """计算两个节目的时间重叠秒数"""
+            try:
+                s1 = datetime.fromisoformat(p1.get('start', ''))
+                e1 = datetime.fromisoformat(p1.get('end', ''))
+                s2 = datetime.fromisoformat(p2.get('start', ''))
+                e2 = datetime.fromisoformat(p2.get('end', ''))
+                ov_start = max(s1, s2)
+                ov_end = min(e1, e2)
+                if ov_start < ov_end:
+                    return (ov_end - ov_start).total_seconds()
+                return 0
+            except Exception:
+                return 0
+
         merged_data = {}
         total_sources = len(sources)
-        
+
         for i, source in enumerate(sources):
             if status_callback:
                 status_callback(f"正在加载EPG源 {i+1}/{total_sources}: {source.get('name', '')}")
-            
+
             try:
                 data = self._load_single_epg(source['url'])
-                
+
                 if data:
                     for channel_id, programs in data.items():
+                        cleaned_new = []
+                        for p in programs:
+                            p['title'] = _clean_epg_title(p.get('title', ''))
+                            cleaned_new.append(p)
+
                         if channel_id not in merged_data:
-                            merged_data[channel_id] = programs
+                            merged_data[channel_id] = cleaned_new
                         else:
                             existing_programs = merged_data[channel_id]
-                            existing_start_times = {
-                                p.get('start', '')
-                                for p in existing_programs
-                            }
-                            
-                            for program in programs:
-                                if program.get('start') not in existing_start_times:
-                                    existing_programs.append(program)
-                            
+                            dup_count = 0
+
+                            for new_prog in cleaned_new:
+                                is_duplicate = False
+                                new_start = new_prog.get('start', '')
+
+                                for j, exist_prog in enumerate(existing_programs):
+                                    overlap = _time_overlap_sec(new_prog, exist_prog)
+                                    if overlap > 180:
+                                        exist_title = exist_prog.get('title', '')
+                                        new_title = new_prog.get('title', '')
+                                        if len(new_title) < len(exist_title) and new_title:
+                                            existing_programs[j] = new_prog
+                                        is_duplicate = True
+                                        dup_count += 1
+                                        break
+
+                                if not is_duplicate:
+                                    existing_programs.append(new_prog)
+
+                            if dup_count > 0:
+                                logger.debug(
+                                    f"频道 {channel_id}: 时间重叠去重 {dup_count}/{len(cleaned_new)} 个"
+                                )
+
                             merged_data[channel_id] = sorted(
                                 merged_data[channel_id],
                                 key=lambda x: x.get('start', '')
                             )
-                    
+
                     logger.info(f"成功加载EPG源: {source.get('name', '')}, 包含 {len(data)} 个频道")
                 else:
                     logger.warning(f"EPG源加载失败或无数据: {source.get('name', '')}")
-            
+
             except Exception as e:
                 logger.error(f"加载EPG源异常: {source.get('name', '')} - {str(e)}")
         
@@ -707,19 +755,31 @@ class SubscriptionManager:
             return False
     
     def is_epg_valid(self) -> bool:
-        """检查EPG数据是否有效
+        """检查EPG缓存数据是否有效（基于缓存文件，而非内存状态）
 
         Returns:
             是否有效
         """
-        if not self._epg_data:
+        import os
+
+        cache_dir = self._config.get_value('General', 'cache_dir', 'cache') or 'cache'
+        cache_file = os.path.join(cache_dir, 'epg_cache.json')
+
+        if not os.path.exists(cache_file):
             return False
-        
-        if self._last_epg_update and \
-           (datetime.now() - self._last_epg_update).total_seconds() > 86400:
+
+        try:
+            file_mtime = datetime.fromtimestamp(os.path.getmtime(cache_file))
+            age_seconds = (datetime.now() - file_mtime).total_seconds()
+
+            if age_seconds > 86400:
+                logger.debug(f"EPG缓存文件已过期: {age_seconds/3600:.1f} 小时前")
+                return False
+
+            return True
+        except Exception as e:
+            logger.debug(f"检查EPG缓存有效性失败: {e}")
             return False
-        
-        return True
     
     def refresh_epg(self, status_callback=None) -> bool:
         """刷新所有EPG数据

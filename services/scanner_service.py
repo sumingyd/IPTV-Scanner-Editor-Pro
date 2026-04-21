@@ -13,6 +13,53 @@ from models.channel_mappings import extract_channel_name_from_url
 from utils.scan_state_manager import get_scan_state_manager, ScanStateContext
 
 
+def calculate_optimal_queue_size(thread_count: int = 10) -> int:
+    """根据系统资源动态计算最优队列大小
+    
+    Args:
+        thread_count: 扫描线程数
+        
+    Returns:
+        int: 最优队列大小（URL数量）
+        
+    算法说明：
+    - 基于可用内存：每个URL条目约占用1KB内存
+    - 基于线程数：队列应至少能容纳线程数 * 10 的任务量
+    - 限制范围：1000 - 50000，避免过大或过小
+    """
+    try:
+        import psutil
+        
+        # 获取系统资源信息
+        memory_mb = psutil.virtual_memory().available / (1024 * 1024)
+        cpu_count = psutil.cpu_count() or 4
+        
+        # 基于内存计算（使用5%的可用内存，假设每条目1KB）
+        memory_based = int(memory_mb * 0.05 * 1024)  # 转换为条目数
+        
+        # 基于线程数计算（每个线程至少有10个待处理任务）
+        thread_based = thread_count * 10
+        
+        # 基于CPU核心数计算（每个核心至少1000个任务）
+        cpu_based = cpu_count * 1000
+        
+        # 取三者中的最小值，确保不会过度占用资源
+        optimal = min(memory_based, thread_based, cpu_based)
+        
+        # 限制在合理范围内
+        optimal = max(1000, min(optimal, 50000))
+        
+        return optimal
+        
+    except ImportError:
+        # psutil不可用，使用基于线程数的简单计算
+        return max(1000, thread_count * 100)
+    except Exception as e:
+        # 出错时返回保守的默认值
+        global_logger.debug(f"计算最优队列大小失败: {e}，使用默认值")
+        return 10000
+
+
 class ScannerController(QObject):
     """扫描控制器，管理多线程扫描过程"""
 
@@ -41,6 +88,7 @@ class ScannerController(QObject):
         self.channel_counter = 0
         self.counter_lock = threading.Lock()
         self._batch_timer = None  # 不再使用批量定时器
+        self._optimal_queue_size = 10000  # 动态计算的队列大小（默认值）
         self.stats: Dict[str, any] = {
             'total': 0,
             'valid': 0,
@@ -397,8 +445,8 @@ class ScannerController(QObject):
                         break
                     self.scan_queue.put(url)
 
-                # 保持队列适度填充，避免内存占用过高
-                while self.scan_queue.qsize() > 10000 and not self.stop_event.is_set():
+                # 保持队列适度填充，避免内存占用过高（使用动态计算的队列大小）
+                while self.scan_queue.qsize() > self._optimal_queue_size and not self.stop_event.is_set():
                     time.sleep(0.1)
 
                 # 每处理100个批次后稍微休息，避免CPU占用过高
@@ -439,12 +487,16 @@ class ScannerController(QObject):
         # 保存超时时间和线程数到实例变量
         self.timeout = timeout
 
+        # 动态计算最优队列大小（基于系统资源）
+        self._optimal_queue_size = calculate_optimal_queue_size(thread_count)
+        self.logger.debug(f"动态计算最优队列大小: {self._optimal_queue_size}（线程数: {thread_count}）")
+
         from services.mpv_validator_service import MpvStreamValidator
         MpvStreamValidator.set_max_concurrent(thread_count)
         if user_agent:
-            pass
+            MpvStreamValidator.set_user_agent(user_agent)
         if referer:
-            pass
+            MpvStreamValidator.set_referer(referer)
 
         # 初始化统计信息
         self.stats = {
@@ -528,9 +580,9 @@ class ScannerController(QObject):
         from services.mpv_validator_service import MpvStreamValidator
         MpvStreamValidator.set_max_concurrent(thread_count)
         if user_agent:
-            pass
+            MpvStreamValidator.set_user_agent(user_agent)
         if referer:
-            pass
+            MpvStreamValidator.set_referer(referer)
 
         # 初始化统计信息
         self.stats = {
@@ -700,9 +752,9 @@ class ScannerController(QObject):
         from services.mpv_validator_service import MpvStreamValidator
         MpvStreamValidator.set_max_concurrent(threads)
         if user_agent:
-            pass
+            MpvStreamValidator.set_user_agent(user_agent)
         if referer:
-            pass
+            MpvStreamValidator.set_referer(referer)
 
         self.stats = {
             'total': model.rowCount(),

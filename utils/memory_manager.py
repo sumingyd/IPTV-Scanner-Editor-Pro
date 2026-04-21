@@ -19,9 +19,14 @@ class MemoryManager(Singleton):
         self._weak_refs: Dict[str, weakref.WeakValueDictionary] = {}
         self._cache: Dict[str, Any] = {}
         self._lock = threading.Lock()
+        # 动态扩缩容配置
+        self._auto_resize_enabled = True  # 是否启用动态扩缩容
+        self._resize_threshold_high = 0.8  # 高水位阈值（利用率超过此值触发扩容）
+        self._resize_threshold_low = 0.2  # 低水位阈值（利用率低于此值触发缩容）
+        self._max_pool_multiplier = 4  # 最大扩容倍数（相对于初始max_size）
         self._initialized = True
 
-        logger.info("内存管理器已初始化")
+        logger.info("内存管理器已初始化（支持动态扩缩容）")
 
     def create_object_pool(self, pool_name: str, factory_func: Callable, max_size: int = 100):
         """创建对象池"""
@@ -31,13 +36,15 @@ class MemoryManager(Singleton):
                     'pool': [],
                     'factory': factory_func,
                     'max_size': max_size,
+                    'initial_max_size': max_size,  # 保存初始大小
                     'created': 0,
-                    'reused': 0
+                    'reused': 0,
+                    'peak_usage': 0  # 峰值使用量统计
                 }
-                logger.debug(f"创建对象池: {pool_name}, 最大大小: {max_size}")
+                logger.debug(f"创建对象池: {pool_name}, 最大大小: {max_size}（支持动态扩缩容）")
 
     def get_from_pool(self, pool_name: str, *args, **kwargs):
-        """从对象池获取对象"""
+        """从对象池获取对象（支持动态扩容）"""
         with self._lock:
             if pool_name not in self._object_pools:
                 logger.warning(f"对象池 {pool_name} 不存在")
@@ -50,17 +57,86 @@ class MemoryManager(Singleton):
                 # 从池中获取对象
                 obj = pool.pop()
                 pool_info['reused'] += 1
+                
+                # 更新峰值使用统计
+                current_usage = pool_info['created'] - len(pool)
+                if current_usage > pool_info.get('peak_usage', 0):
+                    pool_info['peak_usage'] = current_usage
+                
                 logger.debug(f"从对象池 {pool_name} 复用对象，池大小: {len(pool)}")
                 return obj
             else:
-                # 创建新对象
+                # 创建新对象前检查是否需要扩容
+                if self._auto_resize_enabled and self._should_expand_pool(pool_info):
+                    self._expand_pool(pool_info)
+                
                 obj = pool_info['factory'](*args, **kwargs)
                 pool_info['created'] += 1
                 logger.debug(f"从对象池 {pool_name} 创建新对象，已创建: {pool_info['created']}")
                 return obj
 
+    def _should_expand_pool(self, pool_info: Dict) -> bool:
+        """判断是否应该扩容"""
+        current_size = len(pool_info['pool'])
+        max_size = pool_info['max_size']
+        initial_size = pool_info.get('initial_max_size', max_size)
+        
+        # 池已满且未达到最大扩容限制
+        if current_size >= max_size and max_size < initial_size * self._max_pool_multiplier:
+            # 检查使用率（创建数 / (创建数+复用数)）
+            total = pool_info['created'] + pool_info['reused']
+            if total > 0:
+                usage_rate = pool_info['created'] / total
+                return usage_rate > self._resize_threshold_high
+        
+        return False
+
+    def _expand_pool(self, pool_info: Dict):
+        """扩容对象池"""
+        old_max = pool_info['max_size']
+        initial_size = pool_info.get('initial_max_size', old_max)
+        
+        # 计算新的max_size（翻倍，但不超过上限）
+        new_max = min(old_max * 2, initial_size * self._max_pool_multiplier)
+        
+        pool_info['max_size'] = new_max
+        logger.info(f"对象池自动扩容: {old_max} -> {new_max}（上限: {initial_size * self._max_pool_multiplier}）")
+
+    def _should_shrink_pool(self, pool_info: Dict) -> bool:
+        """判断是否应该缩容"""
+        current_size = len(pool_info['pool'])
+        max_size = pool_info['max_size']
+        initial_size = pool_info.get('initial_max_size', max_size)
+        
+        # 使用率低且大于初始大小
+        if max_size > initial_size and current_size > 0:
+            total = pool_info['created'] + pool_info['reused']
+            if total > 10:  # 至少有足够样本才判断
+                reuse_rate = pool_info['reused'] / total
+                # 复用率低于阈值且当前占用率也低
+                occupancy_rate = current_size / max_size
+                return reuse_rate < self._resize_threshold_low or occupancy_rate < self._resize_threshold_low
+        
+        return False
+
+    def _shrink_pool(self, pool_info: Dict):
+        """缩容对象池"""
+        old_max = pool_info['max_size']
+        initial_size = pool_info.get('initial_max_size', old_max)
+        pool = pool_info['pool']
+        
+        # 计算新的max_size（减半，但不小于初始大小）
+        new_max = max(old_max // 2, initial_size)
+        
+        # 如果新大小小于当前池中对象数量，先移除多余对象
+        while len(pool) > new_max and pool:
+            pool.pop()
+        
+        pool_info['max_size'] = new_max
+        logger.info(f"对象池自动缩容: {old_max} -> {new_max}（初始大小: {initial_size}）")
+
     def return_to_pool(self, pool_name: str, obj):
-        """将对象返回到对象池"""
+        """将对象返回到对象池（支持动态缩容）"""
         with self._lock:
             if pool_name not in self._object_pools:
                 logger.warning(f"对象池 {pool_name} 不存在")
@@ -71,6 +147,12 @@ class MemoryManager(Singleton):
 
             if len(pool) < pool_info['max_size']:
                 pool.append(obj)
+                
+                # 检查是否需要缩容（在返回对象时异步检查）
+                if self._auto_resize_enabled and len(pool) > 10:
+                    if self._should_shrink_pool(pool_info):
+                        self._shrink_pool(pool_info)
+                
                 logger.debug(f"对象返回到池 {pool_name}，池大小: {len(pool)}")
             else:
                 logger.debug(f"对象池 {pool_name} 已满，丢弃对象")
@@ -190,7 +272,10 @@ class MemoryManager(Singleton):
                     'pool_size': len(pool_info['pool']),
                     'created': pool_info['created'],
                     'reused': pool_info['reused'],
-                    'max_size': pool_info['max_size']
+                    'max_size': pool_info['max_size'],
+                    'initial_max_size': pool_info.get('initial_max_size', pool_info['max_size']),
+                    'peak_usage': pool_info.get('peak_usage', 0),
+                    'usage_rate': f"{(pool_info['created'] / (pool_info['created'] + pool_info['reused']) * 100):.1f}%" if (pool_info['created'] + pool_info['reused']) > 0 else "N/A"
                 }
 
             return stats
