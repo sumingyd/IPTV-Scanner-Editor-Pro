@@ -338,9 +338,7 @@ class IPTVPlayer(QMainWindow):
     def mousePressEvent(self, event):
         """鼠标按下事件（委托给WindowController）"""
         if not self.window_ctrl.handle_mouse_press_event(event):
-            # 原有逻辑：点击窗口时显示悬浮窗
-            if hasattr(self, 'floating_panel_visible') and self.floating_panel_visible:
-                self.update_floating_position()
+            self.update_floating_position()
             super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
@@ -1071,36 +1069,6 @@ class IPTVPlayer(QMainWindow):
         """最终初始化"""
         logger.debug("_final_initialization: 完成")
 
-    def _show_floating_panel(self):
-        """显示底部悬浮控制面板"""
-        logger.debug("_show_floating_panel: 开始")
-        
-        # 显示底部悬浮控制面板
-        if self.floating_panel:
-            self.floating_panel.show()
-        
-        logger.debug("_show_floating_panel: 完成")
-    
-    def _show_side_panels(self):
-        """显示左右面板"""
-        logger.debug("_show_side_panels: 开始")
-        
-        bottom_reserve = 180 if self.is_fullscreen else (self.floating_panel.height() + 40 if hasattr(self, 'floating_panel') and self.floating_panel and self.floating_panel.isVisible() else 180)
-        panel_height = max(100, self.video_frame.height() - bottom_reserve)
-        
-        # 设置左右侧边栏为独立窗口（悬浮效果）
-        # 左侧 EPG 面板悬浮
-        if self.epg_panel and self.video_frame:
-            self.epg_panel.setFixedHeight(panel_height)
-            self.epg_panel.show()
-        
-        # 右侧播放列表面板悬浮
-        if self.playlist_panel and self.video_frame:
-            self.playlist_panel.setFixedHeight(panel_height)
-            self.playlist_panel.show()
-        
-        logger.debug("_show_side_panels: 完成")
-    
     def _install_event_filters(self):
         """安装事件过滤器"""
         logger.debug("_install_event_filters: 开始")
@@ -3013,7 +2981,7 @@ class IPTVPlayer(QMainWindow):
                 self._custom_menu_bar.show()
             if saved.get('status_bar', True) and self.status_bar:
                 self.status_bar.show()
-            # 恢复面板（QDockWidget 自动定位，无需手动计算）
+            # 恢复面板显示，然后重新定位
             if saved.get('epg', True) and hasattr(self, 'epg_panel') and self.epg_panel:
                 self.epg_panel.show()
                 self.epg_visible = True
@@ -3029,6 +2997,7 @@ class IPTVPlayer(QMainWindow):
                 self.floating_panel_visible = True
             else:
                 self.floating_panel_visible = False
+            self.update_floating_position()
             if not self._floating_hidden and self._auto_hide_timer:
                 self._auto_hide_timer.start()
     
@@ -3068,8 +3037,9 @@ class IPTVPlayer(QMainWindow):
             logger.error(f"打开扫描界面失败: {str(ex)}")
     
     def _raise_floating_panels(self):
-        """主窗口激活时，将悬浮窗与主窗口一起提升到上层（悬浮窗和主窗口视为整体）"""
+        """主窗口激活时，将悬浮窗与主窗口一起提升到上层"""
         self.raise_()
+        self.raise_floating_panels()
 
     def open_channel_mapping(self):
         """打开频道映射管理器"""
@@ -3466,19 +3436,22 @@ class IPTVPlayer(QMainWindow):
         self.settings_ops.open_playlist()
 
     def raise_floating_panels(self):
-        """重新显示并提升三个悬浮窗（与主窗口保持在一起，不抢夺焦点）"""
+        """重新显示并提升可见的悬浮窗（与主窗口保持在一起，不抢夺焦点）"""
         self.update_floating_position()
 
-        if hasattr(self, 'epg_panel') and self.epg_panel:
-            self.epg_panel.show()
+        if hasattr(self, 'epg_panel') and self.epg_panel and self.epg_visible:
+            if not self.epg_panel.isVisible():
+                self.epg_panel.show()
             self.epg_panel.raise_()
 
-        if hasattr(self, 'playlist_panel') and self.playlist_panel:
-            self.playlist_panel.show()
+        if hasattr(self, 'playlist_panel') and self.playlist_panel and self.playlist_visible:
+            if not self.playlist_panel.isVisible():
+                self.playlist_panel.show()
             self.playlist_panel.raise_()
 
-        if hasattr(self, 'floating_panel') and self.floating_panel:
-            self.floating_panel.show()
+        if hasattr(self, 'floating_panel') and self.floating_panel and self.floating_panel_visible:
+            if not self.floating_panel.isVisible():
+                self.floating_panel.show()
             self.floating_panel.raise_()
 
         scan_dialog = getattr(self, '_scan_dialog', None) or getattr(self, 'scan_window', None)

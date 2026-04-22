@@ -347,7 +347,7 @@ class UIController:
             self.window._osd_menu_action.setChecked(False)
 
     def handle_mouse_activity(self):
-        """处理鼠标活动，恢复隐藏的悬浮窗"""
+        """处理鼠标活动，恢复隐藏的悬浮窗（只恢复用户未手动修改的面板）"""
         if not getattr(self.window, '_auto_hidden', False):
             return
 
@@ -355,14 +355,17 @@ class UIController:
         saved = getattr(self.window, '_saved_floating_states', {})
 
         if saved.get('epg', False) and hasattr(self.window, 'epg_panel') and self.window.epg_panel:
-            self.window.epg_panel.show()
-            self.window.epg_visible = True
+            if not self.window.epg_panel.isVisible() and not self.window.epg_visible:
+                self.window.epg_panel.show()
+                self.window.epg_visible = True
         if saved.get('playlist', False) and hasattr(self.window, 'playlist_panel') and self.window.playlist_panel:
-            self.window.playlist_panel.show()
-            self.window.playlist_visible = True
+            if not self.window.playlist_panel.isVisible() and not self.window.playlist_visible:
+                self.window.playlist_panel.show()
+                self.window.playlist_visible = True
         if saved.get('floating', False) and hasattr(self.window, 'floating_panel') and self.window.floating_panel:
-            self.window.floating_panel.show()
-            self.window.floating_panel_visible = True
+            if not self.window.floating_panel.isVisible() and not self.window.floating_panel_visible:
+                self.window.floating_panel.show()
+                self.window.floating_panel_visible = True
 
         if hasattr(self.window, '_osd_menu_action') and self.window._osd_menu_action:
             self.window._osd_menu_action.setChecked(True)
