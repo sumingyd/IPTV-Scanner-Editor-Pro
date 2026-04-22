@@ -5,7 +5,7 @@ EPG节目单控制器 - 负责EPG数据管理、显示、交互
 
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from PyQt6.QtWidgets import QListWidgetItem, QDateEdit
+from PyQt6.QtWidgets import QListWidgetItem, QDateEdit, QAction
 from PyQt6.QtCore import Qt
 
 
@@ -122,7 +122,7 @@ class EPGController:
         if epg_list:
             # 按日期过滤：只显示当前选中日期的节目（默认今天）
             from datetime import datetime, date as date_type
-            target_date = getattr(self.window, '_current_epg_date', None) or date_type.today()
+            target_date = getattr(self.window, 'current_epg_date', None) or date_type.today()
 
             filtered_list = []
             for program in epg_list:
@@ -145,6 +145,18 @@ class EPGController:
                 self.window.epg_empty_label.hide()
 
             tr = getattr(self.window.language_manager, 'tr', lambda x, y: x) if hasattr(self.window, 'language_manager') else lambda x, y: x
+
+            # 显示层去重：防止漏网的重复节目（基于 start+title 指纹）
+            seen = []
+            deduped_list = []
+            for program in filtered_list:
+                key = (program.get('start', ''), program.get('title', ''))
+                if key not in seen:
+                    seen.append(key)
+                    deduped_list.append(program)
+            if len(deduped_list) < len(filtered_list):
+                logger.info(f"EPG显示层去重: {len(filtered_list)} -> {len(deduped_list)} 个节目")
+            filtered_list = deduped_list
 
             # 获取当前时间用于判断节目状态
             now = datetime.now()
@@ -203,10 +215,10 @@ class EPGController:
 
                 self.window.epg_content.addItem(item)
 
-            logger.debug(f"EPG列表填充完成，共 {len(epg_list)} 个节目")
+            logger.debug(f"EPG列表填充完成，共 {len(filtered_list)} 个节目")
 
-            # 自动定位到当前正在播放的节目
-            self._scroll_to_current_program(epg_list, now)
+            # 自动定位到当前正在播放的节目（使用过滤后的列表，确保索引匹配）
+            self._scroll_to_current_program(filtered_list, now)
         else:
             if hasattr(self.window, 'epg_empty_label'):
                 self.window.epg_empty_label.show()
@@ -257,34 +269,34 @@ class EPGController:
 
     def update_epg_date_display(self):
         """更新EPG日期显示"""
-        if not hasattr(self.window, '_current_epg_date'):
+        if not hasattr(self.window, 'current_epg_date'):
             return
 
         from datetime import date, timedelta
         today = date.today()
 
-        if self.window._current_epg_date:
+        if self.window.current_epg_date:
             # 更新日期标签显示
             if hasattr(self.window, 'epg_date_label'):
-                if self.window._current_epg_date == today:
+                if self.window.current_epg_date == today:
                     tr = getattr(self.window.language_manager, 'tr', lambda x, y: x)
                     self.window.epg_date_label.setText(tr("today", "Today"))
-                elif self.window._current_epg_date == today - timedelta(days=1):
+                elif self.window.current_epg_date == today - timedelta(days=1):
                     tr = getattr(self.window.language_manager, 'tr', lambda x, y: x)
                     self.window.epg_date_label.setText(tr("yesterday", "Yesterday"))
-                elif self.window._current_epg_date == today + timedelta(days=1):
+                elif self.window.current_epg_date == today + timedelta(days=1):
                     tr = getattr(self.window.language_manager, 'tr', lambda x, y: x)
                     self.window.epg_date_label.setText(tr("tomorrow", "Tomorrow"))
                 else:
-                    self.window.epg_date_label.setText(self.window._current_epg_date.strftime("%Y-%m-%d"))
+                    self.window.epg_date_label.setText(self.window.current_epg_date.strftime("%Y-%m-%d"))
 
     def on_prev_day(self):
         """切换到前一天"""
         from datetime import timedelta
-        if not hasattr(self.window, '_current_epg_date') or not self.window._current_epg_date:
+        if not hasattr(self.window, 'current_epg_date') or not self.window.current_epg_date:
             return
 
-        self.window._current_epg_date -= timedelta(days=1)
+        self.window.current_epg_date -= timedelta(days=1)
         self.update_epg_date_display()
         # 重新加载该日期的EPG数据
         if hasattr(self.window, 'populate_epg_list'):
@@ -293,10 +305,10 @@ class EPGController:
     def on_next_day(self):
         """切换到后一天"""
         from datetime import timedelta
-        if not hasattr(self.window, '_current_epg_date') or not self.window._current_epg_date:
+        if not hasattr(self.window, 'current_epg_date') or not self.window.current_epg_date:
             return
 
-        self.window._current_epg_date += timedelta(days=1)
+        self.window.current_epg_date += timedelta(days=1)
         self.update_epg_date_display()
         # 重新加载该日期的EPG数据
         if hasattr(self.window, 'populate_epg_list'):
@@ -360,6 +372,13 @@ class EPGController:
         """切换EPG面板显示/隐藏"""
         if hasattr(self.window, 'epg_panel'):
             self.window.epg_panel.setVisible(checked)
+            self.window.epg_visible = checked
+            for action in self.window.findChildren(QtWidgets.QAction):
+                if action.text() and ('EPG' in action.text() or '节目' in action.text()) and action.isCheckable():
+                    action.blockSignals(True)
+                    action.setChecked(checked)
+                    action.blockSignals(False)
+                    break
 
     @property
     def has_epg_data(self) -> bool:

@@ -16,69 +16,103 @@ class EventHandler:
         self._shortcuts = {}  # 快捷键映射表
 
     def keyPressEvent(self, event: QKeyEvent) -> bool:
-        """
-        处理键盘按键事件
-        Returns: bool - 是否已处理该事件
-        """
-        key = event.key()
-        modifiers = event.modifiers()
-        
-        # 常用快捷键
-        if modifiers == Qt.KeyboardModifier.NoModifier:
-            if key == Qt.Key.Key_Space:
-                # 空格键: 播放/暂停
-                if hasattr(self.window, 'playback_ctrl'):
-                    self.window.playback_ctrl.toggle_play()
+        """已废弃：所有快捷键统一由 eventFilter 处理，此方法保留为空"""
+        return False
+
+    def eventFilter(self, obj, event: QEvent) -> bool:
+        """事件过滤器 - 在 app 级别统一处理所有快捷键（不受焦点影响）"""
+        event_type = event.type()
+
+        if event_type == QEvent.Type.KeyPress:
+            key = event.key()
+            modifiers = event.modifiers()
+            handled = self._handle_global_shortcut(key, modifiers)
+            if handled:
                 return True
-                
-            elif key == Qt.Key.Key_Escape:
-                # ESC: 退出全屏/停止播放
-                if hasattr(self.window, 'isFullScreen') and self.window.isFullScreen():
-                    self.window.toggle_fullscreen()
-                else:
-                    if hasattr(self.window, 'playback_ctrl'):
-                        self.window.playback_ctrl.stop_playback()
-                return True
-                
-            elif key == Qt.Key.Key_F:
-                # F键: 切换全屏
-                if hasattr(self.window, 'toggle_fullscreen'):
-                    self.window.toggle_fullscreen()
-                return True
-                
-            elif key == Qt.Key.Key_M:
-                # M键: 静音
-                if hasattr(self.window, 'playback_ctrl'):
-                    self.window.playback_ctrl.toggle_mute()
-                return True
-        
-        elif modifiers & Qt.KeyboardModifier.ControlModifier:
-            if key == Qt.Key.Key_O:
-                # Ctrl+O: 打开文件
-                if hasattr(self.window, 'settings_ops'):
-                    self.window.settings_ops.open_playlist()
-                return True
-                
-            elif key == Qt.Key.Key_S:
-                # Ctrl+S: 保存
-                if hasattr(self.window, 'settings_ops'):
-                    self.window.settings_ops.save_as()
-                return True
-                
-            elif key == Qt.Key.Key_Q:
-                # Ctrl+Q: 退出
-                self.window.close()
-                return True
-        
-        elif modifiers & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
-            if key == Qt.Key.Key_Left:
-                # Ctrl+Shift+Left: 上一个频道
-                self._switch_channel(-1)
-                return True
-            elif key == Qt.Key.Key_Right:
-                # Ctrl+Shift+Right: 下一个频道
-                self._switch_channel(1)
-                return True
+
+        # 鼠标移动事件（用于OSD显示）
+        elif event_type == QEvent.Type.MouseMove:
+            if hasattr(self.window, '_on_mouse_activity'):
+                self.window._on_mouse_activity()
+
+        # 焦点事件
+        elif event_type == QEvent.Type.FocusIn:
+            pass
+
+        return False
+
+    def _handle_global_shortcut(self, key, modifiers) -> bool:
+        """统一快捷键分发（所有快捷键在此处理，保证可靠触发）"""
+        from core.log_manager import global_logger as logger
+        try:
+            w = self.window
+
+            # 无修饰键快捷键
+            if modifiers == Qt.KeyboardModifier.NoModifier:
+                if key == Qt.Key.Key_Space:
+                    if hasattr(w, 'playback_ctrl'):
+                        w.playback_ctrl.toggle_play()
+                    return True
+                elif key == Qt.Key.Key_Escape:
+                    if hasattr(w, 'isFullScreen') and w.isFullScreen():
+                        w.toggle_fullscreen()
+                    elif hasattr(w, 'playback_ctrl'):
+                        w.playback_ctrl.stop_playback()
+                    return True
+                elif key == Qt.Key.Key_F:
+                    if hasattr(w, 'toggle_fullscreen'):
+                        w.toggle_fullscreen()
+                    return True
+                elif key == Qt.Key.Key_E:
+                    if hasattr(w, 'toggle_epg'):
+                        w.toggle_epg(None)
+                    return True
+                elif key == Qt.Key.Key_L:
+                    if hasattr(w, 'toggle_playlist'):
+                        w.toggle_playlist(None)
+                    return True
+                elif key == Qt.Key.Key_M:
+                    if hasattr(w, 'playback_ctrl'):
+                        w.playback_ctrl.toggle_mute()
+                    return True
+                elif key == Qt.Key.Key_Y:
+                    if hasattr(w, 'toggle_hide_floating'):
+                        w.toggle_hide_floating(None)
+                    return True
+                elif key == Qt.Key.Key_Tab:
+                    if hasattr(w, 'toggle_osd'):
+                        w.toggle_osd(None)
+                    return True
+                elif key == Qt.Key.Key_F5:
+                    if hasattr(w, 'refresh_ui'):
+                        w.refresh_ui()
+                    return True
+
+            # Ctrl 组合键
+            elif modifiers == Qt.KeyboardModifier.ControlModifier:
+                if key == Qt.Key.Key_O:
+                    if hasattr(w, 'settings_ops'):
+                        w.settings_ops.open_playlist()
+                    return True
+                elif key == Qt.Key.Key_S:
+                    if hasattr(w, 'settings_ops'):
+                        w.settings_ops.save_as()
+                    return True
+                elif key == Qt.Key.Key_Q:
+                    w.close()
+                    return True
+
+            # Ctrl+Shift 组合键
+            elif modifiers == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
+                if key == Qt.Key.Key_Left:
+                    self._switch_channel(-1)
+                    return True
+                elif key == Qt.Key.Key_Right:
+                    self._switch_channel(1)
+                    return True
+
+        except Exception as e:
+            logger.error(f"快捷键处理失败(key={key}, mod={modifiers}): {e}")
 
         return False
 
@@ -86,35 +120,19 @@ class EventHandler:
         """切换频道（-1=上一个，1=下一个）"""
         if not hasattr(self.window, 'channel_list'):
             return
-            
+
         current_row = self.window.channel_list.currentRow()
         total_rows = self.window.channel_list.count()
-        
+
         if total_rows == 0:
             return
-            
+
         new_row = (current_row + direction) % total_rows
         self.window.channel_list.setCurrentRow(new_row)
-        
-        # 触发选择事件
+
         item = self.window.channel_list.currentItem()
         if item and hasattr(self.window, 'channel_ctrl'):
             self.window.channel_ctrl.select_channel(item)
-
-    def eventFilter(self, obj, event: QEvent) -> bool:
-        """事件过滤器 - 处理特殊事件"""
-        event_type = event.type()
-        
-        # 鼠标移动事件（用于OSD显示）
-        if event_type == QEvent.Type.MouseMove:
-            if hasattr(self.window, '_on_mouse_activity'):
-                self.window._on_mouse_activity()
-                
-        # 焦点事件
-        elif event_type == QEvent.Type.FocusIn:
-            pass
-            
-        return False  # 不消费事件，继续传递
 
     def showEvent(self, event):
         """窗口首次显示时，多阶段渐进式修正悬浮窗位置"""

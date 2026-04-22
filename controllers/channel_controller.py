@@ -4,6 +4,7 @@
 """
 
 from typing import Dict, Any, Optional
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QListWidgetItem
 
 
@@ -73,9 +74,9 @@ class ChannelController:
 
         logger.debug(f"分组切换: {group_name}, 过滤后 {len(filtered_channels)} 个频道")
 
-        # 刷新UI（委托给主窗口的 populate_channel_list，它会根据选中的分组过滤）
-        if hasattr(self.window, 'populate_channel_list'):
-            self.window.populate_channel_list()
+        # 刷新UI（走防抖路径，避免重复填充）
+        if hasattr(self.window, '_populate_channel_list'):
+            self.window._populate_channel_list()
 
     def select_channel(self, item: QListWidgetItem):
         """处理频道选择事件"""

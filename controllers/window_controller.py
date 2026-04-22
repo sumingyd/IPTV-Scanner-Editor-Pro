@@ -144,14 +144,14 @@ class WindowController:
         self._stay_on_top_active = not self._stay_on_top_active
         flags = self.window.windowFlags()
         if self._stay_on_top_active:
-            self.window.setWindowFlags(flags | QtCore.Qt.WindowType.WindowStaysOnTopHint)
+            self.window.setWindowFlags(flags | Qt.WindowType.WindowStaysOnTopHint)
             self._stay_on_top_btn.setText("📍")
             self._stay_on_top_btn.setStyleSheet(
                 f"QPushButton {{ min-width: 40px; max-width: 40px; height: 28px; "
                 f"background-color: {AppStyles._get_colors().get('accent', '#0078d4')}; }}"
             )
         else:
-            self.window.setWindowFlags(flags & ~QtCore.Qt.WindowType.WindowStaysOnTopHint)
+            self.window.setWindowFlags(flags & ~Qt.WindowType.WindowStaysOnTopHint)
             btn_style = f"QPushButton {{ min-width: 40px; max-width: 40px; height: 28px; }}"
             self._stay_on_top_btn.setText("📌")
             self._stay_on_top_btn.setStyleSheet(btn_style)

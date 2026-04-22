@@ -491,15 +491,10 @@ class SubscriptionController:
                 if hasattr(self.window, 'update_recent_files_menu'):
                     self.window.update_recent_files_menu()
 
-                # 2. 填充频道列表（核心修复）
+                # 2. 填充频道列表和EPG列表（_populate_channel_list 内部已包含 _populate_epg_list）
                 if hasattr(self.window, '_populate_channel_list'):
                     self.window._populate_channel_list()
-                    logger.info("刷新UI: 频道列表已填充")
-
-                # 2. 填充 EPG 列表
-                if hasattr(self.window, '_populate_epg_list'):
-                    self.window._populate_epg_list()
-                    logger.info("刷新UI: EPG列表已填充")
+                    logger.info("刷新UI: 频道列表和EPG列表已填充")
 
                 # 5. 更新悬浮窗位置（确保高度计算正确）
                 if hasattr(self.window, '_update_floating_position'):

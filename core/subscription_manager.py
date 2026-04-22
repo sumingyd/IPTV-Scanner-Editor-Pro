@@ -267,21 +267,23 @@ class SubscriptionManager:
                             dup_count = 0
 
                             for new_prog in cleaned_new:
-                                is_duplicate = False
-                                new_start = new_prog.get('start', '')
+                                best_match_idx = -1
+                                best_overlap = 0
+                                new_start_str = new_prog.get('start', '')
 
                                 for j, exist_prog in enumerate(existing_programs):
                                     overlap = _time_overlap_sec(new_prog, exist_prog)
-                                    if overlap > 180:
-                                        exist_title = exist_prog.get('title', '')
-                                        new_title = new_prog.get('title', '')
-                                        if len(new_title) < len(exist_title) and new_title:
-                                            existing_programs[j] = new_prog
-                                        is_duplicate = True
-                                        dup_count += 1
-                                        break
+                                    if overlap > 180 and overlap > best_overlap:
+                                        best_overlap = overlap
+                                        best_match_idx = j
 
-                                if not is_duplicate:
+                                if best_match_idx >= 0:
+                                    exist_title = existing_programs[best_match_idx].get('title', '')
+                                    new_title = new_prog.get('title', '')
+                                    if len(new_title) < len(exist_title) and new_title:
+                                        existing_programs[best_match_idx] = new_prog
+                                    dup_count += 1
+                                else:
                                     existing_programs.append(new_prog)
 
                             if dup_count > 0:
@@ -755,7 +757,7 @@ class SubscriptionManager:
             return False
     
     def is_epg_valid(self) -> bool:
-        """检查EPG缓存数据是否有效（基于缓存文件，而非内存状态）
+        """检查EPG缓存数据是否有效（基于缓存文件修改时间和配置的更新间隔）
 
         Returns:
             是否有效
@@ -772,8 +774,11 @@ class SubscriptionManager:
             file_mtime = datetime.fromtimestamp(os.path.getmtime(cache_file))
             age_seconds = (datetime.now() - file_mtime).total_seconds()
 
-            if age_seconds > 86400:
-                logger.debug(f"EPG缓存文件已过期: {age_seconds/3600:.1f} 小时前")
+            update_interval = int(self._config.get_value('EPGSources', 'update_interval', '60') or 60)
+            max_age_seconds = update_interval * 60
+
+            if age_seconds > max_age_seconds:
+                logger.debug(f"EPG缓存文件已过期: {age_seconds/60:.0f} 分钟前 (配置间隔: {update_interval} 分钟)")
                 return False
 
             return True

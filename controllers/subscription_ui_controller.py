@@ -3,7 +3,7 @@
 从 pyqt_player.py 提取的独立模块
 """
 
-from PyQt6.QtWidgets import QListWidgetItem, QApplication, QListWidget
+from PyQt6.QtWidgets import QListWidgetItem
 from PyQt6 import QtCore
 
 
@@ -13,35 +13,24 @@ class SubscriptionUIController:
     def __init__(self, main_window):
         self.window = main_window
 
-    def load_subscription_sources_to_ui(self, playlist_list_widget=None, epg_list_widget=None):
-        """加载订阅源到UI控件（入口方法）"""
-        from core.log_manager import global_logger as logger
+    def load_subscription_sources_to_ui(self, pl_widget=None, epg_widget=None):
+        """加载订阅源到UI控件
 
-        if playlist_list_widget and epg_list_widget:
-            logger.info("load_subscription_sources_to_ui: 使用传入的参数")
-            self._fill_widgets(playlist_list_widget, epg_list_widget)
-            return
-
-        logger.info("load_subscription_sources_to_ui: 参数为空，开始查找dialog中的QListWidget...")
-        for top_widget in QApplication.topLevelWidgets():
-            found = top_widget.findChildren(QListWidget)
-            logger.info(f"  检查顶层窗口 {type(top_widget).__name__}: 找到 {len(found)} 个QListWidget")
-            if len(found) >= 2:
-                logger.info(f"  找到足够的widget，调用 _fill_widgets")
-                result = self._fill_widgets(found[0], found[1])
-                logger.info(f"  _fill_widgets 返回: {result}")
-                return
-
-        logger.warning("load_subscription_sources_to_ui: 未找到足够的QListWidget")
-
-    def _fill_widgets(self, pl_widget, epg_widget):
-        """实际填充数据到widget（独立方法，确保参数不会丢失）"""
+        Args:
+            pl_widget: 直播源列表控件（优先使用参数，其次从 window 属性获取）
+            epg_widget: EPG源列表控件（优先使用参数，其次从 window 属性获取）
+        """
         from core.log_manager import global_logger as logger
         from core.subscription_manager import global_subscription_manager
 
-        logger.info(f"_fill_widgets: pl_widget={type(pl_widget).__name__}, epg_widget={type(epg_widget).__name__}")
+        widget = pl_widget or getattr(self.window, 'playlist_list_widget', None)
+        epg_w = epg_widget or getattr(self.window, 'epg_list_widget', None)
 
-        pl_widget.clear()
+        if not widget or not epg_w:
+            logger.warning("load_subscription_sources_to_ui: widget 为空，跳过加载")
+            return
+
+        widget.clear()
 
         try:
             playlist_sources = global_subscription_manager.get_playlist_sources()
@@ -58,9 +47,9 @@ class SubscriptionUIController:
                 QtCore.Qt.CheckState.Checked if source.get('enabled') else QtCore.Qt.CheckState.Unchecked
             )
             item.setToolTip(source.get('url', ''))
-            pl_widget.addItem(item)
+            widget.addItem(item)
 
-        epg_widget.clear()
+        epg_w.clear()
 
         try:
             epg_sources = global_subscription_manager.get_epg_sources()
@@ -73,10 +62,7 @@ class SubscriptionUIController:
             item = QListWidgetItem(f"{source.get('name', 'Unnamed')}")
             item.setData(QtCore.Qt.ItemDataRole.UserRole, source)
             item.setToolTip(source.get('url', ''))
-            epg_widget.addItem(item)
-
-        logger.info("_fill_widgets: 填充完成")
-        return True
+            epg_w.addItem(item)
 
     def add_or_update_playlist_source(self):
         """从UI添加或更新直播源"""

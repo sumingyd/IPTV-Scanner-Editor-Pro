@@ -10,6 +10,7 @@ from .event_handler import EventHandler
 from .ui_controller import UIController
 from .subscription_controller import SubscriptionController
 from .subscription_ui_controller import SubscriptionUIController
+from .catchup_controller import CatchupController
 
 __all__ = [
     'WindowController',
@@ -20,5 +21,6 @@ __all__ = [
     'EventHandler',
     'UIController',
     'SubscriptionController',
-    'SubscriptionUIController'
+    'SubscriptionUIController',
+    'CatchupController'
 ]
