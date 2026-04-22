@@ -32,7 +32,7 @@ from core.application_state import app_state
 # 导入语言管理器
 from core.language_manager import LanguageManager
 from ui.styles import AppStyles
-from ui.floating_dialog import TranslucentPanel, FloatingDialog
+from ui.floating_dialog import FloatingDialog
 
 # 导入控制器包（重构：将业务逻辑拆分为独立模块）
 from controllers import (
@@ -394,16 +394,14 @@ class IPTVPlayer(QMainWindow):
         # 6. 创建定时器
         self._create_timer()
         
-        # 7. 创建并显示EPG面板
+        # 7. 创建EPG面板
         self._create_epg_panel()
-        
-        # 8. 创建并显示播放列表面板
+
+        # 8. 创建播放列表面板
         self._create_playlist_panel()
-        
-        # 9. 创建悬浮窗（但不立即显示，等窗口完全显示后再定位）
-        self._create_epg_panel(show=False)
-        self._create_playlist_panel(show=False)
-        self._create_bottom_panel(show=False)
+
+        # 9. 创建底部控制面板
+        self._create_bottom_panel()
         
         # 10. 初始化最近打开文件菜单
         self._update_recent_files_menu()
@@ -496,13 +494,8 @@ class IPTVPlayer(QMainWindow):
         wait_time = 0
         
         while wait_time < max_wait:
-            # 检查关键UI元素是否已经创建
-            if hasattr(self, 'video_frame') and self.video_frame and \
-               hasattr(self, 'floating_panel') and self.floating_panel and \
-               hasattr(self, 'epg_panel') and self.epg_panel and \
-               hasattr(self, 'playlist_panel') and self.playlist_panel:
+            if hasattr(self, 'video_frame') and self.video_frame:
                 break
-            
             time.sleep(0.1)
             wait_time += 0.1
         
@@ -667,51 +660,48 @@ class IPTVPlayer(QMainWindow):
         logger.debug("_create_timer: 完成")
     
     def _create_epg_panel(self, show=True):
-        """创建EPG面板"""
+        """创建EPG面板（QDockWidget 停靠左侧）"""
         logger.debug("_create_epg_panel: 开始")
         tr = self.language_manager.tr
-        
-        # 左侧EPG面板
-        self.epg_panel = TranslucentPanel(opacity=180)
-        self.epg_panel.setStyleSheet(AppStyles.player_panel_style())
-        self.epg_panel.setFixedWidth(250)
-        self.epg_layout = QVBoxLayout(self.epg_panel)
-        
+
+        # EPG 面板内容容器（保持原有UI不变）
+        epg_container = QWidget()
+        epg_container.setStyleSheet(AppStyles.player_panel_style())
+        epg_container.setFixedWidth(250)
+        self.epg_layout = QVBoxLayout(epg_container)
+        self.epg_layout.setContentsMargins(0, 0, 0, 0)
+
         # EPG标题
-        tr = self.language_manager.tr
         self.epg_title = QLabel(f"📅 {tr('epg_title', 'Program Guide')}")
         self.epg_title.setStyleSheet(AppStyles.player_epg_title_style())
         self.epg_layout.addWidget(self.epg_title)
-        
+
         # 日期选择器
         date_layout = QHBoxLayout()
         date_layout.setContentsMargins(8, 4, 8, 4)
         date_layout.setSpacing(8)
 
-        # 上一天按钮
         self.epg_prev_day = QPushButton("◀")
-        self.epg_prev_day.setMinimumSize(32, 28)
+        self.epg_prev_day.setFixedSize(24, 24)
         self.epg_prev_day.setCursor(Qt.CursorShape.PointingHandCursor)
         self.epg_prev_day.setStyleSheet(AppStyles.player_date_button_style())
         self.epg_prev_day.clicked.connect(self.on_prev_day)
         date_layout.addWidget(self.epg_prev_day)
 
-        # 日期显示
         self.epg_date_label = QLabel(tr("today", "Today"))
         self.epg_date_label.setStyleSheet(AppStyles.player_date_label_style())
         self.epg_date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         date_layout.addWidget(self.epg_date_label, 1)
 
-        # 下一天按钮
         self.epg_next_day = QPushButton("▶")
-        self.epg_next_day.setMinimumSize(32, 28)
+        self.epg_next_day.setFixedSize(24, 24)
         self.epg_next_day.setCursor(Qt.CursorShape.PointingHandCursor)
         self.epg_next_day.setStyleSheet(AppStyles.player_date_button_style())
         self.epg_next_day.clicked.connect(self.on_next_day)
         date_layout.addWidget(self.epg_next_day)
-        
+
         self.epg_layout.addLayout(date_layout)
-        
+
         # EPG内容
         self.epg_content = QListWidget()
         self.epg_content.setStyleSheet(AppStyles.player_list_style())
@@ -719,33 +709,45 @@ class IPTVPlayer(QMainWindow):
         self.epg_content.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.epg_content.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.epg_content.addItem(self.language_manager.tr("loading", "Loading..."))
-        # 添加点击事件处理
         self.epg_content.itemClicked.connect(self.on_epg_item_clicked)
         self.epg_layout.addWidget(self.epg_content, 1)
-        
+
         # EPG空提示
         self.epg_empty_label = QLabel(tr("no_epg_data", "No program information"))
         self.epg_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.epg_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         self.epg_layout.addWidget(self.epg_empty_label)
-        
-        # 显示面板（如果show参数为True）
-        if show:
-            self.epg_panel.show()
-        
+
+        # 用 FloatingDockWidget 包装（圆角半透明 + Qt管理）
+        from PyQt6.QtWidgets import QDockWidget
+        from ui.floating_dialog import FloatingDockWidget
+        self.epg_dock = FloatingDockWidget(tr("epg_title", "Program Guide"), self)
+        self.epg_dock.setWidget(epg_container)
+        self.epg_dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable)
+        self.epg_dock.setObjectName("epg_dock")
+        if hasattr(self, 'epg_panel'):
+            delattr(self, 'epg_panel')
+        self.epg_panel = self.epg_dock
+
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.epg_dock)
+        self.epg_dock.setFloating(True)
+        if not show:
+            self.epg_dock.hide()
+
         logger.debug("_create_epg_panel: 完成")
     
     def _create_playlist_panel(self, show=True):
         """创建播放列表面板"""
         logger.debug("_create_playlist_panel: 开始")
         tr = self.language_manager.tr
-        
-        # 右侧播放列表面板
-        self.playlist_panel = TranslucentPanel(opacity=180)
-        self.playlist_panel.setStyleSheet(AppStyles.player_panel_style())
-        self.playlist_panel.setFixedWidth(250)
-        self.playlist_layout = QVBoxLayout(self.playlist_panel)
-        
+
+        # 播放列表面板内容容器
+        playlist_container = QWidget()
+        playlist_container.setStyleSheet(AppStyles.player_panel_style())
+        playlist_container.setFixedWidth(250)
+        self.playlist_layout = QVBoxLayout(playlist_container)
+        self.playlist_layout.setContentsMargins(0, 0, 0, 0)
+
         # 播放列表标题和分组选择
         self.playlist_header = QHBoxLayout()
         self.playlist_title = QLabel(f"📺 {tr('channel_list', 'Channel List')}")
@@ -757,7 +759,7 @@ class IPTVPlayer(QMainWindow):
         self.playlist_header.addWidget(self.playlist_title)
         self.playlist_header.addWidget(self.group_combo)
         self.playlist_layout.addLayout(self.playlist_header)
-        
+
         # 频道列表
         self.channel_list = QListWidget()
         self.channel_list.setStyleSheet(AppStyles.player_list_style())
@@ -766,17 +768,29 @@ class IPTVPlayer(QMainWindow):
         self.channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.channel_list.itemClicked.connect(self.select_channel)
         self.playlist_layout.addWidget(self.channel_list, 1)
-        
+
         # 频道列表空提示
         self.channel_empty_label = QLabel(tr("no_channels", "No channels"))
         self.channel_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.channel_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         self.playlist_layout.addWidget(self.channel_empty_label)
-        
-        # 显示面板（如果show参数为True）
-        if show:
-            self.playlist_panel.show()
-        
+
+        # 用 FloatingDockWidget 包装（圆角半透明 + Qt管理）
+        from PyQt6.QtWidgets import QDockWidget
+        from ui.floating_dialog import FloatingDockWidget
+        self.playlist_dock = FloatingDockWidget(tr("channel_list", "Channel List"), self)
+        self.playlist_dock.setWidget(playlist_container)
+        self.playlist_dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable)
+        self.playlist_dock.setObjectName("playlist_dock")
+        if hasattr(self, 'playlist_panel'):
+            delattr(self, 'playlist_panel')
+        self.playlist_panel = self.playlist_dock
+
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.playlist_dock)
+        self.playlist_dock.setFloating(True)
+        if not show:
+            self.playlist_dock.hide()
+
         logger.debug("_create_playlist_panel: 完成")
     
     def _create_bottom_panel(self, show=True):
@@ -789,26 +803,38 @@ class IPTVPlayer(QMainWindow):
         logger.debug("_create_bottom_panel: 完成")
     
     def _create_panel(self, show=True):
-        """创建面板"""
+        """创建底部控制面板（QDockWidget 停靠底部）"""
         logger.debug("_create_panel: 开始")
         tr = self.language_manager.tr
-        
-        # 悬浮控制面板
-        self.floating_panel = TranslucentPanel(opacity=180)
-        self.floating_panel.setStyleSheet(AppStyles.player_panel_style())
-        self.floating_panel.setFixedHeight(170)
-        self.floating_panel.setFixedWidth(1050)
-        self.floating_layout = QVBoxLayout(self.floating_panel)
+
+        # 控制面板内容容器
+        floating_container = QWidget()
+        floating_container.setStyleSheet(AppStyles.player_panel_style())
+        floating_container.setFixedHeight(170)
+        floating_container.setMinimumWidth(600)
+        self.floating_layout = QVBoxLayout(floating_container)
         self.floating_layout.setContentsMargins(15, 6, 15, 8)
         self.floating_layout.setSpacing(3)
-        
-        # 第二步：创建媒体信息行
+
+        # 创建媒体信息行
         self._create_media_row()
-        
-        # 显示面板（如果show参数为True）
-        if show:
-            self.floating_panel.show()
-        
+
+        # 用 FloatingDockWidget 包装（圆角半透明 + Qt管理）
+        from PyQt6.QtWidgets import QDockWidget
+        from ui.floating_dialog import FloatingDockWidget
+        self.floating_dock = FloatingDockWidget(tr("control_panel", "Control Panel"), self)
+        self.floating_dock.setWidget(floating_container)
+        self.floating_dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable)
+        self.floating_dock.setObjectName("floating_dock")
+        if hasattr(self, 'floating_panel'):
+            delattr(self, 'floating_panel')
+        self.floating_panel = self.floating_dock
+
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.floating_dock)
+        self.floating_dock.setFloating(True)
+        if not show:
+            self.floating_dock.hide()
+
         logger.debug("_create_panel: 完成")
     
     def _create_media_row(self):
@@ -1024,7 +1050,7 @@ class IPTVPlayer(QMainWindow):
         # 7.6 画面比例按钮
         self.aspect_button = QToolButton()
         self.aspect_button.setText("📐")
-        self.aspect_button.setFixedSize(48, 26)  # 增大宽度以完整显示"16:9"等比例文字
+        self.aspect_button.setFixedSize(48, 26)
         self.aspect_button.setStyleSheet(AppStyles.player_button_style())
         self.aspect_button.clicked.connect(self._cycle_aspect_ratio)
         self.control_row.addWidget(self.aspect_button)
@@ -1043,10 +1069,8 @@ class IPTVPlayer(QMainWindow):
     
     def _final_initialization(self):
         """最终初始化"""
-        logger.debug("_final_initialization: 开始")
-        
         logger.debug("_final_initialization: 完成")
-    
+
     def _show_floating_panel(self):
         """显示底部悬浮控制面板"""
         logger.debug("_show_floating_panel: 开始")
@@ -1216,6 +1240,7 @@ class IPTVPlayer(QMainWindow):
             recent_menu = None
             if file_menu:
                 open_playlist = QAction(tr("menu_open_playlist", "Open Playlist\tCtrl+O"), self)
+                open_playlist.setShortcut("Ctrl+O")
                 open_playlist.triggered.connect(self.open_playlist)
                 file_menu.addAction(open_playlist)
 
@@ -1223,6 +1248,7 @@ class IPTVPlayer(QMainWindow):
                 recent_menu = file_menu.addMenu(tr("menu_recent_open", "Recent"))
 
                 save_as = QAction(tr("menu_save_as", "Save As...\tCtrl+S"), self)
+                save_as.setShortcut("Ctrl+S")
                 save_as.triggered.connect(self.save_as)
                 file_menu.addAction(save_as)
 
@@ -1233,6 +1259,7 @@ class IPTVPlayer(QMainWindow):
                 file_menu.addAction(reload_subscription)
 
                 exit_action = QAction(tr("menu_exit", "Exit\tCtrl+Q"), self)
+                exit_action.setShortcut("Ctrl+Q")
                 exit_action.triggered.connect(self.close)
                 file_menu.addAction(exit_action)
             
@@ -1247,30 +1274,35 @@ class IPTVPlayer(QMainWindow):
             view_menu = menu_bar.addMenu(tr("menu_view", "View"))
             
             show_epg = QAction(tr("menu_epg_list", "EPG List\tE"), self)
+            show_epg.setShortcut("E")
             show_epg.setCheckable(True)
             show_epg.setChecked(self.epg_visible)
             show_epg.triggered.connect(self.toggle_epg)
             view_menu.addAction(show_epg)
 
             show_playlist = QAction(tr("menu_playlist", "Playlist\tL"), self)
+            show_playlist.setShortcut("L")
             show_playlist.setCheckable(True)
             show_playlist.setChecked(self.playlist_visible)
             show_playlist.triggered.connect(self.toggle_playlist)
             view_menu.addAction(show_playlist)
 
-            show_floating = QAction(tr("menu_control_panel", "Control Panel"), self)
+            show_floating = QAction(tr("menu_control_panel", "Control Panel\tM"), self)
+            show_floating.setShortcut("M")
             show_floating.setCheckable(True)
             show_floating.setChecked(self.floating_panel_visible)
             show_floating.triggered.connect(self.toggle_floating_panel)
             view_menu.addAction(show_floating)
 
             hide_all_floating = QAction(tr("menu_hide_floating", "Hide Floating Panels\tY"), self)
+            hide_all_floating.setShortcut("Y")
             hide_all_floating.setCheckable(True)
             hide_all_floating.setChecked(self._floating_hidden)
             hide_all_floating.triggered.connect(self.toggle_hide_floating)
             view_menu.addAction(hide_all_floating)
 
             show_osd = QAction(tr("menu_osd_toggle", "OSD Mask\tTab"), self)
+            show_osd.setShortcut("Tab")
             show_osd.setCheckable(True)
             show_osd.setChecked(self._osd_visible)
             show_osd.triggered.connect(lambda c: self.toggle_osd(c))
@@ -1280,11 +1312,13 @@ class IPTVPlayer(QMainWindow):
             view_menu.addSeparator()
             
             fullscreen = QAction(tr("menu_fullscreen", "Fullscreen\tF11"), self)
+            fullscreen.setShortcut("F11")
             fullscreen.setCheckable(True)
             fullscreen.triggered.connect(self.toggle_fullscreen)
             view_menu.addAction(fullscreen)
 
             refresh = QAction(tr("menu_refresh", "Refresh\tF5"), self)
+            refresh.setShortcut("F5")
             refresh.triggered.connect(self.refresh_ui)
             view_menu.addAction(refresh)
             
@@ -2896,91 +2930,51 @@ class IPTVPlayer(QMainWindow):
         return self.event_handler.eventFilter(obj, event)
 
     def update_floating_position(self):
-        """更新悬浮窗位置（带日志节流）"""
-        # 检查必要的属性是否存在
+        """更新视频区域大小 + 重新定位浮动Dock面板"""
         if not hasattr(self, 'video_frame') or self.video_frame is None:
             return
-        
-        # 日志节流：最多每 1 秒记录一次
-        import time
-        current_time = time.time()
-        
-        # 检查是否需要记录日志
-        should_log = False
-        if not hasattr(self, '_last_update_position_log_time'):
-            self._last_update_position_log_time = 0
-            should_log = True
-        elif current_time - self._last_update_position_log_time >= 1.0:
-            self._last_update_position_log_time = current_time
-            should_log = True
-        
-        if should_log:
-            logger.debug("update_floating_position: 开始")
-        
-        try:
-            # 更新视频窗口大小
-            if hasattr(self, 'video_widget') and self.video_widget:
-                self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
-            
-            # 更新默认背景大小
-            if hasattr(self, 'video_placeholder') and self.video_placeholder:
-                self.video_placeholder.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
-            
-            # 获取 video_frame 在屏幕上的位置
-            video_frame_global_pos = self.video_frame.mapToGlobal(self.video_frame.rect().topLeft())
 
-            # 计算底部预留空间（为悬浮控制面板+状态栏留出空间）
-            # 使用固定最小值 + 实际高度，确保即使面板未显示也能正确计算
-            MIN_FLOATING_PANEL_HEIGHT = 180  # 底部控制面板的最小高度（略增大以确保不重叠）
-            floating_panel_height = MIN_FLOATING_PANEL_HEIGHT
+        if hasattr(self, 'video_widget') and self.video_widget:
+            self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
 
-            if hasattr(self, 'floating_panel') and self.floating_panel and self.floating_panel.isVisible():
-                actual_height = self.floating_panel.height()
-                if actual_height > 0:
-                    floating_panel_height = max(MIN_FLOATING_PANEL_HEIGHT, actual_height)
-                    logger.debug(f"使用实际控制面板高度: {actual_height}px")
+        if hasattr(self, 'video_placeholder') and self.video_placeholder:
+            self.video_placeholder.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
 
-            status_bar_height = self.status_bar.height() if self.status_bar and self.status_bar.isVisible() else 25
-            bottom_gap = 25 if not self.is_fullscreen else 35  # 增加底部间距
+        self._position_floating_docks()
 
-            # 总预留空间 = 控制面板高度 + 状态栏高度 + 底部间距 + 额外安全间距(40px)
-            bottom_reserve = floating_panel_height + status_bar_height + bottom_gap + 40
+    def _position_floating_docks(self):
+        """将3个浮动Dock定位到相对于主窗口的正确位置"""
+        mw = self.geometry()
+        if mw.isEmpty():
+            return
 
-            if self.is_fullscreen:
-                bottom_reserve = max(bottom_reserve, 250)  # 全屏模式最少250px
+        mw_x, mw_y, mw_w, mw_h = mw.x(), mw.y(), mw.width(), mw.height()
 
-            logger.debug(f"悬浮窗位置计算: floating_panel={floating_panel_height}px, "
-                        f"status_bar={status_bar_height}px, gap={bottom_gap}px, "
-                        f"total_reserve={bottom_reserve}px, video_frame={self.video_frame.height()}px")
+        gap = 8
+        title_bar_h = 32
+        menu_bar_h = 28 if (hasattr(self, '_custom_menu_bar') and self._custom_menu_bar and self._custom_menu_bar.isVisible()) else 0
+        control_panel_h = 170
+        status_bar_h = 25
 
-            # 更新左侧EPG面板位置和高度
-            if hasattr(self, 'epg_panel') and self.epg_panel:
-                panel_height = max(100, self.video_frame.height() - bottom_reserve)
-                self.epg_panel.setFixedHeight(panel_height)
-                x = video_frame_global_pos.x() + 10
-                y = video_frame_global_pos.y() + 10
-                self.epg_panel.move(x, y)
+        side_top = mw_y + title_bar_h + menu_bar_h + gap
+        side_h = mw_h - title_bar_h - menu_bar_h - control_panel_h - status_bar_h - gap * 2
 
-            # 更新右侧播放列表面板位置和高度
-            if hasattr(self, 'playlist_panel') and self.playlist_panel:
-                panel_height = max(100, self.video_frame.height() - bottom_reserve)
-                self.playlist_panel.setFixedHeight(panel_height)
-                x = video_frame_global_pos.x() + self.video_frame.width() - self.playlist_panel.width() - 10
-                y = video_frame_global_pos.y() + 10
-                self.playlist_panel.move(x, y)
+        if hasattr(self, 'epg_dock') and self.epg_dock and self.epg_dock.isVisible():
+            self.epg_dock.move(mw_x + gap, side_top)
+            self.epg_dock.setFixedHeight(max(150, side_h))
 
-            # 更新底部悬浮控制面板位置（紧贴状态栏上方）
-            if hasattr(self, 'floating_panel') and self.floating_panel:
-                x = video_frame_global_pos.x() + (self.video_frame.width() - self.floating_panel.width()) // 2
-                # 控制面板 y 坐标 = 视频区域底部 - 控制面板高度 - 状态栏高度 - 小间距(5px)
-                y = video_frame_global_pos.y() + self.video_frame.height() - floating_panel_height - status_bar_height - 5
-                self.floating_panel.move(x, y)
-        except Exception as e:
-            logger.error(f"update_floating_position: 出错 - {e}")
+        if hasattr(self, 'playlist_dock') and self.playlist_dock and self.playlist_dock.isVisible():
+            pl_w = self.playlist_dock.width()
+            self.playlist_dock.move(mw_x + mw_w - pl_w - gap, side_top)
+            self.playlist_dock.setFixedHeight(max(150, side_h))
 
-        if should_log:
-            logger.debug("update_floating_position: 完成")
-    
+        if hasattr(self, 'floating_dock') and self.floating_dock and self.floating_dock.isVisible():
+            fl_w = min(mw_w - gap * 2, 1050)
+            self.floating_dock.setFixedWidth(max(fl_w, 600))
+            fl_x = mw_x + (mw_w - self.floating_dock.width()) // 2
+            fl_y = mw_y + mw_h - control_panel_h - status_bar_h - gap
+            self.floating_dock.move(fl_x, fl_y)
+
     def toggle_fullscreen(self, checked=False):
         """切换全屏"""
         self.is_fullscreen = not self.is_fullscreen
@@ -3019,29 +3013,24 @@ class IPTVPlayer(QMainWindow):
                 self._custom_menu_bar.show()
             if saved.get('status_bar', True) and self.status_bar:
                 self.status_bar.show()
-            from PyQt6.QtCore import QTimer
-            QTimer.singleShot(100, self._restore_floating_panels_after_fullscreen)
-    
-    def _restore_floating_panels_after_fullscreen(self):
-        saved = getattr(self, '_fullscreen_saved_states', {})
-        if saved.get('epg', True) and hasattr(self, 'epg_panel') and self.epg_panel:
-            self.epg_panel.show()
-            self.epg_visible = True
-        else:
-            self.epg_visible = False
-        if saved.get('playlist', True) and hasattr(self, 'playlist_panel') and self.playlist_panel:
-            self.playlist_panel.show()
-            self.playlist_visible = True
-        else:
-            self.playlist_visible = False
-        if saved.get('floating', True) and hasattr(self, 'floating_panel') and self.floating_panel:
-            self.floating_panel.show()
-            self.floating_panel_visible = True
-        else:
-            self.floating_panel_visible = False
-        self.update_floating_position()
-        if not self._floating_hidden and self._auto_hide_timer:
-            self._auto_hide_timer.start()
+            # 恢复面板（QDockWidget 自动定位，无需手动计算）
+            if saved.get('epg', True) and hasattr(self, 'epg_panel') and self.epg_panel:
+                self.epg_panel.show()
+                self.epg_visible = True
+            else:
+                self.epg_visible = False
+            if saved.get('playlist', True) and hasattr(self, 'playlist_panel') and self.playlist_panel:
+                self.playlist_panel.show()
+                self.playlist_visible = True
+            else:
+                self.playlist_visible = False
+            if saved.get('floating', True) and hasattr(self, 'floating_panel') and self.floating_panel:
+                self.floating_panel.show()
+                self.floating_panel_visible = True
+            else:
+                self.floating_panel_visible = False
+            if not self._floating_hidden and self._auto_hide_timer:
+                self._auto_hide_timer.start()
     
     def refresh_ui(self):
         """刷新界面"""
@@ -3080,22 +3069,8 @@ class IPTVPlayer(QMainWindow):
     
     def _raise_floating_panels(self):
         """主窗口激活时，将悬浮窗与主窗口一起提升到上层（悬浮窗和主窗口视为整体）"""
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(50, self._do_raise_floating_panels)
-
-    def _do_raise_floating_panels(self):
-        """主窗口激活时，将悬浮窗与主窗口一起提升到上层（只在主窗口层级内，不覆盖其他应用）"""
-        # 使用 Qt 原生方法，只提升到父窗口层级的最上层，不使用系统级 HWND_TOP
         self.raise_()
 
-        for panel in [self.epg_panel, self.playlist_panel, self.floating_panel]:
-            if panel and panel.isVisible():
-                panel.raise_()
-
-        scan_dialog = getattr(self, '_scan_dialog', None) or getattr(self, 'scan_window', None)
-        if scan_dialog and scan_dialog.isVisible():
-            scan_dialog.raise_()
-    
     def open_channel_mapping(self):
         """打开频道映射管理器"""
         try:
@@ -3596,8 +3571,10 @@ class IPTVPlayer(QMainWindow):
                 self.progress_start.setStyleSheet(AppStyles.player_progress_label_style())
             if hasattr(self, 'progress_end'):
                 self.progress_end.setStyleSheet(AppStyles.player_progress_label_style())
-            for btn in fp.findChildren(QPushButton):
-                btn.setStyleSheet(AppStyles.player_date_button_style())
+            for tool_btn in fp.findChildren(QToolButton):
+                tool_btn.setStyleSheet(AppStyles.player_button_style())
+            if hasattr(self, 'exit_catchup_button'):
+                self.exit_catchup_button.setStyleSheet(AppStyles.exit_catchup_button_style())
             for slider in fp.findChildren(QSlider):
                 slider.setStyleSheet(AppStyles.player_slider_style())
             if hasattr(self, 'volume_slider'):

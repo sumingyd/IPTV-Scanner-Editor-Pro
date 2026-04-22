@@ -5,7 +5,8 @@ EPG节目单控制器 - 负责EPG数据管理、显示、交互
 
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from PyQt6.QtWidgets import QListWidgetItem, QDateEdit, QAction
+from PyQt6.QtWidgets import QListWidgetItem, QDateEdit
+from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt
 
 
@@ -135,14 +136,23 @@ class EPGController:
                     except (ValueError, TypeError):
                         filtered_list.append(program)
 
+            today = date_type.today()
+            is_browsing_other_date = (target_date != today)
+
             if not filtered_list:
-                logger.info(f"EPG: {target_date} 无节目数据，显示全部 ({len(epg_list)} 个)")
-                filtered_list = epg_list
+                if is_browsing_other_date:
+                    logger.info(f"EPG: {target_date} 无节目数据（用户主动切换日期，不回退）")
+                else:
+                    logger.info(f"EPG: {target_date} 无节目数据，显示全部 ({len(epg_list)} 个)")
+                    filtered_list = epg_list
             else:
                 logger.info(f"EPG: 按日期 {target_date} 过滤，{len(epg_list)} -> {len(filtered_list)} 个节目")
 
             if hasattr(self.window, 'epg_empty_label'):
-                self.window.epg_empty_label.hide()
+                if not filtered_list and is_browsing_other_date:
+                    self.window.epg_empty_label.show()
+                else:
+                    self.window.epg_empty_label.hide()
 
             tr = getattr(self.window.language_manager, 'tr', lambda x, y: x) if hasattr(self.window, 'language_manager') else lambda x, y: x
 

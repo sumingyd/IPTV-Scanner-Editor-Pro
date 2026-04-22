@@ -54,9 +54,20 @@ class ThemeManager(QtCore.QObject):
         except Exception as e:
             print(f"应用主题到窗口失败: {e}")
 
+    def _is_in_dock(self, widget):
+        """检查控件是否在QDockWidget内部（dock内控件有独立的样式管理）"""
+        w = widget.parent()
+        while w:
+            if isinstance(w, QtWidgets.QDockWidget):
+                return True
+            w = w.parent()
+        return False
+
     def _update_child_widgets(self, parent: QtWidgets.QWidget):
         try:
             for button in parent.findChildren(QtWidgets.QPushButton):
+                if self._is_in_dock(button):
+                    continue
                 if hasattr(button, 'style_type'):
                     if button.style_type == 'apply':
                         button.setStyleSheet(AppStyles.apply_button_style())
@@ -77,6 +88,8 @@ class ThemeManager(QtCore.QObject):
                 tab_widget.setStyleSheet(AppStyles.tab_widget_style())
 
             for tool_button in parent.findChildren(QtWidgets.QToolButton):
+                if self._is_in_dock(tool_button):
+                    continue
                 tool_button.setStyleSheet(AppStyles.toolbar_button_style())
 
             for line_edit in parent.findChildren(QtWidgets.QLineEdit):

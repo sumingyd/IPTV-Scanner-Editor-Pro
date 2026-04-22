@@ -510,9 +510,9 @@ class AppStyles:
                     background-color: transparent;
                 }}
                 QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
-                    background-color: transparent;
-                }}
-            """
+                background-color: transparent;
+            }}
+        """
         return f"""
             QMainWindow {{
                 background-color: transparent;
@@ -866,6 +866,9 @@ class AppStyles:
             * {{
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
             }}
+            QWidget {{
+                background-color: transparent;
+            }}
             QLabel {{
                 border: none;
                 background-color: transparent;
@@ -875,11 +878,23 @@ class AppStyles:
                 border: none;
                 background-color: {colors['player_panel']};
                 color: {colors['player_panel_text']};
+                outline: none;
             }}
             QComboBox {{
                 border: none;
                 background-color: {colors['player_combo']};
                 color: {colors['player_panel_text']};
+                padding: 2px 6px;
+            }}
+            QToolButton {{
+                padding: 0px;
+                margin: 0px;
+                border: none;
+            }}
+            QPushButton {{
+                padding: 0px;
+                margin: 0px;
+                border: none;
             }}
         """
 
@@ -892,8 +907,9 @@ class AppStyles:
                 font-size: 14px;
                 background-color: {colors['player_button']};
                 border-radius: 4px;
+                padding: 0px;
+                margin: 0px;
                 border: none;
-                padding: 2px;
             }}
             QToolButton:hover {{
                 background-color: {colors['player_accent']};
@@ -962,6 +978,8 @@ class AppStyles:
                 font-size: 12px;
                 background-color: {colors['player_warning']};
                 border-radius: 4px;
+                padding: 0px;
+                margin: 0px;
                 border: none;
             }}
         """
@@ -1018,8 +1036,10 @@ class AppStyles:
             QPushButton {{
                 background-color: transparent;
                 color: {colors['player_panel_disabled']};
+                font-size: 16px;
+                padding: 0px;
+                margin: 0px;
                 border: none;
-                font-size: 12px;
             }}
         """
 
@@ -1923,8 +1943,8 @@ class AppStyles:
                     color: {colors['window_text']};
                     {raised}
                     border-radius: 6px;
-                    padding: 8px 16px;
-                    min-width: 100px;
+                    padding: 4px 12px;
+                    min-width: 0px;
                     font-weight: 500;
                     font-size: 12px;
                     font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
@@ -1952,8 +1972,8 @@ class AppStyles:
                 color: {colors['window_text']};
                 border: 1px solid {colors['mid']};
                 border-radius: 4px;
-                padding: 8px 16px;
-                min-width: 100px;
+                padding: 4px 12px;
+                min-width: 0px;
                 font-weight: 500;
                 font-size: 12px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;

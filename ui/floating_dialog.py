@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import QFrame, QDialog
-from PyQt6.QtGui import QPainter, QColor
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QFrame, QDialog, QDockWidget, QWidget, QApplication
+from PyQt6.QtGui import QPainter, QColor, QPainterPath
+from PyQt6.QtCore import Qt, QRectF
 import sys
 
 
@@ -68,6 +68,55 @@ class TranslucentPanel(QFrame):
 
         r, g, b = _parse_hex_color(colors.get('player_panel', '#1e1e1e'))
         painter.fillPath(path, QColor(r, g, b, self.opacity))
+
+        if not neo:
+            br, bg, bb = _parse_hex_color(colors.get('mid', '#646464'))
+            painter.setPen(QColor(br, bg, bb, 150))
+            painter.drawPath(path)
+
+        super().paintEvent(event)
+
+
+class FloatingDockWidget(QDockWidget):
+    """浮动停靠窗口 - QDockWidget 子控件模式（用于诊断对比）"""
+
+    def __init__(self, title, parent=None, opacity=180):
+        super().__init__(title, parent)
+        self._opacity = opacity
+        self._base_title = title
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setMouseTracking(True)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.topLevelChanged.connect(self._on_floating_changed)
+        empty_bar = QWidget()
+        empty_bar.setFixedHeight(0)
+        self.setTitleBarWidget(empty_bar)
+
+    def _on_floating_changed(self, floating):
+        if floating:
+            self.setWindowFlags(self.windowFlags() | Qt.WindowType.FramelessWindowHint)
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+            self.show()
+
+    def show(self):
+        super().show()
+        _hide_from_taskbar(self)
+
+    def paintEvent(self, event):
+        from ui.styles import AppStyles
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        path = QPainterPath()
+        rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
+        path.addRoundedRect(rect, 8, 8)
+
+        colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+
+        r, g, b = _parse_hex_color(colors.get('player_panel', '#1e1e1e'))
+        painter.fillPath(path, QColor(r, g, b, self._opacity))
 
         if not neo:
             br, bg, bb = _parse_hex_color(colors.get('mid', '#646464'))

@@ -285,11 +285,13 @@ class SettingsFileOperations:
         if hasattr(self.window, 'refresh_ui'):
             self.window.refresh_ui()
 
-        # 重新应用3个悬浮窗的面板样式（TranslucentPanel 不是 QMainWindow/QDialog，ThemeManager 不会处理它）
-        for panel_attr in ['epg_panel', 'playlist_panel', 'floating_panel']:
+        # 重新应用3个停靠面板的面板样式（只应用到内部容器widget）
+        for panel_attr in ['epg_dock', 'playlist_dock', 'floating_dock']:
             panel = getattr(self.window, panel_attr, None)
-            if panel and hasattr(panel, 'setStyleSheet'):
-                panel.setStyleSheet(AppStyles.player_panel_style())
+            if panel:
+                container = panel.widget()
+                if container and hasattr(container, 'setStyleSheet'):
+                    container.setStyleSheet(AppStyles.player_panel_style())
                 panel.update()
 
     def show_about(self):

@@ -72,8 +72,8 @@ class EventHandler:
                         w.toggle_playlist(None)
                     return True
                 elif key == Qt.Key.Key_M:
-                    if hasattr(w, 'playback_ctrl'):
-                        w.playback_ctrl.toggle_mute()
+                    if hasattr(w, 'toggle_floating_panel'):
+                        w.toggle_floating_panel(None)
                     return True
                 elif key == Qt.Key.Key_Y:
                     if hasattr(w, 'toggle_hide_floating'):
@@ -135,32 +135,29 @@ class EventHandler:
             self.window.channel_ctrl.select_channel(item)
 
     def showEvent(self, event):
-        """窗口首次显示时，多阶段渐进式修正悬浮窗位置"""
+        """窗口首次显示后，在下一帧定位悬浮窗"""
         from core.log_manager import global_logger as logger
-        logger.debug("窗口显示事件 - 显示并定位悬浮窗")
 
         if hasattr(self.window, 'showEvent'):
             orig_show = type(self.window).__bases__[0].showEvent
             orig_show(self.window, event)
 
-        # 首次显示时，确保所有悬浮窗可见并正确定位
         if not getattr(self.window, '_initial_position_fixed', False):
             self.window._initial_position_fixed = True
-
-            # 确保所有悬浮窗都显示
-            for panel_name in ['epg_panel', 'playlist_panel', 'floating_panel']:
-                panel = getattr(self.window, panel_name, None)
-                if panel and not panel.isVisible():
-                    try:
-                        panel.show()
-                        logger.debug(f"显示悬浮窗: {panel_name}")
-                    except Exception as e:
-                        logger.error(f"显示{panel_name}失败: {e}")
-
-            # 多阶段修正位置
             from PyQt6.QtCore import QTimer
-            for delay in (50, 150, 300):
-                QTimer.singleShot(delay, self.window.update_floating_position)
+            QTimer.singleShot(0, self._deferred_position_docks)
+
+    def _deferred_position_docks(self):
+        """延迟到事件循环下一帧执行定位（确保主窗口geometry已稳定）"""
+        try:
+            from PyQt6.QtWidgets import QApplication
+            app = QApplication.instance()
+            if app:
+                app.processEvents()
+            self.window.update_floating_position()
+        except Exception as e:
+            from core.log_manager import global_logger as logger
+            logger.error(f"延迟定位悬浮窗失败: {e}")
 
     def changeEvent(self, event):
         """窗口状态变化事件"""
@@ -176,26 +173,12 @@ class EventHandler:
                 self.window.raise_floating_panels()
 
     def moveEvent(self, event):
-        """窗口移动事件"""
-        if hasattr(self.window, 'moveEvent'):
-            try:
-                orig_move = type(self.window).__bases__[0].moveEvent
-                orig_move(self.window, event)
-            except:
-                pass
-
+        """窗口移动事件 - 跟随定位浮动Dock"""
         if hasattr(self.window, 'update_floating_position'):
             self.window.update_floating_position()
 
     def resizeEvent(self, event):
-        """窗口大小变化事件"""
-        if hasattr(self.window, 'resizeEvent'):
-            try:
-                orig_resize = type(self.window).__bases__[0].resizeEvent
-                orig_resize(self.window, event)
-            except:
-                pass
-
+        """窗口大小变化事件 - 跟随重定位浮动Dock"""
         if hasattr(self.window, 'update_floating_position'):
             self.window.update_floating_position()
 

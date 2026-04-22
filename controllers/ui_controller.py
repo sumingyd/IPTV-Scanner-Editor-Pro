@@ -370,14 +370,13 @@ class UIController:
     def reapply_all_styles(self):
         """重新应用所有样式（用于主题切换后）"""
         try:
-            colors = getattr(__import__('ui.styles', fromlist=['AppStyles']), 'AppStyles')._get_colors()
+            AppStyles = getattr(__import__('ui.styles', fromlist=['AppStyles']), 'AppStyles')
+            colors = AppStyles._get_colors()
 
-            self.window.setStyleSheet(getattr(__import__('ui.styles', fromlist=['AppStyles']), 'AppStyles').main_window_style())
+            self.window.setStyleSheet(AppStyles.main_window_style())
 
             if hasattr(self.window, '_custom_menu_bar') and self.window._custom_menu_bar:
-                self.window._custom_menu_bar.setStyleSheet(
-                    getattr(__import__('ui.styles', fromlist=['AppStyles']), 'AppStyles').player_menu_bar_style()
-                )
+                self.window._custom_menu_bar.setStyleSheet(AppStyles.player_menu_bar_style())
 
             if hasattr(self.window, '_title_bar') and self.window._title_bar:
                 self.window._title_bar.setStyleSheet(f"""
@@ -388,22 +387,24 @@ class UIController:
                     }}
                 """)
 
-            for panel in ['epg_panel', 'playlist_panel', 'floating_panel']:
-                p = getattr(self.window, panel, None)
-                if p:
-                    p.setStyleSheet(
-                        getattr(__import__('ui.styles', fromlist=['AppStyles']), 'AppStyles').panel_style()
-                    )
+            for panel_attr in ['epg_dock', 'playlist_dock', 'floating_dock']:
+                dock = getattr(self.window, panel_attr, None)
+                if dock:
+                    container = dock.widget()
+                    if container:
+                        container.setStyleSheet(AppStyles.player_panel_style())
 
             if hasattr(self.window, 'status_bar') and self.window.status_bar:
-                self.window.status_bar.setStyleSheet(
-                    getattr(__import__('ui.styles', fromlist=['AppStyles']), 'AppStyles').statusbar_style()
-                )
+                self.window.status_bar.setStyleSheet(AppStyles.statusbar_style())
 
             if hasattr(self.window, 'video_frame') and self.window.video_frame:
-                self.window.video_frame.setStyleSheet(
-                    getattr(__import__('ui.styles', fromlist=['AppStyles']), 'AppStyles').player_background_style()
-                )
+                self.window.video_frame.setStyleSheet(AppStyles.player_background_style())
+
+            if hasattr(self.window, '_reapply_side_panel_styles'):
+                self.window._reapply_side_panel_styles()
+
+            if hasattr(self.window, '_reapply_floating_panel_styles'):
+                self.window._reapply_floating_panel_styles()
 
         except Exception as e:
             from core.log_manager import global_logger as logger
