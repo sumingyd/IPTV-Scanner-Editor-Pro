@@ -93,9 +93,13 @@ class ScanChannelDialog(FloatingDialog):
                     QtWidgets.QTreeView,
                     QtWidgets.QListView,
                     QtWidgets.QAbstractSlider,
+                    QtWidgets.QAbstractSpinBox,
                 )
-                if isinstance(widget, interactive_types):
-                    return
+                w = widget
+                while w:
+                    if isinstance(w, interactive_types):
+                        return
+                    w = w.parent()
         super().mousePressEvent(event)
 
     def _stop_all_timers(self):
@@ -267,7 +271,7 @@ class ScanChannelDialog(FloatingDialog):
 
     def _connect_input_signals(self):
         """在_load_config加载完所有值后，再连接输入控件的保存信号"""
-        self.ip_range_input.editingFinished.connect(self._save_network_settings)
+        self.ip_range_input.lineEdit().editingFinished.connect(self._save_network_settings)
         self.user_agent_input.textChanged.connect(self._save_network_settings)
         self.referer_input.textChanged.connect(self._save_network_settings)
         self.timeout_input.textChanged.connect(self._save_network_settings)
@@ -285,7 +289,7 @@ class ScanChannelDialog(FloatingDialog):
             if hasattr(self, 'threads_input'):
                 threads_val = self.threads_input.text()
             self.config.save_network_settings(
-                self.ip_range_input.text(),
+                self.ip_range_input.currentText(),
                 timeout_val,
                 threads_val,
                 self.user_agent_input.text(),
@@ -293,6 +297,21 @@ class ScanChannelDialog(FloatingDialog):
                 enable_retry,
                 enable_retry
             )
+
+    def _add_url_to_history(self, url):
+        """将URL添加到历史记录（去重，最近使用的排最前，最多10条）"""
+        if not url or not url.strip():
+            return
+        url = url.strip()
+        current_items = [self.ip_range_input.itemText(i) for i in range(self.ip_range_input.count())]
+        if url in current_items:
+            current_items.remove(url)
+        current_items.insert(0, url)
+        current_items = current_items[:10]
+        self.ip_range_input.clear()
+        self.ip_range_input.addItems(current_items)
+        self.ip_range_input.setCurrentText(url)
+        self.config.save_url_history(current_items)
 
     def _setup_scan_panel(self, parent: QtWidgets.QLayout) -> None:
         """配置扫描面板（简化版，不含GroupBox）"""
@@ -310,7 +329,13 @@ class ScanChannelDialog(FloatingDialog):
 
     def _setup_scan_inputs(self):
         """设置扫描输入控件"""
-        self.ip_range_input = QtWidgets.QLineEdit()
+        self.ip_range_input = QtWidgets.QComboBox()
+        self.ip_range_input.setEditable(True)
+        self.ip_range_input.setInsertPolicy(QtWidgets.QComboBox.InsertPolicy.NoInsert)
+        self.ip_range_input.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+        self.ip_range_input.setSizeAdjustPolicy(QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.ip_range_input.setMinimumContentsLength(20)
+        self.ip_range_input.completer().setCompletionMode(QtWidgets.QCompleter.CompletionMode.PopupCompletion)
 
         self._setup_user_agent_input()
 
@@ -535,7 +560,8 @@ class ScanChannelDialog(FloatingDialog):
         address_example_label.setMinimumHeight(40)
 
         address_section.addWidget(address_example_label)
-        self.ip_range_input.setFixedHeight(32)
+        self.ip_range_input.setMinimumHeight(32)
+        self.ip_range_input.setStyleSheet(AppStyles.url_combo_style())
         address_section.addWidget(self.ip_range_input)
 
         scan_layout.addLayout(address_section)
@@ -1003,8 +1029,12 @@ class ScanChannelDialog(FloatingDialog):
         try:
             settings = self.config.load_network_settings()
 
+            # 加载URL历史记录到下拉列表
+            url_history = self.config.load_url_history()
+            self.ip_range_input.addItems(url_history)
+
             if settings['url']:
-                self.ip_range_input.setText(settings['url'])
+                self.ip_range_input.setCurrentText(settings['url'])
 
             if settings['user_agent']:
                 self.user_agent_input.setText(settings['user_agent'])
@@ -1033,7 +1063,7 @@ class ScanChannelDialog(FloatingDialog):
         log_config_info(f"网络配置变更: {section}.{key} = {old_value} -> {new_value}")
 
         if key == 'url':
-            self.ip_range_input.setText(new_value)
+            self.ip_range_input.setCurrentText(new_value)
         elif key == 'user_agent':
             self.user_agent_input.setText(new_value)
         elif key == 'referer':
@@ -1098,7 +1128,7 @@ class ScanChannelDialog(FloatingDialog):
             self._set_scan_button_text('full_scan', '完整扫描')
             self._set_append_scan_button_text('append_scan', '追加扫描')
         else:
-            url = self.ip_range_input.text()
+            url = self.ip_range_input.currentText()
             if not url.strip():
                 log_ui_warning("请输入扫描地址")
                 # 扫描频道窗口没有状态栏，直接在日志中记录
@@ -1116,7 +1146,7 @@ class ScanChannelDialog(FloatingDialog):
             self._set_scan_button_text('full_scan', '完整扫描')
             self._set_append_scan_button_text('append_scan', '追加扫描')
         else:
-            url = self.ip_range_input.text()
+            url = self.ip_range_input.currentText()
             if not url.strip():
                 log_ui_warning("请输入扫描地址")
                 # 扫描频道窗口没有状态栏，直接在日志中记录
@@ -1129,6 +1159,9 @@ class ScanChannelDialog(FloatingDialog):
         if not hasattr(self, 'scanner') or self.scanner is None:
             log_ui_error("扫描器未初始化，无法启动扫描")
             return
+
+        self._add_url_to_history(url)
+
         if clear_list:
             self.model.clear()
             log_scan_info("开始完整扫描，清空现有列表")
@@ -1337,11 +1370,12 @@ class ScanChannelDialog(FloatingDialog):
 
     def _on_generate_clicked(self):
         """处理直接生成列表按钮点击事件"""
-        url = self.ip_range_input.text()
+        url = self.ip_range_input.currentText()
         if not url.strip():
             self.logger.warning("请输入生成地址")
-            # 扫描频道窗口没有状态栏，直接在日志中记录
             return
+
+        self._add_url_to_history(url)
 
         self.model.clear()
 
@@ -1431,7 +1465,7 @@ class ScanChannelDialog(FloatingDialog):
                 if hasattr(self, 'threads_input'):
                     threads_val = self.threads_input.text()
                 self.config.save_network_settings(
-                    url=self.ip_range_input.text(),
+                    url=self.ip_range_input.currentText(),
                     timeout=timeout_val,
                     threads=threads_val,
                     user_agent=self.user_agent_input.text(),
@@ -1606,6 +1640,8 @@ class ScanChannelDialog(FloatingDialog):
                          self.edit_tvg_id, self.edit_logo]:
                 if hasattr(edit, 'setStyleSheet'):
                     edit.setStyleSheet(AppStyles.common_line_edit_style())
+            if hasattr(self, 'ip_range_input'):
+                self.ip_range_input.setStyleSheet(AppStyles.url_combo_style())
             if hasattr(self, 'address_example_label'):
                 self.address_example_label.setStyleSheet(AppStyles.hint_label_style())
             if hasattr(self, 'ua_label'):

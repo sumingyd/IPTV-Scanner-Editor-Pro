@@ -93,6 +93,18 @@ class ConfigManager:
             'loop_scan': self.get_value('Network', 'loop_scan', 'False').lower() == 'true'
         }
 
+    def save_url_history(self, urls):
+        """保存URL历史记录（最多10条）"""
+        self.set_value('Network', 'url_history', '\n'.join(urls[:10]))
+        return self.save_config()
+
+    def load_url_history(self):
+        """加载URL历史记录"""
+        raw = self.get_value('Network', 'url_history', '')
+        if not raw:
+            return []
+        return [u.strip() for u in raw.split('\n') if u.strip()]
+
     def save_language_settings(self, language_code):
         """保存语言设置"""
         self.set_value('Language', 'current_language', language_code)

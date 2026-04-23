@@ -2192,6 +2192,65 @@ class AppStyles:
         """
 
     @staticmethod
+    def url_combo_style() -> str:
+        colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        input_bg = colors['neumorphic_light'] if neo else colors['alternate_base']
+        border = ""
+        radius = "4px"
+        if neo:
+            border = AppStyles._neumorphic_inset()
+            radius = "6px"
+        return f"""
+            QComboBox {{
+                background-color: {input_bg};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+                border-radius: {radius};
+                padding: 2px 20px 2px 6px;
+                font-size: 12px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                {border}
+            }}
+            QComboBox:focus {{
+                border-color: {colors['accent']};
+                outline: none;
+            }}
+            QComboBox::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                width: 18px;
+                border: none;
+            }}
+            QComboBox::down-arrow {{
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 5px solid {colors['window_text']};
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {colors['alternate_base']};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+                selection-background-color: {colors['accent']};
+                selection-color: white;
+                padding: 2px;
+                outline: none;
+            }}
+            QComboBox QAbstractItemView::item {{
+                padding: 3px 6px;
+            }}
+            QComboBox QAbstractItemView::item:hover {{
+                background-color: {colors['accent']};
+                color: white;
+            }}
+            QComboBox QLineEdit {{
+                background-color: transparent;
+                border: none;
+                padding: 0;
+                font-size: 12px;
+            }}
+        """
     def table_style() -> str:
         return AppStyles.list_style()
 
