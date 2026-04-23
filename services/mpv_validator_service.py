@@ -7,7 +7,6 @@ from typing import Dict
 from core.log_manager import global_logger
 
 if getattr(sys, 'frozen', False):
-    # PyInstaller打包时设置的属性
     base_path = getattr(sys, '_MEIPASS', os.getcwd())
 else:
     base_path = os.getcwd()
@@ -71,10 +70,9 @@ def _create_lightweight_mpv():
         _libmpv.mpv_set_property_string(handle, b'keep-open', b'yes')
         _libmpv.mpv_set_property_string(handle, b'log-level', b'error')
         _libmpv.mpv_set_property_string(handle, b'config', b'no')
-        _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-probesize', b'500000')
-        _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-analyzeduration', b'500000')
+        _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-probesize', b'10000000')
+        _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-analyzeduration', b'5000000')
 
-        # 应用自定义HTTP headers
         headers = MpvStreamValidator.get_headers()
         if headers:
             import json
@@ -99,14 +97,11 @@ def _destroy_mpv(handle):
 
 
 def _get_property_string(handle, name):
-    """获取 MPV 属性字符串 - 使用正确的 API 签名"""
     try:
-        # 正确的调用方式：mpv_get_property_string(handle, name) 返回 char*
         result = _libmpv.mpv_get_property_string(handle, name.encode('utf-8'))
         if not result:
             return None
         return result.decode('utf-8')
-        # mpv_get_property_string 返回的字符串由 MPV 内部管理，不需要手动释放
     except Exception:
         return None
 
@@ -122,26 +117,11 @@ def _get_property_int(handle, name):
         return None
 
 
-def _stop_mpv(handle):
-    if not handle:
-        return
-    try:
-        cmd = [b'stop', None]
-        cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
-        _libmpv.mpv_command(handle, cmd_ptr)
-    except Exception:
-        pass
-    try:
-        _libmpv.mpv_set_property_string(handle, b'playlist-pos', b'0')
-    except Exception:
-        pass
-
-
 def _wait_for_event(handle, timeout_sec, target_events):
     deadline = time.time() + timeout_sec
     while time.time() < deadline:
         try:
-            event_ptr = _libmpv.mpv_wait_event(handle, 0.05)
+            event_ptr = _libmpv.mpv_wait_event(handle, 0.02)
             if event_ptr:
                 event = ctypes.cast(event_ptr, ctypes.POINTER(_mpv_event)).contents
                 if event.event_id in target_events:
@@ -153,83 +133,22 @@ def _wait_for_event(handle, timeout_sec, target_events):
     return 0, 0
 
 
-def _drain_events(handle):
-    if not handle:
-        return
-    try:
-        for _ in range(20):
-            event_ptr = _libmpv.mpv_wait_event(handle, 0.01)
-            if event_ptr:
-                event = ctypes.cast(event_ptr, ctypes.POINTER(_mpv_event)).contents
-                if event.event_id == 0:
-                    break
-    except Exception:
-        pass
-
-
-class _MpvHandlePool:
-    _instance = None
-    _lock = threading.Lock()
-
-    def __init__(self):
-        self._pool = []
-        self._pool_lock = threading.Lock()
-        self._created_count = 0
-        # 动态调整池大小：基于CPU核心数和可用内存
-        # 最小16，最大64，确保高并发扫描时有足够的句柄
-        cpu_count = os.cpu_count() or 4
-        self._max_pool_size = min(max(cpu_count * 4, 16), 64)
-
-    @classmethod
-    def get_instance(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = _MpvHandlePool()
-        return cls._instance
-
-    def acquire(self):
-        with self._pool_lock:
-            if self._pool:
-                return self._pool.pop()
-        handle = _create_lightweight_mpv()
-        if handle:
-            self._created_count += 1
-        return handle
-
-    def release(self, handle):
-        if not handle:
-            return
-        _stop_mpv(handle)
-        _drain_events(handle)
-        with self._pool_lock:
-            if len(self._pool) < self._max_pool_size:
-                self._pool.append(handle)
-                return
-        _destroy_mpv(handle)
-        self._created_count -= 1
-
-    def cleanup_all(self):
-        with self._pool_lock:
-            for handle in self._pool:
-                _destroy_mpv(handle)
-            self._pool.clear()
-            self._created_count = 0
-
-
 def get_optimal_thread_count():
     cpu = os.cpu_count() or 4
     return min(max(cpu, 4), 32)
 
 
 class MpvStreamValidator:
-    _lock = threading.Lock()
-    _active_count = 0
-    _max_active = get_optimal_thread_count()
-    _count_lock = threading.Lock()
-    _user_agent: str | None = None  # 使用 Optional 类型，允许None值
-    _referer: str | None = None   # 使用 Optional 类型，允许None值
+    _semaphore: threading.Semaphore | None = None
+    _user_agent: str | None = None
+    _referer: str | None = None
     _headers_lock = threading.Lock()
+
+    @classmethod
+    def _get_semaphore(cls) -> threading.Semaphore:
+        if cls._semaphore is None:
+            cls._semaphore = threading.Semaphore(get_optimal_thread_count())
+        return cls._semaphore
 
     def __init__(self, main_window=None):
         self.logger = global_logger
@@ -253,31 +172,26 @@ class MpvStreamValidator:
             result['error_type'] = 'mpv_unavailable'
             return result
 
-        with self._count_lock:
-            while MpvStreamValidator._active_count >= MpvStreamValidator._max_active:
-                self._count_lock.release()
-                time.sleep(0.05)
-                self._count_lock.acquire()
-            MpvStreamValidator._active_count += 1
+        sem = self._get_semaphore()
+        acquired = sem.acquire(timeout=30)
+        if not acquired:
+            result['error'] = '并发数超限'
+            result['error_type'] = 'concurrency_limit'
+            return result
 
-        pool = _MpvHandlePool.get_instance()
         handle = None
         try:
-            handle = pool.acquire()
+            handle = _create_lightweight_mpv()
             if not handle:
                 result['error'] = '创建mpv实例失败'
                 result['error_type'] = 'mpv_create_failed'
                 return result
 
             u = url.lower()
-            _libmpv.mpv_set_property_string(handle, b'rtsp-transport', b'')
-            _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-format', b'')
             if u.startswith('rtsp://'):
                 _libmpv.mpv_set_property_string(handle, b'rtsp-transport', b'tcp')
             elif '/rtp/' in u or u.endswith('.ts') or u.startswith('udp://'):
                 _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-format', b'mpegts')
-            elif u.endswith('.m3u8') or 'format=hls' in u:
-                pass
 
             start_time = time.time()
 
@@ -312,81 +226,15 @@ class MpvStreamValidator:
                     result['service_name'] = ''
 
             elif event_id == _MPV_EVENT_END_FILE:
-                # 关键优化：对于流结束的情况，尝试用新句柄二次验证
-                # 这可以排除mpv句柄复用导致的状态污染问题
-                _stop_mpv(handle)
-                _drain_events(handle)
-                pool.release(handle)
-                handle = None
-
-                # 创建全新的mpv实例进行二次验证
-                handle2 = _create_lightweight_mpv()
-                if handle2:
-                    try:
-                        if u.startswith('rtsp://'):
-                            _libmpv.mpv_set_property_string(handle2, b'rtsp-transport', b'tcp')
-                        elif '/rtp/' in u or u.endswith('.ts') or u.startswith('udp://'):
-                            _libmpv.mpv_set_property_string(handle2, b'demuxer-lavf-format', b'mpegts')
-
-                        start_time2 = time.time()
-                        cmd2 = [b'loadfile', url.encode('utf-8'), None]
-                        cmd_ptr2 = (ctypes.c_char_p * len(cmd2))(*cmd2)
-                        _libmpv.mpv_command(handle2, cmd_ptr2)
-
-                        event_id2, error_code2 = _wait_for_event(
-                            handle2, max(timeout, 3),
-                            {_MPV_EVENT_FILE_LOADED}
-                        )
-
-                        latency2 = int((time.time() - start_time2) * 1000)
-
-                        if event_id2 == _MPV_EVENT_FILE_LOADED:
-                            # 二次验证成功！说明是句柄污染问题
-                            result['valid'] = True
-                            result['latency'] = latency2
-
-                            w2 = _get_property_int(handle2, 'width')
-                            h2 = _get_property_int(handle2, 'height')
-                            if w2 and h2 and w2 > 0 and h2 > 0:
-                                result['resolution'] = f"{w2}x{h2}"
-
-                            codec2 = _get_property_string(handle2, 'video-codec')
-                            if codec2:
-                                result['codec'] = codec2
-
-                            try:
-                                from models.channel_mappings import extract_channel_name_from_url
-                                result['service_name'] = extract_channel_name_from_url(url)
-                            except Exception:
-                                result['service_name'] = ''
-                        else:
-                            # 二次验证仍然失败，确认是无效流
-                            result['valid'] = False
-                            result['latency'] = latency
-                            if error_code != 0:
-                                result['error'] = f'播放失败(错误码:{error_code})'
-                                result['error_type'] = 'playback_failed'
-                            else:
-                                result['error'] = '流结束(无内容)'
-                                result['error_type'] = 'stream_ended'
-
-                        _stop_mpv(handle2)
-                        _drain_events(handle2)
-                        _destroy_mpv(handle2)
-                    except Exception as e:
-                        result['valid'] = False
-                        result['latency'] = latency
-                        result['error'] = f'二次验证异常: {str(e)}'
-                        result['error_type'] = 'stream_ended'
+                result['valid'] = False
+                result['latency'] = latency
+                if error_code != 0:
+                    result['error'] = f'播放失败(错误码:{error_code})'
+                    result['error_type'] = 'playback_failed'
                 else:
-                    result['valid'] = False
-                    result['latency'] = latency
-                    if error_code != 0:
-                        result['error'] = f'播放失败(错误码:{error_code})'
-                        result['error_type'] = 'playback_failed'
-                    else:
-                        result['error'] = '流结束(无内容)'
-                        result['error_type'] = 'stream_ended'
+                    result['error'] = '流结束(无内容)'
+                    result['error_type'] = 'stream_ended'
+
             else:
                 result['valid'] = False
                 result['latency'] = latency
@@ -398,15 +246,14 @@ class MpvStreamValidator:
             result['error_type'] = 'unknown_error'
         finally:
             if handle:
-                pool.release(handle)
-            with self._count_lock:
-                MpvStreamValidator._active_count -= 1
+                _destroy_mpv(handle)
+            sem.release()
 
         return result
 
     @classmethod
     def set_max_concurrent(cls, max_count):
-        cls._max_active = max(1, max_count)
+        cls._semaphore = threading.Semaphore(max(1, max_count))
 
     @classmethod
     def set_user_agent(cls, user_agent: str):
@@ -430,5 +277,4 @@ class MpvStreamValidator:
 
     @classmethod
     def terminate_all(cls):
-        pool = _MpvHandlePool.get_instance()
-        pool.cleanup_all()
+        pass

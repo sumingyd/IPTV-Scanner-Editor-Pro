@@ -265,11 +265,19 @@ class ScanChannelDialog(FloatingDialog):
         # QDialog使用setLayout直接设置布局
         self.setLayout(main_layout)
 
+    def _connect_input_signals(self):
+        """在_load_config加载完所有值后，再连接输入控件的保存信号"""
+        self.ip_range_input.editingFinished.connect(self._save_network_settings)
+        self.user_agent_input.textChanged.connect(self._save_network_settings)
+        self.referer_input.textChanged.connect(self._save_network_settings)
+        self.timeout_input.textChanged.connect(self._save_network_settings)
+        self.threads_input.textChanged.connect(self._save_network_settings)
+
     def _save_network_settings(self):
         """保存网络设置到配置文件（提取的重复代码）"""
         from utils.config_notifier import config_change_context
         with config_change_context("Network", "url"):
-            enable_retry = self.enable_retry_checkbox.isChecked()
+            enable_retry = self.enable_retry_checkbox.isChecked() if hasattr(self, 'enable_retry_checkbox') else False
             timeout_val = 5
             threads_val = 4
             if hasattr(self, 'timeout_input'):
@@ -283,7 +291,7 @@ class ScanChannelDialog(FloatingDialog):
                 self.user_agent_input.text(),
                 self.referer_input.text(),
                 enable_retry,
-                enable_retry  # 简化后，启用重试即默认启用循环行为
+                enable_retry
             )
 
     def _setup_scan_panel(self, parent: QtWidgets.QLayout) -> None:
@@ -302,19 +310,12 @@ class ScanChannelDialog(FloatingDialog):
 
     def _setup_scan_inputs(self):
         """设置扫描输入控件"""
-        # IP地址输入
         self.ip_range_input = QtWidgets.QLineEdit()
-        self.ip_range_input.editingFinished.connect(
-            lambda: self._save_network_settings()
-        )
 
-        # User-Agent设置
         self._setup_user_agent_input()
 
-        # Referer设置
         self._setup_referer_input()
 
-        # 超时和线程数设置
         self._setup_timeout_threads_input()
 
     def _setup_user_agent_input(self):
@@ -327,9 +328,6 @@ class ScanChannelDialog(FloatingDialog):
         self.user_agent_input = QtWidgets.QLineEdit()
         self.user_agent_input.setPlaceholderText(tr("optional_default_input", "Optional, use default if empty"))
         user_agent_layout.addWidget(self.user_agent_input)
-        self.user_agent_input.textChanged.connect(
-            lambda: self._save_network_settings()
-        )
         self.user_agent_layout = user_agent_layout
 
     def _setup_referer_input(self):
@@ -342,9 +340,6 @@ class ScanChannelDialog(FloatingDialog):
         self.referer_input = QtWidgets.QLineEdit()
         self.referer_input.setPlaceholderText(tr("optional_not_used_input", "Optional, not used if empty"))
         referer_layout.addWidget(self.referer_input)
-        self.referer_input.textChanged.connect(
-            lambda: self._save_network_settings()
-        )
         self.referer_layout = referer_layout
 
     def _setup_timeout_threads_input(self):
@@ -354,7 +349,6 @@ class ScanChannelDialog(FloatingDialog):
         timeout_threads_layout = QtWidgets.QVBoxLayout()
         timeout_threads_layout.setSpacing(4)
 
-        # 超时行
         timeout_row = QtWidgets.QHBoxLayout()
         timeout_row.setSpacing(6)
         timeout_label = QtWidgets.QLabel(tr("scan_timeout", "Timeout(s):"))
@@ -363,11 +357,9 @@ class ScanChannelDialog(FloatingDialog):
         self.timeout_input = QtWidgets.QLineEdit("5")
         self.timeout_input.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         self.timeout_input.setPlaceholderText("1-60")
-        self.timeout_input.textChanged.connect(lambda: self._save_network_settings())
         timeout_row.addWidget(self.timeout_input)
         timeout_threads_layout.addLayout(timeout_row)
 
-        # 线程数行
         threads_row = QtWidgets.QHBoxLayout()
         threads_row.setSpacing(6)
         threads_label = QtWidgets.QLabel(tr("scan_threads", "Threads:"))
@@ -376,13 +368,11 @@ class ScanChannelDialog(FloatingDialog):
         self.threads_input = QtWidgets.QLineEdit("4")
         self.threads_input.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         self.threads_input.setPlaceholderText("1-64")
-        self.threads_input.textChanged.connect(lambda: self._save_network_settings())
         threads_row.addWidget(self.threads_input)
         timeout_threads_layout.addLayout(threads_row)
 
         self.timeout_threads_layout = timeout_threads_layout
 
-        # 加载已保存的值
         self._load_timeout_threads_settings()
 
     def _setup_scan_retry_options(self):
@@ -961,7 +951,7 @@ class ScanChannelDialog(FloatingDialog):
 
         self._load_config()
 
-        # 样式已在_init_ui中设置，这里只需连接信号和注册处理器
+        self._connect_input_signals()
         self._connect_signals()
         self._register_cleanup_handlers()
         self._register_config_observers()

@@ -64,64 +64,39 @@ class ThemeManager(QtCore.QObject):
         return False
 
     def _update_child_widgets(self, parent: QtWidgets.QWidget):
+        style_map = {
+            QtWidgets.QPushButton: lambda w: AppStyles.button_style() if not hasattr(w, 'style_type') else (
+                AppStyles.apply_button_style() if w.style_type == 'apply' else
+                AppStyles.cancel_button_style() if w.style_type == 'cancel' else
+                AppStyles.button_style()
+            ),
+            QtWidgets.QTableView: lambda w: AppStyles.list_style(),
+            QtWidgets.QStatusBar: lambda w: AppStyles.statusbar_style(),
+            QtWidgets.QTabWidget: lambda w: AppStyles.tab_widget_style(),
+            QtWidgets.QToolButton: lambda w: AppStyles.toolbar_button_style(),
+            QtWidgets.QLineEdit: lambda w: AppStyles.common_line_edit_style() if (not w.styleSheet() or 'common_line_edit' not in w.styleSheet()) else None,
+            QtWidgets.QComboBox: lambda w: AppStyles.common_combo_box_style() if (not w.styleSheet() or 'common_combo' not in w.styleSheet()) else None,
+            QtWidgets.QLabel: lambda w: AppStyles.common_label_style() if not w.styleSheet() else None,
+            QtWidgets.QCheckBox: lambda w: AppStyles.common_check_box_style() if not w.styleSheet() else None,
+            QtWidgets.QProgressBar: lambda w: AppStyles.progress_style() if not w.styleSheet() else None,
+            QtWidgets.QGroupBox: lambda w: AppStyles.common_group_box_style() if not w.styleSheet() else None,
+        }
+        for widget_type, style_func in style_map.items():
+            try:
+                for widget in parent.findChildren(widget_type):
+                    if self._is_in_dock(widget):
+                        continue
+                    style = style_func(widget)
+                    if style:
+                        widget.setStyleSheet(style)
+            except Exception:
+                pass
         try:
-            for button in parent.findChildren(QtWidgets.QPushButton):
-                if self._is_in_dock(button):
-                    continue
-                if hasattr(button, 'style_type'):
-                    if button.style_type == 'apply':
-                        button.setStyleSheet(AppStyles.apply_button_style())
-                    elif button.style_type == 'cancel':
-                        button.setStyleSheet(AppStyles.cancel_button_style())
-                    else:
-                        button.setStyleSheet(AppStyles.button_style())
-                else:
-                    button.setStyleSheet(AppStyles.button_style())
-
-            for table in parent.findChildren(QtWidgets.QTableView):
-                table.setStyleSheet(AppStyles.list_style())
-
-            for statusbar in parent.findChildren(QtWidgets.QStatusBar):
-                statusbar.setStyleSheet(AppStyles.statusbar_style())
-
-            for tab_widget in parent.findChildren(QtWidgets.QTabWidget):
-                tab_widget.setStyleSheet(AppStyles.tab_widget_style())
-
-            for tool_button in parent.findChildren(QtWidgets.QToolButton):
-                if self._is_in_dock(tool_button):
-                    continue
-                tool_button.setStyleSheet(AppStyles.toolbar_button_style())
-
-            for line_edit in parent.findChildren(QtWidgets.QLineEdit):
-                if not line_edit.styleSheet() or 'common_line_edit' not in line_edit.styleSheet():
-                    line_edit.setStyleSheet(AppStyles.common_line_edit_style())
-
-            for combo_box in parent.findChildren(QtWidgets.QComboBox):
-                if not combo_box.styleSheet() or 'common_combo' not in combo_box.styleSheet():
-                    combo_box.setStyleSheet(AppStyles.common_combo_box_style())
-
-            for label in parent.findChildren(QtWidgets.QLabel):
-                if not label.styleSheet():
-                    label.setStyleSheet(AppStyles.common_label_style())
-
-            for check_box in parent.findChildren(QtWidgets.QCheckBox):
-                if not check_box.styleSheet():
-                    check_box.setStyleSheet(AppStyles.common_check_box_style())
-
-            for progress_bar in parent.findChildren(QtWidgets.QProgressBar):
-                if not progress_bar.styleSheet():
-                    progress_bar.setStyleSheet(AppStyles.progress_style())
-
-            for group_box in parent.findChildren(QtWidgets.QGroupBox):
-                if not group_box.styleSheet():
-                    group_box.setStyleSheet(AppStyles.common_group_box_style())
-
             for spin_box in parent.findChildren(QtWidgets.QSpinBox):
-                if not spin_box.styleSheet():
-                    spin_box.setStyleSheet(AppStyles.common_spin_box_style()) if hasattr(AppStyles, 'common_spin_box_style') else None
-
-        except Exception as e:
-            print(f"更新子控件样式失败: {e}")
+                if not spin_box.styleSheet() and hasattr(AppStyles, 'common_spin_box_style'):
+                    spin_box.setStyleSheet(AppStyles.common_spin_box_style())
+        except Exception:
+            pass
 
     def get_current_theme(self) -> str:
         return self._current_theme

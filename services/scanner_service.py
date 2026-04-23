@@ -142,25 +142,30 @@ class ScannerController(QObject):
                 latency = result['latency']
                 resolution = result.get('resolution', '')
 
-                # 构建频道信息
-                channel_info = self._build_channel_info(
-                    url, valid, latency, resolution, result
+                try:
+                    channel_info = self._build_channel_info(
+                        url, valid, latency, resolution, result
                     )
-                if not channel_info:
-                    with self.stats_lock:
-                        self.stats['invalid'] += 1
-                        current = self.stats['valid'] + self.stats['invalid']
-                        total = self.stats['total']
-                        self._run_on_main(self.progress_updated.emit, current, total)
-                    continue
-
-                channel_info.setdefault(
-                    'name', channel_info.get(
-                        'raw_name', extract_channel_name_from_url(url)
-                        )
-                    )
+                except Exception:
+                    channel_info = {
+                        'url': url,
+                        'name': url.split('/')[-1] if '/' in url else url,
+                        'raw_name': url.split('/')[-1] if '/' in url else url,
+                        'valid': valid,
+                        'latency': latency,
+                        'resolution': resolution,
+                        'status': '有效' if valid else '无效',
+                        'group': '未分类',
+                        'logo_url': None,
+                        'needs_details': False
+                    }
 
                 if valid:
+                    channel_info.setdefault(
+                        'name', channel_info.get(
+                            'raw_name', extract_channel_name_from_url(url)
+                        )
+                    )
                     self._run_on_main(self._handle_channel_add, channel_info.copy())
                     self._start_async_mapping_check(channel_info.copy())
 
@@ -170,7 +175,6 @@ class ScannerController(QObject):
                     else:
                         self.stats['invalid'] += 1
                         error_type = result.get('error_type') or 'unknown_error'
-                        # 每50个无效URL记录一次日志，避免日志过多
                         if self.stats['invalid'] % 50 == 1:
                             self.logger.debug(f"扫描进度: 有效={self.stats['valid']}, 无效={self.stats['invalid']}, 最新错误类型={error_type}")
                         with self.invalid_urls_lock:
@@ -484,10 +488,12 @@ class ScannerController(QObject):
     ) -> None:
         """内部扫描启动方法"""
 
-        # 保存超时时间和线程数到实例变量
         self.timeout = timeout
 
-        # 动态计算最优队列大小（基于系统资源）
+        with self.invalid_urls_lock:
+            self.invalid_urls.clear()
+        self.scan_state_manager.clear_invalid_urls(self.scan_id)
+
         self._optimal_queue_size = calculate_optimal_queue_size(thread_count)
         self.logger.debug(f"动态计算最优队列大小: {self._optimal_queue_size}（线程数: {thread_count}）")
 
