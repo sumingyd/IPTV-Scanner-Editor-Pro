@@ -3,9 +3,13 @@
 从 pyqt_player.py 提取的独立模块
 """
 
+import sys
 from typing import Dict, Any, Optional
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QListWidgetItem
+
+from core.log_manager import global_logger as logger
+from utils.general_utils import get_display_channel_name
 
 
 class ChannelController:
@@ -16,9 +20,6 @@ class ChannelController:
 
     def populate_channel_list(self):
         """填充频道列表"""
-        import sys
-        from core.log_manager import global_logger as logger
-
         if not hasattr(self.window, 'channel_list') or not hasattr(self.window, 'channel_model'):
             return
 
@@ -60,9 +61,6 @@ class ChannelController:
     def on_group_changed(self, group_name: str):
         """处理分组切换事件"""
         # 获取频道数据（从全局变量 CHANNELS）
-        import sys
-        from core.log_manager import global_logger as logger
-
         main_module = sys.modules.get('__main__')
         channels = getattr(main_module, 'CHANNELS', []) if main_module else []
 
@@ -99,16 +97,9 @@ class ChannelController:
             self.window.playback_ctrl.play_channel(channel)
 
     def _get_display_channel_name(self, channel: Dict[str, Any]) -> str:
-        """获取频道的显示名称"""
-        if not channel:
-            return ""
-            
-        name = channel.get('name', '')
-        number = channel.get('tvg_chno', '')
-        
-        if number:
-            return f"{number} {name}"
-        return name
+        """获取频道的显示名称（委托给通用工具函数）"""
+        language_manager = getattr(self.window, 'language_manager', None)
+        return get_display_channel_name(channel, language_manager)
 
     def _update_channel_info(self, channel: Dict[str, Any]):
         """更新频道信息显示区域"""
@@ -145,7 +136,6 @@ class ChannelController:
     @property
     def channel_count(self) -> int:
         """当前频道数量"""
-        import sys
         main_module = sys.modules.get('__main__')
         channels = getattr(main_module, 'CHANNELS', []) if main_module else []
         return len(channels)

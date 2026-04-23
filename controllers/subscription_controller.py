@@ -3,8 +3,19 @@
 从 pyqt_player.py 提取的独立模块
 """
 
-from typing import Optional, List, Dict, Any
-from PyQt6.QtCore import QThread, pyqtSignal, QObject
+import re
+import sys
+import hashlib
+import os
+import requests
+from typing import Optional, Dict, Any
+from datetime import datetime
+from PyQt6.QtCore import QThread, pyqtSignal, QTimer
+
+from core.log_manager import global_logger as logger
+from core.config_manager import ConfigManager
+from core.subscription_manager import global_subscription_manager
+from utils.general_utils import get_display_channel_name
 
 
 class SubscriptionWorker(QThread):
@@ -34,8 +45,6 @@ class SubscriptionController:
 
     def handle_playlist_subscription(self, need_update: bool, playlist_url: str, source_index=None):
         """在后台线程中处理列表订阅（按源索引独立判断）"""
-        from core.log_manager import global_logger as logger
-
         try:
             global CHANNELS
 
@@ -74,9 +83,6 @@ class SubscriptionController:
 
     def _download_subscription_content(self, url: str) -> Optional[str]:
         """下载订阅内容"""
-        import requests
-        from core.config_manager import ConfigManager
-
         config = ConfigManager()
         timeout = int(config.get_value('Network', 'timeout', '30') or 30)
 
@@ -94,18 +100,14 @@ class SubscriptionController:
             response.raise_for_status()
             return response.text
         except requests.exceptions.Timeout:
-            from core.log_manager import global_logger as logger
             logger.warning(f"下载超时: {url}")
             return None
         except Exception as e:
-            from core.log_manager import global_logger as logger
             logger.error(f"下载失败: {url}, 错误: {e}")
             return None
 
     def _get_cache_file_path(self, url: str) -> str:
         """获取缓存文件路径（基于URL的hash）"""
-        import hashlib
-        import os
         cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'cache')
         os.makedirs(cache_dir, exist_ok=True)
         url_hash = hashlib.md5(url.encode()).hexdigest()
@@ -113,8 +115,6 @@ class SubscriptionController:
 
     def _save_to_local_cache(self, content: str, url: str):
         """保存M3U内容到本地缓存"""
-        import os
-        from core.log_manager import global_logger as logger
         try:
             cache_path = self._get_cache_file_path(url)
             with open(cache_path, 'w', encoding='utf-8') as f:
@@ -125,8 +125,6 @@ class SubscriptionController:
 
     def _load_from_local_cache(self, url: str) -> str | None:
         """从本地缓存加载M3U内容"""
-        import os
-        from core.log_manager import global_logger as logger
         try:
             cache_path = self._get_cache_file_path(url)
             if not os.path.exists(cache_path):
@@ -141,8 +139,6 @@ class SubscriptionController:
 
     def _process_m3u_content(self, content: str, file_path: str, source_index=None):
         """处理M3U内容（纯Python解析，避免子线程中操作Qt对象）"""
-        from core.log_manager import global_logger as logger
-
         try:
             # 使用纯 Python 方式解析 M3U 内容（不依赖 Qt 对象）
             channels_data = self._parse_m3u_content_pure_python(content)
@@ -154,15 +150,12 @@ class SubscriptionController:
             logger.info(f"M3U处理完成，共 {len(channels_data)} 个频道（数据已准备就绪，等待主线程回调刷新UI）")
 
             # 保存原始文件内容到配置
-            from core.config_manager import ConfigManager
             config = ConfigManager()
 
             if file_path.startswith('http'):
                 config.add_recent_file(file_path)
 
                 # 更新订阅源的最后下载时间（用于缓存判断）
-                from datetime import datetime
-                from core.subscription_manager import global_subscription_manager
                 sources = global_subscription_manager.get_playlist_sources()
                 for idx, src in enumerate(sources):
                     if src.get('url') == file_path:
@@ -201,8 +194,6 @@ class SubscriptionController:
         Returns:
             频道数据列表
         """
-        from core.log_manager import global_logger as logger
-
         channels = []
         lines = content.split('\n')
 
@@ -276,7 +267,6 @@ class SubscriptionController:
 
         # 解析属性 tvg-name="xxx" group-title="xxx" 等
         # 注意：属性名可能包含连字符（如 tvg-logo, group-title），使用 [\w-]+ 匹配
-        import re
         attrs_pattern = r'([\w-]+)=["\']([^"\']*)["\']'
         matches = re.findall(attrs_pattern, attr_part)
 
@@ -311,25 +301,9 @@ class SubscriptionController:
         return channel_data
 
     def _get_display_channel_name(self, channel: Dict[str, Any]) -> str:
-        """获取用于显示的频道名称"""
-        if not channel:
-            return 'Unknown Channel'
-
-        tr = getattr(self.window.language_manager, 'tr', lambda x, y: x) if hasattr(self.window, 'language_manager') else lambda x, y: x
-
-        all_tags = channel.get('_all_tags', {})
-        name = all_tags.get('name') or channel.get('name', '') or ''
-        group_name = all_tags.get('group-name') or ''
-
-        if ',' in name:
-            parts = name.split(',', 1)
-            if len(parts) > 1 and parts[1].strip():
-                return parts[1].strip()
-
-        if group_name and group_name != channel.get('group', ''):
-            return f"{name} ({group_name})"
-
-        return name or tr('unknown_channel', 'Unknown Channel')
+        """获取用于显示的频道名称（委托给通用工具函数）"""
+        language_manager = getattr(self.window, 'language_manager', None)
+        return get_display_channel_name(channel, language_manager)
 
     def _should_update_source(self, source: dict, source_index: int) -> bool:
         """判断订阅源是否需要更新（基于缓存机制）
@@ -341,9 +315,6 @@ class SubscriptionController:
         Returns:
             True 表示需要更新，False 表示使用缓存
         """
-        from core.log_manager import global_logger as logger
-        from datetime import datetime, timedelta
-
         # 获取最后更新时间
         last_update_str = source.get('last_update', '')
 
@@ -358,7 +329,6 @@ class SubscriptionController:
             return True
 
         # 获取更新间隔配置（分钟）
-        from core.config_manager import ConfigManager
         config = ConfigManager()
         update_interval = int(config.get_value('PlaylistSources', 'update_interval', '60') or 60)
 
@@ -374,19 +344,10 @@ class SubscriptionController:
 
     def start_subscription_timers(self):
         """启动订阅更新定时器"""
-        from core.log_manager import global_logger as logger
-
         logger.debug("start_subscription_timers: 开始")
 
         try:
             global EPG_DATA, CHANNELS
-
-            from datetime import datetime, timedelta
-            from core.subscription_manager import global_subscription_manager
-
-            if self._subscription_checked:
-                return
-            self._subscription_checked = True
 
             active_source = global_subscription_manager.get_active_playlist_source()
             playlist_url = active_source.get('url', '') if active_source else ''
@@ -410,10 +371,6 @@ class SubscriptionController:
 
     def _do_start_subscription(self, playlist_url: str):
         """执行订阅更新"""
-        from core.log_manager import global_logger as logger
-        from core.subscription_manager import global_subscription_manager
-        from datetime import datetime, timedelta
-
         sources = global_subscription_manager.get_playlist_sources()
         if not sources:
             logger.warning("没有配置播放列表源")
@@ -437,7 +394,6 @@ class SubscriptionController:
             logger.info("EPG缓存有效，从本地缓存加载")
             cached_loaded = global_subscription_manager.load_cached_epg_data()
             if cached_loaded:
-                import sys
                 main_module = sys.modules.get('__main__')
                 if main_module:
                     main_module.EPG_DATA = global_subscription_manager._epg_data
@@ -447,7 +403,6 @@ class SubscriptionController:
                 logger.warning("EPG缓存加载失败，重新下载")
                 success = global_subscription_manager.load_all_epg_data(status_callback)
                 if success:
-                    import sys
                     main_module = sys.modules.get('__main__')
                     if main_module:
                         main_module.EPG_DATA = global_subscription_manager._epg_data
@@ -455,7 +410,6 @@ class SubscriptionController:
             logger.info("EPG缓存无效或不存在，重新下载所有EPG源")
             success = global_subscription_manager.load_all_epg_data(status_callback)
             if success:
-                import sys
                 main_module = sys.modules.get('__main__')
                 if main_module:
                     main_module.EPG_DATA = global_subscription_manager._epg_data
@@ -464,14 +418,11 @@ class SubscriptionController:
 
     def _on_subscription_finished(self, result):
         """订阅更新完成回调 - 重新填充频道列表和EPG（在主线程中执行）"""
-        from core.log_manager import global_logger as logger
-        from PyQt6.QtCore import QTimer
         logger.info("订阅数据加载完成，准备刷新UI")
 
         # 使用 QTimer.singleShot 确保在主线程中执行所有 UI 操作
         def refresh_ui():
             try:
-                import sys
                 main_module = sys.modules.get('__main__')
                 app_state = getattr(__import__('core.application_state', fromlist=['application_state']), 'app_state', None)
 
@@ -514,12 +465,9 @@ class SubscriptionController:
 
     def update_playlist_subscription(self, source_index=None):
         """更新列表订阅 - 线程安全版本"""
-        from core.log_manager import global_logger as logger
-
         try:
             global CHANNELS
 
-            from core.subscription_manager import global_subscription_manager
             sources = global_subscription_manager.get_playlist_sources()
 
             if not sources:
@@ -537,9 +485,6 @@ class SubscriptionController:
 
     def update_channel_groups(self):
         """从CHANNELS中提取分组并更新下拉框"""
-        import sys
-        from core.log_manager import global_logger as logger
-
         main_module = sys.modules.get('__main__')
         CHANNELS = getattr(main_module, 'CHANNELS', []) if main_module else []
         CHANNEL_GROUPS = getattr(main_module, 'CHANNEL_GROUPS', []) if main_module else []
@@ -578,11 +523,7 @@ class SubscriptionController:
 
     def reload_subscription(self):
         """重新加载订阅源"""
-        from core.log_manager import global_logger as logger
-
         try:
-            from core.subscription_manager import global_subscription_manager
-
             sources = global_subscription_manager.get_playlist_sources()
             if sources:
                 for i, source in enumerate(sources):

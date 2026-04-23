@@ -3,7 +3,6 @@
 从 pyqt_player.py 提取的独立模块
 """
 
-import os
 from typing import Optional
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
 

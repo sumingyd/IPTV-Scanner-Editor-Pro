@@ -3,11 +3,14 @@ EPG节目单控制器 - 负责EPG数据管理、显示、交互
 从 pyqt_player.py 提取的独立模块
 """
 
+import sys
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from PyQt6.QtWidgets import QListWidgetItem, QDateEdit
 from PyQt6.QtGui import QAction
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
+
+from core.log_manager import global_logger as logger
 
 
 class EPGController:
@@ -19,8 +22,6 @@ class EPGController:
 
     def populate_epg_list(self):
         """填充EPG列表"""
-        from core.log_manager import global_logger as logger
-
         if not hasattr(self.window, 'epg_content'):
             logger.debug("EPG列表组件不存在，跳过填充")
             return

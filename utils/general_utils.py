@@ -6,6 +6,49 @@ import re
 from typing import Any, Dict, List, Optional
 
 
+def get_display_channel_name(channel: Dict[str, Any], language_manager=None) -> str:
+    """统一的频道显示名称获取函数
+
+    Args:
+        channel: 频道数据字典
+        language_manager: 语言管理器实例（可选，用于国际化）
+
+    Returns:
+        str: 格式化后的频道显示名称
+
+    功能：
+    - 支持国际化（通过language_manager）
+    - 处理逗号分隔的名称（取最后一部分）
+    - 添加频道号前缀（如果有tvg_chno）
+    - 添加分组名后缀（如果不同于默认分组）
+    """
+    if not channel:
+        return 'Unknown Channel'
+
+    tr = getattr(language_manager, 'tr', lambda x, y: x) if language_manager else lambda x, y: x
+
+    all_tags = channel.get('_all_tags', {})
+    name = all_tags.get('name') or channel.get('name', '') or ''
+    number = channel.get('tvg_chno', '')
+    group_name = all_tags.get('group-name') or ''
+
+    # 处理逗号分隔的名称（如 "CCTV1,央视一套" 取 "央视一套"）
+    if ',' in name:
+        parts = name.split(',', 1)
+        if len(parts) > 1 and parts[1].strip():
+            name = parts[1].strip()
+
+    # 添加频道号
+    if number and name:
+        name = f"{number} {name}"
+
+    # 添加分组名（如果不同于默认分组）
+    if group_name and group_name != channel.get('group', ''):
+        name = f"{name} ({group_name})"
+
+    return name or tr('unknown_channel', 'Unknown Channel')
+
+
 def get_resource_path(relative_path: str) -> str:
     """获取资源文件的绝对路径"""
     if getattr(sys, 'frozen', False):
