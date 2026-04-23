@@ -252,6 +252,42 @@ class SubscriptionManager:
             except Exception:
                 return 0
 
+        def _is_same_program(p1, p2):
+            """判断两个节目是否为同一节目的重复记录
+
+            判定条件（满足任一）：
+            1. start和title都相同
+            2. 时间重叠超过节目时长的30%，且清理后标题相同
+            """
+            if p1.get('start') == p2.get('start') and p1.get('title') == p2.get('title'):
+                return True
+
+            t1_clean = _clean_epg_title(p1.get('title', ''))
+            t2_clean = _clean_epg_title(p2.get('title', ''))
+            if not t1_clean or not t2_clean:
+                return False
+            if t1_clean != t2_clean:
+                return False
+
+            overlap = _time_overlap_sec(p1, p2)
+            if overlap <= 0:
+                return False
+
+            try:
+                s1 = datetime.fromisoformat(p1.get('start', ''))
+                e1 = datetime.fromisoformat(p1.get('end', ''))
+                dur1 = (e1 - s1).total_seconds()
+                s2 = datetime.fromisoformat(p2.get('start', ''))
+                e2 = datetime.fromisoformat(p2.get('end', ''))
+                dur2 = (e2 - s2).total_seconds()
+                shorter = min(dur1, dur2)
+                if shorter > 0 and overlap >= shorter * 0.3:
+                    return True
+            except Exception:
+                pass
+
+            return False
+
         merged_data = {}
         total_sources = len(sources)
 
@@ -278,13 +314,13 @@ class SubscriptionManager:
                             for new_prog in cleaned_new:
                                 best_match_idx = -1
                                 best_overlap = 0
-                                new_start_str = new_prog.get('start', '')
 
                                 for j, exist_prog in enumerate(existing_programs):
-                                    overlap = _time_overlap_sec(new_prog, exist_prog)
-                                    if overlap > 180 and overlap > best_overlap:
-                                        best_overlap = overlap
-                                        best_match_idx = j
+                                    if _is_same_program(new_prog, exist_prog):
+                                        overlap = _time_overlap_sec(new_prog, exist_prog)
+                                        if overlap > best_overlap:
+                                            best_overlap = overlap
+                                            best_match_idx = j
 
                                 if best_match_idx >= 0:
                                     exist_title = existing_programs[best_match_idx].get('title', '')
@@ -297,7 +333,7 @@ class SubscriptionManager:
 
                             if dup_count > 0:
                                 logger.debug(
-                                    f"频道 {channel_id}: 时间重叠去重 {dup_count}/{len(cleaned_new)} 个"
+                                    f"频道 {channel_id}: 去重 {dup_count}/{len(cleaned_new)} 个"
                                 )
 
                             merged_data[channel_id] = sorted(
@@ -351,6 +387,57 @@ class SubscriptionManager:
         if status_callback:
             status_callback(f"正在更新EPG源: {source.get('name', '')}")
         
+        import re
+
+        def _clean_epg_title(title):
+            if not title:
+                return title
+            t = title.strip()
+            t = re.sub(r'\s*[-–—]\d{4}[-–—]\d+\s*$', '', t)
+            t = re.sub(r'\s*[-–—]\s*\(\d+\)\s*$', '', t)
+            t = re.sub(r'\s*\(\d+\)\s*$', '', t)
+            return t.strip()
+
+        def _time_overlap_sec(p1, p2):
+            try:
+                s1 = datetime.fromisoformat(p1.get('start', ''))
+                e1 = datetime.fromisoformat(p1.get('end', ''))
+                s2 = datetime.fromisoformat(p2.get('start', ''))
+                e2 = datetime.fromisoformat(p2.get('end', ''))
+                ov_start = max(s1, s2)
+                ov_end = min(e1, e2)
+                if ov_start < ov_end:
+                    return (ov_end - ov_start).total_seconds()
+                return 0
+            except Exception:
+                return 0
+
+        def _is_same_program(p1, p2):
+            if p1.get('start') == p2.get('start') and p1.get('title') == p2.get('title'):
+                return True
+            t1_clean = _clean_epg_title(p1.get('title', ''))
+            t2_clean = _clean_epg_title(p2.get('title', ''))
+            if not t1_clean or not t2_clean:
+                return False
+            if t1_clean != t2_clean:
+                return False
+            overlap = _time_overlap_sec(p1, p2)
+            if overlap <= 0:
+                return False
+            try:
+                s1 = datetime.fromisoformat(p1.get('start', ''))
+                e1 = datetime.fromisoformat(p1.get('end', ''))
+                dur1 = (e1 - s1).total_seconds()
+                s2 = datetime.fromisoformat(p2.get('start', ''))
+                e2 = datetime.fromisoformat(p2.get('end', ''))
+                dur2 = (e2 - s2).total_seconds()
+                shorter = min(dur1, dur2)
+                if shorter > 0 and overlap >= shorter * 0.3:
+                    return True
+            except Exception:
+                pass
+            return False
+
         try:
             data = self._load_single_epg(source['url'])
             
@@ -362,19 +449,38 @@ class SubscriptionManager:
             
             with self._epg_lock:
                 for channel_id, programs in data.items():
+                    for p in programs:
+                        p['title'] = _clean_epg_title(p.get('title', ''))
+
                     if channel_id not in self._epg_data:
                         self._epg_data[channel_id] = programs
                     else:
                         existing_programs = self._epg_data[channel_id]
-                        existing_start_times = {
-                            p.get('start', '')
-                            for p in existing_programs
-                        }
-                        
-                        for program in programs:
-                            if program.get('start') not in existing_start_times:
-                                existing_programs.append(program)
-                        
+                        dup_count = 0
+
+                        for new_prog in programs:
+                            best_match_idx = -1
+                            best_overlap = 0
+
+                            for j, exist_prog in enumerate(existing_programs):
+                                if _is_same_program(new_prog, exist_prog):
+                                    overlap = _time_overlap_sec(new_prog, exist_prog)
+                                    if overlap > best_overlap:
+                                        best_overlap = overlap
+                                        best_match_idx = j
+
+                            if best_match_idx >= 0:
+                                exist_title = existing_programs[best_match_idx].get('title', '')
+                                new_title = new_prog.get('title', '')
+                                if len(new_title) < len(exist_title) and new_title:
+                                    existing_programs[best_match_idx] = new_prog
+                                dup_count += 1
+                            else:
+                                existing_programs.append(new_prog)
+
+                        if dup_count > 0:
+                            logger.debug(f"频道 {channel_id}: 增量去重 {dup_count}/{len(programs)} 个")
+
                         self._epg_data[channel_id] = sorted(
                             self._epg_data[channel_id],
                             key=lambda x: x.get('start', '')

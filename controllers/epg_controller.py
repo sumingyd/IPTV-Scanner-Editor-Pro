@@ -157,16 +157,16 @@ class EPGController:
 
             tr = getattr(self.window.language_manager, 'tr', lambda x, y: x) if hasattr(self.window, 'language_manager') else lambda x, y: x
 
-            # 显示层去重：防止漏网的重复节目（基于 start+title 指纹）
-            seen = []
+            # 显示层去重：防止漏网的重复节目
+            seen = set()
             deduped_list = []
             for program in filtered_list:
                 key = (program.get('start', ''), program.get('title', ''))
                 if key not in seen:
-                    seen.append(key)
+                    seen.add(key)
                     deduped_list.append(program)
             if len(deduped_list) < len(filtered_list):
-                logger.info(f"EPG显示层去重: {len(filtered_list)} -> {len(deduped_list)} 个节目")
+                logger.debug(f"EPG显示层去重: {len(filtered_list)} -> {len(deduped_list)} 个节目")
             filtered_list = deduped_list
 
             # 获取当前时间用于判断节目状态
