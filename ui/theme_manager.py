@@ -63,6 +63,19 @@ class ThemeManager(QtCore.QObject):
             w = w.parent()
         return False
 
+    def _is_in_managed_widget(self, widget):
+        """检查控件是否在有独立样式管理的容器内（标题栏、菜单栏、dock）"""
+        w = widget.parent()
+        while w:
+            if isinstance(w, QtWidgets.QDockWidget):
+                return True
+            if isinstance(w, QtWidgets.QMenuBar):
+                return True
+            if isinstance(w, QtWidgets.QWidget) and w.objectName() == "titleBar":
+                return True
+            w = w.parent()
+        return False
+
     def _update_child_widgets(self, parent: QtWidgets.QWidget):
         style_map = {
             QtWidgets.QPushButton: lambda w: AppStyles.button_style() if not hasattr(w, 'style_type') else (
@@ -84,7 +97,7 @@ class ThemeManager(QtCore.QObject):
         for widget_type, style_func in style_map.items():
             try:
                 for widget in parent.findChildren(widget_type):
-                    if self._is_in_dock(widget):
+                    if self._is_in_managed_widget(widget):
                         continue
                     style = style_func(widget)
                     if style:

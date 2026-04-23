@@ -378,6 +378,25 @@ class SettingsFileOperations:
 
         self.window.setStyleSheet(AppStyles.main_window_style())
 
+        if hasattr(self.window, '_title_bar') and self.window._title_bar:
+            self.window._title_bar.setStyleSheet(AppStyles.title_bar_style())
+        if hasattr(self.window, '_title_label') and self.window._title_label:
+            self.window._title_label.setStyleSheet(AppStyles.title_label_style())
+
+        if hasattr(self.window, '_custom_menu_bar') and self.window._custom_menu_bar:
+            self.window._custom_menu_bar.setStyleSheet(AppStyles.player_menu_bar_style())
+
+        if hasattr(self.window, 'central_widget') and self.window.central_widget:
+            self.window.central_widget.setStyleSheet(AppStyles.player_background_style())
+        if hasattr(self.window, 'video_frame') and self.window.video_frame:
+            self.window.video_frame.setStyleSheet(AppStyles.player_background_style())
+        if hasattr(self.window, 'video_placeholder') and self.window.video_placeholder:
+            self.window.video_placeholder.setStyleSheet(AppStyles.player_video_placeholder_style())
+        if hasattr(self.window, 'status_bar') and self.window.status_bar:
+            self.window.status_bar.setStyleSheet(AppStyles.statusbar_style())
+        if hasattr(self.window, 'toolbar') and self.window.toolbar:
+            self.window.toolbar.setStyleSheet(AppStyles.player_toolbar_style())
+
         for panel_attr in ['epg_dock', 'playlist_dock', 'floating_dock']:
             panel = getattr(self.window, panel_attr, None)
             if panel:
@@ -388,9 +407,8 @@ class SettingsFileOperations:
 
         if hasattr(self.window, '_reapply_floating_panel_styles'):
             self.window._reapply_floating_panel_styles()
-
-        if hasattr(self.window, '_custom_title_bar'):
-            self.window._custom_title_bar.setStyleSheet(AppStyles.title_bar_style())
+        if hasattr(self.window, '_reapply_side_panel_styles'):
+            self.window._reapply_side_panel_styles()
 
         self.window.update()
         QApplication.processEvents()

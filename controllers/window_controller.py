@@ -31,38 +31,11 @@ class WindowController:
     def create_custom_title_bar(self, window_title: str = "IPTV Player Pro"):
         """创建自定义标题栏（与主题颜色一致）"""
         
-        # 获取当前主题颜色
-        colors = AppStyles._get_colors()
-        title_bg = colors.get('window', '#1e1e1e')
-        title_text = colors.get('window_text', '#ffffff')
-        accent_color = colors.get('accent', '#0078d4')
-
         # 标题栏容器
         self._title_bar = QWidget()
         self._title_bar.setFixedHeight(32)
         self._title_bar.setObjectName("titleBar")
-        self._title_bar.setStyleSheet(f"""
-            QWidget#titleBar {{
-                background-color: {title_bg};
-                border-top-left-radius: 10px;
-                border-top-right-radius: 10px;
-            }}
-            QWidget#titleBar > QPushButton {{
-                background-color: transparent;
-                color: {title_text};
-                border: none;
-                font-size: 14px;
-                padding: 4px 12px;
-                margin: 2px;
-                border-radius: 4px;
-            }}
-            QWidget#titleBar > QPushButton:hover {{
-                background-color: {accent_color};
-            }}
-            QWidget#titleBar > QPushButton#closeButton:hover {{
-                background-color: #e81123;
-            }}
-        """)
+        self._title_bar.setStyleSheet(AppStyles.title_bar_style())
 
         # 标题栏布局
         title_layout = QHBoxLayout(self._title_bar)
@@ -79,12 +52,13 @@ class WindowController:
             self._title_icon_label.setPixmap(pixmap)
         else:
             self._title_icon_label.setText("📺")
-            self._title_icon_label.setStyleSheet(f"color: {accent_color}; font-size: 14px; background: transparent;")
+            colors = AppStyles._get_colors()
+            self._title_icon_label.setStyleSheet(f"color: {colors.get('accent', '#0078d4')}; font-size: 14px; background: transparent;")
         self._title_icon_label.setStyleSheet("background: transparent;")
 
         # 窗口标题
         self._title_label = QLabel(window_title)
-        self._title_label.setStyleSheet(f"color: {title_text}; font-size: 13px; font-weight: bold; background: transparent; padding-left: 6px;")
+        self._title_label.setStyleSheet(AppStyles.title_label_style())
 
         # 弹性空间
         title_layout.addWidget(self._title_icon_label)

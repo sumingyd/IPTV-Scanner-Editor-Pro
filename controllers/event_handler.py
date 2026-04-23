@@ -135,17 +135,20 @@ class EventHandler:
             self.window.channel_ctrl.select_channel(item)
 
     def showEvent(self, event):
-        """窗口首次显示后，在下一帧定位悬浮窗"""
-        from core.log_manager import global_logger as logger
-
+        """窗口首次显示后，延迟定位悬浮窗"""
         if hasattr(self.window, 'showEvent'):
             orig_show = type(self.window).__bases__[0].showEvent
             orig_show(self.window, event)
 
-        if not getattr(self.window, '_initial_position_fixed', False):
+        has_panels = (hasattr(self.window, 'epg_dock') and self.window.epg_dock and
+                      hasattr(self.window, 'playlist_dock') and self.window.playlist_dock and
+                      hasattr(self.window, 'floating_dock') and self.window.floating_dock)
+
+        if has_panels and not getattr(self.window, '_initial_position_fixed', False):
             self.window._initial_position_fixed = True
             from PyQt6.QtCore import QTimer
-            QTimer.singleShot(0, self._deferred_position_docks)
+            QTimer.singleShot(50, self._deferred_position_docks)
+            QTimer.singleShot(200, self._deferred_position_docks)
 
     def _deferred_position_docks(self):
         """延迟到事件循环下一帧执行定位（确保主窗口geometry已稳定）"""

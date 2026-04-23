@@ -447,15 +447,15 @@ class IPTVPlayer(QMainWindow):
         register_cleanup(optimize_memory, "optimize_memory")
 
         self._theme_manager.register_window(self)
-        
-        # 添加空格键快捷键，用于播放/暂停
-        # 绑定到应用程序，这样无论哪个窗口获得焦点，快捷键都会响应
+
         from PyQt6.QtWidgets import QApplication
         app = QApplication.instance()
-        # 使用正确的方式创建空格键快捷键
+
+        QTimer.singleShot(100, self._deferred_initial_position)
+        QTimer.singleShot(300, self._deferred_initial_position)
+
         space_shortcut = QShortcut(' ', app)
         space_shortcut.activated.connect(self.toggle_play)
-        # 确保快捷键在所有窗口中都能工作
         space_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
         
         logger.debug("_initialize_in_order: 完成")
@@ -1148,6 +1148,12 @@ class IPTVPlayer(QMainWindow):
         self.update_floating_position()
         
         logger.debug("_update_floating_position: 完成")
+
+    def _deferred_initial_position(self):
+        """初始化完成后的延迟定位，确保布局已稳定"""
+        if not getattr(self, '_initial_position_fixed', False):
+            self._initial_position_fixed = True
+        self.update_floating_position()
     
     def _start_subscription_timers(self):
         """启动订阅更新定时器"""
@@ -2926,6 +2932,9 @@ class IPTVPlayer(QMainWindow):
 
     def _position_floating_docks(self):
         """将3个浮动Dock定位到相对于主窗口的正确位置"""
+        if hasattr(self, '_main_container') and self._main_container.layout():
+            self._main_container.layout().activate()
+
         mw = self.geometry()
         if mw.isEmpty():
             return

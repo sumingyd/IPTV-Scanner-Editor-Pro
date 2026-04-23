@@ -1197,6 +1197,41 @@ class AppStyles:
         return f"background-color: {colors['player_background']};"
 
     @staticmethod
+    def title_bar_style() -> str:
+        colors = AppStyles._get_colors()
+        title_bg = colors.get('window', '#1e1e1e')
+        title_text = colors.get('window_text', '#ffffff')
+        accent_color = colors.get('accent', '#0078d4')
+        return f"""
+            QWidget#titleBar {{
+                background-color: {title_bg};
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;
+            }}
+            QWidget#titleBar > QPushButton {{
+                background-color: transparent;
+                color: {title_text};
+                border: none;
+                font-size: 14px;
+                padding: 4px 12px;
+                margin: 2px;
+                border-radius: 4px;
+            }}
+            QWidget#titleBar > QPushButton:hover {{
+                background-color: {accent_color};
+            }}
+            QWidget#titleBar > QPushButton#closeButton:hover {{
+                background-color: #e81123;
+            }}
+        """
+
+    @staticmethod
+    def title_label_style() -> str:
+        colors = AppStyles._get_colors()
+        title_text = colors.get('window_text', '#ffffff')
+        return f"color: {title_text}; font-size: 13px; font-weight: bold; background: transparent; padding-left: 6px;"
+
+    @staticmethod
     def player_menu_bar_style() -> str:
         colors = AppStyles._get_colors()
         neo = AppStyles.is_neumorphic()
