@@ -154,6 +154,30 @@ class EventHandler:
             app = QApplication.instance()
             if app:
                 app.processEvents()
+
+            config = getattr(self.window, 'config', None)
+            if config:
+                defaults = {
+                    'epg_visible': True,
+                    'playlist_visible': True,
+                    'floating_visible': True,
+                    'epg_width': 280,
+                    'playlist_width': 280,
+                    'floating_width': 1050,
+                }
+                settings = config.load_ui_settings(defaults)
+
+                self.window.epg_visible = settings.get('epg_visible', True)
+                self.window.playlist_visible = settings.get('playlist_visible', True)
+                self.window.floating_panel_visible = settings.get('floating_visible', True)
+
+                if hasattr(self.window, 'epg_dock') and self.window.epg_dock:
+                    self.window.epg_dock.setFixedWidth(max(200, settings.get('epg_width', 280)))
+                if hasattr(self.window, 'playlist_dock') and self.window.playlist_dock:
+                    self.window.playlist_dock.setFixedWidth(max(200, settings.get('playlist_width', 280)))
+                if hasattr(self.window, 'floating_dock') and self.window.floating_dock:
+                    self.window.floating_dock.setFixedWidth(max(600, settings.get('floating_width', 1050)))
+
             self.window.update_floating_position()
         except Exception as e:
             from core.log_manager import global_logger as logger

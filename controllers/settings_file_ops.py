@@ -4,7 +4,7 @@
 """
 
 from typing import Optional
-from PyQt6.QtWidgets import QFileDialog, QMessageBox, QComboBox
+from PyQt6.QtWidgets import QFileDialog, QMessageBox, QComboBox, QApplication
 
 
 class SettingsFileOperations:
@@ -376,11 +376,8 @@ class SettingsFileOperations:
         theme_manager = get_theme_manager()
         theme_manager.set_theme(theme)
 
-        # 刷新主窗口和悬浮窗样式
-        if hasattr(self.window, 'refresh_ui'):
-            self.window.refresh_ui()
+        self.window.setStyleSheet(AppStyles.main_window_style())
 
-        # 重新应用3个停靠面板的面板样式（只应用到内部容器widget）
         for panel_attr in ['epg_dock', 'playlist_dock', 'floating_dock']:
             panel = getattr(self.window, panel_attr, None)
             if panel:
@@ -388,6 +385,15 @@ class SettingsFileOperations:
                 if container and hasattr(container, 'setStyleSheet'):
                     container.setStyleSheet(AppStyles.player_panel_style())
                 panel.update()
+
+        if hasattr(self.window, '_reapply_floating_panel_styles'):
+            self.window._reapply_floating_panel_styles()
+
+        if hasattr(self.window, '_custom_title_bar'):
+            self.window._custom_title_bar.setStyleSheet(AppStyles.title_bar_style())
+
+        self.window.update()
+        QApplication.processEvents()
 
     def show_about(self):
         """显示关于对话框"""
@@ -512,6 +518,19 @@ class SettingsFileOperations:
 
         geometry = self.window.geometry()
 
+        floating_settings = {
+            'epg_visible': getattr(self.window, 'epg_visible', True),
+            'playlist_visible': getattr(self.window, 'playlist_visible', True),
+            'floating_visible': getattr(self.window, 'floating_panel_visible', True),
+        }
+
+        if hasattr(self.window, 'epg_dock') and self.window.epg_dock:
+            floating_settings['epg_width'] = self.window.epg_dock.width()
+        if hasattr(self.window, 'playlist_dock') and self.window.playlist_dock:
+            floating_settings['playlist_width'] = self.window.playlist_dock.width()
+        if hasattr(self.window, 'floating_dock') and self.window.floating_dock:
+            floating_settings['floating_width'] = self.window.floating_dock.width()
+
         config.save_window_layout(
             x=geometry.x(),
             y=geometry.y(),
@@ -519,6 +538,8 @@ class SettingsFileOperations:
             height=geometry.height(),
             dividers=self._get_divider_positions()
         )
+
+        config.save_ui_settings(floating_settings)
 
     def _get_divider_positions(self) -> list:
         """获取分隔条位置列表"""

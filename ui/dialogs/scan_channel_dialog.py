@@ -658,35 +658,31 @@ class ScanChannelDialog(FloatingDialog):
         self.btn_open_list = QtWidgets.QPushButton(tr("open_list", "Open List"))
         self.btn_open_list.setStyleSheet(AppStyles.common_button_style())
         self.btn_open_list.setFixedHeight(32)
-        self.btn_open_list.setFixedWidth(70)
+        self.btn_open_list.setMinimumWidth(60)
         self.btn_open_list.setToolTip(tr("open_list_tooltip", "Import M3U file to channel list for validation"))
 
-        # 有效性检测按钮
         self.btn_validate = QtWidgets.QPushButton(tr("validate_button", "Validate"))
         self.btn_validate.setStyleSheet(AppStyles.common_button_style())
         self.btn_validate.setFixedHeight(32)
-        self.btn_validate.setFixedWidth(60)
+        self.btn_validate.setMinimumWidth(55)
         self.btn_validate.setToolTip(tr("validate_tooltip", "Validate channel effectiveness"))
 
-        # 隐藏无效项按钮
         self.btn_hide_invalid = QtWidgets.QPushButton(tr("hide_invalid_button", "Hide Invalid"))
         self.btn_hide_invalid.setStyleSheet(AppStyles.common_button_style())
         self.btn_hide_invalid.setFixedHeight(32)
-        self.btn_hide_invalid.setFixedWidth(80)
+        self.btn_hide_invalid.setMinimumWidth(70)
         self.btn_hide_invalid.setEnabled(False)
 
-        # 保存M3U按钮
         self.btn_save_m3u = QtWidgets.QPushButton(tr("save_m3u", "Save M3U"))
         self.btn_save_m3u.setStyleSheet(AppStyles.common_button_style())
         self.btn_save_m3u.setFixedHeight(32)
-        self.btn_save_m3u.setFixedWidth(70)
+        self.btn_save_m3u.setMinimumWidth(65)
         self.btn_save_m3u.setToolTip(tr("save_m3u_tooltip", "Save channel list as M3U format"))
 
-        # 保存TXT按钮
         self.btn_save_txt = QtWidgets.QPushButton(tr("save_txt", "Save TXT"))
         self.btn_save_txt.setStyleSheet(AppStyles.common_button_style())
         self.btn_save_txt.setFixedHeight(32)
-        self.btn_save_txt.setFixedWidth(70)
+        self.btn_save_txt.setMinimumWidth(65)
         self.btn_save_txt.setToolTip(tr("save_txt_tooltip", "Save channel list as TXT format"))
 
         toolbar_layout.addWidget(self.btn_open_list)
