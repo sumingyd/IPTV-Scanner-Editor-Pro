@@ -1336,12 +1336,17 @@ class IPTVPlayer(QMainWindow):
 
             themes = theme_manager.get_available_themes()
 
+            from PyQt6.QtGui import QActionGroup
+            theme_group = QActionGroup(self)
+            theme_group.setExclusive(True)
+
             for theme in themes:
                 theme_display = tr(theme, theme)
                 theme_action = QAction(theme_display, self)
                 theme_action.setCheckable(True)
                 theme_action.setChecked(theme == theme_manager.get_current_theme())
                 theme_action.triggered.connect(lambda checked, t=theme: self.set_theme(t))
+                theme_group.addAction(theme_action)
                 theme_menu.addAction(theme_action)
             
             # 帮助菜单
@@ -1970,6 +1975,15 @@ class IPTVPlayer(QMainWindow):
     def set_theme(self, theme: str):
         """设置界面主题（委托给SettingsFileOperations）"""
         self.settings_ops.set_theme(theme)
+
+        if hasattr(self, '_custom_menu_bar'):
+            for action in self._custom_menu_bar.actions():
+                menu = action.menu()
+                if menu:
+                    for sub_action in menu.actions():
+                        if sub_action.isCheckable() and sub_action.text().replace('&', '') == theme:
+                            sub_action.setChecked(True)
+                            return
 
     def show_about(self):
         """显示关于对话框（委托给SettingsFileOperations）"""
