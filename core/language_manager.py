@@ -928,7 +928,7 @@ class LanguageManager(QObject):
             if hasattr(main_window, 'channel_name'):
                 main_window.channel_name.setText(self.tr('no_channel_selected', 'No channel selected'))
             if hasattr(main_window, 'current_program'):
-                main_window.current_program.setText(self.tr('select_channel_to_play', '▶ Select a channel to play'))
+                main_window.current_program.setText("")
             if hasattr(main_window, 'program_desc'):
                 main_window.program_desc.setText(self.tr('open_playlist_or_import', 'Open a playlist file or import channels to start watching'))
             if hasattr(main_window, 'remain_label'):
