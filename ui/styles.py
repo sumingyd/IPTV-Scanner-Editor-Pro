@@ -1188,6 +1188,7 @@ class AppStyles:
                 font-size: 24px;
                 background-color: transparent;
                 color: {colors['player_panel_secondary']};
+                qproperty-alignment: AlignVCenter | AlignHCenter;
             }}
         """
 

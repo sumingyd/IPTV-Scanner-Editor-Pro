@@ -880,69 +880,61 @@ class IPTVPlayer(QMainWindow):
         """创建节目信息行"""
         logger.debug("_create_info_row: 开始")
         tr = self.language_manager.tr
-        
-        # 信息区：上下两行布局
-        self.info_container = QVBoxLayout()
-        self.info_container.setSpacing(4)
-        
-        # === 上行：Logo | 频道名称 | 节目描述 | 时间 ===
-        top_row = QHBoxLayout()
-        top_row.setSpacing(12)
-        
-        # 左侧：频道LOGO
+
+        # 信息区：使用QGridLayout让LOGO跨两行垂直居中
+        info_grid = QtWidgets.QGridLayout()
+        info_grid.setHorizontalSpacing(12)
+        info_grid.setVerticalSpacing(4)
+        info_grid.setContentsMargins(0, 0, 0, 0)
+
+        # 左侧：频道LOGO（跨2行）
         self.channel_logo = QLabel("📺")
         self.channel_logo.setStyleSheet(AppStyles.player_channel_logo_style())
         self.channel_logo.setFixedSize(100, 36)
-        self.channel_logo.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignCenter)
-        self.channel_logo.setScaledContents(True)  # 确保图片缩放并居中
-        top_row.addWidget(self.channel_logo)
-        
-        # 频道名称（按内容宽度，不拉伸）
+        self.channel_logo.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
+        info_grid.addWidget(self.channel_logo, 0, 0, 2, 1, Qt.AlignmentFlag.AlignVCenter)
+
+        # 频道名称
         self.channel_name = QLabel(tr("no_channel_selected", "No channel selected"))
         self.channel_name.setStyleSheet(AppStyles.player_channel_name_style())
-        top_row.addWidget(self.channel_name, 0)
-        
+        info_grid.addWidget(self.channel_name, 0, 1, 1, 1, Qt.AlignmentFlag.AlignVCenter)
+
         # 节目描述（占据剩余空间）
         self.program_desc = QLabel(tr("open_playlist_or_import", "Open a playlist file or import channels to start watching"))
         self.program_desc.setStyleSheet(AppStyles.player_program_desc_style())
         self.program_desc.setWordWrap(True)
         self.program_desc.setMaximumHeight(36)
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-        top_row.addWidget(self.program_desc, 1)
-        
+        info_grid.addWidget(self.program_desc, 0, 2, 1, 1, Qt.AlignmentFlag.AlignVCenter)
+
         # 时间信息
         self.time_label = QLabel("⏱ --:-- - --:--")
         self.time_label.setStyleSheet(AppStyles.player_label_style())
         self.time_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        top_row.addWidget(self.time_label, 0)
-        
-        self.info_container.addLayout(top_row)
-        
-        # === 下行：节目名称（独占整行） | 播放状态 ===
-        bottom_row = QHBoxLayout()
-        bottom_row.setSpacing(12)
-        
-        # 左侧缩进对齐上行（logo宽度）
-        bottom_row.addSpacing(100 + 12)
-        
-        # 节目名称（独占剩余空间）
+        info_grid.addWidget(self.time_label, 0, 3, 1, 1, Qt.AlignmentFlag.AlignVCenter)
+
+        # 节目名称（第二行，跨2列）
         self.current_program = QLabel(tr("select_channel_to_play", "▶ Select a channel to play"))
         self.current_program.setStyleSheet(AppStyles.player_program_style())
         self.current_program.setWordWrap(True)
         self.current_program.setMaximumHeight(36)
         self.current_program.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-        bottom_row.addWidget(self.current_program, 1)
-        
+        info_grid.addWidget(self.current_program, 1, 1, 1, 2, Qt.AlignmentFlag.AlignVCenter)
+
         # 播放状态
         self.remain_label = QLabel(tr("waiting_to_play", "Waiting to play..."))
         self.remain_label.setStyleSheet(AppStyles.player_program_style())
         self.remain_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.remain_label.setMinimumWidth(70)
-        bottom_row.addWidget(self.remain_label, 0)
-        
-        self.info_container.addLayout(bottom_row)
-        
-        self.floating_layout.addLayout(self.info_container)
+        info_grid.addWidget(self.remain_label, 1, 3, 1, 1, Qt.AlignmentFlag.AlignVCenter)
+
+        # 设置列拉伸因子
+        info_grid.setColumnStretch(0, 0)  # LOGO列不拉伸
+        info_grid.setColumnStretch(1, 0)  # 频道名称列不拉伸
+        info_grid.setColumnStretch(2, 1)  # 描述/节目名称列拉伸
+        info_grid.setColumnStretch(3, 0)  # 时间/状态列不拉伸
+
+        self.floating_layout.addLayout(info_grid)
         
         # 分隔线
         line2 = QFrame()
@@ -3527,16 +3519,35 @@ class IPTVPlayer(QMainWindow):
 
     def _reapply_side_panel_styles(self):
         try:
+            if hasattr(self, 'epg_title'):
+                self.epg_title.setStyleSheet(AppStyles.player_epg_title_style())
             if hasattr(self, 'epg_prev_day'):
                 self.epg_prev_day.setStyleSheet(AppStyles.player_date_button_style())
             if hasattr(self, 'epg_next_day'):
                 self.epg_next_day.setStyleSheet(AppStyles.player_date_button_style())
             if hasattr(self, 'epg_date_label'):
                 self.epg_date_label.setStyleSheet(AppStyles.player_date_label_style())
+            if hasattr(self, 'epg_content'):
+                self.epg_content.setStyleSheet(AppStyles.player_list_style())
+            if hasattr(self, 'epg_empty_label'):
+                self.epg_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
             if hasattr(self, 'playlist_title'):
                 self.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
             if hasattr(self, 'group_combo'):
                 self.group_combo.setStyleSheet(AppStyles.player_group_combo_style())
+            if hasattr(self, 'channel_list'):
+                self.channel_list.setStyleSheet(AppStyles.player_list_style())
+                colors = AppStyles._get_colors()
+                name_style = f"font-size: 12px; font-weight: bold; color: {colors['player_panel_text']};"
+                for i in range(self.channel_list.count()):
+                    item = self.channel_list.item(i)
+                    item_widget = self.channel_list.itemWidget(item)
+                    if item_widget:
+                        for label in item_widget.findChildren(QtWidgets.QLabel):
+                            if label.objectName() != "channel_logo_label":
+                                label.setStyleSheet(name_style)
+            if hasattr(self, 'channel_empty_label'):
+                self.channel_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         except Exception as e:
             logger.error(f"重新应用侧边栏样式失败: {e}")
 
