@@ -464,24 +464,13 @@ class MpvPlayerController(QObject):
                 self.play_error.emit("mpv播放器未初始化")
                 return False
 
-            try:
-                if self.mpv_handle:
-                    cmd_stop = [b'stop', None]
-                    cmd_ptr_stop = (ctypes.c_char_p * len(cmd_stop))(*cmd_stop)
-                    libmpv.mpv_command(self.mpv_handle, cmd_ptr_stop)
-                    time.sleep(0.05)
-                    cmd_clear = [b'playlist-clear', None]
-                    cmd_ptr_clear = (ctypes.c_char_p * len(cmd_clear))(*cmd_clear)
-                    libmpv.mpv_command(self.mpv_handle, cmd_ptr_clear)
-            except:
-                pass
-
             if hasattr(self, '_media_info_timer') and self._media_info_timer:
                 self._media_info_timer.stop()
 
             self._media_info_scheduled = False
 
             self._setup_protocol_options(url, program_duration)
+            self._set_mpv_string('prefetch-playlist', 'yes')
 
             cmd = [b'loadfile', url.encode('utf-8'), None]
             cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
@@ -520,20 +509,7 @@ class MpvPlayerController(QObject):
                 self.play_error.emit("mpv播放器未初始化")
                 return False
 
-            try:
-                if self.mpv_handle:
-                    cmd_stop = [b'stop', None]
-                    cmd_ptr_stop = (ctypes.c_char_p * len(cmd_stop))(*cmd_stop)
-                    libmpv.mpv_command(self.mpv_handle, cmd_ptr_stop)
-            except:
-                pass
-
             self._setup_protocol_options(url, program_duration)
-            self._set_mpv_string('prefetch-playlist', 'yes')
-
-            cmd_clear = [b'playlist-clear', None]
-            cmd_ptr_clear = (ctypes.c_char_p * len(cmd_clear))(*cmd_clear)
-            libmpv.mpv_command(self.mpv_handle, cmd_ptr_clear)
 
             cmd = [b'loadfile', url.encode('utf-8'), None]
             cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
