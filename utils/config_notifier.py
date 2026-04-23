@@ -18,7 +18,7 @@ class ConfigChangeNotifier(Singleton):
 
         self._observers: Dict[str, List[Callable]] = {}
         self._initialized = True
-        logger.info("配置变更通知器已初始化")
+        logger.debug("配置变更通知器已初始化")
 
     def register_observer(self, config_key: str, callback: Callable):
         """注册配置变更观察者

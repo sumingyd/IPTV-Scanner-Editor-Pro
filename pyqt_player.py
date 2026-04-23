@@ -1383,7 +1383,7 @@ class IPTVPlayer(QMainWindow):
         self.update_channel_groups()
         self.group_combo.blockSignals(False)
 
-        logger.info(f"populate_channel_list: 开始, CHANNELS 长度={len(CHANNELS)}")
+        logger.debug(f"populate_channel_list: 开始, CHANNELS 长度={len(CHANNELS)}")
 
         if not CHANNELS:
             logger.debug(f"populate_channel_list: CHANNELS为空，显示空提示")

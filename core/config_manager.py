@@ -175,7 +175,7 @@ class ConfigManager:
         if os.path.exists(self.config_file):
             try:
                 self.config.read(self.config_file, encoding='utf-8')
-                logger.info(f"配置管理-成功加载配置文件: {self.config_file}")
+                logger.debug(f"配置管理-成功加载配置文件: {self.config_file}")
                 return True
             except configparser.Error as e:
                 logger.error(f"配置管理-解析配置文件失败: {str(e)}", exc_info=True)
@@ -199,7 +199,7 @@ class ConfigManager:
             
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 self.config.write(f)
-            logger.info(f"配置管理-成功保存配置文件: {self.config_file}")
+            logger.debug(f"配置管理-成功保存配置文件: {self.config_file}")
             return True
         except IOError as e:
             logger.error(f"配置管理-写入配置文件失败: {str(e)}", exc_info=True)
@@ -433,12 +433,13 @@ class ConfigManager:
 
         Args:
             sources: EPG源列表，每个元素为字典格式：
-                    {'url': str, 'name': str}
+                    {'url': str, 'name': str, 'last_update': str|None}
         """
         self.set_value('EPGSources', 'count', str(len(sources)))
         for i, source in enumerate(sources):
             self.set_value('EPGSources', f'url_{i}', source.get('url', ''))
             self.set_value('EPGSources', f'name_{i}', source.get('name', f'EPG {i+1}'))
+            self.set_value('EPGSources', f'last_update_{i}', source.get('last_update', '') or '')
         self._cleanup_legacy_epg_keys()
         return self.save_config()
     
@@ -472,9 +473,10 @@ class ConfigManager:
             if url:
                 sources.append({
                     'url': url,
-                    'name': self.get_value('EPGSources', f'name_{i}', f'EPG {i+1}')
+                    'name': self.get_value('EPGSources', f'name_{i}', f'EPG {i+1}'),
+                    'last_update': self.get_value('EPGSources', f'last_update_{i}', '') or None
                 })
-        
+
         if not sources:
             legacy_url = self.get_value('EPG', 'epg_url', '')
             if legacy_url:
@@ -486,7 +488,19 @@ class ConfigManager:
                 if sources:
                     self.save_epg_sources(sources)
         return sources
-    
+
+    def update_epg_source_last_update(self, index: int, timestamp: str):
+        """更新指定索引EPG源的更新时间
+
+        Args:
+            index: 源索引
+            timestamp: ISO格式时间字符串
+        """
+        sources = self.load_epg_sources()
+        if 0 <= index < len(sources):
+            sources[index]['last_update'] = timestamp
+            self.save_epg_sources(sources)
+
     def save_recent_files(self, recent_files):
         """保存最近打开的文件列表"""
         # 限制最近打开文件的数量为10个

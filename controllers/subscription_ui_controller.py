@@ -26,15 +26,15 @@ class SubscriptionUIController:
         widget = pl_widget or getattr(self.window, 'playlist_list_widget', None)
         epg_w = epg_widget or getattr(self.window, 'epg_list_widget', None)
 
-        if not widget or not epg_w:
-            logger.warning("load_subscription_sources_to_ui: widget 为空，跳过加载")
+        if widget is None or epg_w is None:
+            logger.warning(f"load_subscription_sources_to_ui: widget为空 pl_widget={pl_widget} epg_widget={epg_widget}")
             return
 
         widget.clear()
 
         try:
             playlist_sources = global_subscription_manager.get_playlist_sources()
-            logger.info(f"加载直播源列表: {len(playlist_sources)} 个源")
+            logger.debug(f"加载直播源列表: {len(playlist_sources)} 个源")
         except Exception as e:
             logger.error(f"获取直播源列表失败: {e}")
             playlist_sources = []
@@ -53,7 +53,7 @@ class SubscriptionUIController:
 
         try:
             epg_sources = global_subscription_manager.get_epg_sources()
-            logger.info(f"加载EPG源列表: {len(epg_sources)} 个源")
+            logger.debug(f"加载EPG源列表: {len(epg_sources)} 个源")
         except Exception as e:
             logger.error(f"获取EPG源列表失败: {e}")
             epg_sources = []

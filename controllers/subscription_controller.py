@@ -52,24 +52,22 @@ class SubscriptionController:
                 logger.debug("无播放列表URL，跳过订阅处理")
                 return
 
-            logger.info(f"处理列表订阅: url={playlist_url[:50]}..., need_update={need_update}, source_index={source_index}")
+            logger.debug(f"处理列表订阅: url={playlist_url[:50]}..., need_update={need_update}, source_index={source_index}")
 
             if need_update:
                 logger.info(f"需要更新订阅源，开始下载: {playlist_url[:50]}...")
                 content = self._download_subscription_content(playlist_url)
 
                 if content:
-                    # 保存到本地缓存
                     self._save_to_local_cache(content, playlist_url)
                     self._process_m3u_content(content, playlist_url, source_index)
                 else:
                     logger.warning(f"下载订阅内容为空: {playlist_url}")
             else:
-                logger.info("使用缓存数据，无需更新")
-                # 从本地缓存加载
+                logger.debug("使用缓存数据，无需更新")
                 cached_content = self._load_from_local_cache(playlist_url)
                 if cached_content:
-                    logger.info("从本地缓存加载M3U数据")
+                    logger.debug("从本地缓存加载M3U数据")
                     self._process_m3u_content(cached_content, playlist_url, source_index)
                 else:
                     logger.warning("本地缓存不存在，强制重新下载")
@@ -380,25 +378,23 @@ class SubscriptionController:
             if source.get('url') == playlist_url:
                 # 判断是否需要更新（基于缓存机制）
                 need_update = self._should_update_source(source, i)
-                logger.info(f"订阅源 '{source.get('name', '')}' 需要更新: {need_update}")
+                logger.debug(f"订阅源 '{source.get('name', '')}' 需要更新: {need_update}")
                 self.handle_playlist_subscription(need_update, playlist_url, i)
                 break
 
         final_need_epg = [True]
 
         def status_callback(msg):
-            logger.info(f"EPG加载状态: {msg}")
+            logger.debug(f"EPG加载状态: {msg}")
 
-        # 优先使用缓存，避免每次启动都重新下载
         if global_subscription_manager.is_epg_valid():
-            logger.info("EPG缓存有效，从本地缓存加载")
+            logger.debug("EPG缓存有效，从本地缓存加载")
             cached_loaded = global_subscription_manager.load_cached_epg_data()
             if cached_loaded:
                 main_module = sys.modules.get('__main__')
                 if main_module:
                     main_module.EPG_DATA = global_subscription_manager._epg_data
                 success = True
-                logger.info(f"EPG缓存加载成功: {len(global_subscription_manager._epg_data)} 个频道")
             else:
                 logger.warning("EPG缓存加载失败，重新下载")
                 success = global_subscription_manager.load_all_epg_data(status_callback)
@@ -418,45 +414,39 @@ class SubscriptionController:
 
     def _on_subscription_finished(self, result):
         """订阅更新完成回调 - 重新填充频道列表和EPG（在主线程中执行）"""
-        logger.info("订阅数据加载完成，准备刷新UI")
+        logger.debug("订阅数据加载完成，准备刷新UI")
 
-        # 使用 QTimer.singleShot 确保在主线程中执行所有 UI 操作
         def refresh_ui():
             try:
                 main_module = sys.modules.get('__main__')
                 app_state = getattr(__import__('core.application_state', fromlist=['application_state']), 'app_state', None)
 
-                # 调试：检查 CHANNELS 的实际状态
                 channels_count = 0
                 if main_module:
                     channels_in_main = getattr(main_module, 'CHANNELS', None)
                     channels_count = len(channels_in_main) if channels_in_main else 0
-                    logger.info(f"刷新UI: __main__.CHANNELS 包含 {channels_count} 个频道")
+                    logger.debug(f"刷新UI: __main__.CHANNELS 包含 {channels_count} 个频道")
 
                 if app_state:
                     channels_in_state = getattr(app_state, '_channels', None)
                     state_count = len(channels_in_state) if channels_in_state else 0
-                    logger.info(f"刷新UI: app_state._channels 包含 {state_count} 个频道")
+                    logger.debug(f"刷新UI: app_state._channels 包含 {state_count} 个频道")
 
-                # 1. 更新最近文件菜单
                 if hasattr(self.window, 'update_recent_files_menu'):
                     self.window.update_recent_files_menu()
 
-                # 2. 填充频道列表和EPG列表（_populate_channel_list 内部已包含 _populate_epg_list）
                 if hasattr(self.window, '_populate_channel_list'):
                     self.window._populate_channel_list()
-                    logger.info("刷新UI: 频道列表和EPG列表已填充")
+                    logger.debug("刷新UI: 频道列表和EPG列表已填充")
 
-                # 5. 更新悬浮窗位置（确保高度计算正确）
                 if hasattr(self.window, '_update_floating_position'):
                     self.window._update_floating_position()
-                    logger.info("刷新UI: 悬浮窗位置已更新")
+                    logger.debug("刷新UI: 悬浮窗位置已更新")
 
-                # 6. 显示状态栏消息
                 if hasattr(self.window, 'status_bar_show_message'):
                     tr = getattr(self.window.language_manager, 'tr', lambda x, y: y) if hasattr(self.window, 'language_manager') else lambda x, y: y
                     self.window.status_bar_show_message(tr("channels_loaded", "Channels loaded: {count}").format(count=channels_count))
-                    logger.info(f"刷新UI: 状态栏已更新: {channels_count} 个频道")
+                    logger.debug(f"刷新UI: 状态栏已更新: {channels_count} 个频道")
 
             except Exception as e:
                 logger.error(f"刷新UI失败: {e}", exc_info=True)

@@ -198,6 +198,15 @@ class SubscriptionManager:
                 source['name'] = name
             self._config.save_epg_sources(sources)
             logger.info(f"已更新EPG源: {source.get('name', 'Unknown')} ({url})")
+
+    def update_epg_source_last_update(self, index: int, timestamp: str):
+        """更新指定索引EPG源的更新时间
+
+        Args:
+            index: 源索引
+            timestamp: ISO格式时间字符串
+        """
+        self._config.update_epg_source_last_update(index, timestamp)
     
     def load_all_epg_data(self, status_callback=None) -> bool:
         """加载并整合所有EPG源的数据
@@ -297,6 +306,7 @@ class SubscriptionManager:
                             )
 
                     logger.info(f"成功加载EPG源: {source.get('name', '')}, 包含 {len(data)} 个频道")
+                    self.update_epg_source_last_update(i, datetime.now().isoformat())
                 else:
                     logger.warning(f"EPG源加载失败或无数据: {source.get('name', '')}")
 
@@ -376,6 +386,7 @@ class SubscriptionManager:
             total_programs = sum(len(progs) for progs in self._epg_data.values())
             
             logger.info(f"EPG源增量更新成功: {source.get('name', '')}, 包含 {len(data)} 个频道, 合并后共 {total_channels} 个频道, {total_programs} 个节目")
+            self.update_epg_source_last_update(index, datetime.now().isoformat())
             
             if status_callback:
                 status_callback(f"EPG源更新完成: {total_channels} 个频道, {total_programs} 个节目")
@@ -750,7 +761,7 @@ class SubscriptionManager:
                 self._epg_data = data
                 self._last_epg_update = datetime.now()
             
-            logger.info(f"从缓存加载EPG数据成功: {len(data)} 个频道")
+            logger.debug(f"从缓存加载EPG数据成功: {len(data)} 个频道")
             return True
         except Exception as e:
             logger.error(f"加载EPG缓存失败: {e}")

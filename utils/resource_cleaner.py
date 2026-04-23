@@ -21,7 +21,7 @@ class ResourceCleaner(Singleton):
         self._lock = threading.Lock()
         self._initialized = True
 
-        logger.info("资源清理器已初始化")
+        logger.debug("资源清理器已初始化")
 
     def register_cleanup_handler(self, handler: Callable, name: Optional[str] = None):
         """注册清理处理器"""

@@ -861,7 +861,7 @@ class LanguageManager(QObject):
             }
 
         loaded_languages = list(self.available_languages.keys())
-        logger.info(f"成功加载 {len(loaded_languages)} 种内置语言: {', '.join(loaded_languages)}")
+        logger.debug(f"成功加载 {len(loaded_languages)} 种内置语言: {', '.join(loaded_languages)}")
 
         self._languages_loaded = True
         return self.available_languages

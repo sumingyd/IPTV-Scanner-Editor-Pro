@@ -4,7 +4,7 @@
 """
 
 from typing import Optional
-from PyQt6.QtWidgets import QFileDialog, QMessageBox
+from PyQt6.QtWidgets import QFileDialog, QMessageBox, QComboBox
 
 
 class SettingsFileOperations:
@@ -126,6 +126,7 @@ class SettingsFileOperations:
 
         playlist_interval_label = QLabel(tr("update_interval_colon", "Update interval (minutes):"))
         playlist_interval_combo = QComboBox()
+        playlist_interval_combo.setObjectName("playlist_interval_combo")
         playlist_interval_combo.addItems(["15", "30", "60", "120", "240", "480", "720"])
 
         if hasattr(self.window, 'config'):
@@ -176,6 +177,7 @@ class SettingsFileOperations:
 
         epg_interval_label = QLabel(tr("update_interval_colon", "Update interval (minutes):"))
         epg_interval_combo = QComboBox()
+        epg_interval_combo.setObjectName("epg_interval_combo")
         epg_interval_combo.addItems(["15", "30", "60", "120", "240", "480", "720"])
 
         if hasattr(self.window, 'config'):
@@ -197,7 +199,7 @@ class SettingsFileOperations:
         save_button = QPushButton(tr("save_button", "Save"))
         cancel_button = QPushButton(tr("cancel_button", "Cancel"))
 
-        save_button.clicked.connect(dialog.close)
+        save_button.clicked.connect(lambda: self._save_and_close_settings(dialog))
         cancel_button.clicked.connect(dialog.close)
 
         button_layout.addStretch()
@@ -238,6 +240,100 @@ class SettingsFileOperations:
             self.window._center_dialog_on_screen(dialog)
 
         dialog.exec()
+
+    def _save_and_close_settings(self, dialog):
+        """保存订阅设置并关闭对话框"""
+        try:
+            from core.subscription_manager import global_subscription_manager
+            from PyQt6 import QtCore
+
+            old_playlist_sources = global_subscription_manager.get_playlist_sources()
+            old_epg_sources = global_subscription_manager.get_epg_sources()
+            old_active_index = global_subscription_manager.get_active_playlist_source_index()
+
+            new_playlist_sources = []
+            pl_widget = getattr(self.window, 'playlist_list_widget', None)
+            if pl_widget:
+                for i in range(pl_widget.count()):
+                    item = pl_widget.item(i)
+                    source_data = item.data(QtCore.Qt.ItemDataRole.UserRole)
+                    if source_data:
+                        source_data['enabled'] = item.checkState() == QtCore.Qt.CheckState.Checked
+                        new_playlist_sources.append(source_data)
+
+            if new_playlist_sources:
+                global_subscription_manager._config.save_playlist_sources(new_playlist_sources)
+
+            new_epg_sources = []
+            epg_widget = getattr(self.window, 'epg_list_widget', None)
+            if epg_widget:
+                for i in range(epg_widget.count()):
+                    item = epg_widget.item(i)
+                    source_data = item.data(QtCore.Qt.ItemDataRole.UserRole)
+                    if source_data:
+                        new_epg_sources.append(source_data)
+
+            if new_epg_sources:
+                global_subscription_manager._config.save_epg_sources(new_epg_sources)
+
+            pl_interval_combo = dialog.findChild(QComboBox, "playlist_interval_combo")
+            if pl_interval_combo:
+                self.window.config.set_value('PlaylistSources', 'update_interval', pl_interval_combo.currentText())
+
+            epg_interval_combo = dialog.findChild(QComboBox, "epg_interval_combo")
+            if epg_interval_combo:
+                self.window.config.set_value('EPGSources', 'update_interval', epg_interval_combo.currentText())
+
+            new_active_index = -1
+            for i, s in enumerate(new_playlist_sources):
+                if s.get('enabled'):
+                    new_active_index = i
+                    break
+            if new_active_index < 0 and new_playlist_sources:
+                new_active_index = 0
+
+            playlist_changed = False
+            if len(old_playlist_sources) != len(new_playlist_sources):
+                playlist_changed = True
+            elif old_active_index != new_active_index:
+                playlist_changed = True
+            else:
+                for old_s, new_s in zip(old_playlist_sources, new_playlist_sources):
+                    if old_s.get('url') != new_s.get('url') or old_s.get('enabled') != new_s.get('enabled'):
+                        playlist_changed = True
+                        break
+
+            if playlist_changed:
+                import threading
+                active = global_subscription_manager.get_active_playlist_source()
+                if active:
+                    threading.Thread(
+                        target=self.window._handle_playlist_subscription,
+                        args=(True,),
+                        daemon=True
+                    ).start()
+
+            epg_changed = False
+            if len(old_epg_sources) != len(new_epg_sources):
+                epg_changed = True
+            else:
+                for old_s, new_s in zip(old_epg_sources, new_epg_sources):
+                    if old_s.get('url') != new_s.get('url'):
+                        epg_changed = True
+                        break
+
+            if epg_changed:
+                import threading
+                threading.Thread(
+                    target=global_subscription_manager.load_all_epg_data,
+                    daemon=True
+                ).start()
+
+            dialog.close()
+        except Exception as e:
+            from core.log_manager import global_logger as logger
+            logger.error(f"保存订阅设置失败: {e}")
+            dialog.close()
 
     def reload_subscription(self):
         """重新加载订阅源"""
