@@ -493,7 +493,7 @@ class MpvPlayerController(QObject):
 
             self._schedule_media_info_start()
 
-            self.logger.info(f"开始播放: {url}")
+            self.logger.debug(f"开始播放: {url}")
             return True
         except Exception as e:
             error_msg = f"播放失败: {str(e)}"
@@ -533,7 +533,7 @@ class MpvPlayerController(QObject):
             self.play_state_changed.emit(True)
             self._get_media_info(url)
 
-            self.logger.info(f"开始播放(预取模式): {url}")
+            self.logger.debug(f"开始播放(预取模式): {url}")
             return True
         except Exception as e:
             self.logger.error(f"预取播放失败: {str(e)}")

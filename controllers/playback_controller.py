@@ -165,7 +165,7 @@ class PlaybackController:
         
         try:
             from core.log_manager import global_logger as logger
-            logger.info(f"play_channel: 开始切换频道 {channel.get('name', '?')} url={channel.get('url', '?')}")
+            logger.debug(f"play_channel: 开始切换频道 {channel.get('name', '?')} url={channel.get('url', '?')}")
             self._do_play_channel(channel)
         finally:
             QTimer.singleShot(500, lambda: setattr(self, '_is_switching', False))

@@ -45,7 +45,7 @@ class EPGController:
         # 获取当前频道信息
         channel_name = self.window.current_channel.get("name", "")
         tvg_id = self.window.current_channel.get("tvg_id", "")
-        logger.info(f"EPG填充: 频道名称={channel_name}, tvg_id={tvg_id}")
+        logger.debug(f"EPG填充: 频道名称={channel_name}, tvg_id={tvg_id}")
 
         epg_list = []
 
@@ -56,7 +56,7 @@ class EPGController:
                 if epg_list:
                     from datetime import datetime
                     epg_list.sort(key=lambda x: datetime.fromisoformat(x.get('start', '')))
-                    logger.info(f"EPG填充: 从epg_parser获取到 {len(epg_list)} 个节目")
+                    logger.debug(f"EPG填充: 从epg_parser获取到 {len(epg_list)} 个节目")
                 else:
                     logger.debug(f"EPG填充: epg_parser未找到频道 {channel_name} 的数据")
             except Exception as e:
@@ -147,7 +147,7 @@ class EPGController:
                     logger.info(f"EPG: {target_date} 无节目数据，显示全部 ({len(epg_list)} 个)")
                     filtered_list = epg_list
             else:
-                logger.info(f"EPG: 按日期 {target_date} 过滤，{len(epg_list)} -> {len(filtered_list)} 个节目")
+                logger.debug(f"EPG: 按日期 {target_date} 过滤，{len(epg_list)} -> {len(filtered_list)} 个节目")
 
             if hasattr(self.window, 'epg_empty_label'):
                 if not filtered_list and is_browsing_other_date:
@@ -369,7 +369,7 @@ class EPGController:
                         item,
                         self.window.epg_content.ScrollHint.PositionAtCenter
                     )
-                    logger.info(f"EPG已定位到第 {current_index + 1} 个节目（居中显示）")
+                    logger.debug(f"EPG已定位到第 {current_index + 1} 个节目（居中显示）")
 
         QTimer.singleShot(100, do_scroll)
 
