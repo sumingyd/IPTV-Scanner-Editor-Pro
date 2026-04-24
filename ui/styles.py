@@ -2279,6 +2279,8 @@ class AppStyles:
                 font-size: 12px;
             }}
         """
+
+    @staticmethod
     def table_style() -> str:
         return AppStyles.list_style()
 
