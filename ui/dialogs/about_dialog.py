@@ -12,7 +12,7 @@ from ..floating_dialog import FloatingDialog
 
 
 class AboutDialog(FloatingDialog):
-    CURRENT_VERSION = "46.0.0.0"
+    CURRENT_VERSION = "46.0.0.1"
     DEFAULT_VERSION = None
     BUILD_DATE = "2026-04-24"
 
