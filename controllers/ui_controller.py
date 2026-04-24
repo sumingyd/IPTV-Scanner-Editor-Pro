@@ -30,6 +30,8 @@ class UIController:
         else:
             self._osd_visible = checked
 
+        self.window._osd_visible = self._osd_visible
+
         if hasattr(self.window, '_osd_menu_action') and self.window._osd_menu_action:
             self.window._osd_menu_action.setChecked(self._osd_visible)
 
@@ -343,9 +345,6 @@ class UIController:
         self.window.playlist_visible = False
         self.window.floating_panel_visible = False
 
-        if hasattr(self.window, '_osd_menu_action') and self.window._osd_menu_action:
-            self.window._osd_menu_action.setChecked(False)
-
     def handle_mouse_activity(self):
         """处理鼠标活动，恢复隐藏的悬浮窗（只恢复用户未手动修改的面板）"""
         if not getattr(self.window, '_auto_hidden', False):
@@ -366,9 +365,6 @@ class UIController:
             if not self.window.floating_panel.isVisible() and not self.window.floating_panel_visible:
                 self.window.floating_panel.show()
                 self.window.floating_panel_visible = True
-
-        if hasattr(self.window, '_osd_menu_action') and self.window._osd_menu_action:
-            self.window._osd_menu_action.setChecked(True)
 
     def reapply_all_styles(self):
         """重新应用所有样式（用于主题切换后）"""

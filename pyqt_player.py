@@ -1152,6 +1152,7 @@ class IPTVPlayer(QMainWindow):
     
     def _populate_channel_list(self, source='subscription'):
         """填充频道列表（带防重复机制）"""
+        import time
         current_time = time.time()
         if hasattr(self, '_last_populate_time') and current_time - self._last_populate_time < 0.5:
             logger.debug(f"_populate_channel_list: 跳过重复调用（距上次{current_time - self._last_populate_time:.2f}秒）")
