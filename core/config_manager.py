@@ -278,17 +278,19 @@ class ConfigManager:
                 settings[key] = default_value
         return settings
 
-    def save_player_settings(self, volume: int, mute: bool = False):
+    def save_player_settings(self, volume: int, mute: bool = False, aspect_ratio: str = 'default'):
         """保存播放器设置"""
         self.set_value('Player', 'volume', str(volume))
         self.set_value('Player', 'mute', str(mute))
+        self.set_value('Player', 'aspect_ratio', aspect_ratio)
         return self.save_config()
 
     def load_player_settings(self) -> dict:
         """加载播放器设置"""
         return {
             'volume': int(self.get_value('Player', 'volume', '50') or '50'),
-            'mute': self.get_value('Player', 'mute', 'False').lower() == 'true'
+            'mute': self.get_value('Player', 'mute', 'False').lower() == 'true',
+            'aspect_ratio': self.get_value('Player', 'aspect_ratio', 'default') or 'default'
         }
 
     def save_list_settings(self, auto_save: bool = True, backup_count: int = 3):

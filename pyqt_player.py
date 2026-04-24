@@ -635,6 +635,7 @@ class IPTVPlayer(QMainWindow):
         self._timeshift_start_time = None
 
         self._load_last_channel()
+        self._restore_aspect_ratio()
 
         logger.debug("_init_player: 完成")
     
@@ -4209,6 +4210,30 @@ class IPTVPlayer(QMainWindow):
         labels = {'default': '📐', '16:9': '16:9', '4:3': '4:3', 'stretch': '↔', 'fill': '⬛'}
         if hasattr(self, 'aspect_button'):
             self.aspect_button.setText(labels.get(ratio, '📐'))
+        self._save_aspect_ratio(ratio)
+
+    def _save_aspect_ratio(self, ratio):
+        try:
+            self.config.set_value('Player', 'aspect_ratio', ratio)
+            self.config.save_config()
+        except Exception:
+            pass
+
+    def _restore_aspect_ratio(self):
+        try:
+            ratio = self.config.get_value('Player', 'aspect_ratio', 'default') or 'default'
+            if ratio in self._ASPECT_CYCLE:
+                self._current_aspect_idx = self._ASPECT_CYCLE.index(ratio)
+            else:
+                self._current_aspect_idx = 0
+                ratio = 'default'
+            if self.player_controller:
+                self.player_controller.set_aspect_ratio(ratio)
+            labels = {'default': '📐', '16:9': '16:9', '4:3': '4:3', 'stretch': '↔', 'fill': '⬛'}
+            if hasattr(self, 'aspect_button'):
+                self.aspect_button.setText(labels.get(ratio, '📐'))
+        except Exception:
+            pass
 
 # 主函数
 if __name__ == "__main__":
