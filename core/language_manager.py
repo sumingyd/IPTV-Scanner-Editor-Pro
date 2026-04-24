@@ -317,6 +317,8 @@ BUILTIN_TRANSLATIONS = {
         'unnamed': '未命名',
         'uncategorized': '未分类',
         'all_channels': '全部频道',
+        'subscription_tab': '📡 订阅',
+        'local_tab': '📂 本地',
         'media_info_label': '📺 媒体信息',
         'epg_url_colon': 'EPG节目单URL:',
         'epg_source_colon': 'EPG节目单来源:',
@@ -733,6 +735,8 @@ BUILTIN_TRANSLATIONS = {
         'unnamed': 'Unnamed',
         'uncategorized': 'Uncategorized',
         'all_channels': 'All Channels',
+        'subscription_tab': '📡 Subscription',
+        'local_tab': '📂 Local',
         'media_info_label': '📺 Media Info',
         'epg_url_colon': 'EPG URL:',
         'epg_source_colon': 'EPG Source:',
@@ -913,10 +917,13 @@ class LanguageManager(QObject):
             if hasattr(main_window, 'epg_empty_label'):
                 main_window.epg_empty_label.setText(self.tr('no_epg_data', 'No program information'))
 
-            if hasattr(main_window, 'playlist_title'):
-                main_window.playlist_title.setText(f"📺 {self.tr('channel_list', 'Channel List')}")
-            if hasattr(main_window, 'channel_empty_label'):
-                main_window.channel_empty_label.setText(self.tr('no_channels', 'No channels'))
+            if hasattr(main_window, 'playlist_tab'):
+                main_window.playlist_tab.setTabText(0, self.tr('subscription_tab', '📡 Subscription'))
+                main_window.playlist_tab.setTabText(1, self.tr('local_tab', '📂 Local'))
+            for empty_attr in ['sub_empty_label', 'local_empty_label']:
+                el = getattr(main_window, empty_attr, None)
+                if el:
+                    el.setText(self.tr('no_channels', 'No channels'))
 
             if hasattr(main_window, 'video_info'):
                 main_window.video_info.setText(f"📺 {self.tr('not_playing', 'Not playing')}")

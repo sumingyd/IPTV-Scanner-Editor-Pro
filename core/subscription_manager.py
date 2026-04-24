@@ -703,62 +703,65 @@ class SubscriptionManager:
             logger.error(f"XML格式EPG解析失败: {e}")
             return {}
     
-    def get_channel_epg(self, channel_name: str, tvg_id: str | None = None) -> list:
-        """获取频道的EPG节目列表
+    def get_channel_epg(self, channel_name: str, tvg_id: str | None = None,
+                        tvg_name: str | None = None, comma_name: str | None = None) -> list:
+        """获取频道的EPG节目列表（仅精确匹配）
+
+        匹配优先级：
+        1. tvg-name 精确匹配
+        2. tvg-id 精确匹配
+        3. m3u标签行逗号后的频道名字精确匹配
+        4. channel_name 精确匹配
 
         Args:
             channel_name: 频道名称
             tvg_id: TVG-ID（可选）
+            tvg_name: TVG-NAME（可选）
+            comma_name: m3u标签行逗号后的频道名字（可选）
 
         Returns:
             节目列表
         """
         with self._epg_lock:
+            # 优先级1: tvg-name 精确匹配
+            if tvg_name:
+                if tvg_name in self._epg_data:
+                    return self._epg_data[tvg_name]
+
+            # 优先级2: tvg-id 精确匹配
             if tvg_id:
                 if tvg_id in self._epg_data:
                     return self._epg_data[tvg_id]
-                
-                tvg_id_lower = tvg_id.lower()
-                for epg_channel_id, programs in self._epg_data.items():
-                    if epg_channel_id.lower() == tvg_id_lower:
-                        return programs
-            
+
+            # 优先级3: comma_name 精确匹配
+            if comma_name:
+                if comma_name in self._epg_data:
+                    return self._epg_data[comma_name]
+
+            # 优先级4: channel_name 精确匹配
             if channel_name:
                 if channel_name in self._epg_data:
                     return self._epg_data[channel_name]
-            
+
+            # 通过 EpgMatcher 进行精确匹配（匹配 epg_display_name）
             try:
                 from services.epg_matcher import EpgMatcher
                 epg_channels = {epg_id: epg_id for epg_id in self._epg_data.keys()}
-                matched_id = EpgMatcher.match(channel_name, epg_channels, tvg_id=tvg_id)
+                matched_id = EpgMatcher.match(
+                    channel_name, epg_channels,
+                    tvg_id=tvg_id, tvg_name=tvg_name, comma_name=comma_name
+                )
                 if matched_id and matched_id in self._epg_data:
                     return self._epg_data[matched_id]
             except Exception as ex:
                 logger.warning(f"EpgMatcher 匹配异常: {ex}")
-            
-            if channel_name:
-                channel_name_lower = channel_name.lower()
-                for epg_channel_id, programs in self._epg_data.items():
-                    epg_lower = epg_channel_id.lower()
-                    if len(channel_name_lower) >= 3 and (
-                        channel_name_lower in epg_lower or epg_lower in channel_name_lower
-                    ):
-                        if len(channel_name_lower) >= len(epg_lower) * 0.7 or \
-                           len(epg_lower) >= len(channel_name_lower) * 0.7:
-                            return programs
+
             return []
     
-    def get_current_program(self, channel_name: str, tvg_id: str | None = None) -> dict | None:
-        """获取当前正在播放的节目
-
-        Args:
-            channel_name: 频道名称
-            tvg_id: TVG-ID（可选）
-
-        Returns:
-            当前节目信息字典，如果没有则返回None
-        """
-        epg_list = self.get_channel_epg(channel_name, tvg_id)
+    def get_current_program(self, channel_name: str, tvg_id: str | None = None,
+                            tvg_name: str | None = None, comma_name: str | None = None) -> dict | None:
+        """获取当前正在播放的节目"""
+        epg_list = self.get_channel_epg(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
         if not epg_list:
             return None
         
@@ -773,17 +776,10 @@ class SubscriptionManager:
                 continue
         return None
     
-    def get_next_program(self, channel_name: str, tvg_id: str | None = None) -> dict | None:
-        """获取下一个节目
-
-        Args:
-            channel_name: 频道名称
-            tvg_id: TVG-ID（可选）
-
-        Returns:
-            下一个节目信息字典，如果没有则返回None
-        """
-        epg_list = self.get_channel_epg(channel_name, tvg_id)
+    def get_next_program(self, channel_name: str, tvg_id: str | None = None,
+                         tvg_name: str | None = None, comma_name: str | None = None) -> dict | None:
+        """获取下一个节目"""
+        epg_list = self.get_channel_epg(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
         if not epg_list:
             return None
         

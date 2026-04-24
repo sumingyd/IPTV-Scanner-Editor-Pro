@@ -45,14 +45,25 @@ class EPGController:
         # 获取当前频道信息
         channel_name = self.window.current_channel.get("name", "")
         tvg_id = self.window.current_channel.get("tvg_id", "")
-        logger.debug(f"EPG填充: 频道名称={channel_name}, tvg_id={tvg_id}")
+        all_tags = self.window.current_channel.get("_all_tags", {})
+        tvg_name = all_tags.get("tvg-name", "")
+
+        comma_name = ''
+        raw_extinf = self.window.current_channel.get('_raw_extinf', '')
+        if raw_extinf and ',' in raw_extinf:
+            comma_name = raw_extinf.split(',', 1)[-1].strip()
+            if comma_name.startswith('"') and comma_name.endswith('"'):
+                comma_name = comma_name[1:-1]
+
+        logger.debug(f"EPG填充: 频道名称={channel_name}, tvg_id={tvg_id}, tvg_name={tvg_name}, comma_name={comma_name}")
 
         epg_list = []
 
-        # 优先从epg_parser获取数据（最可靠的方式）
         if hasattr(self.window, 'epg_parser') and self.window.epg_parser:
             try:
-                epg_list = self.window.epg_parser.get_channel_epg(channel_name, tvg_id)
+                epg_list = self.window.epg_parser.get_channel_epg(
+                    channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name
+                )
                 if epg_list:
                     from datetime import datetime
                     epg_list.sort(key=lambda x: datetime.fromisoformat(x.get('start', '')))

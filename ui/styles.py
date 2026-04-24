@@ -1108,6 +1108,34 @@ class AppStyles:
         """
 
     @staticmethod
+    def player_tab_style() -> str:
+        colors = AppStyles._get_colors()
+        return f"""
+            QTabWidget::pane {{
+                border: none;
+                background-color: transparent;
+            }}
+            QTabBar::tab {{
+                background-color: {colors['player_combo']};
+                color: {colors['player_panel_text']};
+                padding: 5px 10px;
+                border: 1px solid {colors['player_line']};
+                border-bottom: none;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+                font-size: 11px;
+                min-width: 90px;
+            }}
+            QTabBar::tab:selected {{
+                background-color: {colors['player_accent']};
+                color: white;
+            }}
+            QTabBar::tab:hover:!selected {{
+                background-color: {colors['player_panel']};
+            }}
+        """
+
+    @staticmethod
     def player_playlist_title_style() -> str:
         colors = AppStyles._get_colors()
         return f"""

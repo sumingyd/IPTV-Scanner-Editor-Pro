@@ -4,6 +4,7 @@
 """
 
 from typing import Optional
+import threading
 from PyQt6.QtWidgets import QFileDialog, QMessageBox, QComboBox, QApplication
 
 
@@ -304,12 +305,20 @@ class SettingsFileOperations:
                         break
 
             if playlist_changed:
-                import threading
                 active = global_subscription_manager.get_active_playlist_source()
                 if active:
+                    source_index = global_subscription_manager.get_active_playlist_source_index()
+
+                    def _reload_playlist_and_refresh():
+                        self.window._handle_playlist_subscription(True, active.get('url', ''), source_index)
+                        from PyQt6.QtCore import QMetaObject, Qt, QThread
+                        if QThread.currentThread() != self.window.thread():
+                            QMetaObject.invokeMethod(self.window, "_do_on_playlist_updated_in_main_thread", Qt.ConnectionType.QueuedConnection)
+                        else:
+                            self.window._do_on_playlist_updated_in_main_thread()
+
                     threading.Thread(
-                        target=self.window._handle_playlist_subscription,
-                        args=(True,),
+                        target=_reload_playlist_and_refresh,
                         daemon=True
                     ).start()
 
@@ -323,7 +332,6 @@ class SettingsFileOperations:
                         break
 
             if epg_changed:
-                import threading
                 threading.Thread(
                     target=global_subscription_manager.load_all_epg_data,
                     daemon=True
@@ -337,8 +345,8 @@ class SettingsFileOperations:
 
     def reload_subscription(self):
         """重新加载订阅源"""
-        if hasattr(self.window, '_handle_playlist_subscription'):
-            self.window._handle_playlist_subscription(need_update=True)
+        if hasattr(self.window, 'subscription_ctrl'):
+            self.window.subscription_ctrl.reload_subscription()
 
     def set_language(self, language: str):
         """切换语言"""
@@ -582,8 +590,21 @@ class SettingsFileOperations:
             if hasattr(self.window, 'channels'):
                 self.window.channels = channels
 
-            if hasattr(self.window, 'channel_ctrl'):
-                self.window.channel_ctrl.populate_channel_list()
+            import sys
+            main_module = sys.modules.get('__main__')
+            if main_module and hasattr(main_module, 'CHANNELS'):
+                main_module.CHANNELS.clear()
+                main_module.CHANNELS.extend(channels)
+
+            from core.application_state import app_state
+            app_state._channels.clear()
+            app_state._channels.extend(channels)
+
+            if hasattr(self.window, 'playlist_tab'):
+                self.window.playlist_tab.setCurrentIndex(1)
+
+            if hasattr(self.window, 'populate_channel_list'):
+                self.window.populate_channel_list(source='local')
 
             from core.log_manager import global_logger as logger
             logger.info(f"成功加载播放列表: {file_path}, 共 {len(channels)} 个频道")
@@ -634,10 +655,15 @@ class SettingsFileOperations:
                 url = ch.get('url', '')
                 group = ch.get('group', '')
                 logo = ch.get('logo_url', '')
-                
+                groups = ch.get('_groups', [])
+
                 f.write(f'#EXTINF:-1 {name}')
                 if group:
-                    f.write(f' group-title="{group}"')
+                    if groups and len(groups) > 1:
+                        group_value = ';'.join(groups)
+                    else:
+                        group_value = group
+                    f.write(f' group-title="{group_value}"')
                 if logo:
                     f.write(f' tvg-logo="{logo}"')
                 f.write('\n')

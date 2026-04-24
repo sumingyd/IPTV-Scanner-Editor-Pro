@@ -517,7 +517,12 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             if logo_url and not self.is_column_hidden(5):  # Logo地址列
                 extinf_parts.append(f'tvg-logo="{logo_url}"')
             if group and not self.is_column_hidden(4):  # 分组列
-                extinf_parts.append(f'group-title="{group}"')
+                groups = channel.get('_groups', [])
+                if groups and len(groups) > 1:
+                    group_value = ';'.join(groups)
+                else:
+                    group_value = group
+                extinf_parts.append(f'group-title="{group_value}"')
             if tvg_chno and not self.is_column_hidden(9):  # TVG频道号列
                 extinf_parts.append(f'tvg-chno="{tvg_chno}"')
             if tvg_shift and not self.is_column_hidden(10):  # TVG时移列

@@ -251,7 +251,6 @@ class SubscriptionController:
             "_all_tags": {}
         }
 
-        # 提取频道名称（最后一个逗号后面的部分）
         name = ''
         if ',' in extinf_line:
             parts = extinf_line.rsplit(',', 1)
@@ -263,8 +262,6 @@ class SubscriptionController:
 
         channel_data['name'] = name or '未命名'
 
-        # 解析属性 tvg-name="xxx" group-title="xxx" 等
-        # 注意：属性名可能包含连字符（如 tvg-logo, group-title），使用 [\w-]+ 匹配
         attrs_pattern = r'([\w-]+)=["\']([^"\']*)["\']'
         matches = re.findall(attrs_pattern, attr_part)
 
@@ -280,8 +277,8 @@ class SubscriptionController:
             elif key == 'tvg-shift':
                 channel_data['tvg_shift'] = value
             elif key == 'group-title' and value:
-                groups.append(value)
-                channel_data['group'] = value
+                split_groups = [g.strip() for g in value.split(';') if g.strip()]
+                groups.extend(split_groups)
             elif key == 'tvg-logo':
                 channel_data['logo'] = value
             elif key == 'catchup':
@@ -293,6 +290,7 @@ class SubscriptionController:
 
         if groups:
             channel_data['_groups'] = groups
+            channel_data['group'] = groups[0]
 
         channel_data['_all_tags'] = all_tags
 
@@ -376,10 +374,18 @@ class SubscriptionController:
 
         for i, source in enumerate(sources):
             if source.get('url') == playlist_url:
-                # 判断是否需要更新（基于缓存机制）
                 need_update = self._should_update_source(source, i)
                 logger.debug(f"订阅源 '{source.get('name', '')}' 需要更新: {need_update}")
                 self.handle_playlist_subscription(need_update, playlist_url, i)
+
+                from PyQt6.QtCore import QMetaObject, Qt, QThread
+                if QThread.currentThread() != self.window.thread():
+                    QMetaObject.invokeMethod(
+                        self.window, "_do_on_playlist_updated_in_main_thread",
+                        Qt.ConnectionType.QueuedConnection
+                    )
+                else:
+                    self.window._do_on_playlist_updated_in_main_thread()
                 break
 
         final_need_epg = [True]
@@ -413,40 +419,23 @@ class SubscriptionController:
         return success
 
     def _on_subscription_finished(self, result):
-        """订阅更新完成回调 - 重新填充频道列表和EPG（在主线程中执行）"""
-        logger.debug("订阅数据加载完成，准备刷新UI")
+        """订阅更新完成回调 - EPG加载完成后刷新EPG列表（在主线程中执行）"""
+        logger.debug("EPG数据加载完成，准备刷新EPG列表")
 
         def refresh_ui():
             try:
-                main_module = sys.modules.get('__main__')
-                app_state = getattr(__import__('core.application_state', fromlist=['application_state']), 'app_state', None)
-
-                channels_count = 0
-                if main_module:
-                    channels_in_main = getattr(main_module, 'CHANNELS', None)
-                    channels_count = len(channels_in_main) if channels_in_main else 0
-                    logger.debug(f"刷新UI: __main__.CHANNELS 包含 {channels_count} 个频道")
-
-                if app_state:
-                    channels_in_state = getattr(app_state, '_channels', None)
-                    state_count = len(channels_in_state) if channels_in_state else 0
-                    logger.debug(f"刷新UI: app_state._channels 包含 {state_count} 个频道")
-
-                if hasattr(self.window, 'update_recent_files_menu'):
-                    self.window.update_recent_files_menu()
-
-                if hasattr(self.window, '_populate_channel_list'):
-                    self.window._populate_channel_list()
-                    logger.debug("刷新UI: 频道列表和EPG列表已填充")
-
-                if hasattr(self.window, '_update_floating_position'):
-                    self.window._update_floating_position()
-                    logger.debug("刷新UI: 悬浮窗位置已更新")
+                if hasattr(self.window, '_populate_epg_list'):
+                    self.window._populate_epg_list()
+                    logger.debug("刷新UI: EPG列表已填充")
 
                 if hasattr(self.window, 'status_bar_show_message'):
+                    main_module = sys.modules.get('__main__')
+                    channels_count = 0
+                    if main_module:
+                        channels_in_main = getattr(main_module, 'CHANNELS', None)
+                        channels_count = len(channels_in_main) if channels_in_main else 0
                     tr = getattr(self.window.language_manager, 'tr', lambda x, y: y) if hasattr(self.window, 'language_manager') else lambda x, y: y
                     self.window.status_bar_show_message(tr("channels_loaded", "Channels loaded: {count}").format(count=channels_count))
-                    logger.debug(f"刷新UI: 状态栏已更新: {channels_count} 个频道")
 
             except Exception as e:
                 logger.error(f"刷新UI失败: {e}", exc_info=True)
@@ -475,41 +464,9 @@ class SubscriptionController:
 
     def update_channel_groups(self):
         """从CHANNELS中提取分组并更新下拉框"""
-        main_module = sys.modules.get('__main__')
-        CHANNELS = getattr(main_module, 'CHANNELS', []) if main_module else []
-        CHANNEL_GROUPS = getattr(main_module, 'CHANNEL_GROUPS', []) if main_module else []
-
-        # 获取翻译后的"全部分组"文本
-        tr = getattr(self.window.language_manager, 'tr', lambda x, y: y) if hasattr(self.window, 'language_manager') else lambda x, y: x
-        all_channels_text = tr("all_channels", "All Channels")
-
-        groups = []
-        seen = set()
-
-        for channel in CHANNELS:
-            for g in channel.get('_groups', [channel.get('group', '') or '未分类']):
-                if g and g not in seen:
-                    groups.append(g)
-                    seen.add(g)
-
-        new_groups = [all_channels_text] + groups
-
-        if new_groups == CHANNEL_GROUPS:
-            return
-
-        # 更新全局变量
-        if main_module:
-            main_module.CHANNEL_GROUPS = new_groups
-
-        if hasattr(self.window, 'group_combo'):
-            current_text = self.window.group_combo.currentText() if hasattr(self.window, 'group_combo') else ''
-            self.window.group_combo.clear()
-            self.window.group_combo.addItems(new_groups)
-
-            if current_text and current_text in new_groups:
-                self.window.group_combo.setCurrentText(current_text)
-            elif new_groups:
-                self.window.group_combo.setCurrentIndex(0)
+        if hasattr(self.window, '_update_groups_for'):
+            self.window._update_groups_for('subscription')
+            self.window._update_groups_for('local')
 
     def reload_subscription(self):
         """重新加载订阅源"""

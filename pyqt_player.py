@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QLabel, QListWidget, QListWidgetItem, QStackedWidget,
     QMenuBar, QMenu, QFileDialog, QDialog, QTextEdit, QStatusBar,
     QFrame, QToolButton, QSlider, QGridLayout, QComboBox, QLabel as QtWidgets_QLabel,
-    QAbstractItemView
+    QAbstractItemView, QTabWidget
 )
 from PyQt6 import QtWidgets
 from PyQt6.QtCore import Qt, QSize, QTimer, QUrl, QThread, pyqtSlot, QMetaObject, QPoint
@@ -423,8 +423,7 @@ class IPTVPlayer(QMainWindow):
             # 启动订阅更新
             self._start_subscription_timers()
             
-            # 填充频道列表
-            self._populate_channel_list()
+            self._populate_channel_list(source='subscription')
             
             # 填充 EPG 列表
             self._populate_epg_list()
@@ -470,7 +469,7 @@ class IPTVPlayer(QMainWindow):
     
     def _update_channel_list_ui(self):
         try:
-            self.populate_channel_list()
+            self.populate_channel_list(source='auto')
         except Exception as ex:
             logger.error(f"更新频道列表UI失败: {ex}")
     
@@ -735,45 +734,81 @@ class IPTVPlayer(QMainWindow):
         logger.debug("_create_epg_panel: 完成")
     
     def _create_playlist_panel(self, show=True):
-        """创建播放列表面板"""
+        """创建播放列表面板（双标签：订阅 + 本地）"""
         logger.debug("_create_playlist_panel: 开始")
         tr = self.language_manager.tr
 
-        # 播放列表面板内容容器
         playlist_container = QWidget()
         playlist_container.setStyleSheet(AppStyles.player_panel_style())
         playlist_container.setFixedWidth(250)
         self.playlist_layout = QVBoxLayout(playlist_container)
         self.playlist_layout.setContentsMargins(0, 0, 0, 0)
 
-        # 播放列表标题和分组选择
-        self.playlist_header = QHBoxLayout()
-        self.playlist_title = QLabel(f"📺 {tr('channel_list', 'Channel List')}")
-        self.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
-        self.group_combo = QComboBox()
-        self.group_combo.addItems(CHANNEL_GROUPS)
-        self.group_combo.setStyleSheet(AppStyles.player_group_combo_style())
-        self.group_combo.currentTextChanged.connect(self.on_group_changed)
-        self.playlist_header.addWidget(self.playlist_title)
-        self.playlist_header.addWidget(self.group_combo)
-        self.playlist_layout.addLayout(self.playlist_header)
+        self.playlist_tab = QTabWidget()
+        self.playlist_tab.setStyleSheet(AppStyles.player_tab_style())
 
-        # 频道列表
-        self.channel_list = QListWidget()
-        self.channel_list.setStyleSheet(AppStyles.player_list_style())
-        self.channel_list.setSpacing(2)
-        self.channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.channel_list.itemClicked.connect(self.select_channel)
-        self.playlist_layout.addWidget(self.channel_list, 1)
+        sub_tab = QWidget()
+        sub_layout = QVBoxLayout(sub_tab)
+        sub_layout.setContentsMargins(0, 0, 0, 0)
+        sub_layout.setSpacing(0)
 
-        # 频道列表空提示
-        self.channel_empty_label = QLabel(tr("no_channels", "No channels"))
-        self.channel_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.channel_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
-        self.playlist_layout.addWidget(self.channel_empty_label)
+        self.sub_group_combo = QComboBox()
+        self.sub_group_combo.addItems(CHANNEL_GROUPS)
+        self.sub_group_combo.setStyleSheet(AppStyles.player_group_combo_style())
+        self.sub_group_combo.currentTextChanged.connect(self.on_sub_group_changed)
+        sub_layout.addWidget(self.sub_group_combo)
 
-        # 用 FloatingDockWidget 包装（圆角半透明 + Qt管理）
+        self.sub_channel_list = QListWidget()
+        self.sub_channel_list.setStyleSheet(AppStyles.player_list_style())
+        self.sub_channel_list.setSpacing(2)
+        self.sub_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.sub_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.sub_channel_list.itemClicked.connect(self.select_channel)
+        sub_layout.addWidget(self.sub_channel_list, 1)
+
+        self.sub_empty_label = QLabel(tr("no_channels", "No channels"))
+        self.sub_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.sub_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
+        sub_layout.addWidget(self.sub_empty_label)
+
+        local_tab = QWidget()
+        local_layout = QVBoxLayout(local_tab)
+        local_layout.setContentsMargins(0, 0, 0, 0)
+        local_layout.setSpacing(0)
+
+        self.local_group_combo = QComboBox()
+        self.local_group_combo.addItems([tr("all_channels", "All Channels")])
+        self.local_group_combo.setStyleSheet(AppStyles.player_group_combo_style())
+        self.local_group_combo.currentTextChanged.connect(self.on_local_group_changed)
+        local_layout.addWidget(self.local_group_combo)
+
+        self.local_channel_list = QListWidget()
+        self.local_channel_list.setStyleSheet(AppStyles.player_list_style())
+        self.local_channel_list.setSpacing(2)
+        self.local_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.local_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.local_channel_list.itemClicked.connect(self.select_channel)
+        local_layout.addWidget(self.local_channel_list, 1)
+
+        self.local_empty_label = QLabel(tr("no_channels", "No channels"))
+        self.local_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.local_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
+        local_layout.addWidget(self.local_empty_label)
+
+        self.playlist_tab.addTab(sub_tab, tr("subscription_tab", "📡 Subscription"))
+        self.playlist_tab.addTab(local_tab, tr("local_tab", "📂 Local"))
+        self.playlist_tab.currentChanged.connect(self._on_playlist_tab_changed)
+        self.playlist_layout.addWidget(self.playlist_tab)
+
+        self.channel_list = self.sub_channel_list
+        self.group_combo = self.sub_group_combo
+        self.channel_empty_label = self.sub_empty_label
+
+        self._sub_channels = []
+        self._local_channels = []
+        self._sub_groups = [tr("all_channels", "All Channels")]
+        self._local_groups = [tr("all_channels", "All Channels")]
+
         from PyQt6.QtWidgets import QDockWidget
         from ui.floating_dialog import FloatingDockWidget
         self.playlist_dock = FloatingDockWidget(tr("channel_list", "Channel List"), self)
@@ -790,6 +825,25 @@ class IPTVPlayer(QMainWindow):
             self.playlist_dock.hide()
 
         logger.debug("_create_playlist_panel: 完成")
+
+    def _on_playlist_tab_changed(self, index):
+        """播放列表标签页切换"""
+        if index == 0:
+            self.channel_list = self.sub_channel_list
+            self.group_combo = self.sub_group_combo
+            self.channel_empty_label = self.sub_empty_label
+        else:
+            self.channel_list = self.local_channel_list
+            self.group_combo = self.local_group_combo
+            self.channel_empty_label = self.local_empty_label
+
+    def on_sub_group_changed(self, group_name):
+        """订阅标签分组切换"""
+        self._populate_channel_list_for(self.sub_channel_list, self._sub_channels, group_name)
+
+    def on_local_group_changed(self, group_name):
+        """本地标签分组切换"""
+        self._populate_channel_list_for(self.local_channel_list, self._local_channels, group_name)
     
     def _create_bottom_panel(self, show=True):
         """创建底部悬浮控制面板"""
@@ -1080,8 +1134,7 @@ class IPTVPlayer(QMainWindow):
         self._auto_hide_timer.timeout.connect(self._on_auto_hide_timeout)
         self._auto_hide_timer.start()
         
-        # 填充频道列表
-        self._populate_channel_list()
+        self._populate_channel_list(source='subscription')
         
         logger.debug("_install_event_filters: 完成")
     
@@ -1097,9 +1150,8 @@ class IPTVPlayer(QMainWindow):
         """检查版本更新（公共方法，用于 QMetaObject.invokeMethod 调用）"""
         self._check_for_updates_async()
     
-    def _populate_channel_list(self):
+    def _populate_channel_list(self, source='subscription'):
         """填充频道列表（带防重复机制）"""
-        # 防止短时间内重复调用（500ms内只执行一次）
         current_time = time.time()
         if hasattr(self, '_last_populate_time') and current_time - self._last_populate_time < 0.5:
             logger.debug(f"_populate_channel_list: 跳过重复调用（距上次{current_time - self._last_populate_time:.2f}秒）")
@@ -1108,10 +1160,8 @@ class IPTVPlayer(QMainWindow):
 
         logger.debug("_populate_channel_list: 开始")
 
-        # 填充频道列表
-        self.populate_channel_list()
+        self.populate_channel_list(source=source)
 
-        # 填充 EPG 列表
         self._populate_epg_list()
 
         logger.debug("_populate_channel_list: 完成")
@@ -1171,8 +1221,7 @@ class IPTVPlayer(QMainWindow):
         if self.status_bar:
             self.status_bar.showMessage(message)
         
-        # 填充频道列表
-        self.populate_channel_list()
+        self.populate_channel_list(source='auto')
         
         # 更新悬浮窗位置
         self.update_floating_position()
@@ -1212,10 +1261,6 @@ class IPTVPlayer(QMainWindow):
                 file_menu.addAction(save_as)
 
                 file_menu.addSeparator()
-
-                reload_subscription = QAction(tr("menu_reload_subscription", "Reload Subscription"), self)
-                reload_subscription.triggered.connect(self.reload_subscription)
-                file_menu.addAction(reload_subscription)
 
                 exit_action = QAction(tr("menu_exit", "Exit\tCtrl+Q"), self)
                 exit_action.setShortcut("Ctrl+Q")
@@ -1363,42 +1408,84 @@ class IPTVPlayer(QMainWindow):
         """从CHANNELS中提取分组并更新下拉框（委托给SubscriptionController）"""
         self.subscription_ctrl.update_channel_groups()
 
-    def populate_channel_list(self):
-        """填充频道列表"""
+    def populate_channel_list(self, source='subscription'):
+        """填充频道列表
+
+        Args:
+            source: 'subscription' 填充订阅标签, 'local' 填充本地标签,
+                    'auto' 自动判断（默认填充当前活跃标签）
+        """
+        if source == 'auto':
+            if not hasattr(self, 'playlist_tab'):
+                source = 'subscription'
+            else:
+                source = 'subscription' if self.playlist_tab.currentIndex() == 0 else 'local'
+
+        if source == 'subscription':
+            self._sub_channels = list(CHANNELS)
+            self._update_groups_for('subscription')
+            self._populate_channel_list_for(self.sub_channel_list, self._sub_channels,
+                                            self.sub_group_combo.currentText())
+        else:
+            self._local_channels = list(CHANNELS)
+            self._update_groups_for('local')
+            self._populate_channel_list_for(self.local_channel_list, self._local_channels,
+                                            self.local_group_combo.currentText())
+
+    def _update_groups_for(self, source):
+        """更新指定源的分组下拉框"""
+        channels = self._sub_channels if source == 'subscription' else self._local_channels
+        combo = self.sub_group_combo if source == 'subscription' else self.local_group_combo
+        groups_attr = '_sub_groups' if source == 'subscription' else '_local_groups'
+
+        tr = self.language_manager.tr
+        all_channels_text = tr("all_channels", "All Channels")
+
+        groups = []
+        seen = set()
+        for channel in channels:
+            for g in channel.get('_groups', [channel.get('group', '') or '未分类']):
+                if g and g not in seen:
+                    groups.append(g)
+                    seen.add(g)
+
+        new_groups = [all_channels_text] + groups
+        old_groups = getattr(self, groups_attr, [])
+
+        if new_groups == old_groups:
+            return
+
+        setattr(self, groups_attr, new_groups)
+
+        current_text = combo.currentText() if combo.currentText() else all_channels_text
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItems(new_groups)
+        if current_text in new_groups:
+            combo.setCurrentText(current_text)
+        elif new_groups:
+            combo.setCurrentIndex(0)
+        combo.blockSignals(False)
+
+    def _populate_channel_list_for(self, list_widget, channels, selected_group=''):
+        """通用频道列表填充方法"""
         from core.log_manager import global_logger as logger
 
-        self.channel_list.clear()
+        list_widget.clear()
 
-        # 更新分组下拉框（临时阻止信号，防止循环触发 on_group_changed → populate_channel_list）
-        self.group_combo.blockSignals(True)
-        self.update_channel_groups()
-        self.group_combo.blockSignals(False)
-
-        logger.debug(f"populate_channel_list: 开始, CHANNELS 长度={len(CHANNELS)}")
-
-        if not CHANNELS:
-            logger.debug(f"populate_channel_list: CHANNELS为空，显示空提示")
-            self.channel_empty_label.show()
-            return
-        self.channel_empty_label.hide()
-
-        # 获取当前选中的分组
-        selected_group = self.group_combo.currentText()
-
-        # 检查是否选中了"全部分组"（支持多语言）
         all_channels_text = self.language_manager.tr("all_channels", "All Channels")
         is_all_channels = (
-            not selected_group or  # 空字符串
-            selected_group.lower() == 'all channels' or  # 英文
-            selected_group == all_channels_text or  # 翻译后的文本
-            selected_group == 'All Channels'  # 英文（大小写敏感）
+            not selected_group or
+            selected_group.lower() == 'all channels' or
+            selected_group == all_channels_text or
+            selected_group == 'All Channels'
         )
 
         added_count = 0
         error_count = 0
         skipped_count = 0
 
-        for idx, channel in enumerate(CHANNELS):
+        for idx, channel in enumerate(channels):
             try:
                 if not is_all_channels:
                     channel_groups = channel.get('_groups', [channel.get('group', '')])
@@ -1406,27 +1493,21 @@ class IPTVPlayer(QMainWindow):
                         skipped_count += 1
                         continue
 
-                # 获取频道名称
                 channel_name = channel.get("name", self.language_manager.tr("unnamed", "Unnamed"))
                 logo_url = channel.get('logo', '')
 
-                # 所有频道都使用自定义widget（支持台标显示和懒加载）
                 try:
-                    # 创建一个容器 widget
                     item_widget = QtWidgets.QWidget()
                     item_layout = QHBoxLayout(item_widget)
                     item_layout.setContentsMargins(5, 5, 5, 5)
                     item_layout.setSpacing(10)
 
-                    # 台标标签
                     logo_label = QtWidgets.QLabel()
                     logo_label.setFixedSize(48, 34)
                     logo_label.setStyleSheet("background-color: transparent; border: none;")
                     logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                    # 设置对象名，便于懒加载时查找
                     logo_label.setObjectName("channel_logo_label")
 
-                    # 如果有台标且在缓存中，立即显示
                     if logo_url:
                         logo_url = logo_url.strip('`"\'')
                         cached = self._logo_cache_service.get(logo_url)
@@ -1440,7 +1521,6 @@ class IPTVPlayer(QMainWindow):
                         else:
                             self._logo_cache_service.fetch_async(logo_url)
 
-                    # 频道名称标签
                     name_label = QtWidgets.QLabel(channel_name)
                     from ui.styles import AppStyles
                     colors = AppStyles._get_colors()
@@ -1448,25 +1528,21 @@ class IPTVPlayer(QMainWindow):
                     name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
                     name_label.setWordWrap(False)
 
-                    # 添加到布局
                     item_layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignVCenter)
                     item_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
 
-                    # 创建 QListWidgetItem 并设置大小
                     item = QListWidgetItem()
                     item.setSizeHint(QSize(0, 42))
                     item.setData(Qt.ItemDataRole.UserRole, idx)
 
-                    # 将自定义 widget 设置为 item 的 widget
-                    self.channel_list.addItem(item)
-                    self.channel_list.setItemWidget(item, item_widget)
+                    list_widget.addItem(item)
+                    list_widget.setItemWidget(item, item_widget)
                     added_count += 1
 
                 except Exception as widget_ex:
-                    # 如果自定义widget创建失败，回退到简单文本项
                     simple_item = QListWidgetItem(channel_name)
                     simple_item.setData(Qt.ItemDataRole.UserRole, idx)
-                    self.channel_list.addItem(simple_item)
+                    list_widget.addItem(simple_item)
                     added_count += 1
                     error_count += 1
                     if error_count <= 3:
@@ -1477,57 +1553,69 @@ class IPTVPlayer(QMainWindow):
                 if error_count <= 3:
                     logger.error(f"populate_channel_list: 添加第{idx}个频道失败: {e}")
 
+        empty_label = None
+        if list_widget is self.sub_channel_list:
+            empty_label = self.sub_empty_label
+        elif list_widget is self.local_channel_list:
+            empty_label = self.local_empty_label
+
+        if empty_label:
+            if added_count == 0:
+                empty_label.show()
+            else:
+                empty_label.hide()
+
         if error_count > 0:
             logger.warning(f"populate_channel_list: 共 {error_count} 个频道添加失败")
         if skipped_count > 0:
             logger.warning(f"populate_channel_list: 共 {skipped_count} 个频道被分组过滤跳过")
 
-        logger.info(f"populate_channel_list: 填充完成，共 {self.channel_list.count()} 个频道项（实际添加: {added_count}, 跳过: {skipped_count}, 总数据: {len(CHANNELS)}）")
-        # 连接滚动信号，实现懒加载
-        self.channel_list.verticalScrollBar().valueChanged.connect(self._on_channel_list_scrolled)
+        logger.info(f"populate_channel_list: 填充完成，共 {list_widget.count()} 个频道项（实际添加: {added_count}, 跳过: {skipped_count}, 总数据: {len(channels)}）")
+        list_widget.verticalScrollBar().valueChanged.connect(self._on_channel_list_scrolled)
     
     def _on_channel_list_scrolled(self, value):
         """频道列表滚动时，加载可见区域的台标"""
-        # 获取可见区域的项
-        viewport_rect = self.channel_list.viewport().rect()
-        top_index = self.channel_list.indexAt(viewport_rect.topLeft())
-        bottom_index = self.channel_list.indexAt(viewport_rect.bottomLeft())
+        sender = self.sender()
+        if sender is self.local_channel_list:
+            list_widget = self.local_channel_list
+            channels = self._local_channels
+        else:
+            list_widget = self.sub_channel_list
+            channels = self._sub_channels
+
+        viewport_rect = list_widget.viewport().rect()
+        top_index = list_widget.indexAt(viewport_rect.topLeft())
+        bottom_index = list_widget.indexAt(viewport_rect.bottomLeft())
         
         first_visible = top_index.row() if top_index.isValid() else 0
-        last_visible = bottom_index.row() if bottom_index.isValid() else self.channel_list.count() - 1
+        last_visible = bottom_index.row() if bottom_index.isValid() else list_widget.count() - 1
         
-        # 扩大加载范围，提前加载上下各 5 个项
         first_visible = max(0, first_visible - 5)
-        last_visible = min(self.channel_list.count() - 1, last_visible + 5)
+        last_visible = min(list_widget.count() - 1, last_visible + 5)
         
-        # 加载可见区域的台标
         for i in range(first_visible, last_visible + 1):
-            item = self.channel_list.item(i)
+            item = list_widget.item(i)
             if not item:
                 continue
             
-            # 获取自定义 widget
-            item_widget = self.channel_list.itemWidget(item)
+            item_widget = list_widget.itemWidget(item)
             if not item_widget:
                 continue
             
-            # 获取台标标签（按 objectName 查找，避免找到 name_label）
             logo_label = item_widget.findChild(QtWidgets.QLabel, "channel_logo_label")
             if not logo_label:
                 continue
-            # 检查是否已经有台标
             if logo_label.pixmap() and not logo_label.pixmap().isNull():
-                continue  # 已经有台标了
-            
-            channel_idx = item.data(Qt.ItemDataRole.UserRole)
-            if channel_idx is None or channel_idx >= len(CHANNELS):
                 continue
             
-            channel = CHANNELS[channel_idx]
+            channel_idx = item.data(Qt.ItemDataRole.UserRole)
+            if channel_idx is None or channel_idx >= len(channels):
+                continue
+            
+            channel = channels[channel_idx]
             logo_url = channel.get('logo', '')
             if logo_url:
                 logo_url = logo_url.strip('`"\'')
-                # 尝试从缓存获取
                 cached = self._logo_cache_service.get(logo_url)
                 if cached:
                     scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(
@@ -1537,7 +1625,6 @@ class IPTVPlayer(QMainWindow):
                     )
                     logo_label.setPixmap(scaled)
                 else:
-                    # 异步加载台标
                     self._logo_cache_service.fetch_async(logo_url)
     
     def populate_epg_list(self):
@@ -1576,14 +1663,29 @@ class IPTVPlayer(QMainWindow):
         """退出时移模式（委托给CatchupController）"""
         self.catchup_ctrl.exit_timeshift()
     
+    def _get_epg_match_params(self):
+        """获取EPG匹配所需的参数"""
+        if not self.current_channel:
+            return '', '', '', ''
+        channel_name = self.current_channel.get("name", "")
+        tvg_id = self.current_channel.get("tvg_id", "")
+        all_tags = self.current_channel.get("_all_tags", {})
+        tvg_name = all_tags.get("tvg-name", "")
+        comma_name = ''
+        raw_extinf = self.current_channel.get('_raw_extinf', '')
+        if raw_extinf and ',' in raw_extinf:
+            comma_name = raw_extinf.split(',', 1)[-1].strip()
+            if comma_name.startswith('"') and comma_name.endswith('"'):
+                comma_name = comma_name[1:-1]
+        return channel_name, tvg_id, tvg_name, comma_name
+
     def _update_progress_range_for_live(self):
         """根据当前节目时长动态设置进度条范围"""
         from datetime import datetime, timedelta
         
         try:
-            channel_name = self.current_channel.get("name", "")
-            tvg_id = self.current_channel.get("tvg_id", "")
-            current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
+            channel_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
+            current_program = self.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
             
             if current_program:
                 start_time = datetime.fromisoformat(current_program.get('start', ''))
@@ -1661,9 +1763,8 @@ class IPTVPlayer(QMainWindow):
         """获取当前节目的时长（秒），用于设置缓存大小"""
         try:
             if self.current_channel:
-                channel_name = self.current_channel.get("name", "")
-                tvg_id = self.current_channel.get("tvg_id", "")
-                current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
+                channel_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
+                current_program = self.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
                 if current_program:
                     from datetime import datetime
                     start_time = datetime.fromisoformat(current_program.get('start', ''))
@@ -1685,9 +1786,8 @@ class IPTVPlayer(QMainWindow):
             if not self.current_channel or not self.player_controller:
                 return
 
-            channel_name = self.current_channel.get("name", "")
-            tvg_id = self.current_channel.get("tvg_id", "")
-            current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
+            channel_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
+            current_program = self.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
 
             if current_program:
                 program_id = current_program.get('start', '') + current_program.get('end', '')
@@ -1835,14 +1935,21 @@ class IPTVPlayer(QMainWindow):
         from core.log_manager import global_logger as logger
         try:
             idx = item.data(Qt.ItemDataRole.UserRole)
-            if isinstance(idx, int) and 0 <= idx < len(CHANNELS):
-                self.current_channel = CHANNELS[idx]
+
+            sender = self.sender()
+            if sender is self.local_channel_list:
+                channels = self._local_channels
+            else:
+                channels = self._sub_channels
+
+            if isinstance(idx, int) and 0 <= idx < len(channels):
+                self.current_channel = channels[idx]
             else:
                 index = self.channel_list.row(item)
-                if 0 <= index < len(CHANNELS):
-                    self.current_channel = CHANNELS[index]
+                if 0 <= index < len(channels):
+                    self.current_channel = channels[index]
                 else:
-                    logger.warning(f"select_channel: 无效的索引 idx={idx}, row={index}, CHANNELS长度={len(CHANNELS)}")
+                    logger.warning(f"select_channel: 无效的索引 idx={idx}, row={index}, channels长度={len(channels)}")
                     return
 
             logger.info(f"select_channel: 选中频道 {self.current_channel.get('name', '?')}")
@@ -2547,11 +2654,9 @@ class IPTVPlayer(QMainWindow):
             else:
                 # 非回看模式，从EPG数据获取当前节目名称（安全处理）
                 try:
-                    channel_name = self.current_channel.get("name", "")
-                    tvg_id = self.current_channel.get("tvg_id", "")
+                    channel_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
                     if channel_name:
-                        # 首先尝试从EPG解析器获取节目名称（使用tvg-id和频道名称）
-                        current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
+                        current_program = self.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
                         if current_program:
                             program_name = current_program.get("title", "")
                             self.current_program.setText(f"· {program_name}" if program_name else "")
@@ -2602,11 +2707,9 @@ class IPTVPlayer(QMainWindow):
                         self.remain_label.setText(self.language_manager.tr("catchup_playing_label", "Catching up"))
                 else:
                     # 非回看模式，从EPG数据获取节目描述
-                    channel_name = self.current_channel.get("name", "")
-                    tvg_id = self.current_channel.get("tvg_id", "")
+                    channel_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
                     if channel_name:
-                        # 首先尝试从EPG解析器获取节目描述（使用tvg-id和频道名称）
-                        current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
+                        current_program = self.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
                         if current_program:
                             self.program_desc.setText(current_program.get("desc", self.language_manager.tr("no_program_desc", "No program description")))
                             # 更新时间信息
@@ -2737,11 +2840,9 @@ class IPTVPlayer(QMainWindow):
         current_program = None
         if not is_catchup:
             try:
-                channel_name = self.current_channel.get("name", "")
-                tvg_id = self.current_channel.get("tvg_id", "")
+                channel_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
                 if channel_name:
-                    # 首先尝试从EPG解析器获取节目单（使用tvg-id和频道名称）
-                    current_program = self.epg_parser.get_current_program(channel_name, tvg_id)
+                    current_program = self.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
                     if current_program:
                         has_epg = True
                     # 然后尝试从EPG_DATA获取节目单
@@ -3011,7 +3112,7 @@ class IPTVPlayer(QMainWindow):
     
     def refresh_ui(self):
         """刷新界面"""
-        self.populate_channel_list()
+        self.populate_channel_list(source='auto')
         self.populate_epg_list()
     
     def reset_layout(self):
@@ -3097,7 +3198,12 @@ class IPTVPlayer(QMainWindow):
             if hasattr(self, '_pending_update_message'):
                 delattr(self, '_pending_update_message')
             logger.info(f"_do_on_playlist_updated_in_main_thread: 开始更新UI, CHANNELS数量={len(CHANNELS)}")
-            self._update_channel_list_ui()
+            if hasattr(self, 'playlist_tab'):
+                self.playlist_tab.setCurrentIndex(0)
+            self.populate_channel_list(source='subscription')
+            self._populate_epg_list()
+            if hasattr(self, '_update_floating_position'):
+                self._update_floating_position()
             self.status_bar.showMessage(message)
             logger.info("_do_on_playlist_updated_in_main_thread: UI更新完成")
         except Exception as ex:
@@ -3258,9 +3364,17 @@ class IPTVPlayer(QMainWindow):
                 active = global_subscription_manager.get_active_playlist_source()
                 if active:
                     source_index = global_subscription_manager.get_active_playlist_source_index()
+
+                    def _reload_playlist_and_refresh():
+                        self._handle_playlist_subscription(True, active.get('url', ''), source_index)
+                        from PyQt6.QtCore import QMetaObject, Qt
+                        if QThread.currentThread() != self.thread():
+                            QMetaObject.invokeMethod(self, "_do_on_playlist_updated_in_main_thread", Qt.ConnectionType.QueuedConnection)
+                        else:
+                            self._do_on_playlist_updated_in_main_thread()
+
                     threading.Thread(
-                        target=self._handle_playlist_subscription,
-                        args=(True, active.get('url', '')),
+                        target=_reload_playlist_and_refresh,
                         daemon=True
                     ).start()
             
@@ -3424,7 +3538,9 @@ class IPTVPlayer(QMainWindow):
                     display_name = self._get_display_channel_name(self.current_channel)
                     self.channel_name.setText(display_name)
 
-                self.populate_channel_list()
+                if hasattr(self, 'playlist_tab'):
+                    self.playlist_tab.setCurrentIndex(1)
+                self.populate_channel_list(source='local')
                 self.status_bar.showMessage(f"{self.language_manager.tr('file_opened', 'File opened')}: {file_path}")
                 logger.info(f"成功打开最近文件: {file_path}, 共 {len(CHANNELS)} 个频道")
             else:
@@ -3524,23 +3640,29 @@ class IPTVPlayer(QMainWindow):
                 self.epg_content.setStyleSheet(AppStyles.player_list_style())
             if hasattr(self, 'epg_empty_label'):
                 self.epg_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
-            if hasattr(self, 'playlist_title'):
-                self.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
-            if hasattr(self, 'group_combo'):
-                self.group_combo.setStyleSheet(AppStyles.player_group_combo_style())
-            if hasattr(self, 'channel_list'):
-                self.channel_list.setStyleSheet(AppStyles.player_list_style())
-                colors = AppStyles._get_colors()
-                name_style = f"font-size: 12px; font-weight: bold; color: {colors['player_panel_text']};"
-                for i in range(self.channel_list.count()):
-                    item = self.channel_list.item(i)
-                    item_widget = self.channel_list.itemWidget(item)
-                    if item_widget:
-                        for label in item_widget.findChildren(QtWidgets.QLabel):
-                            if label.objectName() != "channel_logo_label":
-                                label.setStyleSheet(name_style)
-            if hasattr(self, 'channel_empty_label'):
-                self.channel_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
+            if hasattr(self, 'sub_group_combo'):
+                self.sub_group_combo.setStyleSheet(AppStyles.player_group_combo_style())
+            if hasattr(self, 'local_group_combo'):
+                self.local_group_combo.setStyleSheet(AppStyles.player_group_combo_style())
+            if hasattr(self, 'playlist_tab'):
+                self.playlist_tab.setStyleSheet(AppStyles.player_tab_style())
+            for list_attr in ['sub_channel_list', 'local_channel_list']:
+                cl = getattr(self, list_attr, None)
+                if cl:
+                    cl.setStyleSheet(AppStyles.player_list_style())
+                    colors = AppStyles._get_colors()
+                    name_style = f"font-size: 12px; font-weight: bold; color: {colors['player_panel_text']};"
+                    for i in range(cl.count()):
+                        item = cl.item(i)
+                        item_widget = cl.itemWidget(item)
+                        if item_widget:
+                            for label in item_widget.findChildren(QtWidgets.QLabel):
+                                if label.objectName() != "channel_logo_label":
+                                    label.setStyleSheet(name_style)
+            for empty_attr in ['sub_empty_label', 'local_empty_label']:
+                el = getattr(self, empty_attr, None)
+                if el:
+                    el.setStyleSheet(AppStyles.player_empty_label_style())
         except Exception as e:
             logger.error(f"重新应用侧边栏样式失败: {e}")
 
@@ -4053,7 +4175,7 @@ class IPTVPlayer(QMainWindow):
                 if mode == 'append' or ch.get('name', '') not in existing_names:
                     CHANNELS.append(ch)
 
-        self.populate_channel_list()
+        self.populate_channel_list(source='local')
         return True
 
     _SPEED_STEPS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 5.0]

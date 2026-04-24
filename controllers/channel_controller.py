@@ -60,21 +60,8 @@ class ChannelController:
 
     def on_group_changed(self, group_name: str):
         """处理分组切换事件"""
-        # 获取频道数据（从全局变量 CHANNELS）
-        main_module = sys.modules.get('__main__')
-        channels = getattr(main_module, 'CHANNELS', []) if main_module else []
-
-        # 过滤指定分组的频道
-        filtered_channels = [
-            ch for ch in channels
-            if ch.get('group') == group_name or group_name == "All Channels"
-        ]
-
-        logger.debug(f"分组切换: {group_name}, 过滤后 {len(filtered_channels)} 个频道")
-
-        # 刷新UI（走防抖路径，避免重复填充）
         if hasattr(self.window, '_populate_channel_list'):
-            self.window._populate_channel_list()
+            self.window._populate_channel_list(source='auto')
 
     def select_channel(self, item: QListWidgetItem):
         """处理频道选择事件"""
