@@ -258,12 +258,12 @@ class MpvStreamValidator:
     @classmethod
     def set_user_agent(cls, user_agent: str):
         with cls._headers_lock:
-            cls._user_agent = user_agent
+            cls._user_agent = user_agent if user_agent else None
 
     @classmethod
     def set_referer(cls, referer: str):
         with cls._headers_lock:
-            cls._referer = referer
+            cls._referer = referer if referer else None
 
     @classmethod
     def get_headers(cls) -> dict:

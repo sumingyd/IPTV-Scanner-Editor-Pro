@@ -499,9 +499,9 @@ class ScannerController(QObject):
 
         from services.mpv_validator_service import MpvStreamValidator
         MpvStreamValidator.set_max_concurrent(thread_count)
-        if user_agent:
+        if user_agent is not None:
             MpvStreamValidator.set_user_agent(user_agent)
-        if referer:
+        if referer is not None:
             MpvStreamValidator.set_referer(referer)
 
         # 初始化统计信息
@@ -583,11 +583,13 @@ class ScannerController(QObject):
     ):
         """内部从URL列表开始扫描方法"""
 
+        self.timeout = timeout
+
         from services.mpv_validator_service import MpvStreamValidator
         MpvStreamValidator.set_max_concurrent(thread_count)
-        if user_agent:
+        if user_agent is not None:
             MpvStreamValidator.set_user_agent(user_agent)
-        if referer:
+        if referer is not None:
             MpvStreamValidator.set_referer(referer)
 
         # 初始化统计信息
@@ -757,9 +759,9 @@ class ScannerController(QObject):
         # 设置验证器的headers，与扫描逻辑相同
         from services.mpv_validator_service import MpvStreamValidator
         MpvStreamValidator.set_max_concurrent(threads)
-        if user_agent:
+        if user_agent is not None:
             MpvStreamValidator.set_user_agent(user_agent)
-        if referer:
+        if referer is not None:
             MpvStreamValidator.set_referer(referer)
 
         self.stats = {

@@ -1190,7 +1190,10 @@ class ScanChannelDialog(FloatingDialog):
         if not clear_list:
             skip_urls = {ch.get('url', '') for ch in self.model.channels if ch.get('url')}
 
-        self.scanner.start_scan(url, scan_threads, scan_timeout, skip_urls=skip_urls)
+        user_agent = self.user_agent_input.text() or None
+        referer = self.referer_input.text() or None
+
+        self.scanner.start_scan(url, scan_threads, scan_timeout, user_agent=user_agent, referer=referer, skip_urls=skip_urls)
 
         if clear_list:
             self._set_scan_button_text('stop_scan', '停止扫描')
@@ -1222,8 +1225,8 @@ class ScanChannelDialog(FloatingDialog):
             return
 
         if not hasattr(self.scanner, 'is_validating') or not self.scanner.is_validating:
-            user_agent = self.user_agent_input.text()
-            referer = self.referer_input.text()
+            user_agent = self.user_agent_input.text() or None
+            referer = self.referer_input.text() or None
             validate_timeout = 5
             validate_threads = 4
             try:
@@ -1285,11 +1288,11 @@ class ScanChannelDialog(FloatingDialog):
                 QtCore.QTimer.singleShot(100, self._start_validation_retry)
             else:
                 self.logger.info("检测有效性完成，所有频道均有效")
-                self.status_label.setText(self.language_manager.tr("all_channels_valid", "All channels are valid"))
+                self.stats_label.setText(self.language_manager.tr("all_channels_valid", "All channels are valid"))
         else:
             valid_count = sum(1 for ch in self.model.channels if ch.get('valid', True))
             total = len(self.model.channels)
-            self.status_label.setText(
+            self.stats_label.setText(
                 f"有效: {valid_count}/{total}"
             )
 
@@ -1301,7 +1304,7 @@ class ScanChannelDialog(FloatingDialog):
         max_retries = 3
         if hasattr(self, '_validation_retry_count') and self._validation_retry_count >= max_retries:
             self.logger.info(f"智能重试已达最大次数({max_retries}次)，停止重试")
-            self.status_label.setText(
+            self.stats_label.setText(
                 self.language_manager.tr("retry_completed", "Smart retry completed")
             )
             return
@@ -1323,14 +1326,16 @@ class ScanChannelDialog(FloatingDialog):
             f"智能重试验证(第{self._validation_retry_count}次): "
             f"{len(self._validation_retry_urls)}个URL, 超时={retry_timeout}秒"
         )
-        self.status_label.setText(
+        self.stats_label.setText(
             f"{self.language_manager.tr('smart_retry', 'Smart Retry')} #{self._validation_retry_count}..."
         )
 
         self.scanner.start_scan_from_urls(
             self._validation_retry_urls,
             retry_threads,
-            retry_timeout
+            retry_timeout,
+            user_agent=self.user_agent_input.text() or None,
+            referer=self.referer_input.text() or None
         )
 
     def _on_open_list_clicked(self):
@@ -1553,7 +1558,7 @@ class ScanChannelDialog(FloatingDialog):
                 self.logger.info(f"智能重试完成({max_retries}次)，仍剩{len(remaining_invalid)}个无效频道")
             else:
                 self.logger.info("智能重试完成，所有无效频道已全部恢复有效")
-            self.status_label.setText(
+            self.stats_label.setText(
                 self.language_manager.tr("retry_completed", "Smart retry completed")
             )
             delattr(self, '_validation_retry_urls')
@@ -1906,7 +1911,9 @@ class ScanChannelDialog(FloatingDialog):
         self.scanner.start_scan_from_urls(
             retry_urls,
             retry_threads,
-            retry_timeout
+            retry_timeout,
+            user_agent=self.user_agent_input.text() or None,
+            referer=self.referer_input.text() or None
         )
         
         # 更新按钮文本
