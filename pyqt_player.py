@@ -1962,6 +1962,10 @@ class IPTVPlayer(QMainWindow):
                     return
 
             logger.info(f"select_channel: 选中频道 {self.current_channel.get('name', '?')}")
+
+            if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
+                self.playback_ctrl._exit_catchup_mode()
+
             self.update_channel_info_on_selection()
             self.populate_epg_list()
             self.play_channel(self.current_channel)
@@ -2058,12 +2062,7 @@ class IPTVPlayer(QMainWindow):
             self.time_label.setText(f"⏱ {current_time}")
             self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
         
-        # 重置进度条和时间（只在非回看模式下重置）
-        # 检查是否处于回看模式
-        is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
-        if not is_catchup:
-            self._set_progress_value(0)
-            logger.debug("update_channel_info_on_selection: 重置进度条为0（非回看模式）")
+        self._set_progress_value(0)
         self.progress_end.setText("--:--")
         
         # 重置第一行媒体信息为默认值

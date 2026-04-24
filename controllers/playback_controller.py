@@ -178,7 +178,7 @@ class PlaybackController:
         self._live_timeshift_seconds = 0
         self._last_program_id = None
 
-        if self.is_catchup_mode:
+        if self.is_catchup_mode or (hasattr(self.window, 'is_catchup_mode') and self.window.is_catchup_mode):
             self._exit_catchup_mode()
 
         if hasattr(self.window, 'player_controller') and self.window.player_controller:
@@ -221,6 +221,34 @@ class PlaybackController:
 
         if hasattr(self.window, 'program_progress'):
             self.window.program_progress.setValue(0)
+            self.window.program_progress.setRange(0, 3600)
+
+        if hasattr(self.window, '_progress_total_seconds'):
+            self.window._progress_total_seconds = 3600
+        if hasattr(self.window, '_progress_time_mode'):
+            self.window._progress_time_mode = 'hour'
+        if hasattr(self.window, '_progress_program_start'):
+            self.window._progress_program_start = None
+        if hasattr(self.window, '_progress_program_end'):
+            self.window._progress_program_end = None
+
+        if hasattr(self.window, 'progress_start'):
+            self.window.progress_start.setText("--:--")
+        if hasattr(self.window, 'progress_end'):
+            self.window.progress_end.setText("--:--")
+
+        if hasattr(self.window, 'current_program'):
+            self.window.current_program.setText("")
+        if hasattr(self.window, 'remain_label') and hasattr(self.window, 'language_manager'):
+            self.window.remain_label.setText(
+                self.window.language_manager.tr("waiting_to_play", "Waiting to play..."))
+        if hasattr(self.window, 'time_label'):
+            from datetime import datetime
+            current_time = datetime.now().strftime("%H:%M")
+            self.window.time_label.setText(f"⏱ {current_time}")
+        if hasattr(self.window, 'program_desc') and hasattr(self.window, 'language_manager'):
+            self.window.program_desc.setText(
+                self.window.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
 
     @property
     def is_playing(self) -> bool:

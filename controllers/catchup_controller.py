@@ -181,12 +181,8 @@ class CatchupController:
         from datetime import datetime, timedelta
         from core.log_manager import global_logger as logger
 
-        if hasattr(self.window, 'exit_catchup_button'):
-            self.window.exit_catchup_button.hide()
-
-        self.window.is_catchup_mode = False
-        if hasattr(self.window, 'catchup_program'):
-            delattr(self.window, 'catchup_program')
+        if hasattr(self.window, 'playback_ctrl'):
+            self.window.playback_ctrl._exit_catchup_mode()
 
         self.window.current_epg_date = datetime.now().date()
         today = datetime.now().date()
@@ -242,17 +238,8 @@ class CatchupController:
         """退出时移模式，取消暂停恢复直播"""
         from core.log_manager import global_logger as logger
 
-        self.window._is_timeshift_mode = False
-        self.window.is_catchup_mode = False
-        for attr in ['_ts_max_shift', '_ts_current_offset', '_ts_range',
-                      '_timeshift_enter_time_ms', '_timeshift_active', '_timeshift_start_time',
-                      '_catchup_start_time', '_catchup_start_progress',
-                      '_target_catchup_progress', '_disable_progress_auto_update']:
-            if hasattr(self.window, attr):
-                delattr(self.window, attr)
-
-        if hasattr(self.window, 'exit_catchup_button') and self.window.exit_catchup_button:
-            self.window.exit_catchup_button.hide()
+        if hasattr(self.window, 'playback_ctrl'):
+            self.window.playback_ctrl._exit_catchup_mode()
 
         if hasattr(self.window, 'program_progress') and self.window.program_progress:
             self._set_progress_range(100)
