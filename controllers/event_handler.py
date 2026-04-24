@@ -267,6 +267,16 @@ class EventHandler:
                 except Exception:
                     pass
 
+        # 5.5 等待后台工作线程完成
+        if hasattr(self.window, 'subscription_ctrl'):
+            for worker in self.window.subscription_ctrl._workers:
+                if worker.isRunning():
+                    try:
+                        worker.quit()
+                        worker.wait(2000)
+                    except Exception:
+                        pass
+
         # 6. 强制退出应用（使用sys.exit确保进程完全终止）
         event.accept()
 
