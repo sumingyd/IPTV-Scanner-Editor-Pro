@@ -1,7 +1,148 @@
+import os
+
+
 class AppStyles:
     """应用样式管理类 - 支持多主题"""
 
     _current_theme = 'dark'
+    _arrow_cache = {}
+    _check_cache = {}
+
+    @classmethod
+    def _get_arrow_image(cls, color: str) -> str:
+        if color in cls._arrow_cache:
+            cached = cls._arrow_cache[color]
+            if os.path.exists(cached):
+                return cached.replace('\\', '/')
+
+        import tempfile
+        cache_dir = os.path.join(tempfile.gettempdir(), 'iptv_player_icons')
+        os.makedirs(cache_dir, exist_ok=True)
+
+        safe_name = color.lstrip('#')
+        svg_path = os.path.join(cache_dir, f'arrow_down_{safe_name}.svg')
+
+        svg_content = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6">'
+            f'<path d="M0 0 L5 6 L10 0 Z" fill="{color}"/>'
+            f'</svg>'
+        )
+
+        with open(svg_path, 'w', encoding='utf-8') as f:
+            f.write(svg_content)
+
+        cls._arrow_cache[color] = svg_path
+        return svg_path.replace('\\', '/')
+
+    @classmethod
+    def _get_check_image(cls, color: str) -> str:
+        if color in cls._check_cache:
+            cached = cls._check_cache[color]
+            if os.path.exists(cached):
+                return cached.replace('\\', '/')
+
+        import tempfile
+        cache_dir = os.path.join(tempfile.gettempdir(), 'iptv_player_icons')
+        os.makedirs(cache_dir, exist_ok=True)
+
+        safe_name = color.lstrip('#')
+        svg_path = os.path.join(cache_dir, f'check_{safe_name}.svg')
+
+        svg_content = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">'
+            f'<path d="M3 8 L6.5 11.5 L13 4.5" stroke="{color}" stroke-width="2.5" '
+            f'fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+            f'</svg>'
+        )
+
+        with open(svg_path, 'w', encoding='utf-8') as f:
+            f.write(svg_content)
+
+        cls._check_cache[color] = svg_path
+        return svg_path.replace('\\', '/')
+
+    _radio_cache = {}
+
+    @classmethod
+    def _get_radio_dot_image(cls, color: str) -> str:
+        if color in cls._radio_cache:
+            cached = cls._radio_cache[color]
+            if os.path.exists(cached):
+                return cached.replace('\\', '/')
+
+        import tempfile
+        cache_dir = os.path.join(tempfile.gettempdir(), 'iptv_player_icons')
+        os.makedirs(cache_dir, exist_ok=True)
+
+        safe_name = color.lstrip('#')
+        svg_path = os.path.join(cache_dir, f'radio_dot_{safe_name}.svg')
+
+        svg_content = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">'
+            f'<circle cx="8" cy="8" r="4" fill="{color}"/>'
+            f'</svg>'
+        )
+
+        with open(svg_path, 'w', encoding='utf-8') as f:
+            f.write(svg_content)
+
+        cls._radio_cache[color] = svg_path
+        return svg_path.replace('\\', '/')
+
+    _spinup_cache = {}
+    _spindown_cache = {}
+
+    @classmethod
+    def _get_spin_up_image(cls, color: str) -> str:
+        if color in cls._spinup_cache:
+            cached = cls._spinup_cache[color]
+            if os.path.exists(cached):
+                return cached.replace('\\', '/')
+
+        import tempfile
+        cache_dir = os.path.join(tempfile.gettempdir(), 'iptv_player_icons')
+        os.makedirs(cache_dir, exist_ok=True)
+
+        safe_name = color.lstrip('#')
+        svg_path = os.path.join(cache_dir, f'spin_up_{safe_name}.svg')
+
+        svg_content = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6">'
+            f'<path d="M0 6 L5 0 L10 6 Z" fill="{color}"/>'
+            f'</svg>'
+        )
+
+        with open(svg_path, 'w', encoding='utf-8') as f:
+            f.write(svg_content)
+
+        cls._spinup_cache[color] = svg_path
+        return svg_path.replace('\\', '/')
+
+    @classmethod
+    def _get_spin_down_image(cls, color: str) -> str:
+        if color in cls._spindown_cache:
+            cached = cls._spindown_cache[color]
+            if os.path.exists(cached):
+                return cached.replace('\\', '/')
+
+        import tempfile
+        cache_dir = os.path.join(tempfile.gettempdir(), 'iptv_player_icons')
+        os.makedirs(cache_dir, exist_ok=True)
+
+        safe_name = color.lstrip('#')
+        svg_path = os.path.join(cache_dir, f'spin_down_{safe_name}.svg')
+
+        svg_content = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6">'
+            f'<path d="M0 0 L5 6 L10 0 Z" fill="{color}"/>'
+            f'</svg>'
+        )
+
+        with open(svg_path, 'w', encoding='utf-8') as f:
+            f.write(svg_content)
+
+        cls._spindown_cache[color] = svg_path
+        return svg_path.replace('\\', '/')
 
     THEME_COLORS = {
         'dark': {
@@ -435,26 +576,20 @@ class AppStyles:
                     background-color: {colors['accent_pressed']};
                 }}
                 QSpinBox::up-arrow {{
-                    width: 12px;
-                    height: 12px;
-                    border-left: 6px solid transparent;
-                    border-right: 6px solid transparent;
-                    border-bottom: 8px solid {colors['window_text']};
-                    margin: 0 auto;
+                    image: url({AppStyles._get_spin_up_image(colors['window_text'])});
+                    width: 10px;
+                    height: 6px;
                 }}
                 QSpinBox::down-arrow {{
-                    width: 12px;
-                    height: 12px;
-                    border-left: 6px solid transparent;
-                    border-right: 6px solid transparent;
-                    border-top: 8px solid {colors['window_text']};
-                    margin: 0 auto;
+                    image: url({AppStyles._get_spin_down_image(colors['window_text'])});
+                    width: 10px;
+                    height: 6px;
                 }}
                 QSpinBox::up-button:hover::up-arrow {{
-                    border-bottom-color: {colors['accent']};
+                    image: url({AppStyles._get_spin_up_image(colors['accent'])});
                 }}
                 QSpinBox::down-button:hover::down-arrow {{
-                    border-top-color: {colors['accent']};
+                    image: url({AppStyles._get_spin_down_image(colors['accent'])});
                 }}
                 QScrollBar:vertical {{
                     border: none;
@@ -598,26 +733,20 @@ class AppStyles:
                 background-color: {colors['accent_pressed']};
             }}
             QSpinBox::up-arrow {{
-                width: 12px;
-                height: 12px;
-                border-left: 6px solid transparent;
-                border-right: 6px solid transparent;
-                border-bottom: 8px solid {colors['window_text']};
-                margin: 0 auto;
+                image: url({AppStyles._get_spin_up_image(colors['window_text'])});
+                width: 10px;
+                height: 6px;
             }}
             QSpinBox::down-arrow {{
-                width: 12px;
-                height: 12px;
-                border-left: 6px solid transparent;
-                border-right: 6px solid transparent;
-                border-top: 8px solid {colors['window_text']};
-                margin: 0 auto;
+                image: url({AppStyles._get_spin_down_image(colors['window_text'])});
+                width: 10px;
+                height: 6px;
             }}
             QSpinBox::up-button:hover::up-arrow {{
-                border-bottom-color: {colors['accent']};
+                image: url({AppStyles._get_spin_up_image(colors['accent'])});
             }}
             QSpinBox::down-button:hover::down-arrow {{
-                border-top-color: {colors['accent']};
+                image: url({AppStyles._get_spin_down_image(colors['accent'])});
             }}
             QScrollBar:vertical {{
                 border: none;
@@ -888,6 +1017,17 @@ class AppStyles:
                 color: {colors['player_panel_text']};
                 padding: 2px 6px;
             }}
+            QComboBox::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                width: 16px;
+                border: none;
+            }}
+            QComboBox::down-arrow {{
+                image: url({AppStyles._get_arrow_image(colors['player_panel_secondary'])});
+                width: 10px;
+                height: 6px;
+            }}
             QToolButton {{
                 padding: 0px;
                 margin: 0px;
@@ -1107,11 +1247,9 @@ class AppStyles:
                 border-bottom-right-radius: 4px;
             }}
             QComboBox::down-arrow {{
-                image: none;
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 5px solid {colors['player_panel_secondary']};
-                margin-right: 4px;
+                image: url({AppStyles._get_arrow_image(colors['player_panel_secondary'])});
+                width: 10px;
+                height: 6px;
             }}
             QComboBox QAbstractItemView {{
                 background-color: {colors['player_panel']};
@@ -1451,6 +1589,17 @@ class AppStyles:
                     border: 1px solid {colors['mid']};
                     border-radius: 4px;
                 }}
+                QDialog QComboBox::drop-down {{
+                    subcontrol-origin: padding;
+                    subcontrol-position: center right;
+                    width: 20px;
+                    border: none;
+                }}
+                QDialog QComboBox::down-arrow {{
+                    image: url({AppStyles._get_arrow_image(colors['window_text'])});
+                    width: 10px;
+                    height: 6px;
+                }}
                 QDialog QCheckBox {{
                     color: {colors['window_text']};
                     font-size: 13px;
@@ -1468,6 +1617,7 @@ class AppStyles:
                     background-color: {colors['accent']};
                     border: 2px solid {colors['accent']};
                     border-radius: 4px;
+                    image: url({AppStyles._get_check_image('white')});
                 }}
                 QDialog QCheckBox::indicator:hover {{
                     border: 2px solid {colors['accent']};
@@ -1559,6 +1709,17 @@ class AppStyles:
                 border: 1px solid {colors['mid']};
                 border-radius: 4px;
             }}
+            QDialog QComboBox::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                width: 20px;
+                border: none;
+            }}
+            QDialog QComboBox::down-arrow {{
+                image: url({AppStyles._get_arrow_image(colors['window_text'])});
+                width: 10px;
+                height: 6px;
+            }}
             QDialog QCheckBox {{
                 color: {colors['window_text']};
                 font-size: 13px;
@@ -1575,6 +1736,7 @@ class AppStyles:
             QDialog QCheckBox::indicator:checked {{
                 background-color: {colors['accent']};
                 border-color: {colors['accent']};
+                image: url({AppStyles._get_check_image('white')});
             }}
             QDialog QCheckBox::indicator:hover {{
                 border-color: {colors['accent']};
@@ -2165,13 +2327,15 @@ class AppStyles:
                     color: {colors['placeholder']};
                 }}
                 QComboBox::drop-down {{
+                    subcontrol-origin: padding;
+                    subcontrol-position: center right;
+                    width: 20px;
                     border: none;
-                    padding-right: 6px;
                 }}
                 QComboBox::down-arrow {{
-                    width: 8px;
-                    height: 8px;
-                    color: {colors['window_text']};
+                    image: url({AppStyles._get_arrow_image(colors['window_text'])});
+                    width: 10px;
+                    height: 6px;
                 }}
                 QComboBox QAbstractItemView {{
                     background-color: {colors['alternate_base']};
@@ -2210,13 +2374,15 @@ class AppStyles:
                 color: {colors['placeholder']};
             }}
             QComboBox::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                width: 20px;
                 border: none;
-                padding-right: 6px;
             }}
             QComboBox::down-arrow {{
-                width: 8px;
-                height: 8px;
-                color: {colors['window_text']};
+                image: url({AppStyles._get_arrow_image(colors['window_text'])});
+                width: 10px;
+                height: 6px;
             }}
             QComboBox QAbstractItemView {{
                 background-color: {colors['alternate_base']};
@@ -2267,10 +2433,9 @@ class AppStyles:
                 border: none;
             }}
             QComboBox::down-arrow {{
-                image: none;
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 5px solid {colors['window_text']};
+                image: url({AppStyles._get_arrow_image(colors['window_text'])});
+                width: 10px;
+                height: 6px;
             }}
             QComboBox QAbstractItemView {{
                 background-color: {colors['alternate_base']};
@@ -2325,6 +2490,7 @@ class AppStyles:
                     background-color: {colors['accent']};
                     border: 2px solid {colors['accent']};
                     border-radius: 4px;
+                    image: url({AppStyles._get_check_image('white')});
                 }}
                 QCheckBox::indicator:hover {{
                     border: 2px solid {colors['accent']};
@@ -2348,6 +2514,7 @@ class AppStyles:
             QCheckBox::indicator:checked {{
                 background-color: {colors['accent']};
                 border-color: {colors['accent']};
+                image: url({AppStyles._get_check_image('white')});
             }}
             QCheckBox::indicator:hover {{
                 border-color: {colors['accent']};
@@ -2379,6 +2546,7 @@ class AppStyles:
                     background-color: {colors['accent']};
                     border: 3px solid {colors['accent']};
                     border-radius: 8px;
+                    image: url({AppStyles._get_radio_dot_image('white')});
                 }}
                 QRadioButton::indicator:hover {{
                     border: 2px solid {colors['accent']};
@@ -2402,6 +2570,7 @@ class AppStyles:
             QRadioButton::indicator:checked {{
                 background-color: {colors['accent']};
                 border-color: {colors['accent']};
+                image: url({AppStyles._get_radio_dot_image('white')});
             }}
             QRadioButton::indicator:hover {{
                 border-color: {colors['accent']};
