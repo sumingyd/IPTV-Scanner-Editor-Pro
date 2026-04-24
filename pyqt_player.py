@@ -706,6 +706,8 @@ class IPTVPlayer(QMainWindow):
         self.epg_content.setSpacing(8)
         self.epg_content.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.epg_content.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        from controllers.epg_controller import EPGItemDelegate
+        self.epg_content.setItemDelegate(EPGItemDelegate(self.epg_content))
         self.epg_content.addItem(self.language_manager.tr("loading", "Loading..."))
         self.epg_content.itemClicked.connect(self.on_epg_item_clicked)
         self.epg_layout.addWidget(self.epg_content, 1)

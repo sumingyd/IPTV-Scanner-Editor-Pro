@@ -6,11 +6,40 @@ EPG节目单控制器 - 负责EPG数据管理、显示、交互
 import sys
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta, date
-from PyQt6.QtWidgets import QListWidgetItem, QDateEdit
-from PyQt6.QtGui import QAction
+from PyQt6.QtWidgets import QListWidgetItem, QDateEdit, QStyledItemDelegate, QStyleOptionViewItem
+from PyQt6.QtGui import QAction, QColor, QPainter, QFontMetrics
 from PyQt6.QtCore import Qt, QTimer
 
 from core.log_manager import global_logger as logger
+
+
+class EPGItemDelegate(QStyledItemDelegate):
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index):
+        super().paint(painter, option, index)
+
+        data = index.data(Qt.ItemDataRole.UserRole)
+        if not data or not data.get('is_catchup'):
+            return
+
+        text = data.get('catchup_label', '↩')
+        font = option.font
+        fm = QFontMetrics(font)
+        text_width = fm.horizontalAdvance(text) + 8
+        text_height = fm.height() + 4
+
+        x = option.rect.right() - text_width - 4
+        y = option.rect.top() + (option.rect.height() - text_height) // 2
+
+        bg_rect = type(option.rect)(x, y, text_width, text_height)
+        painter.save()
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(52, 152, 219, 180))
+        painter.drawRoundedRect(bg_rect, 3, 3)
+
+        painter.setPen(QColor(255, 255, 255))
+        painter.setFont(font)
+        painter.drawText(bg_rect, Qt.AlignmentFlag.AlignCenter, text)
+        painter.restore()
 
 
 class EPGController:
@@ -153,10 +182,9 @@ class EPGController:
 
             if not filtered_list:
                 if is_browsing_other_date:
-                    logger.info(f"EPG: {target_date} 无节目数据（用户主动切换日期，不回退）")
+                    logger.info(f"EPG: {target_date} 无节目数据")
                 else:
-                    logger.info(f"EPG: {target_date} 无节目数据，显示全部 ({len(epg_list)} 个)")
-                    filtered_list = epg_list
+                    logger.info(f"EPG: 今天无节目数据")
             else:
                 logger.debug(f"EPG: 按日期 {target_date} 过滤，{len(epg_list)} -> {len(filtered_list)} 个节目")
 
@@ -231,19 +259,19 @@ class EPGController:
                         status_text = tr("epg_status_live", "LIVE")
                         is_past_program = True
 
-                catchup_tag = ""
-                if is_past_program and channel_supports_catchup:
-                    catchup_tag = " ↩"
-
-                display_text = f"{status_icon} {start_display} - {end_display}  {title}{catchup_tag}"
+                display_text = f"{status_icon} {start_display} - {end_display}  {title}"
                 item.setText(display_text)
+
+                is_catchup = is_past_program and channel_supports_catchup
 
                 item.setData(Qt.ItemDataRole.UserRole, {
                     'channel': channel_name,
                     'program': program,
                     'status': status_text,
                     'start_dt': start_dt,
-                    'end_dt': end_dt
+                    'end_dt': end_dt,
+                    'is_catchup': is_catchup,
+                    'catchup_label': tr('catchup_available', '可回放') if is_catchup else ''
                 })
 
                 self.window.epg_content.addItem(item)
