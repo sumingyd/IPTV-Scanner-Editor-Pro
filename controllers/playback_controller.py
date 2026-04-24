@@ -174,19 +174,26 @@ class PlaybackController:
         """实际执行频道切换"""
         if not (hasattr(self.window, 'player_controller') and self.window.player_controller and channel):
             return
-            
-        # 重置时移和回看状态
+
         self._live_timeshift_seconds = 0
         self._last_program_id = None
-        
-        # 如果在回看模式，先退出
+
         if self.is_catchup_mode:
             self._exit_catchup_mode()
 
-        # 调用播放器播放
+        if hasattr(self.window, 'player_controller') and self.window.player_controller:
+            try:
+                current_speed = self.window.player_controller.get_speed()
+                if abs(current_speed - 1.0) > 0.01:
+                    self.window.player_controller.set_speed(1.0)
+                    if hasattr(self.window, 'speed_button'):
+                        self.window.speed_button.setText("1.0x")
+            except Exception:
+                pass
+
         url = channel.get('url', '')
         name = channel.get('name', '')
-        
+
         self.window.player_controller.play(url)
         self.current_channel = channel
         self._is_stopped = False
@@ -194,16 +201,26 @@ class PlaybackController:
     def _exit_catchup_mode(self):
         """退出回看模式"""
         self.is_catchup_mode = False
+        if hasattr(self.window, 'is_catchup_mode'):
+            self.window.is_catchup_mode = False
         if hasattr(self.window, 'exit_catchup_button'):
             self.window.exit_catchup_button.hide()
         self.catchup_program = None
-        
-        # 清除回看模拟相关的属性
-        for attr in ['_catchup_start_time', '_catchup_start_progress', 
+        if hasattr(self.window, 'catchup_program'):
+            delattr(self.window, 'catchup_program')
+
+        for attr in ['_catchup_start_time', '_catchup_start_progress',
                      '_target_catchup_progress', '_disable_progress_auto_update',
-                     '_pending_catchup_progress']:
+                     '_pending_catchup_progress', '_is_timeshift_mode',
+                     '_ts_max_shift', '_ts_current_offset', '_ts_range',
+                     '_timeshift_enter_time_ms', '_timeshift_active', '_timeshift_start_time']:
+            if hasattr(self.window, attr):
+                delattr(self.window, attr)
             if hasattr(self, attr):
                 delattr(self, attr)
+
+        if hasattr(self.window, 'program_progress'):
+            self.window.program_progress.setValue(0)
 
     @property
     def is_playing(self) -> bool:

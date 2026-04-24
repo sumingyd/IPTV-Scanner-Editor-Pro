@@ -1794,8 +1794,8 @@ class IPTVPlayer(QMainWindow):
                 program_id = current_program.get('start', '') + current_program.get('end', '')
                 last_id = getattr(self, '_last_program_id', None)
 
-                if last_id is not None and last_id != program_id:
-                    logger.info("检测到节目切换，更新UI信息")
+                if last_id != program_id:
+                    logger.info(f"检测到节目切换，更新UI信息 (last={last_id}, new={program_id})")
                     self._live_timeshift_seconds = 0
                     desc = current_program.get('description', '') or self.language_manager.tr('no_program_desc', 'No program description')
                     if hasattr(self, 'program_desc') and self.program_desc:
@@ -2931,9 +2931,9 @@ class IPTVPlayer(QMainWindow):
                     if total_duration > 0:
                         if abs(self._progress_total_seconds - int(total_duration)) > 1:
                             self._set_progress_range(int(total_duration))
-                            self._progress_time_mode = 'epg'
-                            self._progress_program_start = start_time
-                            self._progress_program_end = end_time
+                        self._progress_time_mode = 'epg'
+                        self._progress_program_start = start_time
+                        self._progress_program_end = end_time
                         
                         timeshift = getattr(self, '_live_timeshift_seconds', 0)
                         if timeshift > 0:
