@@ -568,23 +568,30 @@ class SettingsFileOperations:
     def _load_playlist_file(self, file_path: str):
         """加载播放列表文件"""
         try:
-            from services.m3u_parser import parse_m3u
-            channels = parse_m3u(file_path)
-            
+            from services.m3u_parser import load_m3u_file
+            content = load_m3u_file(file_path)
+
+            if hasattr(self.window, 'channel_model') and self.window.channel_model:
+                if self.window.channel_model.load_from_file(content):
+                    channels = self.window.channel_model.channels
+                else:
+                    channels = []
+            else:
+                channels = []
+
             if hasattr(self.window, 'channels'):
                 self.window.channels = channels
-                
-            if hasattr(self.window, 'channel_model'):
-                self.window.channel_model.set_channels(channels)
-                
-            # 刷新UI
+
             if hasattr(self.window, 'channel_ctrl'):
                 self.window.channel_ctrl.populate_channel_list()
-                
+
             from core.log_manager import global_logger as logger
             logger.info(f"成功加载播放列表: {file_path}, 共 {len(channels)} 个频道")
-            
+
         except Exception as e:
+            from core.log_manager import global_logger as logger
+            logger.error(f"加载播放列表失败: {e}")
+            from PyQt6.QtWidgets import QMessageBox
             QMessageBox.critical(
                 self.window,
                 "Error",
