@@ -995,7 +995,7 @@ class ScanChannelDialog(FloatingDialog):
         )
 
     def _update_scan_progress(self):
-        """更新扫描进度（使用进度条管理器）"""
+        """更新扫描/检测进度（使用进度条管理器）"""
         try:
             if hasattr(self.scanner, 'stats'):
                 stats = self.scanner.stats
@@ -1004,25 +1004,33 @@ class ScanChannelDialog(FloatingDialog):
                 invalid = stats.get('invalid', 0)
 
                 current = valid + invalid
+                is_validating = getattr(self.scanner, 'is_validating', False)
+                tr = self.language_manager.tr
 
                 if total > 0:
-                    # 使用进度条管理器更新进度
+                    if is_validating:
+                        progress_text = f"{tr('validate_progress', '检测进度')}: {current}/{total}"
+                    else:
+                        progress_text = f"{tr('scan_progress', '扫描进度')}: {current}/{total}"
+
                     self.progress_manager.update_progress_from_stats(
                         current,
                         total,
-                        f"扫描进度: {current}/{total}"
+                        progress_text
                     )
 
-                    # 检查是否完成
                     if current >= total and total > 0:
-                        self.progress_manager.complete_progress("扫描完成")
-                        self._set_scan_button_text('full_scan', '完整扫描')
-                        self._set_append_scan_button_text('append_scan', '追加扫描')
+                        if is_validating:
+                            self.progress_manager.complete_progress(tr('validate_completed', '检测完成'))
+                        else:
+                            self.progress_manager.complete_progress(tr('scan_completed', '扫描完成'))
+                            self._set_scan_button_text('full_scan', '完整扫描')
+                            self._set_append_scan_button_text('append_scan', '追加扫描')
 
         except AttributeError as e:
-            log_scan_warning(f"扫描进度更新失败: {e}")
+            log_scan_warning(f"进度更新失败: {e}")
         except Exception as e:
-            log_scan_warning(f"扫描进度更新时发生意外错误: {e}")
+            log_scan_warning(f"进度更新时发生意外错误: {e}")
 
     def _load_config(self):
         """加载保存的配置到UI"""
@@ -1195,6 +1203,11 @@ class ScanChannelDialog(FloatingDialog):
 
         self.scanner.start_scan(url, scan_threads, scan_timeout, user_agent=user_agent, referer=referer, skip_urls=skip_urls)
 
+        self.progress_manager.start_progress(
+            str(self.language_manager.tr('scan', '扫描')),
+            max_value=100
+        )
+
         if clear_list:
             self._set_scan_button_text('stop_scan', '停止扫描')
         else:
@@ -1252,9 +1265,19 @@ class ScanChannelDialog(FloatingDialog):
             self.btn_hide_invalid.setStyleSheet(
                 AppStyles.button_style(active=True)
             )
+            self.progress_manager.start_progress(
+                str(self.language_manager.tr('validate', '检测')),
+                max_value=self.model.rowCount()
+            )
+            self.stats_label.setText(
+                f"{self.language_manager.tr('validate', '检测')}: "
+                f"{self.language_manager.tr('validate_nth', '第{n}次检测').format(n=1)} | "
+                f"0/{self.model.rowCount()}"
+            )
         else:
             self.scanner.stop_validation()
             self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
+            self.progress_manager.hide_progress()
 
     def _on_channel_validated(self, index, valid, latency, resolution):
         """处理频道验证结果"""
@@ -1269,7 +1292,7 @@ class ScanChannelDialog(FloatingDialog):
 
     def _on_validation_completed(self):
         """处理验证完成事件"""
-        self.progress_manager.hide_progress()
+        self.progress_manager.complete_progress(self.language_manager.tr('validate_completed', '检测完成'))
         self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
         if hasattr(self, 'channel_list'):
             header = self.channel_list.horizontalHeader()
@@ -1327,7 +1350,12 @@ class ScanChannelDialog(FloatingDialog):
             f"{len(self._validation_retry_urls)}个URL, 超时={retry_timeout}秒"
         )
         self.stats_label.setText(
-            f"{self.language_manager.tr('smart_retry', 'Smart Retry')} #{self._validation_retry_count}..."
+            f"{self.language_manager.tr('smart_retry', '智能重试')} #{self._validation_retry_count}..."
+        )
+
+        self.progress_manager.start_progress(
+            f"{self.language_manager.tr('smart_retry', '智能重试')} #{self._validation_retry_count}",
+            max_value=len(self._validation_retry_urls)
         )
 
         self.scanner.start_scan_from_urls(
@@ -1499,7 +1527,7 @@ class ScanChannelDialog(FloatingDialog):
         is_retry = self.scan_state_manager.is_retry_scan(self.retry_id)
 
         # 隐藏进度条
-        self.progress_manager.hide_progress()
+        self.progress_manager.complete_progress(self.language_manager.tr('scan_completed', '扫描完成'))
 
         # 更新按钮文本
         self._set_scan_button_text('full_scan', '完整扫描')
@@ -1522,7 +1550,7 @@ class ScanChannelDialog(FloatingDialog):
 
     def _on_validation_retry_completed(self):
         """处理验证重试扫描完成事件"""
-        self.progress_manager.hide_progress()
+        self.progress_manager.complete_progress(self.language_manager.tr('validate_completed', '检测完成'))
         self._set_scan_button_text('full_scan', '完整扫描')
         self._set_append_scan_button_text('append_scan', '追加扫描')
 
@@ -1572,30 +1600,36 @@ class ScanChannelDialog(FloatingDialog):
                 return
 
             stats = stats_data.get('stats', stats_data)
+            is_validation = stats_data.get('is_validation', False)
             elapsed = time.strftime("%H:%M:%S", time.gmtime(stats.get('elapsed', 0)))
 
-            # 获取重试次数
             retry_count = self.scan_state_manager.get_retry_count(self.retry_id)
             is_retry_scan = self.scan_state_manager.is_retry_scan(self.retry_id)
 
-            # 如果是重试扫描，显示重试次数
-            scan_type = ""
             tr = self.language_manager.tr
-            if is_retry_scan:
-                scan_type = tr('retry_nth', 'Retry #{n}').format(n=retry_count)
-            elif retry_count > 0:
-                scan_type = tr('scan_nth', 'Scan #{n}').format(n=retry_count + 1)
-            else:
-                scan_type = tr('scan_nth', 'Scan #{n}').format(n=1)
 
-            scan_text = tr('scan', 'Scan')
-            total_text = tr('scan_total', 'Total')
-            valid_text = tr('valid', 'Valid')
-            invalid_text = tr('invalid', 'Invalid')
-            time_text = tr('time_elapsed', 'Time')
+            if is_validation:
+                task_text = tr('validate', '检测')
+                if is_retry_scan:
+                    task_type = tr('retry_nth', '第{n}次重试').format(n=retry_count)
+                else:
+                    task_type = tr('validate_nth', '第{n}次检测').format(n=1)
+            else:
+                task_text = tr('scan', '扫描')
+                if is_retry_scan:
+                    task_type = tr('retry_nth', '第{n}次重试').format(n=retry_count)
+                elif retry_count > 0:
+                    task_type = tr('scan_nth', '第{n}次扫描').format(n=retry_count + 1)
+                else:
+                    task_type = tr('scan_nth', '第{n}次扫描').format(n=1)
+
+            total_text = tr('scan_total', '本次总数')
+            valid_text = tr('valid', '有效')
+            invalid_text = tr('invalid', '无效')
+            time_text = tr('time_elapsed', '耗时')
 
             stats_text = (
-                f"{scan_text}: {scan_type} | "
+                f"{task_text}: {task_type} | "
                 f"{total_text}: {stats.get('total', 0)} | "
                 f"{valid_text}: {stats.get('valid', 0)} | "
                 f"{invalid_text}: {stats.get('invalid', 0)} | "
@@ -1908,6 +1942,10 @@ class ScanChannelDialog(FloatingDialog):
         retry_threads = 4
 
         # 启动深度重试扫描
+        self.progress_manager.start_progress(
+            str(self.language_manager.tr('retry_scan', '重试扫描')),
+            max_value=len(retry_urls)
+        )
         self.scanner.start_scan_from_urls(
             retry_urls,
             retry_threads,
