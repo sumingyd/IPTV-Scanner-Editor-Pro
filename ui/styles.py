@@ -834,6 +834,8 @@ class AppStyles:
                 background-color: {colors['player_panel']};
                 color: {colors['player_panel_text']};
                 padding: 4px;
+                border-bottom-left-radius: 10px;
+                border-bottom-right-radius: 10px;
             }}
         """
 
