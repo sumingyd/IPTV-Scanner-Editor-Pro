@@ -1021,6 +1021,20 @@ class AppStyles:
         """
 
     @staticmethod
+    def player_catchup_indicator_style() -> str:
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['player_accent']};
+                font-size: 11px;
+                background-color: transparent;
+                padding: 1px 4px;
+                border: 1px solid {colors['player_accent']};
+                border-radius: 3px;
+            }}
+        """
+
+    @staticmethod
     def player_program_desc_style() -> str:
         colors = AppStyles._get_colors()
         return f"""

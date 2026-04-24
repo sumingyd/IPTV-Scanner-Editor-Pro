@@ -966,6 +966,11 @@ class IPTVPlayer(QMainWindow):
         self.time_label.setStyleSheet(AppStyles.player_label_style())
         self.time_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         row1.addWidget(self.time_label, 0)
+        self.catchup_indicator = QLabel("")
+        self.catchup_indicator.setStyleSheet(AppStyles.player_catchup_indicator_style())
+        self.catchup_indicator.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self.catchup_indicator.hide()
+        row1.addWidget(self.catchup_indicator, 0)
         self.remain_label = QLabel(tr("waiting_to_play", "Waiting to play..."))
         self.remain_label.setStyleSheet(AppStyles.player_program_style())
         self.remain_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -1988,6 +1993,8 @@ class IPTVPlayer(QMainWindow):
         """选择频道时立即更新悬浮窗信息"""
         if not self.current_channel:
             return
+
+        self._update_catchup_indicator()
 
         # 更新频道名称和LOGO
         display_name = self._get_display_channel_name(self.current_channel)
@@ -4232,6 +4239,18 @@ class IPTVPlayer(QMainWindow):
             labels = {'default': '📐', '16:9': '16:9', '4:3': '4:3', 'stretch': '↔', 'fill': '⬛'}
             if hasattr(self, 'aspect_button'):
                 self.aspect_button.setText(labels.get(ratio, '📐'))
+        except Exception:
+            pass
+
+    def _update_catchup_indicator(self):
+        try:
+            if not hasattr(self, 'catchup_indicator'):
+                return
+            if self.current_channel and self.current_channel.get('catchup_source', ''):
+                self.catchup_indicator.setText(self.language_manager.tr('catchup_available', '可回放'))
+                self.catchup_indicator.show()
+            else:
+                self.catchup_indicator.hide()
         except Exception:
             pass
 

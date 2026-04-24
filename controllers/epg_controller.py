@@ -183,6 +183,10 @@ class EPGController:
             # 获取当前时间用于判断节目状态
             now = datetime.now()
 
+            channel_supports_catchup = bool(
+                self.window.current_channel.get('catchup_source', '')
+            ) if hasattr(self.window, 'current_channel') and self.window.current_channel else False
+
             for program in filtered_list:
                 item = QListWidgetItem()
 
@@ -213,6 +217,7 @@ class EPGController:
                 # 判断节目播放状态并添加状态标识
                 status_icon = "⏹"  # 默认：未播放
                 status_text = ""
+                is_past_program = False
                 if start_dt and end_dt:
                     if now < start_dt:
                         status_icon = "⏳"  # 未开始
@@ -220,11 +225,17 @@ class EPGController:
                     elif now > end_dt:
                         status_icon = "✅"  # 已结束
                         status_text = tr("epg_status_finished", "")
+                        is_past_program = True
                     else:
                         status_icon = "🔴"  # 正在播放
                         status_text = tr("epg_status_live", "LIVE")
+                        is_past_program = True
 
-                display_text = f"{status_icon} {start_display} - {end_display}  {title}"
+                catchup_tag = ""
+                if is_past_program and channel_supports_catchup:
+                    catchup_tag = " ↩"
+
+                display_text = f"{status_icon} {start_display} - {end_display}  {title}{catchup_tag}"
                 item.setText(display_text)
 
                 item.setData(Qt.ItemDataRole.UserRole, {
