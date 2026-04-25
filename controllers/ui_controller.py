@@ -329,8 +329,9 @@ class UIController:
             self._save_and_hide_floating_panels()
 
     def _save_and_hide_floating_panels(self):
-        """保存并隐藏所有悬浮窗"""
-        self.window._saved_floating_states = {
+        """保存并隐藏所有悬浮窗（自动隐藏专用，使用独立快照，不覆盖手动 Y 键快照）"""
+        # 使用独立的 _auto_saved_states，避免与 toggle_hide_floating 的 _saved_floating_states 互相覆盖
+        self.window._auto_saved_states = {
             'epg': getattr(self.window, 'epg_visible', False),
             'playlist': getattr(self.window, 'playlist_visible', False),
             'floating': getattr(self.window, 'floating_panel_visible', False),
@@ -346,25 +347,34 @@ class UIController:
         self.window.floating_panel_visible = False
 
     def handle_mouse_activity(self):
-        """处理鼠标活动，恢复隐藏的悬浮窗（只恢复用户未手动修改的面板）"""
-        if not getattr(self.window, '_auto_hidden', False):
+        """处理鼠标活动，恢复自动隐藏的悬浮窗并重启定时器"""
+        w = self.window
+
+        # 重启定时器（无论面板是否被自动隐藏，只要有鼠标活动就重置倒计时）
+        if not getattr(w, '_floating_hidden', False):
+            timer = getattr(w, '_auto_hide_timer', None)
+            if timer:
+                timer.start()
+
+        if not getattr(w, '_auto_hidden', False):
             return
 
-        self.window._auto_hidden = False
-        saved = getattr(self.window, '_saved_floating_states', {})
+        w._auto_hidden = False
+        # 使用自动隐藏专用快照恢复，不受手动 Y 键操作影响
+        saved = getattr(w, '_auto_saved_states', {})
 
-        if saved.get('epg', False) and hasattr(self.window, 'epg_panel') and self.window.epg_panel:
-            if not self.window.epg_panel.isVisible() and not self.window.epg_visible:
-                self.window.epg_panel.show()
-                self.window.epg_visible = True
-        if saved.get('playlist', False) and hasattr(self.window, 'playlist_panel') and self.window.playlist_panel:
-            if not self.window.playlist_panel.isVisible() and not self.window.playlist_visible:
-                self.window.playlist_panel.show()
-                self.window.playlist_visible = True
-        if saved.get('floating', False) and hasattr(self.window, 'floating_panel') and self.window.floating_panel:
-            if not self.window.floating_panel.isVisible() and not self.window.floating_panel_visible:
-                self.window.floating_panel.show()
-                self.window.floating_panel_visible = True
+        if saved.get('epg', False) and getattr(w, 'epg_panel', None):
+            if not w.epg_panel.isVisible():
+                w.epg_panel.show()
+            w.epg_visible = True
+        if saved.get('playlist', False) and getattr(w, 'playlist_panel', None):
+            if not w.playlist_panel.isVisible():
+                w.playlist_panel.show()
+            w.playlist_visible = True
+        if saved.get('floating', False) and getattr(w, 'floating_panel', None):
+            if not w.floating_panel.isVisible():
+                w.floating_panel.show()
+            w.floating_panel_visible = True
 
     def reapply_all_styles(self):
         """重新应用所有样式（用于主题切换后）"""
