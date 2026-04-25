@@ -164,7 +164,6 @@ BUILTIN_TRANSLATIONS = {
         'ok': '确定',
         'local_video': '本地视频',
         'local_video_file': '本地视频文件',
-        'loading': '加载中...',
         'menu_recent_open': '最近打开',
         'menu_save_as': '另存为...',
         'menu_exit': '退出',
@@ -318,7 +317,6 @@ BUILTIN_TRANSLATIONS = {
         'select_mapping_to_edit': '请先选择要编辑的映射',
         'select_mapping_to_delete': '请先选择要删除的映射',
         'delete_mapping_confirm': "确定要删除映射 '{}' → '{}'？",
-        'scan_progress': '扫描进度',
         'scan_complete': '扫描完成',
         'append_scan_tooltip': '不清空现有列表，扫描到的有效频道直接追加到列表末尾',
         'smart_retry_tooltip': '基于失败原因智能重试：只重试超时、连接失败等临时错误，不重试TCP失败、404等永久错误。启用后会自动循环重试直到没有新的有效频道',
@@ -348,7 +346,6 @@ BUILTIN_TRANSLATIONS = {
         'stop_validate': '停止检测',
         'show_hidden': '恢复隐藏项',
         'retry_nth': '第{n}次重试',
-        'scan_nth': '第{n}次扫描',
         'generated_channel': '生成频道',
         'generated_group': '生成频道',
         'not_tested': '未检测',
@@ -613,7 +610,6 @@ BUILTIN_TRANSLATIONS = {
         'ok': 'OK',
         'local_video': 'Local Video',
         'local_video_file': 'Local Video File',
-        'loading': 'Loading...',
         'menu_recent_open': 'Recent',
         'menu_save_as': 'Save As...',
         'menu_exit': 'Exit',
@@ -767,7 +763,6 @@ BUILTIN_TRANSLATIONS = {
         'select_mapping_to_edit': 'Please select a mapping to edit',
         'select_mapping_to_delete': 'Please select a mapping to delete',
         'delete_mapping_confirm': "Delete mapping '{}' → '{}'?",
-        'scan_progress': 'Scan Progress',
         'scan_complete': 'Scan Complete',
         'append_scan_tooltip': 'Append valid channels to existing list without clearing',
         'smart_retry_tooltip': 'Smart retry based on failure reasons: only retry timeout and connection failures, not TCP failures or 404 errors. Automatically loops until no new valid channels found',
@@ -797,7 +792,6 @@ BUILTIN_TRANSLATIONS = {
         'stop_validate': 'Stop Validate',
         'show_hidden': 'Show Hidden',
         'retry_nth': 'Retry #{n}',
-        'scan_nth': 'Scan #{n}',
         'generated_channel': 'Generated Channel',
         'generated_group': 'Generated',
         'not_tested': 'Not Tested',
@@ -965,7 +959,11 @@ class LanguageManager(QObject):
         try:
             from ui.dialogs.about_dialog import AboutDialog
             version = AboutDialog.CURRENT_VERSION
-            main_window.setWindowTitle(f"{self.tr('app_title', 'IPTV Scanner Editor Pro')} v{version}")
+            new_title = f"{self.tr('app_title', 'IPTV Scanner Editor Pro')} v{version}"
+            main_window.setWindowTitle(new_title)
+            # 同步更新自定义标题栏标签（无边框窗口 setWindowTitle 不可见）
+            if hasattr(main_window, '_title_label') and main_window._title_label:
+                main_window._title_label.setText(new_title)
 
             if hasattr(main_window, 'epg_title'):
                 main_window.epg_title.setText(f"📅 {self.tr('epg_title', 'Program Guide')}")
