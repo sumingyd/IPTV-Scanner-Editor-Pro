@@ -46,9 +46,12 @@ class WindowController:
         self._title_icon_label = QLabel()
         self._title_icon_label.setFixedSize(16, 16)
         from utils.general_utils import get_icon_path
+        from PyQt6.QtGui import QIcon
         ico_path = get_icon_path()
         if os.path.exists(ico_path):
-            pixmap = QPixmap(ico_path).scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            # 用 QIcon.pixmap() 而非 QPixmap().scaled()：
+            # ICO 文件内嵌多尺寸位图，QIcon 会自动选取最接近的分辨率，避免放大/缩小导致模糊
+            pixmap = QIcon(ico_path).pixmap(16, 16)
             self._title_icon_label.setPixmap(pixmap)
         else:
             self._title_icon_label.setText("📺")
@@ -133,15 +136,19 @@ class WindowController:
         self._sync_floating_panels_on_top()
 
     def _sync_floating_panels_on_top(self):
+        """同步所有浮动面板的置顶状态（包括当前不可见的，确保重新显示时继承正确状态）"""
         for panel_attr in ['epg_panel', 'playlist_panel', 'floating_panel']:
             panel = getattr(self.window, panel_attr, None)
-            if panel and panel.isVisible():
-                flags = panel.windowFlags()
-                if self._stay_on_top_active:
-                    flags |= Qt.WindowType.WindowStaysOnTopHint
-                else:
-                    flags &= ~Qt.WindowType.WindowStaysOnTopHint
-                panel.setWindowFlags(flags)
+            if panel is None:
+                continue
+            flags = panel.windowFlags()
+            if self._stay_on_top_active:
+                flags |= Qt.WindowType.WindowStaysOnTopHint
+            else:
+                flags &= ~Qt.WindowType.WindowStaysOnTopHint
+            panel.setWindowFlags(flags)
+            # 只对当前可见的面板调用 show()，不可见面板仅更新 flags
+            if panel.isVisible():
                 panel.show()
 
     def handle_mouse_press_event(self, event) -> bool:
@@ -151,7 +158,7 @@ class WindowController:
         """
         if event.button() == Qt.MouseButton.LeftButton:
             # 检查是否点击在标题栏区域（实现窗口拖动）
-            if self._title_bar and self._title_bar:
+            if self._title_bar:
                 title_bar_geo = self._title_bar.geometry()
                 # 转换为全局坐标
                 title_global_pos = self._title_bar.mapToGlobal(QPoint(0, 0))
@@ -201,7 +208,7 @@ class WindowController:
         处理鼠标双击事件 - 标题栏双击最大化/还原
         Returns: bool - 是否已处理该事件
         """
-        if self._title_bar and self._title_bar:
+        if self._title_bar:
             title_bar_geo = self._title_bar.geometry()
             title_global_pos = self._title_bar.mapToGlobal(QPoint(0, 0))
             mouse_global_pos = event.globalPosition().toPoint()
