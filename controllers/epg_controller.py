@@ -26,16 +26,17 @@ class EPGItemDelegate(QStyledItemDelegate):
             super().paint(painter, option, index)
             return
 
-        badges = []
+        left_badges = []
         if data.get('is_live'):
-            badges.append(('LIVE', 'live'))
+            left_badges.append(('LIVE', 'live'))
         elif data.get('is_past'):
-            badges.append(('✓', 'past'))
+            left_badges.append(('✓', 'past'))
 
+        right_badge = None
         if data.get('is_catchup'):
-            badges.append((data.get('catchup_label', '↩'), 'catchup'))
+            right_badge = (data.get('catchup_label', '↩'), 'catchup')
 
-        if not badges:
+        if not left_badges and not right_badge:
             super().paint(painter, option, index)
             return
 
@@ -44,12 +45,13 @@ class EPGItemDelegate(QStyledItemDelegate):
         text_height = fm.height() + 4
         y = option.rect.top() + (option.rect.height() - text_height) // 2
 
-        x = option.rect.left() + 4
         painter.save()
-        for text, status_type in badges:
+
+        left_offset = option.rect.left() + 4
+        for text, status_type in left_badges:
             text_width = fm.horizontalAdvance(text) + 8
             bg_color, text_color = self.STATUS_COLORS.get(status_type, self.STATUS_COLORS['past'])
-            bg_rect = type(option.rect)(x, y, text_width, text_height)
+            bg_rect = type(option.rect)(left_offset, y, text_width, text_height)
 
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(bg_color)
@@ -59,12 +61,30 @@ class EPGItemDelegate(QStyledItemDelegate):
             painter.setFont(font)
             painter.drawText(bg_rect, Qt.AlignmentFlag.AlignCenter, text)
 
-            x += text_width + 4
+            left_offset += text_width + 4
+
+        right_limit = option.rect.right() - 4
+        if right_badge:
+            text, status_type = right_badge
+            text_width = fm.horizontalAdvance(text) + 8
+            bg_color, text_color = self.STATUS_COLORS.get(status_type, self.STATUS_COLORS['past'])
+            bg_rect = type(option.rect)(right_limit - text_width, y, text_width, text_height)
+
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(bg_color)
+            painter.drawRoundedRect(bg_rect, 3, 3)
+
+            painter.setPen(text_color)
+            painter.setFont(font)
+            painter.drawText(bg_rect, Qt.AlignmentFlag.AlignCenter, text)
+
+            right_limit -= text_width + 4
+
         painter.restore()
 
         text_rect = type(option.rect)(
-            x, option.rect.top(),
-            option.rect.right() - x, option.rect.height()
+            left_offset, option.rect.top(),
+            right_limit - left_offset, option.rect.height()
         )
         option_copy = QStyleOptionViewItem(option)
         option_copy.rect = text_rect
