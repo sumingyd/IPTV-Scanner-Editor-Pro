@@ -16,33 +16,35 @@ class SettingsFileOperations:
 
     def open_playlist(self):
         """打开播放列表文件"""
+        tr = self.window.language_manager.tr if hasattr(self.window, 'language_manager') else lambda k, d=None: d or k
         file_path, _ = QFileDialog.getOpenFileName(
             self.window,
-            "Open Playlist",
+            tr("open_playlist", "Open Playlist"),
             "",
             "M3U Files (*.m3u *.m3u8);;All Files (*)"
         )
-        
+
         if file_path:
             self._load_playlist_file(file_path)
 
     def save_as(self):
         """另存为"""
+        tr = self.window.language_manager.tr if hasattr(self.window, 'language_manager') else lambda k, d=None: d or k
         if not hasattr(self.window, 'channels') or not self.window.channels:
             QMessageBox.warning(
                 self.window,
-                "Warning",
-                "No channels to save"
+                tr("warning", "Warning"),
+                tr("no_channels_to_save", "No channels to save")
             )
             return
-        
+
         file_path, _ = QFileDialog.getSaveFileName(
             self.window,
-            "Save Playlist",
+            tr("save_as", "Save As"),
             "",
             "M3U Files (*.m3u);;Text Files (*.txt);;All Files (*)"
         )
-        
+
         if file_path:
             self._save_playlist_file(file_path)
 
@@ -360,7 +362,11 @@ class SettingsFileOperations:
             from ui.dialogs.about_dialog import AboutDialog
             current_version = AboutDialog.CURRENT_VERSION
             tr = self.window.language_manager.tr
-            self.window.setWindowTitle(f"{tr('app_title', 'IPTV Scanner Editor Pro')} v{current_version}")
+            new_title = f"{tr('app_title', 'IPTV Scanner Editor Pro')} v{current_version}"
+            self.window.setWindowTitle(new_title)
+            # 同步更新自定义标题栏标签（无边框窗口 setWindowTitle 不可见）
+            if hasattr(self.window, '_title_label') and self.window._title_label:
+                self.window._title_label.setText(new_title)
 
             if hasattr(self.window, 'setup_menu_bar'):
                 self.window.setup_menu_bar()
@@ -508,6 +514,8 @@ class SettingsFileOperations:
         from ui.styles import AppStyles
         colors = AppStyles._get_colors()
         html = markdown
+        # 先处理三级标题（### ），再处理二级标题（## ），避免顺序混淆
+        html = re.sub(r'### (.*)', rf'<h3 style="color: {colors["window_text"]}; margin-top: 8px; margin-bottom: 4px; font-size: 13px;">\1</h3>', html)
         html = re.sub(r'## (.*)', rf'<h2 style="color: {colors["accent"]}; margin-top: 12px; margin-bottom: 6px; font-size: 15px;">\1</h2>', html)
         html = re.sub(r'\*\*(.*?)\*\*', rf'<strong style="color: {colors["window_text"]};">\1</strong>', html)
         html = re.sub(r'^1\. (.*)', r'<p style="margin: 3px 0; line-height: 1.4;">1. \1</p>', html, flags=re.MULTILINE)
@@ -568,13 +576,12 @@ class SettingsFileOperations:
         config.save_ui_settings(floating_settings)
 
     def _get_divider_positions(self) -> list:
-        """获取分隔条位置列表"""
-        positions = []
-        # TODO: 从UI获取各分隔条的位置
-        return positions
+        """获取分隔条位置列表（主界面已不再使用分隔条，始终返回空列表）"""
+        return []
 
     def _load_playlist_file(self, file_path: str):
         """加载播放列表文件"""
+        tr = self.window.language_manager.tr if hasattr(self.window, 'language_manager') else lambda k, d=None: d or k
         try:
             from services.m3u_parser import load_m3u_file
             content = load_m3u_file(file_path)
@@ -615,18 +622,19 @@ class SettingsFileOperations:
             from PyQt6.QtWidgets import QMessageBox
             QMessageBox.critical(
                 self.window,
-                "Error",
-                f"Failed to load playlist:\n{str(e)}"
+                tr("error", "Error"),
+                tr("open_file_error", "Failed to load playlist:\n{error}").format(error=str(e))
             )
 
     def _save_playlist_file(self, file_path: str):
         """保存播放列表文件"""
+        tr = self.window.language_manager.tr if hasattr(self.window, 'language_manager') else lambda k, d=None: d or k
         try:
             if not hasattr(self.window, 'channels'):
                 return
-                
+
             channels = self.window.channels
-            
+
             # 根据扩展名选择格式
             if file_path.endswith('.m3u') or file_path.endswith('.m3u8'):
                 self._save_as_m3u(channels, file_path)
@@ -635,19 +643,19 @@ class SettingsFileOperations:
             else:
                 # 默认M3U格式
                 self._save_as_m3u(channels, file_path)
-                
+
             from core.log_manager import global_logger as logger
             logger.info(f"成功保存播放列表: {file_path}")
-            
+
         except Exception as e:
             QMessageBox.critical(
                 self.window,
-                "Error",
-                f"Failed to save playlist:\n{str(e)}"
+                tr("error", "Error"),
+                tr("save_error", "Failed to save playlist:\n{error}").format(error=str(e))
             )
 
     def _save_as_m3u(self, channels: list, file_path: str):
-        """保存为M3U格式"""
+        """保存为M3U格式（保留完整元数据）"""
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write('#EXTM3U\n')
             for ch in channels:
@@ -655,18 +663,39 @@ class SettingsFileOperations:
                 url = ch.get('url', '')
                 group = ch.get('group', '')
                 logo = ch.get('logo_url', '')
+                tvg_id = ch.get('tvg_id', '')
+                tvg_name = ch.get('_all_tags', {}).get('tvg-name', '') if ch.get('_all_tags') else ''
+                tvg_chno = ch.get('_all_tags', {}).get('tvg-chno', '') if ch.get('_all_tags') else ''
+                tvg_shift = ch.get('_all_tags', {}).get('tvg-shift', '') if ch.get('_all_tags') else ''
+                catchup = ch.get('_all_tags', {}).get('catchup', '') if ch.get('_all_tags') else ''
+                catchup_days = ch.get('_all_tags', {}).get('catchup-days', '') if ch.get('_all_tags') else ''
+                catchup_source = ch.get('catchup_source', '')
                 groups = ch.get('_groups', [])
 
-                f.write(f'#EXTINF:-1 {name}')
-                if group:
-                    if groups and len(groups) > 1:
-                        group_value = ';'.join(groups)
-                    else:
-                        group_value = group
-                    f.write(f' group-title="{group_value}"')
+                attrs = ['#EXTINF:-1']
+                if tvg_id:
+                    attrs.append(f'tvg-id="{tvg_id}"')
+                if tvg_name:
+                    attrs.append(f'tvg-name="{tvg_name}"')
+                elif name:
+                    attrs.append(f'tvg-name="{name}"')
                 if logo:
-                    f.write(f' tvg-logo="{logo}"')
-                f.write('\n')
+                    attrs.append(f'tvg-logo="{logo}"')
+                if tvg_chno:
+                    attrs.append(f'tvg-chno="{tvg_chno}"')
+                if tvg_shift:
+                    attrs.append(f'tvg-shift="{tvg_shift}"')
+                if group:
+                    group_value = ';'.join(groups) if groups and len(groups) > 1 else group
+                    attrs.append(f'group-title="{group_value}"')
+                if catchup:
+                    attrs.append(f'catchup="{catchup}"')
+                if catchup_days:
+                    attrs.append(f'catchup-days="{catchup_days}"')
+                if catchup_source:
+                    attrs.append(f'catchup-source="{catchup_source}"')
+
+                f.write(' '.join(attrs) + f',{name}\n')
                 f.write(f'{url}\n')
 
     def _save_as_txt(self, channels: list, file_path: str):
