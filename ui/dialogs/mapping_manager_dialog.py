@@ -1,8 +1,34 @@
 from PyQt6 import QtWidgets
+from PyQt6.QtCore import QThread, pyqtSignal
 from core.log_manager import LogManager
 from models.channel_mappings import mapping_manager
 from utils.error_handler import show_error, show_warning, show_info, show_confirm
 from ..floating_dialog import FloatingDialog
+
+
+class _UpdateCheckWorker(QThread):
+    """后台线程：执行远程映射更新检查，避免阻塞 UI 线程"""
+    finished = pyqtSignal(dict)  # 检查完成，携带 status dict
+
+    def run(self):
+        try:
+            status = mapping_manager.check_remote_update_status()
+        except Exception as e:
+            status = {'has_update': False, 'last_cache_time': 0,
+                      'local_count': 0, 'remote_count': 0, 'error': str(e)}
+        self.finished.emit(status)
+
+
+class _RefreshCacheWorker(QThread):
+    """后台线程：执行远程缓存刷新，避免阻塞 UI 线程"""
+    finished = pyqtSignal(bool, str)  # (success, error_message)
+
+    def run(self):
+        try:
+            mapping_manager.refresh_cache()
+            self.finished.emit(True, '')
+        except Exception as e:
+            self.finished.emit(False, str(e))
 
 
 class MappingManagerDialog(FloatingDialog):
@@ -12,6 +38,8 @@ class MappingManagerDialog(FloatingDialog):
         super().__init__(parent, stay_on_top=False)
         self.logger = LogManager()
         self.parent = parent
+        self._update_check_worker = None  # 持有引用，防止 GC
+        self._refresh_worker = None       # 持有引用，防止 GC
         from ..styles import AppStyles
         colors = AppStyles._get_colors()
         self.opacity = colors.get('window_opacity', 220)
@@ -202,38 +230,49 @@ class MappingManagerDialog(FloatingDialog):
 
     def load_data(self):
         self.load_user_mappings()
-        self._check_update_status()
+        self._check_update_status_async()
 
-    def _check_update_status(self):
-        try:
-            status = mapping_manager.check_remote_update_status()
-            _ = self._tr
-            if status.get('error'):
-                text = _('update_check_failed', 'Update check failed: {}').format(status['error'])
-                color = '#c07050'
-            elif status['has_update']:
-                text = _('update_available',
-                    '🔄 New version available! Click the button above to refresh.')
-                color = '#f0a030'
+    def _check_update_status_async(self):
+        """启动后台线程检查远程更新状态，不阻塞 UI"""
+        _ = self._tr
+        self.update_status_label.setText(_('checking_update', '⏳ Checking for updates...'))
+        self.update_status_label.setStyleSheet(
+            "color: #8090a0; font-size: 11px; border: none; background: transparent; padding: 4px 8px;"
+        )
+        worker = _UpdateCheckWorker(self)
+        worker.finished.connect(self._on_update_check_done)
+        worker.finished.connect(worker.deleteLater)
+        self._update_check_worker = worker
+        worker.start()
+
+    def _on_update_check_done(self, status: dict):
+        """更新检查完成后在 UI 线程中更新标签"""
+        _ = self._tr
+        color = '#60a080'
+        if status.get('error'):
+            text = _('update_check_failed', 'Update check failed: {}').format(status['error'])
+            color = '#c07050'
+        elif status.get('has_update'):
+            text = _('update_available',
+                '🔄 New version available! Click the button above to refresh.')
+            color = '#f0a030'
+        else:
+            last_time = status.get('last_cache_time', 0)
+            local_count = status.get('local_count', 0)
+            if last_time > 0:
+                from datetime import datetime
+                dt = datetime.fromtimestamp(last_time)
+                time_str = dt.strftime('%Y-%m-%d %H:%M')
+                text = _('mapping_status_ok',
+                    '✅ Up to date | Loaded: {} mappings | Last: {}').format(local_count, time_str)
             else:
-                last_time = status['last_cache_time']
-                local_count = status['local_count']
-                if last_time > 0:
-                    from datetime import datetime
-                    dt = datetime.fromtimestamp(last_time)
-                    time_str = dt.strftime('%Y-%m-%d %H:%M')
-                    text = _('mapping_status_ok',
-                        '✅ Up to date | Loaded: {} mappings | Last: {}').format(local_count, time_str)
-                else:
-                    text = _('mapping_status_no_cache',
-                        '⏳ No cached data yet ({} mappings loaded)').format(local_count)
-                color = '#60a080'
-            self.update_status_label.setText(text)
-            self.update_status_label.setStyleSheet(
-                f"color: {color}; font-size: 11px; border: none; background: transparent; padding: 4px 8px;"
-            )
-        except Exception as e:
-            self.logger.debug(f"检查更新状态失败: {e}")
+                text = _('mapping_status_no_cache',
+                    '⏳ No cached data yet ({} mappings loaded)').format(local_count)
+        self.update_status_label.setText(text)
+        self.update_status_label.setStyleSheet(
+            f"color: {color}; font-size: 11px; border: none; background: transparent; padding: 4px 8px;"
+        )
+        self._update_check_worker = None
 
     def load_user_mappings(self):
         self.mapping_table.setRowCount(0)
@@ -344,13 +383,35 @@ class MappingManagerDialog(FloatingDialog):
             self.logger.info(f"Deleted mapping: {raw_name} -> {standard_name}")
 
     def refresh_cache(self):
-        mapping_manager.refresh_cache()
-        self._check_update_status()
-        show_info(
-            self._tr('success', 'Success'),
-            self._tr('cache_refreshed', 'Remote mapping cache refreshed'),
-            parent=self
-        )
+        """异步刷新远程映射缓存，不阻塞 UI"""
+        self.refresh_cache_btn.setEnabled(False)
+        self.refresh_cache_btn.setText(self._tr('refreshing', '⏳ Refreshing...'))
+        worker = _RefreshCacheWorker(self)
+        worker.finished.connect(self._on_refresh_done)
+        worker.finished.connect(worker.deleteLater)
+        self._refresh_worker = worker
+        worker.start()
+
+    def _on_refresh_done(self, success: bool, error_msg: str):
+        """刷新完成后在 UI 线程中恢复按钮并更新状态"""
+        self.refresh_cache_btn.setEnabled(True)
+        self.refresh_cache_btn.setText(self._tr('refresh_remote_mapping', '🔄 Refresh Remote Mapping'))
+        self._refresh_worker = None
+        if success:
+            self._check_update_status_async()
+            show_info(
+                self._tr('success', 'Success'),
+                self._tr('cache_refreshed', 'Remote mapping cache refreshed'),
+                parent=self
+            )
+        else:
+            show_error(
+                self._tr('error', 'Error'),
+                self._tr('refresh_failed', 'Refresh failed: {}').format(error_msg),
+                parent=self
+            )
+
+
 
     def export_mappings(self):
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
