@@ -7,21 +7,19 @@ logging.captureWarnings(True)
 urllib3_logger = logging.getLogger('urllib3.connectionpool')
 urllib3_logger.setLevel(logging.CRITICAL)
 
-import re
 from datetime import datetime, timedelta
-from models.channel_mappings import extract_channel_name_from_url
 from models.channel_model import ChannelListModel
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QListWidget, QListWidgetItem, QStackedWidget,
-    QMenuBar, QMenu, QFileDialog, QDialog, QTextEdit, QStatusBar,
-    QFrame, QToolButton, QSlider, QGridLayout, QComboBox, QLabel as QtWidgets_QLabel,
-    QAbstractItemView, QTabWidget
+    QPushButton, QLabel, QListWidget, QListWidgetItem,
+    QStatusBar,
+    QFrame, QToolButton, QSlider, QComboBox,
+    QTabWidget
 )
 from PyQt6 import QtWidgets
-from PyQt6.QtCore import Qt, QSize, QTimer, QUrl, QThread, pyqtSlot, QMetaObject, QPoint
+from PyQt6.QtCore import Qt, QSize, QTimer, QThread, pyqtSlot, QMetaObject
 from PyQt6 import QtCore
-from PyQt6.QtGui import QIcon, QPixmap, QFont, QFontMetrics, QColor, QAction, QPainter, QBrush, QKeySequence, QShortcut, QPen, QLinearGradient, QGradient, QPainterPath
+from PyQt6.QtGui import QIcon, QFont, QFontMetrics, QColor, QAction, QPainter, QBrush, QShortcut, QPen, QLinearGradient, QPainterPath
 
 # 导入日志管理器
 from core.log_manager import global_logger as logger
@@ -32,7 +30,6 @@ from core.application_state import app_state
 # 导入语言管理器
 from core.language_manager import LanguageManager
 from ui.styles import AppStyles
-from ui.floating_dialog import FloatingDialog
 
 # 导入控制器包（重构：将业务逻辑拆分为独立模块）
 from controllers import (
