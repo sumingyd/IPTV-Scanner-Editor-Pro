@@ -202,6 +202,7 @@ class MpvPlayerController(QObject):
         self._playback_settings = _load_playback_settings()
         self._current_speed = 1.0
         self._live_info_timer = None
+        self._last_volume = 80
 
         try:
             if libmpv is None:
@@ -422,41 +423,40 @@ class MpvPlayerController(QObject):
                 self._set_mpv_string('user-agent', ua)
 
     def _process_events(self):
-        """处理 MPV 事件"""
+        """处理 MPV 事件（循环消费所有待处理事件）"""
         if not self.mpv_handle:
             return
         try:
-            # 等待事件（非阻塞）
-            event_ptr = libmpv.mpv_wait_event(self.mpv_handle, 0.0)
-            if not event_ptr:
-                return
-            
-            # 将指针转换为事件结构
-            event = ctypes.cast(event_ptr, ctypes.POINTER(mpv_event)).contents
-            
-            # 检查事件类型
-            if event.event_id == MPV_EVENT_NONE:
-                return
-            
-            # 处理属性变化事件
-            if event.event_id == MPV_EVENT_PROPERTY_CHANGE:
-                self.logger.debug(f"收到属性变化事件，userdata={event.reply_userdata}")
-                # 可以从 event.data 读取属性值，但需要使用 mpv_get_property 获取
-                # 这里我们只是触发一次媒体信息获取
-                if hasattr(self, '_live_info_timer') and self._live_info_timer:
+            while True:
+                # 非阻塞获取事件
+                event_ptr = libmpv.mpv_wait_event(self.mpv_handle, 0.0)
+                if not event_ptr:
+                    return
+
+                # 将指针转换为事件结构
+                event = ctypes.cast(event_ptr, ctypes.POINTER(mpv_event)).contents
+
+                # 队列已空，退出循环
+                if event.event_id == MPV_EVENT_NONE:
+                    return
+
+                # 处理属性变化事件
+                if event.event_id == MPV_EVENT_PROPERTY_CHANGE:
+                    self.logger.debug(f"收到属性变化事件，userdata={event.reply_userdata}")
                     # 属性变化时立即获取一次信息
-                    info = self.get_live_media_info()
-                    if info:
-                        try:
-                            self.live_media_info_updated.emit(info)
-                        except RuntimeError:
-                            pass
-            
-            # 处理文件加载完成事件
-            elif event.event_id == MPV_EVENT_FILE_LOADED:
-                self.logger.debug("文件加载完成事件")
-                self._schedule_media_info_start()
-                
+                    if hasattr(self, '_live_info_timer') and self._live_info_timer:
+                        info = self.get_live_media_info()
+                        if info:
+                            try:
+                                self.live_media_info_updated.emit(info)
+                            except RuntimeError:
+                                pass
+
+                # 处理文件加载完成事件
+                elif event.event_id == MPV_EVENT_FILE_LOADED:
+                    self.logger.debug("文件加载完成事件")
+                    self._schedule_media_info_start()
+
         except Exception as e:
             self.logger.error(f"处理 mpv 事件失败：{str(e)}")
 
@@ -536,7 +536,7 @@ class MpvPlayerController(QObject):
             self.is_paused = False
             self.is_playing = True
             self.play_state_changed.emit(True)
-            self._get_media_info(url)
+            self._schedule_media_info_start()
 
             self.logger.debug(f"开始播放(预取模式): {url}")
             return True
@@ -647,9 +647,6 @@ class MpvPlayerController(QObject):
         except Exception as e:
             self.logger.error(f"暂停播放失败: {str(e)}")
 
-    def toggle_pause(self):
-        self.pause()
-
     def set_volume(self, volume):
         try:
             self._last_volume = volume
@@ -663,14 +660,12 @@ class MpvPlayerController(QObject):
 
     def get_volume(self):
         try:
-            if not hasattr(self, '_last_volume'):
-                self._last_volume = 80
             volume_value = self._get_mpv_property_double('volume')
             if volume_value is not None:
                 self._last_volume = int(volume_value)
             return self._last_volume
         except Exception:
-            return getattr(self, '_last_volume', 80)
+            return self._last_volume
 
     def set_speed(self, speed):
         try:
@@ -736,30 +731,30 @@ class MpvPlayerController(QObject):
         try:
             # 首先尝试 time-pos
             time_seconds = self._get_mpv_property_double('time-pos')
-            if time_seconds:
+            if time_seconds is not None:
                 result = int(time_seconds * 1000)
                 self.logger.debug(f"get_current_time: time-pos={time_seconds}s = {result}ms")
                 return result
-            
+
             # 如果 time-pos 失败，尝试 playback-time
             time_seconds = self._get_mpv_property_double('playback-time')
-            if time_seconds:
+            if time_seconds is not None:
                 result = int(time_seconds * 1000)
                 self.logger.debug(f"get_current_time: playback-time={time_seconds}s = {result}ms")
                 return result
-            
+
             # 如果 playback-time 失败，尝试 percent-pos 并计算时间
             percent = self._get_mpv_property_double('percent-pos')
-            if percent:
+            if percent is not None:
                 # 获取总时长
                 duration_seconds = self._get_mpv_property_double('duration')
-                if duration_seconds:
+                if duration_seconds is not None:
                     time_seconds = duration_seconds * (percent / 100.0)
                     result = int(time_seconds * 1000)
                     self.logger.debug(f"get_current_time: percent-pos={percent}%, duration={duration_seconds}s = {result}ms")
                     return result
-            
-            self.logger.debug(f"get_current_time: 所有属性都返回None或0")
+
+            self.logger.debug(f"get_current_time: 所有属性都返回None")
             return 0
         except Exception as e:
             self.logger.debug(f"get_current_time exception: {e}")
@@ -769,29 +764,19 @@ class MpvPlayerController(QObject):
         try:
             # 首先尝试 duration
             duration_seconds = self._get_mpv_property_double('duration')
-            if duration_seconds:
+            if duration_seconds is not None:
                 result = int(duration_seconds * 1000)
                 self.logger.debug(f"get_total_time: duration={duration_seconds}s = {result}ms")
                 return result
-            
+
             # 如果 duration 失败，尝试 length
             duration_seconds = self._get_mpv_property_double('length')
-            if duration_seconds:
+            if duration_seconds is not None:
                 result = int(duration_seconds * 1000)
                 self.logger.debug(f"get_total_time: length={duration_seconds}s = {result}ms")
                 return result
-            
-            # 如果 length 失败，尝试 file-size 并估计时长
-            file_size = self._get_mpv_property_double('file-size')
-            if file_size:
-                # 粗略估计：1MB ≈ 1分钟（对于标准视频）
-                # 这只是一个估计，不准确
-                duration_seconds = file_size / (1024 * 1024) * 60  # MB * 60秒
-                result = int(duration_seconds * 1000)
-                self.logger.debug(f"get_total_time: file-size={file_size} bytes, estimated={duration_seconds}s = {result}ms")
-                return result
-            
-            self.logger.debug(f"get_total_time: 所有属性都返回None或0")
+
+            self.logger.debug(f"get_total_time: 所有属性都返回None")
             return 0
         except Exception as e:
             self.logger.debug(f"get_total_time exception: {e}")
@@ -800,7 +785,7 @@ class MpvPlayerController(QObject):
     def get_position(self):
         try:
             percent_pos = self._get_mpv_property_double('percent-pos')
-            if percent_pos:
+            if percent_pos is not None:
                 return percent_pos / 100.0
             return 0
         except Exception:
@@ -947,31 +932,17 @@ class MpvPlayerController(QObject):
                 self._last_info_debug = (w, h, vcodec, acodec)
                 self.logger.debug(f"媒体信息：width={w}, height={h}, vcodec='{vcodec}', acodec='{acodec}', fps={fps}, container='{container}'")
             
-            # 如果获取不到关键信息，尝试获取所有可能的属性
+            # 如果获取不到关键信息，尝试获取备选属性
             if not vcodec and not acodec and w == 0:
                 self.logger.debug("尝试获取备选属性...")
-                # 尝试其他可能的属性名
                 alt_vcodec = get_str('video-format') or get_str('hwdec') or ''
                 alt_acodec = get_str('audio-format') or ''
                 self.logger.debug(f"备选：video-format='{alt_vcodec}', audio-format='{alt_acodec}', hwdec='{get_str('hwdec')}'")
-                
-                # 对于直播流，尝试从 track-list 获取信息
-                try:
-                    track_list_ptr = libmpv.mpv_get_property_string(
-                        self.mpv_handle,
-                        b'track-list',
-                        ctypes.byref(ctypes.c_char_p())
-                    )
-                    if track_list_ptr >= 0:
-                        self.logger.debug(f"track-list 属性可用")
-                except:
-                    pass
-                
+
                 # 尝试获取 demuxer 信息
                 demuxer = get_str('demuxer') or ''
                 self.logger.info(f"demuxer: {demuxer}")
-                
-                # 尝试获取 stream-format 信息
+
                 v_format = get_str('video-format') or ''
                 a_format = get_str('audio-format') or ''
                 self.logger.info(f"video-format: {v_format}, audio-format: {a_format}")
@@ -1006,6 +977,8 @@ class MpvPlayerController(QObject):
     def _start_live_info_timer(self):
         if hasattr(self, '_live_info_timer') and self._live_info_timer:
             self._live_info_timer.stop()
+        # 初始为阈值，确保第一次 tick 就立即刷新静态媒体信息
+        self._static_info_counter = self._STATIC_INFO_REFRESH_TICKS
         self._live_info_timer = QTimer(self)
         self._live_info_timer.timeout.connect(self._update_live_info)
         self._live_info_timer.start(500)
@@ -1014,17 +987,28 @@ class MpvPlayerController(QObject):
         if hasattr(self, '_live_info_timer') and self._live_info_timer:
             self._live_info_timer.stop()
 
+    # 每隔多少次 500ms tick 刷新一次静态媒体信息（10 次 = 5 秒）
+    _STATIC_INFO_REFRESH_TICKS = 10
+
     def _update_live_info(self):
-        """持续更新媒体信息 - 参考 SRCBOX"""
+        """持续更新媒体信息：静态信息（编解码器/分辨率等）每 5s 刷新，播放位置每 500ms 刷新"""
         if not self.mpv_handle:
             return
-        info = self.get_live_media_info()
-        if info:
-            try:
-                self.live_media_info_updated.emit(info)
-            except RuntimeError as e:
-                self.logger.error(f"_update_live_info: 信号发送失败 {str(e)}")
-                self._stop_live_info_timer()
+
+        # 静态媒体信息低频刷新
+        self._static_info_counter = getattr(self, '_static_info_counter', 0) + 1
+        if self._static_info_counter >= self._STATIC_INFO_REFRESH_TICKS:
+            self._static_info_counter = 0
+            info = self.get_live_media_info()
+            if info:
+                try:
+                    self.live_media_info_updated.emit(info)
+                except RuntimeError as e:
+                    self.logger.error(f"_update_live_info: 信号发送失败 {str(e)}")
+                    self._stop_live_info_timer()
+                    return
+
+        # 播放位置高频刷新
         if self.is_playing:
             try:
                 current_time = self.get_current_time()
@@ -1166,15 +1150,6 @@ class MpvPlayerController(QObject):
             return eof and eof.lower() == 'yes'
         except Exception:
             return False
-
-    def get_property_string(self, name):
-        return self._get_mpv_property_string(name)
-
-    def get_property_double(self, name):
-        return self._get_mpv_property_double(name)
-
-    def get_property_int(self, name):
-        return self._get_mpv_property_int(name)
 
     def set_property_string(self, name, value):
         self._set_mpv_string(name, value)
