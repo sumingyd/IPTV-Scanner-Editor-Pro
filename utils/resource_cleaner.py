@@ -2,8 +2,7 @@
 
 import gc
 import threading
-import weakref
-from typing import List, Callable, Optional
+from typing import List, Callable, Optional, Dict
 from core.log_manager import global_logger
 from utils.singleton import Singleton
 
@@ -16,75 +15,52 @@ class ResourceCleaner(Singleton):
         if self._initialized:
             return
 
+        # 统一用强引用列表存储 handler，名称→handler 的映射用普通字典
         self._cleanup_handlers: List[Callable] = []
-        self._weak_handlers = weakref.WeakValueDictionary()
+        self._handler_names: Dict[str, Callable] = {}
         self._lock = threading.Lock()
         self._initialized = True
-
-        logger.debug("资源清理器已初始化")
 
     def register_cleanup_handler(self, handler: Callable, name: Optional[str] = None):
         """注册清理处理器"""
         with self._lock:
-            self._cleanup_handlers.append(handler)
+            if handler not in self._cleanup_handlers:
+                self._cleanup_handlers.append(handler)
             if name:
-                self._weak_handlers[name] = handler
-            # 移除调试日志，整合到调用方的日志中
+                self._handler_names[name] = handler
 
     def unregister_cleanup_handler(self, handler: Callable):
         """注销清理处理器"""
         with self._lock:
             if handler in self._cleanup_handlers:
                 self._cleanup_handlers.remove(handler)
-                # 从弱引用字典中删除
-                to_remove = []
-                for name, h in self._weak_handlers.items():
-                    if h == handler:
-                        to_remove.append(name)
-                for name in to_remove:
-                    del self._weak_handlers[name]
-                logger.debug(f"注销清理处理器: {handler.__name__}")
+            # 从名称映射中移除
+            to_remove = [n for n, h in self._handler_names.items() if h is handler]
+            for n in to_remove:
+                del self._handler_names[n]
 
     def cleanup_all(self):
         """执行所有清理操作"""
         logger.info("开始全局资源清理...")
 
-        # 按注册顺序执行清理处理器
-        handlers_to_execute = []
         with self._lock:
             handlers_to_execute = self._cleanup_handlers.copy()
+            # 构建反向映射用于日志
+            name_map = {id(h): n for n, h in self._handler_names.items()}
 
         success_count = 0
         error_count = 0
 
         for handler in handlers_to_execute:
-            handler_name = None
-            with self._lock:
-                # 查找处理器名称
-                for name, h in self._weak_handlers.items():
-                    if h == handler:
-                        handler_name = name
-                        break
-
+            handler_name = name_map.get(id(handler), getattr(handler, '__name__', repr(handler)))
             try:
                 handler()
                 success_count += 1
-                logger.debug(f"清理处理器执行成功: {handler_name or handler.__name__}")
             except Exception as e:
                 error_count += 1
-                logger.error(f"清理处理器执行失败 {handler_name or handler.__name__}: {e}")
+                logger.error(f"清理处理器执行失败 {handler_name}: {e}")
 
-        # 强制垃圾回收
-        collected = gc.collect()
-        logger.debug(f"垃圾回收完成，回收对象: {collected}")
-
-        # 清理弱引用字典中的无效引用
-        with self._lock:
-            # 创建副本以避免在迭代时修改
-            weak_items = list(self._weak_handlers.items())
-            for name, handler in weak_items:
-                if handler is None:
-                    del self._weak_handlers[name]
+        gc.collect()
 
         logger.info(f"全局资源清理完成: {success_count} 个处理器成功, {error_count} 个处理器失败")
 
@@ -98,11 +74,11 @@ class ResourceCleaner(Singleton):
         with self._lock:
             handler_count = len(self._cleanup_handlers)
             self._cleanup_handlers.clear()
-            self._weak_handlers.clear()
+            self._handler_names.clear()
             logger.info(f"已清除所有清理处理器，共 {handler_count} 个")
 
 
-# 全局资源清理器实例
+# 全局资源清理器实例（通过 Singleton 保证唯一，_global_cleaner 作为模块级快捷访问）
 _global_cleaner: Optional[ResourceCleaner] = None
 
 
@@ -146,7 +122,6 @@ def auto_cleanup(func):
             result = func(*args, **kwargs)
             return result
         finally:
-            # 函数执行后清理资源
             try:
                 cleanup_all()
             except Exception as e:
@@ -160,23 +135,17 @@ class ResourceCleanupContext:
     """资源清理上下文管理器"""
 
     def __enter__(self):
-        """进入上下文"""
-        logger.debug("进入资源清理上下文")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """退出上下文时清理资源"""
-        logger.debug("退出资源清理上下文，执行清理")
         try:
             cleanup_all()
         except Exception as e:
             logger.error(f"上下文资源清理失败: {e}")
-
-        # 不处理异常，让异常正常传播
         return False
 
 
-# 便捷函数：创建资源清理上下文
 def resource_cleanup_context():
     """创建资源清理上下文管理器（便捷函数）"""
     return ResourceCleanupContext()
+
