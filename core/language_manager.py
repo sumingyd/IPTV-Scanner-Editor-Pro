@@ -1,4 +1,5 @@
 import os
+from typing import overload
 from core.log_manager import LogManager
 from PyQt6.QtCore import QObject, pyqtSignal
 
@@ -938,6 +939,12 @@ class LanguageManager(QObject):
 
     def get_translation(self, key, default=None):
         return self.translations.get(key, default)
+
+    @overload
+    def tr(self, key: str, default: str) -> str: ...
+
+    @overload
+    def tr(self, key: str, default: None = None) -> str | None: ...
 
     def tr(self, key, default=None):
         return self.get_translation(key, default)
