@@ -94,7 +94,10 @@ class FloatingDockWidget(QDockWidget):
 
     def _on_floating_changed(self, floating):
         if floating:
-            self.setWindowFlags(self.windowFlags() | Qt.WindowType.FramelessWindowHint)
+            flags = self.windowFlags() | Qt.WindowType.FramelessWindowHint
+            if self.parent() and (self.parent().windowFlags() & Qt.WindowType.WindowStaysOnTopHint):
+                flags |= Qt.WindowType.WindowStaysOnTopHint
+            self.setWindowFlags(flags)
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             self.show()
 

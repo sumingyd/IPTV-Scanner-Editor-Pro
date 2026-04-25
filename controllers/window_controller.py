@@ -130,6 +130,19 @@ class WindowController:
             self._stay_on_top_btn.setText("📌")
             self._stay_on_top_btn.setStyleSheet(btn_style)
         self.window.show()
+        self._sync_floating_panels_on_top()
+
+    def _sync_floating_panels_on_top(self):
+        for panel_attr in ['epg_panel', 'playlist_panel', 'floating_panel']:
+            panel = getattr(self.window, panel_attr, None)
+            if panel and panel.isVisible():
+                flags = panel.windowFlags()
+                if self._stay_on_top_active:
+                    flags |= Qt.WindowType.WindowStaysOnTopHint
+                else:
+                    flags &= ~Qt.WindowType.WindowStaysOnTopHint
+                panel.setWindowFlags(flags)
+                panel.show()
 
     def handle_mouse_press_event(self, event) -> bool:
         """

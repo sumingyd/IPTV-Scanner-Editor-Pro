@@ -234,6 +234,7 @@ class MpvPlayerController(QObject):
             hwdec = b'd3d11va' if self._playback_settings.get('hwdec', True) else b'no'
             libmpv.mpv_set_property_string(self.mpv_handle, b'hwdec', hwdec)
             libmpv.mpv_set_property_string(self.mpv_handle, b'gpu-api', b'd3d11')
+            libmpv.mpv_set_property_string(self.mpv_handle, b'd3d11-sync-interval', b'1')
             libmpv.mpv_set_property_string(self.mpv_handle, b'osc', b'no')
             libmpv.mpv_set_property_string(self.mpv_handle, b'osd-bar', b'no')
             libmpv.mpv_set_property_string(self.mpv_handle, b'log-level', b'error')

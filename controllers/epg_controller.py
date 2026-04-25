@@ -136,7 +136,7 @@ class EPGController:
                 elif start_dt <= now <= end_dt:
                     is_live = True
 
-            is_catchup = is_past_program and channel_supports_catchup
+            is_catchup = (is_past_program or is_live) and channel_supports_catchup
             item.setData(Qt.ItemDataRole.UserRole, {
                 'channel': item.data(Qt.ItemDataRole.UserRole).get('channel', '') if item.data(Qt.ItemDataRole.UserRole) else '',
                 'program': program,
@@ -367,7 +367,7 @@ class EPGController:
                 display_text = f"{start_display}  {title}"
                 item.setText(display_text)
 
-                is_catchup = is_past_program and channel_supports_catchup
+                is_catchup = (is_past_program or is_live) and channel_supports_catchup
 
                 item.setData(Qt.ItemDataRole.UserRole, {
                     'channel': channel_name,

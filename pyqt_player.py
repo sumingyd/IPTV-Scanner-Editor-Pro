@@ -1261,6 +1261,16 @@ class IPTVPlayer(QMainWindow):
                 open_playlist.triggered.connect(self.open_playlist)
                 file_menu.addAction(open_playlist)
 
+                open_stream = QAction(tr("menu_open_stream", "Open Stream\tCtrl+U"), self)
+                open_stream.setShortcut("Ctrl+U")
+                open_stream.triggered.connect(self._open_stream)
+                file_menu.addAction(open_stream)
+
+                open_video = QAction(tr("menu_open_video", "Open Video\tCtrl+Shift+O"), self)
+                open_video.setShortcut("Ctrl+Shift+O")
+                open_video.triggered.connect(self._open_video_file)
+                file_menu.addAction(open_video)
+
                 # 添加最近打开子菜单
                 recent_menu = file_menu.addMenu(tr("menu_recent_open", "Recent"))
 
@@ -2299,12 +2309,6 @@ class IPTVPlayer(QMainWindow):
             if hasattr(self, 'video_widget') and self.video_widget and self.video_frame:
                 self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
                 self.video_widget.show()
-            if hasattr(self, 'epg_panel') and self.epg_panel:
-                self.epg_panel.raise_()
-            if hasattr(self, 'playlist_panel') and self.playlist_panel:
-                self.playlist_panel.raise_()
-            if hasattr(self, 'floating_panel') and self.floating_panel:
-                self.floating_panel.raise_()
             self.update_media_info()
             self._last_info_key = None
             self.update_timer.start(500)
@@ -3568,6 +3572,63 @@ class IPTVPlayer(QMainWindow):
     def open_playlist(self):
         """打开播放列表（委托给SettingsFileOperations）"""
         self.settings_ops.open_playlist()
+
+    def _open_stream(self):
+        """打开串流地址"""
+        from PyQt6.QtWidgets import QInputDialog
+        tr = self.language_manager.tr
+        url, ok = QInputDialog.getText(
+            self, tr("open_stream", "打开串流"),
+            tr("open_stream_url", "请输入直播地址或串流URL:"),
+        )
+        if ok and url.strip():
+            url = url.strip()
+            name = url.split('/')[-1][:30] if '/' in url else url[:30]
+            channel = {
+                'name': name,
+                'url': url,
+                'group': tr("temp_stream", "临时串流"),
+                '_groups': [tr("temp_stream", "临时串流")],
+            }
+            self._add_to_local_list(channel)
+
+    def _open_video_file(self):
+        """打开本地视频文件"""
+        from PyQt6.QtWidgets import QFileDialog
+        tr = self.language_manager.tr
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, tr("open_video", "打开视频"),
+            "",
+            tr("video_files", "视频文件 (*.mp4 *.mkv *.avi *.mov *.flv *.wmv *.ts *.webm);;所有文件 (*)"),
+        )
+        if file_path:
+            import os
+            name = os.path.splitext(os.path.basename(file_path))[0]
+            channel = {
+                'name': name,
+                'url': file_path,
+                'group': tr("local_video", "本地视频"),
+                '_groups': [tr("local_video", "本地视频")],
+            }
+            self._add_to_local_list(channel)
+
+    def _add_to_local_list(self, channel):
+        """将频道添加到本地列表并播放"""
+        self._local_channels.append(channel)
+        self.playlist_tab.setCurrentIndex(1)
+        self._update_groups_for('local')
+        self._populate_channel_list_for(
+            self.local_channel_list, self._local_channels,
+            self.local_group_combo.currentText()
+        )
+        for i in range(self.local_channel_list.count()):
+            item = self.local_channel_list.item(i)
+            if item and item.data(Qt.ItemDataRole.UserRole) == channel:
+                self.local_channel_list.setCurrentItem(item)
+                break
+        self.current_channel = channel
+        self.update_channel_info_on_selection()
+        self.play_channel(channel)
 
     def raise_floating_panels(self):
         """重新显示并提升可见的悬浮窗（与主窗口保持在一起，不抢夺焦点）"""
