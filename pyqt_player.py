@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
 from PyQt6 import QtWidgets
 from PyQt6.QtCore import Qt, QSize, QTimer, QUrl, QThread, pyqtSlot, QMetaObject, QPoint
 from PyQt6 import QtCore
-from PyQt6.QtGui import QIcon, QPixmap, QFont, QColor, QAction, QPainter, QBrush, QKeySequence, QShortcut
+from PyQt6.QtGui import QIcon, QPixmap, QFont, QColor, QAction, QPainter, QBrush, QKeySequence, QShortcut, QPen, QLinearGradient, QGradient, QPainterPath
 
 # 导入日志管理器
 from core.log_manager import global_logger as logger
@@ -47,6 +47,87 @@ from controllers import (
     SubscriptionUIController,
     CatchupController
 )
+
+
+class VideoOverlayBadge(QWidget):
+    """视频区域叠加标识 Widget，用 QPainter 绘制精美的回看/时移标签"""
+
+    MODE_CATCHUP   = 'catchup'
+    MODE_TIMESHIFT = 'timeshift'
+
+    # 各模式的颜色配置 (渐变起, 渐变止, 图标文字, 文字颜色)
+    _CONFIGS = {
+        MODE_CATCHUP:   ('#1a6fcf', '#0d4e9a', '▶ ', '#e8f4fd'),
+        MODE_TIMESHIFT: ('#c97a00', '#8a5200', '⏪ ', '#fff4e0'),
+    }
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._mode = self.MODE_CATCHUP
+        self._label_text = ''
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self._font = QFont()
+        self._font.setPixelSize(13)
+        self._font.setBold(True)
+        self._update_size()
+
+    def set_mode(self, mode: str, label_text: str):
+        self._mode = mode
+        self._label_text = label_text
+        self._update_size()
+        self.update()
+
+    def _update_size(self):
+        icon, text = self._get_parts()
+        full_text = icon + text
+        self._font.setPixelSize(13)
+        from PyQt6.QtGui import QFontMetrics
+        fm2 = QFontMetrics(self._font)
+        w = fm2.horizontalAdvance(full_text) + 20
+        h = fm2.height() + 12
+        self.setFixedSize(w, h)
+
+    def _get_parts(self):
+        cfg = self._CONFIGS.get(self._mode, self._CONFIGS[self.MODE_CATCHUP])
+        icon = cfg[2]
+        return icon, self._label_text
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        cfg = self._CONFIGS.get(self._mode, self._CONFIGS[self.MODE_CATCHUP])
+        color1, color2, icon, text_color = cfg
+
+        r = self.rect()
+        radius = r.height() / 2
+
+        # 绘制圆角矩形背景 (渐变)
+        path = QPainterPath()
+        path.addRoundedRect(0, 0, r.width(), r.height(), radius, radius)
+
+        grad = QLinearGradient(0, 0, r.width(), 0)
+        grad.setColorAt(0, QColor(color1))
+        grad.setColorAt(1, QColor(color2))
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QBrush(grad))
+        painter.drawPath(path)
+
+        # 微光描边
+        painter.setPen(QPen(QColor(255, 255, 255, 40), 1))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(path)
+
+        # 绘制文字 (图标 + 标签)
+        painter.setFont(self._font)
+        painter.setPen(QColor(text_color))
+        full_text = icon + self._label_text
+        painter.drawText(r, Qt.AlignmentFlag.AlignCenter, full_text)
+
+        painter.end()
 
 
 def calculate_adaptive_delay(base_delay_ms: int = 200, min_delay_ms: int = 50, max_delay_ms: int = 500) -> int:
@@ -590,6 +671,9 @@ class IPTVPlayer(QMainWindow):
         self.video_widget = QWidget(self.video_frame)
         self.video_widget.setStyleSheet(AppStyles.player_background_style())
         self.video_widget.hide()
+
+        self._video_overlay_label = VideoOverlayBadge(self.video_frame)
+        self._video_overlay_label.hide()
         
         # 添加视频区域到布局
         self.top_layout.addWidget(self.video_frame, 1)
@@ -1834,6 +1918,12 @@ class IPTVPlayer(QMainWindow):
         """进度条拖动释放时的处理"""
         
         is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
+
+        if getattr(self, '_progress_time_mode', None) == 'vod' and not is_catchup:
+            slider_seconds = self._get_progress_seconds()
+            if self.player_controller:
+                self.player_controller.seek_absolute(float(slider_seconds))
+            return
         
         if not is_catchup:
             if not self.current_channel or not self.player_controller:
@@ -1861,6 +1951,30 @@ class IPTVPlayer(QMainWindow):
             
             logger.info(f"直播拖动进度条 -> 映射后 target_pos={target_pos:.1f}s, "
                         f"clamp后={max(buffer_start, min(target_pos, buffer_end)):.1f}s")
+            
+            # 检测是否请求的位置超出了缓冲区边界（即想跳到更早的时间点）
+            if target_pos < buffer_start:
+                catchup_source = self.current_channel.get('catchup_source', '') if self.current_channel else ''
+                if catchup_source and getattr(self, '_progress_time_mode', None) == 'epg' and self._progress_program_start:
+                    # 频道支持回看且处于EPG模式：自动以时移方式从目标时间点播放当前节目
+                    self._start_live_timeshift_from_progress(slider_seconds, catchup_source)
+                    return
+                elif catchup_source:
+                    # 有回看但没有EPG信息，只能提示
+                    self.status_bar_show_message(
+                        self.language_manager.tr(
+                            "timeshift_beyond_cache_no_epg",
+                            "超出缓冲范围，无节目信息，无法自动时移"
+                        )
+                    )
+                else:
+                    self.status_bar_show_message(
+                        self.language_manager.tr(
+                            "timeshift_beyond_cache",
+                            "超出缓冲范围，无法跳转到更早时间"
+                        )
+                    )
+                return
             
             target_pos = max(buffer_start, min(target_pos, buffer_end))
             
@@ -2059,11 +2173,18 @@ class IPTVPlayer(QMainWindow):
                     self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
             else:
                 self.current_program.setText("")
-                self.program_desc.setText(self.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
-                from datetime import datetime
-                current_time = datetime.now().strftime("%H:%M")
-                self.time_label.setText(f"⏱ {current_time}")
-                self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
+                is_local_file = (self.current_channel and
+                                 not self.current_channel.get('url', '').startswith(('http://', 'https://', 'rtmp://', 'rtsp://', 'rtp://')))
+                if is_local_file:
+                    self.program_desc.setText(self.language_manager.tr("local_video_file", "本地视频文件"))
+                    self.time_label.setText("⏱ --:-- / --:--")
+                    self.remain_label.setText(self.language_manager.tr("loading", "加载中..."))
+                else:
+                    self.program_desc.setText(self.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
+                    from datetime import datetime
+                    current_time = datetime.now().strftime("%H:%M")
+                    self.time_label.setText(f"⏱ {current_time}")
+                    self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
         except Exception:
             self.current_program.setText("")
             self.program_desc.setText(self.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
@@ -2848,6 +2969,26 @@ class IPTVPlayer(QMainWindow):
         if not hasattr(self, 'last_catchup_state') or self.last_catchup_state != is_catchup:
             logger.debug(f"回看模式状态: {is_catchup}")
             self.last_catchup_state = is_catchup
+
+        if hasattr(self, '_video_overlay_label'):
+            if is_catchup:
+                is_timeshift = hasattr(self, '_is_timeshift_mode') and self._is_timeshift_mode
+                if is_timeshift:
+                    self._video_overlay_label.set_mode(
+                        VideoOverlayBadge.MODE_TIMESHIFT,
+                        self.language_manager.tr('timeshift_label', '时移')
+                    )
+                else:
+                    self._video_overlay_label.set_mode(
+                        VideoOverlayBadge.MODE_CATCHUP,
+                        self.language_manager.tr('catchup_label', '回看')
+                    )
+                if not self._video_overlay_label.isVisible():
+                    self._video_overlay_label.show()
+                    self._update_video_overlay_position()
+            else:
+                if self._video_overlay_label.isVisible():
+                    self._video_overlay_label.hide()
         
         # 只有在非回看模式下才检查EPG
         has_epg = False
@@ -2990,27 +3131,64 @@ class IPTVPlayer(QMainWindow):
                         self._set_progress_value(0)
         else:
             from datetime import datetime, timedelta
-            current_time = datetime.now()
-            
-            if self._progress_total_seconds != 3600:
-                self._set_progress_range(3600)
-                self._progress_time_mode = 'hour'
-                self._progress_program_start = None
-                self._progress_program_end = None
-            
-            timeshift = getattr(self, '_live_timeshift_seconds', 0)
-            if timeshift > 0:
-                effective_time = current_time - timedelta(seconds=timeshift)
+
+            is_local_file = (self.current_channel and
+                             self.current_channel.get('url', '').split('?')[0].lower().endswith(
+                                 ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.webm', '.mp3', '.wav', '.flac'))
+                             ) or (self.current_channel and
+                                   not self.current_channel.get('url', '').startswith(('http://', 'https://', 'rtmp://', 'rtsp://', 'rtp://')))
+
+            if is_local_file and total_time_ms > 0:
+                total_seconds = total_time_ms // 1000
+                current_seconds = current_time_ms // 1000 if current_time_ms else 0
+
+                if total_seconds > 0:
+                    if abs(self._progress_total_seconds - total_seconds) > 1:
+                        self._set_progress_range(total_seconds)
+                    self._progress_time_mode = 'vod'
+                    self._progress_program_start = None
+                    self._progress_program_end = None
+
+                    self._set_progress_value(current_seconds)
+
+                    m_s, s_s = divmod(current_seconds, 60)
+                    m_e, s_e = divmod(total_seconds, 60)
+                    if m_s >= 60 or m_e >= 60:
+                        h_s, m_s = divmod(m_s, 60)
+                        h_e, m_e = divmod(m_e, 60)
+                        self.progress_start.setText(f"{h_s}:{m_s:02d}:{s_s:02d}")
+                        self.progress_end.setText(f"{h_e}:{m_e:02d}:{s_e:02d}")
+                    else:
+                        self.progress_start.setText(f"{m_s}:{s_s:02d}")
+                        self.progress_end.setText(f"{m_e}:{s_e:02d}")
+
+                    remain = total_seconds - current_seconds
+                    m_r, s_r = divmod(remain, 60)
+                    if m_r >= 60:
+                        h_r, m_r = divmod(m_r, 60)
+                        self.remain_label.setText(f"-{h_r}:{m_r:02d}:{s_r:02d}")
+                    else:
+                        self.remain_label.setText(f"-{m_r}:{s_r:02d}")
             else:
-                effective_time = current_time
-            
-            start_hour = effective_time.strftime("%H:00")
-            end_hour = (effective_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
-            self.progress_start.setText(start_hour)
-            self.progress_end.setText(end_hour)
-            self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
-            seconds_from_hour = effective_time.minute * 60 + effective_time.second
-            self._set_progress_value(seconds_from_hour)
+                if self._progress_total_seconds != 3600:
+                    self._set_progress_range(3600)
+                    self._progress_time_mode = 'hour'
+                    self._progress_program_start = None
+                    self._progress_program_end = None
+
+                timeshift = getattr(self, '_live_timeshift_seconds', 0)
+                if timeshift > 0:
+                    effective_time = datetime.now() - timedelta(seconds=timeshift)
+                else:
+                    effective_time = datetime.now()
+
+                start_hour = effective_time.strftime("%H:00")
+                end_hour = (effective_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+                self.progress_start.setText(start_hour)
+                self.progress_end.setText(end_hour)
+                self.time_label.setText(f"⏱ {datetime.now().strftime('%H:%M')}")
+                seconds_from_hour = effective_time.minute * 60 + effective_time.second
+                self._set_progress_value(seconds_from_hour)
         
     
     def eventFilter(self, obj, event):
@@ -3027,6 +3205,20 @@ class IPTVPlayer(QMainWindow):
 
         if hasattr(self, 'video_placeholder') and self.video_placeholder:
             self.video_placeholder.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
+
+        self._update_video_overlay_position()
+
+    def _update_video_overlay_position(self):
+        if not hasattr(self, '_video_overlay_label') or not self._video_overlay_label:
+            return
+        if not hasattr(self, 'video_frame') or not self.video_frame:
+            return
+        self._video_overlay_label.adjustSize()
+        w = self._video_overlay_label.width()
+        h = self._video_overlay_label.height()
+        fw = self.video_frame.width()
+        fh = self.video_frame.height()
+        self._video_overlay_label.setGeometry(12, fh - h - 12, w, h)
 
         self._position_floating_docks()
 
@@ -3575,22 +3767,61 @@ class IPTVPlayer(QMainWindow):
 
     def _open_stream(self):
         """打开串流地址"""
-        from PyQt6.QtWidgets import QInputDialog
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QHBoxLayout, QPushButton
         tr = self.language_manager.tr
-        url, ok = QInputDialog.getText(
-            self, tr("open_stream", "打开串流"),
-            tr("open_stream_url", "请输入直播地址或串流URL:"),
-        )
-        if ok and url.strip():
-            url = url.strip()
-            name = url.split('/')[-1][:30] if '/' in url else url[:30]
-            channel = {
-                'name': name,
-                'url': url,
-                'group': tr("temp_stream", "临时串流"),
-                '_groups': [tr("temp_stream", "临时串流")],
-            }
-            self._add_to_local_list(channel)
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(tr("open_stream", "打开串流"))
+        dialog.setMinimumWidth(600)
+        dialog.setMinimumHeight(160)
+
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(10)
+
+        label = QLabel(tr("open_stream_url", "请输入直播地址或串流URL:"))
+        layout.addWidget(label)
+
+        url_input = QLineEdit()
+        url_input.setPlaceholderText("http://example.com/stream.m3u8")
+        url_input.setMinimumHeight(32)
+        layout.addWidget(url_input)
+
+        name_label = QLabel(tr("stream_name_optional", "频道名称（可选）:"))
+        layout.addWidget(name_label)
+
+        name_input = QLineEdit()
+        name_input.setPlaceholderText(tr("stream_name_hint", "留空则自动命名"))
+        name_input.setMinimumHeight(32)
+        layout.addWidget(name_input)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        cancel_btn = QPushButton(tr("cancel", "取消"))
+        cancel_btn.setFixedWidth(80)
+        cancel_btn.clicked.connect(dialog.reject)
+        btn_layout.addWidget(cancel_btn)
+        ok_btn = QPushButton(tr("ok", "确定"))
+        ok_btn.setFixedWidth(80)
+        ok_btn.clicked.connect(dialog.accept)
+        ok_btn.setDefault(True)
+        btn_layout.addWidget(ok_btn)
+        layout.addLayout(btn_layout)
+
+        url_input.setFocus()
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            url = url_input.text().strip()
+            if url:
+                name = name_input.text().strip()
+                if not name:
+                    name = url.split('/')[-1][:30] if '/' in url else url[:30]
+                channel = {
+                    'name': name,
+                    'url': url,
+                    'group': tr("temp_stream", "临时串流"),
+                    '_groups': [tr("temp_stream", "临时串流")],
+                }
+                self._add_to_local_list(channel)
 
     def _open_video_file(self):
         """打开本地视频文件"""
@@ -4205,7 +4436,91 @@ class IPTVPlayer(QMainWindow):
             self.player_controller.play(timeshift_url, f"{self.current_channel.get('name', '')} (时移)")
         self._show_exit_timeshift_button()
 
-    def merge_channels_from_content(self, content, mode='append'):
+    def _start_live_timeshift_from_progress(self, slider_seconds, catchup_source):
+        """直播时进度条拖到缓冲区之前，自动用回看URL进行时移播放。
+        
+        slider_seconds: 进度条对应的秒数（从节目开始算）
+        catchup_source: 频道的 catchup_source URL 模板
+        """
+        from datetime import datetime, timedelta
+
+        program_start = self._progress_program_start
+        program_end = self._progress_program_end
+
+        # 目标墙钟时间 = 节目开始 + 拖动位置
+        target_wallclock = program_start + timedelta(seconds=slider_seconds)
+        now = datetime.now()
+
+        # 不允许跳到节目结束之后（那就是未来）
+        if target_wallclock >= now:
+            target_wallclock = now - timedelta(seconds=5)
+
+        # 不允许跳到节目开始之前
+        if target_wallclock < program_start:
+            target_wallclock = program_start
+
+        # catchup URL 的结束时间用节目结束，若节目仍在直播则用当前时间
+        end_time = min(program_end, now) if program_end else now
+
+        timeshift_url = self._replace_catchup_variables(catchup_source, target_wallclock, end_time)
+
+        channel_name = self.current_channel.get('name', '')
+        program_title = ''
+        try:
+            # 尝试从EPG获取当前节目标题
+            ch_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
+            prog = self.epg_parser.get_current_program(ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
+            if prog:
+                program_title = prog.get('title', '')
+        except Exception:
+            pass
+
+        offset_from_start = int((target_wallclock - program_start).total_seconds())
+        m, s = divmod(offset_from_start, 60)
+        h, m = divmod(m, 60)
+        offset_str = f"{h:02d}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
+
+        logger.info(f"直播时移(进度条) -> 从 {target_wallclock} 开始播放，offset={offset_str}, url={timeshift_url[:80]}...")
+
+        tr = self.language_manager.tr
+        self.status_bar_show_message(
+            f"{tr('timeshift_playing', '正在时移')}: {channel_name}"
+            + (f" - {program_title}" if program_title else "")
+            + f"  [{offset_str}]"
+        )
+
+        if hasattr(self, '_cancel_source_timeout'):
+            self._cancel_source_timeout()
+
+        if hasattr(self, 'video_placeholder') and self.video_placeholder:
+            self.video_placeholder.hide()
+        if hasattr(self, 'video_widget') and self.video_widget and self.video_frame:
+            self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
+        if hasattr(self, 'floating_panel') and self.floating_panel:
+            self.floating_panel.raise_()
+
+        for attr in ['_catchup_start_time', '_catchup_start_progress',
+                     '_target_catchup_progress', '_disable_progress_auto_update']:
+            if hasattr(self, attr):
+                delattr(self, attr)
+
+        self._timeshift_active = True
+        self._timeshift_start_time = target_wallclock
+        self._is_timeshift_mode = True
+        self.is_catchup_mode = True
+        self.original_channel = self.current_channel.copy()
+        self.catchup_program = {
+            'start': target_wallclock,
+            'end': end_time,
+            'title': program_title or tr('timeshift_label', '时移'),
+            'desc': '',
+        }
+
+        if self.player_controller:
+            self.player_controller.play(timeshift_url, f"{channel_name} (时移 {offset_str})")
+        self._show_exit_timeshift_button()
+
+
         from services.m3u_parser import detect_and_decode_text
         if isinstance(content, bytes):
             content = detect_and_decode_text(content)

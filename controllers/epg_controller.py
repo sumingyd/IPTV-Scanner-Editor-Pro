@@ -137,6 +137,12 @@ class EPGController:
                     is_live = True
 
             is_catchup = (is_past_program or is_live) and channel_supports_catchup
+            if is_catchup and is_live:
+                catchup_label = tr('timeshift_available', '可时移')
+            elif is_catchup:
+                catchup_label = tr('catchup_available', '可回放')
+            else:
+                catchup_label = ''
             item.setData(Qt.ItemDataRole.UserRole, {
                 'channel': item.data(Qt.ItemDataRole.UserRole).get('channel', '') if item.data(Qt.ItemDataRole.UserRole) else '',
                 'program': program,
@@ -144,7 +150,7 @@ class EPGController:
                 'start_dt': start_dt,
                 'end_dt': end_dt,
                 'is_catchup': is_catchup,
-                'catchup_label': tr('catchup_available', '可回放') if is_catchup else '',
+                'catchup_label': catchup_label,
                 'is_live': is_live,
                 'is_past': is_past_program,
             })
@@ -368,6 +374,12 @@ class EPGController:
                 item.setText(display_text)
 
                 is_catchup = (is_past_program or is_live) and channel_supports_catchup
+                if is_catchup and is_live:
+                    catchup_label = tr('timeshift_available', '可时移')
+                elif is_catchup:
+                    catchup_label = tr('catchup_available', '可回放')
+                else:
+                    catchup_label = ''
 
                 item.setData(Qt.ItemDataRole.UserRole, {
                     'channel': channel_name,
@@ -376,7 +388,7 @@ class EPGController:
                     'start_dt': start_dt,
                     'end_dt': end_dt,
                     'is_catchup': is_catchup,
-                    'catchup_label': tr('catchup_available', '可回放') if is_catchup else '',
+                    'catchup_label': catchup_label,
                     'is_live': is_live,
                     'is_past': is_past_program,
                 })
