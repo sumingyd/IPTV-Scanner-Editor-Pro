@@ -32,7 +32,7 @@ class PlaybackController:
         if not self.current_channel:
             return
         if hasattr(self.window, 'player_controller') and self.window.player_controller:
-            self.window.player_controller.toggle_pause()
+            self.window.player_controller.pause()
 
     def stop_playback(self):
         """停止播放，恢复到初始状态"""
@@ -104,8 +104,8 @@ class PlaybackController:
                 tr = self.window.language_manager.tr
                 element.setText(f"📺 {tr(value)}")
             elif action == "clear_pixmap":
-                element.setPixmap(QPixmap())
-                element.setText("📺")
+                from utils.general_utils import set_default_channel_logo
+                set_default_channel_logo(element, element.width() or 100, element.height() or 36)
         
         # 重置进度条
         if hasattr(self.window, 'program_progress') and hasattr(self.window, '_set_progress_value'):
@@ -201,13 +201,24 @@ class PlaybackController:
     def _exit_catchup_mode(self):
         """退出回看模式"""
         self.is_catchup_mode = False
-        if hasattr(self.window, 'is_catchup_mode'):
-            self.window.is_catchup_mode = False
+        self.catchup_program = None
+
+        # 优先通过 CatchupController 统一清理状态，避免与其内部状态不同步
+        catchup_ctrl = getattr(self.window, 'catchup_ctrl', None)
+        if catchup_ctrl:
+            catchup_ctrl._clear_catchup_state()
+        else:
+            # 降级处理：直接操作 window 属性
+            if hasattr(self.window, 'is_catchup_mode'):
+                self.window.is_catchup_mode = False
+            if hasattr(self.window, 'catchup_program'):
+                try:
+                    delattr(self.window, 'catchup_program')
+                except AttributeError:
+                    pass
+
         if hasattr(self.window, 'exit_catchup_button'):
             self.window.exit_catchup_button.hide()
-        self.catchup_program = None
-        if hasattr(self.window, 'catchup_program'):
-            delattr(self.window, 'catchup_program')
 
         for attr in ['_catchup_start_time', '_catchup_start_progress',
                      '_target_catchup_progress', '_disable_progress_auto_update',
@@ -252,8 +263,13 @@ class PlaybackController:
 
     @property
     def is_playing(self) -> bool:
-        """是否正在播放"""
-        return not self._is_stopped and self.current_channel is not None
+        """是否正在播放（以 window.current_channel 为权威来源，兼容自身副本）"""
+        if self._is_stopped:
+            return False
+        # window.current_channel 是全局权威来源；self.current_channel 是本地副本
+        # 二者任意一个非空都认为有频道选中
+        window_ch = getattr(self.window, 'current_channel', None)
+        return (self.current_channel is not None) or (window_ch is not None)
 
     @property
     def is_muted_state(self) -> bool:
