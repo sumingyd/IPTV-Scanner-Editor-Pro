@@ -902,19 +902,19 @@ class IPTVPlayer(QMainWindow):
         self.media_row.setSpacing(12)
         
         self.video_info = QLabel(f"📺 {tr('not_playing', 'Not playing')}")
-        self.video_info.setStyleSheet(AppStyles.player_label_style())
+        self.video_info.setStyleSheet(AppStyles.player_media_badge_style())
         self.video_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.video_info.setFixedHeight(22)
         self.media_row.addWidget(self.video_info)
         
         self.audio_info = QLabel("🔊 --")
-        self.audio_info.setStyleSheet(AppStyles.player_label_style())
+        self.audio_info.setStyleSheet(AppStyles.player_media_badge_style())
         self.audio_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.audio_info.setFixedHeight(18)
         self.media_row.addWidget(self.audio_info)
         
         self.network_info = QLabel("📡 --")
-        self.network_info.setStyleSheet(AppStyles.player_label_style())
+        self.network_info.setStyleSheet(AppStyles.player_media_badge_style())
         self.network_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.network_info.setFixedHeight(18)
         self.media_row.addWidget(self.network_info)
@@ -965,7 +965,7 @@ class IPTVPlayer(QMainWindow):
         self.current_program.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         row1.addWidget(self.current_program, 1)
         self.time_label = QLabel("⏱ --:-- - --:--")
-        self.time_label.setStyleSheet(AppStyles.player_label_style())
+        self.time_label.setStyleSheet(AppStyles.player_time_badge_style())
         self.time_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         row1.addWidget(self.time_label, 0)
         self.catchup_indicator = QLabel("")
@@ -974,7 +974,7 @@ class IPTVPlayer(QMainWindow):
         self.catchup_indicator.hide()
         row1.addWidget(self.catchup_indicator, 0)
         self.remain_label = QLabel(tr("waiting_to_play", "Waiting to play..."))
-        self.remain_label.setStyleSheet(AppStyles.player_program_style())
+        self.remain_label.setStyleSheet(AppStyles.player_status_badge_style())
         self.remain_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.remain_label.setMinimumWidth(70)
         row1.addWidget(self.remain_label, 0)
@@ -3682,11 +3682,11 @@ class IPTVPlayer(QMainWindow):
                 return
             fp = self.floating_panel
             if hasattr(self, 'video_info'):
-                self.video_info.setStyleSheet(AppStyles.player_label_style())
+                self.video_info.setStyleSheet(AppStyles.player_media_badge_style())
             if hasattr(self, 'audio_info'):
-                self.audio_info.setStyleSheet(AppStyles.player_label_style())
+                self.audio_info.setStyleSheet(AppStyles.player_media_badge_style())
             if hasattr(self, 'network_info'):
-                self.network_info.setStyleSheet(AppStyles.player_label_style())
+                self.network_info.setStyleSheet(AppStyles.player_media_badge_style())
             if hasattr(self, 'channel_logo'):
                 self.channel_logo.setStyleSheet(AppStyles.player_channel_logo_style())
             if hasattr(self, 'channel_name'):
@@ -3696,9 +3696,9 @@ class IPTVPlayer(QMainWindow):
             if hasattr(self, 'program_desc'):
                 self.program_desc.setStyleSheet(AppStyles.player_program_desc_style())
             if hasattr(self, 'time_label'):
-                self.time_label.setStyleSheet(AppStyles.player_label_style())
+                self.time_label.setStyleSheet(AppStyles.player_time_badge_style())
             if hasattr(self, 'remain_label'):
-                self.remain_label.setStyleSheet(AppStyles.player_program_style())
+                self.remain_label.setStyleSheet(AppStyles.player_status_badge_style())
             if hasattr(self, 'progress_start'):
                 self.progress_start.setStyleSheet(AppStyles.player_progress_label_style())
             if hasattr(self, 'progress_end'):
@@ -3707,6 +3707,8 @@ class IPTVPlayer(QMainWindow):
                 tool_btn.setStyleSheet(AppStyles.player_button_style())
             if hasattr(self, 'exit_catchup_button'):
                 self.exit_catchup_button.setStyleSheet(AppStyles.exit_catchup_button_style())
+            if hasattr(self, 'catchup_indicator'):
+                self.catchup_indicator.setStyleSheet(AppStyles.player_catchup_indicator_style())
             for slider in fp.findChildren(QSlider):
                 slider.setStyleSheet(AppStyles.player_slider_style())
             if hasattr(self, 'volume_slider'):

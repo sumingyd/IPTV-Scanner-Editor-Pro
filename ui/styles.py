@@ -1138,6 +1138,48 @@ class AppStyles:
         """
 
     @staticmethod
+    def player_media_badge_style() -> str:
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['player_panel_secondary']};
+                font-size: 11px;
+                background-color: transparent;
+                padding: 1px 5px;
+                border: 1px solid {colors['player_line']};
+                border-radius: 3px;
+            }}
+        """
+
+    @staticmethod
+    def player_time_badge_style() -> str:
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['player_panel_disabled']};
+                font-size: 11px;
+                background-color: transparent;
+                padding: 1px 5px;
+                border: 1px solid {colors['player_line']};
+                border-radius: 3px;
+            }}
+        """
+
+    @staticmethod
+    def player_status_badge_style() -> str:
+        colors = AppStyles._get_colors()
+        return f"""
+            QLabel {{
+                color: {colors['player_success']};
+                font-size: 11px;
+                background-color: transparent;
+                padding: 1px 5px;
+                border: 1px solid {colors['player_success']};
+                border-radius: 3px;
+            }}
+        """
+
+    @staticmethod
     def player_channel_name_style() -> str:
         colors = AppStyles._get_colors()
         return f"""
@@ -1348,6 +1390,17 @@ class AppStyles:
                 padding: 2px 4px;
                 min-height: 26px;
                 max-height: 32px;
+                border: 1px solid transparent;
+                border-radius: 3px;
+            }}
+            QListWidget::item:selected {{
+                border: 1px solid {colors['player_accent']};
+                background-color: {colors['highlight']};
+                color: {colors['highlighted_text']};
+            }}
+            QListWidget::item:hover {{
+                border: 1px solid {colors['player_line']};
+                background-color: {colors['highlight']};
             }}
         """
 

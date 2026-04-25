@@ -14,31 +14,53 @@ from core.log_manager import global_logger as logger
 
 
 class EPGItemDelegate(QStyledItemDelegate):
+    STATUS_COLORS = {
+        'live': (QColor(231, 76, 60), QColor(255, 255, 255)),
+        'past': (QColor(149, 165, 166, 160), QColor(255, 255, 255, 200)),
+        'catchup': (QColor(52, 152, 219, 180), QColor(255, 255, 255)),
+    }
+
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index):
         super().paint(painter, option, index)
 
         data = index.data(Qt.ItemDataRole.UserRole)
-        if not data or not data.get('is_catchup'):
+        if not data:
             return
 
-        text = data.get('catchup_label', '↩')
         font = option.font
         fm = QFontMetrics(font)
-        text_width = fm.horizontalAdvance(text) + 8
-        text_height = fm.height() + 4
+        badges = []
 
-        x = option.rect.right() - text_width - 4
-        y = option.rect.top() + (option.rect.height() - text_height) // 2
+        if data.get('is_live'):
+            badges.append(('LIVE', 'live'))
+        elif data.get('is_past'):
+            badges.append(('✓', 'past'))
 
-        bg_rect = type(option.rect)(x, y, text_width, text_height)
+        if data.get('is_catchup'):
+            badges.append((data.get('catchup_label', '↩'), 'catchup'))
+
+        if not badges:
+            return
+
+        x = option.rect.right() - 4
+        y = option.rect.top() + (option.rect.height() - (fm.height() + 4)) // 2
+
         painter.save()
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(52, 152, 219, 180))
-        painter.drawRoundedRect(bg_rect, 3, 3)
+        for text, status_type in reversed(badges):
+            text_width = fm.horizontalAdvance(text) + 8
+            text_height = fm.height() + 4
+            bg_color, text_color = self.STATUS_COLORS.get(status_type, self.STATUS_COLORS['past'])
+            bg_rect = type(option.rect)(x - text_width, y, text_width, text_height)
 
-        painter.setPen(QColor(255, 255, 255))
-        painter.setFont(font)
-        painter.drawText(bg_rect, Qt.AlignmentFlag.AlignCenter, text)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(bg_color)
+            painter.drawRoundedRect(bg_rect, 3, 3)
+
+            painter.setPen(text_color)
+            painter.setFont(font)
+            painter.drawText(bg_rect, Qt.AlignmentFlag.AlignCenter, text)
+
+            x -= text_width + 4
         painter.restore()
 
 
@@ -243,23 +265,20 @@ class EPGController:
                         end_display = end_time[:5] if len(end_time) >= 5 else end_time
 
                 # 判断节目播放状态并添加状态标识
-                status_icon = "⏹"  # 默认：未播放
                 status_text = ""
                 is_past_program = False
+                is_live = False
                 if start_dt and end_dt:
                     if now < start_dt:
-                        status_icon = "⏳"  # 未开始
                         status_text = tr("epg_status_upcoming", "")
                     elif now > end_dt:
-                        status_icon = "✅"  # 已结束
                         status_text = tr("epg_status_finished", "")
                         is_past_program = True
                     else:
-                        status_icon = "🔴"  # 正在播放
                         status_text = tr("epg_status_live", "LIVE")
-                        is_past_program = True
+                        is_live = True
 
-                display_text = f"{status_icon} {start_display} - {end_display}  {title}"
+                display_text = f"{start_display} - {end_display}  {title}"
                 item.setText(display_text)
 
                 is_catchup = is_past_program and channel_supports_catchup
@@ -271,7 +290,9 @@ class EPGController:
                     'start_dt': start_dt,
                     'end_dt': end_dt,
                     'is_catchup': is_catchup,
-                    'catchup_label': tr('catchup_available', '可回放') if is_catchup else ''
+                    'catchup_label': tr('catchup_available', '可回放') if is_catchup else '',
+                    'is_live': is_live,
+                    'is_past': is_past_program,
                 })
 
                 self.window.epg_content.addItem(item)
