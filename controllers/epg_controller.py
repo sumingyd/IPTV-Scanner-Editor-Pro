@@ -21,16 +21,12 @@ class EPGItemDelegate(QStyledItemDelegate):
     }
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index):
-        super().paint(painter, option, index)
-
         data = index.data(Qt.ItemDataRole.UserRole)
         if not data:
+            super().paint(painter, option, index)
             return
 
-        font = option.font
-        fm = QFontMetrics(font)
         badges = []
-
         if data.get('is_live'):
             badges.append(('LIVE', 'live'))
         elif data.get('is_past'):
@@ -40,17 +36,20 @@ class EPGItemDelegate(QStyledItemDelegate):
             badges.append((data.get('catchup_label', '↩'), 'catchup'))
 
         if not badges:
+            super().paint(painter, option, index)
             return
 
-        x = option.rect.right() - 4
-        y = option.rect.top() + (option.rect.height() - (fm.height() + 4)) // 2
+        font = option.font
+        fm = QFontMetrics(font)
+        text_height = fm.height() + 4
+        y = option.rect.top() + (option.rect.height() - text_height) // 2
 
+        x = option.rect.left() + 4
         painter.save()
-        for text, status_type in reversed(badges):
+        for text, status_type in badges:
             text_width = fm.horizontalAdvance(text) + 8
-            text_height = fm.height() + 4
             bg_color, text_color = self.STATUS_COLORS.get(status_type, self.STATUS_COLORS['past'])
-            bg_rect = type(option.rect)(x - text_width, y, text_width, text_height)
+            bg_rect = type(option.rect)(x, y, text_width, text_height)
 
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(bg_color)
@@ -60,8 +59,16 @@ class EPGItemDelegate(QStyledItemDelegate):
             painter.setFont(font)
             painter.drawText(bg_rect, Qt.AlignmentFlag.AlignCenter, text)
 
-            x -= text_width + 4
+            x += text_width + 4
         painter.restore()
+
+        text_rect = type(option.rect)(
+            x, option.rect.top(),
+            option.rect.right() - x, option.rect.height()
+        )
+        option_copy = QStyleOptionViewItem(option)
+        option_copy.rect = text_rect
+        super().paint(painter, option_copy, index)
 
 
 class EPGController:
@@ -69,7 +76,60 @@ class EPGController:
 
     def __init__(self, main_window):
         self.window = main_window
-        self._current_date = None  # 当前显示的日期
+        self._current_date = None
+        self._last_epg_key = None
+
+    def _compute_epg_key(self, filtered_list, channel_name, target_date):
+        if not filtered_list:
+            return None
+        parts = [channel_name, str(target_date)]
+        for p in filtered_list:
+            parts.append(f"{p.get('start','')}|{p.get('title','')}")
+        return '|'.join(parts)
+
+    def _refresh_badges_only(self, filtered_list, now, channel_supports_catchup, tr):
+        epg_content = self.window.epg_content
+        count = epg_content.count()
+        if count != len(filtered_list):
+            return False
+        for i, program in enumerate(filtered_list):
+            item = epg_content.item(i)
+            if not item:
+                return False
+            start_time = program.get('start', '')
+            end_time = program.get('end', '')
+            start_dt = None
+            end_dt = None
+            try:
+                if start_time:
+                    start_dt = datetime.fromisoformat(start_time)
+                if end_time:
+                    end_dt = datetime.fromisoformat(end_time)
+            except:
+                pass
+
+            is_past_program = False
+            is_live = False
+            if start_dt and end_dt:
+                if now > end_dt:
+                    is_past_program = True
+                elif start_dt <= now <= end_dt:
+                    is_live = True
+
+            is_catchup = is_past_program and channel_supports_catchup
+            item.setData(Qt.ItemDataRole.UserRole, {
+                'channel': item.data(Qt.ItemDataRole.UserRole).get('channel', '') if item.data(Qt.ItemDataRole.UserRole) else '',
+                'program': program,
+                'status': tr("epg_status_live", "LIVE") if is_live else (tr("epg_status_finished", "") if is_past_program else ""),
+                'start_dt': start_dt,
+                'end_dt': end_dt,
+                'is_catchup': is_catchup,
+                'catchup_label': tr('catchup_available', '可回放') if is_catchup else '',
+                'is_live': is_live,
+                'is_past': is_past_program,
+            })
+        epg_content.viewport().update()
+        return True
 
     def populate_epg_list(self):
         """填充EPG列表"""
@@ -237,6 +297,12 @@ class EPGController:
                 self.window.current_channel.get('catchup_source', '')
             ) if hasattr(self.window, 'current_channel') and self.window.current_channel else False
 
+            new_key = self._compute_epg_key(filtered_list, channel_name, target_date)
+            if new_key and new_key == self._last_epg_key:
+                if self._refresh_badges_only(filtered_list, now, channel_supports_catchup, tr):
+                    return
+            self._last_epg_key = new_key
+
             for program in filtered_list:
                 item = QListWidgetItem()
 
@@ -278,7 +344,7 @@ class EPGController:
                         status_text = tr("epg_status_live", "LIVE")
                         is_live = True
 
-                display_text = f"{start_display} - {end_display}  {title}"
+                display_text = f"{start_display}  {title}"
                 item.setText(display_text)
 
                 is_catchup = is_past_program and channel_supports_catchup

@@ -245,6 +245,10 @@ class MpvPlayerController(QObject):
             libmpv.mpv_set_property_string(self.mpv_handle, b'idle', b'yes')
             libmpv.mpv_set_property_string(self.mpv_handle, b'ytdl', b'no')
 
+            libmpv.mpv_set_property_string(self.mpv_handle, b'tone-mapping', b'hable')
+            libmpv.mpv_set_property_string(self.mpv_handle, b'tone-mapping-mode', b'auto')
+            libmpv.mpv_set_property_string(self.mpv_handle, b'hdr-compute-peak', b'yes')
+
             ua = self._playback_settings.get('user_agent', DEFAULT_USER_AGENT)
             if ua:
                 libmpv.mpv_set_property_string(self.mpv_handle, b'user-agent', ua.encode('utf-8'))
