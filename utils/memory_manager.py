@@ -63,7 +63,6 @@ class MemoryManager(Singleton):
                 if current_usage > pool_info.get('peak_usage', 0):
                     pool_info['peak_usage'] = current_usage
                 
-                logger.debug(f"从对象池 {pool_name} 复用对象，池大小: {len(pool)}")
                 return obj
             else:
                 # 创建新对象前检查是否需要扩容
@@ -72,23 +71,24 @@ class MemoryManager(Singleton):
                 
                 obj = pool_info['factory'](*args, **kwargs)
                 pool_info['created'] += 1
-                logger.debug(f"从对象池 {pool_name} 创建新对象，已创建: {pool_info['created']}")
                 return obj
 
     def _should_expand_pool(self, pool_info: Dict) -> bool:
         """判断是否应该扩容"""
-        current_size = len(pool_info['pool'])
         max_size = pool_info['max_size']
         initial_size = pool_info.get('initial_max_size', max_size)
-        
-        # 池已满且未达到最大扩容限制
-        if current_size >= max_size and max_size < initial_size * self._max_pool_multiplier:
-            # 检查使用率（创建数 / (创建数+复用数)）
-            total = pool_info['created'] + pool_info['reused']
-            if total > 0:
-                usage_rate = pool_info['created'] / total
-                return usage_rate > self._resize_threshold_high
-        
+
+        # 未达到最大扩容限制才考虑扩容
+        if max_size >= initial_size * self._max_pool_multiplier:
+            return False
+
+        # 真正的使用率 = 正在外部使用的对象数 / max_size
+        # 正在外部使用的对象数 = 总创建数 - 当前在池中的数量
+        in_use = pool_info['created'] - len(pool_info['pool'])
+        if max_size > 0:
+            usage_rate = in_use / max_size
+            return usage_rate > self._resize_threshold_high
+
         return False
 
     def _expand_pool(self, pool_info: Dict):
@@ -107,16 +107,17 @@ class MemoryManager(Singleton):
         current_size = len(pool_info['pool'])
         max_size = pool_info['max_size']
         initial_size = pool_info.get('initial_max_size', max_size)
-        
-        # 使用率低且大于初始大小
+
+        # 使用率低且大于初始大小才考虑缩容
         if max_size > initial_size and current_size > 0:
-            total = pool_info['created'] + pool_info['reused']
-            if total > 10:  # 至少有足够样本才判断
-                reuse_rate = pool_info['reused'] / total
-                # 复用率低于阈值且当前占用率也低
+            # 真正的使用率 = 正在外部使用的对象数 / max_size
+            in_use = pool_info['created'] - current_size
+            if max_size > 0:
+                usage_rate = max(0, in_use) / max_size
+                # 占用率（池中闲置对象 / max_size）
                 occupancy_rate = current_size / max_size
-                return reuse_rate < self._resize_threshold_low or occupancy_rate < self._resize_threshold_low
-        
+                return usage_rate < self._resize_threshold_low and occupancy_rate < self._resize_threshold_low
+
         return False
 
     def _shrink_pool(self, pool_info: Dict):
@@ -152,19 +153,13 @@ class MemoryManager(Singleton):
                 if self._auto_resize_enabled and len(pool) > 10:
                     if self._should_shrink_pool(pool_info):
                         self._shrink_pool(pool_info)
-                
-                logger.debug(f"对象返回到池 {pool_name}，池大小: {len(pool)}")
-            else:
-                logger.debug(f"对象池 {pool_name} 已满，丢弃对象")
 
     def register_weak_ref(self, ref_name: str, obj):
         """注册弱引用"""
         with self._lock:
             if ref_name not in self._weak_refs:
                 self._weak_refs[ref_name] = weakref.WeakValueDictionary()
-
             self._weak_refs[ref_name][id(obj)] = obj
-            logger.debug(f"注册弱引用: {ref_name}, 对象ID: {id(obj)}")
 
     def get_weak_ref(self, ref_name: str, obj_id: int):
         """获取弱引用对象"""
@@ -176,29 +171,21 @@ class MemoryManager(Singleton):
     def cache_object(self, key: str, obj: Any, max_age: Optional[int] = None):
         """缓存对象"""
         with self._lock:
-            cache_entry = {
+            self._cache[key] = {
                 'object': obj,
                 'timestamp': time.time() if max_age else None,
                 'max_age': max_age
             }
-            self._cache[key] = cache_entry
-            logger.debug(f"缓存对象: {key}")
 
     def get_cached_object(self, key: str):
         """获取缓存对象"""
         with self._lock:
             if key in self._cache:
                 entry = self._cache[key]
-
-                # 检查缓存是否过期
                 if entry['max_age'] and entry['timestamp']:
-                    current_time = time.time()
-                    if current_time - entry['timestamp'] > entry['max_age']:
+                    if time.time() - entry['timestamp'] > entry['max_age']:
                         del self._cache[key]
-                        logger.debug(f"缓存对象 {key} 已过期")
                         return None
-
-                logger.debug(f"从缓存获取对象: {key}")
                 return entry['object']
 
             return None
@@ -209,19 +196,15 @@ class MemoryManager(Singleton):
             if key:
                 if key in self._cache:
                     del self._cache[key]
-                    logger.debug(f"清除缓存: {key}")
             else:
-                cache_size = len(self._cache)
                 self._cache.clear()
-                logger.debug(f"清除所有缓存，共 {cache_size} 个对象")
 
     def optimize_memory(self):
         """优化内存使用"""
         logger.info("开始内存优化...")
 
         # 强制垃圾回收
-        collected = gc.collect()
-        logger.debug(f"垃圾回收完成，回收对象: {collected}")
+        gc.collect()
 
         # 清理过期的缓存
         current_time = time.time()
@@ -236,9 +219,6 @@ class MemoryManager(Singleton):
             for key in expired_keys:
                 del self._cache[key]
 
-        if expired_keys:
-            logger.debug(f"清理过期缓存: {len(expired_keys)} 个对象")
-
         # 清理对象池（保留一半对象）
         for pool_name, pool_info in self._object_pools.items():
             pool = pool_info['pool']
@@ -246,7 +226,6 @@ class MemoryManager(Singleton):
                 remove_count = len(pool) - pool_info['max_size'] // 2
                 for _ in range(remove_count):
                     pool.pop()
-                logger.debug(f"清理对象池 {pool_name}，移除 {remove_count} 个对象")
 
         logger.info("内存优化完成")
 
@@ -301,16 +280,11 @@ class MemoryManager(Singleton):
                         f"复用: {pool_stats['reused']}")
 
 
-# 全局内存管理器实例
-_global_memory_manager: Optional[MemoryManager] = None
 
-
+# 全局内存管理器访问函数
 def get_memory_manager() -> MemoryManager:
     """获取全局内存管理器"""
-    global _global_memory_manager
-    if _global_memory_manager is None:
-        _global_memory_manager = MemoryManager()
-    return _global_memory_manager
+    return MemoryManager()
 
 
 def optimize_memory():
