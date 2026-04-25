@@ -79,6 +79,38 @@ def get_project_root() -> str:
         return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def set_default_channel_logo(label, width: int = 100, height: int = 36) -> None:
+    """将 QLabel 设为应用默认台标图标（居中缩放适应，不拉伸）。
+    当频道无 logo 或处于未选择状态时调用，避免显示 emoji 占位符。
+    兼容 PyInstaller 打包和开发环境。
+    """
+    from PyQt6.QtGui import QIcon, QPixmap
+    from PyQt6.QtCore import Qt
+
+    ico_path = get_icon_path()
+    label.setPixmap(QPixmap())  # 先清除旧图
+    if os.path.exists(ico_path):
+        from PyQt6.QtWidgets import QApplication
+        screen = QApplication.primaryScreen()
+        dpr = screen.devicePixelRatio() if screen else 1.0
+        # 请求 2x 分辨率像素，让 Qt 从 ICO 选最清晰帧
+        req = int(max(width, height) * dpr)
+        pixmap = QIcon(ico_path).pixmap(req, req)
+        if not pixmap.isNull():
+            pixmap.setDevicePixelRatio(dpr)
+            # 缩放到控件尺寸，保持宽高比，平滑缩放
+            scaled = pixmap.scaled(
+                width, height,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+            label.setPixmap(scaled)
+            label.setText("")
+            return
+    # 无 ico 文件时退回 emoji
+    label.setText("📺")
+
+
 def is_valid_url(url: str) -> bool:
     """检查URL是否有效"""
     if not url or not isinstance(url, str):
