@@ -252,12 +252,11 @@ class LogoCacheService(ThreadSafeQObject):
             cached = self.get(url)
             if cached:
                 self.logo_loaded.emit(url, cached)
-                if url not in self._pending_replies:
-                    self._start_download(url)
                 return
 
-        if url in self._pending_replies:
-            return
+        with self._lock:
+            if url in self._pending_replies:
+                return
 
         self._start_download(url)
 
@@ -267,13 +266,15 @@ class LogoCacheService(ThreadSafeQObject):
             request.setHeader(QNetworkRequest.KnownHeaders.UserAgentHeader,
                               'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
             reply = self._network_manager.get(request)
-            self._pending_replies[url] = reply
+            with self._lock:
+                self._pending_replies[url] = reply
             reply.finished.connect(lambda: self._on_download_finished(url, reply))
         except Exception as ex:
             self.mark_negative(url, f"创建请求异常: {ex}")
 
     def _on_download_finished(self, url, reply):
-        self._pending_replies.pop(url, None)
+        with self._lock:
+            self._pending_replies.pop(url, None)
         try:
             if reply.error() != QNetworkReply.NetworkError.NoError:
                 err = reply.error()
