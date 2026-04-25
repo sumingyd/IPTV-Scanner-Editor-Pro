@@ -11,6 +11,58 @@ class CatchupController:
 
     def __init__(self, main_window):
         self.window = main_window
+        # 回看/时移状态（权威来源在此，同时同步到 window 以兼容现有引用）
+        self._is_catchup_mode: bool = False
+        self._original_channel: dict | None = None
+        self._catchup_program: dict | None = None
+
+    # ---- 状态属性（读写均操作 controller，并同步到 window） ----
+
+    @property
+    def is_catchup_mode(self) -> bool:
+        return self._is_catchup_mode
+
+    @is_catchup_mode.setter
+    def is_catchup_mode(self, value: bool):
+        self._is_catchup_mode = value
+        self.window.is_catchup_mode = value
+
+    @property
+    def original_channel(self) -> dict | None:
+        return self._original_channel
+
+    @original_channel.setter
+    def original_channel(self, value: dict | None):
+        self._original_channel = value
+        self.window.original_channel = value
+
+    @property
+    def catchup_program(self) -> dict | None:
+        return self._catchup_program
+
+    @catchup_program.setter
+    def catchup_program(self, value: dict | None):
+        self._catchup_program = value
+        self.window.catchup_program = value
+
+    def _enter_catchup_state(self, channel: dict, program: dict):
+        """进入回看状态，集中设置所有状态字段"""
+        self.original_channel = channel.copy()
+        self.catchup_program = program
+        self.is_catchup_mode = True
+
+    def _clear_catchup_state(self):
+        """清除回看状态"""
+        self._is_catchup_mode = False
+        self._original_channel = None
+        self._catchup_program = None
+        self.window.is_catchup_mode = False
+        # 同步清理 window 上的 catchup_program 属性（与 setter 保持一致）
+        if hasattr(self.window, 'catchup_program'):
+            try:
+                delattr(self.window, 'catchup_program')
+            except AttributeError:
+                pass
 
     def replace_catchup_variables(self, catchup_source, start_time, end_time):
         """替换回看URL中的时间变量占位符"""
@@ -34,7 +86,11 @@ class CatchupController:
             if timezone == 'utc':
                 import datetime as dt_module
                 if dt.tzinfo is None:
-                    utc_offset = dt_module.datetime.now() - dt_module.datetime.utcnow()
+                    # 使用 datetime.now(timezone.utc) 原子操作获取当前UTC时间，
+                    # 避免 datetime.now() - datetime.utcnow() 跨秒产生 ±1s 误差
+                    now_local = dt_module.datetime.now()
+                    now_utc = dt_module.datetime.now(dt_module.timezone.utc).replace(tzinfo=None)
+                    utc_offset = now_local - now_utc
                     target_dt = dt - utc_offset
                 else:
                     target_dt = dt.astimezone(dt_module.timezone.utc)
@@ -130,12 +186,10 @@ class CatchupController:
         self.window.status_bar_show_message(f"{catchup_template.format(name=channel_name)} - {title}")
 
         if self.window.player_controller:
-            self.window.original_channel = self.window.current_channel.copy()
-            self.window.catchup_program = {
+            self._enter_catchup_state(self.window.current_channel, {
                 'start': start_time, 'end': end_time,
                 'title': title, 'desc': program.get('desc', '')
-            }
-            self.window.is_catchup_mode = True
+            })
 
             if hasattr(self.window, '_cancel_source_timeout'):
                 self.window._cancel_source_timeout()
@@ -200,10 +254,12 @@ class CatchupController:
         if hasattr(self.window, '_populate_epg_list'):
             self.window._populate_epg_list()
 
-        if hasattr(self.window, 'original_channel') and self.window.original_channel:
-            channel_name = self.window.original_channel.get("name", tr("unknown_channel", "Unknown Channel"))
+        if self.original_channel:
+            channel_name = self.original_channel.get("name", tr("unknown_channel", "Unknown Channel"))
             self.window.status_bar_show_message(f"{tr('back_to_live', 'Back to live')}: {channel_name}")
-            self.window.play_channel(self.window.original_channel)
+            self.window.play_channel(self.original_channel)
+
+        self._clear_catchup_state()
 
     def show_exit_timeshift_button(self):
         """显示退出时移按钮"""
@@ -235,7 +291,7 @@ class CatchupController:
         self.window.player_controller.seek_relative_seconds(delta)
 
     def exit_timeshift(self):
-        """退出时移模式，取消暂停恢复直播"""
+        """退出时移模式，停止时移播放并恢复直播"""
         from core.log_manager import global_logger as logger
 
         if hasattr(self.window, 'playback_ctrl'):
@@ -245,12 +301,20 @@ class CatchupController:
             self._set_progress_range(100)
             self._set_progress_value(0)
 
-        if self.window.player_controller:
-            self.window.player_controller.pause()
-
         channel_name = self.window.current_channel.get("name", "") if self.window.current_channel else ""
         tr = getattr(self.window.language_manager, 'tr', lambda x, y: x)
         self.window.status_bar_show_message(f"{tr('back_to_live', 'Back to live')}: {channel_name}")
+
+        # 恢复直播：重新播放原始直播频道
+        original = self.original_channel or self.window.current_channel
+        if original and hasattr(self.window, 'play_channel'):
+            self.window.play_channel(original)
+        elif self.window.player_controller and self.window.current_channel:
+            url = self.window.current_channel.get('url', '')
+            if url:
+                self.window.player_controller.play(url, channel_name)
+
+        self._clear_catchup_state()
 
     def _set_progress_value(self, seconds):
         """设置进度条值（委托给主窗口）"""
