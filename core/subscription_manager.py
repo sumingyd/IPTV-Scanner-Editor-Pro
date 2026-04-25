@@ -394,9 +394,13 @@ class SubscriptionManager:
             response.raise_for_status()
             
             content = response.content
-            
-            is_gz_file = epg_url.endswith('.gz') or response.headers.get('Content-Encoding') == 'gzip'
-            if is_gz_file and len(content) >= 2 and content[0] == 0x1f and content[1] == 0x8b:
+
+            # requests 在 Content-Encoding: gzip 时已自动解压，
+            # 仅对 URL 以 .gz 结尾且内容仍带有 gzip 魔术字节的情况手动解压
+            content_encoding = response.headers.get('Content-Encoding', '')
+            url_is_gz = epg_url.lower().endswith('.gz')
+            already_decompressed = 'gzip' in content_encoding.lower()
+            if url_is_gz and not already_decompressed and len(content) >= 2 and content[0] == 0x1f and content[1] == 0x8b:
                 import gzip
                 from io import BytesIO
                 with gzip.GzipFile(fileobj=BytesIO(content)) as f:
@@ -487,15 +491,38 @@ class SubscriptionManager:
                 
                 if channel_id and start and title:
                     try:
-                        def clean_time_str(time_str):
-                            return ''.join(c for c in time_str if c.isdigit())[:14]
-                        
-                        start_clean = clean_time_str(start)
-                        start_time = datetime.strptime(start_clean, '%Y%m%d%H%M%S')
-                        
+                        def parse_xmltv_time(time_str):
+                            """解析 XMLTV 时间字符串，保留时区偏移转为本地时间。
+                            格式示例: '20240101120000 +0800' 或 '20240101120000'"""
+                            time_str = time_str.strip()
+                            # 分离日期时间部分和时区部分
+                            parts = time_str.split()
+                            dt_part = parts[0][:14]  # 取前14位数字
+                            tz_part = parts[1] if len(parts) > 1 else None
+
+                            dt = datetime.strptime(dt_part, '%Y%m%d%H%M%S')
+
+                            if tz_part:
+                                # 解析时区偏移（如 +0800 或 -0500）
+                                sign = 1 if tz_part[0] == '+' else -1
+                                tz_hours = int(tz_part[1:3])
+                                tz_minutes = int(tz_part[3:5]) if len(tz_part) >= 5 else 0
+                                offset = timedelta(hours=tz_hours, minutes=tz_minutes) * sign
+                                # 转为 UTC 后再转为本地时间
+                                dt_utc = dt - offset
+                                # 获取本地 UTC 偏移
+                                import time as _time
+                                local_offset = timedelta(seconds=-_time.timezone)
+                                if _time.daylight:
+                                    local_offset = timedelta(seconds=-_time.altzone)
+                                dt = dt_utc + local_offset
+
+                            return dt
+
+                        start_time = parse_xmltv_time(start)
+
                         if end:
-                            end_clean = clean_time_str(end)
-                            end_time = datetime.strptime(end_clean, '%Y%m%d%H%M%S')
+                            end_time = parse_xmltv_time(end)
                         else:
                             end_time = start_time + timedelta(minutes=30)
                         
@@ -626,10 +653,23 @@ class SubscriptionManager:
             self._update_callbacks.remove(callback)
     
     def _notify_update_callbacks(self):
-        """通知所有注册的更新回调"""
-        for callback in self._update_callbacks:
+        """通知所有注册的更新回调（确保在主线程执行）"""
+        with self._epg_lock:
+            callbacks = list(self._update_callbacks)
+        for callback in callbacks:
             try:
-                callback()
+                # 如果当前在子线程，通过 QMetaObject.invokeMethod 调度到主线程
+                from PyQt6.QtCore import QThread, QMetaObject, Qt
+                from PyQt6.QtWidgets import QApplication
+                main_thread = QApplication.instance().thread() if QApplication.instance() else None
+                if main_thread and QThread.currentThread() != main_thread:
+                    # 使用 Qt.ConnectionType.QueuedConnection 将回调 marshal 到主线程
+                    # 由于 callback 可能不是 QObject 方法，用 QTimer.singleShot 代替
+                    from PyQt6.QtCore import QTimer
+                    # 捕获 callback 避免闭包引用问题
+                    QTimer.singleShot(0, callback)
+                else:
+                    callback()
             except Exception as e:
                 logger.error(f"执行EPG更新回调失败: {e}")
     
