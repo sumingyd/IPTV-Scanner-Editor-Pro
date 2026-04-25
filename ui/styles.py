@@ -1,4 +1,9 @@
 import os
+import tempfile
+
+
+# 模块级临时目录：程序生命周期内只创建一次，进程退出后由 OS 自动清理
+_SVG_TMPDIR: str = tempfile.mkdtemp(prefix='iptv_svg_')
 
 
 class AppStyles:
@@ -7,142 +12,78 @@ class AppStyles:
     _current_theme = 'dark'
     _arrow_cache = {}
     _check_cache = {}
+    _radio_cache = {}
+    _spinup_cache = {}
+    _spindown_cache = {}
+
+    # 固定颜色常量（不随主题变化）
+    COLOR_WHITE          = '#ffffff'
+    COLOR_CLOSE_HOVER    = '#e81123'   # 标准 Windows 关闭按钮悬停红
+    COLOR_SUCCESS_HOVER  = '#45a049'   # 成功按钮悬停绿
+    COLOR_SUCCESS_PRESS  = '#388e3c'   # 成功按钮按下绿
+    COLOR_ERROR_HOVER    = '#da190b'   # 危险按钮悬停红
+    COLOR_ERROR_PRESS    = '#c62828'   # 危险按钮按下红
+
+    @classmethod
+    def _get_svg_image(cls, cache: dict, filename_prefix: str, svg_content: str) -> str:
+        """通用 SVG 图标缓存辅助：将 SVG 写入临时文件（每种变体只写一次），
+        返回文件路径供 Qt QSS image: url(...) 使用。
+        Qt 的 QSS 不支持 data URI，必须使用文件路径。"""
+        if filename_prefix in cache:
+            return cache[filename_prefix]
+        path = os.path.join(_SVG_TMPDIR, f'{filename_prefix}.svg')
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(svg_content)
+        # Qt QSS 在 Windows 下需要正斜杠路径
+        path = path.replace('\\', '/')
+        cache[filename_prefix] = path
+        return path
 
     @classmethod
     def _get_arrow_image(cls, color: str) -> str:
-        if color in cls._arrow_cache:
-            cached = cls._arrow_cache[color]
-            if os.path.exists(cached):
-                return cached.replace('\\', '/')
-
-        import tempfile
-        cache_dir = os.path.join(tempfile.gettempdir(), 'iptv_player_icons')
-        os.makedirs(cache_dir, exist_ok=True)
-
-        safe_name = color.lstrip('#')
-        svg_path = os.path.join(cache_dir, f'arrow_down_{safe_name}.svg')
-
-        svg_content = (
+        svg = (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6">'
             f'<path d="M0 0 L5 6 L10 0 Z" fill="{color}"/>'
             f'</svg>'
         )
-
-        with open(svg_path, 'w', encoding='utf-8') as f:
-            f.write(svg_content)
-
-        cls._arrow_cache[color] = svg_path
-        return svg_path.replace('\\', '/')
+        return cls._get_svg_image(cls._arrow_cache, f'arrow_down_{color.lstrip("#")}', svg)
 
     @classmethod
     def _get_check_image(cls, color: str) -> str:
-        if color in cls._check_cache:
-            cached = cls._check_cache[color]
-            if os.path.exists(cached):
-                return cached.replace('\\', '/')
-
-        import tempfile
-        cache_dir = os.path.join(tempfile.gettempdir(), 'iptv_player_icons')
-        os.makedirs(cache_dir, exist_ok=True)
-
-        safe_name = color.lstrip('#')
-        svg_path = os.path.join(cache_dir, f'check_{safe_name}.svg')
-
-        svg_content = (
+        svg = (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">'
             f'<path d="M3 8 L6.5 11.5 L13 4.5" stroke="{color}" stroke-width="2.5" '
             f'fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
             f'</svg>'
         )
-
-        with open(svg_path, 'w', encoding='utf-8') as f:
-            f.write(svg_content)
-
-        cls._check_cache[color] = svg_path
-        return svg_path.replace('\\', '/')
-
-    _radio_cache = {}
+        return cls._get_svg_image(cls._check_cache, f'check_{color.lstrip("#")}', svg)
 
     @classmethod
     def _get_radio_dot_image(cls, color: str) -> str:
-        if color in cls._radio_cache:
-            cached = cls._radio_cache[color]
-            if os.path.exists(cached):
-                return cached.replace('\\', '/')
-
-        import tempfile
-        cache_dir = os.path.join(tempfile.gettempdir(), 'iptv_player_icons')
-        os.makedirs(cache_dir, exist_ok=True)
-
-        safe_name = color.lstrip('#')
-        svg_path = os.path.join(cache_dir, f'radio_dot_{safe_name}.svg')
-
-        svg_content = (
+        svg = (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">'
             f'<circle cx="8" cy="8" r="4" fill="{color}"/>'
             f'</svg>'
         )
-
-        with open(svg_path, 'w', encoding='utf-8') as f:
-            f.write(svg_content)
-
-        cls._radio_cache[color] = svg_path
-        return svg_path.replace('\\', '/')
-
-    _spinup_cache = {}
-    _spindown_cache = {}
+        return cls._get_svg_image(cls._radio_cache, f'radio_dot_{color.lstrip("#")}', svg)
 
     @classmethod
     def _get_spin_up_image(cls, color: str) -> str:
-        if color in cls._spinup_cache:
-            cached = cls._spinup_cache[color]
-            if os.path.exists(cached):
-                return cached.replace('\\', '/')
-
-        import tempfile
-        cache_dir = os.path.join(tempfile.gettempdir(), 'iptv_player_icons')
-        os.makedirs(cache_dir, exist_ok=True)
-
-        safe_name = color.lstrip('#')
-        svg_path = os.path.join(cache_dir, f'spin_up_{safe_name}.svg')
-
-        svg_content = (
+        svg = (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6">'
             f'<path d="M0 6 L5 0 L10 6 Z" fill="{color}"/>'
             f'</svg>'
         )
-
-        with open(svg_path, 'w', encoding='utf-8') as f:
-            f.write(svg_content)
-
-        cls._spinup_cache[color] = svg_path
-        return svg_path.replace('\\', '/')
+        return cls._get_svg_image(cls._spinup_cache, f'spin_up_{color.lstrip("#")}', svg)
 
     @classmethod
     def _get_spin_down_image(cls, color: str) -> str:
-        if color in cls._spindown_cache:
-            cached = cls._spindown_cache[color]
-            if os.path.exists(cached):
-                return cached.replace('\\', '/')
-
-        import tempfile
-        cache_dir = os.path.join(tempfile.gettempdir(), 'iptv_player_icons')
-        os.makedirs(cache_dir, exist_ok=True)
-
-        safe_name = color.lstrip('#')
-        svg_path = os.path.join(cache_dir, f'spin_down_{safe_name}.svg')
-
-        svg_content = (
+        svg = (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6">'
             f'<path d="M0 0 L5 6 L10 0 Z" fill="{color}"/>'
             f'</svg>'
         )
-
-        with open(svg_path, 'w', encoding='utf-8') as f:
-            f.write(svg_content)
-
-        cls._spindown_cache[color] = svg_path
-        return svg_path.replace('\\', '/')
+        return cls._get_svg_image(cls._spindown_cache, f'spin_down_{color.lstrip("#")}', svg)
 
     THEME_COLORS = {
         'dark': {
@@ -1324,7 +1265,7 @@ class AppStyles:
             }}
             QTabBar::tab:selected {{
                 background-color: {colors['player_accent']};
-                color: white;
+                color: {AppStyles.COLOR_WHITE};
             }}
             QTabBar::tab:hover:!selected {{
                 background-color: {colors['player_panel']};
@@ -1457,7 +1398,7 @@ class AppStyles:
                 background-color: {accent_color};
             }}
             QWidget#titleBar > QPushButton#closeButton:hover {{
-                background-color: #e81123;
+                background-color: {AppStyles.COLOR_CLOSE_HOVER};
             }}
         """
 
@@ -1670,7 +1611,7 @@ class AppStyles:
                     background-color: {colors['accent']};
                     border: 2px solid {colors['accent']};
                     border-radius: 4px;
-                    image: url({AppStyles._get_check_image('white')});
+                    image: url({AppStyles._get_check_image(AppStyles.COLOR_WHITE)});
                 }}
                 QDialog QCheckBox::indicator:hover {{
                     border: 2px solid {colors['accent']};
@@ -1789,7 +1730,7 @@ class AppStyles:
             QDialog QCheckBox::indicator:checked {{
                 background-color: {colors['accent']};
                 border-color: {colors['accent']};
-                image: url({AppStyles._get_check_image('white')});
+                image: url({AppStyles._get_check_image(AppStyles.COLOR_WHITE)});
             }}
             QDialog QCheckBox::indicator:hover {{
                 border-color: {colors['accent']};
@@ -1957,7 +1898,7 @@ class AppStyles:
                 }}
                 QListWidget::item:selected {{
                     background-color: {colors['accent']};
-                    color: white;
+                    color: {AppStyles.COLOR_WHITE};
                     border: 1px solid {colors['accent_pressed']};
                     border-radius: 6px;
                 }}
@@ -1987,7 +1928,7 @@ class AppStyles:
             }}
             QListWidget::item:selected {{
                 background-color: {colors['accent']};
-                color: white;
+                color: {AppStyles.COLOR_WHITE};
                 border: 1px solid {colors['accent_pressed']};
             }}
             QListWidget::item:selected:hover {{
@@ -2070,17 +2011,17 @@ class AppStyles:
         return f"""
             QPushButton {{
                 background-color: {colors['success']};
-                color: white;
+                color: {AppStyles.COLOR_WHITE};
                 border: none;
                 padding: 8px 16px;
                 border-radius: 4px;
                 font-weight: bold;
             }}
             QPushButton:hover {{
-                background-color: #45a049;
+                background-color: {AppStyles.COLOR_SUCCESS_HOVER};
             }}
             QPushButton:pressed {{
-                background-color: #388e3c;
+                background-color: {AppStyles.COLOR_SUCCESS_PRESS};
             }}
         """
 
@@ -2090,16 +2031,16 @@ class AppStyles:
         return f"""
             QPushButton {{
                 background-color: {colors['error']};
-                color: white;
+                color: {AppStyles.COLOR_WHITE};
                 border: none;
                 padding: 8px 16px;
                 border-radius: 4px;
             }}
             QPushButton:hover {{
-                background-color: #da190b;
+                background-color: {AppStyles.COLOR_ERROR_HOVER};
             }}
             QPushButton:pressed {{
-                background-color: #c62828;
+                background-color: {AppStyles.COLOR_ERROR_PRESS};
             }}
         """
 
@@ -2403,7 +2344,7 @@ class AppStyles:
                 }}
                 QComboBox QAbstractItemView::item:hover {{
                     background-color: {colors['accent']};
-                    color: white;
+                    color: {AppStyles.COLOR_WHITE};
                 }}
             """
         return f"""
@@ -2450,7 +2391,7 @@ class AppStyles:
             }}
             QComboBox QAbstractItemView::item:hover {{
                 background-color: {colors['accent']};
-                color: white;
+                color: {AppStyles.COLOR_WHITE};
             }}
         """
 
@@ -2495,7 +2436,7 @@ class AppStyles:
                 color: {colors['window_text']};
                 border: 1px solid {colors['mid']};
                 selection-background-color: {colors['accent']};
-                selection-color: white;
+                selection-color: {AppStyles.COLOR_WHITE};
                 padding: 2px;
                 outline: none;
             }}
@@ -2504,7 +2445,7 @@ class AppStyles:
             }}
             QComboBox QAbstractItemView::item:hover {{
                 background-color: {colors['accent']};
-                color: white;
+                color: {AppStyles.COLOR_WHITE};
             }}
             QComboBox QLineEdit {{
                 background-color: transparent;
@@ -2543,7 +2484,7 @@ class AppStyles:
                     background-color: {colors['accent']};
                     border: 2px solid {colors['accent']};
                     border-radius: 4px;
-                    image: url({AppStyles._get_check_image('white')});
+                    image: url({AppStyles._get_check_image(AppStyles.COLOR_WHITE)});
                 }}
                 QCheckBox::indicator:hover {{
                     border: 2px solid {colors['accent']};
@@ -2567,7 +2508,7 @@ class AppStyles:
             QCheckBox::indicator:checked {{
                 background-color: {colors['accent']};
                 border-color: {colors['accent']};
-                image: url({AppStyles._get_check_image('white')});
+                image: url({AppStyles._get_check_image(AppStyles.COLOR_WHITE)});
             }}
             QCheckBox::indicator:hover {{
                 border-color: {colors['accent']};
@@ -2599,7 +2540,7 @@ class AppStyles:
                     background-color: {colors['accent']};
                     border: 3px solid {colors['accent']};
                     border-radius: 8px;
-                    image: url({AppStyles._get_radio_dot_image('white')});
+                    image: url({AppStyles._get_radio_dot_image(AppStyles.COLOR_WHITE)});
                 }}
                 QRadioButton::indicator:hover {{
                     border: 2px solid {colors['accent']};
@@ -2623,7 +2564,7 @@ class AppStyles:
             QRadioButton::indicator:checked {{
                 background-color: {colors['accent']};
                 border-color: {colors['accent']};
-                image: url({AppStyles._get_radio_dot_image('white')});
+                image: url({AppStyles._get_radio_dot_image(AppStyles.COLOR_WHITE)});
             }}
             QRadioButton::indicator:hover {{
                 border-color: {colors['accent']};
@@ -2800,7 +2741,7 @@ class AppStyles:
                 return f"""
                     QPushButton {{
                         background-color: {colors['accent']};
-                        color: white;
+                        color: {AppStyles.COLOR_WHITE};
                         {raised}
                         border-radius: 6px;
                         padding: 6px 12px;
@@ -2820,7 +2761,7 @@ class AppStyles:
             return f"""
                 QPushButton {{
                     background-color: {colors['accent']};
-                    color: white;
+                    color: {AppStyles.COLOR_WHITE};
                     border: none;
                     border-radius: 4px;
                     padding: 6px 12px;
