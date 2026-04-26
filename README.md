@@ -162,40 +162,66 @@ python pyqt_player.py
 ```
 IPTV-Scanner-Editor-Pro/
 ├── pyqt_player.py              # 主窗口 & 播放器核心
-├── main.py                     # 传统入口
 ├── requirements.txt            # Python 依赖
 ├── core/                       # 核心模块
+│   ├── application_state.py    # 应用程序状态管理
 │   ├── config_manager.py       # 配置管理（INI）
-│   ├── epg_parser.py           # EPG 解析器（XMLTV/JSON）
 │   ├── language_manager.py     # 多语言管理（内置 zh/en 翻译）
 │   ├── log_manager.py          # 日志管理
 │   └── subscription_manager.py # 订阅源管理（多源/独立缓存/增量更新）
+├── controllers/                # 控制器层
+│   ├── catchup_controller.py   # 时移/回看控制器
+│   ├── channel_controller.py   # 频道管理控制器
+│   ├── epg_controller.py      # EPG 电子节目单控制器
+│   ├── event_handler.py       # 事件处理器
+│   ├── playback_controller.py  # 播放控制
+│   ├── settings_file_ops.py    # 设置文件操作
+│   ├── subscription_controller.py      # 订阅控制器
+│   ├── subscription_ui_controller.py   # 订阅 UI 控制器
+│   ├── ui_controller.py       # UI 控制器
+│   └── window_controller.py    # 窗口控制器
+├── models/                     # 数据模型
+│   ├── channel_model.py       # 频道数据模型
+│   └── channel_mappings.py    # 频道映射模型
 ├── services/                   # 服务层
-│   ├── mpv_player_service.py   # MPV 播放引擎（libmpv）
-│   ├── scanner_service.py      # 频道扫描服务
+│   ├── epg_matcher.py         # EPG 模糊匹配引擎
 │   ├── logo_cache_service.py   # 台标缓存服务（异步+DPI）
-│   ├── validator_service.py    # 频道验证服务
-│   ├── list_service.py         # 列表管理服务
-│   └── epg_matcher.py          # EPG 模糊匹配引擎
+│   ├── m3u_parser.py          # M3U 播放列表解析器
+│   ├── mpv_bindings.py        # MPV 绑定封装
+│   ├── mpv_player_service.py # MPV 播放引擎（libmpv）
+│   ├── mpv_validator_service.py # 频道验证服务
+│   ├── network_preheat_service.py # 网络预热服务
+│   ├── scanner_service.py     # 频道扫描服务
+│   └── url_parser_service.py  # URL 解析服务
 ├── ui/
-│   ├── styles.py               # 5 套主题样式定义
-│   ├── theme_manager.py        # 主题管理器
-│   ├── floating_dialog.py      # 悬浮对话框基类
-│   └── dialogs/
-│       ├── about_dialog.py     # 关于对话框（含版本检查）
-│       ├── scan_channel_dialog.py # 扫描频道对话框
-│       └── mapping_manager_dialog.py # 映射管理器
-├── utils/
-│   └── thread_safety.py        # Qt 线程安全工具
+│   ├── dialogs/
+│   │   ├── about_dialog.py    # 关于对话框（含版本检查）
+│   │   ├── mapping_manager_dialog.py # 映射管理器
+│   │   └── scan_channel_dialog.py # 扫描频道对话框
+│   ├── floating_dialog.py     # 悬浮对话框基类
+│   ├── styles.py              # 5 套主题样式定义
+│   └── theme_manager.py       # 主题管理器
+├── utils/                      # 工具模块
+│   ├── config_notifier.py     # 配置变更通知器
+│   ├── error_handler.py      # 错误处理器
+│   ├── general_utils.py       # 通用工具函数
+│   ├── logging_helper.py      # 日志辅助函数
+│   ├── memory_manager.py      # 内存管理器
+│   ├── progress_manager.py    # 进度管理器
+│   ├── resource_cleaner.py    # 资源清理器
+│   ├── scan_state_manager.py  # 扫描状态管理器
+│   ├── singleton.py           # 单例模式基类
+│   └── thread_safety.py       # Qt 线程安全工具
 ├── resources/logo.ico          # 程序图标
 ├── cache/                      # 运行时缓存（自动生成）
-│   ├── logo_cache/             # 台标图片缓存（从 tvg-logo URL 下载）
-│   │   ├── meta.json           # 缓存元数据
-│   │   └── *.png               # 各频道台标文件
-│   ├── epg_cache.json          # EPG 数据缓存（全量合并）
-│   ├── playlist_cache_0.m3u    # 播放列表源 #0 的独立缓存
-│   ├── playlist_cache_1.m3u    # 播放列表源 #1 的独立缓存
-│   └── ...                     # 每个播放列表源一个独立缓存文件
+│   ├── logo_cache/            # 台标图片缓存（从 tvg-logo URL 下载）
+│   │   ├── meta.json          # 缓存元数据
+│   │   └── *.png              # 各频道台标文件
+│   ├── epg_cache.json         # EPG 数据缓存（全量合并）
+│   ├── playlist_cache_0.m3u   # 播放列表源 #0 的独立缓存
+│   ├── playlist_cache_1.m3u   # 播放列表源 #1 的独立缓存
+│   └── ...                    # 每个播放列表源一个独立缓存文件
+└── logo/                       # 本地频道台标图片库
 ```
 
 ## 🛠️ 技术栈
@@ -204,11 +230,10 @@ IPTV-Scanner-Editor-Pro/
 |---|---|
 | GUI 框架 | PyQt6 |
 | 播放引擎 | libmpv (MPV) |
-| HTTP 客户端 | requests |
+| HTTP 客户端 | requests / aiohttp |
 | 图像处理 | Pillow |
 | Excel 处理 | openpyxl |
 | 拼音排序 | pypinyin |
-| 异步 HTTP | aiohttp |
 
 ## 📸 程序截图
 
