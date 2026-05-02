@@ -2371,11 +2371,15 @@ class IPTVPlayer(QMainWindow):
     def _poll_mouse_position(self):
         """轮询鼠标位置（唯一可靠的鼠标活动检测机制：MPV原生窗口吞掉所有Qt鼠标事件）"""
         from PyQt6.QtGui import QCursor
+        from PyQt6.QtWidgets import QApplication
         pos = QCursor.pos()
         mouse_moved = self._last_mouse_pos is not None and pos != self._last_mouse_pos
         self._last_mouse_pos = pos
 
         if not mouse_moved:
+            return
+
+        if not QApplication.activeWindow() == self and not self.isAncestorOf(QApplication.focusWidget()):
             return
 
         if getattr(self, '_auto_hidden', False):
@@ -3345,7 +3349,11 @@ class IPTVPlayer(QMainWindow):
     def _raise_floating_panels(self):
         """主窗口激活时，将悬浮窗与主窗口一起提升到上层"""
         self.raise_()
-        self.raise_floating_panels()
+        self.update_floating_position()
+        for panel_attr in ['epg_panel', 'playlist_panel', 'floating_panel']:
+            panel = getattr(self, panel_attr, None)
+            if panel and panel.isVisible():
+                panel.show()
 
     def open_channel_mapping(self):
         """打开频道映射管理器"""
@@ -3853,23 +3861,20 @@ class IPTVPlayer(QMainWindow):
         self.play_channel(channel)
 
     def raise_floating_panels(self):
-        """重新显示并提升可见的悬浮窗（与主窗口保持在一起，不抢夺焦点）"""
+        """重新显示可见的悬浮窗（与主窗口保持在一起，依赖Tool窗口标志维持层级）"""
         self.update_floating_position()
 
         if hasattr(self, 'epg_panel') and self.epg_panel and self.epg_visible:
             if not self.epg_panel.isVisible():
                 self.epg_panel.show()
-            self.epg_panel.raise_()
 
         if hasattr(self, 'playlist_panel') and self.playlist_panel and self.playlist_visible:
             if not self.playlist_panel.isVisible():
                 self.playlist_panel.show()
-            self.playlist_panel.raise_()
 
         if hasattr(self, 'floating_panel') and self.floating_panel and self.floating_panel_visible:
             if not self.floating_panel.isVisible():
                 self.floating_panel.show()
-            self.floating_panel.raise_()
 
         scan_dialog = getattr(self, '_scan_dialog', None) or getattr(self, 'scan_window', None)
         if scan_dialog and scan_dialog.isVisible():
@@ -4487,7 +4492,8 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, 'video_widget') and self.video_widget and self.video_frame:
             self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
         if hasattr(self, 'floating_panel') and self.floating_panel:
-            self.floating_panel.raise_()
+            if not self.floating_panel.isVisible():
+                self.floating_panel.show()
 
         for attr in ['_catchup_start_time', '_catchup_start_progress',
                      '_target_catchup_progress', '_disable_progress_auto_update']:
