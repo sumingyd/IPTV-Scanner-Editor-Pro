@@ -315,6 +315,8 @@ class UIController:
 
     def handle_auto_hide_timeout(self):
         """处理自动隐藏悬浮窗的超时事件"""
+        from core.log_manager import global_logger as logger
+
         if getattr(self.window, '_floating_hidden', False) or getattr(self.window, '_auto_hidden', False):
             return
 
@@ -326,16 +328,23 @@ class UIController:
 
         if any(visible_panels):
             self.window._auto_hidden = True
+            logger.info(f"自动隐藏触发: 可见面板={visible_panels}")
             self._save_and_hide_floating_panels()
+            if hasattr(self.window, 'status_bar') and self.window.status_bar:
+                self.window.status_bar.showMessage("悬浮窗已自动隐藏（移动鼠标恢复）", 3000)
+            self.window.setWindowTitle(self.window.windowTitle().replace(' [自动隐藏]', '') + ' [自动隐藏]')
 
     def _save_and_hide_floating_panels(self):
         """保存并隐藏所有悬浮窗（自动隐藏专用，使用独立快照，不覆盖手动 Y 键快照）"""
-        # 使用独立的 _auto_saved_states，避免与 toggle_hide_floating 的 _saved_floating_states 互相覆盖
+        from core.log_manager import global_logger as logger
+
         self.window._auto_saved_states = {
-            'epg': getattr(self.window, 'epg_visible', False),
-            'playlist': getattr(self.window, 'playlist_visible', False),
-            'floating': getattr(self.window, 'floating_panel_visible', False),
+            'epg': getattr(self.window, 'epg_panel', None) and self.window.epg_panel.isVisible(),
+            'playlist': getattr(self.window, 'playlist_panel', None) and self.window.playlist_panel.isVisible(),
+            'floating': getattr(self.window, 'floating_panel', None) and self.window.floating_panel.isVisible(),
         }
+
+        logger.info(f"自动隐藏保存状态: {self.window._auto_saved_states}")
 
         for panel_attr in ['epg_panel', 'playlist_panel', 'floating_panel']:
             panel = getattr(self.window, panel_attr, None)
@@ -348,33 +357,51 @@ class UIController:
 
     def handle_mouse_activity(self):
         """处理鼠标活动，恢复自动隐藏的悬浮窗并重启定时器"""
+        from core.log_manager import global_logger as logger
+        from PyQt6.QtCore import QTimer
         w = self.window
 
-        # 重启定时器（无论面板是否被自动隐藏，只要有鼠标活动就重置倒计时）
         if not getattr(w, '_floating_hidden', False):
             timer = getattr(w, '_auto_hide_timer', None)
-            if timer:
+            if timer and not timer.isActive():
                 timer.start()
 
         if not getattr(w, '_auto_hidden', False):
             return
 
-        w._auto_hidden = False
-        # 使用自动隐藏专用快照恢复，不受手动 Y 键操作影响
         saved = getattr(w, '_auto_saved_states', {})
+        logger.info(f"自动隐藏恢复: saved={saved}")
 
-        if saved.get('epg', False) and getattr(w, 'epg_panel', None):
-            if not w.epg_panel.isVisible():
-                w.epg_panel.show()
-            w.epg_visible = True
-        if saved.get('playlist', False) and getattr(w, 'playlist_panel', None):
-            if not w.playlist_panel.isVisible():
-                w.playlist_panel.show()
-            w.playlist_visible = True
-        if saved.get('floating', False) and getattr(w, 'floating_panel', None):
-            if not w.floating_panel.isVisible():
-                w.floating_panel.show()
-            w.floating_panel_visible = True
+        w._auto_hidden = False
+
+        restored = False
+        for panel_key, panel_attr, visible_attr in [
+            ('epg', 'epg_panel', 'epg_visible'),
+            ('playlist', 'playlist_panel', 'playlist_visible'),
+            ('floating', 'floating_panel', 'floating_panel_visible'),
+        ]:
+            if not saved.get(panel_key, False):
+                continue
+            panel = getattr(w, panel_attr, None)
+            if not panel:
+                logger.warning(f"自动隐藏恢复: {panel_attr} 为 None，跳过")
+                continue
+            if not panel.isFloating():
+                panel.setFloating(True)
+            panel.show()
+            panel.raise_()
+            setattr(w, visible_attr, True)
+            restored = True
+            logger.info(f"自动隐藏恢复: {panel_attr} 已恢复, isVisible={panel.isVisible()}, isFloating={panel.isFloating()}")
+
+        if restored:
+            if hasattr(w, 'update_floating_position'):
+                QTimer.singleShot(50, w.update_floating_position)
+            if hasattr(w, 'status_bar') and w.status_bar:
+                w.status_bar.showMessage("悬浮窗已恢复", 2000)
+            w.setWindowTitle(w.windowTitle().replace(' [自动隐藏]', ''))
+
+        logger.info(f"自动隐藏恢复完成: restored={restored}")
 
     def reapply_all_styles(self):
         """重新应用所有样式（用于主题切换后）"""
