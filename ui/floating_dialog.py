@@ -39,21 +39,6 @@ class TranslucentPanel(QFrame):
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
-    def show(self):
-        from core.log_manager import global_logger as logger
-        logger.info(f"FloatingDockWidget.show() 被调用: {self.objectName()}, isFloating={self.isFloating()}, geometry={self.geometry()}, isVisible_before={self.isVisible()}")
-        super().show()
-        _hide_from_taskbar(self)
-        logger.info(f"FloatingDockWidget.show() 完成: {self.objectName()}, isVisible_after={self.isVisible()}, geometry={self.geometry()}")
-
-    def hide(self):
-        import traceback
-        from core.log_manager import global_logger as logger
-        logger.info(f"FloatingDockWidget.hide() 被调用: {self.objectName()}")
-        for line in traceback.format_stack()[-4:-1]:
-            logger.info(f"  {line.strip()}")
-        super().hide()
-
     def keyPressEvent(self, event):
         from PyQt6.QtWidgets import QApplication
         for widget in QApplication.topLevelWidgets():
@@ -104,8 +89,6 @@ class FloatingDockWidget(QDockWidget):
         self.setTitleBarWidget(empty_bar)
 
     def _on_floating_changed(self, floating):
-        from core.log_manager import global_logger as logger
-        logger.info(f"FloatingDockWidget._on_floating_changed: floating={floating}, objectName={self.objectName()}")
         if floating:
             flags = Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool
             if self.parent() and (self.parent().windowFlags() & Qt.WindowType.WindowStaysOnTopHint):
