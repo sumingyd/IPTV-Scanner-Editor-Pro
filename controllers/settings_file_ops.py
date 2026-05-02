@@ -3,6 +3,7 @@
 从 pyqt_player.py 提取的独立模块
 """
 
+import os
 from typing import Optional
 import threading
 from PyQt6.QtWidgets import QFileDialog, QMessageBox, QComboBox, QApplication
@@ -25,6 +26,11 @@ class SettingsFileOperations:
         )
 
         if file_path:
+            self._load_playlist_file(file_path)
+
+    def open_specific_file(self, file_path: str):
+        """打开指定路径的播放列表文件（用于命令行参数或右键打开方式）"""
+        if file_path and os.path.isfile(file_path):
             self._load_playlist_file(file_path)
 
     def save_as(self):
@@ -607,6 +613,25 @@ class SettingsFileOperations:
             app_state._channels.clear()
             app_state._channels.extend(channels)
 
+            # 如果M3U文件头包含EPG地址且未配置EPG源，自动加载
+            if hasattr(self.window, 'channel_model') and self.window.channel_model:
+                header_attrs = getattr(self.window.channel_model, '_last_header_attrs', {})
+                epg_url = header_attrs.get('epg_url', '')
+                if epg_url:
+                    from core.subscription_manager import global_subscription_manager
+                    epg_sources = global_subscription_manager.get_epg_sources()
+                    if not epg_sources:
+                        from core.log_manager import global_logger as logger
+                        logger.info(f"本地文件头发现EPG地址，自动加载: {epg_url[:80]}")
+                        try:
+                            global_subscription_manager.load_single_epg(epg_url)
+                            if hasattr(self.window, '_populate_epg_list'):
+                                from PyQt6.QtCore import QTimer
+                                QTimer.singleShot(500, self.window._populate_epg_list)
+                        except Exception as epg_err:
+                            from core.log_manager import global_logger as logger
+                            logger.warning(f"从本地文件头加载EPG失败: {epg_err}")
+
             if hasattr(self.window, 'playlist_tab'):
                 self.window.playlist_tab.setCurrentIndex(1)
 
@@ -670,6 +695,7 @@ class SettingsFileOperations:
                 catchup = ch.get('_all_tags', {}).get('catchup', '') if ch.get('_all_tags') else ''
                 catchup_days = ch.get('_all_tags', {}).get('catchup-days', '') if ch.get('_all_tags') else ''
                 catchup_source = ch.get('catchup_source', '')
+                catchup_correction = ch.get('_all_tags', {}).get('catchup-correction', '') if ch.get('_all_tags') else ''
                 groups = ch.get('_groups', [])
 
                 attrs = ['#EXTINF:-1']
@@ -694,6 +720,8 @@ class SettingsFileOperations:
                     attrs.append(f'catchup-days="{catchup_days}"')
                 if catchup_source:
                     attrs.append(f'catchup-source="{catchup_source}"')
+                if catchup_correction:
+                    attrs.append(f'catchup-correction="{catchup_correction}"')
 
                 f.write(' '.join(attrs) + f',{name}\n')
                 f.write(f'{url}\n')
