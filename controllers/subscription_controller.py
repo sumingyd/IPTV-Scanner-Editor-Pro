@@ -42,6 +42,7 @@ class SubscriptionController:
         self.window = main_window
         self._subscription_checked = False
         self._workers = []
+        self._last_header_attrs = {}
 
     def handle_playlist_subscription(self, need_update: bool, playlist_url: str, source_index=None):
         """在后台线程中处理列表订阅（按源索引独立判断）"""
@@ -139,7 +140,8 @@ class SubscriptionController:
         """处理M3U内容（纯Python解析，避免子线程中操作Qt对象）"""
         try:
             # 使用纯 Python 方式解析 M3U 内容（不依赖 Qt 对象）
-            channels_data = self._parse_m3u_content_pure_python(content)
+            channels_data, header_attrs = self._parse_m3u_content_pure_python(content)
+            self._last_header_attrs = header_attrs
 
             if not channels_data:
                 logger.warning(f"M3U内容解析为空: {file_path[:50]}...")
@@ -180,6 +182,19 @@ class SubscriptionController:
                     main_module.CHANNELS.clear()
                     main_module.CHANNELS.extend(channels_data)
 
+            # 3. 如果M3U文件头包含EPG地址且未配置EPG源，自动加载
+            epg_url = header_attrs.get('epg_url', '')
+            if epg_url:
+                epg_sources = global_subscription_manager.get_epg_sources()
+                if not epg_sources:
+                    logger.info(f"未配置EPG源，从M3U文件头自动加载EPG: {epg_url[:80]}")
+                    try:
+                        global_subscription_manager.load_single_epg(epg_url)
+                    except Exception as epg_err:
+                        logger.warning(f"从M3U文件头加载EPG失败: {epg_err}")
+                else:
+                    logger.debug(f"已有 {len(epg_sources)} 个EPG源，跳过M3U文件头的EPG地址")
+
         except Exception as e:
             logger.error(f"处理M3U内容失败: {e}", exc_info=True)
 
@@ -197,6 +212,7 @@ class SubscriptionController:
 
         current_channel = None
         url = None
+        header_attrs = {}
 
         for line in lines:
             line = line.strip()
@@ -204,14 +220,35 @@ class SubscriptionController:
             if not line:
                 continue
 
-            # M3U 文件头
+            # M3U 文件头 - 提取全局属性（EPG地址、回看参数等）
             if line.startswith('#EXTM3U'):
+                from services.m3u_parser import extract_header_attributes
+                header_attrs = extract_header_attributes(line)
+                if header_attrs.get('epg_url'):
+                    logger.info(f"M3U文件头发现EPG地址: {header_attrs['epg_url'][:80]}")
                 continue
 
             # EXTINF 行（频道信息）
             if line.startswith('#EXTINF:'):
                 extinf_line = line[8:]  # 去掉 '#EXTINF:'
                 current_channel = self._parse_extinf(extinf_line)
+                # 继承全局回看参数（频道级别未设置时使用全局设置）
+                if current_channel and header_attrs:
+                    for k, v in header_attrs.items():
+                        if k == 'epg_url':
+                            continue
+                        field_map = {
+                            'catchup': 'catchup',
+                            'catchup-correction': 'catchup_correction',
+                            'catchup-source': 'catchup_source',
+                            'catchup-days': 'catchup_days',
+                            'catchup-type': 'catchup',
+                        }
+                        field = field_map.get(k, k.replace('-', '_'))
+                        if not current_channel.get(field):
+                            current_channel[field] = v
+                            if '_all_tags' in current_channel:
+                                current_channel['_all_tags'][k] = v
                 continue
 
             # URL 行
@@ -228,7 +265,7 @@ class SubscriptionController:
         for i, ch in enumerate(channels):
             ch['id'] = i + 1
 
-        return channels
+        return channels, header_attrs
 
     def _parse_extinf(self, extinf_line: str) -> dict:
         """解析 EXTINF 行"""
@@ -245,6 +282,7 @@ class SubscriptionController:
             "catchup": '',
             "catchup_days": '',
             "catchup_source": '',
+            "catchup_correction": '',
             "resolution": '',
             "current_program": '',
             "_raw_extinf": extinf_line,
@@ -287,6 +325,11 @@ class SubscriptionController:
                 channel_data['catchup_days'] = value
             elif key == 'catchup-source':
                 channel_data['catchup_source'] = value
+            elif key == 'catchup-correction':
+                channel_data['catchup_correction'] = value
+            elif key == 'catchup-type':
+                if not channel_data['catchup']:
+                    channel_data['catchup'] = value
 
         if groups:
             channel_data['_groups'] = groups
