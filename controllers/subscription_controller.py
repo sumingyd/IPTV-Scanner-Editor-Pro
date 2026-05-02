@@ -198,7 +198,7 @@ class SubscriptionController:
         except Exception as e:
             logger.error(f"处理M3U内容失败: {e}", exc_info=True)
 
-    def _parse_m3u_content_pure_python(self, content: str) -> list:
+    def _parse_m3u_content_pure_python(self, content: str) -> tuple:
         """纯 Python 解析 M3U 内容（不依赖 Qt 对象，线程安全）
 
         Args:
