@@ -71,6 +71,15 @@ class ChannelController:
         channel = item.data(Qt.ItemDataRole.UserRole)
         if not channel:
             return
+
+        # 如果存储的是索引（整数），需要从频道列表中查找
+        if isinstance(channel, int):
+            idx = channel
+            channels = self._get_current_channels()
+            if 0 <= idx < len(channels):
+                channel = channels[idx]
+            else:
+                return
         
         # 更新当前选中项
         if hasattr(self.window, 'current_channel'):
@@ -82,6 +91,17 @@ class ChannelController:
         # 如果有播放控制器，开始播放
         if hasattr(self.window, 'playback_ctrl'):
             self.window.playback_ctrl.play_channel(channel)
+
+    def _get_current_channels(self):
+        """获取当前活跃的频道列表"""
+        if hasattr(self.window, '_local_channels') and hasattr(self.window, '_sub_channels'):
+            if hasattr(self.window, 'playlist_tab'):
+                if self.window.playlist_tab.currentIndex() == 1:
+                    return self.window._local_channels
+            return self.window._sub_channels
+        import sys
+        main_module = sys.modules.get('__main__')
+        return getattr(main_module, 'CHANNELS', []) if main_module else []
 
     def _get_display_channel_name(self, channel: Dict[str, Any]) -> str:
         """获取频道的显示名称（委托给通用工具函数）"""
