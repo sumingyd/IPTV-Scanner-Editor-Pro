@@ -1,3 +1,4 @@
+import os
 import threading
 import requests
 from datetime import datetime, timedelta
@@ -30,6 +31,15 @@ class SubscriptionManager:
         self._epg_lock = threading.RLock()
         self._update_callbacks = []
         self._initialized = True
+
+    def _get_cache_dir(self) -> str:
+        from models.channel_mappings import get_app_data_dir
+        cache_dir = self._config.get_value('General', 'cache_dir', 'cache') or 'cache'
+        if not os.path.isabs(cache_dir):
+            cache_dir = os.path.join(get_app_data_dir(), cache_dir)
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir, exist_ok=True)
+        return cache_dir
     
     def get_playlist_sources(self) -> list:
         """获取所有直播源配置
@@ -679,12 +689,9 @@ class SubscriptionManager:
         Args:
             data: EPG数据字典
         """
-        import os
         import json
         
-        cache_dir = self._config.get_value('General', 'cache_dir', 'cache') or 'cache'
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
+        cache_dir = self._get_cache_dir()
         
         cache_file = os.path.join(cache_dir, 'epg_cache.json')
         try:
@@ -700,10 +707,9 @@ class SubscriptionManager:
         Returns:
             是否成功加载
         """
-        import os
         import json
         
-        cache_dir = self._config.get_value('General', 'cache_dir', 'cache') or 'cache'
+        cache_dir = self._get_cache_dir()
         cache_file = os.path.join(cache_dir, 'epg_cache.json')
         
         if not os.path.exists(cache_file):
@@ -729,9 +735,7 @@ class SubscriptionManager:
         Returns:
             是否有效
         """
-        import os
-
-        cache_dir = self._config.get_value('General', 'cache_dir', 'cache') or 'cache'
+        cache_dir = self._get_cache_dir()
         cache_file = os.path.join(cache_dir, 'epg_cache.json')
 
         if not os.path.exists(cache_file):
