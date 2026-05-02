@@ -1,0 +1,156 @@
+import sys
+from PyQt6 import QtWidgets
+from PyQt6.QtCore import Qt
+from ..floating_dialog import FloatingDialog
+
+
+SUPPORTED_FORMATS = {
+    'playlist': {
+        'label_zh': '播放列表',
+        'label_en': 'Playlist',
+        'extensions': ['.m3u', '.m3u8'],
+    },
+    'text': {
+        'label_zh': '文本列表',
+        'label_en': 'Text List',
+        'extensions': ['.txt'],
+    },
+    'video': {
+        'label_zh': '视频文件',
+        'label_en': 'Video Files',
+        'extensions': ['.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.webm'],
+    },
+}
+
+
+class FileAssociationDialog(FloatingDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent, stay_on_top=False)
+        self.language_manager = getattr(parent, 'language_manager', None)
+        if not self.language_manager:
+            from core.language_manager import LanguageManager
+            self.language_manager = LanguageManager()
+            self.language_manager.load_available_languages()
+            self.language_manager.set_language('zh')
+
+        from ..styles import AppStyles
+        self.setStyleSheet(AppStyles.dialog_style())
+
+        self._checkboxes = {}
+        self._init_ui()
+        self._load_current_state()
+
+        from ..theme_manager import get_theme_manager
+        get_theme_manager().register_window(self)
+
+    def _tr(self, key, fallback):
+        v = self.language_manager.tr(key, fallback)
+        return v if v else fallback
+
+    def _init_ui(self):
+        tr = self._tr
+        self.setWindowTitle(tr("file_association", "File Association"))
+        self.setMinimumSize(400, 360)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 16)
+        layout.setSpacing(12)
+
+        title = QtWidgets.QLabel(tr("file_assoc_title", "选择要关联的文件格式"))
+        title.setStyleSheet("font-size: 14px; font-weight: bold;")
+        layout.addWidget(title)
+
+        hint = QtWidgets.QLabel(tr("file_assoc_hint", '注册后，右键文件即可在"打开方式"中选择本程序'))
+        hint.setStyleSheet("font-size: 11px; color: gray;")
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
+
+        from ui.styles import AppStyles
+        checkbox_style = AppStyles.checkbox_style() if hasattr(AppStyles, 'checkbox_style') else ""
+
+        for group_key, group_info in SUPPORTED_FORMATS.items():
+            lang = self.language_manager.current_language if self.language_manager else 'zh'
+            group_label = group_info['label_zh'] if lang == 'zh' else group_info['label_en']
+
+            group_box = QtWidgets.QGroupBox(group_label)
+            group_box.setStyleSheet("""
+                QGroupBox {
+                    font-weight: bold;
+                    margin-top: 8px;
+                    padding-top: 16px;
+                }
+                QGroupBox::title {
+                    subcontrol-origin: margin;
+                    left: 10px;
+                    padding: 0 6px;
+                }
+            """)
+
+            cols = 4
+            grid = QtWidgets.QGridLayout(group_box)
+            grid.setSpacing(8)
+            grid.setColumnStretch(cols, 1)
+
+            row, col = 0, 0
+            for ext in group_info['extensions']:
+                cb = QtWidgets.QCheckBox(ext)
+                cb.setProperty('extension', ext)
+                if checkbox_style:
+                    cb.setStyleSheet(checkbox_style)
+                self._checkboxes[ext] = cb
+                grid.addWidget(cb, row, col)
+                col += 1
+                if col >= cols:
+                    col = 0
+                    row += 1
+
+            select_all = QtWidgets.QCheckBox(tr("select_all", "全选"))
+            select_all.setStyleSheet("font-size: 11px;")
+            select_all.stateChanged.connect(lambda state, gk=group_key: self._toggle_group(gk, state))
+            grid.addWidget(select_all, row, col)
+            self._checkboxes[f'_select_all_{group_key}'] = select_all
+
+            layout.addWidget(group_box)
+
+        layout.addStretch()
+
+        btn_layout = QtWidgets.QHBoxLayout()
+        btn_layout.addStretch()
+
+        ok_btn = QtWidgets.QPushButton(tr("ok", "确定"))
+        ok_btn.setFixedSize(90, 32)
+        ok_btn.clicked.connect(self._on_ok)
+        btn_layout.addWidget(ok_btn)
+
+        cancel_btn = QtWidgets.QPushButton(tr("cancel", "取消"))
+        cancel_btn.setFixedSize(90, 32)
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+
+        layout.addLayout(btn_layout)
+
+    def _toggle_group(self, group_key, state):
+        group_info = SUPPORTED_FORMATS[group_key]
+        checked = state == Qt.CheckState.Checked.value
+        for ext in group_info['extensions']:
+            if ext in self._checkboxes:
+                self._checkboxes[ext].setChecked(checked)
+
+    def _load_current_state(self):
+        from utils.general_utils import is_extension_registered
+        for ext in self._checkboxes:
+            if ext.startswith('_'):
+                continue
+            registered = is_extension_registered(ext)
+            self._checkboxes[ext].setChecked(registered)
+
+    def _on_ok(self):
+        from utils.general_utils import register_extension, unregister_extension
+        for ext, cb in self._checkboxes.items():
+            if ext.startswith('_'):
+                continue
+            if cb.isChecked():
+                register_extension(ext)
+            else:
+                unregister_extension(ext)
+        self.accept()
