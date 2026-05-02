@@ -256,3 +256,147 @@ def sanitize_filename(filename: str) -> str:
     return filename.strip()
 
 
+def _get_prog_id_for_ext(ext):
+    ext_key = ext.lstrip('.').replace('.', '_')
+    return f"IPTVScannerEditor.{ext_key}"
+
+
+def _get_exe_command():
+    if getattr(sys, 'frozen', False):
+        return f'"{sys.executable}" "%1"'
+    else:
+        return f'"{sys.executable}" "{os.path.abspath(sys.argv[0])}" "%1"'
+
+
+def _ensure_prog_id(prog_id, app_name=None):
+    try:
+        import winreg
+    except ImportError:
+        return False
+    try:
+        if app_name is None:
+            app_name = "IPTV Scanner Editor Pro"
+        key = winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{prog_id}", 0, winreg.KEY_WRITE)
+        winreg.SetValueEx(key, "", 0, winreg.REG_SZ, app_name)
+        winreg.CloseKey(key)
+
+        key = winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{prog_id}\\shell\\open\\command", 0, winreg.KEY_WRITE)
+        winreg.SetValueEx(key, "", 0, winreg.REG_SZ, _get_exe_command())
+        winreg.CloseKey(key)
+
+        key = winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{prog_id}\\DefaultIcon", 0, winreg.KEY_WRITE)
+        icon_path = get_icon_path()
+        if os.path.exists(icon_path):
+            winreg.SetValueEx(key, "", 0, winreg.REG_SZ, icon_path)
+        winreg.CloseKey(key)
+        return True
+    except Exception as e:
+        logging.warning(f"创建ProgID失败: {e}")
+        return False
+
+
+def _delete_prog_id(prog_id):
+    try:
+        import winreg
+    except ImportError:
+        return
+    for sub in [f"\\shell\\open\\command", f"\\shell\\open", f"\\shell", f"\\DefaultIcon", ""]:
+        try:
+            winreg.DeleteKey(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{prog_id}{sub}")
+        except Exception:
+            pass
+
+
+def _notify_shell_change():
+    try:
+        import ctypes
+        ctypes.windll.shell32.SHChangeNotify(0x08000000, 0x1000, None, None)
+    except Exception:
+        pass
+
+
+def register_extension(ext: str) -> bool:
+    if sys.platform != 'win32':
+        return False
+    try:
+        import winreg
+    except ImportError:
+        return False
+
+    prog_id = _get_prog_id_for_ext(ext)
+    if not _ensure_prog_id(prog_id):
+        return False
+
+    try:
+        key = winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{ext}\\OpenWithProgids", 0, winreg.KEY_WRITE)
+        winreg.SetValueEx(key, prog_id, 0, winreg.REG_NONE, b"")
+        winreg.CloseKey(key)
+    except Exception as e:
+        logging.warning(f"注册 {ext} 文件关联失败: {e}")
+        return False
+
+    _notify_shell_change()
+    return True
+
+
+def unregister_extension(ext: str) -> bool:
+    if sys.platform != 'win32':
+        return False
+    try:
+        import winreg
+    except ImportError:
+        return False
+
+    prog_id = _get_prog_id_for_ext(ext)
+
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{ext}\\OpenWithProgids", 0, winreg.KEY_WRITE)
+        winreg.DeleteValue(key, prog_id)
+        winreg.CloseKey(key)
+    except Exception:
+        pass
+
+    _delete_prog_id(prog_id)
+    _notify_shell_change()
+    return True
+
+
+def is_extension_registered(ext: str) -> bool:
+    if sys.platform != 'win32':
+        return False
+    try:
+        import winreg
+    except ImportError:
+        return False
+    prog_id = _get_prog_id_for_ext(ext)
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{ext}\\OpenWithProgids", 0, winreg.KEY_READ)
+        winreg.QueryValueEx(key, prog_id)
+        winreg.CloseKey(key)
+        return True
+    except Exception:
+        return False
+
+
+def register_file_association() -> bool:
+    extensions = ['.m3u', '.m3u8']
+    success = True
+    for ext in extensions:
+        if not register_extension(ext):
+            success = False
+    return success
+
+
+def unregister_file_association() -> bool:
+    extensions = ['.m3u', '.m3u8']
+    success = True
+    for ext in extensions:
+        if not unregister_extension(ext):
+            success = False
+    return success
+
+
+def is_file_association_registered() -> bool:
+    return is_extension_registered('.m3u')
+
+
