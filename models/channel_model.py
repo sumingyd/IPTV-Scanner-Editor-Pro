@@ -1350,8 +1350,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                                 'catchup-days': 'catchup_days',
                                 'catchup-type': 'catchup',
                             }
-                            field = field_map.get(k, k.replace('-', '_'))
-                            if not current_channel.get(field):
+                            field = field_map.get(k, k.replace('-', '_')) or k.replace('-', '_')
+                            if field and not current_channel.get(field):
                                 current_channel[field] = v
                                 if '_all_tags' in current_channel:
                                     current_channel['_all_tags'][k] = v
