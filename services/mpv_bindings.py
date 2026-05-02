@@ -3,9 +3,10 @@ import os
 import sys
 
 if getattr(sys, 'frozen', False):
-    base_path = getattr(sys, '_MEIPASS', os.getcwd())
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
 else:
-    base_path = os.getcwd()
+    from models.channel_mappings import get_app_data_dir
+    base_path = get_app_data_dir()
 
 mpv_dir = os.path.join(base_path, 'mpv')
 os.environ['MPV_HOME'] = mpv_dir
