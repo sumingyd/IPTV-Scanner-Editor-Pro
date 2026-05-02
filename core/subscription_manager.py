@@ -331,7 +331,9 @@ class SubscriptionManager:
             return False
     
     def load_single_epg(self, epg_url: str, status_callback=None) -> bool:
-        """加载单个EPG源的数据（用于从M3U文件的tvg-url等场景）
+        """加载单个EPG源的数据并合并到现有数据中（用于从M3U文件的tvg-url等场景）
+
+        同一个频道只保留已有数据，新源仅补充不存在的频道。
 
         Args:
             epg_url: EPG源URL
@@ -345,38 +347,43 @@ class SubscriptionManager:
             if status_callback:
                 status_callback("EPG URL未设置")
             return False
-        
+
         if status_callback:
             status_callback("正在下载EPG数据...")
-        
+
         try:
             data = self._load_single_epg(epg_url)
-            
+
             if data:
                 with self._epg_lock:
-                    self._epg_data = data
+                    new_channels = 0
+                    for channel_id, programs in data.items():
+                        if channel_id not in self._epg_data:
+                            self._epg_data[channel_id] = programs
+                            new_channels += 1
                     self._last_epg_update = datetime.now()
-                
+
                 total_channels = len(data)
                 total_programs = sum(len(progs) for progs in data.values())
-                
-                logger.info(f"单源EPG数据加载成功: {total_channels} 个频道, {total_programs} 个节目")
-                
+
+                logger.info(f"EPG补充源加载成功: {total_channels} 个频道, {total_programs} 个节目, 新增 {new_channels} 个频道")
+
                 if status_callback:
                     status_callback(f"EPG数据加载成功: {total_channels} 个频道")
-                
-                self._save_epg_cache(data)
-                self._notify_update_callbacks()
-                
+
+                self._save_epg_cache(self._epg_data)
+                if new_channels > 0:
+                    self._notify_update_callbacks()
+
                 return True
             else:
-                logger.warning("单源EPG数据为空")
+                logger.warning("EPG补充源数据为空")
                 if status_callback:
                     status_callback("EPG数据为空")
                 return False
-                
+
         except Exception as e:
-            logger.error(f"加载单源EPG数据失败: {e}")
+            logger.error(f"加载EPG补充源失败: {e}")
             if status_callback:
                 status_callback(f"加载失败: {e}")
             return False
