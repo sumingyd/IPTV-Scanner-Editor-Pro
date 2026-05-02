@@ -181,6 +181,24 @@ def extract_tvg_url_from_header(line):
     return None
 
 
+def extract_header_attributes(line):
+    if not line or not line.startswith('#EXTM3U'):
+        return {}
+    attrs = parse_attributes(line[7:])
+    result = {}
+    epg_keys = ['x-tvg-url', 'tvg-url', 'url-tvg', 'epg-url', 'url-epg']
+    for k in epg_keys:
+        if k in attrs and attrs[k]:
+            result['epg_url'] = attrs[k]
+            break
+    catchup_keys = ['catchup', 'catchup-correction', 'catchup-source',
+                    'catchup-days', 'catchup-type']
+    for k in catchup_keys:
+        if k in attrs and attrs[k]:
+            result[k] = attrs[k]
+    return result
+
+
 def is_valid_channel_url(url):
     if not url or not url.strip():
         return False
