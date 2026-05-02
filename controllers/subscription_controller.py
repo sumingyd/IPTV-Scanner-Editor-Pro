@@ -43,6 +43,7 @@ class SubscriptionController:
         self._subscription_checked = False
         self._workers = []
         self._last_header_attrs = {}
+        self._last_header_epg_url = None
 
     def handle_playlist_subscription(self, need_update: bool, playlist_url: str, source_index=None):
         """在后台线程中处理列表订阅（按源索引独立判断）"""
@@ -182,18 +183,13 @@ class SubscriptionController:
                     main_module.CHANNELS.clear()
                     main_module.CHANNELS.extend(channels_data)
 
-            # 3. 如果M3U文件头包含EPG地址且未配置EPG源，自动加载
+            # 3. 记录文件头EPG地址（在订阅EPG加载后再作为补充源加载）
             epg_url = header_attrs.get('epg_url', '')
             if epg_url:
-                epg_sources = global_subscription_manager.get_epg_sources()
-                if not epg_sources:
-                    logger.info(f"未配置EPG源，从M3U文件头自动加载EPG: {epg_url[:80]}")
-                    try:
-                        global_subscription_manager.load_single_epg(epg_url)
-                    except Exception as epg_err:
-                        logger.warning(f"从M3U文件头加载EPG失败: {epg_err}")
-                else:
-                    logger.debug(f"已有 {len(epg_sources)} 个EPG源，跳过M3U文件头的EPG地址")
+                self._last_header_epg_url = epg_url
+                logger.info(f"M3U文件头包含EPG地址: {epg_url[:80]}，将在订阅EPG加载后补充")
+            else:
+                self._last_header_epg_url = None
 
         except Exception as e:
             logger.error(f"处理M3U内容失败: {e}", exc_info=True)
@@ -436,7 +432,9 @@ class SubscriptionController:
         def status_callback(msg):
             logger.debug(f"EPG加载状态: {msg}")
 
-        if global_subscription_manager.is_epg_valid():
+        need_download_epg = not global_subscription_manager.is_epg_valid()
+
+        if not need_download_epg:
             logger.debug("EPG缓存有效，从本地缓存加载")
             cached_loaded = global_subscription_manager.load_cached_epg_data()
             if cached_loaded:
@@ -446,18 +444,33 @@ class SubscriptionController:
                 success = True
             else:
                 logger.warning("EPG缓存加载失败，重新下载")
-                success = global_subscription_manager.load_all_epg_data(status_callback)
-                if success:
-                    main_module = sys.modules.get('__main__')
-                    if main_module:
-                        main_module.EPG_DATA = global_subscription_manager._epg_data
-        else:
+                need_download_epg = True
+
+        if need_download_epg:
             logger.info("EPG缓存无效或不存在，重新下载所有EPG源")
             success = global_subscription_manager.load_all_epg_data(status_callback)
             if success:
                 main_module = sys.modules.get('__main__')
                 if main_module:
                     main_module.EPG_DATA = global_subscription_manager._epg_data
+
+            # EPG重新下载时，补充加载M3U文件头中的EPG
+            header_epg_url = getattr(self, '_last_header_epg_url', None)
+            if header_epg_url:
+                epg_sources = global_subscription_manager.get_epg_sources()
+                existing_urls = [src.get('url', '') for src in epg_sources] if epg_sources else []
+                if header_epg_url in existing_urls:
+                    logger.info(f"M3U文件头EPG已存在于订阅源中，跳过")
+                else:
+                    logger.info(f"补充加载M3U文件头EPG: {header_epg_url[:80]}")
+                    try:
+                        header_success = global_subscription_manager.load_single_epg(header_epg_url)
+                        if header_success:
+                            main_module = sys.modules.get('__main__')
+                            if main_module:
+                                main_module.EPG_DATA = global_subscription_manager._epg_data
+                    except Exception as epg_err:
+                        logger.warning(f"补充加载M3U文件头EPG失败: {epg_err}")
 
         return success
 
