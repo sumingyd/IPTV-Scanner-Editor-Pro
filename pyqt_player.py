@@ -347,6 +347,7 @@ class IPTVPlayer(QMainWindow):
         self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Window)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMouseTracking(True)
+        self.setAcceptDrops(True)
 
         # 创建主容器（用于实现圆角和背景色）
         self._main_container = QWidget()
@@ -405,22 +406,57 @@ class IPTVPlayer(QMainWindow):
 
     def mousePressEvent(self, event):
         """鼠标按下事件（委托给WindowController）"""
+        self._on_mouse_activity()
         if not self.window_ctrl.handle_mouse_press_event(event):
             self.update_floating_position()
             super().mousePressEvent(event)
 
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                path = url.toLocalFile()
+                if path.lower().endswith(('.m3u', '.m3u8', '.txt',
+                                          '.mp4', '.mkv', '.avi', '.mov',
+                                          '.flv', '.wmv', '.ts', '.webm')):
+                    event.acceptProposedAction()
+                    return
+        event.ignore()
+
+    def dropEvent(self, event):
+        for url in event.mimeData().urls():
+            path = url.toLocalFile()
+            if not path:
+                continue
+            if path.lower().endswith(('.m3u', '.m3u8', '.txt')):
+                if hasattr(self, 'settings_ops'):
+                    self.settings_ops.open_specific_file(path)
+                event.acceptProposedAction()
+                return
+            elif path.lower().endswith(('.mp4', '.mkv', '.avi', '.mov',
+                                        '.flv', '.wmv', '.ts', '.webm')):
+                if hasattr(self, 'player_controller') and self.player_controller:
+                    self.player_controller.play(path)
+                    from core.log_manager import global_logger as logger
+                    logger.info(f"拖放打开视频文件: {path}")
+                event.acceptProposedAction()
+                return
+        event.ignore()
+
     def mouseMoveEvent(self, event):
         """鼠标移动事件（委托给WindowController）"""
+        self._on_mouse_activity()
         if not self.window_ctrl.handle_mouse_move_event(event):
             super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         """鼠标释放事件（委托给WindowController）"""
+        self._on_mouse_activity()
         self.window_ctrl.handle_mouse_release_event(event)
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):
         """鼠标双击事件（委托给WindowController）"""
+        self._on_mouse_activity()
         if not self.window_ctrl.handle_mouse_double_click_event(event):
             super().mouseDoubleClickEvent(event)
     
@@ -1173,6 +1209,13 @@ class IPTVPlayer(QMainWindow):
         self._auto_hide_timer.setSingleShot(True)
         self._auto_hide_timer.setInterval(5000)
         self._auto_hide_timer.timeout.connect(self._on_auto_hide_timeout)
+
+        # 鼠标位置轮询定时器（兜底机制：MPV原生窗口可能吞掉鼠标事件）
+        self._last_mouse_pos = None
+        self._mouse_poll_timer = QTimer(self)
+        self._mouse_poll_timer.setInterval(200)
+        self._mouse_poll_timer.timeout.connect(self._poll_mouse_position)
+        self._mouse_poll_timer.start()
         
         self._populate_channel_list(source='subscription')
         
@@ -1411,6 +1454,12 @@ class IPTVPlayer(QMainWindow):
             player_settings = QAction(tr("menu_subscription_settings", "Subscription Settings"), self)
             player_settings.triggered.connect(self.player_settings)
             tools_menu.addAction(player_settings)
+
+            tools_menu.addSeparator()
+
+            file_assoc = QAction(tr("menu_file_association", "File Association"), self)
+            file_assoc.triggered.connect(self._toggle_file_association)
+            tools_menu.addAction(file_assoc)
             
             # 语言菜单
             language_menu = menu_bar.addMenu(tr("language", "Language"))
@@ -1973,8 +2022,9 @@ class IPTVPlayer(QMainWindow):
             try:
                 channel_name = self.original_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel"))
                 catchup_source = self.original_channel.get('catchup_source', '')
+                catchup_type = (self.original_channel.get('catchup', '') or '').lower().strip()
                 
-                if not catchup_source:
+                if not catchup_source and not catchup_type:
                     self.status_bar_show_message(self.language_manager.tr("catchup_not_supported", "This channel does not support catchup"))
                     return
                 
@@ -1993,8 +2043,7 @@ class IPTVPlayer(QMainWindow):
                 new_start_seconds = value
                 new_start_time = start_time + timedelta(seconds=new_start_seconds)
                 
-                catchup_url = catchup_source
-                catchup_url = self._replace_catchup_variables(catchup_source, new_start_time, end_time)
+                catchup_url = self.catchup_ctrl.build_catchup_url(self.original_channel, new_start_time, end_time)
                 
                 logger.debug(f"构建新的回看URL: {catchup_url}")
                 
@@ -2188,6 +2237,12 @@ class IPTVPlayer(QMainWindow):
         """打开播放器设置（委托给SettingsFileOperations）"""
         self.settings_ops.player_settings()
 
+    def _toggle_file_association(self):
+        """打开文件关联设置对话框"""
+        from ui.dialogs.file_association_dialog import FileAssociationDialog
+        dialog = FileAssociationDialog(self)
+        dialog.exec()
+
     def update_epg_date_display(self):
         """更新EPG日期显示（委托给EPGController）"""
         self.epg_ctrl.update_epg_date_display()
@@ -2311,19 +2366,24 @@ class IPTVPlayer(QMainWindow):
 
     def _on_mouse_activity(self):
         """鼠标活动时，恢复自动隐藏的悬浮窗并重启定时器"""
-        # 检查当前焦点窗口是否是主窗口或其子窗口
-        # 如果用户正在操作其他窗口（如扫描窗口），不恢复悬浮窗
-        from PyQt6.QtWidgets import QApplication
-        app = QApplication.instance()
-        if app:
-            active_window = app.activeWindow()
-            if active_window and active_window != self and not self.isAncestorOf(active_window):
-                # 用户在其他窗口操作（如扫描窗口），跳过悬浮窗恢复
-                if self._auto_hide_timer:
-                    self._auto_hide_timer.start()
-                return
-
         self.ui_ctrl.handle_mouse_activity()
+
+    def _poll_mouse_position(self):
+        """轮询鼠标位置（唯一可靠的鼠标活动检测机制：MPV原生窗口吞掉所有Qt鼠标事件）"""
+        from PyQt6.QtGui import QCursor
+        pos = QCursor.pos()
+        mouse_moved = self._last_mouse_pos is not None and pos != self._last_mouse_pos
+        self._last_mouse_pos = pos
+
+        if not mouse_moved:
+            return
+
+        if getattr(self, '_auto_hidden', False):
+            self._on_mouse_activity()
+        elif not getattr(self, '_floating_hidden', False):
+            timer = getattr(self, '_auto_hide_timer', None)
+            if timer and not timer.isActive():
+                timer.start()
     
     def toggle_play(self):
         """切换播放/暂停（委托给PlaybackController）"""
@@ -3063,10 +3123,10 @@ class IPTVPlayer(QMainWindow):
         else:
             from datetime import datetime, timedelta
 
-            is_local_file = (self.current_channel and
+            is_local_file = (isinstance(self.current_channel, dict) and
                              self.current_channel.get('url', '').split('?')[0].lower().endswith(
                                  ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.webm', '.mp3', '.wav', '.flac'))
-                             ) or (self.current_channel and
+                             ) or (isinstance(self.current_channel, dict) and
                                    not self.current_channel.get('url', '').startswith(('http://', 'https://', 'rtmp://', 'rtsp://', 'rtp://')))
 
             if is_local_file and total_time_ms > 0:
@@ -4309,13 +4369,14 @@ class IPTVPlayer(QMainWindow):
             offset_minutes = ts_settings.get('default_offset_minutes', 30)
 
         catchup_source = self.current_channel.get('catchup_source', '')
+        catchup_type = (self.current_channel.get('catchup', '') or '').lower().strip()
         from datetime import datetime, timedelta
         now = datetime.now()
         start_time = now - timedelta(minutes=offset_minutes)
         end_time = now
 
-        if catchup_source:
-            timeshift_url = self._replace_catchup_variables(catchup_source, start_time, end_time)
+        if catchup_source or catchup_type:
+            timeshift_url = self.catchup_ctrl.build_catchup_url(self.current_channel, start_time, end_time)
         else:
             url_format = ts_settings.get('url_format', '')
             if url_format:
@@ -4391,7 +4452,7 @@ class IPTVPlayer(QMainWindow):
 
         end_time = min(program_end, now) if program_end else now
 
-        timeshift_url = self._replace_catchup_variables(catchup_source, target_wallclock, end_time)
+        timeshift_url = self.catchup_ctrl.build_catchup_url(self.current_channel, target_wallclock, end_time)
 
         channel_name = self.current_channel.get('name', '')
         program_title = ''
@@ -4508,7 +4569,10 @@ class IPTVPlayer(QMainWindow):
         try:
             if not hasattr(self, 'catchup_indicator'):
                 return
-            if self.current_channel and self.current_channel.get('catchup_source', ''):
+            if self.current_channel and (
+                self.current_channel.get('catchup_source', '')
+                or self.current_channel.get('catchup', '')
+            ):
                 self.catchup_indicator.setText(self.language_manager.tr('catchup_available', '可回放'))
                 self.catchup_indicator.show()
             else:
@@ -4522,5 +4586,18 @@ if __name__ == "__main__":
     app_start_time = time.time()
     app = QApplication(sys.argv)
     player = IPTVPlayer()
+
+    # 处理命令行参数（右键"打开方式"传入的文件路径）
+    if len(sys.argv) > 1:
+        file_path = sys.argv[1]
+        if os.path.isfile(file_path):
+            if file_path.lower().endswith(('.m3u', '.m3u8', '.txt')):
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(800, lambda: player.settings_ops.open_specific_file(file_path))
+            elif file_path.lower().endswith(('.mp4', '.mkv', '.avi', '.mov',
+                                             '.flv', '.wmv', '.ts', '.webm')):
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(800, lambda: player.player_controller.play(file_path) if player.player_controller else None)
+
     # show() 已在 _initialize_in_order 中调用，此处直接进入事件循环
     sys.exit(app.exec())
