@@ -261,6 +261,7 @@ class EPGController:
 
             channel_supports_catchup = bool(
                 self.window.current_channel.get('catchup_source', '')
+                or self.window.current_channel.get('catchup', '')
             ) if hasattr(self.window, 'current_channel') and self.window.current_channel else False
 
             new_key = self._compute_epg_key(filtered_list, channel_name, target_date)
@@ -376,13 +377,15 @@ class EPGController:
         channel_catchup = ''
         if hasattr(self.window, 'current_channel') and self.window.current_channel:
             channel_catchup = self.window.current_channel.get('catchup_source', '')
+            if not channel_catchup:
+                channel_catchup = self.window.current_channel.get('catchup', '')
         
         # 如果是已播放/已结束的节目且频道支持回看，启动回看
         if is_past_program and channel_catchup and hasattr(self.window, 'start_catchup'):
             logger.info(f"用户点击EPG节目 '{program.get('title')}'，启动回看")
             self.window.start_catchup(program)
         elif not channel_catchup:
-            logger.debug(f"频道不支持回看功能（无 catchup_source）")
+            logger.debug(f"频道不支持回看功能（无 catchup_source 或 catchup 类型）")
         elif not is_past_program:
             logger.debug(f"点击的是未来节目，暂不支持预约播放")
 
