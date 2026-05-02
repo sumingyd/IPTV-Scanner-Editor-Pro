@@ -219,7 +219,10 @@ class EventHandler:
                 pass
 
         if event.type() == QEvent.Type.ActivationChange and self.window.isActiveWindow():
-            if hasattr(self.window, 'raise_floating_panels'):
+            if getattr(self.window, '_auto_hidden', False):
+                if hasattr(self.window, '_on_mouse_activity'):
+                    self.window._on_mouse_activity()
+            elif hasattr(self.window, 'raise_floating_panels'):
                 self.window.raise_floating_panels()
 
     def moveEvent(self, event):
