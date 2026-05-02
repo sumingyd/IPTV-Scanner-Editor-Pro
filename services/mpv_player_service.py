@@ -9,7 +9,8 @@ from core.log_manager import global_logger
 if getattr(sys, 'frozen', False):
     base_path = sys._MEIPASS
 else:
-    base_path = os.getcwd()
+    from models.channel_mappings import get_app_data_dir
+    base_path = get_app_data_dir()
 
 mpv_dir = os.path.join(base_path, 'mpv')
 
