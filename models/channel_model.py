@@ -533,6 +533,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 extinf_parts.append(f'catchup-days="{catchup_days}"')
             if catchup_source and not self.is_column_hidden(13):  # 回看源列
                 extinf_parts.append(f'catchup-source="{catchup_source}"')
+            catchup_correction = channel.get('catchup_correction', '')
+            if catchup_correction:
+                extinf_parts.append(f'catchup-correction="{catchup_correction}"')
             if resolution and not self.is_column_hidden(2):  # 分辨率列
                 extinf_parts.append(f'resolution="{resolution}"')
 
@@ -1182,6 +1185,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         current_channel = None
         current_group = "未分类"
         genre_group_active = False
+        header_attrs = {}
+        self._last_header_attrs = {}
 
         for line in lines:
             line = line.strip()
@@ -1189,6 +1194,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 continue
 
             if line.startswith("#EXTM3U"):
+                from services.m3u_parser import extract_header_attributes
+                header_attrs = extract_header_attributes(line)
+                self._last_header_attrs = header_attrs
                 continue
 
             if line.startswith("#EXTGRP:"):
@@ -1233,6 +1241,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         'catchup': "",
                         'catchup_days': "",
                         'catchup_source': "",
+                        'catchup_correction': "",
                         'valid': False,
                         'status': '待检测',
                         '_raw_extinf': extinf_content
@@ -1251,6 +1260,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         "catchup": "catchup",
                         "catchup-days": "catchup_days",
                         "catchup-source": "catchup_source",
+                        "catchup-correction": "catchup_correction",
+                        "catchup-type": "catchup",
                         "resolution": "resolution",
                         "tvg-language": "tvg_language",
                         "audio-track": "audio_track",
@@ -1308,6 +1319,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         'catchup': "",
                         'catchup_days': "",
                         'catchup_source': "",
+                        'catchup_correction': "",
                         'valid': False,
                         'status': '待检测',
                         '_raw_extinf': extinf_content
@@ -1326,6 +1338,23 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 url = line.strip()
                 if self._is_valid_channel_url(url):
                     current_channel['url'] = url
+                    # 继承全局回看参数（频道级别未设置时使用全局设置）
+                    if header_attrs:
+                        for k, v in header_attrs.items():
+                            if k == 'epg_url':
+                                continue
+                            field_map = {
+                                'catchup': 'catchup',
+                                'catchup-correction': 'catchup_correction',
+                                'catchup-source': 'catchup_source',
+                                'catchup-days': 'catchup_days',
+                                'catchup-type': 'catchup',
+                            }
+                            field = field_map.get(k, k.replace('-', '_'))
+                            if not current_channel.get(field):
+                                current_channel[field] = v
+                                if '_all_tags' in current_channel:
+                                    current_channel['_all_tags'][k] = v
                     channels.append(current_channel)
                     if 'name' in current_channel:
                         name_cache.add(current_channel['name'])
@@ -1354,6 +1383,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         'catchup': "",
                         'catchup_days': "",
                         'catchup_source': "",
+                        'catchup_correction': "",
                         'valid': False,
                         'status': '待检测'
                     })
