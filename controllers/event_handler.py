@@ -30,8 +30,8 @@ class EventHandler:
             if handled:
                 return True
 
-        # 鼠标移动事件（用于OSD显示）
-        elif event_type == QEvent.Type.MouseMove:
+        elif event_type in (QEvent.Type.MouseMove, QEvent.Type.MouseButtonPress,
+                            QEvent.Type.MouseButtonDblClick, QEvent.Type.Wheel):
             if hasattr(self.window, '_on_mouse_activity'):
                 self.window._on_mouse_activity()
 
@@ -58,6 +58,18 @@ class EventHandler:
                         w.toggle_fullscreen()
                     elif hasattr(w, 'playback_ctrl'):
                         w.playback_ctrl.stop_playback()
+                    return True
+                elif key == Qt.Key.Key_Up:
+                    self._switch_channel(-1)
+                    return True
+                elif key == Qt.Key.Key_Down:
+                    self._switch_channel(1)
+                    return True
+                elif key == Qt.Key.Key_Left:
+                    self._adjust_volume(-5)
+                    return True
+                elif key == Qt.Key.Key_Right:
+                    self._adjust_volume(5)
                     return True
                 elif key == Qt.Key.Key_F:
                     if hasattr(w, 'toggle_fullscreen'):
@@ -133,6 +145,17 @@ class EventHandler:
         item = self.window.channel_list.currentItem()
         if item and hasattr(self.window, 'channel_ctrl'):
             self.window.channel_ctrl.select_channel(item)
+
+    def _adjust_volume(self, delta: int):
+        """调整音量（delta为正增大，为负减小）"""
+        if not hasattr(self.window, 'volume_slider'):
+            return
+
+        current = self.window.volume_slider.value()
+        new_vol = max(0, min(100, current + delta))
+
+        if new_vol != current:
+            self.window.volume_slider.setValue(new_vol)
 
     def showEvent(self, event):
         """窗口首次显示后，延迟定位悬浮窗"""
