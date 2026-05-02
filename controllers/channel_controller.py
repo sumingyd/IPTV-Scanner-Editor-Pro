@@ -67,12 +67,11 @@ class ChannelController:
         """处理频道选择事件"""
         if not item:
             return
-            
+
         channel = item.data(Qt.ItemDataRole.UserRole)
         if not channel:
             return
 
-        # 如果存储的是索引（整数），需要从频道列表中查找
         if isinstance(channel, int):
             idx = channel
             channels = self._get_current_channels()
@@ -80,15 +79,15 @@ class ChannelController:
                 channel = channels[idx]
             else:
                 return
-        
-        # 更新当前选中项
+
         if hasattr(self.window, 'current_channel'):
             self.window.current_channel = channel
-        
-        # 更新频道信息显示
+
         self._update_channel_info(channel)
-        
-        # 如果有播放控制器，开始播放
+
+        if hasattr(self.window, 'epg_ctrl'):
+            self.window.epg_ctrl.populate_epg_list()
+
         if hasattr(self.window, 'playback_ctrl'):
             self.window.playback_ctrl.play_channel(channel)
 
