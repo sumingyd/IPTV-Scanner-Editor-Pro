@@ -23,6 +23,13 @@ class EventHandler:
         """事件过滤器 - 在 app 级别统一处理所有快捷键（不受焦点影响）"""
         event_type = event.type()
 
+        if event_type == QEvent.Type.ShortcutOverride:
+            key = event.key()
+            modifiers = event.modifiers()
+            if self._is_handled_shortcut(key, modifiers):
+                event.accept()
+                return True
+
         if event_type == QEvent.Type.KeyPress:
             key = event.key()
             modifiers = event.modifiers()
@@ -30,15 +37,23 @@ class EventHandler:
             if handled:
                 return True
 
-        elif event_type in (QEvent.Type.MouseMove, QEvent.Type.MouseButtonPress,
-                            QEvent.Type.MouseButtonDblClick, QEvent.Type.Wheel):
-            if hasattr(self.window, '_on_mouse_activity'):
-                self.window._on_mouse_activity()
+        return False
 
-        # 焦点事件
-        elif event_type == QEvent.Type.FocusIn:
-            pass
-
+    def _is_handled_shortcut(self, key, modifiers) -> bool:
+        """判断按键组合是否由 eventFilter 统一处理（用于拦截 ShortcutOverride）"""
+        if modifiers == Qt.KeyboardModifier.NoModifier:
+            return key in (Qt.Key.Key_Space, Qt.Key.Key_Escape,
+                           Qt.Key.Key_Up, Qt.Key.Key_Down,
+                           Qt.Key.Key_Left, Qt.Key.Key_Right,
+                           Qt.Key.Key_F, Qt.Key.Key_E,
+                           Qt.Key.Key_L, Qt.Key.Key_M,
+                           Qt.Key.Key_Y, Qt.Key.Key_Tab,
+                           Qt.Key.Key_F5, Qt.Key.Key_F11)
+        elif modifiers == Qt.KeyboardModifier.ControlModifier:
+            return key in (Qt.Key.Key_O, Qt.Key.Key_S, Qt.Key.Key_Q,
+                           Qt.Key.Key_U)
+        elif modifiers == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
+            return key in (Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_O)
         return False
 
     def _handle_global_shortcut(self, key, modifiers) -> bool:
@@ -89,6 +104,8 @@ class EventHandler:
                     return True
                 elif key == Qt.Key.Key_Y:
                     if hasattr(w, 'toggle_hide_floating'):
+                        from core.log_manager import global_logger as logger
+                        logger.debug("eventFilter: Y key pressed, calling toggle_hide_floating")
                         w.toggle_hide_floating(None)
                     return True
                 elif key == Qt.Key.Key_Tab:
@@ -98,6 +115,10 @@ class EventHandler:
                 elif key == Qt.Key.Key_F5:
                     if hasattr(w, 'refresh_ui'):
                         w.refresh_ui()
+                    return True
+                elif key == Qt.Key.Key_F11:
+                    if hasattr(w, 'toggle_fullscreen'):
+                        w.toggle_fullscreen()
                     return True
 
             # Ctrl 组合键
@@ -113,6 +134,10 @@ class EventHandler:
                 elif key == Qt.Key.Key_Q:
                     w.close()
                     return True
+                elif key == Qt.Key.Key_U:
+                    if hasattr(w, '_open_stream'):
+                        w._open_stream()
+                    return True
 
             # Ctrl+Shift 组合键
             elif modifiers == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
@@ -121,6 +146,10 @@ class EventHandler:
                     return True
                 elif key == Qt.Key.Key_Right:
                     self._switch_channel(1)
+                    return True
+                elif key == Qt.Key.Key_O:
+                    if hasattr(w, '_open_video_file'):
+                        w._open_video_file()
                     return True
 
         except Exception as e:
@@ -219,10 +248,7 @@ class EventHandler:
                 pass
 
         if event.type() == QEvent.Type.ActivationChange and self.window.isActiveWindow():
-            if getattr(self.window, '_auto_hidden', False):
-                if hasattr(self.window, '_on_mouse_activity'):
-                    self.window._on_mouse_activity()
-            elif hasattr(self.window, 'raise_floating_panels'):
+            if hasattr(self.window, 'raise_floating_panels'):
                 self.window.raise_floating_panels()
 
     def moveEvent(self, event):
@@ -284,7 +310,7 @@ class EventHandler:
 
         # 5. 停止所有定时器
         timer_attrs = ['update_timer', 'resize_timer', '_source_timeout_timer',
-                       '_auto_hide_timer', '_epg_update_timer']
+                       '_epg_update_timer']
         for attr in timer_attrs:
             timer = getattr(self.window, attr, None)
             if timer:
