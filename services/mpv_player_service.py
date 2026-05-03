@@ -352,7 +352,15 @@ class MpvPlayerController(QObject):
             self._set_mpv_string('cache', 'yes')
             self._set_mpv_string('cache-secs', str(cache_secs))
             self._set_mpv_string('demuxer-lavf-format', '')
-            if is_vod:
+            if rtsp_transport == 'udp':
+                self._set_mpv_string('demuxer-lavf-probesize', '500000')
+                self._set_mpv_string('demuxer-lavf-analyzeduration', '500000')
+                self._set_mpv_string('demuxer-max-bytes', f'{max_bytes_mib}MiB')
+                self._set_mpv_string('demuxer-max-back-bytes', f'{max_bytes_mib}MiB')
+                self._set_mpv_string('demuxer-readahead-secs', '5')
+                self._set_mpv_string('force-seekable', 'no')
+                self.logger.debug(f"[mpv] rtsp-udp-live cache={cache_secs} transport={rtsp_transport}")
+            elif is_vod:
                 self._set_mpv_string('demuxer-lavf-probesize', '5000000')
                 self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
                 self._set_mpv_string('force-seekable', 'yes')
@@ -360,7 +368,7 @@ class MpvPlayerController(QObject):
             else:
                 self._set_mpv_string('demuxer-lavf-probesize', '32')
                 self._set_mpv_string('demuxer-lavf-analyzeduration', '0')
-                self.logger.debug(f"[mpv] rtsp-live cache={cache_secs} transport={rtsp_transport}")
+                self.logger.debug(f"[mpv] rtsp-tcp-live cache={cache_secs} transport={rtsp_transport}")
             return
 
         looks_ts = ('/rtp/' in u or u.endswith('.ts') or 'proto=http' in u or u.startswith('udp://'))
