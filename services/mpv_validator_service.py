@@ -190,7 +190,15 @@ class MpvStreamValidator:
 
             u = url.lower()
             if u.startswith('rtsp://'):
-                _libmpv.mpv_set_property_string(handle, b'rtsp-transport', b'tcp')
+                rtsp_transport = 'tcp'
+                try:
+                    from core.config_manager import ConfigManager
+                    cfg = ConfigManager()
+                    playback = cfg.load_playback_settings()
+                    rtsp_transport = playback.get('rtsp_transport', 'tcp')
+                except Exception:
+                    pass
+                _libmpv.mpv_set_property_string(handle, b'rtsp-transport', rtsp_transport.encode('utf-8'))
             elif '/rtp/' in u or u.endswith('.ts') or u.startswith('udp://'):
                 _libmpv.mpv_set_property_string(handle, b'demuxer-lavf-format', b'mpegts')
 
