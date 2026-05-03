@@ -6,7 +6,8 @@
 import os
 from typing import Optional
 import threading
-from PyQt6.QtWidgets import QFileDialog, QMessageBox, QComboBox, QApplication
+from PyQt6.QtWidgets import (QFileDialog, QMessageBox, QComboBox, QApplication,
+                             QCheckBox, QSpinBox)
 
 
 class SettingsFileOperations:
@@ -58,47 +59,75 @@ class SettingsFileOperations:
         """显示播放器设置对话框"""
         from core.log_manager import global_logger as logger
         from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-                                     QPushButton, QComboBox, QLineEdit, QGroupBox,
+                                     QPushButton, QLineEdit, QGroupBox,
                                      QListWidget, QListWidgetItem, QWidget, QFormLayout)
 
         try:
             FloatingDialog = __import__('ui.floating_dialog', fromlist=['FloatingDialog']).FloatingDialog
             AppStyles = __import__('ui.styles', fromlist=['AppStyles']).AppStyles
 
-            # 创建对话框（FloatingDialog支持stay_on_top参数）
             try:
                 dialog = FloatingDialog(self.window, stay_on_top=False)
             except TypeError:
-                # 如果参数不支持，尝试不带参数创建
                 dialog = FloatingDialog(self.window)
         except ImportError:
-            # 导入失败时使用标准 QDialog（不支持 stay_on_top 参数）
             from PyQt6.QtWidgets import QDialog as FloatingDialog
             AppStyles = None
             dialog = FloatingDialog(self.window)
         tr = self.window.language_manager.tr if hasattr(self.window, 'language_manager') else lambda x, y: x
         dialog.setWindowTitle(tr("subscription_settings_title", "Subscription Settings"))
-        dialog.setMinimumSize(600, 550)
+        dialog.setMinimumSize(620, 620)
         if AppStyles:
             dialog.setStyleSheet(AppStyles.dialog_style())
 
         main_layout = QVBoxLayout(dialog)
 
-        protocol_group = QGroupBox(tr("protocol_settings", "Protocol Settings"))
-        protocol_layout = QVBoxLayout()
+        playback_settings = {}
+        if hasattr(self.window, 'config'):
+            try:
+                playback_settings = self.window.config.load_playback_settings()
+            except Exception:
+                pass
 
-        protocol_label = QLabel(tr("protocol_type_colon", "Protocol Type:"))
+        protocol_group = QGroupBox(tr("protocol_settings", "Protocol Settings"))
+        protocol_layout = QFormLayout()
+
         protocol_combo = QComboBox()
         protocol_combo.addItems(["HTTP", "HTTPS", "RTSP", "RTMP", "HLS"])
-
         if hasattr(self.window, 'config'):
             protocol = self.window.config.get_value('Player', 'protocol', 'HTTP')
             index = protocol_combo.findText(protocol)
             if index >= 0:
                 protocol_combo.setCurrentIndex(index)
+        protocol_layout.addRow(tr("protocol_type_colon", "Protocol Type:"), protocol_combo)
 
-        protocol_layout.addWidget(protocol_label)
-        protocol_layout.addWidget(protocol_combo)
+        rtsp_transport_combo = QComboBox()
+        rtsp_transport_combo.setObjectName("rtsp_transport_combo")
+        rtsp_transport_combo.addItems(["tcp", "udp", "lavf"])
+        rtsp_transport_value = playback_settings.get('rtsp_transport', 'tcp')
+        rtsp_idx = rtsp_transport_combo.findText(rtsp_transport_value)
+        if rtsp_idx >= 0:
+            rtsp_transport_combo.setCurrentIndex(rtsp_idx)
+        protocol_layout.addRow(tr("rtsp_transport_colon", "RTSP Transport:"), rtsp_transport_combo)
+
+        hwdec_check = QCheckBox(tr("hwdec_label", "Hardware Decoding"))
+        hwdec_check.setObjectName("hwdec_check")
+        hwdec_check.setChecked(playback_settings.get('hwdec', True))
+        protocol_layout.addRow(hwdec_check)
+
+        tls_check = QCheckBox(tr("tls_verify_label", "TLS Verify"))
+        tls_check.setObjectName("tls_check")
+        tls_check.setChecked(playback_settings.get('tls_verify', False))
+        protocol_layout.addRow(tls_check)
+
+        network_timeout_spin = QSpinBox()
+        network_timeout_spin.setObjectName("network_timeout_spin")
+        network_timeout_spin.setRange(0, 120)
+        network_timeout_spin.setSuffix("s")
+        network_timeout_spin.setValue(playback_settings.get('network_timeout_sec', 0))
+        network_timeout_spin.setSpecialValueText(tr("auto_timeout", "Auto"))
+        protocol_layout.addRow(tr("network_timeout_colon", "Network Timeout:"), network_timeout_spin)
+
         protocol_group.setLayout(protocol_layout)
         main_layout.addWidget(protocol_group)
 
@@ -292,6 +321,41 @@ class SettingsFileOperations:
             epg_interval_combo = dialog.findChild(QComboBox, "epg_interval_combo")
             if epg_interval_combo:
                 self.window.config.set_value('EPGSources', 'update_interval', epg_interval_combo.currentText())
+
+            playback_changed = False
+            new_playback = {}
+
+            rtsp_transport_combo = dialog.findChild(QComboBox, "rtsp_transport_combo")
+            if rtsp_transport_combo:
+                new_playback['rtsp_transport'] = rtsp_transport_combo.currentText()
+
+            hwdec_check = dialog.findChild(QCheckBox, "hwdec_check")
+            if hwdec_check:
+                new_playback['hwdec'] = hwdec_check.isChecked()
+
+            tls_check = dialog.findChild(QCheckBox, "tls_check")
+            if tls_check:
+                new_playback['tls_verify'] = tls_check.isChecked()
+
+            network_timeout_spin = dialog.findChild(QSpinBox, "network_timeout_spin")
+            if network_timeout_spin:
+                new_playback['network_timeout_sec'] = network_timeout_spin.value()
+
+            if new_playback:
+                old_playback = self.window.config.load_playback_settings()
+                for k, v in new_playback.items():
+                    if old_playback.get(k) != v:
+                        playback_changed = True
+                        break
+                self.window.config.save_playback_settings(new_playback)
+
+                if playback_changed and hasattr(self.window, 'player_controller'):
+                    try:
+                        pc = self.window.player_controller
+                        if pc and hasattr(pc, '_playback_settings'):
+                            pc._playback_settings.update(new_playback)
+                    except Exception:
+                        pass
 
             new_active_index = -1
             for i, s in enumerate(new_playlist_sources):
