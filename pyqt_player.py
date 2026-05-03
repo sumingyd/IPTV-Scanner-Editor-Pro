@@ -266,10 +266,6 @@ class IPTVPlayer(QMainWindow):
         self._osd_visible = False
         self._osd_saved_panel_states = {}
         
-        # 悬浮窗自动隐藏状态（鼠标5秒不动自动隐藏）
-        self._auto_hidden = False
-        self._auto_hide_timer = None
-        
         # 全屏状态
         self.is_fullscreen = False
         
@@ -406,7 +402,6 @@ class IPTVPlayer(QMainWindow):
 
     def mousePressEvent(self, event):
         """鼠标按下事件（委托给WindowController）"""
-        self._on_mouse_activity()
         if not self.window_ctrl.handle_mouse_press_event(event):
             self.update_floating_position()
             super().mousePressEvent(event)
@@ -444,19 +439,16 @@ class IPTVPlayer(QMainWindow):
 
     def mouseMoveEvent(self, event):
         """鼠标移动事件（委托给WindowController）"""
-        self._on_mouse_activity()
         if not self.window_ctrl.handle_mouse_move_event(event):
             super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         """鼠标释放事件（委托给WindowController）"""
-        self._on_mouse_activity()
         self.window_ctrl.handle_mouse_release_event(event)
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):
         """鼠标双击事件（委托给WindowController）"""
-        self._on_mouse_activity()
         if not self.window_ctrl.handle_mouse_double_click_event(event):
             super().mouseDoubleClickEvent(event)
     
@@ -1197,25 +1189,11 @@ class IPTVPlayer(QMainWindow):
         if self.video_placeholder:
             self.video_placeholder.installEventFilter(self)
         
-        # 安装 QApplication 级别事件过滤器（用于自动隐藏悬浮窗）
+        # 安装 QApplication 级别事件过滤器（用于全局快捷键）
         from PyQt6.QtWidgets import QApplication
         app = QApplication.instance()
         if app:
             app.installEventFilter(self)
-        
-        # 初始化自动隐藏定时器（不立即启动，等用户第一次鼠标活动后才开始计时）
-        from PyQt6.QtCore import QTimer
-        self._auto_hide_timer = QTimer(self)
-        self._auto_hide_timer.setSingleShot(True)
-        self._auto_hide_timer.setInterval(5000)
-        self._auto_hide_timer.timeout.connect(self._on_auto_hide_timeout)
-
-        # 鼠标位置轮询定时器（兜底机制：MPV原生窗口可能吞掉鼠标事件）
-        self._last_mouse_pos = None
-        self._mouse_poll_timer = QTimer(self)
-        self._mouse_poll_timer.setInterval(200)
-        self._mouse_poll_timer.timeout.connect(self._poll_mouse_position)
-        self._mouse_poll_timer.start()
         
         self._populate_channel_list(source='subscription')
         
@@ -1346,17 +1324,14 @@ class IPTVPlayer(QMainWindow):
             recent_menu = None
             if file_menu:
                 open_playlist = QAction(tr("menu_open_playlist", "Open Playlist\tCtrl+O"), self)
-                open_playlist.setShortcut("Ctrl+O")
                 open_playlist.triggered.connect(self.open_playlist)
                 file_menu.addAction(open_playlist)
 
                 open_stream = QAction(tr("menu_open_stream", "Open Stream\tCtrl+U"), self)
-                open_stream.setShortcut("Ctrl+U")
                 open_stream.triggered.connect(self._open_stream)
                 file_menu.addAction(open_stream)
 
                 open_video = QAction(tr("menu_open_video", "Open Video\tCtrl+Shift+O"), self)
-                open_video.setShortcut("Ctrl+Shift+O")
                 open_video.triggered.connect(self._open_video_file)
                 file_menu.addAction(open_video)
 
@@ -1364,14 +1339,12 @@ class IPTVPlayer(QMainWindow):
                 recent_menu = file_menu.addMenu(tr("menu_recent_open", "Recent"))
 
                 save_as = QAction(tr("menu_save_as", "Save As...\tCtrl+S"), self)
-                save_as.setShortcut("Ctrl+S")
                 save_as.triggered.connect(self.save_as)
                 file_menu.addAction(save_as)
 
                 file_menu.addSeparator()
 
                 exit_action = QAction(tr("menu_exit", "Exit\tCtrl+Q"), self)
-                exit_action.setShortcut("Ctrl+Q")
                 exit_action.triggered.connect(self.close)
                 file_menu.addAction(exit_action)
             
@@ -1386,35 +1359,29 @@ class IPTVPlayer(QMainWindow):
             view_menu = menu_bar.addMenu(tr("menu_view", "View"))
             
             show_epg = QAction(tr("menu_epg_list", "EPG List\tE"), self)
-            show_epg.setShortcut("E")
             show_epg.setCheckable(True)
             show_epg.setChecked(self.epg_visible)
             show_epg.triggered.connect(self.toggle_epg)
             view_menu.addAction(show_epg)
 
             show_playlist = QAction(tr("menu_playlist", "Playlist\tL"), self)
-            show_playlist.setShortcut("L")
             show_playlist.setCheckable(True)
             show_playlist.setChecked(self.playlist_visible)
             show_playlist.triggered.connect(self.toggle_playlist)
             view_menu.addAction(show_playlist)
 
             show_floating = QAction(tr("menu_control_panel", "Control Panel\tM"), self)
-            show_floating.setShortcut("M")
             show_floating.setCheckable(True)
             show_floating.setChecked(self.floating_panel_visible)
             show_floating.triggered.connect(self.toggle_floating_panel)
             view_menu.addAction(show_floating)
 
             hide_all_floating = QAction(tr("menu_hide_floating", "Hide Floating Panels\tY"), self)
-            hide_all_floating.setShortcut("Y")
-            hide_all_floating.setCheckable(True)
-            hide_all_floating.setChecked(self._floating_hidden)
-            hide_all_floating.triggered.connect(self.toggle_hide_floating)
+            hide_all_floating.triggered.connect(lambda: self.toggle_hide_floating())
             view_menu.addAction(hide_all_floating)
+            self._hide_floating_action = hide_all_floating
 
             show_osd = QAction(tr("menu_osd_toggle", "OSD Mask\tTab"), self)
-            show_osd.setShortcut("Tab")
             show_osd.setCheckable(True)
             show_osd.setChecked(self._osd_visible)
             show_osd.triggered.connect(lambda c: self.toggle_osd(c))
@@ -1424,13 +1391,11 @@ class IPTVPlayer(QMainWindow):
             view_menu.addSeparator()
             
             fullscreen = QAction(tr("menu_fullscreen", "Fullscreen\tF11"), self)
-            fullscreen.setShortcut("F11")
             fullscreen.setCheckable(True)
             fullscreen.triggered.connect(self.toggle_fullscreen)
             view_menu.addAction(fullscreen)
 
             refresh = QAction(tr("menu_refresh", "Refresh\tF5"), self)
-            refresh.setShortcut("F5")
             refresh.triggered.connect(self.refresh_ui)
             view_menu.addAction(refresh)
             
@@ -2293,15 +2258,33 @@ class IPTVPlayer(QMainWindow):
 
     def toggle_hide_floating(self, checked=None):
         """一键隐藏/恢复所有悬浮窗"""
-        if checked is None:
-            checked = not getattr(self, '_floating_hidden', False)
+        from core.log_manager import global_logger as logger
 
-        if checked:
+        currently_hidden = getattr(self, '_floating_hidden', False)
+        logger.debug(f"toggle_hide_floating: checked={checked}, _floating_hidden={currently_hidden}, "
+                     f"epg_visible={self.epg_visible}, playlist_visible={self.playlist_visible}, "
+                     f"floating_visible={self.floating_panel_visible}")
+
+        if currently_hidden:
+            saved = getattr(self, '_saved_floating_states', {})
+            logger.debug(f"toggle_hide_floating: RESTORE, saved={saved}")
+            if saved.get('epg', False) and hasattr(self, 'epg_panel') and self.epg_panel:
+                self.epg_panel.show()
+            self.epg_visible = saved.get('epg', False)
+            if saved.get('playlist', False) and hasattr(self, 'playlist_panel') and self.playlist_panel:
+                self.playlist_panel.show()
+            self.playlist_visible = saved.get('playlist', False)
+            if saved.get('floating', False) and hasattr(self, 'floating_panel') and self.floating_panel:
+                self.floating_panel.show()
+            self.floating_panel_visible = saved.get('floating', False)
+            self._floating_hidden = False
+        else:
             self._saved_floating_states = {
                 'epg': self.epg_visible,
                 'playlist': self.playlist_visible,
                 'floating': self.floating_panel_visible
             }
+            logger.debug(f"toggle_hide_floating: HIDE, saved={self._saved_floating_states}")
             if hasattr(self, 'epg_panel') and self.epg_panel:
                 self.epg_panel.hide()
             if hasattr(self, 'playlist_panel') and self.playlist_panel:
@@ -2309,86 +2292,36 @@ class IPTVPlayer(QMainWindow):
             if hasattr(self, 'floating_panel') and self.floating_panel:
                 self.floating_panel.hide()
             self._floating_hidden = True
-            self._auto_hidden = False
-            if self._auto_hide_timer:
-                self._auto_hide_timer.stop()
-            # 同步菜单勾选状态
-            for action in self.findChildren(QAction):
-                if action.isCheckable():
-                    text = action.text()
-                    if ('EPG' in text or '节目' in text) or \
-                       ('Playlist' in text or '播放' in text) or \
-                       ('Control Panel' in text or '控制' in text):
-                        action.blockSignals(True)
-                        action.setChecked(False)
-                        action.blockSignals(False)
             self.epg_visible = False
             self.playlist_visible = False
             self.floating_panel_visible = False
-        else:
-            saved = self._saved_floating_states
-            if saved.get('epg', False) and hasattr(self, 'epg_panel') and self.epg_panel:
-                self.epg_panel.show()
-            self.epg_visible = saved.get('epg', self.epg_visible)
-            if saved.get('playlist', False) and hasattr(self, 'playlist_panel') and self.playlist_panel:
-                self.playlist_panel.show()
-            self.playlist_visible = saved.get('playlist', self.playlist_visible)
-            if saved.get('floating', False) and hasattr(self, 'floating_panel') and self.floating_panel:
-                self.floating_panel.show()
-            self.floating_panel_visible = saved.get('floating', self.floating_panel_visible)
-            self._floating_hidden = False
-            # 同步菜单勾选状态
-            for action in self.findChildren(QAction):
-                if action.isCheckable():
-                    text = action.text()
-                    if ('EPG' in text or '节目' in text):
-                        action.blockSignals(True)
-                        action.setChecked(self.epg_visible)
-                        action.blockSignals(False)
-                    elif ('Playlist' in text or '播放' in text):
-                        action.blockSignals(True)
-                        action.setChecked(self.playlist_visible)
-                        action.blockSignals(False)
-                    elif ('Control Panel' in text or '控制' in text):
-                        action.blockSignals(True)
-                        action.setChecked(self.floating_panel_visible)
-                        action.blockSignals(False)
-            if self._auto_hide_timer:
-                self._auto_hide_timer.start()
+
+        self._sync_panel_actions()
+        logger.debug(f"toggle_hide_floating: DONE, _floating_hidden={self._floating_hidden}")
+
+    def _sync_panel_actions(self):
+        """同步所有面板相关 QAction 的 checked 状态"""
+        for action in self.findChildren(QAction):
+            if not action.isCheckable():
+                continue
+            text = action.text()
+            if 'EPG' in text or '节目' in text:
+                action.blockSignals(True)
+                action.setChecked(self.epg_visible)
+                action.blockSignals(False)
+            elif 'Playlist' in text or '播放' in text:
+                action.blockSignals(True)
+                action.setChecked(self.playlist_visible)
+                action.blockSignals(False)
+            elif 'Control Panel' in text or '控制' in text:
+                action.blockSignals(True)
+                action.setChecked(self.floating_panel_visible)
+                action.blockSignals(False)
 
     def toggle_osd(self, checked=None):
         """切换OSD显示/隐藏（委托给UIController）"""
         self.ui_ctrl.toggle_osd(checked)
 
-    def _on_auto_hide_timeout(self):
-        """5秒无鼠标活动，自动隐藏悬浮窗（委托给UIController）"""
-        self.ui_ctrl.handle_auto_hide_timeout()
-
-    def _on_mouse_activity(self):
-        """鼠标活动时，恢复自动隐藏的悬浮窗并重启定时器"""
-        self.ui_ctrl.handle_mouse_activity()
-
-    def _poll_mouse_position(self):
-        """轮询鼠标位置（唯一可靠的鼠标活动检测机制：MPV原生窗口吞掉所有Qt鼠标事件）"""
-        from PyQt6.QtGui import QCursor
-        from PyQt6.QtWidgets import QApplication
-        pos = QCursor.pos()
-        mouse_moved = self._last_mouse_pos is not None and pos != self._last_mouse_pos
-        self._last_mouse_pos = pos
-
-        if not mouse_moved:
-            return
-
-        if not QApplication.activeWindow() == self and not self.isAncestorOf(QApplication.focusWidget()):
-            return
-
-        if getattr(self, '_auto_hidden', False):
-            self._on_mouse_activity()
-        elif not getattr(self, '_floating_hidden', False):
-            timer = getattr(self, '_auto_hide_timer', None)
-            if timer and not timer.isActive():
-                timer.start()
-    
     def toggle_play(self):
         """切换播放/暂停（委托给PlaybackController）"""
         self.playback_ctrl.toggle_play()
@@ -3258,16 +3191,14 @@ class IPTVPlayer(QMainWindow):
         self.is_fullscreen = not self.is_fullscreen
         
         if self.is_fullscreen:
-            self._auto_hidden = False
-            if self._auto_hide_timer:
-                self._auto_hide_timer.stop()
             self._fullscreen_saved_states = {
                 'title_bar': hasattr(self, '_title_bar') and self._title_bar and self._title_bar.isVisible(),
                 'menu_bar': hasattr(self, '_custom_menu_bar') and self._custom_menu_bar and self._custom_menu_bar.isVisible(),
                 'status_bar': bool(self.status_bar and self.status_bar.isVisible()),
                 'epg': self.epg_visible,
                 'playlist': self.playlist_visible,
-                'floating': self.floating_panel_visible
+                'floating': self.floating_panel_visible,
+                'floating_hidden': getattr(self, '_floating_hidden', False)
             }
             if hasattr(self, '_title_bar') and self._title_bar:
                 self._title_bar.hide()
@@ -3291,7 +3222,6 @@ class IPTVPlayer(QMainWindow):
                 self._custom_menu_bar.show()
             if saved.get('status_bar', True) and self.status_bar:
                 self.status_bar.show()
-            # 恢复面板显示，然后重新定位
             if saved.get('epg', True) and hasattr(self, 'epg_panel') and self.epg_panel:
                 self.epg_panel.show()
                 self.epg_visible = True
@@ -3307,9 +3237,9 @@ class IPTVPlayer(QMainWindow):
                 self.floating_panel_visible = True
             else:
                 self.floating_panel_visible = False
+            self._floating_hidden = saved.get('floating_hidden', False)
+            self._sync_panel_actions()
             self.update_floating_position()
-            if not self._floating_hidden and self._auto_hide_timer:
-                self._auto_hide_timer.start()
     
     def refresh_ui(self):
         """刷新界面"""
@@ -3321,10 +3251,11 @@ class IPTVPlayer(QMainWindow):
         self.epg_visible = True
         self.playlist_visible = True
         self.floating_panel_visible = True
+        self._floating_hidden = False
         self.epg_panel.setVisible(True)
         self.playlist_panel.setVisible(True)
         self.floating_panel.setVisible(True)
-        # 视频区域目标 1280×720，加上标题栏(32)+菜单栏(~28)+状态栏(~26)=806
+        self._sync_panel_actions()
         self.resize(1280, 806)
     
     def open_scan_ui(self):
