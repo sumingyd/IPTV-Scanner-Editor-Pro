@@ -12,9 +12,9 @@ from ..floating_dialog import FloatingDialog
 
 
 class AboutDialog(FloatingDialog):
-    CURRENT_VERSION = "46.0.0.3"
+    CURRENT_VERSION = "46.0.0.4"
     DEFAULT_VERSION = None
-    BUILD_DATE = "2026-05-03"
+    BUILD_DATE = "2026-05-06"
 
     def __init__(self, parent=None):
         super().__init__(parent, stay_on_top=False)
