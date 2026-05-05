@@ -19,6 +19,15 @@ class EventHandler:
         """已废弃：所有快捷键统一由 eventFilter 处理，此方法保留为空"""
         return False
 
+    def _is_main_window_focused(self) -> bool:
+        """判断当前焦点是否在主窗口上（排除悬浮面板、对话框等）"""
+        from PyQt6.QtWidgets import QApplication
+        focus_widget = QApplication.focusWidget()
+        if focus_widget is None:
+            return self.window.isActiveWindow()
+        window = focus_widget.window()
+        return window is self.window
+
     def eventFilter(self, obj, event: QEvent) -> bool:
         """事件过滤器 - 在 app 级别统一处理所有快捷键（不受焦点影响）"""
         event_type = event.type()
@@ -42,18 +51,27 @@ class EventHandler:
     def _is_handled_shortcut(self, key, modifiers) -> bool:
         """判断按键组合是否由 eventFilter 统一处理（用于拦截 ShortcutOverride）"""
         if modifiers == Qt.KeyboardModifier.NoModifier:
-            return key in (Qt.Key.Key_Space, Qt.Key.Key_Escape,
-                           Qt.Key.Key_Up, Qt.Key.Key_Down,
-                           Qt.Key.Key_Left, Qt.Key.Key_Right,
+            global_keys = (Qt.Key.Key_Space, Qt.Key.Key_Escape,
                            Qt.Key.Key_F, Qt.Key.Key_E,
                            Qt.Key.Key_L, Qt.Key.Key_M,
                            Qt.Key.Key_Y, Qt.Key.Key_Tab,
                            Qt.Key.Key_F5, Qt.Key.Key_F11)
+            main_only_keys = (Qt.Key.Key_Up, Qt.Key.Key_Down,
+                              Qt.Key.Key_Left, Qt.Key.Key_Right)
+            if key in global_keys:
+                return True
+            if key in main_only_keys and self._is_main_window_focused():
+                return True
+            return False
         elif modifiers == Qt.KeyboardModifier.ControlModifier:
             return key in (Qt.Key.Key_O, Qt.Key.Key_S, Qt.Key.Key_Q,
                            Qt.Key.Key_U)
         elif modifiers == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
-            return key in (Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_O)
+            if key == Qt.Key.Key_O:
+                return True
+            if key in (Qt.Key.Key_Left, Qt.Key.Key_Right) and self._is_main_window_focused():
+                return True
+            return False
         return False
 
     def _handle_global_shortcut(self, key, modifiers) -> bool:
@@ -62,7 +80,6 @@ class EventHandler:
         try:
             w = self.window
 
-            # 无修饰键快捷键
             if modifiers == Qt.KeyboardModifier.NoModifier:
                 if key == Qt.Key.Key_Space:
                     if hasattr(w, 'playback_ctrl'):
@@ -74,17 +91,18 @@ class EventHandler:
                     elif hasattr(w, 'playback_ctrl'):
                         w.playback_ctrl.stop_playback()
                     return True
-                elif key == Qt.Key.Key_Up:
-                    self._switch_channel(-1)
-                    return True
-                elif key == Qt.Key.Key_Down:
-                    self._switch_channel(1)
-                    return True
-                elif key == Qt.Key.Key_Left:
-                    self._adjust_volume(-5)
-                    return True
-                elif key == Qt.Key.Key_Right:
-                    self._adjust_volume(5)
+                elif key in (Qt.Key.Key_Up, Qt.Key.Key_Down,
+                             Qt.Key.Key_Left, Qt.Key.Key_Right):
+                    if not self._is_main_window_focused():
+                        return False
+                    if key == Qt.Key.Key_Up:
+                        self._switch_channel(-1)
+                    elif key == Qt.Key.Key_Down:
+                        self._switch_channel(1)
+                    elif key == Qt.Key.Key_Left:
+                        self._adjust_volume(-5)
+                    elif key == Qt.Key.Key_Right:
+                        self._adjust_volume(5)
                     return True
                 elif key == Qt.Key.Key_F:
                     if hasattr(w, 'toggle_fullscreen'):
@@ -104,7 +122,6 @@ class EventHandler:
                     return True
                 elif key == Qt.Key.Key_Y:
                     if hasattr(w, 'toggle_hide_floating'):
-                        from core.log_manager import global_logger as logger
                         logger.debug("eventFilter: Y key pressed, calling toggle_hide_floating")
                         w.toggle_hide_floating(None)
                     return True
@@ -121,7 +138,6 @@ class EventHandler:
                         w.toggle_fullscreen()
                     return True
 
-            # Ctrl 组合键
             elif modifiers == Qt.KeyboardModifier.ControlModifier:
                 if key == Qt.Key.Key_O:
                     if hasattr(w, 'settings_ops'):
@@ -139,13 +155,14 @@ class EventHandler:
                         w._open_stream()
                     return True
 
-            # Ctrl+Shift 组合键
             elif modifiers == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
-                if key == Qt.Key.Key_Left:
-                    self._switch_channel(-1)
-                    return True
-                elif key == Qt.Key.Key_Right:
-                    self._switch_channel(1)
+                if key in (Qt.Key.Key_Left, Qt.Key.Key_Right):
+                    if not self._is_main_window_focused():
+                        return False
+                    if key == Qt.Key.Key_Left:
+                        self._switch_channel(-1)
+                    else:
+                        self._switch_channel(1)
                     return True
                 elif key == Qt.Key.Key_O:
                     if hasattr(w, '_open_video_file'):
