@@ -76,6 +76,24 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         self.channels = []
         self.endResetModel()
 
+    def sort_by_indices(self, row_order: list):
+        """按指定行顺序重新排列频道"""
+        if not row_order or not self.channels:
+            return
+
+        indexed = {i: self.channels[i] for i in range(len(self.channels)) if i < len(self.channels)}
+        reordered = []
+        for idx in row_order:
+            if idx in indexed:
+                reordered.append(indexed[idx])
+
+        remaining = [indexed[i] for i in sorted(indexed.keys()) if i not in set(row_order)]
+        reordered.extend(remaining)
+
+        self.beginResetModel()
+        self.channels = reordered
+        self.endResetModel()
+
     def columnCount(self, parent=QtCore.QModelIndex()) -> int:
         """返回列数（排除隐藏列）"""
         visible_count = len(self.headers)
