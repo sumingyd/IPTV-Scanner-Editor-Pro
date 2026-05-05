@@ -37,15 +37,23 @@ class URLRangeParser:
                 first_pad = parsed[0][2]
         return all_values, first_pad or 1
 
-    def _expand_to_values(self, parsed_segments, pad_width: int) -> List[str]:
-        values = []
+    def _count_range_size(self, parsed_segments) -> int:
+        total = 0
+        seen_ranges = set()
+        for start, end, _ in parsed_segments:
+            if (start, end) in seen_ranges:
+                continue
+            seen_ranges.add((start, end))
+            total += (end - start + 1)
+        return total
+
+    def _iter_range_values(self, parsed_segments, pad_width: int) -> Generator[str, None, None]:
         seen = set()
         for start, end, _ in parsed_segments:
             for num in range(start, end + 1):
                 if num not in seen:
                     seen.add(num)
-                    values.append(str(num).zfill(pad_width))
-        return values
+                    yield str(num).zfill(pad_width)
 
     def _find_valid_ranges(self, url):
         ipv6_spans = [m.span() for m in self.ipv6_pattern.finditer(url)]
@@ -60,6 +68,18 @@ class URLRangeParser:
     def has_range(self, url: str) -> bool:
         return len(self._find_valid_ranges(url)) > 0
 
+    def estimate_url_count(self, url: str) -> int:
+        valid_matches = self._find_valid_ranges(url)
+        if not valid_matches:
+            return 1
+        total = 1
+        for match in valid_matches:
+            content = match.group(1)
+            parsed_segments, _ = self._parse_bracket_content(content)
+            count = self._count_range_size(parsed_segments)
+            total *= count
+        return total
+
     def parse_url(
         self, url: str, batch_size: int = 10000
     ) -> Generator[List[str], None, None]:
@@ -71,18 +91,17 @@ class URLRangeParser:
         self.logger.info(f"开始解析范围URL: {url}")
 
         ranges_info = []
+        total_urls = 1
         for match in valid_matches:
-
             content = match.group(1)
             parsed_segments, min_pad = self._parse_bracket_content(content)
-            expanded_values = self._expand_to_values(parsed_segments, min_pad)
-
-            if not expanded_values:
-                continue
+            range_size = self._count_range_size(parsed_segments)
+            total_urls *= range_size
 
             ranges_info.append({
                 'expr': match.group(),
-                'values': expanded_values,
+                'segments': parsed_segments,
+                'pad_width': min_pad,
                 'start_pos': match.start(),
                 'end_pos': match.end()
             })
@@ -90,10 +109,6 @@ class URLRangeParser:
         if not ranges_info:
             yield [url]
             return
-
-        total_urls = 1
-        for r in ranges_info:
-            total_urls *= len(r['values'])
 
         range_count = len(ranges_info)
         self.logger.info(
@@ -109,8 +124,8 @@ class URLRangeParser:
         url_parts.append(url[last_pos:])
 
         batch = []
-        for values in self._generate_range_values(ranges_info):
-            expanded = self._build_url_from_parts(url_parts, len(ranges_info), values)
+        for values in self._generate_range_values_lazy(ranges_info):
+            expanded = self._build_url_from_parts(url_parts, range_count, values)
             batch.append(expanded)
             if len(batch) >= batch_size:
                 yield batch
@@ -119,14 +134,14 @@ class URLRangeParser:
         if batch:
             yield batch
 
-    def _generate_range_values(self, ranges_info):
+    def _generate_range_values_lazy(self, ranges_info):
         def lazy_product(ranges):
             if not ranges:
                 yield ()
                 return
-            first_values = ranges[0]['values']
-            for rest in lazy_product(ranges[1:]):
-                for val in first_values:
+            r = ranges[0]
+            for val in self._iter_range_values(r['segments'], r['pad_width']):
+                for rest in lazy_product(ranges[1:]):
                     yield (val,) + rest
         return lazy_product(ranges_info)
 

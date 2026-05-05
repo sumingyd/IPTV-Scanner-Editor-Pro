@@ -1432,7 +1432,6 @@ class ScanChannelDialog(FloatingDialog):
                 self.model.add_channel(channel)
                 count += 1
 
-        # 扫描频道窗口没有状态栏，直接在日志中记录
         self.logger.info(f"已生成 {count} 个频道")
 
     def _save_list_as(self, fmt: str):
