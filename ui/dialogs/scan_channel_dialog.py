@@ -720,6 +720,472 @@ class ScanChannelDialog(FloatingDialog):
         toolbar_layout.addWidget(self.btn_save_m3u)
         toolbar_layout.addSpacing(6)
         toolbar_layout.addWidget(self.btn_save_txt)
+        toolbar_layout.addSpacing(6)
+
+        self.btn_batch_ops = QtWidgets.QPushButton(tr("batch_ops", "Batch Ops"))
+        self.btn_batch_ops.setStyleSheet(AppStyles.common_button_style())
+        self.btn_batch_ops.setFixedHeight(32)
+        self.btn_batch_ops.setMinimumWidth(70)
+        self.btn_batch_ops.setToolTip(tr("batch_ops_tooltip", "Batch operations for channels"))
+        self.btn_batch_ops.setMenu(self._create_batch_menu())
+        toolbar_layout.addWidget(self.btn_batch_ops)
+
+    def _create_batch_menu(self) -> QtWidgets.QMenu:
+        tr = self.language_manager.tr
+        menu = QtWidgets.QMenu(self)
+
+        auto_classify_action = QtGui.QAction(tr("auto_classify", "Auto Classify"), self)
+        auto_classify_action.triggered.connect(self._show_auto_classify_dialog)
+        menu.addAction(auto_classify_action)
+
+        clean_names_action = QtGui.QAction(tr("clean_names", "Clean Names"), self)
+        clean_names_action.triggered.connect(self._show_clean_names_dialog)
+        menu.addAction(clean_names_action)
+
+        assign_fields_action = QtGui.QAction(tr("assign_fields", "Assign Fields"), self)
+        assign_fields_action.triggered.connect(self._show_assign_fields_dialog)
+        menu.addAction(assign_fields_action)
+
+        match_logo_action = QtGui.QAction(tr("match_logo", "Match Logo"), self)
+        match_logo_action.triggered.connect(self._auto_match_logo)
+        menu.addAction(match_logo_action)
+
+        menu.addSeparator()
+
+        clear_params_action = QtGui.QAction(tr("clear_params", "Clear Params"), self)
+        clear_params_action.triggered.connect(self._show_clear_params_dialog)
+        menu.addAction(clear_params_action)
+
+        sort_by_group_action = QtGui.QAction(tr("sort_by_group", "Sort by Group"), self)
+        sort_by_group_action.triggered.connect(self._sort_by_group)
+        menu.addAction(sort_by_group_action)
+
+        return menu
+
+    def _get_all_channels(self) -> list:
+        channels = []
+        for row in range(self.model.rowCount()):
+            ch = {}
+            ch['_index'] = row
+            ch['name'] = str(self.model.data(self.model.index(row, 1)) or '')
+            ch['url'] = str(self.model.data(self.model.index(row, 3)) or '')
+            ch['group'] = str(self.model.data(self.model.index(row, 4)) or '')
+            ch['logo'] = str(self.model.data(self.model.index(row, 5)) or '')
+            ch['tvg_id'] = str(self.model.data(self.model.index(row, 8)) or '')
+            ch['tvg_chno'] = str(self.model.data(self.model.index(row, 9)) or '')
+            ch['catchup'] = str(self.model.data(self.model.index(row, 11)) or '')
+            ch['catchup_days'] = str(self.model.data(self.model.index(row, 12)) or '')
+            ch['catchup_source'] = str(self.model.data(self.model.index(row, 13)) or '')
+            channels.append(ch)
+        return channels
+
+    def _get_selected_indices(self) -> list:
+        indices = []
+        for index in self.channel_list.selectionModel().selectedRows():
+            indices.append(index.row())
+        return sorted(indices)
+
+    def _show_auto_classify_dialog(self):
+        from services.channel_classifier import ChannelClassifier
+        tr = self.language_manager.tr
+
+        channels = self._get_all_channels()
+        if not channels:
+            return
+
+        dialog = FloatingDialog(self, stay_on_top=True)
+        dialog.setWindowTitle(tr("auto_classify", "Auto Classify"))
+        dialog.setMinimumSize(420, 380)
+        dialog.setStyleSheet(AppStyles.dialog_style())
+
+        layout = QtWidgets.QVBoxLayout(dialog)
+
+        form_layout = QtWidgets.QFormLayout()
+        province_combo = QtWidgets.QComboBox()
+        province_combo.addItems(ChannelClassifier.PROVINCES)
+        province_combo.setCurrentText('通用')
+        form_layout.addRow(tr("local_province", "Local Province:"), province_combo)
+
+        overwrite_check = QtWidgets.QCheckBox(tr("overwrite_existing", "Overwrite existing groups"))
+        overwrite_check.setChecked(False)
+        form_layout.addRow(overwrite_check)
+
+        merge_nonlocal_check = QtWidgets.QCheckBox(tr("merge_nonlocal", "Merge non-local to Other"))
+        merge_nonlocal_check.setChecked(True)
+        form_layout.addRow(merge_nonlocal_check)
+
+        layout.addLayout(form_layout)
+
+        preview_label = QtWidgets.QLabel(tr("preview_count", "Preview:"))
+        layout.addWidget(preview_label)
+
+        preview_table = QtWidgets.QTableWidget(0, 3)
+        preview_table.setHorizontalHeaderLabels([
+            tr("channel_name", "Channel Name"),
+            tr("old_group", "Old Group"),
+            tr("new_group", "New Group"),
+        ])
+        preview_table.horizontalHeader().setStretchLastSection(True)
+        preview_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        preview_table.setMaximumHeight(200)
+        layout.addWidget(preview_table)
+
+        btn_layout = QtWidgets.QHBoxLayout()
+        preview_btn = QtWidgets.QPushButton(tr("preview", "Preview"))
+        apply_btn = QtWidgets.QPushButton(tr("apply", "Apply"))
+        cancel_btn = QtWidgets.QPushButton(tr("cancel", "Cancel"))
+        btn_layout.addWidget(preview_btn)
+        btn_layout.addStretch()
+        btn_layout.addWidget(apply_btn)
+        btn_layout.addWidget(cancel_btn)
+        layout.addLayout(btn_layout)
+
+        classifier_ref = [None]  # type: list
+        results_ref = [None]  # type: list
+
+        def do_preview():
+            province = province_combo.currentText()
+            overwrite = overwrite_check.isChecked()
+            classifier = ChannelClassifier(local_province=province)
+            results = classifier.classify_all(channels, overwrite=overwrite)
+            classifier_ref[0] = classifier
+            results_ref[0] = results
+            changed = [r for r in results if r.get('changed')]
+            preview_label.setText(tr("preview_count", "Preview:") + f" {len(changed)} changed")
+            preview_table.setRowCount(min(len(changed), 50))
+            for i, r in enumerate(changed[:50]):
+                preview_table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(r.get('name', ''))))
+                preview_table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(r.get('old_group', ''))))
+                preview_table.setItem(i, 2, QtWidgets.QTableWidgetItem(str(r.get('new_group', ''))))
+
+        def do_apply():
+            if results_ref[0] is None:
+                do_preview()
+            results = results_ref[0]
+            if not results:
+                dialog.accept()
+                return
+            changed = [r for r in results if r.get('changed')]
+            for r in changed:
+                row = r.get('index', 0)
+                self.model.setData(self.model.index(row, 4), r.get('new_group', ''))
+            dialog.accept()
+
+        preview_btn.clicked.connect(do_preview)
+        apply_btn.clicked.connect(do_apply)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        dialog.exec()
+
+    def _show_clean_names_dialog(self):
+        from services.channel_cleaner import ChannelCleaner
+        tr = self.language_manager.tr
+
+        channels = self._get_all_channels()
+        if not channels:
+            return
+
+        dialog = FloatingDialog(self, stay_on_top=True)
+        dialog.setWindowTitle(tr("clean_names", "Clean Names"))
+        dialog.setMinimumSize(420, 400)
+        dialog.setStyleSheet(AppStyles.dialog_style())
+
+        layout = QtWidgets.QVBoxLayout(dialog)
+
+        cleaner = ChannelCleaner()
+        rule_checks = {}
+        for key, desc in cleaner.get_rule_descriptions():
+            cb = QtWidgets.QCheckBox(desc)
+            cb.setChecked(True)
+            rule_checks[key] = cb
+            layout.addWidget(cb)
+
+        selected_indices = self._get_selected_indices()
+        target_label = QtWidgets.QLabel(
+            tr("target_channels", "Target:") + " " +
+            (f"{len(selected_indices)} selected" if selected_indices else f"{len(channels)} all")
+        )
+        layout.addWidget(target_label)
+
+        preview_table = QtWidgets.QTableWidget(0, 2)
+        preview_table.setHorizontalHeaderLabels([
+            tr("before", "Before"),
+            tr("after", "After"),
+        ])
+        preview_table.horizontalHeader().setStretchLastSection(True)
+        preview_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        preview_table.setMaximumHeight(200)
+        layout.addWidget(preview_table)
+
+        btn_layout = QtWidgets.QHBoxLayout()
+        preview_btn = QtWidgets.QPushButton(tr("preview", "Preview"))
+        apply_btn = QtWidgets.QPushButton(tr("apply", "Apply"))
+        cancel_btn = QtWidgets.QPushButton(tr("cancel", "Cancel"))
+        btn_layout.addWidget(preview_btn)
+        btn_layout.addStretch()
+        btn_layout.addWidget(apply_btn)
+        btn_layout.addWidget(cancel_btn)
+        layout.addLayout(btn_layout)
+
+        preview_ref = [None]  # type: list
+
+        def get_active_rules():
+            return {k: cb.isChecked() for k, cb in rule_checks.items()}
+
+        def do_preview():
+            rules = get_active_rules()
+            indices = selected_indices if selected_indices else list(range(len(channels)))
+            preview = cleaner.preview(channels, rules=rules, indices=indices)
+            preview_ref[0] = preview
+            preview_table.setRowCount(min(len(preview), 50))
+            for i, r in enumerate(preview[:50]):
+                preview_table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(r.get('name', ''))))
+                preview_table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(r.get('cleaned', ''))))
+
+        def do_apply():
+            if preview_ref[0] is None:
+                do_preview()
+            preview = preview_ref[0]
+            if not preview:
+                dialog.accept()
+                return
+            for r in preview:
+                row = r.get('index', 0)
+                self.model.setData(self.model.index(row, 1), r.get('cleaned', ''))
+            dialog.accept()
+
+        preview_btn.clicked.connect(do_preview)
+        apply_btn.clicked.connect(do_apply)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        dialog.exec()
+
+    def _show_assign_fields_dialog(self):
+        tr = self.language_manager.tr
+
+        channels = self._get_all_channels()
+        if not channels:
+            return
+
+        dialog = FloatingDialog(self, stay_on_top=True)
+        dialog.setWindowTitle(tr("assign_fields", "Assign Fields"))
+        dialog.setMinimumSize(380, 300)
+        dialog.setStyleSheet(AppStyles.dialog_style())
+
+        layout = QtWidgets.QVBoxLayout(dialog)
+
+        assign_options = [
+            ('name2tvg_id', 'Channel Name -> TVG-ID'),
+            ('name2tvg_name', 'Channel Name -> TVG-Name'),
+            ('tvg_id2name', 'TVG-ID -> Channel Name'),
+            ('tvg_name2name', 'TVG-Name -> Channel Name'),
+            ('tvg_id2tvg_name', 'TVG-ID -> TVG-Name'),
+            ('tvg_name2tvg_id', 'TVG-Name -> TVG-ID'),
+        ]
+
+        radio_group = QtWidgets.QButtonGroup(self)
+        for i, (key, label) in enumerate(assign_options):
+            rb = QtWidgets.QRadioButton(label)
+            if i == 0:
+                rb.setChecked(True)
+            radio_group.addButton(rb, i)
+            layout.addWidget(rb)
+
+        only_empty_check = QtWidgets.QCheckBox(tr("only_empty_fields", "Only assign to empty fields"))
+        only_empty_check.setChecked(True)
+        layout.addWidget(only_empty_check)
+
+        selected_indices = self._get_selected_indices()
+        target_label = QtWidgets.QLabel(
+            tr("target_channels", "Target:") + " " +
+            (f"{len(selected_indices)} selected" if selected_indices else f"{len(channels)} all")
+        )
+        layout.addWidget(target_label)
+
+        btn_layout = QtWidgets.QHBoxLayout()
+        apply_btn = QtWidgets.QPushButton(tr("apply", "Apply"))
+        cancel_btn = QtWidgets.QPushButton(tr("cancel", "Cancel"))
+        btn_layout.addStretch()
+        btn_layout.addWidget(apply_btn)
+        btn_layout.addWidget(cancel_btn)
+        layout.addLayout(btn_layout)
+
+        def do_apply():
+            action_idx = radio_group.checkedId()
+            action_key = assign_options[action_idx][0] if 0 <= action_idx < len(assign_options) else assign_options[0][0]
+            only_empty = only_empty_check.isChecked()
+            indices = selected_indices if selected_indices else list(range(len(channels)))
+            count = 0
+
+            for i in indices:
+                if i >= len(channels):
+                    continue
+                ch = channels[i]
+                update_col = None
+                update_val = None
+
+                if action_key == 'name2tvg_id':
+                    if not (only_empty and ch.get('tvg_id')):
+                        update_col, update_val = 8, ch.get('name', '')
+                elif action_key == 'name2tvg_name':
+                    if not (only_empty and ch.get('name')):
+                        update_col, update_val = 1, ch.get('name', '')
+                elif action_key == 'tvg_id2name':
+                    if ch.get('tvg_id') and not (only_empty and ch.get('name')):
+                        update_col, update_val = 1, ch.get('tvg_id', '')
+                elif action_key == 'tvg_name2name':
+                    pass
+                elif action_key == 'tvg_id2tvg_name':
+                    if ch.get('tvg_id') and not (only_empty and ch.get('name')):
+                        update_col, update_val = 1, ch.get('tvg_id', '')
+                elif action_key == 'tvg_name2tvg_id':
+                    if ch.get('name') and not (only_empty and ch.get('tvg_id')):
+                        update_col, update_val = 8, ch.get('name', '')
+
+                if update_col is not None and update_val:
+                    self.model.setData(self.model.index(i, update_col), update_val)
+                    count += 1
+
+            dialog.accept()
+
+        apply_btn.clicked.connect(do_apply)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        dialog.exec()
+
+    def _auto_match_logo(self):
+        tr = self.language_manager.tr
+        channels = self._get_all_channels()
+        if not channels:
+            return
+
+        reply = QtWidgets.QMessageBox.question(
+            self,
+            tr("match_logo", "Match Logo"),
+            tr("overwrite_logo_confirm", "Overwrite existing logos?"),
+            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No | QtWidgets.QMessageBox.StandardButton.Cancel,
+        )
+
+        if reply == QtWidgets.QMessageBox.StandardButton.Cancel:
+            return
+
+        overwrite = (reply == QtWidgets.QMessageBox.StandardButton.Yes)
+
+        try:
+            from services.logo_matcher import LogoMatcher
+            matcher = LogoMatcher()
+            matched = 0
+            for i, ch in enumerate(channels):
+                if not overwrite and ch.get('logo'):
+                    continue
+                logo = matcher.match(ch.get('name', ''))
+                if logo:
+                    self.model.setData(self.model.index(i, 5), logo)
+                    matched += 1
+
+            QtWidgets.QMessageBox.information(
+                self, tr("match_logo", "Match Logo"),
+                f"{matched} channels matched"
+            )
+        except ImportError:
+            pass
+
+    def _show_clear_params_dialog(self):
+        tr = self.language_manager.tr
+
+        channels = self._get_all_channels()
+        if not channels:
+            return
+
+        selected_indices = self._get_selected_indices()
+        target_indices = selected_indices if selected_indices else list(range(len(channels)))
+
+        param_defs = [
+            ('tvg_id', 8, 'TVG-ID'),
+            ('logo', 5, 'Logo'),
+            ('group', 4, 'Group'),
+            ('catchup', 11, 'Catchup'),
+            ('catchup_days', 12, 'Catchup Days'),
+            ('catchup_source', 13, 'Catchup Source'),
+        ]
+
+        available = []
+        for key, col, label in param_defs:
+            has_value = any(
+                channels[i].get(key) for i in target_indices if i < len(channels)
+            )
+            if has_value:
+                available.append((key, col, label))
+
+        if not available:
+            return
+
+        dialog = FloatingDialog(self, stay_on_top=True)
+        dialog.setWindowTitle(tr("clear_params", "Clear Params"))
+        dialog.setMinimumSize(320, 280)
+        dialog.setStyleSheet(AppStyles.dialog_style())
+
+        layout = QtWidgets.QVBoxLayout(dialog)
+
+        target_label = QtWidgets.QLabel(
+            tr("target_channels", "Target:") + " " +
+            (f"{len(selected_indices)} selected" if selected_indices else f"{len(channels)} all")
+        )
+        layout.addWidget(target_label)
+
+        checks = {}
+        for key, col, label in available:
+            cb = QtWidgets.QCheckBox(label)
+            cb.setChecked(True)
+            checks[key] = (cb, col)
+            layout.addWidget(cb)
+
+        btn_layout = QtWidgets.QHBoxLayout()
+        apply_btn = QtWidgets.QPushButton(tr("apply", "Apply"))
+        cancel_btn = QtWidgets.QPushButton(tr("cancel", "Cancel"))
+        btn_layout.addStretch()
+        btn_layout.addWidget(apply_btn)
+        btn_layout.addWidget(cancel_btn)
+        layout.addLayout(btn_layout)
+
+        def do_apply():
+            count = 0
+            for key, (cb, col) in checks.items():
+                if not cb.isChecked():
+                    continue
+                for i in target_indices:
+                    if i < len(channels) and channels[i].get(key):
+                        self.model.setData(self.model.index(i, col), '')
+                        count += 1
+            dialog.accept()
+
+        apply_btn.clicked.connect(do_apply)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        dialog.exec()
+
+    def _sort_by_group(self):
+        from services.channel_classifier import ChannelClassifier
+        tr = self.language_manager.tr
+
+        channels = self._get_all_channels()
+        if not channels:
+            return
+
+        classifier = ChannelClassifier(local_province='通用')
+        results = classifier.classify_all(channels, overwrite=False)
+
+        category_order = classifier.get_category_order()
+
+        def sort_key(r):
+            cat = r['new_group']
+            cat_idx = category_order.index(cat) if cat in category_order else 99
+            return (cat_idx, r['sort_key'])
+
+        sorted_results = sorted(results, key=sort_key)
+        row_order = [r['index'] for r in sorted_results]
+
+        self.model.sort_by_indices(row_order)
 
     def _setup_channel_edit(self, parent: QtWidgets.QLayout) -> None:
         """配置频道编辑区域（简化版，不含GroupBox）"""
@@ -875,7 +1341,20 @@ class ScanChannelDialog(FloatingDialog):
 
         menu.addSeparator()
 
-        # 添加删除频道菜单项
+        move_to_group_action = QtGui.QAction(tr("move_to_group", "Move to Group..."), self)
+        move_to_group_action.triggered.connect(self._move_selected_to_group)
+        menu.addAction(move_to_group_action)
+
+        clean_selected_action = QtGui.QAction(tr("clean_selected_names", "Clean Selected Names"), self)
+        clean_selected_action.triggered.connect(lambda: self._show_clean_names_dialog())
+        menu.addAction(clean_selected_action)
+
+        match_logo_selected_action = QtGui.QAction(tr("match_selected_logo", "Match Selected Logo"), self)
+        match_logo_selected_action.triggered.connect(self._match_selected_logo)
+        menu.addAction(match_logo_selected_action)
+
+        menu.addSeparator()
+
         delete_action = QtGui.QAction(tr("delete_channel", "Delete Channel"), self)
         delete_action.triggered.connect(lambda: self._delete_selected_channel(index))
         menu.addAction(delete_action)
@@ -902,6 +1381,55 @@ class ScanChannelDialog(FloatingDialog):
         """复制分组到剪贴板"""
         clipboard = QtWidgets.QApplication.clipboard()
         clipboard.setText(group)
+
+    def _move_selected_to_group(self):
+        tr = self.language_manager.tr
+        indices = self._get_selected_indices()
+        if not indices:
+            return
+
+        existing_groups = set()
+        for row in range(self.model.rowCount()):
+            g = self.model.data(self.model.index(row, 4))
+            if g:
+                existing_groups.add(g)
+
+        group_name, ok = QtWidgets.QInputDialog.getItem(
+            self,
+            tr("move_to_group", "Move to Group..."),
+            tr("target_group", "Target Group:"),
+            sorted(existing_groups),
+            0,
+            True
+        )
+        if ok and group_name:
+            for row in indices:
+                self.model.setData(self.model.index(row, 4), group_name)
+
+    def _match_selected_logo(self):
+        from services.logo_matcher import LogoMatcher
+        tr = self.language_manager.tr
+        indices = self._get_selected_indices()
+        if not indices:
+            return
+
+        matcher = LogoMatcher()
+        matched = 0
+        for row in indices:
+            name = str(self.model.data(self.model.index(row, 1)) or '')
+            current_logo = str(self.model.data(self.model.index(row, 5)) or '')
+            if current_logo:
+                continue
+            logo = matcher.match(name)
+            if logo:
+                self.model.setData(self.model.index(row, 5), str(logo))
+                matched += 1
+
+        if matched > 0:
+            QtWidgets.QMessageBox.information(
+                self, tr("match_logo", "Match Logo"),
+                f"{matched} channels matched"
+            )
 
     def _delete_selected_channel(self, index):
         """删除选中的频道"""
