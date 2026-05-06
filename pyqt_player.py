@@ -1406,7 +1406,7 @@ class IPTVPlayer(QMainWindow):
             # 工具菜单
             tools_menu = menu_bar.addMenu(tr("menu_tools", "Tools"))
             
-            scan_channels = QAction(tr("menu_scan_channels", "Scan Channels"), self)
+            scan_channels = QAction(tr("menu_scan_channels", "Scan & Organize"), self)
             scan_channels.triggered.connect(self.open_scan_ui)
             tools_menu.addAction(scan_channels)
             
