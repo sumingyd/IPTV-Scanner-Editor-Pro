@@ -203,6 +203,11 @@ class EventHandler:
         if new_vol != current:
             self.window.volume_slider.setValue(new_vol)
 
+    def _on_mouse_activity(self):
+        """鼠标活动回调 - 通知主窗口"""
+        if hasattr(self.window, '_on_mouse_activity'):
+            self.window._on_mouse_activity()
+
     def showEvent(self, event):
         """窗口首次显示后，延迟定位悬浮窗"""
         if hasattr(self.window, 'showEvent'):
@@ -264,9 +269,15 @@ class EventHandler:
             except:
                 pass
 
-        if event.type() == QEvent.Type.ActivationChange and self.window.isActiveWindow():
-            if hasattr(self.window, 'raise_floating_panels'):
-                self.window.raise_floating_panels()
+        if event.type() == QEvent.Type.ActivationChange:
+            if self.window.isActiveWindow():
+                if hasattr(self.window, 'raise_floating_panels'):
+                    self.window.raise_floating_panels()
+                if hasattr(self.window, '_on_main_window_activated'):
+                    self.window._on_main_window_activated()
+            else:
+                if hasattr(self.window, '_on_main_window_deactivated'):
+                    self.window._on_main_window_deactivated()
 
     def moveEvent(self, event):
         """窗口移动事件 - 跟随定位浮动Dock"""
@@ -282,6 +293,9 @@ class EventHandler:
         """窗口关闭事件"""
         from core.log_manager import global_logger as logger
         logger.debug("关闭事件 - 清理所有资源")
+
+        if hasattr(self.window, '_stop_auto_hide_timer'):
+            self.window._stop_auto_hide_timer()
 
         # 1. 保存窗口布局
         if hasattr(self.window, 'settings_ops'):
