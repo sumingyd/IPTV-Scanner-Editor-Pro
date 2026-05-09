@@ -55,7 +55,10 @@ class EventHandler:
                            Qt.Key.Key_F, Qt.Key.Key_E,
                            Qt.Key.Key_L, Qt.Key.Key_M,
                            Qt.Key.Key_Y, Qt.Key.Key_Tab,
-                           Qt.Key.Key_F5, Qt.Key.Key_F11)
+                           Qt.Key.Key_F5, Qt.Key.Key_F11,
+                           Qt.Key.Key_Backspace, Qt.Key.Key_S,
+                           Qt.Key.Key_Period, Qt.Key.Key_Comma,
+                           Qt.Key.Key_P)
             main_only_keys = (Qt.Key.Key_Up, Qt.Key.Key_Down,
                               Qt.Key.Key_Left, Qt.Key.Key_Right)
             if key in global_keys:
@@ -136,6 +139,26 @@ class EventHandler:
                 elif key == Qt.Key.Key_F11:
                     if hasattr(w, 'toggle_fullscreen'):
                         w.toggle_fullscreen()
+                    return True
+                elif key == Qt.Key.Key_Backspace:
+                    if hasattr(w, 'switch_to_previous_channel'):
+                        w.switch_to_previous_channel()
+                    return True
+                elif key == Qt.Key.Key_S:
+                    if hasattr(w, '_take_screenshot'):
+                        w._take_screenshot()
+                    return True
+                elif key == Qt.Key.Key_Period:
+                    if hasattr(w, '_adjust_speed'):
+                        w._adjust_speed(0.1)
+                    return True
+                elif key == Qt.Key.Key_Comma:
+                    if hasattr(w, '_adjust_speed'):
+                        w._adjust_speed(-0.1)
+                    return True
+                elif key == Qt.Key.Key_P:
+                    if hasattr(w, 'toggle_pip_mode'):
+                        w.toggle_pip_mode()
                     return True
 
             elif modifiers == Qt.KeyboardModifier.ControlModifier:
@@ -271,21 +294,28 @@ class EventHandler:
 
         if event.type() == QEvent.Type.ActivationChange:
             if self.window.isActiveWindow():
-                if hasattr(self.window, 'raise_floating_panels'):
-                    self.window.raise_floating_panels()
-                if hasattr(self.window, '_on_main_window_activated'):
-                    self.window._on_main_window_activated()
+                if not getattr(self.window, '_pip_mode', False):
+                    if hasattr(self.window, 'raise_floating_panels'):
+                        self.window.raise_floating_panels()
+                    if hasattr(self.window, '_on_main_window_activated'):
+                        self.window._on_main_window_activated()
             else:
                 if hasattr(self.window, '_on_main_window_deactivated'):
                     self.window._on_main_window_deactivated()
 
     def moveEvent(self, event):
         """窗口移动事件 - 跟随定位浮动Dock"""
+        if getattr(self.window, '_pip_mode', False):
+            return
         if hasattr(self.window, 'update_floating_position'):
             self.window.update_floating_position()
 
     def resizeEvent(self, event):
         """窗口大小变化事件 - 跟随重定位浮动Dock"""
+        if getattr(self.window, '_pip_mode', False):
+            if hasattr(self.window, '_update_pip_overlay_geometry'):
+                self.window._update_pip_overlay_geometry()
+            return
         if hasattr(self.window, 'update_floating_position'):
             self.window.update_floating_position()
 
@@ -359,6 +389,12 @@ class EventHandler:
                         worker.wait(2000)
                     except Exception:
                         pass
+
+        if hasattr(self.window, '_thumbnail_service'):
+            try:
+                self.window._thumbnail_service.stop()
+            except Exception:
+                pass
 
         # 6. 强制退出应用（使用sys.exit确保进程完全终止）
         event.accept()
