@@ -73,6 +73,12 @@ class ScanChannelDialog(FloatingDialog):
         get_theme_manager().register_window(self)
 
     def done(self, result):
+        if hasattr(self, 'scanner') and self.scanner is not None:
+            if self.scanner.is_scanning():
+                self.scanner.stop_scan()
+            if getattr(self.scanner, 'is_validating', False):
+                self.scanner.stop_validation()
+        self._stop_all_timers()
         self._unregister_cleanup_handlers()
         self._unregister_config_observers()
         from ..theme_manager import get_theme_manager
@@ -288,6 +294,7 @@ class ScanChannelDialog(FloatingDialog):
                 timeout_val = self.timeout_input.text()
             if hasattr(self, 'threads_input'):
                 threads_val = self.threads_input.text()
+            loop_scan = enable_retry
             self.config.save_network_settings(
                 self.ip_range_input.currentText(),
                 timeout_val,
@@ -295,7 +302,7 @@ class ScanChannelDialog(FloatingDialog):
                 self.user_agent_input.text(),
                 self.referer_input.text(),
                 enable_retry,
-                enable_retry
+                loop_scan
             )
 
     def _add_url_to_history(self, url):
@@ -430,8 +437,8 @@ class ScanChannelDialog(FloatingDialog):
     def _save_scan_retry_settings(self):
         """保存重试扫描设置到配置文件"""
         enable_retry = self.enable_retry_checkbox.isChecked()
-        # 简化后，启用重试即默认启用循环行为
-        self.config.save_scan_retry_settings(enable_retry, enable_retry)
+        loop_scan = enable_retry
+        self.config.save_scan_retry_settings(enable_retry, loop_scan)
 
     def _load_scan_retry_settings(self):
         """加载重试扫描设置"""
@@ -441,6 +448,32 @@ class ScanChannelDialog(FloatingDialog):
             self.enable_retry_checkbox.setChecked(enable_retry)
         except Exception as e:
             self.logger.error(f"加载重试扫描设置失败: {e}")
+
+    def _get_scan_params(self, default_timeout=5, default_threads=4, timeout_multiplier=1):
+        """从配置读取扫描参数
+
+        Args:
+            default_timeout: 默认超时秒数
+            default_threads: 默认线程数
+            timeout_multiplier: 超时倍率（重试时可用2倍超时）
+
+        Returns:
+            (timeout, threads) 元组
+        """
+        timeout = default_timeout
+        threads = default_threads
+        try:
+            if hasattr(self, 'config') and self.config:
+                network_settings = self.config.load_network_settings()
+                configured_timeout = network_settings.get('timeout', default_timeout)
+                if configured_timeout and configured_timeout > 0:
+                    timeout = max(3, min(30, int(configured_timeout) * timeout_multiplier))
+                configured_threads = network_settings.get('threads', default_threads)
+                if configured_threads and configured_threads > 0:
+                    threads = max(1, min(32, int(configured_threads)))
+        except Exception as e:
+            self.logger.debug(f"读取扫描配置失败，使用默认值: {e}")
+        return timeout, threads
 
     def _load_timeout_threads_settings(self):
         """加载超时和线程数设置"""
@@ -763,19 +796,22 @@ class ScanChannelDialog(FloatingDialog):
         return menu
 
     def _get_all_channels(self) -> list:
+        from models.channel_model import ChannelListModel as CLM
         channels = []
         for row in range(self.model.rowCount()):
             ch = {}
             ch['_index'] = row
-            ch['name'] = str(self.model.data(self.model.index(row, 1)) or '')
-            ch['url'] = str(self.model.data(self.model.index(row, 3)) or '')
-            ch['group'] = str(self.model.data(self.model.index(row, 4)) or '')
-            ch['logo'] = str(self.model.data(self.model.index(row, 5)) or '')
-            ch['tvg_id'] = str(self.model.data(self.model.index(row, 8)) or '')
-            ch['tvg_chno'] = str(self.model.data(self.model.index(row, 9)) or '')
-            ch['catchup'] = str(self.model.data(self.model.index(row, 11)) or '')
-            ch['catchup_days'] = str(self.model.data(self.model.index(row, 12)) or '')
-            ch['catchup_source'] = str(self.model.data(self.model.index(row, 13)) or '')
+            ch['name'] = str(self.model.data(self.model.index(row, CLM.COL_NAME)) or '')
+            ch['url'] = str(self.model.data(self.model.index(row, CLM.COL_URL)) or '')
+            ch['group'] = str(self.model.data(self.model.index(row, CLM.COL_GROUP)) or '')
+            ch['logo'] = str(self.model.data(self.model.index(row, CLM.COL_LOGO)) or '')
+            ch['tvg_id'] = str(self.model.data(self.model.index(row, CLM.COL_TVG_ID)) or '')
+            ch['tvg_chno'] = str(self.model.data(self.model.index(row, CLM.COL_TVG_CHNO)) or '')
+            ch['catchup'] = str(self.model.data(self.model.index(row, CLM.COL_CATCHUP)) or '')
+            ch['catchup_days'] = str(self.model.data(self.model.index(row, CLM.COL_CATCHUP_DAYS)) or '')
+            ch['catchup_source'] = str(self.model.data(self.model.index(row, CLM.COL_CATCHUP_SOURCE)) or '')
+            raw_ch = self.model.channels[row] if row < len(self.model.channels) else {}
+            ch['_all_tags'] = raw_ch.get('_all_tags', {})
             channels.append(ch)
         return channels
 
@@ -787,6 +823,7 @@ class ScanChannelDialog(FloatingDialog):
 
     def _show_auto_classify_dialog(self):
         from services.channel_classifier import ChannelClassifier
+        from models.channel_model import ChannelListModel as CLM
         tr = self.language_manager.tr
 
         channels = self._get_all_channels()
@@ -868,7 +905,7 @@ class ScanChannelDialog(FloatingDialog):
             changed = [r for r in results if r.get('changed')]
             for r in changed:
                 row = r.get('index', 0)
-                self.model.setData(self.model.index(row, 4), r.get('new_group', ''))
+                self.model.setData(self.model.index(row, CLM.COL_GROUP), r.get('new_group', ''))
             dialog.accept()
 
         preview_btn.clicked.connect(do_preview)
@@ -879,6 +916,7 @@ class ScanChannelDialog(FloatingDialog):
 
     def _show_clean_names_dialog(self):
         from services.channel_cleaner import ChannelCleaner
+        from models.channel_model import ChannelListModel as CLM
         tr = self.language_manager.tr
 
         channels = self._get_all_channels()
@@ -951,7 +989,7 @@ class ScanChannelDialog(FloatingDialog):
                 return
             for r in preview:
                 row = r.get('index', 0)
-                self.model.setData(self.model.index(row, 1), r.get('cleaned', ''))
+                self.model.setData(self.model.index(row, CLM.COL_NAME), r.get('cleaned', ''))
             dialog.accept()
 
         preview_btn.clicked.connect(do_preview)
@@ -1034,7 +1072,9 @@ class ScanChannelDialog(FloatingDialog):
                     if ch.get('tvg_id') and not (only_empty and ch.get('name')):
                         update_col, update_val = 1, ch.get('tvg_id', '')
                 elif action_key == 'tvg_name2name':
-                    pass
+                    tvg_name = ch.get('_all_tags', {}).get('tvg-name', '')
+                    if tvg_name and not (only_empty and ch.get('name')):
+                        update_col, update_val = 1, tvg_name
                 elif action_key == 'tvg_id2tvg_name':
                     if ch.get('tvg_id') and not (only_empty and ch.get('name')):
                         update_col, update_val = 1, ch.get('tvg_id', '')
@@ -1389,8 +1429,9 @@ class ScanChannelDialog(FloatingDialog):
             return
 
         existing_groups = set()
+        from models.channel_model import ChannelListModel as CLM
         for row in range(self.model.rowCount()):
-            g = self.model.data(self.model.index(row, 4))
+            g = self.model.data(self.model.index(row, CLM.COL_GROUP))
             if g:
                 existing_groups.add(g)
 
@@ -1404,7 +1445,7 @@ class ScanChannelDialog(FloatingDialog):
         )
         if ok and group_name:
             for row in indices:
-                self.model.setData(self.model.index(row, 4), group_name)
+                self.model.setData(self.model.index(row, CLM.COL_GROUP), group_name)
 
     def _match_selected_logo(self):
         from services.logo_matcher import LogoMatcher
@@ -1414,15 +1455,16 @@ class ScanChannelDialog(FloatingDialog):
             return
 
         matcher = LogoMatcher()
+        from models.channel_model import ChannelListModel as CLM
         matched = 0
         for row in indices:
-            name = str(self.model.data(self.model.index(row, 1)) or '')
-            current_logo = str(self.model.data(self.model.index(row, 5)) or '')
+            name = str(self.model.data(self.model.index(row, CLM.COL_NAME)) or '')
+            current_logo = str(self.model.data(self.model.index(row, CLM.COL_LOGO)) or '')
             if current_logo:
                 continue
             logo = matcher.match(name)
             if logo:
-                self.model.setData(self.model.index(row, 5), str(logo))
+                self.model.setData(self.model.index(row, CLM.COL_LOGO), str(logo))
                 matched += 1
 
         if matched > 0:
@@ -1704,21 +1746,8 @@ class ScanChannelDialog(FloatingDialog):
         else:
             log_scan_info("开始追加扫描，保留现有列表")
 
-        # 从配置统一读取扫描参数（避免硬编码）
-        scan_timeout = 5  # 默认值（会被配置覆盖）
-        scan_threads = 4   # 默认值（会被配置覆盖）
-
-        try:
-            if hasattr(self, 'config') and self.config:
-                network_settings = self.config.load_network_settings()
-                configured_timeout = network_settings.get('timeout', 5)
-                if configured_timeout and configured_timeout > 0:
-                    scan_timeout = max(3, min(30, int(configured_timeout)))
-                configured_threads = network_settings.get('threads', 4)
-                if configured_threads and configured_threads > 0:
-                    scan_threads = max(1, min(32, int(configured_threads)))
-        except Exception as e:
-            self.logger.debug(f"读取扫描配置失败，使用默认值: {e}")
+        # 从配置统一读取扫描参数
+        scan_timeout, scan_threads = self._get_scan_params()
 
         self.logger.debug(f"使用{scan_threads}线程，{scan_timeout}秒超时")
 
@@ -1768,19 +1797,7 @@ class ScanChannelDialog(FloatingDialog):
         if not hasattr(self.scanner, 'is_validating') or not self.scanner.is_validating:
             user_agent = self.user_agent_input.text() or None
             referer = self.referer_input.text() or None
-            validate_timeout = 5
-            validate_threads = 4
-            try:
-                if hasattr(self, 'config') and self.config:
-                    network_settings = self.config.load_network_settings()
-                    configured_timeout = network_settings.get('timeout', 5)
-                    if configured_timeout and configured_timeout > 0:
-                        validate_timeout = max(3, min(30, int(configured_timeout)))
-                    configured_threads = network_settings.get('threads', 4)
-                    if configured_threads and configured_threads > 0:
-                        validate_threads = max(1, min(32, int(configured_threads)))
-            except Exception as e:
-                self.logger.debug(f"读取检测配置失败，使用默认值: {e}")
+            validate_timeout, validate_threads = self._get_scan_params()
             self.scanner.start_validation(
                 self.model,
                 validate_threads,
@@ -1860,15 +1877,7 @@ class ScanChannelDialog(FloatingDialog):
             )
             return
 
-        retry_timeout = 10
-        try:
-            if hasattr(self, 'config') and self.config:
-                network_settings = self.config.load_network_settings()
-                configured_timeout = network_settings.get('timeout', 5)
-                if configured_timeout and configured_timeout > 0:
-                    retry_timeout = max(5, min(30, int(configured_timeout) * 2))
-        except Exception:
-            pass
+        retry_timeout, _ = self._get_scan_params(default_timeout=10, timeout_multiplier=2)
 
         retry_threads = 4
         self._validation_retry_count = (getattr(self, '_validation_retry_count', 0) or 0) + 1
@@ -2081,19 +2090,21 @@ class ScanChannelDialog(FloatingDialog):
         self._set_scan_button_text('full_scan', '完整扫描')
         self._set_append_scan_button_text('append_scan', '追加扫描')
 
-        # 将本次重试发现的有效频道更新到模型中
-        newly_valid = 0
         found_urls = {ch.get('url', '') for ch in self.scanner.found_channels} if hasattr(self.scanner, 'found_channels') else set()
-        
+
+        url_to_index = {}
+        for i, ch in enumerate(self.model.channels):
+            url = ch.get('url', '')
+            if url and not ch.get('valid', True):
+                url_to_index.setdefault(url, i)
+
+        newly_valid = 0
         remaining_invalid = []
         for url in getattr(self, '_validation_retry_urls', []):
-            if url in found_urls:
-                for i in range(self.model.rowCount()):
-                    ch = self.model.channels[i]
-                    if ch.get('url') == url and not ch.get('valid', True):
-                        self.model.update_channel(i, {'valid': True})
-                        newly_valid += 1
-                        break
+            if url in found_urls and url in url_to_index:
+                idx = url_to_index[url]
+                self.model.update_channel(idx, {'valid': True})
+                newly_valid += 1
             else:
                 remaining_invalid.append(url)
         
@@ -2428,12 +2439,7 @@ class ScanChannelDialog(FloatingDialog):
 
     def _count_valid_channels(self):
         """统计当前有效频道数量"""
-        count = 0
-        for i in range(self.model.rowCount()):
-            channel = self.model.get_channel(i)
-            if channel and channel.get('valid', False):
-                count += 1
-        return count
+        return sum(1 for ch in self.model.channels if ch.get('valid', False))
 
     def _start_retry_scan(self):
         """启动重试扫描 - 第二阶段深度扫描"""
@@ -2452,16 +2458,8 @@ class ScanChannelDialog(FloatingDialog):
         # 直接使用failed_channels作为retry_urls，因为它们都是URL字符串的列表
         retry_urls = failed_channels
 
-        # 智能重试使用更长的超时时间（10秒），提高慢速频道的检出率
-        retry_timeout = 10
-        try:
-            if hasattr(self, 'config') and self.config:
-                network_settings = self.config.load_network_settings()
-                configured_timeout = network_settings.get('timeout', 5)
-                if configured_timeout and configured_timeout > 0:
-                    retry_timeout = max(5, min(30, int(configured_timeout) * 2))
-        except Exception:
-            pass
+        # 智能重试使用更长的超时时间，提高慢速频道的检出率
+        retry_timeout, _ = self._get_scan_params(default_timeout=10, timeout_multiplier=2)
 
         self.logger.info(f"智能重试扫描: {len(retry_urls)} 个URL, 超时={retry_timeout}秒")
 
