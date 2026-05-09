@@ -125,7 +125,7 @@ class EPGController:
                     start_dt = datetime.fromisoformat(start_time)
                 if end_time:
                     end_dt = datetime.fromisoformat(end_time)
-            except:
+            except (ValueError, TypeError):
                 pass
 
             is_past_program = False
@@ -169,7 +169,7 @@ class EPGController:
         try:
             AppStyles = __import__('ui.styles', fromlist=['AppStyles']).AppStyles
             self.window.epg_content.setStyleSheet(AppStyles.player_list_style())
-        except:
+        except ImportError:
             pass
 
         # 检查是否有当前频道
@@ -287,14 +287,14 @@ class EPGController:
                     try:
                         start_dt = datetime.fromisoformat(start_time)
                         start_display = start_dt.strftime('%H:%M')
-                    except:
+                    except (ValueError, TypeError):
                         start_display = start_time[:5] if len(start_time) >= 5 else start_time
 
                 if end_time:
                     try:
                         end_dt = datetime.fromisoformat(end_time)
                         end_display = end_dt.strftime('%H:%M')
-                    except:
+                    except (ValueError, TypeError):
                         end_display = end_time[:5] if len(end_time) >= 5 else end_time
 
                 # 判断节目播放状态并添加状态标识
