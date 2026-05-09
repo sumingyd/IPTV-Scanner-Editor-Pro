@@ -1,11 +1,7 @@
 import sys
 import os
+import re
 import logging
-
-# 禁用 urllib3 的 SSL 警告（因为使用了 verify=False）
-logging.captureWarnings(True)
-urllib3_logger = logging.getLogger('urllib3.connectionpool')
-urllib3_logger.setLevel(logging.CRITICAL)
 
 from datetime import datetime, timedelta
 from models.channel_model import ChannelListModel
@@ -17,21 +13,15 @@ from PyQt6.QtWidgets import (
     QTabWidget
 )
 from PyQt6 import QtWidgets
-from PyQt6.QtCore import Qt, QSize, QTimer, QThread, pyqtSlot, QMetaObject
+from PyQt6.QtCore import Qt, QSize, QTimer, QThread, pyqtSlot, pyqtSignal, QMetaObject
 from PyQt6 import QtCore
-from PyQt6.QtGui import QIcon, QFont, QFontMetrics, QColor, QAction, QPainter, QBrush, QShortcut, QPen, QLinearGradient, QPainterPath
+from PyQt6.QtGui import QIcon, QFont, QFontMetrics, QColor, QAction, QPainter, QBrush, QShortcut, QPen, QLinearGradient, QPainterPath, QPixmap
 
-# 导入日志管理器
 from core.log_manager import global_logger as logger
-
-# 导入应用状态管理器（集中管理全局状态）
 from core.application_state import app_state
-
-# 导入语言管理器
 from core.language_manager import LanguageManager
 from ui.styles import AppStyles
 
-# 导入控制器包（重构：将业务逻辑拆分为独立模块）
 from controllers import (
     WindowController,
     PlaybackController,
@@ -44,6 +34,8 @@ from controllers import (
     SubscriptionUIController,
     CatchupController
 )
+
+from utils.general_utils import calculate_adaptive_delay
 
 
 class VideoOverlayBadge(QWidget):
@@ -126,85 +118,121 @@ class VideoOverlayBadge(QWidget):
         painter.end()
 
 
-def calculate_adaptive_delay(base_delay_ms: int = 200, min_delay_ms: int = 50, max_delay_ms: int = 500) -> int:
-    """根据设备性能自适应计算延迟时间
-    
-    Args:
-        base_delay_ms: 基础延迟时间（毫秒）
-        min_delay_ms: 最小延迟时间（毫秒）
-        max_delay_ms: 最大延迟时间（毫秒）
-        
-    Returns:
-        int: 自适应后的延迟时间（毫秒）
-        
-    算法说明：
-    - 高性能设备（>8GB内存，>4核CPU）：使用基础延迟的50%
-    - 中等性能设备（4-8GB内存，2-4核CPU）：使用基础延迟
-    - 低性能设备（<4GB内存，<2核CPU）：使用基础延迟的150%
-    """
-    try:
-        import psutil
-        
-        # 获取系统资源
-        memory_gb = psutil.virtual_memory().total / (1024**3)
-        cpu_count = psutil.cpu_count() or 2
-        
-        # 计算性能因子
-        if memory_gb > 8 and cpu_count > 4:
-            # 高性能设备
-            factor = 0.5
-        elif memory_gb >= 4 and cpu_count >= 2:
-            # 中等性能设备
-            factor = 1.0
-        else:
-            # 低性能设备
-            factor = 1.5
-        
-        # 计算最终延迟并限制在范围内
-        adaptive_delay = int(base_delay_ms * factor)
-        return max(min_delay_ms, min(max_delay_ms, adaptive_delay))
-        
-    except ImportError:
-        # psutil不可用，返回默认值
-        return base_delay_ms
-    except Exception as e:
-        logger.debug(f"计算自适应延迟失败: {e}，使用默认值")
-        return base_delay_ms
-
-
 # 导入播放器服务
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from services.mpv_player_service import MpvPlayerController
 
-# 频道列表、分组和EPG数据（为了向后兼容保留引用，实际数据由app_state管理）
-CHANNELS = app_state._channels
-CHANNEL_GROUPS = app_state._channel_groups
-EPG_DATA = app_state._epg_data
 
-
-# 主应用类
 class IPTVPlayer(QMainWindow):
-    # 导入信号模块
-    from PyQt6.QtCore import pyqtSignal
-    from ui.styles import AppStyles
-    # 定义EPG状态更新信号
     epg_status_signal = pyqtSignal(str)
-    # 定义其他信号
     channel_list_updated = pyqtSignal()
     epg_list_updated = pyqtSignal()
     status_message = pyqtSignal(str)
+
+    player_controller = None
+    config = None
+    config_manager = None
+    language_manager = None
+    channel_model = None
+    channels = None
+    current_channel = None
+    epg_parser = None
+
+    window_ctrl = None
+    playback_ctrl = None
+    epg_ctrl = None
+    channel_ctrl = None
+    settings_ops = None
+    event_handler = None
+    ui_ctrl = None
+    subscription_ctrl = None
+    subscription_ui_ctrl = None
+    catchup_ctrl = None
+
+    video_frame = None
+    video_widget = None
+    video_placeholder = None
+    central_widget = None
+    toolbar = None
+    status_bar = None
+    epg_panel = None
+    playlist_panel = None
+    floating_panel = None
+    top_layout = None
+    main_layout = None
+    content_layout = None
+
+    _title_bar = None
+    _title_label = None
+    _title_icon_label = None
+    _stay_on_top_btn = None
+    _minimize_btn = None
+    _maximize_btn = None
+    _close_btn = None
+    _custom_menu_bar = None
+    _main_container = None
+    _auto_hide_timer = None
+    _mouse_poll_timer = None
+
+    update_timer = None
+    resize_timer = None
+    epg_dock = None
+    playlist_dock = None
+    floating_dock = None
+    playlist_tab = None
+    playlist_list_widget = None
+    epg_list_widget = None
+    playlist_new_url_edit = None
+    playlist_new_name_edit = None
+    epg_new_url_edit = None
+    epg_new_name_edit = None
+    _playlist_add_btn = None
+    _epg_add_btn = None
+
+    is_fullscreen = False
+    is_catchup_mode = False
+    is_timeshift_mode = False
+    _is_timeshift_mode = False
+    _live_timeshift_seconds = 0
+    catchup_program = None
+    epg_visible = True
+    playlist_visible = True
+    floating_panel_visible = True
+    _floating_hidden = False
+    _auto_hide_state = 'visible'
+    _osd_visible = False
+    _initialization_complete = False
+    _panels_initialized = False
+    _ui_initialized = False
+    _dragging = False
+    _drag_offset = None
+    _last_mouse_pos = None
+    _editing_playlist_index = -1
+    _editing_epg_index = -1
+    current_epg_date = None
+    _saved_floating_states = None
+    _auto_hide_saved_states = None
+    _osd_saved_panel_states = None
+    _window_title = ''
+    _theme_manager = None
     
     def __init__(self):
-        import time
-        logger.debug("开始初始化 IPTVPlayer（最小化）")
+        from utils.general_utils import suppress_urllib3_warnings
+        suppress_urllib3_warnings()
+        logger.debug("开始初始化 IPTVPlayer")
         super().__init__()
-        logger.debug("设置窗口属性")
 
-        # 窗口拖动相关变量
-        self._dragging = False
-        self._drag_offset = None
+        self._init_config()
+        self._init_state()
+        self._init_signals()
+        self._init_controllers()
+        self._init_basic_ui()
 
-        # 配置管理器
+        self.setStyleSheet(AppStyles.main_window_style())
+        self._initialize_in_order()
+
+    def _init_config(self):
+        """初始化配置、主题、语言、窗口布局"""
         from core.config_manager import ConfigManager
         self.config = ConfigManager()
 
@@ -216,164 +244,112 @@ class IPTVPlayer(QMainWindow):
         saved_language = self.config.load_language_settings()
         self.language_manager.set_language(saved_language)
 
-        # 获取当前版本号并设置窗口标题
         from ui.dialogs.about_dialog import AboutDialog
         current_version = AboutDialog.CURRENT_VERSION
         self._window_title = f"{self.language_manager.tr('app_title', 'IPTV Scanner Editor Pro')} v{current_version}"
         self.setWindowTitle(self._window_title)
 
-        # 设置窗口图标
-        from PyQt6.QtGui import QIcon
         from utils.general_utils import get_icon_path
         ico_path = get_icon_path()
         if os.path.exists(ico_path):
+            from PyQt6.QtGui import QIcon
             self.setWindowIcon(QIcon(ico_path))
 
-        # 加载窗口布局（包括位置和大小）
         x, y, width, height, _ = self.config.load_window_layout(
-            default_x=100,
-            default_y=100,
-            default_width=1280,
-            default_height=780
+            default_x=100, default_y=100, default_width=1280, default_height=780
         )
         self.setGeometry(x, y, width, height)
         self.setMinimumSize(800, 600)
 
-        # 连接EPG状态信号到槽函数
-        self.epg_status_signal.connect(self.update_status_bar)
-        # 连接其他信号到槽函数
-        self.channel_list_updated.connect(self._update_channel_list_ui)
-        self.epg_list_updated.connect(self._populate_epg_list)
-        self.status_message.connect(self.status_bar_show_message)
-        
-        # 频道列表模型
+    def _init_state(self):
+        """初始化所有状态变量"""
+        self._dragging = False
+        self._drag_offset = None
+        self._last_mouse_pos = None
+
         self.channel_model = ChannelListModel()
-        
-        # 当前选中的频道（默认为None）
         self.current_channel = None
-        
-        # 面板状态
+
         self.epg_visible = True
         self.playlist_visible = True
-        
-        # 悬浮面板显示状态
         self.floating_panel_visible = True
-        
-        # 悬浮窗统一隐藏状态（用于一键隐藏/恢复所有悬浮窗）
         self._floating_hidden = False
         self._saved_floating_states = {}
-
-        # 悬浮窗自动隐藏
         self._auto_hide_state = 'visible'
         self._auto_hide_saved_states = {}
-
         self._osd_visible = False
         self._osd_saved_panel_states = {}
-        
-        # 全屏状态
         self.is_fullscreen = False
-        
-        # EPG解析器（使用新的多源管理器）
+
         from core.subscription_manager import global_subscription_manager
         self.epg_parser = global_subscription_manager
-        
-        # 导入 QTimer
-        from PyQt6.QtCore import QTimer
 
-        # 悬浮窗自动隐藏定时器
         self._auto_hide_timer = QTimer(self)
         self._auto_hide_timer.setSingleShot(True)
         self._auto_hide_timer.setInterval(5000)
         self._auto_hide_timer.timeout.connect(self._auto_hide_panels)
-
         self._mouse_poll_timer = QTimer(self)
         self._mouse_poll_timer.setInterval(500)
         self._mouse_poll_timer.timeout.connect(self._poll_mouse_position)
-        self._last_mouse_pos = None
-        
-        # 初始化定时器占位符
+
         self.update_timer = None
         self.resize_timer = None
         self._initialization_complete = False
         self._panels_initialized = False
         self._ui_initialized = False
-        
-        # 注意：所有悬浮窗先不创建
         self.epg_panel = None
         self.playlist_panel = None
         self.floating_panel = None
-        
-        # 初始化视频相关属性，避免 update_floating_position 出错
         self.video_frame = None
         self.video_widget = None
         self.video_placeholder = None
         self.top_layout = None
         self.toolbar = None
         self.status_bar = None
-        
-        # 初始化EPG日期选择
+
         from datetime import datetime
         self.current_epg_date = datetime.now().date()
-        
 
-        # ========== 重构：必须先初始化控制器，才能在后续UI创建中使用 ==========
+    def _init_signals(self):
+        """连接所有信号到槽函数"""
+        self.epg_status_signal.connect(self.update_status_bar)
+        self.channel_list_updated.connect(self._update_channel_list_ui)
+        self.epg_list_updated.connect(self._populate_epg_list)
+        self.status_message.connect(self.status_bar_show_message)
+
+    def _init_controllers(self):
+        """初始化所有业务控制器"""
         logger.debug("初始化业务控制器...")
-
-        # 1. 窗口框架控制器（管理标题栏、拖动、缩放、置顶）
         self.window_ctrl = WindowController(self)
-
-        # 2. 播放控制核心（管理播放/暂停/停止、音量、频道切换）
         self.playback_ctrl = PlaybackController(self)
-
-        # 3. EPG节目单控制器（管理EPG数据、显示、交互）
         self.epg_ctrl = EPGController(self)
-
-        # 4. 频道列表控制器（管理频道列表、分组过滤、选择）
         self.channel_ctrl = ChannelController(self)
-
-        # 5. 设置和文件操作处理器（管理配置、文件I/O、语言/主题）
         self.settings_ops = SettingsFileOperations(self)
-
-        # 6. 事件处理器（管理快捷键、事件过滤、窗口生命周期）
         self.event_handler = EventHandler(self)
-
-        # 7. UI控制器（管理OSD、媒体信息显示、样式等）
         self.ui_ctrl = UIController(self)
-
-        # 8. 订阅控制器（管理订阅源、EPG加载、频道分组等）
         self.subscription_ctrl = SubscriptionController(self)
-
-        # 9. 订阅UI控制器（管理订阅设置对话框中的UI逻辑）
         self.subscription_ui_ctrl = SubscriptionUIController(self)
-
-        # 10. 回看/时移控制器（管理EPG回看、时移模式）
         self.catchup_ctrl = CatchupController(self)
-
         logger.debug("业务控制器初始化完成")
 
-        # 创建最最基本的UI，只为了显示黑色背景的窗口
+    def _init_basic_ui(self):
+        """创建最基础的UI框架：无边框窗口、容器、标题栏、内容区域"""
         logger.debug("创建最最基本的UI")
-
-        # 设置无边框窗口（使用自定义标题栏）
         self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Window)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMouseTracking(True)
         self.setAcceptDrops(True)
 
-        # 创建主容器（用于实现圆角和背景色）
         self._main_container = QWidget()
         self._main_container.setObjectName("mainContainer")
         self.setCentralWidget(self._main_container)
 
-        # 主布局
         self.main_layout = QVBoxLayout(self._main_container)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
 
-        # 创建自定义标题栏
         self._create_custom_title_bar()
 
-        # 内容区域（后续所有UI组件都放在这里）
         self.central_widget = QWidget()
         self.central_widget.setStyleSheet(AppStyles.player_background_style())
         self.central_widget.setObjectName("contentArea")
@@ -382,14 +358,7 @@ class IPTVPlayer(QMainWindow):
         self.content_layout = QVBoxLayout(self.central_widget)
         self.content_layout.setContentsMargins(0, 0, 0, 0)
         self.content_layout.setSpacing(0)
-        
-        logger.debug("IPTVPlayer（最小化）初始化完成")
-
-        # 设置主窗口样式
-        self.setStyleSheet(AppStyles.main_window_style())
-        
-        # 执行初始化流程（show() 将在 _initialize_in_order 末尾延迟后由 __main__ 统一调用）
-        self._initialize_in_order()
+        logger.debug("IPTVPlayer 最小化初始化完成")
 
     def _create_custom_title_bar(self):
         """创建自定义标题栏（委托给WindowController）"""
@@ -416,7 +385,10 @@ class IPTVPlayer(QMainWindow):
         self.window_ctrl.toggle_stay_on_top()
 
     def mousePressEvent(self, event):
-        """鼠标按下事件（委托给WindowController）"""
+        """鼠标按下事件"""
+        if getattr(self, '_pip_mode', False):
+            if self._pip_mouse_press(event):
+                return
         if not self.window_ctrl.handle_mouse_press_event(event):
             self.update_floating_position()
             super().mousePressEvent(event)
@@ -453,19 +425,39 @@ class IPTVPlayer(QMainWindow):
         event.ignore()
 
     def mouseMoveEvent(self, event):
-        """鼠标移动事件（委托给WindowController）"""
+        """鼠标移动事件"""
+        if getattr(self, '_pip_mode', False):
+            if self._pip_mouse_move(event):
+                return
         if not self.window_ctrl.handle_mouse_move_event(event):
             super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
-        """鼠标释放事件（委托给WindowController）"""
+        """鼠标释放事件"""
+        if getattr(self, '_pip_mode', False):
+            if self._pip_mouse_release(event):
+                return
         self.window_ctrl.handle_mouse_release_event(event)
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):
         """鼠标双击事件（委托给WindowController）"""
+        if getattr(self, '_pip_mode', False):
+            return
         if not self.window_ctrl.handle_mouse_double_click_event(event):
             super().mouseDoubleClickEvent(event)
+
+    def enterEvent(self, event):
+        """鼠标进入窗口"""
+        if getattr(self, '_pip_mode', False):
+            self._show_pip_overlay()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        """鼠标离开窗口"""
+        if getattr(self, '_pip_mode', False):
+            self._hide_pip_overlay()
+        super().leaveEvent(event)
     
     def _initialize_in_order(self):
         """按照顺序执行初始化流程"""
@@ -690,10 +682,16 @@ class IPTVPlayer(QMainWindow):
         self.player_controller.play_state_changed.connect(self.on_play_state_changed)
         self.player_controller.live_media_info_updated.connect(self.on_live_media_info_updated)
         self.player_controller.play_error.connect(self.on_play_error)
+        self.player_controller.reconnect_requested.connect(self._on_reconnect_requested)
+        self.player_controller.thumbnail_captured.connect(self._on_player_thumbnail_captured)
 
         from services.logo_cache_service import LogoCacheService
         self._logo_cache_service = LogoCacheService(self)
         self._logo_cache_service.logo_loaded.connect(self._on_logo_cache_loaded)
+
+        from services.thumbnail_service import ThumbnailService
+        self._thumbnail_service = ThumbnailService(self)
+        self._thumbnail_service.thumbnail_ready.connect(self._on_thumbnail_ready)
 
         from services.network_preheat_service import DnsPrefetcher, ConnectionPreheater
         self._dns_prefetcher = DnsPrefetcher(self)
@@ -826,10 +824,32 @@ class IPTVPlayer(QMainWindow):
         sub_layout.setSpacing(0)
 
         self.sub_group_combo = QComboBox()
-        self.sub_group_combo.addItems(CHANNEL_GROUPS)
+        self.sub_group_combo.addItems(app_state._channel_groups)
         self.sub_group_combo.setStyleSheet(AppStyles.player_group_combo_style())
         self.sub_group_combo.currentTextChanged.connect(self.on_sub_group_changed)
         sub_layout.addWidget(self.sub_group_combo)
+
+        sub_toolbar = QWidget()
+        sub_toolbar_layout = QHBoxLayout(sub_toolbar)
+        sub_toolbar_layout.setContentsMargins(4, 2, 4, 2)
+        sub_toolbar_layout.setSpacing(2)
+        self.sub_view_list_btn = QToolButton()
+        self.sub_view_list_btn.setText("≡")
+        self.sub_view_list_btn.setFixedSize(24, 20)
+        self.sub_view_list_btn.setStyleSheet(AppStyles.player_button_style())
+        self.sub_view_list_btn.setCheckable(True)
+        self.sub_view_list_btn.setChecked(True)
+        self.sub_view_list_btn.clicked.connect(lambda: self._set_channel_view_mode('list', 'sub'))
+        sub_toolbar_layout.addWidget(self.sub_view_list_btn)
+        self.sub_view_grid_btn = QToolButton()
+        self.sub_view_grid_btn.setText("⊞")
+        self.sub_view_grid_btn.setFixedSize(24, 20)
+        self.sub_view_grid_btn.setStyleSheet(AppStyles.player_button_style())
+        self.sub_view_grid_btn.setCheckable(True)
+        self.sub_view_grid_btn.clicked.connect(lambda: self._set_channel_view_mode('grid', 'sub'))
+        sub_toolbar_layout.addWidget(self.sub_view_grid_btn)
+        sub_toolbar_layout.addStretch()
+        sub_layout.addWidget(sub_toolbar)
 
         self.sub_channel_list = QListWidget()
         self.sub_channel_list.setStyleSheet(AppStyles.player_list_style())
@@ -854,6 +874,28 @@ class IPTVPlayer(QMainWindow):
         self.local_group_combo.setStyleSheet(AppStyles.player_group_combo_style())
         self.local_group_combo.currentTextChanged.connect(self.on_local_group_changed)
         local_layout.addWidget(self.local_group_combo)
+
+        local_toolbar = QWidget()
+        local_toolbar_layout = QHBoxLayout(local_toolbar)
+        local_toolbar_layout.setContentsMargins(4, 2, 4, 2)
+        local_toolbar_layout.setSpacing(2)
+        self.local_view_list_btn = QToolButton()
+        self.local_view_list_btn.setText("≡")
+        self.local_view_list_btn.setFixedSize(24, 20)
+        self.local_view_list_btn.setStyleSheet(AppStyles.player_button_style())
+        self.local_view_list_btn.setCheckable(True)
+        self.local_view_list_btn.setChecked(True)
+        self.local_view_list_btn.clicked.connect(lambda: self._set_channel_view_mode('list', 'local'))
+        local_toolbar_layout.addWidget(self.local_view_list_btn)
+        self.local_view_grid_btn = QToolButton()
+        self.local_view_grid_btn.setText("⊞")
+        self.local_view_grid_btn.setFixedSize(24, 20)
+        self.local_view_grid_btn.setStyleSheet(AppStyles.player_button_style())
+        self.local_view_grid_btn.setCheckable(True)
+        self.local_view_grid_btn.clicked.connect(lambda: self._set_channel_view_mode('grid', 'local'))
+        local_toolbar_layout.addWidget(self.local_view_grid_btn)
+        local_toolbar_layout.addStretch()
+        local_layout.addWidget(local_toolbar)
 
         self.local_channel_list = QListWidget()
         self.local_channel_list.setStyleSheet(AppStyles.player_list_style())
@@ -910,13 +952,21 @@ class IPTVPlayer(QMainWindow):
             self.group_combo = self.local_group_combo
             self.channel_empty_label = self.local_empty_label
 
+        if self.channel_list.viewMode() == QListWidget.ViewMode.IconMode:
+            tab = 'sub' if index == 0 else 'local'
+            QTimer.singleShot(200, lambda: self._capture_visible_thumbnails(tab))
+
     def on_sub_group_changed(self, group_name):
         """订阅标签分组切换"""
         self._populate_channel_list_for(self.sub_channel_list, self._sub_channels, group_name)
+        if self.sub_channel_list.viewMode() == QListWidget.ViewMode.IconMode:
+            QTimer.singleShot(200, lambda: self._capture_visible_thumbnails('sub'))
 
     def on_local_group_changed(self, group_name):
         """本地标签分组切换"""
         self._populate_channel_list_for(self.local_channel_list, self._local_channels, group_name)
+        if self.local_channel_list.viewMode() == QListWidget.ViewMode.IconMode:
+            QTimer.singleShot(200, lambda: self._capture_visible_thumbnails('local'))
     
     def _create_bottom_panel(self, show=True):
         """创建底部悬浮控制面板"""
@@ -1171,6 +1221,22 @@ class IPTVPlayer(QMainWindow):
         self.aspect_button.setStyleSheet(AppStyles.player_button_style())
         self.aspect_button.clicked.connect(self._cycle_aspect_ratio)
         self.control_row.addWidget(self.aspect_button)
+
+        # 7.7 音轨切换按钮
+        self.audio_track_button = QToolButton()
+        self.audio_track_button.setText("🔊T")
+        self.audio_track_button.setFixedSize(36, 26)
+        self.audio_track_button.setStyleSheet(AppStyles.player_button_style())
+        self.audio_track_button.clicked.connect(self._show_audio_track_menu)
+        self.control_row.addWidget(self.audio_track_button)
+
+        # 7.8 字幕切换按钮
+        self.sub_track_button = QToolButton()
+        self.sub_track_button.setText("💬S")
+        self.sub_track_button.setFixedSize(36, 26)
+        self.sub_track_button.setStyleSheet(AppStyles.player_button_style())
+        self.sub_track_button.clicked.connect(self._show_sub_track_menu)
+        self.control_row.addWidget(self.sub_track_button)
         
         # 8. 全屏图标
         self.fullscreen_button = QToolButton()
@@ -1411,6 +1477,12 @@ class IPTVPlayer(QMainWindow):
             fullscreen.triggered.connect(self.toggle_fullscreen)
             view_menu.addAction(fullscreen)
 
+            pip_action = QAction(tr("menu_pip", "Picture-in-Picture\tP"), self)
+            pip_action.setCheckable(True)
+            pip_action.triggered.connect(self.toggle_pip_mode)
+            view_menu.addAction(pip_action)
+            self._pip_menu_action = pip_action
+
             refresh = QAction(tr("menu_refresh", "Refresh\tF5"), self)
             refresh.triggered.connect(self.refresh_ui)
             view_menu.addAction(refresh)
@@ -1517,12 +1589,12 @@ class IPTVPlayer(QMainWindow):
                 source = 'subscription' if self.playlist_tab.currentIndex() == 0 else 'local'
 
         if source == 'subscription':
-            self._sub_channels = list(CHANNELS)
+            self._sub_channels = list(app_state._channels)
             self._update_groups_for('subscription')
             self._populate_channel_list_for(self.sub_channel_list, self._sub_channels,
                                             self.sub_group_combo.currentText())
         else:
-            self._local_channels = list(CHANNELS)
+            self._local_channels = list(app_state._channels)
             self._update_groups_for('local')
             self._populate_channel_list_for(self.local_channel_list, self._local_channels,
                                             self.local_group_combo.currentText())
@@ -1592,46 +1664,45 @@ class IPTVPlayer(QMainWindow):
                 logo_url = channel.get('logo', '')
 
                 try:
-                    item_widget = QtWidgets.QWidget()
-                    item_layout = QHBoxLayout(item_widget)
-                    item_layout.setContentsMargins(5, 5, 5, 5)
-                    item_layout.setSpacing(10)
+                    is_grid = list_widget.viewMode() == QListWidget.ViewMode.IconMode
 
-                    logo_label = QtWidgets.QLabel()
-                    logo_label.setFixedSize(48, 34)
-                    logo_label.setStyleSheet("background-color: transparent; border: none;")
-                    logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                    logo_label.setObjectName("channel_logo_label")
+                    if is_grid:
+                        item = QListWidgetItem()
+                        item.setText(channel_name)
+                        item.setData(Qt.ItemDataRole.UserRole, idx)
+                        item.setSizeHint(QSize(220, 140))
+                        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-                    if logo_url:
-                        logo_url = logo_url.strip('`"\'')
-                        cached = self._logo_cache_service.get(logo_url)
-                        if cached:
-                            scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(
-                                cached,
-                                logo_label.width() if logo_label.width() > 0 else 34,
-                                logo_label.height() if logo_label.height() > 0 else 34
-                            )
-                            logo_label.setPixmap(scaled)
-                        else:
-                            self._logo_cache_service.fetch_async(logo_url)
+                        list_widget.addItem(item)
+                    else:
+                        item_widget = QtWidgets.QWidget()
+                        item_layout = QHBoxLayout(item_widget)
+                        item_layout.setContentsMargins(5, 5, 5, 5)
+                        item_layout.setSpacing(10)
 
-                    name_label = QtWidgets.QLabel(channel_name)
-                    from ui.styles import AppStyles
-                    colors = AppStyles._get_colors()
-                    name_label.setStyleSheet(f"font-size: 12px; font-weight: bold; color: {colors['player_panel_text']};")
-                    name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-                    name_label.setWordWrap(False)
+                        logo_label = QtWidgets.QLabel()
+                        logo_label.setFixedSize(48, 34)
+                        logo_label.setStyleSheet("background-color: transparent; border: none;")
+                        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        logo_label.setObjectName("channel_logo_label")
 
-                    item_layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignVCenter)
-                    item_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
+                        name_label = QtWidgets.QLabel(channel_name)
+                        from ui.styles import AppStyles
+                        colors = AppStyles._get_colors()
+                        name_label.setStyleSheet(f"font-size: 12px; font-weight: bold; color: {colors['player_panel_text']};")
+                        name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+                        name_label.setWordWrap(False)
 
-                    item = QListWidgetItem()
-                    item.setSizeHint(QSize(0, 42))
-                    item.setData(Qt.ItemDataRole.UserRole, idx)
+                        item_layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignVCenter)
+                        item_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
 
-                    list_widget.addItem(item)
-                    list_widget.setItemWidget(item, item_widget)
+                        item = QListWidgetItem()
+                        item.setSizeHint(QSize(0, 42))
+                        item.setData(Qt.ItemDataRole.UserRole, idx)
+
+                        list_widget.addItem(item)
+                        list_widget.setItemWidget(item, item_widget)
+
                     added_count += 1
 
                 except Exception as widget_ex:
@@ -1667,9 +1738,121 @@ class IPTVPlayer(QMainWindow):
 
         logger.info(f"populate_channel_list: 填充完成，共 {list_widget.count()} 个频道项（实际添加: {added_count}, 跳过: {skipped_count}, 总数据: {len(channels)}）")
         list_widget.verticalScrollBar().valueChanged.connect(self._on_channel_list_scrolled)
+        QTimer.singleShot(50, lambda: self._load_visible_icons(list_widget, channels))
     
+    def _load_visible_icons(self, list_widget, channels):
+        """异步分批加载可见区域的台标/缩略图"""
+        if not hasattr(self, '_icon_load_queue'):
+            self._icon_load_queue = []
+            self._icon_load_timer = QTimer(self)
+            self._icon_load_timer.setInterval(16)
+            self._icon_load_timer.timeout.connect(self._process_icon_load_batch)
+
+        viewport_rect = list_widget.viewport().rect()
+        top_index = list_widget.indexAt(viewport_rect.topLeft())
+        bottom_index = list_widget.indexAt(viewport_rect.bottomLeft())
+
+        first_visible = top_index.row() if top_index.isValid() else 0
+        last_visible = bottom_index.row() if bottom_index.isValid() else list_widget.count() - 1
+        first_visible = max(0, first_visible - 3)
+        last_visible = min(list_widget.count() - 1, last_visible + 3)
+
+        is_grid = list_widget.viewMode() == QListWidget.ViewMode.IconMode
+        need_capture = []
+        queue_items = []
+
+        for i in range(first_visible, last_visible + 1):
+            item = list_widget.item(i)
+            if not item:
+                continue
+            channel_idx = item.data(Qt.ItemDataRole.UserRole)
+            if channel_idx is None or channel_idx >= len(channels):
+                continue
+            channel = channels[channel_idx]
+            logo_url = channel.get('logo', '').strip('`"\'')
+
+            if is_grid:
+                if not item.icon().isNull():
+                    continue
+                ch_url = channel.get('url', '')
+                if self.player_controller and ch_url:
+                    thumb_path = self.player_controller.get_thumbnail_path(ch_url)
+                    if thumb_path:
+                        queue_items.append(('grid_thumb', item, thumb_path, None))
+                        continue
+                if logo_url:
+                    cached = self._logo_cache_service.get(logo_url)
+                    if cached:
+                        queue_items.append(('grid_logo', item, None, cached))
+                    else:
+                        self._logo_cache_service.fetch_async(logo_url)
+                if ch_url:
+                    need_capture.append(channel)
+            else:
+                item_widget = list_widget.itemWidget(item)
+                if not item_widget:
+                    continue
+                logo_label = item_widget.findChild(QtWidgets.QLabel, "channel_logo_label")
+                if not logo_label:
+                    continue
+                if logo_label.pixmap() and not logo_label.pixmap().isNull():
+                    continue
+                if logo_url:
+                    cached = self._logo_cache_service.get(logo_url)
+                    if cached:
+                        queue_items.append(('list_logo', item, logo_label, cached))
+                    else:
+                        self._logo_cache_service.fetch_async(logo_url)
+
+        self._icon_load_queue.extend(queue_items)
+        if self._icon_load_queue and not self._icon_load_timer.isActive():
+            self._icon_load_timer.start()
+
+        if need_capture and hasattr(self, '_thumbnail_service'):
+            self._thumbnail_service.capture_channels(need_capture, force=True)
+
+    def _process_icon_load_batch(self):
+        """每帧处理少量图标加载，避免UI卡顿"""
+        if not hasattr(self, '_icon_load_queue') or not self._icon_load_queue:
+            if hasattr(self, '_icon_load_timer'):
+                self._icon_load_timer.stop()
+            return
+
+        batch_size = 3
+        for _ in range(batch_size):
+            if not self._icon_load_queue:
+                break
+            task = self._icon_load_queue.pop(0)
+            try:
+                kind = task[0]
+                if kind == 'grid_thumb':
+                    _, item, thumb_path, _ = task
+                    px = QPixmap(thumb_path)
+                    if not px.isNull():
+                        scaled = px.scaled(210, 118, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                        item.setIcon(QIcon(scaled))
+                elif kind == 'grid_logo':
+                    _, item, _, cached = task
+                    if cached and not cached.isNull():
+                        scaled = cached.scaled(160, 90, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                        item.setIcon(QIcon(scaled))
+                elif kind == 'list_logo':
+                    _, item, logo_label, cached = task
+                    if cached and not cached.isNull() and logo_label:
+                        scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(
+                            cached,
+                            logo_label.width() if logo_label.width() > 0 else 48,
+                            logo_label.height() if logo_label.height() > 0 else 34
+                        )
+                        logo_label.setPixmap(scaled)
+            except RuntimeError:
+                pass
+
+        if not self._icon_load_queue:
+            self._icon_load_timer.stop()
+
     def _on_channel_list_scrolled(self, value):
-        """频道列表滚动时，加载可见区域的台标"""
+        """频道列表滚动时，加载可见区域的台标/缩略图"""
         sender = self.sender()
         if sender is self.local_channel_list:
             list_widget = self.local_channel_list
@@ -1677,50 +1860,39 @@ class IPTVPlayer(QMainWindow):
         else:
             list_widget = self.sub_channel_list
             channels = self._sub_channels
+        self._load_visible_icons(list_widget, channels)
+
+    def _capture_visible_thumbnails(self, tab='sub'):
+        """截取当前可见频道的缩略图（按需加载，含过期刷新）"""
+        list_widget = self.sub_channel_list if tab == 'sub' else self.local_channel_list
+        channels = self._sub_channels if tab == 'sub' else self._local_channels
+        if list_widget.viewMode() != QListWidget.ViewMode.IconMode:
+            return
+        if not hasattr(self, '_thumbnail_service'):
+            return
 
         viewport_rect = list_widget.viewport().rect()
         top_index = list_widget.indexAt(viewport_rect.topLeft())
         bottom_index = list_widget.indexAt(viewport_rect.bottomLeft())
-        
+
         first_visible = top_index.row() if top_index.isValid() else 0
         last_visible = bottom_index.row() if bottom_index.isValid() else list_widget.count() - 1
-        
-        first_visible = max(0, first_visible - 5)
-        last_visible = min(list_widget.count() - 1, last_visible + 5)
-        
+
+        need_capture = []
         for i in range(first_visible, last_visible + 1):
             item = list_widget.item(i)
             if not item:
                 continue
-            
-            item_widget = list_widget.itemWidget(item)
-            if not item_widget:
-                continue
-            
-            logo_label = item_widget.findChild(QtWidgets.QLabel, "channel_logo_label")
-            if not logo_label:
-                continue
-            if logo_label.pixmap() and not logo_label.pixmap().isNull():
-                continue
-            
             channel_idx = item.data(Qt.ItemDataRole.UserRole)
             if channel_idx is None or channel_idx >= len(channels):
                 continue
-            
             channel = channels[channel_idx]
-            logo_url = channel.get('logo', '')
-            if logo_url:
-                logo_url = logo_url.strip('`"\'')
-                cached = self._logo_cache_service.get(logo_url)
-                if cached:
-                    scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(
-                        cached,
-                        logo_label.width() if logo_label.width() > 0 else 60,
-                        logo_label.height() if logo_label.height() > 0 else 60
-                    )
-                    logo_label.setPixmap(scaled)
-                else:
-                    self._logo_cache_service.fetch_async(logo_url)
+            ch_url = channel.get('url', '')
+            if ch_url:
+                need_capture.append(channel)
+
+        if need_capture:
+            self._thumbnail_service.capture_channels(need_capture, force=True)
     
     def populate_epg_list(self):
         """填充EPG列表（委托给EPGController）"""
@@ -2078,6 +2250,11 @@ class IPTVPlayer(QMainWindow):
                     return
 
             logger.info(f"select_channel: 选中频道 {self.current_channel.get('name', '?')}")
+
+            if hasattr(self, 'current_channel') and self.current_channel:
+                old = getattr(self, 'current_channel', None)
+                if old and old is not self.current_channel:
+                    self._previous_channel = dict(old)
 
             if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
                 self.playback_ctrl._exit_catchup_mode()
@@ -2529,6 +2706,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         if is_playing:
             self.play_button.setText("▮▮")
+            self._pip_update_play_btn()
             self._cancel_source_timeout()
             if hasattr(self, 'video_placeholder') and self.video_placeholder:
                 self.video_placeholder.hide()
@@ -2568,6 +2746,7 @@ class IPTVPlayer(QMainWindow):
                     self.status_bar_show_message(f"{tr('playing', 'Playing')}: {channel_name}")
         else:
             self.play_button.setText("▶")
+            self._pip_update_play_btn()
             if getattr(self, '_is_stopped', False):
                 self._is_stopped = False
                 return
@@ -2592,6 +2771,24 @@ class IPTVPlayer(QMainWindow):
             self.status_bar_show_message(f"{tr('play_error', 'Play Error')}: {channel_name} - {error_msg}")
         else:
             self.status_bar_show_message(f"{tr('play_error', 'Play Error')}: {error_msg}")
+
+    def _on_reconnect_requested(self, url):
+        """断线自动重连"""
+        from PyQt6.QtCore import QTimer
+        tr = self.language_manager.tr
+        if self.current_channel:
+            channel_name = self.current_channel.get('name', '')
+            self.status_bar_show_message(
+                f"{tr('reconnecting', 'Reconnecting')}: {channel_name} "
+                f"({self.player_controller._reconnect_count}/{self.player_controller._max_reconnect})")
+        QTimer.singleShot(2000, lambda: self._do_reconnect(url))
+
+    def _do_reconnect(self, url):
+        """执行重连"""
+        if self.player_controller._user_stopped:
+            return
+        if self.current_channel:
+            self.playback_ctrl.play_channel(self.current_channel)
 
     def on_live_media_info_updated(self, info):
         """持续更新媒体信息 - 信息稳定后才更新UI，避免闪烁"""
@@ -2721,9 +2918,13 @@ class IPTVPlayer(QMainWindow):
             
             # 更新网络信息标签
             if network_parts:
-                self.network_info.setText(f"📡 {' | '.join(network_parts)}")
+                base_text = f"📡 {' | '.join(network_parts)}"
+                self.network_info.setText(base_text)
+                self._network_base_info = base_text
             else:
-                self.network_info.setText(f"📡 {tr('no_network_info', 'No network info available')}")
+                fallback = f"📡 {tr('no_network_info', 'No network info available')}"
+                self.network_info.setText(fallback)
+                self._network_base_info = fallback
         
         except RuntimeError:
             pass  # UI 对象可能已被销毁
@@ -2878,6 +3079,7 @@ class IPTVPlayer(QMainWindow):
         
         # 检查是否处于回看模式
         is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
+        is_timeshift = hasattr(self, '_is_timeshift_mode') and self._is_timeshift_mode
         
         # 更新第二行：频道信息
         if self.current_channel:
@@ -3028,7 +3230,25 @@ class IPTVPlayer(QMainWindow):
                 self.populate_epg_list()
         
         self._check_program_change()
-        
+
+        if hasattr(self, 'network_info') and self.player_controller:
+            buffer_state = self.player_controller.get_buffer_state()
+            if buffer_state:
+                if buffer_state.get('buffering'):
+                    self.network_info.setText("📡 ⏳...")
+                else:
+                    cache_dur = buffer_state.get('cache_duration', 0)
+                    if cache_dur > 0:
+                        base = getattr(self, '_network_base_info', '')
+                        if base and base != "📡 --":
+                            self.network_info.setText(f"{base} 💾{cache_dur:.0f}s")
+                        else:
+                            self.network_info.setText(f"📡 💾{cache_dur:.0f}s")
+                    else:
+                        base = getattr(self, '_network_base_info', '')
+                        if base and base != "📡 --":
+                            self.network_info.setText(base)
+
         _slider_dragging = hasattr(self, 'program_progress') and self.program_progress.isSliderDown()
         
         current_time_ms = getattr(self, '_cached_current_time_ms', 0)
@@ -3075,10 +3295,10 @@ class IPTVPlayer(QMainWindow):
                 if self._video_overlay_label.isVisible():
                     self._video_overlay_label.hide()
         
-        # 只有在非回看模式下才检查EPG
+        # 只有在非回看模式下才检查EPG（时移模式也需要EPG）
         has_epg = False
         current_program = None
-        if not is_catchup:
+        if not is_catchup or is_timeshift:
             try:
                 channel_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
                 if channel_name:
@@ -3089,7 +3309,7 @@ class IPTVPlayer(QMainWindow):
                 pass
         
         # 更新进度条和时间显示
-        if is_catchup:
+        if is_catchup and not is_timeshift:
             if hasattr(self, 'catchup_program'):
                 try:
                     start_time = self.catchup_program.get('start')
@@ -3489,7 +3709,7 @@ class IPTVPlayer(QMainWindow):
             message = getattr(self, '_pending_update_message', '')
             if hasattr(self, '_pending_update_message'):
                 delattr(self, '_pending_update_message')
-            logger.info(f"_do_on_playlist_updated_in_main_thread: 开始更新UI, CHANNELS数量={len(CHANNELS)}")
+            logger.info(f"_do_on_playlist_updated_in_main_thread: 开始更新UI, CHANNELS数量={len(app_state._channels)}")
             if hasattr(self, 'playlist_tab'):
                 self.playlist_tab.setCurrentIndex(0)
             self.populate_channel_list(source='subscription')
@@ -3530,8 +3750,6 @@ class IPTVPlayer(QMainWindow):
         """更新节目单订阅 - 线程安全版本"""
         from PyQt6.QtCore import QTimer
         try:
-            global EPG_DATA
-
             from core.subscription_manager import global_subscription_manager
             
             epg_sources = global_subscription_manager.get_epg_sources()
@@ -3545,15 +3763,16 @@ class IPTVPlayer(QMainWindow):
                 logger.info(f"EPG加载状态: {msg}")
 
             if global_subscription_manager.load_all_epg_data(status_callback):
-                EPG_DATA = global_subscription_manager._epg_data
+                app_state._epg_data.clear()
+                app_state._epg_data.update(global_subscription_manager._epg_data)
 
-                if EPG_DATA:
-                    sample_channel = list(EPG_DATA.keys())[0] if EPG_DATA else None
-                    if sample_channel and EPG_DATA[sample_channel]:
-                        sample_date = EPG_DATA[sample_channel][0].get('start', 'N/A')
+                if app_state._epg_data:
+                    sample_channel = list(app_state._epg_data.keys())[0] if app_state._epg_data else None
+                    if sample_channel and app_state._epg_data[sample_channel]:
+                        sample_date = app_state._epg_data[sample_channel][0].get('start', 'N/A')
                         logger.info(f"EPG 数据样本日期: {sample_date}")
 
-                logger.info(f"节目单订阅更新成功，共 {len(EPG_DATA)} 个频道的节目单，已使用最新数据")
+                logger.info(f"节目单订阅更新成功，共 {len(app_state._epg_data)} 个频道的节目单，已使用最新数据")
 
                 if QThread.currentThread() != self.thread():
                     QMetaObject.invokeMethod(self, "_do_on_epg_success", Qt.ConnectionType.QueuedConnection)
@@ -3562,8 +3781,9 @@ class IPTVPlayer(QMainWindow):
             else:
                 cached_loaded = global_subscription_manager.load_cached_epg_data()
                 if cached_loaded:
-                    EPG_DATA = global_subscription_manager._epg_data
-                    logger.debug(f"使用缓存的EPG数据，包含 {len(EPG_DATA)} 个频道")
+                    app_state._epg_data.clear()
+                    app_state._epg_data.update(global_subscription_manager._epg_data)
+                    logger.debug(f"使用缓存的EPG数据，包含 {len(app_state._epg_data)} 个频道")
 
                     def _on_epg_cache():
                         self.epg_list_updated.emit()
@@ -3680,8 +3900,6 @@ class IPTVPlayer(QMainWindow):
             
             if epg_changed_indices:
                 def _reload_epg_incremental():
-                    global EPG_DATA
-                    
                     def status_callback(msg):
                         logger.info(f"EPG加载状态: {msg}")
                     
@@ -3696,7 +3914,8 @@ class IPTVPlayer(QMainWindow):
                         success = all_ok
                     
                     if success:
-                        EPG_DATA = global_subscription_manager._epg_data
+                        app_state._epg_data.clear()
+                        app_state._epg_data.update(global_subscription_manager._epg_data)
                         
                         from PyQt6.QtCore import QMetaObject, Qt
                         if QThread.currentThread() != self.thread():
@@ -3791,8 +4010,6 @@ class IPTVPlayer(QMainWindow):
             content = load_m3u_file(file_path)
 
             if self.channel_model.load_from_file(content):
-                global CHANNELS, app_state
-                # 使用 clear + extend 保持引用一致性（避免创建新列表对象）
                 new_channels = []
                 for i, ch in enumerate(self.channel_model.channels):
                     new_channels.append({
@@ -3814,9 +4031,6 @@ class IPTVPlayer(QMainWindow):
                         "_all_tags": ch.get('_all_tags', {})
                     })
 
-                # 原地更新列表，保持所有引用一致
-                CHANNELS.clear()
-                CHANNELS.extend(new_channels)
                 app_state._channels.clear()
                 app_state._channels.extend(new_channels)
 
@@ -3825,8 +4039,8 @@ class IPTVPlayer(QMainWindow):
                 config_manager.add_recent_file(file_path)
                 self.update_recent_files_menu()
 
-                if CHANNELS:
-                    self.current_channel = CHANNELS[0]
+                if app_state._channels:
+                    self.current_channel = app_state._channels[0]
                     display_name = self._get_display_channel_name(self.current_channel)
                     self.channel_name.setText(display_name)
 
@@ -3834,7 +4048,7 @@ class IPTVPlayer(QMainWindow):
                     self.playlist_tab.setCurrentIndex(1)
                 self.populate_channel_list(source='local')
                 self.status_bar.showMessage(f"{self.language_manager.tr('file_opened', 'File opened')}: {file_path}")
-                logger.info(f"成功打开最近文件: {file_path}, 共 {len(CHANNELS)} 个频道")
+                logger.info(f"成功打开最近文件: {file_path}, 共 {len(app_state._channels)} 个频道")
             else:
                 self.status_bar.showMessage(self.language_manager.tr("file_format_error"))
         except FileNotFoundError:
@@ -4307,47 +4521,89 @@ class IPTVPlayer(QMainWindow):
                     self.channel_logo.setPixmap(scaled)
                     self.channel_logo.setText("")
         
-        # 更新频道列表中的图标
-        for i in range(self.channel_list.count()):
-            item = self.channel_list.item(i)
-            if not item:
+        for list_widget in (self.sub_channel_list, self.local_channel_list):
+            channels = self._sub_channels if list_widget is self.sub_channel_list else self._local_channels
+            is_grid = list_widget.viewMode() == QListWidget.ViewMode.IconMode
+            for i in range(list_widget.count()):
+                item = list_widget.item(i)
+                if not item:
+                    continue
+                channel_idx = item.data(Qt.ItemDataRole.UserRole)
+                if channel_idx is None or channel_idx >= len(channels):
+                    continue
+                channel = channels[channel_idx]
+                channel_logo = channel.get('logo', '')
+                if channel_logo:
+                    channel_logo = channel_logo.strip('`"\'')
+                    if channel_logo == url:
+                        if is_grid:
+                            ch_url = channel.get('url', '')
+                            if self.player_controller and ch_url:
+                                thumb_path = self.player_controller.get_thumbnail_path(ch_url)
+                                if thumb_path:
+                                    break
+                            scaled = pixmap.scaled(160, 90, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                            item.setIcon(QIcon(scaled))
+                        else:
+                            item_widget = list_widget.itemWidget(item)
+                            if item_widget:
+                                logo_label = item_widget.findChild(QtWidgets.QLabel, "channel_logo_label")
+                                if logo_label:
+                                    scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(
+                                        pixmap,
+                                        logo_label.width() if logo_label.width() > 0 else 34,
+                                        logo_label.height() if logo_label.height() > 0 else 34
+                                    )
+                                    logo_label.setPixmap(scaled)
+                        break
+
+    def _on_thumbnail_ready(self, channel_name, url):
+        """后台缩略图截取完成的回调"""
+        self._update_grid_thumbnail(url)
+
+    def _on_player_thumbnail_captured(self, url):
+        """播放器截图完成后的回调"""
+        self._update_grid_thumbnail(url)
+
+    def _update_grid_thumbnail(self, url):
+        """更新grid视图中指定URL频道的缩略图"""
+        from services.thumbnail_service import get_thumbnail_path
+        thumb_path = get_thumbnail_path(url)
+        if not thumb_path:
+            return
+        for list_widget in (self.sub_channel_list, self.local_channel_list):
+            if list_widget.viewMode() != QListWidget.ViewMode.IconMode:
                 continue
-            
-            channel_idx = item.data(Qt.ItemDataRole.UserRole)
-            if channel_idx is None or channel_idx >= len(CHANNELS):
-                continue
-            
-            channel = CHANNELS[channel_idx]
-            channel_logo = channel.get('logo', '')
-            if channel_logo:
-                channel_logo = channel_logo.strip('`"\'')
-                if channel_logo == url:
-                    # 获取自定义 widget 并更新台标（按 objectName 查找，避免找到 name_label）
-                    item_widget = self.channel_list.itemWidget(item)
-                    if item_widget:
-                        logo_label = item_widget.findChild(QtWidgets.QLabel, "channel_logo_label")
-                        if logo_label:
-                            scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(
-                                pixmap,
-                                logo_label.width() if logo_label.width() > 0 else 34,
-                                logo_label.height() if logo_label.height() > 0 else 34
-                            )
-                            logo_label.setPixmap(scaled)
+            channels = self._sub_channels if list_widget is self.sub_channel_list else self._local_channels
+            for i in range(list_widget.count()):
+                item = list_widget.item(i)
+                if not item:
+                    continue
+                channel_idx = item.data(Qt.ItemDataRole.UserRole)
+                if channel_idx is None or channel_idx >= len(channels):
+                    continue
+                channel = channels[channel_idx]
+                if channel.get('url', '') == url:
+                    px = QPixmap(thumb_path)
+                    if not px.isNull():
+                        scaled = px.scaled(210, 118, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                        item.setIcon(QIcon(scaled))
                     break
 
     def _get_next_channel_urls(self, current_channel):
-        if not CHANNELS or not current_channel:
+        channels = app_state._channels
+        if not channels or not current_channel:
             return []
         current_idx = -1
-        for i, ch in enumerate(CHANNELS):
+        for i, ch in enumerate(channels):
             if ch is current_channel:
                 current_idx = i
                 break
         if current_idx < 0:
             return []
         next_urls = []
-        for j in range(current_idx + 1, min(current_idx + 3, len(CHANNELS))):
-            url = CHANNELS[j].get('url', '')
+        for j in range(current_idx + 1, min(current_idx + 3, len(channels))):
+            url = channels[j].get('url', '')
             if url:
                 next_urls.append(url)
         return next_urls
@@ -4384,7 +4640,7 @@ class IPTVPlayer(QMainWindow):
         try:
             name = channel.get('name', '')
             idx = -1
-            for i, ch in enumerate(CHANNELS):
+            for i, ch in enumerate(app_state._channels):
                 if ch is channel:
                     idx = i
                     break
@@ -4408,11 +4664,11 @@ class IPTVPlayer(QMainWindow):
             return
         last = self._pending_last_channel
         delattr(self, '_pending_last_channel')
-        if not CHANNELS:
+        if not app_state._channels:
             return
         idx = last.get('index', -1)
-        if 0 <= idx < len(CHANNELS):
-            ch = CHANNELS[idx]
+        if 0 <= idx < len(app_state._channels):
+            ch = app_state._channels[idx]
             if ch.get('name') == last.get('name'):
                 self.current_channel = ch
                 self.select_channel_by_index(idx)
@@ -4427,19 +4683,35 @@ class IPTVPlayer(QMainWindow):
                 self.select_channel(item)
                 return
 
+    def switch_to_previous_channel(self):
+        """Backspace 快速回切到上一个频道"""
+        if not hasattr(self, '_previous_channel') or not self._previous_channel:
+            return
+        prev = self._previous_channel
+        self._previous_channel = None
+        if hasattr(self, 'channel_list'):
+            for i in range(self.channel_list.count()):
+                item = self.channel_list.item(i)
+                ch = item.data(Qt.ItemDataRole.UserRole)
+                if isinstance(ch, dict) and ch.get('url') == prev.get('url'):
+                    self.channel_list.setCurrentItem(item)
+                    self.select_channel(item)
+                    return
+
     def _warmup_logos_around(self, channel):
-        if not CHANNELS:
+        channels = app_state._channels
+        if not channels:
             return
         current_idx = -1
-        for i, ch in enumerate(CHANNELS):
+        for i, ch in enumerate(channels):
             if ch is channel:
                 current_idx = i
                 break
         if current_idx < 0:
             return
         urls = []
-        for j in range(max(0, current_idx - 5), min(current_idx + 10, len(CHANNELS))):
-            logo = CHANNELS[j].get('logo', '')
+        for j in range(max(0, current_idx - 5), min(current_idx + 10, len(channels))):
+            logo = channels[j].get('logo', '')
             if logo:
                 urls.append(logo.strip('`"\''))
         if urls:
@@ -4508,6 +4780,7 @@ class IPTVPlayer(QMainWindow):
         self._timeshift_start_time = start_time
         self._is_timeshift_mode = True
         self.is_catchup_mode = True
+        self._live_timeshift_seconds = max(0, (datetime.now() - start_time).total_seconds())
         self.catchup_program = {
             'start': start_time,
             'end': end_time,
@@ -4591,6 +4864,7 @@ class IPTVPlayer(QMainWindow):
         self._timeshift_start_time = target_wallclock
         self._is_timeshift_mode = True
         self.is_catchup_mode = True
+        self._live_timeshift_seconds = max(0, (datetime.now() - target_wallclock).total_seconds())
         self.original_channel = self.current_channel.copy()
         self.catchup_program = {
             'start': target_wallclock,
@@ -4602,6 +4876,571 @@ class IPTVPlayer(QMainWindow):
         if self.player_controller:
             self.player_controller.play(timeshift_url, f"{channel_name} (时移 {offset_str})")
         self._show_exit_timeshift_button()
+
+    def _show_audio_track_menu(self):
+        """显示音轨切换菜单"""
+        if not self.player_controller or not self.player_controller.is_playing:
+            return
+        from PyQt6.QtWidgets import QMenu
+        menu = QMenu(self)
+        tracks = self.player_controller.get_track_list('audio')
+        current_id = self.player_controller.get_current_track('audio')
+        if not tracks:
+            act = menu.addAction(self.language_manager.tr('no_audio_tracks', 'No audio tracks'))
+            act.setEnabled(False)
+        else:
+            for t in tracks:
+                label = t.get('title') or t.get('lang') or f"Track {t['id']}"
+                if t.get('lang') and t.get('title') and t['lang'] != t['title']:
+                    label = f"{t['title']} ({t['lang']})"
+                act = menu.addAction(label)
+                act.setCheckable(True)
+                act.setChecked(t['id'] == current_id)
+                act.triggered.connect(lambda checked, tid=t['id']: self.player_controller.set_track('audio', tid))
+        menu.exec(self.audio_track_button.mapToGlobal(self.audio_track_button.rect().bottomLeft()))
+
+    def _show_sub_track_menu(self):
+        """显示字幕切换菜单"""
+        if not self.player_controller or not self.player_controller.is_playing:
+            return
+        from PyQt6.QtWidgets import QMenu
+        menu = QMenu(self)
+        tracks = self.player_controller.get_track_list('sub')
+        current_id = self.player_controller.get_current_track('sub')
+        no_sub = menu.addAction(self.language_manager.tr('no_subtitle', 'No Subtitle'))
+        no_sub.setCheckable(True)
+        no_sub.setChecked(current_id is None or current_id == 0)
+        no_sub.triggered.connect(lambda: self.player_controller.set_track('sub', 0))
+        if tracks:
+            menu.addSeparator()
+            for t in tracks:
+                label = t.get('title') or t.get('lang') or f"Sub {t['id']}"
+                if t.get('lang') and t.get('title') and t['lang'] != t['title']:
+                    label = f"{t['title']} ({t['lang']})"
+                act = menu.addAction(label)
+                act.setCheckable(True)
+                act.setChecked(t['id'] == current_id)
+                act.triggered.connect(lambda checked, tid=t['id']: self.player_controller.set_track('sub', tid))
+        menu.exec(self.sub_track_button.mapToGlobal(self.sub_track_button.rect().bottomLeft()))
+
+    def _set_channel_view_mode(self, mode, tab='sub'):
+        """切换频道列表视图模式（list/grid）"""
+        list_widget = self.sub_channel_list if tab == 'sub' else self.local_channel_list
+        list_btn = getattr(self, f'{tab}_view_list_btn', None)
+        grid_btn = getattr(self, f'{tab}_view_grid_btn', None)
+
+        if mode == 'list':
+            if list_btn:
+                list_btn.setChecked(True)
+            if grid_btn:
+                grid_btn.setChecked(False)
+            list_widget.setViewMode(QListWidget.ViewMode.ListMode)
+            list_widget.setGridSize(QSize())
+            list_widget.setIconSize(QSize())
+            list_widget.setSpacing(2)
+            list_widget.setWrapping(False)
+            if hasattr(self, '_thumbnail_service'):
+                self._thumbnail_service.stop()
+        elif mode == 'grid':
+            if list_btn:
+                list_btn.setChecked(False)
+            if grid_btn:
+                grid_btn.setChecked(True)
+            list_widget.setViewMode(QListWidget.ViewMode.IconMode)
+            list_widget.setGridSize(QSize(230, 150))
+            list_widget.setIconSize(QSize(210, 118))
+            list_widget.setSpacing(2)
+            list_widget.setWrapping(True)
+            list_widget.setResizeMode(QListWidget.ResizeMode.Adjust)
+            list_widget.verticalScrollBar().setSingleStep(30)
+
+        source = 'subscription' if tab == 'sub' else 'local'
+        self.populate_channel_list(source)
+
+        if mode == 'grid':
+            QTimer.singleShot(200, lambda: self._capture_visible_thumbnails(tab))
+
+    def _take_screenshot(self):
+        """S键截图 - 保存到 screenshots 目录并复制到剪贴板"""
+        if not self.player_controller or not self.player_controller.is_playing:
+            return
+        try:
+            import os
+            from datetime import datetime
+            from PyQt6.QtWidgets import QApplication
+            from PyQt6.QtGui import QClipboard
+
+            screenshot_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'screenshots')
+            os.makedirs(screenshot_dir, exist_ok=True)
+
+            channel_name = ''
+            if self.current_channel:
+                channel_name = self.current_channel.get('name', '')
+                channel_name = re.sub(r'[\\/:*?"<>|]', '_', channel_name)
+
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"{channel_name}_{timestamp}.png" if channel_name else f"screenshot_{timestamp}.png"
+            filepath = os.path.join(screenshot_dir, filename)
+
+            self.player_controller.send_command(['screenshot-to-file', filepath, 'video'])
+
+            clipboard = QApplication.clipboard()
+            from PyQt6.QtGui import QPixmap
+            pixmap = QPixmap(filepath)
+            if not pixmap.isNull():
+                clipboard.setPixmap(pixmap)
+
+            self.status_bar_show_message(
+                f"{self.language_manager.tr('screenshot_saved', 'Screenshot saved')}: {filename}")
+        except Exception as e:
+            from core.log_manager import global_logger as logger
+            logger.error(f"截图失败: {e}")
+
+    def _adjust_speed(self, delta):
+        """倍速微调 (> / < 键)"""
+        if not self.player_controller:
+            return
+        current = self.player_controller.get_speed()
+        new_speed = round(max(0.1, min(10.0, current + delta)), 1)
+        self.player_controller.set_speed(new_speed)
+        if hasattr(self, 'speed_button'):
+            self.speed_button.setText(f"{new_speed}x")
+
+    def toggle_pip_mode(self, checked=None):
+        """P键画中画模式 - 小窗口置顶播放"""
+        if getattr(self, '_pip_mode', False):
+            self._exit_pip_mode()
+            return
+        pc = self.player_controller
+        has_content = (pc and (pc.is_playing or getattr(pc, 'is_paused', False))) or getattr(self, 'current_channel', None)
+        if not has_content:
+            if hasattr(self, '_pip_menu_action') and self._pip_menu_action:
+                self._pip_menu_action.setChecked(False)
+            return
+        self._enter_pip_mode()
+
+    def _enter_pip_mode(self):
+        """进入画中画模式"""
+        if getattr(self, '_pip_mode', False):
+            return
+
+        try:
+            self._pip_saved_geometry = self.geometry()
+            self._pip_saved_maximized = self.isMaximized()
+            self._pip_saved_fullscreen = getattr(self, 'is_fullscreen', False)
+
+            self._pip_saved_visibilities = {
+                'title_bar': hasattr(self, '_title_bar') and self._title_bar and self._title_bar.isVisible(),
+                'menu_bar': hasattr(self, '_custom_menu_bar') and self._custom_menu_bar and self._custom_menu_bar.isVisible(),
+                'status_bar': bool(self.status_bar and self.status_bar.isVisible()),
+                'epg': self.epg_visible,
+                'playlist': self.playlist_visible,
+                'floating': self.floating_panel_visible,
+                'floating_hidden': getattr(self, '_floating_hidden', False),
+            }
+
+            if self._pip_saved_fullscreen:
+                self.toggle_fullscreen()
+
+            if self.isMaximized():
+                self.showNormal()
+
+            self._stop_auto_hide_timer()
+
+            if hasattr(self, '_title_bar') and self._title_bar:
+                self._title_bar.hide()
+            if hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
+                self._custom_menu_bar.hide()
+            if self.status_bar:
+                self.status_bar.hide()
+            if hasattr(self, 'epg_panel') and self.epg_panel:
+                self.epg_panel.hide()
+            if hasattr(self, 'playlist_panel') and self.playlist_panel:
+                self.playlist_panel.hide()
+            if hasattr(self, 'floating_panel') and self.floating_panel:
+                self.floating_panel.hide()
+
+            pip_w, pip_h = 480, 270
+            from PyQt6.QtWidgets import QApplication
+            scr = self.screen()
+            primary = QApplication.primaryScreen()
+            if scr:
+                screen = scr.availableGeometry()
+            elif primary:
+                screen = primary.availableGeometry()
+            else:
+                logger.error("_enter_pip_mode: 无法获取屏幕信息")
+                self._restore_pip_hidden_elements()
+                return
+
+            x = screen.right() - pip_w - 20
+            y = screen.bottom() - pip_h - 20
+
+            self.setMinimumSize(240, 135)
+            self.setMaximumSize(16777215, 16777215)
+            self.resize(pip_w, pip_h)
+            self.move(x, y)
+
+            self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
+            self.show()
+            self.raise_()
+
+            self._pip_mode = True
+            self._pip_dragging = False
+            self._pip_drag_pos = None
+            self._pip_resizing = False
+            self._pip_resize_edge = None
+            self._pip_resize_start_geo = None
+            self._pip_resize_start_pos = None
+            self.setMouseTracking(True)
+
+            if not hasattr(self, '_pip_buttons') or not self._pip_buttons:
+                self._create_pip_overlay()
+
+            if hasattr(self, '_pip_menu_action') and self._pip_menu_action:
+                self._pip_menu_action.setChecked(True)
+            self.status_bar_show_message(
+                self.language_manager.tr('pip_mode', 'PiP Mode') + " - P " +
+                self.language_manager.tr('to_exit', 'to exit'))
+            logger.info("已进入画中画模式")
+        except Exception as e:
+            logger.error(f"进入画中画模式失败: {e}")
+            self._pip_mode = False
+            self._restore_pip_hidden_elements()
+
+    def _exit_pip_mode(self):
+        """退出画中画模式"""
+        if not getattr(self, '_pip_mode', False):
+            return
+
+        try:
+            self._pip_mode = False
+            self._hide_pip_overlay()
+
+            self.setMinimumSize(0, 0)
+            self.setMaximumSize(16777215, 16777215)
+
+            self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, False)
+            self.show()
+            self.raise_()
+
+            if getattr(self, '_pip_saved_maximized', False):
+                self.showMaximized()
+            elif hasattr(self, '_pip_saved_geometry'):
+                self.setGeometry(self._pip_saved_geometry)
+
+            self._pip_dragging = False
+            self._pip_resizing = False
+            self.unsetCursor()
+            if hasattr(self, '_pip_menu_action') and self._pip_menu_action:
+                self._pip_menu_action.setChecked(False)
+
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(100, self._restore_pip_hidden_elements)
+            QTimer.singleShot(200, self.update_floating_position)
+            QTimer.singleShot(300, self._restart_auto_hide_timer)
+            logger.info("已退出画中画模式")
+        except Exception as e:
+            logger.error(f"退出画中画模式失败: {e}")
+            self._pip_mode = False
+
+    def _restore_pip_hidden_elements(self):
+        """恢复画中画模式隐藏的UI元素"""
+        saved = getattr(self, '_pip_saved_visibilities', {})
+        if not saved:
+            return
+
+        if saved.get('title_bar', True) and hasattr(self, '_title_bar') and self._title_bar:
+            self._title_bar.show()
+        if saved.get('menu_bar', True) and hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
+            self._custom_menu_bar.show()
+        if saved.get('status_bar', True) and self.status_bar:
+            self.status_bar.show()
+        if saved.get('epg', True) and hasattr(self, 'epg_panel') and self.epg_panel:
+            self.epg_panel.show()
+            self.epg_visible = True
+        else:
+            self.epg_visible = False
+        if saved.get('playlist', True) and hasattr(self, 'playlist_panel') and self.playlist_panel:
+            self.playlist_panel.show()
+            self.playlist_visible = True
+        else:
+            self.playlist_visible = False
+        if saved.get('floating', True) and hasattr(self, 'floating_panel') and self.floating_panel:
+            self.floating_panel.show()
+            self.floating_panel_visible = True
+        else:
+            self.floating_panel_visible = False
+        self._floating_hidden = saved.get('floating_hidden', False)
+        self._sync_panel_actions()
+
+    def _create_pip_overlay(self):
+        """创建画中画控制按钮（3个独立浮动按钮，不遮挡视频）"""
+        btn_size = 44
+
+        self._pip_prev_btn = self._create_pip_button("⏮", btn_size)
+        self._pip_play_btn = self._create_pip_button("⏸", btn_size)
+        self._pip_next_btn = self._create_pip_button("⏭", btn_size)
+
+        self._pip_overlay = True
+        self._pip_buttons = [self._pip_prev_btn, self._pip_play_btn, self._pip_next_btn]
+        for btn in self._pip_buttons:
+            btn.hide()
+
+    def _create_pip_button(self, text, btn_size):
+        """创建画中画圆形按钮（自定义绘制，无背景填充）"""
+        from PyQt6.QtWidgets import QWidget
+        from PyQt6.QtGui import QPainter, QPen, QColor, QFont, QRegion
+        from PyQt6.QtCore import QRect, Qt
+
+        class PipButton(QWidget):
+            def __init__(self, label, size, parent):
+                super().__init__(parent)
+                self._label = label
+                self._size = size
+                self._hovered = False
+                self.setFixedSize(size, size)
+                self.setCursor(Qt.CursorShape.PointingHandCursor)
+                self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+                self.setAutoFillBackground(False)
+                self.setMouseTracking(True)
+                circle = QRegion(QRect(0, 0, size, size), QRegion.RegionType.Ellipse)
+                self.setMask(circle)
+
+            def set_label(self, label):
+                self._label = label
+                self.update()
+
+            def paintEvent(self, event):
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                r = self._size / 2
+                if self._hovered:
+                    painter.setBrush(QColor(255, 255, 255, 50))
+                    pen = QPen(QColor(255, 255, 255, 220), 2)
+                else:
+                    painter.setBrush(QColor(255, 255, 255, 20))
+                    pen = QPen(QColor(255, 255, 255, 150), 2)
+                painter.setPen(pen)
+                painter.drawEllipse(1, 1, self._size - 2, self._size - 2)
+                painter.setPen(QColor(255, 255, 255, 230))
+                font = QFont()
+                font.setPixelSize(int(self._size * 0.4))
+                painter.setFont(font)
+                painter.drawText(QRect(0, 0, self._size, self._size), Qt.AlignmentFlag.AlignCenter, self._label)
+                painter.end()
+
+            def enterEvent(self, event):
+                self._hovered = True
+                self.update()
+                super().enterEvent(event)
+
+            def leaveEvent(self, event):
+                self._hovered = False
+                self.update()
+                super().leaveEvent(event)
+
+            def mousePressEvent(self, event):
+                if event.button() == Qt.MouseButton.LeftButton:
+                    self.parent()._pip_btn_clicked(self)
+
+        btn = PipButton(text, btn_size, self)
+        return btn
+
+    def _pip_btn_clicked(self, btn):
+        """画中画按钮点击回调"""
+        if btn is getattr(self, '_pip_prev_btn', None):
+            self._pip_prev_channel()
+        elif btn is getattr(self, '_pip_play_btn', None):
+            self._pip_toggle_play()
+        elif btn is getattr(self, '_pip_next_btn', None):
+            self._pip_next_channel()
+
+    def _pip_prev_channel(self):
+        """画中画：上一个频道"""
+        if hasattr(self, 'event_handler'):
+            self.event_handler._switch_channel(-1)
+
+    def _pip_toggle_play(self):
+        """画中画：暂停/播放"""
+        if hasattr(self, 'playback_ctrl'):
+            self.playback_ctrl.toggle_play()
+            self._pip_update_play_btn()
+
+    def _pip_update_play_btn(self):
+        """更新画中画播放/暂停按钮状态"""
+        if not hasattr(self, '_pip_play_btn') or not self._pip_play_btn:
+            return
+        pc = self.player_controller
+        if pc and pc.is_playing:
+            self._pip_play_btn.set_label("⏸")
+        else:
+            self._pip_play_btn.set_label("▶")
+
+    def _pip_next_channel(self):
+        """画中画：下一个频道"""
+        if hasattr(self, 'event_handler'):
+            self.event_handler._switch_channel(1)
+
+    def _pip_get_resize_edge(self, pos):
+        """判断鼠标是否在画中画窗口调整大小边缘区域"""
+        if not getattr(self, '_pip_mode', False):
+            return None
+        margin = 8
+        w = self.width()
+        h = self.height()
+        x, y = pos.x(), pos.y()
+
+        edges = []
+        if x < margin:
+            edges.append('left')
+        if x > w - margin:
+            edges.append('right')
+        if y < margin:
+            edges.append('top')
+        if y > h - margin:
+            edges.append('bottom')
+
+        if not edges:
+            return None
+        return '-'.join(edges)
+
+    def _pip_update_cursor(self, edge):
+        """根据调整大小边缘更新鼠标光标"""
+        if edge is None:
+            self.unsetCursor()
+        elif edge in ('left', 'right'):
+            self.setCursor(Qt.CursorShape.SizeHorCursor)
+        elif edge in ('top', 'bottom'):
+            self.setCursor(Qt.CursorShape.SizeVerCursor)
+        elif edge in ('top-left', 'bottom-right'):
+            self.setCursor(Qt.CursorShape.SizeFDiagCursor)
+        elif edge in ('top-right', 'bottom-left'):
+            self.setCursor(Qt.CursorShape.SizeBDiagCursor)
+        else:
+            self.unsetCursor()
+
+    def _pip_mouse_press(self, event):
+        """画中画模式鼠标按下"""
+        if not getattr(self, '_pip_mode', False):
+            return False
+        if event.button() == Qt.MouseButton.LeftButton:
+            if hasattr(self, '_pip_buttons'):
+                gpos = event.globalPosition().toPoint()
+                for btn in self._pip_buttons:
+                    if btn.isVisible():
+                        btn_rect = btn.geometry()
+                        local_pos = self.mapFromGlobal(gpos)
+                        if btn_rect.contains(local_pos):
+                            return False
+            edge = self._pip_get_resize_edge(event.position().toPoint())
+            if edge:
+                self._pip_resizing = True
+                self._pip_resize_edge = edge
+                self._pip_resize_start_geo = self.geometry()
+                self._pip_resize_start_pos = event.globalPosition().toPoint()
+                return True
+            else:
+                self._pip_dragging = True
+                self._pip_drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+                return True
+        return False
+
+    def _pip_mouse_move(self, event):
+        """画中画模式鼠标移动"""
+        if not getattr(self, '_pip_mode', False):
+            return False
+
+        if self._pip_dragging and self._pip_drag_pos is not None:
+            new_pos = event.globalPosition().toPoint() - self._pip_drag_pos
+            self.move(new_pos)
+            return True
+
+        if self._pip_resizing and self._pip_resize_edge:
+            delta = event.globalPosition().toPoint() - self._pip_resize_start_pos
+            geo = self._pip_resize_start_geo
+            min_w, min_h = 240, 135
+
+            dx_left = 0
+            dx_right = 0
+            dy_top = 0
+            dy_bottom = 0
+
+            if 'left' in self._pip_resize_edge:
+                dx_left = min(delta.x(), geo.width() - min_w)
+            if 'right' in self._pip_resize_edge:
+                dx_right = max(delta.x(), min_w - geo.width())
+            if 'top' in self._pip_resize_edge:
+                dy_top = min(delta.y(), geo.height() - min_h)
+            if 'bottom' in self._pip_resize_edge:
+                dy_bottom = max(delta.y(), min_h - geo.height())
+
+            new_x = geo.x() + dx_left
+            new_y = geo.y() + dy_top
+            new_w = geo.width() - dx_left + dx_right
+            new_h = geo.height() - dy_top + dy_bottom
+
+            self.setGeometry(new_x, new_y, max(min_w, new_w), max(min_h, new_h))
+            self._update_pip_overlay_geometry()
+            return True
+
+        edge = self._pip_get_resize_edge(event.position().toPoint())
+        self._pip_update_cursor(edge)
+        return False
+
+    def _pip_mouse_release(self, event):
+        """画中画模式鼠标释放"""
+        if not getattr(self, '_pip_mode', False):
+            return False
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._pip_dragging = False
+            self._pip_drag_pos = None
+            self._pip_resizing = False
+            self._pip_resize_edge = None
+            self._pip_resize_start_geo = None
+            self._pip_resize_start_pos = None
+            return True
+        return False
+
+    def _update_pip_overlay_geometry(self):
+        """更新画中画控制按钮位置"""
+        if not getattr(self, '_pip_mode', False):
+            return
+        if not hasattr(self, '_pip_buttons'):
+            return
+        btn_size = 44
+        spacing = 16
+        total_w = btn_size * 3 + spacing * 2
+        cx = self.width() // 2
+        cy = self.height() // 2
+        start_x = cx - total_w // 2
+        positions = [
+            (start_x, cy - btn_size // 2),
+            (start_x + btn_size + spacing, cy - btn_size // 2),
+            (start_x + (btn_size + spacing) * 2, cy - btn_size // 2),
+        ]
+        for btn, (x, y) in zip(self._pip_buttons, positions):
+            if btn.isVisible():
+                btn.move(x, y)
+
+    def _show_pip_overlay(self):
+        """显示画中画控制按钮"""
+        if not getattr(self, '_pip_mode', False):
+            return
+        if not hasattr(self, '_pip_buttons'):
+            return
+        self._pip_update_play_btn()
+        for btn in self._pip_buttons:
+            btn.show()
+            btn.raise_()
+        self._update_pip_overlay_geometry()
+
+    def _hide_pip_overlay(self):
+        """隐藏画中画控制按钮"""
+        if not hasattr(self, '_pip_buttons'):
+            return
+        for btn in self._pip_buttons:
+            btn.hide()
 
     _SPEED_STEPS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 5.0]
 
