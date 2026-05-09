@@ -198,31 +198,20 @@ class ScanStateManager(Singleton):
             return False
 
     def add_failed_channel(self, retry_id: str, url: str):
-        """添加失败频道 - 优化版，支持大量URL"""
+        """添加失败频道 - 始终使用集合去重，O(1)查找"""
         with self._lock:
             if retry_id in self._retry_states:
-                failed_channels = self._retry_states[retry_id]['failed_channels']
-                # 对于大量URL，使用集合来快速去重
-                if len(failed_channels) < 100000:  # 小于10万时使用列表
-                    if url not in failed_channels:
-                        failed_channels.append(url)
-                else:
-                    # 大于10万时，转换为集合去重
-                    if hasattr(self._retry_states[retry_id], '_failed_url_set'):
-                        url_set = self._retry_states[retry_id]['_failed_url_set']
-                    else:
-                        url_set = set(failed_channels)
-                        self._retry_states[retry_id]['_failed_url_set'] = url_set
+                state = self._retry_states[retry_id]
+                failed_channels = state['failed_channels']
 
-                    if url not in url_set:
-                        url_set.add(url)
-                        failed_channels.append(url)
+                if '_failed_url_set' not in state:
+                    state['_failed_url_set'] = set(failed_channels)
 
-                        # 定期清理，避免列表过大
-                        if len(failed_channels) % 10000 == 0:
-                            # 每1万个URL清理一次重复项
-                            unique_urls = list(url_set)
-                            self._retry_states[retry_id]['failed_channels'] = unique_urls
+                url_set = state['_failed_url_set']
+
+                if url not in url_set:
+                    url_set.add(url)
+                    failed_channels.append(url)
 
     def get_failed_channels(self, retry_id: str) -> List[str]:
         """获取失败频道列表"""
@@ -302,16 +291,9 @@ class ScanStateManager(Singleton):
             logger.info("已清除所有扫描状态")
 
 
-# 全局扫描状态管理器实例
-_global_scan_state_manager: ScanStateManager | None = None
-
-
 def get_scan_state_manager() -> ScanStateManager:
     """获取全局扫描状态管理器"""
-    global _global_scan_state_manager
-    if _global_scan_state_manager is None:
-        _global_scan_state_manager = ScanStateManager()
-    return _global_scan_state_manager
+    return ScanStateManager()
 
 
 # 便捷函数
