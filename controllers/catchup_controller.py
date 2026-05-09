@@ -62,12 +62,9 @@ class CatchupController:
         self._original_channel = None
         self._catchup_program = None
         self.window.is_catchup_mode = False
-        # 同步清理 window 上的 catchup_program 属性（与 setter 保持一致）
-        if hasattr(self.window, 'catchup_program'):
-            try:
-                delattr(self.window, 'catchup_program')
-            except AttributeError:
-                pass
+        self.window._is_timeshift_mode = False
+        self.window._live_timeshift_seconds = 0
+        self.window.catchup_program = None
 
     def replace_catchup_variables(self, catchup_source, start_time, end_time):
         """替换回看URL中的时间变量占位符
