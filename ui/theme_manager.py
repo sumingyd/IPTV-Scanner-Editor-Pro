@@ -1,29 +1,24 @@
 from PyQt6 import QtCore, QtWidgets
 from ui.styles import AppStyles
+from utils.singleton import Singleton
 
 
-class ThemeManager(QtCore.QObject):
+class ThemeManager(Singleton, QtCore.QObject):
     theme_changed = QtCore.pyqtSignal(str)
 
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
     def __init__(self):
-        super().__init__()
-        if not hasattr(self, '_initialized'):
-            self._initialized = True
-            self._windows = []
-            from core.config_manager import ConfigManager
-            self.config = ConfigManager()
-            saved = self.config.load_theme_settings()
-            if saved in ('default', '默认主题'):
-                saved = 'dark'
-            self._current_theme = saved if saved in AppStyles.get_available_themes() else 'dark'
-            AppStyles.set_theme(self._current_theme)
+        if self._initialized:
+            return
+        QtCore.QObject.__init__(self)
+        self._windows = []
+        from core.config_manager import ConfigManager
+        self.config = ConfigManager()
+        saved = self.config.load_theme_settings()
+        if saved in ('default', '默认主题'):
+            saved = 'dark'
+        self._current_theme = saved if saved in AppStyles.get_available_themes() else 'dark'
+        AppStyles.set_theme(self._current_theme)
+        self._initialized = True
 
     def register_window(self, window: QtWidgets.QWidget):
         if window not in self._windows:
