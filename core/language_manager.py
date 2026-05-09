@@ -2,6 +2,7 @@ import os
 from typing import overload
 from core.log_manager import LogManager
 from PyQt6.QtCore import QObject, pyqtSignal
+from utils.singleton import Singleton
 
 logger = LogManager()
 
@@ -174,6 +175,7 @@ BUILTIN_TRANSLATIONS = {
         'menu_playlist': '播放列表\tL',
         'menu_control_panel': '控制面板\tM',
         'menu_fullscreen': '全屏模式\tF11',
+        'menu_pip': '画中画\tP',
         'menu_refresh': '刷新界面\tF5',
         'menu_reset_layout': '重置布局',
         'menu_tools': '工具',
@@ -200,6 +202,8 @@ BUILTIN_TRANSLATIONS = {
         'paused': '已暂停',
         'stopped': '已停止',
         'play_error': '播放错误',
+        'pip_mode': '画中画模式',
+        'to_exit': '退出',
         'playing_channel': '正在播放: {name}',
         'paused_channel': '已暂停: {name}',
         'stopped_play': '停止播放',
@@ -657,6 +661,7 @@ BUILTIN_TRANSLATIONS = {
         'menu_playlist': 'Playlist\tL',
         'menu_control_panel': 'Control Panel\tM',
         'menu_fullscreen': 'Fullscreen\tF11',
+        'menu_pip': 'Picture-in-Picture\tP',
         'menu_refresh': 'Refresh\tF5',
         'menu_reset_layout': 'Reset Layout',
         'menu_tools': 'Tools',
@@ -683,6 +688,8 @@ BUILTIN_TRANSLATIONS = {
         'paused': 'Paused',
         'stopped': 'Stopped',
         'play_error': 'Play Error',
+        'pip_mode': 'PiP Mode',
+        'to_exit': 'to exit',
         'playing_channel': 'Playing: {name}',
         'paused_channel': 'Paused: {name}',
         'stopped_play': 'Stopped',
@@ -974,14 +981,17 @@ BUILTIN_TRANSLATIONS = {
 }
 
 
-class LanguageManager(QObject):
+class LanguageManager(Singleton, QObject):
     language_changed = pyqtSignal()
 
     def __init__(self):
-        super().__init__()
+        if self._initialized:
+            return
+        QObject.__init__(self)
         self.current_language = 'zh'
         self.translations = {}
         self.available_languages = {}
+        self._initialized = True
 
     def load_available_languages(self):
         if hasattr(self, '_languages_loaded') and self._languages_loaded:
