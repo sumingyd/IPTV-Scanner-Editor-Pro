@@ -5047,6 +5047,11 @@ class IPTVPlayer(QMainWindow):
 
             self._stop_auto_hide_timer()
 
+            self._pip_mode = True
+            self.epg_visible = False
+            self.playlist_visible = False
+            self.floating_panel_visible = False
+
             if hasattr(self, '_title_bar') and self._title_bar:
                 self._title_bar.hide()
             if hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
@@ -5070,6 +5075,7 @@ class IPTVPlayer(QMainWindow):
                 screen = primary.availableGeometry()
             else:
                 logger.error("_enter_pip_mode: 无法获取屏幕信息")
+                self._pip_mode = False
                 self._restore_pip_hidden_elements()
                 return
 
@@ -5085,7 +5091,6 @@ class IPTVPlayer(QMainWindow):
             self.show()
             self.raise_()
 
-            self._pip_mode = True
             self._pip_dragging = False
             self._pip_drag_pos = None
             self._pip_resizing = False
@@ -5096,6 +5101,10 @@ class IPTVPlayer(QMainWindow):
 
             if not hasattr(self, '_pip_buttons') or not self._pip_buttons:
                 self._create_pip_overlay()
+
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(50, self._show_pip_overlay)
+            QTimer.singleShot(50, self._update_pip_video_geometry)
 
             if hasattr(self, '_pip_menu_action') and self._pip_menu_action:
                 self._pip_menu_action.setChecked(True)
@@ -5135,6 +5144,10 @@ class IPTVPlayer(QMainWindow):
             if hasattr(self, '_pip_menu_action') and self._pip_menu_action:
                 self._pip_menu_action.setChecked(False)
 
+            self._pip_exit_status_msg = (
+                self.language_manager.tr('pip_mode', 'PiP Mode') + " " +
+                self.language_manager.tr('pip_exited', 'exited'))
+
             from PyQt6.QtCore import QTimer
             QTimer.singleShot(100, self._restore_pip_hidden_elements)
             QTimer.singleShot(200, self.update_floating_position)
@@ -5173,6 +5186,11 @@ class IPTVPlayer(QMainWindow):
             self.floating_panel_visible = False
         self._floating_hidden = saved.get('floating_hidden', False)
         self._sync_panel_actions()
+
+        exit_msg = getattr(self, '_pip_exit_status_msg', '')
+        if exit_msg:
+            self.status_bar_show_message(exit_msg)
+            self._pip_exit_status_msg = ''
 
     def _create_pip_overlay(self):
         """创建画中画控制按钮（3个独立浮动按钮，不遮挡视频）"""
@@ -5382,6 +5400,7 @@ class IPTVPlayer(QMainWindow):
 
             self.setGeometry(new_x, new_y, max(min_w, new_w), max(min_h, new_h))
             self._update_pip_overlay_geometry()
+            self._update_pip_video_geometry()
             return True
 
         edge = self._pip_get_resize_edge(event.position().toPoint())
@@ -5401,6 +5420,13 @@ class IPTVPlayer(QMainWindow):
             self._pip_resize_start_pos = None
             return True
         return False
+
+    def _update_pip_video_geometry(self):
+        """画中画模式下同步video_widget尺寸到video_frame"""
+        if not getattr(self, '_pip_mode', False):
+            return
+        if hasattr(self, 'video_widget') and self.video_widget and hasattr(self, 'video_frame') and self.video_frame:
+            self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
 
     def _update_pip_overlay_geometry(self):
         """更新画中画控制按钮位置"""
