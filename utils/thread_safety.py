@@ -105,31 +105,11 @@ def run_on_main_thread_async(owner_obj, func, *args, **kwargs) -> Future:
 
 class MainThreadExecutor:
     """主线程执行器 - 用于在主线程中执行任务并获取结果"""
-    
-    _instance = None
-    _lock = threading.Lock()
-    
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    instance = super().__new__(cls)
-                    cls._instance = instance
-        return cls._instance
-    
-    def submit(self, owner_obj, func, *args, **kwargs) -> Future:
-        """提交任务到主线程执行
-        
-        Args:
-            owner_obj: Qt 对象
-            func: 要执行的函数
-            *args, **kwargs: 参数
-            
-        Returns:
-            Future: 异步结果对象
-        """
+
+    @staticmethod
+    def submit(owner_obj, func, *args, **kwargs) -> Future:
+        """提交任务到主线程执行"""
         return run_on_main_thread_async(owner_obj, func, *args, **kwargs)
 
 
-# 全局主线程执行器实例
 main_thread_executor = MainThreadExecutor()
