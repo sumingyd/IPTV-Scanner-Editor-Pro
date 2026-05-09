@@ -382,6 +382,16 @@ class AppStyles:
     def _get_colors():
         return AppStyles.THEME_COLORS.get(AppStyles._current_theme, AppStyles.THEME_COLORS['dark'])
 
+    COLOR_KEYS = frozenset({
+        'accent', 'window', 'window_text', 'base', 'alternate_base',
+        'button', 'button_text', 'button_hover', 'button_pressed',
+        'light', 'mid', 'dark', 'shadow_dark', 'shadow_light',
+        'neumorphic_light', 'neumorphic_dark', 'midlight',
+        'highlight', 'highlighted_text', 'tooltip_base', 'tooltip_text',
+        'table_alternate', 'border', 'border_focus', 'text',
+        'disabled_text', 'bright_text',
+    })
+
     @staticmethod
     def set_theme(theme_name):
         AppStyles._current_theme = theme_name
