@@ -276,10 +276,8 @@ class MemoryManager(Singleton):
 
         for pool_name, pool_stats in stats['object_pools'].items():
             logger.info(f"对象池 {pool_name} - 大小: {pool_stats['pool_size']}/"
-                        f"{pool_stats['max_size']}, 创建: {pool_stats['created']}, "
-                        f"复用: {pool_stats['reused']}")
-
-
+                    f"{pool_stats['max_size']}, 创建: {pool_stats['created']}, "
+                    f"复用: {pool_stats['reused']}")
 
 # 全局内存管理器访问函数
 def get_memory_manager() -> MemoryManager:
