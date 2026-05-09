@@ -89,16 +89,9 @@ class ConfigChangeNotifier(Singleton):
         logger.info("已清除所有配置观察者")
 
 
-# 全局配置变更通知器实例
-_global_config_notifier: ConfigChangeNotifier | None = None
-
-
 def get_config_notifier() -> ConfigChangeNotifier:
     """获取全局配置变更通知器"""
-    global _global_config_notifier
-    if _global_config_notifier is None:
-        _global_config_notifier = ConfigChangeNotifier()
-    return _global_config_notifier
+    return ConfigChangeNotifier()
 
 
 def register_config_observer(config_key: str, callback: Callable):
@@ -139,46 +132,39 @@ def on_config_change(config_key: str):
     return decorator
 
 
-# 配置变更上下文管理器
+_config_manager = None
+
+
+def _get_config_manager():
+    global _config_manager
+    if _config_manager is None:
+        from core.config_manager import ConfigManager
+        _config_manager = ConfigManager()
+    return _config_manager
+
+
 class ConfigChangeContext:
     """配置变更上下文管理器"""
-    _config = None
 
     def __init__(self, section: str, key: str, old_value: Any):
         self.section = section
         self.key = key
         self.old_value = old_value
+        self._config = _get_config_manager()
 
     def __enter__(self):
-        """进入上下文"""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """退出上下文时通知变更"""
         if exc_type is None:
-            if self._config is None:
-                from core.config_manager import ConfigManager
-                ConfigChangeContext._config = ConfigManager()
             new_value = self._config.get_value(self.section, self.key)
             if new_value != self.old_value:
                 notify_config_change(self.section, self.key, self.old_value, new_value)
-
         return False
 
 
-# 便捷函数：创建配置变更上下文
 def config_change_context(section: str, key: str):
-    """创建配置变更上下文管理器（便捷函数）
-
-    Args:
-        section: 配置节
-        key: 配置键
-
-    Returns:
-        配置变更上下文管理器
-    """
-    if ConfigChangeContext._config is None:
-        from core.config_manager import ConfigManager
-        ConfigChangeContext._config = ConfigManager()
-    old_value = ConfigChangeContext._config.get_value(section, key)
+    """创建配置变更上下文管理器"""
+    config = _get_config_manager()
+    old_value = config.get_value(section, key)
     return ConfigChangeContext(section, key, old_value)
