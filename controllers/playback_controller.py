@@ -76,15 +76,15 @@ class PlaybackController:
         """重置所有UI元素到初始状态"""
         ui_elements = {
             'play_button': ("▶", "setText"),
-            'channel_name': ("no_channel_selected", "setText_tr"),
-            'current_program': ("select_channel_to_play", "setText_tr"),
+            'channel_name': ("no_channel_selected,No Channel Selected", "setText_tr"),
+            'current_program': ("select_channel_to_play,Select a channel to play", "setText_tr"),
             'channel_logo': (None, "clear_pixmap"),
-            'video_info': ("not_playing", "setText_tr_prefix"),
+            'video_info': ("not_playing,Not Playing", "setText_tr_prefix"),
             'audio_info': ("🔊 --", "setText"),
             'network_info': ("📡 --", "setText"),
-            'program_desc': ("open_playlist_or_import", "setText_tr"),
+            'program_desc': ("open_playlist_or_import,Open playlist or import file", "setText_tr"),
             'time_label': ("⏱ --:-- - --:--", "setText"),
-            'remain_label': ("waiting_to_play", "setText_tr"),
+            'remain_label': ("waiting_to_play,Waiting to play", "setText_tr"),
             'progress_start': ("--:--", "setText"),
             'progress_end': ("--:--", "setText"),
         }
@@ -99,10 +99,16 @@ class PlaybackController:
                 element.setText(value)
             elif action == "setText_tr" and hasattr(self.window, 'language_manager'):
                 tr = self.window.language_manager.tr
-                element.setText(tr(value.split(',')[0], value.split(',')[1]) if ',' in value else tr(value))
+                parts = value.split(',', 1)
+                key = parts[0]
+                fallback = parts[1] if len(parts) > 1 else key
+                element.setText(tr(key, fallback) or fallback)
             elif action == "setText_tr_prefix" and hasattr(self.window, 'language_manager'):
                 tr = self.window.language_manager.tr
-                element.setText(f"📺 {tr(value)}")
+                parts = value.split(',', 1)
+                key = parts[0]
+                fallback = parts[1] if len(parts) > 1 else key
+                element.setText(f"📺 {tr(key, fallback) or fallback}")
             elif action == "clear_pixmap":
                 from utils.general_utils import set_default_channel_logo
                 set_default_channel_logo(element, element.width() or 100, element.height() or 36)
@@ -120,39 +126,34 @@ class PlaybackController:
 
     def toggle_mute(self):
         """切换静音/取消静音"""
-        if not hasattr(self.window, 'player_controller') or not self.window.player_controller:
+        if not self.window.player_controller:
             return
-            
+
         if self._is_muted:
-            # 取消静音
             self._is_muted = False
-            if hasattr(self.window, 'player_controller'):
-                self.window.player_controller.set_volume(self._pre_mute_volume)
-            if hasattr(self.window, 'volume_slider'):
+            self.window.player_controller.set_volume(self._pre_mute_volume)
+            if self.window.volume_slider:
                 self.window.volume_slider.setValue(self._pre_mute_volume)
             self._update_volume_icon(self._pre_mute_volume)
         else:
-            # 静音
             self._is_muted = True
-            if hasattr(self.window, 'player_controller'):
-                self._pre_mute_volume = self.window.player_controller.get_volume()
-                self.window.player_controller.set_volume(0)
-            if hasattr(self.window, 'volume_slider'):
+            self._pre_mute_volume = self.window.player_controller.get_volume()
+            self.window.player_controller.set_volume(0)
+            if self.window.volume_slider:
                 self.window.volume_slider.setValue(0)
-            if hasattr(self.window, 'volume_button'):
-                self.window.volume_button.setText("🔇")
+            self._update_volume_icon(0)
 
     def _update_volume_icon(self, volume: int):
         """根据音量更新音量图标"""
-        if not hasattr(self.window, 'volume_button'):
+        if not self.window.volume_button:
             return
-            
+
         if volume == 0:
-            self.window.volume_button.setText("🔇")
+            self.window.volume_button.setText("\U0001f507")
         elif volume < 50:
-            self.window.volume_button.setText("🔉")
+            self.window.volume_button.setText("\U0001f509")
         else:
-            self.window.volume_button.setText("🔊")
+            self.window.volume_button.setText("\U0001f50a")
 
     def play_channel(self, channel: Dict[str, Any]):
         """播放指定频道（带防抖动保护）"""
