@@ -44,13 +44,8 @@ class MappingManagerDialog(FloatingDialog):
         colors = AppStyles._get_colors()
         self.opacity = colors.get('window_opacity', 220)
 
-        if parent and hasattr(parent, 'language_manager'):
-            self.language_manager = parent.language_manager
-        else:
-            from core.language_manager import LanguageManager
-            self.language_manager = LanguageManager()
-            self.language_manager.load_available_languages()
-            self.language_manager.set_language('zh')
+        from core.language_manager import LanguageManager
+        self.language_manager = LanguageManager()
 
         self.setWindowTitle(self.language_manager.tr('mapping_manager', 'Channel Mapping Manager'))
         self.setMinimumSize(700, 500)
@@ -72,28 +67,34 @@ class MappingManagerDialog(FloatingDialog):
         from ui.styles import AppStyles
         self.setStyleSheet(AppStyles.dialog_style())
 
+        from ui.styles import AppStyles
+        colors = AppStyles._get_colors()
+        accent_color = colors.get('accent', '#4682B4')
+        text_color = colors.get('window_text', '#d0e0f0')
+        text_secondary = colors.get('text_secondary', '#90a0b0')
+
         info_box = QtWidgets.QFrame()
-        info_box.setStyleSheet("""
-            QFrame {
+        info_box.setStyleSheet(f"""
+            QFrame {{
                 background-color: rgba(70, 130, 180, 0.15);
                 border-radius: 8px;
                 border: 1px solid rgba(70, 130, 180, 0.3);
                 padding: 4px;
-            }
-            QLabel { color: #d0e0f0; border: none; background: transparent; }
+            }}
+            QLabel {{ color: {text_color}; border: none; background: transparent; }}
         """)
         info_layout = QtWidgets.QVBoxLayout(info_box)
         info_layout.setContentsMargins(16, 10, 16, 10)
 
         title_label = QtWidgets.QLabel(_('mapping_tip_title', '📡 Channel Name Mapping'))
-        title_label.setStyleSheet("font-size: 14px; font-weight: bold; color: #ffffff; border: none; background: transparent;")
+        title_label.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {text_color}; border: none; background: transparent;")
         info_layout.addWidget(title_label)
 
         tip_text = _('mapping_tip_desc',
             'Remote mapping automatically standardizes channel names.\n'
             'If the mapping file is updated, click the button below to refresh.')
         tip_label = QtWidgets.QLabel(tip_text)
-        tip_label.setStyleSheet("color: #c0d0e0; border: none; background: transparent; line-height: 1.5;")
+        tip_label.setStyleSheet(f"color: {text_secondary}; border: none; background: transparent; line-height: 1.5;")
         tip_label.setWordWrap(True)
         info_layout.addWidget(tip_label)
         layout.addWidget(info_box)
@@ -104,7 +105,7 @@ class MappingManagerDialog(FloatingDialog):
         self.refresh_cache_btn = QtWidgets.QPushButton(_('refresh_remote_mapping', '🔄 Refresh Remote Mapping'))
         self.refresh_cache_btn.setStyleSheet(f"""
             QPushButton {{
-                background-color: #4682B4;
+                background-color: {accent_color};
                 color: white;
                 border: none;
                 border-radius: 6px;
@@ -122,7 +123,7 @@ class MappingManagerDialog(FloatingDialog):
 
         self.update_status_label = QtWidgets.QLabel('')
         self.update_status_label.setStyleSheet(
-            "color: #90a0b0; font-size: 11px; border: none; background: transparent; padding: 4px 8px;"
+            f"color: {text_secondary}; font-size: 11px; border: none; background: transparent; padding: 4px 8px;"
         )
         self.update_status_label.setWordWrap(True)
         layout.addWidget(self.update_status_label)
