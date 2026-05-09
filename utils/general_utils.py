@@ -400,3 +400,35 @@ def is_file_association_registered() -> bool:
     return is_extension_registered('.m3u')
 
 
+def calculate_adaptive_delay(base_delay_ms: int = 200, min_delay_ms: int = 50, max_delay_ms: int = 500) -> int:
+    """根据设备性能自适应计算延迟时间"""
+    try:
+        import psutil
+        memory_gb = psutil.virtual_memory().total / (1024 ** 3)
+        cpu_count = psutil.cpu_count() or 2
+        if memory_gb > 8 and cpu_count > 4:
+            factor = 0.5
+        elif memory_gb >= 4 and cpu_count >= 2:
+            factor = 1.0
+        else:
+            factor = 1.5
+        adaptive_delay = int(base_delay_ms * factor)
+        return max(min_delay_ms, min(max_delay_ms, adaptive_delay))
+    except ImportError:
+        return base_delay_ms
+    except Exception:
+        return base_delay_ms
+
+
+def suppress_urllib3_warnings():
+    """抑制 urllib3 SSL 警告"""
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    try:
+        import logging as _logging
+        _logging.getLogger('urllib3').setLevel(_logging.CRITICAL)
+        _logging.getLogger('urllib3.connectionpool').setLevel(_logging.CRITICAL)
+    except Exception:
+        pass
+
+
