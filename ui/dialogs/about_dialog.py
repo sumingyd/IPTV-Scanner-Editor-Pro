@@ -19,12 +19,8 @@ class AboutDialog(FloatingDialog):
     def __init__(self, parent=None):
         super().__init__(parent, stay_on_top=False)
         self.current_version = self.CURRENT_VERSION
-        self.language_manager = getattr(parent, 'language_manager', None)
-        if not self.language_manager:
-            from core.language_manager import LanguageManager
-            self.language_manager = LanguageManager()
-            self.language_manager.load_available_languages()
-            self.language_manager.set_language('zh')
+        from core.language_manager import LanguageManager
+        self.language_manager = LanguageManager()
         from ..styles import AppStyles
         self._colors = AppStyles._get_colors()
         self._init_ui()
