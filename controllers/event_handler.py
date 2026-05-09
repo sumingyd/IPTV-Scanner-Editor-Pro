@@ -315,6 +315,8 @@ class EventHandler:
         if getattr(self.window, '_pip_mode', False):
             if hasattr(self.window, '_update_pip_overlay_geometry'):
                 self.window._update_pip_overlay_geometry()
+            if hasattr(self.window, '_update_pip_video_geometry'):
+                self.window._update_pip_video_geometry()
             return
         if hasattr(self.window, 'update_floating_position'):
             self.window.update_floating_position()
