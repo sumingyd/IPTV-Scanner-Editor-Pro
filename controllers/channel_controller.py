@@ -3,12 +3,12 @@
 从 pyqt_player.py 提取的独立模块
 """
 
-import sys
 from typing import Dict, Any, Optional
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QListWidgetItem
 
 from core.log_manager import global_logger as logger
+from core.application_state import app_state
 from utils.general_utils import get_display_channel_name
 
 
@@ -25,9 +25,7 @@ class ChannelController:
 
         self.window.channel_list.clear()
 
-        # 获取频道数据（从全局变量 CHANNELS）
-        main_module = sys.modules.get('__main__')
-        channels = getattr(main_module, 'CHANNELS', []) if main_module else []
+        channels = app_state.channels
 
         if not channels:
             logger.debug("频道数据为空，跳过填充")
@@ -35,27 +33,24 @@ class ChannelController:
 
         for i, channel in enumerate(channels):
             item = QListWidgetItem()
-            
-            # 构建显示文本
+
             name = channel.get('name', '')
             group = channel.get('group', '')
             resolution = channel.get('resolution', '')
-            
+
             display_text = f"{name}"
             if resolution:
                 display_text += f" [{resolution}]"
             if group:
                 display_text += f" - {group}"
-                
+
             item.setText(display_text)
             item.setData(Qt.ItemDataRole.UserRole, channel)
-            
-            # 设置图标（如果有logo）
+
             logo_url = channel.get('logo_url')
             if logo_url:
-                # TODO: 异步加载logo
                 pass
-            
+
             self.window.channel_list.addItem(item)
 
     def on_group_changed(self, group_name: str):
@@ -98,9 +93,7 @@ class ChannelController:
                 if self.window.playlist_tab.currentIndex() == 1:
                     return self.window._local_channels
             return self.window._sub_channels
-        import sys
-        main_module = sys.modules.get('__main__')
-        return getattr(main_module, 'CHANNELS', []) if main_module else []
+        return app_state.channels
 
     def _get_display_channel_name(self, channel: Dict[str, Any]) -> str:
         """获取频道的显示名称（委托给通用工具函数）"""
@@ -111,30 +104,27 @@ class ChannelController:
         """更新频道信息显示区域"""
         if not hasattr(self.window, 'channel_name'):
             return
-            
+
         display_name = self._get_display_channel_name(channel)
         self.window.channel_name.setText(display_name)
-        
-        # 更新其他信息
+
         if hasattr(self.window, 'channel_logo'):
             logo_url = channel.get('logo_url')
             if logo_url:
-                # TODO: 加载并显示logo
                 pass
             else:
                 self.window.channel_logo.setText("📺")
-        
-        # 更新分辨率等信息
+
         if hasattr(self.window, 'video_info'):
             resolution = channel.get('resolution', '')
             if resolution:
                 self.window.video_info.setText(f"📺 {resolution}")
-    
+
     def update_channel_info_on_selection(self):
         """当选择变化时更新频道信息"""
         if not hasattr(self.window, 'channel_list'):
             return
-            
+
         current_item = self.window.channel_list.currentItem()
         if current_item:
             self.select_channel(current_item)
@@ -142,9 +132,7 @@ class ChannelController:
     @property
     def channel_count(self) -> int:
         """当前频道数量"""
-        main_module = sys.modules.get('__main__')
-        channels = getattr(main_module, 'CHANNELS', []) if main_module else []
-        return len(channels)
+        return len(app_state.channels)
 
     @property
     def current_group(self) -> str:
