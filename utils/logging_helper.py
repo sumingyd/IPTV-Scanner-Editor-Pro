@@ -186,136 +186,31 @@ def log_class_methods(cls):
     return cls
 
 
-# 便捷函数
-def log_config_error(message: str, exc_info: bool = False):
-    """记录配置错误"""
-    logging_helper.log_error('config_error', message, exc_info)
+# 便捷函数 —— 通过工厂函数动态生成，消除重复样板代码
+def _make_log_func(category: str, level: str):
+    """工厂函数：生成指定类别和级别的日志函数"""
+    if level == 'error':
+        def _log_func(message: str, exc_info: bool = False):
+            logging_helper.log_error(f'{category}_error', message, exc_info)
+        return _log_func
+    elif level == 'warning':
+        def _log_func(message: str):
+            logging_helper.log_warning(f'{category}_warning', message)
+        return _log_func
+    elif level == 'info':
+        def _log_func(message: str):
+            logging_helper.log_info(f'{category}_info', message)
+        return _log_func
+
+_categories = ['config', 'network', 'file', 'ui', 'scan', 'validation', 'player']
+for _cat in _categories:
+    for _lvl in ['error', 'warning', 'info']:
+        _func_name = f'log_{_cat}_{_lvl}'
+        globals()[_func_name] = _make_log_func(_cat, _lvl)
 
 
-def log_network_error(message: str, exc_info: bool = False):
-    """记录网络错误"""
-    logging_helper.log_error('network_error', message, exc_info)
-
-
-def log_file_error(message: str, exc_info: bool = False):
-    """记录文件错误"""
-    logging_helper.log_error('file_error', message, exc_info)
-
-
-def log_ui_error(message: str, exc_info: bool = False):
-    """记录UI错误"""
-    logging_helper.log_error('ui_error', message, exc_info)
-
-
-def log_scan_error(message: str, exc_info: bool = False):
-    """记录扫描错误"""
-    logging_helper.log_error('scan_error', message, exc_info)
-
-
-def log_validation_error(message: str, exc_info: bool = False):
-    """记录验证错误"""
-    logging_helper.log_error('validation_error', message, exc_info)
-
-
-def log_player_error(message: str, exc_info: bool = False):
-    """记录播放器错误"""
-    logging_helper.log_error('player_error', message, exc_info)
-
-
-def log_config_warning(message: str):
-    """记录配置警告"""
-    logging_helper.log_warning('config_warning', message)
-
-
-def log_network_warning(message: str):
-    """记录网络警告"""
-    logging_helper.log_warning('network_warning', message)
-
-
-def log_file_warning(message: str):
-    """记录文件警告"""
-    logging_helper.log_warning('file_warning', message)
-
-
-def log_ui_warning(message: str):
-    """记录UI警告"""
-    logging_helper.log_warning('ui_warning', message)
-
-
-def log_scan_warning(message: str):
-    """记录扫描警告"""
-    logging_helper.log_warning('scan_warning', message)
-
-
-def log_validation_warning(message: str):
-    """记录验证警告"""
-    logging_helper.log_warning('validation_warning', message)
-
-
-def log_player_warning(message: str):
-    """记录播放器警告"""
-    logging_helper.log_warning('player_warning', message)
-
-
-def log_config_info(message: str):
-    """记录配置信息"""
-    logging_helper.log_info('config_info', message)
-
-
-def log_network_info(message: str):
-    """记录网络信息"""
-    logging_helper.log_info('network_info', message)
-
-
-def log_file_info(message: str):
-    """记录文件信息"""
-    logging_helper.log_info('file_info', message)
-
-
-def log_ui_info(message: str):
-    """记录UI信息"""
-    logging_helper.log_info('ui_info', message)
-
-
-def log_scan_info(message: str):
-    """记录扫描信息"""
-    logging_helper.log_info('scan_info', message)
-
-
-def log_validation_info(message: str):
-    """记录验证信息"""
-    logging_helper.log_info('validation_info', message)
-
-
-def log_player_info(message: str):
-    """记录播放器信息"""
-    logging_helper.log_info('player_info', message)
-
-
-# 导出常用函数
 __all__ = [
     'logging_helper',
     'log_function_call',
     'log_class_methods',
-    'log_config_error',
-    'log_network_error',
-    'log_file_error',
-    'log_ui_error',
-    'log_scan_error',
-    'log_validation_error',
-    'log_player_error',
-    'log_config_warning',
-    'log_network_warning',
-    'log_file_warning',
-    'log_ui_warning',
-    'log_scan_warning',
-    'log_validation_warning',
-    'log_player_warning',
-    'log_config_info',
-    'log_network_info',
-    'log_file_info',
-    'log_ui_info',
-    'log_scan_info',
-    'log_validation_info',
-    'log_player_info',
-]
+] + [f'log_{cat}_{lvl}' for cat in _categories for lvl in ['error', 'warning', 'info']]
