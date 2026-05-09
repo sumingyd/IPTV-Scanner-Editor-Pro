@@ -6,6 +6,8 @@ import hashlib
 import time
 import threading
 from typing import Dict, List, Optional
+import functools
+
 from core.log_manager import global_logger as logger
 
 
@@ -699,21 +701,13 @@ class ChannelMappingManager:
         self.logger.info("远程映射缓存已刷新")
 
 
-# 创建全局映射管理器实例（延迟加载）
-_mapping_manager_instance = None
-
-
 def get_mapping_manager():
     """获取映射管理器实例（延迟加载）"""
-    global _mapping_manager_instance
-    if _mapping_manager_instance is None:
-        _mapping_manager_instance = ChannelMappingManager()
-    return _mapping_manager_instance
+    return ChannelMappingManager()
 
 
 class MappingManagerProxy:
     """映射管理器代理类，提供延迟加载功能"""
-
     def __init__(self):
         self._manager = None
 
