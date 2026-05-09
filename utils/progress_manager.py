@@ -182,16 +182,9 @@ class ProgressManager(Singleton):
         return self._current_task
 
 
-# 全局进度条管理器实例
-_global_progress_manager: Optional[ProgressManager] = None
-
-
 def get_progress_manager() -> ProgressManager:
     """获取全局进度条管理器"""
-    global _global_progress_manager
-    if _global_progress_manager is None:
-        _global_progress_manager = ProgressManager()
-    return _global_progress_manager
+    return ProgressManager()
 
 
 def init_progress_manager(
