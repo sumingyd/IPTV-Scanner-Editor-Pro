@@ -17,4 +17,6 @@ class Singleton:
     @classmethod
     def reset_instance(cls):
         with Singleton._global_lock:
-            Singleton._instances.pop(cls, None)
+            instance = Singleton._instances.pop(cls, None)
+            if instance is not None:
+                instance._initialized = False
