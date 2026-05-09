@@ -78,16 +78,9 @@ class ResourceCleaner(Singleton):
             logger.info(f"已清除所有清理处理器，共 {handler_count} 个")
 
 
-# 全局资源清理器实例（通过 Singleton 保证唯一，_global_cleaner 作为模块级快捷访问）
-_global_cleaner: Optional[ResourceCleaner] = None
-
-
 def get_resource_cleaner() -> ResourceCleaner:
     """获取全局资源清理器"""
-    global _global_cleaner
-    if _global_cleaner is None:
-        _global_cleaner = ResourceCleaner()
-    return _global_cleaner
+    return ResourceCleaner()
 
 
 def register_cleanup(handler: Callable, name: Optional[str] = None):
