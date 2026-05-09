@@ -48,8 +48,6 @@ class TranslucentPanel(QFrame):
         super().keyPressEvent(event)
 
     def paintEvent(self, event):
-        from PyQt6.QtGui import QPainterPath
-        from PyQt6.QtCore import QRectF
         from ui.styles import AppStyles
 
         painter = QPainter(self)
