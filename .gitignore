@@ -191,6 +191,7 @@ channel_fingerprints.json
 channel_mappings_cache.json
 channel_mappings_cache.json.etag
 epg_cache/
+screenshots/
 
 # 台标缓存
 logo_cache/
