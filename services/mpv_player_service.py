@@ -77,6 +77,15 @@ try:
             ('data', ctypes.c_void_p)
         ]
 
+    class mpv_event_end_file(ctypes.Structure):
+        _fields_ = [
+            ('reason', ctypes.c_int),
+            ('error', ctypes.c_int),
+            ('playlist_entry_id', ctypes.c_int64),
+            ('playlist_insert_id', ctypes.c_int64),
+            ('playlist_insert_num_entries', ctypes.c_int),
+        ]
+
     MPV_EVENT_NONE = 0
     MPV_EVENT_SHUTDOWN = 1
     MPV_EVENT_LOG_MESSAGE = 2
@@ -188,6 +197,8 @@ class MpvPlayerController(QObject):
     play_state_changed = pyqtSignal(bool)
     live_media_info_updated = pyqtSignal(dict)
     playback_position_updated = pyqtSignal(float, float, float)
+    reconnect_requested = pyqtSignal(str)
+    thumbnail_captured = pyqtSignal(str)
 
     def __init__(self, video_widget, channel_model=None):
         super().__init__()
@@ -204,6 +215,10 @@ class MpvPlayerController(QObject):
         self._current_speed = 1.0
         self._live_info_timer = None
         self._last_volume = 80
+        self._reconnect_count = 0
+        self._max_reconnect = 3
+        self._user_stopped = False
+        self._switching_channel = False
 
         try:
             if libmpv is None:
@@ -451,20 +466,38 @@ class MpvPlayerController(QObject):
 
                 # 处理属性变化事件
                 if event.event_id == MPV_EVENT_PROPERTY_CHANGE:
-                    self.logger.debug(f"收到属性变化事件，userdata={event.reply_userdata}")
-                    # 属性变化时立即获取一次信息
-                    if hasattr(self, '_live_info_timer') and self._live_info_timer:
-                        info = self.get_live_media_info()
-                        if info:
-                            try:
-                                self.live_media_info_updated.emit(info)
-                            except RuntimeError:
-                                pass
+                    pass
 
                 # 处理文件加载完成事件
                 elif event.event_id == MPV_EVENT_FILE_LOADED:
                     self.logger.debug("文件加载完成事件")
+                    self._reconnect_count = 0
+                    self._switching_channel = False
                     self._schedule_media_info_start()
+
+                # 处理播放结束事件
+                elif event.event_id == MPV_EVENT_END_FILE:
+                    if event.data:
+                        end_file = ctypes.cast(event.data, ctypes.POINTER(mpv_event_end_file)).contents
+                        reason = end_file.reason
+                        self.logger.debug(f"播放结束事件, reason={reason}, error={end_file.error}")
+                        if reason == 0:
+                            pass
+                        elif reason in (1, 2, 3):
+                            if self._switching_channel:
+                                self.logger.debug("频道切换导致的END_FILE，忽略重连")
+                                self._switching_channel = False
+                            elif not self._user_stopped and self.current_url:
+                                self.is_playing = False
+                                self.is_paused = False
+                                self.play_state_changed.emit(False)
+                                if self._reconnect_count < self._max_reconnect:
+                                    self._reconnect_count += 1
+                                    self.logger.info(f"断线自动重连 ({self._reconnect_count}/{self._max_reconnect})")
+                                    self.reconnect_requested.emit(self.current_url)
+                                else:
+                                    self.logger.info("已达最大重连次数，停止重连")
+                                    self._reconnect_count = 0
 
         except Exception as e:
             self.logger.error(f"处理 mpv 事件失败：{str(e)}")
@@ -472,6 +505,8 @@ class MpvPlayerController(QObject):
     def play(self, url, channel_name=None, program_duration=0, **kwargs):
         try:
             self.current_url = url
+            self._user_stopped = False
+            self._switching_channel = True
 
             if not self.mpv_handle:
                 self.logger.error("mpv播放器未初始化")
@@ -518,6 +553,8 @@ class MpvPlayerController(QObject):
     def play_with_prefetch(self, url, next_urls=None, program_duration=0):
         try:
             self.current_url = url
+            self._user_stopped = False
+            self._switching_channel = True
 
             if not self.mpv_handle:
                 self.play_error.emit("mpv播放器未初始化")
@@ -555,6 +592,7 @@ class MpvPlayerController(QObject):
 
     def stop(self):
         try:
+            self._user_stopped = True
             was_playing = self.is_playing or self.current_url
 
             if self.mpv_handle:
@@ -1043,6 +1081,47 @@ class MpvPlayerController(QObject):
         self._media_info_timer = QTimer(self)
         self._media_info_timer.singleShot(1000, self._start_live_info_timer)
 
+        QTimer(self).singleShot(3000, self._capture_thumbnail)
+
+    def _capture_thumbnail(self):
+        """播放3秒后自动截取画面作为缩略图"""
+        if not self.is_playing or not self.current_url:
+            return
+        try:
+            import os
+            import hashlib
+            cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', 'thumbnails')
+            os.makedirs(cache_dir, exist_ok=True)
+            url_hash = hashlib.md5(self.current_url.encode('utf-8')).hexdigest()
+            filepath = os.path.join(cache_dir, f"{url_hash}.png")
+            if os.path.exists(filepath):
+                return
+            self.send_command(['screenshot-to-file', filepath, 'video'])
+            QTimer.singleShot(1500, lambda: self._check_thumbnail_saved(filepath))
+        except Exception as e:
+            self.logger.debug(f"缩略图截取失败: {e}")
+
+    def _check_thumbnail_saved(self, filepath):
+        """检查截图是否已保存，若已保存则发射信号"""
+        try:
+            if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
+                self.thumbnail_captured.emit(self.current_url)
+        except Exception:
+            pass
+
+    @staticmethod
+    def get_thumbnail_path(url):
+        """获取频道URL对应的缩略图路径"""
+        if not url:
+            return None
+        import os
+        import hashlib
+        cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', 'thumbnails')
+        filepath = os.path.join(cache_dir, f"{hashlib.md5(url.encode('utf-8')).hexdigest()}.png")
+        if os.path.exists(filepath):
+            return filepath
+        return None
+
     @staticmethod
     def _guess_protocol(url):
         if not url:
@@ -1159,6 +1238,84 @@ class MpvPlayerController(QObject):
             return eof and eof.lower() == 'yes'
         except Exception:
             return False
+
+    def get_buffer_state(self):
+        """获取缓冲状态信息"""
+        try:
+            if not self.mpv_handle:
+                return None
+            cache_state_str = self._get_mpv_property_string('demuxer-cache-state')
+            cache_duration = 0
+            buffering = False
+            if cache_state_str:
+                try:
+                    import json
+                    cache_state = json.loads(cache_state_str)
+                    seekable_ranges = cache_state.get('seekable-ranges', [])
+                    if seekable_ranges:
+                        first = seekable_ranges[0]
+                        cache_duration = first.get('end', 0) - first.get('start', 0)
+                    buffering = cache_state.get('eof', False) is False and cache_state.get('underrun', False)
+                except:
+                    pass
+            if cache_duration <= 0:
+                dur = self._get_mpv_property_double('demuxer-cache-duration') or 0
+                if dur > 0:
+                    cache_duration = dur
+            paused_for_cache = self._get_mpv_property_string('paused-for-cache')
+            if paused_for_cache == 'yes':
+                buffering = True
+            return {
+                'cache_duration': cache_duration,
+                'buffering': buffering
+            }
+        except:
+            return None
+
+    def get_track_list(self, track_type='audio'):
+        """获取音轨或字幕轨道列表"""
+        try:
+            if not self.mpv_handle:
+                return []
+            track_list_str = self._get_mpv_property_string('track-list')
+            if not track_list_str:
+                return []
+            import json
+            tracks = json.loads(track_list_str)
+            result = []
+            for t in tracks:
+                if t.get('type') == track_type:
+                    result.append({
+                        'id': t.get('id', 0),
+                        'lang': t.get('lang', ''),
+                        'title': t.get('title', ''),
+                        'default': t.get('default', False),
+                        'codec': t.get('codec', ''),
+                    })
+            return result
+        except:
+            return []
+
+    def set_track(self, track_type, track_id):
+        """切换音轨或字幕轨道"""
+        try:
+            if not self.mpv_handle:
+                return
+            prop = f'{track_type}-track' if track_type in ('audio', 'sub') else track_type
+            self._set_mpv_string(prop, str(track_id))
+        except Exception as e:
+            self.logger.error(f"切换轨道失败: {e}")
+
+    def get_current_track(self, track_type='audio'):
+        """获取当前选中的轨道ID"""
+        try:
+            if not self.mpv_handle:
+                return None
+            prop = f'{track_type}-track' if track_type in ('audio', 'sub') else track_type
+            val = self._get_mpv_property_int(prop)
+            return val
+        except:
+            return None
 
     def set_property_string(self, name, value):
         self._set_mpv_string(name, value)
