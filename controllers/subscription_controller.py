@@ -4,7 +4,6 @@
 """
 
 import re
-import sys
 import hashlib
 import os
 import requests
@@ -48,8 +47,6 @@ class SubscriptionController:
     def handle_playlist_subscription(self, need_update: bool, playlist_url: str, source_index=None):
         """在后台线程中处理列表订阅（按源索引独立判断）"""
         try:
-            global CHANNELS
-
             if not playlist_url:
                 logger.debug("无播放列表URL，跳过订阅处理")
                 return
@@ -165,25 +162,14 @@ class SubscriptionController:
                         )
                         break
 
-            # 获取主模块和 ApplicationState
-            import sys
-            main_module = sys.modules.get('__main__')
-            app_state = getattr(__import__('core.application_state', fromlist=['application_state']), 'app_state', None)
+            # 获取 ApplicationState
+            from core.application_state import app_state
 
-            # 同时更新所有相关的数据源（关键：必须修改原列表对象，而不是创建新列表）
+            # 更新 ApplicationState 的频道数据（使用 clear + extend 保持引用不变）
+            app_state._channels.clear()
+            app_state._channels.extend(channels_data)
 
-            # 1. 更新 ApplicationState 的 _channels（使用 clear + extend 保持引用不变）
-            if app_state and hasattr(app_state, '_channels'):
-                app_state._channels.clear()
-                app_state._channels.extend(channels_data)
-
-            # 2. 更新 __main__ 模块的 CHANNELS（如果存在且是同一个对象）
-            if main_module and hasattr(main_module, 'CHANNELS'):
-                if main_module.CHANNELS is not app_state._channels:
-                    main_module.CHANNELS.clear()
-                    main_module.CHANNELS.extend(channels_data)
-
-            # 3. 记录文件头EPG地址（在订阅EPG加载后再作为补充源加载）
+            # 记录文件头EPG地址（在订阅EPG加载后再作为补充源加载）
             epg_url = header_attrs.get('epg_url', '')
             if epg_url:
                 self._last_header_epg_url = epg_url
@@ -382,7 +368,6 @@ class SubscriptionController:
         logger.debug("start_subscription_timers: 开始")
 
         try:
-            global EPG_DATA, CHANNELS
 
             active_source = global_subscription_manager.get_active_playlist_source()
             playlist_url = active_source.get('url', '') if active_source else ''
@@ -438,9 +423,9 @@ class SubscriptionController:
             logger.debug("EPG缓存有效，从本地缓存加载")
             cached_loaded = global_subscription_manager.load_cached_epg_data()
             if cached_loaded:
-                main_module = sys.modules.get('__main__')
-                if main_module:
-                    main_module.EPG_DATA = global_subscription_manager._epg_data
+                from core.application_state import app_state
+                app_state._epg_data.clear()
+                app_state._epg_data.update(global_subscription_manager._epg_data)
                 success = True
             else:
                 logger.warning("EPG缓存加载失败，重新下载")
@@ -450,9 +435,9 @@ class SubscriptionController:
             logger.info("EPG缓存无效或不存在，重新下载所有EPG源")
             success = global_subscription_manager.load_all_epg_data(status_callback)
             if success:
-                main_module = sys.modules.get('__main__')
-                if main_module:
-                    main_module.EPG_DATA = global_subscription_manager._epg_data
+                from core.application_state import app_state
+                app_state._epg_data.clear()
+                app_state._epg_data.update(global_subscription_manager._epg_data)
 
             # EPG重新下载时，补充加载M3U文件头中的EPG
             header_epg_url = getattr(self, '_last_header_epg_url', None)
@@ -466,9 +451,9 @@ class SubscriptionController:
                     try:
                         header_success = global_subscription_manager.load_single_epg(header_epg_url)
                         if header_success:
-                            main_module = sys.modules.get('__main__')
-                            if main_module:
-                                main_module.EPG_DATA = global_subscription_manager._epg_data
+                            from core.application_state import app_state
+                            app_state._epg_data.clear()
+                            app_state._epg_data.update(global_subscription_manager._epg_data)
                     except Exception as epg_err:
                         logger.warning(f"补充加载M3U文件头EPG失败: {epg_err}")
 
@@ -485,11 +470,8 @@ class SubscriptionController:
                     logger.debug("刷新UI: EPG列表已填充")
 
                 if hasattr(self.window, 'status_bar_show_message'):
-                    main_module = sys.modules.get('__main__')
-                    channels_count = 0
-                    if main_module:
-                        channels_in_main = getattr(main_module, 'CHANNELS', None)
-                        channels_count = len(channels_in_main) if channels_in_main else 0
+                    from core.application_state import app_state
+                    channels_count = len(app_state.channels)
                     tr = getattr(self.window.language_manager, 'tr', lambda x, y: y) if hasattr(self.window, 'language_manager') else lambda x, y: y
                     self.window.status_bar_show_message(tr("channels_loaded", "Channels loaded: {count}").format(count=channels_count))
 
@@ -501,8 +483,6 @@ class SubscriptionController:
     def update_playlist_subscription(self, source_index=None):
         """更新列表订阅 - 线程安全版本"""
         try:
-            global CHANNELS
-
             sources = global_subscription_manager.get_playlist_sources()
 
             if not sources:
