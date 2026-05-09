@@ -66,7 +66,7 @@ class FileAssociationDialog(FloatingDialog):
         layout.addWidget(hint)
 
         from ui.styles import AppStyles
-        checkbox_style = AppStyles.checkbox_style() if hasattr(AppStyles, 'checkbox_style') else ""
+        checkbox_style = AppStyles.common_check_box_style()
 
         for group_key, group_info in SUPPORTED_FORMATS.items():
             lang = self.language_manager.current_language if self.language_manager else 'zh'
