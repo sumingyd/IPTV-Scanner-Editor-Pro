@@ -64,7 +64,7 @@ class ChannelController:
             return
 
         channel = item.data(Qt.ItemDataRole.UserRole)
-        if not channel:
+        if channel is None:
             return
 
         if isinstance(channel, int):

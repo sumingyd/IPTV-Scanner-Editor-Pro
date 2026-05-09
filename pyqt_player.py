@@ -456,7 +456,8 @@ class IPTVPlayer(QMainWindow):
     def leaveEvent(self, event):
         """鼠标离开窗口"""
         if getattr(self, '_pip_mode', False):
-            self._hide_pip_overlay()
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(50, self._pip_delayed_hide_overlay)
         super().leaveEvent(event)
     
     def _initialize_in_order(self):
@@ -5193,17 +5194,31 @@ class IPTVPlayer(QMainWindow):
             self._pip_exit_status_msg = ''
 
     def _create_pip_overlay(self):
-        """创建画中画控制按钮（3个独立浮动按钮，不遮挡视频）"""
-        btn_size = 44
+        """创建画中画控制按钮（使用独立Qt::Tool窗口，确保在D3D11视频之上显示）"""
+        from PyQt6.QtWidgets import QWidget
+        from PyQt6.QtCore import Qt
 
+        self._pip_overlay_widget = QWidget(
+            self,
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.Tool |
+            Qt.WindowType.WindowStaysOnTopHint
+        )
+        self._pip_overlay_widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self._pip_overlay_widget.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+        self._pip_overlay_widget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+        btn_size = 44
         self._pip_prev_btn = self._create_pip_button("⏮", btn_size)
         self._pip_play_btn = self._create_pip_button("⏸", btn_size)
         self._pip_next_btn = self._create_pip_button("⏭", btn_size)
 
-        self._pip_overlay = True
         self._pip_buttons = [self._pip_prev_btn, self._pip_play_btn, self._pip_next_btn]
         for btn in self._pip_buttons:
+            btn.setParent(self._pip_overlay_widget)
             btn.hide()
+
+        self._pip_overlay_widget.hide()
 
     def _create_pip_button(self, text, btn_size):
         """创建画中画圆形按钮（自定义绘制，无背景填充）"""
@@ -5232,12 +5247,11 @@ class IPTVPlayer(QMainWindow):
             def paintEvent(self, event):
                 painter = QPainter(self)
                 painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-                r = self._size / 2
                 if self._hovered:
-                    painter.setBrush(QColor(255, 255, 255, 50))
+                    painter.setBrush(QColor(50, 50, 50, 200))
                     pen = QPen(QColor(255, 255, 255, 220), 2)
                 else:
-                    painter.setBrush(QColor(255, 255, 255, 20))
+                    painter.setBrush(QColor(20, 20, 20, 160))
                     pen = QPen(QColor(255, 255, 255, 150), 2)
                 painter.setPen(pen)
                 painter.drawEllipse(1, 1, self._size - 2, self._size - 2)
@@ -5260,19 +5274,26 @@ class IPTVPlayer(QMainWindow):
 
             def mousePressEvent(self, event):
                 if event.button() == Qt.MouseButton.LeftButton:
-                    self.parent()._pip_btn_clicked(self)
+                    main_win = self.window().parent()
+                    if main_win and hasattr(main_win, '_pip_btn_clicked'):
+                        main_win._pip_btn_clicked(self)
 
-        btn = PipButton(text, btn_size, self)
+        btn = PipButton(text, btn_size, None)
         return btn
 
     def _pip_btn_clicked(self, btn):
         """画中画按钮点击回调"""
         if btn is getattr(self, '_pip_prev_btn', None):
+            logger.debug("画中画: 点击上一个频道按钮")
             self._pip_prev_channel()
         elif btn is getattr(self, '_pip_play_btn', None):
+            logger.debug("画中画: 点击播放/暂停按钮")
             self._pip_toggle_play()
         elif btn is getattr(self, '_pip_next_btn', None):
+            logger.debug("画中画: 点击下一个频道按钮")
             self._pip_next_channel()
+        else:
+            logger.warning(f"画中画: 未知按钮点击 {btn}")
 
     def _pip_prev_channel(self):
         """画中画：上一个频道"""
@@ -5343,14 +5364,11 @@ class IPTVPlayer(QMainWindow):
         if not getattr(self, '_pip_mode', False):
             return False
         if event.button() == Qt.MouseButton.LeftButton:
-            if hasattr(self, '_pip_buttons'):
+            if hasattr(self, '_pip_overlay_widget') and self._pip_overlay_widget.isVisible():
                 gpos = event.globalPosition().toPoint()
-                for btn in self._pip_buttons:
-                    if btn.isVisible():
-                        btn_rect = btn.geometry()
-                        local_pos = self.mapFromGlobal(gpos)
-                        if btn_rect.contains(local_pos):
-                            return False
+                overlay_geo = self._pip_overlay_widget.geometry()
+                if overlay_geo.contains(gpos):
+                    return False
             edge = self._pip_get_resize_edge(event.position().toPoint())
             if edge:
                 self._pip_resizing = True
@@ -5429,16 +5447,25 @@ class IPTVPlayer(QMainWindow):
             self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
 
     def _update_pip_overlay_geometry(self):
-        """更新画中画控制按钮位置"""
+        """更新画中画覆盖窗口和按钮位置"""
         if not getattr(self, '_pip_mode', False):
             return
         if not hasattr(self, '_pip_buttons'):
             return
+        if not hasattr(self, 'video_widget') or not self.video_widget:
+            return
+        if not hasattr(self, '_pip_overlay_widget'):
+            return
+
+        vw = self.video_widget
+        top_left = vw.mapToGlobal(vw.rect().topLeft())
+        self._pip_overlay_widget.setGeometry(top_left.x(), top_left.y(), vw.width(), vw.height())
+
         btn_size = 44
         spacing = 16
         total_w = btn_size * 3 + spacing * 2
-        cx = self.width() // 2
-        cy = self.height() // 2
+        cx = vw.width() // 2
+        cy = vw.height() // 2
         start_x = cx - total_w // 2
         positions = [
             (start_x, cy - btn_size // 2),
@@ -5446,8 +5473,17 @@ class IPTVPlayer(QMainWindow):
             (start_x + (btn_size + spacing) * 2, cy - btn_size // 2),
         ]
         for btn, (x, y) in zip(self._pip_buttons, positions):
-            if btn.isVisible():
-                btn.move(x, y)
+            btn.move(x, y)
+
+        from PyQt6.QtGui import QRegion
+        from PyQt6.QtCore import QRect
+        mask = QRegion()
+        for btn in self._pip_buttons:
+            if not btn.isHidden():
+                mask = mask.united(QRegion(btn.geometry()))
+        if mask.isEmpty():
+            mask = QRegion(QRect(0, 0, 1, 1))
+        self._pip_overlay_widget.setMask(mask)
 
     def _show_pip_overlay(self):
         """显示画中画控制按钮"""
@@ -5458,15 +5494,31 @@ class IPTVPlayer(QMainWindow):
         self._pip_update_play_btn()
         for btn in self._pip_buttons:
             btn.show()
-            btn.raise_()
         self._update_pip_overlay_geometry()
+        if hasattr(self, '_pip_overlay_widget'):
+            self._pip_overlay_widget.show()
 
     def _hide_pip_overlay(self):
         """隐藏画中画控制按钮"""
+        if hasattr(self, '_pip_overlay_widget'):
+            self._pip_overlay_widget.hide()
         if not hasattr(self, '_pip_buttons'):
             return
         for btn in self._pip_buttons:
             btn.hide()
+
+    def _pip_delayed_hide_overlay(self):
+        """延迟隐藏画中画按钮（避免鼠标移到按钮上时误隐藏）"""
+        if not getattr(self, '_pip_mode', False):
+            return
+        cursor_pos = self.cursor().pos()
+        if self.rect().contains(self.mapFromGlobal(cursor_pos)):
+            return
+        if hasattr(self, '_pip_overlay_widget') and self._pip_overlay_widget.isVisible():
+            overlay_rect = self._pip_overlay_widget.geometry()
+            if overlay_rect.contains(cursor_pos):
+                return
+        self._hide_pip_overlay()
 
     _SPEED_STEPS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 5.0]
 
