@@ -10,6 +10,72 @@ logger = LogManager()
 
 class ChannelListModel(QtCore.QAbstractTableModel):
     """频道列表数据模型"""
+
+    COL_INDEX = 0
+    COL_NAME = 1
+    COL_RESOLUTION = 2
+    COL_URL = 3
+    COL_GROUP = 4
+    COL_LOGO = 5
+    COL_STATUS = 6
+    COL_LATENCY = 7
+    COL_TVG_ID = 8
+    COL_TVG_CHNO = 9
+    COL_TVG_SHIFT = 10
+    COL_CATCHUP = 11
+    COL_CATCHUP_DAYS = 12
+    COL_CATCHUP_SOURCE = 13
+
+    COLUMN_FIELD_MAP = {
+        COL_NAME: 'name',
+        COL_RESOLUTION: 'resolution',
+        COL_URL: 'url',
+        COL_GROUP: 'group',
+        COL_LOGO: 'logo_url',
+        COL_STATUS: 'status',
+        COL_LATENCY: 'latency',
+        COL_TVG_ID: 'tvg_id',
+        COL_TVG_CHNO: 'tvg_chno',
+        COL_TVG_SHIFT: 'tvg_shift',
+        COL_CATCHUP: 'catchup',
+        COL_CATCHUP_DAYS: 'catchup_days',
+        COL_CATCHUP_SOURCE: 'catchup_source',
+    }
+
+    COLUMN_DEFAULTS = {
+            0: None,
+            1: '未命名',
+            2: '',
+            3: '',
+            4: '未分类',
+            5: '',
+            6: '待检测',
+            7: '',
+            8: '',
+            9: '',
+            10: '',
+            11: '',
+            12: '',
+            13: '',
+        }
+
+    HEADER_TRANSLATION_MAP = {
+            "序号": 'serial_number',
+            "频道名称": 'channel_name',
+            "分辨率": 'resolution',
+            "URL": 'channel_url',
+            "分组": 'channel_group',
+            "Logo地址": 'logo_address',
+            "状态": 'status',
+            "延迟(ms)": 'latency_ms',
+            "TVG-ID": 'tvg_id',
+            "TVG频道号": 'tvg_chno',
+            "TVG时移": 'tvg_shift',
+            "回看": 'catchup',
+            "回看天数": 'catchup_days',
+            "回看源": 'catchup_source',
+        }
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.channels: List[Dict[str, Any]] = []
@@ -81,10 +147,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         if not row_order or not self.channels:
             return
 
-        indexed = {i: self.channels[i] for i in range(len(self.channels)) if i < len(self.channels)}
+        max_idx = len(self.channels)
+        indexed = {i: self.channels[i] for i in range(max_idx)}
         reordered = []
         for idx in row_order:
-            if idx in indexed:
+            if 0 <= idx < max_idx:
                 reordered.append(indexed[idx])
 
         remaining = [indexed[i] for i in sorted(indexed.keys()) if i not in set(row_order)]
@@ -158,39 +225,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             return None
 
         if role == QtCore.Qt.ItemDataRole.DisplayRole:
-            if actual_col == 0:  # 序号 - 只显示序号，图片通过装饰角色显示
-                return str(index.row() + 1)
-            elif actual_col == 1:  # 频道名称
-                return channel.get('name', '未命名')
-            elif actual_col == 2:  # 分辨率
-                return channel.get('resolution', '')
-            elif actual_col == 3:  # URL
-                return channel.get('url', '')
-            elif actual_col == 4:  # 分组
-                return channel.get('group', '未分类')
-            elif actual_col == 5:  # Logo地址
-                return channel.get('logo_url', channel.get('logo', ''))
-            elif actual_col == 6:  # 状态
-                return channel.get('status', '待检测')
-            elif actual_col == 7:  # 延迟(ms)
-                return str(channel.get('latency', ''))
-            elif actual_col == 8:  # TVG-ID
-                return channel.get('tvg_id', '')
-            elif actual_col == 9:  # TVG频道号
-                return channel.get('tvg_chno', '')
-            elif actual_col == 10:  # TVG时移
-                return channel.get('tvg_shift', '')
-            elif actual_col == 11:  # 回看
-                catchup_value = channel.get('catchup', '')
-                # 如果catchup是None或空字符串，返回空字符串
-                # 如果catchup是"none"，返回"none"
-                return catchup_value if catchup_value is not None else ''
-            elif actual_col == 12:  # 回看天数
-                return channel.get('catchup_days', '')
-            elif actual_col == 13:  # 回看源
-                return channel.get('catchup_source', '')
-        elif role == QtCore.Qt.ItemDataRole.DecorationRole and actual_col == 0:  # 序号列不再显示Logo图片
-            # 直接返回None，不显示任何图标
+            return self._get_display_data(channel, actual_col, index.row())
+        elif role == QtCore.Qt.ItemDataRole.DecorationRole and actual_col == 0:
             return None
         elif role == QtCore.Qt.ItemDataRole.TextAlignmentRole:
             return QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignLeft
@@ -216,6 +252,23 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
         return None
 
+    def _get_display_data(self, channel, actual_col, row):
+        if actual_col == 0:
+            return str(row + 1)
+        if actual_col == 5:
+            return channel.get('logo_url', channel.get('logo', ''))
+        if actual_col == 7:
+            latency = channel.get('latency', '')
+            return str(latency) if latency != '' else ''
+        if actual_col == 11:
+            catchup_value = channel.get('catchup', '')
+            return catchup_value if catchup_value is not None else ''
+        field = self.COLUMN_FIELD_MAP.get(actual_col)
+        if field:
+            default = self.COLUMN_DEFAULTS.get(actual_col, '')
+            return channel.get(field, default)
+        return None
+
     def headerData(self, section: int, orientation: QtCore.Qt.Orientation,
                    role: int = QtCore.Qt.ItemDataRole.DisplayRole):
         """返回表头数据"""
@@ -230,34 +283,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             # 使用语言管理器翻译表头
             header_text = self.headers[actual_col]
             if hasattr(self, '_language_manager') and self._language_manager:
-                if header_text == "序号":
-                    return self._language_manager.tr('serial_number', 'No.')
-                elif header_text == "频道名称":
-                    return self._language_manager.tr('channel_name', 'Channel Name')
-                elif header_text == "分辨率":
-                    return self._language_manager.tr('resolution', 'Resolution')
-                elif header_text == "URL":
-                    return self._language_manager.tr('channel_url', 'URL')
-                elif header_text == "分组":
-                    return self._language_manager.tr('channel_group', 'Group')
-                elif header_text == "Logo地址":
-                    return self._language_manager.tr('logo_address', 'Logo Address')
-                elif header_text == "状态":
-                    return self._language_manager.tr('status', 'Status')
-                elif header_text == "延迟(ms)":
-                    return self._language_manager.tr('latency_ms', 'Latency(ms)')
-                elif header_text == "TVG-ID":
-                    return self._language_manager.tr('tvg_id', 'TVG-ID')
-                elif header_text == "TVG频道号":
-                    return self._language_manager.tr('tvg_chno', 'TVG Channel No.')
-                elif header_text == "TVG时移":
-                    return self._language_manager.tr('tvg_shift', 'TVG Shift')
-                elif header_text == "回看":
-                    return self._language_manager.tr('catchup', 'Catchup')
-                elif header_text == "回看天数":
-                    return self._language_manager.tr('catchup_days', 'Catchup Days')
-                elif header_text == "回看源":
-                    return self._language_manager.tr('catchup_source', 'Catchup Source')
+                translation_key = self.HEADER_TRANSLATION_MAP.get(header_text)
+                if translation_key:
+                    return self._language_manager.tr(translation_key, header_text)
             return header_text
         return str(section + 1) if section > 0 else ""  # 序号列不显示行号
 
