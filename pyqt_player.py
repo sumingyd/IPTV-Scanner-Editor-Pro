@@ -199,6 +199,7 @@ class IPTVPlayer(QMainWindow):
     _floating_hidden = False
     _auto_hide_state = 'visible'
     _osd_visible = False
+    _suppress_volume_osd = False
     _initialization_complete = False
     _panels_initialized = False
     _ui_initialized = False
@@ -277,6 +278,7 @@ class IPTVPlayer(QMainWindow):
         self._auto_hide_saved_states = {}
         self._osd_visible = False
         self._osd_saved_panel_states = {}
+        self._suppress_volume_osd = False
         self.is_fullscreen = False
 
         from core.subscription_manager import global_subscription_manager
@@ -2791,10 +2793,20 @@ class IPTVPlayer(QMainWindow):
     def set_volume(self, value):
         """设置音量（委托给PlaybackController）"""
         self.playback_ctrl.set_volume(value)
+        if not self._suppress_volume_osd and not self._osd_visible:
+            self._show_osd_feedback(f"{self.language_manager.tr('osd_volume', 'Volume')}: {value}%")
 
     def toggle_mute(self):
         """切换静音/取消静音（委托给PlaybackController）"""
+        self._suppress_volume_osd = True
         self.playback_ctrl.toggle_mute()
+        if not self._osd_visible:
+            if self.playback_ctrl.is_muted_state:
+                self._show_osd_feedback(self.language_manager.tr('osd_muted', 'Muted'))
+            else:
+                vol = self.volume_slider.value() if hasattr(self, 'volume_slider') else 0
+                self._show_osd_feedback(f"{self.language_manager.tr('osd_volume', 'Volume')}: {vol}%")
+        self._suppress_volume_osd = False
 
     def _update_volume_icon(self, volume):
         """根据音量更新音量图标（保留兼容性）"""
@@ -2807,6 +2819,11 @@ class IPTVPlayer(QMainWindow):
                 self.volume_button.setText("🔉")
             else:
                 self.volume_button.setText("🔊")
+
+    def _show_osd_feedback(self, text: str):
+        """在视频上显示短暂的OSD反馈提示"""
+        if hasattr(self, 'player_controller') and self.player_controller:
+            self.player_controller.show_osd(text, 2000)
 
     def play_channel(self, channel):
         """播放指定频道（委托给PlaybackController）"""
@@ -5147,6 +5164,8 @@ class IPTVPlayer(QMainWindow):
         self.player_controller.set_speed(new_speed)
         if hasattr(self, 'speed_button'):
             self.speed_button.setText(f"{new_speed}x")
+        if not self._osd_visible:
+            self._show_osd_feedback(f"{self.language_manager.tr('osd_speed', 'Speed')}: {new_speed}x")
 
     def toggle_pip_mode(self, checked=None):
         """P键画中画模式 - 小窗口置顶播放"""
@@ -5684,6 +5703,8 @@ class IPTVPlayer(QMainWindow):
         self.player_controller.set_speed(new_speed)
         if hasattr(self, 'speed_button'):
             self.speed_button.setText(f"{new_speed}x")
+        if not self._osd_visible:
+            self._show_osd_feedback(f"{self.language_manager.tr('osd_speed', 'Speed')}: {new_speed}x")
 
     _ASPECT_CYCLE = ['default', '16:9', '4:3', 'stretch', 'fill']
 
