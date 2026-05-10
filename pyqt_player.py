@@ -1044,6 +1044,13 @@ class IPTVPlayer(QMainWindow):
         self.network_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.network_info.setFixedHeight(18)
         self.media_row.addWidget(self.network_info)
+
+        self.buffer_info = QLabel("")
+        self.buffer_info.setStyleSheet(AppStyles.player_media_badge_style())
+        self.buffer_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self.buffer_info.setFixedHeight(18)
+        self.buffer_info.hide()
+        self.media_row.addWidget(self.buffer_info)
         
         self.media_row.addStretch()
         self.floating_layout.addLayout(self.media_row)
@@ -2429,6 +2436,8 @@ class IPTVPlayer(QMainWindow):
         self.video_info.setText(f"📺 {self.language_manager.tr('waiting_to_play', 'Waiting to play...')}")
         self.audio_info.setText("🔊 --")
         self.network_info.setText(f"📡 {self.language_manager.tr('waiting_connect', 'Waiting to connect...')}")
+        if hasattr(self, 'buffer_info'):
+            self.buffer_info.hide()
     
     def toggle_epg(self, checked=None):
         """切换EPG面板显示/隐藏（委托给EPGController）"""
@@ -2920,15 +2929,26 @@ class IPTVPlayer(QMainWindow):
 
             if not hasattr(self, '_last_media_info'):
                 self._last_media_info = {}
-            
-            # 如果当前信息为空，使用上次的信息
-            if info.get('width', 0) == 0 and info.get('height', 0) == 0 and not info.get('video_codec'):
-                # 当前信息为空，使用上次缓存的信息
+
+            has_video = info.get('width', 0) > 0 and info.get('height', 0) > 0
+            has_codec = bool(info.get('video_codec', ''))
+
+            if not has_video and not has_codec:
                 info = self._last_media_info.copy()
                 if not info:
-                    return  # 没有缓存信息，不更新
+                    return
+            elif not has_video and has_codec:
+                cached = getattr(self, '_last_media_info', {})
+                if cached.get('width', 0) > 0 and cached.get('height', 0) > 0:
+                    merged = dict(info)
+                    for k in ('width', 'height', 'fps', 'video_bitrate', 'colormatrix', 'gamma', 'sig_peak'):
+                        if k in cached and cached[k]:
+                            merged[k] = cached[k]
+                    info = merged
+                else:
+                    self._last_media_info.update(info)
+                    return
             else:
-                # 当前信息有效，更新缓存
                 self._last_media_info = info.copy()
             
             # 构建视频信息标签（带参数标题，与音频/网络对齐）
@@ -3333,23 +3353,19 @@ class IPTVPlayer(QMainWindow):
         
         self._check_program_change()
 
-        if hasattr(self, 'network_info') and self.player_controller:
+        if hasattr(self, 'buffer_info') and self.player_controller:
             buffer_state = self.player_controller.get_buffer_state()
             if buffer_state:
                 if buffer_state.get('buffering'):
-                    self.network_info.setText("📡 ⏳...")
+                    self.buffer_info.setText("⏳")
+                    self.buffer_info.show()
                 else:
                     cache_dur = buffer_state.get('cache_duration', 0)
                     if cache_dur > 0:
-                        base = getattr(self, '_network_base_info', '')
-                        if base and base != "📡 --":
-                            self.network_info.setText(f"{base} 💾{cache_dur:.0f}s")
-                        else:
-                            self.network_info.setText(f"📡 💾{cache_dur:.0f}s")
+                        self.buffer_info.setText(f"💾{cache_dur:.0f}s")
+                        self.buffer_info.show()
                     else:
-                        base = getattr(self, '_network_base_info', '')
-                        if base and base != "📡 --":
-                            self.network_info.setText(base)
+                        self.buffer_info.hide()
 
         _slider_dragging = hasattr(self, 'program_progress') and self.program_progress.isSliderDown()
         
@@ -4382,6 +4398,8 @@ class IPTVPlayer(QMainWindow):
                 self.audio_info.setStyleSheet(AppStyles.player_media_badge_style())
             if hasattr(self, 'network_info'):
                 self.network_info.setStyleSheet(AppStyles.player_media_badge_style())
+            if hasattr(self, 'buffer_info'):
+                self.buffer_info.setStyleSheet(AppStyles.player_media_badge_style())
             if hasattr(self, 'channel_logo'):
                 self.channel_logo.setStyleSheet(AppStyles.player_channel_logo_style())
             if hasattr(self, 'channel_name'):
