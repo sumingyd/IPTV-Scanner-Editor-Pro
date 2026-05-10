@@ -1443,7 +1443,66 @@ class IPTVPlayer(QMainWindow):
             # 初始化最近打开文件列表（如果需要）
             if not skip_recent_files:
                 self.update_recent_files_menu()
-            
+
+            # 播放菜单
+            playback_menu = menu_bar.addMenu(tr("menu_playback", "Playback"))
+
+            prev_channel = QAction(tr("menu_prev_channel", "Previous Channel\t↑"), self)
+            prev_channel.triggered.connect(lambda: self.event_handler._switch_channel(-1) if hasattr(self, 'event_handler') else None)
+            playback_menu.addAction(prev_channel)
+
+            next_channel = QAction(tr("menu_next_channel", "Next Channel\t↓"), self)
+            next_channel.triggered.connect(lambda: self.event_handler._switch_channel(1) if hasattr(self, 'event_handler') else None)
+            playback_menu.addAction(next_channel)
+
+            prev_channel2 = QAction(tr("menu_prev_channel2", "Previous Channel (Alt)\tCtrl+Shift+←"), self)
+            prev_channel2.triggered.connect(lambda: self.event_handler._switch_channel(-1) if hasattr(self, 'event_handler') else None)
+            playback_menu.addAction(prev_channel2)
+
+            next_channel2 = QAction(tr("menu_next_channel2", "Next Channel (Alt)\tCtrl+Shift+→"), self)
+            next_channel2.triggered.connect(lambda: self.event_handler._switch_channel(1) if hasattr(self, 'event_handler') else None)
+            playback_menu.addAction(next_channel2)
+
+            back_channel = QAction(tr("menu_back_channel", "Switch Back\tBackspace"), self)
+            back_channel.triggered.connect(lambda: self.switch_to_previous_channel() if hasattr(self, 'switch_to_previous_channel') else None)
+            playback_menu.addAction(back_channel)
+
+            playback_menu.addSeparator()
+
+            play_pause = QAction(tr("menu_play_pause", "Play/Pause\tSpace"), self)
+            play_pause.triggered.connect(lambda: self.playback_ctrl.toggle_play() if hasattr(self, 'playback_ctrl') else None)
+            playback_menu.addAction(play_pause)
+
+            stop_play = QAction(tr("menu_stop", "Stop\tEsc"), self)
+            stop_play.triggered.connect(lambda: self.playback_ctrl.stop_playback() if hasattr(self, 'playback_ctrl') else None)
+            playback_menu.addAction(stop_play)
+
+            playback_menu.addSeparator()
+
+            vol_up = QAction(tr("menu_vol_up", "Volume Up\t→"), self)
+            vol_up.triggered.connect(lambda: self.event_handler._adjust_volume(5) if hasattr(self, 'event_handler') else None)
+            playback_menu.addAction(vol_up)
+
+            vol_down = QAction(tr("menu_vol_down", "Volume Down\t←"), self)
+            vol_down.triggered.connect(lambda: self.event_handler._adjust_volume(-5) if hasattr(self, 'event_handler') else None)
+            playback_menu.addAction(vol_down)
+
+            playback_menu.addSeparator()
+
+            speed_up = QAction(tr("menu_speed_up", "Speed Up\t."), self)
+            speed_up.triggered.connect(lambda: self._adjust_speed(0.1) if hasattr(self, '_adjust_speed') else None)
+            playback_menu.addAction(speed_up)
+
+            speed_down = QAction(tr("menu_speed_down", "Speed Down\t,"), self)
+            speed_down.triggered.connect(lambda: self._adjust_speed(-0.1) if hasattr(self, '_adjust_speed') else None)
+            playback_menu.addAction(speed_down)
+
+            playback_menu.addSeparator()
+
+            screenshot = QAction(tr("menu_screenshot", "Screenshot\tS"), self)
+            screenshot.triggered.connect(lambda: self._take_screenshot() if hasattr(self, '_take_screenshot') else None)
+            playback_menu.addAction(screenshot)
+
             # 视图菜单
             view_menu = menu_bar.addMenu(tr("menu_view", "View"))
             
