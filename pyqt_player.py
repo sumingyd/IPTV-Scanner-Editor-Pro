@@ -442,10 +442,15 @@ class IPTVPlayer(QMainWindow):
             super().mouseDoubleClickEvent(event)
 
     def wheelEvent(self, event):
-        """滚轮事件"""
+        """滚轮事件 - 调节音量"""
+        if getattr(self, '_pip_mode', False):
+            return
         if getattr(self, 'is_fullscreen', False):
             self._on_mouse_activity()
-        super().wheelEvent(event)
+        delta = event.angleDelta().y()
+        if delta != 0 and hasattr(self, 'event_handler'):
+            step = 5
+            self.event_handler._adjust_volume(step if delta > 0 else -step)
 
     def enterEvent(self, event):
         """鼠标进入窗口"""
