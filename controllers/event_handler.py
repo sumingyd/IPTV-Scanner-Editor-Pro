@@ -46,6 +46,22 @@ class EventHandler:
             if handled:
                 return True
 
+        if getattr(self.window, 'is_fullscreen', False) and not getattr(self.window, '_floating_hidden', False):
+            if obj is getattr(self.window, 'video_widget', None):
+                if event_type in (QEvent.Type.MouseMove, QEvent.Type.MouseButtonPress, QEvent.Type.Wheel):
+                    if hasattr(self.window, '_on_mouse_activity'):
+                        self.window._on_mouse_activity()
+
+        if not getattr(self.window, '_pip_mode', False) and not getattr(self.window, 'is_fullscreen', False) and not getattr(self.window, '_floating_hidden', False):
+            if obj is getattr(self.window, 'video_widget', None):
+                if event_type == QEvent.Type.Leave:
+                    if hasattr(self.window, '_delayed_hide_floating_panels'):
+                        from PyQt6.QtCore import QTimer
+                        QTimer.singleShot(50, self.window._delayed_hide_floating_panels)
+                elif event_type == QEvent.Type.Enter:
+                    if hasattr(self.window, '_show_floating_panels_on_enter'):
+                        self.window._show_floating_panels_on_enter()
+
         return False
 
     def _is_handled_shortcut(self, key, modifiers) -> bool:
@@ -304,9 +320,10 @@ class EventHandler:
                 if not getattr(self.window, '_pip_mode', False):
                     if hasattr(self.window, 'raise_floating_panels'):
                         self.window.raise_floating_panels()
-                    if getattr(self.window, '_auto_hide_state', 'visible') == 'auto_hidden':
-                        if hasattr(self.window, '_show_floating_panels_on_enter'):
-                            self.window._show_floating_panels_on_enter()
+                    if getattr(self.window, 'is_fullscreen', False):
+                        if getattr(self.window, '_auto_hide_state', 'visible') == 'auto_hidden':
+                            if hasattr(self.window, '_show_floating_panels_on_enter'):
+                                self.window._show_floating_panels_on_enter()
                     if hasattr(self.window, '_on_main_window_activated'):
                         self.window._on_main_window_activated()
             else:

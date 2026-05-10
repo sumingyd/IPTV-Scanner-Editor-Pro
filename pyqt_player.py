@@ -376,6 +376,8 @@ class IPTVPlayer(QMainWindow):
 
     def mousePressEvent(self, event):
         """鼠标按下事件"""
+        if getattr(self, 'is_fullscreen', False):
+            self._on_mouse_activity()
         if getattr(self, '_pip_mode', False):
             if self._pip_mouse_press(event):
                 return
@@ -416,6 +418,8 @@ class IPTVPlayer(QMainWindow):
 
     def mouseMoveEvent(self, event):
         """鼠标移动事件"""
+        if getattr(self, 'is_fullscreen', False):
+            self._on_mouse_activity()
         if getattr(self, '_pip_mode', False):
             if self._pip_mouse_move(event):
                 return
@@ -436,6 +440,12 @@ class IPTVPlayer(QMainWindow):
             return
         if not self.window_ctrl.handle_mouse_double_click_event(event):
             super().mouseDoubleClickEvent(event)
+
+    def wheelEvent(self, event):
+        """滚轮事件"""
+        if getattr(self, 'is_fullscreen', False):
+            self._on_mouse_activity()
+        super().wheelEvent(event)
 
     def enterEvent(self, event):
         """鼠标进入窗口"""
@@ -1262,6 +1272,7 @@ class IPTVPlayer(QMainWindow):
         if self.video_frame:
             self.video_frame.installEventFilter(self)
         if self.video_widget:
+            self.video_widget.setMouseTracking(True)
             self.video_widget.installEventFilter(self)
         if self.video_placeholder:
             self.video_placeholder.installEventFilter(self)
@@ -2567,29 +2578,90 @@ class IPTVPlayer(QMainWindow):
         self._sync_panel_actions()
 
     def _auto_hide_panels(self):
-        """自动隐藏悬浮窗（保留接口兼容）"""
-        pass
+        """全屏模式下自动隐藏悬浮窗和鼠标光标"""
+        if not getattr(self, 'is_fullscreen', False):
+            return
+        if getattr(self, '_floating_hidden', False):
+            return
+        if self._auto_hide_state != 'visible':
+            return
+
+        self._auto_hide_saved_states = {
+            'epg': self.epg_visible,
+            'playlist': self.playlist_visible,
+            'floating': self.floating_panel_visible
+        }
+
+        if self.epg_visible and hasattr(self, 'epg_panel') and self.epg_panel:
+            self.epg_panel.hide()
+            self.epg_visible = False
+        if self.playlist_visible and hasattr(self, 'playlist_panel') and self.playlist_panel:
+            self.playlist_panel.hide()
+            self.playlist_visible = False
+        if self.floating_panel_visible and hasattr(self, 'floating_panel') and self.floating_panel:
+            self.floating_panel.hide()
+            self.floating_panel_visible = False
+
+        self._auto_hide_state = 'auto_hidden'
+        self.setCursor(Qt.CursorShape.BlankCursor)
+        self._sync_panel_actions()
 
     def _auto_restore_panels(self):
-        """自动恢复悬浮窗（保留接口兼容）"""
-        if not getattr(self, '_floating_hidden', False) and not getattr(self, 'is_fullscreen', False):
-            self._show_floating_panels_on_enter()
+        """全屏模式下恢复悬浮窗和鼠标光标"""
+        if not getattr(self, 'is_fullscreen', False):
+            if not getattr(self, '_floating_hidden', False):
+                self._show_floating_panels_on_enter()
+            return
+        if self._auto_hide_state != 'auto_hidden':
+            return
+        if getattr(self, '_floating_hidden', False):
+            return
+
+        saved = self._auto_hide_saved_states
+        if saved.get('epg', False) and hasattr(self, 'epg_panel') and self.epg_panel:
+            self.epg_panel.show()
+            self.epg_visible = True
+        if saved.get('playlist', False) and hasattr(self, 'playlist_panel') and self.playlist_panel:
+            self.playlist_panel.show()
+            self.playlist_visible = True
+        if saved.get('floating', False) and hasattr(self, 'floating_panel') and self.floating_panel:
+            self.floating_panel.show()
+            self.floating_panel_visible = True
+
+        self._auto_hide_state = 'visible'
+        self._auto_hide_saved_states = {}
+        self.unsetCursor()
+        self._sync_panel_actions()
+        self._restart_auto_hide_timer()
 
     def _restart_auto_hide_timer(self):
-        """重启自动隐藏定时器（保留接口兼容）"""
-        pass
+        """重启全屏自动隐藏定时器"""
+        if getattr(self, 'is_fullscreen', False) and not getattr(self, '_floating_hidden', False):
+            if not hasattr(self, '_auto_hide_timer'):
+                from PyQt6.QtCore import QTimer
+                self._auto_hide_timer = QTimer(self)
+                self._auto_hide_timer.setSingleShot(True)
+                self._auto_hide_timer.setInterval(5000)
+                self._auto_hide_timer.timeout.connect(self._auto_hide_panels)
+            if self._auto_hide_state == 'visible':
+                self._auto_hide_timer.start()
 
     def _stop_auto_hide_timer(self):
-        """停止自动隐藏定时器（保留接口兼容）"""
-        pass
+        """停止全屏自动隐藏定时器"""
+        if hasattr(self, '_auto_hide_timer') and self._auto_hide_timer:
+            self._auto_hide_timer.stop()
 
     def _poll_mouse_position(self):
         """轮询鼠标位置（保留接口兼容）"""
         pass
 
     def _on_mouse_activity(self):
-        """鼠标活动回调（保留接口兼容）"""
-        pass
+        """鼠标活动回调"""
+        if getattr(self, 'is_fullscreen', False) and not getattr(self, '_floating_hidden', False):
+            if self._auto_hide_state == 'auto_hidden':
+                self._auto_restore_panels()
+            elif self._auto_hide_state == 'visible':
+                self._restart_auto_hide_timer()
 
     def _on_main_window_activated(self):
         """主窗口获得焦点时回调"""
@@ -3532,9 +3604,8 @@ class IPTVPlayer(QMainWindow):
     def toggle_fullscreen(self, checked=False):
         """切换全屏"""
         self.is_fullscreen = not self.is_fullscreen
-        
+
         if self.is_fullscreen:
-            self._stop_auto_hide_timer()
             self._auto_hide_state = 'visible'
             self._auto_hide_saved_states = {}
             self._fullscreen_saved_states = {
@@ -3552,14 +3623,18 @@ class IPTVPlayer(QMainWindow):
                 self._custom_menu_bar.hide()
             if self.status_bar:
                 self.status_bar.hide()
-            if hasattr(self, 'epg_panel') and self.epg_panel:
-                self.epg_panel.hide()
-            if hasattr(self, 'playlist_panel') and self.playlist_panel:
-                self.playlist_panel.hide()
-            if hasattr(self, 'floating_panel') and self.floating_panel:
-                self.floating_panel.hide()
             self.showFullScreen()
+            self.unsetCursor()
+            if hasattr(self, 'epg_panel') and self.epg_panel and self.epg_visible:
+                self.epg_panel.show()
+            if hasattr(self, 'playlist_panel') and self.playlist_panel and self.playlist_visible:
+                self.playlist_panel.show()
+            if hasattr(self, 'floating_panel') and self.floating_panel and self.floating_panel_visible:
+                self.floating_panel.show()
+            self._restart_auto_hide_timer()
         else:
+            self._stop_auto_hide_timer()
+            self.unsetCursor()
             saved = getattr(self, '_fullscreen_saved_states', {})
             self.showNormal()
             if saved.get('title_bar', True) and hasattr(self, '_title_bar') and self._title_bar:
@@ -3584,9 +3659,10 @@ class IPTVPlayer(QMainWindow):
             else:
                 self.floating_panel_visible = False
             self._floating_hidden = saved.get('floating_hidden', False)
+            self._auto_hide_state = 'visible'
+            self._auto_hide_saved_states = {}
             self._sync_panel_actions()
             self.update_floating_position()
-            self._restart_auto_hide_timer()
     
     def refresh_ui(self):
         """刷新界面"""
