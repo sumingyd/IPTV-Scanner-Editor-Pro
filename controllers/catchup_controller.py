@@ -55,6 +55,9 @@ class CatchupController:
         self.original_channel = channel.copy()
         self.catchup_program = program
         self.is_catchup_mode = True
+        self.window._is_timeshift_mode = False
+        if hasattr(self.window, '_live_timeshift_seconds'):
+            self.window._live_timeshift_seconds = 0
 
     def _clear_catchup_state(self):
         """清除回看状态"""
@@ -344,6 +347,8 @@ class CatchupController:
 
         if hasattr(self.window, 'exit_catchup_button') and self.window.exit_catchup_button:
             try:
+                tr = getattr(self.window.language_manager, 'tr', lambda x, y: x)
+                self.window.exit_catchup_button.setText(tr("exit_catchup", "⏪ 退出回看"))
                 self.window.exit_catchup_button.show()
                 self.window.exit_catchup_button.raise_()
                 logger.debug("退出回看按钮已显示")
@@ -354,6 +359,8 @@ class CatchupController:
         """退出回看，返回直播"""
         from datetime import datetime, timedelta
         from core.log_manager import global_logger as logger
+
+        saved_original_channel = self.original_channel or self.window.current_channel
 
         if hasattr(self.window, 'playback_ctrl'):
             self.window.playback_ctrl._exit_catchup_mode()
@@ -374,11 +381,11 @@ class CatchupController:
         if hasattr(self.window, '_populate_epg_list'):
             self.window._populate_epg_list()
 
-        if self.original_channel:
-            channel_name = self.original_channel.get("name", tr("unknown_channel", "Unknown Channel"))
+        if saved_original_channel:
+            channel_name = saved_original_channel.get("name", tr("unknown_channel", "Unknown Channel"))
             self.window.status_bar_show_message(f"{tr('back_to_live', 'Back to live')}: {channel_name}")
-            self.window.current_channel = self.original_channel
-            self.window.play_channel(self.original_channel)
+            self.window.current_channel = saved_original_channel
+            self.window.play_channel(saved_original_channel)
             if hasattr(self.window, 'update_channel_info_on_selection'):
                 self.window.update_channel_info_on_selection()
 
@@ -417,6 +424,8 @@ class CatchupController:
         """退出时移模式，停止时移播放并恢复直播"""
         from core.log_manager import global_logger as logger
 
+        saved_original = self.original_channel or self.window.current_channel
+
         if hasattr(self.window, 'playback_ctrl'):
             self.window.playback_ctrl._exit_catchup_mode()
 
@@ -429,10 +438,9 @@ class CatchupController:
         self.window.status_bar_show_message(f"{tr('back_to_live', 'Back to live')}: {channel_name}")
 
         # 恢复直播：重新播放原始直播频道
-        original = self.original_channel or self.window.current_channel
-        if original and hasattr(self.window, 'play_channel'):
-            self.window.current_channel = original
-            self.window.play_channel(original)
+        if saved_original and hasattr(self.window, 'play_channel'):
+            self.window.current_channel = saved_original
+            self.window.play_channel(saved_original)
             if hasattr(self.window, 'update_channel_info_on_selection'):
                 self.window.update_channel_info_on_selection()
         elif self.window.player_controller and self.window.current_channel:

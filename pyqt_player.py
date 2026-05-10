@@ -3273,7 +3273,18 @@ class IPTVPlayer(QMainWindow):
                         start_time = self.catchup_program.get('start')
                         end_time = self.catchup_program.get('end')
                         title = self.catchup_program.get('title', '')
-                        desc = self.catchup_program.get('desc', self.language_manager.tr('no_program_desc', 'No program description'))
+                        desc = self.catchup_program.get('desc', '')
+                        # 时移模式下desc为空时，尝试从EPG获取当前节目描述
+                        if is_timeshift and (not desc or desc.strip() == ''):
+                            channel_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
+                            if channel_name:
+                                current_epg = self.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
+                                if current_epg:
+                                    desc = current_epg.get("desc", '')
+                            if not desc or desc.strip() == '':
+                                desc = self.language_manager.tr('no_program_desc', 'No program description')
+                        elif not desc or desc.strip() == '':
+                            desc = self.language_manager.tr('no_program_desc', 'No program description')
                         # 显示节目描述
                         self.program_desc.setText(desc)
                         # 显示节目名称
@@ -3282,10 +3293,10 @@ class IPTVPlayer(QMainWindow):
                             start_str = start_time.strftime("%H:%M")
                             end_str = end_time.strftime("%H:%M")
                             self.time_label.setText(f"⏱ {start_str} - {end_str}")
-                            self.remain_label.setText(self.language_manager.tr("catchup_playing_label", "Catching up"))
+                            self.remain_label.hide()
                         else:
                             self.time_label.setText("⏱ --:-- - --:--")
-                            self.remain_label.setText(self.language_manager.tr("catchup_playing_label", "Catching up"))
+                            self.remain_label.hide()
                     except Exception as e:
                         logger.error(f"处理回看节目信息失败: {e}")
                         if self.catchup_program is not None:
@@ -3293,9 +3304,10 @@ class IPTVPlayer(QMainWindow):
                             self.current_program.setText(f"· {title}" if title else "")
                         self.program_desc.setText(self.language_manager.tr("catchup_current_program", "Catching up current program"))
                         self.time_label.setText("⏱ --:-- - --:--")
-                        self.remain_label.setText(self.language_manager.tr("catchup_playing_label", "Catching up"))
+                        self.remain_label.hide()
                 else:
                     # 非回看模式，从EPG数据获取节目描述
+                    self.remain_label.show()
                     channel_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
                     if channel_name:
                         current_program = self.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
@@ -3349,8 +3361,9 @@ class IPTVPlayer(QMainWindow):
             if is_catchup:
                 self.program_desc.setText(self.language_manager.tr("catchup_current_program", "Catching up current program"))
                 self.time_label.setText("⏱ --:-- - --:--")
-                self.remain_label.setText(self.language_manager.tr("catchup_playing_label", "Catching up"))
+                self.remain_label.hide()
             else:
+                self.remain_label.show()
                 self.program_desc.setText(self.language_manager.tr("playing_current_channel", "Playing current channel"))
                 from datetime import datetime
                 current_time = datetime.now()
@@ -4952,6 +4965,8 @@ class IPTVPlayer(QMainWindow):
             'desc': '',
         }
         self.original_channel = self.current_channel.copy()
+        if hasattr(self, 'catchup_ctrl'):
+            self.catchup_ctrl.original_channel = self.current_channel.copy()
 
         if self.player_controller:
             self.player_controller.play(timeshift_url, f"{self.current_channel.get('name', '')} (时移)")
@@ -5032,6 +5047,8 @@ class IPTVPlayer(QMainWindow):
         self.is_catchup_mode = True
         self._live_timeshift_seconds = max(0, (datetime.now() - target_wallclock).total_seconds())
         self.original_channel = self.current_channel.copy()
+        if hasattr(self, 'catchup_ctrl'):
+            self.catchup_ctrl.original_channel = self.current_channel.copy()
         self.catchup_program = {
             'start': target_wallclock,
             'end': end_time,

@@ -208,6 +208,9 @@ class PlaybackController:
         catchup_ctrl = getattr(self.window, 'catchup_ctrl', None)
         if catchup_ctrl:
             catchup_ctrl._clear_catchup_state()
+
+        if hasattr(self.window, 'is_catchup_mode'):
+            self.window.is_catchup_mode = False
         else:
             # 降级处理：直接操作 window 属性
             if hasattr(self.window, 'is_catchup_mode'):
