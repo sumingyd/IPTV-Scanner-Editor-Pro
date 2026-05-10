@@ -58,6 +58,10 @@ class EventHandler:
                     if hasattr(self.window, 'wheelEvent'):
                         self.window.wheelEvent(event)
                         return True
+                elif event_type == QEvent.Type.MouseButtonDblClick:
+                    if hasattr(self.window, 'mouseDoubleClickEvent'):
+                        self.window.mouseDoubleClickEvent(event)
+                        return True
 
         if not getattr(self.window, '_pip_mode', False) and not getattr(self.window, 'is_fullscreen', False) and not getattr(self.window, '_floating_hidden', False):
             if obj is getattr(self.window, 'video_widget', None):

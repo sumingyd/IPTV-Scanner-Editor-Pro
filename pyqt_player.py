@@ -435,10 +435,19 @@ class IPTVPlayer(QMainWindow):
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):
-        """鼠标双击事件（委托给WindowController）"""
+        """鼠标双击事件 - 视频区域双击切换全屏，标题栏双击最大化"""
         if getattr(self, '_pip_mode', False):
             return
         if not self.window_ctrl.handle_mouse_double_click_event(event):
+            if hasattr(self, 'video_widget') and self.video_widget:
+                gpos = event.globalPosition().toPoint()
+                vw_geo = self.video_widget.geometry()
+                vw_global = self.video_widget.mapToGlobal(vw_geo.topLeft())
+                if (vw_global.x() <= gpos.x() <= vw_global.x() + vw_geo.width() and
+                        vw_global.y() <= gpos.y() <= vw_global.y() + vw_geo.height()):
+                    self.toggle_fullscreen()
+                    event.accept()
+                    return
             super().mouseDoubleClickEvent(event)
 
     def wheelEvent(self, event):
