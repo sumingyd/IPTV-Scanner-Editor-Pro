@@ -99,6 +99,38 @@ class EPGController:
         self._current_date = None
         self._last_epg_key = None
 
+    def _get_active_catchup_label(self, program, is_live, is_past, channel_supports_catchup, tr):
+        """确定回看/时移标签，考虑当前活跃的回看/时移状态"""
+        if not channel_supports_catchup:
+            return ''
+
+        is_timeshift_mode = getattr(self.window, '_is_timeshift_mode', False)
+        is_catchup_mode = getattr(self.window, 'is_catchup_mode', False)
+        catchup_program = getattr(self.window, 'catchup_program', None)
+
+        if is_timeshift_mode and is_live:
+            return tr('timeshift_playing', '正在时移')
+
+        if is_catchup_mode and catchup_program:
+            prog_start = program.get('start', '')
+            prog_end = program.get('end', '')
+            cp_start = catchup_program.get('start', None)
+            cp_end = catchup_program.get('end', None)
+            if isinstance(cp_start, datetime):
+                cp_start = cp_start.isoformat()
+            if isinstance(cp_end, datetime):
+                cp_end = cp_end.isoformat()
+            if prog_start and cp_start and prog_end and cp_end:
+                if prog_start == cp_start and prog_end == cp_end:
+                    return tr('catchup_playing_label', '正在回看')
+
+        if is_live:
+            return tr('timeshift_available', '可时移')
+        elif is_past:
+            return tr('catchup_available', '可回放')
+
+        return ''
+
     def _compute_epg_key(self, filtered_list, channel_name, target_date):
         if not filtered_list:
             return None
@@ -137,12 +169,9 @@ class EPGController:
                     is_live = True
 
             is_catchup = (is_past_program or is_live) and channel_supports_catchup
-            if is_catchup and is_live:
-                catchup_label = tr('timeshift_available', '可时移')
-            elif is_catchup:
-                catchup_label = tr('catchup_available', '可回放')
-            else:
-                catchup_label = ''
+            catchup_label = self._get_active_catchup_label(
+                program, is_live, is_past_program, channel_supports_catchup, tr
+            )
             item.setData(Qt.ItemDataRole.UserRole, {
                 'channel': (item.data(Qt.ItemDataRole.UserRole) or {}).get('channel', ''),
                 'program': program,
@@ -315,12 +344,9 @@ class EPGController:
                 item.setText(display_text)
 
                 is_catchup = (is_past_program or is_live) and channel_supports_catchup
-                if is_catchup and is_live:
-                    catchup_label = tr('timeshift_available', '可时移')
-                elif is_catchup:
-                    catchup_label = tr('catchup_available', '可回放')
-                else:
-                    catchup_label = ''
+                catchup_label = self._get_active_catchup_label(
+                    program, is_live, is_past_program, channel_supports_catchup, tr
+                )
 
                 item.setData(Qt.ItemDataRole.UserRole, {
                     'channel': channel_name,

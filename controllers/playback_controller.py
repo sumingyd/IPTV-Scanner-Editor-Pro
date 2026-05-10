@@ -258,9 +258,6 @@ class PlaybackController:
             from datetime import datetime
             current_time = datetime.now().strftime("%H:%M")
             self.window.time_label.setText(f"⏱ {current_time}")
-        if hasattr(self.window, 'program_desc') and hasattr(self.window, 'language_manager'):
-            self.window.program_desc.setText(
-                self.window.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
 
     @property
     def is_playing(self) -> bool:

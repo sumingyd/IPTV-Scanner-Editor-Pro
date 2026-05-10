@@ -333,6 +333,10 @@ class CatchupController:
 
             self.window.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
             self.add_exit_catchup_button()
+            if hasattr(self.window, '_update_catchup_indicator'):
+                self.window._update_catchup_indicator()
+            if hasattr(self.window, '_populate_epg_list'):
+                self.window._populate_epg_list()
 
     def add_exit_catchup_button(self):
         """显示退出回看按钮"""
@@ -373,7 +377,10 @@ class CatchupController:
         if self.original_channel:
             channel_name = self.original_channel.get("name", tr("unknown_channel", "Unknown Channel"))
             self.window.status_bar_show_message(f"{tr('back_to_live', 'Back to live')}: {channel_name}")
+            self.window.current_channel = self.original_channel
             self.window.play_channel(self.original_channel)
+            if hasattr(self.window, 'update_channel_info_on_selection'):
+                self.window.update_channel_info_on_selection()
 
         self._clear_catchup_state()
 
@@ -424,7 +431,10 @@ class CatchupController:
         # 恢复直播：重新播放原始直播频道
         original = self.original_channel or self.window.current_channel
         if original and hasattr(self.window, 'play_channel'):
+            self.window.current_channel = original
             self.window.play_channel(original)
+            if hasattr(self.window, 'update_channel_info_on_selection'):
+                self.window.update_channel_info_on_selection()
         elif self.window.player_controller and self.window.current_channel:
             url = self.window.current_channel.get('url', '')
             if url:

@@ -4956,6 +4956,8 @@ class IPTVPlayer(QMainWindow):
         if self.player_controller:
             self.player_controller.play(timeshift_url, f"{self.current_channel.get('name', '')} (时移)")
         self._show_exit_timeshift_button()
+        self._update_catchup_indicator()
+        self._populate_epg_list()
 
     def _start_live_timeshift_from_progress(self, slider_seconds, catchup_source):
         """直播时进度条拖到缓冲区之前，自动用回看URL进行时移播放。
@@ -5040,6 +5042,8 @@ class IPTVPlayer(QMainWindow):
         if self.player_controller:
             self.player_controller.play(timeshift_url, f"{channel_name} (时移 {offset_str})")
         self._show_exit_timeshift_button()
+        self._update_catchup_indicator()
+        self._populate_epg_list()
 
     def _show_audio_track_menu(self):
         """显示音轨切换菜单"""
@@ -5753,7 +5757,17 @@ class IPTVPlayer(QMainWindow):
         try:
             if not hasattr(self, 'catchup_indicator'):
                 return
-            if self.current_channel and (
+
+            is_timeshift = getattr(self, '_is_timeshift_mode', False)
+            is_catchup = getattr(self, 'is_catchup_mode', False)
+
+            if is_timeshift:
+                self.catchup_indicator.setText(self.language_manager.tr('timeshift_watching', '正在时移观看'))
+                self.catchup_indicator.show()
+            elif is_catchup and not is_timeshift:
+                self.catchup_indicator.setText(self.language_manager.tr('catchup_playing_label', '正在回看'))
+                self.catchup_indicator.show()
+            elif self.current_channel and (
                 self.current_channel.get('catchup_source', '')
                 or self.current_channel.get('catchup', '')
             ):
