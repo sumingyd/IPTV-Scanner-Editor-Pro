@@ -1688,7 +1688,6 @@ class IPTVPlayer(QMainWindow):
             self._populate_channel_list_for(self.sub_channel_list, self._sub_channels,
                                             self.sub_group_combo.currentText())
         else:
-            self._local_channels = list(app_state._channels)
             self._update_groups_for('local')
             self._populate_channel_list_for(self.local_channel_list, self._local_channels,
                                             self.local_group_combo.currentText())
@@ -2040,6 +2039,26 @@ class IPTVPlayer(QMainWindow):
                 comma_name = comma_name[1:-1]
         return channel_name, tvg_id, tvg_name, comma_name
 
+    def _is_local_file(self, channel=None):
+        """判断频道是否为本地视频文件
+        
+        Args:
+            channel: 频道字典，为None时使用 self.current_channel
+        """
+        ch = channel if channel is not None else self.current_channel
+        if not isinstance(ch, dict):
+            return False
+        url = ch.get('url', '')
+        if not url:
+            return False
+        if url.split('?')[0].lower().endswith(
+            ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.webm', '.mp3', '.wav', '.flac')
+        ):
+            return True
+        if not url.startswith(('http://', 'https://', 'rtmp://', 'rtsp://', 'rtp://')):
+            return True
+        return False
+
     def _update_progress_range_for_live(self):
         """根据当前节目时长动态设置进度条范围"""
         from datetime import datetime, timedelta
@@ -2141,6 +2160,9 @@ class IPTVPlayer(QMainWindow):
         """检测节目是否切换，更新UI信息"""
         is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
         if is_catchup:
+            return
+
+        if self._is_local_file():
             return
 
         try:
@@ -2350,7 +2372,8 @@ class IPTVPlayer(QMainWindow):
                 self.playback_ctrl._exit_catchup_mode()
 
             self.update_channel_info_on_selection()
-            self.populate_epg_list()
+            if not self._is_local_file():
+                self.populate_epg_list()
             self.play_channel(self.current_channel)
         except Exception as e:
             logger.error(f"select_channel: 选择频道失败: {e}", exc_info=True)
@@ -2411,31 +2434,30 @@ class IPTVPlayer(QMainWindow):
         
         # 从EPG数据获取当前节目描述（安全处理）
         try:
-            channel_name = self.current_channel.get("name", "")
-            current_program_data = None
-            if channel_name and hasattr(self, 'epg_parser') and self.epg_parser:
-                ch_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
-                current_program_data = self.epg_parser.get_current_program(
-                    ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name
-                )
-            if current_program_data:
-                program_name = current_program_data.get("title", "")
-                self.current_program.setText(f"· {program_name}" if program_name else "")
-                self.program_desc.setText(current_program_data.get("desc", self.language_manager.tr("no_program_desc", "No program description")))
-                start_str = current_program_data.get("start", "")
-                start_display = datetime.fromisoformat(start_str).strftime("%H:%M") if start_str else "--:--"
-                self.progress_start.setText(start_display)
-                self.time_label.setText(f"⏱ {datetime.now().strftime('%H:%M')}")
-                self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
-            else:
+            if self._is_local_file():
                 self.current_program.setText("")
-                is_local_file = (self.current_channel and
-                                 not self.current_channel.get('url', '').startswith(('http://', 'https://', 'rtmp://', 'rtsp://', 'rtp://')))
-                if is_local_file:
-                    self.program_desc.setText(self.language_manager.tr("local_video_file", "本地视频文件"))
-                    self.time_label.setText("⏱ --:-- / --:--")
-                    self.remain_label.setText(self.language_manager.tr("loading", "加载中..."))
+                self.program_desc.setText(self.language_manager.tr("local_video_file", "本地视频文件"))
+                self.time_label.setText("⏱ --:-- / --:--")
+                self.remain_label.setText(self.language_manager.tr("loading", "加载中..."))
+            else:
+                channel_name = self.current_channel.get("name", "")
+                current_program_data = None
+                if channel_name and hasattr(self, 'epg_parser') and self.epg_parser:
+                    ch_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
+                    current_program_data = self.epg_parser.get_current_program(
+                        ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name
+                    )
+                if current_program_data:
+                    program_name = current_program_data.get("title", "")
+                    self.current_program.setText(f"· {program_name}" if program_name else "")
+                    self.program_desc.setText(current_program_data.get("desc", self.language_manager.tr("no_program_desc", "No program description")))
+                    start_str = current_program_data.get("start", "")
+                    start_display = datetime.fromisoformat(start_str).strftime("%H:%M") if start_str else "--:--"
+                    self.progress_start.setText(start_display)
+                    self.time_label.setText(f"⏱ {datetime.now().strftime('%H:%M')}")
+                    self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
                 else:
+                    self.current_program.setText("")
                     self.program_desc.setText(self.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
                     self.time_label.setText(f"⏱ {datetime.now().strftime('%H:%M')}")
                     self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
@@ -2863,6 +2885,11 @@ class IPTVPlayer(QMainWindow):
             self.update_media_info()
             self._last_info_key = None
             self.update_timer.start(500)
+            if self._is_local_file():
+                if hasattr(self, 'epg_panel') and self.epg_panel and self.epg_panel.isVisible():
+                    self.epg_panel.hide()
+            elif hasattr(self, 'epg_panel') and self.epg_panel and getattr(self, 'epg_visible', True) and not self.epg_panel.isVisible():
+                self.epg_panel.show()
             if self.current_channel:
                 channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
                 if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
@@ -3309,11 +3336,17 @@ class IPTVPlayer(QMainWindow):
                     # 非回看模式，从EPG数据获取节目描述
                     self.remain_label.show()
                     channel_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
-                    if channel_name:
+                    # 检测是否为本地视频文件
+                    is_local = self._is_local_file()
+                    if is_local:
+                        self.program_desc.setText(self.language_manager.tr("local_video_file", "本地视频文件"))
+                        self.current_program.setText("")
+                        self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
+                        # time_label、progress_start、progress_end 由 update_floating_panel_info 更新
+                    elif channel_name:
                         current_program = self.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
                         if current_program:
                             self.program_desc.setText(current_program.get("desc", self.language_manager.tr("no_program_desc", "No program description")))
-                            # 更新时间信息
                             try:
                                 from datetime import datetime
                                 start_time = datetime.fromisoformat(current_program.get('start', ''))
@@ -3395,7 +3428,7 @@ class IPTVPlayer(QMainWindow):
         now = _time.monotonic()
         if now - getattr(self, '_last_epg_refresh', 0) >= 30:
             self._last_epg_refresh = now
-            if hasattr(self, 'epg_content') and self.epg_content.isVisible():
+            if hasattr(self, 'epg_content') and self.epg_content.isVisible() and not self._is_local_file():
                 self.populate_epg_list()
         
         self._check_program_change()
@@ -3460,10 +3493,10 @@ class IPTVPlayer(QMainWindow):
                 if self._video_overlay_label.isVisible():
                     self._video_overlay_label.hide()
         
-        # 只有在非回看模式下才检查EPG（时移模式也需要EPG）
+        # 只有在非回看模式下才检查EPG（时移模式也需要EPG），本地文件跳过EPG
         has_epg = False
         current_program = None
-        if not is_catchup or is_timeshift:
+        if not self._is_local_file() and (not is_catchup or is_timeshift):
             try:
                 channel_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
                 if channel_name:
@@ -3597,11 +3630,7 @@ class IPTVPlayer(QMainWindow):
         else:
             from datetime import datetime, timedelta
 
-            is_local_file = (isinstance(self.current_channel, dict) and
-                             self.current_channel.get('url', '').split('?')[0].lower().endswith(
-                                 ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.webm', '.mp3', '.wav', '.flac'))
-                             ) or (isinstance(self.current_channel, dict) and
-                                   not self.current_channel.get('url', '').startswith(('http://', 'https://', 'rtmp://', 'rtsp://', 'rtp://')))
+            is_local_file = self._is_local_file()
 
             if is_local_file and total_time_ms > 0:
                 total_seconds = total_time_ms // 1000
@@ -3623,9 +3652,11 @@ class IPTVPlayer(QMainWindow):
                         h_e, m_e = divmod(m_e, 60)
                         self.progress_start.setText(f"{h_s}:{m_s:02d}:{s_s:02d}")
                         self.progress_end.setText(f"{h_e}:{m_e:02d}:{s_e:02d}")
+                        self.time_label.setText(f"⏱ {h_s}:{m_s:02d}:{s_s:02d} / {h_e}:{m_e:02d}:{s_e:02d}")
                     else:
                         self.progress_start.setText(f"{m_s}:{s_s:02d}")
                         self.progress_end.setText(f"{m_e}:{s_e:02d}")
+                        self.time_label.setText(f"⏱ {m_s}:{s_s:02d} / {m_e}:{s_e:02d}")
 
                     remain = total_seconds - current_seconds
                     m_r, s_r = divmod(remain, 60)
@@ -3634,6 +3665,16 @@ class IPTVPlayer(QMainWindow):
                         self.remain_label.setText(f"-{h_r}:{m_r:02d}:{s_r:02d}")
                     else:
                         self.remain_label.setText(f"-{m_r}:{s_r:02d}")
+            elif is_local_file:
+                self._progress_time_mode = 'vod'
+                self._progress_program_start = None
+                self._progress_program_end = None
+                self.progress_start.setText("--:--")
+                self.progress_end.setText("--:--")
+                self.time_label.setText("⏱ --:-- / --:--")
+                self._set_progress_value(0)
+                if hasattr(self, 'remain_label'):
+                    self.remain_label.setText(self.language_manager.tr("loading", "加载中..."))
             else:
                 if self._progress_total_seconds != 3600:
                     self._set_progress_range(3600)
