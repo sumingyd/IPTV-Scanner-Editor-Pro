@@ -190,27 +190,50 @@ def log_class_methods(cls):
 def _make_log_func(category: str, level: str):
     """工厂函数：生成指定类别和级别的日志函数"""
     if level == 'error':
-        def _log_func(message: str, exc_info: bool = False):
+        def _log_error(message: str, exc_info: bool = False):
             logging_helper.log_error(f'{category}_error', message, exc_info)
-        return _log_func
+        return _log_error
     elif level == 'warning':
-        def _log_func(message: str):
+        def _log_warning(message: str):
             logging_helper.log_warning(f'{category}_warning', message)
-        return _log_func
+        return _log_warning
     elif level == 'info':
-        def _log_func(message: str):
+        def _log_info(message: str):
             logging_helper.log_info(f'{category}_info', message)
-        return _log_func
+        return _log_info
 
-_categories = ['config', 'network', 'file', 'ui', 'scan', 'validation', 'player']
-for _cat in _categories:
-    for _lvl in ['error', 'warning', 'info']:
-        _func_name = f'log_{_cat}_{_lvl}'
-        globals()[_func_name] = _make_log_func(_cat, _lvl)
+log_config_error = _make_log_func('config', 'error')
+log_config_warning = _make_log_func('config', 'warning')
+log_config_info = _make_log_func('config', 'info')
+log_network_error = _make_log_func('network', 'error')
+log_network_warning = _make_log_func('network', 'warning')
+log_network_info = _make_log_func('network', 'info')
+log_file_error = _make_log_func('file', 'error')
+log_file_warning = _make_log_func('file', 'warning')
+log_file_info = _make_log_func('file', 'info')
+log_ui_error = _make_log_func('ui', 'error')
+log_ui_warning = _make_log_func('ui', 'warning')
+log_ui_info = _make_log_func('ui', 'info')
+log_scan_error = _make_log_func('scan', 'error')
+log_scan_warning = _make_log_func('scan', 'warning')
+log_scan_info = _make_log_func('scan', 'info')
+log_validation_error = _make_log_func('validation', 'error')
+log_validation_warning = _make_log_func('validation', 'warning')
+log_validation_info = _make_log_func('validation', 'info')
+log_player_error = _make_log_func('player', 'error')
+log_player_warning = _make_log_func('player', 'warning')
+log_player_info = _make_log_func('player', 'info')
 
 
 __all__ = [
     'logging_helper',
     'log_function_call',
     'log_class_methods',
-] + [f'log_{cat}_{lvl}' for cat in _categories for lvl in ['error', 'warning', 'info']]
+    'log_config_error', 'log_config_warning', 'log_config_info',
+    'log_network_error', 'log_network_warning', 'log_network_info',
+    'log_file_error', 'log_file_warning', 'log_file_info',
+    'log_ui_error', 'log_ui_warning', 'log_ui_info',
+    'log_scan_error', 'log_scan_warning', 'log_scan_info',
+    'log_validation_error', 'log_validation_warning', 'log_validation_info',
+    'log_player_error', 'log_player_warning', 'log_player_info',
+]

@@ -2,8 +2,8 @@ import sys
 import os
 import re
 import logging
-
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from typing import Any, Dict, Optional
 from models.channel_model import ChannelListModel
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -135,7 +135,7 @@ class IPTVPlayer(QMainWindow):
     language_manager = None
     channel_model = None
     channels = None
-    current_channel = None
+    current_channel: Optional[Dict[str, Any]] = None
     epg_parser = None
 
     window_ctrl = None
@@ -192,7 +192,7 @@ class IPTVPlayer(QMainWindow):
     is_timeshift_mode = False
     _is_timeshift_mode = False
     _live_timeshift_seconds = 0
-    catchup_program = None
+    catchup_program: Optional[Dict[str, Any]] = None
     epg_visible = True
     playlist_visible = True
     floating_panel_visible = True
@@ -208,18 +208,18 @@ class IPTVPlayer(QMainWindow):
     _last_mouse_pos = None
     _editing_playlist_index = -1
     _editing_epg_index = -1
-    current_epg_date = None
-    _saved_floating_states = None
-    _auto_hide_saved_states = None
-    _osd_saved_panel_states = None
+    current_epg_date: Optional[date] = None
+    _saved_floating_states: Optional[Dict[str, bool]] = None
+    _auto_hide_saved_states: Optional[Dict[str, bool]] = None
+    _osd_saved_panel_states: Optional[Dict[str, bool]] = None
     _window_title = ''
     _theme_manager = None
     
-    def __init__(self):
+    def __init__(self, parent: Optional[QWidget] = None, flags: Qt.WindowType = Qt.WindowType.Window):
         from utils.general_utils import suppress_urllib3_warnings
         suppress_urllib3_warnings()
         logger.debug("开始初始化 IPTVPlayer")
-        super().__init__()
+        super().__init__(parent=parent, flags=flags)
 
         self._init_config()
         self._init_state()
@@ -301,6 +301,7 @@ class IPTVPlayer(QMainWindow):
 
         from datetime import datetime
         self.current_epg_date = datetime.now().date()
+        self._last_media_info: Dict[str, Any] = {}
 
     def _init_signals(self):
         """连接所有信号到槽函数"""
@@ -693,7 +694,7 @@ class IPTVPlayer(QMainWindow):
         
         # 回看相关属性
         self.is_catchup_mode = False
-        self.original_channel = None
+        self.original_channel: Optional[Dict[str, Any]] = None
         
         logger.debug("_create_status_bar: 完成")
     
@@ -2260,11 +2261,7 @@ class IPTVPlayer(QMainWindow):
         
         value = self._get_progress_seconds()
         
-        has_catchup_program = hasattr(self, 'catchup_program')
-        has_original_channel = hasattr(self, 'original_channel')
-        logger.debug(f"检查必要属性：catchup_program={has_catchup_program}, original_channel={has_original_channel}")
-        
-        if has_catchup_program and has_original_channel:
+        if self.catchup_program is not None and self.original_channel is not None:
             try:
                 channel_name = self.original_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel"))
                 catchup_source = self.original_channel.get('catchup_source', '')
@@ -2506,14 +2503,16 @@ class IPTVPlayer(QMainWindow):
     def on_prev_day(self):
         """上一天按钮点击事件"""
         from datetime import timedelta
-        self.current_epg_date -= timedelta(days=1)
+        if self.current_epg_date is not None:
+            self.current_epg_date -= timedelta(days=1)
         self.update_epg_date_display()
         self.populate_epg_list()
     
     def on_next_day(self):
         """下一天按钮点击事件"""
         from datetime import timedelta
-        self.current_epg_date += timedelta(days=1)
+        if self.current_epg_date is not None:
+            self.current_epg_date += timedelta(days=1)
         self.update_epg_date_display()
         self.populate_epg_list()
     
@@ -2576,7 +2575,7 @@ class IPTVPlayer(QMainWindow):
             self._auto_hide_state = 'visible'
         else:
             if self._auto_hide_state == 'auto_hidden':
-                self._saved_floating_states = dict(self._auto_hide_saved_states)
+                self._saved_floating_states = dict(self._auto_hide_saved_states or {})
                 self._auto_hide_state = 'visible'
                 self._auto_hide_saved_states = {}
             else:
@@ -2625,6 +2624,7 @@ class IPTVPlayer(QMainWindow):
         self._auto_hide_state = 'visible'
         self._auto_hide_saved_states = {}
         self._sync_panel_actions()
+        self._raise_child_dialogs()
 
     def _delayed_hide_floating_panels(self):
         """延迟隐藏悬浮窗（避免鼠标移到悬浮窗上时误隐藏）"""
@@ -2721,6 +2721,7 @@ class IPTVPlayer(QMainWindow):
         self.unsetCursor()
         self._sync_panel_actions()
         self._restart_auto_hide_timer()
+        self._raise_child_dialogs()
 
     def _restart_auto_hide_timer(self):
         """重启全屏自动隐藏定时器"""
@@ -2936,7 +2937,7 @@ class IPTVPlayer(QMainWindow):
         if self.current_channel:
             self.playback_ctrl.play_channel(self.current_channel)
 
-    def on_live_media_info_updated(self, info):
+    def on_live_media_info_updated(self, info: Dict[str, Any]):
         """持续更新媒体信息 - 信息稳定后才更新UI，避免闪烁"""
         if not info:
             return
@@ -2962,9 +2963,6 @@ class IPTVPlayer(QMainWindow):
                 return
             self._last_info_key = key
 
-            if not hasattr(self, '_last_media_info'):
-                self._last_media_info = {}
-
             has_video = info.get('width', 0) > 0 and info.get('height', 0) > 0
             has_codec = bool(info.get('video_codec', ''))
 
@@ -2973,7 +2971,7 @@ class IPTVPlayer(QMainWindow):
                 if not info:
                     return
             elif not has_video and has_codec:
-                cached = getattr(self, '_last_media_info', {})
+                cached = self._last_media_info
                 if cached.get('width', 0) > 0 and cached.get('height', 0) > 0:
                     merged = dict(info)
                     for k in ('width', 'height', 'fps', 'video_bitrate', 'colormatrix', 'gamma', 'sig_peak'):
@@ -3244,7 +3242,7 @@ class IPTVPlayer(QMainWindow):
             self.channel_name.setText(display_name)
             
             # 回看模式下，使用回看节目的信息
-            if is_catchup and hasattr(self, 'catchup_program'):
+            if is_catchup and self.catchup_program is not None:
                 try:
                     program_name = self.catchup_program.get('title', '')
                     self.current_program.setText(f"· {program_name}" if program_name else "")
@@ -3268,7 +3266,7 @@ class IPTVPlayer(QMainWindow):
         try:
             if self.current_channel:
                 # 回看模式下，使用回看节目的信息
-                if is_catchup and hasattr(self, 'catchup_program'):
+                if is_catchup and self.catchup_program is not None:
                     try:
                         # 使用回看节目的信息
                         start_time = self.catchup_program.get('start')
@@ -3289,7 +3287,7 @@ class IPTVPlayer(QMainWindow):
                             self.remain_label.setText(self.language_manager.tr("catchup_playing_label", "Catching up"))
                     except Exception as e:
                         logger.error(f"处理回看节目信息失败: {e}")
-                        if hasattr(self, 'catchup_program'):
+                        if self.catchup_program is not None:
                             title = self.catchup_program.get('title', '')
                             self.current_program.setText(f"· {title}" if title else "")
                         self.program_desc.setText(self.language_manager.tr("catchup_current_program", "Catching up current program"))
@@ -3463,7 +3461,7 @@ class IPTVPlayer(QMainWindow):
         
         # 更新进度条和时间显示
         if is_catchup and not is_timeshift:
-            if hasattr(self, 'catchup_program'):
+            if self.catchup_program is not None:
                 try:
                     start_time = self.catchup_program.get('start')
                     end_time = self.catchup_program.get('end')
@@ -3818,6 +3816,14 @@ class IPTVPlayer(QMainWindow):
             panel = getattr(self, panel_attr, None)
             if panel and panel.isVisible():
                 panel.show()
+        self._raise_child_dialogs()
+
+    def _raise_child_dialogs(self):
+        """将所有可见的子对话框提升到悬浮窗之上，避免悬浮窗覆盖子对话框"""
+        from PyQt6.QtWidgets import QDialog
+        for dialog in self.findChildren(QDialog):
+            if dialog.isVisible() and not dialog.isModal():
+                dialog.raise_()
 
     def open_channel_mapping(self):
         """打开频道映射管理器"""
@@ -4334,9 +4340,7 @@ class IPTVPlayer(QMainWindow):
             if not self.floating_panel.isVisible():
                 self.floating_panel.show()
 
-        scan_dialog = getattr(self, '_scan_dialog', None) or getattr(self, 'scan_window', None)
-        if scan_dialog and scan_dialog.isVisible():
-            scan_dialog.raise_()
+        self._raise_child_dialogs()
     
     def save_as(self):
         """另存为（委托给SettingsFileOperations）"""
