@@ -277,6 +277,8 @@ class UIController:
 
         codec = audio_info.get('codec')
         if codec and codec != '未知':
+            import re
+            codec = re.sub(r'\s*\(.*?\)\s*', '', codec).strip()
             parts.append(f"{tr('codec_label', 'Codec')}: {codec}")
 
         channels = audio_info.get('channels', 0)

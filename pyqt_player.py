@@ -3037,6 +3037,7 @@ class IPTVPlayer(QMainWindow):
 
             audio_codec = info.get('audio_codec', '')
             if audio_codec and audio_codec != '未知':
+                audio_codec = re.sub(r'\s*\(.*?\)\s*', '', audio_codec).strip()
                 audio_parts.append("{}: {}".format(tr('acodec_label', 'Audio') or 'Audio', audio_codec))
 
             channels = info.get('audio_channels', 0)
