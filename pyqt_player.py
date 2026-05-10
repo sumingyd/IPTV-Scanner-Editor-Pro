@@ -1508,6 +1508,10 @@ class IPTVPlayer(QMainWindow):
             vol_down.triggered.connect(lambda: self.event_handler._adjust_volume(-5) if hasattr(self, 'event_handler') else None)
             playback_menu.addAction(vol_down)
 
+            mute_action = QAction(tr("menu_mute", "Mute\tCtrl+M"), self)
+            mute_action.triggered.connect(lambda: self.toggle_mute() if hasattr(self, 'toggle_mute') else None)
+            playback_menu.addAction(mute_action)
+
             playback_menu.addSeparator()
 
             speed_up = QAction(tr("menu_speed_up", "Speed Up\t."), self)

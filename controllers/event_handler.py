@@ -95,7 +95,7 @@ class EventHandler:
             return False
         elif modifiers == Qt.KeyboardModifier.ControlModifier:
             return key in (Qt.Key.Key_O, Qt.Key.Key_S, Qt.Key.Key_Q,
-                           Qt.Key.Key_U)
+                           Qt.Key.Key_U, Qt.Key.Key_M)
         elif modifiers == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
             if key == Qt.Key.Key_O:
                 return True
@@ -203,6 +203,10 @@ class EventHandler:
                 elif key == Qt.Key.Key_U:
                     if hasattr(w, '_open_stream'):
                         w._open_stream()
+                    return True
+                elif key == Qt.Key.Key_M:
+                    if hasattr(w, 'toggle_mute'):
+                        w.toggle_mute()
                     return True
 
             elif modifiers == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
