@@ -5258,8 +5258,9 @@ class IPTVPlayer(QMainWindow):
         self._pip_prev_btn = self._create_pip_button("⏮", btn_size)
         self._pip_play_btn = self._create_pip_button("⏸", btn_size)
         self._pip_next_btn = self._create_pip_button("⏭", btn_size)
+        self._pip_close_btn = self._create_pip_button("✕", btn_size)
 
-        self._pip_buttons = [self._pip_prev_btn, self._pip_play_btn, self._pip_next_btn]
+        self._pip_buttons = [self._pip_prev_btn, self._pip_play_btn, self._pip_next_btn, self._pip_close_btn]
         for btn in self._pip_buttons:
             btn.setParent(self._pip_overlay_widget)
             btn.hide()
@@ -5338,8 +5339,9 @@ class IPTVPlayer(QMainWindow):
         elif btn is getattr(self, '_pip_next_btn', None):
             logger.debug("画中画: 点击下一个频道按钮")
             self._pip_next_channel()
-        else:
-            logger.warning(f"画中画: 未知按钮点击 {btn}")
+        elif btn is getattr(self, '_pip_close_btn', None):
+            logger.debug("画中画: 点击关闭按钮")
+            self._exit_pip_mode()
 
     def _pip_prev_channel(self):
         """画中画：上一个频道"""
@@ -5513,13 +5515,18 @@ class IPTVPlayer(QMainWindow):
         cx = vw.width() // 2
         cy = vw.height() // 2
         start_x = cx - total_w // 2
+        control_btns = [self._pip_prev_btn, self._pip_play_btn, self._pip_next_btn]
         positions = [
             (start_x, cy - btn_size // 2),
             (start_x + btn_size + spacing, cy - btn_size // 2),
             (start_x + (btn_size + spacing) * 2, cy - btn_size // 2),
         ]
-        for btn, (x, y) in zip(self._pip_buttons, positions):
+        for btn, (x, y) in zip(control_btns, positions):
             btn.move(x, y)
+
+        close_margin = 6
+        if hasattr(self, '_pip_close_btn') and self._pip_close_btn:
+            self._pip_close_btn.move(vw.width() - btn_size - close_margin, close_margin)
 
         from PyQt6.QtGui import QRegion
         from PyQt6.QtCore import QRect
