@@ -66,6 +66,9 @@ try:
     libmpv.mpv_get_property_string.restype = ctypes.c_char_p
     libmpv.mpv_get_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 
+    libmpv.mpv_get_property.restype = ctypes.c_int
+    libmpv.mpv_get_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p]
+
     libmpv.mpv_free.restype = None
     libmpv.mpv_free.argtypes = [ctypes.c_void_p]
 
@@ -95,21 +98,23 @@ try:
     MPV_EVENT_START_FILE = 6
     MPV_EVENT_END_FILE = 7
     MPV_EVENT_FILE_LOADED = 8
-    MPV_EVENT_CLIENT_MESSAGE = 9
-    MPV_EVENT_VIDEO_RECONFIG = 10
-    MPV_EVENT_AUDIO_RECONFIG = 11
-    MPV_EVENT_SEEK = 12
-    MPV_EVENT_PLAYBACK_RESTART = 13
-    MPV_EVENT_PROPERTY_CHANGE = 14
-    MPV_EVENT_QUEUE_OVERFLOW = 15
-    MPV_EVENT_ERROR = 16
+    MPV_EVENT_IDLE = 11
+    MPV_EVENT_TICK = 14
+    MPV_EVENT_CLIENT_MESSAGE = 16
+    MPV_EVENT_VIDEO_RECONFIG = 17
+    MPV_EVENT_AUDIO_RECONFIG = 18
+    MPV_EVENT_SEEK = 20
+    MPV_EVENT_PLAYBACK_RESTART = 21
+    MPV_EVENT_PROPERTY_CHANGE = 22
+    MPV_EVENT_QUEUE_OVERFLOW = 24
+    MPV_EVENT_HOOK = 25
 
-    MPV_FORMAT_STRING = 0
-    MPV_FORMAT_OSD_STRING = 1
-    MPV_FORMAT_FLAG = 2
-    MPV_FORMAT_INT64 = 3
-    MPV_FORMAT_DOUBLE = 4
-    MPV_FORMAT_NODE = 5
+    MPV_FORMAT_STRING = 1
+    MPV_FORMAT_OSD_STRING = 2
+    MPV_FORMAT_FLAG = 3
+    MPV_FORMAT_INT64 = 4
+    MPV_FORMAT_DOUBLE = 5
+    MPV_FORMAT_NODE = 6
 
 except Exception as e:
     print(f"使用ctypes加载libmpv-2.dll失败: {str(e)}")
@@ -345,11 +350,37 @@ class MpvPlayerController(QObject):
             except Exception as e:
                 self.logger.debug(f"提取原始 URL 失败：{str(e)}")
         return url
-    
+
+    def _normalize_url(self, url):
+        if not url:
+            return url
+        u = url.lower()
+        is_network = (u.startswith(('http://', 'https://', 'rtmp://', 'rtsp://', 'rtp://', 'udp://', 'file://')) or
+                      u.endswith('.m3u8'))
+        if is_network:
+            return url
+        try:
+            from pathlib import Path
+            path = Path(url)
+            if path.is_absolute():
+                normalized = path.resolve().as_uri()
+                if normalized != url:
+                    self.logger.debug(f"本地文件路径已规范化: {url[:80]}... -> {normalized[:80]}...")
+                return normalized
+        except Exception as e:
+            self.logger.debug(f"路径规范化失败，使用原始URL: {e}")
+        return url
+
     def _setup_protocol_options(self, url, program_duration=0):
         if not self.mpv_handle or not url:
             return
         u = url.lower()
+
+        is_network = (u.startswith(('http://', 'https://', 'rtmp://', 'rtsp://', 'rtp://', 'udp://')) or
+                      u.endswith('.m3u8'))
+        if not is_network:
+            return
+
         settings = self._playback_settings
 
         is_vod = ('playseek' in u or 'starttime=' in u or 'endtime=' in u or
@@ -470,7 +501,6 @@ class MpvPlayerController(QObject):
 
                 # 处理文件加载完成事件
                 elif event.event_id == MPV_EVENT_FILE_LOADED:
-                    self.logger.debug("文件加载完成事件")
                     self._reconnect_count = 0
                     self._switching_channel = False
                     self._schedule_media_info_start()
@@ -480,7 +510,6 @@ class MpvPlayerController(QObject):
                     if event.data:
                         end_file = ctypes.cast(event.data, ctypes.POINTER(mpv_event_end_file)).contents
                         reason = end_file.reason
-                        self.logger.debug(f"播放结束事件, reason={reason}, error={end_file.error}")
                         if reason == 0:
                             pass
                         elif reason in (1, 2, 3):
@@ -521,7 +550,8 @@ class MpvPlayerController(QObject):
             self._setup_protocol_options(url, program_duration)
             self._set_mpv_string('prefetch-playlist', 'yes')
 
-            cmd = [b'loadfile', url.encode('utf-8'), None]
+            mpv_url = self._normalize_url(url)
+            cmd = [b'loadfile', mpv_url.encode('utf-8'), None]
             cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
             result = libmpv.mpv_command(self.mpv_handle, cmd_ptr)
 
@@ -562,7 +592,8 @@ class MpvPlayerController(QObject):
 
             self._setup_protocol_options(url, program_duration)
 
-            cmd = [b'loadfile', url.encode('utf-8'), None]
+            mpv_url = self._normalize_url(url)
+            cmd = [b'loadfile', mpv_url.encode('utf-8'), None]
             cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
             libmpv.mpv_command(self.mpv_handle, cmd_ptr)
 
@@ -571,7 +602,8 @@ class MpvPlayerController(QObject):
                 for i, next_url in enumerate(next_urls[:prefetch_count]):
                     if not next_url or not next_url.strip():
                         continue
-                    cmd_next = [b'loadfile', next_url.encode('utf-8'), b'append-play', None]
+                    mpv_next_url = self._normalize_url(next_url)
+                    cmd_next = [b'loadfile', mpv_next_url.encode('utf-8'), b'append-play', None]
                     cmd_ptr_next = (ctypes.c_char_p * len(cmd_next))(*cmd_next)
                     libmpv.mpv_command(self.mpv_handle, cmd_ptr_next)
 
@@ -776,57 +808,42 @@ class MpvPlayerController(QObject):
 
     def get_current_time(self):
         try:
-            # 首先尝试 time-pos
             time_seconds = self._get_mpv_property_double('time-pos')
             if time_seconds is not None:
                 result = int(time_seconds * 1000)
-                self.logger.debug(f"get_current_time: time-pos={time_seconds}s = {result}ms")
                 return result
 
-            # 如果 time-pos 失败，尝试 playback-time
             time_seconds = self._get_mpv_property_double('playback-time')
             if time_seconds is not None:
                 result = int(time_seconds * 1000)
-                self.logger.debug(f"get_current_time: playback-time={time_seconds}s = {result}ms")
                 return result
 
-            # 如果 playback-time 失败，尝试 percent-pos 并计算时间
             percent = self._get_mpv_property_double('percent-pos')
             if percent is not None:
-                # 获取总时长
                 duration_seconds = self._get_mpv_property_double('duration')
                 if duration_seconds is not None:
                     time_seconds = duration_seconds * (percent / 100.0)
                     result = int(time_seconds * 1000)
-                    self.logger.debug(f"get_current_time: percent-pos={percent}%, duration={duration_seconds}s = {result}ms")
                     return result
 
-            self.logger.debug(f"get_current_time: 所有属性都返回None")
             return 0
-        except Exception as e:
-            self.logger.debug(f"get_current_time exception: {e}")
+        except Exception:
             return 0
 
     def get_total_time(self):
         try:
-            # 首先尝试 duration
             duration_seconds = self._get_mpv_property_double('duration')
             if duration_seconds is not None:
                 result = int(duration_seconds * 1000)
-                self.logger.debug(f"get_total_time: duration={duration_seconds}s = {result}ms")
                 return result
 
-            # 如果 duration 失败，尝试 length
             duration_seconds = self._get_mpv_property_double('length')
             if duration_seconds is not None:
                 result = int(duration_seconds * 1000)
-                self.logger.debug(f"get_total_time: length={duration_seconds}s = {result}ms")
                 return result
 
-            self.logger.debug(f"get_total_time: 所有属性都返回None")
             return 0
-        except Exception as e:
-            self.logger.debug(f"get_total_time exception: {e}")
+        except Exception:
             return 0
 
     def get_position(self):
@@ -1061,9 +1078,14 @@ class MpvPlayerController(QObject):
                 current_time = self.get_current_time()
                 total_time = self.get_total_time()
                 position = self.get_position()
+
+                self._pos_log_count = getattr(self, '_pos_log_count', 0) + 1
+                if self._pos_log_count in (1, 2, 3, 5, 10):
+                    self.logger.warning(f"[SRC{self._pos_log_count}] total={total_time} cur={current_time} pos={position} url={self.current_url[:60] if self.current_url else 'None'}...")
+
                 self.playback_position_updated.emit(
-                    float(current_time or 0),
-                    float(total_time or 0),
+                    int(current_time or 0),
+                    int(total_time or 0),
                     float(position or 0)
                 )
             except RuntimeError:
