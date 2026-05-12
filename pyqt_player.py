@@ -2587,8 +2587,11 @@ class IPTVPlayer(QMainWindow):
             saved = getattr(self, '_saved_floating_states', {})
             logger.debug(f"toggle_hide_floating: RESTORE, saved={saved}")
             if saved.get('epg', False) and hasattr(self, 'epg_panel') and self.epg_panel:
-                self.epg_panel.show()
-            self.epg_visible = saved.get('epg', False)
+                if not self._is_local_file():
+                    self.epg_panel.show()
+                    self.epg_visible = True
+                else:
+                    self.epg_visible = False
             if saved.get('playlist', False) and hasattr(self, 'playlist_panel') and self.playlist_panel:
                 self.playlist_panel.show()
             self.playlist_visible = saved.get('playlist', False)
@@ -2636,8 +2639,9 @@ class IPTVPlayer(QMainWindow):
 
         saved = self._auto_hide_saved_states
         if saved.get('epg', False) and hasattr(self, 'epg_panel') and self.epg_panel:
-            self.epg_panel.show()
-            self.epg_visible = True
+            if not self._is_local_file():
+                self.epg_panel.show()
+                self.epg_visible = True
         if saved.get('playlist', False) and hasattr(self, 'playlist_panel') and self.playlist_panel:
             self.playlist_panel.show()
             self.playlist_visible = True
@@ -2731,8 +2735,9 @@ class IPTVPlayer(QMainWindow):
 
         saved = self._auto_hide_saved_states
         if saved.get('epg', False) and hasattr(self, 'epg_panel') and self.epg_panel:
-            self.epg_panel.show()
-            self.epg_visible = True
+            if not self._is_local_file():
+                self.epg_panel.show()
+                self.epg_visible = True
         if saved.get('playlist', False) and hasattr(self, 'playlist_panel') and self.playlist_panel:
             self.playlist_panel.show()
             self.playlist_visible = True
@@ -2888,10 +2893,19 @@ class IPTVPlayer(QMainWindow):
             self._last_info_key = None
             self.update_timer.start(500)
             if self._is_local_file():
-                if hasattr(self, 'epg_panel') and self.epg_panel and self.epg_panel.isVisible():
+                if hasattr(self, 'epg_panel') and self.epg_panel:
+                    if not hasattr(self, '_epg_hidden_by_local_file'):
+                        self._epg_hidden_by_local_file = self.epg_visible
                     self.epg_panel.hide()
-            elif hasattr(self, 'epg_panel') and self.epg_panel and getattr(self, 'epg_visible', True) and not self.epg_panel.isVisible():
-                self.epg_panel.show()
+                    self.epg_visible = False
+            elif hasattr(self, 'epg_panel') and self.epg_panel:
+                if hasattr(self, '_epg_hidden_by_local_file'):
+                    if self._epg_hidden_by_local_file:
+                        self.epg_panel.show()
+                        self.epg_visible = True
+                    delattr(self, '_epg_hidden_by_local_file')
+                elif getattr(self, 'epg_visible', True) and not self.epg_panel.isVisible():
+                    self.epg_panel.show()
             if self.current_channel:
                 channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
                 if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
@@ -3831,7 +3845,7 @@ class IPTVPlayer(QMainWindow):
                 self.status_bar.hide()
             self.showFullScreen()
             self.unsetCursor()
-            if hasattr(self, 'epg_panel') and self.epg_panel and self.epg_visible:
+            if hasattr(self, 'epg_panel') and self.epg_panel and self.epg_visible and not self._is_local_file():
                 self.epg_panel.show()
             if hasattr(self, 'playlist_panel') and self.playlist_panel and self.playlist_visible:
                 self.playlist_panel.show()
@@ -3850,8 +3864,11 @@ class IPTVPlayer(QMainWindow):
             if saved.get('status_bar', True) and self.status_bar:
                 self.status_bar.show()
             if saved.get('epg', True) and hasattr(self, 'epg_panel') and self.epg_panel:
-                self.epg_panel.show()
-                self.epg_visible = True
+                if not self._is_local_file():
+                    self.epg_panel.show()
+                    self.epg_visible = True
+                else:
+                    self.epg_visible = False
             else:
                 self.epg_visible = False
             if saved.get('playlist', True) and hasattr(self, 'playlist_panel') and self.playlist_panel:
@@ -5441,8 +5458,11 @@ class IPTVPlayer(QMainWindow):
         if saved.get('status_bar', True) and self.status_bar:
             self.status_bar.show()
         if saved.get('epg', True) and hasattr(self, 'epg_panel') and self.epg_panel:
-            self.epg_panel.show()
-            self.epg_visible = True
+            if not self._is_local_file():
+                self.epg_panel.show()
+                self.epg_visible = True
+            else:
+                self.epg_visible = False
         else:
             self.epg_visible = False
         if saved.get('playlist', True) and hasattr(self, 'playlist_panel') and self.playlist_panel:
