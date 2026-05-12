@@ -1339,6 +1339,17 @@ class MpvPlayerController(QObject):
         except:
             return None
 
+    def add_subtitle_file(self, file_path):
+        """加载外部字幕文件"""
+        try:
+            if not self.mpv_handle:
+                return False
+            cmd = ['sub-add', file_path, 'select']
+            return self.send_command(cmd) == 0
+        except Exception as e:
+            self.logger.error(f"加载外部字幕失败: {e}")
+            return False
+
     def set_property_string(self, name, value):
         self._set_mpv_string(name, value)
 
