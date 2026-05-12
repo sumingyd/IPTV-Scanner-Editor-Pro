@@ -2051,6 +2051,8 @@ class IPTVPlayer(QMainWindow):
         url = ch.get('url', '')
         if not url:
             return False
+        if url.lower().startswith('file://'):
+            return True
         if url.split('?')[0].lower().endswith(
             ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.webm', '.mp3', '.wav', '.flac')
         ):
@@ -3412,9 +3414,13 @@ class IPTVPlayer(QMainWindow):
     
     def _on_playback_position_updated(self, current_time_ms, total_time_ms, position):
         """接收后台线程获取的播放位置（避免主线程调用MPV API）"""
+        prev_total = getattr(self, '_cached_total_time_ms', 0) or 0
         self._cached_current_time_ms = current_time_ms
         self._cached_total_time_ms = total_time_ms
         self._cached_position = position
+        if ((not prev_total or prev_total <= 0) and total_time_ms and total_time_ms > 0
+                and self._is_local_file()):
+            logger.warning(f"[GOT_DURATION] total={total_time_ms:.0f}ms cur={current_time_ms:.0f}ms pos={position:.4f}")
     
     def update_floating_panel_info(self):
         """定期更新悬浮窗信息（进度条、时间、媒体信息等）"""
@@ -3452,12 +3458,12 @@ class IPTVPlayer(QMainWindow):
         current_time_ms = getattr(self, '_cached_current_time_ms', 0)
         total_time_ms = getattr(self, '_cached_total_time_ms', 0)
         position = getattr(self, '_cached_position', 0)
-        
+
         # 格式化时间
         def format_time(ms):
-            if ms <= 0:
+            if not ms or ms <= 0:
                 return "00:00:00"
-            seconds = ms // 1000
+            seconds = int(ms) // 1000
             minutes = seconds // 60
             hours = minutes // 60
             return f"{hours:02d}:{minutes % 60:02d}:{seconds % 60:02d}"
@@ -3633,8 +3639,8 @@ class IPTVPlayer(QMainWindow):
             is_local_file = self._is_local_file()
 
             if is_local_file and total_time_ms > 0:
-                total_seconds = total_time_ms // 1000
-                current_seconds = current_time_ms // 1000 if current_time_ms else 0
+                total_seconds = int(total_time_ms) // 1000
+                current_seconds = int(current_time_ms) // 1000 if current_time_ms else 0
 
                 if total_seconds > 0:
                     if abs(self._progress_total_seconds - total_seconds) > 1:
@@ -3669,12 +3675,49 @@ class IPTVPlayer(QMainWindow):
                 self._progress_time_mode = 'vod'
                 self._progress_program_start = None
                 self._progress_program_end = None
-                self.progress_start.setText("--:--")
-                self.progress_end.setText("--:--")
-                self.time_label.setText("⏱ --:-- / --:--")
-                self._set_progress_value(0)
-                if hasattr(self, 'remain_label'):
-                    self.remain_label.setText(self.language_manager.tr("loading", "加载中..."))
+                if total_time_ms <= 0 and self.player_controller and self.player_controller.is_playing:
+                    try:
+                        fallback_total = self.player_controller.get_total_time()
+                        fallback_current = self.player_controller.get_current_time()
+                        if fallback_total > 0:
+                            total_time_ms = fallback_total
+                            current_time_ms = fallback_current
+                            self._cached_total_time_ms = fallback_total
+                            self._cached_current_time_ms = fallback_current
+                            total_seconds = int(fallback_total) // 1000
+                            current_seconds = int(fallback_current) // 1000 if fallback_current else 0
+                            if abs(self._progress_total_seconds - total_seconds) > 1:
+                                self._set_progress_range(total_seconds)
+                            self._set_progress_value(current_seconds)
+                            m_s, s_s = divmod(current_seconds, 60)
+                            m_e, s_e = divmod(total_seconds, 60)
+                            if m_s >= 60 or m_e >= 60:
+                                h_s, m_s = divmod(m_s, 60)
+                                h_e, m_e = divmod(m_e, 60)
+                                self.progress_start.setText(f"{h_s}:{m_s:02d}:{s_s:02d}")
+                                self.progress_end.setText(f"{h_e}:{m_e:02d}:{s_e:02d}")
+                                self.time_label.setText(f"⏱ {h_s}:{m_s:02d}:{s_s:02d} / {h_e}:{m_e:02d}:{s_e:02d}")
+                            else:
+                                self.progress_start.setText(f"{m_s}:{s_s:02d}")
+                                self.progress_end.setText(f"{m_e}:{s_e:02d}")
+                                self.time_label.setText(f"⏱ {m_s}:{s_s:02d} / {m_e}:{s_e:02d}")
+                            remain = total_seconds - current_seconds
+                            m_r, s_r = divmod(remain, 60)
+                            if m_r >= 60:
+                                h_r, m_r = divmod(m_r, 60)
+                                self.remain_label.setText(f"-{h_r}:{m_r:02d}:{s_r:02d}")
+                            else:
+                                self.remain_label.setText(f"-{m_r}:{s_r:02d}")
+                    except Exception:
+                        pass
+
+                if total_time_ms <= 0:
+                    self.progress_start.setText("--:--")
+                    self.progress_end.setText("--:--")
+                    self.time_label.setText("⏱ --:-- / --:--")
+                    self._set_progress_value(0)
+                    if hasattr(self, 'remain_label'):
+                        self.remain_label.setText(self.language_manager.tr("loading", "加载中..."))
             else:
                 if self._progress_total_seconds != 3600:
                     self._set_progress_range(3600)
