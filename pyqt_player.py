@@ -646,6 +646,8 @@ class IPTVPlayer(QMainWindow):
         # 只创建视频播放区域（不创建悬浮窗）
         self.video_frame = QFrame()
         self.video_frame.setStyleSheet(AppStyles.player_background_style())
+        self.video_frame.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.video_frame.customContextMenuRequested.connect(self._show_video_context_menu)
         
         # 创建默认背景（使用软件图标）
         from utils.general_utils import get_icon_path
@@ -5873,6 +5875,120 @@ class IPTVPlayer(QMainWindow):
                 self.aspect_button.setText(labels.get(ratio, '📐'))
         except Exception:
             pass
+
+    def _show_video_context_menu(self, pos):
+        from PyQt6.QtWidgets import QMenu
+        tr = self.language_manager.tr
+        menu = QMenu(self)
+        menu.setStyleSheet(AppStyles.player_menu_bar_style())
+
+        is_playing = self.player_controller and (self.player_controller.is_playing or getattr(self.player_controller, 'is_paused', False))
+
+        if is_playing:
+            play_pause_text = tr("ctx_pause", "Pause") if not getattr(self.player_controller, 'is_paused', False) else tr("ctx_play", "Play")
+            menu.addAction(play_pause_text, lambda: self.playback_ctrl.toggle_play())
+            menu.addAction(tr("ctx_stop", "Stop"), lambda: self.playback_ctrl.stop_playback())
+
+            menu.addSeparator()
+
+            menu.addAction(tr("ctx_prev_channel", "Previous Channel"), lambda: self.event_handler._switch_channel(-1))
+            menu.addAction(tr("ctx_next_channel", "Next Channel"), lambda: self.event_handler._switch_channel(1))
+
+            menu.addSeparator()
+
+        speed_menu = menu.addMenu(tr("ctx_speed", "Speed"))
+        current_speed = self.player_controller.get_speed() if self.player_controller else 1.0
+        for s in self._SPEED_STEPS:
+            label = f"{s}x" + (" ✓" if abs(current_speed - s) < 0.01 else "")
+            speed_menu.addAction(label, lambda checked, speed=s: self._set_speed_from_menu(speed))
+
+        volume_menu = menu.addMenu(tr("ctx_volume", "Volume"))
+        current_vol = self.player_controller.get_volume() if self.player_controller else 80
+        is_muted = self.player_controller.get_mute() if self.player_controller else False
+        mute_text = tr("ctx_unmute", "Unmute") if is_muted else tr("ctx_mute", "Mute")
+        volume_menu.addAction(mute_text, lambda: self.toggle_mute())
+        volume_menu.addSeparator()
+        for v in (0, 25, 50, 75, 100, 125, 150):
+            label = f"{v}%" + (" ✓" if not is_muted and abs(current_vol - v) < 2 else "")
+            volume_menu.addAction(label, lambda checked, vol=v: self._set_volume_from_menu(vol))
+
+        aspect_menu = menu.addMenu(tr("ctx_aspect_ratio", "Aspect Ratio"))
+        aspect_labels = {
+            'default': tr("ctx_aspect_default", "Default"),
+            '16:9': '16:9',
+            '4:3': '4:3',
+            'stretch': tr("ctx_aspect_stretch", "Stretch"),
+            'fill': tr("ctx_aspect_fill", "Fill"),
+        }
+        current_ratio = self._ASPECT_CYCLE[getattr(self, '_current_aspect_idx', 0)] if hasattr(self, '_current_aspect_idx') else 'default'
+        for ratio in self._ASPECT_CYCLE:
+            label = aspect_labels.get(ratio, ratio) + (" ✓" if ratio == current_ratio else "")
+            aspect_menu.addAction(label, lambda checked, r=ratio: self._set_aspect_from_menu(r))
+
+        menu.addSeparator()
+
+        if is_playing:
+            menu.addAction(tr("ctx_screenshot", "Screenshot\tS"), lambda: self._take_screenshot())
+
+        menu.addAction(tr("ctx_fullscreen", "Fullscreen\tF11"), lambda: self.toggle_fullscreen())
+        menu.addAction(tr("ctx_pip", "Picture-in-Picture\tP"), lambda: self.toggle_pip_mode())
+
+        menu.addSeparator()
+
+        view_menu = menu.addMenu(tr("ctx_view", "View"))
+        epg_action = view_menu.addAction(tr("ctx_epg", "EPG List\tE"))
+        epg_action.setCheckable(True)
+        epg_action.setChecked(self.epg_visible)
+        epg_action.triggered.connect(lambda: self.toggle_epg())
+        playlist_action = view_menu.addAction(tr("ctx_playlist", "Playlist\tL"))
+        playlist_action.setCheckable(True)
+        playlist_action.setChecked(self.playlist_visible)
+        playlist_action.triggered.connect(lambda: self.toggle_playlist())
+        panel_action = view_menu.addAction(tr("ctx_control_panel", "Control Panel\tM"))
+        panel_action.setCheckable(True)
+        panel_action.setChecked(self.floating_panel_visible)
+        panel_action.triggered.connect(lambda: self.toggle_floating_panel())
+        view_menu.addSeparator()
+        view_menu.addAction(tr("ctx_hide_panels", "Hide Floating Panels\tY"), lambda: self.toggle_hide_floating())
+        view_menu.addAction(tr("ctx_reset_layout", "Reset Layout"), lambda: self.reset_layout())
+
+        menu.addSeparator()
+
+        menu.addAction(tr("ctx_open_stream", "Open Stream\tCtrl+U"), lambda: self._open_stream())
+        menu.addAction(tr("ctx_open_video", "Open Video\tCtrl+Shift+O"), lambda: self._open_video_file())
+        menu.addAction(tr("ctx_scan", "Scan & Organize"), lambda: self.open_scan_ui())
+
+        menu.exec(self.video_frame.mapToGlobal(pos))
+
+    def _set_speed_from_menu(self, speed):
+        if not self.player_controller:
+            return
+        self.player_controller.set_speed(speed)
+        if hasattr(self, 'speed_button'):
+            self.speed_button.setText(f"{speed}x")
+        if not self._osd_visible:
+            self._show_osd_feedback(f"{self.language_manager.tr('osd_speed', 'Speed')}: {speed}x")
+
+    def _set_volume_from_menu(self, volume):
+        if not self.player_controller:
+            return
+        self.player_controller.set_volume(volume)
+        if hasattr(self, 'volume_slider'):
+            self.volume_slider.setValue(volume)
+        self._update_volume_icon(volume)
+        if not self._osd_visible:
+            self._show_osd_feedback(f"{self.language_manager.tr('osd_volume', 'Volume')}: {volume}%")
+
+    def _set_aspect_from_menu(self, ratio):
+        if not self.player_controller:
+            return
+        if ratio in self._ASPECT_CYCLE:
+            self._current_aspect_idx = self._ASPECT_CYCLE.index(ratio)
+        self.player_controller.set_aspect_ratio(ratio)
+        labels = {'default': '📐', '16:9': '16:9', '4:3': '4:3', 'stretch': '↔', 'fill': '⬛'}
+        if hasattr(self, 'aspect_button'):
+            self.aspect_button.setText(labels.get(ratio, '📐'))
+        self._save_aspect_ratio(ratio)
 
     def _update_catchup_indicator(self):
         try:
