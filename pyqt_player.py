@@ -1256,15 +1256,16 @@ class IPTVPlayer(QMainWindow):
 
         # 7.7 音轨切换按钮
         self.audio_track_button = QToolButton()
-        self.audio_track_button.setText("🔊T")
+        self.audio_track_button.setText("🔊")
+        self.audio_track_button.setToolTip(self.language_manager.tr("panel_audio_track", "Audio Track"))
         self.audio_track_button.setFixedSize(36, 26)
         self.audio_track_button.setStyleSheet(AppStyles.player_button_style())
         self.audio_track_button.clicked.connect(self._show_audio_track_menu)
         self.control_row.addWidget(self.audio_track_button)
 
-        # 7.8 字幕切换按钮
         self.sub_track_button = QToolButton()
-        self.sub_track_button.setText("💬S")
+        self.sub_track_button.setText("💬")
+        self.sub_track_button.setToolTip(self.language_manager.tr("panel_subtitle", "Subtitle"))
         self.sub_track_button.setFixedSize(36, 26)
         self.sub_track_button.setStyleSheet(AppStyles.player_button_style())
         self.sub_track_button.clicked.connect(self._show_sub_track_menu)
@@ -5925,6 +5926,38 @@ class IPTVPlayer(QMainWindow):
             label = aspect_labels.get(ratio, ratio) + (" ✓" if ratio == current_ratio else "")
             aspect_menu.addAction(label, lambda checked, r=ratio: self._set_aspect_from_menu(r))
 
+        if is_playing:
+            audio_menu = menu.addMenu(tr("ctx_audio_track", "Audio Track"))
+            audio_tracks = self.player_controller.get_track_list('audio')
+            current_audio_id = self.player_controller.get_current_track('audio')
+            if not audio_tracks:
+                act = audio_menu.addAction(tr("ctx_no_audio_track", "No Audio Tracks"))
+                act.setEnabled(False)
+            else:
+                for t in audio_tracks:
+                    label = t.get('title') or t.get('lang') or f"Track {t['id']}"
+                    if t.get('lang') and t.get('title') and t['lang'] != t['title']:
+                        label = f"{t['title']} ({t['lang']})"
+                    label += " ✓" if t['id'] == current_audio_id else ""
+                    audio_menu.addAction(label, lambda checked, tid=t['id']: self.player_controller.set_track('audio', tid))
+
+            sub_menu = menu.addMenu(tr("ctx_subtitle", "Subtitle"))
+            current_sub_id = self.player_controller.get_current_track('sub')
+            sub_tracks = self.player_controller.get_track_list('sub')
+            no_sub_label = tr("ctx_no_subtitle", "No Subtitle")
+            no_sub_label += " ✓" if current_sub_id is None or current_sub_id == 0 else ""
+            sub_menu.addAction(no_sub_label, lambda: self.player_controller.set_track('sub', 0))
+            if sub_tracks:
+                sub_menu.addSeparator()
+                for t in sub_tracks:
+                    label = t.get('title') or t.get('lang') or f"Sub {t['id']}"
+                    if t.get('lang') and t.get('title') and t['lang'] != t['title']:
+                        label = f"{t['title']} ({t['lang']})"
+                    label += " ✓" if t['id'] == current_sub_id else ""
+                    sub_menu.addAction(label, lambda checked, tid=t['id']: self.player_controller.set_track('sub', tid))
+            sub_menu.addSeparator()
+            sub_menu.addAction(tr("ctx_load_subtitle", "Load Subtitle..."), lambda: self._load_external_subtitle())
+
         menu.addSeparator()
 
         if is_playing:
@@ -5978,6 +6011,19 @@ class IPTVPlayer(QMainWindow):
         self._update_volume_icon(volume)
         if not self._osd_visible:
             self._show_osd_feedback(f"{self.language_manager.tr('osd_volume', 'Volume')}: {volume}%")
+
+    def _load_external_subtitle(self):
+        if not self.player_controller or not self.player_controller.is_playing:
+            return
+        from PyQt6.QtWidgets import QFileDialog
+        tr = self.language_manager.tr
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, tr("ctx_load_subtitle", "Load Subtitle..."), '',
+            tr("ctx_subtitle_files", "Subtitle Files") + " (*.srt *.ass *.ssa *.sub *.idx *.vtt *.lrc);;" + tr("ctx_all_files", "All Files") + " (*)"
+        )
+        if file_path:
+            if self.player_controller.add_subtitle_file(file_path):
+                self._show_osd_feedback(f"{tr('ctx_subtitle', 'Subtitle')}: {file_path.split('/')[-1].split(chr(92))[-1]}")
 
     def _set_aspect_from_menu(self, ratio):
         if not self.player_controller:
