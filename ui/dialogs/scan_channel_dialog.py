@@ -28,6 +28,16 @@ from core.language_manager import LanguageManager
 from ..floating_dialog import FloatingDialog
 
 
+class _HomeOnFocusOut(QtCore.QObject):
+    """事件过滤器：输入框失去焦点时将光标移到开头，使长文本从起始位置显示"""
+
+    def eventFilter(self, obj, event):
+        if event.type() == QtCore.QEvent.Type.FocusOut:
+            if isinstance(obj, QtWidgets.QLineEdit):
+                obj.setCursorPosition(0)
+        return False
+
+
 class ScanChannelDialog(FloatingDialog):
     """扫描频道窗口类"""
     _bg_color_key = 'window'
@@ -61,6 +71,8 @@ class ScanChannelDialog(FloatingDialog):
         # 扫描状态管理器
         self.scan_state_manager = get_scan_state_manager()
         self.retry_id = 'main_retry'
+
+        self._home_on_focus_out = _HomeOnFocusOut(self)
 
         # 注册重试扫描任务
         register_retry_task(self.retry_id, self)
@@ -343,6 +355,8 @@ class ScanChannelDialog(FloatingDialog):
         self.ip_range_input.setSizeAdjustPolicy(QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.ip_range_input.setMinimumContentsLength(20)
         self.ip_range_input.completer().setCompletionMode(QtWidgets.QCompleter.CompletionMode.PopupCompletion)
+        self.ip_range_input.setFixedHeight(34)
+        self.ip_range_input.lineEdit().installEventFilter(self._home_on_focus_out)
 
         self._setup_user_agent_input()
 
@@ -359,6 +373,8 @@ class ScanChannelDialog(FloatingDialog):
         user_agent_layout.addWidget(user_agent_label)
         self.user_agent_input = QtWidgets.QLineEdit()
         self.user_agent_input.setPlaceholderText(tr("optional_default_input", "Optional, use default if empty"))
+        self.user_agent_input.setFixedHeight(34)
+        self.user_agent_input.installEventFilter(self._home_on_focus_out)
         user_agent_layout.addWidget(self.user_agent_input)
         self.user_agent_layout = user_agent_layout
 
@@ -371,6 +387,8 @@ class ScanChannelDialog(FloatingDialog):
         referer_layout.addWidget(referer_label)
         self.referer_input = QtWidgets.QLineEdit()
         self.referer_input.setPlaceholderText(tr("optional_not_used_input", "Optional, not used if empty"))
+        self.referer_input.setFixedHeight(34)
+        self.referer_input.installEventFilter(self._home_on_focus_out)
         referer_layout.addWidget(self.referer_input)
         self.referer_layout = referer_layout
 
@@ -389,6 +407,7 @@ class ScanChannelDialog(FloatingDialog):
         self.timeout_input = QtWidgets.QLineEdit("5")
         self.timeout_input.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         self.timeout_input.setPlaceholderText("1-60")
+        self.timeout_input.setFixedHeight(34)
         timeout_row.addWidget(self.timeout_input)
         timeout_threads_layout.addLayout(timeout_row)
 
@@ -400,6 +419,7 @@ class ScanChannelDialog(FloatingDialog):
         self.threads_input = QtWidgets.QLineEdit("4")
         self.threads_input.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         self.threads_input.setPlaceholderText("1-64")
+        self.threads_input.setFixedHeight(34)
         threads_row.addWidget(self.threads_input)
         timeout_threads_layout.addLayout(threads_row)
 
@@ -1242,7 +1262,7 @@ class ScanChannelDialog(FloatingDialog):
         self.edit_name_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_name = QtWidgets.QLineEdit()
         self.edit_name.setStyleSheet(AppStyles.common_line_edit_style())
-        self.edit_name.setFixedHeight(30)
+        self.edit_name.setFixedHeight(34)
         name_layout.addWidget(self.edit_name_label)
         name_layout.addWidget(self.edit_name)
         edit_layout.addLayout(name_layout)
@@ -1254,7 +1274,7 @@ class ScanChannelDialog(FloatingDialog):
         self.edit_group_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_group = QtWidgets.QLineEdit()
         self.edit_group.setStyleSheet(AppStyles.common_line_edit_style())
-        self.edit_group.setFixedHeight(30)
+        self.edit_group.setFixedHeight(34)
         group_layout.addWidget(self.edit_group_label)
         group_layout.addWidget(self.edit_group)
         edit_layout.addLayout(group_layout)
@@ -1266,7 +1286,8 @@ class ScanChannelDialog(FloatingDialog):
         self.edit_url_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_url = QtWidgets.QLineEdit()
         self.edit_url.setStyleSheet(AppStyles.common_line_edit_style())
-        self.edit_url.setFixedHeight(30)
+        self.edit_url.setFixedHeight(34)
+        self.edit_url.installEventFilter(self._home_on_focus_out)
         url_layout.addWidget(self.edit_url_label)
         url_layout.addWidget(self.edit_url)
         edit_layout.addLayout(url_layout)
@@ -1278,7 +1299,7 @@ class ScanChannelDialog(FloatingDialog):
         self.edit_tvg_id_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_tvg_id = QtWidgets.QLineEdit()
         self.edit_tvg_id.setStyleSheet(AppStyles.common_line_edit_style())
-        self.edit_tvg_id.setFixedHeight(30)
+        self.edit_tvg_id.setFixedHeight(34)
         tvg_layout.addWidget(self.edit_tvg_id_label)
         tvg_layout.addWidget(self.edit_tvg_id)
         edit_layout.addLayout(tvg_layout)
@@ -1290,7 +1311,8 @@ class ScanChannelDialog(FloatingDialog):
         self.edit_logo_label.setStyleSheet(AppStyles.common_label_style())
         self.edit_logo = QtWidgets.QLineEdit()
         self.edit_logo.setStyleSheet(AppStyles.common_line_edit_style())
-        self.edit_logo.setFixedHeight(30)
+        self.edit_logo.setFixedHeight(34)
+        self.edit_logo.installEventFilter(self._home_on_focus_out)
         logo_layout.addWidget(self.edit_logo_label)
         logo_layout.addWidget(self.edit_logo)
         edit_layout.addLayout(logo_layout)
@@ -1323,6 +1345,8 @@ class ScanChannelDialog(FloatingDialog):
             self.edit_url.setText(channel.get('url', ''))
             self.edit_tvg_id.setText(channel.get('tvg_id', ''))
             self.edit_logo.setText(channel.get('logo_url', channel.get('logo', '')))
+            self.edit_url.setCursorPosition(0)
+            self.edit_logo.setCursorPosition(0)
 
     def _on_save_channel(self):
         """处理保存频道修改"""
@@ -1631,6 +1655,18 @@ class ScanChannelDialog(FloatingDialog):
         except Exception as e:
             log_config_error(f"加载配置失败: {e}")
 
+        self._reset_cursor_to_home()
+
+    def _reset_cursor_to_home(self):
+        """将所有URL输入框的光标移到开头，使长文本从起始位置显示"""
+        for widget in (self.user_agent_input, self.referer_input,
+                       getattr(self, 'edit_url', None), getattr(self, 'edit_logo', None)):
+            if widget and isinstance(widget, QtWidgets.QLineEdit):
+                widget.setCursorPosition(0)
+        ip_line_edit = self.ip_range_input.lineEdit()
+        if ip_line_edit:
+            ip_line_edit.setCursorPosition(0)
+
     def _register_config_observers(self):
         register_config_observer("Network.*", self._on_network_config_changed)
         register_config_observer("ScanRetry.*", self._on_scan_retry_config_changed)
@@ -1642,10 +1678,13 @@ class ScanChannelDialog(FloatingDialog):
 
         if key == 'url':
             self.ip_range_input.setCurrentText(new_value)
+            self.ip_range_input.lineEdit().setCursorPosition(0)
         elif key == 'user_agent':
             self.user_agent_input.setText(new_value)
+            self.user_agent_input.setCursorPosition(0)
         elif key == 'referer':
             self.referer_input.setText(new_value)
+            self.referer_input.setCursorPosition(0)
         elif key == 'enable_retry':
             self.enable_retry_checkbox.setChecked(str(new_value).lower() == 'true')
         elif key == 'timeout' and hasattr(self, 'timeout_input'):
