@@ -656,6 +656,7 @@ class SettingsFileOperations:
                 channels = []
 
             self.window.channels = channels
+            self.window._local_channels = list(channels)
             app_state._channels.clear()
             app_state._channels.extend(channels)
 
