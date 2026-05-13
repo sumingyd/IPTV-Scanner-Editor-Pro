@@ -786,6 +786,7 @@ class ScanChannelDialog(FloatingDialog):
     def _create_batch_menu(self) -> QtWidgets.QMenu:
         tr = self.language_manager.tr
         menu = QtWidgets.QMenu(self)
+        menu.setStyleSheet(AppStyles.player_menu_bar_style())
 
         auto_classify_action = QtGui.QAction(tr("auto_classify", "Auto Classify"), self)
         auto_classify_action.triggered.connect(self._show_auto_classify_dialog)
