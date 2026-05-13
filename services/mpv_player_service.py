@@ -268,6 +268,10 @@ class MpvPlayerController(QObject):
             libmpv.mpv_set_property_string(self.mpv_handle, b'idle', b'yes')
             libmpv.mpv_set_property_string(self.mpv_handle, b'ytdl', b'no')
 
+            libmpv.mpv_set_property_string(self.mpv_handle, b'video-aspect-override', b'-1')
+            libmpv.mpv_set_property_string(self.mpv_handle, b'keepaspect', b'yes')
+            libmpv.mpv_set_property_string(self.mpv_handle, b'panscan', b'0.0')
+
             libmpv.mpv_set_property_string(self.mpv_handle, b'tone-mapping', b'hable')
             libmpv.mpv_set_property_string(self.mpv_handle, b'tone-mapping-mode', b'auto')
             libmpv.mpv_set_property_string(self.mpv_handle, b'hdr-compute-peak', b'yes')
