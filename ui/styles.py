@@ -1510,6 +1510,69 @@ class AppStyles:
         """
 
     @staticmethod
+    def common_menu_style() -> str:
+        colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        menu_bg = colors['base']
+        menu_text = colors['window_text']
+        menu_hover_bg = colors['neumorphic_light'] if neo else colors['highlight']
+        menu_hover_text = colors['accent'] if neo else colors['highlighted_text']
+        menu_border = colors['shadow_dark'] if neo else colors['mid']
+        if neo:
+            return f"""
+                QMenu {{
+                    background-color: {menu_bg};
+                    color: {menu_text};
+                    border-radius: 8px;
+                    padding: 4px;
+                    border: 2px solid;
+                    border-top-color: {colors['shadow_light']};
+                    border-left-color: {colors['shadow_light']};
+                    border-bottom-color: {colors['shadow_dark']};
+                    border-right-color: {colors['shadow_dark']};
+                }}
+                QMenu::item {{
+                    padding: 6px 24px;
+                    margin: 2px;
+                    border-radius: 6px;
+                }}
+                QMenu::item:selected {{
+                    color: {menu_hover_text};
+                    background-color: {menu_hover_bg};
+                    border: 1px solid {colors['accent']};
+                    border-radius: 6px;
+                }}
+                QMenu::separator {{
+                    height: 1px;
+                    background-color: {colors['shadow_dark']};
+                    margin: 4px 8px;
+                }}
+            """
+        return f"""
+            QMenu {{
+                background-color: {menu_bg};
+                color: {menu_text};
+                border-radius: 4px;
+                padding: 2px;
+                border: 1px solid {menu_border};
+            }}
+            QMenu::item {{
+                padding: 4px 20px;
+                margin: 2px;
+                border-radius: 4px;
+            }}
+            QMenu::item:selected {{
+                background-color: {menu_hover_bg};
+                color: {menu_hover_text};
+            }}
+            QMenu::separator {{
+                height: 1px;
+                background-color: {menu_border};
+                margin: 4px 8px;
+            }}
+        """
+
+    @staticmethod
     def popup_dialog_style() -> str:
         colors = AppStyles._get_colors()
         opacity = colors.get('window_opacity', 220) / 255.0
