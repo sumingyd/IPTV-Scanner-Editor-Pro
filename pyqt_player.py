@@ -411,10 +411,17 @@ class IPTVPlayer(QMainWindow):
                 return
             elif path.lower().endswith(('.mp4', '.mkv', '.avi', '.mov',
                                         '.flv', '.wmv', '.ts', '.webm')):
-                if hasattr(self, 'player_controller') and self.player_controller:
-                    self.player_controller.play(path)
-                    from core.log_manager import global_logger as logger
-                    logger.info(f"拖放打开视频文件: {path}")
+                name = os.path.splitext(os.path.basename(path))[0]
+                tr = self.language_manager.tr
+                channel = {
+                    'name': name,
+                    'url': path,
+                    'group': tr("local_video", "本地视频"),
+                    '_groups': [tr("local_video", "本地视频")],
+                }
+                self._add_to_local_list(channel)
+                from core.log_manager import global_logger as logger
+                logger.info(f"拖放打开视频文件: {path}")
                 event.acceptProposedAction()
                 return
         event.ignore()
@@ -5172,6 +5179,7 @@ class IPTVPlayer(QMainWindow):
             return
         from PyQt6.QtWidgets import QMenu
         menu = QMenu(self)
+        menu.setStyleSheet(AppStyles.player_menu_bar_style())
         tracks = self.player_controller.get_track_list('audio')
         current_id = self.player_controller.get_current_track('audio')
         if not tracks:
@@ -5194,6 +5202,7 @@ class IPTVPlayer(QMainWindow):
             return
         from PyQt6.QtWidgets import QMenu
         menu = QMenu(self)
+        menu.setStyleSheet(AppStyles.player_menu_bar_style())
         tracks = self.player_controller.get_track_list('sub')
         current_id = self.player_controller.get_current_track('sub')
         no_sub = menu.addAction(self.language_manager.tr('no_subtitle', 'No Subtitle'))
@@ -6078,7 +6087,16 @@ if __name__ == "__main__":
             elif file_path.lower().endswith(('.mp4', '.mkv', '.avi', '.mov',
                                              '.flv', '.wmv', '.ts', '.webm')):
                 from PyQt6.QtCore import QTimer
-                QTimer.singleShot(800, lambda: player.player_controller.play(file_path) if player.player_controller else None)
+                def _open_video_from_cmdline(fp=file_path):
+                    name = os.path.splitext(os.path.basename(fp))[0]
+                    channel = {
+                        'name': name,
+                        'url': fp,
+                        'group': player.language_manager.tr("local_video", "本地视频"),
+                        '_groups': [player.language_manager.tr("local_video", "本地视频")],
+                    }
+                    player._add_to_local_list(channel)
+                QTimer.singleShot(800, _open_video_from_cmdline)
 
     # show() 已在 _initialize_in_order 中调用，此处直接进入事件循环
     sys.exit(app.exec())
