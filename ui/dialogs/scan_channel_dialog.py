@@ -786,7 +786,7 @@ class ScanChannelDialog(FloatingDialog):
     def _create_batch_menu(self) -> QtWidgets.QMenu:
         tr = self.language_manager.tr
         menu = QtWidgets.QMenu(self)
-        menu.setStyleSheet(AppStyles.player_menu_bar_style())
+        menu.setStyleSheet(AppStyles.common_menu_style())
 
         auto_classify_action = QtGui.QAction(tr("auto_classify", "Auto Classify"), self)
         auto_classify_action.triggered.connect(self._show_auto_classify_dialog)
@@ -1377,6 +1377,7 @@ class ScanChannelDialog(FloatingDialog):
             return
 
         menu = QtWidgets.QMenu()
+        menu.setStyleSheet(AppStyles.common_menu_style())
 
         # 获取选中频道的URL和名称
         url = self.model.data(self.model.index(index.row(), 3))  # URL在第3列
@@ -2244,9 +2245,12 @@ class ScanChannelDialog(FloatingDialog):
                 self.right_title.setStyleSheet(AppStyles.section_title_style())
             for btn in [self.btn_scan, self.btn_append_scan, self.btn_generate,
                         self.btn_open_list, self.btn_validate, self.btn_hide_invalid,
-                        self.btn_save_m3u, self.btn_save_txt, self.btn_save_channel]:
+                        self.btn_save_m3u, self.btn_save_txt, self.btn_save_channel,
+                        self.btn_batch_ops]:
                 if hasattr(btn, 'setStyleSheet'):
                     btn.setStyleSheet(AppStyles.common_button_style())
+            if hasattr(self, 'btn_batch_ops') and self.btn_batch_ops.menu():
+                self.btn_batch_ops.menu().setStyleSheet(AppStyles.common_menu_style())
             if hasattr(self, 'channel_list'):
                 self.channel_list.setStyleSheet(AppStyles.list_style())
             for label in [self.edit_name_label, self.edit_group_label,
