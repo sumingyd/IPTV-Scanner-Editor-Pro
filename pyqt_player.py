@@ -1541,6 +1541,14 @@ class IPTVPlayer(QMainWindow):
             screenshot.triggered.connect(lambda: self._take_screenshot() if hasattr(self, '_take_screenshot') else None)
             playback_menu.addAction(screenshot)
 
+            playback_menu.addSeparator()
+
+            audio_menu = playback_menu.addMenu(tr("ctx_audio_track", "Audio Track"))
+            audio_menu.aboutToShow.connect(lambda: self._populate_audio_menu(audio_menu))
+
+            subtitle_menu = playback_menu.addMenu(tr("ctx_subtitle", "Subtitle"))
+            subtitle_menu.aboutToShow.connect(lambda: self._populate_subtitle_menu(subtitle_menu))
+
             # 视图菜单
             view_menu = menu_bar.addMenu(tr("menu_view", "View"))
             
@@ -5173,17 +5181,17 @@ class IPTVPlayer(QMainWindow):
         self._update_catchup_indicator()
         self._populate_epg_list()
 
-    def _show_audio_track_menu(self):
-        """显示音轨切换菜单"""
+    def _populate_audio_menu(self, menu):
+        """动态填充音轨菜单（菜单栏和右键菜单共用）"""
+        menu.clear()
         if not self.player_controller or not self.player_controller.is_playing:
+            act = menu.addAction(self.language_manager.tr('ctx_no_audio_track', 'No Audio Tracks'))
+            act.setEnabled(False)
             return
-        from PyQt6.QtWidgets import QMenu
-        menu = QMenu(self)
-        menu.setStyleSheet(AppStyles.player_menu_bar_style())
         tracks = self.player_controller.get_track_list('audio')
         current_id = self.player_controller.get_current_track('audio')
         if not tracks:
-            act = menu.addAction(self.language_manager.tr('no_audio_tracks', 'No audio tracks'))
+            act = menu.addAction(self.language_manager.tr('ctx_no_audio_track', 'No Audio Tracks'))
             act.setEnabled(False)
         else:
             for t in tracks:
@@ -5194,18 +5202,18 @@ class IPTVPlayer(QMainWindow):
                 act.setCheckable(True)
                 act.setChecked(t['id'] == current_id)
                 act.triggered.connect(lambda checked, tid=t['id']: self.player_controller.set_track('audio', tid))
-        menu.exec(self.audio_track_button.mapToGlobal(self.audio_track_button.rect().bottomLeft()))
 
-    def _show_sub_track_menu(self):
-        """显示字幕切换菜单"""
+    def _populate_subtitle_menu(self, menu):
+        """动态填充字幕菜单（菜单栏和右键菜单共用）"""
+        menu.clear()
+        tr = self.language_manager.tr
         if not self.player_controller or not self.player_controller.is_playing:
+            act = menu.addAction(tr('ctx_no_subtitle', 'No Subtitle'))
+            act.setEnabled(False)
             return
-        from PyQt6.QtWidgets import QMenu
-        menu = QMenu(self)
-        menu.setStyleSheet(AppStyles.player_menu_bar_style())
-        tracks = self.player_controller.get_track_list('sub')
         current_id = self.player_controller.get_current_track('sub')
-        no_sub = menu.addAction(self.language_manager.tr('no_subtitle', 'No Subtitle'))
+        tracks = self.player_controller.get_track_list('sub')
+        no_sub = menu.addAction(tr("ctx_no_subtitle", "No Subtitle"))
         no_sub.setCheckable(True)
         no_sub.setChecked(current_id is None or current_id == 0)
         no_sub.triggered.connect(lambda: self.player_controller.set_track('sub', 0))
@@ -5219,6 +5227,27 @@ class IPTVPlayer(QMainWindow):
                 act.setCheckable(True)
                 act.setChecked(t['id'] == current_id)
                 act.triggered.connect(lambda checked, tid=t['id']: self.player_controller.set_track('sub', tid))
+        menu.addSeparator()
+        menu.addAction(tr("ctx_load_subtitle", "Load Subtitle..."), lambda: self._load_external_subtitle())
+
+    def _show_audio_track_menu(self):
+        """显示音轨切换菜单"""
+        if not self.player_controller or not self.player_controller.is_playing:
+            return
+        from PyQt6.QtWidgets import QMenu
+        menu = QMenu(self)
+        menu.setStyleSheet(AppStyles.player_menu_bar_style())
+        self._populate_audio_menu(menu)
+        menu.exec(self.audio_track_button.mapToGlobal(self.audio_track_button.rect().bottomLeft()))
+
+    def _show_sub_track_menu(self):
+        """显示字幕切换菜单"""
+        if not self.player_controller or not self.player_controller.is_playing:
+            return
+        from PyQt6.QtWidgets import QMenu
+        menu = QMenu(self)
+        menu.setStyleSheet(AppStyles.player_menu_bar_style())
+        self._populate_subtitle_menu(menu)
         menu.exec(self.sub_track_button.mapToGlobal(self.sub_track_button.rect().bottomLeft()))
 
     def _set_channel_view_mode(self, mode, tab='sub'):
@@ -5937,35 +5966,10 @@ class IPTVPlayer(QMainWindow):
 
         if is_playing:
             audio_menu = menu.addMenu(tr("ctx_audio_track", "Audio Track"))
-            audio_tracks = self.player_controller.get_track_list('audio')
-            current_audio_id = self.player_controller.get_current_track('audio')
-            if not audio_tracks:
-                act = audio_menu.addAction(tr("ctx_no_audio_track", "No Audio Tracks"))
-                act.setEnabled(False)
-            else:
-                for t in audio_tracks:
-                    label = t.get('title') or t.get('lang') or f"Track {t['id']}"
-                    if t.get('lang') and t.get('title') and t['lang'] != t['title']:
-                        label = f"{t['title']} ({t['lang']})"
-                    label += " ✓" if t['id'] == current_audio_id else ""
-                    audio_menu.addAction(label, lambda checked, tid=t['id']: self.player_controller.set_track('audio', tid))
+            self._populate_audio_menu(audio_menu)
 
             sub_menu = menu.addMenu(tr("ctx_subtitle", "Subtitle"))
-            current_sub_id = self.player_controller.get_current_track('sub')
-            sub_tracks = self.player_controller.get_track_list('sub')
-            no_sub_label = tr("ctx_no_subtitle", "No Subtitle")
-            no_sub_label += " ✓" if current_sub_id is None or current_sub_id == 0 else ""
-            sub_menu.addAction(no_sub_label, lambda: self.player_controller.set_track('sub', 0))
-            if sub_tracks:
-                sub_menu.addSeparator()
-                for t in sub_tracks:
-                    label = t.get('title') or t.get('lang') or f"Sub {t['id']}"
-                    if t.get('lang') and t.get('title') and t['lang'] != t['title']:
-                        label = f"{t['title']} ({t['lang']})"
-                    label += " ✓" if t['id'] == current_sub_id else ""
-                    sub_menu.addAction(label, lambda checked, tid=t['id']: self.player_controller.set_track('sub', tid))
-            sub_menu.addSeparator()
-            sub_menu.addAction(tr("ctx_load_subtitle", "Load Subtitle..."), lambda: self._load_external_subtitle())
+            self._populate_subtitle_menu(sub_menu)
 
         menu.addSeparator()
 
