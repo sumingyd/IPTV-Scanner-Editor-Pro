@@ -1685,7 +1685,7 @@ class IPTVPlayer(QMainWindow):
                 source = 'subscription' if self.playlist_tab.currentIndex() == 0 else 'local'
 
         if source == 'subscription':
-            self._sub_channels = list(app_state._channels)
+            self._sub_channels = app_state.channels
             self._update_groups_for('subscription')
             self._populate_channel_list_for(self.sub_channel_list, self._sub_channels,
                                             self.sub_group_combo.currentText())
@@ -3846,7 +3846,7 @@ class IPTVPlayer(QMainWindow):
             message = getattr(self, '_pending_update_message', '')
             if hasattr(self, '_pending_update_message'):
                 delattr(self, '_pending_update_message')
-            logger.info(f"_do_on_playlist_updated_in_main_thread: 开始更新UI, CHANNELS数量={len(app_state._channels)}")
+            logger.info(f"_do_on_playlist_updated_in_main_thread: 开始更新UI, CHANNELS数量={app_state.channel_count}")
             if hasattr(self, 'playlist_tab'):
                 self.playlist_tab.setCurrentIndex(0)
             self.populate_channel_list(source='subscription')
@@ -3900,16 +3900,13 @@ class IPTVPlayer(QMainWindow):
                 logger.info(f"EPG加载状态: {msg}")
 
             if global_subscription_manager.load_all_epg_data(status_callback):
-                app_state._epg_data.clear()
-                app_state._epg_data.update(global_subscription_manager._epg_data)
+                app_state.update_epg_data(global_subscription_manager._epg_data)
 
-                if app_state._epg_data:
-                    sample_channel = list(app_state._epg_data.keys())[0] if app_state._epg_data else None
-                    if sample_channel and app_state._epg_data[sample_channel]:
-                        sample_date = app_state._epg_data[sample_channel][0].get('start', 'N/A')
-                        logger.info(f"EPG 数据样本日期: {sample_date}")
+                sample_channel, sample_date = app_state.get_epg_sample()
+                if sample_channel and sample_date:
+                    logger.info(f"EPG 数据样本日期: {sample_date}")
 
-                logger.info(f"节目单订阅更新成功，共 {len(app_state._epg_data)} 个频道的节目单，已使用最新数据")
+                logger.info(f"节目单订阅更新成功，共 {app_state.get_epg_channel_count()} 个频道的节目单，已使用最新数据")
 
                 if QThread.currentThread() != self.thread():
                     QMetaObject.invokeMethod(self, "_do_on_epg_success", Qt.ConnectionType.QueuedConnection)
@@ -3918,9 +3915,8 @@ class IPTVPlayer(QMainWindow):
             else:
                 cached_loaded = global_subscription_manager.load_cached_epg_data()
                 if cached_loaded:
-                    app_state._epg_data.clear()
-                    app_state._epg_data.update(global_subscription_manager._epg_data)
-                    logger.debug(f"使用缓存的EPG数据，包含 {len(app_state._epg_data)} 个频道")
+                    app_state.update_epg_data(global_subscription_manager._epg_data)
+                    logger.debug(f"使用缓存的EPG数据，包含 {app_state.get_epg_channel_count()} 个频道")
 
                     def _on_epg_cache():
                         self.epg_list_updated.emit()
@@ -4051,8 +4047,7 @@ class IPTVPlayer(QMainWindow):
                         success = all_ok
                     
                     if success:
-                        app_state._epg_data.clear()
-                        app_state._epg_data.update(global_subscription_manager._epg_data)
+                        app_state.update_epg_data(global_subscription_manager._epg_data)
                         
                         from PyQt6.QtCore import QMetaObject, Qt
                         if QThread.currentThread() != self.thread():
@@ -4168,16 +4163,15 @@ class IPTVPlayer(QMainWindow):
                         "_all_tags": ch.get('_all_tags', {})
                     })
 
-                app_state._channels.clear()
-                app_state._channels.extend(new_channels)
+                app_state.replace_channels(new_channels)
 
                 from core.config_manager import ConfigManager
                 config_manager = ConfigManager()
                 config_manager.add_recent_file(file_path)
                 self.update_recent_files_menu()
 
-                if app_state._channels:
-                    self.current_channel = app_state._channels[0]
+                if app_state.channel_count > 0:
+                    self.current_channel = app_state.get_channel_by_index(0)
                     display_name = self._get_display_channel_name(self.current_channel)
                     self.channel_name.setText(display_name)
 
@@ -4185,7 +4179,7 @@ class IPTVPlayer(QMainWindow):
                     self.playlist_tab.setCurrentIndex(1)
                 self.populate_channel_list(source='local')
                 self.status_bar.showMessage(f"{self.language_manager.tr('file_opened', 'File opened')}: {file_path}")
-                logger.info(f"成功打开最近文件: {file_path}, 共 {len(app_state._channels)} 个频道")
+                logger.info(f"成功打开最近文件: {file_path}, 共 {app_state.channel_count} 个频道")
             else:
                 self.status_bar.showMessage(self.language_manager.tr("file_format_error"))
         except FileNotFoundError:
@@ -4728,7 +4722,7 @@ class IPTVPlayer(QMainWindow):
                     break
 
     def _get_next_channel_urls(self, current_channel):
-        channels = app_state._channels
+        channels = app_state.channels
         if not channels or not current_channel:
             return []
         current_idx = -1
@@ -4777,7 +4771,7 @@ class IPTVPlayer(QMainWindow):
         try:
             name = channel.get('name', '')
             idx = -1
-            for i, ch in enumerate(app_state._channels):
+            for i, ch in enumerate(app_state.channels):
                 if ch is channel:
                     idx = i
                     break
@@ -4801,13 +4795,12 @@ class IPTVPlayer(QMainWindow):
             return
         last = self._pending_last_channel
         delattr(self, '_pending_last_channel')
-        if not app_state._channels:
+        if app_state.channel_count == 0:
             return
         idx = last.get('index', -1)
-        if 0 <= idx < len(app_state._channels):
-            ch = app_state._channels[idx]
-            if ch.get('name') == last.get('name'):
-                self.current_channel = ch
+        ch = app_state.get_channel_by_index(idx)
+        if ch and ch.get('name') == last.get('name'):
+            self.current_channel = ch
                 self.select_channel_by_index(idx)
 
     def select_channel_by_index(self, idx):
@@ -4836,7 +4829,7 @@ class IPTVPlayer(QMainWindow):
                     return
 
     def _warmup_logos_around(self, channel):
-        channels = app_state._channels
+        channels = app_state.channels
         if not channels:
             return
         current_idx = -1

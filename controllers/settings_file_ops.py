@@ -657,8 +657,7 @@ class SettingsFileOperations:
 
             self.window.channels = channels
             self.window._local_channels = list(channels)
-            app_state._channels.clear()
-            app_state._channels.extend(channels)
+            app_state.replace_channels(channels)
 
             if self.window.channel_model:
                 epg_url = getattr(self.window.channel_model, '_last_header_attrs', {}).get('epg_url', '')
