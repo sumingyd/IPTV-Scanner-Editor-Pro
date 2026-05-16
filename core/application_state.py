@@ -1,22 +1,10 @@
 import threading
 from typing import List, Dict, Any
+from utils.singleton import Singleton
 
 
-class ApplicationState:
-    """应用状态管理器 - 集中管理应用全局状态"""
-    
-    _instance = None
-    _lock = threading.Lock()
-    
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    instance = super().__new__(cls)
-                    instance._initialized = False
-                    cls._instance = instance
-        return cls._instance
-    
+class ApplicationState(Singleton):
+
     def __init__(self):
         if self._initialized:
             return

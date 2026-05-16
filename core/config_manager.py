@@ -1,37 +1,28 @@
 import configparser
 import os
+import sys
 import threading
 from .log_manager import global_logger as logger
 from utils.config_notifier import notify_config_change
+from utils.singleton import Singleton
 
 
-class ConfigManager:
-    _instance = None
-    _lock = threading.Lock()
-
-    def __new__(cls, config_file='config.ini'):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    instance = super().__new__(cls)
-                    instance._initialized = False
-                    import sys
-                    if getattr(sys, 'frozen', False):
-                        config_dir = os.path.dirname(sys.executable)
-                    else:
-                        current_dir = os.path.dirname(os.path.abspath(__file__))
-                        config_dir = os.path.dirname(current_dir)
-                    instance.config_file = os.path.join(config_dir, config_file)
-                    instance.config = configparser.ConfigParser(interpolation=None)
-                    instance._lock = threading.Lock()
-                    instance.load_config()
-                    instance._initialized = True
-                    cls._instance = instance
-        return cls._instance
+class ConfigManager(Singleton):
 
     def __init__(self, config_file='config.ini'):
-        # 单例模式下，__init__可能会被多次调用，所以什么都不做
-        pass
+        if self._initialized:
+            return
+
+        if getattr(sys, 'frozen', False):
+            config_dir = os.path.dirname(sys.executable)
+        else:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            config_dir = os.path.dirname(current_dir)
+        self.config_file = os.path.join(config_dir, config_file)
+        self.config = configparser.ConfigParser(interpolation=None)
+        self._lock = threading.Lock()
+        self.load_config()
+        self._initialized = True
 
     def save_window_layout(self, x, y, width, height, dividers):
         """保存窗口布局（包括位置和大小）"""

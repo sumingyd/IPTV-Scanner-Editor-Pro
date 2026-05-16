@@ -4,27 +4,15 @@ import requests
 from datetime import datetime, timedelta
 from .log_manager import global_logger as logger
 from .config_manager import ConfigManager
+from utils.singleton import Singleton
 
 
-class SubscriptionManager:
-    """多源订阅管理器 - 负责管理多个直播源和EPG源的加载、切换和整合"""
-    
-    _instance = None
-    _lock = threading.Lock()
-    
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    instance = super().__new__(cls)
-                    instance._initialized = False
-                    cls._instance = instance
-        return cls._instance
-    
+class SubscriptionManager(Singleton):
+
     def __init__(self):
         if self._initialized:
             return
-        
+
         self._config = ConfigManager()
         self._epg_data = {}
         self._last_epg_update = None
