@@ -114,10 +114,9 @@ class ScanStateManager(Singleton):
                     })
 
     def get_invalid_urls(self, scan_id: str) -> List[dict]:
-        """获取无效URL列表（带错误类型）"""
         with self._lock:
             if scan_id in self._scan_states:
-                return self._scan_states[scan_id].get('invalid_urls', [])
+                return list(self._scan_states[scan_id].get('invalid_urls', []))
             return []
 
     def get_retry_urls(self, scan_id: str) -> List[str]:
@@ -214,17 +213,16 @@ class ScanStateManager(Singleton):
                     failed_channels.append(url)
 
     def get_failed_channels(self, retry_id: str) -> List[str]:
-        """获取失败频道列表"""
         with self._lock:
             if retry_id in self._retry_states:
-                return self._retry_states[retry_id].get('failed_channels', [])
+                return list(self._retry_states[retry_id].get('failed_channels', []))
             return []
 
     def clear_failed_channels(self, retry_id: str):
-        """清空失败频道列表"""
         with self._lock:
             if retry_id in self._retry_states:
                 self._retry_states[retry_id]['failed_channels'] = []
+                self._retry_states[retry_id].pop('_failed_url_set', None)
 
     def increment_retry_count(self, retry_id: str) -> int:
         """增加重试计数并返回新值"""
@@ -277,10 +275,9 @@ class ScanStateManager(Singleton):
             return False
 
     def get_retried_urls(self, retry_id: str) -> set:
-        """获取所有已重试的 URL"""
         with self._lock:
             if retry_id in self._retry_states:
-                return self._retry_states[retry_id].get('retried_urls', set())
+                return set(self._retry_states[retry_id].get('retried_urls', set()))
             return set()
 
     def clear_all_states(self):

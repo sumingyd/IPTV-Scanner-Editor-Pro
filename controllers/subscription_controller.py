@@ -165,9 +165,7 @@ class SubscriptionController:
             # 获取 ApplicationState
             from core.application_state import app_state
 
-            # 更新 ApplicationState 的频道数据（使用 clear + extend 保持引用不变）
-            app_state._channels.clear()
-            app_state._channels.extend(channels_data)
+            app_state.channels = channels_data
 
             # 记录文件头EPG地址（在订阅EPG加载后再作为补充源加载）
             epg_url = header_attrs.get('epg_url', '')
@@ -290,8 +288,7 @@ class SubscriptionController:
             cached_loaded = global_subscription_manager.load_cached_epg_data()
             if cached_loaded:
                 from core.application_state import app_state
-                app_state._epg_data.clear()
-                app_state._epg_data.update(global_subscription_manager._epg_data)
+                app_state.epg_data = dict(global_subscription_manager._epg_data)
                 success = True
             else:
                 logger.warning("EPG缓存加载失败，重新下载")
@@ -302,10 +299,8 @@ class SubscriptionController:
             success = global_subscription_manager.load_all_epg_data(status_callback)
             if success:
                 from core.application_state import app_state
-                app_state._epg_data.clear()
-                app_state._epg_data.update(global_subscription_manager._epg_data)
+                app_state.epg_data = dict(global_subscription_manager._epg_data)
 
-            # EPG重新下载时，补充加载M3U文件头中的EPG
             header_epg_url = getattr(self, '_last_header_epg_url', None)
             if header_epg_url:
                 epg_sources = global_subscription_manager.get_epg_sources()
@@ -318,8 +313,7 @@ class SubscriptionController:
                         header_success = global_subscription_manager.load_single_epg(header_epg_url)
                         if header_success:
                             from core.application_state import app_state
-                            app_state._epg_data.clear()
-                            app_state._epg_data.update(global_subscription_manager._epg_data)
+                            app_state.epg_data = dict(global_subscription_manager._epg_data)
                     except Exception as epg_err:
                         logger.warning(f"补充加载M3U文件头EPG失败: {epg_err}")
 

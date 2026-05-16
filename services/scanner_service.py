@@ -634,26 +634,22 @@ class ScannerController(QObject):
         self.stats_thread.start()
 
     def stop_scan(self):
-        """停止扫描 - 快速响应版本，避免程序假死"""
-        # 设置停止事件，让所有工作线程知道应该停止
         self.stop_event.set()
 
-        # 更新扫描状态管理器
         self.scan_state_manager.update_scan_state(self.scan_id, {
             'is_scanning': False
         })
 
-        # 立即清空所有队列，避免新任务被处理
         self._clear_all_queues()
-
-        # 立即终止所有FFmpeg/VLC进程
         self._terminate_all_processes()
-
-        # 快速清理工作线程（不等待太长时间）
         self._cleanup_workers_fast()
-
-        # 清理其他资源
         self._cleanup_other_resources()
+
+        if hasattr(self, '_mapping_executor') and self._mapping_executor:
+            try:
+                self._mapping_executor.shutdown(wait=False)
+            except Exception:
+                pass
 
     def _clear_all_queues(self):
         """清空所有队列"""

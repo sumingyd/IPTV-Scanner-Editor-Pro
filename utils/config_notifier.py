@@ -6,6 +6,7 @@
 from typing import Dict, Any, Callable, List
 from core.log_manager import global_logger
 from utils.singleton import Singleton
+import threading
 
 logger = global_logger
 
@@ -17,76 +18,52 @@ class ConfigChangeNotifier(Singleton):
             return
 
         self._observers: Dict[str, List[Callable]] = {}
+        self._lock = threading.Lock()
         self._initialized = True
         logger.debug("配置变更通知器已初始化")
 
     def register_observer(self, config_key: str, callback: Callable):
-        """注册配置变更观察者
-
-        Args:
-            config_key: 配置键，格式为'section.key'或'section.*'或'*'
-            callback: 回调函数，接收(section, key, old_value, new_value)参数
-        """
-        if config_key not in self._observers:
-            self._observers[config_key] = []
-
-        if callback not in self._observers[config_key]:
-            self._observers[config_key].append(callback)
-            logger.debug(f"注册配置观察者: {config_key} -> {callback.__name__}")
+        with self._lock:
+            if config_key not in self._observers:
+                self._observers[config_key] = []
+            if callback not in self._observers[config_key]:
+                self._observers[config_key].append(callback)
 
     def unregister_observer(self, config_key: str, callback: Callable):
-        """注销配置变更观察者"""
-        if config_key in self._observers and callback in self._observers[config_key]:
-            self._observers[config_key].remove(callback)
-            logger.debug(f"注销配置观察者: {config_key} -> {callback.__name__}")
-
-            # 如果该键没有观察者了，删除键
-            if not self._observers[config_key]:
-                del self._observers[config_key]
+        with self._lock:
+            if config_key in self._observers and callback in self._observers[config_key]:
+                self._observers[config_key].remove(callback)
+                if not self._observers[config_key]:
+                    del self._observers[config_key]
 
     def notify_change(self, section: str, key: str, old_value: Any, new_value: Any):
-        """通知配置变更
-
-        Args:
-            section: 配置节
-            key: 配置键
-            old_value: 旧值
-            new_value: 新值
-        """
-        # 构建完整的配置键
         full_key = f"{section}.{key}"
+        with self._lock:
+            observers_to_notify = []
+            if full_key in self._observers:
+                observers_to_notify.extend(self._observers[full_key])
+            section_wildcard = f"{section}.*"
+            if section_wildcard in self._observers:
+                observers_to_notify.extend(self._observers[section_wildcard])
+            if "*" in self._observers:
+                observers_to_notify.extend(self._observers["*"])
+            seen = set()
+            unique_observers = []
+            for obs in observers_to_notify:
+                obs_id = id(obs)
+                if obs_id not in seen:
+                    seen.add(obs_id)
+                    unique_observers.append(obs)
 
-        # 收集所有需要通知的观察者
-        observers_to_notify = []
-
-        # 匹配精确键
-        if full_key in self._observers:
-            observers_to_notify.extend(self._observers[full_key])
-
-        # 匹配节通配符
-        section_wildcard = f"{section}.*"
-        if section_wildcard in self._observers:
-            observers_to_notify.extend(self._observers[section_wildcard])
-
-        # 匹配全局通配符
-        if "*" in self._observers:
-            observers_to_notify.extend(self._observers["*"])
-
-        # 去重
-        unique_observers = list(set(observers_to_notify))
-
-        # 通知所有观察者
         for observer in unique_observers:
             try:
                 observer(section, key, old_value, new_value)
-                logger.debug(f"通知配置变更: {full_key} -> {observer.__name__}")
             except Exception as e:
-                logger.error(f"配置变更通知失败 {full_key} -> {observer.__name__}: {e}")
+                logger.error(f"配置变更通知失败 {full_key}: {e}")
 
     def clear_observers(self):
-        """清除所有观察者"""
-        self._observers.clear()
-        logger.info("已清除所有配置观察者")
+        with self._lock:
+            self._observers.clear()
 
 
 def get_config_notifier() -> ConfigChangeNotifier:

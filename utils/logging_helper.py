@@ -7,6 +7,7 @@ from typing import Dict, Callable
 from core.log_manager import global_logger
 from utils.singleton import Singleton
 import functools
+import threading
 import time
 
 logger = global_logger
@@ -19,6 +20,7 @@ class LoggingHelper(Singleton):
             return
 
         self._logged_patterns: Dict[str, float] = {}
+        self._lock = threading.Lock()
         self._level_mapping = {
             'config_error': 'error',
             'network_error': 'error',
@@ -60,15 +62,13 @@ class LoggingHelper(Singleton):
             **kwargs: 额外参数
         """
         if suppress_duplicate:
-            # 检查是否在阈值内重复记录
             pattern_key = f"{level}:{message}"
             current_time = time.time()
-            last_time = self._logged_patterns.get(pattern_key, 0)
-
-            if current_time - last_time < self._suppression_threshold:
-                return  # 抑制重复日志
-
-            self._logged_patterns[pattern_key] = current_time
+            with self._lock:
+                last_time = self._logged_patterns.get(pattern_key, 0)
+                if current_time - last_time < self._suppression_threshold:
+                    return
+                self._logged_patterns[pattern_key] = current_time
 
         # 根据级别记录日志
         if level == 'debug':
