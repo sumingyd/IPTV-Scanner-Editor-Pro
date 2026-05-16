@@ -67,7 +67,7 @@ class LogoCacheService(ThreadSafeQObject):
         os.makedirs(self._cache_dir, exist_ok=True)
         self._meta_path = os.path.join(self._cache_dir, self.META_FILE)
         self._meta = self._load_meta()
-        self._memory_cache = {}
+        self._image_cache = {}
         self._negative_cache = {}
         self._lock = threading.Lock()
         self._network_manager = QNetworkAccessManager(self)
@@ -170,6 +170,12 @@ class LogoCacheService(ThreadSafeQObject):
         except Exception:
             pass
 
+    @staticmethod
+    def _image_to_pixmap(image):
+        if image is None or image.isNull():
+            return QPixmap()
+        return QPixmap.fromImage(image)
+
     def get(self, url):
         if not url:
             return None
@@ -179,8 +185,8 @@ class LogoCacheService(ThreadSafeQObject):
                 if time.time() - neg_time < 3600:
                     return None
                 del self._negative_cache[url]
-            if url in self._memory_cache:
-                return self._memory_cache[url]
+            if url in self._image_cache:
+                return self._image_to_pixmap(self._image_cache[url])
 
         key = self._url_to_key(url)
         disk_path = self._find_disk_path(key)
@@ -197,18 +203,58 @@ class LogoCacheService(ThreadSafeQObject):
                     pass
                 return None
 
-            pixmap = QPixmap()
-            if pixmap.load(disk_path):
+            image = QImage()
+            if image.load(disk_path):
                 with self._lock:
-                    self._memory_cache[url] = pixmap
-                return pixmap
+                    self._image_cache[url] = image
+                return self._image_to_pixmap(image)
         return None
 
-    def put(self, url, pixmap, ext='.png', content_hash=None):
-        if not url or pixmap.isNull():
-            return
+    def get_image(self, url):
+        if not url:
+            return None
         with self._lock:
-            self._memory_cache[url] = pixmap
+            if url in self._negative_cache:
+                neg_time = self._negative_cache[url]
+                if time.time() - neg_time < 3600:
+                    return None
+                del self._negative_cache[url]
+            if url in self._image_cache:
+                return QImage(self._image_cache[url])
+
+        key = self._url_to_key(url)
+        disk_path = self._find_disk_path(key)
+
+        if disk_path and os.path.exists(disk_path):
+            meta_entry = self._meta.get(key, {})
+            cached_at = meta_entry.get('time', 0)
+            if time.time() - cached_at > self.DEFAULT_TTL:
+                return None
+
+            image = QImage()
+            if image.load(disk_path):
+                with self._lock:
+                    self._image_cache[url] = image
+                return QImage(image)
+        return None
+
+    def put(self, url, pixmap_or_image, ext='.png', content_hash=None):
+        if not url:
+            return
+
+        if isinstance(pixmap_or_image, QPixmap):
+            if pixmap_or_image.isNull():
+                return
+            image = pixmap_or_image.toImage()
+        elif isinstance(pixmap_or_image, QImage):
+            if pixmap_or_image.isNull():
+                return
+            image = pixmap_or_image
+        else:
+            return
+
+        with self._lock:
+            self._image_cache[url] = image
         key = self._url_to_key(url)
 
         old_path = self._find_disk_path(key)
@@ -220,7 +266,7 @@ class LogoCacheService(ThreadSafeQObject):
                 os.remove(old_path)
             fmt_map = {'.png': 'PNG', '.jpg': 'JPEG', '.jpeg': 'JPEG', '.gif': 'GIF', '.webp': 'WEBP', '.bmp': 'BMP'}
             save_fmt = fmt_map.get(new_ext.lower(), 'PNG')
-            pixmap.save(disk_path, save_fmt)
+            image.save(disk_path, save_fmt)
             meta_entry = {
                 'url': url,
                 'time': time.time(),
@@ -281,7 +327,6 @@ class LogoCacheService(ThreadSafeQObject):
             if reply.error() != QNetworkReply.NetworkError.NoError:
                 err = reply.error()
                 self.mark_negative(url, f"网络错误: {err}")
-                reply.deleteLater()
                 return
 
             content_type = reply.header(QNetworkRequest.KnownHeaders.ContentTypeHeader)
@@ -289,13 +334,11 @@ class LogoCacheService(ThreadSafeQObject):
                 ct = content_type.lower()
                 if 'text/' in ct or 'html' in ct or 'json' in ct:
                     self.mark_negative(url, f"非图片Content-Type: {ct}")
-                    reply.deleteLater()
                     return
 
             data = reply.readAll()
             if not data or len(data) < 100:
                 self.mark_negative(url, f"数据过小: {len(data) if data else 0}字节")
-                reply.deleteLater()
                 return
 
             raw_data = data.data()
@@ -314,15 +357,15 @@ class LogoCacheService(ThreadSafeQObject):
                 meta_entry['ext'] = ext
                 self._meta[key] = meta_entry
                 self._save_meta()
-                reply.deleteLater()
                 return
 
-            pixmap = QPixmap()
-            if pixmap.loadFromData(raw_data):
-                self.put(url, pixmap, ext=ext, content_hash=content_hash)
+            image = QImage()
+            if image.loadFromData(raw_data):
+                self.put(url, image, ext=ext, content_hash=content_hash)
+                pixmap = self._image_to_pixmap(image)
                 self.logo_loaded.emit(url, pixmap)
             else:
-                self.mark_negative(url, f"QPixmap无法解析图片数据({len(raw_data)}字节)")
+                self.mark_negative(url, f"QImage无法解析图片数据({len(raw_data)}字节)")
         except Exception as e:
             self.mark_negative(url, f"下载回调异常: {e}")
         finally:
@@ -346,14 +389,14 @@ class LogoCacheService(ThreadSafeQObject):
             if not self._warmup_queue:
                 break
             url = self._warmup_queue.pop(0)
-            if url and url not in self._memory_cache and url not in self._negative_cache:
+            if url and url not in self._image_cache and url not in self._negative_cache:
                 cached = self.get(url)
                 if not cached:
                     self.fetch_async(url)
 
     def clear(self):
         with self._lock:
-            self._memory_cache.clear()
+            self._image_cache.clear()
             self._negative_cache.clear()
         try:
             for f in os.listdir(self._cache_dir):
