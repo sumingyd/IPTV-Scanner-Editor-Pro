@@ -104,8 +104,8 @@ class EPGController:
         if not channel_supports_catchup:
             return ''
 
-        is_timeshift_mode = getattr(self.window, '_is_timeshift_mode', False)
-        is_catchup_mode = getattr(self.window, 'is_catchup_mode', False)
+        is_timeshift_mode = self.window.play_state.is_timeshift
+        is_catchup_mode = self.window.play_state.is_catchup
         catchup_program = getattr(self.window, 'catchup_program', None)
 
         if is_timeshift_mode and is_live:

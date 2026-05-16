@@ -4,6 +4,7 @@ import re
 import logging
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, Optional
+from core.play_state import PlayMode, PlayStateManager
 from models.channel_model import ChannelListModel
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -188,9 +189,6 @@ class IPTVPlayer(QMainWindow):
     _epg_add_btn = None
 
     is_fullscreen = False
-    is_catchup_mode = False
-    is_timeshift_mode = False
-    _is_timeshift_mode = False
     _live_timeshift_seconds = 0
     catchup_program: Optional[Dict[str, Any]] = None
     epg_visible = True
@@ -261,11 +259,11 @@ class IPTVPlayer(QMainWindow):
         self.setMinimumSize(800, 600)
 
     def _init_state(self):
-        """初始化所有状态变量"""
         self._dragging = False
         self._drag_offset = None
         self._last_mouse_pos = None
 
+        self.play_state = PlayStateManager()
         self.channel_model = ChannelListModel()
         self.current_channel = None
 
@@ -701,8 +699,6 @@ class IPTVPlayer(QMainWindow):
         self.status_bar.setStyleSheet(AppStyles.statusbar_style())
         self.status_bar_show_message(self.language_manager.tr("ready", "Ready"))
         
-        # 回看相关属性
-        self.is_catchup_mode = False
         self.original_channel: Optional[Dict[str, Any]] = None
         
         logger.debug("_create_status_bar: 完成")
@@ -731,7 +727,6 @@ class IPTVPlayer(QMainWindow):
 
         self._source_timeout_timer = None
         self._current_source_index = {}
-        self._timeshift_active = False
         self._timeshift_start_time = None
 
         self._load_last_channel()
@@ -2178,7 +2173,7 @@ class IPTVPlayer(QMainWindow):
     
     def _check_program_change(self):
         """检测节目是否切换，更新UI信息"""
-        is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
+        is_catchup = self.play_state.is_catchup_or_timeshift
         if is_catchup:
             return
 
@@ -2217,7 +2212,7 @@ class IPTVPlayer(QMainWindow):
     def on_progress_slider_released(self):
         """进度条拖动释放时的处理"""
         
-        is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
+        is_catchup = self.play_state.is_catchup_or_timeshift
 
         if getattr(self, '_progress_time_mode', None) == 'vod' and not is_catchup:
             slider_seconds = self._get_progress_seconds()
@@ -2388,7 +2383,7 @@ class IPTVPlayer(QMainWindow):
                 if old and old is not self.current_channel:
                     self._previous_channel = dict(old)
 
-            if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
+            if self.play_state.is_catchup_or_timeshift:
                 self.playback_ctrl._exit_catchup_mode()
 
             self.update_channel_info_on_selection()
@@ -2926,7 +2921,7 @@ class IPTVPlayer(QMainWindow):
                     self.epg_panel.show()
             if self.current_channel:
                 channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
-                if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
+                if self.play_state.is_catchup_or_timeshift:
                     catchup_playing_text = tr('catchup_playing', '正在回看: {name}')
                     self.status_bar.showMessage(catchup_playing_text.format(name=channel_name))
                     # 检查是否有待处理的回看进度值
@@ -2955,8 +2950,7 @@ class IPTVPlayer(QMainWindow):
         else:
             self.play_button.setText("▶")
             self._pip_update_play_btn()
-            if getattr(self, '_is_stopped', False):
-                self._is_stopped = False
+            if self.play_state.is_idle:
                 return
             # 暂停时不要显示背景占位符，保持视频窗口可见
             # 停止定时器
@@ -2965,7 +2959,7 @@ class IPTVPlayer(QMainWindow):
             # 更新状态栏消息
             if self.current_channel:
                 channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
-                if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
+                if self.play_state.is_catchup_or_timeshift:
                     catchup_paused_text = tr('catchup_paused', '回看暂停: {name}')
                     self.status_bar_show_message(catchup_paused_text.format(name=channel_name))
                 else:
@@ -3295,8 +3289,8 @@ class IPTVPlayer(QMainWindow):
         self.update_floating_panel_info()
         
         # 检查是否处于回看模式
-        is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
-        is_timeshift = hasattr(self, '_is_timeshift_mode') and self._is_timeshift_mode
+        is_catchup = self.play_state.is_catchup
+        is_timeshift = self.play_state.is_timeshift
         
         # 更新第二行：频道信息
         if self.current_channel:
@@ -3504,16 +3498,14 @@ class IPTVPlayer(QMainWindow):
         total_time_str = format_time(total_time_ms)
         
         # 检查是否处于回看模式
-        is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
-        
-        # 只在状态发生变化时记录回看模式状态
+        is_catchup = self.play_state.is_catchup_or_timeshift
         if not hasattr(self, 'last_catchup_state') or self.last_catchup_state != is_catchup:
             logger.debug(f"回看模式状态: {is_catchup}")
             self.last_catchup_state = is_catchup
 
         if hasattr(self, '_video_overlay_label'):
             if is_catchup:
-                is_timeshift = hasattr(self, '_is_timeshift_mode') and self._is_timeshift_mode
+                is_timeshift = self.play_state.is_timeshift
                 if is_timeshift:
                     self._video_overlay_label.set_mode(
                         VideoOverlayBadge.MODE_TIMESHIFT,
@@ -3644,7 +3636,7 @@ class IPTVPlayer(QMainWindow):
                         self.progress_start.setText(start_str)
                         self.progress_end.setText(end_str)
                     else:
-                        is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
+                        is_catchup = self.play_state.is_catchup_or_timeshift
                         if not is_catchup:
                             self._set_progress_value(0)
                 except:
@@ -3653,7 +3645,7 @@ class IPTVPlayer(QMainWindow):
                         self.progress_start.setText(current_time_str)
                         self.progress_end.setText(total_time_str)
                     else:
-                        is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
+                        is_catchup = self.play_state.is_catchup_or_timeshift
                         if not is_catchup:
                             self._set_progress_value(0)
             else:
@@ -3662,7 +3654,7 @@ class IPTVPlayer(QMainWindow):
                     self.progress_start.setText(current_time_str)
                     self.progress_end.setText(total_time_str)
                 else:
-                    is_catchup = hasattr(self, 'is_catchup_mode') and self.is_catchup_mode
+                    is_catchup = self.play_state.is_catchup_or_timeshift
                     if not is_catchup:
                         self._set_progress_value(0)
         else:
@@ -4926,7 +4918,7 @@ class IPTVPlayer(QMainWindow):
     def _on_source_timeout(self, channel):
         if not self.player_controller or not self.player_controller.is_playing:
             return
-        if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
+        if self.play_state.is_catchup_or_timeshift:
             return
         logger.debug(f"源超时（无备用源可切换）: {channel.get('name', '')}")
 
@@ -5017,7 +5009,7 @@ class IPTVPlayer(QMainWindow):
     def start_timeshift(self, offset_minutes=None):
         if not self.current_channel:
             return
-        if hasattr(self, 'is_catchup_mode') and self.is_catchup_mode:
+        if self.play_state.is_catchup_or_timeshift:
             return
         try:
             from core.config_manager import ConfigManager
@@ -5072,10 +5064,8 @@ class IPTVPlayer(QMainWindow):
                 logger.warning("时移无可用URL格式")
                 return
 
-        self._timeshift_active = True
         self._timeshift_start_time = start_time
-        self._is_timeshift_mode = True
-        self.is_catchup_mode = True
+        self.play_state.set_timeshift()
         self._live_timeshift_seconds = max(0, (datetime.now() - start_time).total_seconds())
         self.catchup_program = {
             'start': start_time,
@@ -5160,10 +5150,8 @@ class IPTVPlayer(QMainWindow):
             if hasattr(self, attr):
                 delattr(self, attr)
 
-        self._timeshift_active = True
         self._timeshift_start_time = target_wallclock
-        self._is_timeshift_mode = True
-        self.is_catchup_mode = True
+        self.play_state.set_timeshift()
         self._live_timeshift_seconds = max(0, (datetime.now() - target_wallclock).total_seconds())
         self.original_channel = self.current_channel.copy()
         if hasattr(self, 'catchup_ctrl'):
@@ -6054,8 +6042,8 @@ class IPTVPlayer(QMainWindow):
             if not hasattr(self, 'catchup_indicator'):
                 return
 
-            is_timeshift = getattr(self, '_is_timeshift_mode', False)
-            is_catchup = getattr(self, 'is_catchup_mode', False)
+            is_timeshift = self.play_state.is_timeshift
+            is_catchup = self.play_state.is_catchup
 
             if is_timeshift:
                 self.catchup_indicator.setText(self.language_manager.tr('timeshift_watching', '正在时移观看'))

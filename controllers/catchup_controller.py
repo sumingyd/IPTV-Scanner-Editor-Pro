@@ -1,14 +1,9 @@
-"""
-回看/时移控制器 - 管理EPG回看、时移模式的所有逻辑
-从 pyqt_player.py 提取的独立模块
-"""
-
 import re
 from datetime import datetime, timedelta, timezone
+from core.play_state import PlayMode
 
 
 class CatchupController:
-    """回看/时移控制器"""
 
     CATCHUP_TYPES = {
         'default', 'append', 'shift', 'flussonic', 'fs',
@@ -17,20 +12,8 @@ class CatchupController:
 
     def __init__(self, main_window):
         self.window = main_window
-        self._is_catchup_mode: bool = False
         self._original_channel: dict | None = None
         self._catchup_program: dict | None = None
-
-    # ---- 状态属性（读写均操作 controller，并同步到 window） ----
-
-    @property
-    def is_catchup_mode(self) -> bool:
-        return self._is_catchup_mode
-
-    @is_catchup_mode.setter
-    def is_catchup_mode(self, value: bool):
-        self._is_catchup_mode = value
-        self.window.is_catchup_mode = value
 
     @property
     def original_channel(self) -> dict | None:
@@ -50,44 +33,20 @@ class CatchupController:
         self._catchup_program = value
         self.window.catchup_program = value
 
-    def _enter_catchup_state(self, channel: dict, program: dict):
-        """进入回看状态，集中设置所有状态字段"""
+    def _enter_catchup_state(self, channel: dict, program: dict, mode: PlayMode = PlayMode.CATCHUP):
         self.original_channel = channel.copy()
         self.catchup_program = program
-        self.is_catchup_mode = True
-        self.window._is_timeshift_mode = False
-        if hasattr(self.window, '_live_timeshift_seconds'):
-            self.window._live_timeshift_seconds = 0
+        self.window.play_state.mode = mode
+        self.window._live_timeshift_seconds = 0
 
     def _clear_catchup_state(self):
-        """清除回看状态"""
-        self._is_catchup_mode = False
         self._original_channel = None
         self._catchup_program = None
-        self.window.is_catchup_mode = False
-        self.window._is_timeshift_mode = False
+        self.window.play_state.set_idle()
         self.window._live_timeshift_seconds = 0
         self.window.catchup_program = None
 
     def replace_catchup_variables(self, catchup_source, start_time, end_time):
-        """替换回看URL中的时间变量占位符
-
-        支持的变量格式:
-        - ${(b)format} / ${(e)format} : 开始/结束时间
-        - ${(start)format} / ${(end)format} : 同上
-        - ${start} / ${end} : Unix时间戳
-        - ${start_ms} / ${end_ms} : 毫秒时间戳
-        - ${duration} / ${duration_ms} : 持续时间
-        - ${(b)format|offset} : 带时区偏移，如 |-08:00 或 |+05:30
-        - ${(b)format|utc} / ${(b)format|local} : UTC/本地时区
-
-        支持的catchup类型:
-        - default: catchup-source 为完整回看URL
-        - append: catchup-source 附加到直播URL后
-        - shift: 基于时移的回看
-        - flussonic/fs: Flussonic服务器回看格式
-        - xc/xtream: Xtream Codes回看格式
-        """
         if not catchup_source:
             return catchup_source
 
@@ -217,22 +176,11 @@ class CatchupController:
         return url
 
     def build_catchup_url(self, channel, start_time, end_time):
-        """根据频道的catchup类型构建回看URL
-
-        Args:
-            channel: 频道数据字典
-            start_time: 回看开始时间
-            end_time: 回看结束时间
-
-        Returns:
-            构建好的回看URL
-        """
         catchup_type = (channel.get('catchup', '') or '').lower().strip()
         catchup_source = channel.get('catchup_source', '')
         catchup_correction = channel.get('catchup_correction', '')
         live_url = channel.get('url', '')
 
-        # 应用 catchup-correction 时区偏移
         if catchup_correction:
             try:
                 offset = float(catchup_correction)
@@ -285,7 +233,6 @@ class CatchupController:
         return catchup_url if catchup_url else live_url
 
     def start_catchup(self, program):
-        """启动回看功能"""
         from core.log_manager import global_logger as logger
 
         if not self.window.current_channel:
@@ -308,7 +255,7 @@ class CatchupController:
             self._enter_catchup_state(self.window.current_channel, {
                 'start': start_time, 'end': end_time,
                 'title': title, 'desc': program.get('desc', '')
-            })
+            }, mode=PlayMode.CATCHUP)
 
             if hasattr(self.window, '_cancel_source_timeout'):
                 self.window._cancel_source_timeout()
@@ -342,7 +289,6 @@ class CatchupController:
                 self.window._populate_epg_list()
 
     def add_exit_catchup_button(self):
-        """显示退出回看按钮"""
         from core.log_manager import global_logger as logger
 
         if hasattr(self.window, 'exit_catchup_button') and self.window.exit_catchup_button:
@@ -356,7 +302,6 @@ class CatchupController:
                 logger.error(f"显示退出回看按钮失败: {e}")
 
     def exit_catchup(self):
-        """退出回看，返回直播"""
         from datetime import datetime, timedelta
         from core.log_manager import global_logger as logger
 
@@ -392,7 +337,6 @@ class CatchupController:
         self._clear_catchup_state()
 
     def show_exit_timeshift_button(self):
-        """显示退出时移按钮"""
         from core.log_manager import global_logger as logger
 
         if hasattr(self.window, 'exit_catchup_button') and self.window.exit_catchup_button:
@@ -406,7 +350,6 @@ class CatchupController:
                 logger.error(f"显示退出时移按钮失败: {e}")
 
     def on_timeshift_slider_seek(self):
-        """时移模式下拖动进度条"""
         from core.log_manager import global_logger as logger
 
         new_offset = int(self.window.program_progress.value())
@@ -421,7 +364,6 @@ class CatchupController:
         self.window.player_controller.seek_relative_seconds(delta)
 
     def exit_timeshift(self):
-        """退出时移模式，停止时移播放并恢复直播"""
         from core.log_manager import global_logger as logger
 
         saved_original = self.original_channel or self.window.current_channel
@@ -437,7 +379,6 @@ class CatchupController:
         tr = getattr(self.window.language_manager, 'tr', lambda x, y: x)
         self.window.status_bar_show_message(f"{tr('back_to_live', 'Back to live')}: {channel_name}")
 
-        # 恢复直播：重新播放原始直播频道
         if saved_original and hasattr(self.window, 'play_channel'):
             self.window.current_channel = saved_original
             self.window.play_channel(saved_original)
@@ -451,11 +392,9 @@ class CatchupController:
         self._clear_catchup_state()
 
     def _set_progress_value(self, seconds):
-        """设置进度条值（委托给主窗口）"""
         if hasattr(self.window, '_set_progress_value'):
             self.window._set_progress_value(seconds)
 
     def _set_progress_range(self, total):
-        """设置进度条范围（委托给主窗口）"""
         if hasattr(self.window, '_set_progress_range'):
             self.window._set_progress_range(total)
