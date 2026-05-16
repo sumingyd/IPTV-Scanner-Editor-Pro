@@ -1,45 +1,22 @@
-import ctypes
 import hashlib
 import os
-import sys
 import threading
 import time
 from typing import Optional
 from PyQt6.QtCore import QObject, pyqtSignal
-from core.log_manager import global_logger
-
-if getattr(sys, 'frozen', False):
-    base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
-else:
-    from models.channel_mappings import get_app_data_dir
-    base_path = get_app_data_dir()
-
-mpv_dir = os.path.join(base_path, 'mpv')
-libmpv_path = os.path.join(mpv_dir, 'libmpv-2.dll')
-
-try:
-    _libmpv = ctypes.CDLL(libmpv_path)
-    _libmpv.mpv_create.restype = ctypes.c_void_p
-    _libmpv.mpv_create.argtypes = []
-    _libmpv.mpv_initialize.restype = ctypes.c_int
-    _libmpv.mpv_initialize.argtypes = [ctypes.c_void_p]
-    _libmpv.mpv_set_option_string.restype = ctypes.c_int
-    _libmpv.mpv_set_option_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
-    _libmpv.mpv_set_property_string.restype = ctypes.c_int
-    _libmpv.mpv_set_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
-    _libmpv.mpv_command.restype = ctypes.c_int
-    _libmpv.mpv_command.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_char_p)]
-    _libmpv.mpv_destroy.restype = None
-    _libmpv.mpv_destroy.argtypes = [ctypes.c_void_p]
-    _libmpv.mpv_wait_event.restype = ctypes.c_void_p
-    _libmpv.mpv_wait_event.argtypes = [ctypes.c_void_p, ctypes.c_double]
-    _MPV_AVAILABLE = True
-except Exception:
-    _MPV_AVAILABLE = False
-
-_MPV_EVENT_FILE_LOADED = 8
-_MPV_EVENT_END_FILE = 7
-_MPV_EVENT_SHUTDOWN = 1
+from services.mpv_common import (
+    MPV_AVAILABLE,
+    MPV_EVENT_FILE_LOADED,
+    MPV_EVENT_END_FILE,
+    MPV_EVENT_SHUTDOWN,
+    create_mpv_handle,
+    initialize_mpv,
+    destroy_mpv,
+    set_option_string as _mpv_set_option_string,
+    set_property_string as _mpv_set_property_string,
+    send_command as _mpv_send_command,
+    wait_for_specific_event,
+)
 
 CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', 'thumbnails')
 
@@ -78,25 +55,8 @@ def get_thumbnail_path(url: str) -> Optional[str]:
     return None
 
 
-def _wait_for_event(handle, timeout_sec, target_events):
-    deadline = time.time() + timeout_sec
-    while time.time() < deadline:
-        try:
-            event_ptr = _libmpv.mpv_wait_event(handle, 0.05)
-            if event_ptr:
-                event = ctypes.cast(event_ptr, ctypes.POINTER(ctypes.c_void_p * 4)).contents
-                event_id = event[0]
-                if event_id in target_events:
-                    return event_id
-                if event_id == _MPV_EVENT_SHUTDOWN:
-                    return _MPV_EVENT_SHUTDOWN
-        except Exception:
-            break
-    return 0
-
-
 def _capture_single(url: str, timeout: int = 8, wid: int = 0, force: bool = False) -> Optional[str]:
-    if not _MPV_AVAILABLE:
+    if not MPV_AVAILABLE:
         return None
     os.makedirs(CACHE_DIR, exist_ok=True)
     thumb_path = _url_to_thumb_path(url)
@@ -105,24 +65,24 @@ def _capture_single(url: str, timeout: int = 8, wid: int = 0, force: bool = Fals
 
     handle = None
     try:
-        handle = _libmpv.mpv_create()
+        handle = create_mpv_handle()
         if not handle:
             return None
 
         if wid:
-            _libmpv.mpv_set_option_string(handle, b'wid', str(wid).encode('utf-8'))
-        _libmpv.mpv_set_option_string(handle, b'vo', b'gpu')
-        _libmpv.mpv_set_option_string(handle, b'ao', b'null')
-        _libmpv.mpv_set_option_string(handle, b'gpu-api', b'd3d11')
-        _libmpv.mpv_set_option_string(handle, b'hwdec', b'd3d11va')
-        _libmpv.mpv_set_option_string(handle, b'osc', b'no')
-        _libmpv.mpv_set_option_string(handle, b'osd-bar', b'no')
-        _libmpv.mpv_set_option_string(handle, b'idle', b'yes')
-        _libmpv.mpv_set_option_string(handle, b'ytdl', b'no')
-        _libmpv.mpv_set_option_string(handle, b'keep-open', b'yes')
-        _libmpv.mpv_set_option_string(handle, b'log-level', b'error')
-        _libmpv.mpv_set_option_string(handle, b'config', b'no')
-        _libmpv.mpv_set_option_string(handle, b'force-window', b'no')
+            _mpv_set_option_string(handle, 'wid', str(wid))
+        _mpv_set_option_string(handle, 'vo', 'gpu')
+        _mpv_set_option_string(handle, 'ao', 'null')
+        _mpv_set_option_string(handle, 'gpu-api', 'd3d11')
+        _mpv_set_option_string(handle, 'hwdec', 'd3d11va')
+        _mpv_set_option_string(handle, 'osc', 'no')
+        _mpv_set_option_string(handle, 'osd-bar', 'no')
+        _mpv_set_option_string(handle, 'idle', 'yes')
+        _mpv_set_option_string(handle, 'ytdl', 'no')
+        _mpv_set_option_string(handle, 'keep-open', 'yes')
+        _mpv_set_option_string(handle, 'log-level', 'error')
+        _mpv_set_option_string(handle, 'config', 'no')
+        _mpv_set_option_string(handle, 'force-window', 'no')
 
         u = url.lower()
         if u.startswith('rtsp://'):
@@ -133,9 +93,9 @@ def _capture_single(url: str, timeout: int = 8, wid: int = 0, force: bool = Fals
                 rtsp_transport = playback.get('rtsp_transport', 'tcp')
             except Exception:
                 rtsp_transport = 'tcp'
-            _libmpv.mpv_set_option_string(handle, b'rtsp-transport', rtsp_transport.encode('utf-8'))
+            _mpv_set_option_string(handle, 'rtsp-transport', rtsp_transport)
         elif '/rtp/' in u or u.endswith('.ts') or u.startswith('udp://'):
-            _libmpv.mpv_set_option_string(handle, b'demuxer-lavf-format', b'mpegts')
+            _mpv_set_option_string(handle, 'demuxer-lavf-format', 'mpegts')
 
         try:
             from services.mpv_validator_service import MpvStreamValidator
@@ -143,27 +103,22 @@ def _capture_single(url: str, timeout: int = 8, wid: int = 0, force: bool = Fals
             if headers:
                 import json
                 headers_json = json.dumps(headers).encode('utf-8')
-                _libmpv.mpv_set_option_string(handle, b'http-header-fields', headers_json)
+                _mpv_set_option_string(handle, 'http-header-fields', headers_json)
         except Exception:
             pass
 
-        result = _libmpv.mpv_initialize(handle)
-        if result < 0:
-            _libmpv.mpv_destroy(handle)
+        if not initialize_mpv(handle):
+            destroy_mpv(handle)
             return None
 
-        cmd = [b'loadfile', url.encode('utf-8'), None]
-        cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
-        _libmpv.mpv_command(handle, cmd_ptr)
+        _mpv_send_command(handle, ['loadfile', url])
 
-        event_id = _wait_for_event(handle, timeout, {_MPV_EVENT_FILE_LOADED, _MPV_EVENT_END_FILE})
+        event_id, _ = wait_for_specific_event(handle, timeout, {MPV_EVENT_FILE_LOADED, MPV_EVENT_END_FILE})
 
-        if event_id == _MPV_EVENT_FILE_LOADED:
-            _wait_for_event(handle, 2, {_MPV_EVENT_END_FILE})
+        if event_id == MPV_EVENT_FILE_LOADED:
+            wait_for_specific_event(handle, 2, {MPV_EVENT_END_FILE})
 
-            cmd = [b'screenshot-to-file', thumb_path.encode('utf-8'), b'video', None]
-            cmd_ptr = (ctypes.c_char_p * len(cmd))(*cmd)
-            _libmpv.mpv_command(handle, cmd_ptr)
+            _mpv_send_command(handle, ['screenshot-to-file', thumb_path, 'video'])
 
             time.sleep(0.5)
 
@@ -175,10 +130,7 @@ def _capture_single(url: str, timeout: int = 8, wid: int = 0, force: bool = Fals
         return None
     finally:
         if handle:
-            try:
-                _libmpv.mpv_destroy(handle)
-            except Exception:
-                pass
+            destroy_mpv(handle)
 
 
 class ThumbnailService(QObject):
@@ -197,12 +149,6 @@ class ThumbnailService(QObject):
         self._running = False
 
     def capture_channels(self, channels: list, force: bool = False):
-        """将需要截取缩略图的频道加入队列
-
-        Args:
-            channels: 频道列表
-            force: 是否强制刷新（包括已有但过旧的缩略图）
-        """
         added = False
         with self._lock:
             existing_urls = {url for _, url, _ in self._queue}
@@ -228,7 +174,6 @@ class ThumbnailService(QObject):
             self._thread.start()
 
     def stop(self):
-        """停止后台截取"""
         self._stop_event.set()
         self._running = False
         if self._thread and self._thread.is_alive():
