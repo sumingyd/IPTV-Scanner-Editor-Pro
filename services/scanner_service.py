@@ -295,7 +295,8 @@ class ScannerController(QObject):
             }
 
     def _start_async_details_fetch(self, channel_info: dict):
-        """启动异步获取频道详细信息（使用线程池）"""
+        if self._mapping_executor is None:
+            self._mapping_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mapper")
         self._mapping_executor.submit(self._fetch_channel_details, channel_info)
 
     def _fetch_channel_details(self, channel_info: dict):
@@ -650,6 +651,7 @@ class ScannerController(QObject):
                 self._mapping_executor.shutdown(wait=False)
             except Exception:
                 pass
+            self._mapping_executor = None
 
     def _clear_all_queues(self):
         """清空所有队列"""
