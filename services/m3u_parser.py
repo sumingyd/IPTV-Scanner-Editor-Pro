@@ -214,7 +214,6 @@ def is_valid_channel_url(url):
     if '://' not in u:
         return False
     try:
-        from urllib.parse import urlparse
         parsed = urlparse(u)
         host = parsed.hostname
         if not host:
@@ -232,3 +231,206 @@ def is_valid_channel_url(url):
         return True
     except Exception:
         return True
+
+
+_TAG_MAPPING = {
+    "group-title": "group",
+    "tvg-id": "tvg_id",
+    "tvg-name": "name",
+    "tvg-logo": "logo",
+    "tvg-chno": "tvg_chno",
+    "tvg-shift": "tvg_shift",
+    "catchup": "catchup",
+    "catchup-days": "catchup_days",
+    "catchup-source": "catchup_source",
+    "catchup-correction": "catchup_correction",
+    "catchup-type": "catchup",
+    "resolution": "resolution",
+    "tvg-language": "tvg_language",
+    "audio-track": "audio_track",
+    "aspect-ratio": "aspect_ratio",
+    "parent-code": "parent_code",
+}
+
+_HEADER_CATCHUP_MAP = {
+    'catchup': 'catchup',
+    'catchup-correction': 'catchup_correction',
+    'catchup-source': 'catchup_source',
+    'catchup-days': 'catchup_days',
+    'catchup-type': 'catchup',
+}
+
+
+def _make_empty_channel(group='未分类', groups=None, extinf=''):
+    return {
+        'name': '未命名',
+        'url': '',
+        'logo': '',
+        'group': group,
+        '_groups': groups or [group],
+        'tvg_id': '',
+        'tvg_chno': '',
+        'tvg_shift': '',
+        'catchup': '',
+        'catchup_days': '',
+        'catchup_source': '',
+        'catchup_correction': '',
+        'resolution': '',
+        'valid': False,
+        'status': '待检测',
+        '_raw_extinf': extinf,
+        '_all_tags': {},
+    }
+
+
+def _parse_extinf_line(extinf_content, current_group, genre_group_active):
+    genre_match = re.search(r',\s*#genre#\s*', extinf_content)
+    if genre_match:
+        before_genre = extinf_content[:genre_match.start()].strip()
+        group_name = before_genre
+        comma_pos = before_genre.rfind(',')
+        if comma_pos >= 0:
+            group_name = before_genre[comma_pos + 1:].strip()
+        group_name = group_name.strip('=').strip()
+        if group_name:
+            current_group = group_name
+        return None, current_group, True
+
+    last_comma = extinf_content.rfind(",")
+    if last_comma > 0:
+        attrs_part = extinf_content[:last_comma].strip()
+        name = extinf_content[last_comma + 1:].strip()
+    else:
+        attrs_part = ''
+        name = extinf_content.strip()
+
+    if name.startswith('"') and name.endswith('"'):
+        name = name[1:-1]
+
+    channel = _make_empty_channel(
+        group=current_group if genre_group_active else '未分类',
+        extinf=extinf_content,
+    )
+
+    attr_pattern = r'([\w-]+)=["\']([^"\']*)["\']'
+    matches = re.findall(attr_pattern, attrs_part)
+
+    all_tags = {}
+    groups = []
+
+    for key, value in matches:
+        all_tags[key] = value
+        field_name = _TAG_MAPPING.get(key, key.replace('-', '_'))
+        if key == 'group-title' and value:
+            groups = [g.strip() for g in value.split(';') if g.strip()]
+            genre_group_active = False
+        if key != 'tvg-name':
+            channel[field_name] = value
+
+    final_comma_name = ''
+    if extinf_content and ',' in extinf_content:
+        final_comma_name = extinf_content.split(',', 1)[-1].strip()
+        if final_comma_name.startswith('"') and final_comma_name.endswith('"'):
+            final_comma_name = final_comma_name[1:-1]
+    if final_comma_name:
+        channel['name'] = final_comma_name
+    else:
+        tvg_name = all_tags.get('tvg-name', '')
+        if tvg_name:
+            channel['name'] = tvg_name
+        elif name:
+            channel['name'] = name
+
+    if groups:
+        channel['_groups'] = groups
+        channel['group'] = groups[0]
+    elif isinstance(current_group, list):
+        channel['_groups'] = current_group
+        channel['group'] = current_group[0] if current_group else '未分类'
+    else:
+        channel['_groups'] = [current_group] if current_group else ['未分类']
+        channel['group'] = current_group if current_group else '未分类'
+
+    channel['_all_tags'] = all_tags
+    return channel, current_group, genre_group_active
+
+
+def _inherit_header_attrs(channel, header_attrs):
+    if not channel or not header_attrs:
+        return
+    for k, v in header_attrs.items():
+        if k == 'epg_url':
+            continue
+        field = _HEADER_CATCHUP_MAP.get(k, k.replace('-', '_'))
+        if field and not channel.get(field):
+            channel[field] = v
+            if '_all_tags' in channel:
+                channel['_all_tags'][k] = v
+
+
+def parse_m3u_content(content):
+    channels = []
+    lines = content.splitlines()
+    current_channel = None
+    current_group = '未分类'
+    genre_group_active = False
+    header_attrs = {}
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        if line.startswith('#EXTM3U'):
+            header_attrs = extract_header_attributes(line)
+            continue
+
+        if line.startswith('#EXTGRP:'):
+            current_group = line[8:].strip()
+            if current_group.startswith('"') and current_group.endswith('"'):
+                current_group = current_group[1:-1]
+            continue
+
+        if line.startswith('#EXTINF:'):
+            extinf_content = line[8:].strip()
+            current_channel, current_group, genre_group_active = _parse_extinf_line(
+                extinf_content, current_group, genre_group_active
+            )
+            if current_channel:
+                _inherit_header_attrs(current_channel, header_attrs)
+            continue
+
+        if line.startswith('#EXTVLCOPT:video-resolution=') and current_channel:
+            resolution = line.split('=', 1)[1].strip()
+            current_channel['resolution'] = resolution
+            continue
+
+        if line.startswith('#'):
+            continue
+
+        if current_channel:
+            url = line.strip()
+            if is_valid_channel_url(url):
+                current_channel['url'] = url
+                channels.append(current_channel)
+            current_channel = None
+        else:
+            url = line.strip()
+            if is_valid_channel_url(url):
+                try:
+                    from models.channel_mappings import extract_channel_name_from_url
+                    ch_name = extract_channel_name_from_url(url)
+                except Exception:
+                    ch_name = ''
+                groups_list = [g.strip() for g in current_group.split(';') if g.strip()] if isinstance(current_group, str) else (current_group if isinstance(current_group, list) else ['未分类'])
+                primary_group = groups_list[0] if groups_list else '未分类'
+                ch = _make_empty_channel(group=primary_group, groups=groups_list)
+                ch['name'] = ch_name if ch_name else '未命名'
+                ch['url'] = url
+                _inherit_header_attrs(ch, header_attrs)
+                channels.append(ch)
+
+    for i, ch in enumerate(channels):
+        ch['id'] = i + 1
+
+    return channels, header_attrs
