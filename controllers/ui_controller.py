@@ -13,7 +13,6 @@ class UIController:
     def __init__(self, main_window):
         self.window = main_window
         self._osd_visible = False
-        self._osd_saved_panel_states = {}
 
     @property
     def osd_visible(self) -> bool:
@@ -41,14 +40,8 @@ class UIController:
             self._hide_osd()
 
     def _show_osd(self):
-        """显示OSD覆盖层"""
-        if not hasattr(self.window, '_osd_saved_panel_states'):
-            self.window._osd_saved_panel_states = {}
+        self.window.panel_vis.save_context('osd')
 
-        self.window._osd_saved_panel_states['epg'] = getattr(self.window, 'epg_visible', False)
-        self.window._osd_saved_panel_states['playlist'] = getattr(self.window, 'playlist_visible', False)
-
-        # 隐藏侧边面板
         for panel_attr in ['epg_panel', 'playlist_panel']:
             panel = getattr(self.window, panel_attr, None)
             if panel and panel.isVisible():
@@ -209,15 +202,7 @@ class UIController:
             return "{}bps".format(bitrate)
 
     def _hide_osd(self):
-        """隐藏OSD并恢复面板"""
-        saved = getattr(self.window, '_osd_saved_panel_states', {})
-
-        if saved.get('epg', False) and hasattr(self.window, 'epg_panel') and self.window.epg_panel:
-            self.window.epg_panel.show()
-            self.window.epg_visible = True
-        if saved.get('playlist', False) and hasattr(self.window, 'playlist_panel') and self.window.playlist_panel:
-            self.window.playlist_panel.show()
-            self.window.playlist_visible = True
+        self.window.panel_vis.restore_context('osd')
 
         if hasattr(self.window, 'player_controller') and self.window.player_controller:
             self.window.player_controller.send_command([b'show-text', b'', b'0'])

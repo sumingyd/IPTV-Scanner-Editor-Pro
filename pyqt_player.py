@@ -5,6 +5,7 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, Optional
 from core.play_state import PlayMode, PlayStateManager
+from core.panel_visibility import PanelVisibilityManager
 from models.channel_model import ChannelListModel
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -191,12 +192,6 @@ class IPTVPlayer(QMainWindow):
     is_fullscreen = False
     _live_timeshift_seconds = 0
     catchup_program: Optional[Dict[str, Any]] = None
-    epg_visible = True
-    playlist_visible = True
-    floating_panel_visible = True
-    _floating_hidden = False
-    _auto_hide_state = 'visible'
-    _osd_visible = False
     _suppress_volume_osd = False
     _initialization_complete = False
     _panels_initialized = False
@@ -207,9 +202,6 @@ class IPTVPlayer(QMainWindow):
     _editing_playlist_index = -1
     _editing_epg_index = -1
     current_epg_date: Optional[date] = None
-    _saved_floating_states: Optional[Dict[str, bool]] = None
-    _auto_hide_saved_states: Optional[Dict[str, bool]] = None
-    _osd_saved_panel_states: Optional[Dict[str, bool]] = None
     _window_title = ''
     _theme_manager = None
     
@@ -264,6 +256,7 @@ class IPTVPlayer(QMainWindow):
         self._last_mouse_pos = None
 
         self.play_state = PlayStateManager()
+        self.panel_vis = PanelVisibilityManager(self)
         self.channel_model = ChannelListModel()
         self.current_channel = None
 
@@ -271,11 +264,7 @@ class IPTVPlayer(QMainWindow):
         self.playlist_visible = True
         self.floating_panel_visible = True
         self._floating_hidden = False
-        self._saved_floating_states = {}
         self._auto_hide_state = 'visible'
-        self._auto_hide_saved_states = {}
-        self._osd_visible = False
-        self._osd_saved_panel_states = {}
         self._suppress_volume_osd = False
         self.is_fullscreen = False
 
@@ -2588,94 +2577,40 @@ class IPTVPlayer(QMainWindow):
                 break
 
     def toggle_hide_floating(self, checked=None):
-        """一键隐藏/恢复所有悬浮窗"""
-        from core.log_manager import global_logger as logger
-
-        currently_hidden = getattr(self, '_floating_hidden', False)
-        logger.debug(f"toggle_hide_floating: checked={checked}, _floating_hidden={currently_hidden}, "
-                     f"epg_visible={self.epg_visible}, playlist_visible={self.playlist_visible}, "
-                     f"floating_visible={self.floating_panel_visible}")
-
-        if currently_hidden:
-            saved = getattr(self, '_saved_floating_states', {})
-            logger.debug(f"toggle_hide_floating: RESTORE, saved={saved}")
-            if saved.get('epg', False) and hasattr(self, 'epg_panel') and self.epg_panel:
-                if not self._is_local_file():
-                    self.epg_panel.show()
-                    self.epg_visible = True
-                else:
-                    self.epg_visible = False
-            if saved.get('playlist', False) and hasattr(self, 'playlist_panel') and self.playlist_panel:
-                self.playlist_panel.show()
-            self.playlist_visible = saved.get('playlist', False)
-            if saved.get('floating', False) and hasattr(self, 'floating_panel') and self.floating_panel:
-                self.floating_panel.show()
-            self.floating_panel_visible = saved.get('floating', False)
-            self._floating_hidden = False
-            self._auto_hide_state = 'visible'
+        if self.panel_vis.manually_hidden:
+            is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
+            self.panel_vis.restore_from_manual_hide(is_local_file=is_local)
         else:
-            if self._auto_hide_state == 'auto_hidden':
-                self._saved_floating_states = dict(self._auto_hide_saved_states or {})
-                self._auto_hide_state = 'visible'
-                self._auto_hide_saved_states = {}
-            else:
-                self._saved_floating_states = {
-                    'epg': self.epg_visible,
-                    'playlist': self.playlist_visible,
-                    'floating': self.floating_panel_visible
-                }
-            logger.debug(f"toggle_hide_floating: HIDE, saved={self._saved_floating_states}")
-            if hasattr(self, 'epg_panel') and self.epg_panel:
-                self.epg_panel.hide()
-            if hasattr(self, 'playlist_panel') and self.playlist_panel:
-                self.playlist_panel.hide()
-            if hasattr(self, 'floating_panel') and self.floating_panel:
-                self.floating_panel.hide()
-            self._floating_hidden = True
-            self.epg_visible = False
-            self.playlist_visible = False
-            self.floating_panel_visible = False
-
+            if self.panel_vis.is_auto_hidden:
+                self.panel_vis._auto_hide_saved = dict(self.panel_vis._auto_hide_saved or {})
+                self.panel_vis._auto_hide_state = 'visible'
+                self.panel_vis._auto_hide_saved = {}
+            self.panel_vis.hide_all()
         self._sync_panel_actions()
-        logger.debug(f"toggle_hide_floating: DONE, _floating_hidden={self._floating_hidden}")
 
     def _show_floating_panels_on_enter(self):
-        """鼠标进入窗口时显示悬浮窗"""
-        if getattr(self, '_floating_hidden', False):
+        if self.panel_vis.manually_hidden:
             return
         if getattr(self, 'is_fullscreen', False):
             return
         if getattr(self, '_pip_mode', False):
             return
-        if self._auto_hide_state != 'auto_hidden':
+        if not self.panel_vis.is_auto_hidden:
             return
 
-        saved = self._auto_hide_saved_states
-        if saved.get('epg', False) and hasattr(self, 'epg_panel') and self.epg_panel:
-            if not self._is_local_file():
-                self.epg_panel.show()
-                self.epg_visible = True
-        if saved.get('playlist', False) and hasattr(self, 'playlist_panel') and self.playlist_panel:
-            self.playlist_panel.show()
-            self.playlist_visible = True
-        if saved.get('floating', False) and hasattr(self, 'floating_panel') and self.floating_panel:
-            self.floating_panel.show()
-            self.floating_panel_visible = True
-
-        self._auto_hide_state = 'visible'
-        self._auto_hide_saved_states = {}
+        is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
+        self.panel_vis.restore_auto_hide_state(is_local_file=is_local)
         self._sync_panel_actions()
         self._raise_child_dialogs()
 
     def _delayed_hide_floating_panels(self):
-        """延迟隐藏悬浮窗（避免鼠标移到悬浮窗上时误隐藏）"""
-        if getattr(self, '_floating_hidden', False):
+        if self.panel_vis.manually_hidden:
             return
         if getattr(self, 'is_fullscreen', False):
             return
         if getattr(self, '_pip_mode', False):
             return
-        if self._auto_hide_state != 'visible':
+        if self.panel_vis._auto_hide_state != 'visible':
             return
         cursor_pos = self.cursor().pos()
         if self.rect().contains(self.mapFromGlobal(cursor_pos)):
@@ -2687,94 +2622,47 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, 'floating_panel') and self.floating_panel.isVisible() and self.floating_panel.geometry().contains(cursor_pos):
             return
 
-        self._auto_hide_saved_states = {
-            'epg': self.epg_visible,
-            'playlist': self.playlist_visible,
-            'floating': self.floating_panel_visible
-        }
-
-        if self.epg_visible and hasattr(self, 'epg_panel') and self.epg_panel:
-            self.epg_panel.hide()
-            self.epg_visible = False
-        if self.playlist_visible and hasattr(self, 'playlist_panel') and self.playlist_panel:
-            self.playlist_panel.hide()
-            self.playlist_visible = False
-        if self.floating_panel_visible and hasattr(self, 'floating_panel') and self.floating_panel:
-            self.floating_panel.hide()
-            self.floating_panel_visible = False
-
-        self._auto_hide_state = 'auto_hidden'
+        self.panel_vis.auto_hide_all()
         self._sync_panel_actions()
 
     def _auto_hide_panels(self):
-        """全屏模式下自动隐藏悬浮窗和鼠标光标"""
         if not getattr(self, 'is_fullscreen', False):
             return
-        if getattr(self, '_floating_hidden', False):
+        if self.panel_vis.manually_hidden:
             return
-        if self._auto_hide_state != 'visible':
+        if self.panel_vis._auto_hide_state != 'visible':
             return
 
-        self._auto_hide_saved_states = {
-            'epg': self.epg_visible,
-            'playlist': self.playlist_visible,
-            'floating': self.floating_panel_visible
-        }
-
-        if self.epg_visible and hasattr(self, 'epg_panel') and self.epg_panel:
-            self.epg_panel.hide()
-            self.epg_visible = False
-        if self.playlist_visible and hasattr(self, 'playlist_panel') and self.playlist_panel:
-            self.playlist_panel.hide()
-            self.playlist_visible = False
-        if self.floating_panel_visible and hasattr(self, 'floating_panel') and self.floating_panel:
-            self.floating_panel.hide()
-            self.floating_panel_visible = False
-
-        self._auto_hide_state = 'auto_hidden'
+        self.panel_vis.auto_hide_all()
         self.setCursor(Qt.CursorShape.BlankCursor)
         self._sync_panel_actions()
 
     def _auto_restore_panels(self):
-        """全屏模式下恢复悬浮窗和鼠标光标"""
         if not getattr(self, 'is_fullscreen', False):
-            if not getattr(self, '_floating_hidden', False):
+            if not self.panel_vis.manually_hidden:
                 self._show_floating_panels_on_enter()
             return
-        if self._auto_hide_state != 'auto_hidden':
+        if not self.panel_vis.is_auto_hidden:
             return
-        if getattr(self, '_floating_hidden', False):
+        if self.panel_vis.manually_hidden:
             return
 
-        saved = self._auto_hide_saved_states
-        if saved.get('epg', False) and hasattr(self, 'epg_panel') and self.epg_panel:
-            if not self._is_local_file():
-                self.epg_panel.show()
-                self.epg_visible = True
-        if saved.get('playlist', False) and hasattr(self, 'playlist_panel') and self.playlist_panel:
-            self.playlist_panel.show()
-            self.playlist_visible = True
-        if saved.get('floating', False) and hasattr(self, 'floating_panel') and self.floating_panel:
-            self.floating_panel.show()
-            self.floating_panel_visible = True
-
-        self._auto_hide_state = 'visible'
-        self._auto_hide_saved_states = {}
+        is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
+        self.panel_vis.restore_auto_hide_state(is_local_file=is_local)
         self.unsetCursor()
         self._sync_panel_actions()
         self._restart_auto_hide_timer()
         self._raise_child_dialogs()
 
     def _restart_auto_hide_timer(self):
-        """重启全屏自动隐藏定时器"""
-        if getattr(self, 'is_fullscreen', False) and not getattr(self, '_floating_hidden', False):
+        if getattr(self, 'is_fullscreen', False) and not self.panel_vis.manually_hidden:
             if not hasattr(self, '_auto_hide_timer'):
                 from PyQt6.QtCore import QTimer
                 self._auto_hide_timer = QTimer(self)
                 self._auto_hide_timer.setSingleShot(True)
                 self._auto_hide_timer.setInterval(5000)
                 self._auto_hide_timer.timeout.connect(self._auto_hide_panels)
-            if self._auto_hide_state == 'visible':
+            if self.panel_vis._auto_hide_state == 'visible':
                 self._auto_hide_timer.start()
 
     def _stop_auto_hide_timer(self):
@@ -2787,11 +2675,10 @@ class IPTVPlayer(QMainWindow):
         pass
 
     def _on_mouse_activity(self):
-        """鼠标活动回调"""
-        if getattr(self, 'is_fullscreen', False) and not getattr(self, '_floating_hidden', False):
-            if self._auto_hide_state == 'auto_hidden':
+        if getattr(self, 'is_fullscreen', False) and not self.panel_vis.manually_hidden:
+            if self.panel_vis.is_auto_hidden:
                 self._auto_restore_panels()
-            elif self._auto_hide_state == 'visible':
+            elif self.panel_vis._auto_hide_state == 'visible':
                 self._restart_auto_hide_timer()
 
     def _on_main_window_activated(self):
@@ -3832,21 +3719,12 @@ class IPTVPlayer(QMainWindow):
             self.floating_dock.move(fl_x, fl_y)
 
     def toggle_fullscreen(self, checked=False):
-        """切换全屏"""
         self.is_fullscreen = not self.is_fullscreen
 
         if self.is_fullscreen:
-            self._auto_hide_state = 'visible'
-            self._auto_hide_saved_states = {}
-            self._fullscreen_saved_states = {
-                'title_bar': hasattr(self, '_title_bar') and self._title_bar and self._title_bar.isVisible(),
-                'menu_bar': hasattr(self, '_custom_menu_bar') and self._custom_menu_bar and self._custom_menu_bar.isVisible(),
-                'status_bar': bool(self.status_bar and self.status_bar.isVisible()),
-                'epg': self.epg_visible,
-                'playlist': self.playlist_visible,
-                'floating': self.floating_panel_visible,
-                'floating_hidden': getattr(self, '_floating_hidden', False)
-            }
+            self.panel_vis._auto_hide_state = 'visible'
+            self.panel_vis._auto_hide_saved = {}
+            self.panel_vis.save_context('fullscreen')
             if hasattr(self, '_title_bar') and self._title_bar:
                 self._title_bar.hide()
             if hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
@@ -3855,45 +3733,23 @@ class IPTVPlayer(QMainWindow):
                 self.status_bar.hide()
             self.showFullScreen()
             self.unsetCursor()
-            if hasattr(self, 'epg_panel') and self.epg_panel and self.epg_visible and not self._is_local_file():
-                self.epg_panel.show()
-            if hasattr(self, 'playlist_panel') and self.playlist_panel and self.playlist_visible:
-                self.playlist_panel.show()
-            if hasattr(self, 'floating_panel') and self.floating_panel and self.floating_panel_visible:
-                self.floating_panel.show()
+            is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
+            self.panel_vis.set_all_visible(is_local_file=is_local)
             self._restart_auto_hide_timer()
         else:
             self._stop_auto_hide_timer()
             self.unsetCursor()
-            saved = getattr(self, '_fullscreen_saved_states', {})
+            saved = self.panel_vis.restore_context('fullscreen')
             self.showNormal()
-            if saved.get('title_bar', True) and hasattr(self, '_title_bar') and self._title_bar:
-                self._title_bar.show()
-            if saved.get('menu_bar', True) and hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
-                self._custom_menu_bar.show()
-            if saved.get('status_bar', True) and self.status_bar:
-                self.status_bar.show()
-            if saved.get('epg', True) and hasattr(self, 'epg_panel') and self.epg_panel:
-                if not self._is_local_file():
-                    self.epg_panel.show()
-                    self.epg_visible = True
-                else:
-                    self.epg_visible = False
-            else:
-                self.epg_visible = False
-            if saved.get('playlist', True) and hasattr(self, 'playlist_panel') and self.playlist_panel:
-                self.playlist_panel.show()
-                self.playlist_visible = True
-            else:
-                self.playlist_visible = False
-            if saved.get('floating', True) and hasattr(self, 'floating_panel') and self.floating_panel:
-                self.floating_panel.show()
-                self.floating_panel_visible = True
-            else:
-                self.floating_panel_visible = False
-            self._floating_hidden = saved.get('floating_hidden', False)
-            self._auto_hide_state = 'visible'
-            self._auto_hide_saved_states = {}
+            if saved:
+                if saved.get('title_bar', True) and hasattr(self, '_title_bar') and self._title_bar:
+                    self._title_bar.show()
+                if saved.get('menu_bar', True) and hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
+                    self._custom_menu_bar.show()
+                if saved.get('status_bar', True) and self.status_bar:
+                    self.status_bar.show()
+            self.panel_vis._auto_hide_state = 'visible'
+            self.panel_vis._auto_hide_saved = {}
             self._sync_panel_actions()
             self.update_floating_position()
     
@@ -3903,14 +3759,7 @@ class IPTVPlayer(QMainWindow):
         self.populate_epg_list()
     
     def reset_layout(self):
-        """重置布局"""
-        self.epg_visible = True
-        self.playlist_visible = True
-        self.floating_panel_visible = True
-        self._floating_hidden = False
-        self.epg_panel.setVisible(True)
-        self.playlist_panel.setVisible(True)
-        self.floating_panel.setVisible(True)
+        self.panel_vis.reset()
         self._sync_panel_actions()
         self.resize(1280, 806)
     
@@ -5346,15 +5195,7 @@ class IPTVPlayer(QMainWindow):
             self._pip_saved_maximized = self.isMaximized()
             self._pip_saved_fullscreen = getattr(self, 'is_fullscreen', False)
 
-            self._pip_saved_visibilities = {
-                'title_bar': hasattr(self, '_title_bar') and self._title_bar and self._title_bar.isVisible(),
-                'menu_bar': hasattr(self, '_custom_menu_bar') and self._custom_menu_bar and self._custom_menu_bar.isVisible(),
-                'status_bar': bool(self.status_bar and self.status_bar.isVisible()),
-                'epg': self.epg_visible,
-                'playlist': self.playlist_visible,
-                'floating': self.floating_panel_visible,
-                'floating_hidden': getattr(self, '_floating_hidden', False),
-            }
+            self.panel_vis.save_context('pip')
 
             if self._pip_saved_fullscreen:
                 self.toggle_fullscreen()
@@ -5365,9 +5206,7 @@ class IPTVPlayer(QMainWindow):
             self._stop_auto_hide_timer()
 
             self._pip_mode = True
-            self.epg_visible = False
-            self.playlist_visible = False
-            self.floating_panel_visible = False
+            self.panel_vis.hide_all()
 
             if hasattr(self, '_title_bar') and self._title_bar:
                 self._title_bar.hide()
@@ -5475,8 +5314,7 @@ class IPTVPlayer(QMainWindow):
             self._pip_mode = False
 
     def _restore_pip_hidden_elements(self):
-        """恢复画中画模式隐藏的UI元素"""
-        saved = getattr(self, '_pip_saved_visibilities', {})
+        saved = self.panel_vis.restore_context('pip')
         if not saved:
             return
 
@@ -5486,25 +5324,6 @@ class IPTVPlayer(QMainWindow):
             self._custom_menu_bar.show()
         if saved.get('status_bar', True) and self.status_bar:
             self.status_bar.show()
-        if saved.get('epg', True) and hasattr(self, 'epg_panel') and self.epg_panel:
-            if not self._is_local_file():
-                self.epg_panel.show()
-                self.epg_visible = True
-            else:
-                self.epg_visible = False
-        else:
-            self.epg_visible = False
-        if saved.get('playlist', True) and hasattr(self, 'playlist_panel') and self.playlist_panel:
-            self.playlist_panel.show()
-            self.playlist_visible = True
-        else:
-            self.playlist_visible = False
-        if saved.get('floating', True) and hasattr(self, 'floating_panel') and self.floating_panel:
-            self.floating_panel.show()
-            self.floating_panel_visible = True
-        else:
-            self.floating_panel_visible = False
-        self._floating_hidden = saved.get('floating_hidden', False)
         self._sync_panel_actions()
 
         exit_msg = getattr(self, '_pip_exit_status_msg', '')
