@@ -20,7 +20,7 @@ class ChannelController:
 
     def populate_channel_list(self):
         """填充频道列表"""
-        if not hasattr(self.window, 'channel_list') or not hasattr(self.window, 'channel_model'):
+        if not self.window.channel_list or not self.window.channel_model:
             return
 
         self.window.channel_list.clear()
@@ -46,17 +46,11 @@ class ChannelController:
 
             item.setText(display_text)
             item.setData(Qt.ItemDataRole.UserRole, channel)
-
-            logo_url = channel.get('logo_url')
-            if logo_url:
-                pass
-
             self.window.channel_list.addItem(item)
 
     def on_group_changed(self, group_name: str):
         """处理分组切换事件"""
-        if hasattr(self.window, '_populate_channel_list'):
-            self.window._populate_channel_list(source='auto')
+        self.window._populate_channel_list(source='auto')
 
     def select_channel(self, item: QListWidgetItem):
         """处理频道选择事件"""
@@ -75,23 +69,18 @@ class ChannelController:
             else:
                 return
 
-        if hasattr(self.window, 'current_channel'):
-            self.window.current_channel = channel
-
+        self.window.current_channel = channel
         self._update_channel_info(channel)
 
-        if hasattr(self.window, 'epg_ctrl'):
-            self.window.epg_ctrl.populate_epg_list()
-
-        if hasattr(self.window, 'playback_ctrl'):
-            self.window.playback_ctrl.play_channel(channel)
+        self.window.epg_ctrl.populate_epg_list()
+        self.window.playback_ctrl.play_channel(channel)
 
     def _get_current_channels(self):
         """获取当前活跃的频道列表"""
-        if hasattr(self.window, '_local_channels') and hasattr(self.window, '_sub_channels'):
-            if hasattr(self.window, 'playlist_tab'):
-                if self.window.playlist_tab.currentIndex() == 1:
-                    return self.window._local_channels
+        if getattr(self.window, '_local_channels', None) and getattr(self.window, '_sub_channels', None):
+            playlist_tab = getattr(self.window, 'playlist_tab', None)
+            if playlist_tab and playlist_tab.currentIndex() == 1:
+                return self.window._local_channels
             return self.window._sub_channels
         return app_state.channels
 
@@ -102,27 +91,25 @@ class ChannelController:
 
     def _update_channel_info(self, channel: Dict[str, Any]):
         """更新频道信息显示区域"""
-        if not hasattr(self.window, 'channel_name'):
+        if not self.window.channel_name:
             return
 
         display_name = self._get_display_channel_name(channel)
         self.window.channel_name.setText(display_name)
 
-        if hasattr(self.window, 'channel_logo'):
+        if self.window.channel_logo:
             logo_url = channel.get('logo_url')
-            if logo_url:
-                pass
-            else:
+            if not logo_url:
                 self.window.channel_logo.setText("📺")
 
-        if hasattr(self.window, 'video_info'):
+        if self.window.video_info:
             resolution = channel.get('resolution', '')
             if resolution:
                 self.window.video_info.setText(f"📺 {resolution}")
 
     def update_channel_info_on_selection(self):
         """当选择变化时更新频道信息"""
-        if not hasattr(self.window, 'channel_list'):
+        if not self.window.channel_list:
             return
 
         current_item = self.window.channel_list.currentItem()
@@ -137,6 +124,6 @@ class ChannelController:
     @property
     def current_group(self) -> str:
         """当前选中的分组名称"""
-        if hasattr(self.window, 'group_combo'):
+        if self.window.group_combo:
             return self.window.group_combo.currentText()
         return ""
