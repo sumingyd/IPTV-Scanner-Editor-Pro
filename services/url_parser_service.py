@@ -135,15 +135,43 @@ class URLRangeParser:
             yield batch
 
     def _generate_range_values_lazy(self, ranges_info):
-        def lazy_product(ranges):
-            if not ranges:
-                yield ()
+        if not ranges_info:
+            yield ()
+            return
+
+        iterators = []
+        current_values = []
+        for r in ranges_info:
+            it = iter(list(self._iter_range_values(r['segments'], r['pad_width'])))
+            first = next(it, None)
+            if first is None:
                 return
-            r = ranges[0]
-            for val in self._iter_range_values(r['segments'], r['pad_width']):
-                for rest in lazy_product(ranges[1:]):
-                    yield (val,) + rest
-        return lazy_product(ranges_info)
+            iterators.append(it)
+            current_values.append(first)
+
+        yield tuple(current_values)
+
+        while iterators:
+            idx = len(iterators) - 1
+            while idx >= 0:
+                nxt = next(iterators[idx], None)
+                if nxt is not None:
+                    current_values[idx] = nxt
+                    break
+                it = iter(list(self._iter_range_values(
+                    ranges_info[idx]['segments'], ranges_info[idx]['pad_width']
+                )))
+                first = next(it, None)
+                if first is None:
+                    return
+                iterators[idx] = it
+                current_values[idx] = first
+                idx -= 1
+
+            if idx < 0:
+                return
+
+            yield tuple(current_values)
 
     def _build_url_from_parts(self, url_parts, range_count, values):
         url = ""
