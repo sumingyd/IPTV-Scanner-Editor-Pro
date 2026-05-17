@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Dict, Optional
 from core.play_state import PlayMode, PlayStateManager
 from core.panel_visibility import PanelVisibilityManager
+from controllers.progress_controller import ProgressController
 from models.channel_model import ChannelListModel
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -257,6 +258,7 @@ class IPTVPlayer(QMainWindow):
 
         self.play_state = PlayStateManager()
         self.panel_vis = PanelVisibilityManager(self)
+        self.progress_ctrl = ProgressController(self)
         self.channel_model = ChannelListModel()
         self.current_channel = None
 
@@ -3336,20 +3338,19 @@ class IPTVPlayer(QMainWindow):
             logger.warning(f"[GOT_DURATION] total={total_time_ms:.0f}ms cur={current_time_ms:.0f}ms pos={position:.4f}")
     
     def update_floating_panel_info(self):
-        """定期更新悬浮窗信息（进度条、时间、媒体信息等）"""
         if not self.player_controller or not self.current_channel:
             return
-        
+
         if hasattr(self.player_controller, '_heartbeat'):
             self.player_controller._heartbeat()
-        
+
         import time as _time
         now = _time.monotonic()
         if now - getattr(self, '_last_epg_refresh', 0) >= 30:
             self._last_epg_refresh = now
             if hasattr(self, 'epg_content') and self.epg_content.isVisible() and not self._is_local_file():
                 self.populate_epg_list()
-        
+
         self._check_program_change()
 
         if hasattr(self, 'buffer_info') and self.player_controller:
@@ -3366,25 +3367,10 @@ class IPTVPlayer(QMainWindow):
                     else:
                         self.buffer_info.hide()
 
-        _slider_dragging = hasattr(self, 'program_progress') and self.program_progress.isSliderDown()
-        
         current_time_ms = getattr(self, '_cached_current_time_ms', 0)
         total_time_ms = getattr(self, '_cached_total_time_ms', 0)
         position = getattr(self, '_cached_position', 0)
 
-        # 格式化时间
-        def format_time(ms):
-            if not ms or ms <= 0:
-                return "00:00:00"
-            seconds = int(ms) // 1000
-            minutes = seconds // 60
-            hours = minutes // 60
-            return f"{hours:02d}:{minutes % 60:02d}:{seconds % 60:02d}"
-        
-        current_time_str = format_time(current_time_ms)
-        total_time_str = format_time(total_time_ms)
-        
-        # 检查是否处于回看模式
         is_catchup = self.play_state.is_catchup_or_timeshift
         if not hasattr(self, 'last_catchup_state') or self.last_catchup_state != is_catchup:
             logger.debug(f"回看模式状态: {is_catchup}")
@@ -3409,246 +3395,8 @@ class IPTVPlayer(QMainWindow):
             else:
                 if self._video_overlay_label.isVisible():
                     self._video_overlay_label.hide()
-        
-        # 只有在非回看模式下才检查EPG（时移模式也需要EPG），本地文件跳过EPG
-        has_epg = False
-        current_program = None
-        if not self._is_local_file() and (not is_catchup or is_timeshift):
-            try:
-                channel_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
-                if channel_name:
-                    current_program = self.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
-                    if current_program:
-                        has_epg = True
-            except Exception:
-                pass
-        
-        # 更新进度条和时间显示
-        if is_catchup and not is_timeshift:
-            if self.catchup_program is not None:
-                try:
-                    start_time = self.catchup_program.get('start')
-                    end_time = self.catchup_program.get('end')
-                    if start_time and end_time:
-                        total_duration = (end_time - start_time).total_seconds()
-                        
-                        start_str = start_time.strftime("%H:%M")
-                        end_str = end_time.strftime("%H:%M")
-                        self.progress_start.setText(start_str)
-                        self.progress_end.setText(end_str)
-                        self.progress_start.repaint()
-                        self.progress_end.repaint()
-                        
-                        if current_time_ms is not None:
-                            current_position = current_time_ms / 1000
-                        else:
-                            current_position = 0
-                        
-                        if total_duration > 0:
-                            if abs(self._progress_total_seconds - int(total_duration)) > 1:
-                                self._set_progress_range(int(total_duration))
-                            
-                            if hasattr(self, '_catchup_start_time') and hasattr(self, '_catchup_start_progress'):
-                                import time
-                                current_time = time.time()
-                                elapsed_seconds = current_time - self._catchup_start_time
-                                progress_seconds = min(int(self._catchup_start_progress + elapsed_seconds), int(total_duration))
-                                
-                                if progress_seconds >= int(total_duration) * 0.98 and hasattr(self, 'speed_button') and self.player_controller:
-                                    current_speed = self.player_controller.get_speed()
-                                    if abs(current_speed - 1.0) > 0.01:
-                                        self.player_controller.set_speed(1.0)
-                                        self.speed_button.setText("1.0x")
-                                        logger.info("回看已追上直播，自动恢复倍速到1.0x")
-                                
-                                self._set_progress_value(progress_seconds)
-                            else:
-                                if hasattr(self, '_disable_progress_auto_update') and self._disable_progress_auto_update:
-                                    target_progress = getattr(self, '_target_catchup_progress', 0)
-                                    if current_position >= target_progress * 0.9:
-                                        delattr(self, '_disable_progress_auto_update')
-                                else:
-                                    if current_position > 0:
-                                        progress_seconds = min(int(current_position), int(total_duration))
-                                    else:
-                                        progress_seconds = 0
-                                    self._set_progress_value(progress_seconds)
-                        else:
-                            if not (hasattr(self, '_disable_progress_auto_update') and self._disable_progress_auto_update):
-                                self._set_progress_value(0)
-                except Exception as e:
-                    logger.error(f"处理回看时间显示失败: {e}")
-                    if total_time_ms > 0:
-                        self._set_progress_value(position * total_time_ms / 1000)
-                        self.progress_start.setText(current_time_str)
-                        self.progress_end.setText(total_time_str)
-                    else:
-                        if not (hasattr(self, '_disable_progress_auto_update') and self._disable_progress_auto_update):
-                            self._set_progress_value(0)
-            # 回看模式下，继续执行后面的代码，确保更新节目描述
-            # 不再直接返回
-        elif has_epg:
-            if current_program:
-                try:
-                    from datetime import datetime, timedelta
-                    start_time = datetime.fromisoformat(current_program.get('start', ''))
-                    end_time = datetime.fromisoformat(current_program.get('end', ''))
-                    now = datetime.now()
-                    
-                    total_duration = (end_time - start_time).total_seconds()
-                    
-                    if total_duration > 0:
-                        if abs(self._progress_total_seconds - int(total_duration)) > 1:
-                            self._set_progress_range(int(total_duration))
-                        self._progress_time_mode = 'epg'
-                        self._progress_program_start = start_time
-                        self._progress_program_end = end_time
-                        
-                        timeshift = getattr(self, '_live_timeshift_seconds', 0)
-                        if timeshift > 0:
-                            current_position = (now - timedelta(seconds=timeshift) - start_time).total_seconds()
-                            live_position = (now - start_time).total_seconds()
-                            if current_position >= live_position - 1:
-                                self._live_timeshift_seconds = 0
-                                current_position = live_position
-                            else:
-                                current_position = max(0, current_position)
-                        else:
-                            current_position = (now - start_time).total_seconds()
-                        
-                        self._set_progress_value(current_position)
-                        
-                        start_str = start_time.strftime("%H:%M")
-                        end_str = end_time.strftime("%H:%M")
-                        self.progress_start.setText(start_str)
-                        self.progress_end.setText(end_str)
-                    else:
-                        is_catchup = self.play_state.is_catchup_or_timeshift
-                        if not is_catchup:
-                            self._set_progress_value(0)
-                except:
-                    if total_time_ms > 0:
-                        self._set_progress_value(position * total_time_ms / 1000)
-                        self.progress_start.setText(current_time_str)
-                        self.progress_end.setText(total_time_str)
-                    else:
-                        is_catchup = self.play_state.is_catchup_or_timeshift
-                        if not is_catchup:
-                            self._set_progress_value(0)
-            else:
-                if total_time_ms > 0:
-                    self._set_progress_value(position * total_time_ms / 1000)
-                    self.progress_start.setText(current_time_str)
-                    self.progress_end.setText(total_time_str)
-                else:
-                    is_catchup = self.play_state.is_catchup_or_timeshift
-                    if not is_catchup:
-                        self._set_progress_value(0)
-        else:
-            from datetime import datetime, timedelta
 
-            is_local_file = self._is_local_file()
-
-            if is_local_file and total_time_ms > 0:
-                total_seconds = int(total_time_ms) // 1000
-                current_seconds = int(current_time_ms) // 1000 if current_time_ms else 0
-
-                if total_seconds > 0:
-                    if abs(self._progress_total_seconds - total_seconds) > 1:
-                        self._set_progress_range(total_seconds)
-                    self._progress_time_mode = 'vod'
-                    self._progress_program_start = None
-                    self._progress_program_end = None
-
-                    self._set_progress_value(current_seconds)
-
-                    m_s, s_s = divmod(current_seconds, 60)
-                    m_e, s_e = divmod(total_seconds, 60)
-                    if m_s >= 60 or m_e >= 60:
-                        h_s, m_s = divmod(m_s, 60)
-                        h_e, m_e = divmod(m_e, 60)
-                        self.progress_start.setText(f"{h_s}:{m_s:02d}:{s_s:02d}")
-                        self.progress_end.setText(f"{h_e}:{m_e:02d}:{s_e:02d}")
-                        self.time_label.setText(f"⏱ {h_s}:{m_s:02d}:{s_s:02d} / {h_e}:{m_e:02d}:{s_e:02d}")
-                    else:
-                        self.progress_start.setText(f"{m_s}:{s_s:02d}")
-                        self.progress_end.setText(f"{m_e}:{s_e:02d}")
-                        self.time_label.setText(f"⏱ {m_s}:{s_s:02d} / {m_e}:{s_e:02d}")
-
-                    remain = total_seconds - current_seconds
-                    m_r, s_r = divmod(remain, 60)
-                    if m_r >= 60:
-                        h_r, m_r = divmod(m_r, 60)
-                        self.remain_label.setText(f"-{h_r}:{m_r:02d}:{s_r:02d}")
-                    else:
-                        self.remain_label.setText(f"-{m_r}:{s_r:02d}")
-            elif is_local_file:
-                self._progress_time_mode = 'vod'
-                self._progress_program_start = None
-                self._progress_program_end = None
-                if total_time_ms <= 0 and self.player_controller and self.player_controller.is_playing:
-                    try:
-                        fallback_total = self.player_controller.get_total_time()
-                        fallback_current = self.player_controller.get_current_time()
-                        if fallback_total > 0:
-                            total_time_ms = fallback_total
-                            current_time_ms = fallback_current
-                            self._cached_total_time_ms = fallback_total
-                            self._cached_current_time_ms = fallback_current
-                            total_seconds = int(fallback_total) // 1000
-                            current_seconds = int(fallback_current) // 1000 if fallback_current else 0
-                            if abs(self._progress_total_seconds - total_seconds) > 1:
-                                self._set_progress_range(total_seconds)
-                            self._set_progress_value(current_seconds)
-                            m_s, s_s = divmod(current_seconds, 60)
-                            m_e, s_e = divmod(total_seconds, 60)
-                            if m_s >= 60 or m_e >= 60:
-                                h_s, m_s = divmod(m_s, 60)
-                                h_e, m_e = divmod(m_e, 60)
-                                self.progress_start.setText(f"{h_s}:{m_s:02d}:{s_s:02d}")
-                                self.progress_end.setText(f"{h_e}:{m_e:02d}:{s_e:02d}")
-                                self.time_label.setText(f"⏱ {h_s}:{m_s:02d}:{s_s:02d} / {h_e}:{m_e:02d}:{s_e:02d}")
-                            else:
-                                self.progress_start.setText(f"{m_s}:{s_s:02d}")
-                                self.progress_end.setText(f"{m_e}:{s_e:02d}")
-                                self.time_label.setText(f"⏱ {m_s}:{s_s:02d} / {m_e}:{s_e:02d}")
-                            remain = total_seconds - current_seconds
-                            m_r, s_r = divmod(remain, 60)
-                            if m_r >= 60:
-                                h_r, m_r = divmod(m_r, 60)
-                                self.remain_label.setText(f"-{h_r}:{m_r:02d}:{s_r:02d}")
-                            else:
-                                self.remain_label.setText(f"-{m_r}:{s_r:02d}")
-                    except Exception:
-                        pass
-
-                if total_time_ms <= 0:
-                    self.progress_start.setText("--:--")
-                    self.progress_end.setText("--:--")
-                    self.time_label.setText("⏱ --:-- / --:--")
-                    self._set_progress_value(0)
-                    if hasattr(self, 'remain_label'):
-                        self.remain_label.setText(self.language_manager.tr("loading", "加载中..."))
-            else:
-                if self._progress_total_seconds != 3600:
-                    self._set_progress_range(3600)
-                    self._progress_time_mode = 'hour'
-                    self._progress_program_start = None
-                    self._progress_program_end = None
-
-                timeshift = getattr(self, '_live_timeshift_seconds', 0)
-                if timeshift > 0:
-                    effective_time = datetime.now() - timedelta(seconds=timeshift)
-                else:
-                    effective_time = datetime.now()
-
-                start_hour = effective_time.strftime("%H:00")
-                end_hour = (effective_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
-                self.progress_start.setText(start_hour)
-                self.progress_end.setText(end_hour)
-                self.time_label.setText(f"⏱ {datetime.now().strftime('%H:%M')}")
-                seconds_from_hour = effective_time.minute * 60 + effective_time.second
-                self._set_progress_value(seconds_from_hour)
+        self.progress_ctrl.update_progress(current_time_ms, total_time_ms, position)
         
     
     def eventFilter(self, obj, event):
@@ -4801,7 +4549,7 @@ class IPTVPlayer(QMainWindow):
         ch = app_state.get_channel_by_index(idx)
         if ch and ch.get('name') == last.get('name'):
             self.current_channel = ch
-                self.select_channel_by_index(idx)
+            self.select_channel_by_index(idx)
 
     def select_channel_by_index(self, idx):
         if not hasattr(self, 'channel_list') or idx < 0:

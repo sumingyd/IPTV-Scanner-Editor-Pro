@@ -1,0 +1,268 @@
+from datetime import datetime, timedelta
+from core.play_state import PlayMode
+from core.log_manager import global_logger as logger
+
+
+class ProgressController:
+
+    def __init__(self, window):
+        self.window = window
+
+    def update_progress(self, current_time_ms, total_time_ms, position):
+        w = self.window
+        play_state = w.play_state
+
+        if play_state.is_catchup and not play_state.is_timeshift:
+            self._update_catchup_progress(current_time_ms, total_time_ms, position)
+        elif play_state.is_timeshift:
+            self._update_timeshift_progress(current_time_ms, total_time_ms, position)
+        else:
+            has_epg, current_program = self._get_current_epg()
+            if has_epg and current_program:
+                self._update_epg_progress(current_program, current_time_ms, total_time_ms, position)
+            else:
+                self._update_default_progress(current_time_ms, total_time_ms, position)
+
+    def _update_catchup_progress(self, current_time_ms, total_time_ms, position):
+        w = self.window
+        catchup_program = getattr(w, 'catchup_program', None)
+        if catchup_program is None:
+            return
+
+        try:
+            start_time = catchup_program.get('start')
+            end_time = catchup_program.get('end')
+            if not start_time or not end_time:
+                return
+
+            total_duration = (end_time - start_time).total_seconds()
+            start_str = start_time.strftime("%H:%M")
+            end_str = end_time.strftime("%H:%M")
+            w.progress_start.setText(start_str)
+            w.progress_end.setText(end_str)
+            w.progress_start.repaint()
+            w.progress_end.repaint()
+
+            current_position = current_time_ms / 1000 if current_time_ms else 0
+
+            if total_duration > 0:
+                if abs(w._progress_total_seconds - int(total_duration)) > 1:
+                    w._set_progress_range(int(total_duration))
+
+                if hasattr(w, '_catchup_start_time') and hasattr(w, '_catchup_start_progress'):
+                    import time
+                    current_time = time.time()
+                    elapsed_seconds = current_time - w._catchup_start_time
+                    progress_seconds = min(int(w._catchup_start_progress + elapsed_seconds), int(total_duration))
+
+                    if progress_seconds >= int(total_duration) * 0.98 and hasattr(w, 'speed_button') and w.player_controller:
+                        current_speed = w.player_controller.get_speed()
+                        if abs(current_speed - 1.0) > 0.01:
+                            w.player_controller.set_speed(1.0)
+                            w.speed_button.setText("1.0x")
+                            logger.info("回看已追上直播，自动恢复倍速到1.0x")
+
+                    w._set_progress_value(progress_seconds)
+                else:
+                    if hasattr(w, '_disable_progress_auto_update') and w._disable_progress_auto_update:
+                        target_progress = getattr(w, '_target_catchup_progress', 0)
+                        if current_position >= target_progress * 0.9:
+                            delattr(w, '_disable_progress_auto_update')
+                    else:
+                        progress_seconds = min(int(current_position), int(total_duration)) if current_position > 0 else 0
+                        w._set_progress_value(progress_seconds)
+            else:
+                if not (hasattr(w, '_disable_progress_auto_update') and w._disable_progress_auto_update):
+                    w._set_progress_value(0)
+        except Exception as e:
+            logger.error(f"处理回看时间显示失败: {e}")
+            self._fallback_progress(current_time_ms, total_time_ms, position)
+
+    def _update_timeshift_progress(self, current_time_ms, total_time_ms, position):
+        w = self.window
+        has_epg, current_program = self._get_current_epg()
+        if has_epg and current_program:
+            self._update_epg_progress(current_program, current_time_ms, total_time_ms, position)
+        else:
+            self._update_default_progress(current_time_ms, total_time_ms, position)
+
+    def _update_epg_progress(self, current_program, current_time_ms, total_time_ms, position):
+        w = self.window
+        try:
+            start_time = datetime.fromisoformat(current_program.get('start', ''))
+            end_time = datetime.fromisoformat(current_program.get('end', ''))
+            now = datetime.now()
+
+            total_duration = (end_time - start_time).total_seconds()
+
+            if total_duration > 0:
+                if abs(w._progress_total_seconds - int(total_duration)) > 1:
+                    w._set_progress_range(int(total_duration))
+                w._progress_time_mode = 'epg'
+                w._progress_program_start = start_time
+                w._progress_program_end = end_time
+
+                timeshift = getattr(w, '_live_timeshift_seconds', 0)
+                if timeshift > 0:
+                    current_position = (now - timedelta(seconds=timeshift) - start_time).total_seconds()
+                    live_position = (now - start_time).total_seconds()
+                    if current_position >= live_position - 1:
+                        w._live_timeshift_seconds = 0
+                        current_position = live_position
+                    else:
+                        current_position = max(0, current_position)
+                else:
+                    current_position = (now - start_time).total_seconds()
+
+                w._set_progress_value(current_position)
+
+                start_str = start_time.strftime("%H:%M")
+                end_str = end_time.strftime("%H:%M")
+                w.progress_start.setText(start_str)
+                w.progress_end.setText(end_str)
+            else:
+                if not w.play_state.is_catchup_or_timeshift:
+                    w._set_progress_value(0)
+        except Exception:
+            self._fallback_progress(current_time_ms, total_time_ms, position)
+
+    def _update_default_progress(self, current_time_ms, total_time_ms, position):
+        w = self.window
+        is_local_file = w._is_local_file() if hasattr(w, '_is_local_file') else False
+
+        if is_local_file and total_time_ms > 0:
+            self._update_vod_progress(int(current_time_ms) // 1000 if current_time_ms else 0,
+                                      int(total_time_ms) // 1000)
+        elif is_local_file:
+            self._update_vod_fallback()
+        else:
+            self._update_live_progress()
+
+    def _update_vod_progress(self, current_seconds, total_seconds):
+        w = self.window
+        if total_seconds <= 0:
+            return
+
+        if abs(w._progress_total_seconds - total_seconds) > 1:
+            w._set_progress_range(total_seconds)
+        w._progress_time_mode = 'vod'
+        w._progress_program_start = None
+        w._progress_program_end = None
+
+        w._set_progress_value(current_seconds)
+        self._format_vod_time(current_seconds, total_seconds)
+
+    def _update_vod_fallback(self):
+        w = self.window
+        w._progress_time_mode = 'vod'
+        w._progress_program_start = None
+        w._progress_program_end = None
+
+        total_time_ms = getattr(w, '_cached_total_time_ms', 0)
+        current_time_ms = getattr(w, '_cached_current_time_ms', 0)
+
+        if total_time_ms <= 0 and w.player_controller and w.player_controller.is_playing:
+            try:
+                fallback_total = w.player_controller.get_total_time()
+                fallback_current = w.player_controller.get_current_time()
+                if fallback_total > 0:
+                    w._cached_total_time_ms = fallback_total
+                    w._cached_current_time_ms = fallback_current
+                    total_seconds = int(fallback_total) // 1000
+                    current_seconds = int(fallback_current) // 1000 if fallback_current else 0
+                    if abs(w._progress_total_seconds - total_seconds) > 1:
+                        w._set_progress_range(total_seconds)
+                    w._set_progress_value(current_seconds)
+                    self._format_vod_time(current_seconds, total_seconds)
+                    return
+            except Exception:
+                pass
+
+        w.progress_start.setText("--:--")
+        w.progress_end.setText("--:--")
+        w.time_label.setText("⏱ --:-- / --:--")
+        w._set_progress_value(0)
+        if hasattr(w, 'remain_label'):
+            w.remain_label.setText(w.language_manager.tr("loading", "加载中..."))
+
+    def _update_live_progress(self):
+        w = self.window
+        if w._progress_total_seconds != 3600:
+            w._set_progress_range(3600)
+            w._progress_time_mode = 'hour'
+            w._progress_program_start = None
+            w._progress_program_end = None
+
+        timeshift = getattr(w, '_live_timeshift_seconds', 0)
+        if timeshift > 0:
+            effective_time = datetime.now() - timedelta(seconds=timeshift)
+        else:
+            effective_time = datetime.now()
+
+        start_hour = effective_time.strftime("%H:00")
+        end_hour = (effective_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+        w.progress_start.setText(start_hour)
+        w.progress_end.setText(end_hour)
+        w.time_label.setText(f"⏱ {datetime.now().strftime('%H:%M')}")
+        seconds_from_hour = effective_time.minute * 60 + effective_time.second
+        w._set_progress_value(seconds_from_hour)
+
+    def _format_vod_time(self, current_seconds, total_seconds):
+        w = self.window
+        m_s, s_s = divmod(current_seconds, 60)
+        m_e, s_e = divmod(total_seconds, 60)
+        if m_s >= 60 or m_e >= 60:
+            h_s, m_s = divmod(m_s, 60)
+            h_e, m_e = divmod(m_e, 60)
+            w.progress_start.setText(f"{h_s}:{m_s:02d}:{s_s:02d}")
+            w.progress_end.setText(f"{h_e}:{m_e:02d}:{s_e:02d}")
+            w.time_label.setText(f"⏱ {h_s}:{m_s:02d}:{s_s:02d} / {h_e}:{m_e:02d}:{s_e:02d}")
+        else:
+            w.progress_start.setText(f"{m_s}:{s_s:02d}")
+            w.progress_end.setText(f"{m_e}:{s_e:02d}")
+            w.time_label.setText(f"⏱ {m_s}:{s_s:02d} / {m_e}:{s_e:02d}")
+
+        remain = total_seconds - current_seconds
+        m_r, s_r = divmod(remain, 60)
+        if m_r >= 60:
+            h_r, m_r = divmod(m_r, 60)
+            w.remain_label.setText(f"-{h_r}:{m_r:02d}:{s_r:02d}")
+        else:
+            w.remain_label.setText(f"-{m_r}:{s_r:02d}")
+
+    def _fallback_progress(self, current_time_ms, total_time_ms, position):
+        w = self.window
+        if total_time_ms > 0:
+            w._set_progress_value(position * total_time_ms / 1000)
+            current_str = self._format_ms(current_time_ms)
+            total_str = self._format_ms(total_time_ms)
+            w.progress_start.setText(current_str)
+            w.progress_end.setText(total_str)
+        else:
+            if not w.play_state.is_catchup_or_timeshift:
+                w._set_progress_value(0)
+
+    def _get_current_epg(self):
+        w = self.window
+        if w._is_local_file() if hasattr(w, '_is_local_file') else False:
+            return False, None
+        if w.play_state.is_catchup and not w.play_state.is_timeshift:
+            return False, None
+        try:
+            channel_name, tvg_id, tvg_name, comma_name = w._get_epg_match_params()
+            if channel_name:
+                current_program = w.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
+                if current_program:
+                    return True, current_program
+        except Exception:
+            pass
+        return False, None
+
+    @staticmethod
+    def _format_ms(ms):
+        if not ms or ms <= 0:
+            return "00:00:00"
+        seconds = int(ms) // 1000
+        minutes = seconds // 60
+        hours = minutes // 60
+        return f"{hours:02d}:{minutes % 60:02d}:{seconds % 60:02d}"
