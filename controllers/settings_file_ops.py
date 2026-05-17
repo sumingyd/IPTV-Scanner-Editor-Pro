@@ -401,8 +401,9 @@ class SettingsFileOperations:
                 pc = self.window.player_controller
                 if pc and hasattr(pc, '_playback_settings'):
                     pc._playback_settings.update(new_playback)
-            except Exception:
-                pass
+            except Exception as e:
+                from core.log_manager import global_logger
+                global_logger.debug(f"更新播放设置失败: {e}")
 
     @staticmethod
     def _check_playlist_changed(old, new, old_active_index):
