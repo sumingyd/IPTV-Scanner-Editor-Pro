@@ -19,6 +19,7 @@ class LogoCacheService(ThreadSafeQObject):
     MAX_CACHE_SIZE = 500
     NEGATIVE_CACHE_TTL = 3600
     MIN_IMAGE_DATA_SIZE = 100
+    SUPPORTED_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.ico')
 
     @staticmethod
     def scale_logo_pixmap(pixmap, size=60):
@@ -102,7 +103,7 @@ class LogoCacheService(ThreadSafeQObject):
     def _guess_ext_from_url(self, url):
         from urllib.parse import urlparse, unquote
         path = unquote(urlparse(url).path).lower()
-        for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.ico'):
+        for ext in self.SUPPORTED_EXTENSIONS:
             if path.endswith(ext):
                 return ext
         return '.png'
@@ -136,7 +137,7 @@ class LogoCacheService(ThreadSafeQObject):
             path = self._disk_path(key, ext)
             if os.path.exists(path):
                 return path
-        for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.ico'):
+        for ext in self.SUPPORTED_EXTENSIONS:
             path = self._disk_path(key, ext)
             if os.path.exists(path):
                 return path
