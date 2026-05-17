@@ -3,7 +3,7 @@ import queue
 import time
 import functools
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Dict
+from typing import List, Dict, Any
 from services.url_parser_service import URLRangeParser
 from core.log_manager import global_logger
 from models.channel_model import ChannelListModel
@@ -88,7 +88,7 @@ class ScannerController(QObject):
         self.channel_counter = 0
         self.counter_lock = threading.Lock()
         self._optimal_queue_size = 10000  # 动态计算的队列大小（默认值）
-        self.stats: Dict[str, any] = {
+        self.stats: Dict[str, Any] = {
             'total': 0,
             'valid': 0,
             'invalid': 0,
@@ -410,7 +410,7 @@ class ScannerController(QObject):
 
     def _check_channel(
         self, url: str, raw_channel_name: str | None = None
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         if self._validator is None:
             from services.mpv_validator_service import MpvStreamValidator
             self._validator = MpvStreamValidator(self.main_window)
