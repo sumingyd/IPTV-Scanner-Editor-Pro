@@ -73,15 +73,14 @@ class ConfigManager(Singleton):
         return self.save_config()  # 确保立即保存到文件
 
     def load_network_settings(self):
-        """加载网络设置"""
         return {
             'url': self.get_value('Network', 'url', ''),
-            'timeout': int(self.get_value('Network', 'timeout', '5') or '5'),
-            'threads': int(self.get_value('Network', 'threads', '4') or '4'),
+            'timeout': self._parse_int(self.get_value('Network', 'timeout', '5'), 5),
+            'threads': self._parse_int(self.get_value('Network', 'threads', '4'), 4),
             'user_agent': self.get_value('Network', 'user_agent', ''),
             'referer': self.get_value('Network', 'referer', ''),
-            'enable_retry': self.get_value('Network', 'enable_retry', 'False').lower() == 'true',
-            'loop_scan': self.get_value('Network', 'loop_scan', 'False').lower() == 'true'
+            'enable_retry': self._parse_bool(self.get_value('Network', 'enable_retry', 'False')),
+            'loop_scan': self._parse_bool(self.get_value('Network', 'loop_scan', 'False'))
         }
 
     def save_url_history(self, urls):
@@ -112,10 +111,9 @@ class ConfigManager(Singleton):
         return self.save_config()  # 确保立即保存到文件
 
     def load_scan_retry_settings(self):
-        """加载扫描重试设置"""
         return {
-            'enable_retry': self.get_value('ScanRetry', 'enable_retry', 'False').lower() == 'true',
-            'loop_scan': self.get_value('ScanRetry', 'loop_scan', 'False').lower() == 'true'
+            'enable_retry': self._parse_bool(self.get_value('ScanRetry', 'enable_retry', 'False')),
+            'loop_scan': self._parse_bool(self.get_value('ScanRetry', 'loop_scan', 'False'))
         }
 
     def save_sort_config(self, sort_config):
@@ -212,6 +210,27 @@ class ConfigManager(Singleton):
                 logger.error(f"配置管理-保存配置文件失败: {str(e)}", exc_info=True)
                 return False
 
+    def _parse_bool(self, value, default=False):
+        if value is None:
+            return default
+        return value.lower() == 'true'
+
+    def _parse_int(self, value, default=0):
+        if value is None:
+            return default
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return default
+
+    def _parse_float(self, value, default=0.0):
+        if value is None:
+            return default
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
+
     def get_value(self, section, key, default=None):
         with self._lock:
             try:
@@ -258,7 +277,7 @@ class ConfigManager(Singleton):
             if value is not None:
                 # 根据默认值的类型进行转换
                 if isinstance(default_value, bool):
-                    settings[key] = value.lower() == 'true'
+                    settings[key] = self._parse_bool(value)
                 elif isinstance(default_value, int):
                     settings[key] = int(value)
                 elif isinstance(default_value, float):
@@ -277,10 +296,9 @@ class ConfigManager(Singleton):
         return self.save_config()
 
     def load_player_settings(self) -> dict:
-        """加载播放器设置"""
         return {
-            'volume': int(self.get_value('Player', 'volume', '50') or '50'),
-            'mute': self.get_value('Player', 'mute', 'False').lower() == 'true',
+            'volume': self._parse_int(self.get_value('Player', 'volume', '50'), 50),
+            'mute': self._parse_bool(self.get_value('Player', 'mute', 'False')),
             'aspect_ratio': self.get_value('Player', 'aspect_ratio', 'default') or 'default'
         }
 
@@ -291,10 +309,9 @@ class ConfigManager(Singleton):
         return self.save_config()
 
     def load_list_settings(self) -> dict:
-        """加载列表相关设置"""
         return {
-            'auto_save': self.get_value('List', 'auto_save', 'True').lower() == 'true',
-            'backup_count': int(self.get_value('List', 'backup_count', '3') or '3')
+            'auto_save': self._parse_bool(self.get_value('List', 'auto_save', 'True'), True),
+            'backup_count': self._parse_int(self.get_value('List', 'backup_count', '3'), 3)
         }
 
     def save_validation_settings(self, auto_validate: bool = False, validate_timeout: int = 10):
@@ -304,10 +321,9 @@ class ConfigManager(Singleton):
         return self.save_config()
 
     def load_validation_settings(self) -> dict:
-        """加载验证相关设置"""
         return {
-            'auto_validate': self.get_value('Validation', 'auto_validate', 'False').lower() == 'true',
-            'validate_timeout': int(self.get_value('Validation', 'validate_timeout', '10') or '10')
+            'auto_validate': self._parse_bool(self.get_value('Validation', 'auto_validate', 'False')),
+            'validate_timeout': self._parse_int(self.get_value('Validation', 'validate_timeout', '10'), 10)
         }
 
     def save_mapping_settings(self, enable_mapping: bool = True):
@@ -316,9 +332,8 @@ class ConfigManager(Singleton):
         return self.save_config()
 
     def load_mapping_settings(self) -> dict:
-        """加载映射功能设置"""
         return {
-            'enable_mapping': self.get_value('Mapping', 'enable_mapping', 'True').lower() == 'true'
+            'enable_mapping': self._parse_bool(self.get_value('Mapping', 'enable_mapping', 'True'), True)
         }
     
     def save_playlist_sources(self, sources: list):
@@ -368,7 +383,7 @@ class ConfigManager(Singleton):
                 sources.append({
                     'url': url,
                     'name': self.get_value('PlaylistSources', f'name_{i}', f'Source {i+1}'),
-                    'enabled': self.get_value('PlaylistSources', f'enabled_{i}', 'True').lower() == 'true',
+                    'enabled': self._parse_bool(self.get_value('PlaylistSources', f'enabled_{i}', 'True'), True),
                     'last_update': self.get_value('PlaylistSources', f'last_update_{i}', '') or None
                 })
         
@@ -611,7 +626,7 @@ class ConfigManager(Singleton):
             if raw is None:
                 result[key] = default
             elif isinstance(default, bool):
-                result[key] = raw.lower() == 'true'
+                result[key] = self._parse_bool(raw)
             elif isinstance(default, float):
                 try:
                     result[key] = float(raw)
@@ -636,7 +651,7 @@ class ConfigManager(Singleton):
         return {
             'file': self.get_value('Player', 'last_channel_file', ''),
             'name': self.get_value('Player', 'last_channel_name', ''),
-            'index': int(self.get_value('Player', 'last_channel_index', '-1') or '-1'),
+            'index': self._parse_int(self.get_value('Player', 'last_channel_index', '-1'), -1),
         }
 
     def save_timeshift_settings(self, settings):
@@ -646,8 +661,8 @@ class ConfigManager(Singleton):
 
     def load_timeshift_settings(self):
         return {
-            'enabled': self.get_value('Timeshift', 'enabled', 'True').lower() == 'true',
-            'default_offset_minutes': int(self.get_value('Timeshift', 'default_offset_minutes', '30') or '30'),
+            'enabled': self._parse_bool(self.get_value('Timeshift', 'enabled', 'True'), True),
+            'default_offset_minutes': self._parse_int(self.get_value('Timeshift', 'default_offset_minutes', '30'), 30),
             'url_format': self.get_value('Timeshift', 'url_format', ''),
             'time_encoding': self.get_value('Timeshift', 'time_encoding', 'unix'),
             'start_key': self.get_value('Timeshift', 'start_key', 'startTime'),
@@ -662,7 +677,7 @@ class ConfigManager(Singleton):
 
     def load_channel_merge_settings(self):
         return {
-            'enabled': self.get_value('ChannelMerge', 'enabled', 'True').lower() == 'true',
+            'enabled': self._parse_bool(self.get_value('ChannelMerge', 'enabled', 'True'), True),
             'merge_mode': self.get_value('ChannelMerge', 'merge_mode', 'append'),
             'prefer_source': self.get_value('ChannelMerge', 'prefer_source', 'file'),
         }
