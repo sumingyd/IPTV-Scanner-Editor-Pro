@@ -35,7 +35,9 @@ from controllers import (
     UIController,
     SubscriptionController,
     SubscriptionUIController,
-    CatchupController
+    CatchupController,
+    PipController,
+    MediaController
 )
 
 from utils.general_utils import calculate_adaptive_delay
@@ -151,6 +153,8 @@ class IPTVPlayer(QMainWindow):
     subscription_ctrl = None
     subscription_ui_ctrl = None
     catchup_ctrl = None
+    pip_ctrl = None
+    media_ctrl = None
 
     video_frame = None
     video_widget = None
@@ -312,6 +316,8 @@ class IPTVPlayer(QMainWindow):
         self.subscription_ctrl = SubscriptionController(self)
         self.subscription_ui_ctrl = SubscriptionUIController(self)
         self.catchup_ctrl = CatchupController(self)
+        self.pip_ctrl = PipController(self)
+        self.media_ctrl = MediaController(self)
         logger.debug("业务控制器初始化完成")
 
     def _init_basic_ui(self):
@@ -342,6 +348,10 @@ class IPTVPlayer(QMainWindow):
         self.content_layout.setSpacing(0)
         logger.debug("IPTVPlayer 最小化初始化完成")
 
+    @property
+    def pip_mode(self):
+        return self.pip_ctrl.is_active
+
     def _create_custom_title_bar(self):
         """创建自定义标题栏（委托给WindowController）"""
         title_bar = self.window_ctrl.create_custom_title_bar(self._window_title)
@@ -370,8 +380,8 @@ class IPTVPlayer(QMainWindow):
         """鼠标按下事件"""
         if getattr(self, 'is_fullscreen', False):
             self._on_mouse_activity()
-        if getattr(self, '_pip_mode', False):
-            if self._pip_mouse_press(event):
+        if self.pip_mode:
+            if self.pip_ctrl.handle_mouse_press(event):
                 return
         if not self.window_ctrl.handle_mouse_press_event(event):
             self.update_floating_position()
@@ -419,23 +429,23 @@ class IPTVPlayer(QMainWindow):
         """鼠标移动事件"""
         if getattr(self, 'is_fullscreen', False):
             self._on_mouse_activity()
-        if getattr(self, '_pip_mode', False):
-            if self._pip_mouse_move(event):
+        if self.pip_mode:
+            if self.pip_ctrl.handle_mouse_move(event):
                 return
         if not self.window_ctrl.handle_mouse_move_event(event):
             super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         """鼠标释放事件"""
-        if getattr(self, '_pip_mode', False):
-            if self._pip_mouse_release(event):
+        if self.pip_mode:
+            if self.pip_ctrl.handle_mouse_release(event):
                 return
         self.window_ctrl.handle_mouse_release_event(event)
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):
         """鼠标双击事件 - 视频区域双击切换全屏，标题栏双击最大化"""
-        if getattr(self, '_pip_mode', False):
+        if self.pip_mode:
             return
         if not self.window_ctrl.handle_mouse_double_click_event(event):
             if hasattr(self, 'video_widget') and self.video_widget:
@@ -451,7 +461,7 @@ class IPTVPlayer(QMainWindow):
 
     def wheelEvent(self, event):
         """滚轮事件 - 调节音量"""
-        if getattr(self, '_pip_mode', False):
+        if self.pip_mode:
             return
         if getattr(self, 'is_fullscreen', False):
             self._on_mouse_activity()
@@ -462,17 +472,17 @@ class IPTVPlayer(QMainWindow):
 
     def enterEvent(self, event):
         """鼠标进入窗口"""
-        if getattr(self, '_pip_mode', False):
-            self._show_pip_overlay()
+        if self.pip_mode:
+            self.pip_ctrl.show_overlay()
         elif not getattr(self, '_floating_hidden', False) and not getattr(self, 'is_fullscreen', False):
             self._show_floating_panels_on_enter()
         super().enterEvent(event)
 
     def leaveEvent(self, event):
         """鼠标离开窗口"""
-        if getattr(self, '_pip_mode', False):
+        if self.pip_mode:
             from PyQt6.QtCore import QTimer
-            QTimer.singleShot(50, self._pip_delayed_hide_overlay)
+            QTimer.singleShot(50, self.pip_ctrl.delayed_hide_overlay)
         elif not getattr(self, '_floating_hidden', False) and not getattr(self, 'is_fullscreen', False):
             from PyQt6.QtCore import QTimer
             QTimer.singleShot(50, self._delayed_hide_floating_panels)
@@ -643,7 +653,7 @@ class IPTVPlayer(QMainWindow):
         self.video_frame = QFrame()
         self.video_frame.setStyleSheet(AppStyles.player_background_style())
         self.video_frame.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.video_frame.customContextMenuRequested.connect(self._show_video_context_menu)
+        self.video_frame.customContextMenuRequested.connect(self.media_ctrl.show_video_context_menu)
         
         # 创建默认背景（使用软件图标）
         from utils.general_utils import get_icon_path
@@ -721,7 +731,7 @@ class IPTVPlayer(QMainWindow):
         self._timeshift_start_time = None
 
         self._load_last_channel()
-        self._restore_aspect_ratio()
+        self.media_ctrl.restore_aspect_ratio()
 
         logger.debug("_init_player: 完成")
     
@@ -1236,7 +1246,7 @@ class IPTVPlayer(QMainWindow):
         self.speed_button.setText("1.0x")
         self.speed_button.setFixedSize(42, 26)
         self.speed_button.setStyleSheet(AppStyles.player_button_style())
-        self.speed_button.clicked.connect(self._cycle_speed)
+        self.speed_button.clicked.connect(self.media_ctrl.cycle_speed)
         self.control_row.addWidget(self.speed_button)
 
         # 7.6 画面比例按钮
@@ -1244,7 +1254,7 @@ class IPTVPlayer(QMainWindow):
         self.aspect_button.setText("📐")
         self.aspect_button.setFixedSize(48, 26)
         self.aspect_button.setStyleSheet(AppStyles.player_button_style())
-        self.aspect_button.clicked.connect(self._cycle_aspect_ratio)
+        self.aspect_button.clicked.connect(self.media_ctrl.cycle_aspect_ratio)
         self.control_row.addWidget(self.aspect_button)
 
         # 7.7 音轨切换按钮
@@ -1253,7 +1263,7 @@ class IPTVPlayer(QMainWindow):
         self.audio_track_button.setToolTip(self.language_manager.tr("panel_audio_track", "Audio Track"))
         self.audio_track_button.setFixedSize(36, 26)
         self.audio_track_button.setStyleSheet(AppStyles.player_button_style())
-        self.audio_track_button.clicked.connect(self._show_audio_track_menu)
+        self.audio_track_button.clicked.connect(self.media_ctrl.show_audio_track_menu)
         self.control_row.addWidget(self.audio_track_button)
 
         self.sub_track_button = QToolButton()
@@ -1261,7 +1271,7 @@ class IPTVPlayer(QMainWindow):
         self.sub_track_button.setToolTip(self.language_manager.tr("panel_subtitle", "Subtitle"))
         self.sub_track_button.setFixedSize(36, 26)
         self.sub_track_button.setStyleSheet(AppStyles.player_button_style())
-        self.sub_track_button.clicked.connect(self._show_sub_track_menu)
+        self.sub_track_button.clicked.connect(self.media_ctrl.show_sub_track_menu)
         self.control_row.addWidget(self.sub_track_button)
         
         # 8. 全屏图标
@@ -1514,26 +1524,26 @@ class IPTVPlayer(QMainWindow):
             playback_menu.addSeparator()
 
             speed_up = QAction(tr("menu_speed_up", "Speed Up\t."), self)
-            speed_up.triggered.connect(lambda: self._adjust_speed(0.1) if hasattr(self, '_adjust_speed') else None)
+            speed_up.triggered.connect(lambda: self.media_ctrl.adjust_speed(0.1))
             playback_menu.addAction(speed_up)
 
             speed_down = QAction(tr("menu_speed_down", "Speed Down\t,"), self)
-            speed_down.triggered.connect(lambda: self._adjust_speed(-0.1) if hasattr(self, '_adjust_speed') else None)
+            speed_down.triggered.connect(lambda: self.media_ctrl.adjust_speed(-0.1))
             playback_menu.addAction(speed_down)
 
             playback_menu.addSeparator()
 
             screenshot = QAction(tr("menu_screenshot", "Screenshot\tS"), self)
-            screenshot.triggered.connect(lambda: self._take_screenshot() if hasattr(self, '_take_screenshot') else None)
+            screenshot.triggered.connect(lambda: self.media_ctrl._take_screenshot())
             playback_menu.addAction(screenshot)
 
             playback_menu.addSeparator()
 
             audio_menu = playback_menu.addMenu(tr("ctx_audio_track", "Audio Track"))
-            audio_menu.aboutToShow.connect(lambda: self._populate_audio_menu(audio_menu))
+            audio_menu.aboutToShow.connect(lambda: self.media_ctrl._populate_audio_menu(audio_menu))
 
             subtitle_menu = playback_menu.addMenu(tr("ctx_subtitle", "Subtitle"))
-            subtitle_menu.aboutToShow.connect(lambda: self._populate_subtitle_menu(subtitle_menu))
+            subtitle_menu.aboutToShow.connect(lambda: self.media_ctrl._populate_subtitle_menu(subtitle_menu))
 
             # 视图菜单
             view_menu = menu_bar.addMenu(tr("menu_view", "View"))
@@ -1577,7 +1587,7 @@ class IPTVPlayer(QMainWindow):
 
             pip_action = QAction(tr("menu_pip", "Picture-in-Picture\tP"), self)
             pip_action.setCheckable(True)
-            pip_action.triggered.connect(self.toggle_pip_mode)
+            pip_action.triggered.connect(self.pip_ctrl.toggle)
             view_menu.addAction(pip_action)
             self._pip_menu_action = pip_action
 
@@ -2412,7 +2422,7 @@ class IPTVPlayer(QMainWindow):
         if not self.current_channel:
             return
 
-        self._update_catchup_indicator()
+        self.media_ctrl.update_catchup_indicator()
 
         # 更新频道名称和LOGO
         display_name = self._get_display_channel_name(self.current_channel)
@@ -4529,16 +4539,16 @@ class IPTVPlayer(QMainWindow):
             if hasattr(self, 'channel_model') and hasattr(self.channel_model, 'original_data'):
                 pass
             self.config.save_last_channel(file_path, name, idx)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"保存最后频道失败: {e}")
 
     def _load_last_channel(self):
         try:
             last = self.config.load_last_channel()
             if last.get('name') and last.get('index', -1) >= 0:
                 self._pending_last_channel = last
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"加载最后频道失败: {e}")
 
     def _try_restore_last_channel(self):
         if getattr(self, '_pending_last_channel', None) is None:
@@ -4709,8 +4719,8 @@ class IPTVPlayer(QMainWindow):
             prog = self.epg_parser.get_current_program(ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
             if prog:
                 program_title = prog.get('title', '')
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"EPG获取节目标题失败: {e}")
 
         offset_from_start = int((target_wallclock - program_start).total_seconds())
         m, s = divmod(offset_from_start, 60)
@@ -4761,75 +4771,6 @@ class IPTVPlayer(QMainWindow):
         self._update_catchup_indicator()
         self._populate_epg_list()
 
-    def _populate_audio_menu(self, menu):
-        """动态填充音轨菜单（菜单栏和右键菜单共用）"""
-        menu.clear()
-        if not self.player_controller or not self.player_controller.is_playing:
-            act = menu.addAction(self.language_manager.tr('ctx_no_audio_track', 'No Audio Tracks'))
-            act.setEnabled(False)
-            return
-        tracks = self.player_controller.get_track_list('audio')
-        current_id = self.player_controller.get_current_track('audio')
-        if not tracks:
-            act = menu.addAction(self.language_manager.tr('ctx_no_audio_track', 'No Audio Tracks'))
-            act.setEnabled(False)
-        else:
-            for t in tracks:
-                label = t.get('title') or t.get('lang') or f"Track {t['id']}"
-                if t.get('lang') and t.get('title') and t['lang'] != t['title']:
-                    label = f"{t['title']} ({t['lang']})"
-                act = menu.addAction(label)
-                act.setCheckable(True)
-                act.setChecked(t['id'] == current_id)
-                act.triggered.connect(lambda checked, tid=t['id']: self.player_controller.set_track('audio', tid))
-
-    def _populate_subtitle_menu(self, menu):
-        """动态填充字幕菜单（菜单栏和右键菜单共用）"""
-        menu.clear()
-        tr = self.language_manager.tr
-        if not self.player_controller or not self.player_controller.is_playing:
-            act = menu.addAction(tr('ctx_no_subtitle', 'No Subtitle'))
-            act.setEnabled(False)
-            return
-        current_id = self.player_controller.get_current_track('sub')
-        tracks = self.player_controller.get_track_list('sub')
-        no_sub = menu.addAction(tr("ctx_no_subtitle", "No Subtitle"))
-        no_sub.setCheckable(True)
-        no_sub.setChecked(current_id is None or current_id == 0)
-        no_sub.triggered.connect(lambda: self.player_controller.set_track('sub', 0))
-        if tracks:
-            menu.addSeparator()
-            for t in tracks:
-                label = t.get('title') or t.get('lang') or f"Sub {t['id']}"
-                if t.get('lang') and t.get('title') and t['lang'] != t['title']:
-                    label = f"{t['title']} ({t['lang']})"
-                act = menu.addAction(label)
-                act.setCheckable(True)
-                act.setChecked(t['id'] == current_id)
-                act.triggered.connect(lambda checked, tid=t['id']: self.player_controller.set_track('sub', tid))
-        menu.addSeparator()
-        menu.addAction(tr("ctx_load_subtitle", "Load Subtitle..."), lambda: self._load_external_subtitle())
-
-    def _show_audio_track_menu(self):
-        """显示音轨切换菜单"""
-        if not self.player_controller or not self.player_controller.is_playing:
-            return
-        from PyQt6.QtWidgets import QMenu
-        menu = QMenu(self)
-        menu.setStyleSheet(AppStyles.player_menu_bar_style())
-        self._populate_audio_menu(menu)
-        menu.exec(self.audio_track_button.mapToGlobal(self.audio_track_button.rect().bottomLeft()))
-
-    def _show_sub_track_menu(self):
-        """显示字幕切换菜单"""
-        if not self.player_controller or not self.player_controller.is_playing:
-            return
-        from PyQt6.QtWidgets import QMenu
-        menu = QMenu(self)
-        menu.setStyleSheet(AppStyles.player_menu_bar_style())
-        self._populate_subtitle_menu(menu)
-        menu.exec(self.sub_track_button.mapToGlobal(self.sub_track_button.rect().bottomLeft()))
-
     def _set_channel_view_mode(self, mode, tab='sub'):
         """切换频道列表视图模式（list/grid）"""
         list_widget = self.sub_channel_list if tab == 'sub' else self.local_channel_list
@@ -4867,767 +4808,15 @@ class IPTVPlayer(QMainWindow):
         if mode == 'grid':
             QTimer.singleShot(200, lambda: self._capture_visible_thumbnails(tab))
 
-    def _take_screenshot(self):
-        """S键截图 - 保存到 screenshots 目录并复制到剪贴板"""
-        if not self.player_controller or not self.player_controller.is_playing:
-            return
-        try:
-            import os
-            from datetime import datetime
-            from PyQt6.QtWidgets import QApplication
-            from PyQt6.QtGui import QClipboard
-
-            screenshot_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'screenshots')
-            os.makedirs(screenshot_dir, exist_ok=True)
-
-            channel_name = ''
-            if self.current_channel:
-                channel_name = self.current_channel.get('name', '')
-                channel_name = re.sub(r'[\\/:*?"<>|]', '_', channel_name)
-
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f"{channel_name}_{timestamp}.png" if channel_name else f"screenshot_{timestamp}.png"
-            filepath = os.path.join(screenshot_dir, filename)
-
-            self.player_controller.send_command(['screenshot-to-file', filepath, 'video'])
-
-            clipboard = QApplication.clipboard()
-            from PyQt6.QtGui import QPixmap
-            pixmap = QPixmap(filepath)
-            if not pixmap.isNull():
-                clipboard.setPixmap(pixmap)
-
-            self.status_bar_show_message(
-                f"{self.language_manager.tr('screenshot_saved', 'Screenshot saved')}: {filename}")
-        except Exception as e:
-            from core.log_manager import global_logger as logger
-            logger.error(f"截图失败: {e}")
-
-    def _adjust_speed(self, delta):
-        """倍速微调 (> / < 键)"""
-        if not self.player_controller:
-            return
-        current = self.player_controller.get_speed()
-        new_speed = round(max(0.1, min(10.0, current + delta)), 1)
-        self.player_controller.set_speed(new_speed)
-        if hasattr(self, 'speed_button'):
-            self.speed_button.setText(f"{new_speed}x")
-        if not self._osd_visible:
-            self._show_osd_feedback(f"{self.language_manager.tr('osd_speed', 'Speed')}: {new_speed}x")
-
     def toggle_pip_mode(self, checked=None):
-        """P键画中画模式 - 小窗口置顶播放"""
-        if getattr(self, '_pip_mode', False):
-            self._exit_pip_mode()
-            return
-        pc = self.player_controller
-        has_content = (pc and (pc.is_playing or getattr(pc, 'is_paused', False))) or getattr(self, 'current_channel', None)
-        if not has_content:
-            if hasattr(self, '_pip_menu_action') and self._pip_menu_action:
-                self._pip_menu_action.setChecked(False)
-            return
-        self._enter_pip_mode()
-
-    def _enter_pip_mode(self):
-        """进入画中画模式"""
-        if getattr(self, '_pip_mode', False):
-            return
-
-        try:
-            self._pip_saved_geometry = self.geometry()
-            self._pip_saved_maximized = self.isMaximized()
-            self._pip_saved_fullscreen = getattr(self, 'is_fullscreen', False)
-
-            self.panel_vis.save_context('pip')
-
-            if self._pip_saved_fullscreen:
-                self.toggle_fullscreen()
-
-            if self.isMaximized():
-                self.showNormal()
-
-            self._stop_auto_hide_timer()
-
-            self._pip_mode = True
-            self.panel_vis.hide_all()
-
-            if hasattr(self, '_title_bar') and self._title_bar:
-                self._title_bar.hide()
-            if hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
-                self._custom_menu_bar.hide()
-            if self.status_bar:
-                self.status_bar.hide()
-            if hasattr(self, 'epg_panel') and self.epg_panel:
-                self.epg_panel.hide()
-            if hasattr(self, 'playlist_panel') and self.playlist_panel:
-                self.playlist_panel.hide()
-            if hasattr(self, 'floating_panel') and self.floating_panel:
-                self.floating_panel.hide()
-
-            pip_w, pip_h = 480, 270
-            from PyQt6.QtWidgets import QApplication
-            scr = self.screen()
-            primary = QApplication.primaryScreen()
-            if scr:
-                screen = scr.availableGeometry()
-            elif primary:
-                screen = primary.availableGeometry()
-            else:
-                logger.error("_enter_pip_mode: 无法获取屏幕信息")
-                self._pip_mode = False
-                self._restore_pip_hidden_elements()
-                return
-
-            x = screen.right() - pip_w - 20
-            y = screen.bottom() - pip_h - 20
-
-            self.setMinimumSize(240, 135)
-            self.setMaximumSize(16777215, 16777215)
-            self.resize(pip_w, pip_h)
-            self.move(x, y)
-
-            self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
-            self.show()
-            self.raise_()
-
-            self._pip_dragging = False
-            self._pip_drag_pos = None
-            self._pip_resizing = False
-            self._pip_resize_edge = None
-            self._pip_resize_start_geo = None
-            self._pip_resize_start_pos = None
-            self.setMouseTracking(True)
-
-            if not hasattr(self, '_pip_buttons') or not self._pip_buttons:
-                self._create_pip_overlay()
-
-            from PyQt6.QtCore import QTimer
-            QTimer.singleShot(50, self._show_pip_overlay)
-            QTimer.singleShot(50, self._update_pip_video_geometry)
-
-            if hasattr(self, '_pip_menu_action') and self._pip_menu_action:
-                self._pip_menu_action.setChecked(True)
-            self.status_bar_show_message(
-                self.language_manager.tr('pip_mode', 'PiP Mode') + " - P " +
-                self.language_manager.tr('to_exit', 'to exit'))
-            logger.info("已进入画中画模式")
-        except Exception as e:
-            logger.error(f"进入画中画模式失败: {e}")
-            self._pip_mode = False
-            self._restore_pip_hidden_elements()
-
-    def _exit_pip_mode(self):
-        """退出画中画模式"""
-        if not getattr(self, '_pip_mode', False):
-            return
-
-        try:
-            self._pip_mode = False
-            self._hide_pip_overlay()
-
-            self.setMinimumSize(0, 0)
-            self.setMaximumSize(16777215, 16777215)
-
-            self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, False)
-            self.show()
-            self.raise_()
-
-            if getattr(self, '_pip_saved_maximized', False):
-                self.showMaximized()
-            elif hasattr(self, '_pip_saved_geometry'):
-                self.setGeometry(self._pip_saved_geometry)
-
-            self._pip_dragging = False
-            self._pip_resizing = False
-            self.unsetCursor()
-            if hasattr(self, '_pip_menu_action') and self._pip_menu_action:
-                self._pip_menu_action.setChecked(False)
-
-            self._pip_exit_status_msg = (
-                self.language_manager.tr('pip_mode', 'PiP Mode') + " " +
-                self.language_manager.tr('pip_exited', 'exited'))
-
-            from PyQt6.QtCore import QTimer
-            QTimer.singleShot(100, self._restore_pip_hidden_elements)
-            QTimer.singleShot(200, self.update_floating_position)
-            QTimer.singleShot(300, self._restart_auto_hide_timer)
-            logger.info("已退出画中画模式")
-        except Exception as e:
-            logger.error(f"退出画中画模式失败: {e}")
-            self._pip_mode = False
-
-    def _restore_pip_hidden_elements(self):
-        saved = self.panel_vis.restore_context('pip')
-        if not saved:
-            return
-
-        if saved.get('title_bar', True) and hasattr(self, '_title_bar') and self._title_bar:
-            self._title_bar.show()
-        if saved.get('menu_bar', True) and hasattr(self, '_custom_menu_bar') and self._custom_menu_bar:
-            self._custom_menu_bar.show()
-        if saved.get('status_bar', True) and self.status_bar:
-            self.status_bar.show()
-        self._sync_panel_actions()
-
-        exit_msg = getattr(self, '_pip_exit_status_msg', '')
-        if exit_msg:
-            self.status_bar_show_message(exit_msg)
-            self._pip_exit_status_msg = ''
-
-    def _create_pip_overlay(self):
-        """创建画中画控制按钮（使用独立Qt::Tool窗口，确保在D3D11视频之上显示）"""
-        from PyQt6.QtWidgets import QWidget
-        from PyQt6.QtCore import Qt
-
-        self._pip_overlay_widget = QWidget(
-            self,
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.Tool |
-            Qt.WindowType.WindowStaysOnTopHint
-        )
-        self._pip_overlay_widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self._pip_overlay_widget.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
-        self._pip_overlay_widget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-
-        btn_size = 44
-        self._pip_prev_btn = self._create_pip_button("⏮", btn_size)
-        self._pip_play_btn = self._create_pip_button("⏸", btn_size)
-        self._pip_next_btn = self._create_pip_button("⏭", btn_size)
-        self._pip_close_btn = self._create_pip_button("✕", btn_size)
-
-        self._pip_buttons = [self._pip_prev_btn, self._pip_play_btn, self._pip_next_btn, self._pip_close_btn]
-        for btn in self._pip_buttons:
-            btn.setParent(self._pip_overlay_widget)
-            btn.hide()
-
-        self._pip_overlay_widget.hide()
-
-    def _create_pip_button(self, text, btn_size):
-        """创建画中画圆形按钮（自定义绘制，无背景填充）"""
-        from PyQt6.QtWidgets import QWidget
-        from PyQt6.QtGui import QPainter, QPen, QColor, QFont, QRegion
-        from PyQt6.QtCore import QRect, Qt
-
-        class PipButton(QWidget):
-            def __init__(self, label, size, parent):
-                super().__init__(parent)
-                self._label = label
-                self._size = size
-                self._hovered = False
-                self.setFixedSize(size, size)
-                self.setCursor(Qt.CursorShape.PointingHandCursor)
-                self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-                self.setAutoFillBackground(False)
-                self.setMouseTracking(True)
-                circle = QRegion(QRect(0, 0, size, size), QRegion.RegionType.Ellipse)
-                self.setMask(circle)
-
-            def set_label(self, label):
-                self._label = label
-                self.update()
-
-            def paintEvent(self, event):
-                painter = QPainter(self)
-                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-                if self._hovered:
-                    painter.setBrush(QColor(50, 50, 50, 200))
-                    pen = QPen(QColor(255, 255, 255, 220), 2)
-                else:
-                    painter.setBrush(QColor(20, 20, 20, 160))
-                    pen = QPen(QColor(255, 255, 255, 150), 2)
-                painter.setPen(pen)
-                painter.drawEllipse(1, 1, self._size - 2, self._size - 2)
-                painter.setPen(QColor(255, 255, 255, 230))
-                font = QFont()
-                font.setPixelSize(int(self._size * 0.4))
-                painter.setFont(font)
-                painter.drawText(QRect(0, 0, self._size, self._size), Qt.AlignmentFlag.AlignCenter, self._label)
-                painter.end()
-
-            def enterEvent(self, event):
-                self._hovered = True
-                self.update()
-                super().enterEvent(event)
-
-            def leaveEvent(self, event):
-                self._hovered = False
-                self.update()
-                super().leaveEvent(event)
-
-            def mousePressEvent(self, event):
-                if event.button() == Qt.MouseButton.LeftButton:
-                    main_win = self.window().parent()
-                    if main_win and hasattr(main_win, '_pip_btn_clicked'):
-                        main_win._pip_btn_clicked(self)
-
-        btn = PipButton(text, btn_size, None)
-        return btn
-
-    def _pip_btn_clicked(self, btn):
-        """画中画按钮点击回调"""
-        if btn is getattr(self, '_pip_prev_btn', None):
-            logger.debug("画中画: 点击上一个频道按钮")
-            self._pip_prev_channel()
-        elif btn is getattr(self, '_pip_play_btn', None):
-            logger.debug("画中画: 点击播放/暂停按钮")
-            self._pip_toggle_play()
-        elif btn is getattr(self, '_pip_next_btn', None):
-            logger.debug("画中画: 点击下一个频道按钮")
-            self._pip_next_channel()
-        elif btn is getattr(self, '_pip_close_btn', None):
-            logger.debug("画中画: 点击关闭按钮")
-            self._exit_pip_mode()
-
-    def _pip_prev_channel(self):
-        """画中画：上一个频道"""
-        if hasattr(self, 'event_handler'):
-            self.event_handler._switch_channel(-1)
-
-    def _pip_toggle_play(self):
-        """画中画：暂停/播放"""
-        if hasattr(self, 'playback_ctrl'):
-            self.playback_ctrl.toggle_play()
-            self._pip_update_play_btn()
-
-    def _pip_update_play_btn(self):
-        """更新画中画播放/暂停按钮状态"""
-        if not hasattr(self, '_pip_play_btn') or not self._pip_play_btn:
-            return
-        pc = self.player_controller
-        if pc and pc.is_playing:
-            self._pip_play_btn.set_label("⏸")
-        else:
-            self._pip_play_btn.set_label("▶")
-
-    def _pip_next_channel(self):
-        """画中画：下一个频道"""
-        if hasattr(self, 'event_handler'):
-            self.event_handler._switch_channel(1)
-
-    def _pip_get_resize_edge(self, pos):
-        """判断鼠标是否在画中画窗口调整大小边缘区域"""
-        if not getattr(self, '_pip_mode', False):
-            return None
-        margin = 8
-        w = self.width()
-        h = self.height()
-        x, y = pos.x(), pos.y()
-
-        edges = []
-        if x < margin:
-            edges.append('left')
-        if x > w - margin:
-            edges.append('right')
-        if y < margin:
-            edges.append('top')
-        if y > h - margin:
-            edges.append('bottom')
-
-        if not edges:
-            return None
-        return '-'.join(edges)
-
-    def _pip_update_cursor(self, edge):
-        """根据调整大小边缘更新鼠标光标"""
-        if edge is None:
-            self.unsetCursor()
-        elif edge in ('left', 'right'):
-            self.setCursor(Qt.CursorShape.SizeHorCursor)
-        elif edge in ('top', 'bottom'):
-            self.setCursor(Qt.CursorShape.SizeVerCursor)
-        elif edge in ('top-left', 'bottom-right'):
-            self.setCursor(Qt.CursorShape.SizeFDiagCursor)
-        elif edge in ('top-right', 'bottom-left'):
-            self.setCursor(Qt.CursorShape.SizeBDiagCursor)
-        else:
-            self.unsetCursor()
-
-    def _pip_mouse_press(self, event):
-        """画中画模式鼠标按下"""
-        if not getattr(self, '_pip_mode', False):
-            return False
-        if event.button() == Qt.MouseButton.LeftButton:
-            if hasattr(self, '_pip_overlay_widget') and self._pip_overlay_widget.isVisible():
-                gpos = event.globalPosition().toPoint()
-                overlay_geo = self._pip_overlay_widget.geometry()
-                if overlay_geo.contains(gpos):
-                    return False
-            edge = self._pip_get_resize_edge(event.position().toPoint())
-            if edge:
-                self._pip_resizing = True
-                self._pip_resize_edge = edge
-                self._pip_resize_start_geo = self.geometry()
-                self._pip_resize_start_pos = event.globalPosition().toPoint()
-                return True
-            else:
-                self._pip_dragging = True
-                self._pip_drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
-                return True
-        return False
-
-    def _pip_mouse_move(self, event):
-        """画中画模式鼠标移动"""
-        if not getattr(self, '_pip_mode', False):
-            return False
-
-        if self._pip_dragging and self._pip_drag_pos is not None:
-            new_pos = event.globalPosition().toPoint() - self._pip_drag_pos
-            self.move(new_pos)
-            return True
-
-        if self._pip_resizing and self._pip_resize_edge:
-            delta = event.globalPosition().toPoint() - self._pip_resize_start_pos
-            geo = self._pip_resize_start_geo
-            min_w, min_h = 240, 135
-
-            dx_left = 0
-            dx_right = 0
-            dy_top = 0
-            dy_bottom = 0
-
-            if 'left' in self._pip_resize_edge:
-                dx_left = min(delta.x(), geo.width() - min_w)
-            if 'right' in self._pip_resize_edge:
-                dx_right = max(delta.x(), min_w - geo.width())
-            if 'top' in self._pip_resize_edge:
-                dy_top = min(delta.y(), geo.height() - min_h)
-            if 'bottom' in self._pip_resize_edge:
-                dy_bottom = max(delta.y(), min_h - geo.height())
-
-            new_x = geo.x() + dx_left
-            new_y = geo.y() + dy_top
-            new_w = geo.width() - dx_left + dx_right
-            new_h = geo.height() - dy_top + dy_bottom
-
-            self.setGeometry(new_x, new_y, max(min_w, new_w), max(min_h, new_h))
-            self._update_pip_overlay_geometry()
-            self._update_pip_video_geometry()
-            return True
-
-        edge = self._pip_get_resize_edge(event.position().toPoint())
-        self._pip_update_cursor(edge)
-        return False
-
-    def _pip_mouse_release(self, event):
-        """画中画模式鼠标释放"""
-        if not getattr(self, '_pip_mode', False):
-            return False
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._pip_dragging = False
-            self._pip_drag_pos = None
-            self._pip_resizing = False
-            self._pip_resize_edge = None
-            self._pip_resize_start_geo = None
-            self._pip_resize_start_pos = None
-            return True
-        return False
-
-    def _update_pip_video_geometry(self):
-        """画中画模式下同步video_widget尺寸到video_frame"""
-        if not getattr(self, '_pip_mode', False):
-            return
-        if hasattr(self, 'video_widget') and self.video_widget and hasattr(self, 'video_frame') and self.video_frame:
-            self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
-
-    def _update_pip_overlay_geometry(self):
-        """更新画中画覆盖窗口和按钮位置"""
-        if not getattr(self, '_pip_mode', False):
-            return
-        if not hasattr(self, '_pip_buttons'):
-            return
-        if not hasattr(self, 'video_widget') or not self.video_widget:
-            return
-        if not hasattr(self, '_pip_overlay_widget'):
-            return
-
-        vw = self.video_widget
-        top_left = vw.mapToGlobal(vw.rect().topLeft())
-        self._pip_overlay_widget.setGeometry(top_left.x(), top_left.y(), vw.width(), vw.height())
-
-        btn_size = 44
-        spacing = 16
-        total_w = btn_size * 3 + spacing * 2
-        cx = vw.width() // 2
-        cy = vw.height() // 2
-        start_x = cx - total_w // 2
-        control_btns = [self._pip_prev_btn, self._pip_play_btn, self._pip_next_btn]
-        positions = [
-            (start_x, cy - btn_size // 2),
-            (start_x + btn_size + spacing, cy - btn_size // 2),
-            (start_x + (btn_size + spacing) * 2, cy - btn_size // 2),
-        ]
-        for btn, (x, y) in zip(control_btns, positions):
-            btn.move(x, y)
-
-        close_margin = 6
-        if hasattr(self, '_pip_close_btn') and self._pip_close_btn:
-            self._pip_close_btn.move(vw.width() - btn_size - close_margin, close_margin)
-
-        from PyQt6.QtGui import QRegion
-        from PyQt6.QtCore import QRect
-        mask = QRegion()
-        for btn in self._pip_buttons:
-            if not btn.isHidden():
-                mask = mask.united(QRegion(btn.geometry()))
-        if mask.isEmpty():
-            mask = QRegion(QRect(0, 0, 1, 1))
-        self._pip_overlay_widget.setMask(mask)
+        """P键画中画模式（委托给 PipController）"""
+        self.pip_ctrl.toggle(checked)
 
     def _show_pip_overlay(self):
-        """显示画中画控制按钮"""
-        if not getattr(self, '_pip_mode', False):
-            return
-        if not hasattr(self, '_pip_buttons'):
-            return
-        self._pip_update_play_btn()
-        for btn in self._pip_buttons:
-            btn.show()
-        self._update_pip_overlay_geometry()
-        if hasattr(self, '_pip_overlay_widget'):
-            self._pip_overlay_widget.show()
+        self.pip_ctrl.show_overlay()
 
-    def _hide_pip_overlay(self):
-        """隐藏画中画控制按钮"""
-        if hasattr(self, '_pip_overlay_widget'):
-            self._pip_overlay_widget.hide()
-        if not hasattr(self, '_pip_buttons'):
-            return
-        for btn in self._pip_buttons:
-            btn.hide()
 
-    def _pip_delayed_hide_overlay(self):
-        """延迟隐藏画中画按钮（避免鼠标移到按钮上时误隐藏）"""
-        if not getattr(self, '_pip_mode', False):
-            return
-        cursor_pos = self.cursor().pos()
-        if self.rect().contains(self.mapFromGlobal(cursor_pos)):
-            return
-        if hasattr(self, '_pip_overlay_widget') and self._pip_overlay_widget.isVisible():
-            overlay_rect = self._pip_overlay_widget.geometry()
-            if overlay_rect.contains(cursor_pos):
-                return
-        self._hide_pip_overlay()
-
-    _SPEED_STEPS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 5.0]
-
-    def _cycle_speed(self):
-        if not self.player_controller:
-            return
-        current = self.player_controller.get_speed()
-        idx = 0
-        for i, s in enumerate(self._SPEED_STEPS):
-            if abs(current - s) < 0.01:
-                idx = i
-                break
-        next_idx = (idx + 1) % len(self._SPEED_STEPS)
-        new_speed = self._SPEED_STEPS[next_idx]
-        self.player_controller.set_speed(new_speed)
-        if hasattr(self, 'speed_button'):
-            self.speed_button.setText(f"{new_speed}x")
-        if not self._osd_visible:
-            self._show_osd_feedback(f"{self.language_manager.tr('osd_speed', 'Speed')}: {new_speed}x")
-
-    _ASPECT_CYCLE = ['default', '16:9', '4:3', 'stretch', 'fill']
-
-    def _cycle_aspect_ratio(self):
-        if not self.player_controller:
-            return
-        if not hasattr(self, '_current_aspect_idx'):
-            self._current_aspect_idx = 0
-        self._current_aspect_idx = (self._current_aspect_idx + 1) % len(self._ASPECT_CYCLE)
-        ratio = self._ASPECT_CYCLE[self._current_aspect_idx]
-        self.player_controller.set_aspect_ratio(ratio)
-        labels = {'default': '📐', '16:9': '16:9', '4:3': '4:3', 'stretch': '↔', 'fill': '⬛'}
-        if hasattr(self, 'aspect_button'):
-            self.aspect_button.setText(labels.get(ratio, '📐'))
-        self._save_aspect_ratio(ratio)
-
-    def _save_aspect_ratio(self, ratio):
-        try:
-            self.config.set_value('Player', 'aspect_ratio', ratio)
-            self.config.save_config()
-        except Exception:
-            pass
-
-    def _restore_aspect_ratio(self):
-        try:
-            ratio = self.config.get_value('Player', 'aspect_ratio', 'default') or 'default'
-            if ratio in self._ASPECT_CYCLE:
-                self._current_aspect_idx = self._ASPECT_CYCLE.index(ratio)
-            else:
-                self._current_aspect_idx = 0
-                ratio = 'default'
-            if self.player_controller:
-                self.player_controller.set_aspect_ratio(ratio)
-            labels = {'default': '📐', '16:9': '16:9', '4:3': '4:3', 'stretch': '↔', 'fill': '⬛'}
-            if hasattr(self, 'aspect_button'):
-                self.aspect_button.setText(labels.get(ratio, '📐'))
-        except Exception:
-            pass
-
-    def _show_video_context_menu(self, pos):
-        from PyQt6.QtWidgets import QMenu
-        tr = self.language_manager.tr
-        menu = QMenu(self)
-        menu.setStyleSheet(AppStyles.player_menu_bar_style())
-
-        is_playing = self.player_controller and (self.player_controller.is_playing or getattr(self.player_controller, 'is_paused', False))
-
-        if is_playing:
-            play_pause_text = tr("ctx_pause", "Pause") if not getattr(self.player_controller, 'is_paused', False) else tr("ctx_play", "Play")
-            menu.addAction(play_pause_text, lambda: self.playback_ctrl.toggle_play())
-            menu.addAction(tr("ctx_stop", "Stop"), lambda: self.playback_ctrl.stop_playback())
-
-            menu.addSeparator()
-
-            menu.addAction(tr("ctx_prev_channel", "Previous Channel"), lambda: self.event_handler._switch_channel(-1))
-            menu.addAction(tr("ctx_next_channel", "Next Channel"), lambda: self.event_handler._switch_channel(1))
-
-            menu.addSeparator()
-
-        speed_menu = menu.addMenu(tr("ctx_speed", "Speed"))
-        current_speed = self.player_controller.get_speed() if self.player_controller else 1.0
-        for s in self._SPEED_STEPS:
-            label = f"{s}x" + (" ✓" if abs(current_speed - s) < 0.01 else "")
-            speed_menu.addAction(label, lambda checked, speed=s: self._set_speed_from_menu(speed))
-
-        volume_menu = menu.addMenu(tr("ctx_volume", "Volume"))
-        current_vol = self.player_controller.get_volume() if self.player_controller else 80
-        is_muted = self.player_controller.get_mute() if self.player_controller else False
-        mute_text = tr("ctx_unmute", "Unmute") if is_muted else tr("ctx_mute", "Mute")
-        volume_menu.addAction(mute_text, lambda: self.toggle_mute())
-        volume_menu.addSeparator()
-        for v in (0, 25, 50, 75, 100, 125, 150):
-            label = f"{v}%" + (" ✓" if not is_muted and abs(current_vol - v) < 2 else "")
-            volume_menu.addAction(label, lambda checked, vol=v: self._set_volume_from_menu(vol))
-
-        aspect_menu = menu.addMenu(tr("ctx_aspect_ratio", "Aspect Ratio"))
-        aspect_labels = {
-            'default': tr("ctx_aspect_default", "Default"),
-            '16:9': '16:9',
-            '4:3': '4:3',
-            'stretch': tr("ctx_aspect_stretch", "Stretch"),
-            'fill': tr("ctx_aspect_fill", "Fill"),
-        }
-        current_ratio = self._ASPECT_CYCLE[getattr(self, '_current_aspect_idx', 0)] if hasattr(self, '_current_aspect_idx') else 'default'
-        for ratio in self._ASPECT_CYCLE:
-            label = aspect_labels.get(ratio, ratio) + (" ✓" if ratio == current_ratio else "")
-            aspect_menu.addAction(label, lambda checked, r=ratio: self._set_aspect_from_menu(r))
-
-        if is_playing:
-            audio_menu = menu.addMenu(tr("ctx_audio_track", "Audio Track"))
-            self._populate_audio_menu(audio_menu)
-
-            sub_menu = menu.addMenu(tr("ctx_subtitle", "Subtitle"))
-            self._populate_subtitle_menu(sub_menu)
-
-        menu.addSeparator()
-
-        if is_playing:
-            menu.addAction(tr("ctx_screenshot", "Screenshot\tS"), lambda: self._take_screenshot())
-
-        menu.addAction(tr("ctx_fullscreen", "Fullscreen\tF11"), lambda: self.toggle_fullscreen())
-        menu.addAction(tr("ctx_pip", "Picture-in-Picture\tP"), lambda: self.toggle_pip_mode())
-
-        menu.addSeparator()
-
-        view_menu = menu.addMenu(tr("ctx_view", "View"))
-        epg_action = view_menu.addAction(tr("ctx_epg", "EPG List\tE"))
-        epg_action.setCheckable(True)
-        epg_action.setChecked(self.epg_visible)
-        epg_action.triggered.connect(lambda: self.toggle_epg())
-        playlist_action = view_menu.addAction(tr("ctx_playlist", "Playlist\tL"))
-        playlist_action.setCheckable(True)
-        playlist_action.setChecked(self.playlist_visible)
-        playlist_action.triggered.connect(lambda: self.toggle_playlist())
-        panel_action = view_menu.addAction(tr("ctx_control_panel", "Control Panel\tM"))
-        panel_action.setCheckable(True)
-        panel_action.setChecked(self.floating_panel_visible)
-        panel_action.triggered.connect(lambda: self.toggle_floating_panel())
-        view_menu.addSeparator()
-        view_menu.addAction(tr("ctx_hide_panels", "Hide Floating Panels\tY"), lambda: self.toggle_hide_floating())
-        view_menu.addAction(tr("ctx_reset_layout", "Reset Layout"), lambda: self.reset_layout())
-
-        menu.addSeparator()
-
-        menu.addAction(tr("ctx_open_stream", "Open Stream\tCtrl+U"), lambda: self._open_stream())
-        menu.addAction(tr("ctx_open_video", "Open Video\tCtrl+Shift+O"), lambda: self._open_video_file())
-        menu.addAction(tr("ctx_scan", "Scan & Organize"), lambda: self.open_scan_ui())
-
-        menu.exec(self.video_frame.mapToGlobal(pos))
-
-    def _set_speed_from_menu(self, speed):
-        if not self.player_controller:
-            return
-        self.player_controller.set_speed(speed)
-        if hasattr(self, 'speed_button'):
-            self.speed_button.setText(f"{speed}x")
-        if not self._osd_visible:
-            self._show_osd_feedback(f"{self.language_manager.tr('osd_speed', 'Speed')}: {speed}x")
-
-    def _set_volume_from_menu(self, volume):
-        if not self.player_controller:
-            return
-        self.player_controller.set_volume(volume)
-        if hasattr(self, 'volume_slider'):
-            self.volume_slider.setValue(volume)
-        self._update_volume_icon(volume)
-        if not self._osd_visible:
-            self._show_osd_feedback(f"{self.language_manager.tr('osd_volume', 'Volume')}: {volume}%")
-
-    def _load_external_subtitle(self):
-        if not self.player_controller or not self.player_controller.is_playing:
-            return
-        from PyQt6.QtWidgets import QFileDialog
-        tr = self.language_manager.tr
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, tr("ctx_load_subtitle", "Load Subtitle..."), '',
-            tr("ctx_subtitle_files", "Subtitle Files") + " (*.srt *.ass *.ssa *.sub *.idx *.vtt *.lrc);;" + tr("ctx_all_files", "All Files") + " (*)"
-        )
-        if file_path:
-            if self.player_controller.add_subtitle_file(file_path):
-                self._show_osd_feedback(f"{tr('ctx_subtitle', 'Subtitle')}: {file_path.split('/')[-1].split(chr(92))[-1]}")
-
-    def _set_aspect_from_menu(self, ratio):
-        if not self.player_controller:
-            return
-        if ratio in self._ASPECT_CYCLE:
-            self._current_aspect_idx = self._ASPECT_CYCLE.index(ratio)
-        self.player_controller.set_aspect_ratio(ratio)
-        labels = {'default': '📐', '16:9': '16:9', '4:3': '4:3', 'stretch': '↔', 'fill': '⬛'}
-        if hasattr(self, 'aspect_button'):
-            self.aspect_button.setText(labels.get(ratio, '📐'))
-        self._save_aspect_ratio(ratio)
-
-    def _update_catchup_indicator(self):
-        try:
-            if not hasattr(self, 'catchup_indicator'):
-                return
-
-            is_timeshift = self.play_state.is_timeshift
-            is_catchup = self.play_state.is_catchup
-
-            if is_timeshift:
-                self.catchup_indicator.setText(self.language_manager.tr('timeshift_watching', '正在时移观看'))
-                self.catchup_indicator.show()
-            elif is_catchup and not is_timeshift:
-                self.catchup_indicator.setText(self.language_manager.tr('catchup_playing_label', '正在回看'))
-                self.catchup_indicator.show()
-            elif self.current_channel and (
-                self.current_channel.get('catchup_source', '')
-                or self.current_channel.get('catchup', '')
-            ):
-                self.catchup_indicator.setText(self.language_manager.tr('catchup_available', '可回放'))
-                self.catchup_indicator.show()
-            else:
-                self.catchup_indicator.hide()
-        except Exception:
-            pass
-
-# 主函数
 if __name__ == "__main__":
-    import time
-    app_start_time = time.time()
     app = QApplication(sys.argv)
     player = IPTVPlayer()
 
@@ -5637,7 +4826,7 @@ if __name__ == "__main__":
         if os.path.isfile(file_path):
             if file_path.lower().endswith(('.m3u', '.m3u8', '.txt')):
                 from PyQt6.QtCore import QTimer
-                QTimer.singleShot(800, lambda: player.settings_ops.open_specific_file(file_path))
+                QTimer.singleShot(800, lambda fp=file_path: player.settings_ops.open_specific_file(fp))
             elif file_path.lower().endswith(('.mp4', '.mkv', '.avi', '.mov',
                                              '.flv', '.wmv', '.ts', '.webm')):
                 from PyQt6.QtCore import QTimer
@@ -5652,5 +4841,4 @@ if __name__ == "__main__":
                     player._add_to_local_list(channel)
                 QTimer.singleShot(800, _open_video_from_cmdline)
 
-    # show() 已在 _initialize_in_order 中调用，此处直接进入事件循环
     sys.exit(app.exec())
