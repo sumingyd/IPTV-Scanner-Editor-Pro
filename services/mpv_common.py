@@ -61,7 +61,7 @@ try:
     libmpv.mpv_wait_event.restype = ctypes.c_void_p
     libmpv.mpv_wait_event.argtypes = [ctypes.c_void_p, ctypes.c_double]
 
-    libmpv.mpv_get_property_string.restype = ctypes.c_char_p
+    libmpv.mpv_get_property_string.restype = ctypes.c_void_p
     libmpv.mpv_get_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 
     libmpv.mpv_free.restype = None
@@ -134,11 +134,11 @@ def get_property_string(handle, name):
     if not handle or not libmpv:
         return None
     try:
-        raw = libmpv.mpv_get_property_string(handle, name.encode('utf-8'))
-        if not raw:
+        raw_ptr = libmpv.mpv_get_property_string(handle, name.encode('utf-8'))
+        if not raw_ptr:
             return None
-        value = raw.decode('utf-8')
-        libmpv.mpv_free(ctypes.cast(raw, ctypes.c_void_p))
+        value = ctypes.cast(raw_ptr, ctypes.c_char_p).value.decode('utf-8')
+        libmpv.mpv_free(raw_ptr)
         return value
     except Exception:
         return None
@@ -277,10 +277,14 @@ def observe_property(handle, reply_userdata, name, fmt):
         return -1
 
 
+_callback_refs = []
+
+
 def set_wakeup_callback(handle, callback, data):
     if not handle or not libmpv:
         return
     try:
+        _callback_refs.append(callback)
         libmpv.mpv_set_wakeup_callback(handle, callback, data)
     except Exception:
         pass

@@ -42,10 +42,18 @@ class ConfigManager(Singleton):
             default_dividers=None
             ):
         """加载窗口布局（包括位置和大小）"""
-        x = int(self.get_value('UI', 'window_x', default_x) or default_x)
-        y = int(self.get_value('UI', 'window_y', default_y) or default_y)
-        width = int(self.get_value('UI', 'window_width', default_width) or default_width)
-        height = int(self.get_value('UI', 'window_height', default_height) or default_height)
+        def _load_int(section, key, default):
+            val = self.get_value(section, key)
+            if val is not None:
+                try:
+                    return int(val)
+                except (ValueError, TypeError):
+                    pass
+            return default
+        x = _load_int('UI', 'window_x', default_x)
+        y = _load_int('UI', 'window_y', default_y)
+        width = _load_int('UI', 'window_width', default_width)
+        height = _load_int('UI', 'window_height', default_height)
         dividers = []
         i = 0
         while True:

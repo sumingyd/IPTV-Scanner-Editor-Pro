@@ -1,10 +1,13 @@
 import gzip
 import os
 import re
+from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse, urljoin
 
+from core.log_manager import global_logger as logger
 
-def detect_and_decode_text(raw_bytes):
+
+def detect_and_decode_text(raw_bytes: Union[bytes, None]) -> str:
     if not raw_bytes:
         return ''
     for enc in ('utf-8-sig', 'utf-8'):
@@ -29,11 +32,11 @@ def detect_and_decode_text(raw_bytes):
         return raw_bytes.decode('utf-8', errors='replace')
 
 
-def is_gzip(data):
+def is_gzip(data: bytes) -> bool:
     return len(data) >= 2 and data[0] == 0x1F and data[1] == 0x8B
 
 
-def load_m3u_file(filepath):
+def load_m3u_file(filepath: str) -> str:
     if not os.path.isfile(filepath):
         raise FileNotFoundError(f"文件不存在: {filepath}")
     with open(filepath, 'rb') as f:
@@ -41,21 +44,21 @@ def load_m3u_file(filepath):
     if is_gzip(raw):
         try:
             raw = gzip.decompress(raw)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"gzip解压raw数据失败: {e}")
     return detect_and_decode_text(raw)
 
 
-def load_m3u_from_url_data(data):
+def load_m3u_from_url_data(data: bytes) -> str:
     if is_gzip(data):
         try:
             data = gzip.decompress(data)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"gzip解压data失败: {e}")
     return detect_and_decode_text(data)
 
 
-def parse_attributes(attr_string):
+def parse_attributes(attr_string: str) -> Dict[str, str]:
     result = {}
     if not attr_string:
         return result
@@ -100,7 +103,7 @@ def parse_attributes(attr_string):
     return result
 
 
-def guess_protocol(url):
+def guess_protocol(url: str) -> str:
     if not url:
         return 'unknown'
     u = url.lower()
@@ -121,7 +124,7 @@ def guess_protocol(url):
     return 'unknown'
 
 
-def guess_quality_from_name(name):
+def guess_quality_from_name(name: str) -> Tuple[str, str]:
     if not name:
         return 'SD', 'H.264'
     n = name.upper()
@@ -142,7 +145,7 @@ def guess_quality_from_name(name):
     return resolution, codec
 
 
-def normalize_url(url):
+def normalize_url(url: str) -> str:
     if not url:
         return url
     url = url.strip()
@@ -152,7 +155,7 @@ def normalize_url(url):
     return url
 
 
-def resolve_url(url, base_url=None):
+def resolve_url(url: str, base_url: Optional[str] = None) -> str:
     url = normalize_url(url)
     if not url:
         return url
@@ -166,7 +169,7 @@ def resolve_url(url, base_url=None):
     return url
 
 
-def extract_tvg_url_from_header(line):
+def extract_tvg_url_from_header(line: str) -> Optional[str]:
     if not line or not line.startswith('#EXTM3U'):
         return None
     m = re.search(r'x-tvg-url="([^"]+)"', line, re.IGNORECASE)
@@ -181,7 +184,7 @@ def extract_tvg_url_from_header(line):
     return None
 
 
-def extract_header_attributes(line):
+def extract_header_attributes(line: str) -> Dict[str, str]:
     if not line or not line.startswith('#EXTM3U'):
         return {}
     attrs = parse_attributes(line[7:])
@@ -199,7 +202,7 @@ def extract_header_attributes(line):
     return result
 
 
-def is_valid_channel_url(url):
+def is_valid_channel_url(url: str) -> bool:
     if not url or not url.strip():
         return False
     u = url.strip()
@@ -261,7 +264,7 @@ _HEADER_CATCHUP_MAP = {
 }
 
 
-def _make_empty_channel(group='未分类', groups=None, extinf=''):
+def _make_empty_channel(group: str = '未分类', groups: Optional[List[str]] = None, extinf: str = '') -> Dict[str, Any]:
     return {
         'name': '未命名',
         'url': '',
@@ -283,7 +286,7 @@ def _make_empty_channel(group='未分类', groups=None, extinf=''):
     }
 
 
-def _parse_extinf_line(extinf_content, current_group, genre_group_active):
+def _parse_extinf_line(extinf_content: str, current_group: Union[str, List[str]], genre_group_active: bool) -> Tuple[Optional[Dict[str, Any]], Union[str, List[str]], bool]:
     genre_match = re.search(r',\s*#genre#\s*', extinf_content)
     if genre_match:
         before_genre = extinf_content[:genre_match.start()].strip()
@@ -355,7 +358,7 @@ def _parse_extinf_line(extinf_content, current_group, genre_group_active):
     return channel, current_group, genre_group_active
 
 
-def _inherit_header_attrs(channel, header_attrs):
+def _inherit_header_attrs(channel: Dict[str, Any], header_attrs: Dict[str, str]) -> None:
     if not channel or not header_attrs:
         return
     for k, v in header_attrs.items():
@@ -368,11 +371,13 @@ def _inherit_header_attrs(channel, header_attrs):
                 channel['_all_tags'][k] = v
 
 
-def parse_m3u_content(content):
-    channels = []
+def parse_m3u_content(content: str) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
+    channels: List[Dict[str, Any]] = []
+    if not content:
+        return channels, {}
     lines = content.splitlines()
-    current_channel = None
-    current_group = '未分类'
+    current_channel: Optional[Dict[str, Any]] = None
+    current_group: Union[str, List[str]] = '未分类'
     genre_group_active = False
     header_attrs = {}
 

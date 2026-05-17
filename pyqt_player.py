@@ -272,6 +272,7 @@ class IPTVPlayer(QMainWindow):
         self._floating_hidden = False
         self._auto_hide_state = 'visible'
         self._suppress_volume_osd = False
+        self._osd_visible = True
         self.is_fullscreen = False
 
         from core.subscription_manager import global_subscription_manager
@@ -527,9 +528,9 @@ class IPTVPlayer(QMainWindow):
 
         from PyQt6.QtWidgets import QApplication
         app = QApplication.instance()
-        space_shortcut = QShortcut(' ', app)
-        space_shortcut.activated.connect(self.toggle_play)
-        space_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        self._space_shortcut = QShortcut(' ', app)
+        self._space_shortcut.activated.connect(self.toggle_play)
+        self._space_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
 
         # 标记UI初始化完成
         self._ui_initialized = True
@@ -2367,6 +2368,8 @@ class IPTVPlayer(QMainWindow):
             else:
                 channels = self._sub_channels
 
+            old_channel = getattr(self, 'current_channel', None)
+
             if isinstance(idx, int) and 0 <= idx < len(channels):
                 self.current_channel = channels[idx]
             else:
@@ -2379,10 +2382,8 @@ class IPTVPlayer(QMainWindow):
 
             logger.info(f"select_channel: 选中频道 {self.current_channel.get('name', '?')}")
 
-            if hasattr(self, 'current_channel') and self.current_channel:
-                old = getattr(self, 'current_channel', None)
-                if old and old is not self.current_channel:
-                    self._previous_channel = dict(old)
+            if old_channel and old_channel is not self.current_channel:
+                self._previous_channel = dict(old_channel)
 
             if self.play_state.is_catchup_or_timeshift:
                 self.playback_ctrl._exit_catchup_mode()
@@ -3685,7 +3686,7 @@ class IPTVPlayer(QMainWindow):
                         self._pending_status_bar_msg = self.language_manager.tr("epg_sub_parse_failed", "EPG subscription parse failed")
                         QMetaObject.invokeMethod(self, "_do_show_status_bar_message", Qt.ConnectionType.QueuedConnection)
                     else:
-                        self.status_bar.show_message(self.language_manager.tr("epg_sub_parse_failed", "EPG subscription parse failed"))
+                        self.status_bar_show_message(self.language_manager.tr("epg_sub_parse_failed", "EPG subscription parse failed"))
         except Exception as ex:
             logger.error(f"更新节目单订阅失败: {str(ex)}")
             if QThread.currentThread() != self.thread():
@@ -4030,6 +4031,7 @@ class IPTVPlayer(QMainWindow):
     def _add_to_local_list(self, channel):
         """将频道添加到本地列表并播放"""
         self._local_channels.append(channel)
+        new_idx = len(self._local_channels) - 1
         self.playlist_tab.setCurrentIndex(1)
         self._update_groups_for('local')
         self._populate_channel_list_for(
@@ -4038,7 +4040,7 @@ class IPTVPlayer(QMainWindow):
         )
         for i in range(self.local_channel_list.count()):
             item = self.local_channel_list.item(i)
-            if item and item.data(Qt.ItemDataRole.UserRole) == channel:
+            if item and item.data(Qt.ItemDataRole.UserRole) == new_idx:
                 self.local_channel_list.setCurrentItem(item)
                 break
         self.current_channel = channel
@@ -4580,13 +4582,20 @@ class IPTVPlayer(QMainWindow):
         prev = self._previous_channel
         self._previous_channel = None
         if hasattr(self, 'channel_list'):
+            sender = self.sender()
+            if sender is getattr(self, 'local_channel_list', None):
+                channels = self._local_channels
+            else:
+                channels = self._sub_channels
             for i in range(self.channel_list.count()):
                 item = self.channel_list.item(i)
-                ch = item.data(Qt.ItemDataRole.UserRole)
-                if isinstance(ch, dict) and ch.get('url') == prev.get('url'):
-                    self.channel_list.setCurrentItem(item)
-                    self.select_channel(item)
-                    return
+                idx = item.data(Qt.ItemDataRole.UserRole)
+                if isinstance(idx, int) and 0 <= idx < len(channels):
+                    ch = channels[idx]
+                    if ch.get('url') == prev.get('url'):
+                        self.channel_list.setCurrentItem(item)
+                        self.select_channel(item)
+                        return
 
     def _warmup_logos_around(self, channel):
         channels = app_state.channels

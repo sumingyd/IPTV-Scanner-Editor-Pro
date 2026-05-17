@@ -424,6 +424,9 @@ class MpvPlayerController(QObject):
                 self.play_error.emit("mpv播放器未初始化")
                 return False
 
+            if hasattr(self, 'event_timer') and self.event_timer and not self.event_timer.isActive():
+                self.event_timer.start(100)
+
             if hasattr(self, '_media_info_timer') and self._media_info_timer:
                 self._media_info_timer.stop()
 

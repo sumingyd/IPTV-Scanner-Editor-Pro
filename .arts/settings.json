@@ -1,4 +1,5 @@
 {
     "clawMode.mode": "editor",
-    "workbench.activityBar.location": "default"
+    "workbench.activityBar.location": "default",
+    "python.analysis.autoImportCompletions": true
 }

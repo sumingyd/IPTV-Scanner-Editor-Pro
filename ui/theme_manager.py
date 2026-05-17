@@ -121,8 +121,11 @@ class ThemeManager(Singleton, QtCore.QObject):
         return AppStyles.get_available_themes()
 
 
-theme_manager = ThemeManager()
+theme_manager = None
 
 
 def get_theme_manager() -> ThemeManager:
+    global theme_manager
+    if theme_manager is None:
+        theme_manager = ThemeManager()
     return theme_manager

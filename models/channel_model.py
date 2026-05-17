@@ -1329,9 +1329,33 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 self.endResetModel()
                 return False
 
-            # 使用add_channel方法添加频道，标记为从文件加载
             for channel in channels:
-                self.add_channel(channel, is_from_file=True)
+                existing_index = -1
+                for i, ch in enumerate(self.channels):
+                    if ch.get('url') == channel.get('url'):
+                        existing_index = i
+                        break
+                if existing_index >= 0:
+                    continue
+                self.channels.append(channel)
+                if 'name' in channel:
+                    self._name_cache.add(channel['name'])
+                for g in channel.get('_groups', [channel.get('group', '')]):
+                    if g:
+                        self._group_cache.add(g)
+                url = channel.get('url', '')
+                if url:
+                    original_channel = {
+                        'name': channel.get('name', ''),
+                        'group': channel.get('group', ''),
+                        'tvg_id': channel.get('tvg_id', ''),
+                        'logo': channel.get('logo', ''),
+                        'resolution': channel.get('resolution', ''),
+                        'url': url,
+                        '_raw_extinf': channel.get('_raw_extinf', ''),
+                        '_all_tags': channel.get('_all_tags', {}),
+                    }
+                    self._original_channel_data[url] = original_channel
 
             # 通知UI更新状态标签 - 使用QTimer确保在主线程执行
             if hasattr(self, 'update_status_label') and self.update_status_label:
