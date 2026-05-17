@@ -86,16 +86,16 @@ class LogoCacheService(ThreadSafeQObject):
             if os.path.exists(self._meta_path):
                 with open(self._meta_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.debug(f"加载台标元数据失败: {e}")
         return {}
 
     def _save_meta(self):
         try:
             with open(self._meta_path, 'w', encoding='utf-8') as f:
                 json.dump(self._meta, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.debug(f"保存台标元数据失败: {e}")
 
     def _url_to_key(self, url):
         return hashlib.sha1(url.encode('utf-8')).hexdigest()
@@ -170,8 +170,8 @@ class LogoCacheService(ThreadSafeQObject):
                             migrated = True
             if migrated:
                 self._save_meta()
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.debug(f"迁移台标缓存失败: {e}")
 
     @staticmethod
     def _image_to_pixmap(image):
@@ -202,8 +202,8 @@ class LogoCacheService(ThreadSafeQObject):
                     os.remove(disk_path)
                     self._meta.pop(key, None)
                     self._save_meta()
-                except Exception:
-                    pass
+                except Exception as e:
+                    self.logger.debug(f"淘汰过期台标失败: {e}")
                 return None
 
             image = QImage()
@@ -279,8 +279,8 @@ class LogoCacheService(ThreadSafeQObject):
                 meta_entry['content_hash'] = content_hash
             self._meta[key] = meta_entry
             self._save_meta()
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.debug(f"缓存台标元数据失败: {e}")
 
     def mark_negative(self, url, reason=''):
         with self._lock:
@@ -408,8 +408,8 @@ class LogoCacheService(ThreadSafeQObject):
                     os.remove(fp)
             self._meta.clear()
             self._save_meta()
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.debug(f"清空台标缓存失败: {e}")
 
     def evict_expired(self):
         now = time.time()
