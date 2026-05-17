@@ -1,0 +1,9 @@
+修复: 7个中严重度BUG
+
+1. _save_last_channel中pass空实现改为获取实际文件路径
+2. catchup_controller中datetime.fromisoformat对空字符串崩溃
+3. epg_controller排序时空start字段崩溃
+4. network_preheat_service shutdown后prefetch不检查executor
+5. url_parser_service _parse_segment未校验start<=end
+6. settings_file_ops方法存在性检查永远为True
+7. mpv_player_service pause用Python端状态取反而非查询mpv实际状态

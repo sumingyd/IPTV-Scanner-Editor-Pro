@@ -1,0 +1,9 @@
+修复: 7个高严重度BUG
+
+1. 回切功能双重BUG - 先保存旧频道再赋新值, 修正UserRole类型判断
+2. mpv_get_property_string内存泄漏+崩溃 和 wakeup回调GC回收
+3. stop后play不重启event_timer导致MPV事件不再处理
+4. ThemeManager延迟初始化避免QApplication前创建QObject
+5. _osd_visible未初始化/show_message拼写/UserRole类型比较/空格快捷键GC
+6. load_from_file中beginResetModel嵌套beginInsertRows
+7. PanelVisibility线程安全加锁和配置值0被误判为空

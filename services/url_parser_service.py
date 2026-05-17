@@ -16,6 +16,8 @@ class URLRangeParser:
             parts = segment.split('-')
             start = int(parts[0])
             end = int(parts[1])
+            if start > end:
+                start, end = end, start
             zero_pad = len(parts[0])
             results.append((start, end, zero_pad))
         else:

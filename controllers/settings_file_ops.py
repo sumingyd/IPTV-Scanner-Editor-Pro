@@ -660,12 +660,15 @@ class SettingsFileOperations:
             app_state.replace_channels(channels)
 
             if self.window.channel_model:
+                self.window.channel_model._source_file_path = file_path
+
+            if self.window.channel_model:
                 epg_url = getattr(self.window.channel_model, '_last_header_attrs', {}).get('epg_url', '')
                 if epg_url and not global_subscription_manager.get_epg_sources():
                     logger.info(f"本地文件头发现EPG地址，自动加载: {epg_url[:80]}")
                     try:
                         global_subscription_manager.load_single_epg(epg_url)
-                        if self.window._populate_epg_list:
+                        if hasattr(self.window, '_populate_epg_list') and callable(self.window._populate_epg_list):
                             QTimer.singleShot(500, self.window._populate_epg_list)
                     except Exception as epg_err:
                         logger.warning(f"从本地文件头加载EPG失败: {epg_err}")

@@ -230,7 +230,12 @@ class EPGController:
                     channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name
                 )
                 if epg_list:
-                    epg_list.sort(key=lambda x: datetime.fromisoformat(x.get('start', '')))
+                    def _epg_sort_key(x):
+                        try:
+                            return datetime.fromisoformat(x.get('start', ''))
+                        except (ValueError, TypeError):
+                            return datetime.min
+                    epg_list.sort(key=_epg_sort_key)
                     logger.debug(f"EPG填充: 从epg_parser获取到 {len(epg_list)} 个节目")
                 else:
                     logger.debug(f"EPG填充: epg_parser未找到频道 {channel_name} 的数据")

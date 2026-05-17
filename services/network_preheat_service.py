@@ -20,6 +20,8 @@ class DnsPrefetcher(QObject):
     def prefetch(self, url):
         if not url:
             return
+        if self._executor is None:
+            return
         try:
             parsed = urlparse(url)
             host = parsed.hostname
@@ -78,6 +80,8 @@ class ConnectionPreheater(QObject):
 
     def preheat(self, url):
         if not url:
+            return
+        if self._executor is None:
             return
         try:
             parsed = urlparse(url)

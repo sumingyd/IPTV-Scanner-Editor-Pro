@@ -241,8 +241,17 @@ class CatchupController:
         channel_name = self.window.current_channel.get("name", "")
         tr = getattr(self.window.language_manager, 'tr', lambda x, y: x)
 
-        start_time = datetime.fromisoformat(program.get('start', ''))
-        end_time = datetime.fromisoformat(program.get('end', ''))
+        start_str = program.get('start', '')
+        end_str = program.get('end', '')
+        if not start_str or not end_str:
+            logger.warning(f"回看节目缺少时间信息: start={start_str!r}, end={end_str!r}")
+            return
+        try:
+            start_time = datetime.fromisoformat(start_str)
+            end_time = datetime.fromisoformat(end_str)
+        except (ValueError, TypeError) as e:
+            logger.warning(f"回看节目时间格式无效: {e}")
+            return
         title = program.get('title', tr("unknown_program", "Unknown Program"))
 
         catchup_url = self.build_catchup_url(self.window.current_channel, start_time, end_time)

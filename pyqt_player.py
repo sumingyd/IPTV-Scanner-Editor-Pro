@@ -3896,6 +3896,7 @@ class IPTVPlayer(QMainWindow):
             content = load_m3u_file(file_path)
 
             if self.channel_model.load_from_file(content):
+                self.channel_model._source_file_path = file_path
                 new_channels = []
                 for i, ch in enumerate(self.channel_model.channels):
                     new_channels.append({
@@ -4538,8 +4539,8 @@ class IPTVPlayer(QMainWindow):
                     idx = i
                     break
             file_path = ''
-            if hasattr(self, 'channel_model') and hasattr(self.channel_model, 'original_data'):
-                pass
+            if hasattr(self, 'channel_model') and self.channel_model:
+                file_path = getattr(self.channel_model, '_source_file_path', '')
             self.config.save_last_channel(file_path, name, idx)
         except Exception as e:
             logger.debug(f"保存最后频道失败: {e}")

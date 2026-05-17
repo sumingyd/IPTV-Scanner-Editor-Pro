@@ -111,6 +111,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         # 原始文件内容：用于保存从文件加载的原始内容
         self._original_file_content = ""
 
+        # 原始文件路径
+        self._source_file_path = ""
+
         # 是否处于隐藏无效项状态
         self._is_hiding_invalid = False
 

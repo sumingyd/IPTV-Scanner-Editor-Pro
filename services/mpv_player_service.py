@@ -567,8 +567,11 @@ class MpvPlayerController(QObject):
                 if result < 0:
                     self.logger.error(f"切换暂停状态失败: {result}")
                 else:
-                    was_paused = self.is_paused
-                    self.is_paused = not self.is_paused
+                    try:
+                        actual_paused = self._get_mpv_property_int('pause')
+                        self.is_paused = bool(actual_paused)
+                    except Exception:
+                        self.is_paused = not self.is_paused
                     self.is_playing = not self.is_paused
 
                     if self.is_paused:
