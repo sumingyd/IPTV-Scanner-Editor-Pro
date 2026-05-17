@@ -68,6 +68,7 @@ class MpvStreamValidator:
     _headers_lock = threading.Lock()
     _active_handles: list = []
     _handles_lock = threading.Lock()
+    _terminating = False
 
     @classmethod
     def _get_semaphore(cls) -> threading.Semaphore:
@@ -95,6 +96,11 @@ class MpvStreamValidator:
         if not MPV_AVAILABLE:
             result['error'] = 'mpv不可用'
             result['error_type'] = 'mpv_unavailable'
+            return result
+
+        if self._terminating:
+            result['error'] = '验证器正在关闭'
+            result['error_type'] = 'terminating'
             return result
 
         sem = self._get_semaphore()
@@ -181,9 +187,11 @@ class MpvStreamValidator:
         finally:
             if handle:
                 with self._handles_lock:
-                    if handle in self._active_handles:
+                    was_active = handle in self._active_handles
+                    if was_active:
                         self._active_handles.remove(handle)
-                destroy_mpv(handle)
+                if was_active:
+                    destroy_mpv(handle)
             sem.release()
 
         return result
@@ -214,10 +222,16 @@ class MpvStreamValidator:
 
     @classmethod
     def terminate_all(cls):
+        cls._terminating = True
         with cls._handles_lock:
-            for handle in cls._active_handles:
-                try:
-                    destroy_mpv(handle)
-                except Exception:
-                    pass
+            handles_to_destroy = list(cls._active_handles)
             cls._active_handles.clear()
+        for handle in handles_to_destroy:
+            try:
+                destroy_mpv(handle)
+            except Exception:
+                pass
+
+    @classmethod
+    def reset_terminating(cls):
+        cls._terminating = False
