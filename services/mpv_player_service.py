@@ -89,16 +89,19 @@ def _load_playback_settings():
 
 
 class MpvPlayerController(QObject):
-    play_error = pyqtSignal(str)
+
     play_state_changed = pyqtSignal(bool)
+    play_error = pyqtSignal(str)
+    reconnect_requested = pyqtSignal(str)
     live_media_info_updated = pyqtSignal(dict)
     playback_position_updated = pyqtSignal(float, float, float)
-    reconnect_requested = pyqtSignal(str)
+    logo_cache_loaded = pyqtSignal(str, object)
     thumbnail_captured = pyqtSignal(str)
 
     def __init__(self, video_widget, channel_model=None):
         super().__init__()
         self.logger = global_logger
+        self._lock = threading.RLock()
         self.video_widget = video_widget
         self.channel_model = channel_model
         self.mpv_handle = None
@@ -358,11 +361,17 @@ class MpvPlayerController(QObject):
                 self._set_mpv_string('user-agent', ua)
 
     def _process_events(self):
-        if not self.mpv_handle:
-            return
+        with self._lock:
+            handle = self.mpv_handle
+            if not handle:
+                return
         try:
             while True:
-                event_ptr = libmpv.mpv_wait_event(self.mpv_handle, 0.0)
+                with self._lock:
+                    current_handle = self.mpv_handle
+                if current_handle is not handle:
+                    return
+                event_ptr = libmpv.mpv_wait_event(handle, 0.0)
                 if not event_ptr:
                     return
 
@@ -535,8 +544,9 @@ class MpvPlayerController(QObject):
                 except Exception as e:
                     self.logger.debug(f"发送quit命令失败（可能已关闭）: {e}")
 
-                terminate_destroy_mpv(self.mpv_handle)
-                self.mpv_handle = None
+                with self._lock:
+                    terminate_destroy_mpv(self.mpv_handle)
+                    self.mpv_handle = None
 
             self.is_playing = False
             self.is_paused = False
