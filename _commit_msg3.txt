@@ -1,0 +1,8 @@
+清理冗余代码
+
+1. 删除8个无调用点/空方法体的冗余方法
+2. 删除4处方法内重复的logger导入
+3. 删除pip_controller冗余变量widget._widget
+4. _get_display_channel_name去重为委托general_utils
+5. styles.py临时目录添加atexit清理
+6. 删除event_handler已废弃的keyPressEvent

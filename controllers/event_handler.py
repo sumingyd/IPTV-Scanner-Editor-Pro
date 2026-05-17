@@ -15,10 +15,6 @@ class EventHandler:
         self.window = main_window
         self._shortcuts = {}  # 快捷键映射表
 
-    def keyPressEvent(self, event: QKeyEvent) -> bool:
-        """已废弃：所有快捷键统一由 eventFilter 处理，此方法保留为空"""
-        return False
-
     def _is_main_window_focused(self) -> bool:
         """判断当前焦点是否在主窗口上（排除悬浮面板、对话框等）"""
         from PyQt6.QtWidgets import QApplication

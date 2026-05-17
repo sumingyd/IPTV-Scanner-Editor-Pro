@@ -420,7 +420,6 @@ class IPTVPlayer(QMainWindow):
                     '_groups': [tr("local_video", "本地视频")],
                 }
                 self._add_to_local_list(channel)
-                from core.log_manager import global_logger as logger
                 logger.info(f"拖放打开视频文件: {path}")
                 event.acceptProposedAction()
                 return
@@ -573,42 +572,6 @@ class IPTVPlayer(QMainWindow):
         except Exception as ex:
             logger.error(f"在状态栏显示消息失败: {ex}")
     
-    def _load_data_in_background(self):
-        """在后台线程中加载数据"""
-        logger.debug("_load_data_in_background: 开始")
-        
-        # 1. 等待UI元素显示
-        import time
-        max_wait = 5  # 最大等待时间（秒）
-        wait_time = 0
-        
-        while wait_time < max_wait:
-            if hasattr(self, 'video_frame') and self.video_frame:
-                break
-            time.sleep(0.1)
-            wait_time += 0.1
-        
-        logger.debug(f"_load_data_in_background: UI准备就绪，等待时间: {wait_time:.1f}秒")
-        
-        # 2. 填充频道列表
-        self.channel_list_updated.emit()
-        
-        # 3. 填充 EPG 列表
-        self.epg_list_updated.emit()
-        
-        # 4. 检查版本更新
-        self._check_for_updates_async()
-        
-        logger.debug("_load_data_in_background: 完成")
-    
-    def _full_initialization(self):
-        """完整的初始化（在窗口显示后异步执行）"""
-        logger.debug("_full_initialization: 开始")
-        
-        # 创建视频相关组件
-        self._init_video_components()
-        
-        logger.debug("_full_initialization: 完成")
     
     def _init_video_components(self):
         """初始化视频相关组件"""
@@ -736,12 +699,8 @@ class IPTVPlayer(QMainWindow):
 
         logger.debug("_init_player: 完成")
     
-    def _create_floating_panels(self):
-        """创建悬浮窗"""
-        logger.debug("_create_floating_panels: 开始")
-        
-        logger.debug("_create_floating_panels: 完成")
-    
+
+
     def _create_timer(self):
         """创建定时器"""
         logger.debug("_create_timer: 开始")
@@ -1287,9 +1246,7 @@ class IPTVPlayer(QMainWindow):
         
         logger.debug("_create_control_row: 完成")
     
-    def _final_initialization(self):
-        """最终初始化"""
-        logger.debug("_final_initialization: 完成")
+
 
     def _install_event_filters(self):
         """安装事件过滤器（幂等：多次调用只生效一次）"""
@@ -1356,14 +1313,7 @@ class IPTVPlayer(QMainWindow):
         
         logger.debug("_populate_epg_list: 完成")
     
-    def _update_floating_position(self):
-        """更新悬浮窗位置"""
-        logger.debug("_update_floating_position: 开始")
-        
-        # 使用定时器延迟更新悬浮窗位置，确保窗口已显示
-        self.update_floating_position()
-        
-        logger.debug("_update_floating_position: 完成")
+
 
     def _deferred_initial_position(self):
         """窗口首次渲染后的延迟定位：
@@ -1744,7 +1694,6 @@ class IPTVPlayer(QMainWindow):
 
     def _populate_channel_list_for(self, list_widget, channels, selected_group=''):
         """通用频道列表填充方法"""
-        from core.log_manager import global_logger as logger
 
         list_widget.clear()
 
@@ -2358,7 +2307,6 @@ class IPTVPlayer(QMainWindow):
         self.channel_ctrl.on_group_changed(group_name)
 
     def select_channel(self, item):
-        from core.log_manager import global_logger as logger
         try:
             idx = item.data(Qt.ItemDataRole.UserRole)
 
@@ -2396,27 +2344,9 @@ class IPTVPlayer(QMainWindow):
             logger.error(f"select_channel: 选择频道失败: {e}", exc_info=True)
     
     def _get_display_channel_name(self, channel):
-        """获取用于显示的频道名称，优先级：逗号后的名字 > tvg-name > name"""
-        if not channel:
-            return self.language_manager.tr("unknown_channel", "Unknown Channel")
-
-        all_tags = channel.get('_all_tags', {})
-
-        comma_name = ''
-        raw_extinf = channel.get('_raw_extinf', '')
-        if raw_extinf and ',' in raw_extinf:
-            comma_name = raw_extinf.split(',', 1)[-1].strip()
-            if comma_name.startswith('"') and comma_name.endswith('"'):
-                comma_name = comma_name[1:-1]
-
-        tvg_name = all_tags.get('tvg-name', '')
-
-        if comma_name:
-            return comma_name
-        elif tvg_name:
-            return tvg_name
-        else:
-            return channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel"))
+        """获取用于显示的频道名称（委托给通用工具函数）"""
+        from utils.general_utils import get_display_channel_name
+        return get_display_channel_name(channel, self.language_manager)
 
     def update_channel_info_on_selection(self):
         """选择频道时立即更新悬浮窗信息"""
@@ -2683,9 +2613,6 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, '_auto_hide_timer') and self._auto_hide_timer:
             self._auto_hide_timer.stop()
 
-    def _poll_mouse_position(self):
-        """轮询鼠标位置（保留接口兼容）"""
-        pass
 
     def _on_mouse_activity(self):
         if getattr(self, 'is_fullscreen', False) and not self.panel_vis.manually_hidden:
@@ -2694,13 +2621,6 @@ class IPTVPlayer(QMainWindow):
             elif self.panel_vis._auto_hide_state == 'visible':
                 self._restart_auto_hide_timer()
 
-    def _on_main_window_activated(self):
-        """主窗口获得焦点时回调"""
-        pass
-
-    def _on_main_window_deactivated(self):
-        """主窗口失去焦点时回调"""
-        pass
 
     def _sync_panel_actions(self):
         """同步所有面板相关 QAction 的 checked 状态"""
@@ -3607,8 +3527,8 @@ class IPTVPlayer(QMainWindow):
                 self.playlist_tab.setCurrentIndex(0)
             self.populate_channel_list(source='subscription')
             self._populate_epg_list()
-            if hasattr(self, '_update_floating_position'):
-                self._update_floating_position()
+            if hasattr(self, 'update_floating_position'):
+                self.update_floating_position()
             self.status_bar.showMessage(message)
             logger.info("_do_on_playlist_updated_in_main_thread: UI更新完成")
         except Exception as ex:
@@ -3889,7 +3809,6 @@ class IPTVPlayer(QMainWindow):
                 self.recent_menu.addAction(action)
     
     def open_recent_file(self, file_path):
-        from core.log_manager import global_logger as logger
 
         try:
             from services.m3u_parser import load_m3u_file

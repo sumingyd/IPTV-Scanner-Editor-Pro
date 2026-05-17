@@ -1,9 +1,12 @@
 import os
 import tempfile
+import atexit
+import shutil
 
 
 # 模块级临时目录：程序生命周期内只创建一次，进程退出后由 OS 自动清理
 _SVG_TMPDIR: str = tempfile.mkdtemp(prefix='iptv_svg_')
+atexit.register(shutil.rmtree, _SVG_TMPDIR, ignore_errors=True)
 
 
 class AppStyles:

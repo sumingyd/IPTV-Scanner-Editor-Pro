@@ -68,7 +68,6 @@ class PipButton:
         widget.mousePressEvent = lambda event: mouse_press_event(widget, event)
         widget.set_label = lambda label: set_label(widget, label)
 
-        widget._widget = widget
         self._widget = widget
 
     def set_label(self, label):
