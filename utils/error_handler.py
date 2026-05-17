@@ -130,25 +130,19 @@ class ErrorHandler:
     def handle_exception(self, exception: Exception,
                          user_message: Optional[str] = None,
                          show_dialog: bool = True,
-                         log_level: str = 'error',
+                         log_level: Optional[str] = None,
                          context: Optional[Dict[str, Any]] = None):
-        """处理异常 - 增强版本"""
-        # 构建详细的错误信息
         error_info = self._build_error_info(exception, user_message, context)
 
-        # 记录异常
-        if log_level == 'error':
+        effective_log_level = log_level or error_info.get('log_level', 'error')
+
+        if effective_log_level == 'error':
             logger.error(error_info['log_message'], exc_info=True)
-        elif log_level == 'warning':
+        elif effective_log_level == 'warning':
             logger.warning(error_info['log_message'])
-            if error_info.get('exc_info'):
-                logger.exception("Exception info:")
         else:
             logger.info(error_info['log_message'])
-            if error_info.get('exc_info'):
-                logger.exception("Exception info:")
 
-        # 显示错误对话框
         if show_dialog and self.parent_window:
             self.show_error_dialog(
                 title=error_info['title'],
@@ -156,7 +150,6 @@ class ErrorHandler:
                 details=error_info['details']
             )
 
-        # 在状态栏显示消息
         self.show_status_message(error_info['status_message'])
 
         return error_info
@@ -221,28 +214,25 @@ class ErrorHandler:
         }
 
     def _get_user_friendly_message(self, exception: Exception) -> str:
-        """获取用户友好的错误消息"""
-        exception_type = type(exception)
         exception_message = str(exception)
 
-        # 根据异常类型提供友好的错误消息
-        if exception_type == FileNotFoundError:
+        if isinstance(exception, FileNotFoundError):
             return f"文件未找到: {exception_message}"
-        elif exception_type == PermissionError:
+        elif isinstance(exception, PermissionError):
             return f"没有权限访问文件: {exception_message}"
-        elif exception_type == ConnectionError:
+        elif isinstance(exception, ConnectionError):
             return f"网络连接失败: {exception_message}"
-        elif exception_type == TimeoutError:
+        elif isinstance(exception, TimeoutError):
             return f"操作超时: {exception_message}"
-        elif exception_type == ValueError:
+        elif isinstance(exception, ValueError):
             return f"输入值无效: {exception_message}"
-        elif exception_type == TypeError:
+        elif isinstance(exception, TypeError):
             return f"类型错误: {exception_message}"
-        elif exception_type == AttributeError:
+        elif isinstance(exception, AttributeError):
             return f"对象属性错误: {exception_message}"
-        elif exception_type == KeyboardInterrupt:
+        elif isinstance(exception, KeyboardInterrupt):
             return "操作被用户中断"
-        elif exception_type == SystemExit:
+        elif isinstance(exception, SystemExit):
             return "程序正在退出"
         else:
             return f"发生未知错误: {exception_message}"
