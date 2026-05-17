@@ -283,8 +283,8 @@ class CatchupController:
 
             self.window.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
             self.add_exit_catchup_button()
-            if hasattr(self.window, '_update_catchup_indicator'):
-                self.window._update_catchup_indicator()
+            if hasattr(self.window, 'media_ctrl'):
+                self.window.media_ctrl.update_catchup_indicator()
             if hasattr(self.window, '_populate_epg_list'):
                 self.window._populate_epg_list()
 
