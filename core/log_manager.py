@@ -1,7 +1,6 @@
 import logging
 import os
 import sys
-import threading
 from logging.handlers import RotatingFileHandler
 from utils.singleton import Singleton
 
@@ -17,7 +16,6 @@ class LogManager(Singleton):
         self.level = level
         self.max_bytes = max_bytes
         self.backup_count = backup_count
-        self._lock = threading.Lock()
         self._setup_logger()
         self._initialized = True
 
@@ -60,33 +58,27 @@ class LogManager(Singleton):
             print(f"配置日志记录器失败: {e}")
 
     def debug(self, message: str):
-        with self._lock:
-            self.logger.debug(message)
+        self.logger.debug(message)
 
     def info(self, message: str):
-        with self._lock:
-            self.logger.info(message)
+        self.logger.info(message)
 
     def warning(self, message: str):
-        with self._lock:
-            self.logger.warning(message)
+        self.logger.warning(message)
 
     def error(self, message: str, exc_info: bool = False):
-        with self._lock:
-            if exc_info:
-                self.logger.error(message, exc_info=True)
-            else:
-                self.logger.error(message)
+        if exc_info:
+            self.logger.error(message, exc_info=True)
+        else:
+            self.logger.error(message)
 
     def critical(self, message: str):
-        with self._lock:
-            self.logger.critical(message)
+        self.logger.critical(message)
 
     def set_level(self, level: int):
-        with self._lock:
-            self.logger.setLevel(level)
-            for handler in self.logger.handlers:
-                handler.setLevel(level)
+        self.logger.setLevel(level)
+        for handler in self.logger.handlers:
+            handler.setLevel(level)
 
     def get_logger(self) -> logging.Logger:
         return self.logger
