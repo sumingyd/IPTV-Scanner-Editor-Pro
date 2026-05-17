@@ -137,8 +137,10 @@ class ProgressManager(Singleton):
             update_callback: 更新回调函数
             interval: 更新间隔（毫秒）
         """
-        if self._progress_timer and self._progress_timer.isActive():
-            self._progress_timer.stop()
+        if self._progress_timer:
+            if self._progress_timer.isActive():
+                self._progress_timer.stop()
+            self._progress_timer.deleteLater()
 
         self._progress_timer = QtCore.QTimer()
         self._progress_timer.timeout.connect(update_callback)

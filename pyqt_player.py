@@ -1834,7 +1834,7 @@ class IPTVPlayer(QMainWindow):
             logger.warning(f"populate_channel_list: 共 {skipped_count} 个频道被分组过滤跳过")
 
         logger.info(f"populate_channel_list: 填充完成，共 {list_widget.count()} 个频道项（实际添加: {added_count}, 跳过: {skipped_count}, 总数据: {len(channels)}）")
-        list_widget.verticalScrollBar().valueChanged.connect(self._on_channel_list_scrolled)
+        list_widget.verticalScrollBar().valueChanged.connect(self._on_channel_list_scrolled, Qt.ConnectionType.UniqueConnection)
         QTimer.singleShot(50, lambda: self._load_visible_icons(list_widget, channels))
     
     def _load_visible_icons(self, list_widget, channels):
@@ -4334,10 +4334,15 @@ class IPTVPlayer(QMainWindow):
                         return latest_version > current_version
 
             # 创建并启动版本检查线程
+            old_thread = getattr(self, 'update_check_thread', None)
+            if old_thread and old_thread.isRunning():
+                old_thread.quit()
+                old_thread.wait(1000)
             self.update_check_thread = UpdateCheckThread()
             self.update_check_thread.setParent(self)
             self.update_check_thread.update_found.connect(self._on_update_found)
             self.update_check_thread.check_completed.connect(self._on_update_check_completed)
+            self.update_check_thread.finished.connect(self.update_check_thread.deleteLater)
             self.update_check_thread.start()
 
         except Exception as e:
@@ -4485,12 +4490,14 @@ class IPTVPlayer(QMainWindow):
     def _start_source_timeout(self, channel):
         if hasattr(self, '_source_timeout_timer') and self._source_timeout_timer:
             self._source_timeout_timer.stop()
+            self._source_timeout_timer.deleteLater()
         try:
             from core.config_manager import ConfigManager
             timeout = self.config.load_playback_settings().get('source_timeout_sec', 10)
         except Exception:
             timeout = 10
         if timeout <= 0:
+            self._source_timeout_timer = None
             return
         self._source_timeout_timer = QTimer(self)
         self._source_timeout_timer.setSingleShot(True)

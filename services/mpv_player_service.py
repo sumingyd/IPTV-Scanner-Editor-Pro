@@ -843,6 +843,7 @@ class MpvPlayerController(QObject):
     def _start_live_info_timer(self):
         if hasattr(self, '_live_info_timer') and self._live_info_timer:
             self._live_info_timer.stop()
+            self._live_info_timer.deleteLater()
         self._static_info_counter = self._STATIC_INFO_REFRESH_TICKS
         self._live_info_timer = QTimer(self)
         self._live_info_timer.timeout.connect(self._update_live_info)
