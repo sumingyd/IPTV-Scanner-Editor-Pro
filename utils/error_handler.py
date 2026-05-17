@@ -17,104 +17,50 @@ class ErrorHandler:
         """设置状态栏用于显示错误消息"""
         self._status_bar = status_bar
 
-    def show_error_dialog(self, title: str, message: str,
-                          details: Optional[str] = None,
-                          parent: Optional[QtWidgets.QWidget] = None):
-        """显示错误对话框"""
+    def _show_dialog(self, icon, log_fn, dialog_type, title, message, details, parent):
         parent = parent or self.parent_window
         if not parent:
-            logger.error(f"无法显示错误对话框，缺少父窗口: {title} - {message}")
+            log_fn(f"无法显示{dialog_type}对话框，缺少父窗口: {title} - {message}")
             return
 
         try:
-            # 创建错误对话框
             dialog = QtWidgets.QMessageBox(parent)
             dialog.setWindowTitle(title)
             dialog.setText(message)
-            dialog.setIcon(QtWidgets.QMessageBox.Icon.Critical)
-
-            # 如果有详细信息，添加详细文本
+            dialog.setIcon(icon)
             if details:
                 dialog.setDetailedText(details)
-
-            # 添加标准按钮
             dialog.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
-
-            # 显示对话框
             dialog.exec()
-
-            logger.error(f"用户错误提示: {title} - {message}")
+            log_fn(f"用户{dialog_type}提示: {title} - {message}")
             if details:
-                logger.debug(f"错误详情: {details}")
-
+                logger.debug(f"{dialog_type}详情: {details}")
         except Exception as e:
-            logger.error(f"显示错误对话框失败: {e}")
+            logger.error(f"显示{dialog_type}对话框失败: {e}")
+
+    def show_error_dialog(self, title: str, message: str,
+                          details: Optional[str] = None,
+                          parent: Optional[QtWidgets.QWidget] = None):
+        self._show_dialog(
+            QtWidgets.QMessageBox.Icon.Critical, logger.error, "错误",
+            title, message, details, parent
+        )
 
     def show_warning_dialog(self, title: str, message: str,
                             details: Optional[str] = None,
                             parent: Optional[QtWidgets.QWidget] = None):
-        """显示警告对话框"""
-        parent = parent or self.parent_window
-        if not parent:
-            logger.warning(f"无法显示警告对话框，缺少父窗口: {title} - {message}")
-            return
-
-        try:
-            # 创建警告对话框
-            dialog = QtWidgets.QMessageBox(parent)
-            dialog.setWindowTitle(title)
-            dialog.setText(message)
-            dialog.setIcon(QtWidgets.QMessageBox.Icon.Warning)
-
-            # 如果有详细信息，添加详细文本
-            if details:
-                dialog.setDetailedText(details)
-
-            # 添加标准按钮
-            dialog.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
-
-            # 显示对话框
-            dialog.exec()
-
-            logger.warning(f"用户警告提示: {title} - {message}")
-            if details:
-                logger.debug(f"警告详情: {details}")
-
-        except Exception as e:
-            logger.error(f"显示警告对话框失败: {e}")
+        self._show_dialog(
+            QtWidgets.QMessageBox.Icon.Warning, logger.warning, "警告",
+            title, message, details, parent
+        )
 
     def show_info_dialog(self, title: str, message: str,
                          details: Optional[str] = None,
                          parent: Optional[QtWidgets.QWidget] = None):
-        """显示信息对话框"""
-        parent = parent or self.parent_window
-        if not parent:
-            logger.info(f"无法显示信息对话框，缺少父窗口: {title} - {message}")
-            return
-
-        try:
-            # 创建信息对话框
-            dialog = QtWidgets.QMessageBox(parent)
-            dialog.setWindowTitle(title)
-            dialog.setText(message)
-            dialog.setIcon(QtWidgets.QMessageBox.Icon.Information)
-
-            # 如果有详细信息，添加详细文本
-            if details:
-                dialog.setDetailedText(details)
-
-            # 添加标准按钮
-            dialog.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
-
-            # 显示对话框
-            dialog.exec()
-
-            logger.info(f"用户信息提示: {title} - {message}")
-            if details:
-                logger.debug(f"信息详情: {details}")
-
-        except Exception as e:
-            logger.error(f"显示信息对话框失败: {e}")
+        self._show_dialog(
+            QtWidgets.QMessageBox.Icon.Information, logger.info, "信息",
+            title, message, details, parent
+        )
 
     def show_status_message(self, message: str, timeout: int = 3000):
         """在状态栏显示消息"""
