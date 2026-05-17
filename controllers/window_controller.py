@@ -49,15 +49,13 @@ class WindowController:
         from PyQt6.QtGui import QIcon
         ico_path = get_icon_path()
         if os.path.exists(ico_path):
-            # 用 QIcon.pixmap() 而非 QPixmap().scaled()：
-            # ICO 文件内嵌多尺寸位图，QIcon 会自动选取最接近的分辨率，避免放大/缩小导致模糊
             pixmap = QIcon(ico_path).pixmap(16, 16)
             self._title_icon_label.setPixmap(pixmap)
+            self._title_icon_label.setStyleSheet("background: transparent;")
         else:
             self._title_icon_label.setText("📺")
             colors = AppStyles._get_colors()
             self._title_icon_label.setStyleSheet(f"color: {colors.get('accent', '#0078d4')}; font-size: 14px; background: transparent;")
-        self._title_icon_label.setStyleSheet("background: transparent;")
 
         # 窗口标题
         self._title_label = QLabel(window_title)
