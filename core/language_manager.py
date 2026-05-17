@@ -1087,17 +1087,24 @@ BUILTIN_TRANSLATIONS = {
 }
 
 
-class LanguageManager(Singleton, QObject):
+class _LanguageSignalHelper(QObject):
     language_changed = pyqtSignal()
+
+
+class LanguageManager(Singleton):
 
     def __init__(self):
         if self._initialized:
             return
-        QObject.__init__(self)
+        self._signal_helper = _LanguageSignalHelper()
         self.current_language = 'zh'
         self.translations = {}
         self.available_languages = {}
         self._initialized = True
+
+    @property
+    def language_changed(self):
+        return self._signal_helper.language_changed
 
     def load_available_languages(self):
         if hasattr(self, '_languages_loaded') and self._languages_loaded:
