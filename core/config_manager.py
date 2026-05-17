@@ -20,7 +20,7 @@ class ConfigManager(Singleton):
             config_dir = os.path.dirname(current_dir)
         self.config_file = os.path.join(config_dir, config_file)
         self.config = configparser.ConfigParser(interpolation=None)
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self.load_config()
         self._initialized = True
 
@@ -175,73 +175,73 @@ class ConfigManager(Singleton):
             return default_config
 
     def load_config(self):
-        if os.path.exists(self.config_file):
-            try:
-                self.config.read(self.config_file, encoding='utf-8')
-                logger.debug(f"配置管理-成功加载配置文件: {self.config_file}")
-                return True
-            except configparser.Error as e:
-                logger.error(f"配置管理-解析配置文件失败: {str(e)}", exc_info=True)
-                return False
-            except IOError as e:
-                logger.error(f"配置管理-读取配置文件失败: {str(e)}", exc_info=True)
-                return False
-            except Exception as e:
-                logger.error(f"配置管理-加载配置文件失败: {str(e)}", exc_info=True)
-                return False
-        logger.warning(f"配置管理-配置文件不存在: {self.config_file}")
-        return False
+        with self._lock:
+            if os.path.exists(self.config_file):
+                try:
+                    self.config.read(self.config_file, encoding='utf-8')
+                    logger.debug(f"配置管理-成功加载配置文件: {self.config_file}")
+                    return True
+                except configparser.Error as e:
+                    logger.error(f"配置管理-解析配置文件失败: {str(e)}", exc_info=True)
+                    return False
+                except IOError as e:
+                    logger.error(f"配置管理-读取配置文件失败: {str(e)}", exc_info=True)
+                    return False
+                except Exception as e:
+                    logger.error(f"配置管理-加载配置文件失败: {str(e)}", exc_info=True)
+                    return False
+            logger.warning(f"配置管理-配置文件不存在: {self.config_file}")
+            return False
 
     def save_config(self):
-        try:
-            # 确保配置目录存在
-            config_dir = os.path.dirname(self.config_file)
-            if not os.path.exists(config_dir):
-                os.makedirs(config_dir)
-                logger.info(f"配置管理-创建配置目录: {config_dir}")
-            
-            with open(self.config_file, 'w', encoding='utf-8') as f:
-                self.config.write(f)
-            logger.debug(f"配置管理-成功保存配置文件: {self.config_file}")
-            return True
-        except IOError as e:
-            logger.error(f"配置管理-写入配置文件失败: {str(e)}", exc_info=True)
-            return False
-        except Exception as e:
-            logger.error(f"配置管理-保存配置文件失败: {str(e)}", exc_info=True)
-            return False
+        with self._lock:
+            try:
+                config_dir = os.path.dirname(self.config_file)
+                if not os.path.exists(config_dir):
+                    os.makedirs(config_dir)
+                    logger.info(f"配置管理-创建配置目录: {config_dir}")
+                
+                with open(self.config_file, 'w', encoding='utf-8') as f:
+                    self.config.write(f)
+                logger.debug(f"配置管理-成功保存配置文件: {self.config_file}")
+                return True
+            except IOError as e:
+                logger.error(f"配置管理-写入配置文件失败: {str(e)}", exc_info=True)
+                return False
+            except Exception as e:
+                logger.error(f"配置管理-保存配置文件失败: {str(e)}", exc_info=True)
+                return False
 
     def get_value(self, section, key, default=None):
-        try:
-            return self.config.get(section, key)
-        except configparser.NoSectionError:
-            logger.debug(f"配置管理- section不存在: {section}")
-            return default
-        except configparser.NoOptionError:
-            logger.debug(f"配置管理- option不存在: {section}.{key}")
-            return default
-        except Exception as e:
-            logger.error(f"配置管理-获取配置值失败: {str(e)}", exc_info=True)
-            return default
+        with self._lock:
+            try:
+                return self.config.get(section, key)
+            except configparser.NoSectionError:
+                logger.debug(f"配置管理- section不存在: {section}")
+                return default
+            except configparser.NoOptionError:
+                logger.debug(f"配置管理- option不存在: {section}.{key}")
+                return default
+            except Exception as e:
+                logger.error(f"配置管理-获取配置值失败: {str(e)}", exc_info=True)
+                return default
 
     def set_value(self, section, key, value):
-        try:
-            if not self.config.has_section(section):
-                self.config.add_section(section)
-                logger.debug(f"配置管理-创建section: {section}")
+        with self._lock:
+            try:
+                if not self.config.has_section(section):
+                    self.config.add_section(section)
+                    logger.debug(f"配置管理-创建section: {section}")
 
-            # 获取旧值
-            old_value = self.get_value(section, key)
+                old_value = self.get_value(section, key)
 
-            # 设置新值
-            self.config.set(section, key, value)
+                self.config.set(section, key, value)
 
-            # 通知配置变更
-            if old_value != value:
-                notify_config_change(section, key, old_value, value)
-                logger.debug(f"配置管理-配置变更: {section}.{key} = {old_value} -> {value}")
-        except Exception as e:
-            logger.error(f"配置管理-设置配置值失败: {str(e)}", exc_info=True)
+                if old_value != value:
+                    notify_config_change(section, key, old_value, value)
+                    logger.debug(f"配置管理-配置变更: {section}.{key} = {old_value} -> {value}")
+            except Exception as e:
+                logger.error(f"配置管理-设置配置值失败: {str(e)}", exc_info=True)
 
     def save_ui_settings(self, settings: dict):
         """保存UI相关设置"""

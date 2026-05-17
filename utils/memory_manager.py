@@ -220,12 +220,13 @@ class MemoryManager(Singleton):
                 del self._cache[key]
 
         # 清理对象池（保留一半对象）
-        for pool_name, pool_info in self._object_pools.items():
-            pool = pool_info['pool']
-            if len(pool) > pool_info['max_size'] // 2:
-                remove_count = len(pool) - pool_info['max_size'] // 2
-                for _ in range(remove_count):
-                    pool.pop()
+        with self._lock:
+            for pool_name, pool_info in list(self._object_pools.items()):
+                pool = pool_info['pool']
+                if len(pool) > pool_info['max_size'] // 2:
+                    remove_count = len(pool) - pool_info['max_size'] // 2
+                    for _ in range(remove_count):
+                        pool.pop()
 
         logger.info("内存优化完成")
 

@@ -640,22 +640,14 @@ class SubscriptionManager(Singleton):
         return None
     
     def register_update_callback(self, callback):
-        """注册EPG更新回调函数
-
-        Args:
-            callback: 回调函数
-        """
-        if callback not in self._update_callbacks:
-            self._update_callbacks.append(callback)
+        with self._epg_lock:
+            if callback not in self._update_callbacks:
+                self._update_callbacks.append(callback)
     
     def unregister_update_callback(self, callback):
-        """注销EPG更新回调函数
-
-        Args:
-            callback: 回调函数
-        """
-        if callback in self._update_callbacks:
-            self._update_callbacks.remove(callback)
+        with self._epg_lock:
+            if callback in self._update_callbacks:
+                self._update_callbacks.remove(callback)
     
     def _notify_update_callbacks(self):
         """通知所有注册的更新回调（确保在主线程执行）"""

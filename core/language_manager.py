@@ -1,4 +1,5 @@
 import os
+import threading
 from typing import overload
 from core.log_manager import LogManager
 from PyQt6.QtCore import QObject, pyqtSignal
@@ -1097,6 +1098,7 @@ class LanguageManager(Singleton):
         if self._initialized:
             return
         self._signal_helper = _LanguageSignalHelper()
+        self._lock = threading.Lock()
         self.current_language = 'zh'
         self.translations = {}
         self.available_languages = {}
@@ -1125,17 +1127,19 @@ class LanguageManager(Singleton):
         return self.available_languages
 
     def set_language(self, lang_code):
-        if lang_code in self.available_languages:
-            self.current_language = lang_code
-            self.translations = self.available_languages[lang_code]['data']
-            self.language_changed.emit()
-            return True
-        else:
-            logger.warning(f"语言 {lang_code} 不可用")
-            return False
+        with self._lock:
+            if lang_code in self.available_languages:
+                self.current_language = lang_code
+                self.translations = self.available_languages[lang_code]['data']
+            else:
+                logger.warning(f"语言 {lang_code} 不可用")
+                return False
+        self.language_changed.emit()
+        return True
 
     def get_translation(self, key, default=None):
-        return self.translations.get(key, default)
+        with self._lock:
+            return self.translations.get(key, default)
 
     @overload
     def tr(self, key: str, default: str) -> str: ...
