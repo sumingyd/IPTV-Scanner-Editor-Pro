@@ -175,8 +175,8 @@ class ProgressController:
                     w._set_progress_value(current_seconds)
                     self._format_vod_time(current_seconds, total_seconds)
                     return
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"VOD进度回退失败: {e}")
 
         w.progress_start.setText("--:--")
         w.progress_end.setText("--:--")
@@ -254,8 +254,8 @@ class ProgressController:
                 current_program = w.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
                 if current_program:
                     return True, current_program
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"获取EPG当前节目失败: {e}")
         return False, None
 
     @staticmethod
