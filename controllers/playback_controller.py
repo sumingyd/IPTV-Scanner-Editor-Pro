@@ -3,6 +3,7 @@ from typing import Dict, Any, Optional
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import QTimer
 from core.play_state import PlayMode
+from core.log_manager import global_logger as logger
 
 
 class PlaybackController:
@@ -167,8 +168,8 @@ class PlaybackController:
                     self.window.player_controller.set_speed(1.0)
                     if hasattr(self.window, 'speed_button'):
                         self.window.speed_button.setText("1.0x")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"恢复播放速度失败: {e}")
 
         url = channel.get('url', '')
         name = channel.get('name', '')
