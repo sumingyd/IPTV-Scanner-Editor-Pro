@@ -2766,7 +2766,6 @@ class IPTVPlayer(QMainWindow):
         self.playback_ctrl._do_play_channel(channel)
     
     def on_play_state_changed(self, is_playing):
-        """播放状态改变时的处理"""
         if QThread.currentThread() != self.thread():
             self._pending_play_state = is_playing
             QMetaObject.invokeMethod(self, "_do_handle_play_state_change", Qt.ConnectionType.QueuedConnection)
@@ -2776,8 +2775,7 @@ class IPTVPlayer(QMainWindow):
     @pyqtSlot()
     def _do_handle_play_state_change(self):
         is_playing = getattr(self, '_pending_play_state', False)
-        if hasattr(self, '_pending_play_state'):
-            delattr(self, '_pending_play_state')
+        self._pending_play_state = None
         self._handle_play_state_change(is_playing)
     
     def _handle_play_state_change(self, is_playing):
@@ -2814,9 +2812,10 @@ class IPTVPlayer(QMainWindow):
                     catchup_playing_text = tr('catchup_playing', '正在回看: {name}')
                     self.status_bar.showMessage(catchup_playing_text.format(name=channel_name))
                     # 检查是否有待处理的回看进度值
-                    if hasattr(self, '_pending_catchup_progress'):
+                    if getattr(self, '_pending_catchup_progress', None) is not None:
                         try:
                             progress_value = self._pending_catchup_progress
+                            self._pending_catchup_progress = None
                             self._set_progress_value(progress_value)
                             
                             # 保存目标进度值，用于在update_floating_panel_info中检查
@@ -2830,7 +2829,6 @@ class IPTVPlayer(QMainWindow):
                             
                             # 清除待处理值，但保留禁用标志
                             # 禁用标志会在update_floating_panel_info中根据播放位置自动清除
-                            delattr(self, '_pending_catchup_progress')
                             logger.debug(f"已设置回看进度条，保存目标值：{progress_value}%，保留禁用标志")
                         except Exception as e:
                             logger.error(f"设置回看进度条失败：{e}")
@@ -3592,8 +3590,7 @@ class IPTVPlayer(QMainWindow):
         """在主线程中处理订阅更新完成后的UI操作"""
         try:
             message = getattr(self, '_pending_update_message', '')
-            if hasattr(self, '_pending_update_message'):
-                delattr(self, '_pending_update_message')
+            self._pending_update_message = None
             logger.info(f"_do_on_playlist_updated_in_main_thread: 开始更新UI, CHANNELS数量={app_state.channel_count}")
             if hasattr(self, 'playlist_tab'):
                 self.playlist_tab.setCurrentIndex(0)
@@ -3609,16 +3606,14 @@ class IPTVPlayer(QMainWindow):
     @pyqtSlot()
     def _do_show_status_message(self):
         msg = getattr(self, '_pending_status_msg', '')
-        if hasattr(self, '_pending_status_msg'):
-            delattr(self, '_pending_status_msg')
+        self._pending_status_msg = None
         if self.status_bar:
             self.status_bar.showMessage(msg)
 
     @pyqtSlot()
     def _do_show_status_bar_message(self):
         msg = getattr(self, '_pending_status_bar_msg', '')
-        if hasattr(self, '_pending_status_bar_msg'):
-            delattr(self, '_pending_status_bar_msg')
+        self._pending_status_bar_msg = None
         self.status_bar_show_message(msg)
 
     @pyqtSlot()
@@ -4539,10 +4534,10 @@ class IPTVPlayer(QMainWindow):
             pass
 
     def _try_restore_last_channel(self):
-        if not hasattr(self, '_pending_last_channel'):
+        if getattr(self, '_pending_last_channel', None) is None:
             return
         last = self._pending_last_channel
-        delattr(self, '_pending_last_channel')
+        self._pending_last_channel = None
         if app_state.channel_count == 0:
             return
         idx = last.get('index', -1)
