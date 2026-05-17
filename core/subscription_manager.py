@@ -635,7 +635,7 @@ class SubscriptionManager(Singleton):
                 start_time = datetime.fromisoformat(program.get('start', ''))
                 if start_time > now:
                     return program
-            except:
+            except (ValueError, KeyError):
                 continue
         return None
     

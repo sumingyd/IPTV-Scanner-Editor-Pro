@@ -2083,7 +2083,7 @@ class IPTVPlayer(QMainWindow):
                     self._progress_program_start = start_time
                     self._progress_program_end = end_time
                     return
-        except:
+        except (ValueError, KeyError, TypeError):
             pass
         
         self._set_progress_range(3600)
@@ -2110,7 +2110,7 @@ class IPTVPlayer(QMainWindow):
                 offset_from_live = (now - target_wallclock).total_seconds()
                 target_pos = buffer_end - offset_from_live
                 return target_pos
-            except:
+            except (ValueError, TypeError, AttributeError):
                 pass
         
         try:
@@ -2120,7 +2120,7 @@ class IPTVPlayer(QMainWindow):
             offset_from_live = (now - target_wallclock).total_seconds()
             target_pos = buffer_end - offset_from_live
             return target_pos
-        except:
+        except (ValueError, TypeError, AttributeError):
             pass
         
         total_seconds = self._progress_total_seconds
@@ -2158,7 +2158,7 @@ class IPTVPlayer(QMainWindow):
                     duration = int((end_time - start_time).total_seconds())
                     if duration > 0:
                         return duration
-        except:
+        except (ValueError, KeyError, TypeError):
             pass
         return 0
     
@@ -3271,7 +3271,7 @@ class IPTVPlayer(QMainWindow):
                                 self.progress_start.setText(start_str)
                                 self.time_label.setText(f"⏱ {start_str} - {end_str}")
                                 self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
-                            except:
+                            except (ValueError, KeyError, TypeError):
                                 from datetime import datetime
                                 current_time = datetime.now()
                                 start_hour = current_time.strftime("%H:00")

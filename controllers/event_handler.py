@@ -327,7 +327,7 @@ class EventHandler:
             try:
                 orig_change = type(self.window).__bases__[0].changeEvent
                 orig_change(self.window, event)
-            except:
+            except (IndexError, AttributeError, TypeError):
                 pass
 
         if event.type() == QEvent.Type.ActivationChange:
