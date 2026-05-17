@@ -1,6 +1,7 @@
 import socket
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 from PyQt6.QtCore import QObject, pyqtSignal
 
@@ -8,10 +9,13 @@ from PyQt6.QtCore import QObject, pyqtSignal
 class DnsPrefetcher(QObject):
     dns_resolved = pyqtSignal(str, str)
 
+    MAX_WORKERS = 8
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._cache = {}
         self._lock = threading.Lock()
+        self._executor = ThreadPoolExecutor(max_workers=self.MAX_WORKERS)
 
     def prefetch(self, url):
         if not url:
@@ -24,8 +28,7 @@ class DnsPrefetcher(QObject):
             with self._lock:
                 if host in self._cache:
                     return
-            t = threading.Thread(target=self._resolve, args=(host,), daemon=True)
-            t.start()
+            self._executor.submit(self._resolve, host)
         except Exception:
             pass
 
@@ -56,14 +59,20 @@ class DnsPrefetcher(QObject):
         with self._lock:
             self._cache.clear()
 
+    def shutdown(self):
+        self._executor.shutdown(wait=False)
+
 
 class ConnectionPreheater(QObject):
     connection_ready = pyqtSignal(str)
+
+    MAX_WORKERS = 8
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._cache = set()
         self._lock = threading.Lock()
+        self._executor = ThreadPoolExecutor(max_workers=self.MAX_WORKERS)
 
     def preheat(self, url):
         if not url:
@@ -88,8 +97,7 @@ class ConnectionPreheater(QObject):
             with self._lock:
                 if cache_key in self._cache:
                     return
-            t = threading.Thread(target=self._connect, args=(host, port, cache_key), daemon=True)
-            t.start()
+            self._executor.submit(self._connect, host, port, cache_key)
         except Exception:
             pass
 
@@ -113,3 +121,6 @@ class ConnectionPreheater(QObject):
     def clear(self):
         with self._lock:
             self._cache.clear()
+
+    def shutdown(self):
+        self._executor.shutdown(wait=False)
