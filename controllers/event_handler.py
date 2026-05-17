@@ -52,7 +52,7 @@ class EventHandler:
                     if hasattr(self.window, '_on_mouse_activity'):
                         self.window._on_mouse_activity()
 
-        if not getattr(self.window, '_pip_mode', False):
+        if not getattr(self.window, 'pip_mode', False):
             if obj is getattr(self.window, 'video_widget', None):
                 if event_type == QEvent.Type.Wheel:
                     if hasattr(self.window, 'wheelEvent'):
@@ -63,7 +63,7 @@ class EventHandler:
                         self.window.mouseDoubleClickEvent(event)
                         return True
 
-        if not getattr(self.window, '_pip_mode', False) and not getattr(self.window, 'is_fullscreen', False) and not getattr(self.window, '_floating_hidden', False):
+        if not getattr(self.window, 'pip_mode', False) and not getattr(self.window, 'is_fullscreen', False) and not getattr(self.window, '_floating_hidden', False):
             if obj is getattr(self.window, 'video_widget', None):
                 if event_type == QEvent.Type.Leave:
                     if hasattr(self.window, '_delayed_hide_floating_panels'):
@@ -172,20 +172,20 @@ class EventHandler:
                         w.switch_to_previous_channel()
                     return True
                 elif key == Qt.Key.Key_S:
-                    if hasattr(w, '_take_screenshot'):
-                        w._take_screenshot()
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl._take_screenshot()
                     return True
                 elif key == Qt.Key.Key_Period:
-                    if hasattr(w, '_adjust_speed'):
-                        w._adjust_speed(0.1)
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_speed(0.1)
                     return True
                 elif key == Qt.Key.Key_Comma:
-                    if hasattr(w, '_adjust_speed'):
-                        w._adjust_speed(-0.1)
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_speed(-0.1)
                     return True
                 elif key == Qt.Key.Key_P:
-                    if hasattr(w, 'toggle_pip_mode'):
-                        w.toggle_pip_mode()
+                    if hasattr(w, 'pip_ctrl'):
+                        w.pip_ctrl.toggle()
                     return True
 
             elif modifiers == Qt.KeyboardModifier.ControlModifier:
@@ -332,7 +332,7 @@ class EventHandler:
 
         if event.type() == QEvent.Type.ActivationChange:
             if self.window.isActiveWindow():
-                if not getattr(self.window, '_pip_mode', False):
+                if not getattr(self.window, 'pip_mode', False):
                     if hasattr(self.window, 'raise_floating_panels'):
                         self.window.raise_floating_panels()
                     if getattr(self.window, 'is_fullscreen', False):
@@ -347,20 +347,19 @@ class EventHandler:
 
     def moveEvent(self, event):
         """窗口移动事件 - 跟随定位浮动Dock"""
-        if getattr(self.window, '_pip_mode', False):
-            if hasattr(self.window, '_update_pip_overlay_geometry'):
-                self.window._update_pip_overlay_geometry()
+        if getattr(self.window, 'pip_mode', False):
+            if hasattr(self.window, 'pip_ctrl'):
+                self.window.pip_ctrl._update_overlay_geometry()
             return
         if hasattr(self.window, 'update_floating_position'):
             self.window.update_floating_position()
 
     def resizeEvent(self, event):
         """窗口大小变化事件 - 跟随重定位浮动Dock"""
-        if getattr(self.window, '_pip_mode', False):
-            if hasattr(self.window, '_update_pip_overlay_geometry'):
-                self.window._update_pip_overlay_geometry()
-            if hasattr(self.window, '_update_pip_video_geometry'):
-                self.window._update_pip_video_geometry()
+        if getattr(self.window, 'pip_mode', False):
+            if hasattr(self.window, 'pip_ctrl'):
+                self.window.pip_ctrl._update_overlay_geometry()
+                self.window.pip_ctrl._update_video_geometry()
             return
         if hasattr(self.window, 'update_floating_position'):
             self.window.update_floating_position()
