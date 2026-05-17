@@ -17,6 +17,8 @@ class LogoCacheService(ThreadSafeQObject):
     META_FILE = 'meta.json'
     DEFAULT_TTL = 7 * 24 * 3600
     MAX_CACHE_SIZE = 500
+    NEGATIVE_CACHE_TTL = 3600
+    MIN_IMAGE_DATA_SIZE = 100
 
     @staticmethod
     def scale_logo_pixmap(pixmap, size=60):
@@ -182,7 +184,7 @@ class LogoCacheService(ThreadSafeQObject):
         with self._lock:
             if url in self._negative_cache:
                 neg_time = self._negative_cache[url]
-                if time.time() - neg_time < 3600:
+                if time.time() - neg_time < self.NEGATIVE_CACHE_TTL:
                     return None
                 del self._negative_cache[url]
             if url in self._image_cache:
@@ -216,7 +218,7 @@ class LogoCacheService(ThreadSafeQObject):
         with self._lock:
             if url in self._negative_cache:
                 neg_time = self._negative_cache[url]
-                if time.time() - neg_time < 3600:
+                if time.time() - neg_time < self.NEGATIVE_CACHE_TTL:
                     return None
                 del self._negative_cache[url]
             if url in self._image_cache:
@@ -292,7 +294,7 @@ class LogoCacheService(ThreadSafeQObject):
             return
         with self._lock:
             if url in self._negative_cache:
-                if time.time() - self._negative_cache[url] < 3600:
+                if time.time() - self._negative_cache[url] < self.NEGATIVE_CACHE_TTL:
                     return
                 del self._negative_cache[url]
 
@@ -337,7 +339,7 @@ class LogoCacheService(ThreadSafeQObject):
                     return
 
             data = reply.readAll()
-            if not data or len(data) < 100:
+            if not data or len(data) < self.MIN_IMAGE_DATA_SIZE:
                 self.mark_negative(url, f"数据过小: {len(data) if data else 0}字节")
                 return
 
