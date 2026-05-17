@@ -3,7 +3,6 @@
 从 pyqt_player.py 提取的独立模块
 """
 
-import re
 import hashlib
 import os
 import requests

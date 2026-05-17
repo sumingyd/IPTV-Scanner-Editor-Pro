@@ -7,7 +7,6 @@ import os
 import re
 import threading
 from typing import Optional
-from datetime import datetime
 
 from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import Qt, QTimer, QThread, QMetaObject

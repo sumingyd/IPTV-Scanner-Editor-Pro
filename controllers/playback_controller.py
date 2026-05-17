@@ -1,7 +1,6 @@
 import os
 from typing import Dict, Any, Optional
-from PyQt6.QtWidgets import QLabel, QPushButton, QSlider
-from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import QTimer
 from core.play_state import PlayMode
 
