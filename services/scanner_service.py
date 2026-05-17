@@ -87,7 +87,6 @@ class ScannerController(QObject):
         self.timeout = 10  # 默认超时时间
         self.channel_counter = 0
         self.counter_lock = threading.Lock()
-        self._batch_timer = None  # 不再使用批量定时器
         self._optimal_queue_size = 10000  # 动态计算的队列大小（默认值）
         self.stats: Dict[str, any] = {
             'total': 0,
@@ -105,7 +104,6 @@ class ScannerController(QObject):
         self.scan_id = 'main_scan'
         self._validator = None
         self._mapping_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mapper")
-        self._pending_ui_updates = []
         self._ui_batch_timer = None
         self._ui_batch_lock = threading.Lock()
 
@@ -730,12 +728,6 @@ class ScannerController(QObject):
             pass
 
     def _cleanup_other_resources(self):
-        """清理其他资源"""
-        # 停止批量更新定时器
-        if hasattr(self, '_batch_timer') and self._batch_timer and self._batch_timer.isActive():
-            self._batch_timer.stop()
-
-        # 清理统计更新线程
         if hasattr(self, 'stats_thread') and self.stats_thread and self.stats_thread.is_alive():
             self.stats_thread.join(timeout=0.5)
 

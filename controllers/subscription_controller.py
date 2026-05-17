@@ -40,7 +40,6 @@ class SubscriptionController:
         self.window = main_window
         self._subscription_checked = False
         self._workers = []
-        self._last_header_attrs = {}
         self._last_header_epg_url = None
 
     def handle_playlist_subscription(self, need_update: bool, playlist_url: str, source_index=None):
@@ -138,7 +137,6 @@ class SubscriptionController:
         try:
             # 使用纯 Python 方式解析 M3U 内容（不依赖 Qt 对象）
             channels_data, header_attrs = self._parse_m3u_content_pure_python(content)
-            self._last_header_attrs = header_attrs
 
             if not channels_data:
                 logger.warning(f"M3U内容解析为空: {file_path[:50]}...")
@@ -274,8 +272,6 @@ class SubscriptionController:
                 else:
                     self.window._do_on_playlist_updated_in_main_thread()
                 break
-
-        final_need_epg = [True]
 
         def status_callback(msg):
             logger.debug(f"EPG加载状态: {msg}")
