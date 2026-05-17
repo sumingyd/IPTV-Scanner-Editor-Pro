@@ -35,63 +35,14 @@ PYINSTALLER_CMD = [
     "--icon", str(PROJECT_ROOT / "resources" / "logo.ico"),
     "--add-data", f"{PROJECT_ROOT / 'mpv'};mpv",
     "--add-data", f"{PROJECT_ROOT / 'resources'};resources",
-    "--hidden-import", "PyQt6.QtNetwork",  # 隐藏导入
-    "--hidden-import", "PyQt6.QtWidgets",  # 隐藏导入
-    "--hidden-import", "PyQt6.QtCore",  # 隐藏导入
-    "--hidden-import", "PyQt6.QtGui",  # 隐藏导入
-    "--hidden-import", "numpy",  # 隐藏导入
-    "--hidden-import", "requests",  # 隐藏导入
-    "--hidden-import", "aiohttp",  # 隐藏导入
-    "--hidden-import", "asyncio",  # 隐藏导入
-    "--hidden-import", "json",  # 隐藏导入
-    "--hidden-import", "os",  # 隐藏导入
-    "--hidden-import", "sys",  # 隐藏导入
-    "--hidden-import", "time",  # 隐藏导入
-    "--hidden-import", "threading",  # 隐藏导入
-    "--hidden-import", "subprocess",  # 隐藏导入
-    "--hidden-import", "urllib",  # 隐藏导入
-    "--hidden-import", "socket",  # 隐藏导入
-    "--hidden-import", "datetime",  # 隐藏导入
-    "--hidden-import", "re",  # 隐藏导入
-    "--hidden-import", "glob",  # 隐藏导入
-    "--hidden-import", "pathlib",  # 隐藏导入
-    "--hidden-import", "shutil",  # 隐藏导入
-    "--hidden-import", "typing",  # 隐藏导入
-    "--hidden-import", "collections",  # 隐藏导入
-    "--hidden-import", "queue",  # 隐藏导入
-    "--hidden-import", "traceback",  # 隐藏导入
-    "--hidden-import", "inspect",  # 隐藏导入
-    "--hidden-import", "gc",  # 隐藏导入
-    "--hidden-import", "platform",  # 隐藏导入
-    "--hidden-import", "math",  # 隐藏导入
-    "--hidden-import", "random",  # 隐藏导入
-    "--hidden-import", "hashlib",  # 隐藏导入
-    "--hidden-import", "base64",  # 隐藏导入
-    "--hidden-import", "io",  # 隐藏导入
-    "--hidden-import", "zipfile",  # 隐藏导入
-    "--hidden-import", "tarfile",  # 隐藏导入
-    "--hidden-import", "tempfile",  # 隐藏导入
-    "--hidden-import", "select",  # 隐藏导入
-    "--hidden-import", "struct",  # 隐藏导入
-    "--hidden-import", "array",  # 隐藏导入
-    "--hidden-import", "bisect",  # 隐藏导入
-    "--hidden-import", "functools",  # 隐藏导入
-    "--hidden-import", "itertools",  # 隐藏导入
-    "--hidden-import", "operator",  # 隐藏导入
-    "--hidden-import", "heapq",  # 隐藏导入
-    "--hidden-import", "threading",  # 隐藏导入
-    "--hidden-import", "queue",  # 隐藏导入
-    "--hidden-import", "concurrent.futures",  # 隐藏导入
-    "--hidden-import", "multiprocessing",  # 隐藏导入
-    "--hidden-import", "logging",  # 隐藏导入
-    "--hidden-import", "configparser",  # 隐藏导入
-    "--hidden-import", "xml.etree.ElementTree",  # 隐藏导入
-    "--hidden-import", "html.parser",  # 隐藏导入
-    "--hidden-import", "http.client",  # 隐藏导入
-    "--hidden-import", "ssl",  # 隐藏导入
-    "--hidden-import", "tkinter",  # 隐藏导入（用于文件对话框）
-    "--hidden-import", "tkinter.filedialog",  # 隐藏导入
-    "--hidden-import", "tkinter.messagebox",  # 隐藏导入
+    "--hidden-import", "PyQt6.QtNetwork",
+    "--hidden-import", "PyQt6.QtWidgets",
+    "--hidden-import", "PyQt6.QtCore",
+    "--hidden-import", "PyQt6.QtGui",
+    "--hidden-import", "numpy",
+    "--hidden-import", "requests",
+    "--hidden-import", "aiohttp",
+    "--hidden-import", "asyncio",
     str(PROJECT_ROOT / "pyqt_player.py"),  # 主入口文件
 ]
 
