@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import threading
 from logging.handlers import RotatingFileHandler
 from utils.singleton import Singleton
 
@@ -16,6 +17,7 @@ class LogManager(Singleton):
         self.level = level
         self.max_bytes = max_bytes
         self.backup_count = backup_count
+        self._lock = threading.Lock()
         self._setup_logger()
         self._initialized = True
 
@@ -54,42 +56,37 @@ class LogManager(Singleton):
             )
             file_handler.setFormatter(formatter)
             self.logger.addHandler(file_handler)
-
-            self._clear_log_file()
         except Exception as e:
             print(f"配置日志记录器失败: {e}")
 
-    def _clear_log_file(self):
-        try:
-            with open(self.log_file, 'w', encoding='utf-8') as f:
-                f.write('')
-        except IOError as e:
-            print(f"清空日志文件失败: {e}")
-        except Exception as e:
-            print(f"清空日志文件时发生错误: {e}")
-
     def debug(self, message: str):
-        self.logger.debug(message)
+        with self._lock:
+            self.logger.debug(message)
 
     def info(self, message: str):
-        self.logger.info(message)
+        with self._lock:
+            self.logger.info(message)
 
     def warning(self, message: str):
-        self.logger.warning(message)
+        with self._lock:
+            self.logger.warning(message)
 
     def error(self, message: str, exc_info: bool = False):
-        if exc_info:
-            self.logger.error(message, exc_info=True)
-        else:
-            self.logger.error(message)
+        with self._lock:
+            if exc_info:
+                self.logger.error(message, exc_info=True)
+            else:
+                self.logger.error(message)
 
     def critical(self, message: str):
-        self.logger.critical(message)
+        with self._lock:
+            self.logger.critical(message)
 
     def set_level(self, level: int):
-        self.logger.setLevel(level)
-        for handler in self.logger.handlers:
-            handler.setLevel(level)
+        with self._lock:
+            self.logger.setLevel(level)
+            for handler in self.logger.handlers:
+                handler.setLevel(level)
 
     def get_logger(self) -> logging.Logger:
         return self.logger
