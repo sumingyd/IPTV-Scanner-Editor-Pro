@@ -60,7 +60,9 @@ class DnsPrefetcher(QObject):
             self._cache.clear()
 
     def shutdown(self):
-        self._executor.shutdown(wait=False)
+        if self._executor:
+            self._executor.shutdown(wait=False)
+            self._executor = None
 
 
 class ConnectionPreheater(QObject):
@@ -123,4 +125,6 @@ class ConnectionPreheater(QObject):
             self._cache.clear()
 
     def shutdown(self):
-        self._executor.shutdown(wait=False)
+        if self._executor:
+            self._executor.shutdown(wait=False)
+            self._executor = None
