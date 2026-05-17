@@ -624,8 +624,9 @@ class ChannelMappingManager:
                 from core.config_manager import ConfigManager
                 config = ConfigManager()
                 remote_url = config.get('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
-            except Exception:
-                pass
+            except Exception as e:
+                from core.log_manager import global_logger
+                global_logger.debug(f"获取远程映射URL失败: {e}")
 
             try:
                 head_resp = requests.head(remote_url, timeout=5, allow_redirects=True)
@@ -694,10 +695,13 @@ class ChannelMappingManager:
                         etag_file = self.cache_file + '.etag'
                         with open(etag_file, 'w') as f:
                             f.write(head_resp.headers['ETag'])
-                except Exception:
+                except Exception as e:
+                    from core.log_manager import global_logger
+                    global_logger.debug(f"保存ETag失败: {e}")
                     pass
-        except Exception:
-            pass
+        except Exception as e:
+            from core.log_manager import global_logger
+            global_logger.debug(f"刷新频道映射失败: {e}")
         self.logger.info("远程映射缓存已刷新")
 
 
