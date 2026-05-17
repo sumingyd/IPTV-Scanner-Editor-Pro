@@ -197,8 +197,8 @@ class EPGController:
         try:
             AppStyles = __import__('ui.styles', fromlist=['AppStyles']).AppStyles
             self.window.epg_content.setStyleSheet(AppStyles.player_list_style())
-        except ImportError:
-            pass
+        except ImportError as e:
+            logger.debug(f"EPG样式导入失败: {e}")
 
         # 检查是否有当前频道
         if not hasattr(self.window, 'current_channel') or not self.window.current_channel:
