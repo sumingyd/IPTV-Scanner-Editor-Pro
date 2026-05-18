@@ -3585,7 +3585,7 @@ class IPTVPlayer(QMainWindow):
                 logger.info(f"节目单订阅更新成功，共 {app_state.get_epg_channel_count()} 个频道的节目单，已使用最新数据")
 
                 if QThread.currentThread() != self.thread():
-                    QMetaObject.invokeMethod(self, "_do_on_epg_success", Qt.ConnectionType.QueuedConnection)
+                    QTimer.singleShot(0, self._do_on_epg_success)
                 else:
                     self._do_on_epg_success()
             else:
@@ -3599,7 +3599,7 @@ class IPTVPlayer(QMainWindow):
                         self.status_bar_show_message(self.language_manager.tr("epg_using_cache", "Using cached EPG data"))
 
                     if QThread.currentThread() != self.thread():
-                        QMetaObject.invokeMethod(self, "_do_on_epg_cache", Qt.ConnectionType.QueuedConnection)
+                        QTimer.singleShot(0, self._do_on_epg_cache)
                     else:
                         self._do_on_epg_cache()
                 else:

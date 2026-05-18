@@ -264,12 +264,9 @@ class SubscriptionController:
                 logger.debug(f"订阅源 '{source.get('name', '')}' 需要更新: {need_update}")
                 self.handle_playlist_subscription(need_update, playlist_url, i)
 
-                from PyQt6.QtCore import QMetaObject, Qt, QThread
+                from PyQt6.QtCore import QTimer, QThread
                 if QThread.currentThread() != self.window.thread():
-                    QMetaObject.invokeMethod(
-                        self.window, "_do_on_playlist_updated_in_main_thread",
-                        Qt.ConnectionType.QueuedConnection
-                    )
+                    QTimer.singleShot(0, self.window._do_on_playlist_updated_in_main_thread)
                 else:
                     self.window._do_on_playlist_updated_in_main_thread()
                 break
