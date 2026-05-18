@@ -295,47 +295,10 @@ def get_scan_state_manager() -> ScanStateManager:
     return ScanStateManager()
 
 
-# 便捷函数
-def register_scan_task(scan_id: str, scanner=None):
-    """注册扫描任务（便捷函数）"""
-    manager = get_scan_state_manager()
-    manager.register_scan(scan_id, scanner)
-
-
-def update_scan_stats(scan_id: str, stats: Dict[str, Any]):
-    """更新扫描统计信息（便捷函数）"""
-    manager = get_scan_state_manager()
-    manager.update_stats(scan_id, stats)
-
-
-def get_scan_stats(scan_id: str) -> Optional[Dict[str, Any]]:
-    """获取扫描统计信息（便捷函数）"""
-    manager = get_scan_state_manager()
-    return manager.get_stats(scan_id)
-
-
-def is_scan_in_progress(scan_id: str = 'scan') -> bool:
-    """检查扫描是否在进行中（便捷函数）"""
-    manager = get_scan_state_manager()
-    return manager.is_scanning(scan_id)
-
-
 def register_retry_task(retry_id: str, main_window=None):
     """注册重试扫描任务（便捷函数）"""
     manager = get_scan_state_manager()
     manager.register_retry_scan(retry_id, main_window)
-
-
-def update_retry_state(retry_id: str, state: Dict[str, Any]):
-    """更新重试扫描状态（便捷函数）"""
-    manager = get_scan_state_manager()
-    manager.update_retry_state(retry_id, state)
-
-
-def is_retry_in_progress(retry_id: str = 'retry') -> bool:
-    """检查重试扫描是否在进行中（便捷函数）"""
-    manager = get_scan_state_manager()
-    return manager.is_retry_scan(retry_id)
 
 
 # 扫描状态上下文管理器
@@ -348,12 +311,11 @@ class ScanStateContext:
 
     def __enter__(self):
         """进入上下文时注册扫描任务"""
-        register_scan_task(self.scan_id, self.scanner)
+        get_scan_state_manager().register_scan(self.scan_id, self.scanner)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """退出上下文时不立即注销扫描任务，让重试功能能够获取无效URL"""
-        # 不处理异常，让异常正常传播
         return False
 
 
@@ -372,7 +334,4 @@ class RetryScanStateContext:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """退出上下文时重置重试状态"""
-        # 注意：这里不再自动重置重试计数，因为重试计数需要在重试过程中保持
-        # 重试计数的重置应该在重试扫描最终完成时由主窗口的 _finish_retry_scan 方法处理
-        # 不处理异常，让异常正常传播
         return False

@@ -227,32 +227,3 @@ def init_progress_manager(
     if status_bar:
         manager.set_status_bar(status_bar)
     return manager
-
-
-# 便捷装饰器
-def with_progress(task_name: str, max_value: int = 100):
-    """带进度显示的装饰器
-
-    Args:
-        task_name: 任务名称
-        max_value: 最大值
-
-    Returns:
-        装饰器函数
-    """
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            manager = get_progress_manager()
-            manager.start_progress(task_name, max_value)
-
-            try:
-                result = func(*args, **kwargs)
-                manager.complete_progress(f"{task_name}完成")
-                return result
-            except Exception as e:
-                manager.hide_progress()
-                logger.error(f"{task_name}失败: {e}")
-                raise
-
-        return wrapper
-    return decorator
