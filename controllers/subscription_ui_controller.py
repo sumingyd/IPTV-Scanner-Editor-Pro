@@ -5,13 +5,14 @@
 
 from PyQt6.QtWidgets import QListWidgetItem
 from PyQt6 import QtCore
+from controllers.main_window_protocol import MainWindowProtocol
 
 
 class SubscriptionUIController:
     """订阅UI控制器 - 管理订阅源设置对话框的所有逻辑"""
 
-    def __init__(self, main_window):
-        self.window = main_window
+    def __init__(self, main_window: MainWindowProtocol):
+        self.window: MainWindowProtocol = main_window
 
     def _tr(self, key, default):
         w = self.window

@@ -10,6 +10,7 @@ from PyQt6.QtGui import QAction, QColor, QPainter, QFontMetrics
 from PyQt6.QtCore import Qt, QTimer
 
 from core.log_manager import global_logger as logger
+from controllers.main_window_protocol import MainWindowProtocol
 
 
 class EPGItemDelegate(QStyledItemDelegate):
@@ -93,8 +94,8 @@ class EPGItemDelegate(QStyledItemDelegate):
 class EPGController:
     """EPG节目单控制器 - 管理电子节目单的所有逻辑"""
 
-    def __init__(self, main_window):
-        self.window = main_window
+    def __init__(self, main_window: MainWindowProtocol):
+        self.window: MainWindowProtocol = main_window
         self._current_date = None
         self._last_epg_key = None
 

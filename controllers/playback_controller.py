@@ -4,12 +4,13 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import QTimer
 from core.play_state import PlayMode
 from core.log_manager import global_logger as logger
+from controllers.main_window_protocol import MainWindowProtocol
 
 
 class PlaybackController:
 
-    def __init__(self, main_window):
-        self.window = main_window
+    def __init__(self, main_window: MainWindowProtocol):
+        self.window: MainWindowProtocol = main_window
         self._is_muted = False
         self._pre_mute_volume = 0
         self.current_channel: Optional[Dict[str, Any]] = None

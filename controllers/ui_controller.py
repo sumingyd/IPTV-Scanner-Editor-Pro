@@ -5,13 +5,14 @@ UI控制器 - 负责OSD显示、媒体信息更新、样式管理等
 
 from typing import Optional, Dict, Any
 from PyQt6.QtCore import QTimer
+from controllers.main_window_protocol import MainWindowProtocol
 
 
 class UIController:
     """UI控制器 - 管理所有UI显示相关的逻辑"""
 
-    def __init__(self, main_window):
-        self.window = main_window
+    def __init__(self, main_window: MainWindowProtocol):
+        self.window: MainWindowProtocol = main_window
         self._osd_visible = False
 
     @property

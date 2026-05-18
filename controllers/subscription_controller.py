@@ -14,6 +14,7 @@ from core.log_manager import global_logger as logger
 from core.config_manager import ConfigManager
 from core.subscription_manager import global_subscription_manager
 from utils.general_utils import get_display_channel_name
+from controllers.main_window_protocol import MainWindowProtocol
 
 
 class SubscriptionWorker(QThread):
@@ -36,8 +37,8 @@ class SubscriptionWorker(QThread):
 class SubscriptionController:
     """订阅控制器 - 管理所有订阅源相关的逻辑"""
 
-    def __init__(self, main_window):
-        self.window = main_window
+    def __init__(self, main_window: MainWindowProtocol):
+        self.window: MainWindowProtocol = main_window
         self._subscription_checked = False
         self._workers = []
         self._last_header_epg_url = None

@@ -8,14 +8,15 @@ from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QHBoxLayout, QMainWind
 from PyQt6.QtCore import Qt, QPoint
 from PyQt6.QtGui import QPixmap
 from ui.styles import AppStyles
+from controllers.main_window_protocol import MainWindowProtocol
 
 
 class WindowController:
 
     TITLE_BTN_STYLE = "QPushButton { min-width: 40px; max-width: 40px; height: 28px; }"
 
-    def __init__(self, main_window: QMainWindow):
-        self.window = main_window
+    def __init__(self, main_window: MainWindowProtocol):
+        self.window: MainWindowProtocol = main_window
         self._dragging = False
         self._drag_offset = None
         self._stay_on_top_active = False

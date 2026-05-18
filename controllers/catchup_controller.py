@@ -1,6 +1,7 @@
 import re
 from datetime import datetime, timedelta, timezone
 from core.play_state import PlayMode
+from controllers.main_window_protocol import MainWindowProtocol
 
 
 class CatchupController:
@@ -10,8 +11,8 @@ class CatchupController:
         'xc', 'xtream', 'vod', 'timemachine'
     }
 
-    def __init__(self, main_window):
-        self.window = main_window
+    def __init__(self, main_window: MainWindowProtocol):
+        self.window: MainWindowProtocol = main_window
         self._original_channel: dict | None = None
         self._catchup_program: dict | None = None
 

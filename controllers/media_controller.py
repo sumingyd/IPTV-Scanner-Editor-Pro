@@ -10,6 +10,7 @@ from typing import Optional
 from PyQt6.QtCore import Qt
 
 from core.log_manager import global_logger as logger
+from controllers.main_window_protocol import MainWindowProtocol
 
 
 class MediaController:
@@ -18,8 +19,8 @@ class MediaController:
     SPEED_STEPS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 5.0]
     ASPECT_CYCLE = ['default', '16:9', '4:3', 'stretch', 'fill']
 
-    def __init__(self, main_window):
-        self.window = main_window
+    def __init__(self, main_window: MainWindowProtocol):
+        self.window: MainWindowProtocol = main_window
         self._current_aspect_idx = 0
 
     @property

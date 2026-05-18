@@ -6,6 +6,7 @@
 import asyncio
 from PyQt6.QtCore import QThread, pyqtSignal, QMetaObject, Qt
 from core.log_manager import global_logger as logger
+from controllers.main_window_protocol import MainWindowProtocol
 
 
 class UpdateCheckThread(QThread):
@@ -90,8 +91,8 @@ class UpdateCheckThread(QThread):
 class UpdateController:
     """更新检查控制器 - 管理版本检查和新版本提示"""
 
-    def __init__(self, main_window):
-        self.window = main_window
+    def __init__(self, main_window: MainWindowProtocol):
+        self.window: MainWindowProtocol = main_window
         self._update_checking = False
         self._update_checked = False
         self._check_thread = None

@@ -10,13 +10,14 @@ from PyQt6.QtWidgets import QListWidgetItem
 from core.log_manager import global_logger as logger
 from core.application_state import app_state
 from utils.general_utils import get_display_channel_name
+from controllers.main_window_protocol import MainWindowProtocol
 
 
 class ChannelController:
     """频道列表控制器 - 管理频道列表的所有逻辑"""
 
-    def __init__(self, main_window):
-        self.window = main_window
+    def __init__(self, main_window: MainWindowProtocol):
+        self.window: MainWindowProtocol = main_window
 
     def populate_channel_list(self):
         """填充频道列表"""

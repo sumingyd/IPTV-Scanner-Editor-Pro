@@ -26,6 +26,7 @@ from ui.floating_dialog import FloatingDialog
 from ui.theme_manager import get_theme_manager
 from ui.dialogs.about_dialog import AboutDialog
 from services.m3u_parser import load_m3u_file
+from controllers.main_window_protocol import MainWindowProtocol
 
 
 # 使用说明默认内容 —— 定义在模块级别便于维护
@@ -77,8 +78,8 @@ DEFAULT_USAGE_CONTENT = (
 class SettingsFileOperations:
     """设置和文件操作 - 管理配置和文件I/O"""
 
-    def __init__(self, main_window):
-        self.window = main_window
+    def __init__(self, main_window: MainWindowProtocol):
+        self.window: MainWindowProtocol = main_window
 
     def _tr(self, key, default=None):
         w = self.window

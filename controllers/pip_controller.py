@@ -8,6 +8,7 @@ from PyQt6.QtGui import QPainter, QPen, QColor, QFont, QRegion
 from PyQt6.QtCore import QRect
 
 from core.log_manager import global_logger as logger
+from controllers.main_window_protocol import MainWindowProtocol
 
 
 class PipButton:
@@ -95,8 +96,8 @@ class PipButton:
 class PipController:
     """画中画控制器 - 管理 PiP 模式的所有状态和行为"""
 
-    def __init__(self, main_window):
-        self.window = main_window
+    def __init__(self, main_window: MainWindowProtocol):
+        self.window: MainWindowProtocol = main_window
 
         self._is_active = False
         self._pip_dragging = False

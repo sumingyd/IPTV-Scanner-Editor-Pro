@@ -6,13 +6,14 @@
 from typing import Optional
 from PyQt6.QtCore import Qt, QEvent, QTimer
 from PyQt6.QtGui import QKeyEvent
+from controllers.main_window_protocol import MainWindowProtocol
 
 
 class EventHandler:
     """事件处理器 - 统一管理所有事件处理逻辑"""
 
-    def __init__(self, main_window):
-        self.window = main_window
+    def __init__(self, main_window: MainWindowProtocol):
+        self.window: MainWindowProtocol = main_window
         self._shortcuts = {}  # 快捷键映射表
 
     def _is_main_window_focused(self) -> bool:
