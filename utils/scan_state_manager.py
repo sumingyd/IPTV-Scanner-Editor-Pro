@@ -44,6 +44,7 @@ class ScanStateManager(Singleton):
                         'elapsed': 0
                     },
                     'invalid_urls': [],
+                    '_url_set': set(),
                     'scanner': scanner,
                     'last_update': time.time()
                 }
@@ -60,6 +61,10 @@ class ScanStateManager(Singleton):
             if scan_id in self._scan_states:
                 self._scan_states[scan_id].update(state)
                 self._scan_states[scan_id]['last_update'] = time.time()
+                if 'invalid_urls' in state:
+                    self._scan_states[scan_id]['_url_set'] = set(
+                        entry['url'] for entry in state['invalid_urls'] if isinstance(entry, dict)
+                    )
 
     def get_scan_state(self, scan_id: str) -> Optional[Dict[str, Any]]:
         """获取扫描状态"""
@@ -100,14 +105,11 @@ class ScanStateManager(Singleton):
             if scan_id in self._scan_states:
                 state = self._scan_states[scan_id]
                 invalid_urls = state['invalid_urls']
-
-                if '_url_set' not in state:
-                    state['_url_set'] = set(entry['url'] for entry in invalid_urls)
-
-                url_set = state['_url_set']
+                url_set = state.get('_url_set', set())
 
                 if url not in url_set:
                     url_set.add(url)
+                    state['_url_set'] = url_set
                     invalid_urls.append({
                         'url': url,
                         'error_type': error_type
@@ -160,7 +162,7 @@ class ScanStateManager(Singleton):
         with self._lock:
             if scan_id in self._scan_states:
                 self._scan_states[scan_id]['invalid_urls'] = []
-                self._scan_states[scan_id].pop('_url_set', None)
+                self._scan_states[scan_id]['_url_set'] = set()
 
     # 重试扫描状态管理
     def register_retry_scan(self, retry_id: str, main_window=None):

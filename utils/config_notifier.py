@@ -93,6 +93,9 @@ def notify_config_change(section: str, key: str, old_value: Any, new_value: Any)
 def on_config_change(config_key: str):
     """配置变更装饰器
 
+    注意：此装饰器仅适用于模块级函数，不适用于实例方法。
+    对于实例方法，请在__init__中手动调用 register_config_observer。
+
     Args:
         config_key: 配置键，格式为'section.key'或'section.*'或'*'
 
@@ -100,24 +103,10 @@ def on_config_change(config_key: str):
         装饰器函数
     """
     def decorator(func):
-        # 注册观察者
         register_config_observer(config_key, func)
-
-        # 返回原始函数
         return func
 
     return decorator
-
-
-_config_manager = None
-
-
-def _get_config_manager():
-    global _config_manager
-    if _config_manager is None:
-        from core.config_manager import ConfigManager
-        _config_manager = ConfigManager()
-    return _config_manager
 
 
 class ConfigChangeContext:
@@ -127,14 +116,15 @@ class ConfigChangeContext:
         self.section = section
         self.key = key
         self.old_value = old_value
-        self._config = _get_config_manager()
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is None:
-            new_value = self._config.get_value(self.section, self.key)
+            from core.config_manager import ConfigManager
+            config = ConfigManager()
+            new_value = config.get_value(self.section, self.key)
             if new_value != self.old_value:
                 notify_config_change(self.section, self.key, self.old_value, new_value)
         return False
@@ -142,6 +132,7 @@ class ConfigChangeContext:
 
 def config_change_context(section: str, key: str):
     """创建配置变更上下文管理器"""
-    config = _get_config_manager()
+    from core.config_manager import ConfigManager
+    config = ConfigManager()
     old_value = config.get_value(section, key)
     return ConfigChangeContext(section, key, old_value)

@@ -7,8 +7,17 @@ from PyQt6 import QtWidgets, QtCore
 from typing import Optional, Callable
 from core.log_manager import global_logger
 from utils.singleton import Singleton
+import threading
 
 logger = global_logger
+
+
+def _is_main_thread() -> bool:
+    return threading.current_thread() is threading.main_thread()
+
+
+def _run_on_main(func, *args):
+    QtCore.QTimer.singleShot(0, lambda: func(*args))
 
 
 class ProgressManager(Singleton):
@@ -73,6 +82,10 @@ class ProgressManager(Singleton):
         if not self._progress_bar:
             return
 
+        if not _is_main_thread():
+            _run_on_main(self.update_progress, value, message)
+            return
+
         old_value = self._progress_bar.value()
         if old_value != value:
             self._progress_bar.setValue(value)
@@ -91,10 +104,13 @@ class ProgressManager(Singleton):
         if not self._progress_bar or total <= 0:
             return
 
+        if not _is_main_thread():
+            _run_on_main(self.update_progress_from_stats, current, total, message)
+            return
+
         progress_value = int(current / total * 100)
         progress_value = max(0, min(100, progress_value))
 
-        # 如果进度条不可见且总数大于0，显示进度条
         if not self._progress_bar.isVisible() and total > 0:
             self._progress_bar.show()
 
@@ -102,6 +118,10 @@ class ProgressManager(Singleton):
 
     def hide_progress(self):
         """隐藏进度条"""
+        if not _is_main_thread():
+            _run_on_main(self.hide_progress)
+            return
+
         if self._progress_bar:
             self._progress_bar.hide()
             self._progress_bar.setValue(0)
