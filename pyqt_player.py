@@ -1796,7 +1796,10 @@ class IPTVPlayer(QMainWindow):
             logger.warning(f"populate_channel_list: 共 {skipped_count} 个频道被分组过滤跳过")
 
         logger.info(f"populate_channel_list: 填充完成，共 {list_widget.count()} 个频道项（实际添加: {added_count}, 跳过: {skipped_count}, 总数据: {len(channels)}）")
-        list_widget.verticalScrollBar().valueChanged.connect(self._on_channel_list_scrolled, Qt.ConnectionType.UniqueConnection)
+        try:
+            list_widget.verticalScrollBar().valueChanged.connect(self._on_channel_list_scrolled, Qt.ConnectionType.UniqueConnection)
+        except TypeError:
+            pass
         QTimer.singleShot(50, lambda: self._load_visible_icons(list_widget, channels))
     
     def _load_visible_icons(self, list_widget, channels):
