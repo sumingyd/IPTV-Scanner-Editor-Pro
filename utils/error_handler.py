@@ -392,22 +392,6 @@ def handle_exceptions(
     return decorator
 
 
-def handle_specific_exceptions(
-    exceptions: tuple,
-    user_message: Optional[str] = None,
-    show_dialog: bool = True,
-    default_return: Any = None,
-    log_level: str = 'error'
-):
-    return handle_exceptions(
-        user_message=user_message,
-        show_dialog=show_dialog,
-        default_return=default_return,
-        log_level=log_level,
-        exceptions=exceptions
-    )
-
-
 def retry_on_exception(
     max_retries: int = 3,
     delay: float = 1.0,

@@ -178,18 +178,6 @@ def log_function_call(func: Callable):
     return wrapper
 
 
-def log_class_methods(cls):
-    """
-    类方法日志装饰器（类装饰器）
-
-    Args:
-        cls: 要装饰的类
-    """
-    for name, method in cls.__dict__.items():
-        if callable(method) and not name.startswith('_'):
-            setattr(cls, name, log_function_call(method))
-    return cls
-
 
 # 便捷函数 —— 通过工厂函数动态生成，消除重复样板代码
 def _make_log_func(category: str, level: str):
@@ -233,7 +221,6 @@ log_player_info = _make_log_func('player', 'info')
 __all__ = [
     'logging_helper',
     'log_function_call',
-    'log_class_methods',
     'log_config_error', 'log_config_warning', 'log_config_info',
     'log_network_error', 'log_network_warning', 'log_network_info',
     'log_file_error', 'log_file_warning', 'log_file_info',

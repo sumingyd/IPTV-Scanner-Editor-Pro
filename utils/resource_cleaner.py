@@ -106,39 +106,3 @@ def cleanup_on_exit():
     logger.info("程序退出，执行资源清理...")
     cleanup_all()
 
-
-# 资源清理装饰器
-def auto_cleanup(func):
-    """自动资源清理装饰器，在函数执行后自动清理资源"""
-    def wrapper(*args, **kwargs):
-        try:
-            result = func(*args, **kwargs)
-            return result
-        finally:
-            try:
-                cleanup_all()
-            except Exception as e:
-                logger.error(f"自动资源清理失败: {e}")
-
-    return wrapper
-
-
-# 上下文管理器
-class ResourceCleanupContext:
-    """资源清理上下文管理器"""
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        try:
-            cleanup_all()
-        except Exception as e:
-            logger.error(f"上下文资源清理失败: {e}")
-        return False
-
-
-def resource_cleanup_context():
-    """创建资源清理上下文管理器（便捷函数）"""
-    return ResourceCleanupContext()
-

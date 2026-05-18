@@ -298,18 +298,3 @@ def log_memory_stats():
     manager.log_memory_stats()
 
 
-# 内存优化装饰器
-def memory_optimized(func):
-    """内存优化装饰器，在函数执行前后进行内存优化"""
-    def wrapper(*args, **kwargs):
-        # 函数执行前优化内存
-        optimize_memory()
-
-        try:
-            result = func(*args, **kwargs)
-            return result
-        finally:
-            # 函数执行后优化内存
-            optimize_memory()
-
-    return wrapper
