@@ -2715,7 +2715,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         if is_playing:
             self.play_button.setText("▮▮")
-            self._pip_update_play_btn()
+            self.pip_ctrl._update_play_btn()
             self._cancel_source_timeout()
             if hasattr(self, 'video_placeholder') and self.video_placeholder:
                 self.video_placeholder.hide()
@@ -2769,7 +2769,7 @@ class IPTVPlayer(QMainWindow):
                     self.status_bar_show_message(f"{tr('playing', 'Playing')}: {channel_name}")
         else:
             self.play_button.setText("▶")
-            self._pip_update_play_btn()
+            self.pip_ctrl._update_play_btn()
             if self.play_state.is_idle:
                 return
             # 暂停时不要显示背景占位符，保持视频窗口可见
