@@ -4205,7 +4205,7 @@ class IPTVPlayer(QMainWindow):
 
     def _on_logo_cache_loaded(self, url, pixmap):
         """台标加载完成的回调"""
-        logger.debug(f"台标加载完成: {url[:50]}..., pixmap有效: {not pixmap.isNull()}, 更新列表项...")
+        logger.info(f"台标加载完成: {url[:50]}..., pixmap有效: {not pixmap.isNull()}")
 
         if self.current_channel:
             logo = self.current_channel.get('logo', '')
