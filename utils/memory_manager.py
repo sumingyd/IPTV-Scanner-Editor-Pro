@@ -54,24 +54,26 @@ class MemoryManager(Singleton):
             pool = pool_info['pool']
 
             if pool:
-                # 从池中获取对象
                 obj = pool.pop()
                 pool_info['reused'] += 1
-                
-                # 更新峰值使用统计
                 current_usage = pool_info['created'] - len(pool)
                 if current_usage > pool_info.get('peak_usage', 0):
                     pool_info['peak_usage'] = current_usage
-                
                 return obj
-            else:
-                # 创建新对象前检查是否需要扩容
-                if self._auto_resize_enabled and self._should_expand_pool(pool_info):
-                    self._expand_pool(pool_info)
-                
-                obj = pool_info['factory'](*args, **kwargs)
+
+            if self._auto_resize_enabled and self._should_expand_pool(pool_info):
+                self._expand_pool(pool_info)
+
+            factory = pool_info['factory']
+
+        obj = factory(*args, **kwargs)
+
+        with self._lock:
+            pool_info = self._object_pools.get(pool_name)
+            if pool_info:
                 pool_info['created'] += 1
-                return obj
+
+        return obj
 
     def _should_expand_pool(self, pool_info: Dict) -> bool:
         """判断是否应该扩容"""
