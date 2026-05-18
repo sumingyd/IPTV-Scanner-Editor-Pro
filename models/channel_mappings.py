@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 import functools
 
 from core.log_manager import global_logger as logger
+from core.config_manager import ConfigManager
 
 
 def get_app_data_dir() -> str:
@@ -152,26 +153,11 @@ def load_remote_mappings() -> Dict[str, dict]:
         return {}
 
     try:
-        # 尝试从core目录导入ConfigManager
+        config = ConfigManager()
         try:
-            from core.config_manager import ConfigManager
-            config = ConfigManager()
-            try:
-                remote_url = config.get('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
-            except AttributeError:
-                remote_url = DEFAULT_REMOTE_URL
-        except ImportError:
-            # 如果 core.config_manager 导入失败，尝试直接导入 config_manager（旧结构）
-            try:
-                from config_manager import ConfigManager  # type: ignore[import-not-found]
-                config = ConfigManager()
-                try:
-                    remote_url = config.get('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
-                except AttributeError:
-                    remote_url = DEFAULT_REMOTE_URL
-            except ImportError:
-                # 如果都失败，使用默认 URL
-                remote_url = DEFAULT_REMOTE_URL
+            remote_url = config.get('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
+        except AttributeError:
+            remote_url = DEFAULT_REMOTE_URL
 
         # 简化版本：只尝试一次，不重试
         try:
@@ -621,12 +607,10 @@ class ChannelMappingManager:
 
             remote_url = DEFAULT_REMOTE_URL
             try:
-                from core.config_manager import ConfigManager
                 config = ConfigManager()
                 remote_url = config.get('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
             except Exception as e:
-                from core.log_manager import global_logger
-                global_logger.debug(f"获取远程映射URL失败: {e}")
+                logger.debug(f"获取远程映射URL失败: {e}")
 
             try:
                 head_resp = requests.head(remote_url, timeout=5, allow_redirects=True)
@@ -684,7 +668,6 @@ class ChannelMappingManager:
             if REQUESTS_AVAILABLE:
                 remote_url = DEFAULT_REMOTE_URL
                 try:
-                    from core.config_manager import ConfigManager
                     config = ConfigManager()
                     remote_url = config.get('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
                 except Exception:
@@ -696,12 +679,10 @@ class ChannelMappingManager:
                         with open(etag_file, 'w') as f:
                             f.write(head_resp.headers['ETag'])
                 except Exception as e:
-                    from core.log_manager import global_logger
-                    global_logger.debug(f"保存ETag失败: {e}")
+                    logger.debug(f"保存ETag失败: {e}")
                     pass
         except Exception as e:
-            from core.log_manager import global_logger
-            global_logger.debug(f"刷新频道映射失败: {e}")
+            logger.debug(f"刷新频道映射失败: {e}")
         self.logger.info("远程映射缓存已刷新")
 
 
