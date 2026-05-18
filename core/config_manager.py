@@ -60,7 +60,10 @@ class ConfigManager(Singleton):
             pos = self.get_value('UI', f'divider_{i}')
             if pos is None:
                 break
-            dividers.append(int(pos))
+            try:
+                dividers.append(int(pos))
+            except (ValueError, TypeError):
+                logger.debug(f"divider_{i} 值无效: {pos}，跳过")
             i += 1
         return x, y, width, height, dividers or default_dividers
 
@@ -260,7 +263,10 @@ class ConfigManager(Singleton):
                     self.config.add_section(section)
                     logger.debug(f"配置管理-创建section: {section}")
 
-                old_value = self.get_value(section, key)
+                try:
+                    old_value = self.config.get(section, key)
+                except (configparser.NoSectionError, configparser.NoOptionError):
+                    old_value = None
 
                 self.config.set(section, key, value)
 
