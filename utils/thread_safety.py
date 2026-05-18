@@ -7,7 +7,17 @@ class ThreadSafeQObject(QObject):
     """线程安全的 Qt 对象基类，确保所有公共方法都在主线程中执行"""
 
     def _ensure_main_thread(self, func, *args, **kwargs):
-        """确保方法在主线程中执行，如果不是则转发到主线程"""
+        """确保方法在主线程中执行，如果不是则转发到主线程
+
+        返回值:
+            True  - 当前已在主线程，调用者应继续执行后续逻辑
+            False - 已转发到主线程，调用者应立即 return，不可继续执行
+
+        警告: 忽略返回值继续执行会导致逻辑在错误的线程上运行！
+        典型用法:
+            if not self._ensure_main_thread(self._some_method, *args):
+                return
+        """
         if QThread.currentThread() != self.thread():
             QTimer.singleShot(0, lambda: func(*args, **kwargs))
             return False

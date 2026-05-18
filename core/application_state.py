@@ -39,6 +39,7 @@ class ApplicationState(Singleton):
             self._channels = list(new_channels)
 
     def get_channel_by_index(self, idx: int) -> Dict[str, Any] | None:
+        """获取频道（浅拷贝）。修改返回值中的嵌套结构会影响原始数据，如需完全隔离请自行deepcopy"""
         with self._channels_lock:
             if 0 <= idx < len(self._channels):
                 return dict(self._channels[idx])

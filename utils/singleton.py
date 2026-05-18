@@ -16,6 +16,7 @@ class Singleton:
 
     @classmethod
     def reset_instance(cls):
+        """重置单例实例（仅用于测试，生产环境调用可能导致持有旧引用的代码出现不可预期行为）"""
         with Singleton._global_lock:
             instance = Singleton._instances.pop(cls, None)
             if instance is not None:
