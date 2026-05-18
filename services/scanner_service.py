@@ -95,9 +95,8 @@ class ScannerController(QObject):
             'start_time': 0,
             'elapsed': 0
         }
-        # 记录无效的URL，用于重试扫描
-        self.invalid_urls = []
-        self.invalid_urls_lock = threading.Lock()
+        # 记录无效的URL，用于重试扫描（委托给scan_state_manager）
+        self._max_invalid_urls = 50000
 
         # 扫描状态管理器
         self.scan_state_manager = get_scan_state_manager()
@@ -175,12 +174,6 @@ class ScannerController(QObject):
                         error_type = result.get('error_type') or 'unknown_error'
                         if self.stats['invalid'] % 50 == 1:
                             self.logger.debug(f"扫描进度: 有效={self.stats['valid']}, 无效={self.stats['invalid']}, 最新错误类型={error_type}")
-                        with self.invalid_urls_lock:
-                            self.invalid_urls.append({
-                                'url': url,
-                                'error_type': error_type,
-                                'error': result.get('error', '')
-                            })
                         self.scan_state_manager.add_invalid_url(self.scan_id, url, error_type)
 
                     current = self.stats['valid'] + self.stats['invalid']
@@ -194,12 +187,6 @@ class ScannerController(QObject):
                 self.logger.debug(f"扫描URL异常: {url} - {e}")
                 with self.stats_lock:
                     self.stats['invalid'] += 1
-                    with self.invalid_urls_lock:
-                        self.invalid_urls.append({
-                            'url': url,
-                            'error_type': 'scan_exception',
-                            'error': str(e)
-                        })
                     self.scan_state_manager.add_invalid_url(self.scan_id, url, 'scan_exception')
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
@@ -489,8 +476,6 @@ class ScannerController(QObject):
 
         self.timeout = timeout
 
-        with self.invalid_urls_lock:
-            self.invalid_urls.clear()
         self.scan_state_manager.clear_invalid_urls(self.scan_id)
 
         self._optimal_queue_size = calculate_optimal_queue_size(thread_count)
@@ -564,10 +549,6 @@ class ScannerController(QObject):
         # 确保停止之前的扫描
         self.stop_scan()
         self.stop_event.clear()
-
-        # 清空无效URL列表，避免累积
-        with self.invalid_urls_lock:
-            self.invalid_urls.clear()
 
         # 清空扫描状态管理器中的无效URL
         self.scan_state_manager.clear_invalid_urls(self.scan_id)
@@ -929,9 +910,10 @@ class ScannerController(QObject):
                     f"无效={self.stats['invalid']}"
                 )
 
-                if self.invalid_urls:
+                invalid_urls = self.scan_state_manager.get_invalid_urls(self.scan_id)
+                if invalid_urls:
                     from collections import Counter
-                    error_types = [item.get('error_type', 'unknown') for item in self.invalid_urls]
+                    error_types = [item.get('error_type', 'unknown') for item in invalid_urls]
                     error_counts = Counter(error_types)
                     top_errors = error_counts.most_common(5)
                     error_summary = ", ".join([f"{err}({cnt})" for err, cnt in top_errors])
