@@ -13,6 +13,7 @@ from .subscription_ui_controller import SubscriptionUIController
 from .catchup_controller import CatchupController
 from .pip_controller import PipController
 from .media_controller import MediaController
+from .update_controller import UpdateController
 
 __all__ = [
     'WindowController',
@@ -26,5 +27,6 @@ __all__ = [
     'SubscriptionUIController',
     'CatchupController',
     'PipController',
-    'MediaController'
+    'MediaController',
+    'UpdateController'
 ]
