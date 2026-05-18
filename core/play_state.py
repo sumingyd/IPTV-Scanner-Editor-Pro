@@ -33,27 +33,33 @@ class PlayStateManager:
 
     @property
     def is_idle(self) -> bool:
-        return self._mode == PlayMode.IDLE
+        with self._lock:
+            return self._mode == PlayMode.IDLE
 
     @property
     def is_live(self) -> bool:
-        return self._mode == PlayMode.LIVE
+        with self._lock:
+            return self._mode == PlayMode.LIVE
 
     @property
     def is_catchup(self) -> bool:
-        return self._mode == PlayMode.CATCHUP
+        with self._lock:
+            return self._mode == PlayMode.CATCHUP
 
     @property
     def is_timeshift(self) -> bool:
-        return self._mode == PlayMode.TIMESHIFT
+        with self._lock:
+            return self._mode == PlayMode.TIMESHIFT
 
     @property
     def is_playing(self) -> bool:
-        return self._mode in (PlayMode.LIVE, PlayMode.CATCHUP, PlayMode.TIMESHIFT)
+        with self._lock:
+            return self._mode in (PlayMode.LIVE, PlayMode.CATCHUP, PlayMode.TIMESHIFT)
 
     @property
     def is_catchup_or_timeshift(self) -> bool:
-        return self._mode in (PlayMode.CATCHUP, PlayMode.TIMESHIFT)
+        with self._lock:
+            return self._mode in (PlayMode.CATCHUP, PlayMode.TIMESHIFT)
 
     def set_idle(self):
         self.mode = PlayMode.IDLE
@@ -68,14 +74,18 @@ class PlayStateManager:
         self.mode = PlayMode.TIMESHIFT
 
     def add_listener(self, callback: Callable[[PlayMode, PlayMode], None]):
-        self._listeners.append(callback)
+        with self._lock:
+            self._listeners.append(callback)
 
     def remove_listener(self, callback: Callable[[PlayMode, PlayMode], None]):
-        if callback in self._listeners:
-            self._listeners.remove(callback)
+        with self._lock:
+            if callback in self._listeners:
+                self._listeners.remove(callback)
 
     def _notify(self, old_mode: PlayMode, new_mode: PlayMode):
-        for callback in self._listeners:
+        with self._lock:
+            listeners = list(self._listeners)
+        for callback in listeners:
             try:
                 callback(old_mode, new_mode)
             except Exception as e:
