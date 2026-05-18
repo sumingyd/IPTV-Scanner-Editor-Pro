@@ -1814,8 +1814,6 @@ class IPTVPlayer(QMainWindow):
             logger.warning("_load_visible_icons: _logo_cache_service未初始化，跳过台标加载")
             return
 
-        logger.info(f"_load_visible_icons: 开始加载, list_widget项数={list_widget.count()}, channels数={len(channels)}")
-
         viewport_rect = list_widget.viewport().rect()
         top_index = list_widget.indexAt(viewport_rect.topLeft())
         bottom_index = list_widget.indexAt(viewport_rect.bottomLeft())
@@ -1826,8 +1824,11 @@ class IPTVPlayer(QMainWindow):
         last_visible = min(list_widget.count() - 1, last_visible + 3)
 
         is_grid = list_widget.viewMode() == QListWidget.ViewMode.IconMode
+
+        logger.info(f"_load_visible_icons: 项数={list_widget.count()}, channels={len(channels)}, visible={first_visible}-{last_visible}, is_grid={is_grid}")
         need_capture = []
         queue_items = []
+        diag = {'no_widget': 0, 'no_label': 0, 'no_url': 0, 'cached': 0, 'fetch': 0}
 
         for i in range(first_visible, last_visible + 1):
             item = list_widget.item(i)
@@ -1837,7 +1838,7 @@ class IPTVPlayer(QMainWindow):
             if channel_idx is None or channel_idx >= len(channels):
                 continue
             channel = channels[channel_idx]
-            logo_url = channel.get('logo', '').strip('`"\'')
+            logo_url = channel.get('logo', '').strip('`' + '"' + '\'')
 
             if is_grid:
                 if not item.icon().isNull():
@@ -1859,19 +1860,27 @@ class IPTVPlayer(QMainWindow):
             else:
                 item_widget = list_widget.itemWidget(item)
                 if not item_widget:
+                    diag['no_widget'] += 1
                     continue
                 logo_label = item_widget.findChild(QtWidgets.QLabel, "channel_logo_label")
                 if not logo_label:
+                    diag['no_label'] += 1
                     continue
                 if logo_label.pixmap() and not logo_label.pixmap().isNull():
                     continue
                 if logo_url:
                     cached = self._logo_cache_service.get(logo_url)
                     if cached:
+                        diag['cached'] += 1
                         queue_items.append(('list_logo', item, logo_label, cached))
                     else:
+                        diag['fetch'] += 1
                         self._logo_cache_service.fetch_async(logo_url)
+                else:
+                    diag['no_url'] += 1
 
+        if diag['no_widget'] or diag['no_label'] or diag['no_url'] or diag['cached'] or diag['fetch']:
+            logger.info(f"_load_visible_icons诊断: {diag}, queue={len(queue_items)}")
         self._icon_load_queue.extend(queue_items)
         if self._icon_load_queue and not self._icon_load_timer.isActive():
             self._icon_load_timer.start()
