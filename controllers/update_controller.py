@@ -4,7 +4,7 @@
 """
 
 import asyncio
-from PyQt6.QtCore import QThread, pyqtSignal, QMetaObject, Qt
+from PyQt6.QtCore import QThread, pyqtSignal, QTimer
 from core.log_manager import global_logger as logger
 from controllers.main_window_protocol import MainWindowProtocol
 
@@ -141,7 +141,7 @@ class UpdateController:
 
             self.window.status_bar.setStyleSheet(AppStyles.statusbar_error_style())
 
-            QMetaObject.invokeMethod(self.window, "_reset_statusbar_style", Qt.ConnectionType.QueuedConnection)
+            QTimer.singleShot(10000, self.window._reset_statusbar_style)
 
             logger.info(f"发现新版本: {latest_version} (当前版本: {current_version})")
 

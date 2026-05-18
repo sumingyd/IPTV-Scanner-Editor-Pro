@@ -2701,7 +2701,7 @@ class IPTVPlayer(QMainWindow):
     def on_play_state_changed(self, is_playing):
         if QThread.currentThread() != self.thread():
             self._pending_play_state = is_playing
-            QMetaObject.invokeMethod(self, "_do_handle_play_state_change", Qt.ConnectionType.QueuedConnection)
+            QTimer.singleShot(0, self._do_handle_play_state_change)
         else:
             self._handle_play_state_change(is_playing)
 
@@ -3606,14 +3606,14 @@ class IPTVPlayer(QMainWindow):
                     logger.error("节目单订阅内容解析失败")
                     if QThread.currentThread() != self.thread():
                         self._pending_status_bar_msg = self.language_manager.tr("epg_sub_parse_failed", "EPG subscription parse failed")
-                        QMetaObject.invokeMethod(self, "_do_show_status_bar_message", Qt.ConnectionType.QueuedConnection)
+                        QMetaObject.invokeMethod(self, "_do_show_status_bar_message", Qt.ConnectionType.UniqueConnection)
                     else:
                         self.status_bar_show_message(self.language_manager.tr("epg_sub_parse_failed", "EPG subscription parse failed"))
         except Exception as ex:
             logger.error(f"更新节目单订阅失败: {str(ex)}")
             if QThread.currentThread() != self.thread():
                 self._pending_status_bar_msg = f"{self.language_manager.tr('epg_sub_update_failed', 'Failed to update EPG subscription')}: {str(ex)}"
-                QMetaObject.invokeMethod(self, "_do_show_status_bar_message", Qt.ConnectionType.QueuedConnection)
+                QMetaObject.invokeMethod(self, "_do_show_status_bar_message", Qt.ConnectionType.UniqueConnection)
             else:
                 self.status_bar_show_message(f"{self.language_manager.tr('epg_sub_update_failed', 'Failed to update EPG subscription')}: {str(ex)}")
     
@@ -3688,9 +3688,9 @@ class IPTVPlayer(QMainWindow):
 
                     def _reload_playlist_and_refresh():
                         self._handle_playlist_subscription(True, active.get('url', ''), source_index)
-                        from PyQt6.QtCore import QMetaObject, Qt
+                        from PyQt6.QtCore import QTimer
                         if QThread.currentThread() != self.thread():
-                            QMetaObject.invokeMethod(self, "_do_on_playlist_updated_in_main_thread", Qt.ConnectionType.QueuedConnection)
+                            QTimer.singleShot(0, self._do_on_playlist_updated_in_main_thread)
                         else:
                             self._do_on_playlist_updated_in_main_thread()
 
@@ -3725,9 +3725,9 @@ class IPTVPlayer(QMainWindow):
                     if success:
                         app_state.update_epg_data(global_subscription_manager._epg_data)
                         
-                        from PyQt6.QtCore import QMetaObject, Qt
+                        from PyQt6.QtCore import QTimer
                         if QThread.currentThread() != self.thread():
-                            QMetaObject.invokeMethod(self, "_do_on_epg_success", Qt.ConnectionType.QueuedConnection)
+                            QTimer.singleShot(0, self._do_on_epg_success)
                         else:
                             self.epg_list_updated.emit()
                             self.status_bar_show_message(self.language_manager.tr("epg_loaded", "EPG data loaded successfully"))
@@ -4160,7 +4160,7 @@ class IPTVPlayer(QMainWindow):
     def _check_for_updates_async(self):
         """异步检查新版本"""
         if QThread.currentThread() != self.thread():
-            QMetaObject.invokeMethod(self, "_do_check_for_updates_async", Qt.ConnectionType.QueuedConnection)
+            QTimer.singleShot(0, self._do_check_for_updates_async)
             return
         self._do_check_for_updates_async()
 

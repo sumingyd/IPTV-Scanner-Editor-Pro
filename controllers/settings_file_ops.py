@@ -440,10 +440,7 @@ class SettingsFileOperations:
             try:
                 self.window._handle_playlist_subscription(True, active.get('url', ''), new_active_index)
                 if QThread.currentThread() != self.window.thread():
-                    QMetaObject.invokeMethod(
-                        self.window, "_do_on_playlist_updated_in_main_thread",
-                        Qt.ConnectionType.QueuedConnection
-                    )
+                    QTimer.singleShot(0, self.window._do_on_playlist_updated_in_main_thread)
                 else:
                     self.window._do_on_playlist_updated_in_main_thread()
             except Exception as e:
