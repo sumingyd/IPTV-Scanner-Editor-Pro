@@ -1,12 +1,13 @@
 import re
 import threading
+from collections import OrderedDict
 from core.log_manager import global_logger
 
 _MAX_CACHE_SIZE = 5000
 
 
 class EpgMatcher:
-    _smart_cache = {}
+    _smart_cache: OrderedDict = OrderedDict()
     _cache_lock = threading.Lock()
 
     @classmethod
@@ -17,6 +18,7 @@ class EpgMatcher:
         cache_key = (channel_name, tvg_id, tvg_name, comma_name)
         with cls._cache_lock:
             if cache_key in cls._smart_cache:
+                cls._smart_cache.move_to_end(cache_key)
                 return cls._smart_cache[cache_key]
 
         candidates = []
@@ -58,9 +60,7 @@ class EpgMatcher:
 
         with cls._cache_lock:
             if len(cls._smart_cache) >= _MAX_CACHE_SIZE:
-                keys = list(cls._smart_cache.keys())
-                for k in keys[:len(keys) // 2]:
-                    del cls._smart_cache[k]
+                cls._smart_cache.popitem(last=False)
             cls._smart_cache[cache_key] = result
 
         return result

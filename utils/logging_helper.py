@@ -21,6 +21,7 @@ class LoggingHelper(Singleton):
 
         self._logged_patterns: Dict[str, float] = {}
         self._lock = threading.Lock()
+        self._max_pattern_cache = 1000
         self._level_mapping = {
             'config_error': 'error',
             'network_error': 'error',
@@ -68,6 +69,10 @@ class LoggingHelper(Singleton):
                 last_time = self._logged_patterns.get(pattern_key, 0)
                 if current_time - last_time < self._suppression_threshold:
                     return
+                if len(self._logged_patterns) >= self._max_pattern_cache:
+                    oldest_keys = sorted(self._logged_patterns, key=self._logged_patterns.get)[:len(self._logged_patterns) // 2]
+                    for k in oldest_keys:
+                        del self._logged_patterns[k]
                 self._logged_patterns[pattern_key] = current_time
 
         # 根据级别记录日志
