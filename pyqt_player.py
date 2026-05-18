@@ -1807,6 +1807,12 @@ class IPTVPlayer(QMainWindow):
             self._icon_load_timer.setInterval(16)
             self._icon_load_timer.timeout.connect(self._process_icon_load_batch)
 
+        if not hasattr(self, '_logo_cache_service') or not self._logo_cache_service:
+            logger.warning("_load_visible_icons: _logo_cache_service未初始化，跳过台标加载")
+            return
+
+        logger.info(f"_load_visible_icons: 开始加载, list_widget项数={list_widget.count()}, channels数={len(channels)}")
+
         viewport_rect = list_widget.viewport().rect()
         top_index = list_widget.indexAt(viewport_rect.topLeft())
         bottom_index = list_widget.indexAt(viewport_rect.bottomLeft())
@@ -3527,14 +3533,21 @@ class IPTVPlayer(QMainWindow):
             logger.info(f"_do_on_playlist_updated_in_main_thread: 开始更新UI, CHANNELS数量={app_state.channel_count}")
             if hasattr(self, 'playlist_tab'):
                 self.playlist_tab.setCurrentIndex(0)
-            self.populate_channel_list(source='subscription')
-            self._populate_epg_list()
+            try:
+                self.populate_channel_list(source='subscription')
+            except Exception as ex:
+                logger.error(f"populate_channel_list失败: {ex}", exc_info=True)
+            try:
+                self._populate_epg_list()
+            except Exception as ex:
+                logger.error(f"_populate_epg_list失败: {ex}", exc_info=True)
             if hasattr(self, 'update_floating_position'):
                 self.update_floating_position()
             self.status_bar.showMessage(message)
             logger.info("_do_on_playlist_updated_in_main_thread: UI更新完成")
         except Exception as ex:
-            logger.error(f"在主线程更新UI失败: {ex}")
+            import traceback
+            logger.error(f"在主线程更新UI失败: {ex}\n{traceback.format_exc()}")
 
     @pyqtSlot()
     def _do_show_status_message(self):
