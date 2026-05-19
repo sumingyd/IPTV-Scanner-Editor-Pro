@@ -2245,6 +2245,19 @@ class ScanChannelDialog(FloatingDialog):
             self.logger.warning(str(tr("no_channels_to_save", "No channels to save")))
             return
 
+        selected_indices = self._get_selected_indices()
+        save_selected = False
+        if selected_indices:
+            reply = QtWidgets.QMessageBox.question(
+                self,
+                tr("save_scope", "保存范围"),
+                tr("save_selected_or_all", "是否仅保存选中的{n}个频道？").format(n=len(selected_indices)),
+                QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No | QtWidgets.QMessageBox.StandardButton.Cancel,
+            )
+            if reply == QtWidgets.QMessageBox.StandardButton.Cancel:
+                return
+            save_selected = (reply == QtWidgets.QMessageBox.StandardButton.Yes)
+
         if fmt == 'm3u':
             filter_str = "M3U文件 (*.m3u);;M3U8文件 (*.m3u8);;所有文件 (*.*)"
             default_name = "scan_result.m3u"
@@ -2262,15 +2275,23 @@ class ScanChannelDialog(FloatingDialog):
             return
 
         try:
-            if fmt == 'm3u':
-                content = self.model.to_m3u()
+            if save_selected:
+                channels_to_save = [self.model.channels[i] for i in selected_indices if i < len(self.model.channels)]
+                if fmt == 'm3u':
+                    content = self.model._channels_to_m3u(channels_to_save) if hasattr(self.model, '_channels_to_m3u') else self.model.to_m3u()
+                else:
+                    content = self.model._channels_to_txt(channels_to_save) if hasattr(self.model, '_channels_to_txt') else self.model.to_txt()
             else:
-                content = self.model.to_txt()
+                if fmt == 'm3u':
+                    content = self.model.to_m3u()
+                else:
+                    content = self.model.to_txt()
 
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(content)
 
-            self.logger.info(f"已保存 {self.model.rowCount()} 个频道到 {file_path}")
+            count = len(selected_indices) if save_selected else self.model.rowCount()
+            self.logger.info(f"已保存 {count} 个频道到 {file_path}")
         except Exception as e:
             self.logger.error(f"保存失败: {e}")
 
