@@ -1106,54 +1106,82 @@ class ScanChannelDialog(FloatingDialog):
         )
         layout.addWidget(target_label)
 
+        preview_table = QtWidgets.QTableWidget(0, 2)
+        preview_table.setHorizontalHeaderLabels([tr("before", "Before"), tr("after", "After")])
+        preview_table.horizontalHeader().setStretchLastSection(True)
+        preview_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        preview_table.setMaximumHeight(200)
+        layout.addWidget(preview_table)
+
         btn_layout = QtWidgets.QHBoxLayout()
+        preview_btn = QtWidgets.QPushButton(tr("preview", "Preview"))
         apply_btn = QtWidgets.QPushButton(tr("apply", "Apply"))
         cancel_btn = QtWidgets.QPushButton(tr("cancel", "Cancel"))
+        btn_layout.addWidget(preview_btn)
         btn_layout.addStretch()
         btn_layout.addWidget(apply_btn)
         btn_layout.addWidget(cancel_btn)
         layout.addLayout(btn_layout)
 
-        def do_apply():
-            action_idx = radio_group.checkedId()
-            action_key = assign_options[action_idx][0] if 0 <= action_idx < len(assign_options) else assign_options[0][0]
-            only_empty = only_empty_check.isChecked()
-            indices = selected_indices if selected_indices else list(range(len(channels)))
-            count = 0
+        preview_ref = [None]
 
+        def _compute_assign(action_key, only_empty, indices):
+            results = []
             for i in indices:
                 if i >= len(channels):
                     continue
                 ch = channels[i]
-                update_col = None
-                update_val = None
-
+                src_val = None
+                dst_col = None
+                dst_val = None
                 if action_key == 'name2tvg_id':
                     if not (only_empty and ch.get('tvg_id')):
-                        update_col, update_val = 8, ch.get('name', '')
+                        src_val, dst_col, dst_val = ch.get('name', ''), 8, ch.get('name', '')
                 elif action_key == 'name2tvg_name':
                     if not (only_empty and ch.get('name')):
-                        update_col, update_val = 1, ch.get('name', '')
+                        src_val, dst_col, dst_val = ch.get('name', ''), 1, ch.get('name', '')
                 elif action_key == 'tvg_id2name':
                     if ch.get('tvg_id') and not (only_empty and ch.get('name')):
-                        update_col, update_val = 1, ch.get('tvg_id', '')
+                        src_val, dst_col, dst_val = ch.get('tvg_id', ''), 1, ch.get('tvg_id', '')
                 elif action_key == 'tvg_name2name':
                     tvg_name = ch.get('_all_tags', {}).get('tvg-name', '')
                     if tvg_name and not (only_empty and ch.get('name')):
-                        update_col, update_val = 1, tvg_name
+                        src_val, dst_col, dst_val = tvg_name, 1, tvg_name
                 elif action_key == 'tvg_id2tvg_name':
                     if ch.get('tvg_id') and not (only_empty and ch.get('name')):
-                        update_col, update_val = 1, ch.get('tvg_id', '')
+                        src_val, dst_col, dst_val = ch.get('tvg_id', ''), 1, ch.get('tvg_id', '')
                 elif action_key == 'tvg_name2tvg_id':
                     if ch.get('name') and not (only_empty and ch.get('tvg_id')):
-                        update_col, update_val = 8, ch.get('name', '')
+                        src_val, dst_col, dst_val = ch.get('name', ''), 8, ch.get('name', '')
+                if dst_col is not None and dst_val:
+                    results.append({'index': i, 'src': src_val, 'dst': dst_val, 'col': dst_col})
+            return results
 
-                if update_col is not None and update_val:
-                    self.model.setData(self.model.index(i, update_col), update_val)
-                    count += 1
+        def do_preview():
+            action_idx = radio_group.checkedId()
+            action_key = assign_options[action_idx][0] if 0 <= action_idx < len(assign_options) else assign_options[0][0]
+            only_empty = only_empty_check.isChecked()
+            indices = selected_indices if selected_indices else list(range(len(channels)))
+            results = _compute_assign(action_key, only_empty, indices)
+            preview_ref[0] = results
+            preview_table.setRowCount(min(len(results), 50))
+            for i, r in enumerate(results[:50]):
+                preview_table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(r.get('src', ''))))
+                preview_table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(r.get('dst', ''))))
 
+        def do_apply():
+            if preview_ref[0] is None:
+                do_preview()
+            results = preview_ref[0]
+            if not results:
+                dialog.accept()
+                return
+            for r in results:
+                self.model.setData(self.model.index(r['index'], r['col']), r['dst'])
+            self._invalidate_channels_cache()
             dialog.accept()
 
+        preview_btn.clicked.connect(do_preview)
         apply_btn.clicked.connect(do_apply)
         cancel_btn.clicked.connect(dialog.reject)
 
