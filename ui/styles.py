@@ -1343,7 +1343,6 @@ class AppStyles:
             QListWidget::item {{
                 padding: 2px 4px;
                 min-height: 26px;
-                max-height: 32px;
                 border: 1px solid transparent;
                 border-radius: 3px;
             }}
