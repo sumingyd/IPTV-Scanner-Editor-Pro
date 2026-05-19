@@ -214,7 +214,7 @@ class MpvPlayerController(QObject):
                 self.mpv_handle = None
 
     def _set_mpv_string(self, name, value):
-        _mpv_set_property_string(self.mpv_handle, name, str(value))
+        return _mpv_set_property_string(self.mpv_handle, name, str(value))
 
     def _extract_original_url(self, url):
         if '/rtp/' in url and 'fcc=' in url:
@@ -1079,18 +1079,32 @@ class MpvPlayerController(QObject):
     def set_track(self, track_type, track_id):
         try:
             if not self.mpv_handle:
-                return
+                return False
             prop = f'{track_type}-track' if track_type in ('audio', 'sub') else track_type
-            self._set_mpv_string(prop, str(track_id))
+            result = self._set_mpv_string(prop, str(track_id))
+            if result < 0:
+                self.logger.error(f"切换轨道失败: {prop}={track_id}, 错误码={result}")
+                return False
+            return True
         except Exception as e:
             self.logger.error(f"切换轨道失败: {e}")
+            return False
 
     def get_current_track(self, track_type='audio'):
         try:
             if not self.mpv_handle:
                 return None
             prop = f'{track_type}-track' if track_type in ('audio', 'sub') else track_type
-            return self._get_mpv_property_int(prop)
+            result = self._get_mpv_property_int(prop)
+            if result is not None:
+                return result
+            str_val = self._get_mpv_property_string(prop)
+            if str_val and str_val not in ('no', ''):
+                try:
+                    return int(str_val)
+                except ValueError:
+                    return None
+            return None
         except Exception:
             return None
 
