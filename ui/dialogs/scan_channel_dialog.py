@@ -177,7 +177,8 @@ class ScanChannelDialog(FloatingDialog):
         self.progress_indicator.setRange(0, 100)
         self.progress_indicator.setValue(0)
         self.progress_indicator.setTextVisible(True)
-        self.progress_indicator.setFixedWidth(120)
+        self.progress_indicator.setMinimumWidth(150)
+        self.progress_indicator.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         # 初始隐藏进度条，开始扫描后再显示
         self.progress_indicator.hide()
         
@@ -266,7 +267,6 @@ class ScanChannelDialog(FloatingDialog):
         status_layout = QtWidgets.QHBoxLayout()
         status_layout.setContentsMargins(0, 5, 0, 0)
         self.progress_indicator.setFixedHeight(24)
-        self.progress_indicator.setFixedWidth(120)
         status_layout.addWidget(self.progress_indicator)
         status_layout.addWidget(self.stats_label)
         status_layout.addStretch()
@@ -380,6 +380,7 @@ class ScanChannelDialog(FloatingDialog):
         tr = self.language_manager.tr
         user_agent_layout = QtWidgets.QHBoxLayout()
         user_agent_label = QtWidgets.QLabel("User-Agent:")
+        user_agent_label.setStyleSheet(AppStyles.small_label_style())
         self.user_agent_label = user_agent_label
         user_agent_layout.addWidget(user_agent_label)
         self.user_agent_input = QtWidgets.QLineEdit()
@@ -394,6 +395,7 @@ class ScanChannelDialog(FloatingDialog):
         tr = self.language_manager.tr
         referer_layout = QtWidgets.QHBoxLayout()
         referer_label = QtWidgets.QLabel("Referer:")
+        referer_label.setStyleSheet(AppStyles.small_label_style())
         self.referer_label = referer_label
         referer_layout.addWidget(referer_label)
         self.referer_input = QtWidgets.QLineEdit()
@@ -573,8 +575,9 @@ class ScanChannelDialog(FloatingDialog):
         # 扫描控制按钮
         self.btn_scan = QtWidgets.QPushButton(tr("full_scan", "Full Scan"))
         self.btn_scan.setStyleSheet(AppStyles.common_button_style())
-        self.btn_scan.setMinimumHeight(32)  # 减少按钮高度
+        self.btn_scan.setMinimumHeight(32)
         self.btn_scan.setAutoDefault(False)
+        self.btn_scan.setToolTip(tr("full_scan_tooltip", "扫描所有URL并验证有效性"))
 
         # 新增追加扫描按钮
         self.btn_append_scan = QtWidgets.QPushButton(tr("append_scan", "Append Scan"))
@@ -586,7 +589,8 @@ class ScanChannelDialog(FloatingDialog):
         # 新增直接生成列表按钮
         self.btn_generate = QtWidgets.QPushButton(tr("generate_list", "Generate List"))
         self.btn_generate.setStyleSheet(AppStyles.common_button_style())
-        self.btn_generate.setMinimumHeight(32)  # 减少按钮高度
+        self.btn_generate.setMinimumHeight(32)
+        self.btn_generate.setToolTip(tr("generate_list_tooltip", "仅生成URL列表不验证"))
 
         # 使用水平布局让按钮并排显示，自适应宽度
         button_layout = QtWidgets.QHBoxLayout()
@@ -636,16 +640,12 @@ class ScanChannelDialog(FloatingDialog):
         scan_settings_section.setSpacing(8)
 
         # User-Agent（简化标签）
-        ua_label = QtWidgets.QLabel("User-Agent:")
-        ua_label.setStyleSheet(AppStyles.small_label_style())
-        scan_settings_section.addWidget(ua_label)
+        scan_settings_section.addWidget(self.user_agent_label)
         self.user_agent_input.setFixedHeight(28)
         scan_settings_section.addWidget(self.user_agent_input)
 
         # Referer（简化标签）
-        ref_label = QtWidgets.QLabel("Referer:")
-        ref_label.setStyleSheet(AppStyles.small_label_style())
-        scan_settings_section.addWidget(ref_label)
+        scan_settings_section.addWidget(self.referer_label)
         self.referer_input.setFixedHeight(28)
         scan_settings_section.addWidget(self.referer_input)
 
@@ -2116,9 +2116,10 @@ class ScanChannelDialog(FloatingDialog):
         """处理验证完成事件"""
         self.progress_manager.complete_progress(self.language_manager.tr('validate_completed', '检测完成'))
         self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
-        if hasattr(self, 'channel_list'):
+        if hasattr(self, 'channel_list') and not getattr(self, '_has_resized_columns', False):
             header = self.channel_list.horizontalHeader()
             header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+            self._has_resized_columns = True
 
         # 智能重试：对检测为无效的频道进行重试验证
         if self.enable_retry_checkbox.isChecked():
@@ -2381,9 +2382,10 @@ class ScanChannelDialog(FloatingDialog):
 
         # 更新UI状态
 
-        if hasattr(self, 'channel_list'):
+        if hasattr(self, 'channel_list') and not getattr(self, '_has_resized_columns', False):
             header = self.channel_list.horizontalHeader()
             header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+            self._has_resized_columns = True
 
         # 检查是否需要重试扫描
         if not is_retry:
@@ -2544,10 +2546,10 @@ class ScanChannelDialog(FloatingDialog):
                 self.ip_range_input.setStyleSheet(AppStyles.url_combo_style())
             if hasattr(self, 'address_example_label'):
                 self.address_example_label.setStyleSheet(AppStyles.hint_label_style())
-            if hasattr(self, 'ua_label'):
-                self.ua_label.setStyleSheet(AppStyles.small_label_style())
-            if hasattr(self, 'ref_label'):
-                self.ref_label.setStyleSheet(AppStyles.small_label_style())
+            if hasattr(self, 'user_agent_label'):
+                self.user_agent_label.setStyleSheet(AppStyles.small_label_style())
+            if hasattr(self, 'referer_label'):
+                self.referer_label.setStyleSheet(AppStyles.small_label_style())
         except Exception as e:
             if hasattr(self, 'logger'):
                 self.logger.error(f"重新应用扫描窗口样式失败: {e}")
@@ -2836,10 +2838,3 @@ class ScanChannelDialog(FloatingDialog):
                 self.logger.info("结束重试扫描")
             # 使用 clear_failed_channels 代替不存在的 reset_retry_scan
             self.scan_state_manager.clear_failed_channels(self.retry_id)
-
-
-class HeaderDelegate(QtWidgets.QHeaderView):
-    """自定义表头委托"""
-    def __init__(self, parent=None, model=None):
-        super().__init__(QtCore.Qt.Orientation.Horizontal, parent)
-        self.model = model
