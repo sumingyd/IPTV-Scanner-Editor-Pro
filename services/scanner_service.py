@@ -483,6 +483,7 @@ class ScannerController(QObject):
 
         from services.mpv_validator_service import MpvStreamValidator
         MpvStreamValidator.set_max_concurrent(thread_count)
+        MpvStreamValidator.reset_terminating()
         if user_agent is not None:
             MpvStreamValidator.set_user_agent(user_agent)
         if referer is not None:
@@ -567,6 +568,7 @@ class ScannerController(QObject):
 
         from services.mpv_validator_service import MpvStreamValidator
         MpvStreamValidator.set_max_concurrent(thread_count)
+        MpvStreamValidator.reset_terminating()
         if user_agent is not None:
             MpvStreamValidator.set_user_agent(user_agent)
         if referer is not None:
