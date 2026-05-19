@@ -1164,6 +1164,7 @@ class IPTVPlayer(QMainWindow):
     def _create_control_row(self):
         """创建控制行"""
         logger.debug("_create_control_row: 开始")
+        tr = self.language_manager.tr
         
         # 第三行：播放控制 + 节目进度条
         self.control_row = QHBoxLayout()
