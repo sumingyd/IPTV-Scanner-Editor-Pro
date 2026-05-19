@@ -60,7 +60,8 @@ class EventHandler:
                         self.window.mouseDoubleClickEvent(event)
                         return True
 
-        if not getattr(self.window, 'pip_mode', False) and not getattr(self.window, 'is_fullscreen', False) and not getattr(self.window, '_floating_hidden', False):
+        manually_hidden = getattr(self.window, 'panel_vis', None) and self.window.panel_vis.manually_hidden
+        if not getattr(self.window, 'pip_mode', False) and not getattr(self.window, 'is_fullscreen', False) and not manually_hidden:
             if event_type == QEvent.Type.Leave:
                 if obj is self.window or obj is getattr(self.window, 'video_widget', None) or obj is getattr(self.window, 'central_widget', None):
                     if hasattr(self.window, '_delayed_hide_floating_panels'):
