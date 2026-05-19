@@ -65,11 +65,29 @@ class EventHandler:
                 if event_type == QEvent.Type.Leave:
                     if hasattr(self.window, '_delayed_hide_floating_panels'):
                         from PyQt6.QtCore import QTimer
-                        QTimer.singleShot(50, self.window._delayed_hide_floating_panels)
+                        QTimer.singleShot(200, self.window._delayed_hide_floating_panels)
                 elif event_type == QEvent.Type.Enter:
                     if hasattr(self.window, '_show_floating_panels_on_enter'):
                         self.window._show_floating_panels_on_enter()
+            elif event_type == QEvent.Type.Enter:
+                for panel_name in ('epg_panel', 'playlist_panel', 'floating_panel'):
+                    panel = getattr(self.window, panel_name, None)
+                    if panel and obj is panel:
+                        if hasattr(self.window, '_show_floating_panels_on_enter'):
+                            self.window._show_floating_panels_on_enter()
+                        break
 
+        return False
+
+    def _is_input_widget_focused(self) -> bool:
+        """判断当前焦点是否在输入控件上（编辑框、文本框等）"""
+        from PyQt6.QtWidgets import QApplication, QLineEdit, QTextEdit, QComboBox, QSpinBox
+        focus_widget = QApplication.focusWidget()
+        if focus_widget:
+            if isinstance(focus_widget, (QLineEdit, QTextEdit, QSpinBox)):
+                return True
+            if isinstance(focus_widget, QComboBox) and focus_widget.isEditable():
+                return True
         return False
 
     def _is_handled_shortcut(self, key, modifiers) -> bool:
@@ -85,6 +103,8 @@ class EventHandler:
                            Qt.Key.Key_P)
             main_only_keys = (Qt.Key.Key_Up, Qt.Key.Key_Down,
                               Qt.Key.Key_Left, Qt.Key.Key_Right)
+            if key == Qt.Key.Key_Backspace and self._is_input_widget_focused():
+                return False
             if key in global_keys:
                 return True
             if key in main_only_keys and self._is_main_window_focused():
@@ -165,6 +185,8 @@ class EventHandler:
                         w.toggle_fullscreen()
                     return True
                 elif key == Qt.Key.Key_Backspace:
+                    if self._is_input_widget_focused():
+                        return False
                     if hasattr(w, 'switch_to_previous_channel'):
                         w.switch_to_previous_channel()
                     return True
