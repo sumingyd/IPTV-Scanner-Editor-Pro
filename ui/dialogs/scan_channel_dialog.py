@@ -244,6 +244,15 @@ class ScanChannelDialog(FloatingDialog):
         list_header.addWidget(self.list_title)
         list_header.addStretch()
 
+        # 搜索过滤框
+        self.search_input = QtWidgets.QLineEdit()
+        self.search_input.setPlaceholderText(tr("search_filter_hint", "搜索频道名/URL/分组..."))
+        self.search_input.setFixedHeight(28)
+        self.search_input.setFixedWidth(180)
+        self.search_input.setStyleSheet(AppStyles.common_line_edit_style())
+        self.search_input.setClearButtonEnabled(True)
+        list_header.addWidget(self.search_input)
+
         # 将工具栏按钮移到标题栏
         self._setup_list_toolbar(list_header)
         center_layout.addLayout(list_header)
@@ -691,6 +700,13 @@ class ScanChannelDialog(FloatingDialog):
         # 关键：始终将模型设置到视图中，确保连接正确
         self.channel_list.setModel(self.model)
 
+        # 设置搜索过滤代理模型
+        self._filter_proxy = QtCore.QSortFilterProxyModel(self)
+        self._filter_proxy.setSourceModel(self.model)
+        self._filter_proxy.setFilterCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
+        self._filter_proxy.setFilterKeyColumn(-1)
+        self.channel_list.setModel(self._filter_proxy)
+
         # 使用与主窗口一致的列表样式
         self.channel_list.setStyleSheet(AppStyles.list_style())
 
@@ -839,7 +855,11 @@ class ScanChannelDialog(FloatingDialog):
     def _get_selected_indices(self) -> list:
         indices = []
         for index in self.channel_list.selectionModel().selectedRows():
-            indices.append(index.row())
+            if hasattr(self, '_filter_proxy'):
+                source_row = self._filter_proxy.mapToSource(index).row()
+            else:
+                source_row = index.row()
+            indices.append(source_row)
         return sorted(indices)
 
     def _show_auto_classify_dialog(self):
@@ -1337,10 +1357,31 @@ class ScanChannelDialog(FloatingDialog):
         if not indexes:
             return
 
-        row = indexes[0].row()
-        channel = self.model.get_channel(row)
+        # 通过代理模型映射到源模型行号
+        if hasattr(self, '_filter_proxy'):
+            source_row = self._filter_proxy.mapToSource(indexes[0]).row()
+        else:
+            source_row = indexes[0].row()
+
+        selected_rows = self.channel_list.selectionModel().selectedRows()
+        if len(selected_rows) > 1:
+            tr = self.language_manager.tr
+            self.edit_name.setText(tr("multi_selected", f"已选中 {len(selected_rows)} 个频道"))
+            self.edit_name.setReadOnly(True)
+            self.edit_group.setReadOnly(True)
+            self.edit_url.setReadOnly(True)
+            self.edit_tvg_id.setReadOnly(True)
+            self.edit_logo.setReadOnly(True)
+            return
+
+        self.edit_name.setReadOnly(False)
+        self.edit_group.setReadOnly(False)
+        self.edit_url.setReadOnly(False)
+        self.edit_tvg_id.setReadOnly(False)
+        self.edit_logo.setReadOnly(False)
+
+        channel = self.model.get_channel(source_row)
         if channel:
-            # 填充编辑区域
             self.edit_name.setText(channel.get('name', ''))
             self.edit_group.setText(channel.get('group', ''))
             self.edit_url.setText(channel.get('url', ''))
@@ -1355,7 +1396,11 @@ class ScanChannelDialog(FloatingDialog):
         if not indexes:
             return
 
-        row = indexes[0].row()
+        if hasattr(self, '_filter_proxy'):
+            source_index = self._filter_proxy.mapToSource(indexes[0])
+            row = source_index.row()
+        else:
+            row = indexes[0].row()
         channel_info = {
             'name': self.edit_name.text(),
             'group': self.edit_group.text(),
@@ -1724,6 +1769,10 @@ class ScanChannelDialog(FloatingDialog):
         safe_connect_button(self.btn_save_m3u, self._on_save_m3u_clicked)
         safe_connect_button(self.btn_save_txt, self._on_save_txt_clicked)
 
+        # 搜索过滤
+        if hasattr(self, 'search_input'):
+            self.search_input.textChanged.connect(self._on_search_filter_changed)
+
         if not hasattr(self, 'scanner') or self.scanner is None:
             return
 
@@ -1735,6 +1784,11 @@ class ScanChannelDialog(FloatingDialog):
             self.scanner.stats_updated.connect(self._update_stats_display)
         except Exception as e:
             log_ui_error(f"连接扫描器信号失败: {e}")
+
+    def _on_search_filter_changed(self, text):
+        """搜索过滤：按频道名/URL/分组实时过滤"""
+        if hasattr(self, '_filter_proxy'):
+            self._filter_proxy.setFilterFixedString(text.strip())
 
     def _on_scan_clicked(self):
         """处理扫描按钮点击事件"""
