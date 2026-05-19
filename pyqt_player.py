@@ -1183,6 +1183,24 @@ class IPTVPlayer(QMainWindow):
         self.stop_button.setStyleSheet(AppStyles.player_button_style())
         self.stop_button.clicked.connect(self.stop_playback)
         self.control_row.addWidget(self.stop_button)
+
+        # 上一频道按钮
+        self.prev_ch_button = QToolButton()
+        self.prev_ch_button.setText("⏮")
+        self.prev_ch_button.setFixedSize(28, 26)
+        self.prev_ch_button.setStyleSheet(AppStyles.player_button_style())
+        self.prev_ch_button.clicked.connect(lambda: self.event_handler._switch_channel(-1))
+        self.prev_ch_button.setToolTip(tr("panel_prev_ch", "上一频道"))
+        self.control_row.addWidget(self.prev_ch_button)
+
+        # 下一频道按钮
+        self.next_ch_button = QToolButton()
+        self.next_ch_button.setText("⏭")
+        self.next_ch_button.setFixedSize(28, 26)
+        self.next_ch_button.setStyleSheet(AppStyles.player_button_style())
+        self.next_ch_button.clicked.connect(lambda: self.event_handler._switch_channel(1))
+        self.next_ch_button.setToolTip(tr("panel_next_ch", "下一频道"))
+        self.control_row.addWidget(self.next_ch_button)
         
         self.control_row.addStretch()
         
@@ -1201,11 +1219,11 @@ class IPTVPlayer(QMainWindow):
         self.program_progress.setValue(0)
         self.program_progress.setSingleStep(1)
         self.program_progress.setPageStep(30)
-        self.program_progress.setFixedWidth(450)
+        self.program_progress.setMinimumWidth(200)
         self.program_progress.setStyleSheet(AppStyles.player_slider_style())
         self.program_progress.sliderReleased.connect(self.on_progress_slider_released)
         self._progress_total_seconds = 3600
-        self.progress_group.addWidget(self.program_progress)
+        self.progress_group.addWidget(self.program_progress, 1)
         
         # 当前节目结束时间
         self.progress_end = QLabel("--:--")
@@ -1235,7 +1253,7 @@ class IPTVPlayer(QMainWindow):
         
         # 7. 退出回看按钮（初始隐藏）
         self.exit_catchup_button = QToolButton()
-        self.exit_catchup_button.setText("⏪ 退出回看")
+        self.exit_catchup_button.setText("⏪ " + tr("exit_catchup", "退出回看"))
         self.exit_catchup_button.setFixedSize(100, 26)
         self.exit_catchup_button.setStyleSheet(AppStyles.exit_catchup_button_style())
         self.exit_catchup_button.clicked.connect(self.exit_catchup)
@@ -1260,7 +1278,7 @@ class IPTVPlayer(QMainWindow):
 
         # 7.7 音轨切换按钮
         self.audio_track_button = QToolButton()
-        self.audio_track_button.setText("🔊")
+        self.audio_track_button.setText("🎧")
         self.audio_track_button.setToolTip(self.language_manager.tr("panel_audio_track", "Audio Track"))
         self.audio_track_button.setFixedSize(36, 26)
         self.audio_track_button.setStyleSheet(AppStyles.player_button_style())
@@ -1275,6 +1293,15 @@ class IPTVPlayer(QMainWindow):
         self.sub_track_button.clicked.connect(self.media_ctrl.show_sub_track_menu)
         self.control_row.addWidget(self.sub_track_button)
         
+        # PiP按钮
+        self.pip_button = QToolButton()
+        self.pip_button.setText("📌")
+        self.pip_button.setFixedSize(28, 26)
+        self.pip_button.setStyleSheet(AppStyles.player_button_style())
+        self.pip_button.clicked.connect(self.pip_ctrl.toggle)
+        self.pip_button.setToolTip(tr("panel_pip", "画中画"))
+        self.control_row.addWidget(self.pip_button)
+
         # 8. 全屏图标
         self.fullscreen_button = QToolButton()
         self.fullscreen_button.setText("⛶")
