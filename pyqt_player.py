@@ -341,6 +341,8 @@ class IPTVPlayer(QMainWindow):
         self.pip_ctrl = PipController(self)
         self.media_ctrl = MediaController(self)
         self.update_ctrl = UpdateController(self)
+        from controllers.multi_screen_controller import MultiScreenController
+        self.multi_screen_ctrl = MultiScreenController(self)
         logger.debug("业务控制器初始化完成")
 
     def _init_basic_ui(self):
@@ -861,12 +863,14 @@ class IPTVPlayer(QMainWindow):
         sub_toolbar_layout.addStretch()
         sub_layout.addWidget(sub_toolbar)
 
-        self.sub_channel_list = QListWidget()
+        from ui.multi_screen_widget import DraggableChannelListWidget
+        self.sub_channel_list = DraggableChannelListWidget()
         self.sub_channel_list.setStyleSheet(AppStyles.player_list_style())
         self.sub_channel_list.setSpacing(2)
         self.sub_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.sub_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.sub_channel_list.itemClicked.connect(self.select_channel)
+        self.sub_channel_list.itemDoubleClicked.connect(self._on_channel_double_clicked)
         sub_layout.addWidget(self.sub_channel_list, 1)
 
         self.sub_empty_label = QLabel(tr("no_channels", "No channels"))
@@ -907,12 +911,13 @@ class IPTVPlayer(QMainWindow):
         local_toolbar_layout.addStretch()
         local_layout.addWidget(local_toolbar)
 
-        self.local_channel_list = QListWidget()
+        self.local_channel_list = DraggableChannelListWidget()
         self.local_channel_list.setStyleSheet(AppStyles.player_list_style())
         self.local_channel_list.setSpacing(2)
         self.local_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.local_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.local_channel_list.itemClicked.connect(self.select_channel)
+        self.local_channel_list.itemDoubleClicked.connect(self._on_channel_double_clicked)
         local_layout.addWidget(self.local_channel_list, 1)
 
         self.local_empty_label = QLabel(tr("no_channels", "No channels"))
@@ -1567,6 +1572,21 @@ class IPTVPlayer(QMainWindow):
             pip_action.triggered.connect(self.pip_ctrl.toggle)
             view_menu.addAction(pip_action)
             self._pip_menu_action = pip_action
+
+            view_menu.addSeparator()
+            multi_screen_menu = view_menu.addMenu(tr("menu_multi_screen", "Multi Screen"))
+
+            ms_4 = QAction(tr("menu_multi_2x2", "2×2 (4 Screens)"), self)
+            ms_4.triggered.connect(lambda: self.multi_screen_ctrl.toggle(4))
+            multi_screen_menu.addAction(ms_4)
+
+            ms_9 = QAction(tr("menu_multi_3x3", "3×3 (9 Screens)"), self)
+            ms_9.triggered.connect(lambda: self.multi_screen_ctrl.toggle(9))
+            multi_screen_menu.addAction(ms_9)
+
+            ms_exit = QAction(tr("menu_multi_exit", "Exit Multi Screen"), self)
+            ms_exit.triggered.connect(self.multi_screen_ctrl.exit_multi_screen)
+            multi_screen_menu.addAction(ms_exit)
 
             refresh = QAction(tr("menu_refresh", "Refresh\tF5"), self)
             refresh.triggered.connect(self.refresh_ui)
@@ -2378,6 +2398,25 @@ class IPTVPlayer(QMainWindow):
         except Exception as e:
             logger.error(f"select_channel: 选择频道失败: {e}", exc_info=True)
     
+    def _on_channel_double_clicked(self, item):
+        """双击频道：多画面模式填入空画面，普通模式播放"""
+        if not item:
+            return
+        idx = item.data(Qt.ItemDataRole.UserRole)
+        sender = self.sender()
+        if sender is self.local_channel_list:
+            channels = self._local_channels
+        else:
+            channels = self._sub_channels
+        if isinstance(idx, int) and 0 <= idx < len(channels):
+            channel = channels[idx]
+        else:
+            return
+        if hasattr(self, 'multi_screen_ctrl') and self.multi_screen_ctrl.is_active:
+            self.multi_screen_ctrl.play_in_empty_cell(channel)
+        else:
+            self.select_channel(item)
+
     def _get_display_channel_name(self, channel):
         """获取用于显示的频道名称（委托给通用工具函数）"""
         from utils.general_utils import get_display_channel_name
