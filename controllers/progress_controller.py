@@ -207,6 +207,12 @@ class ProgressController:
         seconds_from_hour = effective_time.minute * 60 + effective_time.second
         w._set_progress_value(seconds_from_hour)
 
+        if hasattr(w, 'remain_label') and w.remain_label.isVisible():
+            current_text = w.remain_label.text()
+            playing_label = w.language_manager.tr("playing_label", "Playing...")
+            if current_text != playing_label:
+                w.remain_label.setText(playing_label)
+
     def _format_vod_time(self, current_seconds, total_seconds):
         w = self.window
         m_s, s_s = divmod(current_seconds, 60)
