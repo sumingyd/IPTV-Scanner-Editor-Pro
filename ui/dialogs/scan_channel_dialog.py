@@ -1750,7 +1750,7 @@ class ScanChannelDialog(FloatingDialog):
             url = self.ip_range_input.currentText()
             if not url.strip():
                 log_ui_warning("请输入扫描地址")
-                # 扫描频道窗口没有状态栏，直接在日志中记录
+                self._show_input_warning(self.ip_range_input, self.language_manager.tr("please_input_url", "请输入扫描地址"))
                 return
 
             QtCore.QTimer.singleShot(0, lambda: self._start_scan_delayed(url, clear_list=True))
@@ -1768,7 +1768,7 @@ class ScanChannelDialog(FloatingDialog):
             url = self.ip_range_input.currentText()
             if not url.strip():
                 log_ui_warning("请输入扫描地址")
-                # 扫描频道窗口没有状态栏，直接在日志中记录
+                self._show_input_warning(self.ip_range_input, self.language_manager.tr("please_input_url", "请输入扫描地址"))
                 return
 
             QtCore.QTimer.singleShot(0, lambda: self._start_scan_delayed(url, clear_list=False))
@@ -1817,6 +1817,17 @@ class ScanChannelDialog(FloatingDialog):
             button.setText(self.language_manager.tr(translation_key, default_text))
         else:
             button.setText(default_text)
+
+    def _show_input_warning(self, input_widget, message):
+        """在输入框旁显示临时警告提示"""
+        original_style = input_widget.styleSheet()
+        input_widget.setStyleSheet(original_style + "; border: 2px solid #e74c3c;")
+        self.stats_label.setText(message)
+        self.stats_label.setStyleSheet("color: #e74c3c; font-weight: bold;")
+        QtCore.QTimer.singleShot(2000, lambda: (
+            input_widget.setStyleSheet(original_style),
+            self.stats_label.setStyleSheet(AppStyles.common_label_style())
+        ))
 
     def _set_scan_button_text(self, translation_key, default_text):
         """设置扫描按钮文本"""
@@ -1984,6 +1995,7 @@ class ScanChannelDialog(FloatingDialog):
         url = self.ip_range_input.currentText()
         if not url.strip():
             self.logger.warning("请输入生成地址")
+            self._show_input_warning(self.ip_range_input, self.language_manager.tr("please_input_url", "请输入生成地址"))
             return
 
         self._add_url_to_history(url)
