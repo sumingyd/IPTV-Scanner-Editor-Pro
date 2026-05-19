@@ -168,6 +168,7 @@ class MediaController:
             act = menu.addAction(tr('ctx_no_audio_track', 'No Audio Tracks'))
             act.setEnabled(False)
         else:
+            actions = []
             for t in tracks:
                 label = t.get('title') or t.get('lang') or f"Track {t['id']}"
                 if t.get('lang') and t.get('title') and t['lang'] != t['title']:
@@ -175,7 +176,29 @@ class MediaController:
                 act = menu.addAction(label)
                 act.setCheckable(True)
                 act.setChecked(t['id'] == current_id)
-                act.triggered.connect(lambda checked, tid=t['id']: pc.set_track('audio', tid))
+                actions.append((act, t['id'], label))
+            for act, tid, label in actions:
+                act.triggered.connect(
+                    lambda checked, tid=tid, label=label, actions=actions: self._on_audio_track_selected(tid, label, actions)
+                )
+
+    def _on_audio_track_selected(self, track_id, label, actions):
+        pc = self.window.player_controller
+        if not pc:
+            return
+        success = pc.set_track('audio', track_id)
+        if success:
+            for act, tid, _ in actions:
+                act.setChecked(tid == track_id)
+            tr = self.window.language_manager.tr
+            osd_text = tr('osd_audio_track', 'Audio: {}').format(label)
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(osd_text)
+        else:
+            tr = self.window.language_manager.tr
+            osd_text = tr('osd_audio_track_failed', 'Audio track switch failed')
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(osd_text)
 
     def _populate_subtitle_menu(self, menu):
         menu.clear()
@@ -187,10 +210,11 @@ class MediaController:
             return
         current_id = pc.get_current_track('sub')
         tracks = pc.get_track_list('sub')
+        sub_actions = []
         no_sub = menu.addAction(tr("ctx_no_subtitle", "No Subtitle"))
         no_sub.setCheckable(True)
         no_sub.setChecked(current_id is None or current_id == 0)
-        no_sub.triggered.connect(lambda: pc.set_track('sub', 0))
+        sub_actions.append((no_sub, 0, tr("ctx_no_subtitle", "No Subtitle")))
         if tracks:
             menu.addSeparator()
             for t in tracks:
@@ -200,9 +224,31 @@ class MediaController:
                 act = menu.addAction(label)
                 act.setCheckable(True)
                 act.setChecked(t['id'] == current_id)
-                act.triggered.connect(lambda checked, tid=t['id']: pc.set_track('sub', tid))
+                sub_actions.append((act, t['id'], label))
+        for act, tid, label in sub_actions:
+            act.triggered.connect(
+                lambda checked, tid=tid, label=label, actions=sub_actions: self._on_sub_track_selected(tid, label, actions)
+            )
         menu.addSeparator()
         menu.addAction(tr("ctx_load_subtitle", "Load Subtitle..."), lambda: self._load_external_subtitle())
+
+    def _on_sub_track_selected(self, track_id, label, actions):
+        pc = self.window.player_controller
+        if not pc:
+            return
+        success = pc.set_track('sub', track_id)
+        if success:
+            for act, tid, _ in actions:
+                act.setChecked(tid == track_id)
+            tr = self.window.language_manager.tr
+            osd_text = tr('osd_subtitle_track', 'Subtitle: {}').format(label)
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(osd_text)
+        else:
+            tr = self.window.language_manager.tr
+            osd_text = tr('osd_subtitle_track_failed', 'Subtitle track switch failed')
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(osd_text)
 
     def show_audio_track_menu(self):
         pc = self.window.player_controller
