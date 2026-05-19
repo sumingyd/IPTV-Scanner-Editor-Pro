@@ -484,8 +484,7 @@ class EventHandler:
                 setattr(self.window, panel_name, None)
 
         # 5. 停止所有定时器
-        timer_attrs = ['update_timer', 'resize_timer', '_source_timeout_timer',
-                       '_epg_update_timer']
+        timer_attrs = ['update_timer', '_source_timeout_timer', '_auto_hide_timer']
         for attr in timer_attrs:
             timer = getattr(self.window, attr, None)
             if timer:
@@ -493,37 +492,64 @@ class EventHandler:
                     timer.stop()
                 except Exception:
                     pass
+        if hasattr(self, '_position_timer'):
+            try:
+                self._position_timer.stop()
+            except Exception:
+                pass
 
-        # 5.5 等待后台工作线程完成
-        if hasattr(self.window, 'subscription_ctrl'):
-            for worker in self.window.subscription_ctrl._workers:
-                if worker.isRunning():
-                    try:
-                        worker.quit()
-                        worker.wait(2000)
-                    except Exception:
-                        pass
-
+        # 5.5 停止缩略图服务
         if hasattr(self.window, '_thumbnail_service'):
             try:
                 self.window._thumbnail_service.stop()
             except Exception:
                 pass
 
-        # 6. 强制退出应用（使用sys.exit确保进程完全终止）
+        # 5.6 停止台标缓存服务
+        logo_svc = getattr(self.window, '_logo_cache_service', None)
+        if logo_svc:
+            try:
+                warmup_timer = getattr(logo_svc, '_warmup_timer', None)
+                if warmup_timer:
+                    warmup_timer.stop()
+            except Exception:
+                pass
+
+        # 5.7 停止DNS预取/连接预热
+        for svc_name in ('_dns_prefetcher', '_connection_preheater'):
+            svc = getattr(self.window, svc_name, None)
+            if svc and hasattr(svc, 'stop'):
+                try:
+                    svc.stop()
+                except Exception:
+                    pass
+
+        # 5.8 执行注册的资源清理器
+        try:
+            from utils.resource_cleaner import cleanup_all
+            cleanup_all()
+        except Exception:
+            pass
+
+        # 6. 等待后台工作线程完成
+        if hasattr(self.window, 'subscription_ctrl'):
+            for worker in self.window.subscription_ctrl._workers:
+                if worker.isRunning():
+                    try:
+                        worker.requestInterruption()
+                        if not worker.wait(3000):
+                            logger.warning(f"工作线程 {worker} 未在3秒内退出，将随进程终止")
+                    except Exception:
+                        pass
+
+        # 7. 退出应用
         event.accept()
 
-        import sys
         from PyQt6.QtWidgets import QApplication
         try:
             QApplication.instance().quit()
         except Exception:
             pass
-
-        import time
-        time.sleep(0.2)  # 给Qt一点时间清理
-
-        sys.exit(0)
 
     def register_shortcut(self, key_sequence: str, callback):
         """注册自定义快捷键"""
