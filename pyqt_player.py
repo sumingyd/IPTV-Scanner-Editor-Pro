@@ -784,7 +784,7 @@ class IPTVPlayer(QMainWindow):
         self.epg_content = QListWidget()
         self.epg_content.setStyleSheet(AppStyles.player_list_style())
         self.epg_content.setSpacing(8)
-        self.epg_content.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.epg_content.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.epg_content.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         from controllers.epg_controller import EPGItemDelegate
         self.epg_content.setItemDelegate(EPGItemDelegate(self.epg_content))
@@ -841,6 +841,13 @@ class IPTVPlayer(QMainWindow):
         self.sub_group_combo.currentTextChanged.connect(self.on_sub_group_changed)
         sub_layout.addWidget(self.sub_group_combo)
 
+        self.sub_search_input = QtWidgets.QLineEdit()
+        self.sub_search_input.setPlaceholderText(tr("search_channel", "搜索频道..."))
+        self.sub_search_input.setClearButtonEnabled(True)
+        self.sub_search_input.setStyleSheet(self._search_input_style())
+        self.sub_search_input.textChanged.connect(self._on_sub_search_changed)
+        sub_layout.addWidget(self.sub_search_input)
+
         sub_toolbar = QWidget()
         sub_toolbar_layout = QHBoxLayout(sub_toolbar)
         sub_toolbar_layout.setContentsMargins(4, 2, 4, 2)
@@ -867,7 +874,7 @@ class IPTVPlayer(QMainWindow):
         self.sub_channel_list = DraggableChannelListWidget()
         self.sub_channel_list.setStyleSheet(AppStyles.player_list_style())
         self.sub_channel_list.setSpacing(2)
-        self.sub_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.sub_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.sub_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.sub_channel_list.itemClicked.connect(self.select_channel)
         self.sub_channel_list.itemDoubleClicked.connect(self._on_channel_double_clicked)
@@ -888,6 +895,13 @@ class IPTVPlayer(QMainWindow):
         self.local_group_combo.setStyleSheet(AppStyles.player_group_combo_style())
         self.local_group_combo.currentTextChanged.connect(self.on_local_group_changed)
         local_layout.addWidget(self.local_group_combo)
+
+        self.local_search_input = QtWidgets.QLineEdit()
+        self.local_search_input.setPlaceholderText(tr("search_channel", "搜索频道..."))
+        self.local_search_input.setClearButtonEnabled(True)
+        self.local_search_input.setStyleSheet(self._search_input_style())
+        self.local_search_input.textChanged.connect(self._on_local_search_changed)
+        local_layout.addWidget(self.local_search_input)
 
         local_toolbar = QWidget()
         local_toolbar_layout = QHBoxLayout(local_toolbar)
@@ -914,7 +928,7 @@ class IPTVPlayer(QMainWindow):
         self.local_channel_list = DraggableChannelListWidget()
         self.local_channel_list.setStyleSheet(AppStyles.player_list_style())
         self.local_channel_list.setSpacing(2)
-        self.local_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.local_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.local_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.local_channel_list.itemClicked.connect(self.select_channel)
         self.local_channel_list.itemDoubleClicked.connect(self._on_channel_double_clicked)
@@ -1738,6 +1752,56 @@ class IPTVPlayer(QMainWindow):
             combo.setCurrentIndex(0)
         combo.blockSignals(False)
 
+    def _search_input_style(self):
+        colors = AppStyles._get_colors()
+        return f"""
+            QLineEdit {{
+                background-color: {colors['player_combo']};
+                color: {colors['player_panel_text']};
+                border: 1px solid {colors['player_line']};
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {colors['player_accent']};
+            }}
+            QLineEdit::clear-button {{
+                subcontrol-origin: padding;
+                subcontrol-position: right center;
+                width: 16px;
+            }}
+        """
+
+    def _on_sub_search_changed(self, text):
+        self._apply_channel_search(self.sub_channel_list, self._sub_channels, text)
+
+    def _on_local_search_changed(self, text):
+        self._apply_channel_search(self.local_channel_list, self._local_channels, text)
+
+    def _apply_channel_search(self, list_widget, channels, search_text):
+        search_text = search_text.strip().lower()
+        if not search_text:
+            for i in range(list_widget.count()):
+                item = list_widget.item(i)
+                if item:
+                    item.setHidden(False)
+            return
+        for i in range(list_widget.count()):
+            item = list_widget.item(i)
+            if not item:
+                continue
+            idx = item.data(Qt.ItemDataRole.UserRole)
+            if idx is None or idx >= len(channels):
+                item.setHidden(True)
+                continue
+            channel = channels[idx]
+            name = channel.get('name', '').lower()
+            url = channel.get('url', '').lower()
+            group = channel.get('group', '').lower()
+            match = search_text in name or search_text in url or search_text in group
+            item.setHidden(not match)
+
     def _populate_channel_list_for(self, list_widget, channels, selected_group=''):
         """通用频道列表填充方法"""
 
@@ -1746,14 +1810,17 @@ class IPTVPlayer(QMainWindow):
         all_channels_text = self.language_manager.tr("all_channels", "All Channels")
         is_all_channels = (
             not selected_group or
-            selected_group.lower() == 'all channels' or
-            selected_group == all_channels_text or
-            selected_group == 'All Channels'
+            selected_group.lower() == all_channels_text.lower() or
+            selected_group.lower() == 'all channels'
         )
 
         added_count = 0
         error_count = 0
         skipped_count = 0
+
+        from ui.styles import AppStyles
+        colors = AppStyles._get_colors()
+        name_style = f"font-size: 12px; font-weight: bold; color: {colors['player_panel_text']};"
 
         for idx, channel in enumerate(channels):
             try:
@@ -1773,26 +1840,24 @@ class IPTVPlayer(QMainWindow):
                         item = QListWidgetItem()
                         item.setText(channel_name)
                         item.setData(Qt.ItemDataRole.UserRole, idx)
-                        item.setSizeHint(QSize(220, 140))
+                        item.setSizeHint(QSize(220, 150))
                         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
                         list_widget.addItem(item)
                     else:
                         item_widget = QtWidgets.QWidget()
                         item_layout = QHBoxLayout(item_widget)
-                        item_layout.setContentsMargins(5, 5, 5, 5)
-                        item_layout.setSpacing(10)
+                        item_layout.setContentsMargins(5, 2, 5, 2)
+                        item_layout.setSpacing(8)
 
                         logo_label = QtWidgets.QLabel()
-                        logo_label.setFixedSize(48, 34)
+                        logo_label.setFixedSize(36, 26)
                         logo_label.setStyleSheet("background-color: transparent; border: none;")
                         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                         logo_label.setObjectName("channel_logo_label")
 
                         name_label = QtWidgets.QLabel(channel_name)
-                        from ui.styles import AppStyles
-                        colors = AppStyles._get_colors()
-                        name_label.setStyleSheet(f"font-size: 12px; font-weight: bold; color: {colors['player_panel_text']};")
+                        name_label.setStyleSheet(name_style)
                         name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
                         name_label.setWordWrap(False)
 
@@ -1800,7 +1865,7 @@ class IPTVPlayer(QMainWindow):
                         item_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
 
                         item = QListWidgetItem()
-                        item.setSizeHint(QSize(0, 42))
+                        item.setSizeHint(QSize(0, 34))
                         item.setData(Qt.ItemDataRole.UserRole, idx)
 
                         list_widget.addItem(item)
@@ -4258,38 +4323,41 @@ class IPTVPlayer(QMainWindow):
         for list_widget in (self.sub_channel_list, self.local_channel_list):
             channels = self._sub_channels if list_widget is self.sub_channel_list else self._local_channels
             is_grid = list_widget.viewMode() == QListWidget.ViewMode.IconMode
+            match_idx = None
+            for ci, ch in enumerate(channels):
+                ch_logo = ch.get('logo', '')
+                if ch_logo:
+                    ch_logo = ch_logo.strip('`"\'')
+                    if ch_logo == url:
+                        match_idx = ci
+                        break
+            if match_idx is None:
+                continue
             for i in range(list_widget.count()):
                 item = list_widget.item(i)
                 if not item:
                     continue
-                channel_idx = item.data(Qt.ItemDataRole.UserRole)
-                if channel_idx is None or channel_idx >= len(channels):
-                    continue
-                channel = channels[channel_idx]
-                channel_logo = channel.get('logo', '')
-                if channel_logo:
-                    channel_logo = channel_logo.strip('`"\'')
-                    if channel_logo == url:
-                        if is_grid:
-                            ch_url = channel.get('url', '')
-                            if self.player_controller and ch_url:
-                                thumb_path = self.player_controller.get_thumbnail_path(ch_url)
-                                if thumb_path:
-                                    break
-                            scaled = pixmap.scaled(160, 90, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                            item.setIcon(QIcon(scaled))
-                        else:
-                            item_widget = list_widget.itemWidget(item)
-                            if item_widget:
-                                logo_label = item_widget.findChild(QtWidgets.QLabel, "channel_logo_label")
-                                if logo_label:
-                                    scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(
-                                        pixmap,
-                                        logo_label.width() if logo_label.width() > 0 else 34,
-                                        logo_label.height() if logo_label.height() > 0 else 34
-                                    )
-                                    logo_label.setPixmap(scaled)
-                        break
+                if item.data(Qt.ItemDataRole.UserRole) == match_idx:
+                    if is_grid:
+                        ch_url = channels[match_idx].get('url', '')
+                        if self.player_controller and ch_url:
+                            thumb_path = self.player_controller.get_thumbnail_path(ch_url)
+                            if thumb_path:
+                                break
+                        scaled = pixmap.scaled(160, 90, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                        item.setIcon(QIcon(scaled))
+                    else:
+                        item_widget = list_widget.itemWidget(item)
+                        if item_widget:
+                            logo_label = item_widget.findChild(QtWidgets.QLabel, "channel_logo_label")
+                            if logo_label:
+                                scaled = self._logo_cache_service.scale_logo_pixmap_to_fit(
+                                    pixmap,
+                                    logo_label.width() if logo_label.width() > 0 else 34,
+                                    logo_label.height() if logo_label.height() > 0 else 34
+                                )
+                                logo_label.setPixmap(scaled)
+                    break
 
     def _on_thumbnail_ready(self, channel_name, url):
         """后台缩略图截取完成的回调"""
@@ -4309,15 +4377,18 @@ class IPTVPlayer(QMainWindow):
             if list_widget.viewMode() != QListWidget.ViewMode.IconMode:
                 continue
             channels = self._sub_channels if list_widget is self.sub_channel_list else self._local_channels
+            match_idx = None
+            for ci, ch in enumerate(channels):
+                if ch.get('url', '') == url:
+                    match_idx = ci
+                    break
+            if match_idx is None:
+                continue
             for i in range(list_widget.count()):
                 item = list_widget.item(i)
                 if not item:
                     continue
-                channel_idx = item.data(Qt.ItemDataRole.UserRole)
-                if channel_idx is None or channel_idx >= len(channels):
-                    continue
-                channel = channels[channel_idx]
-                if channel.get('url', '') == url:
+                if item.data(Qt.ItemDataRole.UserRole) == match_idx:
                     px = QPixmap(thumb_path)
                     if not px.isNull():
                         scaled = px.scaled(210, 118, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
@@ -4647,11 +4718,12 @@ class IPTVPlayer(QMainWindow):
             if grid_btn:
                 grid_btn.setChecked(True)
             list_widget.setViewMode(QListWidget.ViewMode.IconMode)
-            list_widget.setGridSize(QSize(230, 150))
-            list_widget.setIconSize(QSize(210, 118))
-            list_widget.setSpacing(2)
+            list_widget.setGridSize(QSize(230, 160))
+            list_widget.setIconSize(QSize(210, 110))
+            list_widget.setSpacing(4)
             list_widget.setWrapping(True)
             list_widget.setResizeMode(QListWidget.ResizeMode.Adjust)
+            list_widget.setWordWrap(True)
             list_widget.verticalScrollBar().setSingleStep(30)
 
         source = 'subscription' if tab == 'sub' else 'local'
