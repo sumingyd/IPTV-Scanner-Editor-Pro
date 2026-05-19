@@ -254,6 +254,26 @@ class MpvPlayerController(QObject):
             self.logger.debug(f"路径规范化失败，使用原始URL: {e}")
         return url
 
+    def _reset_demuxer_options(self):
+        try:
+            self._set_mpv_string('demuxer', '')
+            self._set_mpv_string('demuxer-lavf-format', '')
+            self._set_mpv_string('demuxer-lavf-probesize', '')
+            self._set_mpv_string('demuxer-lavf-analyzeduration', '')
+            self._set_mpv_string('demuxer-lavf-buffersize', '')
+            self._set_mpv_string('cache', 'no')
+            self._set_mpv_string('cache-secs', '')
+            self._set_mpv_string('demuxer-max-bytes', '')
+            self._set_mpv_string('demuxer-max-back-bytes', '')
+            self._set_mpv_string('demuxer-readahead-secs', '')
+            self._set_mpv_string('force-seekable', 'no')
+            self._set_mpv_string('demuxer-seekable-cache', 'no')
+            self._set_mpv_string('demuxer-cache-wait', 'no')
+            self._set_mpv_string('rtsp-transport', '')
+            self.logger.debug("[mpv] 已重置demuxer/cache选项（本地文件模式）")
+        except Exception as e:
+            self.logger.debug(f"重置demuxer选项失败: {e}")
+
     def _setup_protocol_options(self, url, program_duration=0):
         if not self.mpv_handle or not url:
             return
@@ -262,6 +282,7 @@ class MpvPlayerController(QObject):
         is_network = (u.startswith(('http://', 'https://', 'rtmp://', 'rtsp://', 'rtp://', 'udp://')) or
                       u.endswith('.m3u8'))
         if not is_network:
+            self._reset_demuxer_options()
             return
 
         settings = self._playback_settings
