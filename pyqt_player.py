@@ -1340,8 +1340,6 @@ class IPTVPlayer(QMainWindow):
         if app:
             app.installEventFilter(self)
         
-        self._populate_channel_list(source='subscription')
-        
         logger.debug("_install_event_filters: 完成")
     
     def populate_channel_list_ui(self):
