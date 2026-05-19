@@ -450,24 +450,24 @@ class SubscriptionManager(Singleton):
         return self._parse_xml_epg(content)
 
 
-def _parse_xmltv_time(time_str):
-    time_str = time_str.strip()
-    parts = time_str.split()
-    dt_part = parts[0][:14]
-    tz_part = parts[1] if len(parts) > 1 else None
-    dt = datetime.strptime(dt_part, '%Y%m%d%H%M%S')
-    if tz_part:
-        sign = 1 if tz_part[0] == '+' else -1
-        tz_hours = int(tz_part[1:3])
-        tz_minutes = int(tz_part[3:5]) if len(tz_part) >= 5 else 0
-        offset = timedelta(hours=tz_hours, minutes=tz_minutes) * sign
-        dt_utc = dt - offset
-        import time as _time
-        local_offset = timedelta(seconds=-_time.timezone)
-        if _time.daylight:
-            local_offset = timedelta(seconds=-_time.altzone)
-        dt = dt_utc + local_offset
-    return dt
+    def _parse_xmltv_time(self, time_str):
+        time_str = time_str.strip()
+        parts = time_str.split()
+        dt_part = parts[0][:14]
+        tz_part = parts[1] if len(parts) > 1 else None
+        dt = datetime.strptime(dt_part, '%Y%m%d%H%M%S')
+        if tz_part:
+            sign = 1 if tz_part[0] == '+' else -1
+            tz_hours = int(tz_part[1:3])
+            tz_minutes = int(tz_part[3:5]) if len(tz_part) >= 5 else 0
+            offset = timedelta(hours=tz_hours, minutes=tz_minutes) * sign
+            dt_utc = dt - offset
+            import time as _time
+            local_offset = timedelta(seconds=-_time.timezone)
+            if _time.daylight:
+                local_offset = timedelta(seconds=-_time.altzone)
+            dt = dt_utc + local_offset
+        return dt
 
     def _parse_xml_epg(self, content: str) -> dict:
         """解析XML格式的EPG数据
@@ -516,10 +516,10 @@ def _parse_xmltv_time(time_str):
                 
                 if channel_id and start and title:
                     try:
-                        start_time = _parse_xmltv_time(start)
+                        start_time = self._parse_xmltv_time(start)
 
                         if end:
-                            end_time = _parse_xmltv_time(end)
+                            end_time = self._parse_xmltv_time(end)
                         else:
                             end_time = start_time + timedelta(minutes=30)
                         
