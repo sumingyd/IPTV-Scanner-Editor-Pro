@@ -440,6 +440,13 @@ class EventHandler:
             except Exception as e:
                 logger.error(f"终止MPV播放器失败: {e}")
 
+        # 2.5 终止多画面控制器
+        if hasattr(self.window, 'multi_screen_ctrl') and self.window.multi_screen_ctrl:
+            try:
+                self.window.multi_screen_ctrl.terminate()
+            except Exception as e:
+                logger.error(f"终止多画面控制器失败: {e}")
+
         # 3. 关闭扫描窗口
         scan_dialog = getattr(self.window, '_scan_dialog', None) or getattr(self.window, 'scan_window', None)
         if scan_dialog:
