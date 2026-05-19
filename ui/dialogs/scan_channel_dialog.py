@@ -834,6 +834,8 @@ class ScanChannelDialog(FloatingDialog):
 
     def _get_all_channels(self) -> list:
         from models.channel_model import ChannelListModel as CLM
+        if hasattr(self, '_channels_cache') and self._channels_cache is not None:
+            return self._channels_cache
         channels = []
         for row in range(self.model.rowCount()):
             ch = {}
@@ -850,7 +852,12 @@ class ScanChannelDialog(FloatingDialog):
             raw_ch = self.model.channels[row] if row < len(self.model.channels) else {}
             ch['_all_tags'] = raw_ch.get('_all_tags', {})
             channels.append(ch)
+        self._channels_cache = channels
         return channels
+
+    def _invalidate_channels_cache(self):
+        """数据变更时清除频道缓存"""
+        self._channels_cache = None
 
     def _get_selected_indices(self) -> list:
         indices = []
@@ -1161,22 +1168,29 @@ class ScanChannelDialog(FloatingDialog):
 
         try:
             from services.logo_matcher import LogoMatcher
+            from models.channel_model import ChannelListModel as CLM
             matcher = LogoMatcher()
-            matched = 0
+            updates = []
             for i, ch in enumerate(channels):
                 if not overwrite and ch.get('logo'):
                     continue
                 logo = matcher.match(ch.get('name', ''))
                 if logo:
-                    self.model.setData(self.model.index(i, 5), logo)
-                    matched += 1
+                    updates.append((i, logo))
+
+            self.model.layoutAboutToBeChanged.emit()
+            for i, logo in updates:
+                self.model.setData(self.model.index(i, CLM.COL_LOGO), logo)
+            self.model.layoutChanged.emit()
+            self._invalidate_channels_cache()
 
             QtWidgets.QMessageBox.information(
                 self, tr("match_logo", "Match Logo"),
-                f"{matched} channels matched"
+                f"{len(updates)} channels matched"
             )
         except ImportError:
-            pass
+            self.logger.warning("Logo匹配模块不可用")
+            QtWidgets.QMessageBox.warning(self, tr("match_logo", "Match Logo"), tr("logo_matcher_unavailable", "Logo匹配模块不可用"))
 
     def _show_clear_params_dialog(self):
         tr = self.language_manager.tr
@@ -2147,10 +2161,12 @@ class ScanChannelDialog(FloatingDialog):
         self._add_url_to_history(url)
 
         self.model.clear()
+        self._invalidate_channels_cache()
 
         url_parser = URLRangeParser()
         url_generator = url_parser.parse_url(url)
 
+        batch_channels = []
         count = 0
         tr = self.language_manager.tr
         gen_name = tr("generated_channel", "Generated Channel")
@@ -2165,8 +2181,14 @@ class ScanChannelDialog(FloatingDialog):
                     'latency': 0,
                     'status': tr("not_tested", "Not Tested")
                 }
-                self.model.add_channel(channel)
+                batch_channels.append(channel)
                 count += 1
+
+        if hasattr(self.model, 'add_channels'):
+            self.model.add_channels(batch_channels)
+        else:
+            for ch in batch_channels:
+                self.model.add_channel(ch)
 
         self.logger.info(f"已生成 {count} 个频道")
 
@@ -2248,6 +2270,7 @@ class ScanChannelDialog(FloatingDialog):
     @QtCore.pyqtSlot(dict)
     def _on_channel_found(self, channel_info):
         """处理发现有效频道事件"""
+        self._invalidate_channels_cache()
         self.model.add_channel(channel_info)
 
     @QtCore.pyqtSlot()
