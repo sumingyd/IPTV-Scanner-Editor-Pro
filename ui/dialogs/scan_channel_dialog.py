@@ -1949,9 +1949,9 @@ class ScanChannelDialog(FloatingDialog):
             log_ui_error("扫描器未初始化，无法执行扫描")
             return
         if self.scanner.is_scanning():
+            self._is_stopping = True
             self.scanner.stop_scan()
-            self._set_scan_button_text('full_scan', '完整扫描')
-            self._set_append_scan_button_text('append_scan', '追加扫描')
+            self._reset_scan_buttons()
         else:
             url = self.ip_range_input.currentText()
             if not url.strip():
@@ -1967,9 +1967,9 @@ class ScanChannelDialog(FloatingDialog):
             log_ui_error("扫描器未初始化，无法执行扫描")
             return
         if self.scanner.is_scanning():
+            self._is_stopping = True
             self.scanner.stop_scan()
-            self._set_scan_button_text('full_scan', '完整扫描')
-            self._set_append_scan_button_text('append_scan', '追加扫描')
+            self._reset_scan_buttons()
         else:
             url = self.ip_range_input.currentText()
             if not url.strip():
@@ -1985,6 +1985,7 @@ class ScanChannelDialog(FloatingDialog):
             log_ui_error("扫描器未初始化，无法启动扫描")
             return
 
+        self._is_stopping = False
         self._add_url_to_history(url)
 
         if clear_list:
@@ -2364,6 +2365,9 @@ class ScanChannelDialog(FloatingDialog):
     @QtCore.pyqtSlot()
     def _on_scan_completed(self):
         """处理扫描完成事件"""
+        was_stopping = getattr(self, '_is_stopping', False)
+        self._is_stopping = False
+
         # 检查是否是验证重试扫描
         if hasattr(self, '_validation_retry_urls') and self._validation_retry_urls:
             self._on_validation_retry_completed()
@@ -2386,6 +2390,10 @@ class ScanChannelDialog(FloatingDialog):
             header = self.channel_list.horizontalHeader()
             header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
             self._has_resized_columns = True
+
+        # 用户主动停止时不触发重试扫描
+        if was_stopping:
+            return
 
         # 检查是否需要重试扫描
         if not is_retry:
