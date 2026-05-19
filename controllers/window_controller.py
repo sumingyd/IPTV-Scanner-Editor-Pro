@@ -4,7 +4,7 @@
 """
 
 import os
-from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QHBoxLayout, QMainWindow
+from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QHBoxLayout, QMainWindow, QLineEdit, QComboBox
 from PyQt6.QtCore import Qt, QPoint
 from PyQt6.QtGui import QPixmap
 from ui.styles import AppStyles
@@ -82,7 +82,7 @@ class WindowController:
         # 最小化按钮
         self._minimize_btn = QPushButton("─")
         self._minimize_btn.setObjectName("minimizeBtn")
-        self._minimize_btn.setToolTip("最小化")
+        self._minimize_btn.setToolTip(self.window.language_manager.tr('tooltip_minimize', '最小化') if hasattr(self.window, 'language_manager') else '最小化')
         self._minimize_btn.clicked.connect(self.window.showMinimized)
         self._minimize_btn.setStyleSheet(btn_style)
         title_layout.addWidget(self._minimize_btn)
@@ -90,7 +90,7 @@ class WindowController:
         # 最大化/还原按钮
         self._maximize_btn = QPushButton("□")
         self._maximize_btn.setObjectName("maximizeBtn")
-        self._maximize_btn.setToolTip("最大化")
+        self._maximize_btn.setToolTip(self.window.language_manager.tr('tooltip_maximize', '最大化') if hasattr(self.window, 'language_manager') else '最大化')
         self._maximize_btn.clicked.connect(self.toggle_maximize)
         self._maximize_btn.setStyleSheet(btn_style)
         title_layout.addWidget(self._maximize_btn)
@@ -98,7 +98,7 @@ class WindowController:
         # 关闭按钮
         self._close_btn = QPushButton("✕")
         self._close_btn.setObjectName("closeButton")
-        self._close_btn.setToolTip("关闭")
+        self._close_btn.setToolTip(self.window.language_manager.tr('tooltip_close', '关闭') if hasattr(self.window, 'language_manager') else '关闭')
         self._close_btn.clicked.connect(self.window.close)
         self._close_btn.setStyleSheet(btn_style)
         title_layout.addWidget(self._close_btn)
@@ -120,6 +120,7 @@ class WindowController:
         """切换置顶状态"""
         self._stay_on_top_active = not self._stay_on_top_active
         flags = self.window.windowFlags()
+        self.window.hide()
         if self._stay_on_top_active:
             self.window.setWindowFlags(flags | Qt.WindowType.WindowStaysOnTopHint)
             self._stay_on_top_btn.setText("📍")
@@ -168,11 +169,19 @@ class WindowController:
 
                     # 排除按钮区域
                     child = self.window.childAt(event.position().toPoint())
-                    if child and isinstance(child, (QPushButton,)):
+                    if child and isinstance(child, (QPushButton, QLineEdit, QComboBox)):
                         pass
                     else:
                         self._dragging = True
                         self._drag_offset = (event.globalPosition().toPoint() - self.window.frameGeometry().topLeft())
+                        if self.window.isMaximized():
+                            geo = self.window.geometry()
+                            self.window.showNormal()
+                            ratio = event.position().toPoint().x() / max(1, geo.width())
+                            new_x = event.globalPosition().toPoint().x() - int(self.window.width() * ratio)
+                            new_y = event.globalPosition().toPoint().y() - self._drag_offset.y()
+                            self.window.move(new_x, new_y)
+                            self._drag_offset = event.globalPosition().toPoint() - self.window.pos()
                         event.accept()
                         return True
 
