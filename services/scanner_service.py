@@ -112,8 +112,8 @@ class ScannerController(QObject):
                 self.model.update_view()
             elif hasattr(self.model, 'layoutChanged'):
                 self.model.layoutChanged.emit()
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.debug(f"UI刷新失败: {e}")
 
     @staticmethod
     def _run_on_main(func, *args):
@@ -380,20 +380,18 @@ class ScannerController(QObject):
     def _update_channel_details(self, channel_info: dict):
         """更新频道详细信息"""
         try:
-            # 使用现有的update_channel_by_url方法更新频道信息
             url = channel_info.get('url')
             if url:
                 success = self.model.update_channel_by_url(url, channel_info)
                 if not success:
-                    pass
+                    self.logger.debug(f"按URL更新频道失败: {url}")
             else:
-                pass
+                self.logger.debug("频道信息缺少URL，跳过更新")
 
-            # 刷新UI
             self._force_ui_refresh()
 
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.debug(f"更新频道详细信息失败: {e}")
 
     def _check_channel(
         self, url: str, raw_channel_name: str | None = None
@@ -464,9 +462,9 @@ class ScannerController(QObject):
 
         self._skip_urls = skip_urls or set()
 
-        # 使用扫描状态上下文管理器
-        with ScanStateContext(self.scan_id, self):
-            self._start_scan_internal(base_url, thread_count, timeout, user_agent, referer)
+        # 注册扫描状态（不使用上下文管理器，因为扫描是异步的）
+        self.scan_state_manager.register_scan(self.scan_id, self)
+        self._start_scan_internal(base_url, thread_count, timeout, user_agent, referer)
 
     def _start_scan_internal(
         self, base_url: str, thread_count: int = 10, timeout: int = 10,
@@ -508,9 +506,6 @@ class ScannerController(QObject):
         # 初始化队列和生成器
         self.scan_queue = queue.Queue()
         self.url_generator = self.url_parser.parse_url(base_url)
-
-        # 记录所有扫描的URL（用于重试扫描）
-        self._all_scanned_urls = []
 
         # 启动队列填充线程（不再预填充，所有URL都由填充线程处理）
         self.filler_thread = threading.Thread(
@@ -554,9 +549,9 @@ class ScannerController(QObject):
         # 清空扫描状态管理器中的无效URL
         self.scan_state_manager.clear_invalid_urls(self.scan_id)
 
-        # 使用扫描状态上下文管理器
-        with ScanStateContext(self.scan_id, self):
-            self._start_scan_from_urls_internal(urls, thread_count, timeout, user_agent, referer)
+        # 注册扫描状态（不使用上下文管理器，因为扫描是异步的）
+        self.scan_state_manager.register_scan(self.scan_id, self)
+        self._start_scan_from_urls_internal(urls, thread_count, timeout, user_agent, referer)
 
     def _start_scan_from_urls_internal(
         self, urls: list, thread_count: int = 10, timeout: int = 10,
@@ -714,9 +709,8 @@ class ScannerController(QObject):
         if hasattr(self, 'stats_thread') and self.stats_thread and self.stats_thread.is_alive():
             self.stats_thread.join(timeout=0.5)
 
-        # 强制垃圾回收
         import gc
-        gc.collect()
+        gc.collect(0)
 
     def start_validation(self, model, threads, timeout, user_agent=None, referer=None):
         """开始有效性验证"""
@@ -860,9 +854,10 @@ class ScannerController(QObject):
                                 {'stats': stats_copy, 'is_validation': is_validating}
                             )
                         else:
-                            QtCore.QTimer.singleShot(0, lambda: self.stats_updated.emit({
-                                'stats': self.stats.copy(),
-                                'is_validation': self.is_validating
+                            stats_copy = self.stats.copy()
+                            is_validating_copy = self.is_validating
+                            QtCore.QTimer.singleShot(0, lambda sc=stats_copy, iv=is_validating_copy: self.stats_updated.emit({
+                                'stats': sc, 'is_validation': iv
                             }))
 
                     # 检查扫描是否完成：填充线程结束、所有工作线程都完成且队列为空
@@ -952,9 +947,10 @@ class ScannerController(QObject):
                             {'stats': stats_copy, 'is_validation': is_validating}
                         )
                     else:
-                        QtCore.QTimer.singleShot(0, lambda: self.stats_updated.emit({
-                            'stats': self.stats.copy(),
-                            'is_validation': self.is_validating
+                        stats_copy = self.stats.copy()
+                        is_validating_copy = self.is_validating
+                        QtCore.QTimer.singleShot(0, lambda sc=stats_copy, iv=is_validating_copy: self.stats_updated.emit({
+                            'stats': sc, 'is_validation': iv
                         }))
             except Exception as e:
                 self.logger.error(f"发送最终统计信息失败: {e}")
