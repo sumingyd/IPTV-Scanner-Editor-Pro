@@ -84,6 +84,8 @@ class ScanChannelDialog(FloatingDialog):
         from ..theme_manager import get_theme_manager
         get_theme_manager().register_window(self)
 
+        self._setup_shortcuts()
+
     def done(self, result):
         if hasattr(self, 'scanner') and self.scanner is not None:
             if self.scanner.is_scanning():
@@ -1920,6 +1922,20 @@ class ScanChannelDialog(FloatingDialog):
                 self._empty_stack.setCurrentIndex(1)
             else:
                 self._empty_stack.setCurrentIndex(0)
+
+    def _setup_shortcuts(self):
+        """设置快捷键"""
+        from PyQt6.QtGui import QShortcut, QKeySequence
+        QShortcut(QKeySequence("Ctrl+S"), self, self._on_save_m3u_clicked)
+        QShortcut(QKeySequence("Ctrl+F"), self, self._focus_search)
+        QShortcut(QKeySequence("Ctrl+A"), self, self._select_all_channels)
+        QShortcut(QKeySequence("Delete"), self, self._delete_selected_channels)
+
+    def _focus_search(self):
+        """聚焦搜索框"""
+        if hasattr(self, 'search_input'):
+            self.search_input.setFocus()
+            self.search_input.selectAll()
 
     def _on_search_filter_changed(self, text):
         """搜索过滤：按频道名/URL/分组实时过滤"""
