@@ -79,6 +79,7 @@ class ThemeManager(Singleton, QtCore.QObject):
                 AppStyles.button_style()
             ),
             QtWidgets.QTableView: lambda w: AppStyles.list_style(),
+            QtWidgets.QListWidget: lambda w: AppStyles.list_style(),
             QtWidgets.QStatusBar: lambda w: AppStyles.statusbar_style(),
             QtWidgets.QTabWidget: lambda w: AppStyles.tab_widget_style(),
             QtWidgets.QToolButton: lambda w: AppStyles.toolbar_button_style(),

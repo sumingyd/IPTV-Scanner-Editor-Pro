@@ -162,7 +162,18 @@ class SettingsFileOperations:
         if self.window._center_dialog_on_screen:
             self.window._center_dialog_on_screen(dialog)
 
+        from ui.theme_manager import get_theme_manager
+        try:
+            tm = get_theme_manager()
+            tm.register_window(dialog)
+        except Exception:
+            tm = None
         dialog.exec()
+        if tm:
+            try:
+                tm.unregister_window(dialog)
+            except Exception:
+                pass
 
     def _create_settings_dialog(self):
         try:
@@ -578,7 +589,18 @@ class SettingsFileOperations:
         if self.window._center_dialog_on_screen:
             self.window._center_dialog_on_screen(dialog)
 
+        from ui.theme_manager import get_theme_manager
+        try:
+            tm2 = get_theme_manager()
+            tm2.register_window(dialog)
+        except Exception:
+            tm2 = None
         dialog.exec()
+        if tm2:
+            try:
+                tm2.unregister_window(dialog)
+            except Exception:
+                pass
 
     @staticmethod
     def _convert_markdown_to_html(markdown):

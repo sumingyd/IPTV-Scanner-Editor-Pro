@@ -1711,6 +1711,24 @@ class AppStyles:
                     border-radius: 6px;
                     outline: none;
                 }}
+                QDialog QListWidget {{
+                    background-color: {input_bg};
+                    color: {colors['window_text']};
+                    border: 1px solid {colors['mid']};
+                    border-radius: 6px;
+                    {inset}
+                }}
+                QDialog QListWidget::item {{
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                }}
+                QDialog QListWidget::item:selected {{
+                    background-color: {colors['accent']};
+                    color: {colors['bright_text']};
+                }}
+                QDialog QListWidget::item:hover {{
+                    background-color: {colors['button']};
+                }}
             """
         return f"""
             QDialog {{
@@ -1826,6 +1844,23 @@ class AppStyles:
             QDialog QTextEdit:focus {{
                 border-color: {colors['accent']};
                 outline: none;
+            }}
+            QDialog QListWidget {{
+                background-color: {input_bg};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
+                border-radius: 6px;
+            }}
+            QDialog QListWidget::item {{
+                padding: 4px 8px;
+                border-radius: 4px;
+            }}
+            QDialog QListWidget::item:selected {{
+                background-color: {colors['accent']};
+                color: {colors['bright_text']};
+            }}
+            QDialog QListWidget::item:hover {{
+                background-color: {colors['button']};
             }}
         """
 
