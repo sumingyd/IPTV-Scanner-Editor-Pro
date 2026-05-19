@@ -262,7 +262,7 @@ def wait_for_specific_event(handle, timeout_sec, target_events):
                 if event.event_id == MPV_EVENT_SHUTDOWN:
                     return MPV_EVENT_SHUTDOWN, 0
                 if event.event_id == MPV_EVENT_NONE:
-                    return 0, 0
+                    continue
         except Exception:
             break
     return 0, 0
