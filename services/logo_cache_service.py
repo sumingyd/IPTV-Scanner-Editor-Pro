@@ -307,9 +307,7 @@ class LogoCacheService(ThreadSafeQObject):
 
         with self._lock:
             if url in self._pending_replies:
-                logger.info(f"fetch_async跳过(已请求): {url[:50]}")
                 return
-            logger.info(f"fetch_async开始下载: {url[:50]}")
 
         self._start_download(url)
 
@@ -331,7 +329,6 @@ class LogoCacheService(ThreadSafeQObject):
         try:
             if reply.error() != QNetworkReply.NetworkError.NoError:
                 err = reply.error()
-                logger.info(f"台标下载失败: {url[:50]}..., 错误: {err}")
                 self.mark_negative(url, f"网络错误: {err}")
                 return
 
@@ -363,12 +360,10 @@ class LogoCacheService(ThreadSafeQObject):
                 meta_entry['ext'] = ext
                 self._meta[key] = meta_entry
                 self._save_meta()
-                logger.info(f"台标未变(缓存): {url[:50]}...")
                 return
 
             image = QImage()
             if image.loadFromData(raw_data):
-                logger.info(f"台标下载成功: {url[:50]}..., 大小={len(raw_data)}")
                 self.put(url, image, ext=ext, content_hash=content_hash)
                 pixmap = self._image_to_pixmap(image)
                 self.logo_loaded.emit(url, pixmap)

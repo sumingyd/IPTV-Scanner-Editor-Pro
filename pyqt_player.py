@@ -1825,10 +1825,9 @@ class IPTVPlayer(QMainWindow):
 
         is_grid = list_widget.viewMode() == QListWidget.ViewMode.IconMode
 
-        logger.info(f"_load_visible_icons: 项数={list_widget.count()}, channels={len(channels)}, visible={first_visible}-{last_visible}, is_grid={is_grid}")
+        logger.debug(f"_load_visible_icons: 项数={list_widget.count()}, channels={len(channels)}")
         need_capture = []
         queue_items = []
-        diag = {'no_widget': 0, 'no_label': 0, 'no_url': 0, 'cached': 0, 'fetch': 0}
 
         for i in range(first_visible, last_visible + 1):
             item = list_widget.item(i)
@@ -1860,27 +1859,19 @@ class IPTVPlayer(QMainWindow):
             else:
                 item_widget = list_widget.itemWidget(item)
                 if not item_widget:
-                    diag['no_widget'] += 1
                     continue
                 logo_label = item_widget.findChild(QtWidgets.QLabel, "channel_logo_label")
                 if not logo_label:
-                    diag['no_label'] += 1
                     continue
                 if logo_label.pixmap() and not logo_label.pixmap().isNull():
                     continue
                 if logo_url:
                     cached = self._logo_cache_service.get(logo_url)
                     if cached:
-                        diag['cached'] += 1
                         queue_items.append(('list_logo', item, logo_label, cached))
                     else:
-                        diag['fetch'] += 1
                         self._logo_cache_service.fetch_async(logo_url)
-                else:
-                    diag['no_url'] += 1
 
-        if diag['no_widget'] or diag['no_label'] or diag['no_url'] or diag['cached'] or diag['fetch']:
-            logger.info(f"_load_visible_icons诊断: {diag}, queue={len(queue_items)}")
         self._icon_load_queue.extend(queue_items)
         if self._icon_load_queue and not self._icon_load_timer.isActive():
             self._icon_load_timer.start()
@@ -3548,18 +3539,17 @@ class IPTVPlayer(QMainWindow):
             try:
                 self.populate_channel_list(source='subscription')
             except Exception as ex:
-                logger.error(f"populate_channel_list失败: {ex}", exc_info=True)
+                logger.error(f"populate_channel_list失败: {ex}")
             try:
                 self._populate_epg_list()
             except Exception as ex:
-                logger.error(f"_populate_epg_list失败: {ex}", exc_info=True)
+                logger.error(f"_populate_epg_list失败: {ex}")
             if hasattr(self, 'update_floating_position'):
                 self.update_floating_position()
             self.status_bar.showMessage(message)
             logger.info("_do_on_playlist_updated_in_main_thread: UI更新完成")
         except Exception as ex:
-            import traceback
-            logger.error(f"在主线程更新UI失败: {ex}\n{traceback.format_exc()}")
+            logger.error(f"在主线程更新UI失败: {ex}")
 
     @pyqtSlot()
     def _do_show_status_message(self):
@@ -4205,7 +4195,7 @@ class IPTVPlayer(QMainWindow):
 
     def _on_logo_cache_loaded(self, url, pixmap):
         """台标加载完成的回调"""
-        logger.info(f"台标加载完成: {url[:50]}..., pixmap有效: {not pixmap.isNull()}")
+        logger.debug(f"台标加载完成: {url[:50]}..., pixmap有效: {not pixmap.isNull()}")
 
         if self.current_channel:
             logo = self.current_channel.get('logo', '')
