@@ -61,21 +61,22 @@ class EventHandler:
                         return True
 
         if not getattr(self.window, 'pip_mode', False) and not getattr(self.window, 'is_fullscreen', False) and not getattr(self.window, '_floating_hidden', False):
-            if obj is getattr(self.window, 'video_widget', None):
-                if event_type == QEvent.Type.Leave:
+            if event_type == QEvent.Type.Leave:
+                if obj is self.window or obj is getattr(self.window, 'video_widget', None) or obj is getattr(self.window, 'central_widget', None):
                     if hasattr(self.window, '_delayed_hide_floating_panels'):
                         from PyQt6.QtCore import QTimer
                         QTimer.singleShot(200, self.window._delayed_hide_floating_panels)
-                elif event_type == QEvent.Type.Enter:
+            elif event_type == QEvent.Type.Enter:
+                if obj is self.window or obj is getattr(self.window, 'video_widget', None):
                     if hasattr(self.window, '_show_floating_panels_on_enter'):
                         self.window._show_floating_panels_on_enter()
-            elif event_type == QEvent.Type.Enter:
-                for panel_name in ('epg_panel', 'playlist_panel', 'floating_panel'):
-                    panel = getattr(self.window, panel_name, None)
-                    if panel and obj is panel:
-                        if hasattr(self.window, '_show_floating_panels_on_enter'):
-                            self.window._show_floating_panels_on_enter()
-                        break
+                else:
+                    for panel_name in ('epg_panel', 'playlist_panel', 'floating_panel'):
+                        panel = getattr(self.window, panel_name, None)
+                        if panel and obj is panel:
+                            if hasattr(self.window, '_show_floating_panels_on_enter'):
+                                self.window._show_floating_panels_on_enter()
+                            break
 
         return False
 
