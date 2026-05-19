@@ -755,6 +755,9 @@ class ScanChannelDialog(FloatingDialog):
         self._empty_stack.addWidget(self.channel_list)
         self._empty_stack.addWidget(self._empty_hint)
         parent.addWidget(self._empty_stack, 1)
+        self.model.rowsInserted.connect(lambda *_: self._update_empty_hint())
+        self.model.rowsRemoved.connect(lambda *_: self._update_empty_hint())
+        self.model.modelReset.connect(self._update_empty_hint)
         self._update_empty_hint()
 
     def _setup_list_toolbar(self, toolbar_layout):
@@ -2357,7 +2360,6 @@ class ScanChannelDialog(FloatingDialog):
         """处理发现有效频道事件"""
         self._invalidate_channels_cache()
         self.model.add_channel(channel_info)
-        self._update_empty_hint()
 
     @QtCore.pyqtSlot()
     def _on_scan_completed(self):
