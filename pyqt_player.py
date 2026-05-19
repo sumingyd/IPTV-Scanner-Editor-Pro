@@ -219,6 +219,10 @@ class IPTVPlayer(QMainWindow):
     _playlist_add_btn = None
     _epg_add_btn = None
 
+    PLAYLIST_EXTENSIONS = ('.m3u', '.m3u8', '.txt')
+    VIDEO_EXTENSIONS = ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.webm')
+    ALL_DROP_EXTENSIONS = PLAYLIST_EXTENSIONS + VIDEO_EXTENSIONS
+
     is_fullscreen = False
     _live_timeshift_seconds = 0
     catchup_program: Optional[Dict[str, Any]] = None
@@ -416,9 +420,7 @@ class IPTVPlayer(QMainWindow):
         if event.mimeData().hasUrls():
             for url in event.mimeData().urls():
                 path = url.toLocalFile()
-                if path.lower().endswith(('.m3u', '.m3u8', '.txt',
-                                          '.mp4', '.mkv', '.avi', '.mov',
-                                          '.flv', '.wmv', '.ts', '.webm')):
+                if path.lower().endswith(self.ALL_DROP_EXTENSIONS):
                     event.acceptProposedAction()
                     return
         event.ignore()
@@ -428,13 +430,12 @@ class IPTVPlayer(QMainWindow):
             path = url.toLocalFile()
             if not path:
                 continue
-            if path.lower().endswith(('.m3u', '.m3u8', '.txt')):
+            if path.lower().endswith(self.PLAYLIST_EXTENSIONS):
                 if hasattr(self, 'settings_ops'):
                     self.settings_ops.open_specific_file(path)
                 event.acceptProposedAction()
                 return
-            elif path.lower().endswith(('.mp4', '.mkv', '.avi', '.mov',
-                                        '.flv', '.wmv', '.ts', '.webm')):
+            elif path.lower().endswith(self.VIDEO_EXTENSIONS):
                 name = os.path.splitext(os.path.basename(path))[0]
                 tr = self.language_manager.tr
                 channel = {
@@ -2607,15 +2608,6 @@ class IPTVPlayer(QMainWindow):
     def set_theme(self, theme: str):
         """设置界面主题（委托给SettingsFileOperations）"""
         self.settings_ops.set_theme(theme)
-
-        if hasattr(self, '_custom_menu_bar'):
-            for action in self._custom_menu_bar.actions():
-                menu = action.menu()
-                if menu:
-                    for sub_action in menu.actions():
-                        if sub_action.isCheckable() and sub_action.text().replace('&', '') == theme:
-                            sub_action.setChecked(True)
-                            return
 
     def show_about(self):
         """显示关于对话框（委托给SettingsFileOperations）"""
