@@ -746,6 +746,17 @@ class ScanChannelDialog(FloatingDialog):
         # 设置频道列表为主要内容，占据大部分空间
         parent.addWidget(self.channel_list)
 
+        # 空状态提示标签（叠加在列表上方）
+        self._empty_hint = QtWidgets.QLabel(tr("empty_list_hint", "输入地址后点击扫描，或打开已有列表"))
+        self._empty_hint.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self._empty_hint.setStyleSheet("color: #888; font-size: 14px; padding: 40px;")
+        self._empty_hint.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self._empty_stack = QtWidgets.QStackedWidget()
+        self._empty_stack.addWidget(self.channel_list)
+        self._empty_stack.addWidget(self._empty_hint)
+        parent.addWidget(self._empty_stack, 1)
+        self._update_empty_hint()
+
     def _setup_list_toolbar(self, toolbar_layout):
         """设置频道列表的工具栏按钮（用于标题栏）"""
         tr = self.language_manager.tr
@@ -1872,6 +1883,14 @@ class ScanChannelDialog(FloatingDialog):
         except Exception as e:
             log_ui_error(f"连接扫描器信号失败: {e}")
 
+    def _update_empty_hint(self):
+        """更新空列表提示可见性"""
+        if hasattr(self, '_empty_stack'):
+            if self.model.rowCount() == 0:
+                self._empty_stack.setCurrentIndex(1)
+            else:
+                self._empty_stack.setCurrentIndex(0)
+
     def _on_search_filter_changed(self, text):
         """搜索过滤：按频道名/URL/分组实时过滤"""
         if hasattr(self, '_filter_proxy'):
@@ -2272,6 +2291,7 @@ class ScanChannelDialog(FloatingDialog):
         """处理发现有效频道事件"""
         self._invalidate_channels_cache()
         self.model.add_channel(channel_info)
+        self._update_empty_hint()
 
     @QtCore.pyqtSlot()
     def _on_scan_completed(self):
