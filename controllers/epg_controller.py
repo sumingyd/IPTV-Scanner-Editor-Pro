@@ -134,10 +134,12 @@ class EPGController:
     def _compute_epg_key(self, filtered_list, channel_name, target_date):
         if not filtered_list:
             return None
-        parts = [channel_name, str(target_date)]
+        import hashlib
+        h = hashlib.md5()
+        h.update(f"{channel_name}|{target_date}".encode('utf-8'))
         for p in filtered_list:
-            parts.append(f"{p.get('start','')}|{p.get('title','')}")
-        return '|'.join(parts)
+            h.update(f"|{p.get('start','')}|{p.get('title','')}".encode('utf-8'))
+        return h.hexdigest()
 
     def _refresh_badges_only(self, filtered_list, now, channel_supports_catchup, tr):
         epg_content = self.window.epg_content
@@ -196,7 +198,7 @@ class EPGController:
 
         # 重新应用样式（确保样式正确）
         try:
-            AppStyles = __import__('ui.styles', fromlist=['AppStyles']).AppStyles
+            from ui.styles import AppStyles
             self.window.epg_content.setStyleSheet(AppStyles.player_list_style())
         except ImportError as e:
             logger.debug(f"EPG样式导入失败: {e}")
@@ -345,8 +347,21 @@ class EPGController:
                         status_text = tr("epg_status_live", "LIVE")
                         is_live = True
 
-                display_text = f"{start_display}  {title}"
+                display_text = f"{start_display}-{end_display}  {title}" if end_display else f"{start_display}  {title}"
                 item.setText(display_text)
+
+                desc = program.get('desc', '')
+                duration_min = ''
+                if start_dt and end_dt:
+                    dur = (end_dt - start_dt).total_seconds() / 60
+                    if dur > 0:
+                        duration_min = f"{int(dur)}min" if dur == int(dur) else f"{dur:.0f}min"
+                tip_parts = [title]
+                if duration_min:
+                    tip_parts.append(f"({duration_min})")
+                if desc:
+                    tip_parts.append(desc)
+                item.setToolTip('\n'.join(tip_parts))
 
                 is_catchup = (is_past_program or is_live) and channel_supports_catchup
                 catchup_label = self._get_active_catchup_label(
@@ -417,8 +432,19 @@ class EPGController:
             self.window.start_catchup(program)
         elif not channel_catchup:
             logger.debug(f"频道不支持回看功能（无 catchup_source 或 catchup 类型）")
+            if hasattr(self.window, 'status_bar_show_message'):
+                tr = getattr(self.window.language_manager, 'tr', lambda x, y: x) if hasattr(self.window, 'language_manager') else lambda x, y: x
+                self.window.status_bar_show_message(tr('epg_no_catchup', '该频道不支持回看'))
         elif not is_past_program:
             logger.debug(f"点击的是未来节目，暂不支持预约播放")
+            if hasattr(self.window, 'status_bar_show_message'):
+                tr = getattr(self.window.language_manager, 'tr', lambda x, y: x) if hasattr(self.window, 'language_manager') else lambda x, y: x
+                start_display = ''
+                try:
+                    start_display = datetime.fromisoformat(start_str).strftime('%H:%M')
+                except Exception:
+                    pass
+                self.window.status_bar_show_message(tr('epg_upcoming', '节目尚未开始') + (f' ({start_display})' if start_display else ''))
 
     def update_epg_date_display(self):
         """更新EPG日期显示"""
@@ -443,21 +469,30 @@ class EPGController:
                     self.window.epg_date_label.setText(self.window.current_epg_date.strftime("%Y-%m-%d"))
 
     def on_prev_day(self):
-        """切换到前一天"""
+        """切换到前一天（最多回退7天）"""
         if not hasattr(self.window, 'current_epg_date') or not self.window.current_epg_date:
             return
-
+        min_date = date.today() - timedelta(days=7)
+        if self.window.current_epg_date <= min_date:
+            if hasattr(self.window, 'status_bar_show_message'):
+                tr = getattr(self.window.language_manager, 'tr', lambda x, y: x) if hasattr(self.window, 'language_manager') else lambda x, y: x
+                self.window.status_bar_show_message(tr('epg_date_limit', '已到最早日期'))
+            return
         self.window.current_epg_date -= timedelta(days=1)
         self.update_epg_date_display()
-        # 重新加载该日期的EPG数据
         if hasattr(self.window, 'populate_epg_list'):
             self.window.populate_epg_list()
 
     def on_next_day(self):
-        """切换到后一天"""
+        """切换到后一天（最多前进7天）"""
         if not hasattr(self.window, 'current_epg_date') or not self.window.current_epg_date:
             return
-
+        max_date = date.today() + timedelta(days=7)
+        if self.window.current_epg_date >= max_date:
+            if hasattr(self.window, 'status_bar_show_message'):
+                tr = getattr(self.window.language_manager, 'tr', lambda x, y: x) if hasattr(self.window, 'language_manager') else lambda x, y: x
+                self.window.status_bar_show_message(tr('epg_date_limit', '已到最远日期'))
+            return
         self.window.current_epg_date += timedelta(days=1)
         self.update_epg_date_display()
         # 重新加载该日期的EPG数据
