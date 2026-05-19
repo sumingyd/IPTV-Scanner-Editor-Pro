@@ -1233,6 +1233,7 @@ class ScanChannelDialog(FloatingDialog):
 
     def _show_clear_params_dialog(self):
         tr = self.language_manager.tr
+        from models.channel_model import ChannelListModel as CLM
 
         channels = self._get_all_channels()
         if not channels:
@@ -1242,12 +1243,12 @@ class ScanChannelDialog(FloatingDialog):
         target_indices = selected_indices if selected_indices else list(range(len(channels)))
 
         param_defs = [
-            ('tvg_id', 8, 'TVG-ID'),
-            ('logo', 5, 'Logo'),
-            ('group', 4, 'Group'),
-            ('catchup', 11, 'Catchup'),
-            ('catchup_days', 12, 'Catchup Days'),
-            ('catchup_source', 13, 'Catchup Source'),
+            ('tvg_id', CLM.COL_TVG_ID, 'TVG-ID'),
+            ('logo', CLM.COL_LOGO, 'Logo'),
+            ('group', CLM.COL_GROUP, 'Group'),
+            ('catchup', CLM.COL_CATCHUP, 'Catchup'),
+            ('catchup_days', CLM.COL_CATCHUP_DAYS, 'Catchup Days'),
+            ('catchup_source', CLM.COL_CATCHUP_SOURCE, 'Catchup Source'),
         ]
 
         available = []
@@ -1485,8 +1486,9 @@ class ScanChannelDialog(FloatingDialog):
         menu.setStyleSheet(AppStyles.common_menu_style())
 
         # 获取选中频道的URL和名称
-        url = self.model.data(self.model.index(index.row(), 3))  # URL在第3列
-        name = self.model.data(self.model.index(index.row(), 1))  # 名称在第1列
+        from models.channel_model import ChannelListModel as CLM
+        url = self.model.data(self.model.index(index.row(), CLM.COL_URL))
+        name = self.model.data(self.model.index(index.row(), CLM.COL_NAME))
 
         # 添加复制频道名菜单项
         copy_name_action = QtGui.QAction(tr("copy_channel_name", "Copy Channel Name"), self)
@@ -1499,13 +1501,13 @@ class ScanChannelDialog(FloatingDialog):
         menu.addAction(copy_url_action)
 
         # 添加复制TVG-ID菜单项
-        tvg_id = self.model.data(self.model.index(index.row(), 8))  # TVG-ID在第8列
+        tvg_id = self.model.data(self.model.index(index.row(), CLM.COL_TVG_ID))
         copy_tvg_id_action = QtGui.QAction(tr("copy_tvg_id", "Copy TVG-ID"), self)
         copy_tvg_id_action.triggered.connect(lambda: self._copy_channel_tvg_id(tvg_id))
         menu.addAction(copy_tvg_id_action)
 
         # 添加复制分组菜单项
-        group = self.model.data(self.model.index(index.row(), 4))  # 分组在第4列
+        group = self.model.data(self.model.index(index.row(), CLM.COL_GROUP))
         copy_group_action = QtGui.QAction(tr("copy_group", "Copy Group"), self)
         copy_group_action.triggered.connect(lambda: self._copy_channel_group(group))
         menu.addAction(copy_group_action)
