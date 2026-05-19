@@ -618,8 +618,8 @@ class ScannerController(QObject):
         })
 
         self._clear_all_queues()
-        self._terminate_all_processes()
         self._cleanup_workers_fast()
+        self._terminate_all_processes()
         self._cleanup_other_resources()
 
         if hasattr(self, '_mapping_executor') and self._mapping_executor:
@@ -780,18 +780,17 @@ class ScannerController(QObject):
             except queue.Empty:
                 break
 
-        # 终止所有验证进程
-        from services.mpv_validator_service import MpvStreamValidator
-        MpvStreamValidator.terminate_all()
-
-        # 立即终止工作线程
+        # 先等待工作线程退出
         for worker in self.workers:
             if worker.is_alive():
-                worker.join(timeout=0.1)
+                worker.join(timeout=0.5)
 
         self.workers = []
         self.worker_queue = queue.Queue()
-        # 不再记录验证停止日志，避免控制台输出
+
+        # 线程退出后再销毁mpv句柄
+        from services.mpv_validator_service import MpvStreamValidator
+        MpvStreamValidator.terminate_all()
 
     def _validation_worker(self):
         while not self.stop_event.is_set():
