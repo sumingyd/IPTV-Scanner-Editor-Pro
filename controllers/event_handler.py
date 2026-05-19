@@ -148,9 +148,15 @@ class EventHandler:
                     elif key == Qt.Key.Key_Down:
                         self._switch_channel(1)
                     elif key == Qt.Key.Key_Left:
-                        self._adjust_volume(-5)
+                        if self._is_local_file_playing():
+                            self._seek_relative(-10)
+                        else:
+                            self._adjust_volume(-5)
                     elif key == Qt.Key.Key_Right:
-                        self._adjust_volume(5)
+                        if self._is_local_file_playing():
+                            self._seek_relative(10)
+                        else:
+                            self._adjust_volume(5)
                     return True
                 elif key == Qt.Key.Key_F:
                     if hasattr(w, 'toggle_fullscreen'):
@@ -284,6 +290,30 @@ class EventHandler:
         if new_vol != current:
             self.window.volume_slider.setValue(new_vol)
 
+    def _is_local_file_playing(self) -> bool:
+        """判断当前是否在播放本地视频文件或回看/时移（支持seek）"""
+        w = self.window
+        if not hasattr(w, 'player_controller') or not w.player_controller or not w.player_controller.is_playing:
+            return False
+        if hasattr(w, '_is_local_file') and w._is_local_file():
+            return True
+        if hasattr(w, 'play_state') and w.play_state.is_catchup_or_timeshift:
+            return True
+        return False
+
+    def _seek_relative(self, seconds: float):
+        """相对跳转（seconds为正快进，为负快退）"""
+        w = self.window
+        if not hasattr(w, 'player_controller') or not w.player_controller:
+            return
+        if not w.player_controller.is_playing:
+            return
+        try:
+            w.player_controller.seek_relative_seconds(seconds)
+        except Exception as e:
+            from core.log_manager import global_logger as logger
+            logger.debug(f"快进快退失败: {e}")
+
     def _on_mouse_activity(self):
         """鼠标活动回调 - 通知主窗口"""
         if hasattr(self.window, '_on_mouse_activity'):
@@ -324,9 +354,9 @@ class EventHandler:
                 }
                 settings = config.load_ui_settings(defaults)
 
-                self.window.epg_visible = settings.get('epg_visible', True)
-                self.window.playlist_visible = settings.get('playlist_visible', True)
-                self.window.floating_panel_visible = settings.get('floating_visible', True)
+                self.window.epg_visible = True
+                self.window.playlist_visible = True
+                self.window.floating_panel_visible = True
 
                 if hasattr(self.window, 'epg_dock') and self.window.epg_dock:
                     self.window.epg_dock.setFixedWidth(max(200, settings.get('epg_width', 280)))
