@@ -300,7 +300,6 @@ class EventHandler:
                       hasattr(self.window, 'floating_dock') and self.window.floating_dock)
 
         if has_panels and not getattr(self.window, '_initial_position_fixed', False):
-            self.window._initial_position_fixed = True
             from PyQt6.QtCore import QTimer
             QTimer.singleShot(50, self._deferred_position_docks)
             QTimer.singleShot(200, self._deferred_position_docks)
