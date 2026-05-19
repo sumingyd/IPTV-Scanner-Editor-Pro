@@ -924,8 +924,15 @@ class ScanChannelDialog(FloatingDialog):
         def do_preview():
             province = province_combo.currentText()
             overwrite = overwrite_check.isChecked()
+            merge_nonlocal = merge_nonlocal_check.isChecked()
             classifier = ChannelClassifier(local_province=province)
             results = classifier.classify_all(channels, overwrite=overwrite)
+            if merge_nonlocal:
+                local_cats = {province, '央视频道', 'CGTN', 'CETV'}
+                for r in results:
+                    if r.get('new_group') not in local_cats and r.get('new_group') != '其他频道':
+                        r['new_group'] = '其他频道'
+                        r['changed'] = True
             classifier_ref[0] = classifier
             results_ref[0] = results
             changed = [r for r in results if r.get('changed')]
