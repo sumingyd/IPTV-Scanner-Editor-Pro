@@ -2708,13 +2708,9 @@ class ScanChannelDialog(FloatingDialog):
                     # 立即标记为已重试，避免重复
                     self.scan_state_manager.add_retried_url(self.retry_id, url)
 
-                # 每处理一批后处理事件，避免UI卡顿（替代time.sleep）
+                # 每处理一批后让出CPU，避免UI卡顿
                 if i + batch_size < total_count:
-                    from PyQt6.QtWidgets import QApplication
-                    QApplication.processEvents(
-                        QApplication.ProcessEventsFlags.ExcludeUserInputEvents |
-                        QApplication.ProcessEventsFlags.ExcludeSocketNotifiers
-                    )
+                    time.sleep(0.001)
 
             # 减少日志输出，避免日志过多
             if total_count > 1000:
