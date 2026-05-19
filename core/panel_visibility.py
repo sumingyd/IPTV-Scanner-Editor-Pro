@@ -49,6 +49,11 @@ class PanelVisibilityManager:
             return self._auto_hide_state
 
     @property
+    def is_auto_hide_visible(self) -> bool:
+        with self._lock:
+            return self._auto_hide_state == AutoHideState.VISIBLE
+
+    @property
     def is_auto_hidden(self) -> bool:
         with self._lock:
             return self._auto_hide_state == AutoHideState.AUTO_HIDDEN
@@ -175,6 +180,11 @@ class PanelVisibilityManager:
         with self._lock:
             self._manually_hidden = False
             self._auto_hide_state = AutoHideState.VISIBLE
+
+    def set_auto_hide_visible(self):
+        with self._lock:
+            self._auto_hide_state = AutoHideState.VISIBLE
+            self._auto_hide_saved = {}
 
     def reset(self):
         for panel in self.PANELS:

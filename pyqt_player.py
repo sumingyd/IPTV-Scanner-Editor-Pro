@@ -5,7 +5,7 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, Optional
 from core.play_state import PlayMode, PlayStateManager
-from core.panel_visibility import PanelVisibilityManager
+from core.panel_visibility import PanelVisibilityManager, AutoHideState
 from controllers.progress_controller import ProgressController
 from models.channel_model import ChannelListModel
 from PyQt6.QtWidgets import (
@@ -271,7 +271,6 @@ class IPTVPlayer(QMainWindow):
         self.playlist_visible = True
         self.floating_panel_visible = True
         self._floating_hidden = False
-        self._auto_hide_state = 'visible'
         self._suppress_volume_osd = False
         self._osd_visible = True
         self.is_fullscreen = False
@@ -2438,7 +2437,7 @@ class IPTVPlayer(QMainWindow):
     
     def toggle_epg(self, checked=None):
         """切换EPG面板显示/隐藏（委托给EPGController）"""
-        if self._auto_hide_state == 'auto_hidden':
+        if self.panel_vis.is_auto_hidden:
             self._auto_restore_panels()
             return
         if checked is None:
@@ -2498,7 +2497,7 @@ class IPTVPlayer(QMainWindow):
     
     def toggle_playlist(self, checked=None):
         """显示/隐藏播放列表面板"""
-        if self._auto_hide_state == 'auto_hidden':
+        if self.panel_vis.is_auto_hidden:
             self._auto_restore_panels()
             return
         if checked is None:
@@ -2515,7 +2514,7 @@ class IPTVPlayer(QMainWindow):
 
     def toggle_floating_panel(self, checked=None):
         """显示/隐藏底部控制面板"""
-        if self._auto_hide_state == 'auto_hidden':
+        if self.panel_vis.is_auto_hidden:
             self._auto_restore_panels()
             return
         if checked is None:
@@ -2537,8 +2536,7 @@ class IPTVPlayer(QMainWindow):
         else:
             if self.panel_vis.is_auto_hidden:
                 self.panel_vis._auto_hide_saved = dict(self.panel_vis._auto_hide_saved or {})
-                self.panel_vis._auto_hide_state = 'visible'
-                self.panel_vis._auto_hide_saved = {}
+                self.panel_vis.set_auto_hide_visible()
             self.panel_vis.hide_all()
         self._sync_panel_actions()
 
@@ -2564,7 +2562,7 @@ class IPTVPlayer(QMainWindow):
             return
         if getattr(self, '_pip_mode', False):
             return
-        if self.panel_vis._auto_hide_state != 'visible':
+        if not self.panel_vis.is_auto_hide_visible:
             return
         cursor_pos = self.cursor().pos()
         if self.rect().contains(self.mapFromGlobal(cursor_pos)):
@@ -2584,7 +2582,7 @@ class IPTVPlayer(QMainWindow):
             return
         if self.panel_vis.manually_hidden:
             return
-        if self.panel_vis._auto_hide_state != 'visible':
+        if not self.panel_vis.is_auto_hide_visible:
             return
 
         self.panel_vis.auto_hide_all()
@@ -2616,7 +2614,7 @@ class IPTVPlayer(QMainWindow):
                 self._auto_hide_timer.setSingleShot(True)
                 self._auto_hide_timer.setInterval(5000)
                 self._auto_hide_timer.timeout.connect(self._auto_hide_panels)
-            if self.panel_vis._auto_hide_state == 'visible':
+            if self.panel_vis.is_auto_hide_visible:
                 self._auto_hide_timer.start()
 
     def _stop_auto_hide_timer(self):
@@ -2629,7 +2627,7 @@ class IPTVPlayer(QMainWindow):
         if getattr(self, 'is_fullscreen', False) and not self.panel_vis.manually_hidden:
             if self.panel_vis.is_auto_hidden:
                 self._auto_restore_panels()
-            elif self.panel_vis._auto_hide_state == 'visible':
+            elif self.panel_vis.is_auto_hide_visible:
                 self._restart_auto_hide_timer()
 
 
@@ -3410,8 +3408,7 @@ class IPTVPlayer(QMainWindow):
         self.is_fullscreen = not self.is_fullscreen
 
         if self.is_fullscreen:
-            self.panel_vis._auto_hide_state = 'visible'
-            self.panel_vis._auto_hide_saved = {}
+            self.panel_vis.set_auto_hide_visible()
             self.panel_vis.save_context('fullscreen')
             if hasattr(self, '_title_bar') and self._title_bar:
                 self._title_bar.hide()
@@ -3436,8 +3433,7 @@ class IPTVPlayer(QMainWindow):
                     self._custom_menu_bar.show()
                 if saved.get('status_bar', True) and self.status_bar:
                     self.status_bar.show()
-            self.panel_vis._auto_hide_state = 'visible'
-            self.panel_vis._auto_hide_saved = {}
+            self.panel_vis.set_auto_hide_visible()
             self._sync_panel_actions()
             self.update_floating_position()
     
