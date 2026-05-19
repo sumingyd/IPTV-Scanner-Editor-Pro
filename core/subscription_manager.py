@@ -448,7 +448,27 @@ class SubscriptionManager(Singleton):
             pass
         
         return self._parse_xml_epg(content)
-    
+
+
+def _parse_xmltv_time(time_str):
+    time_str = time_str.strip()
+    parts = time_str.split()
+    dt_part = parts[0][:14]
+    tz_part = parts[1] if len(parts) > 1 else None
+    dt = datetime.strptime(dt_part, '%Y%m%d%H%M%S')
+    if tz_part:
+        sign = 1 if tz_part[0] == '+' else -1
+        tz_hours = int(tz_part[1:3])
+        tz_minutes = int(tz_part[3:5]) if len(tz_part) >= 5 else 0
+        offset = timedelta(hours=tz_hours, minutes=tz_minutes) * sign
+        dt_utc = dt - offset
+        import time as _time
+        local_offset = timedelta(seconds=-_time.timezone)
+        if _time.daylight:
+            local_offset = timedelta(seconds=-_time.altzone)
+        dt = dt_utc + local_offset
+    return dt
+
     def _parse_xml_epg(self, content: str) -> dict:
         """解析XML格式的EPG数据
 
@@ -496,38 +516,10 @@ class SubscriptionManager(Singleton):
                 
                 if channel_id and start and title:
                     try:
-                        def parse_xmltv_time(time_str):
-                            """解析 XMLTV 时间字符串，保留时区偏移转为本地时间。
-                            格式示例: '20240101120000 +0800' 或 '20240101120000'"""
-                            time_str = time_str.strip()
-                            # 分离日期时间部分和时区部分
-                            parts = time_str.split()
-                            dt_part = parts[0][:14]  # 取前14位数字
-                            tz_part = parts[1] if len(parts) > 1 else None
-
-                            dt = datetime.strptime(dt_part, '%Y%m%d%H%M%S')
-
-                            if tz_part:
-                                # 解析时区偏移（如 +0800 或 -0500）
-                                sign = 1 if tz_part[0] == '+' else -1
-                                tz_hours = int(tz_part[1:3])
-                                tz_minutes = int(tz_part[3:5]) if len(tz_part) >= 5 else 0
-                                offset = timedelta(hours=tz_hours, minutes=tz_minutes) * sign
-                                # 转为 UTC 后再转为本地时间
-                                dt_utc = dt - offset
-                                # 获取本地 UTC 偏移
-                                import time as _time
-                                local_offset = timedelta(seconds=-_time.timezone)
-                                if _time.daylight:
-                                    local_offset = timedelta(seconds=-_time.altzone)
-                                dt = dt_utc + local_offset
-
-                            return dt
-
-                        start_time = parse_xmltv_time(start)
+                        start_time = _parse_xmltv_time(start)
 
                         if end:
-                            end_time = parse_xmltv_time(end)
+                            end_time = _parse_xmltv_time(end)
                         else:
                             end_time = start_time + timedelta(minutes=30)
                         
@@ -683,7 +675,7 @@ class SubscriptionManager(Singleton):
         cache_file = os.path.join(cache_dir, 'epg_cache.json')
         try:
             with open(cache_file, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+                json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
             logger.info(f"EPG数据已保存到缓存: {cache_file}")
         except Exception as e:
             logger.error(f"保存EPG缓存失败: {e}")
