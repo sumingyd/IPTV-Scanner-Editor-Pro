@@ -1620,8 +1620,7 @@ class ScanChannelDialog(FloatingDialog):
                             self.progress_manager.complete_progress(tr('validate_completed', '检测完成'))
                         else:
                             self.progress_manager.complete_progress(tr('scan_completed', '扫描完成'))
-                            self._set_scan_button_text('full_scan', '完整扫描')
-                            self._set_append_scan_button_text('append_scan', '追加扫描')
+                            self._reset_scan_buttons()
 
         except AttributeError as e:
             log_scan_warning(f"进度更新失败: {e}")
@@ -1806,10 +1805,30 @@ class ScanChannelDialog(FloatingDialog):
             max_value=100
         )
 
+        self._set_buttons_during_scan(True)
+
         if clear_list:
             self._set_scan_button_text('stop_scan', '停止扫描')
         else:
             self._set_append_scan_button_text('stop_scan', '停止扫描')
+
+    def _set_buttons_during_scan(self, is_scanning: bool):
+        """扫描/验证期间禁用或恢复冲突按钮"""
+        disabled = is_scanning
+        self.btn_validate.setEnabled(not disabled)
+        self.btn_generate.setEnabled(not disabled)
+        self.btn_open_list.setEnabled(not disabled)
+        self.btn_save_m3u.setEnabled(not disabled)
+        self.btn_save_txt.setEnabled(not disabled)
+        self.btn_batch_ops.setEnabled(not disabled)
+        self.enable_retry_checkbox.setEnabled(not disabled)
+        self.enable_mapping_checkbox.setEnabled(not disabled)
+
+    def _reset_scan_buttons(self):
+        """统一重置扫描按钮文本和状态"""
+        self._set_scan_button_text('full_scan', '完整扫描')
+        self._set_append_scan_button_text('append_scan', '追加扫描')
+        self._set_buttons_during_scan(False)
 
     def _set_button_text(self, button, translation_key, default_text):
         """通用按钮文本设置函数"""
@@ -2119,8 +2138,7 @@ class ScanChannelDialog(FloatingDialog):
         self.progress_manager.complete_progress(self.language_manager.tr('scan_completed', '扫描完成'))
 
         # 更新按钮文本
-        self._set_scan_button_text('full_scan', '完整扫描')
-        self._set_append_scan_button_text('append_scan', '追加扫描')
+        self._reset_scan_buttons()
 
         self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
 
@@ -2140,8 +2158,7 @@ class ScanChannelDialog(FloatingDialog):
     def _on_validation_retry_completed(self):
         """处理验证重试扫描完成事件"""
         self.progress_manager.complete_progress(self.language_manager.tr('validate_completed', '检测完成'))
-        self._set_scan_button_text('full_scan', '完整扫描')
-        self._set_append_scan_button_text('append_scan', '追加扫描')
+        self._reset_scan_buttons()
 
         found_urls = {ch.get('url', '') for ch in self.scanner.found_channels} if hasattr(self.scanner, 'found_channels') else set()
 
