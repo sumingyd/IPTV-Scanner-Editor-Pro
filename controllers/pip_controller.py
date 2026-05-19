@@ -127,17 +127,21 @@ class PipController:
         self._is_active = value
 
     def toggle(self, checked=None):
-        if self._is_active:
+        if checked is not None:
+            should_enter = checked
+        else:
+            should_enter = not self._is_active
+        if should_enter:
+            pc = self.window.player_controller
+            has_content = (pc and (pc.is_playing or getattr(pc, 'is_paused', False))) or getattr(self.window, 'current_channel', None)
+            if not has_content:
+                pip_menu = getattr(self.window, '_pip_menu_action', None)
+                if pip_menu:
+                    pip_menu.setChecked(False)
+                return
+            self._enter()
+        else:
             self._exit()
-            return
-        pc = self.window.player_controller
-        has_content = (pc and (pc.is_playing or getattr(pc, 'is_paused', False))) or getattr(self.window, 'current_channel', None)
-        if not has_content:
-            pip_menu = getattr(self.window, '_pip_menu_action', None)
-            if pip_menu:
-                pip_menu.setChecked(False)
-            return
-        self._enter()
 
     def _enter(self):
         if self._is_active:
@@ -229,6 +233,9 @@ class PipController:
         except Exception as e:
             logger.error(f"进入画中画模式失败: {e}")
             self._is_active = False
+            pip_menu = getattr(self.window, '_pip_menu_action', None)
+            if pip_menu:
+                pip_menu.setChecked(False)
             self._restore_hidden_elements()
 
     def _exit(self):
@@ -269,6 +276,9 @@ class PipController:
         except Exception as e:
             logger.error(f"退出画中画模式失败: {e}")
             self._is_active = False
+            pip_menu = getattr(self.window, '_pip_menu_action', None)
+            if pip_menu:
+                pip_menu.setChecked(False)
 
     def _restore_hidden_elements(self):
         saved = self.window.panel_vis.restore_context('pip')
