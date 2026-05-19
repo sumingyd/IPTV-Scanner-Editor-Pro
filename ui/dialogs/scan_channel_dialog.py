@@ -745,11 +745,9 @@ class ScanChannelDialog(FloatingDialog):
         # 连接选择事件
         self.channel_list.selectionModel().selectionChanged.connect(self._on_channel_selected)
 
-        # 设置频道列表为主要内容，占据大部分空间
-        parent.addWidget(self.channel_list)
-
-        # 空状态提示标签（叠加在列表上方）
-        self._empty_hint = QtWidgets.QLabel(tr("empty_list_hint", "输入地址后点击扫描，或打开已有列表"))
+        # 空状态提示标签（使用QStackedWidget切换列表/提示）
+        tr_local = self.language_manager.tr
+        self._empty_hint = QtWidgets.QLabel(tr_local("empty_list_hint", "输入地址后点击扫描，或打开已有列表"))
         self._empty_hint.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self._empty_hint.setStyleSheet("color: #888; font-size: 14px; padding: 40px;")
         self._empty_hint.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
