@@ -2418,6 +2418,19 @@ class ScanChannelDialog(FloatingDialog):
             self.logger.error(f"更新统计信息显示失败: {e}", exc_info=True)
 
     def closeEvent(self, event):
+        if hasattr(self, 'scanner') and self.scanner:
+            if self.scanner.is_scanning() or getattr(self.scanner, 'is_validating', False):
+                tr = self.language_manager.tr
+                reply = QtWidgets.QMessageBox.question(
+                    self,
+                    tr("confirm_close", "确认关闭"),
+                    tr("confirm_close_scanning", "扫描/验证正在进行中，关闭将丢失结果，是否继续？"),
+                    QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
+                    QtWidgets.QMessageBox.StandardButton.No
+                )
+                if reply == QtWidgets.QMessageBox.StandardButton.No:
+                    event.ignore()
+                    return
         if hasattr(self, 'application') and self.application:
             if hasattr(self.application, '_scan_dialog'):
                 self.application._scan_dialog = None
