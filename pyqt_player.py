@@ -4485,7 +4485,7 @@ class IPTVPlayer(QMainWindow):
         if self.player_controller:
             self.player_controller.play(timeshift_url, f"{self.current_channel.get('name', '')} (时移)")
         self._show_exit_timeshift_button()
-        self._update_catchup_indicator()
+        self.media_ctrl.update_catchup_indicator()
         self._populate_epg_list()
 
     def _start_live_timeshift_from_progress(self, slider_seconds, catchup_source):
@@ -4571,7 +4571,7 @@ class IPTVPlayer(QMainWindow):
         if self.player_controller:
             self.player_controller.play(timeshift_url, f"{channel_name} (时移 {offset_str})")
         self._show_exit_timeshift_button()
-        self._update_catchup_indicator()
+        self.media_ctrl.update_catchup_indicator()
         self._populate_epg_list()
 
     def _set_channel_view_mode(self, mode, tab='sub'):
