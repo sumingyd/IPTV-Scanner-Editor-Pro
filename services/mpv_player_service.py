@@ -564,7 +564,6 @@ class MpvPlayerController(QObject):
             if self.mpv_handle:
                 try:
                     _mpv_send_command(self.mpv_handle, ['quit'])
-                    time.sleep(0.1)
                 except Exception as e:
                     self.logger.debug(f"发送quit命令失败（可能已关闭）: {e}")
 
