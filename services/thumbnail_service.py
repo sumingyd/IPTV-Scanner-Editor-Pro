@@ -2,6 +2,7 @@ import hashlib
 import os
 import threading
 import time
+from collections import deque
 from typing import Optional
 from PyQt6.QtCore import QObject, pyqtSignal
 from services.mpv_common import (
@@ -144,7 +145,7 @@ class ThumbnailService(QObject):
         self._hidden_winid = int(self._hidden_widget.winId())
         self._thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
-        self._queue: list = []
+        self._queue: deque = deque()
         self._lock = threading.Lock()
         self._running = False
 
@@ -187,7 +188,7 @@ class ThumbnailService(QObject):
             with self._lock:
                 if not self._queue:
                     break
-                name, url, force = self._queue.pop(0)
+                name, url, force = self._queue.popleft()
             try:
                 result = _capture_single(url, timeout=8, wid=self._hidden_winid, force=force)
                 if result and not self._stop_event.is_set():
