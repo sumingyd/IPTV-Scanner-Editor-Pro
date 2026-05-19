@@ -396,21 +396,33 @@ class EventHandler:
                     self.window._on_main_window_deactivated()
 
     def moveEvent(self, event):
-        """窗口移动事件 - 跟随定位浮动Dock"""
+        """窗口移动事件 - 跟随定位浮动Dock（节流）"""
         if getattr(self.window, 'pip_mode', False):
             if hasattr(self.window, 'pip_ctrl'):
                 self.window.pip_ctrl._update_overlay_geometry()
             return
-        if hasattr(self.window, 'update_floating_position'):
-            self.window.update_floating_position()
+        self._schedule_position_update()
 
     def resizeEvent(self, event):
-        """窗口大小变化事件 - 跟随重定位浮动Dock"""
+        """窗口大小变化事件 - 跟随重定位浮动Dock（节流）"""
         if getattr(self.window, 'pip_mode', False):
             if hasattr(self.window, 'pip_ctrl'):
                 self.window.pip_ctrl._update_overlay_geometry()
                 self.window.pip_ctrl._update_video_geometry()
             return
+        self._schedule_position_update()
+
+    def _schedule_position_update(self):
+        if not hasattr(self, '_position_timer'):
+            from PyQt6.QtCore import QTimer
+            self._position_timer = QTimer(self.window)
+            self._position_timer.setSingleShot(True)
+            self._position_timer.setInterval(16)
+            self._position_timer.timeout.connect(self._do_position_update)
+        if not self._position_timer.isActive():
+            self._position_timer.start()
+
+    def _do_position_update(self):
         if hasattr(self.window, 'update_floating_position'):
             self.window.update_floating_position()
 
