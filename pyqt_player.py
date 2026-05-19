@@ -144,6 +144,30 @@ class IPTVPlayer(QMainWindow):
     current_channel: Optional[Dict[str, Any]] = None
     epg_parser = None
 
+    @property
+    def epg_visible(self):
+        return self.panel_vis.get_visible('epg')
+
+    @epg_visible.setter
+    def epg_visible(self, value):
+        self.panel_vis.set_visible('epg', value)
+
+    @property
+    def playlist_visible(self):
+        return self.panel_vis.get_visible('playlist')
+
+    @playlist_visible.setter
+    def playlist_visible(self, value):
+        self.panel_vis.set_visible('playlist', value)
+
+    @property
+    def floating_panel_visible(self):
+        return self.panel_vis.get_visible('floating')
+
+    @floating_panel_visible.setter
+    def floating_panel_visible(self, value):
+        self.panel_vis.set_visible('floating', value)
+
     window_ctrl = None
     playback_ctrl = None
     epg_ctrl = None
@@ -267,9 +291,6 @@ class IPTVPlayer(QMainWindow):
         self.channel_model = ChannelListModel()
         self.current_channel = None
 
-        self.epg_visible = True
-        self.playlist_visible = True
-        self.floating_panel_visible = True
         self._floating_hidden = False
         self._suppress_volume_osd = False
         self._osd_visible = False
@@ -2508,7 +2529,6 @@ class IPTVPlayer(QMainWindow):
             self.playlist_visible = not self.playlist_panel.isVisible()
         else:
             self.playlist_visible = checked
-        self.playlist_panel.setVisible(self.playlist_visible)
         self._sync_panel_actions()
 
     def toggle_floating_panel(self, checked=None):
@@ -2520,7 +2540,6 @@ class IPTVPlayer(QMainWindow):
             self.floating_panel_visible = not self.floating_panel.isVisible()
         else:
             self.floating_panel_visible = checked
-        self.floating_panel.setVisible(self.floating_panel_visible)
         self._sync_panel_actions()
 
     def toggle_hide_floating(self, checked=None):

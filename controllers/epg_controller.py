@@ -513,7 +513,6 @@ class EPGController:
     def toggle_epg(self, checked: bool):
         """切换EPG面板显示/隐藏"""
         if hasattr(self.window, 'epg_panel'):
-            self.window.epg_panel.setVisible(checked)
             self.window.epg_visible = checked
             self.window._sync_panel_actions()
 
