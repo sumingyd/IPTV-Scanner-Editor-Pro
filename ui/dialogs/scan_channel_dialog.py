@@ -1452,6 +1452,24 @@ class ScanChannelDialog(FloatingDialog):
 
         menu.addSeparator()
 
+        select_all_action = QtGui.QAction(tr("select_all", "Select All"), self)
+        select_all_action.triggered.connect(self._select_all_channels)
+        menu.addAction(select_all_action)
+
+        invert_selection_action = QtGui.QAction(tr("invert_selection", "Invert Selection"), self)
+        invert_selection_action.triggered.connect(self._invert_selection)
+        menu.addAction(invert_selection_action)
+
+        select_valid_action = QtGui.QAction(tr("select_valid", "Select Valid"), self)
+        select_valid_action.triggered.connect(lambda: self._select_by_validity(True))
+        menu.addAction(select_valid_action)
+
+        select_invalid_action = QtGui.QAction(tr("select_invalid", "Select Invalid"), self)
+        select_invalid_action.triggered.connect(lambda: self._select_by_validity(False))
+        menu.addAction(select_invalid_action)
+
+        menu.addSeparator()
+
         move_to_group_action = QtGui.QAction(tr("move_to_group", "Move to Group..."), self)
         move_to_group_action.triggered.connect(self._move_selected_to_group)
         menu.addAction(move_to_group_action)
@@ -1466,8 +1484,10 @@ class ScanChannelDialog(FloatingDialog):
 
         menu.addSeparator()
 
-        delete_action = QtGui.QAction(tr("delete_channel", "Delete Channel"), self)
-        delete_action.triggered.connect(lambda: self._delete_selected_channel(index))
+        selected_count = len(self.channel_list.selectionModel().selectedRows())
+        delete_label = tr("delete_selected_channels", "Delete Selected") + (f" ({selected_count})" if selected_count > 1 else "")
+        delete_action = QtGui.QAction(delete_label, self)
+        delete_action.triggered.connect(self._delete_selected_channels)
         menu.addAction(delete_action)
 
         # 显示菜单
@@ -1552,6 +1572,52 @@ class ScanChannelDialog(FloatingDialog):
         message = tr("confirm_delete_message", "Are you sure you want to delete the selected channel?") or "Are you sure you want to delete the selected channel?"
         if show_confirm(title, message, parent=self):
             self.model.remove_channel(index.row())
+
+    def _delete_selected_channels(self):
+        """删除选中的频道（支持多选批量删除）"""
+        tr = self.language_manager.tr
+        indices = self._get_selected_indices()
+        if not indices:
+            return
+        from utils.error_handler import show_confirm
+        title = tr("confirm_delete", "Confirm Delete")
+        message = tr("confirm_delete_selected_message", "确定删除选中的{n}个频道？").format(n=len(indices))
+        if show_confirm(title, message, parent=self):
+            for row in sorted(indices, reverse=True):
+                self.model.remove_channel(row)
+
+    def _select_all_channels(self):
+        """全选频道"""
+        self.channel_list.selectAll()
+
+    def _invert_selection(self):
+        """反选频道"""
+        model = self._filter_proxy if hasattr(self, '_filter_proxy') else self.model
+        selection_model = self.channel_list.selectionModel()
+        for row in range(model.rowCount()):
+            index = model.index(row, 0)
+            if selection_model.isSelected(index):
+                selection_model.select(index, QtCore.QItemSelectionModel.SelectionFlag.Deselect | QtCore.QItemSelectionModel.SelectionFlag.Rows)
+            else:
+                selection_model.select(index, QtCore.QItemSelectionModel.SelectionFlag.Select | QtCore.QItemSelectionModel.SelectionFlag.Rows)
+
+    def _select_by_validity(self, select_valid: bool):
+        """按有效性选择频道"""
+        from models.channel_model import ChannelListModel as CLM
+        model = self._filter_proxy if hasattr(self, '_filter_proxy') else self.model
+        selection_model = self.channel_list.selectionModel()
+        selection_model.clearSelection()
+        source_model = self.model
+        for row in range(model.rowCount()):
+            if hasattr(self, '_filter_proxy'):
+                source_row = self._filter_proxy.mapToSource(model.index(row, 0)).row()
+            else:
+                source_row = row
+            channel = source_model.get_channel(source_row)
+            if channel:
+                is_valid = channel.get('valid', False)
+                if is_valid == select_valid:
+                    selection_model.select(model.index(row, 0), QtCore.QItemSelectionModel.SelectionFlag.Select | QtCore.QItemSelectionModel.SelectionFlag.Rows)
 
     def _on_header_clicked(self, logical_index):
         """处理表头点击排序"""
