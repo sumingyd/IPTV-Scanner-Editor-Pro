@@ -131,6 +131,10 @@ class MainWindowProtocol(Protocol):
     _custom_menu_bar: QWidget
     _osd_menu_action: Any
     _pip_menu_action: Any
+    _epg_menu_action: Any
+    _playlist_menu_action: Any
+    _floating_menu_action: Any
+    _fullscreen_menu_action: Any
     audio_track_button: QPushButton
     sub_track_button: QPushButton
     aspect_button: QPushButton

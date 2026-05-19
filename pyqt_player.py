@@ -272,7 +272,7 @@ class IPTVPlayer(QMainWindow):
         self.floating_panel_visible = True
         self._floating_hidden = False
         self._suppress_volume_osd = False
-        self._osd_visible = True
+        self._osd_visible = False
         self.is_fullscreen = False
 
         from core.subscription_manager import global_subscription_manager
@@ -1505,18 +1505,21 @@ class IPTVPlayer(QMainWindow):
             show_epg.setChecked(self.epg_visible)
             show_epg.triggered.connect(self.toggle_epg)
             view_menu.addAction(show_epg)
+            self._epg_menu_action = show_epg
 
             show_playlist = QAction(tr("menu_playlist", "Playlist\tL"), self)
             show_playlist.setCheckable(True)
             show_playlist.setChecked(self.playlist_visible)
             show_playlist.triggered.connect(self.toggle_playlist)
             view_menu.addAction(show_playlist)
+            self._playlist_menu_action = show_playlist
 
             show_floating = QAction(tr("menu_control_panel", "Control Panel\tM"), self)
             show_floating.setCheckable(True)
             show_floating.setChecked(self.floating_panel_visible)
             show_floating.triggered.connect(self.toggle_floating_panel)
             view_menu.addAction(show_floating)
+            self._floating_menu_action = show_floating
 
             hide_all_floating = QAction(tr("menu_hide_floating", "Hide Floating Panels\tY"), self)
             hide_all_floating.triggered.connect(lambda: self.toggle_hide_floating())
@@ -1536,6 +1539,7 @@ class IPTVPlayer(QMainWindow):
             fullscreen.setCheckable(True)
             fullscreen.triggered.connect(self.toggle_fullscreen)
             view_menu.addAction(fullscreen)
+            self._fullscreen_menu_action = fullscreen
 
             pip_action = QAction(tr("menu_pip", "Picture-in-Picture\tP"), self)
             pip_action.setCheckable(True)
@@ -2505,12 +2509,7 @@ class IPTVPlayer(QMainWindow):
         else:
             self.playlist_visible = checked
         self.playlist_panel.setVisible(self.playlist_visible)
-        for action in self.findChildren(QAction):
-            if action.text() and 'Playlist' in action.text() and action.isCheckable():
-                action.blockSignals(True)
-                action.setChecked(self.playlist_visible)
-                action.blockSignals(False)
-                break
+        self._sync_panel_actions()
 
     def toggle_floating_panel(self, checked=None):
         """显示/隐藏底部控制面板"""
@@ -2522,12 +2521,7 @@ class IPTVPlayer(QMainWindow):
         else:
             self.floating_panel_visible = checked
         self.floating_panel.setVisible(self.floating_panel_visible)
-        for action in self.findChildren(QAction):
-            if action.text() and ('Control Panel' in action.text() or '控制' in action.text()) and action.isCheckable():
-                action.blockSignals(True)
-                action.setChecked(self.floating_panel_visible)
-                action.blockSignals(False)
-                break
+        self._sync_panel_actions()
 
     def toggle_hide_floating(self, checked=None):
         if self.panel_vis.manually_hidden:
@@ -2633,21 +2627,18 @@ class IPTVPlayer(QMainWindow):
 
     def _sync_panel_actions(self):
         """同步所有面板相关 QAction 的 checked 状态"""
-        for action in self.findChildren(QAction):
-            if not action.isCheckable():
-                continue
-            text = action.text()
-            if 'EPG' in text or '节目' in text:
+        for attr, visible in [
+            ('_epg_menu_action', self.epg_visible),
+            ('_playlist_menu_action', self.playlist_visible),
+            ('_floating_menu_action', self.floating_panel_visible),
+            ('_osd_menu_action', self._osd_visible),
+            ('_fullscreen_menu_action', getattr(self, 'is_fullscreen', False)),
+            ('_pip_menu_action', self.pip_ctrl.is_active if hasattr(self, 'pip_ctrl') else False),
+        ]:
+            action = getattr(self, attr, None)
+            if action:
                 action.blockSignals(True)
-                action.setChecked(self.epg_visible)
-                action.blockSignals(False)
-            elif 'Playlist' in text or '播放' in text:
-                action.blockSignals(True)
-                action.setChecked(self.playlist_visible)
-                action.blockSignals(False)
-            elif 'Control Panel' in text or '控制' in text:
-                action.blockSignals(True)
-                action.setChecked(self.floating_panel_visible)
+                action.setChecked(visible)
                 action.blockSignals(False)
 
     def toggle_osd(self, checked=None):
@@ -3405,7 +3396,10 @@ class IPTVPlayer(QMainWindow):
             self.floating_dock.move(fl_x, fl_y)
 
     def toggle_fullscreen(self, checked=False):
-        self.is_fullscreen = not self.is_fullscreen
+        if checked is not None and checked != self.is_fullscreen:
+            self.is_fullscreen = checked
+        else:
+            self.is_fullscreen = not self.is_fullscreen
 
         if self.is_fullscreen:
             self.panel_vis.set_auto_hide_visible()
@@ -3420,6 +3414,7 @@ class IPTVPlayer(QMainWindow):
             self.unsetCursor()
             is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
             self.panel_vis.set_all_visible(is_local_file=is_local)
+            self._sync_panel_actions()
             self._restart_auto_hide_timer()
         else:
             self._stop_auto_hide_timer()

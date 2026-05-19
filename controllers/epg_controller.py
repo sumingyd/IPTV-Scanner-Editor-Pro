@@ -515,12 +515,7 @@ class EPGController:
         if hasattr(self.window, 'epg_panel'):
             self.window.epg_panel.setVisible(checked)
             self.window.epg_visible = checked
-            for action in self.window.findChildren(QAction):
-                if action.text() and ('EPG' in action.text() or '节目' in action.text()) and action.isCheckable():
-                    action.blockSignals(True)
-                    action.setChecked(checked)
-                    action.blockSignals(False)
-                    break
+            self.window._sync_panel_actions()
 
     @property
     def has_epg_data(self) -> bool:
