@@ -1528,11 +1528,11 @@ class IPTVPlayer(QMainWindow):
 
             playback_menu.addSeparator()
 
-            vol_up = QAction(tr("menu_vol_up", "Volume Up\t→"), self)
+            vol_up = QAction(tr("menu_vol_up", "Volume Up\t↑"), self)
             vol_up.triggered.connect(lambda: self.event_handler._adjust_volume(5) if hasattr(self, 'event_handler') else None)
             playback_menu.addAction(vol_up)
 
-            vol_down = QAction(tr("menu_vol_down", "Volume Down\t←"), self)
+            vol_down = QAction(tr("menu_vol_down", "Volume Down\t↓"), self)
             vol_down.triggered.connect(lambda: self.event_handler._adjust_volume(-5) if hasattr(self, 'event_handler') else None)
             playback_menu.addAction(vol_down)
 

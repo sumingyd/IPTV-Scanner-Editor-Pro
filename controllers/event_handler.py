@@ -149,15 +149,9 @@ class EventHandler:
                     elif key == Qt.Key.Key_Down:
                         self._switch_channel(1)
                     elif key == Qt.Key.Key_Left:
-                        if self._is_local_file_playing():
-                            self._seek_relative(-10)
-                        else:
-                            self._adjust_volume(-5)
+                        self._seek_relative(-10)
                     elif key == Qt.Key.Key_Right:
-                        if self._is_local_file_playing():
-                            self._seek_relative(10)
-                        else:
-                            self._adjust_volume(5)
+                        self._seek_relative(10)
                     return True
                 elif key == Qt.Key.Key_F:
                     if hasattr(w, 'toggle_fullscreen'):
