@@ -233,5 +233,22 @@ class MpvStreamValidator:
                 pass
 
     @classmethod
+    def set_terminating(cls):
+        """仅设置终止标志，不销毁句柄（用于安全停止）"""
+        cls._terminating = True
+
+    @classmethod
+    def destroy_all_handles(cls):
+        """销毁所有活跃mpv句柄（应在工作线程退出后调用）"""
+        with cls._handles_lock:
+            handles_to_destroy = list(cls._active_handles)
+            cls._active_handles.clear()
+        for handle in handles_to_destroy:
+            try:
+                destroy_mpv(handle)
+            except Exception:
+                pass
+
+    @classmethod
     def reset_terminating(cls):
         cls._terminating = False

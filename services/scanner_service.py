@@ -617,9 +617,24 @@ class ScannerController(QObject):
             'is_scanning': False
         })
 
+        # 安全停止：1.设置终止标志（让工作线程尽快退出）
+        from services.mpv_validator_service import MpvStreamValidator
+        MpvStreamValidator.set_terminating()
+
+        # 2.清空队列
         self._clear_all_queues()
-        self._cleanup_workers_fast()
-        self._terminate_all_processes()
+
+        # 3.等待工作线程退出（足够长timeout确保线程退出）
+        for worker in self.workers:
+            if worker.is_alive():
+                worker.join(timeout=3.0)
+        self.workers = []
+        self.worker_queue = queue.Queue()
+
+        # 4.线程退出后安全销毁mpv句柄
+        MpvStreamValidator.destroy_all_handles()
+
+        # 5.清理其他资源
         self._cleanup_other_resources()
 
         if hasattr(self, '_mapping_executor') and self._mapping_executor:
@@ -773,24 +788,27 @@ class ScannerController(QObject):
             'is_validating': False
         })
 
-        # 清空任务队列
+        # 安全停止：1.设置终止标志
+        from services.mpv_validator_service import MpvStreamValidator
+        MpvStreamValidator.set_terminating()
+
+        # 2.清空任务队列
         while not self.validation_queue.empty():
             try:
                 self.validation_queue.get_nowait()
             except queue.Empty:
                 break
 
-        # 先等待工作线程退出
+        # 3.等待工作线程退出
         for worker in self.workers:
             if worker.is_alive():
-                worker.join(timeout=0.5)
+                worker.join(timeout=1.0)
 
         self.workers = []
         self.worker_queue = queue.Queue()
 
-        # 线程退出后再销毁mpv句柄
-        from services.mpv_validator_service import MpvStreamValidator
-        MpvStreamValidator.terminate_all()
+        # 4.线程退出后安全销毁mpv句柄
+        MpvStreamValidator.destroy_all_handles()
 
     def _validation_worker(self):
         while not self.stop_event.is_set():
