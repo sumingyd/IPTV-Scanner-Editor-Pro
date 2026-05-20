@@ -222,7 +222,8 @@ class ChannelClassifier:
                     category = '其他频道'
 
             current_group = ch.get('group', '')
-            if not overwrite and current_group and current_group.strip():
+            has_real_group = current_group and current_group.strip() and current_group not in ('未分类', '其他频道')
+            if not overwrite and has_real_group:
                 results.append({
                     'index': ch.get('_index', 0),
                     'name': name,
