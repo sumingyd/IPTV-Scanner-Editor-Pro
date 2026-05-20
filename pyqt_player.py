@@ -1300,7 +1300,7 @@ class IPTVPlayer(QMainWindow):
         
         # PiP按钮
         self.pip_button = QToolButton()
-        self.pip_button.setText("📌")
+        self.pip_button.setText("⧉")
         self.pip_button.setFixedSize(28, 26)
         self.pip_button.setStyleSheet(AppStyles.player_button_style())
         self.pip_button.clicked.connect(self.pip_ctrl.toggle)
