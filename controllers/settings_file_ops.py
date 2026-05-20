@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QFileDialog, QMessageBox, QComboBox, QApplication,
     QCheckBox, QSpinBox, QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QLineEdit, QGroupBox, QListWidget, QListWidgetItem,
-    QWidget, QFormLayout, QTextEdit, QFrame
+    QWidget, QFormLayout, QTextEdit, QFrame, QScrollArea
 )
 
 from core.log_manager import global_logger as logger
@@ -135,15 +135,26 @@ class SettingsFileOperations:
         dialog = self._create_settings_dialog()
         tr = self._tr
 
-        main_layout = QVBoxLayout(dialog)
-
         playback_settings = self.window.config.load_playback_settings() if self.window.config else {}
 
-        main_layout.addWidget(self._build_protocol_section(tr, playback_settings))
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(8, 8, 8, 8)
+
+        content_layout.addWidget(self._build_protocol_section(tr, playback_settings))
         playlist_section = self._build_subscription_section(tr, 'playlist', playback=False)
-        main_layout.addWidget(playlist_section['group'])
+        content_layout.addWidget(playlist_section['group'])
         epg_section = self._build_subscription_section(tr, 'epg', playback=False)
-        main_layout.addWidget(epg_section['group'])
+        content_layout.addWidget(epg_section['group'])
+        content_layout.addStretch()
+
+        scroll.setWidget(content_widget)
+
+        main_layout = QVBoxLayout(dialog)
+        main_layout.addWidget(scroll, 1)
 
         self._connect_subscription_signals(playlist_section, epg_section)
 
@@ -185,7 +196,8 @@ class SettingsFileOperations:
         except TypeError:
             dialog = FloatingDialog(self.window)
         dialog.setWindowTitle(self._tr("subscription_settings_title", "Subscription Settings"))
-        dialog.setMinimumSize(620, 620)
+        dialog.setMinimumSize(560, 500)
+        dialog.resize(660, 680)
         dialog.setStyleSheet(AppStyles.dialog_style())
         return dialog
 
@@ -270,7 +282,6 @@ class SettingsFileOperations:
         sources_label = QLabel(tr(sources_label_key, sources_label_default))
         list_widget = QListWidget()
         list_widget.setObjectName(list_obj_name)
-        list_widget.setMaximumHeight(120)
 
         add_btn = QPushButton(tr("add_source", "+ Add Source"))
         remove_btn = QPushButton(tr("remove_source", "- Remove Selected"))
@@ -283,10 +294,10 @@ class SettingsFileOperations:
         new_url_edit.setPlaceholderText(tr(url_placeholder_key, url_placeholder_default))
         new_name_edit = QLineEdit()
         new_name_edit.setPlaceholderText(tr("enter_source_name", "Source name (optional)"))
-        new_name_edit.setMaximumWidth(150)
+        new_name_edit.setMaximumWidth(180)
 
         input_layout.addWidget(QLabel("URL:"))
-        input_layout.addWidget(new_url_edit)
+        input_layout.addWidget(new_url_edit, 1)
         input_layout.addWidget(QLabel("Name:"))
         input_layout.addWidget(new_name_edit)
 
