@@ -747,9 +747,11 @@ class ScanChannelDialog(FloatingDialog):
 
         # 空状态提示标签（使用QStackedWidget切换列表/提示）
         tr_local = self.language_manager.tr
+        from ui.styles import AppStyles
+        _hint_colors = AppStyles._get_colors()
         self._empty_hint = QtWidgets.QLabel(tr_local("empty_list_hint", "输入地址后点击扫描，或打开已有列表"))
         self._empty_hint.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self._empty_hint.setStyleSheet("color: #888; font-size: 14px; padding: 40px;")
+        self._empty_hint.setStyleSheet(f"color: {_hint_colors['player_panel_hint']}; font-size: 14px; padding: 40px;")
         self._empty_hint.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self._empty_stack = QtWidgets.QStackedWidget()
         self._empty_stack.addWidget(self.channel_list)
@@ -2063,10 +2065,12 @@ class ScanChannelDialog(FloatingDialog):
 
     def _show_input_warning(self, input_widget, message):
         """在输入框旁显示临时警告提示"""
+        from ui.styles import AppStyles
+        err_color = AppStyles._get_colors().get('error', '#e74c3c')
         original_style = input_widget.styleSheet()
-        input_widget.setStyleSheet(original_style + "; border: 2px solid #e74c3c;")
+        input_widget.setStyleSheet(original_style + f"; border: 2px solid {err_color};")
         self.stats_label.setText(message)
-        self.stats_label.setStyleSheet("color: #e74c3c; font-weight: bold;")
+        self.stats_label.setStyleSheet(f"color: {err_color}; font-weight: bold;")
         QtCore.QTimer.singleShot(2000, lambda: (
             input_widget.setStyleSheet(original_style),
             self.stats_label.setStyleSheet(AppStyles.common_label_style())

@@ -79,6 +79,7 @@ class ThemeManager(Singleton, QtCore.QObject):
                 AppStyles.button_style()
             ),
             QtWidgets.QTableView: lambda w: AppStyles.list_style(),
+            QtWidgets.QTableWidget: lambda w: AppStyles.list_style(),
             QtWidgets.QListWidget: lambda w: AppStyles.list_style(),
             QtWidgets.QStatusBar: lambda w: AppStyles.statusbar_style(),
             QtWidgets.QTabWidget: lambda w: AppStyles.tab_widget_style(),
@@ -87,6 +88,7 @@ class ThemeManager(Singleton, QtCore.QObject):
             QtWidgets.QComboBox: lambda w: AppStyles.common_combo_box_style() if (not w.styleSheet() or 'common_combo' not in w.styleSheet()) else None,
             QtWidgets.QLabel: lambda w: AppStyles.common_label_style() if not w.styleSheet() else None,
             QtWidgets.QCheckBox: lambda w: AppStyles.common_check_box_style() if not w.styleSheet() else None,
+            QtWidgets.QRadioButton: lambda w: AppStyles.common_radio_button_style() if hasattr(AppStyles, 'common_radio_button_style') and not w.styleSheet() else None,
             QtWidgets.QProgressBar: lambda w: AppStyles.progress_style() if not w.styleSheet() else None,
             QtWidgets.QGroupBox: lambda w: AppStyles.common_group_box_style() if not w.styleSheet() else None,
         }

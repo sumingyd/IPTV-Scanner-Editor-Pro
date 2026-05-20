@@ -50,11 +50,14 @@ class VideoOverlayBadge(QWidget):
     MODE_CATCHUP   = 'catchup'
     MODE_TIMESHIFT = 'timeshift'
 
-    # 各模式的颜色配置 (渐变起, 渐变止, 图标文字, 文字颜色)
-    _CONFIGS = {
-        MODE_CATCHUP:   ('#1a6fcf', '#0d4e9a', '▶ ', '#e8f4fd'),
-        MODE_TIMESHIFT: ('#c97a00', '#8a5200', '⏪ ', '#fff4e0'),
-    }
+    @staticmethod
+    def _get_mode_configs():
+        from ui.styles import AppStyles
+        c = AppStyles._get_colors()
+        return {
+            CatchupIndicator.MODE_CATCHUP: (c['accent'], c['accent_pressed'], '▶ ', c['window']),
+            CatchupIndicator.MODE_TIMESHIFT: (c['warning'], c['accent_pressed'], '⏪ ', c['window']),
+        }
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -84,7 +87,7 @@ class VideoOverlayBadge(QWidget):
         self.setFixedSize(w, h)
 
     def _get_parts(self):
-        cfg = self._CONFIGS.get(self._mode, self._CONFIGS[self.MODE_CATCHUP])
+        cfg = self._get_mode_configs().get(self._mode, self._get_mode_configs()[self.MODE_CATCHUP])
         icon = cfg[2]
         return icon, self._label_text
 
@@ -92,7 +95,7 @@ class VideoOverlayBadge(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        cfg = self._CONFIGS.get(self._mode, self._CONFIGS[self.MODE_CATCHUP])
+        cfg = self._get_mode_configs().get(self._mode, self._get_mode_configs()[self.MODE_CATCHUP])
         color1, color2, icon, text_color = cfg
 
         r = self.rect()

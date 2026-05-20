@@ -61,7 +61,9 @@ class FileAssociationDialog(FloatingDialog):
         layout.addWidget(title)
 
         hint = QtWidgets.QLabel(tr("file_assoc_hint", '注册后，右键文件即可在"打开方式"中选择本程序'))
-        hint.setStyleSheet("font-size: 11px; color: gray;")
+        from ui.styles import AppStyles
+        hint_colors = AppStyles._get_colors()
+        hint.setStyleSheet(f"font-size: 11px; color: {hint_colors['player_panel_hint']};")
         hint.setWordWrap(True)
         layout.addWidget(hint)
 

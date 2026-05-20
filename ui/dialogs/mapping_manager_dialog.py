@@ -71,7 +71,7 @@ class MappingManagerDialog(FloatingDialog):
         colors = AppStyles._get_colors()
         accent_color = colors.get('accent', '#4682B4')
         text_color = colors.get('window_text', '#d0e0f0')
-        text_secondary = colors.get('text_secondary', '#90a0b0')
+        text_secondary = colors.get('player_panel_secondary', '#90a0b0')
         accent_hover = colors.get('accent_hover', '#5a9bd5')
         accent_pressed = colors.get('accent_pressed', '#3a72a4')
         player_panel_secondary = colors.get('player_panel_secondary', '#b0c0d0')
