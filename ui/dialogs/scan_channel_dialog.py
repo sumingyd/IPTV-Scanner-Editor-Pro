@@ -45,8 +45,6 @@ class ScanChannelDialog(FloatingDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent, frameless=False, stay_on_top=False)
-        # 从主题获取透明度设置
-        from ..styles import AppStyles
         colors = AppStyles._get_colors()
         self.opacity = colors.get('window_opacity', 220)
         # 保存应用程序引用
@@ -747,7 +745,6 @@ class ScanChannelDialog(FloatingDialog):
 
         # 空状态提示标签（使用QStackedWidget切换列表/提示）
         tr_local = self.language_manager.tr
-        from ui.styles import AppStyles
         _hint_colors = AppStyles._get_colors()
         self._empty_hint = QtWidgets.QLabel(tr_local("empty_list_hint", "输入地址后点击扫描，或打开已有列表"))
         self._empty_hint.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
@@ -2065,7 +2062,6 @@ class ScanChannelDialog(FloatingDialog):
 
     def _show_input_warning(self, input_widget, message):
         """在输入框旁显示临时警告提示"""
-        from ui.styles import AppStyles
         err_color = AppStyles._get_colors().get('error', '#e74c3c')
         original_style = input_widget.styleSheet()
         input_widget.setStyleSheet(original_style + f"; border: 2px solid {err_color};")
