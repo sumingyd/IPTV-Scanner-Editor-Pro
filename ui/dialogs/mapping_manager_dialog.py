@@ -72,6 +72,11 @@ class MappingManagerDialog(FloatingDialog):
         accent_color = colors.get('accent', '#4682B4')
         text_color = colors.get('window_text', '#d0e0f0')
         text_secondary = colors.get('text_secondary', '#90a0b0')
+        accent_hover = colors.get('accent_hover', '#5a9bd5')
+        accent_pressed = colors.get('accent_pressed', '#3a72a4')
+        player_panel_secondary = colors.get('player_panel_secondary', '#b0c0d0')
+        player_panel_hint = colors.get('player_panel_hint', '#8090a0')
+        mid_color = colors.get('mid', '#8090a0')
 
         info_box = QtWidgets.QFrame()
         info_box.setStyleSheet(f"""
@@ -113,8 +118,8 @@ class MappingManagerDialog(FloatingDialog):
                 font-size: 14px;
                 font-weight: bold;
             }}
-            QPushButton:hover {{ background-color: #5a9bd5; }}
-            QPushButton:pressed {{ background-color: #3a72a4; }}
+            QPushButton:hover {{ background-color: {accent_hover}; }}
+            QPushButton:pressed {{ background-color: {accent_pressed}; }}
         """)
         self.refresh_cache_btn.clicked.connect(self.refresh_cache)
         refresh_layout.addWidget(self.refresh_cache_btn)
@@ -134,8 +139,8 @@ class MappingManagerDialog(FloatingDialog):
             QGroupBox {{
                 font-size: 13px;
                 font-weight: bold;
-                color: #b0c0d0;
-                border: 1px solid rgba(100, 120, 140, 0.3);
+                color: {player_panel_secondary};
+                border: 1px solid {mid_color};
                 border-radius: 8px;
                 margin-top: 10px;
                 padding-top: 8px;
@@ -151,7 +156,7 @@ class MappingManagerDialog(FloatingDialog):
 
         hint_label = QtWidgets.QLabel(_('manual_mapping_hint',
             'Only needed when remote mapping cannot correctly identify a channel.'))
-        hint_label.setStyleSheet("color: #8090a0; font-size: 11px; border: none; background: transparent;")
+        hint_label.setStyleSheet(f"color: {player_panel_hint}; font-size: 11px; border: none; background: transparent;")
         hint_label.setWordWrap(True)
         manual_layout.addWidget(hint_label)
 
@@ -236,9 +241,12 @@ class MappingManagerDialog(FloatingDialog):
     def _check_update_status_async(self):
         """启动后台线程检查远程更新状态，不阻塞 UI"""
         _ = self._tr
+        from ui.styles import AppStyles
+        colors = AppStyles._get_colors()
+        player_panel_hint = colors.get('player_panel_hint', '#8090a0')
         self.update_status_label.setText(_('checking_update', '⏳ Checking for updates...'))
         self.update_status_label.setStyleSheet(
-            "color: #8090a0; font-size: 11px; border: none; background: transparent; padding: 4px 8px;"
+            f"color: {player_panel_hint}; font-size: 11px; border: none; background: transparent; padding: 4px 8px;"
         )
         worker = _UpdateCheckWorker(self)
         worker.finished.connect(self._on_update_check_done)
@@ -249,14 +257,16 @@ class MappingManagerDialog(FloatingDialog):
     def _on_update_check_done(self, status: dict):
         """更新检查完成后在 UI 线程中更新标签"""
         _ = self._tr
-        color = '#60a080'
+        from ui.styles import AppStyles
+        colors = AppStyles._get_colors()
+        color = colors.get('success', '#60a080')
         if status.get('error'):
             text = _('update_check_failed', 'Update check failed: {}').format(status['error'])
-            color = '#c07050'
+            color = colors.get('error', '#c07050')
         elif status.get('has_update'):
             text = _('update_available',
                 '🔄 New version available! Click the button above to refresh.')
-            color = '#f0a030'
+            color = colors.get('warning', '#f0a030')
         else:
             last_time = status.get('last_cache_time', 0)
             local_count = status.get('local_count', 0)

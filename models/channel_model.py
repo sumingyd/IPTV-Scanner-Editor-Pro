@@ -233,24 +233,24 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         elif role == QtCore.Qt.ItemDataRole.TextAlignmentRole:
             return QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignLeft
         elif role == QtCore.Qt.ItemDataRole.BackgroundRole:
+            from ui.styles import AppStyles
+            colors = AppStyles._get_colors()
             if not channel.get('valid', True):
-                return QtGui.QColor('#ffdddd')  # 无效项背景色
+                return QtGui.QColor(colors.get('error_background', '#ffdddd'))
             else:
-                from ui.styles import AppStyles
-                colors = AppStyles._get_colors()
-                return QtGui.QColor(colors['table_alternate'])  # 使用styles中定义的表格背景色
+                return QtGui.QColor(colors['table_alternate'])
         elif role == QtCore.Qt.ItemDataRole.ForegroundRole:
+            from ui.styles import AppStyles
+            colors = AppStyles._get_colors()
             status = channel.get('status', '待检测')
             valid = channel.get('valid', True)
 
             if not valid and status != '待检测':
-                return QtGui.QColor('#ff6666')  # 无效项文字颜色(红色)
+                return QtGui.QColor(colors.get('error', '#ff6666'))
             elif status == '待检测':
-                return QtGui.QColor('#999999')  # 待检测文字颜色(灰色)
+                return QtGui.QColor(colors.get('placeholder', '#999999'))
             else:
-                from ui.styles import AppStyles
-                colors = AppStyles._get_colors()
-                return QtGui.QColor(colors['window_text'])  # 使用styles中定义的主题文字颜色
+                return QtGui.QColor(colors['window_text'])
 
         return None
 
