@@ -87,7 +87,9 @@ class ScanChannelDialog(FloatingDialog):
     def done(self, result):
         if hasattr(self, 'scanner') and self.scanner is not None:
             if self.scanner.is_scanning():
-                self.scanner.stop_scan()
+                self.scanner.stop_event.set()
+                from services.mpv_validator_service import MpvStreamValidator
+                MpvStreamValidator.set_terminating()
             if getattr(self.scanner, 'is_validating', False):
                 self.scanner.stop_validation()
         self._stop_all_timers()
@@ -134,17 +136,19 @@ class ScanChannelDialog(FloatingDialog):
             self._timers.clear()
         
         # 停止扫描器中的批量更新定时器
-        if hasattr(self, 'scanner') and hasattr(self.scanner, '_batch_timer'):
-            try:
-                if self.scanner._batch_timer and self.scanner._batch_timer.isActive():
-                    if QtCore.QThread.currentThread() == self.scanner._batch_timer.thread():
-                        self.scanner._batch_timer.stop()
-                    else:
-                        QtCore.QMetaObject.invokeMethod(
-                            self.scanner._batch_timer, "stop", QtCore.Qt.ConnectionType.QueuedConnection
-                        )
-            except Exception as e:
-                self.logger.error(f"停止批量更新定时器失败: {e}")
+        if hasattr(self, 'scanner') and self.scanner:
+            for attr in ('_batch_timer', '_ui_batch_timer'):
+                try:
+                    timer = getattr(self.scanner, attr, None)
+                    if timer and hasattr(timer, 'isActive') and timer.isActive():
+                        if QtCore.QThread.currentThread() == timer.thread():
+                            timer.stop()
+                        else:
+                            QtCore.QMetaObject.invokeMethod(
+                                timer, "stop", QtCore.Qt.ConnectionType.QueuedConnection
+                            )
+                except Exception as e:
+                    self.logger.error(f"停止扫描器定时器失败: {e}")
 
     def _init_ui(self):
         """初始化用户界面"""
@@ -1487,10 +1491,15 @@ class ScanChannelDialog(FloatingDialog):
         menu = QtWidgets.QMenu()
         menu.setStyleSheet(AppStyles.common_menu_style())
 
-        # 获取选中频道的URL和名称
         from models.channel_model import ChannelListModel as CLM
-        url = self.model.data(self.model.index(index.row(), CLM.COL_URL))
-        name = self.model.data(self.model.index(index.row(), CLM.COL_NAME))
+        if hasattr(self, '_filter_proxy'):
+            source_index = self._filter_proxy.mapToSource(index)
+            source_row = source_index.row()
+        else:
+            source_row = index.row()
+
+        url = self.model.data(self.model.index(source_row, CLM.COL_URL))
+        name = self.model.data(self.model.index(source_row, CLM.COL_NAME))
 
         # 添加复制频道名菜单项
         copy_name_action = QtGui.QAction(tr("copy_channel_name", "Copy Channel Name"), self)
@@ -1503,13 +1512,13 @@ class ScanChannelDialog(FloatingDialog):
         menu.addAction(copy_url_action)
 
         # 添加复制TVG-ID菜单项
-        tvg_id = self.model.data(self.model.index(index.row(), CLM.COL_TVG_ID))
+        tvg_id = self.model.data(self.model.index(source_row, CLM.COL_TVG_ID))
         copy_tvg_id_action = QtGui.QAction(tr("copy_tvg_id", "Copy TVG-ID"), self)
         copy_tvg_id_action.triggered.connect(lambda: self._copy_channel_tvg_id(tvg_id))
         menu.addAction(copy_tvg_id_action)
 
         # 添加复制分组菜单项
-        group = self.model.data(self.model.index(index.row(), CLM.COL_GROUP))
+        group = self.model.data(self.model.index(source_row, CLM.COL_GROUP))
         copy_group_action = QtGui.QAction(tr("copy_group", "Copy Group"), self)
         copy_group_action.triggered.connect(lambda: self._copy_channel_group(group))
         menu.addAction(copy_group_action)
@@ -1635,7 +1644,11 @@ class ScanChannelDialog(FloatingDialog):
         title = tr("confirm_delete", "Confirm Delete") or "Confirm Delete"
         message = tr("confirm_delete_message", "Are you sure you want to delete the selected channel?") or "Are you sure you want to delete the selected channel?"
         if show_confirm(title, message, parent=self):
-            self.model.remove_channel(index.row())
+            if hasattr(self, '_filter_proxy'):
+                source_row = self._filter_proxy.mapToSource(index).row()
+            else:
+                source_row = index.row()
+            self.model.remove_channel(source_row)
 
     def _delete_selected_channels(self):
         """删除选中的频道（支持多选批量删除）"""
@@ -1718,7 +1731,11 @@ class ScanChannelDialog(FloatingDialog):
         """双击频道列表项预览播放"""
         if not index.isValid():
             return
-        channel = self.model.get_channel(index.row())
+        if hasattr(self, '_filter_proxy'):
+            source_row = self._filter_proxy.mapToSource(index).row()
+        else:
+            source_row = index.row()
+        channel = self.model.get_channel(source_row)
         if not channel or not channel.get('url'):
             return
         parent = self.parent()
@@ -1958,6 +1975,17 @@ class ScanChannelDialog(FloatingDialog):
         if hasattr(self, '_filter_proxy'):
             self._filter_proxy.setFilterFixedString(text.strip())
 
+    def _stop_scan_async(self):
+        """异步停止扫描，避免主线程阻塞"""
+        self._reset_scan_buttons()
+        import threading
+        def _do_stop():
+            try:
+                self.scanner.stop_scan()
+            except Exception as e:
+                log_ui_error(f"停止扫描失败: {e}")
+        threading.Thread(target=_do_stop, name="StopScan", daemon=True).start()
+
     def _on_scan_clicked(self):
         """处理扫描按钮点击事件"""
         if not hasattr(self, 'scanner') or self.scanner is None:
@@ -1965,8 +1993,7 @@ class ScanChannelDialog(FloatingDialog):
             return
         if self.scanner.is_scanning():
             self._is_stopping = True
-            self.scanner.stop_scan()
-            self._reset_scan_buttons()
+            self._stop_scan_async()
         else:
             url = self.ip_range_input.currentText()
             if not url.strip():
@@ -1983,8 +2010,7 @@ class ScanChannelDialog(FloatingDialog):
             return
         if self.scanner.is_scanning():
             self._is_stopping = True
-            self.scanner.stop_scan()
-            self._reset_scan_buttons()
+            self._stop_scan_async()
         else:
             url = self.ip_range_input.currentText()
             if not url.strip():
@@ -2115,12 +2141,15 @@ class ScanChannelDialog(FloatingDialog):
                 f"0/{self.model.rowCount()}"
             )
         else:
-            self.scanner.stop_validation()
+            import threading
             self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
             self.progress_manager.hide_progress()
+            threading.Thread(target=self.scanner.stop_validation, name="StopValidation", daemon=True).start()
 
     def _on_channel_validated(self, index, valid, latency, resolution):
         """处理频道验证结果"""
+        if not (0 <= index < self.model.rowCount()):
+            return
         channel_info = {
             'valid': valid,
             'latency': latency,
@@ -2524,6 +2553,11 @@ class ScanChannelDialog(FloatingDialog):
                 if reply == QtWidgets.QMessageBox.StandardButton.No:
                     event.ignore()
                     return
+                self.scanner.stop_event.set()
+                from services.mpv_validator_service import MpvStreamValidator
+                MpvStreamValidator.set_terminating()
+                if getattr(self.scanner, 'is_validating', False):
+                    self.scanner.stop_validation()
         if hasattr(self, 'application') and self.application:
             if hasattr(self.application, '_scan_dialog'):
                 self.application._scan_dialog = None
