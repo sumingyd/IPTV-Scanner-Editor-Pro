@@ -1738,6 +1738,21 @@ class AppStyles:
                 QDialog QListWidget::item:hover {{
                     background-color: {colors['button']};
                 }}
+                QDialog QListWidget::indicator {{
+                    width: 16px;
+                    height: 16px;
+                    border: 1px solid {colors['mid']};
+                    border-radius: 3px;
+                    background-color: {input_bg};
+                }}
+                QDialog QListWidget::indicator:checked {{
+                    background-color: {colors['accent']};
+                    border-color: {colors['accent']};
+                    image: url({AppStyles._get_check_image(colors['bright_text'])});
+                }}
+                QDialog QListWidget::indicator:hover {{
+                    border-color: {colors['accent']};
+                }}
             """
         return f"""
             QDialog {{
@@ -1870,6 +1885,21 @@ class AppStyles:
             }}
             QDialog QListWidget::item:hover {{
                 background-color: {colors['button']};
+            }}
+            QDialog QListWidget::indicator {{
+                width: 16px;
+                height: 16px;
+                border: 1px solid {colors['mid']};
+                border-radius: 3px;
+                background-color: {input_bg};
+            }}
+            QDialog QListWidget::indicator:checked {{
+                background-color: {colors['accent']};
+                border-color: {colors['accent']};
+                image: url({AppStyles._get_check_image(colors['bright_text'])});
+            }}
+            QDialog QListWidget::indicator:hover {{
+                border-color: {colors['accent']};
             }}
         """
 
