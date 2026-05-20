@@ -1191,7 +1191,7 @@ class IPTVPlayer(QMainWindow):
 
         # 上一频道按钮
         self.prev_ch_button = QToolButton()
-        self.prev_ch_button.setText("⏮")
+        self.prev_ch_button.setText("◁")
         self.prev_ch_button.setFixedSize(28, 26)
         self.prev_ch_button.setStyleSheet(AppStyles.player_button_style())
         self.prev_ch_button.clicked.connect(lambda: self.event_handler._switch_channel(-1))
@@ -1200,7 +1200,7 @@ class IPTVPlayer(QMainWindow):
 
         # 下一频道按钮
         self.next_ch_button = QToolButton()
-        self.next_ch_button.setText("⏭")
+        self.next_ch_button.setText("▷")
         self.next_ch_button.setFixedSize(28, 26)
         self.next_ch_button.setStyleSheet(AppStyles.player_button_style())
         self.next_ch_button.clicked.connect(lambda: self.event_handler._switch_channel(1))
