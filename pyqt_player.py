@@ -1507,11 +1507,11 @@ class IPTVPlayer(QMainWindow):
             next_channel.triggered.connect(lambda: self.event_handler._switch_channel(1) if hasattr(self, 'event_handler') else None)
             playback_menu.addAction(next_channel)
 
-            prev_channel2 = QAction(tr("menu_prev_channel2", "Previous Channel (Alt)\tCtrl+Shift+←"), self)
+            prev_channel2 = QAction(tr("menu_prev_channel2", "Previous Channel (Alt)\tCtrl+Shift+↑"), self)
             prev_channel2.triggered.connect(lambda: self.event_handler._switch_channel(-1) if hasattr(self, 'event_handler') else None)
             playback_menu.addAction(prev_channel2)
 
-            next_channel2 = QAction(tr("menu_next_channel2", "Next Channel (Alt)\tCtrl+Shift+→"), self)
+            next_channel2 = QAction(tr("menu_next_channel2", "Next Channel (Alt)\tCtrl+Shift+↓"), self)
             next_channel2.triggered.connect(lambda: self.event_handler._switch_channel(1) if hasattr(self, 'event_handler') else None)
             playback_menu.addAction(next_channel2)
 
