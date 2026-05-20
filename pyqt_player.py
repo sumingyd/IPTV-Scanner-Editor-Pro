@@ -1275,7 +1275,7 @@ class IPTVPlayer(QMainWindow):
 
         # 7.6 画面比例按钮
         self.aspect_button = QToolButton()
-        self.aspect_button.setText("□")
+        self.aspect_button.setText("AR")
         self.aspect_button.setFixedSize(48, 26)
         self.aspect_button.setStyleSheet(AppStyles.player_button_style())
         self.aspect_button.clicked.connect(self.media_ctrl.cycle_aspect_ratio)
@@ -1291,7 +1291,7 @@ class IPTVPlayer(QMainWindow):
         self.control_row.addWidget(self.audio_track_button)
 
         self.sub_track_button = QToolButton()
-        self.sub_track_button.setText("T")
+        self.sub_track_button.setText("CC")
         self.sub_track_button.setToolTip(self.language_manager.tr("panel_subtitle", "Subtitle"))
         self.sub_track_button.setFixedSize(36, 26)
         self.sub_track_button.setStyleSheet(AppStyles.player_button_style())
