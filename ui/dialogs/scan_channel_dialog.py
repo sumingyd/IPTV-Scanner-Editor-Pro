@@ -981,7 +981,7 @@ class ScanChannelDialog(FloatingDialog):
         apply_btn.clicked.connect(do_apply)
         cancel_btn.clicked.connect(dialog.reject)
 
-        dialog.exec()
+        self._exec_themed_dialog(dialog)
 
     def _show_clean_names_dialog(self):
         from services.channel_cleaner import ChannelCleaner
@@ -1065,7 +1065,7 @@ class ScanChannelDialog(FloatingDialog):
         apply_btn.clicked.connect(do_apply)
         cancel_btn.clicked.connect(dialog.reject)
 
-        dialog.exec()
+        self._exec_themed_dialog(dialog)
 
     def _show_assign_fields_dialog(self):
         tr = self.language_manager.tr
@@ -1188,7 +1188,7 @@ class ScanChannelDialog(FloatingDialog):
         apply_btn.clicked.connect(do_apply)
         cancel_btn.clicked.connect(dialog.reject)
 
-        dialog.exec()
+        self._exec_themed_dialog(dialog)
 
     def _auto_match_logo(self):
         tr = self.language_manager.tr
@@ -1307,7 +1307,7 @@ class ScanChannelDialog(FloatingDialog):
         apply_btn.clicked.connect(do_apply)
         cancel_btn.clicked.connect(dialog.reject)
 
-        dialog.exec()
+        self._exec_themed_dialog(dialog)
 
     def _sort_by_group(self):
         from services.channel_classifier import ChannelClassifier
@@ -1915,6 +1915,22 @@ class ScanChannelDialog(FloatingDialog):
             self.scanner.stats_updated.connect(self._update_stats_display)
         except Exception as e:
             log_ui_error(f"连接扫描器信号失败: {e}")
+
+    def _exec_themed_dialog(self, dialog):
+        """执行对话框并注册/注销ThemeManager"""
+        from ..theme_manager import get_theme_manager
+        tm = None
+        try:
+            tm = get_theme_manager()
+            tm.register_window(dialog)
+        except Exception:
+            tm = None
+        dialog.exec()
+        if tm:
+            try:
+                tm.unregister_window(dialog)
+            except Exception:
+                pass
 
     def _update_empty_hint(self):
         """更新空列表提示可见性"""

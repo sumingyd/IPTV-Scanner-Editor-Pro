@@ -570,6 +570,17 @@ class MappingEditDialog(FloatingDialog):
         self.setWindowTitle((tr('edit_mapping', 'Edit Mapping') or 'Edit Mapping') if standard_name else (tr('add_mapping', 'Add Mapping') or 'Add Mapping'))
         self.setup_ui()
 
+        from ..theme_manager import get_theme_manager
+        get_theme_manager().register_window(self)
+
+    def done(self, result):
+        from ..theme_manager import get_theme_manager
+        try:
+            get_theme_manager().unregister_window(self)
+        except Exception:
+            pass
+        super().done(result)
+
     def _tr(self, key: str, fallback: str) -> str:
         v = self.language_manager.tr(key, fallback)
         return v if v else fallback
