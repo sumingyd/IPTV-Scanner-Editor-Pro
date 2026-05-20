@@ -2909,12 +2909,11 @@ class IPTVPlayer(QMainWindow):
         else:
             self.play_button.setText("▶")
             self.pip_ctrl._update_play_btn()
-            if self.play_state.is_idle:
-                return
-            # 暂停时不要显示背景占位符，保持视频窗口可见
-            # 停止定时器
+            # 停止定时器（无论是否idle，停止时都要停定时器）
             if hasattr(self, 'update_timer'):
                 self.update_timer.stop()
+            if self.play_state.is_idle:
+                return
             # 更新状态栏消息
             if self.current_channel:
                 channel_name = self.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))

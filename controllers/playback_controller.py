@@ -107,6 +107,18 @@ class PlaybackController:
 
         if hasattr(self.window, 'program_progress') and hasattr(self.window, '_set_progress_value'):
             self.window._set_progress_value(0)
+        if hasattr(self.window, 'program_progress'):
+            self.window.program_progress.setRange(0, 3600)
+        if hasattr(self.window, '_progress_total_seconds'):
+            self.window._progress_total_seconds = 3600
+        if hasattr(self.window, '_progress_time_mode'):
+            self.window._progress_time_mode = 'hour'
+        if hasattr(self.window, '_progress_program_start'):
+            self.window._progress_program_start = None
+        if hasattr(self.window, '_progress_program_end'):
+            self.window._progress_program_end = None
+        if hasattr(self.window, 'current_channel'):
+            self.window.current_channel = None
 
     def set_volume(self, value: int):
         if hasattr(self.window, 'player_controller') and self.window.player_controller:
