@@ -1241,7 +1241,7 @@ class IPTVPlayer(QMainWindow):
         
         # 5. 音量图标
         self.volume_button = QToolButton()
-        self.volume_button.setText("🔊")
+        self.volume_button.setText("♪")
         self.volume_button.setFixedSize(28, 26)
         self.volume_button.setStyleSheet(AppStyles.player_button_style())
         self.volume_button.clicked.connect(self.toggle_mute)
@@ -1258,7 +1258,7 @@ class IPTVPlayer(QMainWindow):
         
         # 7. 退出回看按钮（初始隐藏）
         self.exit_catchup_button = QToolButton()
-        self.exit_catchup_button.setText("⏪ " + tr("exit_catchup", "退出回看"))
+        self.exit_catchup_button.setText("◁ " + tr("exit_catchup", "退出回看"))
         self.exit_catchup_button.setFixedSize(100, 26)
         self.exit_catchup_button.setStyleSheet(AppStyles.exit_catchup_button_style())
         self.exit_catchup_button.clicked.connect(self.exit_catchup)
@@ -1275,7 +1275,7 @@ class IPTVPlayer(QMainWindow):
 
         # 7.6 画面比例按钮
         self.aspect_button = QToolButton()
-        self.aspect_button.setText("📐")
+        self.aspect_button.setText("□")
         self.aspect_button.setFixedSize(48, 26)
         self.aspect_button.setStyleSheet(AppStyles.player_button_style())
         self.aspect_button.clicked.connect(self.media_ctrl.cycle_aspect_ratio)
@@ -1283,7 +1283,7 @@ class IPTVPlayer(QMainWindow):
 
         # 7.7 音轨切换按钮
         self.audio_track_button = QToolButton()
-        self.audio_track_button.setText("🎧")
+        self.audio_track_button.setText("♫")
         self.audio_track_button.setToolTip(self.language_manager.tr("panel_audio_track", "Audio Track"))
         self.audio_track_button.setFixedSize(36, 26)
         self.audio_track_button.setStyleSheet(AppStyles.player_button_style())
@@ -1291,7 +1291,7 @@ class IPTVPlayer(QMainWindow):
         self.control_row.addWidget(self.audio_track_button)
 
         self.sub_track_button = QToolButton()
-        self.sub_track_button.setText("💬")
+        self.sub_track_button.setText("T")
         self.sub_track_button.setToolTip(self.language_manager.tr("panel_subtitle", "Subtitle"))
         self.sub_track_button.setFixedSize(36, 26)
         self.sub_track_button.setStyleSheet(AppStyles.player_button_style())
@@ -2831,11 +2831,11 @@ class IPTVPlayer(QMainWindow):
             self.playback_ctrl._update_volume_icon(volume)
         elif hasattr(self, 'volume_button'):
             if volume == 0:
-                self.volume_button.setText("🔇")
+                self.volume_button.setText("✕")
             elif volume < 50:
-                self.volume_button.setText("🔉")
+                self.volume_button.setText("♪")
             else:
-                self.volume_button.setText("🔊")
+                self.volume_button.setText("♫")
 
     def _show_osd_feedback(self, text: str):
         """在视频上显示短暂的OSD反馈提示"""
