@@ -866,10 +866,13 @@ class ScannerController(QObject):
                         if self.main_window and hasattr(self.main_window, '_update_stats_display'):
                             stats_copy = self.stats.copy()
                             is_validating = self.is_validating
-                            self._run_on_main(
-                                self.main_window._update_stats_display,
-                                {'stats': stats_copy, 'is_validation': is_validating}
-                            )
+                            try:
+                                self._run_on_main(
+                                    self.main_window._update_stats_display,
+                                    {'stats': stats_copy, 'is_validation': is_validating}
+                                )
+                            except RuntimeError:
+                                break
                         else:
                             stats_copy = self.stats.copy()
                             is_validating_copy = self.is_validating
@@ -916,7 +919,10 @@ class ScannerController(QObject):
                     f"无效={self.stats['invalid']}"
                 )
                 if self.main_window and hasattr(self.main_window, '_on_validation_completed'):
-                    QtCore.QTimer.singleShot(0, self.main_window._on_validation_completed)
+                    try:
+                        QtCore.QTimer.singleShot(0, self.main_window._on_validation_completed)
+                    except RuntimeError:
+                        self.logger.debug("主窗口已销毁，跳过验证完成回调")
             else:
                 self.logger.info(
                     f"扫描完成: 总数={self.stats['total']}, "
@@ -943,6 +949,8 @@ class ScannerController(QObject):
                         QtCore.QTimer.singleShot(0, callback)
                     else:
                         self.logger.warning("无法调用主窗口方法")
+                except RuntimeError:
+                    self.logger.debug("主窗口已销毁，跳过扫描完成回调")
                 except Exception as e:
                     self.logger.error(f"调用主窗口方法失败: {e}")
         finally:
@@ -959,15 +967,21 @@ class ScannerController(QObject):
                     if self.main_window and hasattr(self.main_window, '_update_stats_display'):
                         stats_copy = self.stats.copy()
                         is_validating = self.is_validating
-                        self._run_on_main(
-                            self.main_window._update_stats_display,
-                            {'stats': stats_copy, 'is_validation': is_validating}
-                        )
+                        try:
+                            self._run_on_main(
+                                self.main_window._update_stats_display,
+                                {'stats': stats_copy, 'is_validation': is_validating}
+                            )
+                        except RuntimeError:
+                            pass
                     else:
-                        stats_copy = self.stats.copy()
-                        is_validating_copy = self.is_validating
-                        QtCore.QTimer.singleShot(0, lambda sc=stats_copy, iv=is_validating_copy: self.stats_updated.emit({
-                            'stats': sc, 'is_validation': iv
-                        }))
+                        try:
+                            stats_copy = self.stats.copy()
+                            is_validating_copy = self.is_validating
+                            QtCore.QTimer.singleShot(0, lambda sc=stats_copy, iv=is_validating_copy: self.stats_updated.emit({
+                                'stats': sc, 'is_validation': iv
+                            }))
+                        except RuntimeError:
+                            pass
             except Exception as e:
                 self.logger.error(f"发送最终统计信息失败: {e}")
