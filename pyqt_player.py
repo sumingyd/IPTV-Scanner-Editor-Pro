@@ -4227,6 +4227,14 @@ class IPTVPlayer(QMainWindow):
                 el = getattr(self, empty_attr, None)
                 if el:
                     el.setStyleSheet(AppStyles.player_empty_label_style())
+            for search_attr in ['sub_search_input', 'local_search_input']:
+                si = getattr(self, search_attr, None)
+                if si:
+                    si.setStyleSheet(self._search_input_style())
+            for btn_attr in ['sub_view_grid_btn', 'local_view_grid_btn']:
+                vb = getattr(self, btn_attr, None)
+                if vb:
+                    vb.setStyleSheet(AppStyles.player_button_style())
         except Exception as e:
             logger.error(f"重新应用侧边栏样式失败: {e}")
 
