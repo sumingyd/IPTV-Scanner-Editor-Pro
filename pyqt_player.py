@@ -1891,7 +1891,7 @@ class IPTVPlayer(QMainWindow):
                         item_layout.setSpacing(8)
 
                         logo_label = QtWidgets.QLabel()
-                        logo_label.setFixedSize(36, 26)
+                        logo_label.setFixedSize(44, 32)
                         logo_label.setStyleSheet("background-color: transparent; border: none;")
                         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                         logo_label.setObjectName("channel_logo_label")
@@ -1905,7 +1905,7 @@ class IPTVPlayer(QMainWindow):
                         item_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
 
                         item = QListWidgetItem()
-                        item.setSizeHint(QSize(0, 34))
+                        item.setSizeHint(QSize(0, 40))
                         item.setData(Qt.ItemDataRole.UserRole, idx)
 
                         list_widget.addItem(item)
@@ -4218,10 +4218,13 @@ class IPTVPlayer(QMainWindow):
                     name_style = f"font-size: 12px; font-weight: bold; color: {colors['player_panel_text']};"
                     for i in range(cl.count()):
                         item = cl.item(i)
+                        item.setSizeHint(QSize(0, 40))
                         item_widget = cl.itemWidget(item)
                         if item_widget:
                             for label in item_widget.findChildren(QtWidgets.QLabel):
-                                if label.objectName() != "channel_logo_label":
+                                if label.objectName() == "channel_logo_label":
+                                    label.setFixedSize(44, 32)
+                                else:
                                     label.setStyleSheet(name_style)
             for empty_attr in ['sub_empty_label', 'local_empty_label']:
                 el = getattr(self, empty_attr, None)
