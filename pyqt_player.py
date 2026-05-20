@@ -55,8 +55,8 @@ class VideoOverlayBadge(QWidget):
         from ui.styles import AppStyles
         c = AppStyles._get_colors()
         return {
-            CatchupIndicator.MODE_CATCHUP: (c['accent'], c['accent_pressed'], '▶ ', c['window']),
-            CatchupIndicator.MODE_TIMESHIFT: (c['warning'], c['accent_pressed'], '⏪ ', c['window']),
+            'catchup': (c['accent'], c['accent_pressed'], '▶ ', c['window']),
+            'timeshift': (c['warning'], c['accent_pressed'], '⏪ ', c['window']),
         }
 
     def __init__(self, parent=None):
