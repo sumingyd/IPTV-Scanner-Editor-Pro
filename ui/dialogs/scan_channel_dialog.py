@@ -909,7 +909,7 @@ class ScanChannelDialog(FloatingDialog):
         form_layout.addRow(tr("local_province", "Local Province:"), province_combo)
 
         overwrite_check = QtWidgets.QCheckBox(tr("overwrite_existing", "Overwrite existing groups"))
-        overwrite_check.setChecked(False)
+        overwrite_check.setChecked(True)
         form_layout.addRow(overwrite_check)
 
         merge_nonlocal_check = QtWidgets.QCheckBox(tr("merge_nonlocal", "Merge non-local to Other"))
@@ -1086,11 +1086,9 @@ class ScanChannelDialog(FloatingDialog):
 
         assign_options = [
             ('name2tvg_id', 'Channel Name -> TVG-ID'),
-            ('name2tvg_name', 'Channel Name -> TVG-Name'),
             ('tvg_id2name', 'TVG-ID -> Channel Name'),
-            ('tvg_name2name', 'TVG-Name -> Channel Name'),
-            ('tvg_id2tvg_name', 'TVG-ID -> TVG-Name'),
-            ('tvg_name2tvg_id', 'TVG-Name -> TVG-ID'),
+            ('tvg_name2name', 'TVG-Name(from tags) -> Channel Name'),
+            ('tvg_id2tvg_chno', 'TVG-ID -> TVG-CHNO'),
         ]
 
         radio_group = QtWidgets.QButtonGroup(self)
@@ -1142,23 +1140,25 @@ class ScanChannelDialog(FloatingDialog):
                 dst_val = None
                 if action_key == 'name2tvg_id':
                     if not (only_empty and ch.get('tvg_id')):
-                        src_val, dst_col, dst_val = ch.get('name', ''), 8, ch.get('name', '')
-                elif action_key == 'name2tvg_name':
-                    if not (only_empty and ch.get('name')):
-                        src_val, dst_col, dst_val = ch.get('name', ''), 1, ch.get('name', '')
+                        src_val = ch.get('name', '')
+                        dst_col = CLM.COL_TVG_ID
+                        dst_val = ch.get('name', '')
                 elif action_key == 'tvg_id2name':
                     if ch.get('tvg_id') and not (only_empty and ch.get('name')):
-                        src_val, dst_col, dst_val = ch.get('tvg_id', ''), 1, ch.get('tvg_id', '')
+                        src_val = ch.get('tvg_id', '')
+                        dst_col = CLM.COL_NAME
+                        dst_val = ch.get('tvg_id', '')
                 elif action_key == 'tvg_name2name':
                     tvg_name = ch.get('_all_tags', {}).get('tvg-name', '')
                     if tvg_name and not (only_empty and ch.get('name')):
-                        src_val, dst_col, dst_val = tvg_name, 1, tvg_name
-                elif action_key == 'tvg_id2tvg_name':
-                    if ch.get('tvg_id') and not (only_empty and ch.get('name')):
-                        src_val, dst_col, dst_val = ch.get('tvg_id', ''), 1, ch.get('tvg_id', '')
-                elif action_key == 'tvg_name2tvg_id':
-                    if ch.get('name') and not (only_empty and ch.get('tvg_id')):
-                        src_val, dst_col, dst_val = ch.get('name', ''), 8, ch.get('name', '')
+                        src_val = tvg_name
+                        dst_col = CLM.COL_NAME
+                        dst_val = tvg_name
+                elif action_key == 'tvg_id2tvg_chno':
+                    if ch.get('tvg_id') and not (only_empty and ch.get('tvg_chno')):
+                        src_val = ch.get('tvg_id', '')
+                        dst_col = CLM.COL_TVG_CHNO
+                        dst_val = ch.get('tvg_id', '')
                 if dst_col is not None and dst_val:
                     results.append({'index': i, 'src': src_val, 'dst': dst_val, 'col': dst_col})
             return results
@@ -1808,11 +1808,13 @@ class ScanChannelDialog(FloatingDialog):
                     )
 
                     if current >= total and total > 0:
-                        if is_validating:
-                            self.progress_manager.complete_progress(tr('validate_completed', '检测完成'))
-                        else:
-                            self.progress_manager.complete_progress(tr('scan_completed', '扫描完成'))
-                            self._reset_scan_buttons()
+                        if not getattr(self, '_scan_progress_completed', False):
+                            self._scan_progress_completed = True
+                            if is_validating:
+                                self.progress_manager.complete_progress(tr('validate_completed', '检测完成'))
+                            else:
+                                self.progress_manager.complete_progress(tr('scan_completed', '扫描完成'))
+                                self._reset_scan_buttons()
 
         except AttributeError as e:
             log_scan_warning(f"进度更新失败: {e}")
@@ -1976,15 +1978,59 @@ class ScanChannelDialog(FloatingDialog):
             self._filter_proxy.setFilterFixedString(text.strip())
 
     def _stop_scan_async(self):
-        """异步停止扫描，避免主线程阻塞"""
+        """安全停止扫描：先设标志让线程退出，再延迟做重量级清理"""
+        self._is_stopping = True
         self._reset_scan_buttons()
-        import threading
-        def _do_stop():
-            try:
-                self.scanner.stop_scan()
-            except Exception as e:
-                log_ui_error(f"停止扫描失败: {e}")
-        threading.Thread(target=_do_stop, name="StopScan", daemon=True).start()
+        self._scan_progress_completed = True
+
+        self.scanner.stop_event.set()
+        from services.mpv_validator_service import MpvStreamValidator
+        MpvStreamValidator.set_terminating()
+
+        self.scanner.scan_state_manager.update_scan_state(self.scanner.scan_id, {
+            'is_scanning': False
+        })
+
+        QtCore.QTimer.singleShot(500, self._finalize_stop_scan)
+
+    def _finalize_stop_scan(self):
+        """延迟执行重量级停止清理（在主线程中安全执行）"""
+        if not hasattr(self, 'scanner') or self.scanner is None:
+            return
+        try:
+            import queue
+            for q_attr in ('scan_queue', 'validation_queue'):
+                q = getattr(self.scanner, q_attr, None)
+                if q:
+                    while not q.empty():
+                        try:
+                            q.get_nowait()
+                        except queue.Empty:
+                            break
+
+            for worker in self.scanner.workers:
+                if worker.is_alive():
+                    worker.join(timeout=1.0)
+            self.scanner.workers = []
+
+            from services.mpv_validator_service import MpvStreamValidator
+            MpvStreamValidator.destroy_all_handles()
+
+            if hasattr(self.scanner, 'stats_thread') and self.scanner.stats_thread and self.scanner.stats_thread.is_alive():
+                self.scanner.stats_thread.join(timeout=0.5)
+
+            if hasattr(self.scanner, '_mapping_executor') and self.scanner._mapping_executor:
+                try:
+                    self.scanner._mapping_executor.shutdown(wait=False)
+                except Exception:
+                    pass
+                self.scanner._mapping_executor = None
+
+            self.progress_manager.complete_progress(
+                self.language_manager.tr('scan_stopped', '扫描已停止')
+            )
+        except Exception as e:
+            log_ui_error(f"停止扫描清理失败: {e}")
 
     def _on_scan_clicked(self):
         """处理扫描按钮点击事件"""
@@ -2027,6 +2073,7 @@ class ScanChannelDialog(FloatingDialog):
             return
 
         self._is_stopping = False
+        self._scan_progress_completed = False
         self._add_url_to_history(url)
 
         if clear_list:
@@ -2141,10 +2188,39 @@ class ScanChannelDialog(FloatingDialog):
                 f"0/{self.model.rowCount()}"
             )
         else:
-            import threading
+            self._is_stopping = True
             self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
             self.progress_manager.hide_progress()
-            threading.Thread(target=self.scanner.stop_validation, name="StopValidation", daemon=True).start()
+            self.scanner.stop_event.set()
+            from services.mpv_validator_service import MpvStreamValidator
+            MpvStreamValidator.set_terminating()
+            self.scanner.is_validating = False
+            self.scanner.scan_state_manager.update_scan_state(self.scanner.scan_id, {
+                'is_validating': False
+            })
+            QtCore.QTimer.singleShot(500, self._finalize_stop_validation)
+
+    def _finalize_stop_validation(self):
+        """延迟执行停止验证清理"""
+        if not hasattr(self, 'scanner') or self.scanner is None:
+            return
+        try:
+            import queue
+            q = getattr(self.scanner, 'validation_queue', None)
+            if q:
+                while not q.empty():
+                    try:
+                        q.get_nowait()
+                    except queue.Empty:
+                        break
+            for worker in self.scanner.workers:
+                if worker.is_alive():
+                    worker.join(timeout=1.0)
+            self.scanner.workers = []
+            from services.mpv_validator_service import MpvStreamValidator
+            MpvStreamValidator.destroy_all_handles()
+        except Exception as e:
+            log_ui_error(f"停止验证清理失败: {e}")
 
     def _on_channel_validated(self, index, valid, latency, resolution):
         """处理频道验证结果"""
@@ -2161,12 +2237,21 @@ class ScanChannelDialog(FloatingDialog):
 
     def _on_validation_completed(self):
         """处理验证完成事件"""
-        self.progress_manager.complete_progress(self.language_manager.tr('validate_completed', '检测完成'))
-        self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
+        try:
+            self.progress_manager.complete_progress(self.language_manager.tr('validate_completed', '检测完成'))
+        except Exception:
+            pass
+        try:
+            self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
+        except Exception:
+            pass
         if hasattr(self, 'channel_list') and not getattr(self, '_has_resized_columns', False):
-            header = self.channel_list.horizontalHeader()
-            header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-            self._has_resized_columns = True
+            try:
+                header = self.channel_list.horizontalHeader()
+                header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+                self._has_resized_columns = True
+            except Exception:
+                pass
 
         # 智能重试：对检测为无效的频道进行重试验证
         if self.enable_retry_checkbox.isChecked():
@@ -2410,37 +2495,43 @@ class ScanChannelDialog(FloatingDialog):
     @QtCore.pyqtSlot()
     def _on_scan_completed(self):
         """处理扫描完成事件"""
+        if not hasattr(self, 'scanner') or self.scanner is None:
+            return
         was_stopping = getattr(self, '_is_stopping', False)
         self._is_stopping = False
 
-        # 检查是否是验证重试扫描
         if hasattr(self, '_validation_retry_urls') and self._validation_retry_urls:
             self._on_validation_retry_completed()
             return
 
-        # 检查是否是普通重试扫描
         is_retry = self.scan_state_manager.is_retry_scan(self.retry_id)
 
-        # 隐藏进度条
-        self.progress_manager.complete_progress(self.language_manager.tr('scan_completed', '扫描完成'))
+        try:
+            self.progress_manager.complete_progress(self.language_manager.tr('scan_completed', '扫描完成'))
+        except Exception:
+            pass
 
-        # 更新按钮文本
-        self._reset_scan_buttons()
+        try:
+            self._reset_scan_buttons()
+        except Exception:
+            pass
 
-        self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
-
-        # 更新UI状态
+        try:
+            self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
+        except Exception:
+            pass
 
         if hasattr(self, 'channel_list') and not getattr(self, '_has_resized_columns', False):
-            header = self.channel_list.horizontalHeader()
-            header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-            self._has_resized_columns = True
+            try:
+                header = self.channel_list.horizontalHeader()
+                header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+                self._has_resized_columns = True
+            except Exception:
+                pass
 
-        # 用户主动停止时不触发重试扫描
         if was_stopping:
             return
 
-        # 检查是否需要重试扫描
         if not is_retry:
             if self.enable_retry_checkbox.isChecked():
                 QtCore.QTimer.singleShot(100, self._handle_retry_scan)
@@ -2449,10 +2540,16 @@ class ScanChannelDialog(FloatingDialog):
 
     def _on_validation_retry_completed(self):
         """处理验证重试扫描完成事件"""
-        self.progress_manager.complete_progress(self.language_manager.tr('validate_completed', '检测完成'))
-        self._reset_scan_buttons()
+        try:
+            self.progress_manager.complete_progress(self.language_manager.tr('validate_completed', '检测完成'))
+        except Exception:
+            pass
+        try:
+            self._reset_scan_buttons()
+        except Exception:
+            pass
 
-        found_urls = {ch.get('url', '') for ch in self.scanner.found_channels} if hasattr(self.scanner, 'found_channels') else set()
+        found_urls = {ch.get('url', '') for ch in self.scanner.found_channels} if hasattr(self, 'scanner') and self.scanner and hasattr(self.scanner, 'found_channels') else set()
 
         url_to_index = {}
         for i, ch in enumerate(self.model.channels):
