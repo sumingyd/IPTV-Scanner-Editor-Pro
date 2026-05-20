@@ -221,13 +221,21 @@ class SettingsFileOperations:
         tls_check.setChecked(playback_settings.get('tls_verify', False))
         layout.addRow(tls_check)
 
-        timeout_spin = QSpinBox()
-        timeout_spin.setObjectName("network_timeout_spin")
-        timeout_spin.setRange(0, 120)
-        timeout_spin.setSuffix("s")
-        timeout_spin.setValue(playback_settings.get('network_timeout_sec', 0))
-        timeout_spin.setSpecialValueText(tr("auto_timeout", "Auto"))
-        layout.addRow(tr("network_timeout_colon", "Network Timeout:"), timeout_spin)
+        timeout_combo = QComboBox()
+        timeout_combo.setObjectName("network_timeout_combo")
+        timeout_items = [
+            (0, tr("auto_timeout", "Auto")),
+            (5, "5s"), (10, "10s"), (15, "15s"), (20, "20s"),
+            (30, "30s"), (45, "45s"), (60, "60s"), (90, "90s"), (120, "120s"),
+        ]
+        current_timeout = playback_settings.get('network_timeout_sec', 0)
+        selected_idx = 0
+        for i, (val, label) in enumerate(timeout_items):
+            timeout_combo.addItem(label, val)
+            if val == current_timeout:
+                selected_idx = i
+        timeout_combo.setCurrentIndex(selected_idx)
+        layout.addRow(tr("network_timeout_colon", "Network Timeout:"), timeout_combo)
 
         group.setLayout(layout)
         return group
@@ -394,9 +402,9 @@ class SettingsFileOperations:
         check = dialog.findChild(QCheckBox, "tls_check")
         if check:
             settings['tls_verify'] = check.isChecked()
-        spin = dialog.findChild(QSpinBox, "network_timeout_spin")
-        if spin:
-            settings['network_timeout_sec'] = spin.value()
+        combo = dialog.findChild(QComboBox, "network_timeout_combo")
+        if combo:
+            settings['network_timeout_sec'] = combo.currentData() if combo.currentData() is not None else 0
         return settings
 
     def _save_intervals(self, dialog):

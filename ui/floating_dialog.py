@@ -1,4 +1,5 @@
 from PyQt6.QtWidgets import QFrame, QDialog, QDockWidget, QWidget, QApplication
+from PyQt6 import QtWidgets
 from PyQt6.QtGui import QPainter, QColor, QPainterPath
 from PyQt6.QtCore import Qt, QRectF
 import sys
@@ -151,6 +152,27 @@ class FloatingDialog(QDialog):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
+            widget = QtWidgets.QApplication.widgetAt(event.globalPosition().toPoint())
+            if widget:
+                interactive_types = (
+                    QtWidgets.QAbstractButton,
+                    QtWidgets.QLineEdit,
+                    QtWidgets.QComboBox,
+                    QtWidgets.QCheckBox,
+                    QtWidgets.QScrollBar,
+                    QtWidgets.QTableView,
+                    QtWidgets.QTreeView,
+                    QtWidgets.QListView,
+                    QtWidgets.QAbstractSlider,
+                    QtWidgets.QAbstractSpinBox,
+                    QtWidgets.QTextEdit,
+                )
+                w = widget
+                while w:
+                    if isinstance(w, interactive_types):
+                        super().mousePressEvent(event)
+                        return
+                    w = w.parent()
             self.dragging = True
             self.offset = event.position().toPoint()
 
