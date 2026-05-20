@@ -1528,6 +1528,16 @@ class IPTVPlayer(QMainWindow):
 
             playback_menu.addSeparator()
 
+            seek_back = QAction(tr("menu_seek_back", "Seek Back\t←"), self)
+            seek_back.triggered.connect(lambda: self.event_handler._seek_relative(-10) if hasattr(self, 'event_handler') else None)
+            playback_menu.addAction(seek_back)
+
+            seek_forward = QAction(tr("menu_seek_forward", "Seek Forward\t→"), self)
+            seek_forward.triggered.connect(lambda: self.event_handler._seek_relative(10) if hasattr(self, 'event_handler') else None)
+            playback_menu.addAction(seek_forward)
+
+            playback_menu.addSeparator()
+
             vol_up = QAction(tr("menu_vol_up", "Volume Up\tScroll Up"), self)
             vol_up.triggered.connect(lambda: self.event_handler._adjust_volume(5) if hasattr(self, 'event_handler') else None)
             playback_menu.addAction(vol_up)
