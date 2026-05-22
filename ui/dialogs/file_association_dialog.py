@@ -57,7 +57,9 @@ class FileAssociationDialog(FloatingDialog):
         layout.setSpacing(12)
 
         title = QtWidgets.QLabel(tr("file_assoc_title", "选择要关联的文件格式"))
-        title.setStyleSheet("font-size: 14px; font-weight: bold;")
+        from ui.styles import AppStyles
+        title_colors = AppStyles._get_colors()
+        title.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {title_colors['window_text']};")
         layout.addWidget(title)
 
         hint = QtWidgets.QLabel(tr("file_assoc_hint", '注册后，右键文件即可在"打开方式"中选择本程序'))
@@ -75,18 +77,7 @@ class FileAssociationDialog(FloatingDialog):
             group_label = group_info['label_zh'] if lang == 'zh' else group_info['label_en']
 
             group_box = QtWidgets.QGroupBox(group_label)
-            group_box.setStyleSheet("""
-                QGroupBox {
-                    font-weight: bold;
-                    margin-top: 8px;
-                    padding-top: 16px;
-                }
-                QGroupBox::title {
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    padding: 0 6px;
-                }
-            """)
+            group_box.setStyleSheet(AppStyles.common_group_box_style())
 
             cols = 4
             grid = QtWidgets.QGridLayout(group_box)

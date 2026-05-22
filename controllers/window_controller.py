@@ -13,7 +13,10 @@ from controllers.main_window_protocol import MainWindowProtocol
 
 class WindowController:
 
-    TITLE_BTN_STYLE = "QPushButton { min-width: 40px; max-width: 40px; height: 28px; }"
+    @staticmethod
+    def _title_btn_style():
+        colors = AppStyles._get_colors()
+        return f"QPushButton {{ min-width: 40px; max-width: 40px; height: 28px; color: {colors['window_text']}; }}"
 
     def __init__(self, main_window: MainWindowProtocol):
         self.window: MainWindowProtocol = main_window
@@ -68,7 +71,7 @@ class WindowController:
         title_layout.addWidget(self._title_label, 1)
 
         # 窗口控制按钮
-        btn_style = self.TITLE_BTN_STYLE
+        btn_style = self._title_btn_style()
 
         # 置顶按钮
         self._stay_on_top_btn = QPushButton("📌")
@@ -125,13 +128,13 @@ class WindowController:
             self.window.setWindowFlags(flags | Qt.WindowType.WindowStaysOnTopHint)
             self._stay_on_top_btn.setText("📍")
             self._stay_on_top_btn.setStyleSheet(
-                self.TITLE_BTN_STYLE.replace("}", "") +
+                self._title_btn_style().replace("}", "") +
                 f" background-color: {AppStyles._get_colors().get('accent', '#0078d4')}; }}"
             )
         else:
             self.window.setWindowFlags(flags & ~Qt.WindowType.WindowStaysOnTopHint)
             self._stay_on_top_btn.setText("📌")
-            self._stay_on_top_btn.setStyleSheet(self.TITLE_BTN_STYLE)
+            self._stay_on_top_btn.setStyleSheet(self._title_btn_style())
         self.window.show()
         self._sync_floating_panels_on_top()
 

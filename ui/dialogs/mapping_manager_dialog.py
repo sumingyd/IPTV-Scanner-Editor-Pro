@@ -80,9 +80,9 @@ class MappingManagerDialog(FloatingDialog):
         info_box = QtWidgets.QFrame()
         info_box.setStyleSheet(f"""
             QFrame {{
-                background-color: rgba(70, 130, 180, 0.15);
+                background-color: {colors['alternate_base']};
                 border-radius: 8px;
-                border: 1px solid rgba(70, 130, 180, 0.3);
+                border: 1px solid {colors['mid']};
                 padding: 4px;
             }}
             QLabel {{ color: {text_color}; border: none; background: transparent; }}
@@ -122,22 +122,7 @@ class MappingManagerDialog(FloatingDialog):
         layout.addSpacing(4)
 
         manual_group = QtWidgets.QGroupBox(_('manual_mapping_section', '⚙ Manual Mapping (Advanced)'))
-        manual_group.setStyleSheet(f"""
-            QGroupBox {{
-                font-size: 13px;
-                font-weight: bold;
-                color: {player_panel_secondary};
-                border: 1px solid {mid_color};
-                border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 8px;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 14px;
-                padding: 0 6px;
-            }}
-        """)
+        manual_group.setStyleSheet(AppStyles.common_group_box_style())
         manual_layout = QtWidgets.QVBoxLayout(manual_group)
         manual_layout.setSpacing(8)
 
