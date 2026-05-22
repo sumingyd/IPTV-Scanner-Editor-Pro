@@ -3,7 +3,7 @@ import queue
 import time
 import functools
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Dict
+from typing import List, Dict, Any
 from services.url_parser_service import URLRangeParser
 from core.log_manager import global_logger
 from models.channel_model import ChannelListModel
@@ -87,27 +87,28 @@ class ScannerController(QObject):
         self.timeout = 10  # 默认超时时间
         self.channel_counter = 0
         self.counter_lock = threading.Lock()
-        self._batch_timer = None  # 不再使用批量定时器
         self._optimal_queue_size = 10000  # 动态计算的队列大小（默认值）
-        self.stats: Dict[str, any] = {
+        self.stats: Dict[str, Any] = {
             'total': 0,
             'valid': 0,
             'invalid': 0,
             'start_time': 0,
             'elapsed': 0
         }
-        # 记录无效的URL，用于重试扫描
-        self.invalid_urls = []
-        self.invalid_urls_lock = threading.Lock()
+        # 记录无效的URL，用于重试扫描（委托给scan_state_manager）
+        self._max_invalid_urls = 50000
 
         # 扫描状态管理器
         self.scan_state_manager = get_scan_state_manager()
         self.scan_id = 'main_scan'
         self._validator = None
         self._mapping_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mapper")
-        self._pending_ui_updates = []
-        self._ui_batch_timer = None
-        self._ui_batch_lock = threading.Lock()
+        self._pending_channels = []
+        self._pending_lock = threading.Lock()
+        self._batch_flush_timer = None
+        self._pending_mappings = {}
+        self._pending_validations = []
+        self._validation_flush_timer = None
 
     def _force_ui_refresh(self):
         try:
@@ -115,8 +116,8 @@ class ScannerController(QObject):
                 self.model.update_view()
             elif hasattr(self.model, 'layoutChanged'):
                 self.model.layoutChanged.emit()
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.debug(f"UI刷新失败: {e}")
 
     @staticmethod
     def _run_on_main(func, *args):
@@ -177,12 +178,6 @@ class ScannerController(QObject):
                         error_type = result.get('error_type') or 'unknown_error'
                         if self.stats['invalid'] % 50 == 1:
                             self.logger.debug(f"扫描进度: 有效={self.stats['valid']}, 无效={self.stats['invalid']}, 最新错误类型={error_type}")
-                        with self.invalid_urls_lock:
-                            self.invalid_urls.append({
-                                'url': url,
-                                'error_type': error_type,
-                                'error': result.get('error', '')
-                            })
                         self.scan_state_manager.add_invalid_url(self.scan_id, url, error_type)
 
                     current = self.stats['valid'] + self.stats['invalid']
@@ -196,12 +191,6 @@ class ScannerController(QObject):
                 self.logger.debug(f"扫描URL异常: {url} - {e}")
                 with self.stats_lock:
                     self.stats['invalid'] += 1
-                    with self.invalid_urls_lock:
-                        self.invalid_urls.append({
-                            'url': url,
-                            'error_type': 'scan_exception',
-                            'error': str(e)
-                        })
                     self.scan_state_manager.add_invalid_url(self.scan_id, url, 'scan_exception')
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']
@@ -211,7 +200,7 @@ class ScannerController(QObject):
 
                 continue
 
-        QtCore.QTimer.singleShot(0, self._force_ui_refresh)
+        QtCore.QTimer.singleShot(0, self._flush_pending_channels)
 
         with self.stats_lock:
             current = self.stats['valid'] + self.stats['invalid']
@@ -220,27 +209,45 @@ class ScannerController(QObject):
                 self._run_on_main(self.progress_updated.emit, total, total)
 
     def _handle_channel_add(self, channel_info: dict):
-        """处理频道添加：添加到模型、批量刷新UI"""
-        self.model.add_channel(channel_info, is_from_file=False)
-        self._schedule_ui_refresh()
-
-    def _schedule_ui_refresh(self):
-        """批量延迟刷新UI，避免每个频道都刷新"""
-        with self._ui_batch_lock:
-            if self._ui_batch_timer is not None:
+        """处理频道添加：攒批后一次性插入模型，减少视图通知次数"""
+        with self._pending_lock:
+            self._pending_channels.append(channel_info)
+            if self._batch_flush_timer is not None:
                 return
-            self._ui_batch_timer = True
-        
-        def _do_refresh():
-            with self._ui_batch_lock:
-                self._ui_batch_timer = None
+            self._batch_flush_timer = True
+
+        QtCore.QTimer.singleShot(100, self._flush_pending_channels)
+
+    def _flush_pending_channels(self):
+        """将攒批的频道一次性添加到模型，扫描期间使用 reset 模式避免竞态崩溃"""
+        with self._pending_lock:
+            channels = self._pending_channels
+            self._pending_channels = []
+            self._batch_flush_timer = None
+
+        if channels:
+            is_scanning = not self.stop_event.is_set()
+            self.model.add_channels(channels, is_from_file=False, use_reset=is_scanning)
+        self._apply_pending_mappings()
+        if channels or self._pending_mappings:
             self._force_ui_refresh()
-            if hasattr(self.model, 'parent') and self.model.parent():
-                view = self.model.parent()
-                if hasattr(view, 'resizeColumnsToContents'):
-                    view.resizeColumnsToContents()
-        
-        QtCore.QTimer.singleShot(200, _do_refresh)
+
+    def _apply_pending_mappings(self):
+        """应用暂存的映射结果到已加入模型的频道"""
+        if not self._pending_mappings:
+            return
+        applied_urls = []
+        for url, mapped_info in self._pending_mappings.items():
+            success = self.model.update_channel_by_url(url, mapped_info)
+            if success:
+                applied_urls.append(url)
+        for url in applied_urls:
+            del self._pending_mappings[url]
+
+    def _apply_pending_mappings_and_refresh(self):
+        """应用暂存映射并刷新UI"""
+        self._apply_pending_mappings()
+        self._force_ui_refresh()
 
     def _build_channel_info(
         self, url: str, valid: bool, latency: int,
@@ -295,7 +302,8 @@ class ScannerController(QObject):
             }
 
     def _start_async_details_fetch(self, channel_info: dict):
-        """启动异步获取频道详细信息（使用线程池）"""
+        if self._mapping_executor is None:
+            self._mapping_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mapper")
         self._mapping_executor.submit(self._fetch_channel_details, channel_info)
 
     def _fetch_channel_details(self, channel_info: dict):
@@ -380,38 +388,31 @@ class ScannerController(QObject):
 
     def _start_async_mapping_check(self, channel_info: dict):
         """启动异步映射检查 - 所有有效频道都检查映射"""
-        # 检查映射功能是否开启
         from models.channel_mappings import mapping_manager
         if not mapping_manager.enable_mapping:
             return
-        
-        # 所有有效的频道都需要检查映射
-        # 无论是什么格式的URL（IP地址、域名、其他格式）
-
-        # 直接启动异步映射检查
         self._start_async_details_fetch(channel_info)
 
     def _update_channel_details(self, channel_info: dict):
-        """更新频道详细信息"""
+        """更新频道详细信息，如果频道尚未加入模型则暂存映射结果"""
         try:
-            # 使用现有的update_channel_by_url方法更新频道信息
             url = channel_info.get('url')
             if url:
                 success = self.model.update_channel_by_url(url, channel_info)
                 if not success:
-                    pass
+                    self._pending_mappings[url] = channel_info
+                    QtCore.QTimer.singleShot(150, self._apply_pending_mappings_and_refresh)
             else:
-                pass
+                self.logger.debug("频道信息缺少URL，跳过更新")
 
-            # 刷新UI
             self._force_ui_refresh()
 
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.debug(f"更新频道详细信息失败: {e}")
 
     def _check_channel(
         self, url: str, raw_channel_name: str | None = None
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         if self._validator is None:
             from services.mpv_validator_service import MpvStreamValidator
             self._validator = MpvStreamValidator(self.main_window)
@@ -476,11 +477,14 @@ class ScannerController(QObject):
         self.stop_scan()
         self.stop_event.clear()
 
+        from services.mpv_validator_service import MpvStreamValidator
+        MpvStreamValidator.reset_terminating()
+
         self._skip_urls = skip_urls or set()
 
-        # 使用扫描状态上下文管理器
-        with ScanStateContext(self.scan_id, self):
-            self._start_scan_internal(base_url, thread_count, timeout, user_agent, referer)
+        # 注册扫描状态（不使用上下文管理器，因为扫描是异步的）
+        self.scan_state_manager.register_scan(self.scan_id, self)
+        self._start_scan_internal(base_url, thread_count, timeout, user_agent, referer)
 
     def _start_scan_internal(
         self, base_url: str, thread_count: int = 10, timeout: int = 10,
@@ -490,8 +494,6 @@ class ScannerController(QObject):
 
         self.timeout = timeout
 
-        with self.invalid_urls_lock:
-            self.invalid_urls.clear()
         self.scan_state_manager.clear_invalid_urls(self.scan_id)
 
         self._optimal_queue_size = calculate_optimal_queue_size(thread_count)
@@ -499,6 +501,7 @@ class ScannerController(QObject):
 
         from services.mpv_validator_service import MpvStreamValidator
         MpvStreamValidator.set_max_concurrent(thread_count)
+        MpvStreamValidator.reset_terminating()
         if user_agent is not None:
             MpvStreamValidator.set_user_agent(user_agent)
         if referer is not None:
@@ -523,9 +526,6 @@ class ScannerController(QObject):
         # 初始化队列和生成器
         self.scan_queue = queue.Queue()
         self.url_generator = self.url_parser.parse_url(base_url)
-
-        # 记录所有扫描的URL（用于重试扫描）
-        self._all_scanned_urls = []
 
         # 启动队列填充线程（不再预填充，所有URL都由填充线程处理）
         self.filler_thread = threading.Thread(
@@ -566,16 +566,12 @@ class ScannerController(QObject):
         self.stop_scan()
         self.stop_event.clear()
 
-        # 清空无效URL列表，避免累积
-        with self.invalid_urls_lock:
-            self.invalid_urls.clear()
-
         # 清空扫描状态管理器中的无效URL
         self.scan_state_manager.clear_invalid_urls(self.scan_id)
 
-        # 使用扫描状态上下文管理器
-        with ScanStateContext(self.scan_id, self):
-            self._start_scan_from_urls_internal(urls, thread_count, timeout, user_agent, referer)
+        # 注册扫描状态（不使用上下文管理器，因为扫描是异步的）
+        self.scan_state_manager.register_scan(self.scan_id, self)
+        self._start_scan_from_urls_internal(urls, thread_count, timeout, user_agent, referer)
 
     def _start_scan_from_urls_internal(
         self, urls: list, thread_count: int = 10, timeout: int = 10,
@@ -587,6 +583,7 @@ class ScannerController(QObject):
 
         from services.mpv_validator_service import MpvStreamValidator
         MpvStreamValidator.set_max_concurrent(thread_count)
+        MpvStreamValidator.reset_terminating()
         if user_agent is not None:
             MpvStreamValidator.set_user_agent(user_agent)
         if referer is not None:
@@ -634,26 +631,41 @@ class ScannerController(QObject):
         self.stats_thread.start()
 
     def stop_scan(self):
-        """停止扫描 - 快速响应版本，避免程序假死"""
-        # 设置停止事件，让所有工作线程知道应该停止
         self.stop_event.set()
 
-        # 更新扫描状态管理器
         self.scan_state_manager.update_scan_state(self.scan_id, {
             'is_scanning': False
         })
 
-        # 立即清空所有队列，避免新任务被处理
+        # 安全停止：1.设置终止标志（让工作线程尽快退出）
+        from services.mpv_validator_service import MpvStreamValidator
+        MpvStreamValidator.set_terminating()
+
+        # 2.清空队列
         self._clear_all_queues()
 
-        # 立即终止所有FFmpeg/VLC进程
-        self._terminate_all_processes()
+        # 3.等待工作线程退出（足够长timeout确保线程退出）
+        for worker in self.workers:
+            if worker.is_alive():
+                worker.join(timeout=3.0)
+        self.workers = []
+        self.worker_queue = queue.Queue()
 
-        # 快速清理工作线程（不等待太长时间）
-        self._cleanup_workers_fast()
+        # 4.线程退出后安全销毁mpv句柄
+        MpvStreamValidator.destroy_all_handles()
+        MpvStreamValidator.reset_terminating()
 
-        # 清理其他资源
+        # 5.清理其他资源
         self._cleanup_other_resources()
+
+        if hasattr(self, '_mapping_executor') and self._mapping_executor:
+            try:
+                self._mapping_executor.shutdown(wait=False)
+            except Exception:
+                pass
+            self._mapping_executor = None
+
+        self._flush_pending_channels()
 
     def _clear_all_queues(self):
         """清空所有队列"""
@@ -732,18 +744,11 @@ class ScannerController(QObject):
             pass
 
     def _cleanup_other_resources(self):
-        """清理其他资源"""
-        # 停止批量更新定时器
-        if hasattr(self, '_batch_timer') and self._batch_timer and self._batch_timer.isActive():
-            self._batch_timer.stop()
-
-        # 清理统计更新线程
         if hasattr(self, 'stats_thread') and self.stats_thread and self.stats_thread.is_alive():
             self.stats_thread.join(timeout=0.5)
 
-        # 强制垃圾回收
         import gc
-        gc.collect()
+        gc.collect(0)
 
     def start_validation(self, model, threads, timeout, user_agent=None, referer=None):
         """开始有效性验证"""
@@ -806,25 +811,27 @@ class ScannerController(QObject):
             'is_validating': False
         })
 
-        # 清空任务队列
+        # 安全停止：1.设置终止标志
+        from services.mpv_validator_service import MpvStreamValidator
+        MpvStreamValidator.set_terminating()
+
+        # 2.清空任务队列
         while not self.validation_queue.empty():
             try:
                 self.validation_queue.get_nowait()
             except queue.Empty:
                 break
 
-        # 终止所有验证进程
-        from services.mpv_validator_service import MpvStreamValidator
-        MpvStreamValidator.terminate_all()
-
-        # 立即终止工作线程
+        # 3.等待工作线程退出
         for worker in self.workers:
             if worker.is_alive():
-                worker.join(timeout=0.1)
+                worker.join(timeout=1.0)
 
         self.workers = []
         self.worker_queue = queue.Queue()
-        # 不再记录验证停止日志，避免控制台输出
+
+        # 4.线程退出后安全销毁mpv句柄
+        MpvStreamValidator.destroy_all_handles()
 
     def _validation_worker(self):
         while not self.stop_event.is_set():
@@ -839,12 +846,7 @@ class ScannerController(QObject):
                 latency = result['latency']
                 resolution = result.get('resolution', '')
 
-                self._run_on_main(self.model.set_channel_valid, url, valid)
-
-                if index % 10 == 0:
-                    QtCore.QTimer.singleShot(0, self.model.update_view)
-
-                self._run_on_main(self.channel_validated.emit, index, valid, latency, resolution)
+                self._run_on_main(self._handle_validation_result, url, valid, index, latency, resolution)
 
                 with self.stats_lock:
                     if valid:
@@ -862,7 +864,32 @@ class ScannerController(QObject):
                 break
             except Exception as e:
                 self.logger.error(f"验证线程错误: {e}", exc_info=True)
-                continue
+
+    def _handle_validation_result(self, url, valid, index, latency, resolution):
+        """攒批处理验证结果，减少视图通知"""
+        with self._pending_lock:
+            self._pending_validations.append((url, valid))
+            if self._validation_flush_timer is None:
+                self._validation_flush_timer = True
+                QtCore.QTimer.singleShot(100, self._flush_pending_validations)
+        self.channel_validated.emit(index, valid, latency, resolution)
+
+    def _flush_pending_validations(self):
+        """批量应用验证结果"""
+        with self._pending_lock:
+            validations = self._pending_validations
+            self._pending_validations = []
+            self._validation_flush_timer = None
+
+        if validations:
+            self.model.beginResetModel()
+            for url, valid in validations:
+                for ch in self.model.channels:
+                    if ch.get('url') == url:
+                        ch['valid'] = valid
+                        ch['status'] = '有效' if valid else '无效'
+                        break
+            self.model.endResetModel()
 
     def _update_stats(self):
         """更新统计信息线程"""
@@ -882,14 +909,18 @@ class ScannerController(QObject):
                         if self.main_window and hasattr(self.main_window, '_update_stats_display'):
                             stats_copy = self.stats.copy()
                             is_validating = self.is_validating
-                            self._run_on_main(
-                                self.main_window._update_stats_display,
-                                {'stats': stats_copy, 'is_validation': is_validating}
-                            )
+                            try:
+                                self._run_on_main(
+                                    self.main_window._update_stats_display,
+                                    {'stats': stats_copy, 'is_validation': is_validating}
+                                )
+                            except RuntimeError:
+                                break
                         else:
-                            QtCore.QTimer.singleShot(0, lambda: self.stats_updated.emit({
-                                'stats': self.stats.copy(),
-                                'is_validation': self.is_validating
+                            stats_copy = self.stats.copy()
+                            is_validating_copy = self.is_validating
+                            QtCore.QTimer.singleShot(0, lambda sc=stats_copy, iv=is_validating_copy: self.stats_updated.emit({
+                                'stats': sc, 'is_validation': iv
                             }))
 
                     # 检查扫描是否完成：填充线程结束、所有工作线程都完成且队列为空
@@ -931,7 +962,10 @@ class ScannerController(QObject):
                     f"无效={self.stats['invalid']}"
                 )
                 if self.main_window and hasattr(self.main_window, '_on_validation_completed'):
-                    QtCore.QTimer.singleShot(0, self.main_window._on_validation_completed)
+                    try:
+                        QtCore.QTimer.singleShot(0, self.main_window._on_validation_completed)
+                    except RuntimeError:
+                        self.logger.debug("主窗口已销毁，跳过验证完成回调")
             else:
                 self.logger.info(
                     f"扫描完成: 总数={self.stats['total']}, "
@@ -939,9 +973,10 @@ class ScannerController(QObject):
                     f"无效={self.stats['invalid']}"
                 )
 
-                if self.invalid_urls:
+                invalid_urls = self.scan_state_manager.get_invalid_urls(self.scan_id)
+                if invalid_urls:
                     from collections import Counter
-                    error_types = [item.get('error_type', 'unknown') for item in self.invalid_urls]
+                    error_types = [item.get('error_type', 'unknown') for item in invalid_urls]
                     error_counts = Counter(error_types)
                     top_errors = error_counts.most_common(5)
                     error_summary = ", ".join([f"{err}({cnt})" for err, cnt in top_errors])
@@ -957,6 +992,8 @@ class ScannerController(QObject):
                         QtCore.QTimer.singleShot(0, callback)
                     else:
                         self.logger.warning("无法调用主窗口方法")
+                except RuntimeError:
+                    self.logger.debug("主窗口已销毁，跳过扫描完成回调")
                 except Exception as e:
                     self.logger.error(f"调用主窗口方法失败: {e}")
         finally:
@@ -973,14 +1010,21 @@ class ScannerController(QObject):
                     if self.main_window and hasattr(self.main_window, '_update_stats_display'):
                         stats_copy = self.stats.copy()
                         is_validating = self.is_validating
-                        self._run_on_main(
-                            self.main_window._update_stats_display,
-                            {'stats': stats_copy, 'is_validation': is_validating}
-                        )
+                        try:
+                            self._run_on_main(
+                                self.main_window._update_stats_display,
+                                {'stats': stats_copy, 'is_validation': is_validating}
+                            )
+                        except RuntimeError:
+                            pass
                     else:
-                        QtCore.QTimer.singleShot(0, lambda: self.stats_updated.emit({
-                            'stats': self.stats.copy(),
-                            'is_validation': self.is_validating
-                        }))
+                        try:
+                            stats_copy = self.stats.copy()
+                            is_validating_copy = self.is_validating
+                            QtCore.QTimer.singleShot(0, lambda sc=stats_copy, iv=is_validating_copy: self.stats_updated.emit({
+                                'stats': sc, 'is_validation': iv
+                            }))
+                        except RuntimeError:
+                            pass
             except Exception as e:
                 self.logger.error(f"发送最终统计信息失败: {e}")
