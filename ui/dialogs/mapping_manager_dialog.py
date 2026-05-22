@@ -615,6 +615,7 @@ class MappingEditDialog(FloatingDialog):
         layout.addLayout(form)
 
         btn_layout = QtWidgets.QHBoxLayout()
+        btn_layout.setSpacing(8)
         btn_layout.addStretch()
         self.ok_btn = QtWidgets.QPushButton(_('ok_button', 'OK'))
         self.ok_btn.setStyleSheet(AppStyles.common_button_style())

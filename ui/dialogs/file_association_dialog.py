@@ -53,7 +53,7 @@ class FileAssociationDialog(FloatingDialog):
         self.setMinimumSize(400, 360)
 
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(24, 20, 24, 16)
+        layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
         title = QtWidgets.QLabel(tr("file_assoc_title", "选择要关联的文件格式"))

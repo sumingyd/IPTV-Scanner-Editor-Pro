@@ -36,7 +36,7 @@ class AboutDialog(FloatingDialog):
         self.setMinimumSize(420, 380)
 
         main_layout = QtWidgets.QVBoxLayout(self)
-        main_layout.setContentsMargins(28, 24, 28, 20)
+        main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(0)
 
         # 图标居中显示

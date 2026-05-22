@@ -1041,7 +1041,7 @@ class IPTVPlayer(QMainWindow):
         floating_container.setMinimumHeight(120)
         floating_container.setMinimumWidth(480)
         self.floating_layout = QVBoxLayout(floating_container)
-        self.floating_layout.setContentsMargins(15, 6, 15, 8)
+        self.floating_layout.setContentsMargins(12, 8, 12, 8)
         self.floating_layout.setSpacing(3)
 
         # 创建媒体信息行

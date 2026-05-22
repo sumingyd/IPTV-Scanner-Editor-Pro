@@ -231,7 +231,7 @@ class ScanChannelDialog(FloatingDialog):
         left_panel.setMaximumWidth(320)
         left_panel.setStyleSheet(AppStyles.side_panel_style())
         left_layout = QtWidgets.QVBoxLayout(left_panel)
-        left_layout.setContentsMargins(8, 8, 8, 8)
+        left_layout.setContentsMargins(12, 12, 12, 12)
         left_layout.setSpacing(8)
 
         # 左侧标题栏
@@ -316,7 +316,7 @@ class ScanChannelDialog(FloatingDialog):
         right_panel.setMaximumWidth(280)
         right_panel.setStyleSheet(AppStyles.side_panel_style())
         right_layout = QtWidgets.QVBoxLayout(right_panel)
-        right_layout.setContentsMargins(8, 8, 8, 8)
+        right_layout.setContentsMargins(12, 12, 12, 12)
         right_layout.setSpacing(8)
 
         # 右侧标题
