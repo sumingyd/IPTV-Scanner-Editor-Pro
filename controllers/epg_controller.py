@@ -110,6 +110,12 @@ class EPGController:
         self._current_date = None
         self._last_epg_key = None
 
+    @property
+    def tr(self):
+        if hasattr(self.window, 'language_manager'):
+            return self.window.language_manager.tr
+        return lambda key, fallback: fallback
+
     def _get_active_catchup_label(self, program, is_live, is_past, channel_supports_catchup, tr):
         """确定回看/时移标签，考虑当前活跃的回看/时移状态"""
         if not channel_supports_catchup:
@@ -291,7 +297,7 @@ class EPGController:
                     self.window.epg_empty_label.show()
                     self.window.epg_content.hide()
 
-            tr = getattr(self.window.language_manager, 'tr', lambda x, y: x) if hasattr(self.window, 'language_manager') else lambda x, y: x
+            tr = self.tr
 
             # 显示层去重：防止漏网的重复节目
             seen = set()
@@ -448,12 +454,12 @@ class EPGController:
         elif not channel_catchup:
             logger.debug(f"频道不支持回看功能（无 catchup_source 或 catchup 类型）")
             if hasattr(self.window, 'status_bar_show_message'):
-                tr = getattr(self.window.language_manager, 'tr', lambda x, y: x) if hasattr(self.window, 'language_manager') else lambda x, y: x
+                tr = self.tr
                 self.window.status_bar_show_message(tr('epg_no_catchup', '该频道不支持回看'))
         elif not is_past_program:
             logger.debug(f"点击的是未来节目，暂不支持预约播放")
             if hasattr(self.window, 'status_bar_show_message'):
-                tr = getattr(self.window.language_manager, 'tr', lambda x, y: x) if hasattr(self.window, 'language_manager') else lambda x, y: x
+                tr = self.tr
                 start_display = ''
                 try:
                     start_display = datetime.fromisoformat(start_str).strftime('%H:%M')
@@ -471,14 +477,12 @@ class EPGController:
         if self.window.current_epg_date:
             # 更新日期标签显示
             if hasattr(self.window, 'epg_date_label'):
+                tr = self.tr
                 if self.window.current_epg_date == today:
-                    tr = getattr(self.window.language_manager, 'tr', lambda x, y: x)
                     self.window.epg_date_label.setText(tr("today", "Today"))
                 elif self.window.current_epg_date == today - timedelta(days=1):
-                    tr = getattr(self.window.language_manager, 'tr', lambda x, y: x)
                     self.window.epg_date_label.setText(tr("yesterday", "Yesterday"))
                 elif self.window.current_epg_date == today + timedelta(days=1):
-                    tr = getattr(self.window.language_manager, 'tr', lambda x, y: x)
                     self.window.epg_date_label.setText(tr("tomorrow", "Tomorrow"))
                 else:
                     self.window.epg_date_label.setText(self.window.current_epg_date.strftime("%Y-%m-%d"))
@@ -490,7 +494,7 @@ class EPGController:
         min_date = date.today() - timedelta(days=7)
         if self.window.current_epg_date <= min_date:
             if hasattr(self.window, 'status_bar_show_message'):
-                tr = getattr(self.window.language_manager, 'tr', lambda x, y: x) if hasattr(self.window, 'language_manager') else lambda x, y: x
+                tr = self.tr
                 self.window.status_bar_show_message(tr('epg_date_limit', '已到最早日期'))
             return
         self.window.current_epg_date -= timedelta(days=1)
@@ -505,7 +509,7 @@ class EPGController:
         max_date = date.today() + timedelta(days=7)
         if self.window.current_epg_date >= max_date:
             if hasattr(self.window, 'status_bar_show_message'):
-                tr = getattr(self.window.language_manager, 'tr', lambda x, y: x) if hasattr(self.window, 'language_manager') else lambda x, y: x
+                tr = self.tr
                 self.window.status_bar_show_message(tr('epg_date_limit', '已到最远日期'))
             return
         self.window.current_epg_date += timedelta(days=1)
