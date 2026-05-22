@@ -2774,6 +2774,19 @@ class AppStyles:
         """
 
     @staticmethod
+    def scroll_area_style() -> str:
+        colors = AppStyles._get_colors()
+        return f"""
+            QScrollArea {{
+                background-color: {colors['player_panel']};
+                border: none;
+            }}
+            QScrollArea > QWidget > QWidget {{
+                background-color: {colors['player_panel']};
+            }}
+        """
+
+    @staticmethod
     def common_title_style() -> str:
         colors = AppStyles._get_colors()
         return f"""
