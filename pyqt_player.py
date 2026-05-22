@@ -3094,7 +3094,6 @@ class IPTVPlayer(QMainWindow):
                     info = merged
                 else:
                     self._last_media_info.update(info)
-                    return
             else:
                 self._last_media_info = info.copy()
 
