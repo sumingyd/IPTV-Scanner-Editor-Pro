@@ -7,7 +7,7 @@ from typing import List
 from datetime import datetime, timedelta, date
 from PyQt6.QtWidgets import QListWidgetItem, QDateEdit, QStyledItemDelegate, QStyleOptionViewItem
 from PyQt6.QtGui import QAction, QColor, QPainter, QFontMetrics
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, QRect
 
 from core.log_manager import global_logger as logger
 from controllers.main_window_protocol import MainWindowProtocol
@@ -62,7 +62,7 @@ class EPGItemDelegate(QStyledItemDelegate):
         for text, status_type in left_badges:
             text_width = fm.horizontalAdvance(text) + 8
             bg_color, text_color = status_colors.get(status_type, default_colors)
-            bg_rect = type(option.rect)(left_offset, y, text_width, text_height)
+            bg_rect = QRect(left_offset, y, text_width, text_height)
 
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(bg_color)
@@ -79,7 +79,7 @@ class EPGItemDelegate(QStyledItemDelegate):
             text, status_type = right_badge
             text_width = fm.horizontalAdvance(text) + 8
             bg_color, text_color = status_colors.get(status_type, default_colors)
-            bg_rect = type(option.rect)(right_limit - text_width, y, text_width, text_height)
+            bg_rect = QRect(right_limit - text_width, y, text_width, text_height)
 
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(bg_color)
@@ -93,7 +93,7 @@ class EPGItemDelegate(QStyledItemDelegate):
 
         painter.restore()
 
-        text_rect = type(option.rect)(
+        text_rect = QRect(
             left_offset, option.rect.top(),
             right_limit - left_offset, option.rect.height()
         )
