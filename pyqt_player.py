@@ -324,6 +324,7 @@ class IPTVPlayer(QMainWindow):
         from datetime import datetime
         self.current_epg_date = datetime.now().date()
         self._last_media_info: Dict[str, Any] = {}
+        self._last_info_key = None
 
     def _init_signals(self):
         """连接所有信号到槽函数"""
@@ -3072,7 +3073,7 @@ class IPTVPlayer(QMainWindow):
                 info.get('gamma', ''),
                 info.get('sig_peak', 0),
             )
-            if hasattr(self, '_last_info_key') and self._last_info_key == key:
+            if self._last_info_key == key:
                 return
             self._last_info_key = key
 
