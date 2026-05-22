@@ -272,11 +272,13 @@ class EPGController:
             else:
                 logger.debug(f"EPG: 按日期 {target_date} 过滤，{len(epg_list)} -> {len(filtered_list)} 个节目")
 
-            if hasattr(self.window, 'epg_empty_label'):
-                if not filtered_list and is_browsing_other_date:
-                    self.window.epg_empty_label.show()
-                else:
+            if hasattr(self.window, 'epg_empty_label') and hasattr(self.window, 'epg_content'):
+                if filtered_list:
                     self.window.epg_empty_label.hide()
+                    self.window.epg_content.show()
+                else:
+                    self.window.epg_empty_label.show()
+                    self.window.epg_content.hide()
 
             tr = getattr(self.window.language_manager, 'tr', lambda x, y: x) if hasattr(self.window, 'language_manager') else lambda x, y: x
 
@@ -389,6 +391,8 @@ class EPGController:
         else:
             if hasattr(self.window, 'epg_empty_label'):
                 self.window.epg_empty_label.show()
+            if hasattr(self.window, 'epg_content'):
+                self.window.epg_content.hide()
             logger.debug(f"频道 {channel_name} 无EPG数据")
 
     def on_epg_item_clicked(self, item: QListWidgetItem):
