@@ -14,11 +14,19 @@ from controllers.main_window_protocol import MainWindowProtocol
 
 
 class EPGItemDelegate(QStyledItemDelegate):
-    STATUS_COLORS = {
-        'live': (QColor(231, 76, 60), QColor(255, 255, 255)),
-        'past': (QColor(149, 165, 166, 160), QColor(255, 255, 255, 200)),
-        'catchup': (QColor(52, 152, 219, 180), QColor(255, 255, 255)),
-    }
+    @staticmethod
+    def _get_status_colors():
+        from ui.styles import AppStyles
+        colors = AppStyles._get_colors()
+        past_bg = QColor(colors.get('mid', '#999999'))
+        past_bg.setAlpha(160)
+        past_text = QColor(colors.get('window_text', '#cccccc'))
+        past_text.setAlpha(200)
+        return {
+            'live': (QColor(colors.get('error', '#f44336')), QColor(colors.get('bright_text', '#ffffff'))),
+            'past': (past_bg, past_text),
+            'catchup': (QColor(colors.get('accent', '#4a7eff')), QColor(colors.get('bright_text', '#ffffff'))),
+        }
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index):
         data = index.data(Qt.ItemDataRole.UserRole)
@@ -47,10 +55,13 @@ class EPGItemDelegate(QStyledItemDelegate):
 
         painter.save()
 
+        status_colors = self._get_status_colors()
+        default_colors = status_colors['past']
+
         left_offset = option.rect.left() + 4
         for text, status_type in left_badges:
             text_width = fm.horizontalAdvance(text) + 8
-            bg_color, text_color = self.STATUS_COLORS.get(status_type, self.STATUS_COLORS['past'])
+            bg_color, text_color = status_colors.get(status_type, default_colors)
             bg_rect = type(option.rect)(left_offset, y, text_width, text_height)
 
             painter.setPen(Qt.PenStyle.NoPen)
@@ -67,7 +78,7 @@ class EPGItemDelegate(QStyledItemDelegate):
         if right_badge:
             text, status_type = right_badge
             text_width = fm.horizontalAdvance(text) + 8
-            bg_color, text_color = self.STATUS_COLORS.get(status_type, self.STATUS_COLORS['past'])
+            bg_color, text_color = status_colors.get(status_type, default_colors)
             bg_rect = type(option.rect)(right_limit - text_width, y, text_width, text_height)
 
             painter.setPen(Qt.PenStyle.NoPen)
