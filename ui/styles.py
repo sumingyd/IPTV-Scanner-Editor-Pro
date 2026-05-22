@@ -1611,7 +1611,7 @@ class AppStyles:
                 }}
                 QDialog QLabel {{
                     color: {colors['window_text']};
-                    font-size: 13px;
+                    font-size: 12px;
                 }}
                 QDialog QPushButton {{
                     min-width: 70px;
@@ -1647,12 +1647,12 @@ class AppStyles:
                     padding: 0 6px;
                     color: {colors['window_text']};
                     font-weight: 600;
-                    font-size: 13px;
+                    font-size: 12px;
                 }}
                 QDialog QLineEdit, QDialog QComboBox {{
                     border-radius: 6px;
                     padding: 6px 10px;
-                    font-size: 13px;
+                    font-size: 12px;
                     background-color: {input_bg};
                     color: {colors['window_text']};
                     {inset}
@@ -1681,7 +1681,7 @@ class AppStyles:
                 }}
                 QDialog QCheckBox {{
                     color: {colors['window_text']};
-                    font-size: 13px;
+                    font-size: 12px;
                     font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                     spacing: 8px;
                 }}
@@ -1710,7 +1710,7 @@ class AppStyles:
                 QDialog QTextEdit {{
                     border-radius: 6px;
                     padding: 10px;
-                    font-size: 13px;
+                    font-size: 12px;
                     background-color: {input_bg};
                     color: {colors['window_text']};
                     {inset}
@@ -1742,7 +1742,7 @@ class AppStyles:
                     width: 16px;
                     height: 16px;
                     border: 1px solid {colors['mid']};
-                    border-radius: 3px;
+                    border-radius: 4px;
                     background-color: {input_bg};
                 }}
                 QDialog QListWidget::indicator:checked {{
@@ -1768,7 +1768,7 @@ class AppStyles:
             }}
             QDialog QLabel {{
                 color: {colors['window_text']};
-                font-size: 13px;
+                font-size: 12px;
             }}
             QDialog QPushButton {{
                 min-width: 70px;
@@ -1801,13 +1801,13 @@ class AppStyles:
                 padding: 0 6px;
                 color: {colors['window_text']};
                 font-weight: 600;
-                font-size: 13px;
+                font-size: 12px;
             }}
             QDialog QLineEdit, QDialog QComboBox {{
                 border: 1px solid {colors['mid']};
                 border-radius: 6px;
                 padding: 6px 10px;
-                font-size: 13px;
+                font-size: 12px;
                 background-color: {input_bg};
                 color: {colors['window_text']};
             }}
@@ -1834,7 +1834,7 @@ class AppStyles:
             }}
             QDialog QCheckBox {{
                 color: {colors['window_text']};
-                font-size: 13px;
+                font-size: 12px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                 spacing: 8px;
             }}
@@ -1861,7 +1861,7 @@ class AppStyles:
                 border: 1px solid {colors['mid']};
                 border-radius: 6px;
                 padding: 10px;
-                font-size: 13px;
+                font-size: 12px;
                 background-color: {input_bg};
                 color: {colors['window_text']};
             }}
@@ -2715,7 +2715,7 @@ class AppStyles:
                 width: 16px;
                 height: 16px;
                 border: 2px solid {colors['mid']};
-                border-radius: 3px;
+                border-radius: 4px;
                 background-color: {chk_bg};
             }}
             QCheckBox::indicator:checked {{
