@@ -122,6 +122,29 @@ class ScanChannelDialog(FloatingDialog):
                     w = w.parent()
         super().mousePressEvent(event)
 
+    def reapply_styles(self):
+        colors = AppStyles._get_colors()
+        for child in self.findChildren(QtWidgets.QPushButton):
+            child.setStyleSheet(AppStyles.common_button_style())
+        for child in self.findChildren(QtWidgets.QLineEdit):
+            child.setStyleSheet(AppStyles.common_line_edit_style())
+        for child in self.findChildren(QtWidgets.QComboBox):
+            child.setStyleSheet(AppStyles.common_combo_box_style())
+        for child in self.findChildren(QtWidgets.QCheckBox):
+            child.setStyleSheet(AppStyles.common_check_box_style())
+        for child in self.findChildren(QtWidgets.QGroupBox):
+            child.setStyleSheet(AppStyles.common_group_box_style())
+        for child in self.findChildren(QtWidgets.QTableView):
+            child.setStyleSheet(AppStyles.list_style())
+        for child in self.findChildren(QtWidgets.QTabWidget):
+            child.setStyleSheet(AppStyles.tab_widget_style())
+        if hasattr(self, 'channel_table'):
+            self.channel_table.setStyleSheet(AppStyles.list_style())
+        if hasattr(self, '_empty_hint_label') and self._empty_hint_label:
+            self._empty_hint_label.setStyleSheet(
+                f"color: {colors['player_panel_hint']}; font-size: 14px; padding: 40px;"
+            )
+
     def _stop_all_timers(self):
         """安全停止所有定时器"""
         if hasattr(self, '_timers'):

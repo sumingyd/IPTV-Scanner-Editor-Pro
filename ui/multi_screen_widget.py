@@ -265,6 +265,15 @@ class MultiScreenCell(QWidget):
             if track_id is not None:
                 self.audio_track_changed.emit(self._index, track_id)
 
+    def reapply_styles(self):
+        self._channel_label.setStyleSheet(self._label_style())
+        self._audio_combo.setStyleSheet(self._combo_style())
+        self._close_btn.setStyleSheet(self._close_btn_style())
+        self._placeholder.setStyleSheet(self._placeholder_style())
+        self._video_frame.setStyleSheet(AppStyles.player_background_style())
+        self._volume_slider.setStyleSheet(AppStyles.player_volume_slider_style())
+        self._volume_pct.setStyleSheet(self._label_style())
+
     @staticmethod
     def _label_style():
         colors = AppStyles._get_colors()

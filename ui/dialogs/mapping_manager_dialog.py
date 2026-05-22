@@ -535,6 +535,35 @@ class MappingManagerDialog(FloatingDialog):
         except Exception as e:
             self.logger.error(f"更新映射管理器UI文本失败: {e}")
 
+    def reapply_styles(self):
+        from ..styles import AppStyles
+        colors = AppStyles._get_colors()
+        info_box = self.findChild(QtWidgets.QFrame)
+        if info_box:
+            info_box.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {colors['alternate_base']};
+                    border-radius: 8px;
+                    border: 1px solid {colors['mid']};
+                    padding: 4px;
+                }}
+                QLabel {{ color: {colors['window_text']}; border: none; background: transparent; }}
+            """)
+        for child in self.findChildren(QtWidgets.QPushButton):
+            child.setStyleSheet(AppStyles.common_button_style())
+        for child in self.findChildren(QtWidgets.QLineEdit):
+            child.setStyleSheet(AppStyles.common_line_edit_style())
+        for child in self.findChildren(QtWidgets.QComboBox):
+            child.setStyleSheet(AppStyles.common_combo_box_style())
+        for child in self.findChildren(QtWidgets.QGroupBox):
+            child.setStyleSheet(AppStyles.common_group_box_style())
+        if hasattr(self, 'mapping_table'):
+            self.mapping_table.setStyleSheet(AppStyles.list_style())
+        if hasattr(self, 'update_status_label'):
+            self.update_status_label.setStyleSheet(
+                f"color: {colors['player_panel_hint']}; font-size: 11px; border: none; background: transparent; padding: 4px 8px;"
+            )
+
 
 class MappingEditDialog(FloatingDialog):
 
@@ -627,3 +656,10 @@ class MappingEditDialog(FloatingDialog):
             'group_name': self.group_name_input.text().strip() or None,
             'logo_url': self.logo_url_input.text().strip() or None
         }
+
+    def reapply_styles(self):
+        from ..styles import AppStyles
+        for child in self.findChildren(QtWidgets.QLineEdit):
+            child.setStyleSheet(AppStyles.common_line_edit_style())
+        for child in self.findChildren(QtWidgets.QPushButton):
+            child.setStyleSheet(AppStyles.common_button_style())

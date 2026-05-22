@@ -228,3 +228,33 @@ class AboutDialog(FloatingDialog):
             if isinstance(widget, QtWidgets.QLabel) and widget.openExternalLinks():
                 return
         super().mousePressEvent(event)
+
+    def reapply_styles(self):
+        from ..styles import AppStyles
+        self._colors = AppStyles._get_colors()
+        c = self._colors
+        lbl_style = f"font-size: 12px; color: {c['window_text']}; background-color: transparent;"
+        val_style = f"font-size: 12px; color: {c['accent']}; background-color: transparent;"
+        for child in self.findChildren(QtWidgets.QLabel):
+            child_name = child.objectName()
+            if child_name == "infoCard":
+                continue
+            if child == getattr(self, 'copyright_label', None):
+                child.setStyleSheet(f"font-size: 10px; color: {c['player_panel_secondary']}; background-color: transparent;")
+                continue
+            existing = child.styleSheet()
+            if 'accent' in existing or val_style.split(';')[1] in existing:
+                child.setStyleSheet(val_style)
+            else:
+                child.setStyleSheet(lbl_style)
+        for child in self.findChildren(QtWidgets.QPushButton):
+            child.setStyleSheet(AppStyles.button_style())
+        card = self.findChild(QtWidgets.QWidget, "infoCard")
+        if card:
+            card.setStyleSheet(f"""
+                QWidget#infoCard {{
+                    background-color: {c['alternate_base']};
+                    border-radius: 8px;
+                    padding: 4px;
+                }}
+            """)

@@ -156,3 +156,19 @@ class FileAssociationDialog(FloatingDialog):
             else:
                 unregister_extension(ext)
         self.accept()
+
+    def reapply_styles(self):
+        from ..styles import AppStyles
+        colors = AppStyles._get_colors()
+        for child in self.findChildren(QtWidgets.QLabel):
+            existing = child.styleSheet()
+            if 'font-weight: bold' in existing:
+                child.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {colors['window_text']};")
+            elif 'player_panel_hint' in existing or 'font-size: 11px' in existing:
+                child.setStyleSheet(f"font-size: 11px; color: {colors['player_panel_hint']};")
+        for child in self.findChildren(QtWidgets.QGroupBox):
+            child.setStyleSheet(AppStyles.common_group_box_style())
+        for child in self.findChildren(QtWidgets.QPushButton):
+            child.setStyleSheet(AppStyles.common_button_style())
+        for child in self.findChildren(QtWidgets.QCheckBox):
+            child.setStyleSheet(AppStyles.common_check_box_style())
