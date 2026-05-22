@@ -146,9 +146,10 @@ class UIController:
         if sample_rate > 0:
             aline_parts.append("{}Hz".format(sample_rate))
         if a_br > 0:
-            aline_parts.append(self._format_bitrate(a_br))
+            aline_parts.append("{:.1f}Mbps".format(a_br / 1000000) if a_br >= 1000000 else "{:.0f}Kbps".format(a_br / 1000) if a_br >= 1000 else "{}bps".format(a_br))
         if v_br > 0:
-            aline_parts.append("v:{}".format(self._format_bitrate(v_br)))
+            v_br_str = "{:.1f}Mbps".format(v_br / 1000000) if v_br >= 1000000 else "{:.0f}Kbps".format(v_br / 1000) if v_br >= 1000 else "{}bps".format(v_br)
+            aline_parts.append("v:{}".format(v_br_str))
         if aline_parts:
             lines.append("  ".join(aline_parts))
 
@@ -182,109 +183,12 @@ class UIController:
 
         return '\n'.join(lines)
 
-    def _format_bitrate(self, bitrate: int) -> str:
-        """格式化码率显示"""
-        if bitrate >= 1000000:
-            return "{:.1f}Mbps".format(bitrate / 1000000)
-        elif bitrate >= 1000:
-            return "{:.0f}Kbps".format(bitrate / 1000)
-        else:
-            return "{}bps".format(bitrate)
-
     def _hide_osd(self):
         self.window.panel_vis.restore_context('osd')
 
         pc = self.window.player_controller
         if pc:
             pc.send_command([b'show-text', b'', b'0'])
-
-    def update_media_info_display(self, media_info: Dict[str, Any]):
-        """更新媒体信息显示（视频、音频、网络信息标签）"""
-        tr = self.window.language_manager.tr
-
-        if not media_info:
-            return
-
-        video_info = media_info.get('video', {})
-        audio_info = media_info.get('audio', {})
-
-        self._update_video_label(video_info, tr)
-        self._update_audio_label(audio_info, tr)
-        self._update_network_label(media_info, tr)
-
-    def _update_video_label(self, video_info: Dict[str, Any], tr):
-        """更新视频信息标签"""
-        parts = []
-
-        codec = video_info.get('codec')
-        if codec and codec != '未知':
-            parts.append(f"{tr('codec_label', 'Codec')}: {codec}")
-
-        width = video_info.get('width', 0)
-        height = video_info.get('height', 0)
-        if width > 0 and height > 0:
-            parts.append(f"{tr('resolution_label', 'Resolution')}: {width}x{height}")
-
-        frame_rate = video_info.get('frame_rate', 0)
-        if frame_rate and frame_rate > 0:
-            parts.append(f"{tr('frame_rate_label', 'Frame Rate')}: {frame_rate:.2f}fps")
-
-        bit_rate = video_info.get('bit_rate', 0)
-        if bit_rate and bit_rate > 0:
-            parts.append(f"{tr('bitrate_label', 'Bitrate')}: {self._format_bitrate(bit_rate)}")
-
-        pixel_format = video_info.get('pixel_format', '')
-        if pixel_format and pixel_format != '未知':
-            parts.append(f"{tr('pixel_format_label', 'Pixel Format')}: {pixel_format}")
-
-        if parts:
-            self.window.video_info.setText(' | '.join(parts))
-        else:
-            self.window.video_info.setText(tr('no_video_info', 'No video info available'))
-
-    def _update_audio_label(self, audio_info: Dict[str, Any], tr):
-        """更新音频信息标签"""
-        parts = []
-
-        codec = audio_info.get('codec')
-        if codec and codec != '未知':
-            import re
-            codec = re.sub(r'\s*\(.*?\)\s*', '', codec).strip()
-            parts.append(f"{tr('codec_label', 'Codec')}: {codec}")
-
-        channels = audio_info.get('channels', 0)
-        if channels and channels > 0:
-            parts.append(f"{tr('channel_count_label', 'Channels')}: {channels}ch")
-
-        sample_rate = audio_info.get('sample_rate', 0)
-        if sample_rate and sample_rate > 0:
-            parts.append(f"{tr('sample_rate_label', 'Sample Rate')}: {sample_rate}Hz")
-
-        bit_rate = audio_info.get('bit_rate', 0)
-        if bit_rate and bit_rate > 0:
-            parts.append(f"{tr('bitrate_label', 'Bitrate')}: {self._format_bitrate(bit_rate)}")
-
-        if parts:
-            self.window.audio_info.setText(' | '.join(parts))
-        else:
-            self.window.audio_info.setText(tr('no_audio_info', 'No audio info available'))
-
-    def _update_network_label(self, media_info: Dict[str, Any], tr):
-        """更新网络/格式信息标签"""
-        parts = []
-
-        format_name = media_info.get('format')
-        if format_name and format_name != '未知':
-            parts.append(f"{tr('format_label', 'Format')}: {format_name}")
-
-        protocol = media_info.get('protocol')
-        if protocol and protocol != '未知':
-            parts.append(f"{tr('protocol_label', 'Protocol')}: {protocol}")
-
-        if parts:
-            self.window.network_info.setText(' | '.join(parts))
-        else:
-            self.window.network_info.setText(tr('no_network_info', 'No network info available'))
 
     def reapply_all_styles(self):
         """重新应用所有样式（用于主题切换后）"""
