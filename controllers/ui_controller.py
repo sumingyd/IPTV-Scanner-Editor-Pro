@@ -3,6 +3,7 @@ UI控制器 - 负责OSD显示、媒体信息更新、样式管理等
 从 pyqt_player.py 提取的独立模块
 """
 
+import re
 from typing import Optional, Dict, Any
 from PyQt6.QtCore import QTimer
 from controllers.main_window_protocol import MainWindowProtocol
@@ -189,6 +190,120 @@ class UIController:
         pc = self.window.player_controller
         if pc:
             pc.send_command([b'show-text', b'', b'0'])
+
+    @staticmethod
+    def shorten_codec_name(codec_name: str) -> str:
+        if not codec_name:
+            return ''
+        if 'H.264' in codec_name or 'AVC' in codec_name or 'h264' in codec_name.lower():
+            return 'H.264'
+        if 'H.265' in codec_name or 'HEVC' in codec_name or 'hevc' in codec_name.lower():
+            return 'H.265'
+        if 'MPEG-2' in codec_name or 'mpeg2' in codec_name.lower():
+            return 'MPEG-2'
+        if 'MPEG-4' in codec_name or 'mpeg4' in codec_name.lower():
+            return 'MPEG-4'
+        if 'MP3' in codec_name or 'MPEG audio layer 3' in codec_name:
+            return 'MP3'
+        if 'AAC' in codec_name or 'aac' in codec_name.lower():
+            return 'AAC'
+        if 'AC-3' in codec_name or 'AC3' in codec_name or 'ac3' in codec_name.lower():
+            return 'AC3'
+        return codec_name[:10] if len(codec_name) > 10 else codec_name
+
+    def format_media_info(self, info: Dict[str, Any], tr) -> Dict[str, str]:
+        """输入扁平dict，返回格式化后的 {video_text, audio_text, network_text}"""
+        from services.mpv_player_service import MpvPlayerController
+
+        video_parts = []
+
+        hw = info.get('hwdec', '')
+        if hw and hw != 'no':
+            video_parts.append("{}: {}".format(tr('hwdec_label', 'HW') or 'HW', hw))
+
+        video_codec = info.get('video_codec', '')
+        if video_codec and video_codec != '未知':
+            codec_short = self.shorten_codec_name(video_codec)
+            video_parts.append("{}: {}".format(tr('vcodec_label', 'Video') or 'Video', codec_short))
+
+        video_width = info.get('width', 0)
+        video_height = info.get('height', 0)
+        if video_width > 0 and video_height > 0:
+            video_parts.append("{}: {}x{}".format(tr('resolution_label', 'Resolution') or 'Resolution', video_width, video_height))
+
+        hdr_type = MpvPlayerController.detect_hdr_type(
+            info.get('colormatrix', ''),
+            info.get('gamma', ''),
+            info.get('sig_peak', 0)
+        )
+        if hdr_type:
+            video_parts.append("{}: {}".format(tr('hdr_label', 'HDR') or 'HDR', hdr_type))
+
+        fps = info.get('fps', 0)
+        if fps and fps > 0:
+            video_parts.append("{}: {:.0f}fps".format(tr('frame_rate_label', 'FPS') or 'FPS', fps))
+
+        v_br = info.get('video_bitrate', 0)
+        a_br = info.get('audio_bitrate', 0)
+        total_br = v_br + a_br
+        if total_br and total_br > 0:
+            if total_br >= 1_000_000:
+                br_str = f"{total_br / 1_000_000:.1f}MB/s"
+            elif total_br >= 1000:
+                br_str = f"{total_br / 1000:.1f}KB/s"
+            else:
+                br_str = f"{total_br}B/s"
+            video_parts.append(br_str)
+
+        video_text = " | ".join(video_parts) if video_parts else (tr('live_stream', 'Live Stream') or 'Live Stream')
+
+        audio_parts = []
+
+        audio_codec = info.get('audio_codec', '')
+        if audio_codec and audio_codec != '未知':
+            audio_codec = re.sub(r'\s*\(.*?\)\s*', '', audio_codec).strip()
+            audio_parts.append("{}: {}".format(tr('acodec_label', 'Audio') or 'Audio', audio_codec))
+
+        channels = info.get('audio_channels', 0)
+        if channels and channels > 0:
+            audio_parts.append("{}: {}ch".format(tr('channel_count_label', 'Channels') or 'Channels', channels))
+
+        sample_rate = info.get('sample_rate', 0)
+        if sample_rate and sample_rate > 0:
+            audio_parts.append("{}: {}Hz".format(tr('sample_rate_label', 'Sample Rate') or 'Sample Rate', sample_rate))
+
+        if a_br and a_br > 0:
+            if a_br >= 1000:
+                audio_bitrate_str = "{:.1f}KB/s".format(a_br / 1000)
+            else:
+                audio_bitrate_str = "{}B/s".format(a_br)
+            audio_parts.append("{}: {}".format(tr('bitrate_label', 'Bitrate') or 'Bitrate', audio_bitrate_str))
+
+        audio_text = ' | '.join(audio_parts) if audio_parts else tr('no_audio_info', 'No audio info available')
+
+        network_parts = []
+        container = info.get('container', '')
+        proto = info.get('protocol', '')
+
+        if container and container != '未知':
+            network_parts.append(f"{tr('format_label', 'Format')}: {container}")
+        if proto and proto != '未知':
+            network_parts.append(f"{tr('protocol_label', 'Protocol')}: {proto}")
+
+        network_text = ' | '.join(network_parts) if network_parts else tr('no_network_info', 'No network info available')
+
+        return {
+            'video_text': video_text,
+            'audio_text': audio_text,
+            'network_text': network_text,
+        }
+
+    def update_media_info_labels(self, info: Dict[str, Any], tr):
+        """格式化媒体信息并写入标签"""
+        result = self.format_media_info(info, tr)
+        self.window.video_info.setText(result['video_text'])
+        self.window.audio_info.setText(result['audio_text'])
+        self.window.network_info.setText(result['network_text'])
 
     def reapply_all_styles(self):
         """重新应用所有样式（用于主题切换后）"""

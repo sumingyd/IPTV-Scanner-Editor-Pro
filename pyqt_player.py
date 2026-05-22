@@ -3097,141 +3097,19 @@ class IPTVPlayer(QMainWindow):
                     return
             else:
                 self._last_media_info = info.copy()
-            
-            # 构建视频信息标签（带参数标题，与音频/网络对齐）
-            video_parts = []
 
-            hw = info.get('hwdec', '')
-            if hw and hw != 'no':
-                video_parts.append("{}: {}".format(tr('hwdec_label', 'HW') or 'HW', hw))
+            if 'protocol' not in info or not info['protocol']:
+                proto = self.player_controller._guess_protocol(self.current_channel.get('url', '') if self.current_channel else '')
+                if proto:
+                    info['protocol'] = proto
 
-            video_codec = info.get('video_codec', '')
-            if video_codec and video_codec != '未知':
-                codec_short = self._shorten_codec_name(video_codec)
-                video_parts.append("{}: {}".format(tr('vcodec_label', 'Video') or 'Video', codec_short))
-
-            video_width = info.get('width', 0)
-            video_height = info.get('height', 0)
-            if video_width > 0 and video_height > 0:
-                video_parts.append("{}: {}x{}".format(tr('resolution_label', 'Resolution') or 'Resolution', video_width, video_height))
-
-            hdr_type = MpvPlayerController.detect_hdr_type(
-                info.get('colormatrix', ''),
-                info.get('gamma', ''),
-                info.get('sig_peak', 0)
-            )
-            if hdr_type:
-                video_parts.append("{}: {}".format(tr('hdr_label', 'HDR') or 'HDR', hdr_type))
-
-            fps = info.get('fps', 0)
-            if fps and fps > 0:
-                video_parts.append("{}: {:.0f}fps".format(tr('frame_rate_label', 'FPS') or 'FPS', fps))
-            
-            # 总码率（视频 + 音频）
-            v_br = info.get('video_bitrate', 0)
-            a_br = info.get('audio_bitrate', 0)
-            total_br = v_br + a_br
-            if total_br and total_br > 0:
-                if total_br >= 1_000_000:
-                    br_str = f"{total_br / 1_000_000:.1f}MB/s"
-                elif total_br >= 1000:
-                    br_str = f"{total_br / 1000:.1f}KB/s"
-                else:
-                    br_str = f"{total_br}B/s"
-                video_parts.append(br_str)
-            
-            # 更新视频信息标签
-            if video_parts:
-                self.video_info.setText(" | ".join(video_parts))
-            else:
-                self.video_info.setText(tr('live_stream', 'Live Stream') or 'Live Stream')
-
-            # 构建音频信息标签（详细信息）
-            audio_parts = []
-
-            audio_codec = info.get('audio_codec', '')
-            if audio_codec and audio_codec != '未知':
-                audio_codec = re.sub(r'\s*\(.*?\)\s*', '', audio_codec).strip()
-                audio_parts.append("{}: {}".format(tr('acodec_label', 'Audio') or 'Audio', audio_codec))
-
-            channels = info.get('audio_channels', 0)
-            if channels and channels > 0:
-                audio_parts.append("{}: {}ch".format(tr('channel_count_label', 'Channels') or 'Channels', channels))
-
-            sample_rate = info.get('sample_rate', 0)
-            if sample_rate and sample_rate > 0:
-                audio_parts.append("{}: {}Hz".format(tr('sample_rate_label', 'Sample Rate') or 'Sample Rate', sample_rate))
-
-            if a_br and a_br > 0:
-                if a_br >= 1000:
-                    audio_bitrate_str = "{:.1f}KB/s".format(a_br / 1000)
-                else:
-                    audio_bitrate_str = "{}B/s".format(a_br)
-                audio_parts.append("{}: {}".format(tr('bitrate_label', 'Bitrate') or 'Bitrate', audio_bitrate_str))
-            
-            # 更新音频信息标签
-            if audio_parts:
-                self.audio_info.setText(' | '.join(audio_parts))
-            else:
-                self.audio_info.setText(tr('no_audio_info', 'No audio info available'))
-            
-            # 网络/格式信息
-            network_parts = []
-            container = info.get('container', '')
-            proto = info.get('protocol', self.player_controller._guess_protocol(self.current_channel.get('url', '') if self.current_channel else ''))
-            
-            if container and container != '未知':
-                network_parts.append(f"{tr('format_label', 'Format')}: {container}")
-            if proto and proto != '未知':
-                network_parts.append(f"{tr('protocol_label', 'Protocol')}: {proto}")
-            
-            # 更新网络信息标签
-            if network_parts:
-                base_text = ' | '.join(network_parts)
-                self.network_info.setText(base_text)
-                self._network_base_info = base_text
-            else:
-                fallback = tr('no_network_info', 'No network info available')
-                self.network_info.setText(fallback)
-                self._network_base_info = fallback
+            self.ui_ctrl.update_media_info_labels(info, tr)
+            self._network_base_info = self.network_info.text()
         
         except RuntimeError:
-            pass  # UI 对象可能已被销毁
+            pass
     
-    def _shorten_codec_name(self, codec_name):
-        """简化编解码器名称"""
-        if not codec_name:
-            return ''
-        
-        # H.264
-        if 'H.264' in codec_name or 'AVC' in codec_name or 'h264' in codec_name.lower():
-            return 'H.264'
-        
-        # H.265/HEVC
-        if 'H.265' in codec_name or 'HEVC' in codec_name or 'hevc' in codec_name.lower():
-            return 'H.265'
-        
-        # MPEG
-        if 'MPEG-2' in codec_name or 'mpeg2' in codec_name.lower():
-            return 'MPEG-2'
-        if 'MPEG-4' in codec_name or 'mpeg4' in codec_name.lower():
-            return 'MPEG-4'
-        
-        # MP3
-        if 'MP3' in codec_name or 'MPEG audio layer 3' in codec_name:
-            return 'MP3'
-        
-        # AAC
-        if 'AAC' in codec_name or 'aac' in codec_name.lower():
-            return 'AAC'
-        
-        # AC3
-        if 'AC-3' in codec_name or 'AC3' in codec_name or 'ac3' in codec_name.lower():
-            return 'AC3'
-        
-        # 默认返回原名称（截取前 10 个字符）
-        return codec_name[:10] if len(codec_name) > 10 else codec_name
-    
+
     def _get_resolution_label(self, width, height):
         """获取分辨率标签（FHD、QHD 等）"""
         if width <= 0 or height <= 0:
