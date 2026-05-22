@@ -2960,7 +2960,6 @@ class IPTVPlayer(QMainWindow):
             if hasattr(self, 'video_widget') and self.video_widget and self.video_frame:
                 self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
                 self.video_widget.show()
-            self.update_media_info()
             self._last_info_key = None
             self.update_timer.start(500)
             if self._is_local_file():
