@@ -775,6 +775,7 @@ class IPTVPlayer(QMainWindow):
         self.epg_prev_day.setCursor(Qt.CursorShape.PointingHandCursor)
         self.epg_prev_day.setStyleSheet(AppStyles.player_date_button_style())
         self.epg_prev_day.clicked.connect(self.epg_ctrl.on_prev_day)
+        self.epg_prev_day.setToolTip(tr("tooltip_prev_day", "前一天"))
         date_layout.addWidget(self.epg_prev_day)
 
         self.epg_date_label = QLabel(tr("today", "Today"))
@@ -789,6 +790,7 @@ class IPTVPlayer(QMainWindow):
         self.epg_next_day.setCursor(Qt.CursorShape.PointingHandCursor)
         self.epg_next_day.setStyleSheet(AppStyles.player_date_button_style())
         self.epg_next_day.clicked.connect(self.epg_ctrl.on_next_day)
+        self.epg_next_day.setToolTip(tr("tooltip_next_day", "后一天"))
         date_layout.addWidget(self.epg_next_day)
 
         self.epg_layout.addLayout(date_layout)
