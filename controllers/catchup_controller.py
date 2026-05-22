@@ -321,17 +321,8 @@ class CatchupController:
             self.window.playback_ctrl._exit_catchup_mode()
 
         self.window.current_epg_date = datetime.now().date()
-        today = datetime.now().date()
-        tr = getattr(self.window.language_manager, 'tr', lambda x, y: x)
-        if hasattr(self.window, 'epg_date_label'):
-            if self.window.current_epg_date == today:
-                self.window.epg_date_label.setText(tr("today", "Today"))
-            elif self.window.current_epg_date == today - timedelta(days=1):
-                self.window.epg_date_label.setText(tr("yesterday", "Yesterday"))
-            elif self.window.current_epg_date == today + timedelta(days=1):
-                self.window.epg_date_label.setText(tr("tomorrow", "Tomorrow"))
-            else:
-                self.window.epg_date_label.setText(self.window.current_epg_date.strftime("%Y-%m-%d"))
+        if hasattr(self.window, 'epg_ctrl'):
+            self.window.epg_ctrl.update_epg_date_display()
 
         if hasattr(self.window, '_populate_epg_list'):
             self.window._populate_epg_list()
