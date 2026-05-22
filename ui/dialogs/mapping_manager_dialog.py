@@ -107,19 +107,7 @@ class MappingManagerDialog(FloatingDialog):
         refresh_layout.addStretch()
 
         self.refresh_cache_btn = QtWidgets.QPushButton(_('refresh_remote_mapping', '🔄 Refresh Remote Mapping'))
-        self.refresh_cache_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {accent_color};
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 10px 28px;
-                font-size: 14px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{ background-color: {accent_hover}; }}
-            QPushButton:pressed {{ background-color: {accent_pressed}; }}
-        """)
+        self.refresh_cache_btn.setStyleSheet(AppStyles.common_button_style())
         self.refresh_cache_btn.clicked.connect(self.refresh_cache)
         refresh_layout.addWidget(self.refresh_cache_btn)
         refresh_layout.addStretch()

@@ -21,11 +21,7 @@ class AppStyles:
 
     # 固定颜色常量（不随主题变化）
     COLOR_WHITE          = '#ffffff'
-    COLOR_CLOSE_HOVER    = '#e81123'   # 标准 Windows 关闭按钮悬停红
-    COLOR_SUCCESS_HOVER  = '#45a049'   # 成功按钮悬停绿
-    COLOR_SUCCESS_PRESS  = '#388e3c'   # 成功按钮按下绿
-    COLOR_ERROR_HOVER    = '#da190b'   # 危险按钮悬停红
-    COLOR_ERROR_PRESS    = '#c62828'   # 危险按钮按下红
+    COLOR_CLOSE_HOVER    = '#e81123'
 
     @classmethod
     def _get_svg_image(cls, cache: dict, filename_prefix: str, svg_content: str) -> str:
@@ -1080,13 +1076,17 @@ class AppStyles:
         colors = AppStyles._get_colors()
         return f"""
             QToolButton {{
-                color: {colors['player_panel_text']};
+                color: {colors['window_text']};
                 font-size: 12px;
-                background-color: {colors['player_warning']};
+                background-color: {colors['button']};
                 border-radius: 4px;
                 padding: 0px;
                 margin: 0px;
-                border: none;
+                border: 1px solid {colors['mid']};
+            }}
+            QToolButton:hover {{
+                background-color: {colors['light']};
+                border-color: {colors['error']};
             }}
         """
 
@@ -2158,39 +2158,102 @@ class AppStyles:
     @staticmethod
     def apply_button_style() -> str:
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        btn_bg = colors['neumorphic_light'] if neo else colors['button']
+        btn_hover = colors['neumorphic_dark'] if neo else colors['light']
+        if neo:
+            raised = AppStyles._neumorphic_raised()
+            return f"""
+                QPushButton {{
+                    background-color: {btn_bg};
+                    color: {colors['window_text']};
+                    {raised}
+                    border-radius: 6px;
+                    padding: 6px 12px;
+                    font-weight: 500;
+                    font-size: 12px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                }}
+                QPushButton:hover {{
+                    background-color: {btn_hover};
+                    border: 2px solid {colors['success']};
+                    border-radius: 6px;
+                }}
+                QPushButton:pressed {{
+                    background-color: {colors['neumorphic_dark']};
+                    border: 1px solid {colors['success']};
+                    border-radius: 6px;
+                }}
+            """
         return f"""
             QPushButton {{
-                background-color: {colors['success']};
-                color: {AppStyles.COLOR_WHITE};
-                border: none;
-                padding: 8px 16px;
+                background-color: {btn_bg};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
                 border-radius: 4px;
-                font-weight: bold;
+                padding: 6px 12px;
+                font-weight: 500;
+                font-size: 12px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
             }}
             QPushButton:hover {{
-                background-color: {AppStyles.COLOR_SUCCESS_HOVER};
+                background-color: {btn_hover};
+                border-color: {colors['success']};
             }}
             QPushButton:pressed {{
-                background-color: {AppStyles.COLOR_SUCCESS_PRESS};
+                background-color: {colors['dark']};
+                border-color: {colors['success']};
             }}
         """
 
     @staticmethod
     def cancel_button_style() -> str:
         colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
+        btn_bg = colors['neumorphic_light'] if neo else colors['button']
+        btn_hover = colors['neumorphic_dark'] if neo else colors['light']
+        if neo:
+            raised = AppStyles._neumorphic_raised()
+            return f"""
+                QPushButton {{
+                    background-color: {btn_bg};
+                    color: {colors['window_text']};
+                    {raised}
+                    border-radius: 6px;
+                    padding: 6px 12px;
+                    font-weight: 500;
+                    font-size: 12px;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                }}
+                QPushButton:hover {{
+                    background-color: {btn_hover};
+                    border: 2px solid {colors['error']};
+                    border-radius: 6px;
+                }}
+                QPushButton:pressed {{
+                    background-color: {colors['neumorphic_dark']};
+                    border: 1px solid {colors['error']};
+                    border-radius: 6px;
+                }}
+            """
         return f"""
             QPushButton {{
-                background-color: {colors['error']};
-                color: {AppStyles.COLOR_WHITE};
-                border: none;
-                padding: 8px 16px;
+                background-color: {btn_bg};
+                color: {colors['window_text']};
+                border: 1px solid {colors['mid']};
                 border-radius: 4px;
+                padding: 6px 12px;
+                font-weight: 500;
+                font-size: 12px;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
             }}
             QPushButton:hover {{
-                background-color: {AppStyles.COLOR_ERROR_HOVER};
+                background-color: {btn_hover};
+                border-color: {colors['error']};
             }}
             QPushButton:pressed {{
-                background-color: {AppStyles.COLOR_ERROR_PRESS};
+                background-color: {colors['dark']};
+                border-color: {colors['error']};
             }}
         """
 
@@ -2198,13 +2261,13 @@ class AppStyles:
     def secondary_label_style() -> str:
         colors = AppStyles._get_colors()
         return f"""
-            QLabel {{{{
+            QLabel {{
                 color: {colors['window_text']};
                 padding: 0 5px;
                 font-size: 13px;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                 opacity: 0.8;
-            }}}}
+            }}
         """
 
     @staticmethod
@@ -2329,7 +2392,7 @@ class AppStyles:
                     color: {colors['window_text']};
                     {raised}
                     border-radius: 6px;
-                    padding: 4px 12px;
+                    padding: 6px 12px;
                     min-width: 0px;
                     font-weight: 500;
                     font-size: 12px;
@@ -2358,7 +2421,7 @@ class AppStyles:
                 color: {colors['window_text']};
                 border: 1px solid {colors['mid']};
                 border-radius: 4px;
-                padding: 4px 12px;
+                padding: 6px 12px;
                 min-width: 0px;
                 font-weight: 500;
                 font-size: 12px;
@@ -2903,9 +2966,10 @@ class AppStyles:
                 inset = AppStyles._neumorphic_inset()
                 return f"""
                     QPushButton {{
-                        background-color: {colors['accent']};
-                        color: {AppStyles.COLOR_WHITE};
+                        background-color: {btn_bg};
+                        color: {colors['window_text']};
                         {raised}
+                        border: 1px solid {colors['accent']};
                         border-radius: 6px;
                         padding: 6px 12px;
                         font-weight: 500;
@@ -2913,19 +2977,22 @@ class AppStyles:
                         font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                     }}
                     QPushButton:hover {{
-                        background-color: {colors['accent_hover']};
+                        background-color: {btn_hover};
+                        border: 2px solid {colors['accent']};
+                        border-radius: 6px;
                     }}
                     QPushButton:pressed {{
-                        background-color: {colors['accent_pressed']};
+                        background-color: {colors['neumorphic_dark']};
                         {inset}
+                        border: 1px solid {colors['accent']};
                         border-radius: 6px;
                     }}
                 """
             return f"""
                 QPushButton {{
-                    background-color: {colors['accent']};
-                    color: {AppStyles.COLOR_WHITE};
-                    border: none;
+                    background-color: {btn_bg};
+                    color: {colors['window_text']};
+                    border: 1px solid {colors['accent']};
                     border-radius: 4px;
                     padding: 6px 12px;
                     font-weight: 500;
@@ -2933,10 +3000,12 @@ class AppStyles:
                     font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                 }}
                 QPushButton:hover {{
-                    background-color: {colors['accent_hover']};
+                    background-color: {btn_hover};
+                    border-color: {colors['accent_hover']};
                 }}
                 QPushButton:pressed {{
-                    background-color: {colors['accent_pressed']};
+                    background-color: {colors['dark']};
+                    border-color: {colors['accent_pressed']};
                 }}
             """
         if neo:
