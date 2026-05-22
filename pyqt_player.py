@@ -3220,10 +3220,6 @@ class IPTVPlayer(QMainWindow):
     
     def update_media_info(self):
         """更新媒体信息显示"""
-        # 直接调用 update_floating_panel_info 方法，保持统一
-        self.update_floating_panel_info()
-        
-        # 检查是否处于回看模式
         is_catchup = self.play_state.is_catchup
         is_timeshift = self.play_state.is_timeshift
         
