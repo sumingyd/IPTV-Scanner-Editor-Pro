@@ -576,8 +576,7 @@ class EPGController:
         epg_parser = getattr(self.window, 'epg_parser', None)
         if epg_parser is None:
             return False
-        epg_data = getattr(epg_parser, '_epg_data', None)
-        return bool(epg_data)
+        return epg_parser.has_epg_data()
 
     @property
     def current_program_count(self) -> int:
@@ -585,5 +584,4 @@ class EPGController:
         epg_parser = getattr(self.window, 'epg_parser', None)
         if epg_parser is None:
             return 0
-        epg_data = getattr(epg_parser, '_epg_data', {}) or {}
-        return sum(len(progs) for progs in epg_data.values())
+        return epg_parser.get_epg_program_count()

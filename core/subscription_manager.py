@@ -141,6 +141,32 @@ class SubscriptionManager(Singleton):
             EPG源列表
         """
         return self._config.load_epg_sources()
+
+    def get_epg_channel_count(self) -> int:
+        """获取EPG数据中的频道数量
+
+        Returns:
+            有EPG数据的频道数量
+        """
+        return len(self._epg_data) if self._epg_data else 0
+
+    def get_epg_program_count(self) -> int:
+        """获取EPG数据中的节目总数
+
+        Returns:
+            所有频道的节目总数
+        """
+        if not self._epg_data:
+            return 0
+        return sum(len(progs) for progs in self._epg_data.values())
+
+    def has_epg_data(self) -> bool:
+        """是否有EPG数据
+
+        Returns:
+            是否存在任何EPG数据
+        """
+        return bool(self._epg_data)
     
     def add_epg_source(self, url: str, name: str | None = None) -> int:
         """添加新的EPG源
