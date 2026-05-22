@@ -91,6 +91,7 @@ class ThemeManager(Singleton, QtCore.QObject):
             QtWidgets.QRadioButton: lambda w: AppStyles.common_radio_button_style() if hasattr(AppStyles, 'common_radio_button_style') and not w.styleSheet() else None,
             QtWidgets.QProgressBar: lambda w: AppStyles.progress_style() if not w.styleSheet() else None,
             QtWidgets.QGroupBox: lambda w: AppStyles.common_group_box_style() if not w.styleSheet() else None,
+            QtWidgets.QScrollArea: lambda w: AppStyles.scroll_area_style() if hasattr(AppStyles, 'scroll_area_style') and not w.styleSheet() else None,
         }
         for widget_type, style_func in style_map.items():
             try:
