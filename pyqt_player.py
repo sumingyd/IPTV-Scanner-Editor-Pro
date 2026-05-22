@@ -1065,14 +1065,21 @@ class IPTVPlayer(QMainWindow):
 
         logger.debug("_create_panel: 完成")
     
-    def _set_info_label_icon(self, label: QLabel, icon_name: str, text: str):
-        """设置信息标签的 SVG 图标 + 文本"""
+    def _set_info_label_icon(self, icon_label: QLabel, icon_name: str):
+        """设置信息行前的小图标"""
         color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
         icon_path = AppStyles.get_icon(icon_name, color, 14)
         if icon_path:
-            label.setText(f'<img src="{icon_path}" width="14" height="14" style="vertical-align:middle;"/> {text}')
-        else:
-            label.setText(text)
+            from PyQt6.QtGui import QPixmap
+            pixmap = QPixmap(icon_path)
+            if not pixmap.isNull():
+                icon_label.setPixmap(pixmap.scaled(14, 14, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+                icon_label.setFixedSize(16, 16)
+                icon_label.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+
+    def _update_info_label(self, label: QLabel, text: str):
+        """更新信息标签文字"""
+        label.setText(text)
 
     def _create_media_row(self):
         """创建媒体信息行"""
@@ -1081,29 +1088,46 @@ class IPTVPlayer(QMainWindow):
         
         # 第一行：媒体信息（详细版）
         self.media_row = QHBoxLayout()
-        self.media_row.setSpacing(12)
+        self.media_row.setSpacing(6)
+        
+        self.video_info_icon = QLabel()
+        self.video_info_icon.setStyleSheet("background: transparent; border: none;")
+        self._set_info_label_icon(self.video_info_icon, 'tv')
+        self.media_row.addWidget(self.video_info_icon)
         
         self.video_info = QLabel()
         self.video_info.setStyleSheet(AppStyles.player_media_badge_style())
         self.video_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.video_info.setFixedHeight(22)
-        vi_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
-        self._vi_color = vi_color
-        self._set_info_label_icon(self.video_info, 'tv', tr('not_playing', 'Not playing'))
+        self.video_info.setText(tr('not_playing', 'Not playing'))
         self.media_row.addWidget(self.video_info)
+        
+        self.media_row.addSpacing(6)
+        
+        self.audio_info_icon = QLabel()
+        self.audio_info_icon.setStyleSheet("background: transparent; border: none;")
+        self._set_info_label_icon(self.audio_info_icon, 'speaker')
+        self.media_row.addWidget(self.audio_info_icon)
         
         self.audio_info = QLabel()
         self.audio_info.setStyleSheet(AppStyles.player_media_badge_style())
         self.audio_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.audio_info.setFixedHeight(18)
-        self._set_info_label_icon(self.audio_info, 'speaker', "--")
+        self.audio_info.setText("--")
         self.media_row.addWidget(self.audio_info)
+        
+        self.media_row.addSpacing(6)
+        
+        self.network_info_icon = QLabel()
+        self.network_info_icon.setStyleSheet("background: transparent; border: none;")
+        self._set_info_label_icon(self.network_info_icon, 'signal')
+        self.media_row.addWidget(self.network_info_icon)
         
         self.network_info = QLabel()
         self.network_info.setStyleSheet(AppStyles.player_media_badge_style())
         self.network_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.network_info.setFixedHeight(18)
-        self._set_info_label_icon(self.network_info, 'signal', "--")
+        self.network_info.setText("--")
         self.media_row.addWidget(self.network_info)
 
         self.buffer_info = QLabel("")

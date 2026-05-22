@@ -134,17 +134,17 @@ class AppStyles:
                 f'<polygon points="{s-p},{p} {s*0.55},{h} {s-p},{s-p}" fill="{color}"/>'
             ),
             'volume': (
-                f'<path d="M{p},{h} L{p+s*0.2},{h} L{p+s*0.4},{p+s*0.25} L{p+s*0.4},{s-p-s*0.25} L{p+s*0.2},{h+p*0.5} Z" fill="{color}"/>'
-                f'<path d="M{p+s*0.55},{h-s*0.2} Q{p+s*0.7},{h} {p+s*0.55},{h+s*0.2}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
-                f'<path d="M{p+s*0.65},{h-s*0.3} Q{p+s*0.85},{h} {p+s*0.65},{h+s*0.3}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
+                f'<path d="M{p+s*0.05},{h} L{p+s*0.05},{h-s*0.15} L{p+s*0.3},{h-s*0.3} L{p+s*0.3},{h+s*0.3} L{p+s*0.05},{h+s*0.15} Z" fill="{color}"/>'
+                f'<path d="M{p+s*0.45},{h-s*0.22} A{s*0.22},{s*0.22} 0 0,1 {p+s*0.45},{h+s*0.22}" stroke="{color}" stroke-width="{s*0.1}" fill="none" stroke-linecap="round"/>'
+                f'<path d="M{p+s*0.6},{h-s*0.35} A{s*0.35},{s*0.35} 0 0,1 {p+s*0.6},{h+s*0.35}" stroke="{color}" stroke-width="{s*0.1}" fill="none" stroke-linecap="round"/>'
             ),
             'volume_low': (
-                f'<path d="M{p},{h} L{p+s*0.2},{h} L{p+s*0.4},{p+s*0.25} L{p+s*0.4},{s-p-s*0.25} L{p+s*0.2},{h+p*0.5} Z" fill="{color}"/>'
-                f'<path d="M{p+s*0.55},{h-s*0.2} Q{p+s*0.7},{h} {p+s*0.55},{h+s*0.2}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
+                f'<path d="M{p+s*0.05},{h} L{p+s*0.05},{h-s*0.15} L{p+s*0.3},{h-s*0.3} L{p+s*0.3},{h+s*0.3} L{p+s*0.05},{h+s*0.15} Z" fill="{color}"/>'
+                f'<path d="M{p+s*0.45},{h-s*0.22} A{s*0.22},{s*0.22} 0 0,1 {p+s*0.45},{h+s*0.22}" stroke="{color}" stroke-width="{s*0.1}" fill="none" stroke-linecap="round"/>'
             ),
             'volume_mute': (
-                f'<path d="M{p},{h} L{p+s*0.2},{h} L{p+s*0.4},{p+s*0.25} L{p+s*0.4},{s-p-s*0.25} L{p+s*0.2},{h+p*0.5} Z" fill="{color}"/>'
-                f'<line x1="{p+s*0.55}" y1="{h-s*0.15}" x2="{s-p}" y2="{h+s*0.15}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
+                f'<path d="M{p+s*0.05},{h} L{p+s*0.05},{h-s*0.15} L{p+s*0.3},{h-s*0.3} L{p+s*0.3},{h+s*0.3} L{p+s*0.05},{h+s*0.15} Z" fill="{color}"/>'
+                f'<line x1="{p+s*0.5}" y1="{h-s*0.18}" x2="{s-p-s*0.05}" y2="{h+s*0.18}" stroke="{color}" stroke-width="{s*0.1}" stroke-linecap="round"/>'
             ),
             'fullscreen': (
                 f'<path d="M{p},{p+s*0.25} L{p},{p} L{p+s*0.25},{p}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
@@ -209,19 +209,18 @@ class AppStyles:
                 f'<line x1="{p+s*0.2}" y1="{s-p-s*0.15}" x2="{s-p-s*0.2}" y2="{s-p-s*0.15}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
             ),
             'tv': (
-                f'<rect x="{p}" y="{h-s*0.2}" width="{s-p*2}" height="{h+p-s*0.2}" rx="2" stroke="{color}" stroke-width="{s*0.08}" fill="none"/>'
-                f'<line x1="{h}" y1="{p+s*0.05}" x2="{h}" y2="{h-s*0.2}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
-                f'<line x1="{p+s*0.2}" y1="{p+s*0.15}" x2="{h}" y2="{h-s*0.2}" stroke="{color}" stroke-width="{s*0.06}" stroke-linecap="round"/>'
-                f'<line x1="{s-p-s*0.2}" y1="{p+s*0.15}" x2="{h}" y2="{h-s*0.2}" stroke="{color}" stroke-width="{s*0.06}" stroke-linecap="round"/>'
+                f'<rect x="{p+s*0.05}" y="{h-s*0.25}" width="{s-p*2-s*0.1}" height="{h-p-s*0.05}" rx="1.5" stroke="{color}" stroke-width="{s*0.09}" fill="none"/>'
+                f'<line x1="{h-s*0.12}" y1="{p+s*0.05}" x2="{h-s*0.12}" y2="{h-s*0.25}" stroke="{color}" stroke-width="{s*0.09}" stroke-linecap="round"/>'
+                f'<line x1="{h+s*0.12}" y1="{p+s*0.05}" x2="{h+s*0.12}" y2="{h-s*0.25}" stroke="{color}" stroke-width="{s*0.09}" stroke-linecap="round"/>'
             ),
             'speaker': (
-                f'<path d="M{p},{h} L{p+s*0.25},{h} L{p+s*0.45},{p+s*0.2} L{p+s*0.45},{s-p-s*0.2} L{p+s*0.25},{h} Z" fill="{color}"/>'
-                f'<path d="M{p+s*0.6},{h-s*0.2} Q{p+s*0.8},{h} {p+s*0.6},{h+s*0.2}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
+                f'<path d="M{p+s*0.05},{h} L{p+s*0.05},{h-s*0.15} L{p+s*0.3},{h-s*0.3} L{p+s*0.3},{h+s*0.3} L{p+s*0.05},{h+s*0.15} Z" fill="{color}"/>'
+                f'<path d="M{p+s*0.45},{h-s*0.22} A{s*0.22},{s*0.22} 0 0,1 {p+s*0.45},{h+s*0.22}" stroke="{color}" stroke-width="{s*0.1}" fill="none" stroke-linecap="round"/>'
             ),
             'signal': (
-                f'<circle cx="{p+s*0.15}" cy="{s-p-s*0.15}" r="{s*0.06}" fill="{color}"/>'
-                f'<path d="M{p+s*0.3},{s-p-s*0.15} A{s*0.2},{s*0.2} 0 0,1 {p+s*0.15},{s-p-s*0.3}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
-                f'<path d="M{p+s*0.5},{s-p-s*0.15} A{s*0.4},{s*0.4} 0 0,1 {p+s*0.15},{s-p-s*0.5}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
+                f'<circle cx="{p+s*0.2}" cy="{s-p-s*0.1}" r="{s*0.08}" fill="{color}"/>'
+                f'<path d="M{p+s*0.38},{s-p-s*0.1} A{s*0.25},{s*0.25} 0 0,1 {p+s*0.2},{s-p-s*0.35}" stroke="{color}" stroke-width="{s*0.1}" fill="none" stroke-linecap="round"/>'
+                f'<path d="M{p+s*0.58},{s-p-s*0.1} A{s*0.45},{s*0.45} 0 0,1 {p+s*0.2},{s-p-s*0.55}" stroke="{color}" stroke-width="{s*0.1}" fill="none" stroke-linecap="round"/>'
             ),
             'calendar': (
                 f'<rect x="{p}" y="{p+s*0.25}" width="{s-p*2}" height="{s-p-s*0.25}" rx="2" stroke="{color}" stroke-width="{s*0.08}" fill="none"/>'
