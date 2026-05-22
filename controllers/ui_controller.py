@@ -147,10 +147,9 @@ class UIController:
         if sample_rate > 0:
             aline_parts.append("{}Hz".format(sample_rate))
         if a_br > 0:
-            aline_parts.append("{:.1f}Mbps".format(a_br / 1000000) if a_br >= 1000000 else "{:.0f}Kbps".format(a_br / 1000) if a_br >= 1000 else "{}bps".format(a_br))
+            aline_parts.append(self.format_bitrate(a_br))
         if v_br > 0:
-            v_br_str = "{:.1f}Mbps".format(v_br / 1000000) if v_br >= 1000000 else "{:.0f}Kbps".format(v_br / 1000) if v_br >= 1000 else "{}bps".format(v_br)
-            aline_parts.append("v:{}".format(v_br_str))
+            aline_parts.append("v:{}".format(self.format_bitrate(v_br)))
         if aline_parts:
             lines.append("  ".join(aline_parts))
 
@@ -190,6 +189,15 @@ class UIController:
         pc = self.window.player_controller
         if pc:
             pc.send_command([b'show-text', b'', b'0'])
+
+    @staticmethod
+    def format_bitrate(bps: float) -> str:
+        if bps >= 1000000:
+            return f"{bps/1000000:.1f}MB/s"
+        elif bps >= 1000:
+            return f"{bps/1000:.1f}KB/s"
+        else:
+            return f"{bps:.0f}B/s"
 
     @staticmethod
     def shorten_codec_name(codec_name: str) -> str:
@@ -247,13 +255,7 @@ class UIController:
         a_br = info.get('audio_bitrate', 0)
         total_br = v_br + a_br
         if total_br and total_br > 0:
-            if total_br >= 1_000_000:
-                br_str = f"{total_br / 1_000_000:.1f}MB/s"
-            elif total_br >= 1000:
-                br_str = f"{total_br / 1000:.1f}KB/s"
-            else:
-                br_str = f"{total_br}B/s"
-            video_parts.append(br_str)
+            video_parts.append(self.format_bitrate(total_br))
 
         video_text = " | ".join(video_parts) if video_parts else (tr('live_stream', 'Live Stream') or 'Live Stream')
 
@@ -273,11 +275,7 @@ class UIController:
             audio_parts.append("{}: {}Hz".format(tr('sample_rate_label', 'Sample Rate') or 'Sample Rate', sample_rate))
 
         if a_br and a_br > 0:
-            if a_br >= 1000:
-                audio_bitrate_str = "{:.1f}KB/s".format(a_br / 1000)
-            else:
-                audio_bitrate_str = "{}B/s".format(a_br)
-            audio_parts.append("{}: {}".format(tr('bitrate_label', 'Bitrate') or 'Bitrate', audio_bitrate_str))
+            audio_parts.append("{}: {}".format(tr('bitrate_label', 'Bitrate') or 'Bitrate', self.format_bitrate(a_br)))
 
         audio_text = ' | '.join(audio_parts) if audio_parts else tr('no_audio_info', 'No audio info available')
 
