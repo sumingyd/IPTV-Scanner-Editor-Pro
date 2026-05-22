@@ -774,7 +774,7 @@ class IPTVPlayer(QMainWindow):
         self.epg_prev_day.setFixedSize(24, 24)
         self.epg_prev_day.setCursor(Qt.CursorShape.PointingHandCursor)
         self.epg_prev_day.setStyleSheet(AppStyles.player_date_button_style())
-        self.epg_prev_day.clicked.connect(self.on_prev_day)
+        self.epg_prev_day.clicked.connect(self.epg_ctrl.on_prev_day)
         date_layout.addWidget(self.epg_prev_day)
 
         self.epg_date_label = QLabel(tr("today", "Today"))
@@ -788,7 +788,7 @@ class IPTVPlayer(QMainWindow):
         self.epg_next_day.setFixedSize(24, 24)
         self.epg_next_day.setCursor(Qt.CursorShape.PointingHandCursor)
         self.epg_next_day.setStyleSheet(AppStyles.player_date_button_style())
-        self.epg_next_day.clicked.connect(self.on_next_day)
+        self.epg_next_day.clicked.connect(self.epg_ctrl.on_next_day)
         date_layout.addWidget(self.epg_next_day)
 
         self.epg_layout.addLayout(date_layout)
@@ -2722,22 +2722,7 @@ class IPTVPlayer(QMainWindow):
         """更新EPG日期显示（委托给EPGController）"""
         self.epg_ctrl.update_epg_date_display()
 
-    def on_prev_day(self):
-        """上一天按钮点击事件"""
-        from datetime import timedelta
-        if self.current_epg_date is not None:
-            self.current_epg_date -= timedelta(days=1)
-        self.update_epg_date_display()
-        self.populate_epg_list()
-    
-    def on_next_day(self):
-        """下一天按钮点击事件"""
-        from datetime import timedelta
-        if self.current_epg_date is not None:
-            self.current_epg_date += timedelta(days=1)
-        self.update_epg_date_display()
-        self.populate_epg_list()
-    
+
     def toggle_playlist(self, checked=None):
         """显示/隐藏播放列表面板"""
         if self.panel_vis.is_auto_hidden:
