@@ -37,7 +37,6 @@ class MappingManagerDialog(FloatingDialog):
     def __init__(self, parent=None):
         super().__init__(parent, stay_on_top=False)
         self.logger = LogManager()
-        self.parent = parent
         self._update_check_worker = None  # 持有引用，防止 GC
         self._refresh_worker = None       # 持有引用，防止 GC
         from ..styles import AppStyles
