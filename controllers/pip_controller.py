@@ -127,10 +127,7 @@ class PipController:
         self._is_active = value
 
     def toggle(self, checked=None):
-        if checked is not None:
-            should_enter = checked
-        else:
-            should_enter = not self._is_active
+        should_enter = not self._is_active
         if should_enter:
             pc = self.window.player_controller
             has_content = (pc and (pc.is_playing or getattr(pc, 'is_paused', False))) or getattr(self.window, 'current_channel', None)
