@@ -107,8 +107,14 @@ def set_default_channel_logo(label, width: int = 100, height: int = 36) -> None:
             label.setPixmap(scaled)
             label.setText("")
             return
-    # 无 ico 文件时退回 emoji
-    label.setText("📺")
+    # 无 ico 文件时使用 SVG 图标
+    from ui.styles import AppStyles
+    tv_icon_path = AppStyles.get_icon('tv', AppStyles._get_colors().get('window_text', '#ffffff'), 48)
+    if tv_icon_path:
+        from PyQt6.QtGui import QIcon
+        label.setPixmap(QIcon(tv_icon_path).pixmap(label.width() or 48, label.height() or 48))
+    else:
+        label.setText("")
 
 
 def is_valid_url(url: str) -> bool:

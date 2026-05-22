@@ -18,6 +18,7 @@ class AppStyles:
     _radio_cache = {}
     _spinup_cache = {}
     _spindown_cache = {}
+    _icon_cache = {}
 
     # 固定颜色常量（不随主题变化）
     COLOR_WHITE          = '#ffffff'
@@ -83,6 +84,194 @@ class AppStyles:
             f'</svg>'
         )
         return cls._get_svg_image(cls._spindown_cache, f'spin_down_{color.lstrip("#")}', svg)
+
+    @classmethod
+    def get_icon(cls, name: str, color: str = None, size: int = 16) -> str:
+        """返回 SVG 文件路径，可用 QIcon(path) 创建图标。
+        name: 图标名称（play, pause, stop, prev, next, volume, volume_low, volume_mute,
+              fullscreen, restore, minimize, close, list_view, grid_view, pip, speed, aspect,
+              audio_track, subtitle, pin, pin_active, tv, speaker, signal, calendar, folder,
+              settings, edit, save, refresh, check, hourglass, backward, chevron_left, chevron_right）
+        color: 填充颜色，默认使用当前主题 window_text
+        size: SVG viewBox 尺寸
+        """
+        if color is None:
+            color = cls._get_colors().get('window_text', '#ffffff')
+        key = f'{name}_{size}_{color.lstrip("#")}'
+        if key in cls._icon_cache:
+            return cls._icon_cache[key]
+        svg = cls._build_icon_svg(name, color, size)
+        if svg is None:
+            return None
+        return cls._get_svg_image(cls._icon_cache, key, svg)
+
+    @classmethod
+    def _build_icon_svg(cls, name: str, color: str, size: int) -> str:
+        s = size
+        h = s / 2
+        p = s * 0.15
+        icons = {
+            'play': (
+                f'<polygon points="{s*0.3},{p} {s*0.8},{h} {s*0.3},{s-p}" fill="{color}"/>'
+            ),
+            'pause': (
+                f'<rect x="{p}" y="{p}" width="{s*0.3}" height="{s-p*2}" rx="1" fill="{color}"/>'
+                f'<rect x="{s*0.55}" y="{p}" width="{s*0.3}" height="{s-p*2}" rx="1" fill="{color}"/>'
+            ),
+            'stop': (
+                f'<rect x="{p}" y="{p}" width="{s-p*2}" height="{s-p*2}" rx="2" fill="{color}"/>'
+            ),
+            'prev': (
+                f'<polygon points="{h},{p} {p},{h} {h},{s-p}" fill="{color}"/>'
+                f'<rect x="{s*0.6}" y="{p}" width="{s*0.12}" height="{s-p*2}" rx="1" fill="{color}"/>'
+            ),
+            'next': (
+                f'<polygon points="{h},{p} {s-p},{h} {h},{s-p}" fill="{color}"/>'
+                f'<rect x="{s*0.28}" y="{p}" width="{s*0.12}" height="{s-p*2}" rx="1" fill="{color}"/>'
+            ),
+            'backward': (
+                f'<polygon points="{s*0.55},{p} {p},{h} {s*0.55},{s-p}" fill="{color}"/>'
+                f'<polygon points="{s-p},{p} {s*0.55},{h} {s-p},{s-p}" fill="{color}"/>'
+            ),
+            'volume': (
+                f'<path d="M{p},{h} L{p+s*0.2},{h} L{p+s*0.4},{p+s*0.25} L{p+s*0.4},{s-p-s*0.25} L{p+s*0.2},{h+p*0.5} Z" fill="{color}"/>'
+                f'<path d="M{p+s*0.55},{h-s*0.2} Q{p+s*0.7},{h} {p+s*0.55},{h+s*0.2}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
+                f'<path d="M{p+s*0.65},{h-s*0.3} Q{p+s*0.85},{h} {p+s*0.65},{h+s*0.3}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
+            ),
+            'volume_low': (
+                f'<path d="M{p},{h} L{p+s*0.2},{h} L{p+s*0.4},{p+s*0.25} L{p+s*0.4},{s-p-s*0.25} L{p+s*0.2},{h+p*0.5} Z" fill="{color}"/>'
+                f'<path d="M{p+s*0.55},{h-s*0.2} Q{p+s*0.7},{h} {p+s*0.55},{h+s*0.2}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
+            ),
+            'volume_mute': (
+                f'<path d="M{p},{h} L{p+s*0.2},{h} L{p+s*0.4},{p+s*0.25} L{p+s*0.4},{s-p-s*0.25} L{p+s*0.2},{h+p*0.5} Z" fill="{color}"/>'
+                f'<line x1="{p+s*0.55}" y1="{h-s*0.15}" x2="{s-p}" y2="{h+s*0.15}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
+            ),
+            'fullscreen': (
+                f'<path d="M{p},{p+s*0.25} L{p},{p} L{p+s*0.25},{p}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+                f'<path d="M{s-p-s*0.25},{p} L{s-p},{p} L{s-p},{p+s*0.25}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+                f'<path d="M{s-p},{s-p-s*0.25} L{s-p},{s-p} L{s-p-s*0.25},{s-p}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+                f'<path d="M{p+s*0.25},{s-p} L{p},{s-p} L{p},{s-p-s*0.25}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+            ),
+            'restore': (
+                f'<path d="M{p+s*0.15},{p+s*0.35} L{p+s*0.15},{p+s*0.15} L{p+s*0.35},{p+s*0.15}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+                f'<path d="M{s-p-s*0.15},{s-p-s*0.35} L{s-p-s*0.15},{s-p-s*0.15} L{s-p-s*0.35},{s-p-s*0.15}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+                f'<rect x="{p}" y="{p+s*0.25}" width="{s-p*2-s*0.05}" height="{s-p*2-s*0.05}" rx="1" stroke="{color}" stroke-width="{s*0.08}" fill="none"/>'
+            ),
+            'minimize': (
+                f'<line x1="{p}" y1="{h}" x2="{s-p}" y2="{h}" stroke="{color}" stroke-width="{s*0.1}" stroke-linecap="round"/>'
+            ),
+            'close': (
+                f'<line x1="{p}" y1="{p}" x2="{s-p}" y2="{s-p}" stroke="{color}" stroke-width="{s*0.1}" stroke-linecap="round"/>'
+                f'<line x1="{s-p}" y1="{p}" x2="{p}" y2="{s-p}" stroke="{color}" stroke-width="{s*0.1}" stroke-linecap="round"/>'
+            ),
+            'list_view': (
+                f'<rect x="{p}" y="{p}" width="{s-p*2}" height="{s*0.08}" rx="1" fill="{color}"/>'
+                f'<rect x="{p}" y="{h-s*0.04}" width="{s-p*2}" height="{s*0.08}" rx="1" fill="{color}"/>'
+                f'<rect x="{p}" y="{s-p-s*0.08}" width="{s-p*2}" height="{s*0.08}" rx="1" fill="{color}"/>'
+            ),
+            'grid_view': (
+                f'<rect x="{p}" y="{p}" width="{h-p-s*0.04}" height="{h-p-s*0.04}" rx="1" fill="{color}"/>'
+                f'<rect x="{h+s*0.04}" y="{p}" width="{h-p-s*0.04}" height="{h-p-s*0.04}" rx="1" fill="{color}"/>'
+                f'<rect x="{p}" y="{h+s*0.04}" width="{h-p-s*0.04}" height="{h-p-s*0.04}" rx="1" fill="{color}"/>'
+                f'<rect x="{h+s*0.04}" y="{h+s*0.04}" width="{h-p-s*0.04}" height="{h-p-s*0.04}" rx="1" fill="{color}"/>'
+            ),
+            'pip': (
+                f'<rect x="{p}" y="{p}" width="{s-p*2}" height="{s-p*2}" rx="2" stroke="{color}" stroke-width="{s*0.08}" fill="none"/>'
+                f'<rect x="{h}" y="{h}" width="{h-p}" height="{h-p}" rx="1" fill="{color}"/>'
+            ),
+            'speed': (
+                f'<circle cx="{h}" cy="{h}" r="{h-p}" stroke="{color}" stroke-width="{s*0.08}" fill="none"/>'
+                f'<line x1="{h}" y1="{h}" x2="{h}" y2="{p+s*0.15}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
+                f'<line x1="{h}" y1="{h}" x2="{h+s*0.2}" y2="{h}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
+            ),
+            'aspect': (
+                f'<rect x="{p}" y="{p}" width="{s-p*2}" height="{s-p*2}" rx="2" stroke="{color}" stroke-width="{s*0.08}" fill="none"/>'
+                f'<line x1="{p+s*0.15}" y1="{s-p}" x2="{p+s*0.15}" y2="{s-p-s*0.2}" stroke="{color}" stroke-width="{s*0.06}" stroke-linecap="round"/>'
+                f'<line x1="{p}" y1="{s-p-s*0.15}" x2="{p+s*0.2}" y2="{s-p-s*0.15}" stroke="{color}" stroke-width="{s*0.06}" stroke-linecap="round"/>'
+            ),
+            'audio_track': (
+                f'<path d="M{h},{p+s*0.1} L{h},{s-p-s*0.15} Q{h},{s-p} {h-s*0.15},{s-p}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
+                f'<circle cx="{h-s*0.15}" cy="{s-p-s*0.1}" r="{s*0.1}" stroke="{color}" stroke-width="{s*0.08}" fill="none"/>'
+                f'<line x1="{h}" y1="{p+s*0.1}" x2="{s-p}" y2="{p+s*0.25}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
+            ),
+            'subtitle': (
+                f'<rect x="{p}" y="{h-s*0.15}" width="{s-p*2}" height="{s*0.3}" rx="2" stroke="{color}" stroke-width="{s*0.08}" fill="none"/>'
+                f'<line x1="{p+s*0.15}" y1="{h}" x2="{p+s*0.4}" y2="{h}" stroke="{color}" stroke-width="{s*0.06}" stroke-linecap="round"/>'
+            ),
+            'pin': (
+                f'<path d="M{h},{p+s*0.2} L{h},{s-p-s*0.15}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
+                f'<circle cx="{h}" cy="{p+s*0.2}" r="{s*0.12}" stroke="{color}" stroke-width="{s*0.08}" fill="none"/>'
+                f'<line x1="{p+s*0.2}" y1="{s-p-s*0.15}" x2="{s-p-s*0.2}" y2="{s-p-s*0.15}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
+            ),
+            'pin_active': (
+                f'<path d="M{h},{p+s*0.2} L{h},{s-p-s*0.15}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
+                f'<circle cx="{h}" cy="{p+s*0.2}" r="{s*0.12}" fill="{color}"/>'
+                f'<line x1="{p+s*0.2}" y1="{s-p-s*0.15}" x2="{s-p-s*0.2}" y2="{s-p-s*0.15}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
+            ),
+            'tv': (
+                f'<rect x="{p}" y="{h-s*0.2}" width="{s-p*2}" height="{h+p-s*0.2}" rx="2" stroke="{color}" stroke-width="{s*0.08}" fill="none"/>'
+                f'<line x1="{h}" y1="{p+s*0.05}" x2="{h}" y2="{h-s*0.2}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
+                f'<line x1="{p+s*0.2}" y1="{p+s*0.15}" x2="{h}" y2="{h-s*0.2}" stroke="{color}" stroke-width="{s*0.06}" stroke-linecap="round"/>'
+                f'<line x1="{s-p-s*0.2}" y1="{p+s*0.15}" x2="{h}" y2="{h-s*0.2}" stroke="{color}" stroke-width="{s*0.06}" stroke-linecap="round"/>'
+            ),
+            'speaker': (
+                f'<path d="M{p},{h} L{p+s*0.25},{h} L{p+s*0.45},{p+s*0.2} L{p+s*0.45},{s-p-s*0.2} L{p+s*0.25},{h} Z" fill="{color}"/>'
+                f'<path d="M{p+s*0.6},{h-s*0.2} Q{p+s*0.8},{h} {p+s*0.6},{h+s*0.2}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
+            ),
+            'signal': (
+                f'<circle cx="{p+s*0.15}" cy="{s-p-s*0.15}" r="{s*0.06}" fill="{color}"/>'
+                f'<path d="M{p+s*0.3},{s-p-s*0.15} A{s*0.2},{s*0.2} 0 0,1 {p+s*0.15},{s-p-s*0.3}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
+                f'<path d="M{p+s*0.5},{s-p-s*0.15} A{s*0.4},{s*0.4} 0 0,1 {p+s*0.15},{s-p-s*0.5}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
+            ),
+            'calendar': (
+                f'<rect x="{p}" y="{p+s*0.25}" width="{s-p*2}" height="{s-p-s*0.25}" rx="2" stroke="{color}" stroke-width="{s*0.08}" fill="none"/>'
+                f'<line x1="{p}" y1="{p+s*0.45}" x2="{s-p}" y2="{p+s*0.45}" stroke="{color}" stroke-width="{s*0.06}"/>'
+                f'<line x1="{h-s*0.15}" y1="{p}" x2="{h-s*0.15}" y2="{p+s*0.35}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
+                f'<line x1="{h+s*0.15}" y1="{p}" x2="{h+s*0.15}" y2="{p+s*0.35}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
+            ),
+            'folder': (
+                f'<path d="M{p},{p+s*0.25} L{p},{s-p} Q{p},{s-p} {p+s*0.05},{s-p} L{s-p-s*0.05},{s-p} Q{s-p},{s-p} {s-p},{s-p} L{s-p},{p+s*0.25} Z" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linejoin="round"/>'
+                f'<path d="M{p},{p+s*0.25} L{p},{p+s*0.15} Q{p},{p+s*0.1} {p+s*0.05},{p+s*0.1} L{p+s*0.3},{p+s*0.1} L{p+s*0.4},{p+s*0.25}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linejoin="round"/>'
+            ),
+            'settings': (
+                f'<circle cx="{h}" cy="{h}" r="{s*0.2}" stroke="{color}" stroke-width="{s*0.08}" fill="none"/>'
+                f'<path d="M{h},{p} L{h},{p+s*0.2} M{h},{s-p-s*0.2} L{h},{s-p} M{p},{h} L{p+s*0.2},{h} M{s-p-s*0.2},{h} L{s-p},{h}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
+                f'<path d="M{p+s*0.15},{p+s*0.15} L{p+s*0.25},{p+s*0.25} M{s-p-s*0.25},{s-p-s*0.25} L{s-p-s*0.15},{s-p-s*0.15} M{s-p-s*0.15},{p+s*0.15} L{s-p-s*0.25},{p+s*0.25} M{p+s*0.25},{s-p-s*0.25} L{p+s*0.15},{s-p-s*0.15}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
+            ),
+            'edit': (
+                f'<path d="M{s-p-s*0.3},{p+s*0.2} L{p+s*0.3},{s-p-s*0.2} L{p+s*0.15},{s-p} L{p},{s-p-s*0.15} L{s-p-s*0.3},{p+s*0.2} Z" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linejoin="round"/>'
+                f'<line x1="{s-p-s*0.45}" y1="{p+s*0.35}" x2="{s-p-s*0.15}" y2="{p+s*0.05}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
+            ),
+            'save': (
+                f'<rect x="{p}" y="{p}" width="{s-p*2}" height="{s-p*2}" rx="2" stroke="{color}" stroke-width="{s*0.08}" fill="none"/>'
+                f'<rect x="{p+s*0.2}" y="{p}" width="{s-p*2-s*0.4}" height="{s*0.3}" fill="{color}"/>'
+                f'<rect x="{p+s*0.25}" y="{h}" width="{s-p*2-s*0.5}" height="{s*0.25}" rx="1" stroke="{color}" stroke-width="{s*0.06}" fill="none"/>'
+            ),
+            'refresh': (
+                f'<path d="M{s-p},{h} A{h-p},{h-p} 0 1,1 {h},{p}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
+                f'<polygon points="{h},{p} {h+s*0.15},{p+s*0.2} {h-s*0.15},{p+s*0.2}" fill="{color}"/>'
+            ),
+            'check': (
+                f'<path d="M{p+s*0.2},{h} L{h-s*0.1},{s-p-s*0.15} L{s-p},{p+s*0.2}" stroke="{color}" stroke-width="{s*0.1}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+            ),
+            'hourglass': (
+                f'<path d="M{p+s*0.2},{p} L{s-p-s*0.2},{p} L{h},{h} L{s-p-s*0.2},{s-p} L{p+s*0.2},{s-p} L{h},{h} Z" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linejoin="round"/>'
+            ),
+            'chevron_left': (
+                f'<polyline points="{s-p},{p} {p},{h} {s-p},{s-p}" stroke="{color}" stroke-width="{s*0.1}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+            ),
+            'chevron_right': (
+                f'<polyline points="{p},{p} {s-p},{h} {p},{s-p}" stroke="{color}" stroke-width="{s*0.1}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+            ),
+        }
+        body = icons.get(name)
+        if body is None:
+            return None
+        return (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}">'
+            f'{body}'
+            f'</svg>'
+        )
 
     THEME_COLORS = {
         'dark': {

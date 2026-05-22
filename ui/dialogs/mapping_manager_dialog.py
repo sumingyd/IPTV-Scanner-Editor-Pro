@@ -90,7 +90,7 @@ class MappingManagerDialog(FloatingDialog):
         info_layout = QtWidgets.QVBoxLayout(info_box)
         info_layout.setContentsMargins(16, 10, 16, 10)
 
-        title_label = QtWidgets.QLabel(_('mapping_tip_title', '📡 Channel Name Mapping'))
+        title_label = QtWidgets.QLabel(_('mapping_tip_title', 'Channel Name Mapping'))
         title_label.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {text_color}; border: none; background: transparent;")
         info_layout.addWidget(title_label)
 
@@ -106,7 +106,7 @@ class MappingManagerDialog(FloatingDialog):
         refresh_layout = QtWidgets.QHBoxLayout()
         refresh_layout.addStretch()
 
-        self.refresh_cache_btn = QtWidgets.QPushButton(_('refresh_remote_mapping', '🔄 Refresh Remote Mapping'))
+        self.refresh_cache_btn = QtWidgets.QPushButton(_('refresh_remote_mapping', 'Refresh Remote Mapping'))
         self.refresh_cache_btn.setStyleSheet(AppStyles.common_button_style())
         self.refresh_cache_btn.clicked.connect(self.refresh_cache)
         refresh_layout.addWidget(self.refresh_cache_btn)
@@ -121,7 +121,7 @@ class MappingManagerDialog(FloatingDialog):
         layout.addWidget(self.update_status_label)
         layout.addSpacing(4)
 
-        manual_group = QtWidgets.QGroupBox(_('manual_mapping_section', '⚙ Manual Mapping (Advanced)'))
+        manual_group = QtWidgets.QGroupBox(_('manual_mapping_section', 'Manual Mapping (Advanced)'))
         manual_group.setStyleSheet(AppStyles.common_group_box_style())
         manual_layout = QtWidgets.QVBoxLayout(manual_group)
         manual_layout.setSpacing(8)
@@ -216,7 +216,7 @@ class MappingManagerDialog(FloatingDialog):
         from ui.styles import AppStyles
         colors = AppStyles._get_colors()
         player_panel_hint = colors.get('player_panel_hint', '#8090a0')
-        self.update_status_label.setText(_('checking_update', '⏳ Checking for updates...'))
+        self.update_status_label.setText(_('checking_update', 'Checking for updates...'))
         self.update_status_label.setStyleSheet(
             f"color: {player_panel_hint}; font-size: 11px; border: none; background: transparent; padding: 4px 8px;"
         )
@@ -237,7 +237,7 @@ class MappingManagerDialog(FloatingDialog):
             color = colors.get('error', '#c07050')
         elif status.get('has_update'):
             text = _('update_available',
-                '🔄 New version available! Click the button above to refresh.')
+                'New version available! Click the button above to refresh.')
             color = colors.get('warning', '#f0a030')
         else:
             last_time = status.get('last_cache_time', 0)
@@ -247,10 +247,10 @@ class MappingManagerDialog(FloatingDialog):
                 dt = datetime.fromtimestamp(last_time)
                 time_str = dt.strftime('%Y-%m-%d %H:%M')
                 text = _('mapping_status_ok',
-                    '✅ Up to date | Loaded: {} mappings | Last: {}').format(local_count, time_str)
+                    'Up to date | Loaded: {} mappings | Last: {}').format(local_count, time_str)
             else:
                 text = _('mapping_status_no_cache',
-                    '⏳ No cached data yet ({} mappings loaded)').format(local_count)
+                    'No cached data yet ({} mappings loaded)').format(local_count)
         self.update_status_label.setText(text)
         self.update_status_label.setStyleSheet(
             f"color: {color}; font-size: 11px; border: none; background: transparent; padding: 4px 8px;"
@@ -368,7 +368,7 @@ class MappingManagerDialog(FloatingDialog):
     def refresh_cache(self):
         """异步刷新远程映射缓存，不阻塞 UI"""
         self.refresh_cache_btn.setEnabled(False)
-        self.refresh_cache_btn.setText(self._tr('refreshing', '⏳ Refreshing...'))
+        self.refresh_cache_btn.setText(self._tr('refreshing', 'Refreshing...'))
         worker = _RefreshCacheWorker(self)
         worker.finished.connect(self._on_refresh_done)
         worker.finished.connect(worker.deleteLater)
@@ -378,7 +378,7 @@ class MappingManagerDialog(FloatingDialog):
     def _on_refresh_done(self, success: bool, error_msg: str):
         """刷新完成后在 UI 线程中恢复按钮并更新状态"""
         self.refresh_cache_btn.setEnabled(True)
-        self.refresh_cache_btn.setText(self._tr('refresh_remote_mapping', '🔄 Refresh Remote Mapping'))
+        self.refresh_cache_btn.setText(self._tr('refresh_remote_mapping', 'Refresh Remote Mapping'))
         self._refresh_worker = None
         if success:
             self._check_update_status_async()
@@ -472,8 +472,8 @@ class MappingManagerDialog(FloatingDialog):
         _ = self._tr
         try:
             self.setWindowTitle(_('mapping_manager', 'Channel Mapping Manager'))
-            self.refresh_cache_btn.setText(_('refresh_remote_mapping', '🔄 Refresh Remote Mapping'))
-            manual_group_title = _('manual_mapping_section', '⚙ Manual Mapping (Advanced)')
+            self.refresh_cache_btn.setText(_('refresh_remote_mapping', 'Refresh Remote Mapping'))
+            manual_group_title = _('manual_mapping_section', 'Manual Mapping (Advanced)')
             if hasattr(self, 'mapping_table'):
                 for w in self.findChildren(QtWidgets.QGroupBox):
                     if hasattr(w, 'setTitle'):

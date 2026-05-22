@@ -227,7 +227,7 @@ class ScanChannelDialog(FloatingDialog):
         left_layout.setSpacing(8)
 
         # 左侧标题栏
-        self.left_title = QtWidgets.QLabel(f"⚙️ {tr('scan_settings_title', 'Scan Settings')}")
+        self.left_title = QtWidgets.QLabel(tr('scan_settings_title', 'Scan Settings'))
         self.left_title.setStyleSheet(AppStyles.section_title_style())
         left_layout.addWidget(self.left_title)
 
@@ -247,7 +247,7 @@ class ScanChannelDialog(FloatingDialog):
         left_layout.addWidget(scan_scroll, 1)
 
         # 关闭按钮放在左下角
-        self.close_btn = QtWidgets.QPushButton(f"✕ {tr('close_button', 'Close')}")
+        self.close_btn = QtWidgets.QPushButton(tr('close_button', 'Close'))
         self.close_btn.setStyleSheet(AppStyles.common_button_style())
         self.close_btn.setFixedHeight(32)
         self.close_btn.clicked.connect(self.close)
@@ -267,7 +267,7 @@ class ScanChannelDialog(FloatingDialog):
 
         # 频道列表标题栏（包含操作按钮）
         list_header = QtWidgets.QHBoxLayout()
-        self.list_title = QtWidgets.QLabel(f"📺 {tr('channel_list_title', 'Channel List')}")
+        self.list_title = QtWidgets.QLabel(tr('channel_list_title', 'Channel List'))
         self.list_title.setStyleSheet(AppStyles.section_title_style())
         list_header.addWidget(self.list_title)
         list_header.addStretch()
@@ -311,7 +311,7 @@ class ScanChannelDialog(FloatingDialog):
         right_layout.setSpacing(8)
 
         # 右侧标题
-        self.right_title = QtWidgets.QLabel(f"✏️ {tr('channel_edit_title', 'Channel Edit')}")
+        self.right_title = QtWidgets.QLabel(tr('channel_edit_title', 'Channel Edit'))
         self.right_title.setStyleSheet(AppStyles.section_title_style())
         right_layout.addWidget(self.right_title)
 
@@ -1432,7 +1432,7 @@ class ScanChannelDialog(FloatingDialog):
         edit_layout.addStretch(1)
 
         # 保存按钮
-        self.btn_save_channel = QtWidgets.QPushButton(tr("save_changes", "💾 Save Changes"))
+        self.btn_save_channel = QtWidgets.QPushButton(tr("save_changes", "Save Changes"))
         self.btn_save_channel.setStyleSheet(AppStyles.common_button_style())
         self.btn_save_channel.setFixedHeight(40)
         self.btn_save_channel.setDefault(True)
@@ -2774,13 +2774,13 @@ class ScanChannelDialog(FloatingDialog):
         try:
             tr = self.language_manager.tr
             if hasattr(self, 'left_title'):
-                self.left_title.setText(f"⚙️ {tr('scan_settings_title', 'Scan Settings')}")
+                self.left_title.setText(tr('scan_settings_title', 'Scan Settings'))
             if hasattr(self, 'list_title'):
-                self.list_title.setText(f"📺 {tr('channel_list_title', 'Channel List')}")
+                self.list_title.setText(tr('channel_list_title', 'Channel List'))
             if hasattr(self, 'right_title'):
-                self.right_title.setText(f"✏️ {tr('channel_edit_title', 'Channel Edit')}")
+                self.right_title.setText(tr('channel_edit_title', 'Channel Edit'))
             if hasattr(self, 'close_btn'):
-                self.close_btn.setText(f"✕ {tr('close_button', 'Close')}")
+                self.close_btn.setText(tr('close_button', 'Close'))
             if hasattr(self, 'btn_validate'):
                 self.btn_validate.setText(tr("validate_button", "Validate"))
             if hasattr(self, 'btn_open_list'):
@@ -2810,7 +2810,7 @@ class ScanChannelDialog(FloatingDialog):
             if hasattr(self, 'edit_logo_label'):
                 self.edit_logo_label.setText(f"{tr('logo_address', 'Logo Address')}:")
             if hasattr(self, 'btn_save_channel'):
-                self.btn_save_channel.setText(tr("save_changes", "💾 Save Changes"))
+                self.btn_save_channel.setText(tr("save_changes", "Save Changes"))
             if hasattr(self, 'address_example_label'):
                 self.address_example_label.setText(tr("address_format_hint", "Format: http://ip:port/rtp/..."))
             if hasattr(self, 'user_agent_label'):

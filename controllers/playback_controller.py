@@ -5,6 +5,7 @@ from PyQt6.QtCore import QTimer
 from core.play_state import PlayMode
 from core.log_manager import global_logger as logger
 from controllers.main_window_protocol import MainWindowProtocol
+from ui.styles import AppStyles
 
 
 class PlaybackController:
@@ -52,9 +53,9 @@ class PlaybackController:
                     pixmap.setDevicePixelRatio(dpr)
                     self.window.video_placeholder.setPixmap(pixmap)
                 else:
-                    self.window.video_placeholder.setText("📺")
+                    self.window.video_placeholder.setText("")
             else:
-                self.window.video_placeholder.setText("📺")
+                self.window.video_placeholder.setText("")
 
         self._reset_ui_to_initial_state()
 
@@ -67,19 +68,21 @@ class PlaybackController:
 
     def _reset_ui_to_initial_state(self):
         ui_elements = {
-            'play_button': ("▶", "setText"),
+            'play_button': ("play", "setIcon_name"),
             'channel_name': ("no_channel_selected,No Channel Selected", "setText_tr"),
             'current_program': ("select_channel_to_play,Select a channel to play", "setText_tr"),
             'channel_logo': (None, "clear_pixmap"),
-            'video_info': ("not_playing,Not Playing", "setText_tr_prefix"),
-            'audio_info': ("🔊 --", "setText"),
-            'network_info': ("📡 --", "setText"),
+            'video_info': ("not_playing,Not Playing", "setText_tr_icon_tv"),
+            'audio_info': ("--", "setText_icon_speaker"),
+            'network_info': ("--", "setText_icon_signal"),
             'program_desc': ("open_playlist_or_import,Open playlist or import file", "setText_tr"),
-            'time_label': ("⏱ --:-- - --:--", "setText"),
+            'time_label': ("--:-- - --:--", "setText"),
             'remain_label': ("waiting_to_play,Waiting to play", "setText_tr"),
             'progress_start': ("--:--", "setText"),
             'progress_end': ("--:--", "setText"),
         }
+
+        btn_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
 
         for attr_name, (value, action) in ui_elements.items():
             if not hasattr(self.window, attr_name):
@@ -89,18 +92,39 @@ class PlaybackController:
 
             if action == "setText":
                 element.setText(value)
+            elif action == "setIcon_name":
+                icon_path = AppStyles.get_icon(value, btn_color)
+                if icon_path:
+                    element.setIcon(QIcon(icon_path))
             elif action == "setText_tr" and hasattr(self.window, 'language_manager'):
                 tr = self.window.language_manager.tr
                 parts = value.split(',', 1)
                 key = parts[0]
                 fallback = parts[1] if len(parts) > 1 else key
                 element.setText(tr(key, fallback) or fallback)
-            elif action == "setText_tr_prefix" and hasattr(self.window, 'language_manager'):
+            elif action == "setText_tr_icon_tv" and hasattr(self.window, 'language_manager'):
                 tr = self.window.language_manager.tr
                 parts = value.split(',', 1)
                 key = parts[0]
                 fallback = parts[1] if len(parts) > 1 else key
-                element.setText(f"📺 {tr(key, fallback) or fallback}")
+                text = tr(key, fallback) or fallback
+                icon_path = AppStyles.get_icon('tv', btn_color, 14)
+                if icon_path:
+                    element.setText(f'<img src="{icon_path}" width="14" height="14" style="vertical-align:middle;"/> {text}')
+                else:
+                    element.setText(text)
+            elif action == "setText_icon_speaker":
+                icon_path = AppStyles.get_icon('speaker', btn_color, 14)
+                if icon_path:
+                    element.setText(f'<img src="{icon_path}" width="14" height="14" style="vertical-align:middle;"/> {value}')
+                else:
+                    element.setText(value)
+            elif action == "setText_icon_signal":
+                icon_path = AppStyles.get_icon('signal', btn_color, 14)
+                if icon_path:
+                    element.setText(f'<img src="{icon_path}" width="14" height="14" style="vertical-align:middle;"/> {value}')
+                else:
+                    element.setText(value)
             elif action == "clear_pixmap":
                 from utils.general_utils import set_default_channel_logo
                 set_default_channel_logo(element, element.width() or 100, element.height() or 36)
@@ -148,12 +172,16 @@ class PlaybackController:
         if not self.window.volume_button:
             return
 
+        color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
         if volume == 0:
-            self.window.volume_button.setText("\U0001f507")
+            icon_name = 'volume_mute'
         elif volume < 50:
-            self.window.volume_button.setText("\U0001f509")
+            icon_name = 'volume_low'
         else:
-            self.window.volume_button.setText("\U0001f50a")
+            icon_name = 'volume'
+        icon_path = AppStyles.get_icon(icon_name, color)
+        if icon_path:
+            self.window.volume_button.setIcon(QIcon(icon_path))
 
     def play_channel(self, channel: Dict[str, Any]):
         if self._is_switching:
@@ -241,7 +269,7 @@ class PlaybackController:
         if hasattr(self.window, 'time_label'):
             from datetime import datetime
             current_time = datetime.now().strftime("%H:%M")
-            self.window.time_label.setText(f"⏱ {current_time}")
+            self.window.time_label.setText(current_time)
 
     @property
     def is_playing(self) -> bool:

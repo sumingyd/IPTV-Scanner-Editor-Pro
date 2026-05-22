@@ -5,8 +5,8 @@
 
 import os
 from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QHBoxLayout, QMainWindow, QLineEdit, QComboBox
-from PyQt6.QtCore import Qt, QPoint
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import Qt, QPoint, QSize
+from PyQt6.QtGui import QPixmap, QIcon
 from ui.styles import AppStyles
 from controllers.main_window_protocol import MainWindowProtocol
 
@@ -58,9 +58,10 @@ class WindowController:
             self._title_icon_label.setPixmap(pixmap)
             self._title_icon_label.setStyleSheet("background: transparent;")
         else:
-            self._title_icon_label.setText("📺")
-            colors = AppStyles._get_colors()
-            self._title_icon_label.setStyleSheet(f"color: {colors.get('accent', '#0078d4')}; font-size: 14px; background: transparent;")
+            tv_icon_path = AppStyles.get_icon('tv', AppStyles._get_colors().get('accent', '#0078d4'), 16)
+            if tv_icon_path:
+                self._title_icon_label.setPixmap(QIcon(tv_icon_path).pixmap(16, 16))
+            self._title_icon_label.setStyleSheet("background: transparent;")
 
         # 窗口标题
         self._title_label = QLabel(window_title)
@@ -72,9 +73,13 @@ class WindowController:
 
         # 窗口控制按钮
         btn_style = self._title_btn_style()
+        title_icon_color = AppStyles._get_colors().get('window_text', '#ffffff')
+        title_icon_size = QSize(14, 14)
 
         # 置顶按钮
-        self._stay_on_top_btn = QPushButton("📌")
+        self._stay_on_top_btn = QPushButton()
+        self._stay_on_top_btn.setIcon(QIcon(AppStyles.get_icon('pin', title_icon_color, 14)))
+        self._stay_on_top_btn.setIconSize(title_icon_size)
         self._stay_on_top_btn.setObjectName("stayOnTopBtn")
         tooltip_text = self.window.language_manager.tr('tooltip_stay_on_top', 'Stay on Top') if hasattr(self.window, 'language_manager') else 'Stay on Top'
         self._stay_on_top_btn.setToolTip(tooltip_text)
@@ -83,7 +88,9 @@ class WindowController:
         title_layout.addWidget(self._stay_on_top_btn)
 
         # 最小化按钮
-        self._minimize_btn = QPushButton("─")
+        self._minimize_btn = QPushButton()
+        self._minimize_btn.setIcon(QIcon(AppStyles.get_icon('minimize', title_icon_color, 14)))
+        self._minimize_btn.setIconSize(title_icon_size)
         self._minimize_btn.setObjectName("minimizeBtn")
         self._minimize_btn.setToolTip(self.window.language_manager.tr('tooltip_minimize', '最小化') if hasattr(self.window, 'language_manager') else '最小化')
         self._minimize_btn.clicked.connect(self.window.showMinimized)
@@ -91,7 +98,9 @@ class WindowController:
         title_layout.addWidget(self._minimize_btn)
 
         # 最大化/还原按钮
-        self._maximize_btn = QPushButton("□")
+        self._maximize_btn = QPushButton()
+        self._maximize_btn.setIcon(QIcon(AppStyles.get_icon('fullscreen', title_icon_color, 14)))
+        self._maximize_btn.setIconSize(title_icon_size)
         self._maximize_btn.setObjectName("maximizeBtn")
         self._maximize_btn.setToolTip(self.window.language_manager.tr('tooltip_maximize', '最大化') if hasattr(self.window, 'language_manager') else '最大化')
         self._maximize_btn.clicked.connect(self.toggle_maximize)
@@ -99,7 +108,9 @@ class WindowController:
         title_layout.addWidget(self._maximize_btn)
 
         # 关闭按钮
-        self._close_btn = QPushButton("✕")
+        self._close_btn = QPushButton()
+        self._close_btn.setIcon(QIcon(AppStyles.get_icon('close', title_icon_color, 14)))
+        self._close_btn.setIconSize(title_icon_size)
         self._close_btn.setObjectName("closeButton")
         self._close_btn.setToolTip(self.window.language_manager.tr('tooltip_close', '关闭') if hasattr(self.window, 'language_manager') else '关闭')
         self._close_btn.clicked.connect(self.window.close)
@@ -110,30 +121,40 @@ class WindowController:
 
     def toggle_maximize(self):
         """切换最大化/还原状态"""
+        color = AppStyles._get_colors().get('window_text', '#ffffff')
         if self.window.isMaximized():
             self.window.showNormal()
-            self._maximize_btn.setText("□")
+            icon_path = AppStyles.get_icon('fullscreen', color, 14)
+            if icon_path:
+                self._maximize_btn.setIcon(QIcon(icon_path))
             self._maximize_btn.setToolTip("最大化")
         else:
             self.window.showMaximized()
-            self._maximize_btn.setText("❐")
+            icon_path = AppStyles.get_icon('restore', color, 14)
+            if icon_path:
+                self._maximize_btn.setIcon(QIcon(icon_path))
             self._maximize_btn.setToolTip("还原")
 
     def toggle_stay_on_top(self):
         """切换置顶状态"""
         self._stay_on_top_active = not self._stay_on_top_active
         flags = self.window.windowFlags()
+        color = AppStyles._get_colors().get('window_text', '#ffffff')
         self.window.hide()
         if self._stay_on_top_active:
             self.window.setWindowFlags(flags | Qt.WindowType.WindowStaysOnTopHint)
-            self._stay_on_top_btn.setText("📍")
+            icon_path = AppStyles.get_icon('pin_active', color, 14)
+            if icon_path:
+                self._stay_on_top_btn.setIcon(QIcon(icon_path))
             self._stay_on_top_btn.setStyleSheet(
                 self._title_btn_style().replace("}", "") +
                 f" background-color: {AppStyles._get_colors().get('accent', '#0078d4')}; }}"
             )
         else:
             self.window.setWindowFlags(flags & ~Qt.WindowType.WindowStaysOnTopHint)
-            self._stay_on_top_btn.setText("📌")
+            icon_path = AppStyles.get_icon('pin', color, 14)
+            if icon_path:
+                self._stay_on_top_btn.setIcon(QIcon(icon_path))
             self._stay_on_top_btn.setStyleSheet(self._title_btn_style())
         self.window.show()
         self._sync_floating_panels_on_top()

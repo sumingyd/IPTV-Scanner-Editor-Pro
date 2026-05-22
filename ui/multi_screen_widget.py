@@ -5,8 +5,8 @@ from PyQt6.QtWidgets import (
     QComboBox, QFrame, QVBoxLayout, QHBoxLayout, QSizePolicy,
     QListWidget
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QMimeData, QByteArray
-from PyQt6.QtGui import QDrag, QPainter, QColor, QPen
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QMimeData, QByteArray, QSize
+from PyQt6.QtGui import QDrag, QPainter, QColor, QPen, QIcon
 from ui.styles import AppStyles
 
 
@@ -100,7 +100,11 @@ class MultiScreenCell(QWidget):
         self._info_bar.addWidget(self._audio_combo)
 
         self._close_btn = QToolButton()
-        self._close_btn.setText("✕")
+        close_color = AppStyles._get_colors().get('player_panel_secondary', '#aaaaaa')
+        close_icon_path = AppStyles.get_icon('close', close_color, 12)
+        if close_icon_path:
+            self._close_btn.setIcon(QIcon(close_icon_path))
+            self._close_btn.setIconSize(QSize(12, 12))
         self._close_btn.setFixedSize(18, 18)
         self._close_btn.setStyleSheet(self._close_btn_style())
         self._close_btn.clicked.connect(lambda: self.close_requested.emit(self._index))
@@ -122,8 +126,12 @@ class MultiScreenCell(QWidget):
         self._volume_bar = QHBoxLayout()
         self._volume_bar.setContentsMargins(4, 1, 4, 1)
 
-        vol_label = QLabel("🔊")
+        vol_label = QLabel()
         vol_label.setFixedSize(18, 18)
+        vol_icon_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        vol_icon_path = AppStyles.get_icon('speaker', vol_icon_color, 14)
+        if vol_icon_path:
+            vol_label.setPixmap(QIcon(vol_icon_path).pixmap(14, 14))
         vol_label.setStyleSheet("background: transparent; border: none;")
         self._volume_bar.addWidget(vol_label)
 

@@ -101,12 +101,12 @@ class ChannelController:
         if self.window.channel_logo:
             logo_url = channel.get('logo_url')
             if not logo_url:
-                self.window.channel_logo.setText("📺")
+                self.window.channel_logo.setText("")
 
         if self.window.video_info:
             resolution = channel.get('resolution', '')
             if resolution:
-                self.window.video_info.setText(f"📺 {resolution}")
+                self.window.video_info.setText(resolution)
 
     def update_channel_info_on_selection(self):
         """当选择变化时更新频道信息"""

@@ -238,9 +238,9 @@ class UIController:
             parts.append(f"{tr('pixel_format_label', 'Pixel Format')}: {pixel_format}")
 
         if parts:
-            self.window.video_info.setText(f"📺 {' | '.join(parts)}")
+            self.window.video_info.setText(' | '.join(parts))
         else:
-            self.window.video_info.setText(f"📺 {tr('no_video_info', 'No video info available')}")
+            self.window.video_info.setText(tr('no_video_info', 'No video info available'))
 
     def _update_audio_label(self, audio_info: Dict[str, Any], tr):
         """更新音频信息标签"""
@@ -265,9 +265,9 @@ class UIController:
             parts.append(f"{tr('bitrate_label', 'Bitrate')}: {self._format_bitrate(bit_rate)}")
 
         if parts:
-            self.window.audio_info.setText(f"🔊 {' | '.join(parts)}")
+            self.window.audio_info.setText(' | '.join(parts))
         else:
-            self.window.audio_info.setText(f"🔊 {tr('no_audio_info', 'No audio info available')}")
+            self.window.audio_info.setText(tr('no_audio_info', 'No audio info available'))
 
     def _update_network_label(self, media_info: Dict[str, Any], tr):
         """更新网络/格式信息标签"""
@@ -282,9 +282,9 @@ class UIController:
             parts.append(f"{tr('protocol_label', 'Protocol')}: {protocol}")
 
         if parts:
-            self.window.network_info.setText(f"📡 {' | '.join(parts)}")
+            self.window.network_info.setText(' | '.join(parts))
         else:
-            self.window.network_info.setText(f"📡 {tr('no_network_info', 'No network info available')}")
+            self.window.network_info.setText(tr('no_network_info', 'No network info available'))
 
     def reapply_all_styles(self):
         """重新应用所有样式（用于主题切换后）"""

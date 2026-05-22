@@ -664,9 +664,9 @@ class IPTVPlayer(QMainWindow):
                 pixmap.setDevicePixelRatio(dpr)
                 self.video_placeholder.setPixmap(pixmap)
             else:
-                self.video_placeholder.setText("📺")
+                self.video_placeholder.setText("")
         else:
-            self.video_placeholder.setText("📺")
+            self.video_placeholder.setText("")
 
         # 创建视频播放窗口（初始隐藏，播放时才显示）
         self.video_widget = QWidget(self.video_frame)
@@ -754,8 +754,11 @@ class IPTVPlayer(QMainWindow):
         self.epg_layout.setContentsMargins(0, 0, 0, 0)
 
         # EPG标题
-        self.epg_title = QLabel(f"📅 {tr('epg_title', 'Program Guide')}")
+        self.epg_title = QLabel(tr('epg_title', 'Program Guide'))
         self.epg_title.setStyleSheet(AppStyles.player_epg_title_style())
+        epg_icon_path = AppStyles.get_icon('calendar', AppStyles._get_colors().get('player_panel_text', '#ffffff'))
+        if epg_icon_path:
+            self.epg_title.setProperty('icon_path', epg_icon_path)
         self.epg_layout.addWidget(self.epg_title)
 
         # 日期选择器
@@ -763,7 +766,10 @@ class IPTVPlayer(QMainWindow):
         date_layout.setContentsMargins(8, 4, 8, 4)
         date_layout.setSpacing(8)
 
-        self.epg_prev_day = QPushButton("◀")
+        date_icon_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        self.epg_prev_day = QPushButton()
+        self.epg_prev_day.setIcon(QIcon(AppStyles.get_icon('chevron_left', date_icon_color, 12)))
+        self.epg_prev_day.setIconSize(QSize(12, 12))
         self.epg_prev_day.setFixedSize(24, 24)
         self.epg_prev_day.setCursor(Qt.CursorShape.PointingHandCursor)
         self.epg_prev_day.setStyleSheet(AppStyles.player_date_button_style())
@@ -775,7 +781,9 @@ class IPTVPlayer(QMainWindow):
         self.epg_date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         date_layout.addWidget(self.epg_date_label, 1)
 
-        self.epg_next_day = QPushButton("▶")
+        self.epg_next_day = QPushButton()
+        self.epg_next_day.setIcon(QIcon(AppStyles.get_icon('chevron_right', date_icon_color, 12)))
+        self.epg_next_day.setIconSize(QSize(12, 12))
         self.epg_next_day.setFixedSize(24, 24)
         self.epg_next_day.setCursor(Qt.CursorShape.PointingHandCursor)
         self.epg_next_day.setStyleSheet(AppStyles.player_date_button_style())
@@ -856,8 +864,10 @@ class IPTVPlayer(QMainWindow):
         sub_toolbar_layout = QHBoxLayout(sub_toolbar)
         sub_toolbar_layout.setContentsMargins(4, 2, 4, 2)
         sub_toolbar_layout.setSpacing(2)
+        view_icon_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
         self.sub_view_list_btn = QToolButton()
-        self.sub_view_list_btn.setText("≡")
+        self.sub_view_list_btn.setIcon(QIcon(AppStyles.get_icon('list_view', view_icon_color)))
+        self.sub_view_list_btn.setIconSize(QSize(14, 14))
         self.sub_view_list_btn.setFixedSize(24, 20)
         self.sub_view_list_btn.setStyleSheet(AppStyles.player_button_style())
         self.sub_view_list_btn.setCheckable(True)
@@ -865,7 +875,8 @@ class IPTVPlayer(QMainWindow):
         self.sub_view_list_btn.clicked.connect(lambda: self._set_channel_view_mode('list', 'sub'))
         sub_toolbar_layout.addWidget(self.sub_view_list_btn)
         self.sub_view_grid_btn = QToolButton()
-        self.sub_view_grid_btn.setText("⊞")
+        self.sub_view_grid_btn.setIcon(QIcon(AppStyles.get_icon('grid_view', view_icon_color)))
+        self.sub_view_grid_btn.setIconSize(QSize(14, 14))
         self.sub_view_grid_btn.setFixedSize(24, 20)
         self.sub_view_grid_btn.setStyleSheet(AppStyles.player_button_style())
         self.sub_view_grid_btn.setCheckable(True)
@@ -912,7 +923,8 @@ class IPTVPlayer(QMainWindow):
         local_toolbar_layout.setContentsMargins(4, 2, 4, 2)
         local_toolbar_layout.setSpacing(2)
         self.local_view_list_btn = QToolButton()
-        self.local_view_list_btn.setText("≡")
+        self.local_view_list_btn.setIcon(QIcon(AppStyles.get_icon('list_view', view_icon_color)))
+        self.local_view_list_btn.setIconSize(QSize(14, 14))
         self.local_view_list_btn.setFixedSize(24, 20)
         self.local_view_list_btn.setStyleSheet(AppStyles.player_button_style())
         self.local_view_list_btn.setCheckable(True)
@@ -920,7 +932,8 @@ class IPTVPlayer(QMainWindow):
         self.local_view_list_btn.clicked.connect(lambda: self._set_channel_view_mode('list', 'local'))
         local_toolbar_layout.addWidget(self.local_view_list_btn)
         self.local_view_grid_btn = QToolButton()
-        self.local_view_grid_btn.setText("⊞")
+        self.local_view_grid_btn.setIcon(QIcon(AppStyles.get_icon('grid_view', view_icon_color)))
+        self.local_view_grid_btn.setIconSize(QSize(14, 14))
         self.local_view_grid_btn.setFixedSize(24, 20)
         self.local_view_grid_btn.setStyleSheet(AppStyles.player_button_style())
         self.local_view_grid_btn.setCheckable(True)
@@ -943,8 +956,15 @@ class IPTVPlayer(QMainWindow):
         self.local_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         local_layout.addWidget(self.local_empty_label)
 
-        self.playlist_tab.addTab(sub_tab, tr("subscription_tab", "📡 Subscription"))
-        self.playlist_tab.addTab(local_tab, tr("local_tab", "📂 Local"))
+        self.playlist_tab.addTab(sub_tab, tr("subscription_tab", "Subscription"))
+        self.playlist_tab.addTab(local_tab, tr("local_tab", "Local"))
+        tab_icon_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        signal_icon_path = AppStyles.get_icon('signal', tab_icon_color, 14)
+        folder_icon_path = AppStyles.get_icon('folder', tab_icon_color, 14)
+        if signal_icon_path:
+            self.playlist_tab.setTabIcon(0, QIcon(signal_icon_path))
+        if folder_icon_path:
+            self.playlist_tab.setTabIcon(1, QIcon(folder_icon_path))
         self.playlist_tab.currentChanged.connect(self._on_playlist_tab_changed)
         self.playlist_layout.addWidget(self.playlist_tab)
 
@@ -1045,6 +1065,15 @@ class IPTVPlayer(QMainWindow):
 
         logger.debug("_create_panel: 完成")
     
+    def _set_info_label_icon(self, label: QLabel, icon_name: str, text: str):
+        """设置信息标签的 SVG 图标 + 文本"""
+        color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        icon_path = AppStyles.get_icon(icon_name, color, 14)
+        if icon_path:
+            label.setText(f'<img src="{icon_path}" width="14" height="14" style="vertical-align:middle;"/> {text}')
+        else:
+            label.setText(text)
+
     def _create_media_row(self):
         """创建媒体信息行"""
         logger.debug("_create_media_row: 开始")
@@ -1054,22 +1083,27 @@ class IPTVPlayer(QMainWindow):
         self.media_row = QHBoxLayout()
         self.media_row.setSpacing(12)
         
-        self.video_info = QLabel(f"📺 {tr('not_playing', 'Not playing')}")
+        self.video_info = QLabel()
         self.video_info.setStyleSheet(AppStyles.player_media_badge_style())
         self.video_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.video_info.setFixedHeight(22)
+        vi_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        self._vi_color = vi_color
+        self._set_info_label_icon(self.video_info, 'tv', tr('not_playing', 'Not playing'))
         self.media_row.addWidget(self.video_info)
         
-        self.audio_info = QLabel("🔊 --")
+        self.audio_info = QLabel()
         self.audio_info.setStyleSheet(AppStyles.player_media_badge_style())
         self.audio_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.audio_info.setFixedHeight(18)
+        self._set_info_label_icon(self.audio_info, 'speaker', "--")
         self.media_row.addWidget(self.audio_info)
         
-        self.network_info = QLabel("📡 --")
+        self.network_info = QLabel()
         self.network_info.setStyleSheet(AppStyles.player_media_badge_style())
         self.network_info.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.network_info.setFixedHeight(18)
+        self._set_info_label_icon(self.network_info, 'signal', "--")
         self.media_row.addWidget(self.network_info)
 
         self.buffer_info = QLabel("")
@@ -1126,7 +1160,7 @@ class IPTVPlayer(QMainWindow):
         self.current_program.setStyleSheet(AppStyles.player_program_style())
         self.current_program.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         row1.addWidget(self.current_program, 1)
-        self.time_label = QLabel("⏱ --:-- - --:--")
+        self.time_label = QLabel("--:-- - --:--")
         self.time_label.setStyleSheet(AppStyles.player_time_badge_style())
         self.time_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         row1.addWidget(self.time_label, 0)
@@ -1174,8 +1208,11 @@ class IPTVPlayer(QMainWindow):
         self.control_row.setSpacing(8)
         
         # 左侧：播放按钮
+        btn_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        btn_icon_size = QSize(16, 16)
         self.play_button = QToolButton()
-        self.play_button.setText("▶")
+        self.play_button.setIcon(QIcon(AppStyles.get_icon('play', btn_color)))
+        self.play_button.setIconSize(btn_icon_size)
         self.play_button.setFixedSize(28, 26)
         self.play_button.setStyleSheet(AppStyles.player_button_style())
         self.play_button.clicked.connect(self.toggle_play)
@@ -1183,7 +1220,8 @@ class IPTVPlayer(QMainWindow):
 
         # 停止按钮
         self.stop_button = QToolButton()
-        self.stop_button.setText("■")
+        self.stop_button.setIcon(QIcon(AppStyles.get_icon('stop', btn_color)))
+        self.stop_button.setIconSize(btn_icon_size)
         self.stop_button.setFixedSize(28, 26)
         self.stop_button.setStyleSheet(AppStyles.player_button_style())
         self.stop_button.clicked.connect(self.stop_playback)
@@ -1191,7 +1229,8 @@ class IPTVPlayer(QMainWindow):
 
         # 上一频道按钮
         self.prev_ch_button = QToolButton()
-        self.prev_ch_button.setText("◁")
+        self.prev_ch_button.setIcon(QIcon(AppStyles.get_icon('prev', btn_color)))
+        self.prev_ch_button.setIconSize(btn_icon_size)
         self.prev_ch_button.setFixedSize(28, 26)
         self.prev_ch_button.setStyleSheet(AppStyles.player_button_style())
         self.prev_ch_button.clicked.connect(lambda: self.event_handler._switch_channel(-1))
@@ -1200,7 +1239,8 @@ class IPTVPlayer(QMainWindow):
 
         # 下一频道按钮
         self.next_ch_button = QToolButton()
-        self.next_ch_button.setText("▷")
+        self.next_ch_button.setIcon(QIcon(AppStyles.get_icon('next', btn_color)))
+        self.next_ch_button.setIconSize(btn_icon_size)
         self.next_ch_button.setFixedSize(28, 26)
         self.next_ch_button.setStyleSheet(AppStyles.player_button_style())
         self.next_ch_button.clicked.connect(lambda: self.event_handler._switch_channel(1))
@@ -1241,7 +1281,8 @@ class IPTVPlayer(QMainWindow):
         
         # 5. 音量图标
         self.volume_button = QToolButton()
-        self.volume_button.setText("♪")
+        self.volume_button.setIcon(QIcon(AppStyles.get_icon('volume', btn_color)))
+        self.volume_button.setIconSize(btn_icon_size)
         self.volume_button.setFixedSize(28, 26)
         self.volume_button.setStyleSheet(AppStyles.player_button_style())
         self.volume_button.clicked.connect(self.toggle_mute)
@@ -1258,7 +1299,9 @@ class IPTVPlayer(QMainWindow):
         
         # 7. 退出回看按钮（初始隐藏）
         self.exit_catchup_button = QToolButton()
-        self.exit_catchup_button.setText("◁ " + tr("exit_catchup", "退出回看"))
+        self.exit_catchup_button.setIcon(QIcon(AppStyles.get_icon('prev', btn_color)))
+        self.exit_catchup_button.setIconSize(btn_icon_size)
+        self.exit_catchup_button.setText(tr("exit_catchup", "退出回看"))
         self.exit_catchup_button.setFixedSize(100, 26)
         self.exit_catchup_button.setStyleSheet(AppStyles.exit_catchup_button_style())
         self.exit_catchup_button.clicked.connect(self.exit_catchup)
@@ -1267,6 +1310,8 @@ class IPTVPlayer(QMainWindow):
 
         # 7.5 速度控制按钮
         self.speed_button = QToolButton()
+        self.speed_button.setIcon(QIcon(AppStyles.get_icon('speed', btn_color)))
+        self.speed_button.setIconSize(btn_icon_size)
         self.speed_button.setText("1.0x")
         self.speed_button.setFixedSize(42, 26)
         self.speed_button.setStyleSheet(AppStyles.player_button_style())
@@ -1275,7 +1320,8 @@ class IPTVPlayer(QMainWindow):
 
         # 7.6 画面比例按钮
         self.aspect_button = QToolButton()
-        self.aspect_button.setText("⊞")
+        self.aspect_button.setIcon(QIcon(AppStyles.get_icon('aspect', btn_color)))
+        self.aspect_button.setIconSize(btn_icon_size)
         self.aspect_button.setFixedSize(48, 26)
         self.aspect_button.setStyleSheet(AppStyles.player_button_style())
         self.aspect_button.clicked.connect(self.media_ctrl.cycle_aspect_ratio)
@@ -1283,7 +1329,8 @@ class IPTVPlayer(QMainWindow):
 
         # 7.7 音轨切换按钮
         self.audio_track_button = QToolButton()
-        self.audio_track_button.setText("♫")
+        self.audio_track_button.setIcon(QIcon(AppStyles.get_icon('audio_track', btn_color)))
+        self.audio_track_button.setIconSize(btn_icon_size)
         self.audio_track_button.setToolTip(self.language_manager.tr("panel_audio_track", "Audio Track"))
         self.audio_track_button.setFixedSize(36, 26)
         self.audio_track_button.setStyleSheet(AppStyles.player_button_style())
@@ -1291,7 +1338,8 @@ class IPTVPlayer(QMainWindow):
         self.control_row.addWidget(self.audio_track_button)
 
         self.sub_track_button = QToolButton()
-        self.sub_track_button.setText("≡")
+        self.sub_track_button.setIcon(QIcon(AppStyles.get_icon('subtitle', btn_color)))
+        self.sub_track_button.setIconSize(btn_icon_size)
         self.sub_track_button.setToolTip(self.language_manager.tr("panel_subtitle", "Subtitle"))
         self.sub_track_button.setFixedSize(36, 26)
         self.sub_track_button.setStyleSheet(AppStyles.player_button_style())
@@ -1300,7 +1348,8 @@ class IPTVPlayer(QMainWindow):
         
         # PiP按钮
         self.pip_button = QToolButton()
-        self.pip_button.setText("⧉")
+        self.pip_button.setIcon(QIcon(AppStyles.get_icon('pip', btn_color)))
+        self.pip_button.setIconSize(btn_icon_size)
         self.pip_button.setFixedSize(28, 26)
         self.pip_button.setStyleSheet(AppStyles.player_button_style())
         self.pip_button.clicked.connect(self.pip_ctrl.toggle)
@@ -1309,7 +1358,8 @@ class IPTVPlayer(QMainWindow):
 
         # 8. 全屏图标
         self.fullscreen_button = QToolButton()
-        self.fullscreen_button.setText("⛶")
+        self.fullscreen_button.setIcon(QIcon(AppStyles.get_icon('fullscreen', btn_color)))
+        self.fullscreen_button.setIconSize(btn_icon_size)
         self.fullscreen_button.setFixedSize(28, 26)
         self.fullscreen_button.setStyleSheet(AppStyles.player_button_style())
         self.fullscreen_button.clicked.connect(self.toggle_fullscreen)
@@ -2563,7 +2613,7 @@ class IPTVPlayer(QMainWindow):
             if self._is_local_file():
                 self.current_program.setText("")
                 self.program_desc.setText(self.language_manager.tr("local_video_file", "本地视频文件"))
-                self.time_label.setText("⏱ --:-- / --:--")
+                self.time_label.setText("--:-- / --:--")
                 self.remain_label.setText(self.language_manager.tr("loading", "加载中..."))
             else:
                 channel_name = self.current_channel.get("name", "")
@@ -2580,27 +2630,27 @@ class IPTVPlayer(QMainWindow):
                     start_str = current_program_data.get("start", "")
                     start_display = datetime.fromisoformat(start_str).strftime("%H:%M") if start_str else "--:--"
                     self.progress_start.setText(start_display)
-                    self.time_label.setText(f"⏱ {datetime.now().strftime('%H:%M')}")
+                    self.time_label.setText(f"{datetime.now().strftime('%H:%M')}")
                     self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
                 else:
                     self.current_program.setText("")
                     self.program_desc.setText(self.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
-                    self.time_label.setText(f"⏱ {datetime.now().strftime('%H:%M')}")
+                    self.time_label.setText(f"{datetime.now().strftime('%H:%M')}")
                     self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
         except Exception:
             self.current_program.setText("")
             self.program_desc.setText(self.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
             current_time = datetime.now().strftime("%H:%M")
-            self.time_label.setText(f"⏱ {current_time}")
+            self.time_label.setText(f"{current_time}")
             self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
         
         self._set_progress_value(0)
         self.progress_end.setText("--:--")
         
         # 重置第一行媒体信息为默认值
-        self.video_info.setText(f"📺 {self.language_manager.tr('waiting_to_play', 'Waiting to play...')}")
-        self.audio_info.setText("🔊 --")
-        self.network_info.setText(f"📡 {self.language_manager.tr('waiting_connect', 'Waiting to connect...')}")
+        self.video_info.setText(f'{self.language_manager.tr("waiting_to_play", "Waiting to play...")}')
+        self.audio_info.setText("--")
+        self.network_info.setText(f'{self.language_manager.tr("waiting_connect", "Waiting to connect...")}')
         if hasattr(self, 'buffer_info'):
             self.buffer_info.hide()
     
@@ -2826,16 +2876,18 @@ class IPTVPlayer(QMainWindow):
         self._suppress_volume_osd = False
 
     def _update_volume_icon(self, volume):
-        """根据音量更新音量图标（保留兼容性）"""
-        if hasattr(self, 'playback_ctrl'):
-            self.playback_ctrl._update_volume_icon(volume)
-        elif hasattr(self, 'volume_button'):
+        """根据音量更新音量图标"""
+        color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        if hasattr(self, 'volume_button'):
             if volume == 0:
-                self.volume_button.setText("✕")
+                icon_name = 'volume_mute'
             elif volume < 50:
-                self.volume_button.setText("♪")
+                icon_name = 'volume_low'
             else:
-                self.volume_button.setText("♫")
+                icon_name = 'volume'
+            icon_path = AppStyles.get_icon(icon_name, color)
+            if icon_path:
+                self.volume_button.setIcon(QIcon(icon_path))
 
     def _show_osd_feedback(self, text: str):
         """在视频上显示短暂的OSD反馈提示"""
@@ -2865,8 +2917,11 @@ class IPTVPlayer(QMainWindow):
     
     def _handle_play_state_change(self, is_playing):
         tr = self.language_manager.tr
+        btn_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
         if is_playing:
-            self.play_button.setText("▮▮")
+            pause_path = AppStyles.get_icon('pause', btn_color)
+            if pause_path:
+                self.play_button.setIcon(QIcon(pause_path))
             self.pip_ctrl._update_play_btn()
             self._cancel_source_timeout()
             if hasattr(self, 'video_placeholder') and self.video_placeholder:
@@ -2920,7 +2975,9 @@ class IPTVPlayer(QMainWindow):
                 else:
                     self.status_bar_show_message(f"{tr('playing', 'Playing')}: {channel_name}")
         else:
-            self.play_button.setText("▶")
+            play_path = AppStyles.get_icon('play', btn_color)
+            if play_path:
+                self.play_button.setIcon(QIcon(play_path))
             self.pip_ctrl._update_play_btn()
             # 停止定时器（无论是否idle，停止时都要停定时器）
             if hasattr(self, 'update_timer'):
@@ -3083,10 +3140,9 @@ class IPTVPlayer(QMainWindow):
             
             # 更新音频信息标签
             if audio_parts:
-                self.audio_info.setText(f"🔊 {' | '.join(audio_parts)}")
+                self.audio_info.setText(' | '.join(audio_parts))
             else:
-                # 如果没有音频信息，显示提示信息
-                self.audio_info.setText(f"🔊 {tr('no_audio_info', 'No audio info available')}")
+                self.audio_info.setText(tr('no_audio_info', 'No audio info available'))
             
             # 网络/格式信息
             network_parts = []
@@ -3100,11 +3156,11 @@ class IPTVPlayer(QMainWindow):
             
             # 更新网络信息标签
             if network_parts:
-                base_text = f"📡 {' | '.join(network_parts)}"
+                base_text = ' | '.join(network_parts)
                 self.network_info.setText(base_text)
                 self._network_base_info = base_text
             else:
-                fallback = f"📡 {tr('no_network_info', 'No network info available')}"
+                fallback = tr('no_network_info', 'No network info available')
                 self.network_info.setText(fallback)
                 self._network_base_info = fallback
         
@@ -3318,10 +3374,10 @@ class IPTVPlayer(QMainWindow):
                         if start_time and end_time:
                             start_str = start_time.strftime("%H:%M")
                             end_str = end_time.strftime("%H:%M")
-                            self.time_label.setText(f"⏱ {start_str} - {end_str}")
+                            self.time_label.setText(f"{start_str} - {end_str}")
                             self.remain_label.hide()
                         else:
-                            self.time_label.setText("⏱ --:-- - --:--")
+                            self.time_label.setText("--:-- - --:--")
                             self.remain_label.hide()
                     except Exception as e:
                         logger.error(f"处理回看节目信息失败: {e}")
@@ -3329,7 +3385,7 @@ class IPTVPlayer(QMainWindow):
                             title = self.catchup_program.get('title', '')
                             self.current_program.setText(f"· {title}" if title else "")
                         self.program_desc.setText(self.language_manager.tr("catchup_current_program", "Catching up current program"))
-                        self.time_label.setText("⏱ --:-- - --:--")
+                        self.time_label.setText("--:-- - --:--")
                         self.remain_label.hide()
                 else:
                     # 非回看模式，从EPG数据获取节目描述
@@ -3353,7 +3409,7 @@ class IPTVPlayer(QMainWindow):
                                 start_str = start_time.strftime("%H:%M")
                                 end_str = end_time.strftime("%H:%M")
                                 self.progress_start.setText(start_str)
-                                self.time_label.setText(f"⏱ {start_str} - {end_str}")
+                                self.time_label.setText(f"{start_str} - {end_str}")
                                 self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
                             except (ValueError, KeyError, TypeError):
                                 from datetime import datetime
@@ -3361,7 +3417,7 @@ class IPTVPlayer(QMainWindow):
                                 start_hour = current_time.strftime("%H:00")
                                 end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
                                 self.progress_start.setText(start_hour)
-                                self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
+                                self.time_label.setText(f"{current_time.strftime('%H:%M')}")
                                 self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
                         else:
                             self.program_desc.setText(self.language_manager.tr("playing_current_channel", "Playing current channel"))
@@ -3371,7 +3427,7 @@ class IPTVPlayer(QMainWindow):
                             end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
                             self.progress_start.setText(start_hour)
                             self.progress_end.setText(end_hour)
-                            self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
+                            self.time_label.setText(f"{current_time.strftime('%H:%M')}")
                             self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
                             minutes = current_time.minute
                             seconds = current_time.second
@@ -3384,7 +3440,7 @@ class IPTVPlayer(QMainWindow):
                         end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
                         self.progress_start.setText(start_hour)
                         self.progress_end.setText(end_hour)
-                        self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
+                        self.time_label.setText(f"{current_time.strftime('%H:%M')}")
                         self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
                         minutes = current_time.minute
                         seconds = current_time.second
@@ -3392,7 +3448,7 @@ class IPTVPlayer(QMainWindow):
         except Exception:
             if is_catchup:
                 self.program_desc.setText(self.language_manager.tr("catchup_current_program", "Catching up current program"))
-                self.time_label.setText("⏱ --:-- - --:--")
+                self.time_label.setText("--:-- - --:--")
                 self.remain_label.hide()
             else:
                 self.remain_label.show()
@@ -3403,7 +3459,7 @@ class IPTVPlayer(QMainWindow):
                 end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
                 self.progress_start.setText(start_hour)
                 self.progress_end.setText(end_hour)
-                self.time_label.setText(f"⏱ {current_time.strftime('%H:%M')}")
+                self.time_label.setText(f"{current_time.strftime('%H:%M')}")
                 self.remain_label.setText(self.language_manager.tr("playing_label", "Playing..."))
                 minutes = current_time.minute
                 seconds = current_time.second
@@ -3439,12 +3495,12 @@ class IPTVPlayer(QMainWindow):
             buffer_state = self.player_controller.get_buffer_state()
             if buffer_state:
                 if buffer_state.get('buffering'):
-                    self.buffer_info.setText("⏳")
+                    self.buffer_info.setText("...")
                     self.buffer_info.show()
                 else:
                     cache_dur = buffer_state.get('cache_duration', 0)
                     if cache_dur > 0:
-                        self.buffer_info.setText(f"💾{cache_dur:.0f}s")
+                        self.buffer_info.setText(f"{cache_dur:.0f}s")
                         self.buffer_info.show()
                     else:
                         self.buffer_info.hide()

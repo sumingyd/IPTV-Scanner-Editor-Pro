@@ -269,10 +269,10 @@ BUILTIN_TRANSLATIONS = {
         'yesterday': '昨天',
         'tomorrow': '明天',
         'no_channel_selected': '未选择频道',
-        'select_channel_to_play': '▶ 请选择频道开始播放',
+        'select_channel_to_play': '请选择频道开始播放',
         'open_playlist_or_import': '打开播放列表文件或导入频道以开始观看',
         'waiting_to_play': '等待播放...',
-        'exit_catchup': '⏪ 退出回看',
+        'exit_catchup': '退出回看',
         'playing': '正在播放',
         'paused': '已暂停',
         'stopped': '已停止',
@@ -423,7 +423,7 @@ BUILTIN_TRANSLATIONS = {
         'enable_smart_retry': '启用智能重试扫描',
         'mapping_options': '映射功能选项',
         'enable_channel_mapping': '启用频道映射',
-        'save_changes': '💾 保存修改',
+        'save_changes': '保存修改',
         'copy_channel_name': '复制频道名',
         'copy_url': '复制URL',
         'copy_tvg_id': '复制TVG-ID',
@@ -443,16 +443,16 @@ BUILTIN_TRANSLATIONS = {
         'set_scan_threads': '设置扫描使用的线程数量',
         'validate_tooltip': '检测频道有效性',
         'no_recent_files': '无最近打开的文件',
-        'select_channel_play': '▶ 请选择频道播放',
+        'select_channel_play': '请选择频道播放',
         'open_playlist_success': '打开播放列表文件成功，点击频道开始播放',
         'catchup_playing_label': '正在回看',
         'unknown_channel': '未知频道',
         'unnamed': '未命名',
         'uncategorized': '未分类',
         'all_channels': '全部频道',
-        'subscription_tab': '📡 订阅',
-        'local_tab': '📂 本地',
-        'media_info_label': '📺 媒体信息',
+        'subscription_tab': '订阅',
+        'local_tab': '本地',
+        'media_info_label': '媒体信息',
         'epg_url_colon': 'EPG节目单URL:',
         'epg_source_colon': 'EPG节目单来源:',
         'protocol_type_colon': '协议类型:',
@@ -503,11 +503,11 @@ BUILTIN_TRANSLATIONS = {
         'smart_retry': '智能重试',
         'retry_scan': '重试扫描',
         'mapping_manager': '频道映射管理器',
-        'mapping_tip_title': '📡 频道名称映射',
+        'mapping_tip_title': '频道名称映射',
         'mapping_tip_desc': '远程映射会自动将扫描出的频道名称统一为标准名称。\n如果映射文件有更新，请点击下方按钮刷新。',
         'refresh_remote_cache': '刷新远程映射缓存',
-        'refresh_remote_mapping': '🔄 刷新远程映射',
-        'manual_mapping_section': '⚙ 手动映射（高级）',
+        'refresh_remote_mapping': '刷新远程映射',
+        'manual_mapping_section': '手动映射（高级）',
         'manual_mapping_hint': '仅当远程映射无法正确识别某个频道时才需要使用。',
         'export_user_mappings': '导出用户映射',
         'import_user_mappings': '导入用户映射',
@@ -541,10 +541,10 @@ BUILTIN_TRANSLATIONS = {
         'group_placeholder': '输入分组名称',
         'logo_url_placeholder': '输入Logo图片URL地址',
         'cache_refreshed': '远程映射缓存已刷新',
-        'update_available': '🔄 发现新版本！点击上方按钮刷新。',
+        'update_available': '发现新版本！点击上方按钮刷新。',
         'update_check_failed': '更新检查失败: {}',
-        'mapping_status_ok': '✅ 已是最新 | 已加载: {} 条映射 | 上次: {}',
-        'mapping_status_no_cache': '⏳ 暂无缓存数据（已加载 {} 条映射）',
+        'mapping_status_ok': '已是最新 | 已加载: {} 条映射 | 上次: {}',
+        'mapping_status_no_cache': '暂无缓存数据（已加载 {} 条映射）',
         'export_mappings_title': '导出映射',
         'exported_to': '已导出到',
         'import_mappings_title': '导入映射',
@@ -831,10 +831,10 @@ BUILTIN_TRANSLATIONS = {
         'yesterday': 'Yesterday',
         'tomorrow': 'Tomorrow',
         'no_channel_selected': 'No channel selected',
-        'select_channel_to_play': '▶ Select a channel to play',
+        'select_channel_to_play': 'Select a channel to play',
         'open_playlist_or_import': 'Open a playlist file or import channels to start watching',
         'waiting_to_play': 'Waiting to play...',
-        'exit_catchup': '⏪ Exit Catchup',
+        'exit_catchup': 'Exit Catchup',
         'playing': 'Playing',
         'paused': 'Paused',
         'stopped': 'Stopped',
@@ -985,7 +985,7 @@ BUILTIN_TRANSLATIONS = {
         'enable_smart_retry': 'Enable Smart Retry',
         'mapping_options': 'Mapping Options',
         'enable_channel_mapping': 'Enable Channel Mapping',
-        'save_changes': '💾 Save Changes',
+        'save_changes': 'Save Changes',
         'copy_channel_name': 'Copy Channel Name',
         'copy_url': 'Copy URL',
         'copy_tvg_id': 'Copy TVG-ID',
@@ -1005,16 +1005,16 @@ BUILTIN_TRANSLATIONS = {
         'set_scan_threads': 'Set number of scan threads',
         'validate_tooltip': 'Validate channel effectiveness',
         'no_recent_files': 'No recent files',
-        'select_channel_play': '▶ Select a channel to play',
+        'select_channel_play': 'Select a channel to play',
         'open_playlist_success': 'Playlist opened, click a channel to play',
         'catchup_playing_label': 'Catching up',
         'unknown_channel': 'Unknown Channel',
         'unnamed': 'Unnamed',
         'uncategorized': 'Uncategorized',
         'all_channels': 'All Channels',
-        'subscription_tab': '📡 Subscription',
-        'local_tab': '📂 Local',
-        'media_info_label': '📺 Media Info',
+        'subscription_tab': 'Subscription',
+        'local_tab': 'Local',
+        'media_info_label': 'Media Info',
         'epg_url_colon': 'EPG URL:',
         'epg_source_colon': 'EPG Source:',
         'protocol_type_colon': 'Protocol Type:',
@@ -1065,11 +1065,11 @@ BUILTIN_TRANSLATIONS = {
         'smart_retry': 'Smart Retry',
         'retry_scan': 'Retry Scan',
         'mapping_manager': 'Channel Mapping Manager',
-        'mapping_tip_title': '📡 Channel Name Mapping',
+        'mapping_tip_title': 'Channel Name Mapping',
         'mapping_tip_desc': 'Remote mapping automatically standardizes channel names.\nIf the mapping file is updated, click the button below to refresh.',
         'refresh_remote_cache': 'Refresh Remote Cache',
-        'refresh_remote_mapping': '🔄 Refresh Remote Mapping',
-        'manual_mapping_section': '⚙ Manual Mapping (Advanced)',
+        'refresh_remote_mapping': 'Refresh Remote Mapping',
+        'manual_mapping_section': 'Manual Mapping (Advanced)',
         'manual_mapping_hint': 'Only needed when remote mapping cannot correctly identify a channel.',
         'export_user_mappings': 'Export User Mappings',
         'import_user_mappings': 'Import User Mappings',
@@ -1103,10 +1103,10 @@ BUILTIN_TRANSLATIONS = {
         'group_placeholder': 'Enter group name',
         'logo_url_placeholder': 'Enter logo URL',
         'cache_refreshed': 'Remote mapping cache refreshed',
-        'update_available': '🔄 New version available! Click the button above to refresh.',
+        'update_available': 'New version available! Click the button above to refresh.',
         'update_check_failed': 'Update check failed: {}',
-        'mapping_status_ok': '✅ Up to date | Loaded: {} mappings | Last: {}',
-        'mapping_status_no_cache': '⏳ No cached data yet ({} mappings loaded)',
+        'mapping_status_ok': 'Up to date | Loaded: {} mappings | Last: {}',
+        'mapping_status_no_cache': 'No cached data yet ({} mappings loaded)',
         'export_mappings_title': 'Export Mappings',
         'exported_to': 'Exported to',
         'import_mappings_title': 'Import Mappings',
@@ -1232,19 +1232,19 @@ class LanguageManager(Singleton):
                 main_window.epg_empty_label.setText(self.tr('no_epg_data', 'No program information'))
 
             if hasattr(main_window, 'playlist_tab'):
-                main_window.playlist_tab.setTabText(0, self.tr('subscription_tab', '📡 Subscription'))
-                main_window.playlist_tab.setTabText(1, self.tr('local_tab', '📂 Local'))
+                main_window.playlist_tab.setTabText(0, self.tr('subscription_tab', 'Subscription'))
+                main_window.playlist_tab.setTabText(1, self.tr('local_tab', 'Local'))
             for empty_attr in ['sub_empty_label', 'local_empty_label']:
                 el = getattr(main_window, empty_attr, None)
                 if el:
                     el.setText(self.tr('no_channels', 'No channels'))
 
             if hasattr(main_window, 'video_info'):
-                main_window.video_info.setText(f"📺 {self.tr('not_playing', 'Not playing')}")
+                main_window.video_info.setText(self.tr('not_playing', 'Not playing'))
             if hasattr(main_window, 'audio_info'):
-                main_window.audio_info.setText("🔊 --")
+                main_window.audio_info.setText("--")
             if hasattr(main_window, 'network_info'):
-                main_window.network_info.setText("🌐 --")
+                main_window.network_info.setText("--")
 
             if hasattr(main_window, 'channel_name'):
                 main_window.channel_name.setText(self.tr('no_channel_selected', 'No channel selected'))

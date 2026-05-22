@@ -180,7 +180,7 @@ class ProgressController:
 
         w.progress_start.setText("--:--")
         w.progress_end.setText("--:--")
-        w.time_label.setText("⏱ --:-- / --:--")
+        w.time_label.setText("--:-- / --:--")
         w._set_progress_value(0)
         if hasattr(w, 'remain_label'):
             w.remain_label.setText(w.language_manager.tr("loading", "加载中..."))
@@ -203,7 +203,7 @@ class ProgressController:
         end_hour = (effective_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
         w.progress_start.setText(start_hour)
         w.progress_end.setText(end_hour)
-        w.time_label.setText(f"⏱ {datetime.now().strftime('%H:%M')}")
+        w.time_label.setText(f"{datetime.now().strftime('%H:%M')}")
         seconds_from_hour = effective_time.minute * 60 + effective_time.second
         w._set_progress_value(seconds_from_hour)
 
@@ -222,11 +222,11 @@ class ProgressController:
             h_e, m_e = divmod(m_e, 60)
             w.progress_start.setText(f"{h_s}:{m_s:02d}:{s_s:02d}")
             w.progress_end.setText(f"{h_e}:{m_e:02d}:{s_e:02d}")
-            w.time_label.setText(f"⏱ {h_s}:{m_s:02d}:{s_s:02d} / {h_e}:{m_e:02d}:{s_e:02d}")
+            w.time_label.setText(f"{h_s}:{m_s:02d}:{s_s:02d} / {h_e}:{m_e:02d}:{s_e:02d}")
         else:
             w.progress_start.setText(f"{m_s}:{s_s:02d}")
             w.progress_end.setText(f"{m_e}:{s_e:02d}")
-            w.time_label.setText(f"⏱ {m_s}:{s_s:02d} / {m_e}:{s_e:02d}")
+            w.time_label.setText(f"{m_s}:{s_s:02d} / {m_e}:{s_e:02d}")
 
         remain = total_seconds - current_seconds
         m_r, s_r = divmod(remain, 60)
