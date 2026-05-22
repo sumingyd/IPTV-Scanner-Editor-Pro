@@ -72,9 +72,9 @@ class PlaybackController:
             'channel_name': ("no_channel_selected,No Channel Selected", "setText_tr"),
             'current_program': ("select_channel_to_play,Select a channel to play", "setText_tr"),
             'channel_logo': (None, "clear_pixmap"),
-            'video_info': ("not_playing,Not Playing", "setText_tr_icon_tv"),
-            'audio_info': ("--", "setText_icon_speaker"),
-            'network_info': ("--", "setText_icon_signal"),
+            'video_info': ("not_playing,Not Playing", "setText_tr"),
+            'audio_info': ("--", "setText"),
+            'network_info': ("--", "setText"),
             'program_desc': ("open_playlist_or_import,Open playlist or import file", "setText_tr"),
             'time_label': ("--:-- - --:--", "setText"),
             'remain_label': ("waiting_to_play,Waiting to play", "setText_tr"),
@@ -102,29 +102,6 @@ class PlaybackController:
                 key = parts[0]
                 fallback = parts[1] if len(parts) > 1 else key
                 element.setText(tr(key, fallback) or fallback)
-            elif action == "setText_tr_icon_tv" and hasattr(self.window, 'language_manager'):
-                tr = self.window.language_manager.tr
-                parts = value.split(',', 1)
-                key = parts[0]
-                fallback = parts[1] if len(parts) > 1 else key
-                text = tr(key, fallback) or fallback
-                icon_path = AppStyles.get_icon('tv', btn_color, 14)
-                if icon_path:
-                    element.setText(f'<img src="{icon_path}" width="14" height="14" style="vertical-align:middle;"/> {text}')
-                else:
-                    element.setText(text)
-            elif action == "setText_icon_speaker":
-                icon_path = AppStyles.get_icon('speaker', btn_color, 14)
-                if icon_path:
-                    element.setText(f'<img src="{icon_path}" width="14" height="14" style="vertical-align:middle;"/> {value}')
-                else:
-                    element.setText(value)
-            elif action == "setText_icon_signal":
-                icon_path = AppStyles.get_icon('signal', btn_color, 14)
-                if icon_path:
-                    element.setText(f'<img src="{icon_path}" width="14" height="14" style="vertical-align:middle;"/> {value}')
-                else:
-                    element.setText(value)
             elif action == "clear_pixmap":
                 from utils.general_utils import set_default_channel_logo
                 set_default_channel_logo(element, element.width() or 100, element.height() or 36)
