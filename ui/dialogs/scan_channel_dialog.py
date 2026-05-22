@@ -45,6 +45,8 @@ class ScanChannelDialog(FloatingDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent, frameless=False, stay_on_top=False)
+        # 从主题获取透明度设置
+        from ..styles import AppStyles
         colors = AppStyles._get_colors()
         self.opacity = colors.get('window_opacity', 220)
         # 保存应用程序引用
@@ -82,14 +84,10 @@ class ScanChannelDialog(FloatingDialog):
         from ..theme_manager import get_theme_manager
         get_theme_manager().register_window(self)
 
-        self._setup_shortcuts()
-
     def done(self, result):
         if hasattr(self, 'scanner') and self.scanner is not None:
             if self.scanner.is_scanning():
-                self.scanner.stop_event.set()
-                from services.mpv_validator_service import MpvStreamValidator
-                MpvStreamValidator.set_terminating()
+                self.scanner.stop_scan()
             if getattr(self.scanner, 'is_validating', False):
                 self.scanner.stop_validation()
         self._stop_all_timers()
@@ -136,19 +134,17 @@ class ScanChannelDialog(FloatingDialog):
             self._timers.clear()
         
         # 停止扫描器中的批量更新定时器
-        if hasattr(self, 'scanner') and self.scanner:
-            for attr in ('_batch_timer', '_ui_batch_timer'):
-                try:
-                    timer = getattr(self.scanner, attr, None)
-                    if timer and hasattr(timer, 'isActive') and timer.isActive():
-                        if QtCore.QThread.currentThread() == timer.thread():
-                            timer.stop()
-                        else:
-                            QtCore.QMetaObject.invokeMethod(
-                                timer, "stop", QtCore.Qt.ConnectionType.QueuedConnection
-                            )
-                except Exception as e:
-                    self.logger.error(f"停止扫描器定时器失败: {e}")
+        if hasattr(self, 'scanner') and hasattr(self.scanner, '_batch_timer'):
+            try:
+                if self.scanner._batch_timer and self.scanner._batch_timer.isActive():
+                    if QtCore.QThread.currentThread() == self.scanner._batch_timer.thread():
+                        self.scanner._batch_timer.stop()
+                    else:
+                        QtCore.QMetaObject.invokeMethod(
+                            self.scanner._batch_timer, "stop", QtCore.Qt.ConnectionType.QueuedConnection
+                        )
+            except Exception as e:
+                self.logger.error(f"停止批量更新定时器失败: {e}")
 
     def _init_ui(self):
         """初始化用户界面"""
@@ -179,8 +175,7 @@ class ScanChannelDialog(FloatingDialog):
         self.progress_indicator.setRange(0, 100)
         self.progress_indicator.setValue(0)
         self.progress_indicator.setTextVisible(True)
-        self.progress_indicator.setMinimumWidth(150)
-        self.progress_indicator.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+        self.progress_indicator.setFixedWidth(120)
         # 初始隐藏进度条，开始扫描后再显示
         self.progress_indicator.hide()
         
@@ -249,15 +244,6 @@ class ScanChannelDialog(FloatingDialog):
         list_header.addWidget(self.list_title)
         list_header.addStretch()
 
-        # 搜索过滤框
-        self.search_input = QtWidgets.QLineEdit()
-        self.search_input.setPlaceholderText(tr("search_filter_hint", "搜索频道名/URL/分组..."))
-        self.search_input.setFixedHeight(28)
-        self.search_input.setFixedWidth(180)
-        self.search_input.setStyleSheet(AppStyles.common_line_edit_style())
-        self.search_input.setClearButtonEnabled(True)
-        list_header.addWidget(self.search_input)
-
         # 将工具栏按钮移到标题栏
         self._setup_list_toolbar(list_header)
         center_layout.addLayout(list_header)
@@ -269,6 +255,7 @@ class ScanChannelDialog(FloatingDialog):
         status_layout = QtWidgets.QHBoxLayout()
         status_layout.setContentsMargins(0, 5, 0, 0)
         self.progress_indicator.setFixedHeight(24)
+        self.progress_indicator.setFixedWidth(120)
         status_layout.addWidget(self.progress_indicator)
         status_layout.addWidget(self.stats_label)
         status_layout.addStretch()
@@ -382,7 +369,6 @@ class ScanChannelDialog(FloatingDialog):
         tr = self.language_manager.tr
         user_agent_layout = QtWidgets.QHBoxLayout()
         user_agent_label = QtWidgets.QLabel("User-Agent:")
-        user_agent_label.setStyleSheet(AppStyles.small_label_style())
         self.user_agent_label = user_agent_label
         user_agent_layout.addWidget(user_agent_label)
         self.user_agent_input = QtWidgets.QLineEdit()
@@ -397,7 +383,6 @@ class ScanChannelDialog(FloatingDialog):
         tr = self.language_manager.tr
         referer_layout = QtWidgets.QHBoxLayout()
         referer_label = QtWidgets.QLabel("Referer:")
-        referer_label.setStyleSheet(AppStyles.small_label_style())
         self.referer_label = referer_label
         referer_layout.addWidget(referer_label)
         self.referer_input = QtWidgets.QLineEdit()
@@ -577,9 +562,8 @@ class ScanChannelDialog(FloatingDialog):
         # 扫描控制按钮
         self.btn_scan = QtWidgets.QPushButton(tr("full_scan", "Full Scan"))
         self.btn_scan.setStyleSheet(AppStyles.common_button_style())
-        self.btn_scan.setMinimumHeight(32)
+        self.btn_scan.setMinimumHeight(32)  # 减少按钮高度
         self.btn_scan.setAutoDefault(False)
-        self.btn_scan.setToolTip(tr("full_scan_tooltip", "扫描所有URL并验证有效性"))
 
         # 新增追加扫描按钮
         self.btn_append_scan = QtWidgets.QPushButton(tr("append_scan", "Append Scan"))
@@ -591,8 +575,7 @@ class ScanChannelDialog(FloatingDialog):
         # 新增直接生成列表按钮
         self.btn_generate = QtWidgets.QPushButton(tr("generate_list", "Generate List"))
         self.btn_generate.setStyleSheet(AppStyles.common_button_style())
-        self.btn_generate.setMinimumHeight(32)
-        self.btn_generate.setToolTip(tr("generate_list_tooltip", "仅生成URL列表不验证"))
+        self.btn_generate.setMinimumHeight(32)  # 减少按钮高度
 
         # 使用水平布局让按钮并排显示，自适应宽度
         button_layout = QtWidgets.QHBoxLayout()
@@ -642,12 +625,16 @@ class ScanChannelDialog(FloatingDialog):
         scan_settings_section.setSpacing(8)
 
         # User-Agent（简化标签）
-        scan_settings_section.addWidget(self.user_agent_label)
+        ua_label = QtWidgets.QLabel("User-Agent:")
+        ua_label.setStyleSheet(AppStyles.small_label_style())
+        scan_settings_section.addWidget(ua_label)
         self.user_agent_input.setFixedHeight(28)
         scan_settings_section.addWidget(self.user_agent_input)
 
         # Referer（简化标签）
-        scan_settings_section.addWidget(self.referer_label)
+        ref_label = QtWidgets.QLabel("Referer:")
+        ref_label.setStyleSheet(AppStyles.small_label_style())
+        scan_settings_section.addWidget(ref_label)
         self.referer_input.setFixedHeight(28)
         scan_settings_section.addWidget(self.referer_input)
 
@@ -704,13 +691,6 @@ class ScanChannelDialog(FloatingDialog):
         # 关键：始终将模型设置到视图中，确保连接正确
         self.channel_list.setModel(self.model)
 
-        # 设置搜索过滤代理模型
-        self._filter_proxy = QtCore.QSortFilterProxyModel(self)
-        self._filter_proxy.setSourceModel(self.model)
-        self._filter_proxy.setFilterCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
-        self._filter_proxy.setFilterKeyColumn(-1)
-        self.channel_list.setModel(self._filter_proxy)
-
         # 使用与主窗口一致的列表样式
         self.channel_list.setStyleSheet(AppStyles.list_style())
 
@@ -747,21 +727,8 @@ class ScanChannelDialog(FloatingDialog):
         # 连接选择事件
         self.channel_list.selectionModel().selectionChanged.connect(self._on_channel_selected)
 
-        # 空状态提示标签（使用QStackedWidget切换列表/提示）
-        tr_local = self.language_manager.tr
-        _hint_colors = AppStyles._get_colors()
-        self._empty_hint = QtWidgets.QLabel(tr_local("empty_list_hint", "输入地址后点击扫描，或打开已有列表"))
-        self._empty_hint.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self._empty_hint.setStyleSheet(f"color: {_hint_colors['player_panel_hint']}; font-size: 14px; padding: 40px;")
-        self._empty_hint.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self._empty_stack = QtWidgets.QStackedWidget()
-        self._empty_stack.addWidget(self.channel_list)
-        self._empty_stack.addWidget(self._empty_hint)
-        parent.addWidget(self._empty_stack, 1)
-        self.model.rowsInserted.connect(lambda *_: self._update_empty_hint())
-        self.model.rowsRemoved.connect(lambda *_: self._update_empty_hint())
-        self.model.modelReset.connect(self._update_empty_hint)
-        self._update_empty_hint()
+        # 设置频道列表为主要内容，占据大部分空间
+        parent.addWidget(self.channel_list)
 
     def _setup_list_toolbar(self, toolbar_layout):
         """设置频道列表的工具栏按钮（用于标题栏）"""
@@ -819,7 +786,6 @@ class ScanChannelDialog(FloatingDialog):
     def _create_batch_menu(self) -> QtWidgets.QMenu:
         tr = self.language_manager.tr
         menu = QtWidgets.QMenu(self)
-        menu.setStyleSheet(AppStyles.common_menu_style())
 
         auto_classify_action = QtGui.QAction(tr("auto_classify", "Auto Classify"), self)
         auto_classify_action.triggered.connect(self._show_auto_classify_dialog)
@@ -851,8 +817,6 @@ class ScanChannelDialog(FloatingDialog):
 
     def _get_all_channels(self) -> list:
         from models.channel_model import ChannelListModel as CLM
-        if hasattr(self, '_channels_cache') and self._channels_cache is not None:
-            return self._channels_cache
         channels = []
         for row in range(self.model.rowCount()):
             ch = {}
@@ -869,21 +833,12 @@ class ScanChannelDialog(FloatingDialog):
             raw_ch = self.model.channels[row] if row < len(self.model.channels) else {}
             ch['_all_tags'] = raw_ch.get('_all_tags', {})
             channels.append(ch)
-        self._channels_cache = channels
         return channels
-
-    def _invalidate_channels_cache(self):
-        """数据变更时清除频道缓存"""
-        self._channels_cache = None
 
     def _get_selected_indices(self) -> list:
         indices = []
         for index in self.channel_list.selectionModel().selectedRows():
-            if hasattr(self, '_filter_proxy'):
-                source_row = self._filter_proxy.mapToSource(index).row()
-            else:
-                source_row = index.row()
-            indices.append(source_row)
+            indices.append(index.row())
         return sorted(indices)
 
     def _show_auto_classify_dialog(self):
@@ -909,7 +864,7 @@ class ScanChannelDialog(FloatingDialog):
         form_layout.addRow(tr("local_province", "Local Province:"), province_combo)
 
         overwrite_check = QtWidgets.QCheckBox(tr("overwrite_existing", "Overwrite existing groups"))
-        overwrite_check.setChecked(True)
+        overwrite_check.setChecked(False)
         form_layout.addRow(overwrite_check)
 
         merge_nonlocal_check = QtWidgets.QCheckBox(tr("merge_nonlocal", "Merge non-local to Other"))
@@ -948,15 +903,8 @@ class ScanChannelDialog(FloatingDialog):
         def do_preview():
             province = province_combo.currentText()
             overwrite = overwrite_check.isChecked()
-            merge_nonlocal = merge_nonlocal_check.isChecked()
             classifier = ChannelClassifier(local_province=province)
             results = classifier.classify_all(channels, overwrite=overwrite)
-            if merge_nonlocal:
-                local_cats = {province, '央视频道', 'CGTN', 'CETV'}
-                for r in results:
-                    if r.get('new_group') not in local_cats and r.get('new_group') != '其他频道':
-                        r['new_group'] = '其他频道'
-                        r['changed'] = True
             classifier_ref[0] = classifier
             results_ref[0] = results
             changed = [r for r in results if r.get('changed')]
@@ -984,7 +932,7 @@ class ScanChannelDialog(FloatingDialog):
         apply_btn.clicked.connect(do_apply)
         cancel_btn.clicked.connect(dialog.reject)
 
-        self._exec_themed_dialog(dialog)
+        dialog.exec()
 
     def _show_clean_names_dialog(self):
         from services.channel_cleaner import ChannelCleaner
@@ -1068,7 +1016,7 @@ class ScanChannelDialog(FloatingDialog):
         apply_btn.clicked.connect(do_apply)
         cancel_btn.clicked.connect(dialog.reject)
 
-        self._exec_themed_dialog(dialog)
+        dialog.exec()
 
     def _show_assign_fields_dialog(self):
         tr = self.language_manager.tr
@@ -1086,9 +1034,11 @@ class ScanChannelDialog(FloatingDialog):
 
         assign_options = [
             ('name2tvg_id', 'Channel Name -> TVG-ID'),
+            ('name2tvg_name', 'Channel Name -> TVG-Name'),
             ('tvg_id2name', 'TVG-ID -> Channel Name'),
-            ('tvg_name2name', 'TVG-Name(from tags) -> Channel Name'),
-            ('tvg_id2tvg_chno', 'TVG-ID -> TVG-CHNO'),
+            ('tvg_name2name', 'TVG-Name -> Channel Name'),
+            ('tvg_id2tvg_name', 'TVG-ID -> TVG-Name'),
+            ('tvg_name2tvg_id', 'TVG-Name -> TVG-ID'),
         ]
 
         radio_group = QtWidgets.QButtonGroup(self)
@@ -1110,88 +1060,58 @@ class ScanChannelDialog(FloatingDialog):
         )
         layout.addWidget(target_label)
 
-        preview_table = QtWidgets.QTableWidget(0, 2)
-        preview_table.setHorizontalHeaderLabels([tr("before", "Before"), tr("after", "After")])
-        preview_table.horizontalHeader().setStretchLastSection(True)
-        preview_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
-        preview_table.setMaximumHeight(200)
-        layout.addWidget(preview_table)
-
         btn_layout = QtWidgets.QHBoxLayout()
-        preview_btn = QtWidgets.QPushButton(tr("preview", "Preview"))
         apply_btn = QtWidgets.QPushButton(tr("apply", "Apply"))
         cancel_btn = QtWidgets.QPushButton(tr("cancel", "Cancel"))
-        btn_layout.addWidget(preview_btn)
         btn_layout.addStretch()
         btn_layout.addWidget(apply_btn)
         btn_layout.addWidget(cancel_btn)
         layout.addLayout(btn_layout)
 
-        preview_ref = [None]
-
-        def _compute_assign(action_key, only_empty, indices):
-            results = []
-            for i in indices:
-                if i >= len(channels):
-                    continue
-                ch = channels[i]
-                src_val = None
-                dst_col = None
-                dst_val = None
-                if action_key == 'name2tvg_id':
-                    if not (only_empty and ch.get('tvg_id')):
-                        src_val = ch.get('name', '')
-                        dst_col = CLM.COL_TVG_ID
-                        dst_val = ch.get('name', '')
-                elif action_key == 'tvg_id2name':
-                    if ch.get('tvg_id') and not (only_empty and ch.get('name')):
-                        src_val = ch.get('tvg_id', '')
-                        dst_col = CLM.COL_NAME
-                        dst_val = ch.get('tvg_id', '')
-                elif action_key == 'tvg_name2name':
-                    tvg_name = ch.get('_all_tags', {}).get('tvg-name', '')
-                    if tvg_name and not (only_empty and ch.get('name')):
-                        src_val = tvg_name
-                        dst_col = CLM.COL_NAME
-                        dst_val = tvg_name
-                elif action_key == 'tvg_id2tvg_chno':
-                    if ch.get('tvg_id') and not (only_empty and ch.get('tvg_chno')):
-                        src_val = ch.get('tvg_id', '')
-                        dst_col = CLM.COL_TVG_CHNO
-                        dst_val = ch.get('tvg_id', '')
-                if dst_col is not None and dst_val:
-                    results.append({'index': i, 'src': src_val, 'dst': dst_val, 'col': dst_col})
-            return results
-
-        def do_preview():
+        def do_apply():
             action_idx = radio_group.checkedId()
             action_key = assign_options[action_idx][0] if 0 <= action_idx < len(assign_options) else assign_options[0][0]
             only_empty = only_empty_check.isChecked()
             indices = selected_indices if selected_indices else list(range(len(channels)))
-            results = _compute_assign(action_key, only_empty, indices)
-            preview_ref[0] = results
-            preview_table.setRowCount(min(len(results), 50))
-            for i, r in enumerate(results[:50]):
-                preview_table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(r.get('src', ''))))
-                preview_table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(r.get('dst', ''))))
+            count = 0
 
-        def do_apply():
-            if preview_ref[0] is None:
-                do_preview()
-            results = preview_ref[0]
-            if not results:
-                dialog.accept()
-                return
-            for r in results:
-                self.model.setData(self.model.index(r['index'], r['col']), r['dst'])
-            self._invalidate_channels_cache()
+            for i in indices:
+                if i >= len(channels):
+                    continue
+                ch = channels[i]
+                update_col = None
+                update_val = None
+
+                if action_key == 'name2tvg_id':
+                    if not (only_empty and ch.get('tvg_id')):
+                        update_col, update_val = 8, ch.get('name', '')
+                elif action_key == 'name2tvg_name':
+                    if not (only_empty and ch.get('name')):
+                        update_col, update_val = 1, ch.get('name', '')
+                elif action_key == 'tvg_id2name':
+                    if ch.get('tvg_id') and not (only_empty and ch.get('name')):
+                        update_col, update_val = 1, ch.get('tvg_id', '')
+                elif action_key == 'tvg_name2name':
+                    tvg_name = ch.get('_all_tags', {}).get('tvg-name', '')
+                    if tvg_name and not (only_empty and ch.get('name')):
+                        update_col, update_val = 1, tvg_name
+                elif action_key == 'tvg_id2tvg_name':
+                    if ch.get('tvg_id') and not (only_empty and ch.get('name')):
+                        update_col, update_val = 1, ch.get('tvg_id', '')
+                elif action_key == 'tvg_name2tvg_id':
+                    if ch.get('name') and not (only_empty and ch.get('tvg_id')):
+                        update_col, update_val = 8, ch.get('name', '')
+
+                if update_col is not None and update_val:
+                    self.model.setData(self.model.index(i, update_col), update_val)
+                    count += 1
+
             dialog.accept()
 
-        preview_btn.clicked.connect(do_preview)
         apply_btn.clicked.connect(do_apply)
         cancel_btn.clicked.connect(dialog.reject)
 
-        self._exec_themed_dialog(dialog)
+        dialog.exec()
 
     def _auto_match_logo(self):
         tr = self.language_manager.tr
@@ -1213,33 +1133,25 @@ class ScanChannelDialog(FloatingDialog):
 
         try:
             from services.logo_matcher import LogoMatcher
-            from models.channel_model import ChannelListModel as CLM
             matcher = LogoMatcher()
-            updates = []
+            matched = 0
             for i, ch in enumerate(channels):
                 if not overwrite and ch.get('logo'):
                     continue
                 logo = matcher.match(ch.get('name', ''))
                 if logo:
-                    updates.append((i, logo))
-
-            self.model.layoutAboutToBeChanged.emit()
-            for i, logo in updates:
-                self.model.setData(self.model.index(i, CLM.COL_LOGO), logo)
-            self.model.layoutChanged.emit()
-            self._invalidate_channels_cache()
+                    self.model.setData(self.model.index(i, 5), logo)
+                    matched += 1
 
             QtWidgets.QMessageBox.information(
                 self, tr("match_logo", "Match Logo"),
-                f"{len(updates)} channels matched"
+                f"{matched} channels matched"
             )
         except ImportError:
-            self.logger.warning("Logo匹配模块不可用")
-            QtWidgets.QMessageBox.warning(self, tr("match_logo", "Match Logo"), tr("logo_matcher_unavailable", "Logo匹配模块不可用"))
+            pass
 
     def _show_clear_params_dialog(self):
         tr = self.language_manager.tr
-        from models.channel_model import ChannelListModel as CLM
 
         channels = self._get_all_channels()
         if not channels:
@@ -1249,12 +1161,12 @@ class ScanChannelDialog(FloatingDialog):
         target_indices = selected_indices if selected_indices else list(range(len(channels)))
 
         param_defs = [
-            ('tvg_id', CLM.COL_TVG_ID, 'TVG-ID'),
-            ('logo', CLM.COL_LOGO, 'Logo'),
-            ('group', CLM.COL_GROUP, 'Group'),
-            ('catchup', CLM.COL_CATCHUP, 'Catchup'),
-            ('catchup_days', CLM.COL_CATCHUP_DAYS, 'Catchup Days'),
-            ('catchup_source', CLM.COL_CATCHUP_SOURCE, 'Catchup Source'),
+            ('tvg_id', 8, 'TVG-ID'),
+            ('logo', 5, 'Logo'),
+            ('group', 4, 'Group'),
+            ('catchup', 11, 'Catchup'),
+            ('catchup_days', 12, 'Catchup Days'),
+            ('catchup_source', 13, 'Catchup Source'),
         ]
 
         available = []
@@ -1310,7 +1222,7 @@ class ScanChannelDialog(FloatingDialog):
         apply_btn.clicked.connect(do_apply)
         cancel_btn.clicked.connect(dialog.reject)
 
-        self._exec_themed_dialog(dialog)
+        dialog.exec()
 
     def _sort_by_group(self):
         from services.channel_classifier import ChannelClassifier
@@ -1424,31 +1336,10 @@ class ScanChannelDialog(FloatingDialog):
         if not indexes:
             return
 
-        # 通过代理模型映射到源模型行号
-        if hasattr(self, '_filter_proxy'):
-            source_row = self._filter_proxy.mapToSource(indexes[0]).row()
-        else:
-            source_row = indexes[0].row()
-
-        selected_rows = self.channel_list.selectionModel().selectedRows()
-        if len(selected_rows) > 1:
-            tr = self.language_manager.tr
-            self.edit_name.setText(tr("multi_selected", f"已选中 {len(selected_rows)} 个频道"))
-            self.edit_name.setReadOnly(True)
-            self.edit_group.setReadOnly(True)
-            self.edit_url.setReadOnly(True)
-            self.edit_tvg_id.setReadOnly(True)
-            self.edit_logo.setReadOnly(True)
-            return
-
-        self.edit_name.setReadOnly(False)
-        self.edit_group.setReadOnly(False)
-        self.edit_url.setReadOnly(False)
-        self.edit_tvg_id.setReadOnly(False)
-        self.edit_logo.setReadOnly(False)
-
-        channel = self.model.get_channel(source_row)
+        row = indexes[0].row()
+        channel = self.model.get_channel(row)
         if channel:
+            # 填充编辑区域
             self.edit_name.setText(channel.get('name', ''))
             self.edit_group.setText(channel.get('group', ''))
             self.edit_url.setText(channel.get('url', ''))
@@ -1463,11 +1354,7 @@ class ScanChannelDialog(FloatingDialog):
         if not indexes:
             return
 
-        if hasattr(self, '_filter_proxy'):
-            source_index = self._filter_proxy.mapToSource(indexes[0])
-            row = source_index.row()
-        else:
-            row = indexes[0].row()
+        row = indexes[0].row()
         channel_info = {
             'name': self.edit_name.text(),
             'group': self.edit_group.text(),
@@ -1489,17 +1376,10 @@ class ScanChannelDialog(FloatingDialog):
             return
 
         menu = QtWidgets.QMenu()
-        menu.setStyleSheet(AppStyles.common_menu_style())
 
-        from models.channel_model import ChannelListModel as CLM
-        if hasattr(self, '_filter_proxy'):
-            source_index = self._filter_proxy.mapToSource(index)
-            source_row = source_index.row()
-        else:
-            source_row = index.row()
-
-        url = self.model.data(self.model.index(source_row, CLM.COL_URL))
-        name = self.model.data(self.model.index(source_row, CLM.COL_NAME))
+        # 获取选中频道的URL和名称
+        url = self.model.data(self.model.index(index.row(), 3))  # URL在第3列
+        name = self.model.data(self.model.index(index.row(), 1))  # 名称在第1列
 
         # 添加复制频道名菜单项
         copy_name_action = QtGui.QAction(tr("copy_channel_name", "Copy Channel Name"), self)
@@ -1512,34 +1392,16 @@ class ScanChannelDialog(FloatingDialog):
         menu.addAction(copy_url_action)
 
         # 添加复制TVG-ID菜单项
-        tvg_id = self.model.data(self.model.index(source_row, CLM.COL_TVG_ID))
+        tvg_id = self.model.data(self.model.index(index.row(), 8))  # TVG-ID在第8列
         copy_tvg_id_action = QtGui.QAction(tr("copy_tvg_id", "Copy TVG-ID"), self)
         copy_tvg_id_action.triggered.connect(lambda: self._copy_channel_tvg_id(tvg_id))
         menu.addAction(copy_tvg_id_action)
 
         # 添加复制分组菜单项
-        group = self.model.data(self.model.index(source_row, CLM.COL_GROUP))
+        group = self.model.data(self.model.index(index.row(), 4))  # 分组在第4列
         copy_group_action = QtGui.QAction(tr("copy_group", "Copy Group"), self)
         copy_group_action.triggered.connect(lambda: self._copy_channel_group(group))
         menu.addAction(copy_group_action)
-
-        menu.addSeparator()
-
-        select_all_action = QtGui.QAction(tr("select_all", "Select All"), self)
-        select_all_action.triggered.connect(self._select_all_channels)
-        menu.addAction(select_all_action)
-
-        invert_selection_action = QtGui.QAction(tr("invert_selection", "Invert Selection"), self)
-        invert_selection_action.triggered.connect(self._invert_selection)
-        menu.addAction(invert_selection_action)
-
-        select_valid_action = QtGui.QAction(tr("select_valid", "Select Valid"), self)
-        select_valid_action.triggered.connect(lambda: self._select_by_validity(True))
-        menu.addAction(select_valid_action)
-
-        select_invalid_action = QtGui.QAction(tr("select_invalid", "Select Invalid"), self)
-        select_invalid_action.triggered.connect(lambda: self._select_by_validity(False))
-        menu.addAction(select_invalid_action)
 
         menu.addSeparator()
 
@@ -1557,10 +1419,8 @@ class ScanChannelDialog(FloatingDialog):
 
         menu.addSeparator()
 
-        selected_count = len(self.channel_list.selectionModel().selectedRows())
-        delete_label = tr("delete_selected_channels", "Delete Selected") + (f" ({selected_count})" if selected_count > 1 else "")
-        delete_action = QtGui.QAction(delete_label, self)
-        delete_action.triggered.connect(self._delete_selected_channels)
+        delete_action = QtGui.QAction(tr("delete_channel", "Delete Channel"), self)
+        delete_action.triggered.connect(lambda: self._delete_selected_channel(index))
         menu.addAction(delete_action)
 
         # 显示菜单
@@ -1644,57 +1504,7 @@ class ScanChannelDialog(FloatingDialog):
         title = tr("confirm_delete", "Confirm Delete") or "Confirm Delete"
         message = tr("confirm_delete_message", "Are you sure you want to delete the selected channel?") or "Are you sure you want to delete the selected channel?"
         if show_confirm(title, message, parent=self):
-            if hasattr(self, '_filter_proxy'):
-                source_row = self._filter_proxy.mapToSource(index).row()
-            else:
-                source_row = index.row()
-            self.model.remove_channel(source_row)
-
-    def _delete_selected_channels(self):
-        """删除选中的频道（支持多选批量删除）"""
-        tr = self.language_manager.tr
-        indices = self._get_selected_indices()
-        if not indices:
-            return
-        from utils.error_handler import show_confirm
-        title = tr("confirm_delete", "Confirm Delete")
-        message = tr("confirm_delete_selected_message", "确定删除选中的{n}个频道？").format(n=len(indices))
-        if show_confirm(title, message, parent=self):
-            for row in sorted(indices, reverse=True):
-                self.model.remove_channel(row)
-
-    def _select_all_channels(self):
-        """全选频道"""
-        self.channel_list.selectAll()
-
-    def _invert_selection(self):
-        """反选频道"""
-        model = self._filter_proxy if hasattr(self, '_filter_proxy') else self.model
-        selection_model = self.channel_list.selectionModel()
-        for row in range(model.rowCount()):
-            index = model.index(row, 0)
-            if selection_model.isSelected(index):
-                selection_model.select(index, QtCore.QItemSelectionModel.SelectionFlag.Deselect | QtCore.QItemSelectionModel.SelectionFlag.Rows)
-            else:
-                selection_model.select(index, QtCore.QItemSelectionModel.SelectionFlag.Select | QtCore.QItemSelectionModel.SelectionFlag.Rows)
-
-    def _select_by_validity(self, select_valid: bool):
-        """按有效性选择频道"""
-        from models.channel_model import ChannelListModel as CLM
-        model = self._filter_proxy if hasattr(self, '_filter_proxy') else self.model
-        selection_model = self.channel_list.selectionModel()
-        selection_model.clearSelection()
-        source_model = self.model
-        for row in range(model.rowCount()):
-            if hasattr(self, '_filter_proxy'):
-                source_row = self._filter_proxy.mapToSource(model.index(row, 0)).row()
-            else:
-                source_row = row
-            channel = source_model.get_channel(source_row)
-            if channel:
-                is_valid = channel.get('valid', False)
-                if is_valid == select_valid:
-                    selection_model.select(model.index(row, 0), QtCore.QItemSelectionModel.SelectionFlag.Select | QtCore.QItemSelectionModel.SelectionFlag.Rows)
+            self.model.remove_channel(index.row())
 
     def _on_header_clicked(self, logical_index):
         """处理表头点击排序"""
@@ -1731,11 +1541,7 @@ class ScanChannelDialog(FloatingDialog):
         """双击频道列表项预览播放"""
         if not index.isValid():
             return
-        if hasattr(self, '_filter_proxy'):
-            source_row = self._filter_proxy.mapToSource(index).row()
-        else:
-            source_row = index.row()
-        channel = self.model.get_channel(source_row)
+        channel = self.model.get_channel(index.row())
         if not channel or not channel.get('url'):
             return
         parent = self.parent()
@@ -1808,13 +1614,12 @@ class ScanChannelDialog(FloatingDialog):
                     )
 
                     if current >= total and total > 0:
-                        if not getattr(self, '_scan_progress_completed', False):
-                            self._scan_progress_completed = True
-                            if is_validating:
-                                self.progress_manager.complete_progress(tr('validate_completed', '检测完成'))
-                            else:
-                                self.progress_manager.complete_progress(tr('scan_completed', '扫描完成'))
-                                self._reset_scan_buttons()
+                        if is_validating:
+                            self.progress_manager.complete_progress(tr('validate_completed', '检测完成'))
+                        else:
+                            self.progress_manager.complete_progress(tr('scan_completed', '扫描完成'))
+                            self._set_scan_button_text('full_scan', '完整扫描')
+                            self._set_append_scan_button_text('append_scan', '追加扫描')
 
         except AttributeError as e:
             log_scan_warning(f"进度更新失败: {e}")
@@ -1918,10 +1723,6 @@ class ScanChannelDialog(FloatingDialog):
         safe_connect_button(self.btn_save_m3u, self._on_save_m3u_clicked)
         safe_connect_button(self.btn_save_txt, self._on_save_txt_clicked)
 
-        # 搜索过滤
-        if hasattr(self, 'search_input'):
-            self.search_input.textChanged.connect(self._on_search_filter_changed)
-
         if not hasattr(self, 'scanner') or self.scanner is None:
             return
 
@@ -1934,117 +1735,20 @@ class ScanChannelDialog(FloatingDialog):
         except Exception as e:
             log_ui_error(f"连接扫描器信号失败: {e}")
 
-    def _exec_themed_dialog(self, dialog):
-        """执行对话框并注册/注销ThemeManager"""
-        from ..theme_manager import get_theme_manager
-        tm = None
-        try:
-            tm = get_theme_manager()
-            tm.register_window(dialog)
-        except Exception:
-            tm = None
-        dialog.exec()
-        if tm:
-            try:
-                tm.unregister_window(dialog)
-            except Exception:
-                pass
-
-    def _update_empty_hint(self):
-        """更新空列表提示可见性"""
-        if hasattr(self, '_empty_stack'):
-            if self.model.rowCount() == 0:
-                self._empty_stack.setCurrentIndex(1)
-            else:
-                self._empty_stack.setCurrentIndex(0)
-
-    def _setup_shortcuts(self):
-        """设置快捷键"""
-        from PyQt6.QtGui import QShortcut, QKeySequence
-        QShortcut(QKeySequence("Ctrl+S"), self, self._on_save_m3u_clicked)
-        QShortcut(QKeySequence("Ctrl+F"), self, self._focus_search)
-        QShortcut(QKeySequence("Ctrl+A"), self, self._select_all_channels)
-        QShortcut(QKeySequence("Delete"), self, self._delete_selected_channels)
-
-    def _focus_search(self):
-        """聚焦搜索框"""
-        if hasattr(self, 'search_input'):
-            self.search_input.setFocus()
-            self.search_input.selectAll()
-
-    def _on_search_filter_changed(self, text):
-        """搜索过滤：按频道名/URL/分组实时过滤"""
-        if hasattr(self, '_filter_proxy'):
-            self._filter_proxy.setFilterFixedString(text.strip())
-
-    def _stop_scan_async(self):
-        """安全停止扫描：先设标志让线程退出，再延迟做重量级清理"""
-        self._is_stopping = True
-        self._reset_scan_buttons()
-        self._scan_progress_completed = True
-
-        self.scanner.stop_event.set()
-        from services.mpv_validator_service import MpvStreamValidator
-        MpvStreamValidator.set_terminating()
-
-        self.scanner.scan_state_manager.update_scan_state(self.scanner.scan_id, {
-            'is_scanning': False
-        })
-
-        QtCore.QTimer.singleShot(500, self._finalize_stop_scan)
-
-    def _finalize_stop_scan(self):
-        """延迟执行重量级停止清理（在主线程中安全执行）"""
-        if not hasattr(self, 'scanner') or self.scanner is None:
-            return
-        try:
-            import queue
-            for q_attr in ('scan_queue', 'validation_queue'):
-                q = getattr(self.scanner, q_attr, None)
-                if q:
-                    while not q.empty():
-                        try:
-                            q.get_nowait()
-                        except queue.Empty:
-                            break
-
-            for worker in self.scanner.workers:
-                if worker.is_alive():
-                    worker.join(timeout=1.0)
-            self.scanner.workers = []
-
-            from services.mpv_validator_service import MpvStreamValidator
-            MpvStreamValidator.destroy_all_handles()
-
-            if hasattr(self.scanner, 'stats_thread') and self.scanner.stats_thread and self.scanner.stats_thread.is_alive():
-                self.scanner.stats_thread.join(timeout=0.5)
-
-            if hasattr(self.scanner, '_mapping_executor') and self.scanner._mapping_executor:
-                try:
-                    self.scanner._mapping_executor.shutdown(wait=False)
-                except Exception:
-                    pass
-                self.scanner._mapping_executor = None
-
-            self.progress_manager.complete_progress(
-                self.language_manager.tr('scan_stopped', '扫描已停止')
-            )
-        except Exception as e:
-            log_ui_error(f"停止扫描清理失败: {e}")
-
     def _on_scan_clicked(self):
         """处理扫描按钮点击事件"""
         if not hasattr(self, 'scanner') or self.scanner is None:
             log_ui_error("扫描器未初始化，无法执行扫描")
             return
         if self.scanner.is_scanning():
-            self._is_stopping = True
-            self._stop_scan_async()
+            self.scanner.stop_scan()
+            self._set_scan_button_text('full_scan', '完整扫描')
+            self._set_append_scan_button_text('append_scan', '追加扫描')
         else:
             url = self.ip_range_input.currentText()
             if not url.strip():
                 log_ui_warning("请输入扫描地址")
-                self._show_input_warning(self.ip_range_input, self.language_manager.tr("please_input_url", "请输入扫描地址"))
+                # 扫描频道窗口没有状态栏，直接在日志中记录
                 return
 
             QtCore.QTimer.singleShot(0, lambda: self._start_scan_delayed(url, clear_list=True))
@@ -2055,13 +1759,14 @@ class ScanChannelDialog(FloatingDialog):
             log_ui_error("扫描器未初始化，无法执行扫描")
             return
         if self.scanner.is_scanning():
-            self._is_stopping = True
-            self._stop_scan_async()
+            self.scanner.stop_scan()
+            self._set_scan_button_text('full_scan', '完整扫描')
+            self._set_append_scan_button_text('append_scan', '追加扫描')
         else:
             url = self.ip_range_input.currentText()
             if not url.strip():
                 log_ui_warning("请输入扫描地址")
-                self._show_input_warning(self.ip_range_input, self.language_manager.tr("please_input_url", "请输入扫描地址"))
+                # 扫描频道窗口没有状态栏，直接在日志中记录
                 return
 
             QtCore.QTimer.singleShot(0, lambda: self._start_scan_delayed(url, clear_list=False))
@@ -2072,8 +1777,6 @@ class ScanChannelDialog(FloatingDialog):
             log_ui_error("扫描器未初始化，无法启动扫描")
             return
 
-        self._is_stopping = False
-        self._scan_progress_completed = False
         self._add_url_to_history(url)
 
         if clear_list:
@@ -2101,30 +1804,10 @@ class ScanChannelDialog(FloatingDialog):
             max_value=100
         )
 
-        self._set_buttons_during_scan(True)
-
         if clear_list:
             self._set_scan_button_text('stop_scan', '停止扫描')
         else:
             self._set_append_scan_button_text('stop_scan', '停止扫描')
-
-    def _set_buttons_during_scan(self, is_scanning: bool):
-        """扫描/验证期间禁用或恢复冲突按钮"""
-        disabled = is_scanning
-        self.btn_validate.setEnabled(not disabled)
-        self.btn_generate.setEnabled(not disabled)
-        self.btn_open_list.setEnabled(not disabled)
-        self.btn_save_m3u.setEnabled(not disabled)
-        self.btn_save_txt.setEnabled(not disabled)
-        self.btn_batch_ops.setEnabled(not disabled)
-        self.enable_retry_checkbox.setEnabled(not disabled)
-        self.enable_mapping_checkbox.setEnabled(not disabled)
-
-    def _reset_scan_buttons(self):
-        """统一重置扫描按钮文本和状态"""
-        self._set_scan_button_text('full_scan', '完整扫描')
-        self._set_append_scan_button_text('append_scan', '追加扫描')
-        self._set_buttons_during_scan(False)
 
     def _set_button_text(self, button, translation_key, default_text):
         """通用按钮文本设置函数"""
@@ -2132,18 +1815,6 @@ class ScanChannelDialog(FloatingDialog):
             button.setText(self.language_manager.tr(translation_key, default_text))
         else:
             button.setText(default_text)
-
-    def _show_input_warning(self, input_widget, message):
-        """在输入框旁显示临时警告提示"""
-        err_color = AppStyles._get_colors().get('error', '#e74c3c')
-        original_style = input_widget.styleSheet()
-        input_widget.setStyleSheet(original_style + f"; border: 2px solid {err_color};")
-        self.stats_label.setText(message)
-        self.stats_label.setStyleSheet(f"color: {err_color}; font-weight: bold;")
-        QtCore.QTimer.singleShot(2000, lambda: (
-            input_widget.setStyleSheet(original_style),
-            self.stats_label.setStyleSheet(AppStyles.common_label_style())
-        ))
 
     def _set_scan_button_text(self, translation_key, default_text):
         """设置扫描按钮文本"""
@@ -2188,44 +1859,12 @@ class ScanChannelDialog(FloatingDialog):
                 f"0/{self.model.rowCount()}"
             )
         else:
-            self._is_stopping = True
+            self.scanner.stop_validation()
             self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
             self.progress_manager.hide_progress()
-            self.scanner.stop_event.set()
-            from services.mpv_validator_service import MpvStreamValidator
-            MpvStreamValidator.set_terminating()
-            self.scanner.is_validating = False
-            self.scanner.scan_state_manager.update_scan_state(self.scanner.scan_id, {
-                'is_validating': False
-            })
-            QtCore.QTimer.singleShot(500, self._finalize_stop_validation)
-
-    def _finalize_stop_validation(self):
-        """延迟执行停止验证清理"""
-        if not hasattr(self, 'scanner') or self.scanner is None:
-            return
-        try:
-            import queue
-            q = getattr(self.scanner, 'validation_queue', None)
-            if q:
-                while not q.empty():
-                    try:
-                        q.get_nowait()
-                    except queue.Empty:
-                        break
-            for worker in self.scanner.workers:
-                if worker.is_alive():
-                    worker.join(timeout=1.0)
-            self.scanner.workers = []
-            from services.mpv_validator_service import MpvStreamValidator
-            MpvStreamValidator.destroy_all_handles()
-        except Exception as e:
-            log_ui_error(f"停止验证清理失败: {e}")
 
     def _on_channel_validated(self, index, valid, latency, resolution):
         """处理频道验证结果"""
-        if not (0 <= index < self.model.rowCount()):
-            return
         channel_info = {
             'valid': valid,
             'latency': latency,
@@ -2237,21 +1876,11 @@ class ScanChannelDialog(FloatingDialog):
 
     def _on_validation_completed(self):
         """处理验证完成事件"""
-        try:
-            self.progress_manager.complete_progress(self.language_manager.tr('validate_completed', '检测完成'))
-        except Exception:
-            pass
-        try:
-            self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
-        except Exception:
-            pass
-        if hasattr(self, 'channel_list') and not getattr(self, '_has_resized_columns', False):
-            try:
-                header = self.channel_list.horizontalHeader()
-                header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-                self._has_resized_columns = True
-            except Exception:
-                pass
+        self.progress_manager.complete_progress(self.language_manager.tr('validate_completed', '检测完成'))
+        self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
+        if hasattr(self, 'channel_list'):
+            header = self.channel_list.horizontalHeader()
+            header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
         # 智能重试：对检测为无效的频道进行重试验证
         if self.enable_retry_checkbox.isChecked():
@@ -2353,18 +1982,15 @@ class ScanChannelDialog(FloatingDialog):
         url = self.ip_range_input.currentText()
         if not url.strip():
             self.logger.warning("请输入生成地址")
-            self._show_input_warning(self.ip_range_input, self.language_manager.tr("please_input_url", "请输入生成地址"))
             return
 
         self._add_url_to_history(url)
 
         self.model.clear()
-        self._invalidate_channels_cache()
 
         url_parser = URLRangeParser()
         url_generator = url_parser.parse_url(url)
 
-        batch_channels = []
         count = 0
         tr = self.language_manager.tr
         gen_name = tr("generated_channel", "Generated Channel")
@@ -2379,14 +2005,8 @@ class ScanChannelDialog(FloatingDialog):
                     'latency': 0,
                     'status': tr("not_tested", "Not Tested")
                 }
-                batch_channels.append(channel)
+                self.model.add_channel(channel)
                 count += 1
-
-        if hasattr(self.model, 'add_channels'):
-            self.model.add_channels(batch_channels)
-        else:
-            for ch in batch_channels:
-                self.model.add_channel(ch)
 
         self.logger.info(f"已生成 {count} 个频道")
 
@@ -2395,19 +2015,6 @@ class ScanChannelDialog(FloatingDialog):
         if not self.model or self.model.rowCount() == 0:
             self.logger.warning(str(tr("no_channels_to_save", "No channels to save")))
             return
-
-        selected_indices = self._get_selected_indices()
-        save_selected = False
-        if selected_indices:
-            reply = QtWidgets.QMessageBox.question(
-                self,
-                tr("save_scope", "保存范围"),
-                tr("save_selected_or_all", "是否仅保存选中的{n}个频道？").format(n=len(selected_indices)),
-                QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No | QtWidgets.QMessageBox.StandardButton.Cancel,
-            )
-            if reply == QtWidgets.QMessageBox.StandardButton.Cancel:
-                return
-            save_selected = (reply == QtWidgets.QMessageBox.StandardButton.Yes)
 
         if fmt == 'm3u':
             filter_str = "M3U文件 (*.m3u);;M3U8文件 (*.m3u8);;所有文件 (*.*)"
@@ -2426,23 +2033,15 @@ class ScanChannelDialog(FloatingDialog):
             return
 
         try:
-            if save_selected:
-                channels_to_save = [self.model.channels[i] for i in selected_indices if i < len(self.model.channels)]
-                if fmt == 'm3u':
-                    content = self.model._channels_to_m3u(channels_to_save) if hasattr(self.model, '_channels_to_m3u') else self.model.to_m3u()
-                else:
-                    content = self.model._channels_to_txt(channels_to_save) if hasattr(self.model, '_channels_to_txt') else self.model.to_txt()
+            if fmt == 'm3u':
+                content = self.model.to_m3u()
             else:
-                if fmt == 'm3u':
-                    content = self.model.to_m3u()
-                else:
-                    content = self.model.to_txt()
+                content = self.model.to_txt()
 
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(content)
 
-            count = len(selected_indices) if save_selected else self.model.rowCount()
-            self.logger.info(f"已保存 {count} 个频道到 {file_path}")
+            self.logger.info(f"已保存 {self.model.rowCount()} 个频道到 {file_path}")
         except Exception as e:
             self.logger.error(f"保存失败: {e}")
 
@@ -2489,49 +2088,35 @@ class ScanChannelDialog(FloatingDialog):
     @QtCore.pyqtSlot(dict)
     def _on_channel_found(self, channel_info):
         """处理发现有效频道事件"""
-        self._invalidate_channels_cache()
         self.model.add_channel(channel_info)
 
     @QtCore.pyqtSlot()
     def _on_scan_completed(self):
         """处理扫描完成事件"""
-        if not hasattr(self, 'scanner') or self.scanner is None:
-            return
-        was_stopping = getattr(self, '_is_stopping', False)
-        self._is_stopping = False
-
+        # 检查是否是验证重试扫描
         if hasattr(self, '_validation_retry_urls') and self._validation_retry_urls:
             self._on_validation_retry_completed()
             return
 
+        # 检查是否是普通重试扫描
         is_retry = self.scan_state_manager.is_retry_scan(self.retry_id)
 
-        try:
-            self.progress_manager.complete_progress(self.language_manager.tr('scan_completed', '扫描完成'))
-        except Exception:
-            pass
+        # 隐藏进度条
+        self.progress_manager.complete_progress(self.language_manager.tr('scan_completed', '扫描完成'))
 
-        try:
-            self._reset_scan_buttons()
-        except Exception:
-            pass
+        # 更新按钮文本
+        self._set_scan_button_text('full_scan', '完整扫描')
+        self._set_append_scan_button_text('append_scan', '追加扫描')
 
-        try:
-            self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
-        except Exception:
-            pass
+        self.btn_validate.setText(self.language_manager.tr("validate_effectiveness", "Validate Effectiveness"))
 
-        if hasattr(self, 'channel_list') and not getattr(self, '_has_resized_columns', False):
-            try:
-                header = self.channel_list.horizontalHeader()
-                header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-                self._has_resized_columns = True
-            except Exception:
-                pass
+        # 更新UI状态
 
-        if was_stopping:
-            return
+        if hasattr(self, 'channel_list'):
+            header = self.channel_list.horizontalHeader()
+            header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
+        # 检查是否需要重试扫描
         if not is_retry:
             if self.enable_retry_checkbox.isChecked():
                 QtCore.QTimer.singleShot(100, self._handle_retry_scan)
@@ -2540,16 +2125,11 @@ class ScanChannelDialog(FloatingDialog):
 
     def _on_validation_retry_completed(self):
         """处理验证重试扫描完成事件"""
-        try:
-            self.progress_manager.complete_progress(self.language_manager.tr('validate_completed', '检测完成'))
-        except Exception:
-            pass
-        try:
-            self._reset_scan_buttons()
-        except Exception:
-            pass
+        self.progress_manager.complete_progress(self.language_manager.tr('validate_completed', '检测完成'))
+        self._set_scan_button_text('full_scan', '完整扫描')
+        self._set_append_scan_button_text('append_scan', '追加扫描')
 
-        found_urls = {ch.get('url', '') for ch in self.scanner.found_channels} if hasattr(self, 'scanner') and self.scanner and hasattr(self.scanner, 'found_channels') else set()
+        found_urls = {ch.get('url', '') for ch in self.scanner.found_channels} if hasattr(self.scanner, 'found_channels') else set()
 
         url_to_index = {}
         for i, ch in enumerate(self.model.channels):
@@ -2637,24 +2217,6 @@ class ScanChannelDialog(FloatingDialog):
             self.logger.error(f"更新统计信息显示失败: {e}", exc_info=True)
 
     def closeEvent(self, event):
-        if hasattr(self, 'scanner') and self.scanner:
-            if self.scanner.is_scanning() or getattr(self.scanner, 'is_validating', False):
-                tr = self.language_manager.tr
-                reply = QtWidgets.QMessageBox.question(
-                    self,
-                    tr("confirm_close", "确认关闭"),
-                    tr("confirm_close_scanning", "扫描/验证正在进行中，关闭将丢失结果，是否继续？"),
-                    QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
-                    QtWidgets.QMessageBox.StandardButton.No
-                )
-                if reply == QtWidgets.QMessageBox.StandardButton.No:
-                    event.ignore()
-                    return
-                self.scanner.stop_event.set()
-                from services.mpv_validator_service import MpvStreamValidator
-                MpvStreamValidator.set_terminating()
-                if getattr(self.scanner, 'is_validating', False):
-                    self.scanner.stop_validation()
         if hasattr(self, 'application') and self.application:
             if hasattr(self.application, '_scan_dialog'):
                 self.application._scan_dialog = None
@@ -2681,12 +2243,9 @@ class ScanChannelDialog(FloatingDialog):
                 self.right_title.setStyleSheet(AppStyles.section_title_style())
             for btn in [self.btn_scan, self.btn_append_scan, self.btn_generate,
                         self.btn_open_list, self.btn_validate, self.btn_hide_invalid,
-                        self.btn_save_m3u, self.btn_save_txt, self.btn_save_channel,
-                        self.btn_batch_ops]:
+                        self.btn_save_m3u, self.btn_save_txt, self.btn_save_channel]:
                 if hasattr(btn, 'setStyleSheet'):
                     btn.setStyleSheet(AppStyles.common_button_style())
-            if hasattr(self, 'btn_batch_ops') and self.btn_batch_ops.menu():
-                self.btn_batch_ops.menu().setStyleSheet(AppStyles.common_menu_style())
             if hasattr(self, 'channel_list'):
                 self.channel_list.setStyleSheet(AppStyles.list_style())
             for label in [self.edit_name_label, self.edit_group_label,
@@ -2701,10 +2260,10 @@ class ScanChannelDialog(FloatingDialog):
                 self.ip_range_input.setStyleSheet(AppStyles.url_combo_style())
             if hasattr(self, 'address_example_label'):
                 self.address_example_label.setStyleSheet(AppStyles.hint_label_style())
-            if hasattr(self, 'user_agent_label'):
-                self.user_agent_label.setStyleSheet(AppStyles.small_label_style())
-            if hasattr(self, 'referer_label'):
-                self.referer_label.setStyleSheet(AppStyles.small_label_style())
+            if hasattr(self, 'ua_label'):
+                self.ua_label.setStyleSheet(AppStyles.small_label_style())
+            if hasattr(self, 'ref_label'):
+                self.ref_label.setStyleSheet(AppStyles.small_label_style())
         except Exception as e:
             if hasattr(self, 'logger'):
                 self.logger.error(f"重新应用扫描窗口样式失败: {e}")
@@ -2881,9 +2440,13 @@ class ScanChannelDialog(FloatingDialog):
                     # 立即标记为已重试，避免重复
                     self.scan_state_manager.add_retried_url(self.retry_id, url)
 
-                # 每处理一批后让出CPU，避免UI卡顿
+                # 每处理一批后处理事件，避免UI卡顿（替代time.sleep）
                 if i + batch_size < total_count:
-                    time.sleep(0.001)
+                    from PyQt6.QtWidgets import QApplication
+                    QApplication.processEvents(
+                        QApplication.ProcessEventsFlags.ExcludeUserInputEvents |
+                        QApplication.ProcessEventsFlags.ExcludeSocketNotifiers
+                    )
 
             # 减少日志输出，避免日志过多
             if total_count > 1000:
@@ -2993,3 +2556,10 @@ class ScanChannelDialog(FloatingDialog):
                 self.logger.info("结束重试扫描")
             # 使用 clear_failed_channels 代替不存在的 reset_retry_scan
             self.scan_state_manager.clear_failed_channels(self.retry_id)
+
+
+class HeaderDelegate(QtWidgets.QHeaderView):
+    """自定义表头委托"""
+    def __init__(self, parent=None, model=None):
+        super().__init__(QtCore.Qt.Orientation.Horizontal, parent)
+        self.model = model

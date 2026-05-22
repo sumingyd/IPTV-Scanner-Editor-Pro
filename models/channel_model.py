@@ -2,9 +2,10 @@ import re
 from datetime import datetime
 from PyQt6 import QtCore, QtGui
 from typing import List, Dict, Any
-from core.log_manager import global_logger as logger
+from core.log_manager import LogManager
 from ui.styles import AppStyles
 from models.channel_mappings import extract_channel_name_from_url
+logger = LogManager()
 
 
 class ChannelListModel(QtCore.QAbstractTableModel):
@@ -109,9 +110,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
         # 原始文件内容：用于保存从文件加载的原始内容
         self._original_file_content = ""
-
-        # 原始文件路径
-        self._source_file_path = ""
 
         # 是否处于隐藏无效项状态
         self._is_hiding_invalid = False
@@ -233,24 +231,24 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         elif role == QtCore.Qt.ItemDataRole.TextAlignmentRole:
             return QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignLeft
         elif role == QtCore.Qt.ItemDataRole.BackgroundRole:
-            from ui.styles import AppStyles
-            colors = AppStyles._get_colors()
             if not channel.get('valid', True):
-                return QtGui.QColor(colors.get('error_background', '#ffdddd'))
+                return QtGui.QColor('#ffdddd')  # 无效项背景色
             else:
-                return QtGui.QColor(colors['table_alternate'])
+                from ui.styles import AppStyles
+                colors = AppStyles._get_colors()
+                return QtGui.QColor(colors['table_alternate'])  # 使用styles中定义的表格背景色
         elif role == QtCore.Qt.ItemDataRole.ForegroundRole:
-            from ui.styles import AppStyles
-            colors = AppStyles._get_colors()
             status = channel.get('status', '待检测')
             valid = channel.get('valid', True)
 
             if not valid and status != '待检测':
-                return QtGui.QColor(colors.get('error', '#ff6666'))
+                return QtGui.QColor('#ff6666')  # 无效项文字颜色(红色)
             elif status == '待检测':
-                return QtGui.QColor(colors.get('placeholder', '#999999'))
+                return QtGui.QColor('#999999')  # 待检测文字颜色(灰色)
             else:
-                return QtGui.QColor(colors['window_text'])
+                from ui.styles import AppStyles
+                colors = AppStyles._get_colors()
+                return QtGui.QColor(colors['window_text'])  # 使用styles中定义的主题文字颜色
 
         return None
 
@@ -407,45 +405,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         'url': url
                     }
                     self._original_channel_data[url] = original_channel
-
-    def add_channels(self, channels: List[Dict[str, Any]], is_from_file: bool = False):
-        """批量添加频道到模型"""
-        if not channels:
-            return
-        existing_urls = {ch.get('url') for ch in self.channels}
-        new_channels = []
-        for ch in channels:
-            if ch.get('url') not in existing_urls:
-                new_channels.append(ch)
-                existing_urls.add(ch.get('url'))
-        if not new_channels:
-            return
-        self.beginInsertRows(QtCore.QModelIndex(), len(self.channels), len(self.channels) + len(new_channels) - 1)
-        self.channels.extend(new_channels)
-        for ch in new_channels:
-            if 'name' in ch:
-                self._name_cache.add(ch['name'])
-            for g in ch.get('_groups', [ch.get('group', '')]):
-                if g:
-                    self._group_cache.add(g)
-        self.endInsertRows()
-        if is_from_file:
-            for ch in new_channels:
-                url = ch.get('url', '')
-                if url:
-                    self._original_channel_data[url] = {
-                        'name': ch.get('name', ''),
-                        'group': ch.get('group', '未分类'),
-                        'tvg_id': ch.get('tvg_id', ''),
-                        'logo': ch.get('logo', ''),
-                        'resolution': ch.get('resolution', ''),
-                        'tvg_chno': ch.get('tvg_chno', ''),
-                        'tvg_shift': ch.get('tvg_shift', ''),
-                        'catchup': ch.get('catchup', ''),
-                        'catchup_days': ch.get('catchup_days', ''),
-                        'catchup_source': ch.get('catchup_source', ''),
-                        'url': url,
-                    }
 
     def hide_invalid(self):
         """隐藏无效频道"""
@@ -664,80 +623,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         content += f"\n# Saved at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         return content
 
-    def _channels_to_m3u(self, channels: List[Dict[str, Any]]) -> str:
-        """将指定频道列表转换为M3U格式字符串"""
-        from models.channel_mappings import get_channel_info
-        lines = ["#EXTM3U"]
-        for channel in channels:
-            url = channel.get('url', '')
-            if not url:
-                continue
-            channel_name = channel.get('name', '')
-            group = channel.get('group', '未分类')
-            tvg_id = channel.get('tvg_id', '')
-            logo_url = channel.get('logo_url') or channel.get('logo', '')
-            tvg_chno = channel.get('tvg_chno', '')
-            tvg_shift = channel.get('tvg_shift', '')
-            catchup = channel.get('catchup', '')
-            catchup_days = channel.get('catchup_days', '')
-            catchup_source = channel.get('catchup_source', '')
-            resolution = channel.get('resolution', '')
-
-            if not logo_url:
-                channel_info = get_channel_info(channel_name)
-                logo_url = channel_info.get('logo_url', '')
-
-            extinf_parts = ["#EXTINF:-1"]
-            if tvg_id:
-                extinf_parts.append(f'tvg-id="{tvg_id}"')
-            if channel_name:
-                extinf_parts.append(f'tvg-name="{channel_name}"')
-            if logo_url:
-                extinf_parts.append(f'tvg-logo="{logo_url}"')
-            if group:
-                groups = channel.get('_groups', [])
-                if groups and len(groups) > 1:
-                    group_value = ';'.join(groups)
-                else:
-                    group_value = group
-                extinf_parts.append(f'group-title="{group_value}"')
-            if tvg_chno:
-                extinf_parts.append(f'tvg-chno="{tvg_chno}"')
-            if tvg_shift:
-                extinf_parts.append(f'tvg-shift="{tvg_shift}"')
-            if catchup:
-                extinf_parts.append(f'catchup="{catchup}"')
-            if catchup_days:
-                extinf_parts.append(f'catchup-days="{catchup_days}"')
-            if catchup_source:
-                extinf_parts.append(f'catchup-source="{catchup_source}"')
-            if resolution:
-                extinf_parts.append(f'resolution="{resolution}"')
-            extinf_parts.append(f",{channel_name}")
-            extinf = " ".join(extinf_parts)
-            lines.append(extinf)
-            lines.append(url)
-
-        from datetime import datetime
-        lines.append("\n# Generated by IPTV Scanner Editor Pro")
-        lines.append(f"# Saved at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        lines.append("# GitHub: https://github.com/sumingyd/IPTV-Scanner-Editor-Pro")
-        return "\n".join(lines)
-
-    def _channels_to_txt(self, channels: List[Dict[str, Any]]) -> str:
-        """将指定频道列表转换为TXT格式字符串"""
-        lines = []
-        for channel in channels:
-            url = channel.get('url', '')
-            if not url:
-                continue
-            channel_name = channel.get('name', '未命名')
-            lines.append(f"{channel_name},{url}")
-        content = "\n".join(lines)
-        content += f"\n\n# Generated by IPTV Scanner Editor Pro"
-        content += f"\n# Saved at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        return content
-
     def to_excel(self, file_path: str) -> bool:
         """将频道列表保存为Excel文件"""
         try:
@@ -827,25 +712,26 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
     def removeRow(self, row: int, parent=QtCore.QModelIndex()) -> bool:
         """删除指定行"""
-        return self.remove_channel(row, parent)
-
-    def remove_channel(self, row: int, parent=QtCore.QModelIndex()) -> bool:
-        """删除指定行的频道"""
         if not (0 <= row < len(self.channels)):
             return False
 
+        # 获取要删除的频道信息
         channel = self.channels[row]
 
+        # 通知视图即将删除行
         self.beginRemoveRows(parent, row, row)
 
+        # 从列表中移除
         self.channels.pop(row)
 
+        # 更新名称和分组缓存
         if 'name' in channel:
             self._name_cache.discard(channel['name'])
         for g in channel.get('_groups', [channel.get('group', '')]):
             if g:
                 self._group_cache.discard(g)
 
+        # 完成删除操作
         self.endRemoveRows()
         return True
 
@@ -1338,15 +1224,216 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         return status_priority.get(status, 3)
 
     def parse_file_content(self, content: str) -> List[Dict[str, Any]]:
-        from services.m3u_parser import parse_m3u_content
-        channels, header_attrs = parse_m3u_content(content)
-        self._last_header_attrs = header_attrs
-        self._name_cache = {ch.get('name', '') for ch in channels if ch.get('name')}
-        self._group_cache = set()
-        for ch in channels:
-            for g in ch.get('_groups', [ch.get('group', '')]):
-                if g:
-                    self._group_cache.add(g)
+        channels = []
+        name_cache = set()
+        group_cache = set()
+        lines = content.splitlines()
+        current_channel = None
+        current_group = "未分类"
+        genre_group_active = False
+        header_attrs = {}
+        self._last_header_attrs = {}
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            if line.startswith("#EXTM3U"):
+                from services.m3u_parser import extract_header_attributes
+                header_attrs = extract_header_attributes(line)
+                self._last_header_attrs = header_attrs
+                continue
+
+            if line.startswith("#EXTGRP:"):
+                current_group = line[8:].strip()
+                if current_group.startswith('"') and current_group.endswith('"'):
+                    current_group = current_group[1:-1]
+                continue
+
+            if line.startswith("#EXTINF:"):
+                extinf_content = line[8:].strip()
+
+                genre_match = re.search(r',\s*#genre#\s*', extinf_content)
+                if genre_match:
+                    before_genre = extinf_content[:genre_match.start()].strip()
+                    group_name = before_genre
+                    comma_pos = before_genre.rfind(',')
+                    if comma_pos >= 0:
+                        group_name = before_genre[comma_pos+1:].strip()
+                    group_name = group_name.strip('=').strip()
+                    if group_name:
+                        current_group = group_name
+                    genre_group_active = True
+                    current_channel = None
+                    continue
+
+                last_comma = line.rfind(",")
+                if last_comma > 0:
+                    attrs_part = line[8:last_comma].strip()
+                    name = line[last_comma+1:].strip()
+
+                    if name.startswith('"') and name.endswith('"'):
+                        name = name[1:-1]
+
+                    current_channel = {
+                        'name': name if name else '未命名',
+                        'group': current_group if genre_group_active else "未分类",
+                        'tvg_id': "",
+                        'logo': "",
+                        'resolution': "",
+                        'tvg_chno': "",
+                        'tvg_shift': "",
+                        'catchup': "",
+                        'catchup_days': "",
+                        'catchup_source': "",
+                        'catchup_correction': "",
+                        'valid': False,
+                        'status': '待检测',
+                        '_raw_extinf': extinf_content
+                    }
+
+                    attr_pattern = r'(\S+)="([^"]*)"'
+                    matches = re.findall(attr_pattern, attrs_part)
+
+                    tag_mapping = {
+                        "group-title": "group",
+                        "tvg-id": "tvg_id",
+                        "tvg-name": "name",
+                        "tvg-logo": "logo",
+                        "tvg-chno": "tvg_chno",
+                        "tvg-shift": "tvg_shift",
+                        "catchup": "catchup",
+                        "catchup-days": "catchup_days",
+                        "catchup-source": "catchup_source",
+                        "catchup-correction": "catchup_correction",
+                        "catchup-type": "catchup",
+                        "resolution": "resolution",
+                        "tvg-language": "tvg_language",
+                        "audio-track": "audio_track",
+                        "aspect-ratio": "aspect_ratio",
+                        "parent-code": "parent_code"
+                    }
+
+                    all_tags = {}
+
+                    for key, value in matches:
+                        field_name = tag_mapping.get(key, key.replace('-', '_')) or key.replace('-', '_')
+                        if key == "group-title" and value:
+                            current_group = [g.strip() for g in value.split(';') if g.strip()]
+                            genre_group_active = False
+                        if key != "tvg-name":
+                            current_channel[field_name] = value
+                        all_tags[key] = value
+
+                    # 频道名优先级：逗号后内容 > tvg-name 属性 > 原始name
+                    final_comma_name = ''
+                    if extinf_content and ',' in extinf_content:
+                        final_comma_name = extinf_content.split(',', 1)[-1].strip()
+                        if final_comma_name.startswith('"') and final_comma_name.endswith('"'):
+                            final_comma_name = final_comma_name[1:-1]
+                    if final_comma_name:
+                        current_channel['name'] = final_comma_name
+                    else:
+                        tvg_name = all_tags.get('tvg-name', '')
+                        if tvg_name:
+                            current_channel['name'] = tvg_name
+
+                    # 分组支持 ; 分隔的多分组，存储为列表，group 取第一个作为主分组
+                    if isinstance(current_group, list):
+                        current_channel['_groups'] = current_group
+                        current_channel['group'] = current_group[0] if current_group else '未分类'
+                    else:
+                        current_channel['_groups'] = [current_group] if current_group else ['未分类']
+                        current_channel['group'] = current_group if current_group else '未分类'
+                    current_channel['_all_tags'] = all_tags
+                else:
+                    comma_name = ''
+                    if extinf_content and ',' in extinf_content:
+                        comma_name = extinf_content.split(',', 1)[-1].strip()
+                    groups_list = [g.strip() for g in current_group.split(';') if g.strip()] if isinstance(current_group, str) else (current_group if isinstance(current_group, list) else ['未分类'])
+                    primary_group = groups_list[0] if groups_list else '未分类'
+                    current_channel = {
+                        'name': comma_name if comma_name else (extinf_content if extinf_content else '未命名'),
+                        'group': primary_group,
+                        '_groups': groups_list,
+                        'tvg_id': "",
+                        'logo': "",
+                        'resolution': "",
+                        'tvg_chno': "",
+                        'tvg_shift': "",
+                        'catchup': "",
+                        'catchup_days': "",
+                        'catchup_source': "",
+                        'catchup_correction': "",
+                        'valid': False,
+                        'status': '待检测',
+                        '_raw_extinf': extinf_content
+                    }
+                continue
+
+            if line.startswith("#EXTVLCOPT:video-resolution=") and current_channel:
+                resolution = line.split("=")[1].strip()
+                current_channel['resolution'] = resolution
+                continue
+
+            if line.startswith("#"):
+                continue
+
+            if line and current_channel:
+                url = line.strip()
+                if self._is_valid_channel_url(url):
+                    current_channel['url'] = url
+                    # 继承全局回看参数（频道级别未设置时使用全局设置）
+                    if header_attrs:
+                        for k, v in header_attrs.items():
+                            if k == 'epg_url':
+                                continue
+                            field_map = {
+                                'catchup': 'catchup',
+                                'catchup-correction': 'catchup_correction',
+                                'catchup-source': 'catchup_source',
+                                'catchup-days': 'catchup_days',
+                                'catchup-type': 'catchup',
+                            }
+                            field = field_map.get(k, k.replace('-', '_')) or k.replace('-', '_')
+                            if field and not current_channel.get(field):
+                                current_channel[field] = v
+                                if '_all_tags' in current_channel:
+                                    current_channel['_all_tags'][k] = v
+                    channels.append(current_channel)
+                    if 'name' in current_channel:
+                        name_cache.add(current_channel['name'])
+                    for g in current_channel.get('_groups', [current_channel.get('group', '')]):
+                        if g:
+                            group_cache.add(g)
+                current_channel = None
+            elif line and not current_channel:
+                if self._is_valid_channel_url(line):
+                    try:
+                        ch_name = extract_channel_name_from_url(line)
+                    except Exception:
+                        ch_name = ''
+                    groups_list = [g.strip() for g in current_group.split(';') if g.strip()] if isinstance(current_group, str) else (current_group if isinstance(current_group, list) else ['未分类'])
+                    primary_group = groups_list[0] if groups_list else '未分类'
+                    channels.append({
+                        'name': ch_name if ch_name else '未命名',
+                        'url': line,
+                        'group': primary_group,
+                        '_groups': groups_list,
+                        'tvg_id': "",
+                        'logo': "",
+                        'resolution': "",
+                        'tvg_chno': "",
+                        'tvg_shift': "",
+                        'catchup': "",
+                        'catchup_days': "",
+                        'catchup_source': "",
+                        'catchup_correction': "",
+                        'valid': False,
+                        'status': '待检测'
+                    })
+
         return channels
 
     @staticmethod
@@ -1443,33 +1530,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 self.endResetModel()
                 return False
 
+            # 使用add_channel方法添加频道，标记为从文件加载
             for channel in channels:
-                existing_index = -1
-                for i, ch in enumerate(self.channels):
-                    if ch.get('url') == channel.get('url'):
-                        existing_index = i
-                        break
-                if existing_index >= 0:
-                    continue
-                self.channels.append(channel)
-                if 'name' in channel:
-                    self._name_cache.add(channel['name'])
-                for g in channel.get('_groups', [channel.get('group', '')]):
-                    if g:
-                        self._group_cache.add(g)
-                url = channel.get('url', '')
-                if url:
-                    original_channel = {
-                        'name': channel.get('name', ''),
-                        'group': channel.get('group', ''),
-                        'tvg_id': channel.get('tvg_id', ''),
-                        'logo': channel.get('logo', ''),
-                        'resolution': channel.get('resolution', ''),
-                        'url': url,
-                        '_raw_extinf': channel.get('_raw_extinf', ''),
-                        '_all_tags': channel.get('_all_tags', {}),
-                    }
-                    self._original_channel_data[url] = original_channel
+                self.add_channel(channel, is_from_file=True)
 
             # 通知UI更新状态标签 - 使用QTimer确保在主线程执行
             if hasattr(self, 'update_status_label') and self.update_status_label:
