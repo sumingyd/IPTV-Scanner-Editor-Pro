@@ -47,7 +47,7 @@ class MappingManagerDialog(FloatingDialog):
         self.language_manager = LanguageManager()
 
         self.setWindowTitle(self.language_manager.tr('mapping_manager', 'Channel Mapping Manager'))
-        self.setMinimumSize(700, 500)
+        self.setMinimumSize(600, 400)
         self.setup_ui()
         self.load_data()
 
@@ -593,6 +593,7 @@ class MappingEditDialog(FloatingDialog):
         self.setStyleSheet(AppStyles.dialog_style())
 
         form = QtWidgets.QFormLayout()
+        form.setContentsMargins(12, 12, 12, 12)
         form.setSpacing(10)
 
         self.standard_name_input = QtWidgets.QLineEdit(self.standard_name)

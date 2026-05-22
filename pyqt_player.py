@@ -749,7 +749,7 @@ class IPTVPlayer(QMainWindow):
         # EPG 面板内容容器（保持原有UI不变）
         epg_container = QWidget()
         epg_container.setStyleSheet(AppStyles.player_panel_style())
-        epg_container.setFixedWidth(250)
+        epg_container.setMinimumWidth(200)
         self.epg_layout = QVBoxLayout(epg_container)
         self.epg_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -835,7 +835,7 @@ class IPTVPlayer(QMainWindow):
 
         playlist_container = QWidget()
         playlist_container.setStyleSheet(AppStyles.player_panel_style())
-        playlist_container.setFixedWidth(250)
+        playlist_container.setMinimumWidth(200)
         self.playlist_layout = QVBoxLayout(playlist_container)
         self.playlist_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -1038,8 +1038,8 @@ class IPTVPlayer(QMainWindow):
         # 控制面板内容容器
         floating_container = QWidget()
         floating_container.setStyleSheet(AppStyles.player_panel_style())
-        floating_container.setFixedHeight(170)
-        floating_container.setMinimumWidth(600)
+        floating_container.setMinimumHeight(120)
+        floating_container.setMinimumWidth(480)
         self.floating_layout = QVBoxLayout(floating_container)
         self.floating_layout.setContentsMargins(15, 6, 15, 8)
         self.floating_layout.setSpacing(3)
@@ -3599,7 +3599,7 @@ class IPTVPlayer(QMainWindow):
 
         if hasattr(self, 'floating_dock') and self.floating_dock:
             fl_w = min(mw_w - gap * 2, 1050)
-            self.floating_dock.setFixedWidth(max(fl_w, 600))
+            self.floating_dock.setMinimumWidth(max(fl_w, 480))
             fl_x = mw_x + (mw_w - self.floating_dock.width()) // 2
             fl_y = mw_y + mw_h - control_panel_h - status_bar_h - gap
             self.floating_dock.move(fl_x, fl_y)

@@ -33,7 +33,7 @@ class AboutDialog(FloatingDialog):
         tr = self.language_manager.tr
         c = self._colors
         self.setWindowTitle(tr("about_dialog_title", "About IPTV Scanner Editor Pro"))
-        self.setFixedSize(480, 420)
+        self.setMinimumSize(420, 380)
 
         main_layout = QtWidgets.QVBoxLayout(self)
         main_layout.setContentsMargins(28, 24, 28, 20)

@@ -190,8 +190,15 @@ class ScanChannelDialog(FloatingDialog):
         # 确保窗口保持活动状态
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
 
-        # 使用默认窗口大小
-        self.resize(1400, 800)
+        # 根据屏幕尺寸动态计算窗口大小，不超过90%屏幕
+        screen = QtWidgets.QApplication.primaryScreen()
+        if screen:
+            avail = screen.availableGeometry()
+            max_w = int(avail.width() * 0.9)
+            max_h = int(avail.height() * 0.9)
+            self.resize(min(1400, max_w), min(800, max_h))
+        else:
+            self.resize(1400, 800)
 
         # 先设置窗口样式，避免闪烁
         self.setStyleSheet(AppStyles.popup_dialog_style())
@@ -218,9 +225,10 @@ class ScanChannelDialog(FloatingDialog):
         main_layout.setContentsMargins(12, 12, 12, 12)
         main_layout.setSpacing(0)
 
-        # ========== 左侧边栏：扫描设置 (固定宽度 280px) ==========
+        # ========== 左侧边栏：扫描设置 (弹性宽度 240~320px) ==========
         left_panel = QtWidgets.QWidget()
-        left_panel.setFixedWidth(280)
+        left_panel.setMinimumWidth(240)
+        left_panel.setMaximumWidth(320)
         left_panel.setStyleSheet(AppStyles.side_panel_style())
         left_layout = QtWidgets.QVBoxLayout(left_panel)
         left_layout.setContentsMargins(8, 8, 8, 8)
@@ -302,9 +310,10 @@ class ScanChannelDialog(FloatingDialog):
         # 中间间隔
         main_layout.addSpacing(12)
 
-        # ========== 右侧边栏：频道编辑 (固定宽度 240px) ==========
+        # ========== 右侧边栏：频道编辑 (弹性宽度 200~280px) ==========
         right_panel = QtWidgets.QWidget()
-        right_panel.setFixedWidth(240)
+        right_panel.setMinimumWidth(200)
+        right_panel.setMaximumWidth(280)
         right_panel.setStyleSheet(AppStyles.side_panel_style())
         right_layout = QtWidgets.QVBoxLayout(right_panel)
         right_layout.setContentsMargins(8, 8, 8, 8)

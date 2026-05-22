@@ -358,7 +358,7 @@ class EventHandler:
                 if hasattr(self.window, 'playlist_dock') and self.window.playlist_dock:
                     self.window.playlist_dock.setFixedWidth(max(200, settings.get('playlist_width', 280)))
                 if hasattr(self.window, 'floating_dock') and self.window.floating_dock:
-                    self.window.floating_dock.setFixedWidth(max(600, settings.get('floating_width', 1050)))
+                    self.window.floating_dock.setMinimumWidth(max(480, settings.get('floating_width', 1050)))
 
             self.window.update_floating_position()
         except Exception as e:
