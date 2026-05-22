@@ -1216,6 +1216,7 @@ class IPTVPlayer(QMainWindow):
         self.play_button.setFixedSize(28, 26)
         self.play_button.setStyleSheet(AppStyles.player_button_style())
         self.play_button.clicked.connect(self.toggle_play)
+        self.play_button.setToolTip(tr("panel_play", "播放/暂停"))
         self.control_row.addWidget(self.play_button)
 
         # 停止按钮
@@ -1225,6 +1226,7 @@ class IPTVPlayer(QMainWindow):
         self.stop_button.setFixedSize(28, 26)
         self.stop_button.setStyleSheet(AppStyles.player_button_style())
         self.stop_button.clicked.connect(self.stop_playback)
+        self.stop_button.setToolTip(tr("panel_stop", "停止"))
         self.control_row.addWidget(self.stop_button)
 
         # 上一频道按钮
@@ -1286,6 +1288,7 @@ class IPTVPlayer(QMainWindow):
         self.volume_button.setFixedSize(28, 26)
         self.volume_button.setStyleSheet(AppStyles.player_button_style())
         self.volume_button.clicked.connect(self.toggle_mute)
+        self.volume_button.setToolTip(tr("panel_volume", "音量"))
         self.control_row.addWidget(self.volume_button)
         
         # 6. 音量调节拖动条
@@ -1305,6 +1308,7 @@ class IPTVPlayer(QMainWindow):
         self.exit_catchup_button.setFixedSize(100, 26)
         self.exit_catchup_button.setStyleSheet(AppStyles.exit_catchup_button_style())
         self.exit_catchup_button.clicked.connect(self.exit_catchup)
+        self.exit_catchup_button.setToolTip(tr("panel_exit_catchup", "退出回看"))
         self.exit_catchup_button.hide()
         self.control_row.addWidget(self.exit_catchup_button)
 
@@ -1316,6 +1320,7 @@ class IPTVPlayer(QMainWindow):
         self.speed_button.setFixedSize(42, 26)
         self.speed_button.setStyleSheet(AppStyles.player_button_style())
         self.speed_button.clicked.connect(self.media_ctrl.cycle_speed)
+        self.speed_button.setToolTip(tr("panel_speed", "播放速度"))
         self.control_row.addWidget(self.speed_button)
 
         # 7.6 画面比例按钮
@@ -1325,6 +1330,7 @@ class IPTVPlayer(QMainWindow):
         self.aspect_button.setFixedSize(48, 26)
         self.aspect_button.setStyleSheet(AppStyles.player_button_style())
         self.aspect_button.clicked.connect(self.media_ctrl.cycle_aspect_ratio)
+        self.aspect_button.setToolTip(tr("panel_aspect", "画面比例"))
         self.control_row.addWidget(self.aspect_button)
 
         # 7.7 音轨切换按钮
@@ -1363,6 +1369,7 @@ class IPTVPlayer(QMainWindow):
         self.fullscreen_button.setFixedSize(28, 26)
         self.fullscreen_button.setStyleSheet(AppStyles.player_button_style())
         self.fullscreen_button.clicked.connect(self.toggle_fullscreen)
+        self.fullscreen_button.setToolTip(tr("panel_fullscreen", "全屏"))
         self.control_row.addWidget(self.fullscreen_button)
         
         self.floating_layout.addLayout(self.control_row)
