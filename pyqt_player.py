@@ -3142,9 +3142,9 @@ class IPTVPlayer(QMainWindow):
             
             # 更新视频信息标签
             if video_parts:
-                self.video_info.setText("\U0001f4fa  {}".format(" | ".join(video_parts)))
+                self.video_info.setText(" | ".join(video_parts))
             else:
-                self.video_info.setText("\U0001f4fa  {}".format(tr('live_stream', 'Live Stream') or 'Live Stream'))
+                self.video_info.setText(tr('live_stream', 'Live Stream') or 'Live Stream')
 
             # 构建音频信息标签（详细信息）
             audio_parts = []
