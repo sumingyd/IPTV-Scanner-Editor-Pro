@@ -1206,6 +1206,7 @@ class IPTVPlayer(QMainWindow):
         self.program_desc.setStyleSheet(AppStyles.player_program_desc_style())
         self.program_desc.setWordWrap(True)
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        self.program_desc.setMaximumHeight(54)
         text_layout.addWidget(self.program_desc, 1)
 
         info_layout.addLayout(text_layout, 1)
