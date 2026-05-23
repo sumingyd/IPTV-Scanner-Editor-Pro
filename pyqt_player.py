@@ -1834,20 +1834,31 @@ class IPTVPlayer(QMainWindow):
                     'auto' 自动判断（默认填充当前活跃标签）
         """
         import time
-        current_time = time.time()
-        if hasattr(self, '_last_populate_time') and current_time - self._last_populate_time < 0.5:
-            logger.debug(f"populate_channel_list: 跳过重复调用（距上次{current_time - self._last_populate_time:.2f}秒）")
-            return
-        self._last_populate_time = current_time
-
         if source == 'auto':
             if not hasattr(self, 'playlist_tab'):
                 source = 'subscription'
             else:
                 source = 'subscription' if self.playlist_tab.currentIndex() == 0 else 'local'
 
+        current_time = time.time()
+        if not hasattr(self, '_last_populate_times'):
+            self._last_populate_times = {}
+        last_time = self._last_populate_times.get(source, 0)
+
         if source == 'subscription':
-            self._sub_channels = app_state.channels
+            new_channels = app_state.channels
+            skip_debounce = len(new_channels) != len(getattr(self, '_sub_channels', []))
+        else:
+            new_channels = None
+            skip_debounce = False
+
+        if not skip_debounce and current_time - last_time < 0.5:
+            logger.debug(f"populate_channel_list: 跳过重复调用（source={source}，距上次{current_time - last_time:.2f}秒）")
+            return
+        self._last_populate_times[source] = current_time
+
+        if source == 'subscription':
+            self._sub_channels = new_channels
             self._update_groups_for('subscription')
             self._populate_channel_list_for(self.sub_channel_list, self._sub_channels,
                                             self.sub_group_combo.currentText())
