@@ -1928,8 +1928,7 @@ class IPTVPlayer(QMainWindow):
         skipped_count = 0
 
         from ui.styles import AppStyles
-        colors = AppStyles._get_colors()
-        name_style = f"font-size: 12px; font-weight: bold; color: {colors['player_panel_text']};"
+        name_style = AppStyles.player_channel_list_name_style()
 
         for idx, channel in enumerate(channels):
             try:
@@ -4161,8 +4160,7 @@ class IPTVPlayer(QMainWindow):
                 cl = getattr(self, list_attr, None)
                 if cl:
                     cl.setStyleSheet(AppStyles.player_list_style())
-                    colors = AppStyles._get_colors()
-                    name_style = f"font-size: 12px; font-weight: bold; color: {colors['player_panel_text']};"
+                    name_style = AppStyles.player_channel_list_name_style()
                     for i in range(cl.count()):
                         item = cl.item(i)
                         item.setSizeHint(QSize(0, 40))

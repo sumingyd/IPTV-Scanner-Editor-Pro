@@ -1344,6 +1344,11 @@ class AppStyles:
         """
 
     @staticmethod
+    def player_channel_list_name_style() -> str:
+        colors = AppStyles._get_colors()
+        return f"font-size: 12px; font-weight: bold; color: {colors['player_panel_text']}; background: transparent; border: none;"
+
+    @staticmethod
     def player_program_style() -> str:
         colors = AppStyles._get_colors()
         return f"""
