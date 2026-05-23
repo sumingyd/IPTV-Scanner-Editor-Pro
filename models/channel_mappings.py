@@ -337,13 +337,27 @@ class ChannelMappingManager:
         self.logger.info(f"添加用户映射: {raw_name} -> {standard_name}")
 
     def remove_user_mapping(self, standard_name: str):
-        """移除用户自定义映射"""
+        """移除用户自定义映射（整个 standard_name 下所有 raw_name）"""
         if standard_name in self.user_mappings:
             del self.user_mappings[standard_name]
             self.combined_mappings = self._combine_mappings()
             self.reverse_mappings = create_reverse_mappings(self.combined_mappings)
             self._save_user_mappings()
             self.logger.info(f"移除用户映射: {standard_name}")
+
+    def remove_user_mapping_entry(self, standard_name: str, raw_name: str):
+        """移除用户自定义映射中的单条 raw_name"""
+        if standard_name not in self.user_mappings:
+            return
+        raw_names = self.user_mappings[standard_name].get('raw_names', [])
+        if raw_name in raw_names:
+            raw_names.remove(raw_name)
+            if not raw_names:
+                del self.user_mappings[standard_name]
+            self.combined_mappings = self._combine_mappings()
+            self.reverse_mappings = create_reverse_mappings(self.combined_mappings)
+            self._save_user_mappings()
+            self.logger.info(f"移除用户映射条目: {raw_name} -> {standard_name}")
 
     def create_channel_fingerprint(self, url: str, channel_info: dict) -> str:
         """创建频道指纹"""

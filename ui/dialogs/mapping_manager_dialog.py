@@ -333,7 +333,7 @@ class MappingManagerDialog(FloatingDialog):
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             new_data = dialog.get_mapping_data()
             if new_data:
-                mapping_manager.remove_user_mapping(standard_name)
+                mapping_manager.remove_user_mapping_entry(standard_name, raw_name)
                 mapping_manager.add_user_mapping(
                     new_data['raw_name'],
                     new_data['standard_name'],
@@ -361,7 +361,7 @@ class MappingManagerDialog(FloatingDialog):
             parent=self
         )
         if reply == QtWidgets.QMessageBox.StandardButton.Yes:
-            mapping_manager.remove_user_mapping(standard_name)
+            mapping_manager.remove_user_mapping_entry(standard_name, raw_name)
             self.load_user_mappings()
             self.logger.info(f"Deleted mapping: {raw_name} -> {standard_name}")
 
