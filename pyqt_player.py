@@ -2411,146 +2411,135 @@ class IPTVPlayer(QMainWindow):
             logger.debug("节目切换检测异常: {}".format(e))
     
     def on_progress_slider_released(self):
-        """进度条拖动释放时的处理"""
-        
         is_catchup = self.play_state.is_catchup_or_timeshift
-
         if getattr(self, '_progress_time_mode', None) == 'vod' and not is_catchup:
-            slider_seconds = self._get_progress_seconds()
-            if self.player_controller:
-                self.player_controller.seek_absolute(float(slider_seconds))
-            return
-        
-        if not is_catchup:
-            if not self.current_channel or not self.player_controller:
-                return
-            
-            slider_seconds = self._get_progress_seconds()
-            
-            seek_range = self.player_controller.get_available_seek_range()
-            max_back = seek_range.get('max_back', 0)
-            cache_duration = seek_range.get('cache_duration', 0)
-            buffer_start = seek_range.get('buffer_start', 0)
-            buffer_end = seek_range.get('buffer_end', 0)
-            time_pos = seek_range.get('time_pos', 0)
-            
-            logger.info(f"直播拖动进度条 -> slider={slider_seconds}s, "
-                        f"time_pos={time_pos:.1f}s, buffer={buffer_start:.1f}s~{buffer_end:.1f}s, "
-                        f"max_back={max_back}s, mode={getattr(self, '_progress_time_mode', '?')}")
-            
-            if max_back == 0 and cache_duration < 5:
-                logger.warning(f"直播拖动进度条 -> 无法回退（缓冲区为空，cache={cache_duration:.1f}s）")
-                self.status_bar_show_message(self.language_manager.tr("cannot_seek_live", "无法回退：直播流缓冲区不足"))
-                return
-            
-            target_pos = self._map_slider_to_stream_position(slider_seconds, seek_range)
-            
-            logger.info(f"直播拖动进度条 -> 映射后 target_pos={target_pos:.1f}s, "
-                        f"clamp后={max(buffer_start, min(target_pos, buffer_end)):.1f}s")
-            
-            # 检测是否请求的位置超出了缓冲区边界（即想跳到更早的时间点）
-            if target_pos < buffer_start:
-                catchup_source = self.current_channel.get('catchup_source', '') if self.current_channel else ''
-                if catchup_source and getattr(self, '_progress_time_mode', None) == 'epg' and self._progress_program_start:
-                    # 频道支持回看且处于EPG模式：自动以时移方式从目标时间点播放当前节目
-                    self._start_live_timeshift_from_progress(slider_seconds, catchup_source)
-                    return
-                elif catchup_source:
-                    # 有回看但没有EPG信息，只能提示
-                    self.status_bar_show_message(
-                        self.language_manager.tr(
-                            "timeshift_beyond_cache_no_epg",
-                            "超出缓冲范围，无节目信息，无法自动时移"
-                        )
-                    )
-                else:
-                    self.status_bar_show_message(
-                        self.language_manager.tr(
-                            "timeshift_beyond_cache",
-                            "超出缓冲范围，无法跳转到更早时间"
-                        )
-                    )
-                return
-            
-            target_pos = max(buffer_start, min(target_pos, buffer_end))
-            
-            timeshift = getattr(self, '_live_timeshift_seconds', 0)
-            if timeshift > 0 and time_pos < 1:
-                effective_pos = buffer_end - timeshift
-            elif time_pos > 1:
-                effective_pos = time_pos
-            else:
-                effective_pos = buffer_end
-            
-            if abs(target_pos - effective_pos) < 1:
-                logger.info(f"直播拖动进度条 -> 跳过（目标{target_pos:.1f}s与当前位置{effective_pos:.1f}s差<1s, timeshift={timeshift}s）")
-                return
-            
-            logger.info(f"直播拖动进度条 -> seek到 {target_pos:.1f}s")
-            
-            self.player_controller.seek_absolute(target_pos)
-            
-            if target_pos < buffer_end - 1:
-                self._live_timeshift_seconds = buffer_end - target_pos
-            else:
-                self._live_timeshift_seconds = 0
-            
-            return
-        
-        value = self._get_progress_seconds()
-        
-        if self.catchup_program is not None and self.original_channel is not None:
-            try:
-                channel_name = self.original_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel"))
-                catchup_source = self.original_channel.get('catchup_source', '')
-                catchup_type = (self.original_channel.get('catchup', '') or '').lower().strip()
-                
-                if not catchup_source and not catchup_type:
-                    self.status_bar_show_message(self.language_manager.tr("catchup_not_supported", "This channel does not support catchup"))
-                    return
-                
-                start_time = self.catchup_program.get('start')
-                end_time = self.catchup_program.get('end')
-                title = self.catchup_program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))
-                
-                if not (start_time and end_time):
-                    logger.error("回看节目信息不完整")
-                    self.status_bar.showMessage(self.language_manager.tr("catchup_error", "Catchup error: Missing program information"))
-                    return
-                
-                total_duration = (end_time - start_time).total_seconds()
-                
-                from datetime import timedelta
-                new_start_seconds = value
-                new_start_time = start_time + timedelta(seconds=new_start_seconds)
-                
-                catchup_url = self.catchup_ctrl.build_catchup_url(self.original_channel, new_start_time, end_time)
-                
-                logger.debug(f"构建新的回看URL: {catchup_url}")
-                
-                catchup_msg = self.language_manager.tr('catchup_playing', '正在回看: {name}')
-                self.status_bar.showMessage(f"{catchup_msg.format(name=channel_name)} - {title}")
-                
-                self._pending_catchup_progress = value
-                
-                import time
-                self._catchup_start_time = time.time()
-                self._catchup_start_progress = value
-                
-                # 设置标志，禁用进度条自动更新
-                self._disable_progress_auto_update = True
-                logger.debug(f"禁用进度条自动更新，等待播放位置达到目标值")
-                
-                # 播放新的回看 URL
-                if hasattr(self, 'player_controller') and self.player_controller:
-                    # 播放新的回看
-                    self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
-            except Exception as e:
-                logger.error(f"重新构建回看 URL 失败：{e}")
-                self.status_bar.showMessage(self.language_manager.tr("catchup_seek_error", "Catchup seek failed"))
+            self._seek_vod(self._get_progress_seconds())
+        elif is_catchup:
+            self._seek_catchup(self._get_progress_seconds())
         else:
+            self._seek_live(self._get_progress_seconds())
+
+    def _seek_vod(self, position):
+        if self.player_controller:
+            self.player_controller.seek_absolute(float(position))
+
+    def _seek_live(self, position):
+        if not self.current_channel or not self.player_controller:
+            return
+
+        seek_range = self.player_controller.get_available_seek_range()
+        max_back = seek_range.get('max_back', 0)
+        cache_duration = seek_range.get('cache_duration', 0)
+        buffer_start = seek_range.get('buffer_start', 0)
+        buffer_end = seek_range.get('buffer_end', 0)
+        time_pos = seek_range.get('time_pos', 0)
+
+        logger.info(f"直播拖动进度条 -> slider={position}s, "
+                    f"time_pos={time_pos:.1f}s, buffer={buffer_start:.1f}s~{buffer_end:.1f}s, "
+                    f"max_back={max_back}s, mode={getattr(self, '_progress_time_mode', '?')}")
+
+        if max_back == 0 and cache_duration < 5:
+            logger.warning(f"直播拖动进度条 -> 无法回退（缓冲区为空，cache={cache_duration:.1f}s）")
+            self.status_bar_show_message(self.language_manager.tr("cannot_seek_live", "无法回退：直播流缓冲区不足"))
+            return
+
+        target_pos = self._map_slider_to_stream_position(position, seek_range)
+
+        logger.info(f"直播拖动进度条 -> 映射后 target_pos={target_pos:.1f}s, "
+                    f"clamp后={max(buffer_start, min(target_pos, buffer_end)):.1f}s")
+
+        if target_pos < buffer_start:
+            catchup_source = self.current_channel.get('catchup_source', '') if self.current_channel else ''
+            if catchup_source and getattr(self, '_progress_time_mode', None) == 'epg' and self._progress_program_start:
+                self._start_live_timeshift_from_progress(position, catchup_source)
+                return
+            elif catchup_source:
+                self.status_bar_show_message(
+                    self.language_manager.tr(
+                        "timeshift_beyond_cache_no_epg",
+                        "超出缓冲范围，无节目信息，无法自动时移"
+                    )
+                )
+            else:
+                self.status_bar_show_message(
+                    self.language_manager.tr(
+                        "timeshift_beyond_cache",
+                        "超出缓冲范围，无法跳转到更早时间"
+                    )
+                )
+            return
+
+        target_pos = max(buffer_start, min(target_pos, buffer_end))
+
+        timeshift = getattr(self, '_live_timeshift_seconds', 0)
+        if timeshift > 0 and time_pos < 1:
+            effective_pos = buffer_end - timeshift
+        elif time_pos > 1:
+            effective_pos = time_pos
+        else:
+            effective_pos = buffer_end
+
+        if abs(target_pos - effective_pos) < 1:
+            logger.info(f"直播拖动进度条 -> 跳过（目标{target_pos:.1f}s与当前位置{effective_pos:.1f}s差<1s, timeshift={timeshift}s）")
+            return
+
+        logger.info(f"直播拖动进度条 -> seek到 {target_pos:.1f}s")
+
+        self.player_controller.seek_absolute(target_pos)
+
+        if target_pos < buffer_end - 1:
+            self._live_timeshift_seconds = buffer_end - target_pos
+        else:
+            self._live_timeshift_seconds = 0
+
+    def _seek_catchup(self, position):
+        if self.catchup_program is None or self.original_channel is None:
             logger.error("回看模式但缺少必要信息")
             self.status_bar.showMessage(self.language_manager.tr("catchup_error", "Catchup error: Missing information"))
+            return
+
+        try:
+            channel_name = self.original_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel"))
+            catchup_source = self.original_channel.get('catchup_source', '')
+            catchup_type = (self.original_channel.get('catchup', '') or '').lower().strip()
+
+            if not catchup_source and not catchup_type:
+                self.status_bar_show_message(self.language_manager.tr("catchup_not_supported", "This channel does not support catchup"))
+                return
+
+            start_time = self.catchup_program.get('start')
+            end_time = self.catchup_program.get('end')
+            title = self.catchup_program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))
+
+            if not (start_time and end_time):
+                logger.error("回看节目信息不完整")
+                self.status_bar.showMessage(self.language_manager.tr("catchup_error", "Catchup error: Missing program information"))
+                return
+
+            from datetime import timedelta
+            new_start_time = start_time + timedelta(seconds=position)
+
+            catchup_url = self.catchup_ctrl.build_catchup_url(self.original_channel, new_start_time, end_time)
+
+            logger.debug(f"构建新的回看URL: {catchup_url}")
+
+            catchup_msg = self.language_manager.tr('catchup_playing', '正在回看: {name}')
+            self.status_bar.showMessage(f"{catchup_msg.format(name=channel_name)} - {title}")
+
+            self._pending_catchup_progress = position
+
+            import time
+            self._catchup_start_time = time.time()
+            self._catchup_start_progress = position
+
+            self._disable_progress_auto_update = True
+            logger.debug(f"禁用进度条自动更新，等待播放位置达到目标值")
+
+            if hasattr(self, 'player_controller') and self.player_controller:
+                self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
+        except Exception as e:
+            logger.error(f"重新构建回看 URL 失败：{e}")
+            self.status_bar.showMessage(self.language_manager.tr("catchup_seek_error", "Catchup seek failed"))
     
     def on_group_changed(self, group_name):
         """处理分组切换事件（委托给ChannelController）"""
