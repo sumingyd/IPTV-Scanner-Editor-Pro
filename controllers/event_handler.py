@@ -435,6 +435,22 @@ class EventHandler:
             except Exception as e:
                 logger.error(f"保存窗口布局失败: {e}")
 
+        # 1.5 自动保存本地频道列表
+        if getattr(self.window, '_local_channels_dirty', False) and getattr(self.window, '_local_channels', None):
+            try:
+                local_channels = self.window._local_channels
+                if local_channels:
+                    import os
+                    config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
+                    os.makedirs(config_dir, exist_ok=True)
+                    save_path = os.path.join(config_dir, 'local_channels.m3u')
+                    from controllers.settings_file_ops import SettingsFileOperations
+                    SettingsFileOperations._save_as_m3u(local_channels, save_path)
+                    logger.info(f"自动保存本地频道列表: {save_path}, 共 {len(local_channels)} 个频道")
+                    self.window._local_channels_dirty = False
+            except Exception as e:
+                logger.error(f"自动保存本地频道列表失败: {e}")
+
         # 2. 彻底终止MPV播放器（关键修复！）
         if hasattr(self.window, 'player_controller') and self.window.player_controller:
             try:

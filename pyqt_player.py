@@ -995,6 +995,7 @@ class IPTVPlayer(QMainWindow):
 
         self._sub_channels = []
         self._local_channels = []
+        self._local_channels_dirty = False
         self._sub_groups = [tr("all_channels", "All Channels")]
         self._local_groups = [tr("all_channels", "All Channels")]
 
@@ -3958,6 +3959,7 @@ class IPTVPlayer(QMainWindow):
 
                 app_state.replace_channels(new_channels)
                 self._local_channels = list(new_channels)
+                self._local_channels_dirty = True
 
                 from core.config_manager import ConfigManager
                 config_manager = ConfigManager()
@@ -4072,6 +4074,7 @@ class IPTVPlayer(QMainWindow):
         """将频道添加到本地列表并播放"""
         import copy
         self._local_channels.append(copy.deepcopy(channel))
+        self._local_channels_dirty = True
         new_idx = len(self._local_channels) - 1
         self.playlist_tab.setCurrentIndex(1)
         self._update_groups_for('local')
