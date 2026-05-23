@@ -159,8 +159,8 @@ class AboutDialog(FloatingDialog):
         self.setStyleSheet(AppStyles.dialog_style())
         # 使用线程异步检查版本，不阻塞 UI
         import threading
-        thread = threading.Thread(target=self._check_version_thread, daemon=True)
-        thread.start()
+        self._version_thread = threading.Thread(target=self._check_version_thread, daemon=True)
+        self._version_thread.start()
     
     def _check_version_thread(self):
         """在线程中检查版本（不阻塞 UI）"""
@@ -200,8 +200,11 @@ class AboutDialog(FloatingDialog):
         """在主线程中更新版本显示"""
         from core.log_manager import global_logger as logger
         logger.debug(f"更新 UI 版本号：{self._latest_version_result}")
-        if hasattr(self, 'latest_version_value'):
-            self.latest_version_value.setText(self._latest_version_result)
+        try:
+            if hasattr(self, 'latest_version_value'):
+                self.latest_version_value.setText(self._latest_version_result)
+        except RuntimeError:
+            pass
 
     async def _get_latest_version(self):
         tr = self.language_manager.tr
