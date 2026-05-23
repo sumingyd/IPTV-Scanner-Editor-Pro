@@ -2538,25 +2538,6 @@ class IPTVPlayer(QMainWindow):
             channel_name = self.original_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel"))
             title = self.catchup_program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))
 
-            total_time = self.player_controller.get_total_time() if self.player_controller else 0
-            current_pos = self.player_controller.get_current_time() if self.player_controller else 0
-
-            if total_time > 0 and self.player_controller:
-                offset = position - current_pos
-                if abs(offset) < 1:
-                    return
-                if 0 <= position <= total_time:
-                    logger.info(f"时移seek -> position={position:.1f}s, offset={offset:.1f}s, total={total_time:.1f}s")
-                    self.player_controller.seek_absolute(float(position))
-                    self._pending_catchup_progress = position
-                    self._disable_progress_auto_update = True
-                    return
-            elif self.player_controller and self.player_controller.is_playing:
-                from PyQt6.QtCore import QTimer
-                self._pending_seek_position = position
-                QTimer.singleShot(500, self._deferred_catchup_seek)
-                return
-
             catchup_source = self.original_channel.get('catchup_source', '')
             catchup_type = (self.original_channel.get('catchup', '') or '').lower().strip()
 
@@ -2574,6 +2555,7 @@ class IPTVPlayer(QMainWindow):
 
             from datetime import timedelta, datetime
             new_start_time = start_time + timedelta(seconds=position)
+            now = datetime.now()
 
             if new_start_time >= end_time:
                 ch_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
@@ -2597,27 +2579,40 @@ class IPTVPlayer(QMainWindow):
                         position = (new_start_time - start_time).total_seconds()
                         new_start_time = start_time + timedelta(seconds=position)
                         logger.info(f"时移跨节目 -> 新节目 {start_time}~{end_time}, position={position:.0f}s")
-                if new_start_time >= end_time:
-                    now = datetime.now()
-                    new_start_time = min(new_start_time, now - timedelta(seconds=5))
-                    end_time = now
-                    logger.info(f"时移超节目范围 -> 限制到 {new_start_time}~{end_time}")
 
-            catchup_url = self.catchup_ctrl.build_catchup_url(self.original_channel, new_start_time, end_time)
+            new_end_time = end_time
+            if new_start_time >= new_end_time:
+                new_start_time = min(new_start_time, now - timedelta(seconds=5))
+                new_end_time = max(new_end_time, now)
+                logger.info(f"时移超范围 -> 限制到 {new_start_time}~{new_end_time}")
 
-            logger.info(f"时移重新构建URL -> new_start={new_start_time}, url={catchup_url}")
+            if new_end_time - new_start_time < timedelta(seconds=30):
+                new_end_time = new_start_time + timedelta(minutes=30)
+                logger.info(f"时移窗口过短 -> 扩展endTime到 {new_end_time}")
+
+            catchup_url = self.catchup_ctrl.build_catchup_url(self.original_channel, new_start_time, new_end_time)
+
+            logger.info(f"时移重新构建URL -> new_start={new_start_time}, end={new_end_time}, url={catchup_url}")
 
             catchup_msg = self.language_manager.tr('catchup_playing', '正在回看: {name}')
             self.status_bar.showMessage(f"{catchup_msg.format(name=channel_name)} - {title}")
 
             self._pending_catchup_progress = position
 
-            import time
-            self._catchup_start_time = time.time()
+            import time as _time
+            self._catchup_start_time = _time.time()
             self._catchup_start_progress = position
 
             self._disable_progress_auto_update = True
-            logger.debug(f"禁用进度条自动更新，等待播放位置达到目标值")
+
+            self.catchup_program['start'] = new_start_time
+            self.catchup_program['end'] = new_end_time
+            self._progress_program_start = new_start_time
+            self._progress_program_end = new_end_time
+            total_duration = int((new_end_time - new_start_time).total_seconds())
+            if total_duration > 0:
+                self._set_progress_range(total_duration)
+                self._set_progress_value(0)
 
             if hasattr(self, 'player_controller') and self.player_controller:
                 self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
@@ -2626,17 +2621,7 @@ class IPTVPlayer(QMainWindow):
             self.status_bar.showMessage(self.language_manager.tr("catchup_seek_error", "Catchup seek failed"))
 
     def _deferred_catchup_seek(self):
-        position = getattr(self, '_pending_seek_position', 0)
-        if position <= 0:
-            return
-        total_time = self.player_controller.get_total_time() if self.player_controller else 0
-        if total_time > 0 and 0 <= position <= total_time:
-            logger.info(f"延迟时移seek -> position={position:.1f}s, total={total_time:.1f}s")
-            self.player_controller.seek_absolute(float(position))
-            self._pending_catchup_progress = position
-            self._disable_progress_auto_update = True
-        else:
-            logger.debug(f"延迟时移seek跳过 -> position={position:.1f}s, total={total_time:.1f}s")
+        pass
     
     def on_group_changed(self, group_name):
         """处理分组切换事件（委托给ChannelController）"""
