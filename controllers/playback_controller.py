@@ -52,10 +52,10 @@ class PlaybackController:
             else:
                 self.window.video_placeholder.setText("")
 
-        self._reset_ui_to_initial_state()
-
         self.current_channel = None
         self.window.play_state.set_idle()
+
+        self._reset_ui_to_initial_state()
 
         if hasattr(self.window, 'language_manager'):
             tr = self.window.language_manager.tr
