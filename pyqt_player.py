@@ -1463,20 +1463,10 @@ class IPTVPlayer(QMainWindow):
         self._check_for_updates_async()
     
     def _populate_channel_list(self, source='subscription'):
-        """填充频道列表（带防重复机制）"""
-        import time
-        current_time = time.time()
-        if hasattr(self, '_last_populate_time') and current_time - self._last_populate_time < 0.5:
-            logger.debug(f"_populate_channel_list: 跳过重复调用（距上次{current_time - self._last_populate_time:.2f}秒）")
-            return
-        self._last_populate_time = current_time
-
+        """填充频道列表（带EPG刷新）"""
         logger.debug("_populate_channel_list: 开始")
-
         self.populate_channel_list(source=source)
-
         self._populate_epg_list()
-
         logger.debug("_populate_channel_list: 完成")
     
     def _populate_epg_list(self):
@@ -1839,12 +1829,19 @@ class IPTVPlayer(QMainWindow):
         self.subscription_ctrl.update_channel_groups()
 
     def populate_channel_list(self, source='subscription'):
-        """填充频道列表
+        """填充频道列表（内置防抖）
 
         Args:
             source: 'subscription' 填充订阅标签, 'local' 填充本地标签,
                     'auto' 自动判断（默认填充当前活跃标签）
         """
+        import time
+        current_time = time.time()
+        if hasattr(self, '_last_populate_time') and current_time - self._last_populate_time < 0.5:
+            logger.debug(f"populate_channel_list: 跳过重复调用（距上次{current_time - self._last_populate_time:.2f}秒）")
+            return
+        self._last_populate_time = current_time
+
         if source == 'auto':
             if not hasattr(self, 'playlist_tab'):
                 source = 'subscription'
