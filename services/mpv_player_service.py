@@ -300,8 +300,6 @@ class MpvPlayerController(QObject):
             self._reset_demuxer_options()
             return
 
-        self._reset_demuxer_options()
-
         settings = self._playback_settings
 
         is_vod = ('playseek' in u or 'starttime=' in u or 'endtime=' in u or

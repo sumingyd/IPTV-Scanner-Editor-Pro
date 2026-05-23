@@ -2536,6 +2536,26 @@ class IPTVPlayer(QMainWindow):
 
         try:
             channel_name = self.original_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel"))
+            title = self.catchup_program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))
+
+            seek_range = self.player_controller.get_available_seek_range() if self.player_controller else {}
+            buffer_start = seek_range.get('buffer_start', 0)
+            buffer_end = seek_range.get('buffer_end', 0)
+            cache_duration = seek_range.get('cache_duration', 0)
+
+            current_pos = self.player_controller.get_current_time() if self.player_controller else 0
+
+            if cache_duration > 2 and buffer_end > 1:
+                offset = position - current_pos
+                if abs(offset) < 1:
+                    return
+                if position >= buffer_start and position <= buffer_end:
+                    logger.info(f"时移seek -> position={position:.1f}s, offset={offset:.1f}s, buffer={buffer_start:.1f}s~{buffer_end:.1f}s")
+                    self.player_controller.seek_absolute(float(position))
+                    self._pending_catchup_progress = position
+                    self._disable_progress_auto_update = True
+                    return
+
             catchup_source = self.original_channel.get('catchup_source', '')
             catchup_type = (self.original_channel.get('catchup', '') or '').lower().strip()
 
@@ -2545,7 +2565,6 @@ class IPTVPlayer(QMainWindow):
 
             start_time = self.catchup_program.get('start')
             end_time = self.catchup_program.get('end')
-            title = self.catchup_program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))
 
             if not (start_time and end_time):
                 logger.error("回看节目信息不完整")
@@ -2557,7 +2576,7 @@ class IPTVPlayer(QMainWindow):
 
             catchup_url = self.catchup_ctrl.build_catchup_url(self.original_channel, new_start_time, end_time)
 
-            logger.debug(f"构建新的回看URL: {catchup_url}")
+            logger.info(f"时移重新构建URL -> new_start={new_start_time}, url={catchup_url}")
 
             catchup_msg = self.language_manager.tr('catchup_playing', '正在回看: {name}')
             self.status_bar.showMessage(f"{catchup_msg.format(name=channel_name)} - {title}")
