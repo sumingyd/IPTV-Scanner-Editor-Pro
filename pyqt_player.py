@@ -298,6 +298,7 @@ class IPTVPlayer(QMainWindow):
         self.progress_ctrl = ProgressController(self)
         self.channel_model = ChannelListModel()
         self.current_channel = None
+        self.original_channel: Optional[Dict[str, Any]] = None
 
         self._floating_hidden = False
         self._suppress_volume_osd = False
@@ -693,8 +694,6 @@ class IPTVPlayer(QMainWindow):
         self.setStatusBar(self.status_bar)
         self.status_bar.setStyleSheet(AppStyles.statusbar_style())
         self.status_bar_show_message(self.language_manager.tr("ready", "Ready"))
-        
-        self.original_channel: Optional[Dict[str, Any]] = None
         
         logger.debug("_create_status_bar: 完成")
     
