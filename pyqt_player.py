@@ -2036,6 +2036,7 @@ class IPTVPlayer(QMainWindow):
         """异步分批加载可见区域的台标/缩略图"""
         if not hasattr(self, '_icon_load_queue'):
             self._icon_load_queue = []
+            self._icon_load_set = set()
             self._icon_load_timer = QTimer(self)
             self._icon_load_timer.setInterval(16)
             self._icon_load_timer.timeout.connect(self._process_icon_load_batch)
@@ -2076,12 +2077,18 @@ class IPTVPlayer(QMainWindow):
                 if self.player_controller and ch_url:
                     thumb_path = self.player_controller.get_thumbnail_path(ch_url)
                     if thumb_path:
-                        queue_items.append(('grid_thumb', item, thumb_path, None))
+                        dedupe_key = ('grid_thumb', i)
+                        if dedupe_key not in self._icon_load_set:
+                            queue_items.append(('grid_thumb', item, thumb_path, None))
+                            self._icon_load_set.add(dedupe_key)
                         continue
                 if logo_url:
                     cached = self._logo_cache_service.get(logo_url)
                     if cached:
-                        queue_items.append(('grid_logo', item, None, cached))
+                        dedupe_key = ('grid_logo', i)
+                        if dedupe_key not in self._icon_load_set:
+                            queue_items.append(('grid_logo', item, None, cached))
+                            self._icon_load_set.add(dedupe_key)
                     else:
                         self._logo_cache_service.fetch_async(logo_url)
                 if ch_url:
@@ -2098,7 +2105,10 @@ class IPTVPlayer(QMainWindow):
                 if logo_url:
                     cached = self._logo_cache_service.get(logo_url)
                     if cached:
-                        queue_items.append(('list_logo', item, logo_label, cached))
+                        dedupe_key = ('list_logo', i)
+                        if dedupe_key not in self._icon_load_set:
+                            queue_items.append(('list_logo', item, logo_label, cached))
+                            self._icon_load_set.add(dedupe_key)
                     else:
                         self._logo_cache_service.fetch_async(logo_url)
 
@@ -2119,6 +2129,8 @@ class IPTVPlayer(QMainWindow):
         batch_size = 3
         for _ in range(batch_size):
             if not self._icon_load_queue:
+                if hasattr(self, '_icon_load_set'):
+                    self._icon_load_set.clear()
                 break
             task = self._icon_load_queue.pop(0)
             try:
