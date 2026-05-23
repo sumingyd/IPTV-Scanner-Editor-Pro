@@ -703,7 +703,6 @@ class SettingsFileOperations:
             else:
                 channels = []
 
-            self.window.channels = channels
             self.window._local_channels = list(channels)
             self.window._local_channels_dirty = True
             app_state.replace_channels(channels)
