@@ -1941,8 +1941,7 @@ class IPTVPlayer(QMainWindow):
         all_channels_text = self.language_manager.tr("all_channels", "All Channels")
         is_all_channels = (
             not selected_group or
-            selected_group.lower() == all_channels_text.lower() or
-            selected_group.lower() == 'all channels'
+            selected_group.lower() == all_channels_text.lower()
         )
 
         added_count = 0
