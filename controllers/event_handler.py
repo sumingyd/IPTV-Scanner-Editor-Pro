@@ -317,8 +317,8 @@ class EventHandler:
     def showEvent(self, event):
         """窗口首次显示后，延迟定位悬浮窗"""
         if hasattr(self.window, 'showEvent'):
-            orig_show = type(self.window).__bases__[0].showEvent
-            orig_show(self.window, event)
+            from PyQt6.QtWidgets import QMainWindow
+            QMainWindow.showEvent(self.window, event)
 
         has_panels = (hasattr(self.window, 'epg_dock') and self.window.epg_dock and
                       hasattr(self.window, 'playlist_dock') and self.window.playlist_dock and
@@ -369,9 +369,9 @@ class EventHandler:
         """窗口状态变化事件"""
         if hasattr(self.window, 'changeEvent'):
             try:
-                orig_change = type(self.window).__bases__[0].changeEvent
-                orig_change(self.window, event)
-            except (IndexError, AttributeError, TypeError):
+                from PyQt6.QtWidgets import QMainWindow
+                QMainWindow.changeEvent(self.window, event)
+            except (AttributeError, TypeError):
                 pass
 
         if event.type() == QEvent.Type.ActivationChange:
