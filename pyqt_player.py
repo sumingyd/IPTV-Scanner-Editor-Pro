@@ -66,6 +66,8 @@ class VideoOverlayBadge(QWidget):
         self._mode = self.MODE_CATCHUP
         self._label_text = ''
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setAttribute(Qt.WidgetAttribute.WA_NativeWindow)
+        self.setAttribute(Qt.WidgetAttribute.WA_DontCreateNativeAncestors)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._font = QFont()
@@ -3424,6 +3426,7 @@ class IPTVPlayer(QMainWindow):
                 if not self._video_overlay_label.isVisible():
                     self._video_overlay_label.show()
                     self._update_video_overlay_position()
+                self._video_overlay_label.raise_()
             else:
                 if self._video_overlay_label.isVisible():
                     self._video_overlay_label.hide()
@@ -3459,6 +3462,8 @@ class IPTVPlayer(QMainWindow):
         fw = self.video_frame.width()
         fh = self.video_frame.height()
         self._video_overlay_label.setGeometry(12, fh - h - 12, w, h)
+        if self._video_overlay_label.isVisible():
+            self._video_overlay_label.raise_()
 
         self._position_floating_docks()
 
