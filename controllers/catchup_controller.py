@@ -40,10 +40,13 @@ class CatchupController:
         self.window.play_state.mode = mode
         self.window._live_timeshift_seconds = 0
 
-    def _clear_catchup_state(self):
+    def _clear_catchup_state(self, set_state='idle'):
         self._original_channel = None
         self._catchup_program = None
-        self.window.play_state.set_idle()
+        if set_state == 'live':
+            self.window.play_state.set_live()
+        elif set_state == 'idle':
+            self.window.play_state.set_idle()
         self.window._live_timeshift_seconds = 0
         self.window.catchup_program = None
 

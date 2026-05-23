@@ -204,7 +204,7 @@ class PlaybackController:
     def _exit_catchup_mode(self):
         catchup_ctrl = getattr(self.window, 'catchup_ctrl', None)
         if catchup_ctrl:
-            catchup_ctrl._clear_catchup_state()
+            catchup_ctrl._clear_catchup_state(set_state='live')
 
         if hasattr(self.window, 'exit_catchup_button'):
             self.window.exit_catchup_button.hide()
