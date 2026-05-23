@@ -99,7 +99,7 @@ class ChannelController:
         self.window.channel_name.setText(display_name)
 
         if self.window.channel_logo:
-            logo_url = channel.get('logo_url')
+            logo_url = channel.get('logo') or channel.get('logo_url')
             if not logo_url:
                 self.window.channel_logo.setText("")
 

@@ -157,7 +157,7 @@ class ScannerController(QObject):
                         'resolution': resolution,
                         'status': '有效' if valid else '无效',
                         'group': '未分类',
-                        'logo_url': None,
+                        'logo': None,
                         'needs_details': False
                     }
 
@@ -276,7 +276,7 @@ class ScannerController(QObject):
                 'resolution': result.get('resolution', ''),
                 'status': '有效' if valid else '无效',
                 'group': '未分类',  # 默认分组，异步线程中更新
-                'logo_url': None,   # 默认无logo，异步线程中更新
+                'logo': None,   # 默认无logo，异步线程中更新
                 'needs_details': False  # 重要：这里设为False，异步线程中再决定是否需要获取详情
             }
 
@@ -296,7 +296,7 @@ class ScannerController(QObject):
                 'resolution': result.get('resolution', ''),
                 'status': '有效' if valid else '无效',
                 'group': '未分类',
-                'logo_url': None,
+                'logo': None,
                 'error': str(e),
                 'needs_details': False
             }
@@ -346,7 +346,7 @@ class ScannerController(QObject):
                     # 更新logo
                     logo_url = mapped_info.get('logo_url')
                     if logo_url and isinstance(logo_url, str) and logo_url.strip():
-                        updated_info['logo_url'] = logo_url.strip()
+                        updated_info['logo'] = logo_url.strip()
 
                     # 更新分辨率（从映射文件中获取）
                     if mapped_info.get('resolution'):

@@ -757,7 +757,7 @@ class SettingsFileOperations:
                 name = ch.get('name', '')
                 url = ch.get('url', '')
                 group = ch.get('group', '')
-                logo = ch.get('logo_url', '')
+                logo = ch.get('logo', ch.get('logo_url', ''))
                 tags = ch.get('_all_tags', {}) or {}
                 tvg_id = ch.get('tvg_id', '')
                 tvg_name = tags.get('tvg-name', '')

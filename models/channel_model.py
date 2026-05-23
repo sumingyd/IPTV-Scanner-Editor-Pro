@@ -30,7 +30,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         COL_RESOLUTION: 'resolution',
         COL_URL: 'url',
         COL_GROUP: 'group',
-        COL_LOGO: 'logo_url',
+        COL_LOGO: 'logo',
         COL_STATUS: 'status',
         COL_LATENCY: 'latency',
         COL_TVG_ID: 'tvg_id',
@@ -258,7 +258,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         if actual_col == 0:
             return str(row + 1)
         if actual_col == 5:
-            return channel.get('logo_url', channel.get('logo', ''))
+            return channel.get('logo', channel.get('logo_url', ''))
         if actual_col == 7:
             latency = channel.get('latency', '')
             return str(latency) if latency != '' else ''
@@ -600,8 +600,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 catchup_source = channel.get('catchup_source', '')
 
             # 直接使用频道列表中已有的logo数据，而不是重新调用映射函数
-            # 频道列表显示时已经加载了映射后的logo地址，保存在logo_url或logo字段中
-            logo_url = channel.get('logo_url') or logo
+            # 频道列表显示时已经加载了映射后的logo地址，保存在logo或logo_url字段中
+            logo_url = channel.get('logo') or channel.get('logo_url') or logo
 
             # 如果频道列表中没有logo数据，再尝试调用映射函数获取
             if not logo_url:
@@ -691,7 +691,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             channel_name = channel.get('name', '')
             group = channel.get('group', '未分类')
             tvg_id = channel.get('tvg_id', '')
-            logo_url = channel.get('logo_url') or channel.get('logo', '')
+            logo_url = channel.get('logo') or channel.get('logo_url', '')
             tvg_chno = channel.get('tvg_chno', '')
             tvg_shift = channel.get('tvg_shift', '')
             catchup = channel.get('catchup', '')
@@ -771,7 +771,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                     channel.get('name', '未命名'),
                     channel.get('url', ''),
                     channel.get('group', '未分类'),
-                    channel.get('logo_url', channel.get('logo', '')),
+                    channel.get('logo', channel.get('logo_url', '')),
                     channel.get('resolution', ''),
                     channel.get('status', '待检测'),
                     channel.get('latency', '')
@@ -812,7 +812,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                         'name': str(row[0]) if row[0] else '未命名',
                         'url': str(row[1]) if row[1] else '',
                         'group': str(row[2]) if len(row) > 2 and row[2] else '未分类',
-                        'logo_url': str(row[3]) if len(row) > 3 and row[3] else '',
                         'logo': str(row[3]) if len(row) > 3 and row[3] else '',
                         'resolution': str(row[4]) if len(row) > 4 and row[4] else '',
                         'status': str(row[5]) if len(row) > 5 and row[5] else '待检测',
@@ -1409,7 +1408,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             self.channels.sort(key=lambda x: self._natural_sort_key(x.get('group', '')),
                                reverse=(order == QtCore.Qt.SortOrder.DescendingOrder))
         elif column == 5:  # Logo地址
-            self.channels.sort(key=lambda x: self._natural_sort_key(x.get('logo_url', x.get('logo', ''))),
+            self.channels.sort(key=lambda x: self._natural_sort_key(x.get('logo', x.get('logo_url', ''))),
                                reverse=(order == QtCore.Qt.SortOrder.DescendingOrder))
         elif column == 6:  # 状态
             self.channels.sort(key=lambda x: self._get_status_value(x.get('status', '')),
