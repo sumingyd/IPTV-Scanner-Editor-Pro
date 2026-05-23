@@ -3391,9 +3391,6 @@ class IPTVPlayer(QMainWindow):
         if not self.player_controller or not self.current_channel:
             return
 
-        if hasattr(self.player_controller, '_heartbeat'):
-            self.player_controller._heartbeat()
-
         import time as _time
         now = _time.monotonic()
         if now - getattr(self, '_last_epg_refresh', 0) >= 30:
