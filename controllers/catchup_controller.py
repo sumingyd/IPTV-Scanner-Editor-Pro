@@ -304,7 +304,7 @@ class CatchupController:
         if hasattr(self.window, 'exit_catchup_button') and self.window.exit_catchup_button:
             try:
                 tr = getattr(self.window.language_manager, 'tr', lambda x, y: x)
-                self.window.exit_catchup_button.setText(tr("exit_catchup", "⏪ 退出回看"))
+                self.window.exit_catchup_button.setText(tr("exit_catchup", "退出回看"))
                 self.window.exit_catchup_button.show()
                 self.window.exit_catchup_button.raise_()
                 logger.debug("退出回看按钮已显示")
@@ -343,7 +343,7 @@ class CatchupController:
         if hasattr(self.window, 'exit_catchup_button') and self.window.exit_catchup_button:
             try:
                 tr = getattr(self.window.language_manager, 'tr', lambda x, y: x)
-                self.window.exit_catchup_button.setText(tr("exit_timeshift", "⏪ 退出时移"))
+                self.window.exit_catchup_button.setText(tr("exit_timeshift", "退出时移"))
                 self.window.exit_catchup_button.show()
                 self.window.exit_catchup_button.raise_()
                 logger.debug("退出时移按钮已显示")
@@ -373,7 +373,7 @@ class CatchupController:
             self.window.playback_ctrl._exit_catchup_mode()
 
         if hasattr(self.window, 'program_progress') and self.window.program_progress:
-            self._set_progress_range(100)
+            self._set_progress_range(3600)
             self._set_progress_value(0)
 
         channel_name = self.window.current_channel.get("name", "") if self.window.current_channel else ""

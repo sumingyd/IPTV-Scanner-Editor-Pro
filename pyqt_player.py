@@ -4605,6 +4605,14 @@ class IPTVPlayer(QMainWindow):
             'title': f'时移 -{offset_minutes}分钟',
             'desc': '',
         }
+
+        total_duration = int((end_time - start_time).total_seconds())
+        if total_duration > 0:
+            self._set_progress_range(total_duration)
+            self._set_progress_value(0)
+            self._progress_time_mode = 'epg'
+            self._progress_program_start = start_time
+            self._progress_program_end = end_time
         self.original_channel = self.current_channel.copy()
         if hasattr(self, 'catchup_ctrl'):
             self.catchup_ctrl.original_channel = self.current_channel.copy()
@@ -4694,6 +4702,14 @@ class IPTVPlayer(QMainWindow):
             'title': program_title or tr('timeshift_label', '时移'),
             'desc': '',
         }
+
+        total_duration = int((end_time - target_wallclock).total_seconds())
+        if total_duration > 0:
+            self._set_progress_range(total_duration)
+            self._set_progress_value(0)
+            self._progress_time_mode = 'epg'
+            self._progress_program_start = target_wallclock
+            self._progress_program_end = end_time
 
         if self.player_controller:
             self.player_controller.play(timeshift_url, f"{channel_name} (时移 {offset_str})")
