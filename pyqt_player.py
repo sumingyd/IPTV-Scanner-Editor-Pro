@@ -4847,6 +4847,7 @@ class IPTVPlayer(QMainWindow):
             if hasattr(self, attr):
                 setattr(self, attr, False)
 
+        offset_seconds = int((target_wallclock - program_start).total_seconds())
         import time as _time
         self._catchup_start_time = _time.time()
         self._catchup_start_progress = offset_seconds
@@ -4866,7 +4867,6 @@ class IPTVPlayer(QMainWindow):
         }
 
         total_duration = int((end_time - program_start).total_seconds())
-        offset_seconds = int((target_wallclock - program_start).total_seconds())
         if total_duration > 0:
             self._set_progress_range(total_duration)
             self._set_progress_value(offset_seconds)
