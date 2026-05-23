@@ -377,7 +377,9 @@ class MediaController:
         volume_slider = self.window.volume_slider
         if volume_slider:
             volume_slider.setValue(volume)
-        self.window._update_volume_icon(volume)
+        playback_ctrl = getattr(self.window, 'playback_ctrl', None)
+        if playback_ctrl:
+            playback_ctrl._update_volume_icon(volume)
         if not self.is_osd_visible:
             self.window._show_osd_feedback(f"{self.window.language_manager.tr('osd_volume', 'Volume')}: {volume}%")
 

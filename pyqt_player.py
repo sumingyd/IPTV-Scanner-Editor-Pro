@@ -2915,20 +2915,6 @@ class IPTVPlayer(QMainWindow):
                 self._show_osd_feedback(f"{self.language_manager.tr('osd_volume', 'Volume')}: {vol}%")
         self._suppress_volume_osd = False
 
-    def _update_volume_icon(self, volume):
-        """根据音量更新音量图标"""
-        color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
-        if hasattr(self, 'volume_button'):
-            if volume == 0:
-                icon_name = 'volume_mute'
-            elif volume < 50:
-                icon_name = 'volume_low'
-            else:
-                icon_name = 'volume'
-            icon_path = AppStyles.get_icon(icon_name, color)
-            if icon_path:
-                self.volume_button.setIcon(QIcon(icon_path))
-
     def _show_osd_feedback(self, text: str):
         """在视频上显示短暂的OSD反馈提示"""
         if hasattr(self, 'player_controller') and self.player_controller:
