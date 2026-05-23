@@ -359,6 +359,28 @@ class ChannelMappingManager:
             self._save_user_mappings()
             self.logger.info(f"移除用户映射条目: {raw_name} -> {standard_name}")
 
+    def import_user_mappings(self, mappings: Dict[str, dict]):
+        """批量导入用户自定义映射"""
+        for std_name, data in mappings.items():
+            if std_name not in self.user_mappings:
+                self.user_mappings[std_name] = {
+                    'raw_names': list(data.get('raw_names', [])),
+                    'logo_url': data.get('logo_url'),
+                    'group_name': data.get('group_name')
+                }
+            else:
+                for raw_name in data.get('raw_names', []):
+                    if raw_name not in self.user_mappings[std_name]['raw_names']:
+                        self.user_mappings[std_name]['raw_names'].append(raw_name)
+                if data.get('logo_url'):
+                    self.user_mappings[std_name]['logo_url'] = data['logo_url']
+                if data.get('group_name'):
+                    self.user_mappings[std_name]['group_name'] = data['group_name']
+        self.combined_mappings = self._combine_mappings()
+        self.reverse_mappings = create_reverse_mappings(self.combined_mappings)
+        self._save_user_mappings()
+        self.logger.info(f"批量导入用户映射: {len(mappings)} 条")
+
     def create_channel_fingerprint(self, url: str, channel_info: dict) -> str:
         """创建频道指纹"""
         # 使用URL和频道信息创建唯一指纹

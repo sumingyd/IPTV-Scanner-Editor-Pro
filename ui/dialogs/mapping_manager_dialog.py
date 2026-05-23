@@ -450,11 +450,7 @@ class MappingManagerDialog(FloatingDialog):
                             'logo_url': row.get('logo_url', '').strip(),
                             'group_name': row.get('group_name', '').strip()
                         }
-                mapping_manager.user_mappings.update(imported)
-                mapping_manager._save_user_mappings()
-                mapping_manager.combined_mappings = mapping_manager._combine_mappings()
-                from models.channel_mappings import create_reverse_mappings
-                mapping_manager.reverse_mappings = create_reverse_mappings(mapping_manager.combined_mappings)
+                mapping_manager.import_user_mappings(imported)
                 self.load_user_mappings()
                 show_info(
                     self._tr('success', 'Success'),
