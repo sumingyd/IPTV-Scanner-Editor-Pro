@@ -727,6 +727,11 @@ class SettingsFileOperations:
             if hasattr(self.window, 'populate_channel_list'):
                 self.window.populate_channel_list(source='local')
 
+            from core.config_manager import ConfigManager
+            ConfigManager().add_recent_file(file_path)
+            if hasattr(self.window, 'update_recent_files_menu'):
+                self.window.update_recent_files_menu()
+
             logger.info(f"成功加载播放列表: {file_path}, 共 {len(channels)} 个频道")
         except Exception as e:
             logger.error(f"加载播放列表失败: {e}")

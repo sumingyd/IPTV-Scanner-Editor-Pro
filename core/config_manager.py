@@ -537,11 +537,17 @@ class ConfigManager(Singleton):
 
     def save_recent_files(self, recent_files):
         """保存最近打开的文件列表"""
-        # 限制最近打开文件的数量为10个
         recent_files = recent_files[:10]
+        old_count = int(self.get_value('RecentFiles', 'count', '0') or '0')
         self.set_value('RecentFiles', 'count', str(len(recent_files)))
         for i, file_path in enumerate(recent_files):
             self.set_value('RecentFiles', f'file_{i}', file_path)
+        with self._lock:
+            for i in range(len(recent_files), old_count + 5):
+                try:
+                    self.config.remove_option('RecentFiles', f'file_{i}')
+                except (configparser.NoSectionError, configparser.NoOptionError):
+                    pass
         return self.save_config()
     
     def load_recent_files(self):

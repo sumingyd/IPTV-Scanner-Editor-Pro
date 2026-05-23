@@ -3935,11 +3935,73 @@ class IPTVPlayer(QMainWindow):
                 self.recent_menu.addAction(action)
     
     def open_recent_file(self, file_path):
+        import os
+        from core.config_manager import ConfigManager
+        config_manager = ConfigManager()
+        tr = self.language_manager.tr
 
+        VIDEO_EXTS = {'.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.webm'}
+
+        def _handle_not_found():
+            config_manager.remove_recent_file(file_path)
+            self.update_recent_files_menu()
+            self.status_bar.showMessage(tr('file_not_found', 'File not found, removed from recent list'))
+            logger.warning(f"最近文件不存在，已从列表移除: {file_path}")
+
+        def _handle_url():
+            from controllers.subscription_controller import SubscriptionController
+            sub_ctrl = self.subscription_ctrl if hasattr(self, 'subscription_ctrl') and self.subscription_ctrl else None
+            if sub_ctrl:
+                content = sub_ctrl._download_subscription_content(file_path)
+                if content:
+                    self._apply_m3u_content(content, file_path)
+                    config_manager.add_recent_file(file_path)
+                    self.update_recent_files_menu()
+                else:
+                    self.status_bar.showMessage(tr("download_failed", "下载失败"))
+                    logger.warning(f"下载最近链接失败: {file_path}")
+            else:
+                self.status_bar.showMessage(tr("download_failed", "下载失败"))
+
+        def _handle_local_video():
+            if not os.path.isfile(file_path):
+                _handle_not_found()
+                return
+            name = os.path.splitext(os.path.basename(file_path))[0]
+            channel = {
+                'name': name,
+                'url': file_path,
+                'group': tr("local_video", "本地视频"),
+                '_groups': [tr("local_video", "本地视频")],
+            }
+            self._add_to_local_list(channel)
+            config_manager.add_recent_file(file_path)
+            self.update_recent_files_menu()
+
+        def _handle_local_playlist():
+            try:
+                from services.m3u_parser import load_m3u_file
+                content = load_m3u_file(file_path)
+                self._apply_m3u_content(content, file_path)
+                config_manager.add_recent_file(file_path)
+                self.update_recent_files_menu()
+            except FileNotFoundError:
+                _handle_not_found()
+            except Exception as ex:
+                logger.error(f"打开最近文件失败: {str(ex)}")
+                self.status_bar.showMessage(f"{tr('file_open_failed', 'Failed to open file')}: {str(ex)}")
+
+        if file_path.startswith('http'):
+            _handle_url()
+        elif os.path.splitext(file_path)[1].lower() in VIDEO_EXTS:
+            _handle_local_video()
+        else:
+            _handle_local_playlist()
+
+    def _apply_m3u_content(self, content, file_path):
+        """将M3U内容应用到频道列表（供open_recent_file复用）"""
+        tr = self.language_manager.tr
         try:
-            from services.m3u_parser import load_m3u_file
-            content = load_m3u_file(file_path)
-
             if self.channel_model.load_from_file(content):
                 self.channel_model._source_file_path = file_path
                 new_channels = []
@@ -3967,11 +4029,6 @@ class IPTVPlayer(QMainWindow):
                 self._local_channels = list(new_channels)
                 self._local_channels_dirty = True
 
-                from core.config_manager import ConfigManager
-                config_manager = ConfigManager()
-                config_manager.add_recent_file(file_path)
-                self.update_recent_files_menu()
-
                 if app_state.channel_count > 0:
                     self.current_channel = app_state.get_channel_by_index(0)
                     display_name = self._get_display_channel_name(self.current_channel)
@@ -3980,19 +4037,13 @@ class IPTVPlayer(QMainWindow):
                 if hasattr(self, 'playlist_tab'):
                     self.playlist_tab.setCurrentIndex(1)
                 self.populate_channel_list(source='local')
-                self.status_bar.showMessage(f"{self.language_manager.tr('file_opened', 'File opened')}: {file_path}")
+                self.status_bar.showMessage(f"{tr('file_opened', 'File opened')}: {file_path}")
                 logger.info(f"成功打开最近文件: {file_path}, 共 {app_state.channel_count} 个频道")
             else:
-                self.status_bar.showMessage(self.language_manager.tr("file_format_error"))
-        except FileNotFoundError:
-            from core.config_manager import ConfigManager
-            ConfigManager().remove_recent_file(file_path)
-            self.update_recent_files_menu()
-            self.status_bar.showMessage(self.language_manager.tr('file_not_found', 'File not found, removed from recent list'))
-            logger.warning(f"最近文件不存在，已从列表移除: {file_path}")
+                self.status_bar.showMessage(tr("file_format_error"))
         except Exception as ex:
-            logger.error(f"打开最近文件失败: {str(ex)}")
-            self.status_bar.showMessage(f"{self.language_manager.tr('file_open_failed', 'Failed to open file')}: {str(ex)}")
+            logger.error(f"应用M3U内容失败: {str(ex)}")
+            self.status_bar.showMessage(f"{tr('file_open_failed', 'Failed to open file')}: {str(ex)}")
     
     def open_playlist(self):
         """打开播放列表（委托给SettingsFileOperations）"""
@@ -4055,6 +4106,9 @@ class IPTVPlayer(QMainWindow):
                     '_groups': [tr("temp_stream", "临时串流")],
                 }
                 self._add_to_local_list(channel)
+                from core.config_manager import ConfigManager
+                ConfigManager().add_recent_file(url)
+                self.update_recent_files_menu()
 
     def _open_video_file(self):
         """打开本地视频文件"""
@@ -4067,6 +4121,7 @@ class IPTVPlayer(QMainWindow):
         )
         if file_path:
             import os
+            from core.config_manager import ConfigManager
             name = os.path.splitext(os.path.basename(file_path))[0]
             channel = {
                 'name': name,
@@ -4075,6 +4130,8 @@ class IPTVPlayer(QMainWindow):
                 '_groups': [tr("local_video", "本地视频")],
             }
             self._add_to_local_list(channel)
+            ConfigManager().add_recent_file(file_path)
+            self.update_recent_files_menu()
 
     def _add_to_local_list(self, channel):
         """将频道添加到本地列表并播放"""
