@@ -327,10 +327,10 @@ class MediaController:
         self._current_aspect_idx = (self._current_aspect_idx + 1) % len(self.ASPECT_CYCLE)
         ratio = self.ASPECT_CYCLE[self._current_aspect_idx]
         pc.set_aspect_ratio(ratio)
-        labels = {'default': '📐', '16:9': '16:9', '4:3': '4:3', 'stretch': '↔', 'fill': '⬛'}
+        labels = {'default': 'Auto', '16:9': '16:9', '4:3': '4:3', 'stretch': 'Fill', 'fill': 'Crop'}
         aspect_btn = self.window.aspect_button
         if aspect_btn:
-            aspect_btn.setText(labels.get(ratio, '📐'))
+            aspect_btn.setText(labels.get(ratio, 'Auto'))
         self._save_aspect_ratio(ratio)
 
     def _save_aspect_ratio(self, ratio):
@@ -351,10 +351,10 @@ class MediaController:
             pc = self.window.player_controller
             if pc:
                 pc.set_aspect_ratio(ratio)
-            labels = {'default': '📐', '16:9': '16:9', '4:3': '4:3', 'stretch': '↔', 'fill': '⬛'}
+            labels = {'default': 'Auto', '16:9': '16:9', '4:3': '4:3', 'stretch': 'Fill', 'fill': 'Crop'}
             aspect_btn = self.window.aspect_button
             if aspect_btn:
-                aspect_btn.setText(labels.get(ratio, '📐'))
+                aspect_btn.setText(labels.get(ratio, 'Auto'))
         except Exception as e:
             logger.debug(f"恢复画面比例失败: {e}")
 
@@ -390,10 +390,10 @@ class MediaController:
         if ratio in self.ASPECT_CYCLE:
             self._current_aspect_idx = self.ASPECT_CYCLE.index(ratio)
         pc.set_aspect_ratio(ratio)
-        labels = {'default': '📐', '16:9': '16:9', '4:3': '4:3', 'stretch': '↔', 'fill': '⬛'}
+        labels = {'default': 'Auto', '16:9': '16:9', '4:3': '4:3', 'stretch': 'Fill', 'fill': 'Crop'}
         aspect_btn = self.window.aspect_button
         if aspect_btn:
-            aspect_btn.setText(labels.get(ratio, '📐'))
+            aspect_btn.setText(labels.get(ratio, 'Auto'))
         self._save_aspect_ratio(ratio)
 
     def update_catchup_indicator(self):
