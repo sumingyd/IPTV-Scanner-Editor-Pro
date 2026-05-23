@@ -857,6 +857,7 @@ class IPTVPlayer(QMainWindow):
         self.sub_group_combo = QComboBox()
         self.sub_group_combo.addItems(app_state._channel_groups)
         self.sub_group_combo.setStyleSheet(AppStyles.player_group_combo_style())
+        self.sub_group_combo.setToolTip(tr("channel_group", "频道分组"))
         self.sub_group_combo.currentTextChanged.connect(self.on_sub_group_changed)
         sub_layout.addWidget(self.sub_group_combo)
 
@@ -864,6 +865,7 @@ class IPTVPlayer(QMainWindow):
         self.sub_search_input.setPlaceholderText(tr("search_channel", "搜索频道..."))
         self.sub_search_input.setClearButtonEnabled(True)
         self.sub_search_input.setStyleSheet(AppStyles.player_search_input_style())
+        self.sub_search_input.setToolTip(tr("search_channel", "搜索频道"))
         self.sub_search_input.textChanged.connect(self._on_sub_search_changed)
         sub_layout.addWidget(self.sub_search_input)
 
@@ -879,6 +881,7 @@ class IPTVPlayer(QMainWindow):
         self.sub_view_list_btn.setStyleSheet(AppStyles.player_button_style())
         self.sub_view_list_btn.setCheckable(True)
         self.sub_view_list_btn.setChecked(True)
+        self.sub_view_list_btn.setToolTip(tr("list_view", "列表视图"))
         self.sub_view_list_btn.clicked.connect(lambda: self._set_channel_view_mode('list', 'sub'))
         sub_toolbar_layout.addWidget(self.sub_view_list_btn)
         self.sub_view_grid_btn = QToolButton()
@@ -887,6 +890,7 @@ class IPTVPlayer(QMainWindow):
         self.sub_view_grid_btn.setFixedSize(24, 20)
         self.sub_view_grid_btn.setStyleSheet(AppStyles.player_button_style())
         self.sub_view_grid_btn.setCheckable(True)
+        self.sub_view_grid_btn.setToolTip(tr("grid_view", "网格视图"))
         self.sub_view_grid_btn.clicked.connect(lambda: self._set_channel_view_mode('grid', 'sub'))
         sub_toolbar_layout.addWidget(self.sub_view_grid_btn)
         sub_toolbar_layout.addStretch()
@@ -915,6 +919,7 @@ class IPTVPlayer(QMainWindow):
         self.local_group_combo = QComboBox()
         self.local_group_combo.addItems([tr("all_channels", "All Channels")])
         self.local_group_combo.setStyleSheet(AppStyles.player_group_combo_style())
+        self.local_group_combo.setToolTip(tr("channel_group", "频道分组"))
         self.local_group_combo.currentTextChanged.connect(self.on_local_group_changed)
         local_layout.addWidget(self.local_group_combo)
 
@@ -922,6 +927,7 @@ class IPTVPlayer(QMainWindow):
         self.local_search_input.setPlaceholderText(tr("search_channel", "搜索频道..."))
         self.local_search_input.setClearButtonEnabled(True)
         self.local_search_input.setStyleSheet(AppStyles.player_search_input_style())
+        self.local_search_input.setToolTip(tr("search_channel", "搜索频道"))
         self.local_search_input.textChanged.connect(self._on_local_search_changed)
         local_layout.addWidget(self.local_search_input)
 
@@ -936,6 +942,7 @@ class IPTVPlayer(QMainWindow):
         self.local_view_list_btn.setStyleSheet(AppStyles.player_button_style())
         self.local_view_list_btn.setCheckable(True)
         self.local_view_list_btn.setChecked(True)
+        self.local_view_list_btn.setToolTip(tr("list_view", "列表视图"))
         self.local_view_list_btn.clicked.connect(lambda: self._set_channel_view_mode('list', 'local'))
         local_toolbar_layout.addWidget(self.local_view_list_btn)
         self.local_view_grid_btn = QToolButton()
@@ -944,6 +951,7 @@ class IPTVPlayer(QMainWindow):
         self.local_view_grid_btn.setFixedSize(24, 20)
         self.local_view_grid_btn.setStyleSheet(AppStyles.player_button_style())
         self.local_view_grid_btn.setCheckable(True)
+        self.local_view_grid_btn.setToolTip(tr("grid_view", "网格视图"))
         self.local_view_grid_btn.clicked.connect(lambda: self._set_channel_view_mode('grid', 'local'))
         local_toolbar_layout.addWidget(self.local_view_grid_btn)
         local_toolbar_layout.addStretch()
