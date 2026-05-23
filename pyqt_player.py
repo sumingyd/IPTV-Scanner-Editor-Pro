@@ -2406,7 +2406,7 @@ class IPTVPlayer(QMainWindow):
                 if last_id != program_id:
                     logger.info(f"检测到节目切换，更新UI信息 (last={last_id}, new={program_id})")
                     self._live_timeshift_seconds = 0
-                    desc = current_program.get('description', '') or self.language_manager.tr('no_program_desc', 'No program description')
+                    desc = current_program.get('desc', '') or self.language_manager.tr('no_program_desc', 'No program description')
                     if hasattr(self, 'program_desc') and self.program_desc:
                         self.program_desc.setText(desc)
                     if hasattr(self, 'program_progress'):
@@ -2422,6 +2422,16 @@ class IPTVPlayer(QMainWindow):
             logger.debug("节目切换检测异常: {}".format(e))
     
     def on_progress_slider_released(self):
+        if hasattr(self, '_slider_debounce_timer') and self._slider_debounce_timer is not None:
+            self._slider_debounce_timer.stop()
+        else:
+            from PyQt6.QtCore import QTimer
+            self._slider_debounce_timer = QTimer()
+            self._slider_debounce_timer.setSingleShot(True)
+            self._slider_debounce_timer.timeout.connect(self._do_progress_slider_released)
+        self._slider_debounce_timer.start(200)
+
+    def _do_progress_slider_released(self):
         is_catchup = self.play_state.is_catchup_or_timeshift
         if getattr(self, '_progress_time_mode', None) == 'vod' and not is_catchup:
             self._seek_vod(self._get_progress_seconds())
@@ -3043,6 +3053,14 @@ class IPTVPlayer(QMainWindow):
         if self.player_controller._user_stopped:
             return
         if self.current_channel:
+            if self.play_state.is_catchup_or_timeshift:
+                from core.log_manager import global_logger as logger
+                tr = self.language_manager.tr
+                channel_name = self.current_channel.get('name', '')
+                logger.info(f"时移/回看播放失败，自动退回直播: {channel_name}")
+                self.status_bar_show_message(
+                    f"{tr('timeshift_failed_back_to_live', '时移播放失败，退回直播')}: {channel_name}"
+                )
             self.playback_ctrl.play_channel(self.current_channel)
 
     def on_live_media_info_updated(self, info: Dict[str, Any]):
@@ -4722,7 +4740,7 @@ class IPTVPlayer(QMainWindow):
         if target_wallclock < program_start:
             target_wallclock = program_start
 
-        end_time = min(program_end, now) if program_end else now
+        end_time = program_end if program_end else now
 
         timeshift_url = self.catchup_ctrl.build_catchup_url(self.current_channel, target_wallclock, end_time)
 
