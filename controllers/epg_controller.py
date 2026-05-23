@@ -152,7 +152,7 @@ class EPGController:
         if not filtered_list:
             return None
         import hashlib
-        h = hashlib.md5()
+        h = hashlib.sha256()
         h.update(f"{channel_name}|{target_date}".encode('utf-8'))
         for p in filtered_list:
             h.update(f"|{p.get('start','')}|{p.get('title','')}".encode('utf-8'))

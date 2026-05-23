@@ -370,9 +370,9 @@ class ChannelMappingManager:
             'bitrate': channel_info.get('bitrate', '')
         }
 
-        # 生成MD5哈希作为指纹
+        # 生成SHA256哈希作为指纹
         fingerprint_str = json.dumps(fingerprint_data, sort_keys=True)
-        return hashlib.md5(fingerprint_str.encode()).hexdigest()
+        return hashlib.sha256(fingerprint_str.encode()).hexdigest()
 
     def learn_from_scan_result(self, url: str, raw_name: str, channel_info: dict, mapped_name: str):
         """从扫描结果中学习并完善映射规则 - 优化版本"""
