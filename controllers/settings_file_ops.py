@@ -108,7 +108,12 @@ class SettingsFileOperations:
             self._load_playlist_file(file_path)
 
     def save_as(self):
-        if not self.window.channels:
+        tab = self.window.playlist_tab
+        if tab and tab.currentIndex() == 1:
+            channels = self.window._local_channels
+        else:
+            channels = self.window._sub_channels
+        if not channels:
             QMessageBox.warning(
                 self.window,
                 self._tr("warning", "Warning"),
@@ -734,7 +739,11 @@ class SettingsFileOperations:
     def _save_playlist_file(self, file_path: str):
         tr = self._tr
         try:
-            channels = self.window.channels
+            tab = self.window.playlist_tab
+            if tab and tab.currentIndex() == 1:
+                channels = self.window._local_channels
+            else:
+                channels = self.window._sub_channels
             if file_path.endswith('.m3u') or file_path.endswith('.m3u8'):
                 self._save_as_m3u(channels, file_path)
             elif file_path.endswith('.txt'):
