@@ -4856,18 +4856,19 @@ class IPTVPlayer(QMainWindow):
         else:
             self.original_channel = self.current_channel.copy()
         self.catchup_program = {
-            'start': target_wallclock,
+            'start': program_start,
             'end': end_time,
             'title': program_title or tr('timeshift_label', '时移'),
             'desc': '',
         }
 
-        total_duration = int((end_time - target_wallclock).total_seconds())
+        total_duration = int((end_time - program_start).total_seconds())
         if total_duration > 0:
             self._set_progress_range(total_duration)
-            self._set_progress_value(0)
+            offset_seconds = int((target_wallclock - program_start).total_seconds())
+            self._set_progress_value(offset_seconds)
             self._progress_time_mode = 'epg'
-            self._progress_program_start = target_wallclock
+            self._progress_program_start = program_start
             self._progress_program_end = end_time
 
         if self.player_controller:
