@@ -2538,23 +2538,24 @@ class IPTVPlayer(QMainWindow):
             channel_name = self.original_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel"))
             title = self.catchup_program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))
 
-            seek_range = self.player_controller.get_available_seek_range() if self.player_controller else {}
-            buffer_start = seek_range.get('buffer_start', 0)
-            buffer_end = seek_range.get('buffer_end', 0)
-            cache_duration = seek_range.get('cache_duration', 0)
-
+            total_time = self.player_controller.get_total_time() if self.player_controller else 0
             current_pos = self.player_controller.get_current_time() if self.player_controller else 0
 
-            if cache_duration > 2 and buffer_end > 1:
+            if total_time > 0 and self.player_controller:
                 offset = position - current_pos
                 if abs(offset) < 1:
                     return
-                if position >= buffer_start and position <= buffer_end:
-                    logger.info(f"时移seek -> position={position:.1f}s, offset={offset:.1f}s, buffer={buffer_start:.1f}s~{buffer_end:.1f}s")
+                if 0 <= position <= total_time:
+                    logger.info(f"时移seek -> position={position:.1f}s, offset={offset:.1f}s, total={total_time:.1f}s")
                     self.player_controller.seek_absolute(float(position))
                     self._pending_catchup_progress = position
                     self._disable_progress_auto_update = True
                     return
+            elif self.player_controller and self.player_controller.is_playing:
+                from PyQt6.QtCore import QTimer
+                self._pending_seek_position = position
+                QTimer.singleShot(500, self._deferred_catchup_seek)
+                return
 
             catchup_source = self.original_channel.get('catchup_source', '')
             catchup_type = (self.original_channel.get('catchup', '') or '').lower().strip()
@@ -2623,6 +2624,19 @@ class IPTVPlayer(QMainWindow):
         except Exception as e:
             logger.error(f"重新构建回看 URL 失败：{e}")
             self.status_bar.showMessage(self.language_manager.tr("catchup_seek_error", "Catchup seek failed"))
+
+    def _deferred_catchup_seek(self):
+        position = getattr(self, '_pending_seek_position', 0)
+        if position <= 0:
+            return
+        total_time = self.player_controller.get_total_time() if self.player_controller else 0
+        if total_time > 0 and 0 <= position <= total_time:
+            logger.info(f"延迟时移seek -> position={position:.1f}s, total={total_time:.1f}s")
+            self.player_controller.seek_absolute(float(position))
+            self._pending_catchup_progress = position
+            self._disable_progress_auto_update = True
+        else:
+            logger.debug(f"延迟时移seek跳过 -> position={position:.1f}s, total={total_time:.1f}s")
     
     def on_group_changed(self, group_name):
         """处理分组切换事件（委托给ChannelController）"""
