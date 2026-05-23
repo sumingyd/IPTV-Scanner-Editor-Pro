@@ -1450,8 +1450,8 @@ class IPTVPlayer(QMainWindow):
         logger.debug("_install_event_filters: 完成")
     
     def populate_channel_list_ui(self):
-        """填充频道列表UI（委托给ChannelController）"""
-        self.channel_ctrl.populate_channel_list()
+        """填充频道列表UI（公共方法，用于 QMetaObject.invokeMethod 调用）"""
+        self.populate_channel_list(source='auto')
 
     def populate_epg_list_ui(self):
         """填充EPG列表（公共方法，用于 QMetaObject.invokeMethod 调用）"""

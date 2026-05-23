@@ -251,28 +251,28 @@ class EventHandler:
 
     def _switch_channel(self, direction: int):
         """切换频道（-1=上一个，1=下一个）"""
-        if not hasattr(self.window, 'channel_list'):
-            from core.log_manager import global_logger as logger
-            logger.debug("_switch_channel: channel_list 不存在")
+        if hasattr(self.window, 'playlist_tab') and self.window.playlist_tab:
+            if self.window.playlist_tab.currentIndex() == 1:
+                channel_list = self.window.local_channel_list
+            else:
+                channel_list = self.window.sub_channel_list
+        elif hasattr(self.window, 'channel_list'):
+            channel_list = self.window.channel_list
+        else:
             return
 
-        current_row = self.window.channel_list.currentRow()
-        total_rows = self.window.channel_list.count()
+        current_row = channel_list.currentRow()
+        total_rows = channel_list.count()
 
         if total_rows == 0:
-            from core.log_manager import global_logger as logger
-            logger.debug("_switch_channel: 频道列表为空")
             return
 
         new_row = (current_row + direction) % total_rows
-        self.window.channel_list.setCurrentRow(new_row)
+        channel_list.setCurrentRow(new_row)
 
-        item = self.window.channel_list.currentItem()
-        if item and hasattr(self.window, 'channel_ctrl'):
-            self.window.channel_ctrl.select_channel(item)
-        else:
-            from core.log_manager import global_logger as logger
-            logger.debug(f"_switch_channel: 无法选择频道 item={item} has_ctrl={hasattr(self.window, 'channel_ctrl')}")
+        item = channel_list.currentItem()
+        if item and hasattr(self.window, 'select_channel'):
+            self.window.select_channel(item, source_list=channel_list)
 
     def _adjust_volume(self, delta: int):
         """调整音量（delta为正增大，为负减小）"""

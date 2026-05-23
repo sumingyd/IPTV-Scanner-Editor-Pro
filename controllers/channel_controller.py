@@ -1,11 +1,10 @@
 """
-频道列表控制器 - 负责频道列表的填充、更新、选择等
+频道列表控制器 - 负责频道信息显示、分组切换等
 从 pyqt_player.py 提取的独立模块
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QListWidgetItem
 
 from core.log_manager import global_logger as logger
 from core.application_state import app_state
@@ -14,67 +13,14 @@ from controllers.main_window_protocol import MainWindowProtocol
 
 
 class ChannelController:
-    """频道列表控制器 - 管理频道列表的所有逻辑"""
+    """频道列表控制器 - 管理频道信息显示和分组切换"""
 
     def __init__(self, main_window: MainWindowProtocol):
         self.window: MainWindowProtocol = main_window
 
-    def populate_channel_list(self):
-        """填充频道列表"""
-        if not self.window.channel_list or not self.window.channel_model:
-            return
-
-        self.window.channel_list.clear()
-
-        channels = app_state.channels
-
-        if not channels:
-            logger.debug("频道数据为空，跳过填充")
-            return
-
-        for i, channel in enumerate(channels):
-            item = QListWidgetItem()
-
-            name = channel.get('name', '')
-            group = channel.get('group', '')
-            resolution = channel.get('resolution', '')
-
-            display_text = f"{name}"
-            if resolution:
-                display_text += f" [{resolution}]"
-            if group:
-                display_text += f" - {group}"
-
-            item.setText(display_text)
-            item.setData(Qt.ItemDataRole.UserRole, channel)
-            self.window.channel_list.addItem(item)
-
     def on_group_changed(self, group_name: str):
         """处理分组切换事件"""
         self.window._populate_channel_list(source='auto')
-
-    def select_channel(self, item: QListWidgetItem):
-        """处理频道选择事件"""
-        if not item:
-            return
-
-        channel = item.data(Qt.ItemDataRole.UserRole)
-        if channel is None:
-            return
-
-        if isinstance(channel, int):
-            idx = channel
-            channels = self._get_current_channels()
-            if 0 <= idx < len(channels):
-                channel = channels[idx]
-            else:
-                return
-
-        self.window.current_channel = channel
-        self._update_channel_info(channel)
-
-        self.window.epg_ctrl.populate_epg_list()
-        self.window.playback_ctrl.play_channel(channel)
 
     def _get_current_channels(self):
         """获取当前活跃的频道列表"""
@@ -109,8 +55,8 @@ class ChannelController:
             return
 
         current_item = self.window.channel_list.currentItem()
-        if current_item:
-            self.select_channel(current_item)
+        if current_item and hasattr(self.window, 'select_channel'):
+            self.window.select_channel(current_item)
 
     @property
     def channel_count(self) -> int:
