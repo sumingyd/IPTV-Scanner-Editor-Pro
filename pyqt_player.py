@@ -2605,15 +2605,6 @@ class IPTVPlayer(QMainWindow):
 
             self._disable_progress_auto_update = True
 
-            self.catchup_program['start'] = new_start_time
-            self.catchup_program['end'] = new_end_time
-            self._progress_program_start = new_start_time
-            self._progress_program_end = new_end_time
-            total_duration = int((new_end_time - new_start_time).total_seconds())
-            if total_duration > 0:
-                self._set_progress_range(total_duration)
-                self._set_progress_value(0)
-
             if hasattr(self, 'player_controller') and self.player_controller:
                 self.player_controller.stop()
                 from PyQt6.QtCore import QTimer
