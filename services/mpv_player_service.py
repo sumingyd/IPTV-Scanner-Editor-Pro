@@ -478,7 +478,12 @@ class MpvPlayerController(QObject):
             self._track_list_logged = False
 
             self._setup_protocol_options(url, program_duration)
-            self._set_mpv_string('prefetch-playlist', 'yes')
+            is_vod = 'starttime=' in url.lower() or 'endtime=' in url.lower() or 'playseek' in url.lower()
+            if is_vod:
+                self._set_mpv_string('prefetch-playlist', 'no')
+                self._set_mpv_string('demuxer-cache-wait', 'yes')
+            else:
+                self._set_mpv_string('prefetch-playlist', 'yes')
 
             mpv_url = self._normalize_url(url)
             result = _mpv_send_command(self.mpv_handle, ['loadfile', mpv_url])
