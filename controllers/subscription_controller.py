@@ -43,6 +43,11 @@ class SubscriptionController:
         self._workers = []
         self._last_header_epg_url = None
 
+    def _cleanup_worker(self, worker):
+        """从_workers列表中移除已完成的worker"""
+        if worker in self._workers:
+            self._workers.remove(worker)
+
     def handle_playlist_subscription(self, need_update: bool, playlist_url: str, source_index=None):
         """在后台线程中处理列表订阅（按源索引独立判断）"""
         try:
@@ -244,6 +249,7 @@ class SubscriptionController:
                 self.window
             )
             worker.finished.connect(self._on_subscription_finished)
+            worker.finished.connect(lambda: self._cleanup_worker(worker))
             worker.error.connect(lambda err: logger.error(f"订阅更新错误: {err}"))
             self._workers.append(worker)
             worker.start()
