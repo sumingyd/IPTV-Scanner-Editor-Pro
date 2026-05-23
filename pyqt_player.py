@@ -4,6 +4,8 @@ import re
 import logging
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, Optional
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core.play_state import PlayMode, PlayStateManager
 from core.panel_visibility import PanelVisibilityManager, AutoHideState
 from controllers.progress_controller import ProgressController
@@ -128,7 +130,6 @@ class VideoOverlayBadge(QWidget):
 
 
 # 导入播放器服务
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from services.mpv_player_service import MpvPlayerController
 
 
