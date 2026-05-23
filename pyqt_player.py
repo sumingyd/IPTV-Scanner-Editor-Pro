@@ -4866,9 +4866,9 @@ class IPTVPlayer(QMainWindow):
         }
 
         total_duration = int((end_time - program_start).total_seconds())
+        offset_seconds = int((target_wallclock - program_start).total_seconds())
         if total_duration > 0:
             self._set_progress_range(total_duration)
-            offset_seconds = int((target_wallclock - program_start).total_seconds())
             self._set_progress_value(offset_seconds)
             self._progress_time_mode = 'epg'
             self._progress_program_start = program_start
