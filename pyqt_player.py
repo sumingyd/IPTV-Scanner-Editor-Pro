@@ -2615,7 +2615,9 @@ class IPTVPlayer(QMainWindow):
                 self._set_progress_value(0)
 
             if hasattr(self, 'player_controller') and self.player_controller:
-                self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
+                self.player_controller.stop()
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(300, lambda: self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)"))
         except Exception as e:
             logger.error(f"重新构建回看 URL 失败：{e}")
             self.status_bar.showMessage(self.language_manager.tr("catchup_seek_error", "Catchup seek failed"))
