@@ -283,7 +283,6 @@ class MpvPlayerController(QObject):
             self._set_mpv_string('force-seekable', '')
             self._set_mpv_string('demuxer-seekable-cache', 'no')
             self._set_mpv_string('demuxer-cache-wait', 'no')
-            self._set_mpv_string('hls-playlist-start', '')
             self._set_mpv_string('rtsp-transport', '')
             self.logger.debug("[mpv] 已重置demuxer/cache选项")
         except Exception as e:
@@ -367,9 +366,7 @@ class MpvPlayerController(QObject):
             self._set_mpv_string('force-seekable', 'yes')
             self._set_mpv_string('demuxer-readahead-secs', '120')
 
-            if is_vod:
-                self._set_mpv_string('hls-playlist-start', '0')
-            elif settings.get('hls_start_at_live_edge', False):
+            if settings.get('hls_start_at_live_edge', False):
                 self._set_mpv_string('hls-playlist-start', 'no')
             readahead = settings.get('hls_readahead_secs', 0)
             if readahead > 0:
@@ -481,7 +478,6 @@ class MpvPlayerController(QObject):
             is_vod = 'starttime=' in url.lower() or 'endtime=' in url.lower() or 'playseek' in url.lower()
             if is_vod:
                 self._set_mpv_string('prefetch-playlist', 'no')
-                self._set_mpv_string('demuxer-cache-wait', 'yes')
             else:
                 self._set_mpv_string('prefetch-playlist', 'yes')
 
