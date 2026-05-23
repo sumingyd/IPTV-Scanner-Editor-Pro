@@ -20,16 +20,11 @@ class PlaybackController:
         self._last_program_id = None
 
     def toggle_play(self):
-        if hasattr(self.window, 'player_controller') and self.window.player_controller:
-            pc = self.window.player_controller
-            if pc.is_paused:
-                pc.pause()
-            elif pc.is_playing:
-                pc.pause()
-            elif not pc.is_playing and self.current_channel:
-                url = self.current_channel.get('url', '')
-                if url:
-                    pc.play(url)
+        pc = getattr(self.window, 'player_controller', None)
+        if not pc:
+            return
+        if pc.is_paused or pc.is_playing:
+            pc.pause()
 
     def stop_playback(self):
         if hasattr(self.window, 'player_controller') and self.window.player_controller:
