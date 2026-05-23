@@ -25,6 +25,9 @@ class PlaybackController:
             return
         if pc.is_paused or pc.is_playing:
             pc.pause()
+        elif self.current_channel or getattr(self.window, 'current_channel', None):
+            ch = self.current_channel or self.window.current_channel
+            self.play_channel(ch)
 
     def stop_playback(self):
         if hasattr(self.window, 'player_controller') and self.window.player_controller:
