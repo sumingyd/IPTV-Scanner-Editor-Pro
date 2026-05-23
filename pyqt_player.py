@@ -4069,7 +4069,8 @@ class IPTVPlayer(QMainWindow):
 
     def _add_to_local_list(self, channel):
         """将频道添加到本地列表并播放"""
-        self._local_channels.append(channel)
+        import copy
+        self._local_channels.append(copy.deepcopy(channel))
         new_idx = len(self._local_channels) - 1
         self.playlist_tab.setCurrentIndex(1)
         self._update_groups_for('local')
