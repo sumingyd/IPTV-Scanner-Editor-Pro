@@ -3494,11 +3494,16 @@ class IPTVPlayer(QMainWindow):
             fl_y = mw_y + mw_h - control_panel_h - status_bar_h - gap
             self.floating_dock.move(fl_x, fl_y)
 
-    def toggle_fullscreen(self, checked=False):
-        if checked is not None and checked != self.is_fullscreen:
-            self.is_fullscreen = checked
+    def toggle_fullscreen(self, checked=None):
+        if checked is not None:
+            want_fullscreen = bool(checked)
         else:
-            self.is_fullscreen = not self.is_fullscreen
+            want_fullscreen = not self.is_fullscreen
+
+        if want_fullscreen == self.is_fullscreen:
+            return
+
+        self.is_fullscreen = want_fullscreen
 
         if self.is_fullscreen:
             self.panel_vis.set_auto_hide_visible()
