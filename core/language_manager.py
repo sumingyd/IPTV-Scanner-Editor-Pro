@@ -148,6 +148,7 @@ BUILTIN_TRANSLATIONS = {
         'about_title': '关于',
         'about_content': 'IPTV Scanner Editor Pro\n版本 1.0.0\n\nIPTV 频道扫描和编辑工具\n\n© 2026 IPTV Scanner Editor Pro',
         'epg_title': '节目单',
+        'playlist_title': '播放列表',
         'not_playing': '未播放',
         'language_changed': '语言已切换',
         'no_epg_data': '暂无节目信息',
@@ -710,6 +711,7 @@ BUILTIN_TRANSLATIONS = {
         'about_title': 'About',
         'about_content': 'IPTV Scanner Editor Pro\nVersion 1.0.0\n\nIPTV channel scanning and editing tool\n\n© 2026 IPTV Scanner Editor Pro',
         'epg_title': 'Program Guide',
+        'playlist_title': 'Playlist',
         'not_playing': 'Not playing',
         'language_changed': 'Language changed',
         'no_epg_data': 'No program information',
@@ -1220,7 +1222,9 @@ class LanguageManager(Singleton):
                 main_window._title_label.setText(new_title)
 
             if hasattr(main_window, 'epg_title'):
-                main_window.epg_title.setText(f"📅 {self.tr('epg_title', 'Program Guide')}")
+                main_window.epg_title.setText(self.tr('epg_title', 'Program Guide'))
+            if hasattr(main_window, 'playlist_title'):
+                main_window.playlist_title.setText(self.tr('playlist_title', 'Playlist'))
             if hasattr(main_window, 'epg_date_label'):
                 current_text = main_window.epg_date_label.text()
                 zh_day_map = {'今天': 'today', '昨天': 'yesterday', '明天': 'tomorrow'}
