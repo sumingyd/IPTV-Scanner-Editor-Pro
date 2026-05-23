@@ -28,50 +28,6 @@ def _parse_hex_color(hex_str, default=(0, 0, 0)):
     return default
 
 
-class TranslucentPanel(QFrame):
-    def __init__(self, parent=None, opacity=180):
-        super().__init__(parent)
-        self.opacity = opacity
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.Window
-        )
-        self.setMouseTracking(True)
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-
-    def keyPressEvent(self, event):
-        from PyQt6.QtWidgets import QApplication
-        for widget in QApplication.topLevelWidgets():
-            if hasattr(widget, 'player_controller'):
-                widget.keyPressEvent(event)
-                return
-        super().keyPressEvent(event)
-
-    def paintEvent(self, event):
-        from ui.styles import AppStyles
-
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        path = QPainterPath()
-        rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
-        path.addRoundedRect(rect, 8, 8)
-
-        colors = AppStyles._get_colors()
-        neo = AppStyles.is_neumorphic()
-
-        r, g, b = _parse_hex_color(colors.get('player_panel', '#1e1e1e'))
-        painter.fillPath(path, QColor(r, g, b, self.opacity))
-
-        if not neo:
-            br, bg, bb = _parse_hex_color(colors.get('mid', '#646464'))
-            painter.setPen(QColor(br, bg, bb, 150))
-            painter.drawPath(path)
-
-        super().paintEvent(event)
-
-
 class FloatingDockWidget(QDockWidget):
     """浮动停靠窗口 - QDockWidget 子控件模式（用于诊断对比）"""
 
