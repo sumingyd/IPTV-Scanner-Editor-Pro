@@ -4,8 +4,6 @@ import time
 from typing import Dict
 from core.log_manager import global_logger
 from services.mpv_common import (
-    libmpv,
-    MPV_AVAILABLE,
     MPV_EVENT_FILE_LOADED,
     MPV_EVENT_END_FILE,
     MPV_EVENT_SHUTDOWN,
@@ -22,13 +20,19 @@ from services.mpv_common import (
 )
 
 
+def _is_mpv_available():
+    import services.mpv_common as _mod
+    _mod._ensure_libmpv_loaded()
+    return _mod.MPV_AVAILABLE
+
+
 def get_optimal_thread_count():
     cpu = os.cpu_count() or 4
     return min(max(cpu, 4), 32)
 
 
 def _create_lightweight_mpv():
-    if not MPV_AVAILABLE:
+    if not _is_mpv_available():
         return None
     try:
         handle = create_mpv_handle()
@@ -93,7 +97,7 @@ class MpvStreamValidator:
             'bitrate': None
         }
 
-        if not MPV_AVAILABLE:
+        if not _is_mpv_available():
             result['error'] = 'mpv不可用'
             result['error_type'] = 'mpv_unavailable'
             return result

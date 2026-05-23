@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import QFrame
 import asyncio
 import platform
 import sys
-import aiohttp
 from core.log_manager import global_logger as logger
 from ..floating_dialog import FloatingDialog
 
@@ -18,7 +17,8 @@ class AboutDialog(FloatingDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent, stay_on_top=False)
-        self.current_version = self.CURRENT_VERSION
+        from core.version import CURRENT_VERSION
+        self.current_version = CURRENT_VERSION
         from core.language_manager import LanguageManager
         self.language_manager = getattr(parent, 'language_manager', None) or LanguageManager()
         from ..styles import AppStyles
@@ -209,6 +209,7 @@ class AboutDialog(FloatingDialog):
     async def _get_latest_version(self):
         tr = self.language_manager.tr
         try:
+            import aiohttp
             async with aiohttp.ClientSession() as session:
                 async with session.get(
                     "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest",

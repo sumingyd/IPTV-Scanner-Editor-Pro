@@ -19,8 +19,8 @@ class UpdateCheckThread(QThread):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
-            from ui.dialogs.about_dialog import AboutDialog
-            current_version = AboutDialog.CURRENT_VERSION
+            from core.version import CURRENT_VERSION
+            current_version = CURRENT_VERSION
 
             latest_version, _, _ = loop.run_until_complete(
                 asyncio.wait_for(self._get_latest_version(), timeout=15)

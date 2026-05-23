@@ -1219,8 +1219,8 @@ class LanguageManager(Singleton):
             return
 
         try:
-            from ui.dialogs.about_dialog import AboutDialog
-            version = AboutDialog.CURRENT_VERSION
+            from core.version import CURRENT_VERSION
+            version = CURRENT_VERSION
             new_title = f"{self.tr('app_title', 'IPTV Scanner Editor Pro')} v{version}"
             main_window.setWindowTitle(new_title)
             # 同步更新自定义标题栏标签（无边框窗口 setWindowTitle 不可见）

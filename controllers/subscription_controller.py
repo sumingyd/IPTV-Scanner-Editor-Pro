@@ -5,7 +5,6 @@
 
 import hashlib
 import os
-import requests
 from typing import Optional, Dict, Any
 from datetime import datetime
 from PyQt6.QtCore import QThread, pyqtSignal, QTimer
@@ -84,6 +83,8 @@ class SubscriptionController:
 
     def _download_subscription_content(self, url: str) -> Optional[str]:
         """下载订阅内容"""
+        import requests
+
         config = ConfigManager()
         timeout = int(config.get_value('Network', 'timeout', '30') or 30)
 

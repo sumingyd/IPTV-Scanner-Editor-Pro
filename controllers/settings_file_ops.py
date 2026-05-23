@@ -24,7 +24,7 @@ from core.application_state import app_state
 from ui.styles import AppStyles
 from ui.floating_dialog import FloatingDialog
 from ui.theme_manager import get_theme_manager
-from ui.dialogs.about_dialog import AboutDialog
+from core.version import CURRENT_VERSION
 from services.m3u_parser import load_m3u_file
 from controllers.main_window_protocol import MainWindowProtocol
 
@@ -494,7 +494,7 @@ class SettingsFileOperations:
             self.window.language_manager.set_language(language)
             ConfigManager().save_language_settings(language)
 
-            current_version = AboutDialog.CURRENT_VERSION
+            current_version = CURRENT_VERSION
             tr = self.window.language_manager.tr
             new_title = f"{tr('app_title', 'IPTV Scanner Editor Pro')} v{current_version}"
             self.window.setWindowTitle(new_title)
@@ -553,6 +553,7 @@ class SettingsFileOperations:
     # ==================== 关于 / 使用说明 ====================
 
     def show_about(self):
+        from ui.dialogs.about_dialog import AboutDialog
         AboutDialog(self.window).exec()
 
     def show_usage_instructions(self):

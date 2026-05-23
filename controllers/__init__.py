@@ -1,32 +1,29 @@
-# IPTV Player Controllers Package
-# 控制器包 - 负责业务逻辑和UI协调
+import importlib as _importlib
 
-from .window_controller import WindowController
-from .playback_controller import PlaybackController
-from .epg_controller import EPGController
-from .channel_controller import ChannelController
-from .settings_file_ops import SettingsFileOperations
-from .event_handler import EventHandler
-from .ui_controller import UIController
-from .subscription_controller import SubscriptionController
-from .subscription_ui_controller import SubscriptionUIController
-from .catchup_controller import CatchupController
-from .pip_controller import PipController
-from .media_controller import MediaController
-from .update_controller import UpdateController
+_CONTROLLER_MODULES = {
+    'WindowController': '.window_controller',
+    'PlaybackController': '.playback_controller',
+    'EPGController': '.epg_controller',
+    'ChannelController': '.channel_controller',
+    'SettingsFileOperations': '.settings_file_ops',
+    'EventHandler': '.event_handler',
+    'UIController': '.ui_controller',
+    'SubscriptionController': '.subscription_controller',
+    'SubscriptionUIController': '.subscription_ui_controller',
+    'CatchupController': '.catchup_controller',
+    'PipController': '.pip_controller',
+    'MediaController': '.media_controller',
+    'UpdateController': '.update_controller',
+}
 
-__all__ = [
-    'WindowController',
-    'PlaybackController',
-    'EPGController',
-    'ChannelController',
-    'SettingsFileOperations',
-    'EventHandler',
-    'UIController',
-    'SubscriptionController',
-    'SubscriptionUIController',
-    'CatchupController',
-    'PipController',
-    'MediaController',
-    'UpdateController'
-]
+
+def __getattr__(name):
+    if name in _CONTROLLER_MODULES:
+        module = _importlib.import_module(_CONTROLLER_MODULES[name], __name__)
+        cls = getattr(module, name)
+        globals()[name] = cls
+        return cls
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+__all__ = list(_CONTROLLER_MODULES.keys())

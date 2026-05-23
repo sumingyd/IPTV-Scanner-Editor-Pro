@@ -24,56 +24,69 @@ else:
 
 MPV_AVAILABLE = False
 libmpv = None
+_mpv_loaded = False
 
-try:
-    libmpv = ctypes.CDLL(libmpv_path)
 
-    libmpv.mpv_create.restype = ctypes.c_void_p
-    libmpv.mpv_create.argtypes = []
+def _ensure_libmpv_loaded():
+    global libmpv, MPV_AVAILABLE, _mpv_loaded
+    if _mpv_loaded:
+        return MPV_AVAILABLE
+    _mpv_loaded = True
 
-    libmpv.mpv_initialize.restype = ctypes.c_int
-    libmpv.mpv_initialize.argtypes = [ctypes.c_void_p]
+    if not os.path.exists(libmpv_path):
+        logger.warning(f"未找到libmpv-2.dll: {libmpv_path}")
+        return False
 
-    libmpv.mpv_set_option_string.restype = ctypes.c_int
-    libmpv.mpv_set_option_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
+    try:
+        libmpv = ctypes.CDLL(libmpv_path)
 
-    libmpv.mpv_set_property_string.restype = ctypes.c_int
-    libmpv.mpv_set_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
+        libmpv.mpv_create.restype = ctypes.c_void_p
+        libmpv.mpv_create.argtypes = []
 
-    libmpv.mpv_set_property.restype = ctypes.c_int
-    libmpv.mpv_set_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p]
+        libmpv.mpv_initialize.restype = ctypes.c_int
+        libmpv.mpv_initialize.argtypes = [ctypes.c_void_p]
 
-    libmpv.mpv_command.restype = ctypes.c_int
-    libmpv.mpv_command.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_char_p)]
+        libmpv.mpv_set_option_string.restype = ctypes.c_int
+        libmpv.mpv_set_option_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
 
-    libmpv.mpv_destroy.restype = None
-    libmpv.mpv_destroy.argtypes = [ctypes.c_void_p]
+        libmpv.mpv_set_property_string.restype = ctypes.c_int
+        libmpv.mpv_set_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
 
-    libmpv.mpv_terminate_destroy.restype = None
-    libmpv.mpv_terminate_destroy.argtypes = [ctypes.c_void_p]
+        libmpv.mpv_set_property.restype = ctypes.c_int
+        libmpv.mpv_set_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p]
 
-    libmpv.mpv_observe_property.restype = ctypes.c_int
-    libmpv.mpv_observe_property.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.c_char_p, ctypes.c_int]
+        libmpv.mpv_command.restype = ctypes.c_int
+        libmpv.mpv_command.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_char_p)]
 
-    libmpv.mpv_set_wakeup_callback.restype = None
-    libmpv.mpv_set_wakeup_callback.argtypes = [ctypes.c_void_p, ctypes.CFUNCTYPE(None, ctypes.c_void_p), ctypes.c_void_p]
+        libmpv.mpv_destroy.restype = None
+        libmpv.mpv_destroy.argtypes = [ctypes.c_void_p]
 
-    libmpv.mpv_wait_event.restype = ctypes.c_void_p
-    libmpv.mpv_wait_event.argtypes = [ctypes.c_void_p, ctypes.c_double]
+        libmpv.mpv_terminate_destroy.restype = None
+        libmpv.mpv_terminate_destroy.argtypes = [ctypes.c_void_p]
 
-    libmpv.mpv_get_property_string.restype = ctypes.c_void_p
-    libmpv.mpv_get_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        libmpv.mpv_observe_property.restype = ctypes.c_int
+        libmpv.mpv_observe_property.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.c_char_p, ctypes.c_int]
 
-    libmpv.mpv_free.restype = None
-    libmpv.mpv_free.argtypes = [ctypes.c_void_p]
+        libmpv.mpv_set_wakeup_callback.restype = None
+        libmpv.mpv_set_wakeup_callback.argtypes = [ctypes.c_void_p, ctypes.CFUNCTYPE(None, ctypes.c_void_p), ctypes.c_void_p]
 
-    libmpv.mpv_get_property.restype = ctypes.c_int
-    libmpv.mpv_get_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p]
+        libmpv.mpv_wait_event.restype = ctypes.c_void_p
+        libmpv.mpv_wait_event.argtypes = [ctypes.c_void_p, ctypes.c_double]
 
-    MPV_AVAILABLE = True
-    _mpvt_loaded = True
-except Exception as e:
-    logger.error(f"加载libmpv-2.dll失败: {e}")
+        libmpv.mpv_get_property_string.restype = ctypes.c_void_p
+        libmpv.mpv_get_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+
+        libmpv.mpv_free.restype = None
+        libmpv.mpv_free.argtypes = [ctypes.c_void_p]
+
+        libmpv.mpv_get_property.restype = ctypes.c_int
+        libmpv.mpv_get_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p]
+
+        MPV_AVAILABLE = True
+        return True
+    except Exception as e:
+        logger.error(f"加载libmpv-2.dll失败: {e}")
+        return False
 
 
 class mpv_event(ctypes.Structure):

@@ -1,6 +1,5 @@
 import os
 import threading
-import requests
 from datetime import datetime, timedelta
 from .log_manager import global_logger as logger
 from .config_manager import ConfigManager
@@ -414,6 +413,8 @@ class SubscriptionManager(Singleton):
         if not epg_url:
             return {}
         
+        import requests
+
         try:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',

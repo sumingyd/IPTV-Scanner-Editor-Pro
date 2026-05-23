@@ -283,8 +283,9 @@ class MpvPlayerController(QObject):
             self._set_mpv_string('force-seekable', '')
             self._set_mpv_string('demuxer-seekable-cache', 'no')
             self._set_mpv_string('demuxer-cache-wait', 'no')
+            self._set_mpv_string('hls-playlist-start', '')
             self._set_mpv_string('rtsp-transport', '')
-            self.logger.debug("[mpv] 已重置demuxer/cache选项（本地文件模式）")
+            self.logger.debug("[mpv] 已重置demuxer/cache选项")
         except Exception as e:
             self.logger.debug(f"重置demuxer选项失败: {e}")
 
@@ -298,6 +299,8 @@ class MpvPlayerController(QObject):
         if not is_network:
             self._reset_demuxer_options()
             return
+
+        self._reset_demuxer_options()
 
         settings = self._playback_settings
 
@@ -408,7 +411,8 @@ class MpvPlayerController(QObject):
                     current_handle = self.mpv_handle
                 if current_handle is not handle:
                     return
-                event_ptr = libmpv.mpv_wait_event(handle, 0.0)
+                from services.mpv_common import libmpv as _libmpv
+                event_ptr = _libmpv.mpv_wait_event(handle, 0.0)
                 if not event_ptr:
                     return
 
@@ -473,6 +477,7 @@ class MpvPlayerController(QObject):
                 self._media_info_timer.stop()
 
             self._media_info_scheduled = False
+            self._track_list_logged = False
 
             self._setup_protocol_options(url, program_duration)
             self._set_mpv_string('prefetch-playlist', 'yes')
@@ -860,17 +865,19 @@ class MpvPlayerController(QObject):
                 self.logger.debug(f"媒体信息：width={w}, height={h}, vcodec='{vcodec}', acodec='{acodec}', fps={fps}, container='{container}'")
 
             if not vcodec and not acodec and w == 0:
-                self.logger.debug("尝试获取备选属性...")
-                alt_vcodec = get_str('video-format') or get_str('hwdec') or ''
-                alt_acodec = get_str('audio-format') or ''
-                self.logger.debug(f"备选：video-format='{alt_vcodec}', audio-format='{alt_acodec}', hwdec='{get_str('hwdec')}'")
-
                 demuxer = get_str('demuxer') or ''
-                self.logger.info(f"demuxer: {demuxer}")
-
                 v_format = get_str('video-format') or ''
                 a_format = get_str('audio-format') or ''
-                self.logger.info(f"video-format: {v_format}, audio-format: {a_format}")
+                self.logger.info(f"demuxer: {demuxer}, video-format: {v_format}, audio-format: {a_format}")
+
+                track_list_str = get_str('track-list') or ''
+                if track_list_str and not getattr(self, '_track_list_logged', False):
+                    self._track_list_logged = True
+                    self.logger.info(f"track-list: {track_list_str[:500]}")
+                paused = get_str('pause') or ''
+                core_idle = get_str('core-idle') or ''
+                demuxer_cache = get_str('demuxer-cache-state') or ''
+                self.logger.debug(f"pause={paused}, core-idle={core_idle}, cache-state={demuxer_cache[:200]}")
 
             info = {
                 'width': w,
@@ -1019,8 +1026,9 @@ class MpvPlayerController(QObject):
 
     def _get_mpv_error_string(self, error_code):
         try:
-            if hasattr(libmpv, 'mpv_error_string'):
-                error_str = libmpv.mpv_error_string(error_code)
+            from services.mpv_common import libmpv as _libmpv
+            if hasattr(_libmpv, 'mpv_error_string'):
+                error_str = _libmpv.mpv_error_string(error_code)
                 if error_str:
                     return error_str.decode('utf-8')
         except Exception:

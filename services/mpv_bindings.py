@@ -1,6 +1,4 @@
 from services.mpv_common import (
-    libmpv,
-    MPV_AVAILABLE,
     mpv_event,
     mpv_event_end_file,
     MPV_EVENT_NONE,

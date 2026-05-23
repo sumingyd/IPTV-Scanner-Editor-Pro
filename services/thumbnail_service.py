@@ -6,7 +6,6 @@ from collections import deque
 from typing import Optional
 from PyQt6.QtCore import QObject, pyqtSignal
 from services.mpv_common import (
-    MPV_AVAILABLE,
     MPV_EVENT_FILE_LOADED,
     MPV_EVENT_END_FILE,
     MPV_EVENT_SHUTDOWN,
@@ -18,6 +17,12 @@ from services.mpv_common import (
     send_command as _mpv_send_command,
     wait_for_specific_event,
 )
+
+
+def _is_mpv_available():
+    import services.mpv_common as _mod
+    _mod._ensure_libmpv_loaded()
+    return _mod.MPV_AVAILABLE
 
 CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', 'thumbnails')
 
@@ -57,7 +62,7 @@ def get_thumbnail_path(url: str) -> Optional[str]:
 
 
 def _capture_single(url: str, timeout: int = 8, wid: int = 0, force: bool = False) -> Optional[str]:
-    if not MPV_AVAILABLE:
+    if not _is_mpv_available():
         return None
     os.makedirs(CACHE_DIR, exist_ok=True)
     thumb_path = _url_to_thumb_path(url)
