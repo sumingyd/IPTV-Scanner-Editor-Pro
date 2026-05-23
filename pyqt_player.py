@@ -1652,7 +1652,7 @@ class IPTVPlayer(QMainWindow):
             playback_menu.addSeparator()
 
             screenshot = QAction(tr("menu_screenshot", "Screenshot\tS"), self)
-            screenshot.triggered.connect(lambda: self.media_ctrl._take_screenshot())
+            screenshot.triggered.connect(lambda: self.media_ctrl.take_screenshot())
             playback_menu.addAction(screenshot)
 
             playback_menu.addSeparator()

@@ -120,6 +120,9 @@ class MediaController:
 
         menu.exec(self.window.video_frame.mapToGlobal(pos))
 
+    def take_screenshot(self):
+        self._take_screenshot()
+
     def _take_screenshot(self):
         pc = self.window.player_controller
         if not pc or not pc.is_playing:

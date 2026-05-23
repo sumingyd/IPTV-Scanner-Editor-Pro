@@ -194,7 +194,7 @@ class EventHandler:
                     return True
                 elif key == Qt.Key.Key_S:
                     if hasattr(w, 'media_ctrl'):
-                        w.media_ctrl._take_screenshot()
+                        w.media_ctrl.take_screenshot()
                     return True
                 elif key == Qt.Key.Key_Period:
                     if hasattr(w, 'media_ctrl'):
