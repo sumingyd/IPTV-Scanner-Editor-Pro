@@ -894,7 +894,7 @@ class IPTVPlayer(QMainWindow):
         self.sub_channel_list.setSpacing(2)
         self.sub_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.sub_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.sub_channel_list.itemClicked.connect(self.select_channel)
+        self.sub_channel_list.itemClicked.connect(self._on_channel_single_click)
         self.sub_channel_list.itemDoubleClicked.connect(self._on_channel_double_clicked)
         sub_layout.addWidget(self.sub_channel_list, 1)
 
@@ -950,7 +950,7 @@ class IPTVPlayer(QMainWindow):
         self.local_channel_list.setSpacing(2)
         self.local_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.local_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.local_channel_list.itemClicked.connect(self.select_channel)
+        self.local_channel_list.itemClicked.connect(self._on_channel_single_click)
         self.local_channel_list.itemDoubleClicked.connect(self._on_channel_double_clicked)
         local_layout.addWidget(self.local_channel_list, 1)
 
@@ -974,6 +974,12 @@ class IPTVPlayer(QMainWindow):
         self.channel_list = self.sub_channel_list
         self.group_combo = self.sub_group_combo
         self.channel_empty_label = self.sub_empty_label
+
+        self._click_timer = QTimer()
+        self._click_timer.setSingleShot(True)
+        self._click_timer.timeout.connect(self._deferred_single_click)
+        self._pending_click_item = None
+        self._pending_click_source = None
 
         self._sub_channels = []
         self._local_channels = []
@@ -2551,12 +2557,17 @@ class IPTVPlayer(QMainWindow):
         """处理分组切换事件（委托给ChannelController）"""
         self.channel_ctrl.on_group_changed(group_name)
 
-    def select_channel(self, item):
+    def select_channel(self, item, source_list=None):
         try:
             idx = item.data(Qt.ItemDataRole.UserRole)
 
-            sender = self.sender()
-            if sender is self.local_channel_list:
+            if source_list is not None:
+                channel_list = source_list
+            else:
+                sender = self.sender()
+                channel_list = sender if sender else self.sub_channel_list
+
+            if channel_list is self.local_channel_list:
                 channels = self._local_channels
             else:
                 channels = self._sub_channels
@@ -2588,8 +2599,18 @@ class IPTVPlayer(QMainWindow):
         except Exception as e:
             logger.error(f"select_channel: 选择频道失败: {e}", exc_info=True)
     
+    def _on_channel_single_click(self, item):
+        self._pending_click_item = item
+        self._pending_click_source = self.sender()
+        self._click_timer.start(300)
+
+    def _deferred_single_click(self):
+        if self._pending_click_item:
+            self.select_channel(self._pending_click_item, source_list=self._pending_click_source)
+
     def _on_channel_double_clicked(self, item):
         """双击频道：多画面模式填入空画面，普通模式播放"""
+        self._click_timer.stop()
         if not item:
             return
         idx = item.data(Qt.ItemDataRole.UserRole)
@@ -2605,7 +2626,7 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, 'multi_screen_ctrl') and self.multi_screen_ctrl.is_active:
             self.multi_screen_ctrl.play_in_empty_cell(channel)
         else:
-            self.select_channel(item)
+            self.select_channel(item, source_list=sender)
 
     def _get_display_channel_name(self, channel):
         """获取用于显示的频道名称（委托给通用工具函数）"""
@@ -4475,7 +4496,7 @@ class IPTVPlayer(QMainWindow):
             item = self.channel_list.item(i)
             if item.data(Qt.ItemDataRole.UserRole) == idx:
                 self.channel_list.setCurrentItem(item)
-                self.select_channel(item)
+                self.select_channel(item, source_list=self.channel_list)
                 return
 
     def switch_to_previous_channel(self):
@@ -4497,7 +4518,7 @@ class IPTVPlayer(QMainWindow):
                     ch = channels[idx]
                     if ch.get('url') == prev.get('url'):
                         self.channel_list.setCurrentItem(item)
-                        self.select_channel(item)
+                        self.select_channel(item, source_list=self.channel_list)
                         return
 
     def _warmup_logos_around(self, channel):
