@@ -2571,8 +2571,36 @@ class IPTVPlayer(QMainWindow):
                 self.status_bar.showMessage(self.language_manager.tr("catchup_error", "Catchup error: Missing program information"))
                 return
 
-            from datetime import timedelta
+            from datetime import timedelta, datetime
             new_start_time = start_time + timedelta(seconds=position)
+
+            if new_start_time >= end_time:
+                ch_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
+                current_program = self.epg_parser.get_current_program(ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
+                if current_program:
+                    new_program_start = datetime.fromisoformat(current_program.get('start', ''))
+                    new_program_end = datetime.fromisoformat(current_program.get('end', ''))
+                    if new_start_time >= new_program_start and new_start_time < new_program_end:
+                        start_time = new_program_start
+                        end_time = new_program_end
+                        self.catchup_program = {
+                            'start': start_time, 'end': end_time,
+                            'title': current_program.get('title', title),
+                            'desc': current_program.get('desc', ''),
+                        }
+                        self._progress_program_start = start_time
+                        self._progress_program_end = end_time
+                        total_duration = int((end_time - start_time).total_seconds())
+                        if total_duration > 0:
+                            self._set_progress_range(total_duration)
+                        position = (new_start_time - start_time).total_seconds()
+                        new_start_time = start_time + timedelta(seconds=position)
+                        logger.info(f"时移跨节目 -> 新节目 {start_time}~{end_time}, position={position:.0f}s")
+                if new_start_time >= end_time:
+                    now = datetime.now()
+                    new_start_time = min(new_start_time, now - timedelta(seconds=5))
+                    end_time = now
+                    logger.info(f"时移超节目范围 -> 限制到 {new_start_time}~{end_time}")
 
             catchup_url = self.catchup_ctrl.build_catchup_url(self.original_channel, new_start_time, end_time)
 
