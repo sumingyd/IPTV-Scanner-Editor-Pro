@@ -144,7 +144,7 @@ class MpvPlayerController(QObject):
                 self.logger.error(f"设置窗口ID失败: {str(e)}")
 
             _mpv_set_property_string(self.mpv_handle, 'vo', 'gpu')
-            hwdec = 'd3d11va' if self._playback_settings.get('hwdec', True) else 'no'
+            hwdec = 'auto' if self._playback_settings.get('hwdec', True) else 'no'
             _mpv_set_property_string(self.mpv_handle, 'hwdec', hwdec)
             _mpv_set_property_string(self.mpv_handle, 'gpu-api', 'd3d11')
             _mpv_set_property_string(self.mpv_handle, 'd3d11-sync-interval', '1')
@@ -258,15 +258,15 @@ class MpvPlayerController(QObject):
         try:
             self._set_mpv_string('demuxer', '')
             self._set_mpv_string('demuxer-lavf-format', '')
-            self._set_mpv_string('demuxer-lavf-probesize', '')
-            self._set_mpv_string('demuxer-lavf-analyzeduration', '')
+            self._set_mpv_string('demuxer-lavf-probesize', '5000000')
+            self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
             self._set_mpv_string('demuxer-lavf-buffersize', '')
             self._set_mpv_string('cache', 'no')
             self._set_mpv_string('cache-secs', '')
             self._set_mpv_string('demuxer-max-bytes', '')
             self._set_mpv_string('demuxer-max-back-bytes', '')
             self._set_mpv_string('demuxer-readahead-secs', '')
-            self._set_mpv_string('force-seekable', 'no')
+            self._set_mpv_string('force-seekable', '')
             self._set_mpv_string('demuxer-seekable-cache', 'no')
             self._set_mpv_string('demuxer-cache-wait', 'no')
             self._set_mpv_string('rtsp-transport', '')
