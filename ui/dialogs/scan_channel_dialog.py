@@ -2655,7 +2655,7 @@ class ScanChannelDialog(FloatingDialog):
             self.stats_label.setText(
                 self.language_manager.tr("retry_completed", "Smart retry completed")
             )
-            delattr(self, '_validation_retry_urls')
+            self._validation_retry_urls = None
 
     @QtCore.pyqtSlot(dict)
     def _update_stats_display(self, stats_data):

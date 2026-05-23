@@ -64,15 +64,15 @@ class ProgressController:
 
                     w._set_progress_value(progress_seconds)
                 else:
-                    if hasattr(w, '_disable_progress_auto_update') and w._disable_progress_auto_update:
+                    if getattr(w, '_disable_progress_auto_update', False):
                         target_progress = getattr(w, '_target_catchup_progress', 0)
                         if current_position >= target_progress * 0.9:
-                            delattr(w, '_disable_progress_auto_update')
+                            setattr(w, '_disable_progress_auto_update', False)
                     else:
                         progress_seconds = min(int(current_position), int(total_duration)) if current_position > 0 else 0
                         w._set_progress_value(progress_seconds)
             else:
-                if not (hasattr(w, '_disable_progress_auto_update') and w._disable_progress_auto_update):
+                if not getattr(w, '_disable_progress_auto_update', False):
                     w._set_progress_value(0)
         except Exception as e:
             logger.error(f"处理回看时间显示失败: {e}")

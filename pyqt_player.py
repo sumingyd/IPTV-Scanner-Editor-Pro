@@ -821,7 +821,7 @@ class IPTVPlayer(QMainWindow):
         self.epg_dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable)
         self.epg_dock.setObjectName("epg_dock")
         if hasattr(self, 'epg_panel'):
-            delattr(self, 'epg_panel')
+            self.epg_panel = None
         self.epg_panel = self.epg_dock
 
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.epg_dock)
@@ -1006,7 +1006,7 @@ class IPTVPlayer(QMainWindow):
         self.playlist_dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable)
         self.playlist_dock.setObjectName("playlist_dock")
         if hasattr(self, 'playlist_panel'):
-            delattr(self, 'playlist_panel')
+            self.playlist_panel = None
         self.playlist_panel = self.playlist_dock
 
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.playlist_dock)
@@ -1077,7 +1077,7 @@ class IPTVPlayer(QMainWindow):
         self.floating_dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable)
         self.floating_dock.setObjectName("floating_dock")
         if hasattr(self, 'floating_panel'):
-            delattr(self, 'floating_panel')
+            self.floating_panel = None
         self.floating_panel = self.floating_dock
 
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.floating_dock)
@@ -2955,7 +2955,7 @@ class IPTVPlayer(QMainWindow):
                     if self._epg_hidden_by_local_file:
                         self.epg_panel.show()
                         self.epg_visible = True
-                    delattr(self, '_epg_hidden_by_local_file')
+                    self._epg_hidden_by_local_file = False
                 elif getattr(self, 'epg_visible', True) and not self.epg_panel.isVisible():
                     self.epg_panel.show()
             if self.current_channel:
@@ -4692,7 +4692,7 @@ class IPTVPlayer(QMainWindow):
         for attr in ['_catchup_start_time', '_catchup_start_progress',
                      '_target_catchup_progress', '_disable_progress_auto_update']:
             if hasattr(self, attr):
-                delattr(self, attr)
+                setattr(self, attr, None if 'time' in attr or 'progress' in attr else False)
 
         self._timeshift_start_time = target_wallclock
         self.play_state.set_timeshift()

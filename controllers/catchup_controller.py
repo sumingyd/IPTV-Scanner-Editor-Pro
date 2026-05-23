@@ -283,7 +283,7 @@ class CatchupController:
             for attr in ['_catchup_start_time', '_catchup_start_progress',
                          '_target_catchup_progress', '_disable_progress_auto_update']:
                 if hasattr(self.window, attr):
-                    delattr(self.window, attr)
+                    setattr(self.window, attr, None if 'time' in attr or 'progress' in attr else False)
 
             if hasattr(self.window, 'program_progress'):
                 self._set_progress_value(0)

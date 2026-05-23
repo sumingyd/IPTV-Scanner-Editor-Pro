@@ -218,9 +218,9 @@ class PlaybackController:
                      '_ts_max_shift', '_ts_current_offset', '_ts_range',
                      '_timeshift_enter_time_ms', '_timeshift_start_time']:
             if hasattr(self.window, attr):
-                delattr(self.window, attr)
+                setattr(self.window, attr, None if 'time' in attr or 'progress' in attr or 'shift' in attr or 'range' in attr else False)
             if hasattr(self, attr):
-                delattr(self, attr)
+                setattr(self, attr, None if 'time' in attr or 'progress' in attr or 'shift' in attr or 'range' in attr else False)
 
         if hasattr(self.window, 'program_progress'):
             self.window.program_progress.setValue(0)
