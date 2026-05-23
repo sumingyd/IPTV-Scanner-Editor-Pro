@@ -4306,7 +4306,7 @@ class IPTVPlayer(QMainWindow):
 
     def _reset_statusbar_style(self):
         """恢复状态栏样式"""
-        self.status_bar.setStyleSheet("")
+        self.status_bar.setStyleSheet(AppStyles.statusbar_style())
     
     def _on_update_check_completed(self, success, message):
         self.update_ctrl._on_update_check_completed(success, message)
