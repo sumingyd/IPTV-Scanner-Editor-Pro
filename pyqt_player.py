@@ -2945,7 +2945,7 @@ class IPTVPlayer(QMainWindow):
                 self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
                 self.video_widget.show()
             self._last_info_key = None
-            self.update_timer.start(500)
+            self.update_timer.start(1000)
             if self._is_local_file():
                 if hasattr(self, 'epg_panel') and self.epg_panel:
                     if not hasattr(self, '_epg_hidden_by_local_file'):
@@ -3361,6 +3361,7 @@ class IPTVPlayer(QMainWindow):
         if ((not prev_total or prev_total <= 0) and total_time_ms and total_time_ms > 0
                 and self._is_local_file()):
             logger.warning(f"[GOT_DURATION] total={total_time_ms:.0f}ms cur={current_time_ms:.0f}ms pos={position:.4f}")
+        self.update_floating_panel_info()
     
     def update_floating_panel_info(self):
         if not self.player_controller or not self.current_channel:
