@@ -180,10 +180,16 @@ class CatchupController:
         return url
 
     def build_catchup_url(self, channel, start_time, end_time):
+        from core.log_manager import global_logger as logger
+
         catchup_type = (channel.get('catchup', '') or '').lower().strip()
         catchup_source = channel.get('catchup_source', '')
         catchup_correction = channel.get('catchup_correction', '')
         live_url = channel.get('url', '')
+
+        logger.debug(f"build_catchup_url: type={catchup_type}, correction={catchup_correction}, "
+                     f"start={start_time}, end={end_time}, "
+                     f"start_ts={int(start_time.timestamp())}, end_ts={int(end_time.timestamp())}")
 
         if catchup_correction:
             try:

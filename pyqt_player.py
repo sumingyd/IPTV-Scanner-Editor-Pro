@@ -273,8 +273,8 @@ class IPTVPlayer(QMainWindow):
         saved_language = self.config.load_language_settings()
         self.language_manager.set_language(saved_language)
 
-        from ui.dialogs.about_dialog import AboutDialog
-        current_version = AboutDialog.CURRENT_VERSION
+        from core.version import CURRENT_VERSION
+        current_version = CURRENT_VERSION
         self._window_title = f"{self.language_manager.tr('app_title', 'IPTV Scanner Editor Pro')} v{current_version}"
         self.setWindowTitle(self._window_title)
 
@@ -521,26 +521,35 @@ class IPTVPlayer(QMainWindow):
             QTimer.singleShot(50, self._delayed_hide_floating_panels)
         super().leaveEvent(event)
     
+    def _update_splash(self, message):
+        try:
+            from PyQt6.QtWidgets import QSplashScreen
+            app = QApplication.instance()
+            for widget in app.topLevelWidgets():
+                if isinstance(widget, QSplashScreen):
+                    widget.showMessage(message, Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter, QColor(200, 200, 200))
+                    app.processEvents()
+                    break
+        except Exception:
+            pass
+
     def _initialize_in_order(self):
         """按照顺序执行初始化流程"""
         logger.debug("_initialize_in_order: 开始")
 
         # 1. 菜单栏、工具栏
+        self._update_splash("Loading UI...")
         self._init_video_components()
         # 2. 视频区域
         self._create_video_area()
         # 3. 状态栏
         self._create_status_bar()
         # 4. 播放器
+        self._update_splash("Initializing player...")
         self._init_player()
         # 5. 定时器
         self._create_timer()
-        # 6. EPG 面板（创建后先隐藏，待窗口显示后由延迟定位再显示）
-        self._create_epg_panel(show=False)
-        # 7. 频道列表面板（同上）
-        self._create_playlist_panel(show=False)
-        # 8. 底部控制面板（同上）
-        self._create_bottom_panel(show=False)
+        # 6-8. 面板延迟创建（窗口show后由 _deferred_create_panels 创建）
         # 9. 最近文件菜单
         self._update_recent_files_menu()
         # 10. 事件过滤器（幂等，只注册一次）
@@ -548,6 +557,12 @@ class IPTVPlayer(QMainWindow):
 
         # ---- 所有同步 UI 构建完成，现在显示窗口 ----
         self.show()
+
+        # 6-8. 延迟创建面板（窗口已显示，避免阻塞首帧）
+        self._update_splash("Loading panels...")
+        self._create_epg_panel(show=False)
+        self._create_playlist_panel(show=False)
+        self._create_bottom_panel(show=False)
 
         # 11. 注册清理 / 主题 / 快捷键（轻量，不阻塞）
         from utils.resource_cleaner import register_cleanup
@@ -4760,7 +4775,7 @@ class IPTVPlayer(QMainWindow):
         h, m = divmod(m, 60)
         offset_str = f"{h:02d}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
 
-        logger.info(f"直播时移(进度条) -> 从 {target_wallclock} 开始播放，offset={offset_str}, url={timeshift_url[:80]}...")
+        logger.info(f"直播时移(进度条) -> 从 {target_wallclock} 开始播放，offset={offset_str}, url={timeshift_url}")
 
         tr = self.language_manager.tr
         self.status_bar_show_message(
@@ -4861,7 +4876,30 @@ class IPTVPlayer(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+
+    splash = None
+    try:
+        from utils.general_utils import get_icon_path
+        from PyQt6.QtGui import QPixmap
+        from PyQt6.QtWidgets import QSplashScreen
+        ico_path = get_icon_path()
+        if os.path.exists(ico_path):
+            from PyQt6.QtGui import QIcon
+            splash_pixmap = QIcon(ico_path).pixmap(128, 128)
+        else:
+            splash_pixmap = QPixmap(128, 128)
+            splash_pixmap.fill(Qt.GlobalColor.transparent)
+        splash = QSplashScreen(splash_pixmap, Qt.WindowType.WindowStaysOnTopHint)
+        splash.showMessage("Loading...", Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter, QColor(200, 200, 200))
+        splash.show()
+        app.processEvents()
+    except Exception:
+        pass
+
     player = IPTVPlayer()
+
+    if splash:
+        splash.finish(player)
 
     # 处理命令行参数（右键"打开方式"传入的文件路径）
     if len(sys.argv) > 1:

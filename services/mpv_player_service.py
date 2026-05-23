@@ -5,8 +5,6 @@ import threading
 from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 from core.log_manager import global_logger
 from services.mpv_common import (
-    libmpv,
-    MPV_AVAILABLE,
     mpv_event,
     mpv_event_end_file,
     MPV_EVENT_NONE,
@@ -118,20 +116,33 @@ class MpvPlayerController(QObject):
         self._max_reconnect = 3
         self._user_stopped = False
         self._switching_channel = False
+        self._mpv_initialized = False
+
+    def _ensure_mpv_initialized(self):
+        if self._mpv_initialized:
+            return True
+        self._mpv_initialized = True
 
         try:
-            if not MPV_AVAILABLE or libmpv is None:
+            import services.mpv_common as _mpv_mod
+            if not _mpv_mod._ensure_libmpv_loaded():
                 error_msg = "libmpv-2.dll加载失败"
                 self.logger.error(error_msg)
                 self.play_error.emit(error_msg)
-                return
+                return False
+
+            if not _mpv_mod.MPV_AVAILABLE or _mpv_mod.libmpv is None:
+                error_msg = "libmpv-2.dll加载失败"
+                self.logger.error(error_msg)
+                self.play_error.emit(error_msg)
+                return False
 
             self.mpv_handle = create_mpv_handle()
             if not self.mpv_handle:
                 error_msg = "创建mpv实例失败"
                 self.logger.error(error_msg)
                 self.play_error.emit(error_msg)
-                return
+                return False
 
             window_id = self.video_widget.winId()
             if hasattr(window_id, 'value'):
@@ -192,7 +203,7 @@ class MpvPlayerController(QObject):
                 self.play_error.emit(error_msg)
                 destroy_mpv(self.mpv_handle)
                 self.mpv_handle = None
-                return
+                return False
 
             try:
                 _mpv_observe_property(self.mpv_handle, 1, 'pause', MPV_FORMAT_STRING)
@@ -205,6 +216,8 @@ class MpvPlayerController(QObject):
             self.event_timer.timeout.connect(self._process_events)
             self.event_timer.start(100)
 
+            return True
+
         except Exception as e:
             error_msg = f"初始化mpv播放器失败: {str(e)}"
             self.logger.error(error_msg)
@@ -212,6 +225,7 @@ class MpvPlayerController(QObject):
             if self.mpv_handle:
                 destroy_mpv(self.mpv_handle)
                 self.mpv_handle = None
+            return False
 
     def _set_mpv_string(self, name, value):
         return _mpv_set_property_string(self.mpv_handle, name, str(value))
@@ -352,12 +366,14 @@ class MpvPlayerController(QObject):
             self._set_mpv_string('force-seekable', 'yes')
             self._set_mpv_string('demuxer-readahead-secs', '120')
 
-            if settings.get('hls_start_at_live_edge', False):
+            if is_vod:
+                self._set_mpv_string('hls-playlist-start', '0')
+            elif settings.get('hls_start_at_live_edge', False):
                 self._set_mpv_string('hls-playlist-start', 'no')
             readahead = settings.get('hls_readahead_secs', 0)
             if readahead > 0:
                 self._set_mpv_string('demuxer-readahead-secs', str(readahead))
-            self.logger.debug(f"[mpv] hls cache=yes seekable=yes")
+            self.logger.debug(f"[mpv] hls cache=yes seekable=yes vod={is_vod}")
             return
 
         self._set_mpv_string('demuxer-lavf-format', '')
@@ -436,6 +452,11 @@ class MpvPlayerController(QObject):
 
     def play(self, url, channel_name=None, program_duration=0, **kwargs):
         try:
+            if not self._ensure_mpv_initialized():
+                self.logger.error("mpv播放器初始化失败，无法播放")
+                self.play_error.emit("mpv播放器初始化失败")
+                return False
+
             self.current_url = url
             self._user_stopped = False
             self._switching_channel = True
