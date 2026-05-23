@@ -3957,6 +3957,7 @@ class IPTVPlayer(QMainWindow):
                     })
 
                 app_state.replace_channels(new_channels)
+                self._local_channels = list(new_channels)
 
                 from core.config_manager import ConfigManager
                 config_manager = ConfigManager()
