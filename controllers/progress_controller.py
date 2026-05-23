@@ -89,10 +89,18 @@ class ProgressController:
     def _update_timeshift_epg_progress(self, current_program, current_time_ms, total_time_ms, position):
         w = self.window
         try:
-            start_time = datetime.fromisoformat(current_program.get('start', ''))
-            end_time = datetime.fromisoformat(current_program.get('end', ''))
-            now = datetime.now()
+            catchup_program = getattr(w, 'catchup_program', None)
+            if catchup_program:
+                start_time = catchup_program.get('start')
+                end_time = catchup_program.get('end')
+            else:
+                start_time = datetime.fromisoformat(current_program.get('start', ''))
+                end_time = datetime.fromisoformat(current_program.get('end', ''))
 
+            if not start_time or not end_time:
+                return
+
+            now = datetime.now()
             total_duration = (end_time - start_time).total_seconds()
             if total_duration <= 0:
                 return
@@ -103,12 +111,20 @@ class ProgressController:
             w._progress_program_start = start_time
             w._progress_program_end = end_time
 
-            timeshift = getattr(w, '_live_timeshift_seconds', 0)
-            if timeshift > 0:
-                current_position = (now - timedelta(seconds=timeshift) - start_time).total_seconds()
+            if hasattr(w, '_catchup_start_time') and hasattr(w, '_catchup_start_progress') \
+                    and w._catchup_start_time is not None and w._catchup_start_progress is not None:
+                import time
+                elapsed = time.time() - w._catchup_start_time
+                speed = w.player_controller.get_speed() if w.player_controller else 1.0
+                current_position = w._catchup_start_progress + elapsed * speed
                 current_position = max(0, min(current_position, total_duration))
             else:
-                current_position = (now - start_time).total_seconds()
+                timeshift = getattr(w, '_live_timeshift_seconds', 0)
+                if timeshift > 0:
+                    current_position = (now - timedelta(seconds=timeshift) - start_time).total_seconds()
+                    current_position = max(0, min(current_position, total_duration))
+                else:
+                    current_position = (now - start_time).total_seconds()
 
             w._set_progress_value(current_position)
 

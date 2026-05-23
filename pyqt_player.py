@@ -4843,10 +4843,13 @@ class IPTVPlayer(QMainWindow):
             if not self.floating_panel.isVisible():
                 self.floating_panel.show()
 
-        for attr in ['_catchup_start_time', '_catchup_start_progress',
-                     '_target_catchup_progress', '_disable_progress_auto_update']:
+        for attr in ['_target_catchup_progress', '_disable_progress_auto_update']:
             if hasattr(self, attr):
-                setattr(self, attr, None if 'time' in attr or 'progress' in attr else False)
+                setattr(self, attr, False)
+
+        import time as _time
+        self._catchup_start_time = _time.time()
+        self._catchup_start_progress = offset_seconds
 
         self._timeshift_start_time = target_wallclock
         self.play_state.set_timeshift()
