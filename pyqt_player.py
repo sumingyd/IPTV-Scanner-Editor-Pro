@@ -1353,7 +1353,7 @@ class IPTVPlayer(QMainWindow):
         self.exit_catchup_button.setIconSize(btn_icon_size)
         self.exit_catchup_button.setText(tr("exit_catchup", "退出回看"))
         self.exit_catchup_button.setFixedSize(100, 26)
-        self.exit_catchup_button.setStyleSheet(AppStyles.exit_catchup_button_style())
+        self.exit_catchup_button.setStyleSheet(AppStyles.player_button_style())
         self.exit_catchup_button.clicked.connect(self.exit_catchup)
         self.exit_catchup_button.setToolTip(tr("panel_exit_catchup", "退出回看"))
         self.exit_catchup_button.hide()
@@ -4233,7 +4233,7 @@ class IPTVPlayer(QMainWindow):
             for tool_btn in fp.findChildren(QToolButton):
                 tool_btn.setStyleSheet(AppStyles.player_button_style())
             if hasattr(self, 'exit_catchup_button'):
-                self.exit_catchup_button.setStyleSheet(AppStyles.exit_catchup_button_style())
+                self.exit_catchup_button.setStyleSheet(AppStyles.player_button_style())
             if hasattr(self, 'catchup_indicator'):
                 self.catchup_indicator.setStyleSheet(AppStyles.player_catchup_indicator_style())
             for slider in fp.findChildren(QSlider):
