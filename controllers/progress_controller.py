@@ -80,15 +80,73 @@ class ProgressController:
 
     def _update_timeshift_progress(self, current_time_ms, total_time_ms, position):
         w = self.window
-        catchup_program = getattr(w, 'catchup_program', None)
-        if catchup_program:
-            self._update_catchup_progress(current_time_ms, total_time_ms, position)
-            return
         has_epg, current_program = self._get_current_epg()
         if has_epg and current_program:
-            self._update_epg_progress(current_program, current_time_ms, total_time_ms, position)
+            self._update_timeshift_epg_progress(current_program, current_time_ms, total_time_ms, position)
         else:
-            self._update_default_progress(current_time_ms, total_time_ms, position)
+            self._update_timeshift_live_progress()
+
+    def _update_timeshift_epg_progress(self, current_program, current_time_ms, total_time_ms, position):
+        w = self.window
+        try:
+            start_time = datetime.fromisoformat(current_program.get('start', ''))
+            end_time = datetime.fromisoformat(current_program.get('end', ''))
+            now = datetime.now()
+
+            total_duration = (end_time - start_time).total_seconds()
+            if total_duration <= 0:
+                return
+
+            if abs(w._progress_total_seconds - int(total_duration)) > 1:
+                w._set_progress_range(int(total_duration))
+            w._progress_time_mode = 'epg'
+            w._progress_program_start = start_time
+            w._progress_program_end = end_time
+
+            timeshift = getattr(w, '_live_timeshift_seconds', 0)
+            if timeshift > 0:
+                current_position = (now - timedelta(seconds=timeshift) - start_time).total_seconds()
+                current_position = max(0, min(current_position, total_duration))
+            else:
+                current_position = (now - start_time).total_seconds()
+
+            w._set_progress_value(current_position)
+
+            start_str = start_time.strftime("%H:%M")
+            end_str = end_time.strftime("%H:%M")
+            w.progress_start.setText(start_str)
+            w.progress_end.setText(end_str)
+            w.progress_start.repaint()
+            w.progress_end.repaint()
+        except Exception:
+            self._fallback_progress(current_time_ms, total_time_ms, position)
+
+    def _update_timeshift_live_progress(self):
+        w = self.window
+        if w._progress_total_seconds != 3600:
+            w._set_progress_range(3600)
+            w._progress_time_mode = 'hour'
+            w._progress_program_start = None
+            w._progress_program_end = None
+
+        timeshift = getattr(w, '_live_timeshift_seconds', 0)
+        if timeshift > 0:
+            effective_time = datetime.now() - timedelta(seconds=timeshift)
+        else:
+            effective_time = datetime.now()
+
+        start_hour = effective_time.replace(minute=0, second=0, microsecond=0).strftime("%H:00")
+        end_hour = (effective_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+        w.progress_start.setText(start_hour)
+        w.progress_end.setText(end_hour)
+        w.time_label.setText(f"{datetime.now().strftime('%H:%M')}")
+        seconds_from_hour = effective_time.minute * 60 + effective_time.second
+        w._set_progress_value(seconds_from_hour)
+
+        if hasattr(w, 'remain_label') and w.remain_label.isVisible():
+            playing_label = w.language_manager.tr("playing_label", "Playing...")
+            if w.remain_label.text() != playing_label:
+                w.remain_label.setText(playing_label)
 
     def _update_epg_progress(self, current_program, current_time_ms, total_time_ms, position):
         w = self.window

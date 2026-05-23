@@ -331,6 +331,7 @@ class CatchupController:
             self.window._populate_epg_list()
 
         if saved_original_channel:
+            tr = self.window.language_manager.tr
             channel_name = saved_original_channel.get("name", tr("unknown_channel", "Unknown Channel"))
             self.window.status_bar_show_message(f"{tr('back_to_live', 'Back to live')}: {channel_name}")
             self.window.current_channel = saved_original_channel
