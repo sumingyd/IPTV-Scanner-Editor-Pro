@@ -1497,6 +1497,28 @@ class AppStyles:
         """
 
     @staticmethod
+    def player_search_input_style() -> str:
+        colors = AppStyles._get_colors()
+        return f"""
+            QLineEdit {{
+                background-color: {colors['player_combo']};
+                color: {colors['player_panel_text']};
+                border: 1px solid {colors['player_line']};
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {colors['player_accent']};
+            }}
+            QLineEdit::clear-button {{
+                subcontrol-origin: padding;
+                subcontrol-position: right center;
+                width: 16px;
+            }}
+        """
+
+    @staticmethod
     def player_line_style() -> str:
         colors = AppStyles._get_colors()
         return f"""

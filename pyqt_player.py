@@ -859,7 +859,7 @@ class IPTVPlayer(QMainWindow):
         self.sub_search_input = QtWidgets.QLineEdit()
         self.sub_search_input.setPlaceholderText(tr("search_channel", "搜索频道..."))
         self.sub_search_input.setClearButtonEnabled(True)
-        self.sub_search_input.setStyleSheet(self._search_input_style())
+        self.sub_search_input.setStyleSheet(AppStyles.player_search_input_style())
         self.sub_search_input.textChanged.connect(self._on_sub_search_changed)
         sub_layout.addWidget(self.sub_search_input)
 
@@ -917,7 +917,7 @@ class IPTVPlayer(QMainWindow):
         self.local_search_input = QtWidgets.QLineEdit()
         self.local_search_input.setPlaceholderText(tr("search_channel", "搜索频道..."))
         self.local_search_input.setClearButtonEnabled(True)
-        self.local_search_input.setStyleSheet(self._search_input_style())
+        self.local_search_input.setStyleSheet(AppStyles.player_search_input_style())
         self.local_search_input.textChanged.connect(self._on_local_search_changed)
         local_layout.addWidget(self.local_search_input)
 
@@ -1882,27 +1882,6 @@ class IPTVPlayer(QMainWindow):
         elif new_groups:
             combo.setCurrentIndex(0)
         combo.blockSignals(False)
-
-    def _search_input_style(self):
-        colors = AppStyles._get_colors()
-        return f"""
-            QLineEdit {{
-                background-color: {colors['player_combo']};
-                color: {colors['player_panel_text']};
-                border: 1px solid {colors['player_line']};
-                border-radius: 4px;
-                padding: 4px 8px;
-                font-size: 12px;
-            }}
-            QLineEdit:focus {{
-                border: 1px solid {colors['player_accent']};
-            }}
-            QLineEdit::clear-button {{
-                subcontrol-origin: padding;
-                subcontrol-position: right center;
-                width: 16px;
-            }}
-        """
 
     def _on_sub_search_changed(self, text):
         self._apply_channel_search(self.sub_channel_list, self._sub_channels, text)
@@ -4201,7 +4180,7 @@ class IPTVPlayer(QMainWindow):
             for search_attr in ['sub_search_input', 'local_search_input']:
                 si = getattr(self, search_attr, None)
                 if si:
-                    si.setStyleSheet(self._search_input_style())
+                    si.setStyleSheet(AppStyles.player_search_input_style())
             for btn_attr in ['sub_view_grid_btn', 'local_view_grid_btn', 'sub_view_list_btn', 'local_view_list_btn']:
                 vb = getattr(self, btn_attr, None)
                 if vb:
