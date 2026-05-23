@@ -2444,7 +2444,7 @@ class IPTVPlayer(QMainWindow):
             self._slider_debounce_timer = QTimer()
             self._slider_debounce_timer.setSingleShot(True)
             self._slider_debounce_timer.timeout.connect(self._do_progress_slider_released)
-        self._slider_debounce_timer.start(200)
+        self._slider_debounce_timer.start(100)
 
     def _do_progress_slider_released(self):
         is_catchup = self.play_state.is_catchup_or_timeshift
@@ -2603,12 +2603,8 @@ class IPTVPlayer(QMainWindow):
             self._catchup_start_time = _time.time()
             self._catchup_start_progress = position
 
-            self._disable_progress_auto_update = True
-
             if hasattr(self, 'player_controller') and self.player_controller:
-                self.player_controller.stop()
-                from PyQt6.QtCore import QTimer
-                QTimer.singleShot(300, lambda: self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)"))
+                self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
         except Exception as e:
             logger.error(f"重新构建回看 URL 失败：{e}")
             self.status_bar.showMessage(self.language_manager.tr("catchup_seek_error", "Catchup seek failed"))
