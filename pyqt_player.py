@@ -842,6 +842,10 @@ class IPTVPlayer(QMainWindow):
         self.playlist_layout = QVBoxLayout(playlist_container)
         self.playlist_layout.setContentsMargins(0, 0, 0, 0)
 
+        self.playlist_title = QLabel(tr('playlist_title', 'Playlist'))
+        self.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
+        self.playlist_layout.addWidget(self.playlist_title)
+
         self.playlist_tab = QTabWidget()
         self.playlist_tab.setStyleSheet(AppStyles.player_tab_style())
 
@@ -865,7 +869,7 @@ class IPTVPlayer(QMainWindow):
 
         sub_toolbar = QWidget()
         sub_toolbar_layout = QHBoxLayout(sub_toolbar)
-        sub_toolbar_layout.setContentsMargins(4, 2, 4, 2)
+        sub_toolbar_layout.setContentsMargins(8, 4, 8, 4)
         sub_toolbar_layout.setSpacing(2)
         view_icon_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
         self.sub_view_list_btn = QToolButton()
@@ -923,7 +927,7 @@ class IPTVPlayer(QMainWindow):
 
         local_toolbar = QWidget()
         local_toolbar_layout = QHBoxLayout(local_toolbar)
-        local_toolbar_layout.setContentsMargins(4, 2, 4, 2)
+        local_toolbar_layout.setContentsMargins(8, 4, 8, 4)
         local_toolbar_layout.setSpacing(2)
         self.local_view_list_btn = QToolButton()
         self.local_view_list_btn.setIcon(QIcon(AppStyles.get_icon('list_view', view_icon_color)))
@@ -4140,6 +4144,8 @@ class IPTVPlayer(QMainWindow):
         try:
             if hasattr(self, 'epg_title'):
                 self.epg_title.setStyleSheet(AppStyles.player_epg_title_style())
+            if hasattr(self, 'playlist_title'):
+                self.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
             if hasattr(self, 'epg_prev_day'):
                 self.epg_prev_day.setStyleSheet(AppStyles.player_date_button_style())
             if hasattr(self, 'epg_next_day'):
