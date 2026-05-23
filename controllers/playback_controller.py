@@ -130,14 +130,18 @@ class PlaybackController:
             self._is_muted = False
             self.window.player_controller.set_volume(self._pre_mute_volume)
             if self.window.volume_slider:
+                self.window.volume_slider.blockSignals(True)
                 self.window.volume_slider.setValue(self._pre_mute_volume)
+                self.window.volume_slider.blockSignals(False)
             self._update_volume_icon(self._pre_mute_volume)
         else:
             self._is_muted = True
             self._pre_mute_volume = self.window.player_controller.get_volume()
             self.window.player_controller.set_volume(0)
             if self.window.volume_slider:
+                self.window.volume_slider.blockSignals(True)
                 self.window.volume_slider.setValue(0)
+                self.window.volume_slider.blockSignals(False)
             self._update_volume_icon(0)
 
     def _update_volume_icon(self, volume: int):
