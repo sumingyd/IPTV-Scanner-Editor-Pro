@@ -1777,6 +1777,12 @@ class IPTVPlayer(QMainWindow):
             english.triggered.connect(lambda: self.set_language("en"))
             language_menu.addAction(english)
             
+            from PyQt6.QtGui import QActionGroup
+            lang_group = QActionGroup(self)
+            lang_group.setExclusive(True)
+            lang_group.addAction(chinese)
+            lang_group.addAction(english)
+            
             # 主题菜单
             theme_menu = menu_bar.addMenu(tr("menu_theme", "Theme"))
 
