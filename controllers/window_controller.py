@@ -122,18 +122,19 @@ class WindowController:
     def toggle_maximize(self):
         """切换最大化/还原状态"""
         color = AppStyles._get_colors().get('window_text', '#ffffff')
+        tr = self.window.language_manager.tr if hasattr(self.window, 'language_manager') else lambda k, v: v
         if self.window.isMaximized():
             self.window.showNormal()
             icon_path = AppStyles.get_icon('fullscreen', color, 14)
             if icon_path:
                 self._maximize_btn.setIcon(QIcon(icon_path))
-            self._maximize_btn.setToolTip("最大化")
+            self._maximize_btn.setToolTip(tr('tooltip_maximize', '最大化'))
         else:
             self.window.showMaximized()
             icon_path = AppStyles.get_icon('restore', color, 14)
             if icon_path:
                 self._maximize_btn.setIcon(QIcon(icon_path))
-            self._maximize_btn.setToolTip("还原")
+            self._maximize_btn.setToolTip(tr('tooltip_restore', '还原'))
 
     def toggle_stay_on_top(self):
         """切换置顶状态"""
