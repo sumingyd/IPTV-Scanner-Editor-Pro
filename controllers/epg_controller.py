@@ -518,13 +518,32 @@ class EPGController:
             self.window.populate_epg_list()
 
     def _scroll_to_current_program(self, epg_list: list, now):
-        """自动滚动到当前正在播放的节目"""
+        """自动滚动到当前正在播放的节目（回看/时移模式下居中到回看节目）"""
         if not epg_list or not hasattr(self.window, 'epg_content'):
             return
 
         from core.log_manager import global_logger as logger
 
-        # 查找当前正在播放的节目（或即将开始的下一个节目）
+        w = self.window
+
+        # 回看/时移模式：优先居中到回看节目
+        catchup_program = getattr(w, 'catchup_program', None)
+        play_state = getattr(w, 'play_state', None)
+        if catchup_program and play_state and play_state.is_catchup_or_timeshift:
+            cp_start = catchup_program.get('start')
+            cp_end = catchup_program.get('end')
+            if cp_start and cp_end:
+                for i, program in enumerate(epg_list):
+                    try:
+                        p_start = datetime.fromisoformat(program.get('start', ''))
+                        p_end = datetime.fromisoformat(program.get('end', ''))
+                        if p_start == cp_start and p_end == cp_end:
+                            self._do_scroll_to_index(i, logger, "回看节目")
+                            return
+                    except (ValueError, TypeError):
+                        continue
+
+        # 正常直播模式：查找当前正在播放的节目
         current_index = -1
         for i, program in enumerate(epg_list):
             start_str = program.get('start', '')
@@ -536,32 +555,31 @@ class EPGController:
                 
                 if start_dt and end_dt:
                     if start_dt <= now <= end_dt:
-                        # 正在播放的节目，精确命中，立即退出
                         current_index = i
                         break
                     elif start_dt > now and current_index == -1:
-                        # 记录第一个未开始的节目作为备选，找到后即停止
                         current_index = i
                         break
             except (ValueError, TypeError):
                 continue
 
-        # 如果没有找到，默认显示前几个节目
         if current_index < 0:
             current_index = 0
 
-        # 使用 QTimer 延迟滚动，确保 UI 已渲染完成
+        self._do_scroll_to_index(current_index, logger, "直播节目")
+
+    def _do_scroll_to_index(self, index, logger, label=""):
+        if index < 0:
+            return
         def do_scroll():
-            if hasattr(self.window, 'epg_content') and self.window.epg_content.count() > current_index:
-                item = self.window.epg_content.item(current_index)
+            if hasattr(self.window, 'epg_content') and self.window.epg_content.count() > index:
+                item = self.window.epg_content.item(index)
                 if item:
-                    # 使用 PositionAtCenter 让当前播放的节目显示在列表中间
                     self.window.epg_content.scrollToItem(
                         item,
                         self.window.epg_content.ScrollHint.PositionAtCenter
                     )
-                    logger.debug(f"EPG已定位到第 {current_index + 1} 个节目（居中显示）")
-
+                    logger.debug(f"EPG已定位到第 {index + 1} 个节目（{label}，居中显示）")
         QTimer.singleShot(100, do_scroll)
     def toggle_epg(self, checked: bool):
         """切换EPG面板显示/隐藏"""

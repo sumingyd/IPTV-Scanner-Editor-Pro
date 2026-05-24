@@ -269,11 +269,10 @@ class ChannelController:
                 scaled_pixmap = w._logo_cache_service.scale_logo_pixmap_to_fit(cached, w.channel_logo.width(), w.channel_logo.height())
                 w.channel_logo.setPixmap(scaled_pixmap)
                 w.channel_logo.setText("")
-                return
-
-            w._logo_cache_service.fetch_async(logo)
-            from utils.general_utils import set_default_channel_logo
-            set_default_channel_logo(w.channel_logo, w.channel_logo.width(), w.channel_logo.height())
+            else:
+                w._logo_cache_service.fetch_async(logo)
+                from utils.general_utils import set_default_channel_logo
+                set_default_channel_logo(w.channel_logo, w.channel_logo.width(), w.channel_logo.height())
         else:
             from utils.general_utils import set_default_channel_logo
             set_default_channel_logo(w.channel_logo, w.channel_logo.width(), w.channel_logo.height())
