@@ -782,16 +782,18 @@ class MpvPlayerController(QObject):
 
             self._setup_protocol_options(url, program_duration)
 
-            mpv_url = self._normalize_url(url)
-            _mpv_send_command(self.mpv_handle, ['loadfile', mpv_url])
+            is_vod = 'starttime=' in url.lower() or 'endtime=' in url.lower() or 'playseek' in url.lower()
+            if is_vod:
+                self._set_mpv_string('prefetch-playlist', 'no')
+            else:
+                self._set_mpv_string('prefetch-playlist', 'yes')
 
-            if next_urls:
-                prefetch_count = self._playback_settings.get('fcc_prefetch_count', 2)
-                for i, next_url in enumerate(next_urls[:prefetch_count]):
-                    if not next_url or not next_url.strip():
-                        continue
-                    mpv_next_url = self._normalize_url(next_url)
-                    _mpv_send_command(self.mpv_handle, ['loadfile', mpv_next_url, 'append-play'])
+            mpv_url = self._normalize_url(url)
+            result = _mpv_send_command(self.mpv_handle, ['loadfile', mpv_url])
+
+            if result < 0:
+                self.logger.error(f"预取播放失败: {result}")
+                return False
 
             _mpv_set_property_string(self.mpv_handle, 'pause', 'no')
             if self._current_speed != 1.0:
@@ -802,11 +804,38 @@ class MpvPlayerController(QObject):
             self.play_state_changed.emit(True)
             self._schedule_media_info_start()
 
+            if next_urls:
+                self._prefetch_next_channels(next_urls)
+
             self.logger.debug(f"开始播放(预取模式): {url}")
             return True
         except Exception as e:
             self.logger.error(f"预取播放失败: {str(e)}")
             return self.play(url)
+
+    def _prefetch_next_channels(self, next_urls):
+        prefetch_count = self._playback_settings.get('fcc_prefetch_count', 2)
+        urls_to_prefetch = []
+        for i, next_url in enumerate(next_urls[:prefetch_count]):
+            if not next_url or not next_url.strip():
+                continue
+            urls_to_prefetch.append(next_url)
+
+        if not urls_to_prefetch:
+            return
+
+        try:
+            from services.network_preheat_service import DnsPrefetcher, ConnectionPreheater
+            for next_url in urls_to_prefetch:
+                dns_prefetcher = getattr(self, '_dns_prefetcher', None)
+                if dns_prefetcher:
+                    dns_prefetcher.prefetch(next_url)
+                conn_preheater = getattr(self, '_connection_preheater', None)
+                if conn_preheater:
+                    conn_preheater.preheat(next_url)
+            self.logger.debug(f"预取{len(urls_to_prefetch)}个相邻频道的DNS/TCP连接")
+        except Exception as e:
+            self.logger.debug(f"预取相邻频道失败(非致命): {e}")
 
     def stop(self):
         try:

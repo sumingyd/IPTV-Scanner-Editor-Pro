@@ -208,6 +208,8 @@ class PlaybackController:
         self.current_channel = channel
         self.window.play_state.set_live()
 
+        self._prefetch_adjacent_channels(channel)
+
     def _exit_catchup_mode(self):
         catchup_ctrl = getattr(self.window, 'catchup_ctrl', None)
         if catchup_ctrl:
@@ -260,6 +262,53 @@ class PlaybackController:
             return False
         window_ch = getattr(self.window, 'current_channel', None)
         return (self.current_channel is not None) or (window_ch is not None)
+
+    def _prefetch_adjacent_channels(self, current_channel):
+        try:
+            channel_list = None
+            if hasattr(self.window, 'playlist_tab') and self.window.playlist_tab:
+                if self.window.playlist_tab.currentIndex() == 1:
+                    channel_list = self.window.local_channel_list
+                else:
+                    channel_list = self.window.sub_channel_list
+            elif hasattr(self.window, 'channel_list'):
+                channel_list = self.window.channel_list
+            if not channel_list:
+                return
+
+            current_row = channel_list.currentRow()
+            total = channel_list.count()
+            if total <= 1:
+                return
+
+            next_urls = []
+            for delta in [1, -1]:
+                adj_row = (current_row + delta) % total
+                if adj_row == current_row:
+                    continue
+                item = channel_list.item(adj_row)
+                if item:
+                    ch_data = item.data(256)
+                    if ch_data and isinstance(ch_data, dict):
+                        adj_url = ch_data.get('url', '')
+                        if adj_url:
+                            next_urls.append(adj_url)
+
+            if not next_urls:
+                return
+
+            dns_prefetcher = getattr(self.window, '_dns_prefetcher', None)
+            conn_preheater = getattr(self.window, '_connection_preheater', None)
+
+            for url in next_urls:
+                if dns_prefetcher:
+                    dns_prefetcher.prefetch(url)
+                if conn_preheater:
+                    conn_preheater.preheat(url)
+
+            logger.debug(f"预取{len(next_urls)}个相邻频道的DNS/TCP连接")
+        except Exception as e:
+            logger.debug(f"预取相邻频道失败(非致命): {e}")
 
     @property
     def is_muted_state(self) -> bool:
