@@ -11,14 +11,13 @@ from ..floating_dialog import FloatingDialog
 
 
 class AboutDialog(FloatingDialog):
-    CURRENT_VERSION = "46.2.0.1"
     DEFAULT_VERSION = None
-    BUILD_DATE = "2026-05-22"
 
     def __init__(self, parent=None):
         super().__init__(parent, stay_on_top=False)
-        from core.version import CURRENT_VERSION
+        from core.version import CURRENT_VERSION, BUILD_DATE
         self.current_version = CURRENT_VERSION
+        self.build_date = BUILD_DATE
         from core.language_manager import LanguageManager
         self.language_manager = getattr(parent, 'language_manager', None) or LanguageManager()
         from ..styles import AppStyles
@@ -92,7 +91,7 @@ class AboutDialog(FloatingDialog):
         rows = [
             (f"{tr('current_version', 'Current Version')}", self.current_version, True),
             (f"{tr('latest_version', 'Latest Version')}", None, True),
-            (f"{tr('build_date', 'Build Date')}", self.BUILD_DATE, False),
+            (f"{tr('build_date', 'Build Date')}", self.build_date, False),
             (f"{tr('qt_version', 'QT Version')}", QtCore.qVersion(), False),
         ]
 
