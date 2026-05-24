@@ -16,6 +16,9 @@ class UIController:
     def __init__(self, main_window: MainWindowProtocol):
         self.window: MainWindowProtocol = main_window
         self._osd_visible = False
+        self._osd_timer = QTimer()
+        self._osd_timer.setInterval(1000)
+        self._osd_timer.timeout.connect(self._refresh_osd)
 
     @property
     def osd_visible(self) -> bool:
@@ -50,18 +53,24 @@ class UIController:
             if panel and panel.isVisible():
                 panel.hide()
 
-        pc = self.window.player_controller
-        if pc and pc.is_playing:
-            try:
-                info = pc.get_live_media_info()
-            except Exception:
-                info = None
-            if not info:
-                info = {}
+        self._refresh_osd()
+        self._osd_timer.start()
 
-            osd_text = self._build_osd_text(info, pc)
-            if osd_text:
-                pc.show_osd(osd_text, 86400000)
+    def _refresh_osd(self):
+        """刷新OSD内容（由定时器驱动）"""
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing:
+            return
+        try:
+            info = pc.get_live_media_info()
+        except Exception:
+            info = None
+        if not info:
+            info = {}
+
+        osd_text = self._build_osd_text(info, pc)
+        if osd_text:
+            pc.show_osd(osd_text, 86400000)
 
     def _build_osd_text(self, info: Dict[str, Any], pc) -> str:
         """构建OSD文本内容 - 结构化排版"""
@@ -216,6 +225,7 @@ class UIController:
         return '\n'.join(lines)
 
     def _hide_osd(self):
+        self._osd_timer.stop()
         self.window.panel_vis.restore_context('osd')
 
         pc = self.window.player_controller
