@@ -260,8 +260,12 @@ class MpvPlayerController(QObject):
     @staticmethod
     def _is_network_drive(path):
         if os.name != 'nt':
-            return False
+            path_lower = path.lower()
+            return path_lower.startswith('//') or path_lower.startswith('\\\\')
         try:
+            path_lower = path.lower()
+            if path_lower.startswith('//') or path_lower.startswith('\\\\'):
+                return True
             drive = os.path.splitdrive(path)[0]
             if not drive or len(drive) != 2 or drive[1] != ':':
                 return False
