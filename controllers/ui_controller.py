@@ -632,6 +632,9 @@ class UIController:
                         self.window.buffer_info.show()
                     else:
                         self.window.buffer_info.hide()
+                self._update_cache_bar(buffer_state)
+            else:
+                self._clear_cache_bar()
 
         current_time_ms = getattr(self.window, '_cached_current_time_ms', 0)
         total_time_ms = getattr(self.window, '_cached_total_time_ms', 0)
@@ -657,6 +660,44 @@ class UIController:
                     self.window._video_overlay_label.hide()
 
         self.window.progress_ctrl.update_progress(current_time_ms, total_time_ms, position)
+
+    def _update_cache_bar(self, buffer_state: dict):
+        progress = getattr(self.window, 'program_progress', None)
+        if not progress or not hasattr(progress, 'set_cache_range'):
+            return
+
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing:
+            progress.clear_cache_range()
+            return
+
+        total_seconds = getattr(self.window, '_progress_total_seconds', 0)
+        if total_seconds <= 0:
+            progress.clear_cache_range()
+            return
+
+        seek_range = pc.get_available_seek_range()
+        buffer_start = seek_range.get('buffer_start', 0)
+        buffer_end = seek_range.get('buffer_end', 0)
+        time_pos = seek_range.get('time_pos', 0)
+
+        if buffer_end <= buffer_start or total_seconds <= 0:
+            progress.clear_cache_range()
+            return
+
+        start_ratio = max(0.0, (buffer_start - time_pos + self.window.program_progress.value()) / total_seconds)
+        end_ratio = min(1.0, (buffer_end - time_pos + self.window.program_progress.value()) / total_seconds)
+
+        if end_ratio - start_ratio < 0.005:
+            progress.clear_cache_range()
+            return
+
+        progress.set_cache_range(start_ratio, end_ratio)
+    def _clear_cache_bar(self):
+        progress = getattr(self.window, 'program_progress', None)
+        if progress and hasattr(progress, 'clear_cache_range'):
+            progress.clear_cache_range()
+
 
     def _reapply_side_panel_styles(self):
         from core.log_manager import global_logger as logger

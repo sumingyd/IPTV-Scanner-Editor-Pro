@@ -24,6 +24,7 @@ from core.log_manager import global_logger as logger
 from core.application_state import app_state
 from core.language_manager import LanguageManager
 from ui.styles import AppStyles
+from ui.cache_progress_slider import CacheProgressSlider
 
 from controllers import (
     WindowController,
@@ -1333,13 +1334,14 @@ class IPTVPlayer(QMainWindow):
         self.progress_group.addWidget(self.progress_start)
         
         # 时间进度条
-        self.program_progress = QSlider(Qt.Orientation.Horizontal)
+        self.program_progress = CacheProgressSlider(Qt.Orientation.Horizontal)
         self.program_progress.setRange(0, 3600)
         self.program_progress.setValue(0)
         self.program_progress.setSingleStep(1)
         self.program_progress.setPageStep(30)
         self.program_progress.setMinimumWidth(200)
         self.program_progress.setStyleSheet(AppStyles.player_slider_style())
+        self.program_progress.set_cache_color(AppStyles._get_colors().get('player_cache_bar', 'rgba(76,175,80,0.4)'))
         self.program_progress.sliderReleased.connect(self.on_progress_slider_released)
         self._progress_total_seconds = 3600
         self.progress_group.addWidget(self.program_progress, 1)
