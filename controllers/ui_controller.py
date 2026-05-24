@@ -201,7 +201,8 @@ class UIController:
         if play_url:
             display_url = play_url
             if len(display_url) > 80:
-                display_url = display_url[:77] + '...'
+                half = 37
+                display_url = display_url[:half] + '...' + display_url[-half:]
             lines.append(f'URL: {display_url}')
 
         total_time = pc.get_total_time() or 0
