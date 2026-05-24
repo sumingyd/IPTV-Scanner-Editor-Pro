@@ -267,6 +267,12 @@ class CatchupController:
         catchup_url = self.build_catchup_url(self.window.current_channel, start_time, end_time)
         logger.debug(f"构建回看URL: {catchup_url}")
 
+        if not catchup_url or not catchup_url.strip():
+            logger.warning(f"回看URL构建失败: channel={channel_name}, catchup_source={self.window.current_channel.get('catchup_source', '')!r}")
+            no_support_msg = tr('catchup_not_supported', '该频道不支持回看')
+            self.window.status_bar_show_message(no_support_msg)
+            return
+
         catchup_template = tr('catchup_playing', '正在回看: {name}')
         self.window.status_bar_show_message(f"{catchup_template.format(name=channel_name)} - {title}")
 
