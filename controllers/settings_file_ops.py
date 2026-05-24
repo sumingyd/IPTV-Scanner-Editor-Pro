@@ -554,49 +554,45 @@ class SettingsFileOperations:
         colors = AppStyles._get_colors()
 
         dialog.setWindowTitle(tr("usage_instructions_title", "Usage Instructions"))
-        dialog.setMinimumSize(560, 520)
+        dialog.setMinimumSize(520, 460)
+        dialog.resize(620, 560)
         dialog.setStyleSheet(AppStyles.dialog_style())
 
         main_layout = QVBoxLayout(dialog)
-        main_layout.setContentsMargins(24, 20, 24, 16)
-        main_layout.setSpacing(12)
+        main_layout.setContentsMargins(16, 14, 16, 12)
+        main_layout.setSpacing(8)
 
-        header_layout = QHBoxLayout()
-        header_layout.setSpacing(12)
-        header_icon = QLabel("📖")
-        header_icon.setStyleSheet("font-size: 28px; background-color: transparent;")
-        header_icon.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        header_layout.addWidget(header_icon)
-        header_title = QLabel(tr("usage_instructions_title", "Usage Instructions"))
-        header_title.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {colors['accent']}; background-color: transparent;")
-        header_title.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        header_layout.addWidget(header_title)
-        header_layout.addStretch()
-        main_layout.addLayout(header_layout)
+        header_label = QLabel(tr("usage_instructions_title", "Usage Instructions"))
+        header_label.setStyleSheet(
+            f"font-size: 15px; font-weight: bold; color: {colors['accent']}; background-color: transparent; padding: 2px 0;"
+        )
+        main_layout.addWidget(header_label)
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setStyleSheet(f"background-color: {colors['mid']}; max-height: 1px;")
+        sep.setFixedHeight(1)
+        sep.setStyleSheet(f"background-color: {colors['mid']}; border: none;")
         main_layout.addWidget(sep)
 
         text_edit = QTextEdit()
         usage_content = tr("usage_content", "") or DEFAULT_USAGE_CONTENT
         text_edit.setHtml(self._convert_markdown_to_html(usage_content))
         text_edit.setReadOnly(True)
-        text_edit.setFont(QtGui.QFont('Microsoft YaHei', 10))
         text_edit.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         text_edit.setWordWrapMode(QtGui.QTextOption.WrapMode.WordWrap)
+        text_edit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        text_edit.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         text_edit.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {colors['alternate_base']};
                 color: {colors['window_text']};
                 border: 1px solid {colors['mid']};
-                border-radius: 8px;
-                padding: 12px;
+                border-radius: 6px;
+                padding: 10px;
                 font-size: 13px;
             }}
         """)
-        main_layout.addWidget(text_edit)
+        main_layout.addWidget(text_edit, 1)
 
         button_layout = QHBoxLayout()
         button_layout.addStretch()
@@ -627,18 +623,18 @@ class SettingsFileOperations:
     def _convert_markdown_to_html(markdown):
         colors = AppStyles._get_colors()
         html = markdown
-        html = re.sub(r'### (.*)', rf'<h3 style="color: {colors["window_text"]}; margin-top: 8px; margin-bottom: 4px; font-size: 13px;">\1</h3>', html)
-        html = re.sub(r'## (.*)', rf'<h2 style="color: {colors["accent"]}; margin-top: 12px; margin-bottom: 6px; font-size: 15px;">\1</h2>', html)
+        html = re.sub(r'### (.*)', rf'<h3 style="color: {colors["window_text"]}; margin-top: 6px; margin-bottom: 3px; font-size: 13px;">\1</h3>', html)
+        html = re.sub(r'## (.*)', rf'<h2 style="color: {colors["accent"]}; margin-top: 10px; margin-bottom: 4px; font-size: 14px;">\1</h2>', html)
         html = re.sub(r'\*\*(.*?)\*\*', rf'<strong style="color: {colors["window_text"]};">\1</strong>', html)
-        html = re.sub(r'^1\. (.*)', r'<p style="margin: 3px 0; line-height: 1.4;">1. \1</p>', html, flags=re.MULTILINE)
-        html = re.sub(r'^- (.*)', r'<p style="margin: 2px 0 2px 16px; line-height: 1.4;">• \1</p>', html, flags=re.MULTILINE)
+        html = re.sub(r'^1\. (.*)', r'<p style="margin: 2px 0; line-height: 1.5;">1. \1</p>', html, flags=re.MULTILINE)
+        html = re.sub(r'^- (.*)', r'<p style="margin: 1px 0 1px 14px; line-height: 1.5;">\u2022 \1</p>', html, flags=re.MULTILINE)
         html = html.replace('\n\n', '<br>')
         html = html.replace('\n', ' ')
         return f'''<html>
         <head>
             <style>
                 body {{
-                    font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
                     font-size: 13px;
                     line-height: 1.5;
                     color: {colors['window_text']};
@@ -646,7 +642,7 @@ class SettingsFileOperations:
                     margin: 0;
                     padding: 0;
                 }}
-                p {{ margin: 3px 0; }}
+                p {{ margin: 2px 0; }}
             </style>
         </head>
         <body>
