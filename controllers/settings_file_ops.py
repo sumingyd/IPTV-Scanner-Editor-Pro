@@ -622,32 +622,92 @@ class SettingsFileOperations:
     @staticmethod
     def _convert_markdown_to_html(markdown):
         colors = AppStyles._get_colors()
-        html = markdown
-        html = re.sub(r'### (.*)', rf'<h3 style="color: {colors["window_text"]}; margin-top: 6px; margin-bottom: 3px; font-size: 13px;">\1</h3>', html)
-        html = re.sub(r'## (.*)', rf'<h2 style="color: {colors["accent"]}; margin-top: 10px; margin-bottom: 4px; font-size: 14px;">\1</h2>', html)
-        html = re.sub(r'\*\*(.*?)\*\*', rf'<strong style="color: {colors["window_text"]};">\1</strong>', html)
-        html = re.sub(r'^1\. (.*)', r'<p style="margin: 2px 0; line-height: 1.5;">1. \1</p>', html, flags=re.MULTILINE)
-        bullet_repl = '<p style="margin: 1px 0 1px 14px; line-height: 1.5;">\u2022 \\1</p>'
-        html = re.sub(r'^- (.*)', bullet_repl, html, flags=re.MULTILINE)
-        html = html.replace('\n\n', '<br>')
-        html = html.replace('\n', ' ')
+        accent = colors['accent']
+        text_color = colors['window_text']
+        blocks = []
+        current_list_items = []
+
+        def flush_list():
+            nonlocal current_list_items
+            if current_list_items:
+                items_html = ''.join(
+                    f'<li>{item}</li>' for item in current_list_items
+                )
+                blocks.append(f'<ul>{items_html}</ul>')
+                current_list_items = []
+
+        for line in markdown.split('\n'):
+            stripped = line.strip()
+            if not stripped:
+                flush_list()
+                continue
+            m = re.match(r'^## (.+)', stripped)
+            if m:
+                flush_list()
+                blocks.append(f'<h2>{m.group(1)}</h2>')
+                continue
+            m = re.match(r'^### (.+)', stripped)
+            if m:
+                flush_list()
+                blocks.append(f'<h3>{m.group(1)}</h3>')
+                continue
+            m = re.match(r'^- (.+)', stripped)
+            if m:
+                content = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', m.group(1))
+                current_list_items.append(content)
+                continue
+            content = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', stripped)
+            blocks.append(f'<p>{content}</p>')
+
+        flush_list()
+
+        body_html = '\n'.join(blocks)
         return f'''<html>
         <head>
             <style>
                 body {{
                     font-family: 'Segoe UI', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
                     font-size: 13px;
-                    line-height: 1.5;
-                    color: {colors['window_text']};
+                    line-height: 1.6;
+                    color: {text_color};
                     background-color: transparent;
                     margin: 0;
                     padding: 0;
                 }}
-                p {{ margin: 2px 0; }}
+                h2 {{
+                    color: {accent};
+                    font-size: 14px;
+                    font-weight: bold;
+                    margin-top: 14px;
+                    margin-bottom: 6px;
+                    padding-bottom: 3px;
+                    border-bottom: 1px solid {accent}40;
+                }}
+                h3 {{
+                    color: {text_color};
+                    font-size: 13px;
+                    font-weight: bold;
+                    margin-top: 8px;
+                    margin-bottom: 4px;
+                }}
+                p {{
+                    margin: 2px 0;
+                }}
+                ul {{
+                    margin: 2px 0 2px 8px;
+                    padding-left: 16px;
+                }}
+                li {{
+                    margin: 1px 0;
+                    line-height: 1.5;
+                }}
+                b {{
+                    color: {text_color};
+                }}
             </style>
         </head>
         <body>
-            {html}
+            {body_html}
         </body>
         </html>'''
 
