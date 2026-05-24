@@ -9,7 +9,6 @@ from PyQt6 import QtWidgets, QtCore, QtGui
 # 导入自定义模块
 from models.channel_model import ChannelListModel
 from services.scanner_service import ScannerController
-from services.mpv_validator_service import get_optimal_thread_count
 from ui.styles import AppStyles
 from services.url_parser_service import URLRangeParser
 

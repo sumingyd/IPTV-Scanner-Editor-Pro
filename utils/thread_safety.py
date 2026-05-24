@@ -1,4 +1,3 @@
-import threading
 from concurrent.futures import Future
 from PyQt6.QtCore import QThread, QTimer, QObject
 

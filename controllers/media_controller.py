@@ -5,9 +5,6 @@
 
 import os
 import re
-from typing import Optional
-
-from PyQt6.QtCore import Qt
 
 from core.log_manager import global_logger as logger
 from controllers.main_window_protocol import MainWindowProtocol

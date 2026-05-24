@@ -1,6 +1,5 @@
 import socket
 import threading
-import time
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 from PyQt6.QtCore import QObject, pyqtSignal

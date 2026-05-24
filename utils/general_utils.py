@@ -2,8 +2,7 @@ import os
 import sys
 import logging
 import time
-import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 
 def get_display_channel_name(channel: Dict[str, Any], language_manager=None) -> str:

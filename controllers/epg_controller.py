@@ -3,10 +3,9 @@ EPG节目单控制器 - 负责EPG数据管理、显示、交互
 从 pyqt_player.py 提取的独立模块
 """
 
-from typing import List
 from datetime import datetime, timedelta, date
-from PyQt6.QtWidgets import QListWidgetItem, QDateEdit, QStyledItemDelegate, QStyleOptionViewItem
-from PyQt6.QtGui import QAction, QColor, QPainter, QFontMetrics
+from PyQt6.QtWidgets import QListWidgetItem, QStyledItemDelegate, QStyleOptionViewItem
+from PyQt6.QtGui import QColor, QPainter, QFontMetrics
 from PyQt6.QtCore import Qt, QTimer, QRect
 
 from core.log_manager import global_logger as logger

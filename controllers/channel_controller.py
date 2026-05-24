@@ -4,9 +4,7 @@
 """
 
 from typing import Dict, Any
-from PyQt6.QtCore import Qt
 
-from core.log_manager import global_logger as logger
 from core.application_state import app_state
 from utils.general_utils import get_display_channel_name
 from controllers.main_window_protocol import MainWindowProtocol

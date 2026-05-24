@@ -2,7 +2,7 @@ import gc
 import weakref
 import threading
 import time
-from typing import Dict, Any, Optional, Callable, List
+from typing import Dict, Any, Optional, Callable
 from core.log_manager import global_logger
 from utils.singleton import Singleton
 

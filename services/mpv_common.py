@@ -27,6 +27,11 @@ libmpv = None
 _mpv_loaded = False
 
 
+def _is_mpv_available():
+    _ensure_libmpv_loaded()
+    return MPV_AVAILABLE
+
+
 def _ensure_libmpv_loaded():
     global libmpv, MPV_AVAILABLE, _mpv_loaded
     if _mpv_loaded:

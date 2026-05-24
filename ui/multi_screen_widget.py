@@ -1,11 +1,10 @@
-import os
 import json
 from PyQt6.QtWidgets import (
     QWidget, QGridLayout, QLabel, QSlider, QToolButton,
     QComboBox, QFrame, QVBoxLayout, QHBoxLayout, QSizePolicy,
     QListWidget
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QMimeData, QByteArray, QSize
+from PyQt6.QtCore import Qt, pyqtSignal, QMimeData, QByteArray, QSize
 from PyQt6.QtGui import QDrag, QPainter, QColor, QPen, QIcon
 from ui.styles import AppStyles
 

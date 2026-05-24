@@ -10,7 +10,7 @@ from models.channel_model import ChannelListModel
 from PyQt6 import QtCore
 from PyQt6.QtCore import pyqtSignal, QObject
 from models.channel_mappings import extract_channel_name_from_url
-from utils.scan_state_manager import get_scan_state_manager, ScanStateContext
+from utils.scan_state_manager import get_scan_state_manager
 
 
 def calculate_optimal_queue_size(thread_count: int = 10) -> int:

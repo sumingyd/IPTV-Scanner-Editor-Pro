@@ -17,13 +17,8 @@ from services.mpv_common import (
     wait_for_specific_event,
     get_property_string as _mpv_get_property_string,
     get_property_int as _mpv_get_property_int,
+    _is_mpv_available,
 )
-
-
-def _is_mpv_available():
-    import services.mpv_common as _mod
-    _mod._ensure_libmpv_loaded()
-    return _mod.MPV_AVAILABLE
 
 
 def get_optimal_thread_count():

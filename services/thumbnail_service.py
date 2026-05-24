@@ -16,13 +16,8 @@ from services.mpv_common import (
     set_property_string as _mpv_set_property_string,
     send_command as _mpv_send_command,
     wait_for_specific_event,
+    _is_mpv_available,
 )
-
-
-def _is_mpv_available():
-    import services.mpv_common as _mod
-    _mod._ensure_libmpv_loaded()
-    return _mod.MPV_AVAILABLE
 
 CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', 'thumbnails')
 

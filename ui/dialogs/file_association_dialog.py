@@ -1,4 +1,3 @@
-import sys
 from PyQt6 import QtWidgets
 from PyQt6.QtCore import Qt
 from ..floating_dialog import FloatingDialog

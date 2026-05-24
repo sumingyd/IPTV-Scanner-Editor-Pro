@@ -5,7 +5,7 @@
 
 from typing import Protocol, Any, Optional, List, Dict, runtime_checkable
 
-from PyQt6.QtWidgets import QMainWindow, QStatusBar, QWidget, QSlider, QPushButton, QLabel, QListWidget, QComboBox, QTabWidget, QProgressBar, QLineEdit, QToolBar
+from PyQt6.QtWidgets import QStatusBar, QWidget, QSlider, QPushButton, QLabel, QListWidget, QComboBox, QTabWidget, QProgressBar, QLineEdit, QToolBar
 from PyQt6.QtCore import Qt
 
 

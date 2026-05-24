@@ -3,9 +3,7 @@
 从 pyqt_player.py 提取的独立模块
 """
 
-from typing import Optional
 from PyQt6.QtCore import Qt, QEvent, QTimer
-from PyQt6.QtGui import QKeyEvent
 from controllers.main_window_protocol import MainWindowProtocol
 
 

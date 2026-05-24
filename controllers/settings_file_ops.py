@@ -130,10 +130,6 @@ class SettingsFileOperations:
         if file_path:
             self._save_playlist_file(file_path)
 
-    def reload_subscription(self):
-        if self.window.subscription_ctrl:
-            self.window.subscription_ctrl.reload_subscription()
-
     # ==================== 设置对话框 ====================
 
     def player_settings(self):
