@@ -56,6 +56,7 @@
 ### 🔍 智能频道扫描
 - **范围扫描**：支持 IP 范围格式（如 `239.1.1.[1-255]:5002`）
 - **多协议**：单播、组播、HTTP/HTTPS 流链接
+- **FCC 快速换台**：支持 IPTV 组播 FCC（Fast Channel Change）代理，换台时自动向 FCC 代理发送 LEAVE/JOIN 通知，消除 IGMP 加入延迟
 - **自定义参数**：超时时间、线程数、用户代理等可调
 - **追加扫描**：在现有列表基础上增量添加新频道
 - **重试机制**：自动重试失败的频道，支持循环扫描模式
@@ -251,6 +252,7 @@ IPTV-Scanner-Editor-Pro/
 │   ├── channel_classifier.py  # 频道自动分类服务（正则规则引擎）
 │   ├── channel_cleaner.py     # 频道名称清理服务
 │   ├── epg_matcher.py         # EPG 模糊匹配引擎
+│   ├── fcc_service.py         # FCC 快速换台服务（组播代理通知）
 │   ├── logo_cache_service.py   # 台标缓存服务（异步+DPI）
 │   ├── logo_matcher.py        # 台标智能匹配服务（400+ 规则）
 │   ├── m3u_parser.py          # M3U 播放列表解析器
