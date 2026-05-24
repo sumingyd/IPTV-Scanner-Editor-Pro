@@ -627,7 +627,8 @@ class SettingsFileOperations:
         html = re.sub(r'## (.*)', rf'<h2 style="color: {colors["accent"]}; margin-top: 10px; margin-bottom: 4px; font-size: 14px;">\1</h2>', html)
         html = re.sub(r'\*\*(.*?)\*\*', rf'<strong style="color: {colors["window_text"]};">\1</strong>', html)
         html = re.sub(r'^1\. (.*)', r'<p style="margin: 2px 0; line-height: 1.5;">1. \1</p>', html, flags=re.MULTILINE)
-        html = re.sub(r'^- (.*)', r'<p style="margin: 1px 0 1px 14px; line-height: 1.5;">\u2022 \1</p>', html, flags=re.MULTILINE)
+        bullet_repl = '<p style="margin: 1px 0 1px 14px; line-height: 1.5;">\u2022 \\1</p>'
+        html = re.sub(r'^- (.*)', bullet_repl, html, flags=re.MULTILINE)
         html = html.replace('\n\n', '<br>')
         html = html.replace('\n', ' ')
         return f'''<html>
