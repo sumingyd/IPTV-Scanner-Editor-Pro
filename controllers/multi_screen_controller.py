@@ -28,6 +28,11 @@ class MultiScreenController(QObject):
             self._widget.set_layout(count)
             return
 
+        pip_ctrl = getattr(self.window, 'pip_ctrl', None)
+        if pip_ctrl and pip_ctrl.is_active:
+            pip_ctrl.toggle()
+            logger.info("多画面与PiP互斥：自动退出PiP模式")
+
         w = self.window
         if not hasattr(w, 'video_frame') or not w.video_frame:
             return
