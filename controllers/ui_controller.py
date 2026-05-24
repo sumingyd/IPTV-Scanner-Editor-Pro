@@ -5,6 +5,7 @@ UI控制器 - 负责OSD显示、媒体信息更新、样式管理等
 
 import re
 from typing import Optional, Dict, Any
+from datetime import timedelta
 from PyQt6.QtCore import QTimer
 from controllers.main_window_protocol import MainWindowProtocol
 
@@ -336,9 +337,442 @@ class UIController:
                     if container:
                         container.setStyleSheet(AppStyles.player_panel_style())
 
-            self.window._reapply_side_panel_styles()
-            self.window._reapply_floating_panel_styles()
+            self._reapply_side_panel_styles()
+            self._reapply_floating_panel_styles()
 
         except Exception as e:
             from core.log_manager import global_logger as logger
             logger.error(f"重新应用样式失败: {e}")
+
+    def on_live_media_info_updated(self, info: Dict[str, Any]):
+        """持续更新媒体信息 - 信息稳定后才更新UI，避免闪烁"""
+        from core.log_manager import global_logger as logger
+
+        if not info:
+            return
+        try:
+            tr = self.window.language_manager.tr
+
+            key = (
+                info.get('width', 0),
+                info.get('height', 0),
+                info.get('video_codec', ''),
+                info.get('audio_codec', ''),
+                info.get('fps', 0),
+                info.get('hwdec', ''),
+                info.get('video_bitrate', 0),
+                info.get('audio_bitrate', 0),
+                info.get('audio_channels', 0),
+                info.get('sample_rate', 0),
+                info.get('colormatrix', ''),
+                info.get('gamma', ''),
+                info.get('sig_peak', 0),
+            )
+            if self.window._last_info_key == key:
+                return
+            self.window._last_info_key = key
+
+            has_video = info.get('width', 0) > 0 and info.get('height', 0) > 0
+            has_codec = bool(info.get('video_codec', ''))
+
+            if not has_video and not has_codec:
+                info = self.window._last_media_info.copy()
+                if not info:
+                    return
+            elif not has_video and has_codec:
+                cached = self.window._last_media_info
+                if cached.get('width', 0) > 0 and cached.get('height', 0) > 0:
+                    merged = dict(info)
+                    for k in ('width', 'height', 'fps', 'video_bitrate', 'colormatrix', 'gamma', 'sig_peak'):
+                        if k in cached and cached[k]:
+                            merged[k] = cached[k]
+                    info = merged
+                else:
+                    self.window._last_media_info.update(info)
+            else:
+                self.window._last_media_info = info.copy()
+
+            if 'protocol' not in info or not info['protocol']:
+                proto = self.window.player_controller._guess_protocol(self.window.current_channel.get('url', '') if self.window.current_channel else '')
+                if proto:
+                    info['protocol'] = proto
+
+            self.update_media_info_labels(info, tr)
+            self.window._network_base_info = self.window.network_info.text()
+
+        except RuntimeError:
+            pass
+
+    def update_media_info(self):
+        """更新媒体信息显示"""
+        from core.log_manager import global_logger as logger
+        from datetime import datetime
+
+        is_catchup = self.window.play_state.is_catchup
+        is_timeshift = self.window.play_state.is_timeshift
+
+        if self.window.current_channel:
+            display_name = self.window._get_display_channel_name(self.window.current_channel)
+            self.window.channel_name.setText(display_name)
+
+            if is_catchup and self.window.catchup_program is not None:
+                try:
+                    program_name = self.window.catchup_program.get('title', '')
+                    self.window.current_program.setText(f"· {program_name}" if program_name else "")
+                except Exception:
+                    self.window.current_program.setText("")
+            else:
+                try:
+                    channel_name, tvg_id, tvg_name, comma_name = self.window._get_epg_match_params()
+                    if channel_name:
+                        current_program = self.window.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
+                        if current_program:
+                            program_name = current_program.get("title", "")
+                            self.window.current_program.setText(f"· {program_name}" if program_name else "")
+                        else:
+                            self.window.current_program.setText("")
+                except Exception:
+                    self.window.current_program.setText("")
+
+        try:
+            if self.window.current_channel:
+                if is_catchup and self.window.catchup_program is not None:
+                    try:
+                        start_time = self.window.catchup_program.get('start')
+                        end_time = self.window.catchup_program.get('end')
+                        title = self.window.catchup_program.get('title', '')
+                        desc = self.window.catchup_program.get('desc', '')
+                        if is_timeshift and (not desc or desc.strip() == ''):
+                            channel_name, tvg_id, tvg_name, comma_name = self.window._get_epg_match_params()
+                            if channel_name:
+                                current_epg = self.window.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
+                                if current_epg:
+                                    desc = current_epg.get("desc", '')
+                            if not desc or desc.strip() == '':
+                                desc = self.window.language_manager.tr('no_program_desc', 'No program description')
+                        elif not desc or desc.strip() == '':
+                            desc = self.window.language_manager.tr('no_program_desc', 'No program description')
+                        self.window.program_desc.setText(desc)
+                        self.window.current_program.setText(f"· {title}" if title else "")
+                        if start_time and end_time:
+                            start_str = start_time.strftime("%H:%M")
+                            end_str = end_time.strftime("%H:%M")
+                            self.window.time_label.setText(f"{start_str} - {end_str}")
+                            self.window.remain_label.hide()
+                        else:
+                            self.window.time_label.setText("--:-- - --:--")
+                            self.window.remain_label.hide()
+                    except Exception as e:
+                        logger.error(f"处理回看节目信息失败: {e}")
+                        if self.window.catchup_program is not None:
+                            title = self.window.catchup_program.get('title', '')
+                            self.window.current_program.setText(f"· {title}" if title else "")
+                        self.window.program_desc.setText(self.window.language_manager.tr("catchup_current_program", "Catching up current program"))
+                        self.window.time_label.setText("--:-- - --:--")
+                        self.window.remain_label.hide()
+                else:
+                    self.window.remain_label.show()
+                    channel_name, tvg_id, tvg_name, comma_name = self.window._get_epg_match_params()
+                    is_local = self.window._is_local_file()
+                    if is_local:
+                        self.window.program_desc.setText(self.window.language_manager.tr("local_video_file", "本地视频文件"))
+                        self.window.current_program.setText("")
+                        self.window.remain_label.setText(self.window.language_manager.tr("playing_label", "Playing..."))
+                    elif channel_name:
+                        current_program = self.window.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
+                        if current_program:
+                            self.window.program_desc.setText(current_program.get("desc", self.window.language_manager.tr("no_program_desc", "No program description")))
+                            try:
+                                start_time = datetime.fromisoformat(current_program.get('start', ''))
+                                end_time = datetime.fromisoformat(current_program.get('end', ''))
+                                start_str = start_time.strftime("%H:%M")
+                                end_str = end_time.strftime("%H:%M")
+                                self.window.progress_start.setText(start_str)
+                                self.window.time_label.setText(f"{start_str} - {end_str}")
+                                self.window.remain_label.setText(self.window.language_manager.tr("playing_label", "Playing..."))
+                            except (ValueError, KeyError, TypeError):
+                                current_time = datetime.now()
+                                start_hour = current_time.strftime("%H:00")
+                                end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+                                self.window.progress_start.setText(start_hour)
+                                self.window.time_label.setText(f"{current_time.strftime('%H:%M')}")
+                                self.window.remain_label.setText(self.window.language_manager.tr("playing_label", "Playing..."))
+                        else:
+                            self.window.program_desc.setText(self.window.language_manager.tr("playing_current_channel", "Playing current channel"))
+                            current_time = datetime.now()
+                            start_hour = current_time.strftime("%H:00")
+                            end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+                            self.window.progress_start.setText(start_hour)
+                            self.window.progress_end.setText(end_hour)
+                            self.window.time_label.setText(f"{current_time.strftime('%H:%M')}")
+                            self.window.remain_label.setText(self.window.language_manager.tr("playing_label", "Playing..."))
+                            minutes = current_time.minute
+                            seconds = current_time.second
+                            self.window._set_progress_value(minutes * 60 + seconds)
+                    else:
+                        self.window.program_desc.setText(self.window.language_manager.tr("playing_current_channel", "Playing current channel"))
+                        current_time = datetime.now()
+                        start_hour = current_time.strftime("%H:00")
+                        end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+                        self.window.progress_start.setText(start_hour)
+                        self.window.progress_end.setText(end_hour)
+                        self.window.time_label.setText(f"{current_time.strftime('%H:%M')}")
+                        self.window.remain_label.setText(self.window.language_manager.tr("playing_label", "Playing..."))
+                        minutes = current_time.minute
+                        seconds = current_time.second
+                        self.window._set_progress_value(minutes * 60 + seconds)
+        except Exception:
+            if is_catchup:
+                self.window.program_desc.setText(self.window.language_manager.tr("catchup_current_program", "Catching up current program"))
+                self.window.time_label.setText("--:-- - --:--")
+                self.window.remain_label.hide()
+            else:
+                self.window.remain_label.show()
+                self.window.program_desc.setText(self.window.language_manager.tr("playing_current_channel", "Playing current channel"))
+                current_time = datetime.now()
+                start_hour = current_time.strftime("%H:00")
+                end_hour = (current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).strftime("%H:00")
+                self.window.progress_start.setText(start_hour)
+                self.window.progress_end.setText(end_hour)
+                self.window.time_label.setText(f"{current_time.strftime('%H:%M')}")
+                self.window.remain_label.setText(self.window.language_manager.tr("playing_label", "Playing..."))
+                minutes = current_time.minute
+                seconds = current_time.second
+                self.window._set_progress_value(minutes * 60 + seconds)
+
+    def update_floating_panel_info(self):
+        """更新浮动面板信息"""
+        from core.log_manager import global_logger as logger
+
+        if not self.window.player_controller or not self.window.current_channel:
+            return
+
+        import time as _time
+        now = _time.monotonic()
+        if now - getattr(self.window, '_last_epg_refresh', 0) >= 30:
+            self.window._last_epg_refresh = now
+            if hasattr(self.window, 'epg_content') and self.window.epg_content.isVisible() and not self.window._is_local_file():
+                self.window.populate_epg_list()
+
+        self.window._check_program_change()
+
+        if hasattr(self.window, 'buffer_info') and self.window.player_controller:
+            buffer_state = self.window.player_controller.get_buffer_state()
+            if buffer_state:
+                if buffer_state.get('buffering'):
+                    self.window.buffer_info.setText("...")
+                    self.window.buffer_info.show()
+                else:
+                    cache_dur = buffer_state.get('cache_duration', 0)
+                    if cache_dur > 0:
+                        self.window.buffer_info.setText(f"{cache_dur:.0f}s")
+                        self.window.buffer_info.show()
+                    else:
+                        self.window.buffer_info.hide()
+
+        current_time_ms = getattr(self.window, '_cached_current_time_ms', 0)
+        total_time_ms = getattr(self.window, '_cached_total_time_ms', 0)
+        position = getattr(self.window, '_cached_position', 0)
+
+        is_catchup = self.window.play_state.is_catchup_or_timeshift
+        if not hasattr(self.window, 'last_catchup_state') or self.window.last_catchup_state != is_catchup:
+            logger.debug(f"回看模式状态: {is_catchup}")
+            self.window.last_catchup_state = is_catchup
+
+        if hasattr(self.window, '_video_overlay_label'):
+            if is_catchup:
+                is_timeshift = self.window.play_state.is_timeshift
+                mode = 'timeshift' if is_timeshift else 'catchup'
+                label = self.window.language_manager.tr('timeshift_label', '时移') if is_timeshift else self.window.language_manager.tr('catchup_label', '回看')
+                self.window._video_overlay_label.set_mode(mode, label)
+                if not self.window._video_overlay_label.isVisible():
+                    self.window._video_overlay_label.show()
+                    self.window._update_video_overlay_position()
+                self.window._raise_overlay_above_video()
+            else:
+                if self.window._video_overlay_label.isVisible():
+                    self.window._video_overlay_label.hide()
+
+        self.window.progress_ctrl.update_progress(current_time_ms, total_time_ms, position)
+
+    def _reapply_side_panel_styles(self):
+        from core.log_manager import global_logger as logger
+        from ui.styles import AppStyles
+        from PyQt6.QtCore import QSize
+        from PyQt6 import QtWidgets
+        from PyQt6.QtGui import QIcon
+
+        try:
+            if hasattr(self.window, 'epg_title'):
+                self.window.epg_title.setStyleSheet(AppStyles.player_epg_title_style())
+            if hasattr(self.window, 'playlist_title'):
+                self.window.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
+            if hasattr(self.window, 'epg_prev_day'):
+                self.window.epg_prev_day.setStyleSheet(AppStyles.player_date_button_style())
+            if hasattr(self.window, 'epg_next_day'):
+                self.window.epg_next_day.setStyleSheet(AppStyles.player_date_button_style())
+            if hasattr(self.window, 'epg_date_label'):
+                self.window.epg_date_label.setStyleSheet(AppStyles.player_date_label_style())
+            if hasattr(self.window, 'epg_content'):
+                self.window.epg_content.setStyleSheet(AppStyles.player_list_style())
+            if hasattr(self.window, 'epg_empty_label'):
+                self.window.epg_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
+            if hasattr(self.window, 'sub_group_combo'):
+                self.window.sub_group_combo.setStyleSheet(AppStyles.player_group_combo_style())
+            if hasattr(self.window, 'local_group_combo'):
+                self.window.local_group_combo.setStyleSheet(AppStyles.player_group_combo_style())
+            if hasattr(self.window, 'playlist_tab'):
+                self.window.playlist_tab.setStyleSheet(AppStyles.player_tab_style())
+            for list_attr in ['sub_channel_list', 'local_channel_list']:
+                cl = getattr(self.window, list_attr, None)
+                if cl:
+                    cl.setStyleSheet(AppStyles.player_list_style())
+                    name_style = AppStyles.player_channel_list_name_style()
+                    for i in range(cl.count()):
+                        item = cl.item(i)
+                        item.setSizeHint(QSize(0, 40))
+                        item_widget = cl.itemWidget(item)
+                        if item_widget:
+                            for label in item_widget.findChildren(QtWidgets.QLabel):
+                                if label.objectName() == "channel_logo_label":
+                                    label.setFixedSize(44, 32)
+                                else:
+                                    label.setStyleSheet(name_style)
+            for empty_attr in ['sub_empty_label', 'local_empty_label']:
+                el = getattr(self.window, empty_attr, None)
+                if el:
+                    el.setStyleSheet(AppStyles.player_empty_label_style())
+            for search_attr in ['sub_search_input', 'local_search_input']:
+                si = getattr(self.window, search_attr, None)
+                if si:
+                    si.setStyleSheet(AppStyles.player_search_input_style())
+            for btn_attr in ['sub_view_grid_btn', 'local_view_grid_btn', 'sub_view_list_btn', 'local_view_list_btn']:
+                vb = getattr(self.window, btn_attr, None)
+                if vb:
+                    vb.setStyleSheet(AppStyles.player_button_style())
+            btn_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+            for btn_name in ['sub_view_list_btn', 'sub_view_grid_btn', 'local_view_list_btn', 'local_view_grid_btn']:
+                btn = getattr(self.window, btn_name, None)
+                if btn:
+                    icon_name = 'list_view' if 'list' in btn_name else 'grid_view'
+                    icon_path = AppStyles.get_icon(icon_name, btn_color)
+                    if icon_path:
+                        btn.setIcon(QIcon(icon_path))
+            tab = getattr(self.window, 'playlist_tab', None)
+            if tab:
+                for i in range(tab.count()):
+                    icon_name = 'signal' if i == 0 else 'folder'
+                    icon_path = AppStyles.get_icon(icon_name, btn_color, 14)
+                    if icon_path:
+                        tab.setTabIcon(i, QIcon(icon_path))
+        except Exception as e:
+            logger.error(f"重新应用侧边栏样式失败: {e}")
+
+    def _reapply_floating_panel_styles(self):
+        from core.log_manager import global_logger as logger
+        from ui.styles import AppStyles
+        from PyQt6.QtWidgets import QToolButton, QSlider, QComboBox, QFrame
+
+        try:
+            if not hasattr(self.window, 'floating_panel'):
+                return
+            fp = self.window.floating_panel
+            if hasattr(self.window, 'video_info'):
+                self.window.video_info.setStyleSheet(AppStyles.player_media_badge_style())
+            if hasattr(self.window, 'audio_info'):
+                self.window.audio_info.setStyleSheet(AppStyles.player_media_badge_style())
+            if hasattr(self.window, 'network_info'):
+                self.window.network_info.setStyleSheet(AppStyles.player_media_badge_style())
+            if hasattr(self.window, 'buffer_info'):
+                self.window.buffer_info.setStyleSheet(AppStyles.player_media_badge_style())
+            if hasattr(self.window, 'channel_logo'):
+                self.window.channel_logo.setStyleSheet(AppStyles.player_channel_logo_style())
+            if hasattr(self.window, 'channel_name'):
+                self.window.channel_name.setStyleSheet(AppStyles.player_channel_name_style())
+            if hasattr(self.window, 'current_program'):
+                self.window.current_program.setStyleSheet(AppStyles.player_program_style())
+            if hasattr(self.window, 'program_desc'):
+                self.window.program_desc.setStyleSheet(AppStyles.player_program_desc_style())
+            if hasattr(self.window, 'time_label'):
+                self.window.time_label.setStyleSheet(AppStyles.player_time_badge_style())
+            if hasattr(self.window, 'remain_label'):
+                self.window.remain_label.setStyleSheet(AppStyles.player_status_badge_style())
+            if hasattr(self.window, 'progress_start'):
+                self.window.progress_start.setStyleSheet(AppStyles.player_progress_label_style())
+            if hasattr(self.window, 'progress_end'):
+                self.window.progress_end.setStyleSheet(AppStyles.player_progress_label_style())
+            for tool_btn in fp.findChildren(QToolButton):
+                tool_btn.setStyleSheet(AppStyles.player_button_style())
+            if hasattr(self.window, 'exit_catchup_button'):
+                self.window.exit_catchup_button.setStyleSheet(AppStyles.player_button_style())
+            if hasattr(self.window, 'catchup_indicator'):
+                self.window.catchup_indicator.setStyleSheet(AppStyles.player_catchup_indicator_style())
+            for slider in fp.findChildren(QSlider):
+                slider.setStyleSheet(AppStyles.player_slider_style())
+            if hasattr(self.window, 'volume_slider'):
+                self.window.volume_slider.setStyleSheet(AppStyles.player_volume_slider_style())
+            for combo in fp.findChildren(QComboBox):
+                combo.setStyleSheet(AppStyles.player_group_combo_style())
+            for frame in fp.findChildren(QFrame):
+                if frame.styleSheet() and 'max-height' in frame.styleSheet():
+                    frame.setStyleSheet(AppStyles.player_line_style())
+        except Exception as e:
+            logger.error(f"重新应用悬浮面板样式失败: {e}")
+
+    def _on_logo_cache_loaded(self, url, pixmap):
+        """台标加载完成的回调"""
+        from core.log_manager import global_logger as logger
+        from PyQt6.QtWidgets import QListWidget
+        from PyQt6.QtCore import Qt
+        from PyQt6.QtGui import QIcon
+        from PyQt6 import QtWidgets
+
+        logger.debug(f"台标加载完成: {url[:50]}..., pixmap有效: {not pixmap.isNull()}")
+
+        if self.window.current_channel:
+            logo = self.window.current_channel.get('logo', '')
+            if logo:
+                logo = logo.strip('`"\'')
+                if logo == url and hasattr(self.window, 'channel_logo'):
+                    scaled = self.window._logo_cache_service.scale_logo_pixmap_to_fit(pixmap, self.window.channel_logo.width(), self.window.channel_logo.height())
+                    self.window.channel_logo.setPixmap(scaled)
+                    self.window.channel_logo.setText("")
+
+        for list_widget in (self.window.sub_channel_list, self.window.local_channel_list):
+            channels = self.window._sub_channels if list_widget is self.window.sub_channel_list else self.window._local_channels
+            is_grid = list_widget.viewMode() == QListWidget.ViewMode.IconMode
+            match_idx = None
+            for ci, ch in enumerate(channels):
+                ch_logo = ch.get('logo', '')
+                if ch_logo:
+                    ch_logo = ch_logo.strip('`"\'')
+                    if ch_logo == url:
+                        match_idx = ci
+                        break
+            if match_idx is None:
+                continue
+            for i in range(list_widget.count()):
+                item = list_widget.item(i)
+                if not item:
+                    continue
+                if item.data(Qt.ItemDataRole.UserRole) == match_idx:
+                    if is_grid:
+                        ch_url = channels[match_idx].get('url', '')
+                        if self.window.player_controller and ch_url:
+                            thumb_path = self.window.player_controller.get_thumbnail_path(ch_url)
+                            if thumb_path:
+                                break
+                        scaled = pixmap.scaled(160, 90, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                        item.setIcon(QIcon(scaled))
+                    else:
+                        item_widget = list_widget.itemWidget(item)
+                        if item_widget:
+                            logo_label = item_widget.findChild(QtWidgets.QLabel, "channel_logo_label")
+                            if logo_label:
+                                scaled = self.window._logo_cache_service.scale_logo_pixmap_to_fit(
+                                    pixmap,
+                                    logo_label.width() if logo_label.width() > 0 else 34,
+                                    logo_label.height() if logo_label.height() > 0 else 34
+                                )
+                                logo_label.setPixmap(scaled)
+                    break

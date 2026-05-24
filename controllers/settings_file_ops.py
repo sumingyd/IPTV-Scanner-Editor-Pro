@@ -813,3 +813,124 @@ class SettingsFileOperations:
         with open(file_path, 'w', encoding='utf-8') as f:
             for ch in channels:
                 f.write(f"{ch.get('name', '')},{ch.get('url', '')}\n")
+
+    def open_recent_file(self, file_path):
+        w = self.window
+        tr = w.language_manager.tr
+
+        VIDEO_EXTS = {'.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.webm'}
+
+        def _handle_not_found():
+            w.config.remove_recent_file(file_path)
+            w.update_recent_files_menu()
+            w.status_bar.showMessage(tr('file_not_found', 'File not found, removed from recent list'))
+            logger.warning(f"最近文件不存在，已从列表移除: {file_path}")
+
+        def _handle_url():
+            sub_ctrl = w.subscription_ctrl if hasattr(w, 'subscription_ctrl') and w.subscription_ctrl else None
+            if sub_ctrl:
+                content = sub_ctrl._download_subscription_content(file_path)
+                if content:
+                    w._apply_m3u_content(content, file_path)
+                    w.config.add_recent_file(file_path)
+                    w.update_recent_files_menu()
+                else:
+                    w.status_bar.showMessage(tr("download_failed", "下载失败"))
+                    logger.warning(f"下载最近链接失败: {file_path}")
+            else:
+                w.status_bar.showMessage(tr("download_failed", "下载失败"))
+
+        def _handle_local_video():
+            if not os.path.isfile(file_path):
+                _handle_not_found()
+                return
+            name = os.path.splitext(os.path.basename(file_path))[0]
+            channel = {
+                'name': name,
+                'url': file_path,
+                'group': tr("local_video", "本地视频"),
+                '_groups': [tr("local_video", "本地视频")],
+            }
+            w._add_to_local_list(channel)
+            w.config.add_recent_file(file_path)
+            w.update_recent_files_menu()
+
+        def _handle_local_playlist():
+            try:
+                content = load_m3u_file(file_path)
+                w._apply_m3u_content(content, file_path)
+                w.config.add_recent_file(file_path)
+                w.update_recent_files_menu()
+            except FileNotFoundError:
+                _handle_not_found()
+            except Exception as ex:
+                logger.error(f"打开最近文件失败: {str(ex)}")
+                w.status_bar.showMessage(f"{tr('file_open_failed', 'Failed to open file')}: {str(ex)}")
+
+        if file_path.startswith('http'):
+            _handle_url()
+        elif os.path.splitext(file_path)[1].lower() in VIDEO_EXTS:
+            _handle_local_video()
+        else:
+            _handle_local_playlist()
+
+    def _open_stream(self):
+        """打开串流地址"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QHBoxLayout, QPushButton
+        w = self.window
+        tr = w.language_manager.tr
+
+        dialog = QDialog(w)
+        dialog.setWindowTitle(tr("open_stream", "打开串流"))
+        dialog.setMinimumWidth(600)
+        dialog.setMinimumHeight(160)
+
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(10)
+
+        label = QLabel(tr("open_stream_url", "请输入直播地址或串流URL:"))
+        layout.addWidget(label)
+
+        url_input = QLineEdit()
+        url_input.setPlaceholderText("http://example.com/stream.m3u8")
+        url_input.setMinimumHeight(32)
+        layout.addWidget(url_input)
+
+        name_label = QLabel(tr("stream_name_optional", "频道名称（可选）:"))
+        layout.addWidget(name_label)
+
+        name_input = QLineEdit()
+        name_input.setPlaceholderText(tr("stream_name_hint", "留空则自动命名"))
+        name_input.setMinimumHeight(32)
+        layout.addWidget(name_input)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        cancel_btn = QPushButton(tr("cancel", "取消"))
+        cancel_btn.setFixedWidth(80)
+        cancel_btn.clicked.connect(dialog.reject)
+        btn_layout.addWidget(cancel_btn)
+        ok_btn = QPushButton(tr("ok", "确定"))
+        ok_btn.setFixedWidth(80)
+        ok_btn.clicked.connect(dialog.accept)
+        ok_btn.setDefault(True)
+        btn_layout.addWidget(ok_btn)
+        layout.addLayout(btn_layout)
+
+        url_input.setFocus()
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            url = url_input.text().strip()
+            if url:
+                name = name_input.text().strip()
+                if not name:
+                    name = url.split('/')[-1][:30] if '/' in url else url[:30]
+                channel = {
+                    'name': name,
+                    'url': url,
+                    'group': tr("temp_stream", "临时串流"),
+                    '_groups': [tr("temp_stream", "临时串流")],
+                }
+                w._add_to_local_list(channel)
+                w.config.add_recent_file(url)
+                w.update_recent_files_menu()
