@@ -199,6 +199,8 @@ class PlaybackController:
                     self.window.player_controller.set_speed(1.0)
                     if hasattr(self.window, 'speed_button'):
                         self.window.speed_button.setText("1.0x")
+                    if hasattr(self.window, '_show_osd_feedback'):
+                        self.window._show_osd_feedback("1.0x")
             except Exception as e:
                 logger.debug(f"恢复播放速度失败: {e}")
 
