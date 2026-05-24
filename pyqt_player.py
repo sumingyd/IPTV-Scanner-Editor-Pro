@@ -25,6 +25,7 @@ from core.application_state import app_state
 from core.language_manager import LanguageManager
 from ui.styles import AppStyles
 from ui.cache_progress_slider import CacheProgressSlider
+from ui.channel_transition_overlay import ChannelTransitionOverlay
 
 from controllers import (
     WindowController,
@@ -704,6 +705,8 @@ class IPTVPlayer(QMainWindow):
         self.video_widget = QWidget(self.video_frame)
         self.video_widget.setStyleSheet(AppStyles.player_background_style())
         self.video_widget.hide()
+
+        self._channel_transition = ChannelTransitionOverlay(self.video_frame)
 
         self._video_overlay_label = VideoOverlayBadge(self.video_frame)
         self._video_overlay_label.hide()

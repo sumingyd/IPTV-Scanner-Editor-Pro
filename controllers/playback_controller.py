@@ -184,6 +184,8 @@ class PlaybackController:
         if not (hasattr(self.window, 'player_controller') and self.window.player_controller and channel):
             return
 
+        self._show_channel_transition(channel)
+
         self._live_timeshift_seconds = 0
         self._last_program_id = None
 
@@ -309,6 +311,39 @@ class PlaybackController:
             logger.debug(f"预取{len(next_urls)}个相邻频道的DNS/TCP连接")
         except Exception as e:
             logger.debug(f"预取相邻频道失败(非致命): {e}")
+
+    def _show_channel_transition(self, channel: Dict[str, Any]):
+        transition = getattr(self.window, '_channel_transition', None)
+        if not transition:
+            return
+
+        name = channel.get('name', '')
+        if not name:
+            return
+
+        logo_pixmap = None
+        logo_cache = getattr(self.window, '_logo_cache_service', None)
+        if logo_cache:
+            url = channel.get('url', '')
+            try:
+                pixmap = logo_cache.get_cached_pixmap(url)
+                if pixmap and not pixmap.isNull():
+                    logo_pixmap = pixmap
+            except Exception:
+                pass
+
+        info_text = ''
+        group = channel.get('group_title', '')
+        if group:
+            info_text = group
+
+        try:
+            transition.show_transition(name, logo_pixmap, info_text)
+            vf = getattr(self.window, 'video_frame', None)
+            if vf:
+                transition.setGeometry(0, 0, vf.width(), vf.height())
+        except Exception:
+            pass
 
     @property
     def is_muted_state(self) -> bool:
