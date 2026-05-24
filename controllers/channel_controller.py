@@ -6,7 +6,7 @@
 from typing import Dict, Any
 from datetime import datetime
 
-from PyQt6.QtWidgets import QListWidgetItem
+from PyQt6.QtWidgets import QListWidgetItem, QListWidget
 from PyQt6.QtCore import Qt, QSize, QTimer
 from PyQt6 import QtWidgets
 
