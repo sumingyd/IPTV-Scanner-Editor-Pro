@@ -27,6 +27,11 @@
 - **窗口置顶**：标题栏置顶按钮，一键将窗口设为最顶层
 - **硬件解码**：支持 D3D11VA / NVDEC / VAAPI 等硬件加速解码
 - **软件图标占位**：未播放时视频区域显示程序图标
+- **画中画**：PiP 模式，在独立小窗口中继续观看，视图菜单或快捷键切换
+- **多屏预览**：支持 4 屏 / 9 屏同时预览多个频道，视图菜单中切换
+- **截图**：一键截取当前视频画面保存到 `screenshots/` 目录
+- **音轨/字幕切换**：播放菜单和右键菜单支持切换音轨和字幕轨道
+- **最近打开文件**：文件菜单记录最近访问的播放列表，快速重开
 
 ### 📺 EPG 电子节目单
 - **XMLTV 格式解析**：支持标准 XMLTV / JSON 格式 EPG 数据源
@@ -46,6 +51,7 @@
 - **本地缓存**：缓存机制，减少重复下载
 - **智能预加载**：滚动列表时自动预加载可见区域台标
 - **高清渲染**：High-DPI 屏幕支持，原图缓存 + 显示时按需缩放
+- **缩略图**：频道缩略图自动捕获服务，列表中可预览频道画面
 
 ### 🔍 智能频道扫描
 - **范围扫描**：支持 IP 范围格式（如 `239.1.1.[1-255]:5002`）
@@ -95,13 +101,17 @@
   - `Tab` 切换 OSD 遮罩
   - `E` / `L` / `M` 切换面板
   - `Y` 隐藏/恢复所有悬浮面板
+  - `P` 画中画
   - `↑` / `↓` 切换频道
   - `←` / `→` 快退 / 快进 10 秒
   - `滚轮` 调整音量
+  - `S` 截图
   - `Ctrl+O` 打开播放列表
   - `Ctrl+Shift+O` 打开视频文件
   - `Ctrl+S` 另存为
   - `Ctrl+U` 打开流地址
+  - `F5` 刷新界面
+  - `Ctrl+Q` 退出
 
 ### ⚙️ 订阅与自动化
 - **多源管理**：支持配置多个播放列表源和多个 EPG 源，独立管理
@@ -114,6 +124,7 @@
 - **缓存回退**：在线下载失败时自动回退到本地缓存；缓存为空时强制在线刷新
 - **过期策略**：可配置的过期时间，到期自动刷新
 - **配置持久化**：所有设置自动保存到 config.ini
+- **自动更新检查**：启动时异步从 GitHub 检查新版本，有更新时提示
 
 ## 🚀 快速开始
 
@@ -213,17 +224,26 @@ IPTV-Scanner-Editor-Pro/
 │   ├── config_manager.py       # 配置管理（INI）
 │   ├── language_manager.py     # 多语言管理（内置 zh/en 翻译）
 │   ├── log_manager.py          # 日志管理
-│   └── subscription_manager.py # 订阅源管理（多源/独立缓存/增量更新）
+│   ├── panel_visibility.py     # 面板可见性状态
+│   ├── play_state.py           # 播放状态枚举
+│   ├── subscription_manager.py # 订阅源管理（多源/独立缓存/增量更新）
+│   └── version.py              # 版本信息
 ├── controllers/                # 控制器层
 │   ├── catchup_controller.py   # 时移/回看控制器
 │   ├── channel_controller.py   # 频道管理控制器
 │   ├── epg_controller.py      # EPG 电子节目单控制器
 │   ├── event_handler.py       # 事件处理器
+│   ├── main_window_protocol.py # 主窗口协议接口
+│   ├── media_controller.py    # 媒体控制器
+│   ├── multi_screen_controller.py # 多屏控制器
+│   ├── pip_controller.py      # 画中画控制器
 │   ├── playback_controller.py  # 播放控制
+│   ├── progress_controller.py  # 进度控制器
 │   ├── settings_file_ops.py    # 设置文件操作
 │   ├── subscription_controller.py      # 订阅控制器
 │   ├── subscription_ui_controller.py   # 订阅 UI 控制器
 │   ├── ui_controller.py       # UI 控制器
+│   ├── update_controller.py   # 自动更新控制器
 │   └── window_controller.py    # 窗口控制器
 ├── models/                     # 数据模型
 │   ├── channel_model.py       # 频道数据模型
@@ -236,10 +256,12 @@ IPTV-Scanner-Editor-Pro/
 │   ├── logo_matcher.py        # 台标智能匹配服务（400+ 规则）
 │   ├── m3u_parser.py          # M3U 播放列表解析器
 │   ├── mpv_bindings.py        # MPV 绑定封装
+│   ├── mpv_common.py          # MPV 公共模块
 │   ├── mpv_player_service.py # MPV 播放引擎（libmpv）
 │   ├── mpv_validator_service.py # 频道验证服务
 │   ├── network_preheat_service.py # 网络预热服务
 │   ├── scanner_service.py     # 频道扫描服务
+│   ├── thumbnail_service.py   # 缩略图服务
 │   └── url_parser_service.py  # URL 解析服务
 ├── ui/
 │   ├── dialogs/
@@ -248,11 +270,12 @@ IPTV-Scanner-Editor-Pro/
 │   │   ├── mapping_manager_dialog.py # 映射管理器
 │   │   └── scan_channel_dialog.py # 扫描频道对话框
 │   ├── floating_dialog.py     # 悬浮对话框基类
+│   ├── multi_screen_widget.py # 多屏窗口组件
 │   ├── styles.py              # 5 套主题样式定义
 │   └── theme_manager.py       # 主题管理器
 ├── utils/                      # 工具模块
 │   ├── config_notifier.py     # 配置变更通知器
-│   ├── error_handler.py      # 错误处理器
+│   ├── error_handler.py       # 错误处理器
 │   ├── general_utils.py       # 通用工具函数
 │   ├── logging_helper.py      # 日志辅助函数
 │   ├── memory_manager.py      # 内存管理器
