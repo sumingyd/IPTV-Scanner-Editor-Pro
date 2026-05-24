@@ -348,6 +348,7 @@ class MultiScreenWidget(QWidget):
     cell_volume_changed = pyqtSignal(int, int)
     cell_audio_track_changed = pyqtSignal(int, int)
     cell_clicked = pyqtSignal(int)
+    global_mute_toggled = pyqtSignal(bool)
 
     LAYOUT_1x1 = 1
     LAYOUT_2x2 = 4
@@ -357,9 +358,40 @@ class MultiScreenWidget(QWidget):
         super().__init__(parent)
         self._grid_count = self.LAYOUT_2x2
         self._cells = []
-        self._grid_layout = QGridLayout(self)
+        self._global_muted = False
+        self._saved_volumes = {}
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        self._toolbar = QHBoxLayout()
+        self._toolbar.setContentsMargins(4, 2, 4, 2)
+
+        self._mute_button = QToolButton()
+        self._mute_button.setFixedSize(24, 20)
+        mute_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        mute_icon_path = AppStyles.get_icon('volume', mute_color, 14)
+        if mute_icon_path:
+            self._mute_button.setIcon(QIcon(mute_icon_path))
+        self._mute_button.setIconSize(QSize(14, 14))
+        self._mute_button.setStyleSheet("QToolButton { background: transparent; border: none; } QToolButton:hover { background: rgba(255,255,255,0.1); }")
+        self._mute_button.clicked.connect(self._toggle_global_mute)
+        self._toolbar.addWidget(self._mute_button)
+
+        self._mute_label = QLabel()
+        self._mute_label.setStyleSheet("color: " + AppStyles._get_colors().get('player_panel_secondary', '#aaa') + "; font-size: 11px; background: transparent;")
+        self._mute_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self._toolbar.addWidget(self._mute_label)
+        self._toolbar.addStretch()
+
+        main_layout.addLayout(self._toolbar)
+
+        self._grid_layout = QGridLayout()
         self._grid_layout.setContentsMargins(0, 0, 0, 0)
         self._grid_layout.setSpacing(2)
+        main_layout.addLayout(self._grid_layout, 1)
+
         self._build_cells(self._grid_count)
 
     @property
@@ -405,3 +437,35 @@ class MultiScreenWidget(QWidget):
             if not cell.is_playing:
                 return cell
         return None
+
+    def _toggle_global_mute(self):
+        if self._global_muted:
+            self._global_muted = False
+            for cell in self._cells:
+                saved_vol = self._saved_volumes.get(cell._index, 80)
+                cell.set_volume(saved_vol)
+            self._update_mute_button(False)
+            self.global_mute_toggled.emit(False)
+        else:
+            self._saved_volumes = {}
+            for cell in self._cells:
+                self._saved_volumes[cell._index] = cell._volume_slider.value()
+                cell.set_volume(0)
+            self._global_muted = True
+            self._update_mute_button(True)
+            self.global_mute_toggled.emit(True)
+
+    def _update_mute_button(self, muted: bool):
+        color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        if muted:
+            icon_path = AppStyles.get_icon('volume_mute', color, 14)
+            self._mute_label.setText("Muted")
+        else:
+            icon_path = AppStyles.get_icon('volume', color, 14)
+            self._mute_label.setText("")
+        if icon_path:
+            self._mute_button.setIcon(QIcon(icon_path))
+
+    @property
+    def is_global_muted(self) -> bool:
+        return self._global_muted

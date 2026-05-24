@@ -38,6 +38,7 @@ class MultiScreenController(QObject):
         self._widget.cell_volume_changed.connect(self._on_volume_changed)
         self._widget.cell_audio_track_changed.connect(self._on_audio_track_changed)
         self._widget.cell_clicked.connect(self._on_cell_clicked)
+        self._widget.global_mute_toggled.connect(self._on_global_mute_toggled)
         self._widget.set_layout(count)
 
         self._replace_video_frame(w, self._widget)
@@ -218,6 +219,20 @@ class MultiScreenController(QObject):
 
     def _on_cell_clicked(self, index: int):
         pass
+
+    def _on_global_mute_toggled(self, muted: bool):
+        for index, player in list(self._players.items()):
+            if not player:
+                continue
+            try:
+                if muted:
+                    player.set_volume(0)
+                else:
+                    cell = self._widget.get_cell(index) if self._widget else None
+                    vol = cell._volume_slider.value() if cell else 80
+                    player.set_volume(vol)
+            except Exception:
+                pass
 
     def _start_info_timer(self):
         if self._info_timer:
