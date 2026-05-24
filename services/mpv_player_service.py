@@ -75,6 +75,7 @@ def _load_playback_settings():
         'rtsp_transport': 'tcp',
         'rtsp_user_agent': 'VLC/3.0.18Libmpv',
         'network_timeout_sec': 0,
+        'audio_passthrough': 'never',
     }
     try:
         from core.config_manager import ConfigManager
@@ -202,6 +203,20 @@ class MpvPlayerController(QObject):
             if net_to > 0:
                 _mpv_set_property_string(self.mpv_handle, 'network-timeout', str(net_to))
 
+            passthrough = self._playback_settings.get('audio_passthrough', 'never')
+            if passthrough and passthrough != 'never':
+                passthrough_map = {
+                    'all': 'yes',
+                    'hd_codecs': 'ac3,eac3,dts,dts-hd,truehd',
+                    'lossless': 'flac,alac,truehd,dts-hd',
+                    'spdif_only': 'ac3,eac3,dts',
+                }
+                pt_val = passthrough_map.get(passthrough, '')
+                if pt_val:
+                    _mpv_set_property_string(self.mpv_handle, 'audio-spdif', pt_val)
+                    _mpv_set_property_string(self.mpv_handle, 'audio-passthrough', pt_val)
+                    self.logger.info(f"音频直通已启用: {passthrough} -> {pt_val}")
+
             cpu_count = os.cpu_count() or 1
             threads = max(2, cpu_count // 2)
             _mpv_set_property_string(self.mpv_handle, 'vd-lavc-threads', str(threads))
@@ -276,6 +291,56 @@ class MpvPlayerController(QObject):
             return False
 
     @staticmethod
+    def _check_path_reachability(url):
+        if not url:
+            return None
+        u = url.lower()
+        if u.startswith('bd://'):
+            return None
+        is_http = u.startswith(('http://', 'https://'))
+        if is_http:
+            try:
+                from urllib.parse import urlparse
+                parsed = urlparse(url)
+                host = parsed.hostname
+                port = parsed.port
+                if not host:
+                    return None
+                import socket
+                if not port:
+                    port = 443 if parsed.scheme == 'https' else 80
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(3)
+                sock.connect((host, port))
+                sock.close()
+            except (socket.timeout, socket.error, OSError) as e:
+                return f"网络不可达: {host}:{port} ({e})"
+            except Exception:
+                pass
+            return None
+        if not u.startswith(('rtsp://', 'rtp://', 'udp://', 'rtmp://', 'file://')):
+            if MpvPlayerController._is_network_drive(url):
+                check_path = url
+                if u.startswith('file://'):
+                    check_path = url[7:]
+                try:
+                    import subprocess
+                    if os.name == 'nt':
+                        result = subprocess.run(
+                            ['cmd', '/c', f'if exist "{check_path}" echo OK'],
+                            capture_output=True, timeout=5, creationflags=0x08000000)
+                        if b'OK' not in result.stdout:
+                            return f"网络挂载盘不可达: {check_path[:80]}"
+                    else:
+                        if not os.path.exists(check_path):
+                            return f"网络挂载盘不可达: {check_path[:80]}"
+                except subprocess.TimeoutExpired:
+                    return f"网络挂载盘超时: {check_path[:80]}"
+                except Exception:
+                    pass
+        return None
+
+    @staticmethod
     def _fix_unc_path(path):
         if not path:
             return path
@@ -288,6 +353,29 @@ class MpvPlayerController(QObject):
             return path.replace('/', '\\')
         return path
 
+    @staticmethod
+    def _detect_bdmv_path(path):
+        if not path or not os.path.isdir(path):
+            return None
+        bdmv_dir = os.path.join(path, 'BDMV')
+        if os.path.isdir(bdmv_dir):
+            stream_dir = os.path.join(bdmv_dir, 'STREAM')
+            if os.path.isdir(stream_dir):
+                m2ts_files = [f for f in os.listdir(stream_dir) if f.lower().endswith('.m2ts')]
+                if m2ts_files:
+                    return bdmv_dir
+        for item in os.listdir(path):
+            sub = os.path.join(path, item)
+            if os.path.isdir(sub):
+                sub_bdmv = os.path.join(sub, 'BDMV')
+                if os.path.isdir(sub_bdmv):
+                    stream_dir = os.path.join(sub_bdmv, 'STREAM')
+                    if os.path.isdir(stream_dir):
+                        m2ts_files = [f for f in os.listdir(stream_dir) if f.lower().endswith('.m2ts')]
+                        if m2ts_files:
+                            return sub_bdmv
+        return None
+
     def _normalize_url(self, url):
         if not url:
             return url
@@ -298,9 +386,17 @@ class MpvPlayerController(QObject):
             return url
         if self._is_network_drive(url):
             fixed = self._fix_unc_path(url)
+            bdmv = self._detect_bdmv_path(fixed)
+            if bdmv:
+                self.logger.info(f"检测到蓝光原盘结构: {bdmv}")
+                return f'bd://{bdmv}'
             if fixed != url:
                 self.logger.debug(f"网络路径格式修正: {url[:80]}... -> {fixed[:80]}...")
             return fixed
+        bdmv = self._detect_bdmv_path(url)
+        if bdmv:
+            self.logger.info(f"检测到蓝光原盘结构: {bdmv}")
+            return f'bd://{bdmv}'
         try:
             from pathlib import Path
             path = Path(url)
@@ -333,6 +429,83 @@ class MpvPlayerController(QObject):
         except Exception as e:
             self.logger.debug(f"重置demuxer选项失败: {e}")
 
+    def _adjust_buffer_for_content(self):
+        try:
+            if not self.mpv_handle:
+                return
+            url = self.current_url
+            if not url:
+                return
+            u = url.lower()
+            is_network = (u.startswith(('http://', 'https://', 'rtmp://', 'rtsp://', 'rtp://', 'udp://')) or
+                          u.endswith('.m3u8'))
+            is_net_drive = not is_network and self._is_network_drive(url)
+            if not is_network and not is_net_drive:
+                return
+            w = self._get_mpv_property_int('width') or 0
+            h = self._get_mpv_property_int('height') or 0
+            duration = self._get_mpv_property_double('duration') or 0
+            file_size = 0
+            try:
+                fs_str = self._get_mpv_property_string('file-size')
+                if fs_str:
+                    file_size = int(fs_str)
+            except Exception:
+                pass
+            is_4k = (w >= 3840 or h >= 2160)
+            is_hdr = False
+            try:
+                gamma = (self._get_mpv_property_string('video-params/gamma') or '').lower()
+                sig_peak = self._get_mpv_property_double('video-params/sig-peak') or 0
+                is_hdr = 'pq' in gamma or 'hlg' in gamma or sig_peak > 100
+            except Exception:
+                pass
+            is_large_file = file_size > 10 * 1024 * 1024 * 1024 or (duration > 3600 and is_4k)
+            if not is_4k and not is_hdr and not is_large_file:
+                return
+            cache_secs = 120
+            max_bytes_mib = 1024
+            probesize = 50000000
+            analyzeduration = 10000000
+            if is_4k and is_hdr:
+                cache_secs = 180
+                max_bytes_mib = 2048
+                probesize = 100000000
+                analyzeduration = 15000000
+            elif is_4k:
+                cache_secs = 150
+                max_bytes_mib = 1536
+                probesize = 80000000
+                analyzeduration = 12000000
+            if is_large_file:
+                cache_secs = max(cache_secs, 240)
+                max_bytes_mib = max(max_bytes_mib, 3072)
+            self._set_mpv_string('cache-secs', str(cache_secs))
+            self._set_mpv_string('demuxer-max-bytes', f'{max_bytes_mib}MiB')
+            self._set_mpv_string('demuxer-max-back-bytes', f'{max_bytes_mib // 2}MiB')
+            self._set_mpv_string('demuxer-lavf-probesize', str(probesize))
+            self._set_mpv_string('demuxer-lavf-analyzeduration', str(analyzeduration))
+            self.logger.info(f"动态缓冲调整: {w}x{h} HDR={is_hdr} large={is_large_file} -> cache={cache_secs}s max={max_bytes_mib}MiB probesize={probesize}")
+        except Exception as e:
+            self.logger.debug(f"动态缓冲调整失败: {e}")
+
+    def _setup_bluray_options(self):
+        try:
+            self._set_mpv_string('demuxer', '')
+            self._set_mpv_string('demuxer-lavf-format', '')
+            self._set_mpv_string('demuxer-lavf-probesize', '100000000')
+            self._set_mpv_string('demuxer-lavf-analyzeduration', '20000000')
+            self._set_mpv_string('cache', 'yes')
+            self._set_mpv_string('cache-secs', '180')
+            self._set_mpv_string('demuxer-max-bytes', '2048MiB')
+            self._set_mpv_string('demuxer-max-back-bytes', '1024MiB')
+            self._set_mpv_string('demuxer-readahead-secs', '60')
+            self._set_mpv_string('force-seekable', 'yes')
+            self._set_mpv_string('demuxer-seekable-cache', 'yes')
+            self.logger.debug("[mpv] 蓝光原盘选项已设置: cache=180s, probesize=100M, max=2048MiB")
+        except Exception as e:
+            self.logger.debug(f"设置蓝光原盘选项失败: {e}")
+
     def _setup_network_drive_options(self):
         try:
             self._set_mpv_string('demuxer', '')
@@ -358,6 +531,9 @@ class MpvPlayerController(QObject):
 
         is_network = (u.startswith(('http://', 'https://', 'rtmp://', 'rtsp://', 'rtp://', 'udp://')) or
                       u.endswith('.m3u8'))
+        if u.startswith('bd://'):
+            self._setup_bluray_options()
+            return
         if not is_network:
             if self._is_network_drive(url):
                 self._setup_network_drive_options()
@@ -489,6 +665,7 @@ class MpvPlayerController(QObject):
                     self._reconnect_count = 0
                     self._switching_channel = False
                     self._schedule_media_info_start()
+                    self._adjust_buffer_for_content()
 
                 elif event.event_id == MPV_EVENT_END_FILE:
                     if event.data:
@@ -496,21 +673,33 @@ class MpvPlayerController(QObject):
                         reason = end_file.reason
                         if reason == 0:
                             pass
-                        elif reason in (1, 2, 3):
+                        elif reason in (1, 2, 3, 4):
                             if self._switching_channel:
                                 self.logger.debug("频道切换导致的END_FILE，忽略重连")
                                 self._switching_channel = False
                             elif not self._user_stopped and self.current_url:
-                                self.is_playing = False
-                                self.is_paused = False
-                                self.play_state_changed.emit(False)
-                                if self._reconnect_count < self._max_reconnect:
-                                    self._reconnect_count += 1
-                                    self.logger.info(f"断线自动重连 ({self._reconnect_count}/{self._max_reconnect})")
-                                    self.reconnect_requested.emit(self.current_url)
+                                is_net_file = self._is_network_drive(self.current_url)
+                                is_network_url = self.current_url.lower().startswith(
+                                    ('http://', 'https://', 'rtsp://', 'rtp://', 'udp://', 'rtmp://'))
+                                if reason == 4 and not is_net_file and not is_network_url:
+                                    self.logger.debug(f"END_FILE错误(本地文件)，不重连: reason={reason}")
+                                    self.is_playing = False
+                                    self.is_paused = False
+                                    self.play_state_changed.emit(False)
                                 else:
-                                    self.logger.info("已达最大重连次数，停止重连")
-                                    self._reconnect_count = 0
+                                    if reason == 4:
+                                        err_str = self._get_mpv_error_string(end_file.error) if hasattr(end_file, 'error') else f"error_code={reason}"
+                                        self.logger.warning(f"END_FILE错误，尝试重连: {err_str}, is_net_file={is_net_file}")
+                                    self.is_playing = False
+                                    self.is_paused = False
+                                    self.play_state_changed.emit(False)
+                                    if self._reconnect_count < self._max_reconnect:
+                                        self._reconnect_count += 1
+                                        self.logger.info(f"断线自动重连 ({self._reconnect_count}/{self._max_reconnect})")
+                                        self.reconnect_requested.emit(self.current_url)
+                                    else:
+                                        self.logger.info("已达最大重连次数，停止重连")
+                                        self._reconnect_count = 0
 
         except Exception as e:
             self.logger.error(f"处理 mpv 事件失败：{str(e)}")
@@ -525,6 +714,12 @@ class MpvPlayerController(QObject):
             self.current_url = url
             self._user_stopped = False
             self._switching_channel = True
+
+            reachability = self._check_path_reachability(url)
+            if reachability is not None:
+                self.logger.warning(f"路径不可达，取消播放: {reachability}")
+                self.play_error.emit(reachability)
+                return False
 
             if not self.mpv_handle:
                 self.logger.error("mpv播放器未初始化")
@@ -1082,6 +1277,8 @@ class MpvPlayerController(QObject):
         if not url:
             return '未知'
         u = url.lower()
+        if u.startswith('bd://'):
+            return 'BLURAY'
         if '.m3u8' in u or u.startswith('hls+'):
             return 'HLS'
         if '.mpd' in u or u.startswith('dash+'):

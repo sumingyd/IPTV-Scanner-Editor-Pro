@@ -196,9 +196,22 @@ class MediaController:
                 self.window._show_osd_feedback(osd_text)
         else:
             tr = self.window.language_manager.tr
-            osd_text = tr('osd_audio_track_failed', 'Audio track switch failed')
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(osd_text)
+            fallback_id = self._try_fallback_track(pc, 'audio', track_id)
+            if fallback_id is not None:
+                fallback_label = ''
+                for act, tid, lbl in actions:
+                    if tid == fallback_id:
+                        fallback_label = lbl
+                        act.setChecked(True)
+                    else:
+                        act.setChecked(False)
+                osd_text = tr('osd_audio_track_fallback', 'Audio track unavailable, switched to: {}').format(fallback_label)
+                if hasattr(self.window, '_show_osd_feedback'):
+                    self.window._show_osd_feedback(osd_text)
+            else:
+                osd_text = tr('osd_audio_track_failed', 'Audio track switch failed')
+                if hasattr(self.window, '_show_osd_feedback'):
+                    self.window._show_osd_feedback(osd_text)
 
     def _populate_subtitle_menu(self, menu):
         menu.clear()
@@ -236,6 +249,15 @@ class MediaController:
         pc = self.window.player_controller
         if not pc:
             return
+        if track_id == 0:
+            pc.set_track('sub', 'no')
+            for act, tid, _ in actions:
+                act.setChecked(tid == 0)
+            tr = self.window.language_manager.tr
+            osd_text = tr('osd_subtitle_track', 'Subtitle: {}').format(label)
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(osd_text)
+            return
         success = pc.set_track('sub', track_id)
         if success:
             for act, tid, _ in actions:
@@ -246,9 +268,39 @@ class MediaController:
                 self.window._show_osd_feedback(osd_text)
         else:
             tr = self.window.language_manager.tr
-            osd_text = tr('osd_subtitle_track_failed', 'Subtitle track switch failed')
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(osd_text)
+            fallback_id = self._try_fallback_track(pc, 'sub', track_id)
+            if fallback_id is not None:
+                fallback_label = ''
+                for act, tid, lbl in actions:
+                    if tid == fallback_id:
+                        fallback_label = lbl
+                        act.setChecked(True)
+                    else:
+                        act.setChecked(False)
+                osd_text = tr('osd_sub_track_fallback', 'Subtitle track unavailable, switched to: {}').format(fallback_label)
+                if hasattr(self.window, '_show_osd_feedback'):
+                    self.window._show_osd_feedback(osd_text)
+            else:
+                osd_text = tr('osd_subtitle_track_failed', 'Subtitle track switch failed')
+                if hasattr(self.window, '_show_osd_feedback'):
+                    self.window._show_osd_feedback(osd_text)
+
+    def _try_fallback_track(self, pc, track_type, failed_id):
+        try:
+            tracks = pc.get_track_list(track_type)
+            if not tracks:
+                return None
+            current = pc.get_current_track(track_type)
+            for t in tracks:
+                if t['id'] != failed_id and t['id'] != current:
+                    if pc.set_track(track_type, t['id']):
+                        logger.info(f"轨道降级切换: {track_type} 从 {failed_id} 降级到 {t['id']}")
+                        return t['id']
+            if current and current != failed_id:
+                return current
+        except Exception as e:
+            logger.debug(f"轨道降级切换失败: {e}")
+        return None
 
     def show_audio_track_menu(self):
         pc = self.window.player_controller

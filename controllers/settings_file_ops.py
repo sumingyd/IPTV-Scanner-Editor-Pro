@@ -245,6 +245,24 @@ class SettingsFileOperations:
         timeout_combo.setCurrentIndex(selected_idx)
         layout.addRow(tr("network_timeout_colon", "Network Timeout:"), timeout_combo)
 
+        passthrough_combo = QComboBox()
+        passthrough_combo.setObjectName("audio_passthrough_combo")
+        passthrough_items = [
+            ('never', tr("passthrough_never", "Never (Decode)")),
+            ('spdif_only', tr("passthrough_spdif", "SPDIF (AC3/EAC3/DTS)")),
+            ('hd_codecs', tr("passthrough_hd", "HD Codecs (DTS-HD/TrueHD)")),
+            ('lossless', tr("passthrough_lossless", "Lossless Only (FLAC/ALAC/TrueHD)")),
+            ('all', tr("passthrough_all", "All Codecs")),
+        ]
+        current_passthrough = playback_settings.get('audio_passthrough', 'never')
+        selected_pt_idx = 0
+        for i, (val, label) in enumerate(passthrough_items):
+            passthrough_combo.addItem(label, val)
+            if val == current_passthrough:
+                selected_pt_idx = i
+        passthrough_combo.setCurrentIndex(selected_pt_idx)
+        layout.addRow(tr("audio_passthrough_colon", "Audio Pass-through:"), passthrough_combo)
+
         group.setLayout(layout)
         return group
 
@@ -413,6 +431,9 @@ class SettingsFileOperations:
         combo = dialog.findChild(QComboBox, "network_timeout_combo")
         if combo:
             settings['network_timeout_sec'] = combo.currentData() if combo.currentData() is not None else 0
+        combo = dialog.findChild(QComboBox, "audio_passthrough_combo")
+        if combo:
+            settings['audio_passthrough'] = combo.currentData() if combo.currentData() is not None else 'never'
         return settings
 
     def _save_intervals(self, dialog):

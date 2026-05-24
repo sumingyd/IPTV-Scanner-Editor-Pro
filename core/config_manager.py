@@ -608,6 +608,7 @@ class ConfigManager(Singleton):
             'rtsp_transport': 'tcp',
             'rtsp_user_agent': 'VLC/3.0.18Libmpv',
             'network_timeout_sec': 0,
+            'audio_passthrough': 'never',
         }
         if settings:
             defaults.update(settings)
@@ -639,6 +640,7 @@ class ConfigManager(Singleton):
             'rtsp_transport': 'tcp',
             'rtsp_user_agent': 'VLC/3.0.18Libmpv',
             'network_timeout_sec': 0,
+            'audio_passthrough': 'never',
         }
         result = {}
         for key, default in defaults.items():

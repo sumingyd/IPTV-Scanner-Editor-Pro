@@ -3203,13 +3203,13 @@ class IPTVPlayer(QMainWindow):
         self.settings_ops._open_stream()
 
     def _open_video_file(self):
-        """打开本地视频文件"""
+        """打开本地视频文件或蓝光原盘目录"""
         from PyQt6.QtWidgets import QFileDialog
         tr = self.language_manager.tr
         file_path, _ = QFileDialog.getOpenFileName(
             self, tr("open_video", "打开视频"),
             "",
-            tr("video_files", "视频文件 (*.mp4 *.mkv *.avi *.mov *.flv *.wmv *.ts *.webm);;所有文件 (*)"),
+            tr("video_files", "视频文件 (*.mp4 *.mkv *.avi *.mov *.flv *.wmv *.ts *.m2ts *.webm);;所有文件 (*)"),
         )
         if file_path:
             import os
@@ -3223,6 +3223,36 @@ class IPTVPlayer(QMainWindow):
             self._add_to_local_list(channel)
             self.config.add_recent_file(file_path)
             self.update_recent_files_menu()
+            return
+        from PyQt6.QtWidgets import QMessageBox
+        reply = QMessageBox.question(
+            self, tr("open_bluray", "打开蓝光原盘"),
+            tr("open_bluray_ask", "是否选择蓝光原盘目录？"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            dir_path = QFileDialog.getExistingDirectory(
+                self, tr("select_bluray_dir", "选择蓝光原盘目录"), ""
+            )
+            if dir_path:
+                from services.mpv_player_service import MpvPlayerController
+                bdmv = MpvPlayerController._detect_bdmv_path(dir_path)
+                if bdmv:
+                    import os
+                    name = os.path.basename(os.path.dirname(bdmv)) or os.path.basename(bdmv)
+                    channel = {
+                        'name': name,
+                        'url': dir_path,
+                        'group': tr("bluray", "蓝光原盘"),
+                        '_groups': [tr("bluray", "蓝光原盘")],
+                    }
+                    self._add_to_local_list(channel)
+                else:
+                    QMessageBox.warning(
+                        self, tr("not_bluray", "非蓝光原盘"),
+                        tr("not_bluray_msg", "所选目录不是有效的蓝光原盘结构（未找到BDMV/STREAM目录）"),
+                    )
 
     def _add_to_local_list(self, channel):
         """将频道添加到本地列表并播放"""
