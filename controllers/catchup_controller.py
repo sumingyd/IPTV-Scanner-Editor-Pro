@@ -409,3 +409,183 @@ class CatchupController:
     def _set_progress_range(self, total):
         if hasattr(self.window, '_set_progress_range'):
             self.window._set_progress_range(total)
+
+    def seek_catchup(self, position):
+        w = self.window
+        if self.catchup_program is None or self.original_channel is None:
+            from core.log_manager import global_logger as logger
+            logger.error("回看模式但缺少必要信息")
+            w.status_bar.showMessage(w.language_manager.tr("catchup_error", "Catchup error: Missing information"))
+            return
+
+        try:
+            from core.log_manager import global_logger as logger
+            from datetime import timedelta, datetime
+
+            channel_name = self.original_channel.get("name", w.language_manager.tr("unknown_channel", "Unknown Channel"))
+            title = self.catchup_program.get('title', w.language_manager.tr('unknown_program', 'Unknown Program'))
+
+            catchup_source = self.original_channel.get('catchup_source', '')
+            catchup_type = (self.original_channel.get('catchup', '') or '').lower().strip()
+
+            if not catchup_source and not catchup_type:
+                w.status_bar_show_message(w.language_manager.tr("catchup_not_supported", "This channel does not support catchup"))
+                return
+
+            start_time = self.catchup_program.get('start')
+            end_time = self.catchup_program.get('end')
+
+            if not (start_time and end_time):
+                logger.error("回看节目信息不完整")
+                w.status_bar.showMessage(w.language_manager.tr("catchup_error", "Catchup error: Missing program information"))
+                return
+
+            new_start_time = start_time + timedelta(seconds=position)
+            now = datetime.now()
+
+            if new_start_time >= end_time:
+                ch_name, tvg_id, tvg_name, comma_name = w._get_epg_match_params()
+                current_program = w.epg_parser.get_current_program(ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
+                if current_program:
+                    new_program_start = datetime.fromisoformat(current_program.get('start', ''))
+                    new_program_end = datetime.fromisoformat(current_program.get('end', ''))
+                    if new_start_time >= new_program_start and new_start_time < new_program_end:
+                        start_time = new_program_start
+                        end_time = new_program_end
+                        self.catchup_program = {
+                            'start': start_time, 'end': end_time,
+                            'title': current_program.get('title', title),
+                            'desc': current_program.get('desc', ''),
+                        }
+                        w._progress_program_start = start_time
+                        w._progress_program_end = end_time
+                        total_duration = int((end_time - start_time).total_seconds())
+                        if total_duration > 0:
+                            self._set_progress_range(total_duration)
+                        position = (new_start_time - start_time).total_seconds()
+                        new_start_time = start_time + timedelta(seconds=position)
+                        logger.info(f"时移跨节目 -> 新节目 {start_time}~{end_time}, position={position:.0f}s")
+
+            new_end_time = end_time
+            if new_start_time >= new_end_time:
+                new_start_time = min(new_start_time, now - timedelta(seconds=5))
+                new_end_time = max(new_end_time, now)
+                logger.info(f"时移超范围 -> 限制到 {new_start_time}~{new_end_time}")
+
+            if new_end_time - new_start_time < timedelta(seconds=30):
+                new_end_time = new_start_time + timedelta(minutes=30)
+                logger.info(f"时移窗口过短 -> 扩展endTime到 {new_end_time}")
+
+            catchup_url = self.build_catchup_url(self.original_channel, new_start_time, new_end_time)
+
+            logger.info(f"时移重新构建URL -> new_start={new_start_time}, end={new_end_time}, url={catchup_url}")
+
+            catchup_msg = w.language_manager.tr('catchup_playing', '正在回看: {name}')
+            w.status_bar.showMessage(f"{catchup_msg.format(name=channel_name)} - {title}")
+
+            w._pending_catchup_progress = position
+
+            import time as _time
+            w._catchup_start_time = _time.time()
+            w._catchup_start_progress = position
+
+            if hasattr(w, 'player_controller') and w.player_controller:
+                w.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
+        except Exception as e:
+            from core.log_manager import global_logger as logger
+            logger.error(f"重新构建回看 URL 失败：{e}")
+            w.status_bar.showMessage(w.language_manager.tr("catchup_seek_error", "Catchup seek failed"))
+
+    def start_live_timeshift_from_progress(self, slider_seconds, catchup_source):
+        w = self.window
+        from datetime import timedelta, datetime
+        from core.log_manager import global_logger as logger
+
+        program_start = w._progress_program_start
+        program_end = w._progress_program_end
+
+        if program_start is None:
+            logger.warning("直播时移(进度条) -> program_start 为 None，无法执行时移")
+            return
+
+        target_wallclock = program_start + timedelta(seconds=slider_seconds)
+        now = datetime.now()
+
+        if target_wallclock >= now:
+            target_wallclock = now - timedelta(seconds=5)
+
+        if target_wallclock < program_start:
+            target_wallclock = program_start
+
+        end_time = program_end if program_end else now
+
+        timeshift_url = self.build_catchup_url(w.current_channel, target_wallclock, end_time)
+
+        channel_name = w.current_channel.get('name', '')
+        program_title = ''
+        try:
+            ch_name, tvg_id, tvg_name, comma_name = w._get_epg_match_params()
+            prog = w.epg_parser.get_current_program(ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
+            if prog:
+                program_title = prog.get('title', '')
+        except Exception as e:
+            logger.debug(f"EPG获取节目标题失败: {e}")
+
+        offset_from_start = int((target_wallclock - program_start).total_seconds())
+        m, s = divmod(offset_from_start, 60)
+        h, m = divmod(m, 60)
+        offset_str = f"{h:02d}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
+
+        logger.info(f"直播时移(进度条) -> 从 {target_wallclock} 开始播放，offset={offset_str}, url={timeshift_url}")
+
+        tr = w.language_manager.tr
+        w.status_bar_show_message(
+            f"{tr('timeshift_playing', '正在时移')}: {channel_name}"
+            + (f" - {program_title}" if program_title else "")
+            + f"  [{offset_str}]"
+        )
+
+        if hasattr(w, '_cancel_source_timeout'):
+            w._cancel_source_timeout()
+
+        if hasattr(w, 'video_placeholder') and w.video_placeholder:
+            w.video_placeholder.hide()
+        if hasattr(w, 'video_widget') and w.video_widget and w.video_frame:
+            w.video_widget.setGeometry(0, 0, w.video_frame.width(), w.video_frame.height())
+        if hasattr(w, 'floating_panel') and w.floating_panel:
+            if not w.floating_panel.isVisible():
+                w.floating_panel.show()
+
+        for attr in ['_target_catchup_progress', '_disable_progress_auto_update']:
+            if hasattr(w, attr):
+                setattr(w, attr, False)
+
+        offset_seconds = int((target_wallclock - program_start).total_seconds())
+        import time as _time
+        w._catchup_start_time = _time.time()
+        w._catchup_start_progress = offset_seconds
+
+        w._timeshift_start_time = target_wallclock
+        w.play_state.set_timeshift()
+        w._live_timeshift_seconds = max(0, (datetime.now() - target_wallclock).total_seconds())
+        self.original_channel = w.current_channel.copy()
+        self.catchup_program = {
+            'start': program_start,
+            'end': end_time,
+            'title': program_title or tr('timeshift_label', '时移'),
+            'desc': '',
+        }
+
+        total_duration = int((end_time - program_start).total_seconds())
+        if total_duration > 0:
+            self._set_progress_range(total_duration)
+            self._set_progress_value(offset_seconds)
+            w._progress_time_mode = 'epg'
+            w._progress_program_start = program_start
+            w._progress_program_end = end_time
+
+        if w.player_controller:
+            w.player_controller.play(timeshift_url, f"{channel_name} (时移 {offset_str})")
+        w._show_exit_timeshift_button()
+        w.media_ctrl.update_catchup_indicator()
+        w._populate_epg_list()

@@ -1919,198 +1919,12 @@ class IPTVPlayer(QMainWindow):
             item.setHidden(not match)
 
     def _populate_channel_list_for(self, list_widget, channels, selected_group=''):
-        """通用频道列表填充方法"""
+        self.channel_ctrl.populate_channel_list_for(list_widget, channels, selected_group)
 
-        list_widget.clear()
-
-        all_channels_text = self.language_manager.tr("all_channels", "All Channels")
-        is_all_channels = (
-            not selected_group or
-            selected_group.lower() == all_channels_text.lower()
-        )
-
-        added_count = 0
-        error_count = 0
-        skipped_count = 0
-
-        from ui.styles import AppStyles
-        name_style = AppStyles.player_channel_list_name_style()
-
-        for idx, channel in enumerate(channels):
-            try:
-                if not is_all_channels:
-                    channel_groups = channel.get('_groups', [channel.get('group', '')])
-                    if selected_group not in channel_groups:
-                        skipped_count += 1
-                        continue
-
-                channel_name = channel.get("name", self.language_manager.tr("unnamed", "Unnamed"))
-                logo_url = channel.get('logo', '')
-
-                try:
-                    is_grid = list_widget.viewMode() == QListWidget.ViewMode.IconMode
-
-                    if is_grid:
-                        item = QListWidgetItem()
-                        item.setText(channel_name)
-                        item.setData(Qt.ItemDataRole.UserRole, idx)
-                        item.setSizeHint(QSize(220, 150))
-                        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
-                        list_widget.addItem(item)
-                    else:
-                        item_widget = QtWidgets.QWidget()
-                        item_layout = QHBoxLayout(item_widget)
-                        item_layout.setContentsMargins(5, 2, 5, 2)
-                        item_layout.setSpacing(8)
-
-                        logo_label = QtWidgets.QLabel()
-                        logo_label.setFixedSize(44, 32)
-                        logo_label.setStyleSheet("background-color: transparent; border: none;")
-                        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                        logo_label.setObjectName("channel_logo_label")
-
-                        name_label = QtWidgets.QLabel(channel_name)
-                        name_label.setStyleSheet(name_style)
-                        name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-                        name_label.setWordWrap(False)
-
-                        item_layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignVCenter)
-                        item_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
-
-                        item = QListWidgetItem()
-                        item.setSizeHint(QSize(0, 40))
-                        item.setData(Qt.ItemDataRole.UserRole, idx)
-
-                        list_widget.addItem(item)
-                        list_widget.setItemWidget(item, item_widget)
-
-                    added_count += 1
-
-                except Exception as widget_ex:
-                    simple_item = QListWidgetItem(channel_name)
-                    simple_item.setData(Qt.ItemDataRole.UserRole, idx)
-                    list_widget.addItem(simple_item)
-                    added_count += 1
-                    error_count += 1
-                    if error_count <= 3:
-                        logger.warning(f"第{idx}个频道的自定义widget创建失败，使用简单文本: {widget_ex}")
-
-            except Exception as e:
-                error_count += 1
-                if error_count <= 3:
-                    logger.error(f"populate_channel_list: 添加第{idx}个频道失败: {e}")
-
-        empty_label = None
-        if list_widget is self.sub_channel_list:
-            empty_label = self.sub_empty_label
-        elif list_widget is self.local_channel_list:
-            empty_label = self.local_empty_label
-
-        if empty_label:
-            if added_count == 0:
-                empty_label.show()
-            else:
-                empty_label.hide()
-
-        if error_count > 0:
-            logger.warning(f"populate_channel_list: 共 {error_count} 个频道添加失败")
-        if skipped_count > 0:
-            logger.warning(f"populate_channel_list: 共 {skipped_count} 个频道被分组过滤跳过")
-
-        logger.info(f"populate_channel_list: 填充完成，共 {list_widget.count()} 个频道项（实际添加: {added_count}, 跳过: {skipped_count}, 总数据: {len(channels)}）")
-        try:
-            list_widget.verticalScrollBar().valueChanged.connect(self._on_channel_list_scrolled, Qt.ConnectionType.UniqueConnection)
-        except TypeError:
-            pass
-        QTimer.singleShot(50, lambda: self._load_visible_icons(list_widget, channels))
     
     def _load_visible_icons(self, list_widget, channels):
-        """异步分批加载可见区域的台标/缩略图"""
-        if not hasattr(self, '_icon_load_queue'):
-            self._icon_load_queue = []
-            self._icon_load_set = set()
-            self._icon_load_timer = QTimer(self)
-            self._icon_load_timer.setInterval(16)
-            self._icon_load_timer.timeout.connect(self._process_icon_load_batch)
+        self.channel_ctrl.load_visible_icons(list_widget, channels)
 
-        if not hasattr(self, '_logo_cache_service') or not self._logo_cache_service:
-            logger.warning("_load_visible_icons: _logo_cache_service未初始化，跳过台标加载")
-            return
-
-        viewport_rect = list_widget.viewport().rect()
-        top_index = list_widget.indexAt(viewport_rect.topLeft())
-        bottom_index = list_widget.indexAt(viewport_rect.bottomLeft())
-
-        first_visible = top_index.row() if top_index.isValid() else 0
-        last_visible = bottom_index.row() if bottom_index.isValid() else list_widget.count() - 1
-        first_visible = max(0, first_visible - 3)
-        last_visible = min(list_widget.count() - 1, last_visible + 3)
-
-        is_grid = list_widget.viewMode() == QListWidget.ViewMode.IconMode
-
-        logger.debug(f"_load_visible_icons: 项数={list_widget.count()}, channels={len(channels)}")
-        need_capture = []
-        queue_items = []
-
-        for i in range(first_visible, last_visible + 1):
-            item = list_widget.item(i)
-            if not item:
-                continue
-            channel_idx = item.data(Qt.ItemDataRole.UserRole)
-            if channel_idx is None or channel_idx >= len(channels):
-                continue
-            channel = channels[channel_idx]
-            logo_url = channel.get('logo', '').strip('`' + '"' + '\'')
-
-            if is_grid:
-                if not item.icon().isNull():
-                    continue
-                ch_url = channel.get('url', '')
-                if self.player_controller and ch_url:
-                    thumb_path = self.player_controller.get_thumbnail_path(ch_url)
-                    if thumb_path:
-                        dedupe_key = ('grid_thumb', i)
-                        if dedupe_key not in self._icon_load_set:
-                            queue_items.append(('grid_thumb', item, thumb_path, None))
-                            self._icon_load_set.add(dedupe_key)
-                        continue
-                if logo_url:
-                    cached = self._logo_cache_service.get(logo_url)
-                    if cached:
-                        dedupe_key = ('grid_logo', i)
-                        if dedupe_key not in self._icon_load_set:
-                            queue_items.append(('grid_logo', item, None, cached))
-                            self._icon_load_set.add(dedupe_key)
-                    else:
-                        self._logo_cache_service.fetch_async(logo_url)
-                if ch_url:
-                    need_capture.append(channel)
-            else:
-                item_widget = list_widget.itemWidget(item)
-                if not item_widget:
-                    continue
-                logo_label = item_widget.findChild(QtWidgets.QLabel, "channel_logo_label")
-                if not logo_label:
-                    continue
-                if logo_label.pixmap() and not logo_label.pixmap().isNull():
-                    continue
-                if logo_url:
-                    cached = self._logo_cache_service.get(logo_url)
-                    if cached:
-                        dedupe_key = ('list_logo', i)
-                        if dedupe_key not in self._icon_load_set:
-                            queue_items.append(('list_logo', item, logo_label, cached))
-                            self._icon_load_set.add(dedupe_key)
-                    else:
-                        self._logo_cache_service.fetch_async(logo_url)
-
-        self._icon_load_queue.extend(queue_items)
-        if self._icon_load_queue and not self._icon_load_timer.isActive():
-            self._icon_load_timer.start()
-
-        if need_capture and hasattr(self, '_thumbnail_service'):
-            self._thumbnail_service.capture_channels(need_capture, force=True)
 
     def _process_icon_load_batch(self):
         """每帧处理少量图标加载，避免UI卡顿"""
@@ -2461,85 +2275,8 @@ class IPTVPlayer(QMainWindow):
             self._live_timeshift_seconds = 0
 
     def _seek_catchup(self, position):
-        if self.catchup_program is None or self.original_channel is None:
-            logger.error("回看模式但缺少必要信息")
-            self.status_bar.showMessage(self.language_manager.tr("catchup_error", "Catchup error: Missing information"))
-            return
+        self.catchup_ctrl.seek_catchup(position)
 
-        try:
-            channel_name = self.original_channel.get("name", self.language_manager.tr("unknown_channel", "Unknown Channel"))
-            title = self.catchup_program.get('title', self.language_manager.tr('unknown_program', 'Unknown Program'))
-
-            catchup_source = self.original_channel.get('catchup_source', '')
-            catchup_type = (self.original_channel.get('catchup', '') or '').lower().strip()
-
-            if not catchup_source and not catchup_type:
-                self.status_bar_show_message(self.language_manager.tr("catchup_not_supported", "This channel does not support catchup"))
-                return
-
-            start_time = self.catchup_program.get('start')
-            end_time = self.catchup_program.get('end')
-
-            if not (start_time and end_time):
-                logger.error("回看节目信息不完整")
-                self.status_bar.showMessage(self.language_manager.tr("catchup_error", "Catchup error: Missing program information"))
-                return
-
-            from datetime import timedelta, datetime
-            new_start_time = start_time + timedelta(seconds=position)
-            now = datetime.now()
-
-            if new_start_time >= end_time:
-                ch_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
-                current_program = self.epg_parser.get_current_program(ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
-                if current_program:
-                    new_program_start = datetime.fromisoformat(current_program.get('start', ''))
-                    new_program_end = datetime.fromisoformat(current_program.get('end', ''))
-                    if new_start_time >= new_program_start and new_start_time < new_program_end:
-                        start_time = new_program_start
-                        end_time = new_program_end
-                        self.catchup_program = {
-                            'start': start_time, 'end': end_time,
-                            'title': current_program.get('title', title),
-                            'desc': current_program.get('desc', ''),
-                        }
-                        self._progress_program_start = start_time
-                        self._progress_program_end = end_time
-                        total_duration = int((end_time - start_time).total_seconds())
-                        if total_duration > 0:
-                            self._set_progress_range(total_duration)
-                        position = (new_start_time - start_time).total_seconds()
-                        new_start_time = start_time + timedelta(seconds=position)
-                        logger.info(f"时移跨节目 -> 新节目 {start_time}~{end_time}, position={position:.0f}s")
-
-            new_end_time = end_time
-            if new_start_time >= new_end_time:
-                new_start_time = min(new_start_time, now - timedelta(seconds=5))
-                new_end_time = max(new_end_time, now)
-                logger.info(f"时移超范围 -> 限制到 {new_start_time}~{new_end_time}")
-
-            if new_end_time - new_start_time < timedelta(seconds=30):
-                new_end_time = new_start_time + timedelta(minutes=30)
-                logger.info(f"时移窗口过短 -> 扩展endTime到 {new_end_time}")
-
-            catchup_url = self.catchup_ctrl.build_catchup_url(self.original_channel, new_start_time, new_end_time)
-
-            logger.info(f"时移重新构建URL -> new_start={new_start_time}, end={new_end_time}, url={catchup_url}")
-
-            catchup_msg = self.language_manager.tr('catchup_playing', '正在回看: {name}')
-            self.status_bar.showMessage(f"{catchup_msg.format(name=channel_name)} - {title}")
-
-            self._pending_catchup_progress = position
-
-            import time as _time
-            self._catchup_start_time = _time.time()
-            self._catchup_start_progress = position
-
-            if hasattr(self, 'player_controller') and self.player_controller:
-                self.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
-        except Exception as e:
-            logger.error(f"重新构建回看 URL 失败：{e}")
-            self.status_bar.showMessage(self.language_manager.tr("catchup_seek_error", "Catchup seek failed"))
 
     def on_group_changed(self, group_name):
         """处理分组切换事件（委托给ChannelController）"""
@@ -2622,81 +2359,332 @@ class IPTVPlayer(QMainWindow):
         return get_display_channel_name(channel, self.language_manager)
 
     def update_channel_info_on_selection(self):
-        """选择频道时立即更新悬浮窗信息"""
-        if not self.current_channel:
+        self.channel_ctrl.update_channel_info_on_selection()
+
+    
+    def toggle_epg(self, checked=None):
+        """切换EPG面板显示/隐藏（委托给EPGController）"""
+        if self.panel_vis.is_auto_hidden:
+            self._auto_restore_panels()
+            return
+        if checked is None:
+            checked = not self.epg_panel.isVisible()
+        self.epg_ctrl.toggle_epg(checked)
+
+    def set_language(self, language: str):
+        """设置界面语言（委托给SettingsFileOperations）"""
+        self.settings_ops.set_language(language)
+
+    def set_theme(self, theme: str):
+        """设置界面主题（委托给SettingsFileOperations）"""
+        self.settings_ops.set_theme(theme)
+
+    def show_about(self):
+        """显示关于对话框（委托给SettingsFileOperations）"""
+        self.settings_ops.show_about()
+
+    def player_settings(self):
+        """打开播放器设置（委托给SettingsFileOperations）"""
+        self.settings_ops.player_settings()
+
+    def _toggle_file_association(self):
+        """打开文件关联设置对话框"""
+        from ui.dialogs.file_association_dialog import FileAssociationDialog
+        dialog = FileAssociationDialog(self)
+        dialog.exec()
+
+    def update_epg_date_display(self):
+        """更新EPG日期显示（委托给EPGController）"""
+        self.epg_ctrl.update_epg_date_display()
+
+
+    def toggle_playlist(self, checked=None):
+        """显示/隐藏播放列表面板"""
+        if self.panel_vis.is_auto_hidden:
+            self._auto_restore_panels()
+            return
+        if checked is None:
+            self.playlist_visible = not self.playlist_panel.isVisible()
+        else:
+            self.playlist_visible = checked
+        self._sync_panel_actions()
+
+    def toggle_floating_panel(self, checked=None):
+        """显示/隐藏底部控制面板"""
+        if self.panel_vis.is_auto_hidden:
+            self._auto_restore_panels()
+            return
+        if checked is None:
+            self.floating_panel_visible = not self.floating_panel.isVisible()
+        else:
+            self.floating_panel_visible = checked
+        self._sync_panel_actions()
+
+    def toggle_hide_floating(self, checked=None):
+        if self.panel_vis.manually_hidden:
+            is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
+            self.panel_vis.restore_from_manual_hide(is_local_file=is_local)
+        else:
+            if self.panel_vis.is_auto_hidden:
+                self.panel_vis._auto_hide_saved = dict(self.panel_vis._auto_hide_saved or {})
+                self.panel_vis.set_auto_hide_visible()
+            self.panel_vis.hide_all()
+        self._sync_panel_actions()
+
+    def _show_floating_panels_on_enter(self):
+        if self.panel_vis.manually_hidden:
+            return
+        if getattr(self, 'is_fullscreen', False):
+            return
+        if getattr(self, '_pip_mode', False):
+            return
+        if not self.panel_vis.is_auto_hidden:
             return
 
-        self.media_ctrl.update_catchup_indicator()
+        is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
+        self.panel_vis.restore_auto_hide_state(is_local_file=is_local)
+        self._sync_panel_actions()
+        self._raise_child_dialogs()
 
-        # 更新频道名称和LOGO
-        display_name = self._get_display_channel_name(self.current_channel)
-        self.channel_name.setText(display_name)
-        self.current_program.setText("")
-        logo = self.current_channel.get("logo", "")
-        
-        if logo:
-            logo = logo.strip('`"\'')
+    def _delayed_hide_floating_panels(self):
+        if self.panel_vis.manually_hidden:
+            return
+        if getattr(self, 'is_fullscreen', False):
+            return
+        if getattr(self, '_pip_mode', False):
+            return
+        if not self.panel_vis.is_auto_hide_visible:
+            return
+        cursor_pos = self.cursor().pos()
+        if self.rect().contains(self.mapFromGlobal(cursor_pos)):
+            return
+        if hasattr(self, 'epg_panel') and self.epg_panel.isVisible() and self.epg_panel.geometry().contains(cursor_pos):
+            return
+        if hasattr(self, 'playlist_panel') and self.playlist_panel.isVisible() and self.playlist_panel.geometry().contains(cursor_pos):
+            return
+        if hasattr(self, 'floating_panel') and self.floating_panel.isVisible() and self.floating_panel.geometry().contains(cursor_pos):
+            return
 
-            cached = self._logo_cache_service.get(logo)
-            if cached:
-                scaled_pixmap = self._logo_cache_service.scale_logo_pixmap_to_fit(cached, self.channel_logo.width(), self.channel_logo.height())
-                self.channel_logo.setPixmap(scaled_pixmap)
-                self.channel_logo.setText("")
-                return
+        self.panel_vis.auto_hide_all()
+        self._sync_panel_actions()
 
-            self._logo_cache_service.fetch_async(logo)
-            from utils.general_utils import set_default_channel_logo
-            set_default_channel_logo(self.channel_logo, self.channel_logo.width(), self.channel_logo.height())
-        else:
-            # 没有 logo，显示默认图标
-            from utils.general_utils import set_default_channel_logo
-            set_default_channel_logo(self.channel_logo, self.channel_logo.width(), self.channel_logo.height())
-        
-        # 从EPG数据获取当前节目描述（安全处理）
-        try:
-            if self._is_local_file():
-                self.current_program.setText("")
-                self.program_desc.setText(self.language_manager.tr("local_video_file", "本地视频文件"))
-                self.time_label.setText("--:-- / --:--")
-                self.remain_label.setText(self.language_manager.tr("loading", "加载中..."))
+    def _auto_hide_panels(self):
+        if not getattr(self, 'is_fullscreen', False):
+            return
+        if self.panel_vis.manually_hidden:
+            return
+        if not self.panel_vis.is_auto_hide_visible:
+            return
+
+        self.panel_vis.auto_hide_all()
+        self.setCursor(Qt.CursorShape.BlankCursor)
+        self._sync_panel_actions()
+
+    def _auto_restore_panels(self):
+        if not getattr(self, 'is_fullscreen', False):
+            if not self.panel_vis.manually_hidden:
+                self._show_floating_panels_on_enter()
+            return
+        if not self.panel_vis.is_auto_hidden:
+            return
+        if self.panel_vis.manually_hidden:
+            return
+
+        is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
+        self.panel_vis.restore_auto_hide_state(is_local_file=is_local)
+        self.unsetCursor()
+        self._sync_panel_actions()
+        self._restart_auto_hide_timer()
+        self._raise_child_dialogs()
+
+    def _restart_auto_hide_timer(self):
+        if getattr(self, 'is_fullscreen', False) and not self.panel_vis.manually_hidden:
+            if not hasattr(self, '_auto_hide_timer'):
+                from PyQt6.QtCore import QTimer
+                self._auto_hide_timer = QTimer(self)
+                self._auto_hide_timer.setSingleShot(True)
+                self._auto_hide_timer.setInterval(5000)
+                self._auto_hide_timer.timeout.connect(self._auto_hide_panels)
+            if self.panel_vis.is_auto_hide_visible:
+                self._auto_hide_timer.start()
+
+    def _stop_auto_hide_timer(self):
+        """停止全屏自动隐藏定时器"""
+        if hasattr(self, '_auto_hide_timer') and self._auto_hide_timer:
+            self._auto_hide_timer.stop()
+
+
+    def _on_mouse_activity(self):
+        if getattr(self, 'is_fullscreen', False) and not self.panel_vis.manually_hidden:
+            if self.panel_vis.is_auto_hidden:
+                self._auto_restore_panels()
+            elif self.panel_vis.is_auto_hide_visible:
+                self._restart_auto_hide_timer()
+
+
+    def _sync_panel_actions(self):
+        """同步所有面板相关 QAction 的 checked 状态"""
+        for attr, visible in [
+            ('_epg_menu_action', self.epg_visible),
+            ('_playlist_menu_action', self.playlist_visible),
+            ('_floating_menu_action', self.floating_panel_visible),
+            ('_osd_menu_action', self._osd_visible),
+            ('_fullscreen_menu_action', getattr(self, 'is_fullscreen', False)),
+            ('_pip_menu_action', self.pip_ctrl.is_active if hasattr(self, 'pip_ctrl') else False),
+        ]:
+            action = getattr(self, attr, None)
+            if action:
+                action.blockSignals(True)
+                action.setChecked(visible)
+                action.blockSignals(False)
+
+    def toggle_osd(self, checked=None):
+        """切换OSD显示/隐藏（委托给UIController）"""
+        self.ui_ctrl.toggle_osd(checked)
+
+    def toggle_play(self):
+        """切换播放/暂停（委托给PlaybackController）"""
+        self.playback_ctrl.toggle_play()
+
+    def stop_playback(self):
+        """停止播放（委托给PlaybackController）"""
+        self.playback_ctrl.stop_playback()
+
+    def set_volume(self, value):
+        """设置音量（委托给PlaybackController）"""
+        self.playback_ctrl.set_volume(value)
+        if not self._suppress_volume_osd and not self._osd_visible:
+            self._show_osd_feedback(f"{self.language_manager.tr('osd_volume', 'Volume')}: {value}%")
+
+    def toggle_mute(self):
+        """切换静音/取消静音（委托给PlaybackController）"""
+        self._suppress_volume_osd = True
+        self.playback_ctrl.toggle_mute()
+        if not self._osd_visible:
+            if self.playback_ctrl.is_muted_state:
+                self._show_osd_feedback(self.language_manager.tr('osd_muted', 'Muted'))
             else:
-                channel_name = self.current_channel.get("name", "")
-                current_program_data = None
-                if channel_name and hasattr(self, 'epg_parser') and self.epg_parser:
-                    ch_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
-                    current_program_data = self.epg_parser.get_current_program(
-                        ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name
-                    )
-                if current_program_data:
-                    program_name = current_program_data.get("title", "")
-                    self.current_program.setText(f"· {program_name}" if program_name else "")
-                    self.program_desc.setText(current_program_data.get("desc", self.language_manager.tr("no_program_desc", "No program description")))
-                    start_str = current_program_data.get("start", "")
-                    start_display = datetime.fromisoformat(start_str).strftime("%H:%M") if start_str else "--:--"
-                    self.progress_start.setText(start_display)
-                    self.time_label.setText(f"{datetime.now().strftime('%H:%M')}")
-                    self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
+                vol = self.volume_slider.value() if hasattr(self, 'volume_slider') else 0
+                self._show_osd_feedback(f"{self.language_manager.tr('osd_volume', 'Volume')}: {vol}%")
+        self._suppress_volume_osd = False
+
+    def _show_osd_feedback(self, text: str):
+        """在视频上显示短暂的OSD反馈提示"""
+        if hasattr(self, 'player_controller') and self.player_controller:
+            self.player_controller.show_osd(text, 2000)
+
+    def play_channel(self, channel):
+        """播放指定频道（委托给PlaybackController）"""
+        self.playback_ctrl.play_channel(channel)
+
+    def _do_play_channel(self, channel):
+        """实际执行频道切换（委托给PlaybackController）"""
+        self.playback_ctrl._do_play_channel(channel)
+    
+    def on_play_state_changed(self, is_playing):
+        if QThread.currentThread() != self.thread():
+            self._pending_play_state = is_playing
+            QTimer.singleShot(0, self._do_handle_play_state_change)
+        else:
+            self._handle_play_state_change(is_playing)
+
+    @pyqtSlot()
+    def _do_handle_play_state_change(self):
+        is_playing = getattr(self, '_pending_play_state', False)
+        self._pending_play_state = None
+        self._handle_play_state_change(is_playing)
+    
+    def _handle_play_state_change(self, is_playing):
+        self.playback_ctrl.handle_play_state_change(is_playing)
+
+    def _seek_live(self, position):
+        self.playback_ctrl.seek_live(position)
+
+
+    def _seek_catchup(self, position):
+        self.catchup_ctrl.seek_catchup(position)
+
+
+    def on_group_changed(self, group_name):
+        """处理分组切换事件（委托给ChannelController）"""
+        self.channel_ctrl.on_group_changed(group_name)
+
+    def select_channel(self, item, source_list=None):
+        try:
+            idx = item.data(Qt.ItemDataRole.UserRole)
+
+            if source_list is not None:
+                channel_list = source_list
+            else:
+                sender = self.sender()
+                channel_list = sender if sender else self.sub_channel_list
+
+            if channel_list is self.local_channel_list:
+                channels = self._local_channels
+            else:
+                channels = self._sub_channels
+
+            old_channel = getattr(self, 'current_channel', None)
+
+            if isinstance(idx, int) and 0 <= idx < len(channels):
+                self.current_channel = channels[idx]
+            else:
+                index = self.channel_list.row(item)
+                if 0 <= index < len(channels):
+                    self.current_channel = channels[index]
                 else:
-                    self.current_program.setText("")
-                    self.program_desc.setText(self.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
-                    self.time_label.setText(f"{datetime.now().strftime('%H:%M')}")
-                    self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
-        except Exception:
-            self.current_program.setText("")
-            self.program_desc.setText(self.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
-            current_time = datetime.now().strftime("%H:%M")
-            self.time_label.setText(f"{current_time}")
-            self.remain_label.setText(self.language_manager.tr("waiting_to_play", "Waiting to play..."))
-        
-        self._set_progress_value(0)
-        self.progress_end.setText("--:--")
-        
-        # 重置第一行媒体信息为默认值
-        self.video_info.setText(f'{self.language_manager.tr("waiting_to_play", "Waiting to play...")}')
-        self.audio_info.setText("--")
-        self.network_info.setText(f'{self.language_manager.tr("waiting_connect", "Waiting to connect...")}')
-        if hasattr(self, 'buffer_info'):
-            self.buffer_info.hide()
+                    logger.warning(f"select_channel: 无效的索引 idx={idx}, row={index}, channels长度={len(channels)}")
+                    return
+
+            logger.info(f"select_channel: 选中频道 {self.current_channel.get('name', '?')}")
+
+            if old_channel and old_channel is not self.current_channel:
+                self._previous_channel = dict(old_channel)
+
+            if self.play_state.is_catchup_or_timeshift:
+                self.playback_ctrl._exit_catchup_mode()
+
+            self.update_channel_info_on_selection()
+            if not self._is_local_file():
+                self.populate_epg_list()
+            self.play_channel(self.current_channel)
+        except Exception as e:
+            logger.error(f"select_channel: 选择频道失败: {e}", exc_info=True)
+    
+    def _on_channel_single_click(self, item):
+        self._pending_click_item = item
+        self._pending_click_source = self.sender()
+        self._click_timer.start(300)
+
+    def _deferred_single_click(self):
+        if self._pending_click_item:
+            self.select_channel(self._pending_click_item, source_list=self._pending_click_source)
+
+    def _on_channel_double_clicked(self, item):
+        """双击频道：多画面模式填入空画面，普通模式播放"""
+        self._click_timer.stop()
+        if not item:
+            return
+        idx = item.data(Qt.ItemDataRole.UserRole)
+        sender = self.sender()
+        if sender is self.local_channel_list:
+            channels = self._local_channels
+        else:
+            channels = self._sub_channels
+        if isinstance(idx, int) and 0 <= idx < len(channels):
+            channel = channels[idx]
+        else:
+            return
+        if hasattr(self, 'multi_screen_ctrl') and self.multi_screen_ctrl.is_active:
+            self.multi_screen_ctrl.play_in_empty_cell(channel)
+        else:
+            self.select_channel(item, source_list=sender)
+
+    def _get_display_channel_name(self, channel):
+        """获取用于显示的频道名称（委托给通用工具函数）"""
+        from utils.general_utils import get_display_channel_name
+        return get_display_channel_name(channel, self.language_manager)
+
     
     def toggle_epg(self, checked=None):
         """切换EPG面板显示/隐藏（委托给EPGController）"""
@@ -4227,103 +4215,8 @@ class IPTVPlayer(QMainWindow):
                         return
 
     def _start_live_timeshift_from_progress(self, slider_seconds, catchup_source):
-        """直播时进度条拖到缓冲区之前，自动用回看URL进行时移播放。
-        
-        slider_seconds: 进度条对应的秒数（从节目开始算）
-        catchup_source: 频道的 catchup_source URL 模板
-        """
-        program_start = self._progress_program_start
-        program_end = self._progress_program_end
+        self.catchup_ctrl.start_live_timeshift_from_progress(slider_seconds, catchup_source)
 
-        if program_start is None:
-            logger.warning("直播时移(进度条) -> program_start 为 None，无法执行时移")
-            return
-
-        target_wallclock = program_start + timedelta(seconds=slider_seconds)
-        now = datetime.now()
-
-        if target_wallclock >= now:
-            target_wallclock = now - timedelta(seconds=5)
-
-        if target_wallclock < program_start:
-            target_wallclock = program_start
-
-        end_time = program_end if program_end else now
-
-        timeshift_url = self.catchup_ctrl.build_catchup_url(self.current_channel, target_wallclock, end_time)
-
-        channel_name = self.current_channel.get('name', '')
-        program_title = ''
-        try:
-            # 尝试从EPG获取当前节目标题
-            ch_name, tvg_id, tvg_name, comma_name = self._get_epg_match_params()
-            prog = self.epg_parser.get_current_program(ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
-            if prog:
-                program_title = prog.get('title', '')
-        except Exception as e:
-            logger.debug(f"EPG获取节目标题失败: {e}")
-
-        offset_from_start = int((target_wallclock - program_start).total_seconds())
-        m, s = divmod(offset_from_start, 60)
-        h, m = divmod(m, 60)
-        offset_str = f"{h:02d}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
-
-        logger.info(f"直播时移(进度条) -> 从 {target_wallclock} 开始播放，offset={offset_str}, url={timeshift_url}")
-
-        tr = self.language_manager.tr
-        self.status_bar_show_message(
-            f"{tr('timeshift_playing', '正在时移')}: {channel_name}"
-            + (f" - {program_title}" if program_title else "")
-            + f"  [{offset_str}]"
-        )
-
-        if hasattr(self, '_cancel_source_timeout'):
-            self._cancel_source_timeout()
-
-        if hasattr(self, 'video_placeholder') and self.video_placeholder:
-            self.video_placeholder.hide()
-        if hasattr(self, 'video_widget') and self.video_widget and self.video_frame:
-            self.video_widget.setGeometry(0, 0, self.video_frame.width(), self.video_frame.height())
-        if hasattr(self, 'floating_panel') and self.floating_panel:
-            if not self.floating_panel.isVisible():
-                self.floating_panel.show()
-
-        for attr in ['_target_catchup_progress', '_disable_progress_auto_update']:
-            if hasattr(self, attr):
-                setattr(self, attr, False)
-
-        offset_seconds = int((target_wallclock - program_start).total_seconds())
-        import time as _time
-        self._catchup_start_time = _time.time()
-        self._catchup_start_progress = offset_seconds
-
-        self._timeshift_start_time = target_wallclock
-        self.play_state.set_timeshift()
-        self._live_timeshift_seconds = max(0, (datetime.now() - target_wallclock).total_seconds())
-        if hasattr(self, 'catchup_ctrl'):
-            self.catchup_ctrl.original_channel = self.current_channel.copy()
-        else:
-            self.original_channel = self.current_channel.copy()
-        self.catchup_program = {
-            'start': program_start,
-            'end': end_time,
-            'title': program_title or tr('timeshift_label', '时移'),
-            'desc': '',
-        }
-
-        total_duration = int((end_time - program_start).total_seconds())
-        if total_duration > 0:
-            self._set_progress_range(total_duration)
-            self._set_progress_value(offset_seconds)
-            self._progress_time_mode = 'epg'
-            self._progress_program_start = program_start
-            self._progress_program_end = end_time
-
-        if self.player_controller:
-            self.player_controller.play(timeshift_url, f"{channel_name} (时移 {offset_str})")
-        self._show_exit_timeshift_button()
-        self.media_ctrl.update_catchup_indicator()
-        self._populate_epg_list()
 
     def _set_channel_view_mode(self, mode, tab='sub'):
         """切换频道列表视图模式（list/grid）"""

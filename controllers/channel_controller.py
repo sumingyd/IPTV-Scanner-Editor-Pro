@@ -4,8 +4,14 @@
 """
 
 from typing import Dict, Any
+from datetime import datetime
+
+from PyQt6.QtWidgets import QListWidgetItem
+from PyQt6.QtCore import Qt, QSize, QTimer
+from PyQt6 import QtWidgets
 
 from core.application_state import app_state
+from core.log_manager import global_logger as logger
 from utils.general_utils import get_display_channel_name
 from controllers.main_window_protocol import MainWindowProtocol
 
@@ -47,14 +53,274 @@ class ChannelController:
             if not logo_url:
                 self.window.channel_logo.setText("")
 
-    def update_channel_info_on_selection(self):
-        """当选择变化时更新频道信息"""
-        if not self.window.channel_list:
+    def populate_channel_list_for(self, list_widget, channels, selected_group=''):
+        w = self.window
+        tr = w.language_manager.tr
+
+        list_widget.clear()
+
+        all_channels_text = tr("all_channels", "All Channels")
+        is_all_channels = (
+            not selected_group or
+            selected_group.lower() == all_channels_text.lower()
+        )
+
+        added_count = 0
+        error_count = 0
+        skipped_count = 0
+
+        from ui.styles import AppStyles
+        name_style = AppStyles.player_channel_list_name_style()
+
+        for idx, channel in enumerate(channels):
+            try:
+                if not is_all_channels:
+                    channel_groups = channel.get('_groups', [channel.get('group', '')])
+                    if selected_group not in channel_groups:
+                        skipped_count += 1
+                        continue
+
+                channel_name = channel.get("name", tr("unnamed", "Unnamed"))
+                logo_url = channel.get('logo', '')
+
+                try:
+                    is_grid = list_widget.viewMode() == QListWidget.ViewMode.IconMode
+
+                    if is_grid:
+                        item = QListWidgetItem()
+                        item.setText(channel_name)
+                        item.setData(Qt.ItemDataRole.UserRole, idx)
+                        item.setSizeHint(QSize(220, 150))
+                        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+                        list_widget.addItem(item)
+                    else:
+                        item_widget = QtWidgets.QWidget()
+                        item_layout = QtWidgets.QHBoxLayout(item_widget)
+                        item_layout.setContentsMargins(5, 2, 5, 2)
+                        item_layout.setSpacing(8)
+
+                        logo_label = QtWidgets.QLabel()
+                        logo_label.setFixedSize(44, 32)
+                        logo_label.setStyleSheet("background-color: transparent; border: none;")
+                        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        logo_label.setObjectName("channel_logo_label")
+
+                        name_label = QtWidgets.QLabel(channel_name)
+                        name_label.setStyleSheet(name_style)
+                        name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+                        name_label.setWordWrap(False)
+
+                        item_layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignVCenter)
+                        item_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
+
+                        item = QListWidgetItem()
+                        item.setSizeHint(QSize(0, 40))
+                        item.setData(Qt.ItemDataRole.UserRole, idx)
+
+                        list_widget.addItem(item)
+                        list_widget.setItemWidget(item, item_widget)
+
+                    added_count += 1
+
+                except Exception as widget_ex:
+                    simple_item = QListWidgetItem(channel_name)
+                    simple_item.setData(Qt.ItemDataRole.UserRole, idx)
+                    list_widget.addItem(simple_item)
+                    added_count += 1
+                    error_count += 1
+                    if error_count <= 3:
+                        logger.warning(f"第{idx}个频道的自定义widget创建失败，使用简单文本: {widget_ex}")
+
+            except Exception as e:
+                error_count += 1
+                if error_count <= 3:
+                    logger.error(f"populate_channel_list: 添加第{idx}个频道失败: {e}")
+
+        empty_label = None
+        if list_widget is getattr(w, 'sub_channel_list', None):
+            empty_label = getattr(w, 'sub_empty_label', None)
+        elif list_widget is getattr(w, 'local_channel_list', None):
+            empty_label = getattr(w, 'local_empty_label', None)
+
+        if empty_label:
+            if added_count == 0:
+                empty_label.show()
+            else:
+                empty_label.hide()
+
+        if error_count > 0:
+            logger.warning(f"populate_channel_list: 共 {error_count} 个频道添加失败")
+        if skipped_count > 0:
+            logger.warning(f"populate_channel_list: 共 {skipped_count} 个频道被分组过滤跳过")
+
+        logger.info(f"populate_channel_list: 填充完成，共 {list_widget.count()} 个频道项（实际添加: {added_count}, 跳过: {skipped_count}, 总数据: {len(channels)}）")
+        try:
+            list_widget.verticalScrollBar().valueChanged.connect(w._on_channel_list_scrolled, Qt.ConnectionType.UniqueConnection)
+        except TypeError:
+            pass
+        QTimer.singleShot(50, lambda: self.load_visible_icons(list_widget, channels))
+
+    def load_visible_icons(self, list_widget, channels):
+        w = self.window
+
+        if not hasattr(w, '_icon_load_queue'):
+            w._icon_load_queue = []
+            w._icon_load_set = set()
+            w._icon_load_timer = QTimer(w)
+            w._icon_load_timer.setInterval(16)
+            w._icon_load_timer.timeout.connect(w._process_icon_load_batch)
+
+        if not hasattr(w, '_logo_cache_service') or not w._logo_cache_service:
+            logger.warning("_load_visible_icons: _logo_cache_service未初始化，跳过台标加载")
             return
 
-        current_item = self.window.channel_list.currentItem()
-        if current_item and hasattr(self.window, 'select_channel'):
-            self.window.select_channel(current_item)
+        viewport_rect = list_widget.viewport().rect()
+        top_index = list_widget.indexAt(viewport_rect.topLeft())
+        bottom_index = list_widget.indexAt(viewport_rect.bottomLeft())
+
+        first_visible = top_index.row() if top_index.isValid() else 0
+        last_visible = bottom_index.row() if bottom_index.isValid() else list_widget.count() - 1
+        first_visible = max(0, first_visible - 3)
+        last_visible = min(list_widget.count() - 1, last_visible + 3)
+
+        is_grid = list_widget.viewMode() == QListWidget.ViewMode.IconMode
+
+        logger.debug(f"_load_visible_icons: 项数={list_widget.count()}, channels={len(channels)}")
+        need_capture = []
+        queue_items = []
+
+        for i in range(first_visible, last_visible + 1):
+            item = list_widget.item(i)
+            if not item:
+                continue
+            channel_idx = item.data(Qt.ItemDataRole.UserRole)
+            if channel_idx is None or channel_idx >= len(channels):
+                continue
+            channel = channels[channel_idx]
+            logo_url = channel.get('logo', '').strip('`' + '"' + '\'')
+
+            if is_grid:
+                if not item.icon().isNull():
+                    continue
+                ch_url = channel.get('url', '')
+                if w.player_controller and ch_url:
+                    thumb_path = w.player_controller.get_thumbnail_path(ch_url)
+                    if thumb_path:
+                        dedupe_key = ('grid_thumb', i)
+                        if dedupe_key not in w._icon_load_set:
+                            queue_items.append(('grid_thumb', item, thumb_path, None))
+                            w._icon_load_set.add(dedupe_key)
+                        continue
+                if logo_url:
+                    cached = w._logo_cache_service.get(logo_url)
+                    if cached:
+                        dedupe_key = ('grid_logo', i)
+                        if dedupe_key not in w._icon_load_set:
+                            queue_items.append(('grid_logo', item, None, cached))
+                            w._icon_load_set.add(dedupe_key)
+                    else:
+                        w._logo_cache_service.fetch_async(logo_url)
+                if ch_url:
+                    need_capture.append(channel)
+            else:
+                item_widget = list_widget.itemWidget(item)
+                if not item_widget:
+                    continue
+                logo_label = item_widget.findChild(QtWidgets.QLabel, "channel_logo_label")
+                if not logo_label:
+                    continue
+                if logo_label.pixmap() and not logo_label.pixmap().isNull():
+                    continue
+                if logo_url:
+                    cached = w._logo_cache_service.get(logo_url)
+                    if cached:
+                        dedupe_key = ('list_logo', i)
+                        if dedupe_key not in w._icon_load_set:
+                            queue_items.append(('list_logo', item, logo_label, cached))
+                            w._icon_load_set.add(dedupe_key)
+                    else:
+                        w._logo_cache_service.fetch_async(logo_url)
+
+        w._icon_load_queue.extend(queue_items)
+        if w._icon_load_queue and not w._icon_load_timer.isActive():
+            w._icon_load_timer.start()
+
+        if need_capture and hasattr(w, '_thumbnail_service'):
+            w._thumbnail_service.capture_channels(need_capture, force=True)
+
+    def update_channel_info_on_selection(self):
+        w = self.window
+        if not w.current_channel:
+            return
+
+        w.media_ctrl.update_catchup_indicator()
+
+        display_name = self._get_display_channel_name(w.current_channel)
+        w.channel_name.setText(display_name)
+        w.current_program.setText("")
+        logo = w.current_channel.get("logo", "")
+
+        if logo:
+            logo = logo.strip('`"\'')
+
+            cached = w._logo_cache_service.get(logo)
+            if cached:
+                scaled_pixmap = w._logo_cache_service.scale_logo_pixmap_to_fit(cached, w.channel_logo.width(), w.channel_logo.height())
+                w.channel_logo.setPixmap(scaled_pixmap)
+                w.channel_logo.setText("")
+                return
+
+            w._logo_cache_service.fetch_async(logo)
+            from utils.general_utils import set_default_channel_logo
+            set_default_channel_logo(w.channel_logo, w.channel_logo.width(), w.channel_logo.height())
+        else:
+            from utils.general_utils import set_default_channel_logo
+            set_default_channel_logo(w.channel_logo, w.channel_logo.width(), w.channel_logo.height())
+
+        try:
+            if w._is_local_file():
+                w.current_program.setText("")
+                w.program_desc.setText(w.language_manager.tr("local_video_file", "本地视频文件"))
+                w.time_label.setText("--:-- / --:--")
+                w.remain_label.setText(w.language_manager.tr("loading", "加载中..."))
+            else:
+                channel_name = w.current_channel.get("name", "")
+                current_program_data = None
+                if channel_name and hasattr(w, 'epg_parser') and w.epg_parser:
+                    ch_name, tvg_id, tvg_name, comma_name = w._get_epg_match_params()
+                    current_program_data = w.epg_parser.get_current_program(
+                        ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name
+                    )
+                if current_program_data:
+                    program_name = current_program_data.get("title", "")
+                    w.current_program.setText(f"· {program_name}" if program_name else "")
+                    w.program_desc.setText(current_program_data.get("desc", w.language_manager.tr("no_program_desc", "No program description")))
+                    start_str = current_program_data.get("start", "")
+                    start_display = datetime.fromisoformat(start_str).strftime("%H:%M") if start_str else "--:--"
+                    w.progress_start.setText(start_display)
+                    w.time_label.setText(f"{datetime.now().strftime('%H:%M')}")
+                    w.remain_label.setText(w.language_manager.tr("waiting_to_play", "Waiting to play..."))
+                else:
+                    w.current_program.setText("")
+                    w.program_desc.setText(w.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
+                    w.time_label.setText(f"{datetime.now().strftime('%H:%M')}")
+                    w.remain_label.setText(w.language_manager.tr("waiting_to_play", "Waiting to play..."))
+        except Exception:
+            w.current_program.setText("")
+            w.program_desc.setText(w.language_manager.tr("open_playlist_success", "Playlist opened, click a channel to play"))
+            current_time = datetime.now().strftime("%H:%M")
+            w.time_label.setText(f"{current_time}")
+            w.remain_label.setText(w.language_manager.tr("waiting_to_play", "Waiting to play..."))
+
+        w._set_progress_value(0)
+        w.progress_end.setText("--:--")
+
+        w.video_info.setText(f'{w.language_manager.tr("waiting_to_play", "Waiting to play...")}')
+        w.audio_info.setText("--")
+        w.network_info.setText(f'{w.language_manager.tr("waiting_connect", "Waiting to connect...")}')
+        if hasattr(w, 'buffer_info'):
+            w.buffer_info.hide()
 
     @property
     def channel_count(self) -> int:

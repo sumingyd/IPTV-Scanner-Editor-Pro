@@ -260,3 +260,147 @@ class PlaybackController:
     @property
     def is_muted_state(self) -> bool:
         return self._is_muted
+
+    def handle_play_state_change(self, is_playing):
+        from ui.styles import AppStyles
+        from PyQt6.QtGui import QIcon
+        from core.log_manager import global_logger as logger
+
+        w = self.window
+        tr = w.language_manager.tr
+        btn_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        if is_playing:
+            pause_path = AppStyles.get_icon('pause', btn_color)
+            if pause_path:
+                w.play_button.setIcon(QIcon(pause_path))
+            w.pip_ctrl._update_play_btn()
+            w._cancel_source_timeout()
+            if hasattr(w, 'video_placeholder') and w.video_placeholder:
+                w.video_placeholder.hide()
+            if hasattr(w, 'video_widget') and w.video_widget and w.video_frame:
+                w.video_widget.setGeometry(0, 0, w.video_frame.width(), w.video_frame.height())
+                w.video_widget.show()
+            w._last_info_key = None
+            w.update_timer.start(1000)
+            if w._is_local_file():
+                if hasattr(w, 'epg_panel') and w.epg_panel:
+                    if not hasattr(w, '_epg_hidden_by_local_file'):
+                        w._epg_hidden_by_local_file = w.epg_visible
+                    w.epg_panel.hide()
+                    w.epg_visible = False
+            elif hasattr(w, 'epg_panel') and w.epg_panel:
+                if hasattr(w, '_epg_hidden_by_local_file'):
+                    if w._epg_hidden_by_local_file:
+                        w.epg_panel.show()
+                        w.epg_visible = True
+                    w._epg_hidden_by_local_file = False
+                elif getattr(w, 'epg_visible', True) and not w.epg_panel.isVisible():
+                    w.epg_panel.show()
+            if w.current_channel:
+                channel_name = w.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
+                if w.play_state.is_catchup_or_timeshift:
+                    catchup_playing_text = tr('catchup_playing', '正在回看: {name}')
+                    w.status_bar.showMessage(catchup_playing_text.format(name=channel_name))
+                    if getattr(w, '_pending_catchup_progress', None) is not None:
+                        try:
+                            progress_value = w._pending_catchup_progress
+                            w._pending_catchup_progress = None
+                            w._set_progress_value(progress_value)
+                            w._target_catchup_progress = progress_value
+                            import time
+                            w._catchup_start_time = time.time()
+                            w._catchup_start_progress = progress_value
+                            logger.debug(f"记录回看开始时间：{w._catchup_start_time}，开始进度：{progress_value}%")
+                            logger.debug(f"已设置回看进度条，保存目标值：{progress_value}%，保留禁用标志")
+                        except Exception as e:
+                            logger.error(f"设置回看进度条失败：{e}")
+                else:
+                    w.status_bar_show_message(f"{tr('playing', 'Playing')}: {channel_name}")
+        else:
+            play_path = AppStyles.get_icon('play', btn_color)
+            if play_path:
+                w.play_button.setIcon(QIcon(play_path))
+            w.pip_ctrl._update_play_btn()
+            if hasattr(w, 'update_timer'):
+                w.update_timer.stop()
+            if w.play_state.is_idle:
+                return
+            if w.current_channel:
+                channel_name = w.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))
+                if w.play_state.is_catchup_or_timeshift:
+                    catchup_paused_text = tr('catchup_paused', '回看暂停: {name}')
+                    w.status_bar_show_message(catchup_paused_text.format(name=channel_name))
+                else:
+                    w.status_bar_show_message(f"{tr('paused', 'Paused')}: {channel_name}")
+
+    def seek_live(self, position):
+        from core.log_manager import global_logger as logger
+
+        w = self.window
+        if not w.current_channel or not w.player_controller:
+            return
+
+        seek_range = w.player_controller.get_available_seek_range()
+        max_back = seek_range.get('max_back', 0)
+        cache_duration = seek_range.get('cache_duration', 0)
+        buffer_start = seek_range.get('buffer_start', 0)
+        buffer_end = seek_range.get('buffer_end', 0)
+        time_pos = seek_range.get('time_pos', 0)
+
+        logger.info(f"直播拖动进度条 -> slider={position}s, "
+                    f"time_pos={time_pos:.1f}s, buffer={buffer_start:.1f}s~{buffer_end:.1f}s, "
+                    f"max_back={max_back}s, mode={getattr(w, '_progress_time_mode', '?')}")
+
+        if max_back == 0 and cache_duration < 5:
+            logger.warning(f"直播拖动进度条 -> 无法回退（缓冲区为空，cache={cache_duration:.1f}s）")
+            w.status_bar_show_message(w.language_manager.tr("cannot_seek_live", "无法回退：直播流缓冲区不足"))
+            return
+
+        target_pos = w._map_slider_to_stream_position(position, seek_range)
+
+        logger.info(f"直播拖动进度条 -> 映射后 target_pos={target_pos:.1f}s, "
+                    f"clamp后={max(buffer_start, min(target_pos, buffer_end)):.1f}s")
+
+        if target_pos < buffer_start:
+            catchup_source = w.current_channel.get('catchup_source', '') if w.current_channel else ''
+            if catchup_source and getattr(w, '_progress_time_mode', None) == 'epg' and w._progress_program_start:
+                w._start_live_timeshift_from_progress(position, catchup_source)
+                return
+            elif catchup_source:
+                w.status_bar_show_message(
+                    w.language_manager.tr(
+                        "timeshift_beyond_cache_no_epg",
+                        "超出缓冲范围，无节目信息，无法自动时移"
+                    )
+                )
+            else:
+                w.status_bar_show_message(
+                    w.language_manager.tr(
+                        "timeshift_beyond_cache",
+                        "超出缓冲范围，无法跳转到更早时间"
+                    )
+                )
+            return
+
+        target_pos = max(buffer_start, min(target_pos, buffer_end))
+
+        timeshift = getattr(w, '_live_timeshift_seconds', 0)
+        if timeshift > 0 and time_pos < 1:
+            effective_pos = buffer_end - timeshift
+        elif time_pos > 1:
+            effective_pos = time_pos
+        else:
+            effective_pos = buffer_end
+
+        if abs(target_pos - effective_pos) < 1:
+            logger.info(f"直播拖动进度条 -> 跳过（目标{target_pos:.1f}s与当前位置{effective_pos:.1f}s差<1s, timeshift={timeshift}s）")
+            return
+
+        logger.info(f"直播拖动进度条 -> seek到 {target_pos:.1f}s")
+
+        w.player_controller.seek_absolute(target_pos)
+
+        if target_pos < buffer_end - 1:
+            w._live_timeshift_seconds = buffer_end - target_pos
+        else:
+            w._live_timeshift_seconds = 0
