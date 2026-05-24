@@ -1346,6 +1346,7 @@ class IPTVPlayer(QMainWindow):
         self.program_progress.setStyleSheet(AppStyles.player_slider_style())
         self.program_progress.set_cache_color(AppStyles._get_colors().get('player_cache_bar', 'rgba(76,175,80,0.4)'))
         self.program_progress.sliderReleased.connect(self.on_progress_slider_released)
+        self.program_progress.sliderPressed.connect(self._on_progress_slider_pressed)
         self._progress_total_seconds = 3600
         self.progress_group.addWidget(self.program_progress, 1)
         
@@ -1931,6 +1932,9 @@ class IPTVPlayer(QMainWindow):
         except Exception as e:
             logger.debug("节目切换检测异常: {}".format(e))
     
+    def _on_progress_slider_pressed(self):
+        self._stop_auto_hide_timer()
+
     def on_progress_slider_released(self):
         if hasattr(self, '_slider_debounce_timer') and self._slider_debounce_timer is not None:
             self._slider_debounce_timer.stop()
@@ -1949,6 +1953,9 @@ class IPTVPlayer(QMainWindow):
             self._seek_catchup(self._get_progress_seconds())
         else:
             self._seek_live(self._get_progress_seconds())
+
+        if getattr(self, 'is_fullscreen', False):
+            self._restart_auto_hide_timer()
 
     def _seek_vod(self, position):
         if self.player_controller:
