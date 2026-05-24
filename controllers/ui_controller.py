@@ -749,6 +749,7 @@ class UIController:
                     if ch_logo == url:
                         match_idx = ci
                         break
+
             if match_idx is None:
                 continue
             for i in range(list_widget.count()):
@@ -776,3 +777,279 @@ class UIController:
                                 )
                                 logo_label.setPixmap(scaled)
                     break
+
+    def setup_menu_bar(self, skip_recent_files=False):
+        """设置菜单栏"""
+        from PyQt6.QtWidgets import QMenuBar
+        from PyQt6.QtGui import QAction
+        from ui.styles import AppStyles
+        from core.log_manager import global_logger as logger
+
+        if hasattr(self.window, '_custom_menu_bar') and self.window._custom_menu_bar:
+            menu_bar = self.window._custom_menu_bar
+            menu_bar.clear()
+        else:
+            menu_bar = QMenuBar()
+            menu_bar.setObjectName("customMenuBar")
+            self.window._custom_menu_bar = menu_bar
+
+        menu_bar.setStyleSheet(AppStyles.player_menu_bar_style())
+
+        try:
+            tr = self.window.language_manager.tr
+
+            file_menu = menu_bar.addMenu(tr("menu_file", "File"))
+            recent_menu = None
+            if file_menu:
+                open_playlist = QAction(tr("menu_open_playlist", "Open Playlist\tCtrl+O"), self.window)
+                open_playlist.triggered.connect(self.window.open_playlist)
+                file_menu.addAction(open_playlist)
+
+                open_stream = QAction(tr("menu_open_stream", "Open Stream\tCtrl+U"), self.window)
+                open_stream.triggered.connect(self.window._open_stream)
+                file_menu.addAction(open_stream)
+
+                open_video = QAction(tr("menu_open_video", "Open Video\tCtrl+Shift+O"), self.window)
+                open_video.triggered.connect(self.window._open_video_file)
+                file_menu.addAction(open_video)
+
+                recent_menu = file_menu.addMenu(tr("menu_recent_open", "Recent"))
+
+                save_as = QAction(tr("menu_save_as", "Save As...\tCtrl+S"), self.window)
+                save_as.triggered.connect(self.window.save_as)
+                file_menu.addAction(save_as)
+
+                file_menu.addSeparator()
+
+                exit_action = QAction(tr("menu_exit", "Exit\tCtrl+Q"), self.window)
+                exit_action.triggered.connect(self.window.close)
+                file_menu.addAction(exit_action)
+
+            self.window.recent_menu = recent_menu
+
+            if not skip_recent_files:
+                self.window.update_recent_files_menu()
+
+            playback_menu = menu_bar.addMenu(tr("menu_playback", "Playback"))
+
+            prev_channel = QAction(tr("menu_prev_channel", "Previous Channel\t↑"), self.window)
+            prev_channel.triggered.connect(lambda: self.window.event_handler._switch_channel(-1) if hasattr(self.window, 'event_handler') else None)
+            playback_menu.addAction(prev_channel)
+
+            next_channel = QAction(tr("menu_next_channel", "Next Channel\t↓"), self.window)
+            next_channel.triggered.connect(lambda: self.window.event_handler._switch_channel(1) if hasattr(self.window, 'event_handler') else None)
+            playback_menu.addAction(next_channel)
+
+            back_channel = QAction(tr("menu_back_channel", "Switch Back\tBackspace"), self.window)
+            back_channel.triggered.connect(lambda: self.window.switch_to_previous_channel() if hasattr(self.window, 'switch_to_previous_channel') else None)
+            playback_menu.addAction(back_channel)
+
+            playback_menu.addSeparator()
+
+            play_pause = QAction(tr("menu_play_pause", "Play/Pause\tSpace"), self.window)
+            play_pause.triggered.connect(lambda: self.window.playback_ctrl.toggle_play() if hasattr(self.window, 'playback_ctrl') else None)
+            playback_menu.addAction(play_pause)
+
+            stop_play = QAction(tr("menu_stop", "Stop\tEsc"), self.window)
+            stop_play.triggered.connect(lambda: self.window.playback_ctrl.stop_playback() if hasattr(self.window, 'playback_ctrl') else None)
+            playback_menu.addAction(stop_play)
+
+            playback_menu.addSeparator()
+
+            seek_back = QAction(tr("menu_seek_back", "Seek Back\t←"), self.window)
+            seek_back.triggered.connect(lambda: self.window.event_handler._seek_relative(-10) if hasattr(self.window, 'event_handler') else None)
+            playback_menu.addAction(seek_back)
+
+            seek_forward = QAction(tr("menu_seek_forward", "Seek Forward\t→"), self.window)
+            seek_forward.triggered.connect(lambda: self.window.event_handler._seek_relative(10) if hasattr(self.window, 'event_handler') else None)
+            playback_menu.addAction(seek_forward)
+
+            playback_menu.addSeparator()
+
+            vol_up = QAction(tr("menu_vol_up", "Volume Up\tScroll Up"), self.window)
+            vol_up.triggered.connect(lambda: self.window.event_handler._adjust_volume(5) if hasattr(self.window, 'event_handler') else None)
+            playback_menu.addAction(vol_up)
+
+            vol_down = QAction(tr("menu_vol_down", "Volume Down\tScroll Down"), self.window)
+            vol_down.triggered.connect(lambda: self.window.event_handler._adjust_volume(-5) if hasattr(self.window, 'event_handler') else None)
+            playback_menu.addAction(vol_down)
+
+            mute_action = QAction(tr("menu_mute", "Mute\tCtrl+M"), self.window)
+            mute_action.triggered.connect(lambda: self.window.toggle_mute() if hasattr(self.window, 'toggle_mute') else None)
+            playback_menu.addAction(mute_action)
+
+            playback_menu.addSeparator()
+
+            speed_up = QAction(tr("menu_speed_up", "Speed Up\t."), self.window)
+            speed_up.triggered.connect(lambda: self.window.media_ctrl.adjust_speed(0.1))
+            playback_menu.addAction(speed_up)
+
+            speed_down = QAction(tr("menu_speed_down", "Speed Down\t,"), self.window)
+            speed_down.triggered.connect(lambda: self.window.media_ctrl.adjust_speed(-0.1))
+            playback_menu.addAction(speed_down)
+
+            playback_menu.addSeparator()
+
+            screenshot = QAction(tr("menu_screenshot", "Screenshot\tS"), self.window)
+            screenshot.triggered.connect(lambda: self.window.media_ctrl.take_screenshot())
+            playback_menu.addAction(screenshot)
+
+            playback_menu.addSeparator()
+
+            audio_menu = playback_menu.addMenu(tr("ctx_audio_track", "Audio Track"))
+            audio_menu.aboutToShow.connect(lambda: self.window.media_ctrl._populate_audio_menu(audio_menu))
+
+            subtitle_menu = playback_menu.addMenu(tr("ctx_subtitle", "Subtitle"))
+            subtitle_menu.aboutToShow.connect(lambda: self.window.media_ctrl._populate_subtitle_menu(subtitle_menu))
+
+            view_menu = menu_bar.addMenu(tr("menu_view", "View"))
+
+            show_epg = QAction(tr("menu_epg_list", "EPG List\tE"), self.window)
+            show_epg.setCheckable(True)
+            show_epg.setChecked(self.window.epg_visible)
+            show_epg.triggered.connect(self.window.toggle_epg)
+            view_menu.addAction(show_epg)
+            self.window._epg_menu_action = show_epg
+
+            show_playlist = QAction(tr("menu_playlist", "Playlist\tL"), self.window)
+            show_playlist.setCheckable(True)
+            show_playlist.setChecked(self.window.playlist_visible)
+            show_playlist.triggered.connect(self.window.toggle_playlist)
+            view_menu.addAction(show_playlist)
+            self.window._playlist_menu_action = show_playlist
+
+            show_floating = QAction(tr("menu_control_panel", "Control Panel\tM"), self.window)
+            show_floating.setCheckable(True)
+            show_floating.setChecked(self.window.floating_panel_visible)
+            show_floating.triggered.connect(self.window.toggle_floating_panel)
+            view_menu.addAction(show_floating)
+            self.window._floating_menu_action = show_floating
+
+            hide_all_floating = QAction(tr("menu_hide_floating", "Hide Floating Panels\tY"), self.window)
+            hide_all_floating.triggered.connect(lambda: self.window.toggle_hide_floating())
+            view_menu.addAction(hide_all_floating)
+            self.window._hide_floating_action = hide_all_floating
+
+            show_osd = QAction(tr("menu_osd_toggle", "OSD Mask\tTab"), self.window)
+            show_osd.setCheckable(True)
+            show_osd.setChecked(self.window._osd_visible)
+            show_osd.triggered.connect(lambda c: self.window.toggle_osd(c))
+            view_menu.addAction(show_osd)
+            self.window._osd_menu_action = show_osd
+
+            view_menu.addSeparator()
+
+            fullscreen = QAction(tr("menu_fullscreen", "Fullscreen\tF11"), self.window)
+            fullscreen.setCheckable(True)
+            fullscreen.triggered.connect(self.window.toggle_fullscreen)
+            view_menu.addAction(fullscreen)
+            self.window._fullscreen_menu_action = fullscreen
+
+            pip_action = QAction(tr("menu_pip", "Picture-in-Picture\tP"), self.window)
+            pip_action.setCheckable(True)
+            pip_action.triggered.connect(self.window.pip_ctrl.toggle)
+            view_menu.addAction(pip_action)
+            self.window._pip_menu_action = pip_action
+
+            view_menu.addSeparator()
+            multi_screen_menu = view_menu.addMenu(tr("menu_multi_screen", "Multi Screen"))
+
+            ms_4 = QAction(tr("menu_multi_2x2", "2×2 (4 Screens)"), self.window)
+            ms_4.triggered.connect(lambda: self.window.multi_screen_ctrl.toggle(4))
+            multi_screen_menu.addAction(ms_4)
+
+            ms_9 = QAction(tr("menu_multi_3x3", "3×3 (9 Screens)"), self.window)
+            ms_9.triggered.connect(lambda: self.window.multi_screen_ctrl.toggle(9))
+            multi_screen_menu.addAction(ms_9)
+
+            ms_exit = QAction(tr("menu_multi_exit", "Exit Multi Screen"), self.window)
+            ms_exit.triggered.connect(self.window.multi_screen_ctrl.exit_multi_screen)
+            multi_screen_menu.addAction(ms_exit)
+
+            refresh = QAction(tr("menu_refresh", "Refresh\tF5"), self.window)
+            refresh.triggered.connect(self.window.refresh_ui)
+            view_menu.addAction(refresh)
+
+            reset_layout = QAction(tr("menu_reset_layout", "Reset Layout"), self.window)
+            reset_layout.triggered.connect(self.window.reset_layout)
+            view_menu.addAction(reset_layout)
+
+            tools_menu = menu_bar.addMenu(tr("menu_tools", "Tools"))
+
+            scan_channels = QAction(tr("menu_scan_channels", "Scan & Organize"), self.window)
+            scan_channels.triggered.connect(self.window.open_scan_ui)
+            tools_menu.addAction(scan_channels)
+
+            channel_mapping = QAction(tr("menu_mapping", "Mapping"), self.window)
+            channel_mapping.triggered.connect(self.window.open_channel_mapping)
+            tools_menu.addAction(channel_mapping)
+
+            tools_menu.addSeparator()
+
+            player_settings = QAction(tr("menu_subscription_settings", "Subscription Settings"), self.window)
+            player_settings.triggered.connect(self.window.player_settings)
+            tools_menu.addAction(player_settings)
+
+            tools_menu.addSeparator()
+
+            file_assoc = QAction(tr("menu_file_association", "File Association"), self.window)
+            file_assoc.triggered.connect(self.window._toggle_file_association)
+            tools_menu.addAction(file_assoc)
+
+            language_menu = menu_bar.addMenu(tr("language", "Language"))
+
+            current_language = self.window.language_manager.current_language
+
+            chinese = QAction(tr("chinese", "中文"), self.window)
+            chinese.setCheckable(True)
+            chinese.setChecked(current_language == "zh")
+            chinese.triggered.connect(lambda: self.window.set_language("zh"))
+            language_menu.addAction(chinese)
+
+            english = QAction(tr("english", "English"), self.window)
+            english.setCheckable(True)
+            english.setChecked(current_language == "en")
+            english.triggered.connect(lambda: self.window.set_language("en"))
+            language_menu.addAction(english)
+
+            from PyQt6.QtGui import QActionGroup
+            lang_group = QActionGroup(self.window)
+            lang_group.setExclusive(True)
+            lang_group.addAction(chinese)
+            lang_group.addAction(english)
+
+            theme_menu = menu_bar.addMenu(tr("menu_theme", "Theme"))
+
+            theme_manager = self.window._theme_manager
+
+            themes = theme_manager.get_available_themes()
+
+            from PyQt6.QtGui import QActionGroup
+            theme_group = QActionGroup(self.window)
+            theme_group.setExclusive(True)
+
+            for theme in themes:
+                theme_display = tr(theme, theme)
+                theme_action = QAction(theme_display, self.window)
+                theme_action.setCheckable(True)
+                theme_action.setChecked(theme == theme_manager.get_current_theme())
+                theme_action.triggered.connect(lambda checked, t=theme: self.window.set_theme(t))
+                theme_group.addAction(theme_action)
+                theme_menu.addAction(theme_action)
+
+            help_menu = menu_bar.addMenu(tr("menu_help", "Help"))
+
+            usage_instructions = QAction(tr("menu_instructions", "Instructions"), self.window)
+            usage_instructions.triggered.connect(self.window.show_usage_instructions)
+            help_menu.addAction(usage_instructions)
+
+            about = QAction(tr("menu_about", "About"), self.window)
+            about.triggered.connect(self.window.show_about)
+            help_menu.addAction(about)
+
+        except Exception as e:
+            logger.error(f"创建菜单栏失败: {str(e)}")
+
+        if hasattr(self.window, '_custom_menu_bar') and self.window._custom_menu_bar and hasattr(self.window, 'main_layout'):
+            if self.window._custom_menu_bar.parent() != self.window._main_container:
+                self.window.main_layout.insertWidget(1, self.window._custom_menu_bar)
