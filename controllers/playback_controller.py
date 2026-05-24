@@ -6,6 +6,7 @@ from core.play_state import PlayMode
 from core.log_manager import global_logger as logger
 from controllers.main_window_protocol import MainWindowProtocol
 from ui.styles import AppStyles
+from services.fcc_service import FCCService
 
 
 class PlaybackController:
@@ -18,6 +19,7 @@ class PlaybackController:
         self._is_switching = False
         self._live_timeshift_seconds = 0
         self._last_program_id = None
+        self.fcc = FCCService()
 
     def toggle_play(self):
         pc = getattr(self.window, 'player_controller', None)
@@ -30,6 +32,7 @@ class PlaybackController:
             self.play_channel(ch)
 
     def stop_playback(self):
+        self.fcc.on_stop()
         if hasattr(self.window, 'player_controller') and self.window.player_controller:
             self.window.player_controller.stop()
 
@@ -200,6 +203,7 @@ class PlaybackController:
         url = channel.get('url', '')
         name = channel.get('name', '')
 
+        self.fcc.on_channel_change(url)
         self.window.player_controller.play(url)
         self.current_channel = channel
         self.window.play_state.set_live()

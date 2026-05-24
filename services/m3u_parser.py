@@ -264,6 +264,20 @@ _HEADER_CATCHUP_MAP = {
 }
 
 
+def _extract_fcc_to_channel(url: str, channel: Dict[str, Any]):
+    """从频道URL中提取FCC代理地址并保存到频道字典"""
+    try:
+        from urllib.parse import urlparse, parse_qs
+        if '?fcc=' in url.lower():
+            parsed = urlparse(url)
+            qs = parse_qs(parsed.query)
+            fcc_val = qs.get('fcc', [None])
+            if fcc_val and fcc_val[0]:
+                channel['fcc'] = fcc_val[0]
+    except Exception:
+        pass
+
+
 def _make_empty_channel(group: str = '未分类', groups: Optional[List[str]] = None, extinf: str = '') -> Dict[str, Any]:
     return {
         'name': '未命名',
@@ -278,6 +292,7 @@ def _make_empty_channel(group: str = '未分类', groups: Optional[List[str]] = 
         'catchup_days': '',
         'catchup_source': '',
         'catchup_correction': '',
+        'fcc': '',
         'resolution': '',
         'valid': False,
         'status': '待检测',
@@ -417,6 +432,7 @@ def parse_m3u_content(content: str) -> Tuple[List[Dict[str, Any]], Dict[str, str
             url = line.strip()
             if is_valid_channel_url(url):
                 current_channel['url'] = url
+                _extract_fcc_to_channel(url, current_channel)
                 channels.append(current_channel)
             current_channel = None
         else:

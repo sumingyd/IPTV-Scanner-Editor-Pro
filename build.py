@@ -76,6 +76,7 @@ PYINSTALLER_CMD = [
     "--hidden-import", "services.channel_classifier",
     "--hidden-import", "services.channel_cleaner",
     "--hidden-import", "services.epg_matcher",
+    "--hidden-import", "services.fcc_service",
     "--hidden-import", "services.logo_cache_service",
     "--hidden-import", "services.logo_matcher",
     "--hidden-import", "services.m3u_parser",
