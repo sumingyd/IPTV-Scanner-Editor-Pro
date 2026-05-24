@@ -33,7 +33,7 @@ def has_thumbnail(url: str) -> bool:
     return os.path.exists(_url_to_thumb_path(url))
 
 
-def is_thumbnail_stale(url: str, max_age_minutes: int = 5) -> bool:
+def is_thumbnail_stale(url: str, max_age_minutes: int = 1440) -> bool:
     if not url:
         return False
     path = _url_to_thumb_path(url)
