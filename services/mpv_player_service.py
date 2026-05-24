@@ -161,6 +161,15 @@ class MpvPlayerController(QObject):
             _mpv_set_property_string(self.mpv_handle, 'd3d11-sync-interval', '1')
             _mpv_set_property_string(self.mpv_handle, 'osc', 'no')
             _mpv_set_property_string(self.mpv_handle, 'osd-bar', 'no')
+            _mpv_set_property_string(self.mpv_handle, 'osd-font', 'Segoe UI,Microsoft YaHei,sans-serif')
+            _mpv_set_property_string(self.mpv_handle, 'osd-font-size', '18')
+            _mpv_set_property_string(self.mpv_handle, 'osd-border-size', '2')
+            _mpv_set_property_string(self.mpv_handle, 'osd-shadow-offset', '1.5')
+            _mpv_set_property_string(self.mpv_handle, 'osd-spacing', '0.5')
+            _mpv_set_property_string(self.mpv_handle, 'osd-margin-x', '24')
+            _mpv_set_property_string(self.mpv_handle, 'osd-margin-y', '24')
+            _mpv_set_property_string(self.mpv_handle, 'osd-align-x', 'left')
+            _mpv_set_property_string(self.mpv_handle, 'osd-align-y', 'top')
             _mpv_set_property_string(self.mpv_handle, 'log-level', 'error')
             _mpv_set_property_string(self.mpv_handle, 'no-window-dragging', 'yes')
             _mpv_set_property_string(self.mpv_handle, 'window-scale', '1.0')
@@ -897,6 +906,18 @@ class MpvPlayerController(QObject):
                 'colorlevels': colorlevels,
                 'sig_peak': sig_peak,
                 'sig_avg': sig_avg,
+                'demuxer': get_str('demuxer') or '',
+                'protocol': get_str('protocol') or '',
+                'video_format': get_str('video-format') or '',
+                'audio_format': get_str('audio-format') or '',
+                'aspect_ratio': get_str('video-params/aspect') or '',
+                'dwidth': get_int('dwidth'),
+                'dheight': get_int('dheight'),
+                'video_fps': get_double('estimated-vf-fps') or 0,
+                'audio_bitrate_demux': get_double('audio-params/bitrate') or 0,
+                'cache_speed': get_double('cache-speed') or 0,
+                'cache_used': get_double('demuxer-cache-state/demo-range/avg') or 0,
+                'buffering': get_int('cache-buffering-state') or 0,
             }
             return info
         except Exception as e:
