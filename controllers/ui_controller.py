@@ -410,9 +410,6 @@ class UIController:
 
         is_catchup = self.window.play_state.is_catchup_or_timeshift
         is_timeshift = self.window.play_state.is_timeshift
-        if is_catchup:
-            cp = getattr(self.window, 'catchup_program', None)
-            logger.info(f"[DESC-DBG] is_catchup=True, is_timeshift={is_timeshift}, catchup_program={'有' if cp else '无'}, desc={'有' if cp and cp.get('desc') else '无'}")
 
         if self.window.current_channel:
             display_name = self.window._get_display_channel_name(self.window.current_channel)
@@ -445,16 +442,13 @@ class UIController:
                         end_time = self.window.catchup_program.get('end')
                         title = self.window.catchup_program.get('title', '')
                         desc = self.window.catchup_program.get('desc', '')
-                        logger.info(f"[DESC-DBG] catchup_program desc={desc!r}, start={start_time}, end={end_time}, title={title!r}")
                         if not desc or desc.strip() == '':
                             channel_name, tvg_id, tvg_name, comma_name = self.window._get_epg_match_params()
                             if channel_name:
                                 cp_start = start_time
                                 cp_end = end_time
-                                logger.info(f"[DESC-DBG] 回退查询: channel={channel_name}, cp_start={cp_start}, cp_end={cp_end}")
                                 if cp_start and cp_end:
                                     all_programs = self.window.epg_parser.get_channel_epg(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
-                                    logger.info(f"[DESC-DBG] 回退查询: all_programs数量={len(all_programs) if all_programs else 0}")
                                     if all_programs:
                                         for prog in all_programs:
                                             try:
@@ -472,10 +466,6 @@ class UIController:
                                                 continue
                             if not desc or desc.strip() == '':
                                 desc = self.window.language_manager.tr('no_program_desc', 'No program description')
-                                logger.info(f"[DESC-DBG] 回退查询: 最终仍无desc")
-                            else:
-                                logger.info(f"[DESC-DBG] 回退查询: 成功获取desc={repr(desc)[:80]}")
-                        logger.info(f"[DESC-DBG] 最终设置desc={repr(desc)[:80]}")
                         self.window.program_desc.setText(desc)
                         self.window.current_program.setText(f"· {title}" if title else "")
                         if start_time and end_time:
