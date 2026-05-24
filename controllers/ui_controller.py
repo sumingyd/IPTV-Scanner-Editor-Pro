@@ -408,7 +408,7 @@ class UIController:
         from core.log_manager import global_logger as logger
         from datetime import datetime
 
-        is_catchup = self.window.play_state.is_catchup
+        is_catchup = self.window.play_state.is_catchup_or_timeshift
         is_timeshift = self.window.play_state.is_timeshift
 
         if self.window.current_channel:
