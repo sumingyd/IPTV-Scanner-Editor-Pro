@@ -257,6 +257,20 @@ class MpvPlayerController(QObject):
                 self.logger.debug(f"提取原始 URL 失败：{str(e)}")
         return url
 
+    @staticmethod
+    def _is_network_drive(path):
+        if os.name != 'nt':
+            return False
+        try:
+            drive = os.path.splitdrive(path)[0]
+            if not drive or len(drive) != 2 or drive[1] != ':':
+                return False
+            kernel32 = ctypes.windll.kernel32
+            DRIVE_REMOTE = 4
+            return kernel32.GetDriveTypeW(drive + '\\') == DRIVE_REMOTE
+        except Exception:
+            return False
+
     def _normalize_url(self, url):
         if not url:
             return url
@@ -264,6 +278,9 @@ class MpvPlayerController(QObject):
         is_network = (u.startswith(('http://', 'https://', 'rtmp://', 'rtsp://', 'rtp://', 'udp://', 'file://')) or
                       u.endswith('.m3u8'))
         if is_network:
+            return url
+        if self._is_network_drive(url):
+            self.logger.debug(f"网络挂载盘路径，保持原始路径不转换: {url[:80]}...")
             return url
         try:
             from pathlib import Path
@@ -297,6 +314,24 @@ class MpvPlayerController(QObject):
         except Exception as e:
             self.logger.debug(f"重置demuxer选项失败: {e}")
 
+    def _setup_network_drive_options(self):
+        try:
+            self._set_mpv_string('demuxer', '')
+            self._set_mpv_string('demuxer-lavf-format', '')
+            self._set_mpv_string('demuxer-lavf-probesize', '50000000')
+            self._set_mpv_string('demuxer-lavf-analyzeduration', '10000000')
+            self._set_mpv_string('demuxer-lavf-buffersize', '50000000')
+            self._set_mpv_string('cache', 'yes')
+            self._set_mpv_string('cache-secs', '60')
+            self._set_mpv_string('demuxer-max-bytes', '512MiB')
+            self._set_mpv_string('demuxer-max-back-bytes', '256MiB')
+            self._set_mpv_string('demuxer-readahead-secs', '30')
+            self._set_mpv_string('force-seekable', 'yes')
+            self._set_mpv_string('demuxer-seekable-cache', 'yes')
+            self.logger.debug("[mpv] 网络挂载盘选项已设置: cache=yes, probesize=50M, readahead=30s")
+        except Exception as e:
+            self.logger.debug(f"设置网络挂载盘选项失败: {e}")
+
     def _setup_protocol_options(self, url, program_duration=0):
         if not self.mpv_handle or not url:
             return
@@ -305,6 +340,9 @@ class MpvPlayerController(QObject):
         is_network = (u.startswith(('http://', 'https://', 'rtmp://', 'rtsp://', 'rtp://', 'udp://')) or
                       u.endswith('.m3u8'))
         if not is_network:
+            if self._is_network_drive(url):
+                self._setup_network_drive_options()
+                return
             self._reset_demuxer_options()
             return
 
@@ -1038,6 +1076,8 @@ class MpvPlayerController(QObject):
         if u.startswith('http://') or u.startswith('https://'):
             return 'HTTP'
         if u.startswith('file://') or ('://' not in url):
+            if MpvPlayerController._is_network_drive(url):
+                return 'NET-FILE'
             return 'FILE'
         return '未知'
 
