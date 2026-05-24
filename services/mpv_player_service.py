@@ -275,6 +275,19 @@ class MpvPlayerController(QObject):
         except Exception:
             return False
 
+    @staticmethod
+    def _fix_unc_path(path):
+        if not path:
+            return path
+        if path.startswith('//'):
+            path = '\\\\' + path[2:]
+            return path.replace('/', '\\')
+        if path.startswith('\\\\'):
+            return path.replace('/', '\\')
+        if os.name == 'nt' and len(path) >= 2 and path[1] == ':':
+            return path.replace('/', '\\')
+        return path
+
     def _normalize_url(self, url):
         if not url:
             return url
@@ -284,8 +297,10 @@ class MpvPlayerController(QObject):
         if is_network:
             return url
         if self._is_network_drive(url):
-            self.logger.debug(f"网络挂载盘路径，保持原始路径不转换: {url[:80]}...")
-            return url
+            fixed = self._fix_unc_path(url)
+            if fixed != url:
+                self.logger.debug(f"网络路径格式修正: {url[:80]}... -> {fixed[:80]}...")
+            return fixed
         try:
             from pathlib import Path
             path = Path(url)
