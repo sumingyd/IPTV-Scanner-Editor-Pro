@@ -11,7 +11,7 @@ from models.channel_model import ChannelListModel
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QListWidget, QListWidgetItem,
-    QStatusBar,
+    QStatusBar, QSizePolicy,
     QFrame, QToolButton, QSlider, QComboBox,
     QTabWidget
 )
@@ -1227,6 +1227,7 @@ class IPTVPlayer(QMainWindow):
         self.program_desc.setWordWrap(True)
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.program_desc.setMaximumHeight(54)
+        self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         text_layout.addWidget(self.program_desc, 1)
 
         info_layout.addLayout(text_layout, 1)

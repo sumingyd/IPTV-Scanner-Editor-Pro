@@ -1381,6 +1381,7 @@ class AppStyles:
                 color: {colors['player_panel_secondary']};
                 font-size: 14px;
                 background-color: transparent;
+                max-height: 54px;
             }}
         """
 

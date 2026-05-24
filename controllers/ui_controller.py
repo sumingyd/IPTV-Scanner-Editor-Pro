@@ -442,16 +442,30 @@ class UIController:
                         end_time = self.window.catchup_program.get('end')
                         title = self.window.catchup_program.get('title', '')
                         desc = self.window.catchup_program.get('desc', '')
-                        if is_timeshift and (not desc or desc.strip() == ''):
+                        if not desc or desc.strip() == '':
                             channel_name, tvg_id, tvg_name, comma_name = self.window._get_epg_match_params()
                             if channel_name:
-                                current_epg = self.window.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
-                                if current_epg:
-                                    desc = current_epg.get("desc", '')
+                                cp_start = start_time
+                                cp_end = end_time
+                                if cp_start and cp_end:
+                                    all_programs = self.window.epg_parser.get_channel_epg(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
+                                    if all_programs:
+                                        for prog in all_programs:
+                                            try:
+                                                ps = prog.get('start', '')
+                                                pe = prog.get('end', '')
+                                                if ps and pe:
+                                                    ps_dt = datetime.fromisoformat(str(ps)) if isinstance(ps, str) else ps
+                                                    pe_dt = datetime.fromisoformat(str(pe)) if isinstance(pe, str) else pe
+                                                    if ps_dt == cp_start and pe_dt == cp_end:
+                                                        desc = prog.get('desc', '')
+                                                        if not title or title.strip() == '':
+                                                            title = prog.get('title', title)
+                                                        break
+                                            except Exception:
+                                                continue
                             if not desc or desc.strip() == '':
                                 desc = self.window.language_manager.tr('no_program_desc', 'No program description')
-                        elif not desc or desc.strip() == '':
-                            desc = self.window.language_manager.tr('no_program_desc', 'No program description')
                         self.window.program_desc.setText(desc)
                         self.window.current_program.setText(f"· {title}" if title else "")
                         if start_time and end_time:
