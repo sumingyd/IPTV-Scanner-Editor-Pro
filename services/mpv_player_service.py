@@ -318,26 +318,6 @@ class MpvPlayerController(QObject):
             except Exception:
                 pass
             return None
-        if not u.startswith(('rtsp://', 'rtp://', 'udp://', 'rtmp://', 'file://')):
-            if MpvPlayerController._is_network_drive(url):
-                check_path = url
-                if u.startswith('file://'):
-                    check_path = url[7:]
-                try:
-                    import subprocess
-                    if os.name == 'nt':
-                        result = subprocess.run(
-                            ['cmd', '/c', f'if exist "{check_path}" echo OK'],
-                            capture_output=True, timeout=5, creationflags=0x08000000)
-                        if b'OK' not in result.stdout:
-                            return f"网络挂载盘不可达: {check_path[:80]}"
-                    else:
-                        if not os.path.exists(check_path):
-                            return f"网络挂载盘不可达: {check_path[:80]}"
-                except subprocess.TimeoutExpired:
-                    return f"网络挂载盘超时: {check_path[:80]}"
-                except Exception:
-                    pass
         return None
 
     @staticmethod
