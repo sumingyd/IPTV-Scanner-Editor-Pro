@@ -36,13 +36,13 @@ class MediaController:
 
         if is_playing:
             play_pause_text = tr("ctx_pause", "Pause") if not getattr(pc, 'is_paused', False) else tr("ctx_play", "Play")
-            menu.addAction(play_pause_text, lambda checked: self.window.playback_ctrl.toggle_play())
-            menu.addAction(tr("ctx_stop", "Stop"), lambda checked: self.window.playback_ctrl.stop_playback())
+            menu.addAction(play_pause_text, lambda *a: self.window.playback_ctrl.toggle_play())
+            menu.addAction(tr("ctx_stop", "Stop"), lambda *a: self.window.playback_ctrl.stop_playback())
 
             menu.addSeparator()
 
-            menu.addAction(tr("ctx_prev_channel", "Previous Channel"), lambda checked: self.window.event_handler._switch_channel(-1))
-            menu.addAction(tr("ctx_next_channel", "Next Channel"), lambda checked: self.window.event_handler._switch_channel(1))
+            menu.addAction(tr("ctx_prev_channel", "Previous Channel"), lambda *a: self.window.event_handler._switch_channel(-1))
+            menu.addAction(tr("ctx_next_channel", "Next Channel"), lambda *a: self.window.event_handler._switch_channel(1))
 
             menu.addSeparator()
 
@@ -53,7 +53,7 @@ class MediaController:
             current_speed = 1.0
         for s in self.SPEED_STEPS:
             label = f"{s}x" + (" ✓" if abs(current_speed - s) < 0.01 else "")
-            speed_menu.addAction(label, lambda checked, speed=s: self._set_speed(speed))
+            speed_menu.addAction(label, lambda *a, speed=s: self._set_speed(speed))
 
         volume_menu = menu.addMenu(tr("ctx_volume", "Volume"))
         try:
@@ -63,11 +63,11 @@ class MediaController:
             current_vol = 80
             is_muted = False
         mute_text = tr("ctx_unmute", "Unmute") if is_muted else tr("ctx_mute", "Mute")
-        volume_menu.addAction(mute_text, lambda checked: self.window.toggle_mute())
+        volume_menu.addAction(mute_text, lambda *a: self.window.toggle_mute())
         volume_menu.addSeparator()
         for v in (0, 25, 50, 75, 100, 125, 150):
             label = f"{v}%" + (" ✓" if not is_muted and abs(current_vol - v) < 2 else "")
-            volume_menu.addAction(label, lambda checked, vol=v: self._set_volume(vol))
+            volume_menu.addAction(label, lambda *a, vol=v: self._set_volume(vol))
 
         aspect_menu = menu.addMenu(tr("ctx_aspect_ratio", "Aspect Ratio"))
         aspect_labels = {
@@ -80,7 +80,7 @@ class MediaController:
         current_ratio = self.ASPECT_CYCLE[self._current_aspect_idx]
         for ratio in self.ASPECT_CYCLE:
             label = aspect_labels.get(ratio, ratio) + (" ✓" if ratio == current_ratio else "")
-            aspect_menu.addAction(label, lambda checked, r=ratio: self._set_aspect(r))
+            aspect_menu.addAction(label, lambda *a, r=ratio: self._set_aspect(r))
 
         if is_playing:
             audio_menu = menu.addMenu(tr("ctx_audio_track", "Audio Track"))
@@ -92,10 +92,10 @@ class MediaController:
         menu.addSeparator()
 
         if is_playing:
-            menu.addAction(tr("ctx_screenshot", "Screenshot\tS"), lambda checked: self._take_screenshot())
+            menu.addAction(tr("ctx_screenshot", "Screenshot\tS"), lambda *a: self._take_screenshot())
 
-        menu.addAction(tr("ctx_fullscreen", "Fullscreen\tF11"), lambda checked: self.window.toggle_fullscreen())
-        menu.addAction(tr("ctx_pip", "Picture-in-Picture\tP"), lambda checked: self.window.pip_ctrl.toggle())
+        menu.addAction(tr("ctx_fullscreen", "Fullscreen\tF11"), lambda *a: self.window.toggle_fullscreen())
+        menu.addAction(tr("ctx_pip", "Picture-in-Picture\tP"), lambda *a: self.window.pip_ctrl.toggle())
 
         menu.addSeparator()
 
@@ -103,24 +103,24 @@ class MediaController:
         epg_action = view_menu.addAction(tr("ctx_epg", "EPG List\tE"))
         epg_action.setCheckable(True)
         epg_action.setChecked(self.window.epg_visible)
-        epg_action.triggered.connect(lambda checked: self.window.toggle_epg())
+        epg_action.triggered.connect(lambda *a: self.window.toggle_epg())
         playlist_action = view_menu.addAction(tr("ctx_playlist", "Playlist\tL"))
         playlist_action.setCheckable(True)
         playlist_action.setChecked(self.window.playlist_visible)
-        playlist_action.triggered.connect(lambda checked: self.window.toggle_playlist())
+        playlist_action.triggered.connect(lambda *a: self.window.toggle_playlist())
         panel_action = view_menu.addAction(tr("ctx_control_panel", "Control Panel\tM"))
         panel_action.setCheckable(True)
         panel_action.setChecked(self.window.floating_panel_visible)
-        panel_action.triggered.connect(lambda checked: self.window.toggle_floating_panel())
+        panel_action.triggered.connect(lambda *a: self.window.toggle_floating_panel())
         view_menu.addSeparator()
-        view_menu.addAction(tr("ctx_hide_panels", "Hide Floating Panels\tY"), lambda checked: self.window.toggle_hide_floating())
-        view_menu.addAction(tr("ctx_reset_layout", "Reset Layout"), lambda checked: self.window.reset_layout())
+        view_menu.addAction(tr("ctx_hide_panels", "Hide Floating Panels\tY"), lambda *a: self.window.toggle_hide_floating())
+        view_menu.addAction(tr("ctx_reset_layout", "Reset Layout"), lambda *a: self.window.reset_layout())
 
         menu.addSeparator()
 
-        menu.addAction(tr("ctx_open_stream", "Open Stream\tCtrl+U"), lambda checked: self.window._open_stream())
-        menu.addAction(tr("ctx_open_video", "Open Video\tCtrl+Shift+O"), lambda checked: self.window._open_video_file())
-        menu.addAction(tr("ctx_scan", "Scan & Organize"), lambda checked: self.window.open_scan_ui())
+        menu.addAction(tr("ctx_open_stream", "Open Stream\tCtrl+U"), lambda *a: self.window._open_stream())
+        menu.addAction(tr("ctx_open_video", "Open Video\tCtrl+Shift+O"), lambda *a: self.window._open_video_file())
+        menu.addAction(tr("ctx_scan", "Scan & Organize"), lambda *a: self.window.open_scan_ui())
 
         menu.exec(self.window.video_frame.mapToGlobal(pos))
 
@@ -250,7 +250,7 @@ class MediaController:
                 lambda checked, tid=tid, label=label, actions=sub_actions: self._on_sub_track_selected(tid, label, actions)
             )
         menu.addSeparator()
-        menu.addAction(tr("ctx_load_subtitle", "Load Subtitle..."), lambda checked: self._load_external_subtitle())
+        menu.addAction(tr("ctx_load_subtitle", "Load Subtitle..."), lambda *a: self._load_external_subtitle())
 
     def _on_sub_track_selected(self, track_id, label, actions):
         pc = self.window.player_controller
