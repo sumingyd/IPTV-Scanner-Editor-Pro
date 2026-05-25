@@ -86,6 +86,8 @@ class UIController:
         if channel_name:
             lines.append(channel_name)
 
+        tr = self.window.language_manager.tr
+
         vline = []
         w = info.get('width', 0) or 0
         h = info.get('height', 0) or 0
@@ -95,24 +97,24 @@ class UIController:
             res = f'{w}x{h}'
             if dw > 0 and dh > 0 and (dw != w or dh != h):
                 res += f' ({dw}x{dh})'
-            vline.append(f'Resolution: {res}')
+            vline.append(f'{tr("osd_resolution", "Resolution")}: {res}')
 
         vcodec = info.get('video_codec', '') or ''
         if vcodec:
-            vline.append(f'Codec: {vcodec}')
+            vline.append(f'{tr("osd_codec", "Codec")}: {vcodec}')
 
         fps = info.get('fps', 0) or 0
         if fps > 0:
             fps_str = f'{fps:.2f}' if fps < 10 else f'{fps:.1f}'
-            vline.append(f'FPS: {fps_str}')
+            vline.append(f'{tr("osd_fps", "FPS")}: {fps_str}')
 
         ar = info.get('aspect_ratio', '') or ''
         if ar and ar != '0' and ar != '1.7778':
-            vline.append(f'AR: {ar}')
+            vline.append(f'{tr("osd_ar", "AR")}: {ar}')
 
         hw = info.get('hwdec', '') or ''
         if hw and hw != 'no':
-            vline.append(f'HWDec: {hw}')
+            vline.append(f'{tr("osd_hwdec", "HWDec")}: {hw}')
 
         colormatrix = info.get('colormatrix', '') or ''
         gamma = info.get('gamma', '') or ''
@@ -123,7 +125,7 @@ class UIController:
         except Exception:
             hdr_type = ''
         if hdr_type:
-            vline.append(f'Dynamic: {hdr_type}')
+            vline.append(f'{tr("osd_dynamic", "Dynamic")}: {hdr_type}')
 
         if vline:
             lines.append('  '.join(vline))
@@ -131,70 +133,70 @@ class UIController:
         pix_line = []
         pix_fmt = info.get('pixel_format', '') or ''
         if pix_fmt:
-            pix_line.append(f'Pixel: {pix_fmt}')
+            pix_line.append(f'{tr("osd_pixel", "Pixel")}: {pix_fmt}')
         if colormatrix:
-            pix_line.append(f'Matrix: {colormatrix}')
+            pix_line.append(f'{tr("osd_matrix", "Matrix")}: {colormatrix}')
         color_primaries = info.get('color_primaries', '') or ''
         if color_primaries:
-            pix_line.append(f'Prim: {color_primaries}')
+            pix_line.append(f'{tr("osd_prim", "Prim")}: {color_primaries}')
         if gamma:
-            pix_line.append(f'TF: {gamma}')
+            pix_line.append(f'{tr("osd_tf", "TF")}: {gamma}')
         colorlevels = info.get('colorlevels', '') or ''
         if colorlevels:
-            pix_line.append(f'Range: {colorlevels}')
+            pix_line.append(f'{tr("osd_range", "Range")}: {colorlevels}')
         sig_avg = info.get('sig_avg', 0) or 0
         if sig_peak > 0:
-            pix_line.append(f'Peak: {sig_peak:.1f}')
+            pix_line.append(f'{tr("osd_peak", "Peak")}: {sig_peak:.1f}')
         if sig_avg > 0:
-            pix_line.append(f'Avg: {sig_avg:.1f}')
+            pix_line.append(f'{tr("osd_avg", "Avg")}: {sig_avg:.1f}')
         if pix_line:
             lines.append('  '.join(pix_line))
 
         aline = []
         acodec = info.get('audio_codec', '') or ''
         if acodec:
-            aline.append(f'Codec: {acodec}')
+            aline.append(f'{tr("osd_codec", "Codec")}: {acodec}')
         audio_channels = info.get('audio_channels', 0) or 0
         if audio_channels > 0:
             ch_map = {1: 'Mono', 2: 'Stereo', 6: '5.1', 8: '7.1'}
             ch_label = ch_map.get(audio_channels, f'{audio_channels}ch')
-            aline.append(f'Channels: {ch_label}')
+            aline.append(f'{tr("osd_channels", "Channels")}: {ch_label}')
         sample_rate = info.get('sample_rate', 0) or 0
         if sample_rate > 0:
             if sample_rate >= 1000:
-                aline.append(f'Rate: {sample_rate / 1000:.1f}kHz')
+                aline.append(f'{tr("osd_rate", "Rate")}: {sample_rate / 1000:.1f}kHz')
             else:
-                aline.append(f'Rate: {sample_rate}Hz')
+                aline.append(f'{tr("osd_rate", "Rate")}: {sample_rate}Hz')
         a_br = info.get('audio_bitrate', 0) or 0
         if a_br > 0:
-            aline.append(f'Bitrate: {self.format_bitrate(a_br)}')
+            aline.append(f'{tr("osd_bitrate", "Bitrate")}: {self.format_bitrate(a_br)}')
         if aline:
             lines.append('  '.join(aline))
 
         br_line = []
         v_br = info.get('video_bitrate', 0) or 0
         if v_br > 0:
-            br_line.append(f'Video: {self.format_bitrate(v_br)}')
+            br_line.append(f'{tr("osd_video_br", "Video")}: {self.format_bitrate(v_br)}')
         cache_speed = info.get('cache_speed', 0) or 0
         if cache_speed > 0:
-            br_line.append(f'Cache: {self.format_bitrate(cache_speed)}')
+            br_line.append(f'{tr("osd_cache", "Cache")}: {self.format_bitrate(cache_speed)}')
         if br_line:
             lines.append('  '.join(br_line))
 
         container_line = []
         container = info.get('container', '') or ''
         if container and container != '未知':
-            container_line.append(f'Container: {container}')
+            container_line.append(f'{tr("osd_container", "Container")}: {container}')
         protocol = info.get('protocol', '') or ''
         if not protocol:
             cached_media = getattr(pc, 'media_info', None) or {}
             if isinstance(cached_media, dict):
                 protocol = cached_media.get('protocol', '') or ''
         if protocol and protocol != '未知':
-            container_line.append(f'Protocol: {protocol}')
+            container_line.append(f'{tr("osd_protocol", "Protocol")}: {protocol}')
         demuxer = info.get('demuxer', '') or ''
         if demuxer:
-            container_line.append(f'Demuxer: {demuxer}')
+            container_line.append(f'{tr("osd_demuxer", "Demuxer")}: {demuxer}')
         if container_line:
             lines.append('  '.join(container_line))
 
@@ -203,13 +205,13 @@ class UIController:
             if len(display_url) > 80:
                 half = 37
                 display_url = display_url[:half] + '...' + display_url[-half:]
-            lines.append(f'URL: {display_url}')
+            lines.append(f'{tr("osd_url", "URL")}: {display_url}')
 
         total_time = pc.get_total_time() or 0
         is_live = (total_time or 0) <= 0
 
         if is_live:
-            lines.append('\u25cf LIVE')
+            lines.append(tr('osd_live', '● LIVE'))
         else:
             current_time = pc.get_current_time() or 0
             from datetime import timedelta
