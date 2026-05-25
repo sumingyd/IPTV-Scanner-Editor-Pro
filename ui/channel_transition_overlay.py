@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout
-from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QTimer
+from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QTimer, pyqtProperty
 from PyQt6.QtGui import QPainter, QColor, QPixmap, QFont
 from ui.styles import AppStyles
 
@@ -106,7 +106,7 @@ class ChannelTransitionOverlay(QWidget):
         self._opacity = val
         self.update()
 
-    opacity = property(get_opacity, set_opacity)
+    opacity = pyqtProperty(float, get_opacity, set_opacity)
 
     def paintEvent(self, event):
         if self._opacity <= 0:
