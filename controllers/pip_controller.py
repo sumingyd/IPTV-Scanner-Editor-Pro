@@ -147,8 +147,8 @@ class PipController:
         multi_ctrl = getattr(self.window, 'multi_screen_ctrl', None)
         if multi_ctrl and multi_ctrl.is_active:
             multi_ctrl.exit_multi_screen()
-            from core.log_manager import global_logger as logger
-            logger.info("PiP与多画面互斥：自动退出多画面模式")
+            from core.log_manager import global_logger as _logger
+            _logger.info("PiP与多画面互斥：自动退出多画面模式")
 
         try:
             self._pip_saved_geometry = self.window.geometry()
