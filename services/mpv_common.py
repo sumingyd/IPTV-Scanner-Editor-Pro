@@ -235,6 +235,16 @@ def set_property_string(handle, name, value):
         return -1
 
 
+def set_property_int64(handle, name, value):
+    if not handle or not libmpv:
+        return -1
+    try:
+        v = ctypes.c_int64(int(value))
+        return libmpv.mpv_set_property(handle, name.encode('utf-8'), MPV_FORMAT_INT64, ctypes.byref(v))
+    except Exception:
+        return -1
+
+
 def set_option_string(handle, name, value):
     if not handle or not libmpv:
         return -1

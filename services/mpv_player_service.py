@@ -25,6 +25,7 @@ from services.mpv_common import (
     destroy_mpv,
     terminate_destroy_mpv,
     set_property_string as _mpv_set_property_string,
+    set_property_int64 as _mpv_set_property_int64,
     send_command as _mpv_send_command,
     observe_property as _mpv_observe_property,
     wait_for_event as _mpv_wait_event,
@@ -1418,14 +1419,16 @@ class MpvPlayerController(QObject):
             current = self.get_current_track(track_type)
             if current is not None and current == track_id:
                 return True
-            result = self._set_mpv_string(prop, str(track_id))
+            result = _mpv_set_property_int64(self.mpv_handle, prop, int(track_id))
             if result < 0:
-                cmd_prop = 'aid' if track_type == 'audio' else ('sid' if track_type == 'sub' else prop)
-                cmd_result = self.send_command(['set', cmd_prop, str(track_id)])
-                if cmd_result is not None:
-                    return True
-                self.logger.error(f"切换轨道失败: {prop}={track_id}, 错误码={result}")
-                return False
+                result2 = self._set_mpv_string(prop, str(track_id))
+                if result2 < 0:
+                    cmd_prop = 'aid' if track_type == 'audio' else ('sid' if track_type == 'sub' else prop)
+                    result3 = self.send_command(['set', cmd_prop, str(track_id)])
+                    if result3 == 0:
+                        return True
+                    self.logger.error(f"切换轨道失败: {prop}={track_id}, int64错误码={result}, string错误码={result2}, command错误码={result3}")
+                    return False
             return True
         except Exception as e:
             self.logger.error(f"切换轨道失败: {e}")
