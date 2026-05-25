@@ -36,13 +36,13 @@ class MediaController:
 
         if is_playing:
             play_pause_text = tr("ctx_pause", "Pause") if not getattr(pc, 'is_paused', False) else tr("ctx_play", "Play")
-            menu.addAction(play_pause_text, lambda: self.window.playback_ctrl.toggle_play())
-            menu.addAction(tr("ctx_stop", "Stop"), lambda: self.window.playback_ctrl.stop_playback())
+            menu.addAction(play_pause_text, lambda checked: self.window.playback_ctrl.toggle_play())
+            menu.addAction(tr("ctx_stop", "Stop"), lambda checked: self.window.playback_ctrl.stop_playback())
 
             menu.addSeparator()
 
-            menu.addAction(tr("ctx_prev_channel", "Previous Channel"), lambda: self.window.event_handler._switch_channel(-1))
-            menu.addAction(tr("ctx_next_channel", "Next Channel"), lambda: self.window.event_handler._switch_channel(1))
+            menu.addAction(tr("ctx_prev_channel", "Previous Channel"), lambda checked: self.window.event_handler._switch_channel(-1))
+            menu.addAction(tr("ctx_next_channel", "Next Channel"), lambda checked: self.window.event_handler._switch_channel(1))
 
             menu.addSeparator()
 
@@ -63,7 +63,7 @@ class MediaController:
             current_vol = 80
             is_muted = False
         mute_text = tr("ctx_unmute", "Unmute") if is_muted else tr("ctx_mute", "Mute")
-        volume_menu.addAction(mute_text, lambda: self.window.toggle_mute())
+        volume_menu.addAction(mute_text, lambda checked: self.window.toggle_mute())
         volume_menu.addSeparator()
         for v in (0, 25, 50, 75, 100, 125, 150):
             label = f"{v}%" + (" ✓" if not is_muted and abs(current_vol - v) < 2 else "")
@@ -92,10 +92,10 @@ class MediaController:
         menu.addSeparator()
 
         if is_playing:
-            menu.addAction(tr("ctx_screenshot", "Screenshot\tS"), lambda: self._take_screenshot())
+            menu.addAction(tr("ctx_screenshot", "Screenshot\tS"), lambda checked: self._take_screenshot())
 
-        menu.addAction(tr("ctx_fullscreen", "Fullscreen\tF11"), lambda: self.window.toggle_fullscreen())
-        menu.addAction(tr("ctx_pip", "Picture-in-Picture\tP"), lambda: self.window.pip_ctrl.toggle())
+        menu.addAction(tr("ctx_fullscreen", "Fullscreen\tF11"), lambda checked: self.window.toggle_fullscreen())
+        menu.addAction(tr("ctx_pip", "Picture-in-Picture\tP"), lambda checked: self.window.pip_ctrl.toggle())
 
         menu.addSeparator()
 
@@ -103,24 +103,24 @@ class MediaController:
         epg_action = view_menu.addAction(tr("ctx_epg", "EPG List\tE"))
         epg_action.setCheckable(True)
         epg_action.setChecked(self.window.epg_visible)
-        epg_action.triggered.connect(lambda: self.window.toggle_epg())
+        epg_action.triggered.connect(lambda checked: self.window.toggle_epg())
         playlist_action = view_menu.addAction(tr("ctx_playlist", "Playlist\tL"))
         playlist_action.setCheckable(True)
         playlist_action.setChecked(self.window.playlist_visible)
-        playlist_action.triggered.connect(lambda: self.window.toggle_playlist())
+        playlist_action.triggered.connect(lambda checked: self.window.toggle_playlist())
         panel_action = view_menu.addAction(tr("ctx_control_panel", "Control Panel\tM"))
         panel_action.setCheckable(True)
         panel_action.setChecked(self.window.floating_panel_visible)
-        panel_action.triggered.connect(lambda: self.window.toggle_floating_panel())
+        panel_action.triggered.connect(lambda checked: self.window.toggle_floating_panel())
         view_menu.addSeparator()
-        view_menu.addAction(tr("ctx_hide_panels", "Hide Floating Panels\tY"), lambda: self.window.toggle_hide_floating())
-        view_menu.addAction(tr("ctx_reset_layout", "Reset Layout"), lambda: self.window.reset_layout())
+        view_menu.addAction(tr("ctx_hide_panels", "Hide Floating Panels\tY"), lambda checked: self.window.toggle_hide_floating())
+        view_menu.addAction(tr("ctx_reset_layout", "Reset Layout"), lambda checked: self.window.reset_layout())
 
         menu.addSeparator()
 
-        menu.addAction(tr("ctx_open_stream", "Open Stream\tCtrl+U"), lambda: self.window._open_stream())
-        menu.addAction(tr("ctx_open_video", "Open Video\tCtrl+Shift+O"), lambda: self.window._open_video_file())
-        menu.addAction(tr("ctx_scan", "Scan & Organize"), lambda: self.window.open_scan_ui())
+        menu.addAction(tr("ctx_open_stream", "Open Stream\tCtrl+U"), lambda checked: self.window._open_stream())
+        menu.addAction(tr("ctx_open_video", "Open Video\tCtrl+Shift+O"), lambda checked: self.window._open_video_file())
+        menu.addAction(tr("ctx_scan", "Scan & Organize"), lambda checked: self.window.open_scan_ui())
 
         menu.exec(self.window.video_frame.mapToGlobal(pos))
 
