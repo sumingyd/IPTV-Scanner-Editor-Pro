@@ -1398,7 +1398,7 @@ class IPTVPlayer(QMainWindow):
         self.speed_button.setText("1.0x")
         self.speed_button.setFixedSize(42, 26)
         self.speed_button.setStyleSheet(AppStyles.player_button_style())
-        self.speed_button.clicked.connect(self.media_ctrl.cycle_speed)
+        self.speed_button.clicked.connect(self.media_ctrl.show_speed_menu)
         self.speed_button.setToolTip(tr("panel_speed", "播放速度"))
         self.control_row.addWidget(self.speed_button)
 
@@ -1408,7 +1408,7 @@ class IPTVPlayer(QMainWindow):
         self.aspect_button.setIconSize(btn_icon_size)
         self.aspect_button.setFixedSize(48, 26)
         self.aspect_button.setStyleSheet(AppStyles.player_button_style())
-        self.aspect_button.clicked.connect(self.media_ctrl.cycle_aspect_ratio)
+        self.aspect_button.clicked.connect(self.media_ctrl.show_aspect_menu)
         self.aspect_button.setToolTip(tr("panel_aspect", "画面比例"))
         self.control_row.addWidget(self.aspect_button)
 

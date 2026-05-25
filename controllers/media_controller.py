@@ -333,6 +333,43 @@ class MediaController:
         btn = self.window.sub_track_button
         menu.exec(btn.mapToGlobal(btn.rect().bottomLeft()))
 
+    def show_speed_menu(self):
+        from PyQt6.QtWidgets import QMenu
+        from ui.styles import AppStyles
+        tr = self.window.language_manager.tr
+        menu = QMenu(self.window)
+        menu.setStyleSheet(AppStyles.player_menu_bar_style())
+        pc = self.window.player_controller
+        try:
+            current_speed = pc.get_speed() if pc and pc.is_playing else 1.0
+        except Exception:
+            current_speed = 1.0
+        for s in self.SPEED_STEPS:
+            label = f"{s}x" + (" ✓" if abs(current_speed - s) < 0.01 else "")
+            menu.addAction(label, lambda *a, speed=s: self._set_speed(speed))
+        btn = self.window.speed_button
+        menu.exec(btn.mapToGlobal(btn.rect().bottomLeft()))
+
+    def show_aspect_menu(self):
+        from PyQt6.QtWidgets import QMenu
+        from ui.styles import AppStyles
+        tr = self.window.language_manager.tr
+        menu = QMenu(self.window)
+        menu.setStyleSheet(AppStyles.player_menu_bar_style())
+        aspect_labels = {
+            'default': tr("ctx_aspect_default", "Default"),
+            '16:9': '16:9',
+            '4:3': '4:3',
+            'stretch': tr("ctx_aspect_stretch", "Stretch"),
+            'fill': tr("ctx_aspect_fill", "Fill"),
+        }
+        current_ratio = self.ASPECT_CYCLE[self._current_aspect_idx]
+        for ratio in self.ASPECT_CYCLE:
+            label = aspect_labels.get(ratio, ratio) + (" ✓" if ratio == current_ratio else "")
+            menu.addAction(label, lambda *a, r=ratio: self._set_aspect(r))
+        btn = self.window.aspect_button
+        menu.exec(btn.mapToGlobal(btn.rect().bottomLeft()))
+
     def _load_external_subtitle(self):
         pc = self.window.player_controller
         if not pc or not pc.is_playing:
