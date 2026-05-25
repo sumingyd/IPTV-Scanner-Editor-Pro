@@ -466,6 +466,9 @@ class MediaController:
         aspect_btn = self.window.aspect_button
         if aspect_btn:
             aspect_btn.setText(labels.get(ratio, 'Auto'))
+        if hasattr(self.window, '_show_osd_feedback'):
+            tr = self.window.language_manager.tr
+            self.window._show_osd_feedback(f"{tr('osd_aspect_ratio', 'Aspect')}: {labels.get(ratio, 'Auto')}")
         self._save_aspect_ratio(ratio)
 
     def update_catchup_indicator(self):
