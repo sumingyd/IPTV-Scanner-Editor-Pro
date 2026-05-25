@@ -250,7 +250,7 @@ class MediaController:
                 lambda checked, tid=tid, label=label, actions=sub_actions: self._on_sub_track_selected(tid, label, actions)
             )
         menu.addSeparator()
-        menu.addAction(tr("ctx_load_subtitle", "Load Subtitle..."), lambda: self._load_external_subtitle())
+        menu.addAction(tr("ctx_load_subtitle", "Load Subtitle..."), lambda checked: self._load_external_subtitle())
 
     def _on_sub_track_selected(self, track_id, label, actions):
         pc = self.window.player_controller
