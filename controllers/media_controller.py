@@ -383,6 +383,10 @@ class MediaController:
         aspect_btn = self.window.aspect_button
         if aspect_btn:
             aspect_btn.setText(labels.get(ratio, 'Auto'))
+        if hasattr(self.window, '_show_osd_feedback'):
+            tr = self.window.language_manager.tr
+            osd_text = tr('osd_aspect_ratio', 'Aspect: {}').format(labels.get(ratio, 'Auto'))
+            self.window._show_osd_feedback(osd_text)
         self._save_aspect_ratio(ratio)
 
     def _save_aspect_ratio(self, ratio):
