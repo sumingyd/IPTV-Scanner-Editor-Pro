@@ -1094,6 +1094,7 @@ class IPTVPlayer(QMainWindow):
         floating_container.setStyleSheet(AppStyles.player_panel_style())
         floating_container.setMinimumHeight(120)
         floating_container.setMinimumWidth(480)
+        floating_container.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.floating_layout = QVBoxLayout(floating_container)
         self.floating_layout.setContentsMargins(12, 8, 12, 8)
         self.floating_layout.setSpacing(3)
@@ -1255,8 +1256,8 @@ class IPTVPlayer(QMainWindow):
         self.program_desc.setStyleSheet(AppStyles.player_program_desc_style())
         self.program_desc.setWordWrap(True)
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self.program_desc.setMaximumHeight(54)
-        self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        self.program_desc.setFixedHeight(54)
+        self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         text_layout.addWidget(self.program_desc, 1)
 
         info_layout.addLayout(text_layout, 1)
