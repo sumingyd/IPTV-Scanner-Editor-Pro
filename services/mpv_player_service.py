@@ -1415,8 +1415,15 @@ class MpvPlayerController(QObject):
             if not self.mpv_handle:
                 return False
             prop = f'{track_type}-track' if track_type in ('audio', 'sub') else track_type
+            current = self.get_current_track(track_type)
+            if current is not None and current == track_id:
+                return True
             result = self._set_mpv_string(prop, str(track_id))
             if result < 0:
+                cmd_prop = 'aid' if track_type == 'audio' else ('sid' if track_type == 'sub' else prop)
+                cmd_result = self.send_command(['set', cmd_prop, str(track_id)])
+                if cmd_result is not None:
+                    return True
                 self.logger.error(f"切换轨道失败: {prop}={track_id}, 错误码={result}")
                 return False
             return True

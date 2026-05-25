@@ -47,14 +47,21 @@ class MediaController:
             menu.addSeparator()
 
         speed_menu = menu.addMenu(tr("ctx_speed", "Speed"))
-        current_speed = pc.get_speed() if pc else 1.0
+        try:
+            current_speed = pc.get_speed() if pc and pc.is_playing else 1.0
+        except Exception:
+            current_speed = 1.0
         for s in self.SPEED_STEPS:
             label = f"{s}x" + (" ✓" if abs(current_speed - s) < 0.01 else "")
             speed_menu.addAction(label, lambda checked, speed=s: self._set_speed(speed))
 
         volume_menu = menu.addMenu(tr("ctx_volume", "Volume"))
-        current_vol = pc.get_volume() if pc else 80
-        is_muted = pc.get_mute() if pc else False
+        try:
+            current_vol = pc.get_volume() if pc and pc.is_playing else 80
+            is_muted = pc.get_mute() if pc and pc.is_playing else False
+        except Exception:
+            current_vol = 80
+            is_muted = False
         mute_text = tr("ctx_unmute", "Unmute") if is_muted else tr("ctx_mute", "Mute")
         volume_menu.addAction(mute_text, lambda: self.window.toggle_mute())
         volume_menu.addSeparator()
@@ -416,9 +423,12 @@ class MediaController:
 
     def _set_speed(self, speed):
         pc = self.window.player_controller
-        if not pc:
+        if not pc or not pc.is_playing:
             return
-        pc.set_speed(speed)
+        try:
+            pc.set_speed(speed)
+        except Exception:
+            return
         speed_btn = self.window.speed_button
         if speed_btn:
             speed_btn.setText(f"{speed}x")
@@ -429,7 +439,10 @@ class MediaController:
         pc = self.window.player_controller
         if not pc:
             return
-        pc.set_volume(volume)
+        try:
+            pc.set_volume(volume)
+        except Exception:
+            return
         volume_slider = self.window.volume_slider
         if volume_slider:
             volume_slider.setValue(volume)
@@ -443,9 +456,12 @@ class MediaController:
         pc = self.window.player_controller
         if not pc:
             return
+        try:
+            pc.set_aspect_ratio(ratio)
+        except Exception:
+            return
         if ratio in self.ASPECT_CYCLE:
             self._current_aspect_idx = self.ASPECT_CYCLE.index(ratio)
-        pc.set_aspect_ratio(ratio)
         labels = {'default': 'Auto', '16:9': '16:9', '4:3': '4:3', 'stretch': 'Fill', 'fill': 'Crop'}
         aspect_btn = self.window.aspect_button
         if aspect_btn:
