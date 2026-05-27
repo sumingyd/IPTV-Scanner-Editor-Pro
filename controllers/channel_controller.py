@@ -59,6 +59,11 @@ class ChannelController:
 
         list_widget.clear()
 
+        if hasattr(w, '_icon_load_set'):
+            w._icon_load_set.clear()
+        if hasattr(w, '_icon_load_queue'):
+            w._icon_load_queue.clear()
+
         all_channels_text = tr("all_channels", "All Channels")
         is_all_channels = (
             not selected_group or
