@@ -146,7 +146,7 @@ class FCCService:
         self._current_fcc: Optional[Tuple[str, int]] = None
 
     def on_channel_change(self, new_url: str) -> None:
-        """频道切换时调用——在后台线程中发送 FCC 通知
+        """频道切换时调用——同步发送FCC join通知，异步发送leave通知
 
         Args:
             new_url: 新频道的URL
@@ -168,11 +168,20 @@ class FCCService:
         if leave_addr == join_addr:
             return
 
-        threading.Thread(
-            target=self._notify_fcc,
-            args=(fcc_addr, leave_addr, join_addr),
-            daemon=True,
-        ).start()
+        if leave_addr:
+            threading.Thread(
+                target=self._notify_fcc,
+                args=(fcc_addr, leave_addr, None),
+                daemon=True,
+            ).start()
+
+        if join_addr:
+            try:
+                send_fcc_notification(fcc_addr[0], fcc_addr[1], None, join_addr, timeout=0.5)
+                import time
+                time.sleep(0.05)
+            except Exception as e:
+                logger.debug(f"FCC join同步发送失败: {e}")
 
     def on_stop(self) -> None:
         """停止播放时调用——发送 leave 通知"""
