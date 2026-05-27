@@ -25,7 +25,6 @@ from core.application_state import app_state
 from core.language_manager import LanguageManager
 from ui.styles import AppStyles
 from ui.cache_progress_slider import CacheProgressSlider
-from ui.channel_transition_overlay import ChannelTransitionOverlay
 
 from controllers import (
     WindowController,
@@ -705,8 +704,6 @@ class IPTVPlayer(QMainWindow):
         self.video_widget = QWidget(self.video_frame)
         self.video_widget.setStyleSheet(AppStyles.player_background_style())
         self.video_widget.hide()
-
-        self._channel_transition = ChannelTransitionOverlay(self.video_frame)
 
         self._video_overlay_label = VideoOverlayBadge(self.video_frame)
         self._video_overlay_label.hide()
@@ -3530,6 +3527,17 @@ if __name__ == "__main__":
             splash_pixmap.fill(Qt.GlobalColor.transparent)
         splash = QSplashScreen(splash_pixmap, Qt.WindowType.WindowStaysOnTopHint)
         splash.showMessage("Loading...", Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter, QColor(200, 200, 200))
+        try:
+            from core.config_manager import ConfigManager
+            cfg = ConfigManager()
+            wx = int(cfg.get_value('UI', 'window_x') or 100)
+            wy = int(cfg.get_value('UI', 'window_y') or 100)
+            ww = int(cfg.get_value('UI', 'window_width') or 1280)
+            wh = int(cfg.get_value('UI', 'window_height') or 780)
+            sp = splash.size()
+            splash.move(wx + (ww - sp.width()) // 2, wy + (wh - sp.height()) // 2)
+        except Exception:
+            pass
         splash.show()
         app.processEvents()
     except Exception:
