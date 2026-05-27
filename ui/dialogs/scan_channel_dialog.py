@@ -343,22 +343,18 @@ class ScanChannelDialog(FloatingDialog):
         """保存网络设置到配置文件（提取的重复代码）"""
         from utils.config_notifier import config_change_context
         with config_change_context("Network", "url"):
-            enable_retry = self.enable_retry_checkbox.isChecked() if hasattr(self, 'enable_retry_checkbox') else False
             timeout_val = 5
             threads_val = 4
             if hasattr(self, 'timeout_input'):
                 timeout_val = self.timeout_input.text()
             if hasattr(self, 'threads_input'):
                 threads_val = self.threads_input.text()
-            loop_scan = enable_retry
             self.config.save_network_settings(
                 self.ip_range_input.currentText(),
                 timeout_val,
                 threads_val,
                 self.user_agent_input.text(),
-                self.referer_input.text(),
-                enable_retry,
-                loop_scan
+                self.referer_input.text()
             )
 
     def _add_url_to_history(self, url):
@@ -503,8 +499,7 @@ class ScanChannelDialog(FloatingDialog):
     def _save_scan_retry_settings(self):
         """保存重试扫描设置到配置文件"""
         enable_retry = self.enable_retry_checkbox.isChecked()
-        loop_scan = enable_retry
-        self.config.save_scan_retry_settings(enable_retry, loop_scan)
+        self.config.save_scan_retry_settings(enable_retry)
 
     def _load_scan_retry_settings(self):
         """加载重试扫描设置"""
@@ -1870,9 +1865,6 @@ class ScanChannelDialog(FloatingDialog):
             if settings['referer']:
                 self.referer_input.setText(settings['referer'])
 
-            if 'enable_retry' in settings:
-                self.enable_retry_checkbox.setChecked(settings['enable_retry'])
-
             if hasattr(self, 'timeout_input'):
                 self.timeout_input.setText(str(settings.get('timeout', 5)))
             if hasattr(self, 'threads_input'):
@@ -1911,8 +1903,6 @@ class ScanChannelDialog(FloatingDialog):
         elif key == 'referer':
             self.referer_input.setText(new_value)
             self.referer_input.setCursorPosition(0)
-        elif key == 'enable_retry':
-            self.enable_retry_checkbox.setChecked(str(new_value).lower() == 'true')
         elif key == 'timeout' and hasattr(self, 'timeout_input'):
             try:
                 self.timeout_input.setText(str(new_value))
@@ -2544,9 +2534,7 @@ class ScanChannelDialog(FloatingDialog):
                     timeout=timeout_val,
                     threads=threads_val,
                     user_agent=self.user_agent_input.text(),
-                    referer=self.referer_input.text(),
-                    enable_retry=self.enable_retry_checkbox.isChecked(),
-                    loop_scan=self.enable_retry_checkbox.isChecked()
+                    referer=self.referer_input.text()
                 )
                 self.logger.info("配置已保存")
         except Exception as e:

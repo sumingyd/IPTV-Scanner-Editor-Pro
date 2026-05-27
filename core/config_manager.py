@@ -67,7 +67,7 @@ class ConfigManager(Singleton):
             i += 1
         return x, y, width, height, dividers or default_dividers
 
-    def save_network_settings(self, url, timeout, threads, user_agent, referer, enable_retry=None, loop_scan=None):
+    def save_network_settings(self, url, timeout, threads, user_agent, referer):
         """保存网络设置"""
         self.set_value('Network', 'url', url)
         self.set_value('Network', 'timeout', str(timeout))
@@ -75,13 +75,7 @@ class ConfigManager(Singleton):
         self.set_value('Network', 'user_agent', user_agent)
         self.set_value('Network', 'referer', referer)
 
-        # 保存重试设置（如果提供了）
-        if enable_retry is not None:
-            self.set_value('Network', 'enable_retry', str(enable_retry))
-        if loop_scan is not None:
-            self.set_value('Network', 'loop_scan', str(loop_scan))
-
-        return self.save_config()  # 确保立即保存到文件
+        return self.save_config()
 
     def load_network_settings(self):
         return {
@@ -89,9 +83,7 @@ class ConfigManager(Singleton):
             'timeout': self._parse_int(self.get_value('Network', 'timeout', '5'), 5),
             'threads': self._parse_int(self.get_value('Network', 'threads', '4'), 4),
             'user_agent': self.get_value('Network', 'user_agent', ''),
-            'referer': self.get_value('Network', 'referer', ''),
-            'enable_retry': self._parse_bool(self.get_value('Network', 'enable_retry', 'False')),
-            'loop_scan': self._parse_bool(self.get_value('Network', 'loop_scan', 'False'))
+            'referer': self.get_value('Network', 'referer', '')
         }
 
     def save_url_history(self, urls):
@@ -115,16 +107,14 @@ class ConfigManager(Singleton):
         """加载语言设置"""
         return self.get_value('Language', 'current_language', 'zh')
 
-    def save_scan_retry_settings(self, enable_retry, loop_scan):
+    def save_scan_retry_settings(self, enable_retry):
         """保存扫描重试设置"""
         self.set_value('ScanRetry', 'enable_retry', str(enable_retry))
-        self.set_value('ScanRetry', 'loop_scan', str(loop_scan))
-        return self.save_config()  # 确保立即保存到文件
+        return self.save_config()
 
     def load_scan_retry_settings(self):
         return {
-            'enable_retry': self._parse_bool(self.get_value('ScanRetry', 'enable_retry', 'False')),
-            'loop_scan': self._parse_bool(self.get_value('ScanRetry', 'loop_scan', 'False'))
+            'enable_retry': self._parse_bool(self.get_value('ScanRetry', 'enable_retry', 'False'))
         }
 
     def save_sort_config(self, sort_config):
