@@ -1363,8 +1363,8 @@ class IPTVPlayer(QMainWindow):
         # 5. 音量图标
         self.volume_button = QToolButton()
         self.volume_button.setIcon(QIcon(AppStyles.get_icon('volume', btn_color)))
-        self.volume_button.setIconSize(btn_icon_size)
-        self.volume_button.setFixedSize(28, 26)
+        self.volume_button.setIconSize(QSize(18, 16))
+        self.volume_button.setFixedSize(32, 26)
         self.volume_button.setStyleSheet(AppStyles.player_button_style())
         self.volume_button.clicked.connect(self.toggle_mute)
         self.volume_button.setToolTip(tr("panel_volume", "音量"))
