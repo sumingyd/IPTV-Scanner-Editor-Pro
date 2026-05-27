@@ -147,9 +147,11 @@ class WindowController:
             icon_path = AppStyles.get_icon('pin_active', color, 14)
             if icon_path:
                 self._stay_on_top_btn.setIcon(QIcon(icon_path))
+            accent = AppStyles._get_colors().get('accent', '#0078d4')
+            r, g, b = int(accent[1:3], 16), int(accent[3:5], 16), int(accent[5:7], 16)
             self._stay_on_top_btn.setStyleSheet(
                 self._title_btn_style().replace("}", "") +
-                f" background-color: {AppStyles._get_colors().get('accent', '#0078d4')}; }}"
+                f" background-color: rgba({r}, {g}, {b}, 0.25); }}"
             )
         else:
             self.window.setWindowFlags(flags & ~Qt.WindowType.WindowStaysOnTopHint)
