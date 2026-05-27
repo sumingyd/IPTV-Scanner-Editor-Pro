@@ -135,16 +135,16 @@ class AppStyles:
             ),
             'volume': (
                 f'<path d="M{p+s*0.05},{h} L{p+s*0.05},{h-s*0.15} L{p+s*0.3},{h-s*0.3} L{p+s*0.3},{h+s*0.3} L{p+s*0.05},{h+s*0.15} Z" fill="{color}"/>'
-                f'<path d="M{p+s*0.45},{h-s*0.22} A{s*0.22},{s*0.22} 0 0,1 {p+s*0.45},{h+s*0.22}" stroke="{color}" stroke-width="{s*0.1}" fill="none" stroke-linecap="round"/>'
-                f'<path d="M{p+s*0.6},{h-s*0.35} A{s*0.35},{s*0.35} 0 0,1 {p+s*0.6},{h+s*0.35}" stroke="{color}" stroke-width="{s*0.1}" fill="none" stroke-linecap="round"/>'
+                f'<path d="M{p+s*0.38},{h-s*0.17} A{s*0.17},{s*0.17} 0 0,1 {p+s*0.38},{h+s*0.17}" stroke="{color}" stroke-width="{s*0.07}" fill="none" stroke-linecap="round"/>'
+                f'<path d="M{p+s*0.5},{h-s*0.28} A{s*0.28},{s*0.28} 0 0,1 {p+s*0.5},{h+s*0.28}" stroke="{color}" stroke-width="{s*0.07}" fill="none" stroke-linecap="round"/>'
             ),
             'volume_low': (
                 f'<path d="M{p+s*0.05},{h} L{p+s*0.05},{h-s*0.15} L{p+s*0.3},{h-s*0.3} L{p+s*0.3},{h+s*0.3} L{p+s*0.05},{h+s*0.15} Z" fill="{color}"/>'
-                f'<path d="M{p+s*0.45},{h-s*0.22} A{s*0.22},{s*0.22} 0 0,1 {p+s*0.45},{h+s*0.22}" stroke="{color}" stroke-width="{s*0.1}" fill="none" stroke-linecap="round"/>'
+                f'<path d="M{p+s*0.38},{h-s*0.17} A{s*0.17},{s*0.17} 0 0,1 {p+s*0.38},{h+s*0.17}" stroke="{color}" stroke-width="{s*0.07}" fill="none" stroke-linecap="round"/>'
             ),
             'volume_mute': (
                 f'<path d="M{p+s*0.05},{h} L{p+s*0.05},{h-s*0.15} L{p+s*0.3},{h-s*0.3} L{p+s*0.3},{h+s*0.3} L{p+s*0.05},{h+s*0.15} Z" fill="{color}"/>'
-                f'<line x1="{p+s*0.5}" y1="{h-s*0.18}" x2="{s-p-s*0.05}" y2="{h+s*0.18}" stroke="{color}" stroke-width="{s*0.1}" stroke-linecap="round"/>'
+                f'<line x1="{p+s*0.4}" y1="{h-s*0.15}" x2="{p+s*0.65}" y2="{h+s*0.15}" stroke="{color}" stroke-width="{s*0.07}" stroke-linecap="round"/>'
             ),
             'fullscreen': (
                 f'<path d="M{p},{p+s*0.25} L{p},{p} L{p+s*0.25},{p}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
@@ -1154,11 +1154,7 @@ class AppStyles:
                 background-color: transparent;
             }}
             QLabel {{
-                border: none;
-                background-color: transparent;
                 color: {colors['player_panel_text']};
-                padding: 0px;
-                margin: 0px;
             }}
             QListWidget {{
                 border: none;

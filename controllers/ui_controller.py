@@ -810,6 +810,23 @@ class UIController:
                 self.window.progress_end.setStyleSheet(AppStyles.player_progress_label_style())
             for tool_btn in fp.findChildren(QToolButton):
                 tool_btn.setStyleSheet(AppStyles.player_button_style())
+
+            btn_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+            if hasattr(self.window, 'volume_button'):
+                vol = self.window.volume_slider.value() if hasattr(self.window, 'volume_slider') else 80
+                icon_name = 'volume_mute' if vol == 0 else ('volume_low' if vol < 50 else 'volume')
+                self.window.volume_button.setIcon(QIcon(AppStyles.get_icon(icon_name, btn_color)))
+            icon_btn_map = {
+                'play_button': 'play', 'stop_button': 'stop',
+                'prev_ch_button': 'prev', 'next_ch_button': 'next',
+                'speed_button': 'speed', 'aspect_button': 'aspect',
+                'audio_track_button': 'audio_track', 'sub_track_button': 'subtitle',
+                'pip_button': 'pip', 'fullscreen_button': 'fullscreen',
+            }
+            for attr, icon_name in icon_btn_map.items():
+                btn = getattr(self.window, attr, None)
+                if btn:
+                    btn.setIcon(QIcon(AppStyles.get_icon(icon_name, btn_color)))
             if hasattr(self.window, 'exit_catchup_button'):
                 self.window.exit_catchup_button.setStyleSheet(AppStyles.player_button_style())
             if hasattr(self.window, 'catchup_indicator'):
