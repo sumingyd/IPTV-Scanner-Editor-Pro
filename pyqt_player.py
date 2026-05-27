@@ -840,11 +840,10 @@ class IPTVPlayer(QMainWindow):
         self.epg_content.itemClicked.connect(self.on_epg_item_clicked)
         self.epg_layout.addWidget(self.epg_content, 1)
 
-        self.epg_empty_label = QLabel(tr("no_epg_data", "No program information"))
+        self.epg_empty_label = QLabel(tr("no_epg_data", "No program information"), self.epg_content)
         self.epg_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.epg_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
-        self.epg_layout.addWidget(self.epg_empty_label)
-        self.epg_layout.setAlignment(self.epg_empty_label, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+        self.epg_empty_label.hide()
 
         # 用 FloatingDockWidget 包装（圆角半透明 + Qt管理）
         from PyQt6.QtWidgets import QDockWidget

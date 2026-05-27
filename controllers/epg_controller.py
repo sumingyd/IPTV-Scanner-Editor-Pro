@@ -223,6 +223,13 @@ class EPGController:
         if not hasattr(self.window, 'current_channel') or not self.window.current_channel:
             if hasattr(self.window, 'epg_empty_label'):
                 self.window.epg_empty_label.show()
+                self.window.epg_empty_label.adjustSize()
+                cw = self.window.epg_content.width()
+                ch = self.window.epg_content.height()
+                lw = self.window.epg_empty_label.width()
+                lh = self.window.epg_empty_label.height()
+                self.window.epg_empty_label.setGeometry((cw - lw) // 2, (ch - lh) // 2, lw, lh)
+                self.window.epg_empty_label.raise_()
             logger.debug("无当前频道，显示空EPG提示")
             return
 
@@ -291,10 +298,17 @@ class EPGController:
             if hasattr(self.window, 'epg_empty_label') and hasattr(self.window, 'epg_content'):
                 if filtered_list:
                     self.window.epg_empty_label.hide()
-                    self.window.epg_content.show()
                 else:
+                    self.window.epg_content.clear()
+                    self.window.epg_content.show()
                     self.window.epg_empty_label.show()
-                    self.window.epg_content.hide()
+                    self.window.epg_empty_label.adjustSize()
+                    cw = self.window.epg_content.width()
+                    ch = self.window.epg_content.height()
+                    lw = self.window.epg_empty_label.width()
+                    lh = self.window.epg_empty_label.height()
+                    self.window.epg_empty_label.setGeometry((cw - lw) // 2, (ch - lh) // 2, lw, lh)
+                    self.window.epg_empty_label.raise_()
 
             tr = self.tr
 
@@ -405,10 +419,18 @@ class EPGController:
             # 自动定位到当前正在播放的节目（使用过滤后的列表，确保索引匹配）
             self._scroll_to_current_program(filtered_list, now)
         else:
+            if hasattr(self.window, 'epg_content'):
+                self.window.epg_content.clear()
+                self.window.epg_content.show()
             if hasattr(self.window, 'epg_empty_label'):
                 self.window.epg_empty_label.show()
-            if hasattr(self.window, 'epg_content'):
-                self.window.epg_content.hide()
+                self.window.epg_empty_label.adjustSize()
+                cw = self.window.epg_content.width()
+                ch = self.window.epg_content.height()
+                lw = self.window.epg_empty_label.width()
+                lh = self.window.epg_empty_label.height()
+                self.window.epg_empty_label.setGeometry((cw - lw) // 2, (ch - lh) // 2, lw, lh)
+                self.window.epg_empty_label.raise_()
             logger.debug(f"频道 {channel_name} 无EPG数据")
 
     def on_epg_item_clicked(self, item: QListWidgetItem):
