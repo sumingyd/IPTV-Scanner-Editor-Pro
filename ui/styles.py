@@ -1157,6 +1157,8 @@ class AppStyles:
                 border: none;
                 background-color: transparent;
                 color: {colors['player_panel_text']};
+                padding: 0px;
+                margin: 0px;
             }}
             QListWidget {{
                 border: none;
@@ -1345,6 +1347,9 @@ class AppStyles:
                 font-size: 18px;
                 font-weight: bold;
                 background-color: transparent;
+                padding: 0px;
+                margin: 0px;
+                border: none;
             }}
         """
 
@@ -1361,6 +1366,9 @@ class AppStyles:
                 color: {colors['player_success']};
                 font-size: 13px;
                 background-color: transparent;
+                padding: 0px;
+                margin: 0px;
+                border: none;
             }}
         """
 
@@ -1386,6 +1394,9 @@ class AppStyles:
                 color: {colors['player_panel_secondary']};
                 font-size: 14px;
                 background-color: transparent;
+                padding: 0px;
+                margin: 0px;
+                border: none;
                 max-height: 54px;
             }}
         """
