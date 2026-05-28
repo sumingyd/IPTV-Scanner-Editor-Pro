@@ -1,3 +1,4 @@
+import ctypes
 import os
 import threading
 import time
@@ -8,6 +9,8 @@ from services.mpv_common import (
     MPV_EVENT_END_FILE,
     MPV_EVENT_SHUTDOWN,
     MPV_FORMAT_INT64,
+    MPV_END_FILE_REASON_ERROR,
+    mpv_event_end_file,
     create_mpv_handle,
     initialize_mpv,
     destroy_mpv,
@@ -43,14 +46,23 @@ def _create_lightweight_mpv():
         _mpv_set_option_string(handle, 'keep-open', 'yes')
         _mpv_set_option_string(handle, 'log-level', 'error')
         _mpv_set_option_string(handle, 'config', 'no')
-        _mpv_set_option_string(handle, 'demuxer-lavf-probesize', '10000000')
-        _mpv_set_option_string(handle, 'demuxer-lavf-analyzeduration', '5000000')
+        _mpv_set_option_string(handle, 'demuxer-lavf-probesize', '32768')
+        _mpv_set_option_string(handle, 'demuxer-lavf-analyzeduration', '1000000')
+        _mpv_set_option_string(handle, 'cache', 'yes')
+        _mpv_set_option_string(handle, 'cache-secs', '10')
+        _mpv_set_option_string(handle, 'demuxer-max-bytes', '16MiB')
+        _mpv_set_option_string(handle, 'demuxer-max-back-bytes', '8MiB')
+        _mpv_set_option_string(handle, 'tls-verify', 'no')
+        _mpv_set_option_string(handle, 'network-timeout', '10')
 
-        headers = MpvStreamValidator.get_headers()
-        if headers:
-            import json
-            headers_json = json.dumps(headers).encode('utf-8')
-            _mpv_set_option_string(handle, 'http-header-fields', headers_json)
+        user_agent = MpvStreamValidator.get_user_agent()
+        if user_agent:
+            _mpv_set_option_string(handle, 'user-agent', user_agent)
+
+        referer = MpvStreamValidator.get_referer()
+        if referer:
+            header_val = f'Referer: {referer}'
+            _mpv_set_option_string(handle, 'http-header-fields', header_val)
 
         if not initialize_mpv(handle):
             destroy_mpv(handle)
@@ -131,14 +143,18 @@ class MpvStreamValidator:
                 except Exception:
                     pass
                 _mpv_set_property_string(handle, 'rtsp-transport', rtsp_transport)
+                _mpv_set_property_string(handle, 'demuxer-lavf-probesize', '32')
+                _mpv_set_property_string(handle, 'demuxer-lavf-analyzeduration', '0')
             elif '/rtp/' in u or u.endswith('.ts') or u.startswith('udp://'):
                 _mpv_set_property_string(handle, 'demuxer-lavf-format', 'mpegts')
+                _mpv_set_property_string(handle, 'demuxer-lavf-probesize', '32')
+                _mpv_set_property_string(handle, 'demuxer-lavf-analyzeduration', '0')
 
             start_time = time.time()
 
             _mpv_send_command(handle, ['loadfile', url])
 
-            event_id, error_code = wait_for_specific_event(
+            event_id, error_code, event_data = wait_for_specific_event(
                 handle, timeout,
                 {MPV_EVENT_FILE_LOADED, MPV_EVENT_END_FILE}
             )
@@ -167,11 +183,23 @@ class MpvStreamValidator:
             elif event_id == MPV_EVENT_END_FILE:
                 result['valid'] = False
                 result['latency'] = latency
-                if error_code != 0:
-                    result['error'] = f'播放失败(错误码:{error_code})'
+                end_reason = None
+                end_error = 0
+                if event_data:
+                    try:
+                        end_file = ctypes.cast(event_data, ctypes.POINTER(mpv_event_end_file)).contents
+                        end_reason = end_file.reason
+                        end_error = end_file.error
+                    except Exception:
+                        pass
+                if end_reason == MPV_END_FILE_REASON_ERROR:
+                    result['error'] = f'播放失败(错误码:{end_error})'
                     result['error_type'] = 'playback_failed'
+                elif end_reason is not None:
+                    result['error'] = f'流结束(reason:{end_reason})'
+                    result['error_type'] = 'stream_ended'
                 else:
-                    result['error'] = '流结束(无内容)'
+                    result['error'] = '流结束'
                     result['error_type'] = 'stream_ended'
 
             else:
@@ -218,6 +246,16 @@ class MpvStreamValidator:
             if cls._referer:
                 headers['referer'] = cls._referer
             return headers
+
+    @classmethod
+    def get_user_agent(cls) -> str | None:
+        with cls._headers_lock:
+            return cls._user_agent
+
+    @classmethod
+    def get_referer(cls) -> str | None:
+        with cls._headers_lock:
+            return cls._referer
 
     @classmethod
     def terminate_all(cls):

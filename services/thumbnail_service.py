@@ -114,7 +114,7 @@ def _capture_single(url: str, timeout: int = 8, wid: int = 0, force: bool = Fals
 
         _mpv_send_command(handle, ['loadfile', url])
 
-        event_id, _ = wait_for_specific_event(handle, timeout, {MPV_EVENT_FILE_LOADED, MPV_EVENT_END_FILE})
+        event_id, _, _ = wait_for_specific_event(handle, timeout, {MPV_EVENT_FILE_LOADED, MPV_EVENT_END_FILE})
 
         if event_id == MPV_EVENT_FILE_LOADED:
             wait_for_specific_event(handle, 2, {MPV_EVENT_END_FILE})

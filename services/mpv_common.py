@@ -286,14 +286,14 @@ def wait_for_specific_event(handle, timeout_sec, target_events):
             if event_ptr:
                 event = ctypes.cast(event_ptr, ctypes.POINTER(mpv_event)).contents
                 if event.event_id in target_events:
-                    return event.event_id, event.error
+                    return event.event_id, event.error, event.data
                 if event.event_id == MPV_EVENT_SHUTDOWN:
-                    return MPV_EVENT_SHUTDOWN, 0
+                    return MPV_EVENT_SHUTDOWN, 0, None
                 if event.event_id == MPV_EVENT_NONE:
                     continue
         except Exception:
             break
-    return 0, 0
+    return 0, 0, None
 
 
 def observe_property(handle, reply_userdata, name, fmt):
