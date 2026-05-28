@@ -2300,14 +2300,6 @@ class ScanChannelDialog(FloatingDialog):
             self.btn_validate.setText(self.language_manager.tr("validate_button", "Validate"))
         except Exception:
             pass
-        if hasattr(self, 'channel_list') and not getattr(self, '_has_resized_columns', False):
-            try:
-                header = self.channel_list.horizontalHeader()
-                header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-                self._has_resized_columns = True
-            except Exception:
-                pass
-
         # 智能重试：对检测为无效的频道进行重试验证
         if self.enable_retry_checkbox.isChecked():
             invalid_urls = []
@@ -2576,14 +2568,6 @@ class ScanChannelDialog(FloatingDialog):
             self.btn_validate.setText(self.language_manager.tr("validate_button", "Validate"))
         except Exception:
             pass
-
-        if hasattr(self, 'channel_list') and not getattr(self, '_has_resized_columns', False):
-            try:
-                header = self.channel_list.horizontalHeader()
-                header.resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-                self._has_resized_columns = True
-            except Exception:
-                pass
 
         if was_stopping:
             return
