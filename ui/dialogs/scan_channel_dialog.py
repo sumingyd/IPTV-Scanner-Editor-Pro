@@ -2060,6 +2060,7 @@ class ScanChannelDialog(FloatingDialog):
             self.progress_manager.complete_progress(
                 self.language_manager.tr('scan_stopped', '扫描已停止')
             )
+            self.stats_label.setText(self.language_manager.tr('scan_stopped', '扫描已停止'))
             self._set_browse_model()
         except Exception as e:
             log_ui_error(f"停止扫描清理失败: {e}")
@@ -2237,6 +2238,7 @@ class ScanChannelDialog(FloatingDialog):
             self._is_stopping = True
             self.btn_validate.setText(self.language_manager.tr("validate_button", "Validate"))
             self.progress_manager.hide_progress()
+            self.stats_label.setText(self.language_manager.tr('validate_stopped', '检测已停止'))
             self.scanner.stop_event.set()
             from services.mpv_validator_service import MpvStreamValidator
             MpvStreamValidator.set_terminating()
@@ -2284,7 +2286,7 @@ class ScanChannelDialog(FloatingDialog):
             'valid': valid,
             'latency': latency,
             'resolution': resolution,
-            'status': '有效' if valid else '无效'
+            'status': self.language_manager.tr('valid', '有效') if valid else self.language_manager.tr('invalid', '无效')
         }
 
         self.model.update_channel(index, channel_info)
@@ -2317,8 +2319,10 @@ class ScanChannelDialog(FloatingDialog):
         else:
             valid_count = sum(1 for ch in self.model.channels if ch.get('valid', True))
             total = len(self.model.channels)
+            tr = self.language_manager.tr
             self.stats_label.setText(
-                f"有效: {valid_count}/{total}"
+                f"{tr('validate_completed', '检测完成')} | "
+                f"{tr('valid', '有效')}: {valid_count}/{total}"
             )
 
     def _start_validation_retry(self):
@@ -2536,6 +2540,8 @@ class ScanChannelDialog(FloatingDialog):
     def _on_channel_found(self, channel_info):
         """处理发现有效频道事件"""
         self._invalidate_channels_cache()
+        is_valid = channel_info.get('valid', True)
+        channel_info['status'] = self.language_manager.tr('valid', '有效') if is_valid else self.language_manager.tr('invalid', '无效')
         self.model.add_channel(channel_info)
 
     @QtCore.pyqtSlot()
@@ -2602,7 +2608,7 @@ class ScanChannelDialog(FloatingDialog):
         for url in getattr(self, '_validation_retry_urls', []):
             if url in found_urls and url in url_to_index:
                 idx = url_to_index[url]
-                self.model.update_channel(idx, {'valid': True})
+                self.model.update_channel(idx, {'valid': True, 'status': self.language_manager.tr('valid', '有效')})
                 newly_valid += 1
             else:
                 remaining_invalid.append(url)
