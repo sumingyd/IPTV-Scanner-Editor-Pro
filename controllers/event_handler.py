@@ -92,6 +92,8 @@ class EventHandler:
 
     def _is_handled_shortcut(self, key, modifiers) -> bool:
         """判断按键组合是否由 eventFilter 统一处理（用于拦截 ShortcutOverride）"""
+        if self._is_input_widget_focused():
+            return False
         if modifiers == Qt.KeyboardModifier.NoModifier:
             global_keys = (Qt.Key.Key_Space, Qt.Key.Key_Escape,
                            Qt.Key.Key_F, Qt.Key.Key_E,
@@ -125,6 +127,8 @@ class EventHandler:
         """统一快捷键分发（所有快捷键在此处理，保证可靠触发）"""
         from core.log_manager import global_logger as logger
         try:
+            if self._is_input_widget_focused():
+                return False
             w = self.window
 
             if modifiers == Qt.KeyboardModifier.NoModifier:
