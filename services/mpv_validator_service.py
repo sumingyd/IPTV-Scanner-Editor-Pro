@@ -10,6 +10,8 @@ from services.mpv_common import (
     MPV_EVENT_VIDEO_RECONFIG,
     MPV_EVENT_SHUTDOWN,
     MPV_FORMAT_INT64,
+    MPV_END_FILE_REASON_EOF,
+    MPV_END_FILE_REASON_STOP,
     MPV_END_FILE_REASON_ERROR,
     mpv_event_end_file,
     create_mpv_handle,
@@ -214,7 +216,6 @@ class MpvStreamValidator:
                     result['service_name'] = ''
 
             elif event_id == MPV_EVENT_END_FILE:
-                result['valid'] = False
                 result['latency'] = latency
                 end_reason = None
                 end_error = 0
@@ -225,15 +226,28 @@ class MpvStreamValidator:
                         end_error = end_file.error
                     except Exception:
                         pass
-                if end_reason == MPV_END_FILE_REASON_ERROR:
+
+                if end_reason in (MPV_END_FILE_REASON_EOF, MPV_END_FILE_REASON_STOP):
+                    result['valid'] = True
+                    w = _mpv_get_property_int(handle, 'width')
+                    h = _mpv_get_property_int(handle, 'height')
+                    if w and h and w > 0 and h > 0:
+                        result['resolution'] = f"{w}x{h}"
+                    codec = _mpv_get_property_string(handle, 'video-codec')
+                    if codec:
+                        result['codec'] = codec
+                elif end_reason == MPV_END_FILE_REASON_ERROR:
+                    result['valid'] = False
                     result['error'] = f'播放失败(错误码:{end_error})'
                     result['error_type'] = 'playback_failed'
-                elif end_reason is not None:
-                    result['error'] = f'流结束(reason:{end_reason})'
-                    result['error_type'] = 'stream_ended'
                 else:
-                    result['error'] = '流结束'
-                    result['error_type'] = 'stream_ended'
+                    result['valid'] = False
+                    if end_reason is not None:
+                        result['error'] = f'流结束(reason:{end_reason})'
+                        result['error_type'] = 'stream_ended'
+                    else:
+                        result['error'] = '流结束'
+                        result['error_type'] = 'stream_ended'
 
             else:
                 result['valid'] = False
