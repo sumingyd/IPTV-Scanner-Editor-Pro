@@ -79,6 +79,7 @@ class ScannerController(QObject):
         self.main_window = main_window
         self.url_parser = URLRangeParser()
         self.is_validating = False
+        self._is_validation_retry = False
         self.stats_lock = threading.Lock()
         self.scan_queue = queue.Queue()  # 扫描专用队列
         self.validation_queue = queue.Queue()  # 验证专用队列
@@ -555,9 +556,15 @@ class ScannerController(QObject):
 
     def start_scan_from_urls(
         self, urls: list, thread_count: int = 10, timeout: int = 10,
-        user_agent: str | None = None, referer: str | None = None
+        user_agent: str | None = None, referer: str | None = None,
+        is_validation_retry: bool = False
     ):
-        """从URL列表开始扫描（用于重试扫描）"""
+        """从URL列表开始扫描（用于重试扫描）
+
+        Args:
+            is_validation_retry: 是否为检测重试模式，为True时is_validating设为True，
+                                 确保统计显示正确显示"检测"而非"扫描"
+        """
         # 确保停止之前的扫描
         self.stop_scan()
         self.stop_event.clear()
@@ -567,6 +574,14 @@ class ScannerController(QObject):
 
         # 注册扫描状态（不使用上下文管理器，因为扫描是异步的）
         self.scan_state_manager.register_scan(self.scan_id, self)
+
+        if is_validation_retry:
+            self.is_validating = True
+            self._is_validation_retry = True
+            self.scan_state_manager.update_scan_state(self.scan_id, {
+                'is_validating': True
+            })
+
         self._start_scan_from_urls_internal(urls, thread_count, timeout, user_agent, referer)
 
     def _start_scan_from_urls_internal(
@@ -749,6 +764,7 @@ class ScannerController(QObject):
     def start_validation(self, model, threads, timeout, user_agent=None, referer=None):
         """开始有效性验证"""
         self.is_validating = True
+        self._is_validation_retry = False
         self.stop_event.clear()
         self.timeout = timeout
 
@@ -948,7 +964,7 @@ class ScannerController(QObject):
 
             if self.stop_event.is_set():
                 self.logger.info("扫描被用户停止")
-            elif self.is_validating:
+            elif self.is_validating and not self._is_validation_retry:
                 was_validation = True
                 self.is_validating = False
                 self.workers = []
@@ -967,6 +983,12 @@ class ScannerController(QObject):
                         self.logger.debug("主窗口已销毁，跳过验证完成回调")
             else:
                 self.workers = []
+                if self._is_validation_retry:
+                    self.is_validating = False
+                    self._is_validation_retry = False
+                    self.scan_state_manager.update_scan_state(self.scan_id, {
+                        'is_validating': False
+                    })
                 self.logger.info(
                     f"扫描完成: 总数={self.stats['total']}, "
                     f"有效={self.stats['valid']}, "

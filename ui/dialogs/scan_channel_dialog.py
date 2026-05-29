@@ -2254,6 +2254,8 @@ class ScanChannelDialog(FloatingDialog):
             )
         else:
             self._is_stopping = True
+            self._is_validation_retrying = False
+            self._validation_retry_urls = None
             self.btn_validate.setText(self.language_manager.tr("validate_button", "Validate"))
             self.progress_manager.hide_progress()
             self.stats_label.setText(self.language_manager.tr('validate_stopped', '检测已停止'))
@@ -2281,6 +2283,13 @@ class ScanChannelDialog(FloatingDialog):
                 while not q.empty():
                     try:
                         q.get_nowait()
+                    except queue.Empty:
+                        break
+            sq = getattr(self.scanner, 'scan_queue', None)
+            if sq:
+                while not sq.empty():
+                    try:
+                        sq.get_nowait()
                     except queue.Empty:
                         break
 
@@ -2316,10 +2325,6 @@ class ScanChannelDialog(FloatingDialog):
             self.progress_manager.complete_progress(self.language_manager.tr('validate_completed', '检测完成'))
         except Exception:
             pass
-        try:
-            self.btn_validate.setText(self.language_manager.tr("validate_button", "Validate"))
-        except Exception:
-            pass
         # 智能重试：对检测为无效的频道进行重试验证
         if self.enable_retry_checkbox.isChecked():
             invalid_urls = []
@@ -2330,10 +2335,15 @@ class ScanChannelDialog(FloatingDialog):
                 self.logger.info(f"检测有效性完成，{len(invalid_urls)}个无效频道，启动智能重试...")
                 self._validation_retry_urls = invalid_urls
                 self._validation_retry_count = 0
+                self._is_validation_retrying = True
                 QtCore.QTimer.singleShot(100, self._start_validation_retry)
             else:
                 self.logger.info("检测有效性完成，所有频道均有效")
                 self.stats_label.setText(self.language_manager.tr("all_channels_valid", "All channels are valid"))
+                try:
+                    self.btn_validate.setText(self.language_manager.tr("validate_button", "Validate"))
+                except Exception:
+                    pass
         else:
             valid_count = sum(1 for ch in self.model.channels if ch.get('valid') is True)
             total = len(self.model.channels)
@@ -2342,15 +2352,26 @@ class ScanChannelDialog(FloatingDialog):
                 f"{tr('validate_completed', '检测完成')} | "
                 f"{tr('valid', '有效')}: {valid_count}/{total}"
             )
+            try:
+                self.btn_validate.setText(self.language_manager.tr("validate_button", "Validate"))
+            except Exception:
+                pass
 
     def _start_validation_retry(self):
         """对无效频道进行智能重试验证"""
         if not hasattr(self, '_validation_retry_urls') or not self._validation_retry_urls:
             return
 
+        if getattr(self, '_is_stopping', False):
+            self.logger.info("检测重试被用户停止，不再继续重试")
+            self._is_validation_retrying = False
+            self._validation_retry_urls = None
+            return
+
         max_retries = 3
         if hasattr(self, '_validation_retry_count') and self._validation_retry_count >= max_retries:
             self.logger.info(f"智能重试已达最大次数({max_retries}次)，停止重试")
+            self._is_validation_retrying = False
             self.stats_label.setText(
                 self.language_manager.tr("retry_completed", "Smart retry completed")
             )
@@ -2360,26 +2381,34 @@ class ScanChannelDialog(FloatingDialog):
 
         retry_threads = 4
         self._validation_retry_count = (getattr(self, '_validation_retry_count', 0) or 0) + 1
+        self._is_validation_retrying = True
 
         self.logger.info(
             f"智能重试验证(第{self._validation_retry_count}次): "
             f"{len(self._validation_retry_urls)}个URL, 超时={retry_timeout}秒"
         )
+
+        tr = self.language_manager.tr
+        task_text = tr('validate', '检测')
+        task_type = tr('validate_nth', '第{n}次检测').format(n=self._validation_retry_count + 1)
         self.stats_label.setText(
-            f"{self.language_manager.tr('smart_retry', '智能重试')} #{self._validation_retry_count}..."
+            f"{task_text}: {task_type} | 0/{len(self._validation_retry_urls)}"
         )
 
         self.progress_manager.start_progress(
-            f"{self.language_manager.tr('smart_retry', '智能重试')} #{self._validation_retry_count}",
+            f"{tr('smart_retry', '智能重试')} #{self._validation_retry_count}",
             max_value=len(self._validation_retry_urls)
         )
+
+        self.btn_validate.setText(tr("stop_validate", "Stop Validate"))
 
         self.scanner.start_scan_from_urls(
             self._validation_retry_urls,
             retry_threads,
             retry_timeout,
             user_agent=self.user_agent_input.text() or None,
-            referer=self.referer_input.text() or None
+            referer=self.referer_input.text() or None,
+            is_validation_retry=True
         )
         self._set_scan_model()
 
@@ -2568,13 +2597,14 @@ class ScanChannelDialog(FloatingDialog):
         if not hasattr(self, 'scanner') or self.scanner is None:
             return
         was_stopping = getattr(self, '_is_stopping', False)
-        self._is_stopping = False
 
         self._set_browse_model()
 
         if hasattr(self, '_validation_retry_urls') and self._validation_retry_urls:
             self._on_validation_retry_completed()
             return
+
+        self._is_stopping = False
 
         is_retry = self.scan_state_manager.is_retry_scan(self.retry_id)
 
@@ -2613,6 +2643,13 @@ class ScanChannelDialog(FloatingDialog):
         except Exception:
             pass
 
+        if getattr(self, '_is_stopping', False):
+            self.logger.info("检测重试被用户停止")
+            self._is_validation_retrying = False
+            self._validation_retry_urls = None
+            self._is_stopping = False
+            return
+
         found_urls = {ch.get('url', '') for ch in self.scanner.found_channels} if hasattr(self, 'scanner') and self.scanner and hasattr(self.scanner, 'found_channels') else set()
 
         url_to_index = {}
@@ -2643,6 +2680,7 @@ class ScanChannelDialog(FloatingDialog):
             self.logger.info(f"仍有 {len(remaining_invalid)} 个无效频道，继续智能重试(第{current_count + 1}/{max_retries}次)...")
             QtCore.QTimer.singleShot(500, self._start_validation_retry)
         else:
+            self._is_validation_retrying = False
             if remaining_invalid:
                 self.logger.info(f"智能重试完成({max_retries}次)，仍剩{len(remaining_invalid)}个无效频道")
             else:
@@ -2664,6 +2702,8 @@ class ScanChannelDialog(FloatingDialog):
             is_validation = stats_data.get('is_validation', False)
             elapsed = time.strftime("%H:%M:%S", time.gmtime(stats.get('elapsed', 0)))
 
+            is_validation_retrying = getattr(self, '_is_validation_retrying', False)
+
             retry_count = self.scan_state_manager.get_retry_count(self.retry_id)
             is_retry_scan = self.scan_state_manager.is_retry_scan(self.retry_id)
 
@@ -2671,7 +2711,10 @@ class ScanChannelDialog(FloatingDialog):
 
             if is_validation:
                 task_text = tr('validate', '检测')
-                if is_retry_scan:
+                if is_validation_retrying:
+                    validation_retry_count = getattr(self, '_validation_retry_count', 0) or 0
+                    task_type = tr('validate_nth', '第{n}次检测').format(n=validation_retry_count + 1)
+                elif is_retry_scan:
                     task_type = tr('retry_nth', '第{n}次重试').format(n=retry_count)
                 else:
                     task_type = tr('validate_nth', '第{n}次检测').format(n=1)
