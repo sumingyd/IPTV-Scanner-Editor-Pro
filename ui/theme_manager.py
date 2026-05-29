@@ -67,6 +67,8 @@ class ThemeManager(Singleton, QtCore.QObject):
             if isinstance(window, QtWidgets.QMainWindow):
                 window.setStyleSheet(AppStyles.main_window_style())
                 self._update_child_widgets(window)
+                if hasattr(window, 'reapply_styles'):
+                    window.reapply_styles()
             elif isinstance(window, QtWidgets.QDialog):
                 window.setStyleSheet(AppStyles.dialog_style())
                 self._update_child_widgets(window)
@@ -112,12 +114,12 @@ class ThemeManager(Singleton, QtCore.QObject):
             QtWidgets.QToolButton: lambda w: AppStyles.toolbar_button_style(),
             QtWidgets.QLineEdit: lambda w: AppStyles.common_line_edit_style() if (not w.styleSheet() or 'common_line_edit' not in w.styleSheet()) else None,
             QtWidgets.QComboBox: lambda w: AppStyles.common_combo_box_style() if (not w.styleSheet() or 'common_combo' not in w.styleSheet()) else None,
-            QtWidgets.QLabel: lambda w: AppStyles.common_label_style() if w.styleSheet() else None,
-            QtWidgets.QCheckBox: lambda w: AppStyles.common_check_box_style() if w.styleSheet() else None,
-            QtWidgets.QRadioButton: lambda w: AppStyles.common_radio_button_style() if hasattr(AppStyles, 'common_radio_button_style') and w.styleSheet() else None,
-            QtWidgets.QProgressBar: lambda w: AppStyles.progress_style() if w.styleSheet() else None,
-            QtWidgets.QGroupBox: lambda w: AppStyles.common_group_box_style() if w.styleSheet() else None,
-            QtWidgets.QScrollArea: lambda w: AppStyles.scroll_area_style() if hasattr(AppStyles, 'scroll_area_style') and w.styleSheet() else None,
+            QtWidgets.QLabel: lambda w: AppStyles.common_label_style(),
+            QtWidgets.QCheckBox: lambda w: AppStyles.common_check_box_style(),
+            QtWidgets.QRadioButton: lambda w: AppStyles.common_radio_button_style() if hasattr(AppStyles, 'common_radio_button_style') else None,
+            QtWidgets.QProgressBar: lambda w: AppStyles.progress_style(),
+            QtWidgets.QGroupBox: lambda w: AppStyles.common_group_box_style(),
+            QtWidgets.QScrollArea: lambda w: AppStyles.scroll_area_style() if hasattr(AppStyles, 'scroll_area_style') else None,
         }
         for widget_type, style_func in style_map.items():
             try:
@@ -130,10 +132,8 @@ class ThemeManager(Singleton, QtCore.QObject):
             except Exception:
                 pass
         try:
-            for spin_box in parent.findChildren(QtWidgets.QSpinBox):
-                if spin_box.styleSheet() and hasattr(AppStyles, 'common_spin_box_style'):
-                    spin_box.setStyleSheet(AppStyles.common_spin_box_style())
-                elif hasattr(AppStyles, 'common_spin_box_style'):
+            if hasattr(AppStyles, 'common_spin_box_style'):
+                for spin_box in parent.findChildren(QtWidgets.QSpinBox):
                     spin_box.setStyleSheet(AppStyles.common_spin_box_style())
         except Exception:
             pass

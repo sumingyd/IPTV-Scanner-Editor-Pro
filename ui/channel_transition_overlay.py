@@ -51,6 +51,21 @@ class ChannelTransitionOverlay(QWidget):
         layout.addWidget(self._card)
         self.hide()
 
+        from ui.theme_manager import get_theme_manager
+        get_theme_manager().theme_changed.connect(self._on_theme_changed)
+
+    def _on_theme_changed(self, _theme_name):
+        if self._opacity > 0 and self._name_label.text():
+            self._reapply_overlay_styles()
+
+    def _reapply_overlay_styles(self):
+        colors = AppStyles._get_colors()
+        text_color = colors.get('player_panel_text', '#ffffff')
+        self._name_label.setStyleSheet(f"color: {text_color}; background: transparent;")
+        self._info_label.setStyleSheet(f"color: {colors.get('player_panel_secondary', '#aaaaaa')}; background: transparent;")
+        bg_color = colors.get('player_panel', 'rgba(20,20,20,220)')
+        self._card.setStyleSheet(f"background: {bg_color}; border-radius: 8px;")
+
     def show_transition(self, channel_name: str, logo_pixmap: QPixmap = None, info_text: str = ""):
         self._name_label.setText(channel_name)
         colors = AppStyles._get_colors()

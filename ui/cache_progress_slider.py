@@ -10,6 +10,22 @@ class CacheProgressSlider(QSlider):
         self._cache_start_ratio = -1.0
         self._cache_end_ratio = -1.0
         self._cache_color = QColor(76, 175, 80, 100)
+        self._update_cache_color_from_theme()
+        from ui.theme_manager import get_theme_manager
+        get_theme_manager().theme_changed.connect(self._on_theme_changed)
+
+    def _on_theme_changed(self, _theme_name):
+        self._update_cache_color_from_theme()
+        self.update()
+
+    def _update_cache_color_from_theme(self):
+        try:
+            from ui.styles import AppStyles
+            colors = AppStyles._get_colors()
+            color_str = colors.get('cache_progress', 'rgba(76,175,80,0.39)')
+            self.set_cache_color(color_str)
+        except Exception:
+            self._cache_color = QColor(76, 175, 80, 100)
 
     def set_cache_range(self, start_ratio: float, end_ratio: float):
         self._cache_start_ratio = max(0.0, min(1.0, start_ratio))
