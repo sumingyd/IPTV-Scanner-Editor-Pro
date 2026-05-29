@@ -951,6 +951,7 @@ class ScannerController(QObject):
             elif self.is_validating:
                 was_validation = True
                 self.is_validating = False
+                self.workers = []
                 self.scan_state_manager.update_scan_state(self.scan_id, {
                     'is_validating': False
                 })
@@ -965,6 +966,7 @@ class ScannerController(QObject):
                     except RuntimeError:
                         self.logger.debug("主窗口已销毁，跳过验证完成回调")
             else:
+                self.workers = []
                 self.logger.info(
                     f"扫描完成: 总数={self.stats['total']}, "
                     f"有效={self.stats['valid']}, "
