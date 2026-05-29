@@ -2974,6 +2974,7 @@ class IPTVPlayer(QMainWindow):
         self.is_fullscreen = want_fullscreen
 
         if self.is_fullscreen:
+            self._before_fullscreen_geo = self.geometry()
             self.panel_vis.set_auto_hide_visible()
             self.panel_vis.save_context('fullscreen')
             if hasattr(self, '_title_bar') and self._title_bar:
@@ -2997,6 +2998,9 @@ class IPTVPlayer(QMainWindow):
             self.unsetCursor()
             saved = self.panel_vis.restore_context('fullscreen')
             self.showNormal()
+            saved_geo = getattr(self, '_before_fullscreen_geo', None)
+            if saved_geo:
+                self.setGeometry(saved_geo)
             if saved:
                 if saved.get('title_bar', True) and hasattr(self, '_title_bar') and self._title_bar:
                     self._title_bar.show()
