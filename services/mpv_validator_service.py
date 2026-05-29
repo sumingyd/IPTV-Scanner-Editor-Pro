@@ -151,6 +151,7 @@ class MpvStreamValidator:
                 self._active_handles.append(handle)
 
             u = url.lower()
+            looks_ts = '/rtp/' in u or u.endswith('.ts') or 'proto=http' in u or u.startswith('udp://')
             if u.startswith('rtsp://'):
                 rtsp_transport = 'tcp'
                 try:
@@ -161,8 +162,20 @@ class MpvStreamValidator:
                 except Exception:
                     pass
                 _mpv_set_property_string(handle, 'rtsp-transport', rtsp_transport)
-            elif '/rtp/' in u or u.endswith('.ts') or u.startswith('udp://'):
+                _mpv_set_property_string(handle, 'demuxer', 'lavf')
+                _mpv_set_property_string(handle, 'demuxer-lavf-probesize', '32')
+                _mpv_set_property_string(handle, 'demuxer-lavf-analyzeduration', '0')
+                _mpv_set_property_string(handle, 'demuxer-lavf-buffersize', '128000')
+                _mpv_set_property_string(handle, 'force-seekable', 'yes')
+            elif looks_ts:
+                _mpv_set_property_string(handle, 'demuxer', 'lavf')
                 _mpv_set_property_string(handle, 'demuxer-lavf-format', 'mpegts')
+                _mpv_set_property_string(handle, 'demuxer-lavf-probesize', '32')
+                _mpv_set_property_string(handle, 'demuxer-lavf-analyzeduration', '0')
+                _mpv_set_property_string(handle, 'demuxer-lavf-buffersize', '128000')
+                _mpv_set_property_string(handle, 'force-seekable', 'yes')
+            elif u.startswith('http://') or u.startswith('https://'):
+                _mpv_set_property_string(handle, 'force-seekable', 'yes')
 
             start_time = time.time()
 
