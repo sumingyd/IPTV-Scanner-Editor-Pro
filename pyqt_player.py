@@ -583,9 +583,7 @@ class IPTVPlayer(QMainWindow):
         # 11. 注册清理 / 主题 / 快捷键（轻量，不阻塞）
         from utils.resource_cleaner import register_cleanup
         from services.mpv_validator_service import MpvStreamValidator
-        from utils.memory_manager import optimize_memory
         register_cleanup(MpvStreamValidator.terminate_all, "mpv_validator_terminate_all")
-        register_cleanup(optimize_memory, "optimize_memory")
 
         self._theme_manager.register_window(self)
 
