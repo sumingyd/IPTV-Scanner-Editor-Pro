@@ -32,21 +32,16 @@ def get_optimal_thread_count():
     return min(max(cpu, 4), 32)
 
 
-def _create_lightweight_mpv(offscreen_widget=None):
+def _create_lightweight_mpv():
     if not _is_mpv_available():
         return None
     try:
         handle = create_mpv_handle()
         if not handle:
             return None
-        use_gpu = offscreen_widget is not None
-        if use_gpu:
-            _mpv_set_option_string(handle, 'vo', 'gpu')
-            _mpv_set_option_string(handle, 'hwdec', 'auto')
-        else:
-            _mpv_set_option_string(handle, 'vo', 'null')
-            _mpv_set_option_string(handle, 'hwdec', 'no')
+        _mpv_set_option_string(handle, 'vo', 'null')
         _mpv_set_option_string(handle, 'ao', 'null')
+        _mpv_set_option_string(handle, 'hwdec', 'no')
         _mpv_set_option_string(handle, 'osc', 'no')
         _mpv_set_option_string(handle, 'osd-bar', 'no')
         _mpv_set_option_string(handle, 'idle', 'yes')
@@ -93,8 +88,6 @@ def _create_lightweight_mpv(offscreen_widget=None):
         if not initialize_mpv(handle):
             destroy_mpv(handle)
             return None
-        if use_gpu and offscreen_widget:
-            _mpv_set_property_string(handle, 'wid', str(int(offscreen_widget.winId())))
         return handle
     except Exception:
         return None
@@ -102,7 +95,6 @@ def _create_lightweight_mpv(offscreen_widget=None):
 
 class MpvStreamValidator:
     _semaphore: threading.Semaphore | None = None
-    _gpu_semaphore = threading.Semaphore(2)
     _user_agent: str | None = None
     _referer: str | None = None
     _headers_lock = threading.Lock()
@@ -245,60 +237,19 @@ class MpvStreamValidator:
                     if codec:
                         result['codec'] = codec
                 elif end_reason == MPV_END_FILE_REASON_ERROR:
-                    gpu_valid = False
-                    gpu_offscreen = None
-                    gpu_handle = None
-                    gpu_sem_acquired = self._gpu_semaphore.acquire(timeout=10)
+                    track_count = 0
                     try:
-                        if gpu_sem_acquired:
-                            from PyQt6.QtWidgets import QWidget
-                            from PyQt6.QtCore import Qt
-                            gpu_offscreen = QWidget()
-                            gpu_offscreen.setFixedSize(1, 1)
-                            gpu_offscreen.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, True)
-                            gpu_offscreen.show()
-                            gpu_handle = _create_lightweight_mpv(gpu_offscreen)
-                        if gpu_handle:
-                            if url.lower().startswith('rtsp://'):
-                                try:
-                                    from core.config_manager import ConfigManager
-                                    rtsp_t = ConfigManager().load_playback_settings().get('rtsp_transport', 'tcp')
-                                except Exception:
-                                    rtsp_t = 'tcp'
-                                _mpv_set_property_string(gpu_handle, 'rtsp-transport', rtsp_t)
-                            _mpv_send_command(gpu_handle, ['loadfile', url])
-                            gpu_event, _, _ = wait_for_specific_event(
-                                gpu_handle, min(timeout, 5),
-                                {MPV_EVENT_FILE_LOADED, MPV_EVENT_END_FILE}
-                            )
-                            if gpu_event == MPV_EVENT_FILE_LOADED:
-                                gpu_valid = True
-                                vid_event, _, _ = wait_for_specific_event(
-                                    gpu_handle, min(timeout, 3),
-                                    {MPV_EVENT_VIDEO_RECONFIG, MPV_EVENT_END_FILE}
-                                )
-                                w = _mpv_get_property_int(gpu_handle, 'width')
-                                h = _mpv_get_property_int(gpu_handle, 'height')
-                                if w and h and w > 0 and h > 0:
-                                    result['resolution'] = f"{w}x{h}"
-                                codec = _mpv_get_property_string(gpu_handle, 'video-codec')
-                                if codec:
-                                    result['codec'] = codec
+                        track_list = _mpv_get_property_string(handle, 'track-list')
+                        if track_list and '"id"' in track_list:
+                            import json
+                            tracks = json.loads(track_list)
+                            track_count = len(tracks)
                     except Exception:
                         pass
-                    finally:
-                        if gpu_handle:
-                            destroy_mpv(gpu_handle)
-                        if gpu_offscreen:
-                            try:
-                                from PyQt6.QtCore import QTimer
-                                QTimer.singleShot(0, gpu_offscreen.deleteLater)
-                            except Exception:
-                                pass
-                        if gpu_sem_acquired:
-                            self._gpu_semaphore.release()
-                    if gpu_valid:
+                    if track_count > 0:
                         result['valid'] = True
+                        result['error'] = f'播放警告(vo=null,发现{track_count}个轨道)'
+                        result['error_type'] = 'playback_warning'
                     else:
                         result['valid'] = False
                         result['error'] = f'播放失败(错误码:{end_error})'
