@@ -632,10 +632,16 @@ class ConfigManager(Singleton):
             'audio_passthrough': 'never',
         }
         result = {}
+        need_save = False
         for key, default in defaults.items():
             raw = self.get_value('Playback', key)
             if raw is None:
                 result[key] = default
+                if isinstance(default, bool):
+                    self.set_value('Playback', key, str(default))
+                else:
+                    self.set_value('Playback', key, str(default))
+                need_save = True
             elif isinstance(default, bool):
                 result[key] = self._parse_bool(raw)
             elif isinstance(default, float):
@@ -650,6 +656,8 @@ class ConfigManager(Singleton):
                     result[key] = default
             else:
                 result[key] = raw
+        if need_save:
+            self.save_config()
         return result
 
     def save_last_channel(self, file_path, channel_name, channel_index):
