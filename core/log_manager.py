@@ -8,7 +8,7 @@ from utils.singleton import Singleton
 class LogManager(Singleton):
 
     def __init__(self, log_file: str = 'app.log', max_bytes: int = 5*1024*1024,
-                 backup_count: int = 3, level: int = logging.INFO):
+                 backup_count: int = 0, level: int = logging.INFO):
         if self._initialized:
             return
 
