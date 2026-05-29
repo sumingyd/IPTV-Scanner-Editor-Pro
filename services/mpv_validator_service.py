@@ -268,6 +268,14 @@ class MpvStreamValidator:
                     destroy_mpv(handle)
             sem.release()
 
+        if not result.get('valid', False):
+            global_logger.debug(
+                f"验证无效: {url} | "
+                f"latency={result.get('latency', 0)}ms | "
+                f"error_type={result.get('error_type', 'unknown')} | "
+                f"error={result.get('error', '')}"
+            )
+
         return result
 
     @classmethod

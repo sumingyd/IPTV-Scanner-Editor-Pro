@@ -240,7 +240,6 @@ class ConfigManager(Singleton):
                 logger.debug(f"配置管理- section不存在: {section}")
                 return default
             except configparser.NoOptionError:
-                logger.debug(f"配置管理- option不存在: {section}.{key}")
                 return default
             except Exception as e:
                 logger.error(f"配置管理-获取配置值失败: {str(e)}", exc_info=True)
