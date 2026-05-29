@@ -161,12 +161,8 @@ class MpvStreamValidator:
                 except Exception:
                     pass
                 _mpv_set_property_string(handle, 'rtsp-transport', rtsp_transport)
-                _mpv_set_property_string(handle, 'demuxer-lavf-probesize', '32')
-                _mpv_set_property_string(handle, 'demuxer-lavf-analyzeduration', '0')
             elif '/rtp/' in u or u.endswith('.ts') or u.startswith('udp://'):
                 _mpv_set_property_string(handle, 'demuxer-lavf-format', 'mpegts')
-                _mpv_set_property_string(handle, 'demuxer-lavf-probesize', '32')
-                _mpv_set_property_string(handle, 'demuxer-lavf-analyzeduration', '0')
 
             start_time = time.time()
 
