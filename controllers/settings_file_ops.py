@@ -212,11 +212,13 @@ class SettingsFileOperations:
 
         rtsp_transport_combo = QComboBox()
         rtsp_transport_combo.setObjectName("rtsp_transport_combo")
-        rtsp_transport_combo.addItems(["tcp", "udp", "lavf"])
+        for display, value in [("TCP", "tcp"), ("UDP", "udp"), ("LAVF", "lavf")]:
+            rtsp_transport_combo.addItem(display, value)
         rtsp_value = playback_settings.get('rtsp_transport', 'tcp')
-        rtsp_idx = rtsp_transport_combo.findText(rtsp_value)
-        if rtsp_idx >= 0:
-            rtsp_transport_combo.setCurrentIndex(rtsp_idx)
+        for i in range(rtsp_transport_combo.count()):
+            if rtsp_transport_combo.itemData(i) == rtsp_value:
+                rtsp_transport_combo.setCurrentIndex(i)
+                break
         layout.addRow(tr("rtsp_transport_colon", "RTSP Transport:"), rtsp_transport_combo)
 
         hwdec_check = QCheckBox(tr("hwdec_label", "Hardware Decoding"))
@@ -421,7 +423,7 @@ class SettingsFileOperations:
         settings = {}
         combo = dialog.findChild(QComboBox, "rtsp_transport_combo")
         if combo:
-            settings['rtsp_transport'] = combo.currentText()
+            settings['rtsp_transport'] = combo.currentData() or combo.currentText().lower()
         check = dialog.findChild(QCheckBox, "hwdec_check")
         if check:
             settings['hwdec'] = check.isChecked()
