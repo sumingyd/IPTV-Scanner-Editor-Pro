@@ -450,6 +450,8 @@ class IPTVPlayer(QMainWindow):
                     '_groups': [tr("local_video", "本地视频")],
                 }
                 self._add_to_local_list(channel)
+                self.config.add_recent_file(path)
+                self.update_recent_files_menu()
                 logger.info(f"拖放打开视频文件: {path}")
                 event.acceptProposedAction()
                 return
@@ -3269,6 +3271,8 @@ class IPTVPlayer(QMainWindow):
                         '_groups': [tr("bluray", "蓝光原盘")],
                     }
                     self._add_to_local_list(channel)
+                    self.config.add_recent_file(dir_path)
+                    self.update_recent_files_menu()
                 else:
                     QMessageBox.warning(
                         self, tr("not_bluray", "非蓝光原盘"),
@@ -3578,6 +3582,8 @@ if __name__ == "__main__":
                         '_groups': [player.language_manager.tr("local_video", "本地视频")],
                     }
                     player._add_to_local_list(channel)
+                    player.config.add_recent_file(fp)
+                    player.update_recent_files_menu()
                 QTimer.singleShot(800, _open_video_from_cmdline)
 
     sys.exit(app.exec())
