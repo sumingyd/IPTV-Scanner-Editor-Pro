@@ -3058,6 +3058,13 @@ class IPTVPlayer(QMainWindow):
             dialog.config = self.config
             dialog.language_manager = self.language_manager
             self._scan_dialog = dialog
+
+            from ui.theme_manager import get_theme_manager
+            try:
+                get_theme_manager().register_window(dialog)
+            except Exception:
+                pass
+
             dialog.show()
 
             logger.info("成功打开扫描界面")

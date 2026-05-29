@@ -974,7 +974,7 @@ class AppStyles:
         elif style == 'win11':
             return f"background-color: {c['base']}; border-radius: {r}px; padding: 4px; border: 1px solid {c.get('border_thin', c['mid'])};"
         elif style == 'mac':
-            return f"background-color: {c['base']}; border-radius: {r}px; padding: 4px; border: none; box-shadow: {cls._get_style_shadow()};"
+            return f"background-color: {c['base']}; border-radius: {r}px; padding: 4px; border: none;"
         elif style == 'ios':
             return f"background-color: {c['base']}; border-radius: {r}px; padding: 4px; border: none;"
         return f"background-color: {c['base']}; border-radius: {r}px; padding: 2px; border: 1px solid {c['mid']};"
