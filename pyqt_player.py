@@ -2963,7 +2963,7 @@ class IPTVPlayer(QMainWindow):
             self.floating_dock.move(fl_x, fl_y)
 
     def toggle_fullscreen(self, checked=None):
-        if checked is not None:
+        if checked is not None and self.fullscreen_button.isCheckable():
             want_fullscreen = bool(checked)
         else:
             want_fullscreen = not self.is_fullscreen
