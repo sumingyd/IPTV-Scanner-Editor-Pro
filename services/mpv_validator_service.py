@@ -34,14 +34,21 @@ def get_optimal_thread_count():
 
 def _create_lightweight_mpv():
     if not _is_mpv_available():
-        return None
+        return None, None
     try:
+        from PyQt6.QtWidgets import QWidget
+        from PyQt6.QtCore import Qt
+        offscreen = QWidget()
+        offscreen.setFixedSize(1, 1)
+        offscreen.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, True)
+        offscreen.show()
+
         handle = create_mpv_handle()
         if not handle:
-            return None
-        _mpv_set_option_string(handle, 'vo', 'null')
+            return None, None
+        _mpv_set_option_string(handle, 'vo', 'gpu')
         _mpv_set_option_string(handle, 'ao', 'null')
-        _mpv_set_option_string(handle, 'hwdec', 'no')
+        _mpv_set_option_string(handle, 'hwdec', 'auto')
         _mpv_set_option_string(handle, 'osc', 'no')
         _mpv_set_option_string(handle, 'osd-bar', 'no')
         _mpv_set_option_string(handle, 'idle', 'yes')
@@ -87,10 +94,11 @@ def _create_lightweight_mpv():
 
         if not initialize_mpv(handle):
             destroy_mpv(handle)
-            return None
-        return handle
+            return None, None
+        _mpv_set_property_string(handle, 'wid', str(int(offscreen.winId())))
+        return handle, offscreen
     except Exception:
-        return None
+        return None, None
 
 
 class MpvStreamValidator:
@@ -143,8 +151,9 @@ class MpvStreamValidator:
             return result
 
         handle = None
+        offscreen = None
         try:
-            handle = _create_lightweight_mpv()
+            handle, offscreen = _create_lightweight_mpv()
             if not handle:
                 result['error'] = '创建mpv实例失败'
                 result['error_type'] = 'mpv_create_failed'
@@ -237,31 +246,17 @@ class MpvStreamValidator:
                     if codec:
                         result['codec'] = codec
                 elif end_reason == MPV_END_FILE_REASON_ERROR:
-                    if latency < 3000:
-                        result['valid'] = True
-                        result['error'] = f'播放警告(错误码:{end_error},延迟{latency}ms)'
-                        result['error_type'] = 'playback_warning'
-                        w = _mpv_get_property_int(handle, 'width')
-                        h = _mpv_get_property_int(handle, 'height')
-                        if w and h and w > 0 and h > 0:
-                            result['resolution'] = f"{w}x{h}"
-                    else:
-                        result['valid'] = False
-                        result['error'] = f'播放失败(错误码:{end_error})'
-                        result['error_type'] = 'playback_failed'
+                    result['valid'] = False
+                    result['error'] = f'播放失败(错误码:{end_error})'
+                    result['error_type'] = 'playback_failed'
                 else:
-                    if latency < 3000:
-                        result['valid'] = True
-                        result['error'] = f'未知结束(reason:{end_reason},延迟{latency}ms)'
-                        result['error_type'] = 'unknown_warning'
+                    result['valid'] = False
+                    if end_reason is not None:
+                        result['error'] = f'流结束(reason:{end_reason})'
+                        result['error_type'] = 'stream_ended'
                     else:
-                        result['valid'] = False
-                        if end_reason is not None:
-                            result['error'] = f'流结束(reason:{end_reason})'
-                            result['error_type'] = 'stream_ended'
-                        else:
-                            result['error'] = '流结束'
-                            result['error_type'] = 'stream_ended'
+                        result['error'] = '流结束'
+                        result['error_type'] = 'stream_ended'
 
             else:
                 result['valid'] = False
@@ -280,6 +275,12 @@ class MpvStreamValidator:
                         self._active_handles.remove(handle)
                 if was_active:
                     destroy_mpv(handle)
+            if offscreen:
+                try:
+                    from PyQt6.QtCore import QTimer
+                    QTimer.singleShot(0, offscreen.deleteLater)
+                except Exception:
+                    pass
             sem.release()
 
         return result
