@@ -57,6 +57,57 @@ class URLRangeParser:
                     seen.add(num)
                     yield str(num).zfill(pad_width)
 
+    def _create_range_iterator(self, parsed_segments, pad_width: int):
+        class RangeIterator:
+            def __init__(self, segments, pad):
+                self.segments = segments
+                self.pad = pad
+                self.seg_idx = 0
+                self.current = None
+                self.end = None
+                self.needs_dedup = len(segments) > 1
+                self.seen = set() if self.needs_dedup else None
+                self._advance_segment()
+
+            def _advance_segment(self):
+                while self.seg_idx < len(self.segments):
+                    start, end, _ = self.segments[self.seg_idx]
+                    self.current = start
+                    self.end = end
+                    self.seg_idx += 1
+                    if not self.needs_dedup or self.current not in self.seen:
+                        return
+                self.current = None
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                while self.current is not None:
+                    val = self.current
+                    if not self.needs_dedup or val not in self.seen:
+                        if self.needs_dedup:
+                            self.seen.add(val)
+                        result = str(val).zfill(self.pad)
+                        self.current += 1
+                        if self.current > self.end:
+                            self._advance_segment()
+                        return result
+                    self.current += 1
+                    if self.current > self.end:
+                        self._advance_segment()
+                raise StopIteration
+
+            def reset(self):
+                self.seg_idx = 0
+                self.current = None
+                self.end = None
+                if self.needs_dedup:
+                    self.seen = set()
+                self._advance_segment()
+
+        return RangeIterator(parsed_segments, pad_width)
+
     def _find_valid_ranges(self, url):
         ipv6_spans = [m.span() for m in self.ipv6_pattern.finditer(url)]
         valid_ranges = []
@@ -144,7 +195,7 @@ class URLRangeParser:
         iterators = []
         current_values = []
         for r in ranges_info:
-            it = iter(list(self._iter_range_values(r['segments'], r['pad_width'])))
+            it = self._create_range_iterator(r['segments'], r['pad_width'])
             first = next(it, None)
             if first is None:
                 return
@@ -160,13 +211,10 @@ class URLRangeParser:
                 if nxt is not None:
                     current_values[idx] = nxt
                     break
-                it = iter(list(self._iter_range_values(
-                    ranges_info[idx]['segments'], ranges_info[idx]['pad_width']
-                )))
-                first = next(it, None)
+                iterators[idx].reset()
+                first = next(iterators[idx], None)
                 if first is None:
                     return
-                iterators[idx] = it
                 current_values[idx] = first
                 idx -= 1
 

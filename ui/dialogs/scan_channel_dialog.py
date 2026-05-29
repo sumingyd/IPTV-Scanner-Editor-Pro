@@ -2109,6 +2109,20 @@ class ScanChannelDialog(FloatingDialog):
         self._scan_progress_completed = False
         self._add_url_to_history(url)
 
+        MAX_SCAN_URLS = 10_000_000
+        try:
+            url_count = self.scanner.url_parser.estimate_url_count(url)
+            if url_count > MAX_SCAN_URLS:
+                warning_msg = self.language_manager.tr(
+                    'url_count_exceeded',
+                    f'URL数量过多({url_count})，上限{MAX_SCAN_URLS}，请缩小范围'
+                ).format(count=url_count, max=MAX_SCAN_URLS)
+                self._show_input_warning(self.ip_range_input, warning_msg)
+                self.logger.warning(f"URL数量超限: {url_count} > {MAX_SCAN_URLS}")
+                return
+        except Exception:
+            pass
+
         if clear_list:
             self.model.clear()
             log_scan_info("开始完整扫描，清空现有列表")
