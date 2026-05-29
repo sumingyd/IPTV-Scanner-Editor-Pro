@@ -2969,14 +2969,14 @@ class IPTVPlayer(QMainWindow):
             want_fullscreen = not self.is_fullscreen
 
         if want_fullscreen == self.is_fullscreen:
-            self.logger.debug(f"toggle_fullscreen跳过: checked={checked}, is_fullscreen={self.is_fullscreen}, btn_checkable={self.fullscreen_button.isCheckable()}")
+            logger.debug(f"toggle_fullscreen跳过: checked={checked}, is_fullscreen={self.is_fullscreen}, btn_checkable={self.fullscreen_button.isCheckable()}")
             return
 
         self.is_fullscreen = want_fullscreen
 
         if self.is_fullscreen:
             self._before_fullscreen_geo = self.geometry()
-            self.logger.debug(f"进入全屏: 保存geometry={self._before_fullscreen_geo.getRect()}, screen={self.screen().geometry().getRect() if self.screen() else None}")
+            logger.debug(f"进入全屏: 保存geometry={self._before_fullscreen_geo.getRect()}, screen={self.screen().geometry().getRect() if self.screen() else None}")
             self.panel_vis.set_auto_hide_visible()
             self.panel_vis.save_context('fullscreen')
             if hasattr(self, '_title_bar') and self._title_bar:
@@ -2990,7 +2990,7 @@ class IPTVPlayer(QMainWindow):
             if screen:
                 geo = screen.geometry()
                 self.setGeometry(geo)
-            self.logger.debug(f"进入全屏后: geometry={self.geometry().getRect()}, isFullScreen={self.isFullScreen()}")
+            logger.debug(f"进入全屏后: geometry={self.geometry().getRect()}, isFullScreen={self.isFullScreen()}")
             self.unsetCursor()
             is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
             self.panel_vis.set_all_visible(is_local_file=is_local)
@@ -3000,12 +3000,12 @@ class IPTVPlayer(QMainWindow):
             self._stop_auto_hide_timer()
             self.unsetCursor()
             saved = self.panel_vis.restore_context('fullscreen')
-            self.logger.debug(f"退出全屏: showNormal前geometry={self.geometry().getRect()}, isFullScreen={self.isFullScreen()}, saved_geo={getattr(self, '_before_fullscreen_geo', None)}")
+            logger.debug(f"退出全屏: showNormal前geometry={self.geometry().getRect()}, isFullScreen={self.isFullScreen()}, saved_geo={getattr(self, '_before_fullscreen_geo', None)}")
             self.showNormal()
             saved_geo = getattr(self, '_before_fullscreen_geo', None)
             if saved_geo:
                 self.setGeometry(saved_geo)
-            self.logger.debug(f"退出全屏后: geometry={self.geometry().getRect()}, isFullScreen={self.isFullScreen()}")
+            logger.debug(f"退出全屏后: geometry={self.geometry().getRect()}, isFullScreen={self.isFullScreen()}")
             if saved:
                 if saved.get('title_bar', True) and hasattr(self, '_title_bar') and self._title_bar:
                     self._title_bar.show()
