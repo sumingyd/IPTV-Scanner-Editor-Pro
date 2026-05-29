@@ -67,8 +67,7 @@ class ThemeManager(Singleton, QtCore.QObject):
             if isinstance(window, QtWidgets.QMainWindow):
                 window.setStyleSheet(AppStyles.main_window_style())
                 self._update_child_widgets(window)
-                if hasattr(window, 'reapply_styles'):
-                    window.reapply_styles()
+                self._reapply_main_window_components(window)
             elif isinstance(window, QtWidgets.QDialog):
                 window.setStyleSheet(AppStyles.dialog_style())
                 self._update_child_widgets(window)
@@ -79,6 +78,40 @@ class ThemeManager(Singleton, QtCore.QObject):
         except Exception as e:
             print(f"应用主题到窗口失败: {e}")
 
+    def _reapply_main_window_components(self, window):
+        """对主窗口的各区域组件逐一重刷样式，确保Dock/面板/标题栏/菜单栏都更新"""
+        try:
+            for attr, style_func in [
+                ('_title_bar', AppStyles.title_bar_style),
+                ('_title_label', AppStyles.title_label_style),
+                ('_custom_menu_bar', AppStyles.player_menu_bar_style),
+                ('central_widget', AppStyles.player_background_style),
+                ('video_frame', AppStyles.player_background_style),
+                ('video_placeholder', AppStyles.player_video_placeholder_style),
+                ('status_bar', AppStyles.statusbar_style),
+                ('toolbar', AppStyles.player_toolbar_style),
+            ]:
+                widget = getattr(window, attr, None)
+                if widget:
+                    widget.setStyleSheet(style_func())
+
+            for dock_attr in ['epg_dock', 'playlist_dock', 'floating_dock']:
+                panel = getattr(window, dock_attr, None)
+                if panel:
+                    container = panel.widget()
+                    if container and hasattr(container, 'setStyleSheet'):
+                        container.setStyleSheet(AppStyles.player_panel_style())
+                    panel.update()
+
+            if hasattr(window, '_reapply_floating_panel_styles'):
+                window._reapply_floating_panel_styles()
+            if hasattr(window, '_reapply_side_panel_styles'):
+                window._reapply_side_panel_styles()
+            if hasattr(window, 'reapply_styles'):
+                window.reapply_styles()
+        except Exception as e:
+            print(f"重刷主窗口组件样式失败: {e}")
+
     def _is_in_dock(self, widget):
         w = widget.parent()
         while w:
@@ -88,10 +121,10 @@ class ThemeManager(Singleton, QtCore.QObject):
         return False
 
     def _is_in_managed_widget(self, widget):
+        """检查控件是否在有独立样式管理的容器内（标题栏、菜单栏）。
+        Dock内控件不再跳过，因为_reapply_main_window_components已确保Dock刷新。"""
         w = widget.parent()
         while w:
-            if isinstance(w, QtWidgets.QDockWidget):
-                return True
             if isinstance(w, QtWidgets.QMenuBar):
                 return True
             if isinstance(w, QtWidgets.QWidget) and w.objectName() == "titleBar":

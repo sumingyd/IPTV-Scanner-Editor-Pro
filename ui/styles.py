@@ -997,10 +997,19 @@ class AppStyles:
         ff = AppStyles._get_style_font_family()
         grp_dec = AppStyles._style_group_decoration(colors)
         inp_dec = AppStyles._style_input_decoration(colors)
+        btn_dec = AppStyles._style_btn_decoration(colors)
+        btn_dec_hover = AppStyles._style_btn_decoration(colors, hover=True)
+        btn_dec_pressed = AppStyles._style_btn_decoration(colors, pressed=True)
         style = AppStyles._visual_style
         container_border = "none" if style in ('neumorphic', 'mac', 'ios') else f"1px solid {colors['mid']}"
         spinbox_border = AppStyles._style_input_decoration(colors)
         spinbox_focus = AppStyles._style_input_decoration(colors, focus=True)
+        btn_bg = colors.get('button_bg', colors['button'])
+        btn_hover_bg = colors.get('button_hover_bg', colors['light'])
+        input_bg = colors.get('input_bg', colors['alternate_base'])
+        dock_bg = colors.get('dock_bg', colors['base'])
+        tooltip_bg = colors.get('tooltip_base', colors['base'])
+        tooltip_fg = colors.get('tooltip_text', colors['window_text'])
         return f"""
             QMainWindow {{
                 background-color: transparent;
@@ -1018,12 +1027,167 @@ class AppStyles:
                 border-bottom-left-radius: {r}px;
                 border-bottom-right-radius: {r}px;
             }}
+            QLabel {{
+                color: {colors['window_text']};
+                font-family: {ff};
+            }}
+            QPushButton {{
+                color: {colors['window_text']};
+                padding: 6px 12px;
+                font-weight: 500;
+                font-size: 12px;
+                font-family: {ff};
+                {btn_dec}
+            }}
+            QPushButton:hover {{
+                color: {colors['window_text']};
+                {btn_dec_hover}
+            }}
+            QPushButton:pressed {{
+                color: {colors['window_text']};
+                {btn_dec_pressed}
+            }}
+            QPushButton:disabled {{
+                background-color: {colors['light']};
+                color: {colors['placeholder']};
+            }}
+            QLineEdit {{
+                color: {colors['window_text']};
+                padding: 6px;
+                font-size: 12px;
+                font-family: {ff};
+                {inp_dec}
+            }}
+            QLineEdit:focus {{
+                border-color: {colors['accent']};
+                outline: none;
+            }}
+            QComboBox {{
+                color: {colors['window_text']};
+                padding: 6px;
+                font-size: 12px;
+                font-family: {ff};
+                {inp_dec}
+            }}
+            QComboBox::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                width: 20px;
+                border: none;
+            }}
+            QComboBox::down-arrow {{
+                image: url({AppStyles._get_arrow_image(colors['window_text'])});
+                width: 10px;
+                height: 6px;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {colors['base']};
+                color: {colors['window_text']};
+                selection-background-color: {colors['accent']};
+                selection-color: {AppStyles.COLOR_WHITE};
+                border: 1px solid {colors['mid']};
+                outline: none;
+            }}
+            QTableView {{
+                background-color: {colors['alternate_base']};
+                alternate-background-color: {colors['table_alternate']};
+                selection-background-color: {colors['table_selection']};
+                selection-color: {colors['table_selection_text']};
+                gridline-color: {colors['table_grid']};
+                color: {colors['window_text']};
+                font-size: 12px;
+                font-family: {ff};
+            }}
+            QTableView::item {{
+                padding: 6px 10px;
+                color: {colors['window_text']};
+            }}
+            QTableView::item:hover {{
+                background-color: {colors['table_hover']};
+            }}
+            QTableView::item:selected {{
+                background-color: {colors['table_selection']};
+                color: {colors['table_selection_text']};
+            }}
+            QHeaderView {{
+                background-color: {colors['table_header']};
+            }}
+            QHeaderView::section {{
+                background-color: {colors['table_header']};
+                color: {colors['window_text']};
+                padding: 8px 12px;
+                font-weight: 600;
+                font-size: 12px;
+                font-family: {ff};
+                border: none;
+                border-right: 1px solid {colors['mid']};
+            }}
+            QListWidget {{
+                background-color: {colors['alternate_base']};
+                color: {colors['window_text']};
+                font-family: {ff};
+                outline: none;
+            }}
+            QListWidget::item {{
+                padding: 4px 8px;
+                color: {colors['window_text']};
+            }}
+            QListWidget::item:hover {{
+                background-color: {colors['highlight']};
+            }}
+            QListWidget::item:selected {{
+                background-color: {colors['accent']};
+                color: {AppStyles.COLOR_WHITE};
+            }}
+            QTextEdit {{
+                background-color: {input_bg};
+                color: {colors['window_text']};
+                font-family: {ff};
+            }}
+            QToolButton {{
+                color: {colors['window_text']};
+                font-family: {ff};
+            }}
+            QSlider::groove:horizontal {{
+                background: {colors['player_slider_track']};
+                height: 4px;
+                border-radius: 2px;
+            }}
+            QSlider::sub-page:horizontal {{
+                background: {colors['player_slider_fill']};
+                height: 4px;
+                border-radius: 2px;
+            }}
+            QSlider::handle:horizontal {{
+                background: {colors['player_slider_handle']};
+                width: 10px;
+                height: 10px;
+                border-radius: 5px;
+                margin: -3px 0;
+            }}
+            QDockWidget {{
+                color: {colors['window_text']};
+                font-family: {ff};
+            }}
+            QDockWidget::title {{
+                background-color: {dock_bg};
+                color: {colors['window_text']};
+                padding: 4px;
+            }}
+            QToolTip {{
+                background-color: {tooltip_bg};
+                color: {tooltip_fg};
+                border: 1px solid {colors['mid']};
+                padding: 4px;
+                font-family: {ff};
+            }}
             QGroupBox {{
                 margin-top: 12px;
                 padding-top: 16px;
                 font-weight: 600;
                 font-size: 13px;
                 color: {colors['window_text']};
+                font-family: {ff};
                 {grp_dec}
             }}
             QGroupBox::title {{
@@ -1044,6 +1208,20 @@ class AppStyles:
                 font-size: 13px;
                 font-family: {ff};
                 spacing: 8px;
+            }}
+            QRadioButton {{
+                color: {colors['window_text']};
+                font-family: {ff};
+                spacing: 8px;
+            }}
+            QProgressBar {{
+                background-color: {colors['alternate_base']};
+                color: {colors['window_text']};
+                text-align: center;
+                font-family: {ff};
+            }}
+            QProgressBar::chunk {{
+                background-color: {colors['accent']};
             }}
             QSpinBox {{
                 padding: 6px 10px;
