@@ -34,21 +34,14 @@ def get_optimal_thread_count():
 
 def _create_lightweight_mpv():
     if not _is_mpv_available():
-        return None, None
+        return None
     try:
-        from PyQt6.QtWidgets import QWidget
-        from PyQt6.QtCore import Qt
-        offscreen = QWidget()
-        offscreen.setFixedSize(1, 1)
-        offscreen.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, True)
-        offscreen.show()
-
         handle = create_mpv_handle()
         if not handle:
-            return None, None
-        _mpv_set_option_string(handle, 'vo', 'gpu')
+            return None
+        _mpv_set_option_string(handle, 'vo', 'null')
         _mpv_set_option_string(handle, 'ao', 'null')
-        _mpv_set_option_string(handle, 'hwdec', 'auto')
+        _mpv_set_option_string(handle, 'hwdec', 'no')
         _mpv_set_option_string(handle, 'osc', 'no')
         _mpv_set_option_string(handle, 'osd-bar', 'no')
         _mpv_set_option_string(handle, 'idle', 'yes')
@@ -94,11 +87,10 @@ def _create_lightweight_mpv():
 
         if not initialize_mpv(handle):
             destroy_mpv(handle)
-            return None, None
-        _mpv_set_property_string(handle, 'wid', str(int(offscreen.winId())))
-        return handle, offscreen
+            return None
+        return handle
     except Exception:
-        return None, None
+        return None
 
 
 class MpvStreamValidator:
@@ -151,9 +143,8 @@ class MpvStreamValidator:
             return result
 
         handle = None
-        offscreen = None
         try:
-            handle, offscreen = _create_lightweight_mpv()
+            handle = _create_lightweight_mpv()
             if not handle:
                 result['error'] = '创建mpv实例失败'
                 result['error_type'] = 'mpv_create_failed'
@@ -275,12 +266,6 @@ class MpvStreamValidator:
                         self._active_handles.remove(handle)
                 if was_active:
                     destroy_mpv(handle)
-            if offscreen:
-                try:
-                    from PyQt6.QtCore import QTimer
-                    QTimer.singleShot(0, offscreen.deleteLater)
-                except Exception:
-                    pass
             sem.release()
 
         return result
