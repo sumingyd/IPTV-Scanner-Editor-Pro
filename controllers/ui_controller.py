@@ -902,6 +902,14 @@ class UIController:
                                 logo_label.setPixmap(scaled)
                     break
 
+    def _set_log_level(self, level_name, level_value):
+        from core.log_manager import global_logger
+        from core.config_manager import ConfigManager
+        global_logger.set_level(level_value)
+        ConfigManager().set_value('UI', 'log_level', level_name)
+        ConfigManager().save_config()
+        global_logger.info(f"日志等级切换为: {level_name}")
+
     def setup_menu_bar(self, skip_recent_files=False):
         """设置菜单栏"""
         from PyQt6.QtWidgets import QMenuBar
@@ -1097,6 +1105,34 @@ class UIController:
             reset_layout = QAction(tr("menu_reset_layout", "Reset Layout"), self.window)
             reset_layout.triggered.connect(self.window.reset_layout)
             view_menu.addAction(reset_layout)
+
+            view_menu.addSeparator()
+            log_menu = view_menu.addMenu(tr("menu_log_level", "日志等级"))
+
+            import logging
+            from core.log_manager import global_logger
+            from core.config_manager import ConfigManager
+            log_levels = [
+                ('DEBUG', logging.DEBUG, tr("log_level_debug", "调试")),
+                ('INFO', logging.INFO, tr("log_level_info", "信息")),
+                ('WARNING', logging.WARNING, tr("log_level_warning", "警告")),
+                ('ERROR', logging.ERROR, tr("log_level_error", "错误")),
+            ]
+            current_level_name = ConfigManager().get_value('UI', 'log_level', 'INFO')
+            log_group = QActionGroup(self.window)
+            log_group.setExclusive(True)
+            for name, level, label in log_levels:
+                action = QAction(label, self.window)
+                action.setCheckable(True)
+                action.setChecked(name == current_level_name)
+                action.triggered.connect(lambda checked, n=name, l=level: self._set_log_level(n, l))
+                log_menu.addAction(action)
+                log_group.addAction(action)
+            try:
+                current_level = getattr(logging, current_level_name, logging.INFO)
+                global_logger.set_level(current_level)
+            except Exception:
+                pass
 
             tools_menu = menu_bar.addMenu(tr("menu_tools", "Tools"))
 
