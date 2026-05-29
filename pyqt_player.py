@@ -2983,6 +2983,10 @@ class IPTVPlayer(QMainWindow):
             if self.status_bar:
                 self.status_bar.hide()
             self.showFullScreen()
+            screen = self.screen()
+            if screen:
+                geo = screen.geometry()
+                self.setGeometry(geo)
             self.unsetCursor()
             is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
             self.panel_vis.set_all_visible(is_local_file=is_local)
