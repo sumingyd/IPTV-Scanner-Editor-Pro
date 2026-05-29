@@ -294,7 +294,7 @@ def _make_empty_channel(group: str = '未分类', groups: Optional[List[str]] = 
         'catchup_correction': '',
         'fcc': '',
         'resolution': '',
-        'valid': False,
+        'valid': None,
         'status': '待检测',
         '_raw_extinf': extinf,
         '_all_tags': {},

@@ -235,7 +235,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         elif role == QtCore.Qt.ItemDataRole.BackgroundRole:
             from ui.styles import AppStyles
             colors = AppStyles._get_colors()
-            if not channel.get('valid', True):
+            valid = channel.get('valid')
+            if valid is False:
                 return QtGui.QColor(colors.get('error_background', '#ffdddd'))
             else:
                 return QtGui.QColor(colors['table_alternate'])
@@ -243,9 +244,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             from ui.styles import AppStyles
             colors = AppStyles._get_colors()
             status = channel.get('status', '待检测')
-            valid = channel.get('valid', True)
+            valid = channel.get('valid')
 
-            if not valid and status != '待检测':
+            if valid is False and status != '待检测':
                 return QtGui.QColor(colors.get('error', '#ff6666'))
             elif status == '待检测':
                 return QtGui.QColor(colors.get('placeholder', '#999999'))
@@ -261,7 +262,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             return channel.get('logo', channel.get('logo_url', ''))
         if actual_col == 7:
             latency = channel.get('latency', '')
-            if not channel.get('valid', True):
+            if channel.get('valid') is not True:
                 return ''
             return str(latency) if latency != '' else ''
         if actual_col == 11:
@@ -470,7 +471,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         if not hasattr(self, '_original_channels'):
             self._original_channels = self.channels.copy()
         self.beginResetModel()
-        self.channels = [c for c in self.channels if c.get('valid', True)]
+        self.channels = [c for c in self.channels if c.get('valid') is not False]
         self._is_hiding_invalid = True
         self.endResetModel()
 

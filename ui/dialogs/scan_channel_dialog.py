@@ -2324,7 +2324,7 @@ class ScanChannelDialog(FloatingDialog):
         if self.enable_retry_checkbox.isChecked():
             invalid_urls = []
             for ch in self.model.channels:
-                if not ch.get('valid', True) and ch.get('url'):
+                if ch.get('valid') is False and ch.get('url'):
                     invalid_urls.append(ch.get('url'))
             if invalid_urls:
                 self.logger.info(f"检测有效性完成，{len(invalid_urls)}个无效频道，启动智能重试...")
@@ -2335,7 +2335,7 @@ class ScanChannelDialog(FloatingDialog):
                 self.logger.info("检测有效性完成，所有频道均有效")
                 self.stats_label.setText(self.language_manager.tr("all_channels_valid", "All channels are valid"))
         else:
-            valid_count = sum(1 for ch in self.model.channels if ch.get('valid', True))
+            valid_count = sum(1 for ch in self.model.channels if ch.get('valid') is True)
             total = len(self.model.channels)
             tr = self.language_manager.tr
             self.stats_label.setText(
@@ -2558,7 +2558,7 @@ class ScanChannelDialog(FloatingDialog):
     def _on_channel_found(self, channel_info):
         """处理发现有效频道事件"""
         self._invalidate_channels_cache()
-        is_valid = channel_info.get('valid', True)
+        is_valid = channel_info.get('valid') is True
         channel_info['status'] = self.language_manager.tr('valid', '有效') if is_valid else self.language_manager.tr('invalid', '无效')
         self.model.add_channel(channel_info)
 
@@ -2618,7 +2618,7 @@ class ScanChannelDialog(FloatingDialog):
         url_to_index = {}
         for i, ch in enumerate(self.model.channels):
             url = ch.get('url', '')
-            if url and not ch.get('valid', True):
+            if url and ch.get('valid') is False:
                 url_to_index.setdefault(url, i)
 
         newly_valid = 0
