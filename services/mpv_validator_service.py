@@ -44,7 +44,7 @@ def _create_lightweight_mpv():
         _mpv_set_option_string(handle, 'idle', 'yes')
         _mpv_set_option_string(handle, 'ytdl', 'no')
         _mpv_set_option_string(handle, 'keep-open', 'yes')
-        _mpv_set_option_string(handle, 'log-level', 'error')
+        _mpv_set_option_string(handle, 'log-level', 'fatal')
         _mpv_set_option_string(handle, 'config', 'no')
         _mpv_set_option_string(handle, 'demuxer-lavf-probesize', '32768')
         _mpv_set_option_string(handle, 'demuxer-lavf-analyzeduration', '1000000')
