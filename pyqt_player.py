@@ -2133,6 +2133,14 @@ class IPTVPlayer(QMainWindow):
         """设置界面主题（委托给SettingsFileOperations）"""
         self.settings_ops.set_theme(theme)
 
+    def set_color_mode(self, mode: str):
+        """设置颜色模式（委托给SettingsFileOperations）"""
+        self.settings_ops.set_color_mode(mode)
+
+    def set_visual_style(self, style: str):
+        """设置视觉风格（委托给SettingsFileOperations）"""
+        self.settings_ops.set_visual_style(style)
+
     def show_about(self):
         """显示关于对话框（委托给SettingsFileOperations）"""
         self.settings_ops.show_about()
@@ -2456,6 +2464,14 @@ class IPTVPlayer(QMainWindow):
     def set_theme(self, theme: str):
         """设置界面主题（委托给SettingsFileOperations）"""
         self.settings_ops.set_theme(theme)
+
+    def set_color_mode(self, mode: str):
+        """设置颜色模式（委托给SettingsFileOperations）"""
+        self.settings_ops.set_color_mode(mode)
+
+    def set_visual_style(self, style: str):
+        """设置视觉风格（委托给SettingsFileOperations）"""
+        self.settings_ops.set_visual_style(style)
 
     def show_about(self):
         """显示关于对话框（委托给SettingsFileOperations）"""

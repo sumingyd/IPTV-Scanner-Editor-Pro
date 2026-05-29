@@ -564,14 +564,38 @@ class ConfigManager(Singleton):
             return True
         return False
     
-    def save_theme_settings(self, theme_name):
-        """保存主题设置"""
-        self.set_value('Theme', 'current_theme', theme_name)
+    def save_theme_settings(self, color_mode, visual_style='flat'):
+        self.set_value('Theme', 'color_mode', color_mode)
+        self.set_value('VisualStyle', 'current_style', visual_style)
+        self.set_value('Theme', 'current_theme', f"{color_mode}+{visual_style}")
         return self.save_config()
     
     def load_theme_settings(self):
-        """加载主题设置"""
-        return self.get_value('Theme', 'current_theme', 'dark')
+        color_mode = self.get_value('Theme', 'color_mode', '')
+        visual_style = self.get_value('VisualStyle', 'current_style', '')
+        if not color_mode:
+            old_theme = self.get_value('Theme', 'current_theme', 'dark')
+            mapping = {
+                'dark': ('dark', 'flat'),
+                'light': ('light', 'flat'),
+                'dark_blue': ('dark', 'neumorphic'),
+                'neumorphic_light': ('light', 'neumorphic'),
+                'github_dark': ('dark', 'flat'),
+                'default': ('dark', 'flat'),
+            }
+            if old_theme in mapping:
+                color_mode, visual_style = mapping[old_theme]
+            else:
+                if '+' in old_theme:
+                    parts = old_theme.split('+')
+                    color_mode = parts[0] if len(parts) > 0 else 'dark'
+                    visual_style = parts[1] if len(parts) > 1 else 'flat'
+                else:
+                    color_mode = 'dark'
+                    visual_style = 'flat'
+        if not visual_style:
+            visual_style = 'flat'
+        return color_mode, visual_style
 
     def save_all_settings(self, settings_dict: dict):
         """保存所有设置"""

@@ -1155,20 +1155,33 @@ class UIController:
 
             theme_manager = self.window._theme_manager
 
-            themes = theme_manager.get_available_themes()
+            color_mode_menu = theme_menu.addMenu(tr("menu_color_mode", "颜色模式"))
+            color_modes = theme_manager.get_available_color_modes()
+            color_mode_group = QActionGroup(self.window)
+            color_mode_group.setExclusive(True)
+            for mode in color_modes:
+                display = tr(f"color_mode_{mode}", mode)
+                action = QAction(display, self.window)
+                action.setCheckable(True)
+                action.setChecked(mode == theme_manager.get_color_mode())
+                action.triggered.connect(lambda checked, m=mode: self.window.set_color_mode(m))
+                color_mode_group.addAction(action)
+                color_mode_menu.addAction(action)
 
-            from PyQt6.QtGui import QActionGroup
-            theme_group = QActionGroup(self.window)
-            theme_group.setExclusive(True)
+            theme_menu.addSeparator()
 
-            for theme in themes:
-                theme_display = tr(theme, theme)
-                theme_action = QAction(theme_display, self.window)
-                theme_action.setCheckable(True)
-                theme_action.setChecked(theme == theme_manager.get_current_theme())
-                theme_action.triggered.connect(lambda checked, t=theme: self.window.set_theme(t))
-                theme_group.addAction(theme_action)
-                theme_menu.addAction(theme_action)
+            visual_style_menu = theme_menu.addMenu(tr("menu_visual_style", "视觉风格"))
+            styles = theme_manager.get_available_visual_styles()
+            style_group = QActionGroup(self.window)
+            style_group.setExclusive(True)
+            for style in styles:
+                display = tr(f"visual_style_{style}", style)
+                action = QAction(display, self.window)
+                action.setCheckable(True)
+                action.setChecked(style == theme_manager.get_visual_style())
+                action.triggered.connect(lambda checked, s=style: self.window.set_visual_style(s))
+                style_group.addAction(action)
+                visual_style_menu.addAction(action)
 
             help_menu = menu_bar.addMenu(tr("menu_help", "Help"))
 

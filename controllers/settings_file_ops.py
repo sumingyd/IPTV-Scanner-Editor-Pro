@@ -565,6 +565,48 @@ class SettingsFileOperations:
         w.update()
         QApplication.processEvents()
 
+    def set_color_mode(self, mode: str):
+        get_theme_manager().set_color_mode(mode)
+        self._reapply_all_styles()
+
+    def set_visual_style(self, style: str):
+        get_theme_manager().set_visual_style(style)
+        self._reapply_all_styles()
+
+    def _reapply_all_styles(self):
+        w = self.window
+        w.setStyleSheet(AppStyles.main_window_style())
+
+        for attr, style_func in [
+            ('_title_bar', AppStyles.title_bar_style),
+            ('_title_label', AppStyles.title_label_style),
+            ('_custom_menu_bar', AppStyles.player_menu_bar_style),
+            ('central_widget', AppStyles.player_background_style),
+            ('video_frame', AppStyles.player_background_style),
+            ('video_placeholder', AppStyles.player_video_placeholder_style),
+            ('status_bar', AppStyles.statusbar_style),
+            ('toolbar', AppStyles.player_toolbar_style),
+        ]:
+            widget = getattr(w, attr, None)
+            if widget:
+                widget.setStyleSheet(style_func())
+
+        for dock_attr in ['epg_dock', 'playlist_dock', 'floating_dock']:
+            panel = getattr(w, dock_attr, None)
+            if panel:
+                container = panel.widget()
+                if container and hasattr(container, 'setStyleSheet'):
+                    container.setStyleSheet(AppStyles.player_panel_style())
+                panel.update()
+
+        if hasattr(w, '_reapply_floating_panel_styles'):
+            w._reapply_floating_panel_styles()
+        if hasattr(w, '_reapply_side_panel_styles'):
+            w._reapply_side_panel_styles()
+
+        w.update()
+        QApplication.processEvents()
+
     # ==================== 关于 / 使用说明 ====================
 
     def show_about(self):

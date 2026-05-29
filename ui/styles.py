@@ -10,8 +10,10 @@ atexit.register(shutil.rmtree, _SVG_TMPDIR, ignore_errors=True)
 
 
 class AppStyles:
-    """应用样式管理类 - 支持多主题"""
+    """应用样式管理类 - 支持颜色模式×视觉风格双维度主题"""
 
+    _color_mode = 'dark'
+    _visual_style = 'flat'
     _current_theme = 'dark'
     _arrow_cache = {}
     _check_cache = {}
@@ -23,6 +25,17 @@ class AppStyles:
     # 固定颜色常量（不随主题变化）
     COLOR_WHITE          = '#ffffff'
     COLOR_CLOSE_HOVER    = '#e81123'
+
+    AVAILABLE_COLOR_MODES = ['auto', 'dark', 'light']
+    AVAILABLE_VISUAL_STYLES = ['neumorphic', 'flat', 'skeuomorphic', 'frosted', 'win11', 'mac', 'ios']
+
+    _OLD_THEME_MAPPING = {
+        'dark': ('dark', 'flat'),
+        'light': ('light', 'flat'),
+        'dark_blue': ('dark', 'neumorphic'),
+        'neumorphic_light': ('light', 'neumorphic'),
+        'github_dark': ('dark', 'flat'),
+    }
 
     @classmethod
     def _get_svg_image(cls, cache: dict, filename_prefix: str, svg_content: str) -> str:
@@ -272,7 +285,7 @@ class AppStyles:
             f'</svg>'
         )
 
-    THEME_COLORS = {
+    COLOR_PALETTES = {
         'dark': {
             'window': '#000000',
             'window_text': '#ffffff',
@@ -395,194 +408,309 @@ class AppStyles:
             'neumorphic_light': '#ffffff',
             'neumorphic_dark': '#d0d0d0',
         },
-        'dark_blue': {
-            'window': '#1a1a2e',
-            'window_text': '#eaeaea',
-            'base': '#222240',
-            'alternate_base': '#28284a',
-            'button': '#28284a',
-            'light': '#303055',
-            'mid': '#3a3a60',
-            'dark': '#454570',
-            'highlight': '#2a2a50',
-            'highlighted_text': '#7c8aff',
-            'bright_text': '#eaeaea',
-            'link': '#7c8aff',
-            'link_visited': '#9580ff',
-            'tooltip_base': '#28284a',
-            'tooltip_text': '#eaeaea',
-            'placeholder': '#808090',
-            'accent': '#6b7bff',
-            'accent_hover': '#5b6bef',
-            'accent_pressed': '#4b5bdf',
-            'success': '#5fcf73',
-            'warning': '#ffaa70',
-            'error': '#ff6060',
-            'error_background': '#2a1a20',
-            'info': '#5090ff',
-            'table_header': '#28284a',
-            'table_header_gradient_start': '#303055',
-            'table_header_gradient_middle': '#28284a',
-            'table_header_gradient_end': '#202038',
-            'table_header_text': '#d0d0e0',
-            'table_header_hover': '#6b7bff',
-            'table_border': '#3a3a60',
-            'table_grid': '#303055',
-            'table_alternate': '#202038',
-            'table_hover': '#2a2a50',
-            'table_selection': '#5b6bef',
-            'table_selection_text': '#ffffff',
-            'player_background': '#16162a',
-            'player_panel': '#222240',
-            'player_panel_text': '#eaeaea',
-            'player_panel_secondary': '#888898',
-            'player_panel_disabled': '#585878',
-            'player_panel_hint': '#6a6a8a',
-            'player_button': 'rgba(40, 40, 74, 0.95)',
-            'player_combo': 'rgba(34, 34, 64, 0.9)',
-            'player_line': '#3a3a60',
-            'player_accent': '#7c8aff',
-            'player_success': '#5fcf73',
-            'player_warning': '#ff6060',
-            'player_slider_track': '#3a3a60',
-            'player_slider_fill': '#6b7bff',
-            'player_slider_handle': '#eaeaea',
-            'player_cache_bar': 'rgba(107, 123, 255, 0.35)',
-            'player_volume_track': '#303055',
-            'player_video_placeholder': '#16162a',
-            'window_opacity': 255,
-            'shadow_light': 'rgba(100,100,160,0.5)',
-            'shadow_dark': 'rgba(0,0,0,0.7)',
-            'neumorphic_light': '#303055',
-            'neumorphic_dark': '#181830',
-        },
-        'neumorphic_light': {
-            'window': '#e0e5ec',
-            'window_text': '#44476a',
-            'base': '#e0e5ec',
-            'alternate_base': '#d1d9e6',
-            'button': '#d1d9e6',
-            'light': '#e0e5ec',
-            'mid': '#b8bec7',
-            'dark': '#a0a6b0',
-            'highlight': '#d6e4ff',
-            'highlighted_text': '#4a6eff',
-            'bright_text': '#44476a',
-            'link': '#4a6eff',
-            'link_visited': '#6a5eef',
-            'tooltip_base': '#e0e5ec',
-            'tooltip_text': '#44476a',
-            'placeholder': '#9ba4b5',
-            'accent': '#4a6eff',
-            'accent_hover': '#3a5eef',
-            'accent_pressed': '#2a4edf',
-            'success': '#4caf50',
-            'warning': '#ff9800',
-            'error': '#f44336',
-            'error_background': '#f5d0d0',
-            'info': '#2196f3',
-            'table_header': '#d1d9e6',
-            'table_header_gradient_start': '#e0e5ec',
-            'table_header_gradient_middle': '#d1d9e6',
-            'table_header_gradient_end': '#c8d0da',
-            'table_header_text': '#44476a',
-            'table_header_hover': '#4a6eff',
-            'table_border': '#b8bec7',
-            'table_grid': '#c8d0da',
-            'table_alternate': '#e8ecf2',
-            'table_hover': '#d6e4ff',
-            'table_selection': '#4a6eff',
-            'table_selection_text': '#ffffff',
-            'player_background': '#d1d9e6',
-            'player_panel': '#e0e5ec',
-            'player_panel_text': '#44476a',
-            'player_panel_secondary': '#5a5f7a',
-            'player_panel_disabled': '#8086a0',
-            'player_panel_hint': '#7a7f9a',
-            'player_button': 'rgba(209, 217, 230, 0.95)',
-            'player_combo': 'rgba(224, 229, 236, 0.9)',
-            'player_line': '#b8bec7',
-            'player_accent': '#4a6eff',
-            'player_success': '#4caf50',
-            'player_warning': '#ff6464',
-            'player_slider_track': '#b8bec7',
-            'player_slider_fill': '#4a6eff',
-            'player_slider_handle': '#44476a',
-            'player_cache_bar': 'rgba(74, 110, 255, 0.3)',
-            'player_volume_track': '#c8d0da',
-            'player_video_placeholder': '#d1d9e6',
-            'window_opacity': 255,
-            'shadow_light': 'rgba(255,255,255,0.95)',
-            'shadow_dark': 'rgba(163,177,198,0.7)',
-            'neumorphic_light': '#ecf1f9',
-            'neumorphic_dark': '#bec6d2',
-        },
-        'github_dark': {
-            'window': '#0d1117',
-            'window_text': '#c9d1d9',
-            'base': '#161b22',
-            'alternate_base': '#21262d',
-            'button': '#21262d',
-            'light': '#30363d',
-            'mid': '#484f58',
-            'dark': '#6e7681',
-            'highlight': '#1f2937',
-            'highlighted_text': '#58a6ff',
-            'bright_text': '#f0f6fc',
-            'link': '#58a6ff',
-            'link_visited': '#bc8cff',
-            'tooltip_base': '#21262d',
-            'tooltip_text': '#c9d1d9',
-            'placeholder': '#8b949e',
-            'accent': '#58a6ff',
-            'accent_hover': '#388bfd',
-            'accent_pressed': '#1f6feb',
-            'success': '#3fb950',
-            'warning': '#d29922',
-            'error': '#f85149',
-            'error_background': '#2d1519',
-            'info': '#58a6ff',
-            'table_header': '#161b22',
-            'table_header_gradient_start': '#21262d',
-            'table_header_gradient_middle': '#161b22',
-            'table_header_gradient_end': '#0d1117',
-            'table_header_text': '#c9d1d9',
-            'table_header_hover': '#58a6ff',
-            'table_border': '#30363d',
-            'table_grid': '#21262d',
-            'table_alternate': '#0d1117',
-            'table_hover': '#1f2937',
-            'table_selection': '#388bfd',
-            'table_selection_text': '#ffffff',
-            'player_background': '#0d1117',
-            'player_panel': '#161b22',
-            'player_panel_text': '#c9d1d9',
-            'player_panel_secondary': '#8b949e',
-            'player_panel_disabled': '#6e7681',
-            'player_panel_hint': '#6e7681',
-            'player_button': 'rgba(33, 38, 45, 0.9)',
-            'player_combo': 'rgba(22, 27, 34, 0.85)',
-            'player_line': '#30363d',
-            'player_accent': '#58a6ff',
-            'player_success': '#3fb950',
-            'player_warning': '#f85149',
-            'player_slider_track': '#30363d',
-            'player_slider_fill': '#58a6ff',
-            'player_slider_handle': '#c9d1d9',
-            'player_cache_bar': 'rgba(88, 166, 255, 0.35)',
-            'player_volume_track': '#21262d',
-            'player_video_placeholder': '#0d1117',
-            'window_opacity': 240,
-            'shadow_light': 'rgba(255,255,255,0.06)',
-            'shadow_dark': 'rgba(0,0,0,0.5)',
-            'neumorphic_light': '#21262d',
-            'neumorphic_dark': '#0d1117',
-        },
     }
 
-    @staticmethod
-    def _get_colors():
-        return AppStyles.THEME_COLORS.get(AppStyles._current_theme, AppStyles.THEME_COLORS['dark'])
+    @classmethod
+    def _style_modifier_flat(cls, colors, color_mode):
+        return colors.copy()
+
+    @classmethod
+    def _style_modifier_neumorphic(cls, colors, color_mode):
+        c = colors.copy()
+        if color_mode == 'dark':
+            c['shadow_light'] = 'rgba(100,100,160,0.5)'
+            c['shadow_dark'] = 'rgba(0,0,0,0.7)'
+            c['neumorphic_light'] = '#303055'
+            c['neumorphic_dark'] = '#181830'
+            c['window'] = '#1a1a2e'
+            c['window_text'] = '#eaeaea'
+            c['base'] = '#222240'
+            c['alternate_base'] = '#28284a'
+            c['button'] = '#28284a'
+            c['light'] = '#303055'
+            c['mid'] = '#3a3a60'
+            c['dark'] = '#454570'
+            c['highlight'] = '#2a2a50'
+            c['highlighted_text'] = '#7c8aff'
+            c['bright_text'] = '#eaeaea'
+            c['link'] = '#7c8aff'
+            c['link_visited'] = '#9580ff'
+            c['tooltip_base'] = '#28284a'
+            c['tooltip_text'] = '#eaeaea'
+            c['placeholder'] = '#808090'
+            c['accent'] = '#6b7bff'
+            c['accent_hover'] = '#5b6bef'
+            c['accent_pressed'] = '#4b5bdf'
+            c['success'] = '#5fcf73'
+            c['warning'] = '#ffaa70'
+            c['error'] = '#ff6060'
+            c['error_background'] = '#2a1a20'
+            c['info'] = '#5090ff'
+            c['table_header'] = '#28284a'
+            c['table_header_gradient_start'] = '#303055'
+            c['table_header_gradient_middle'] = '#28284a'
+            c['table_header_gradient_end'] = '#202038'
+            c['table_header_text'] = '#d0d0e0'
+            c['table_header_hover'] = '#6b7bff'
+            c['table_border'] = '#3a3a60'
+            c['table_grid'] = '#303055'
+            c['table_alternate'] = '#202038'
+            c['table_hover'] = '#2a2a50'
+            c['table_selection'] = '#5b6bef'
+            c['player_background'] = '#16162a'
+            c['player_panel'] = '#222240'
+            c['player_panel_text'] = '#eaeaea'
+            c['player_panel_secondary'] = '#888898'
+            c['player_panel_disabled'] = '#585878'
+            c['player_panel_hint'] = '#6a6a8a'
+            c['player_button'] = 'rgba(40, 40, 74, 0.95)'
+            c['player_combo'] = 'rgba(34, 34, 64, 0.9)'
+            c['player_line'] = '#3a3a60'
+            c['player_accent'] = '#7c8aff'
+            c['player_slider_track'] = '#3a3a60'
+            c['player_slider_fill'] = '#6b7bff'
+            c['player_slider_handle'] = '#eaeaea'
+            c['player_cache_bar'] = 'rgba(107, 123, 255, 0.35)'
+            c['player_volume_track'] = '#303055'
+            c['player_video_placeholder'] = '#16162a'
+        else:
+            c['shadow_light'] = 'rgba(255,255,255,0.95)'
+            c['shadow_dark'] = 'rgba(163,177,198,0.7)'
+            c['neumorphic_light'] = '#ecf1f9'
+            c['neumorphic_dark'] = '#bec6d2'
+            c['window'] = '#e0e5ec'
+            c['window_text'] = '#44476a'
+            c['base'] = '#e0e5ec'
+            c['alternate_base'] = '#d1d9e6'
+            c['button'] = '#d1d9e6'
+            c['light'] = '#e0e5ec'
+            c['mid'] = '#b8bec7'
+            c['dark'] = '#a0a6b0'
+            c['highlight'] = '#d6e4ff'
+            c['highlighted_text'] = '#4a6eff'
+            c['bright_text'] = '#44476a'
+            c['link'] = '#4a6eff'
+            c['link_visited'] = '#6a5eef'
+            c['tooltip_base'] = '#e0e5ec'
+            c['tooltip_text'] = '#44476a'
+            c['placeholder'] = '#9ba4b5'
+            c['accent'] = '#4a6eff'
+            c['accent_hover'] = '#3a5eef'
+            c['accent_pressed'] = '#2a4edf'
+            c['success'] = '#4caf50'
+            c['warning'] = '#ff9800'
+            c['error'] = '#f44336'
+            c['error_background'] = '#f5d0d0'
+            c['info'] = '#2196f3'
+            c['table_header'] = '#d1d9e6'
+            c['table_header_gradient_start'] = '#e0e5ec'
+            c['table_header_gradient_middle'] = '#d1d9e6'
+            c['table_header_gradient_end'] = '#c8d0da'
+            c['table_header_text'] = '#44476a'
+            c['table_header_hover'] = '#4a6eff'
+            c['table_border'] = '#b8bec7'
+            c['table_grid'] = '#c8d0da'
+            c['table_alternate'] = '#e8ecf2'
+            c['table_hover'] = '#d6e4ff'
+            c['table_selection'] = '#4a6eff'
+            c['player_background'] = '#d1d9e6'
+            c['player_panel'] = '#e0e5ec'
+            c['player_panel_text'] = '#44476a'
+            c['player_panel_secondary'] = '#5a5f7a'
+            c['player_panel_disabled'] = '#8086a0'
+            c['player_panel_hint'] = '#7a7f9a'
+            c['player_button'] = 'rgba(209, 217, 230, 0.95)'
+            c['player_combo'] = 'rgba(224, 229, 236, 0.9)'
+            c['player_line'] = '#b8bec7'
+            c['player_accent'] = '#4a6eff'
+            c['player_slider_track'] = '#b8bec7'
+            c['player_slider_fill'] = '#4a6eff'
+            c['player_slider_handle'] = '#44476a'
+            c['player_cache_bar'] = 'rgba(74, 110, 255, 0.3)'
+            c['player_volume_track'] = '#c8d0da'
+            c['player_video_placeholder'] = '#d1d9e6'
+        return c
+
+    @classmethod
+    def _style_modifier_skeuomorphic(cls, colors, color_mode):
+        c = colors.copy()
+        if color_mode == 'dark':
+            c['shadow_dark'] = 'rgba(0,0,0,0.6)'
+            c['shadow_light'] = 'rgba(255,255,255,0.08)'
+            c['neumorphic_light'] = '#383838'
+            c['neumorphic_dark'] = '#080808'
+            c['gradient_start'] = '#404040'
+            c['gradient_end'] = '#2a2a2a'
+            c['border_3d_light'] = 'rgba(255,255,255,0.15)'
+            c['border_3d_dark'] = 'rgba(0,0,0,0.5)'
+        else:
+            c['shadow_dark'] = 'rgba(0,0,0,0.25)'
+            c['shadow_light'] = 'rgba(255,255,255,0.9)'
+            c['neumorphic_light'] = '#f0f0f0'
+            c['neumorphic_dark'] = '#c8c8c8'
+            c['gradient_start'] = '#e8e8e8'
+            c['gradient_end'] = '#d0d0d0'
+            c['border_3d_light'] = 'rgba(255,255,255,0.8)'
+            c['border_3d_dark'] = 'rgba(0,0,0,0.15)'
+        return c
+
+    @classmethod
+    def _style_modifier_frosted(cls, colors, color_mode):
+        c = colors.copy()
+        if color_mode == 'dark':
+            c['window'] = 'rgba(20, 20, 20, 0.82)'
+            c['base'] = 'rgba(30, 30, 30, 0.78)'
+            c['alternate_base'] = 'rgba(40, 40, 40, 0.75)'
+            c['button'] = 'rgba(55, 55, 55, 0.72)'
+            c['player_panel'] = 'rgba(35, 35, 35, 0.78)'
+            c['player_button'] = 'rgba(60, 60, 60, 0.7)'
+            c['player_combo'] = 'rgba(45, 45, 45, 0.65)'
+            c['backdrop_tint'] = 'rgba(0, 0, 0, 0.3)'
+            c['frosted_opacity'] = 0.78
+        else:
+            c['window'] = 'rgba(240, 240, 240, 0.82)'
+            c['base'] = 'rgba(255, 255, 255, 0.78)'
+            c['alternate_base'] = 'rgba(232, 232, 232, 0.75)'
+            c['button'] = 'rgba(210, 210, 210, 0.72)'
+            c['player_panel'] = 'rgba(245, 245, 245, 0.78)'
+            c['player_button'] = 'rgba(200, 200, 200, 0.7)'
+            c['player_combo'] = 'rgba(220, 220, 220, 0.65)'
+            c['backdrop_tint'] = 'rgba(255, 255, 255, 0.2)'
+            c['frosted_opacity'] = 0.82
+        return c
+
+    @classmethod
+    def _style_modifier_win11(cls, colors, color_mode):
+        c = colors.copy()
+        if color_mode == 'dark':
+            c['window'] = '#202020'
+            c['base'] = '#2d2d2d'
+            c['button'] = '#383838'
+            c['accent'] = '#60cdff'
+            c['accent_hover'] = '#4cc2ff'
+            c['accent_pressed'] = '#38b8ff'
+            c['mica_color'] = '#1c1c1c'
+            c['card_color'] = '#2d2d2d'
+        else:
+            c['window'] = '#f3f3f3'
+            c['base'] = '#ffffff'
+            c['button'] = '#e5e5e5'
+            c['accent'] = '#005fb8'
+            c['accent_hover'] = '#004e99'
+            c['accent_pressed'] = '#003d75'
+            c['mica_color'] = '#f9f9f9'
+            c['card_color'] = '#ffffff'
+        c['font_family'] = "'Segoe UI Variable', 'Segoe UI', 'Microsoft YaHei', sans-serif"
+        c['border_thin'] = 'rgba(255,255,255,0.08)' if color_mode == 'dark' else 'rgba(0,0,0,0.06)'
+        c['shadow_subtle'] = '0 2px 4px rgba(0,0,0,0.16)' if color_mode == 'dark' else '0 2px 4px rgba(0,0,0,0.08)'
+        return c
+
+    @classmethod
+    def _style_modifier_mac(cls, colors, color_mode):
+        c = colors.copy()
+        if color_mode == 'dark':
+            c['window'] = '#2d2d2d'
+            c['base'] = '#333333'
+            c['button'] = '#3e3e3e'
+            c['accent'] = '#0a84ff'
+            c['accent_hover'] = '#0070e0'
+            c['accent_pressed'] = '#0058b0'
+            c['window_text'] = '#f5f5f7'
+            c['shadow_dark'] = 'rgba(0,0,0,0.3)'
+            c['shadow_light'] = 'rgba(255,255,255,0.06)'
+        else:
+            c['window'] = '#f5f5f7'
+            c['base'] = '#ffffff'
+            c['button'] = '#e8e8ed'
+            c['accent'] = '#0066cc'
+            c['accent_hover'] = '#0055aa'
+            c['accent_pressed'] = '#004488'
+            c['window_text'] = '#1d1d1f'
+            c['shadow_dark'] = 'rgba(0,0,0,0.1)'
+            c['shadow_light'] = 'rgba(255,255,255,0.9)'
+        c['font_family'] = "'SF Pro Display', 'SF Pro', 'Segoe UI', 'Microsoft YaHei', sans-serif"
+        return c
+
+    @classmethod
+    def _style_modifier_ios(cls, colors, color_mode):
+        c = colors.copy()
+        if color_mode == 'dark':
+            c['window'] = '#1c1c1e'
+            c['base'] = '#2c2c2e'
+            c['button'] = '#3a3a3c'
+            c['accent'] = '#0a84ff'
+            c['accent_hover'] = '#0070e0'
+            c['accent_pressed'] = '#0058b0'
+            c['window_text'] = '#f5f5f7'
+            c['shadow_dark'] = 'rgba(0,0,0,0.2)'
+            c['shadow_light'] = 'rgba(255,255,255,0.04)'
+        else:
+            c['window'] = '#f2f2f7'
+            c['base'] = '#ffffff'
+            c['button'] = '#e5e5ea'
+            c['accent'] = '#007aff'
+            c['accent_hover'] = '#0062cc'
+            c['accent_pressed'] = '#004d99'
+            c['window_text'] = '#1c1c1e'
+            c['shadow_dark'] = 'rgba(0,0,0,0.06)'
+            c['shadow_light'] = 'rgba(255,255,255,0.95)'
+        c['font_family'] = "'SF Pro Display', 'SF Pro', 'Segoe UI', 'Microsoft YaHei', sans-serif"
+        return c
+
+    STYLE_MODIFIERS = {
+        'flat': _style_modifier_flat,
+        'neumorphic': _style_modifier_neumorphic,
+        'skeuomorphic': _style_modifier_skeuomorphic,
+        'frosted': _style_modifier_frosted,
+        'win11': _style_modifier_win11,
+        'mac': _style_modifier_mac,
+        'ios': _style_modifier_ios,
+    }
+
+    THEME_COLORS = COLOR_PALETTES
+
+    @classmethod
+    def _detect_system_color_mode(cls):
+        try:
+            import ctypes
+            registry = ctypes.windll.advapi32
+            key = ctypes.c_ulong()
+            access = 0x20019
+            result = registry.RegOpenKeyExW(0x80000002, r'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize', 0, access, ctypes.byref(key))
+            if result == 0:
+                value = ctypes.c_ulong()
+                size = ctypes.c_ulong(4)
+                registry.RegQueryValueExW(key.value, 'AppsUseLightTheme', 0, None, ctypes.byref(value), ctypes.byref(size))
+                registry.RegCloseKey(key.value)
+                return 'light' if value.value == 1 else 'dark'
+        except Exception:
+            pass
+        return 'dark'
+
+    @classmethod
+    def _get_effective_color_mode(cls):
+        if cls._color_mode == 'auto':
+            return cls._detect_system_color_mode()
+        return cls._color_mode
+
+    @classmethod
+    def _get_colors(cls):
+        effective_mode = cls._get_effective_color_mode()
+        base_colors = cls.COLOR_PALETTES.get(effective_mode, cls.COLOR_PALETTES['dark'])
+        style = cls._visual_style
+        if style == 'neumorphic':
+            return cls._style_modifier_neumorphic(base_colors.copy(), effective_mode)
+        elif style == 'skeuomorphic':
+            return cls._style_modifier_skeuomorphic(base_colors.copy(), effective_mode)
+        elif style == 'frosted':
+            return cls._style_modifier_frosted(base_colors.copy(), effective_mode)
+        elif style == 'win11':
+            return cls._style_modifier_win11(base_colors.copy(), effective_mode)
+        elif style == 'mac':
+            return cls._style_modifier_mac(base_colors.copy(), effective_mode)
+        elif style == 'ios':
+            return cls._style_modifier_ios(base_colors.copy(), effective_mode)
+        return base_colors.copy()
 
     COLOR_KEYS = frozenset({
         'accent', 'window', 'window_text', 'base', 'alternate_base',
@@ -594,43 +722,136 @@ class AppStyles:
         'disabled_text', 'bright_text',
     })
 
-    @staticmethod
-    def set_theme(theme_name):
-        AppStyles._current_theme = theme_name
+    @classmethod
+    def set_theme(cls, theme_name):
+        if '+' in theme_name:
+            parts = theme_name.split('+')
+            if len(parts) == 2:
+                cls._color_mode = parts[0]
+                cls._visual_style = parts[1]
+                cls._current_theme = theme_name
+                return
+        mapping = cls._OLD_THEME_MAPPING.get(theme_name)
+        if mapping:
+            cls._color_mode, cls._visual_style = mapping
+        else:
+            cls._color_mode = theme_name
+            cls._visual_style = 'flat'
+        cls._current_theme = f"{cls._color_mode}+{cls._visual_style}"
+
+    @classmethod
+    def set_color_mode(cls, mode):
+        if mode in cls.AVAILABLE_COLOR_MODES:
+            cls._color_mode = mode
+            cls._current_theme = f"{cls._color_mode}+{cls._visual_style}"
+
+    @classmethod
+    def set_visual_style(cls, style):
+        if style in cls.AVAILABLE_VISUAL_STYLES:
+            cls._visual_style = style
+            cls._current_theme = f"{cls._color_mode}+{cls._visual_style}"
 
     @staticmethod
     def get_theme():
         return AppStyles._current_theme
 
+    @classmethod
+    def get_color_mode(cls):
+        return cls._color_mode
+
+    @classmethod
+    def get_visual_style(cls):
+        return cls._visual_style
+
+    @classmethod
+    def is_style(cls, style_name):
+        return cls._visual_style == style_name
+
     @staticmethod
     def get_available_themes():
-        return list(AppStyles.THEME_COLORS.keys())
+        return list(AppStyles._OLD_THEME_MAPPING.keys()) + [f"{m}+{s}" for m in ('dark', 'light') for s in AppStyles.AVAILABLE_VISUAL_STYLES]
 
     @staticmethod
     def is_neumorphic():
-        return AppStyles._current_theme in ('dark_blue', 'neumorphic_light')
+        return AppStyles._visual_style == 'neumorphic'
+
+    @classmethod
+    def _get_style_border_radius(cls):
+        radii = {
+            'flat': 4,
+            'neumorphic': 10,
+            'skeuomorphic': 6,
+            'frosted': 12,
+            'win11': 8,
+            'mac': 10,
+            'ios': 14,
+        }
+        return radii.get(cls._visual_style, 4)
+
+    @classmethod
+    def _get_style_shadow(cls):
+        c = cls._get_colors()
+        effective = cls._get_effective_color_mode()
+        shadows = {
+            'flat': f"0 1px 3px {c['shadow_dark']}",
+            'neumorphic': f"4px 4px 8px {c['shadow_dark']}, -4px -4px 8px {c['shadow_light']}",
+            'skeuomorphic': f"2px 2px 6px {c.get('shadow_dark', 'rgba(0,0,0,0.3)')}, -1px -1px 3px {c.get('shadow_light', 'rgba(255,255,255,0.1)')}",
+            'frosted': f"0 4px 16px {c.get('shadow_dark', 'rgba(0,0,0,0.2)')}",
+            'win11': f"0 2px 4px {c.get('shadow_dark', 'rgba(0,0,0,0.16)')}",
+            'mac': f"0 1px 4px {c.get('shadow_dark', 'rgba(0,0,0,0.1)')}, 0 0 0 0.5px {c.get('border_thin', 'rgba(0,0,0,0.04)')}",
+            'ios': f"0 1px 3px {c.get('shadow_dark', 'rgba(0,0,0,0.06)')}",
+        }
+        return shadows.get(cls._visual_style, f"0 1px 3px {c['shadow_dark']}")
+
+    @classmethod
+    def _get_style_inset(cls):
+        c = cls._get_colors()
+        if cls._visual_style == 'neumorphic':
+            return (
+                f"border: 2px solid;"
+                f"border-top-color: {c['shadow_dark']};"
+                f"border-left-color: {c['shadow_dark']};"
+                f"border-bottom-color: {c['shadow_light']};"
+                f"border-right-color: {c['shadow_light']};"
+            )
+        if cls._visual_style == 'skeuomorphic':
+            return (
+                f"border: 2px solid;"
+                f"border-top-color: {c.get('border_3d_dark', c['shadow_dark'])};"
+                f"border-left-color: {c.get('border_3d_dark', c['shadow_dark'])};"
+                f"border-bottom-color: {c.get('border_3d_light', c['shadow_light'])};"
+                f"border-right-color: {c.get('border_3d_light', c['shadow_light'])};"
+            )
+        return f"border: 1px solid {c.get('mid', '#555')};"
+
+    @classmethod
+    def _get_style_raised(cls):
+        c = cls._get_colors()
+        if cls._visual_style == 'neumorphic':
+            return (
+                f"border: 2px solid;"
+                f"border-top-color: {c['shadow_light']};"
+                f"border-left-color: {c['shadow_light']};"
+                f"border-bottom-color: {c['shadow_dark']};"
+                f"border-right-color: {c['shadow_dark']};"
+            )
+        if cls._visual_style == 'skeuomorphic':
+            return (
+                f"border: 2px solid;"
+                f"border-top-color: {c.get('border_3d_light', c['shadow_light'])};"
+                f"border-left-color: {c.get('border_3d_light', c['shadow_light'])};"
+                f"border-bottom-color: {c.get('border_3d_dark', c['shadow_dark'])};"
+                f"border-right-color: {c.get('border_3d_dark', c['shadow_dark'])};"
+            )
+        return f"border: 1px solid {c.get('mid', '#555')};"
 
     @staticmethod
     def _neumorphic_inset():
-        c = AppStyles._get_colors()
-        return (
-            f"border: 2px solid;"
-            f"border-top-color: {c['shadow_dark']};"
-            f"border-left-color: {c['shadow_dark']};"
-            f"border-bottom-color: {c['shadow_light']};"
-            f"border-right-color: {c['shadow_light']};"
-        )
+        return AppStyles._get_style_inset()
 
     @staticmethod
     def _neumorphic_raised():
-        c = AppStyles._get_colors()
-        return (
-            f"border: 2px solid;"
-            f"border-top-color: {c['shadow_light']};"
-            f"border-left-color: {c['shadow_light']};"
-            f"border-bottom-color: {c['shadow_dark']};"
-            f"border-right-color: {c['shadow_dark']};"
-        )
+        return AppStyles._get_style_raised()
 
     @staticmethod
     def main_window_style() -> str:

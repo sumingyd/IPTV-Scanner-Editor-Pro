@@ -5,6 +5,8 @@ from utils.singleton import Singleton
 
 class ThemeManager(Singleton, QtCore.QObject):
     theme_changed = QtCore.pyqtSignal(str)
+    color_mode_changed = QtCore.pyqtSignal(str)
+    visual_style_changed = QtCore.pyqtSignal(str)
 
     def __init__(self):
         if self._initialized:
@@ -13,12 +15,38 @@ class ThemeManager(Singleton, QtCore.QObject):
         self._windows = []
         from core.config_manager import ConfigManager
         self.config = ConfigManager()
-        saved = self.config.load_theme_settings()
-        if saved in ('default', '默认主题'):
-            saved = 'dark'
-        self._current_theme = saved if saved in AppStyles.get_available_themes() else 'dark'
-        AppStyles.set_theme(self._current_theme)
+        color_mode, visual_style = self.config.load_theme_settings()
+        self._color_mode = color_mode if color_mode in AppStyles.AVAILABLE_COLOR_MODES else 'dark'
+        self._visual_style = visual_style if visual_style in AppStyles.AVAILABLE_VISUAL_STYLES else 'flat'
+        self._current_theme = f"{self._color_mode}+{self._visual_style}"
+        AppStyles.set_color_mode(self._color_mode)
+        AppStyles.set_visual_style(self._visual_style)
+        self._system_theme_timer = None
+        if self._color_mode == 'auto':
+            self._start_system_theme_watcher()
         self._initialized = True
+
+    def _start_system_theme_watcher(self):
+        if self._system_theme_timer is not None:
+            return
+        self._system_theme_timer = QtCore.QTimer(self)
+        self._system_theme_timer.timeout.connect(self._check_system_theme_change)
+        self._system_theme_timer.start(3000)
+        self._last_detected_mode = AppStyles._detect_system_color_mode()
+
+    def _stop_system_theme_watcher(self):
+        if self._system_theme_timer is not None:
+            self._system_theme_timer.stop()
+            self._system_theme_timer = None
+
+    def _check_system_theme_change(self):
+        if self._color_mode != 'auto':
+            return
+        detected = AppStyles._detect_system_color_mode()
+        if detected != self._last_detected_mode:
+            self._last_detected_mode = detected
+            self._update_all_windows()
+            self.theme_changed.emit(self._current_theme)
 
     def register_window(self, window: QtWidgets.QWidget):
         if window not in self._windows:
@@ -50,7 +78,6 @@ class ThemeManager(Singleton, QtCore.QObject):
             print(f"应用主题到窗口失败: {e}")
 
     def _is_in_dock(self, widget):
-        """检查控件是否在QDockWidget内部（dock内控件有独立的样式管理）"""
         w = widget.parent()
         while w:
             if isinstance(w, QtWidgets.QDockWidget):
@@ -59,7 +86,6 @@ class ThemeManager(Singleton, QtCore.QObject):
         return False
 
     def _is_in_managed_widget(self, widget):
-        """检查控件是否在有独立样式管理的容器内（标题栏、菜单栏、dock）"""
         w = widget.parent()
         while w:
             if isinstance(w, QtWidgets.QDockWidget):
@@ -86,12 +112,12 @@ class ThemeManager(Singleton, QtCore.QObject):
             QtWidgets.QToolButton: lambda w: AppStyles.toolbar_button_style(),
             QtWidgets.QLineEdit: lambda w: AppStyles.common_line_edit_style() if (not w.styleSheet() or 'common_line_edit' not in w.styleSheet()) else None,
             QtWidgets.QComboBox: lambda w: AppStyles.common_combo_box_style() if (not w.styleSheet() or 'common_combo' not in w.styleSheet()) else None,
-            QtWidgets.QLabel: lambda w: AppStyles.common_label_style() if not w.styleSheet() else None,
-            QtWidgets.QCheckBox: lambda w: AppStyles.common_check_box_style() if not w.styleSheet() else None,
-            QtWidgets.QRadioButton: lambda w: AppStyles.common_radio_button_style() if hasattr(AppStyles, 'common_radio_button_style') and not w.styleSheet() else None,
-            QtWidgets.QProgressBar: lambda w: AppStyles.progress_style() if not w.styleSheet() else None,
-            QtWidgets.QGroupBox: lambda w: AppStyles.common_group_box_style() if not w.styleSheet() else None,
-            QtWidgets.QScrollArea: lambda w: AppStyles.scroll_area_style() if hasattr(AppStyles, 'scroll_area_style') and not w.styleSheet() else None,
+            QtWidgets.QLabel: lambda w: AppStyles.common_label_style() if w.styleSheet() else None,
+            QtWidgets.QCheckBox: lambda w: AppStyles.common_check_box_style() if w.styleSheet() else None,
+            QtWidgets.QRadioButton: lambda w: AppStyles.common_radio_button_style() if hasattr(AppStyles, 'common_radio_button_style') and w.styleSheet() else None,
+            QtWidgets.QProgressBar: lambda w: AppStyles.progress_style() if w.styleSheet() else None,
+            QtWidgets.QGroupBox: lambda w: AppStyles.common_group_box_style() if w.styleSheet() else None,
+            QtWidgets.QScrollArea: lambda w: AppStyles.scroll_area_style() if hasattr(AppStyles, 'scroll_area_style') and w.styleSheet() else None,
         }
         for widget_type, style_func in style_map.items():
             try:
@@ -105,7 +131,9 @@ class ThemeManager(Singleton, QtCore.QObject):
                 pass
         try:
             for spin_box in parent.findChildren(QtWidgets.QSpinBox):
-                if not spin_box.styleSheet() and hasattr(AppStyles, 'common_spin_box_style'):
+                if spin_box.styleSheet() and hasattr(AppStyles, 'common_spin_box_style'):
+                    spin_box.setStyleSheet(AppStyles.common_spin_box_style())
+                elif hasattr(AppStyles, 'common_spin_box_style'):
                     spin_box.setStyleSheet(AppStyles.common_spin_box_style())
         except Exception:
             pass
@@ -113,13 +141,67 @@ class ThemeManager(Singleton, QtCore.QObject):
     def get_current_theme(self) -> str:
         return self._current_theme
 
+    def get_color_mode(self) -> str:
+        return self._color_mode
+
+    def get_visual_style(self) -> str:
+        return self._visual_style
+
+    def get_available_color_modes(self) -> list:
+        return AppStyles.AVAILABLE_COLOR_MODES
+
+    def get_available_visual_styles(self) -> list:
+        return AppStyles.AVAILABLE_VISUAL_STYLES
+
+    def set_color_mode(self, mode: str):
+        if mode not in AppStyles.AVAILABLE_COLOR_MODES:
+            return
+        self._color_mode = mode
+        AppStyles.set_color_mode(mode)
+        self._current_theme = f"{self._color_mode}+{self._visual_style}"
+        self.config.save_theme_settings(self._color_mode, self._visual_style)
+        if mode == 'auto':
+            self._start_system_theme_watcher()
+        else:
+            self._stop_system_theme_watcher()
+        self._update_all_windows()
+        self.color_mode_changed.emit(mode)
+        self.theme_changed.emit(self._current_theme)
+
+    def set_visual_style(self, style: str):
+        if style not in AppStyles.AVAILABLE_VISUAL_STYLES:
+            return
+        self._visual_style = style
+        AppStyles.set_visual_style(style)
+        self._current_theme = f"{self._color_mode}+{self._visual_style}"
+        self.config.save_theme_settings(self._color_mode, self._visual_style)
+        self._update_all_windows()
+        self.visual_style_changed.emit(style)
+        self.theme_changed.emit(self._current_theme)
+
     def set_theme(self, theme_name: str):
-        if theme_name in AppStyles.get_available_themes():
-            self._current_theme = theme_name
-            AppStyles.set_theme(theme_name)
-            self.config.save_theme_settings(theme_name)
-            self._update_all_windows()
-            self.theme_changed.emit(theme_name)
+        old_themes = {'dark', 'light', 'dark_blue', 'neumorphic_light', 'github_dark'}
+        if theme_name in old_themes:
+            mapping = AppStyles._OLD_THEME_MAPPING.get(theme_name, ('dark', 'flat'))
+            self._color_mode, self._visual_style = mapping
+        elif '+' in theme_name:
+            parts = theme_name.split('+')
+            if len(parts) == 2:
+                self._color_mode = parts[0] if parts[0] in AppStyles.AVAILABLE_COLOR_MODES else 'dark'
+                self._visual_style = parts[1] if parts[1] in AppStyles.AVAILABLE_VISUAL_STYLES else 'flat'
+        else:
+            self._color_mode = theme_name if theme_name in AppStyles.AVAILABLE_COLOR_MODES else 'dark'
+            self._visual_style = 'flat'
+        AppStyles.set_color_mode(self._color_mode)
+        AppStyles.set_visual_style(self._visual_style)
+        self._current_theme = f"{self._color_mode}+{self._visual_style}"
+        self.config.save_theme_settings(self._color_mode, self._visual_style)
+        if self._color_mode == 'auto':
+            self._start_system_theme_watcher()
+        else:
+            self._stop_system_theme_watcher()
+        self._update_all_windows()
+        self.theme_changed.emit(self._current_theme)
 
     def get_available_themes(self) -> list:
         return AppStyles.get_available_themes()
