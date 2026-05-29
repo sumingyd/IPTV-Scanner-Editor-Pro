@@ -261,6 +261,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             return channel.get('logo', channel.get('logo_url', ''))
         if actual_col == 7:
             latency = channel.get('latency', '')
+            if not channel.get('valid', True):
+                return ''
             return str(latency) if latency != '' else ''
         if actual_col == 11:
             catchup_value = channel.get('catchup', '')
