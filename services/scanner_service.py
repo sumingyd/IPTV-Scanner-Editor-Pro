@@ -890,6 +890,7 @@ class ScannerController(QObject):
     def _update_stats(self):
         """更新统计信息线程"""
         import time
+        was_validation = False
         try:
             # 简化逻辑：只要没有停止事件就持续更新统计信息
             while not self.stop_event.is_set():
@@ -948,6 +949,7 @@ class ScannerController(QObject):
             if self.stop_event.is_set():
                 self.logger.info("扫描被用户停止")
             elif self.is_validating:
+                was_validation = True
                 self.is_validating = False
                 self.scan_state_manager.update_scan_state(self.scan_id, {
                     'is_validating': False
@@ -1005,7 +1007,7 @@ class ScannerController(QObject):
 
                     if self.main_window and hasattr(self.main_window, '_update_stats_display'):
                         stats_copy = self.stats.copy()
-                        is_validating = self.is_validating
+                        is_validating = self.is_validating or was_validation
                         try:
                             self._run_on_main(
                                 self.main_window._update_stats_display,
@@ -1016,7 +1018,7 @@ class ScannerController(QObject):
                     else:
                         try:
                             stats_copy = self.stats.copy()
-                            is_validating_copy = self.is_validating
+                            is_validating_copy = self.is_validating or was_validation
                             QtCore.QTimer.singleShot(0, lambda sc=stats_copy, iv=is_validating_copy: self.stats_updated.emit({
                                 'stats': sc, 'is_validation': iv
                             }))
