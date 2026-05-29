@@ -95,6 +95,8 @@ class ThemeManager(Singleton, QtCore.QObject):
                 if widget:
                     widget.setStyleSheet(style_func())
 
+            self._reapply_title_bar_icons(window)
+
             for dock_attr in ['epg_dock', 'playlist_dock', 'floating_dock']:
                 panel = getattr(window, dock_attr, None)
                 if panel:
@@ -111,6 +113,70 @@ class ThemeManager(Singleton, QtCore.QObject):
                 window.reapply_styles()
         except Exception as e:
             print(f"重刷主窗口组件样式失败: {e}")
+
+    def _reapply_title_bar_icons(self, window):
+        """主题切换时重新生成标题栏按钮图标，使图标颜色跟随主题变化"""
+        try:
+            window_ctrl = getattr(window, 'window_ctrl', None)
+            if not window_ctrl:
+                return
+            from PyQt6.QtGui import QIcon
+            from PyQt6.QtCore import QSize
+            btn_color = AppStyles._get_colors().get('window_text', '#ffffff')
+            icon_size = QSize(14, 14)
+            btn_style = window_ctrl._title_btn_style()
+
+            close_btn = getattr(window_ctrl, '_close_btn', None)
+            if close_btn:
+                icon_path = AppStyles.get_icon('close', btn_color, 14)
+                if icon_path:
+                    close_btn.setIcon(QIcon(icon_path))
+                close_btn.setIconSize(icon_size)
+                close_btn.setStyleSheet(btn_style)
+
+            minimize_btn = getattr(window_ctrl, '_minimize_btn', None)
+            if minimize_btn:
+                icon_path = AppStyles.get_icon('minimize', btn_color, 14)
+                if icon_path:
+                    minimize_btn.setIcon(QIcon(icon_path))
+                minimize_btn.setIconSize(icon_size)
+                minimize_btn.setStyleSheet(btn_style)
+
+            maximize_btn = getattr(window_ctrl, '_maximize_btn', None)
+            if maximize_btn:
+                is_maximized = window.isMaximized() if hasattr(window, 'isMaximized') else False
+                icon_name = 'restore' if is_maximized else 'fullscreen'
+                icon_path = AppStyles.get_icon(icon_name, btn_color, 14)
+                if icon_path:
+                    maximize_btn.setIcon(QIcon(icon_path))
+                maximize_btn.setIconSize(icon_size)
+                maximize_btn.setStyleSheet(btn_style)
+
+            stay_on_top_btn = getattr(window_ctrl, '_stay_on_top_btn', None)
+            if stay_on_top_btn:
+                is_on_top = getattr(window_ctrl, '_stay_on_top_active', False)
+                if is_on_top:
+                    icon_path = AppStyles.get_icon('pin_active', btn_color, 14)
+                    accent = AppStyles._get_colors().get('accent', '#0078d4')
+                    r, g, b = int(accent[1:3], 16), int(accent[3:5], 16), int(accent[5:7], 16)
+                    stay_on_top_btn.setStyleSheet(
+                        btn_style.replace("}", "") +
+                        f" background-color: rgba({r}, {g}, {b}, 0.25); }}"
+                    )
+                else:
+                    icon_path = AppStyles.get_icon('pin', btn_color, 14)
+                    stay_on_top_btn.setStyleSheet(btn_style)
+                if icon_path:
+                    stay_on_top_btn.setIcon(QIcon(icon_path))
+                stay_on_top_btn.setIconSize(icon_size)
+
+            title_icon_label = getattr(window_ctrl, '_title_icon_label', None)
+            if title_icon_label:
+                tv_icon_path = AppStyles.get_icon('tv', AppStyles._get_colors().get('accent', '#0078d4'), 16)
+                if tv_icon_path:
+                    title_icon_label.setPixmap(QIcon(tv_icon_path).pixmap(16, 16))
+        except Exception as e:
+            print(f"重刷标题栏图标失败: {e}")
 
     def _is_in_dock(self, widget):
         w = widget.parent()

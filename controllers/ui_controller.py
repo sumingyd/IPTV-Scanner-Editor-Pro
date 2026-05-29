@@ -717,8 +717,16 @@ class UIController:
                 self.window.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
             if hasattr(self.window, 'epg_prev_day'):
                 self.window.epg_prev_day.setStyleSheet(AppStyles.player_date_button_style())
+                date_icon_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+                icon_path = AppStyles.get_icon('chevron_left', date_icon_color, 12)
+                if icon_path:
+                    self.window.epg_prev_day.setIcon(QIcon(icon_path))
             if hasattr(self.window, 'epg_next_day'):
                 self.window.epg_next_day.setStyleSheet(AppStyles.player_date_button_style())
+                date_icon_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+                icon_path = AppStyles.get_icon('chevron_right', date_icon_color, 12)
+                if icon_path:
+                    self.window.epg_next_day.setIcon(QIcon(icon_path))
             if hasattr(self.window, 'epg_date_label'):
                 self.window.epg_date_label.setStyleSheet(AppStyles.player_date_label_style())
             if hasattr(self.window, 'epg_content'):
@@ -818,7 +826,7 @@ class UIController:
                 icon_name = 'volume_mute' if vol == 0 else ('volume_low' if vol < 50 else 'volume')
                 self.window.volume_button.setIcon(QIcon(AppStyles.get_icon(icon_name, btn_color)))
             icon_btn_map = {
-                'play_button': 'play', 'stop_button': 'stop',
+                'stop_button': 'stop',
                 'prev_ch_button': 'prev', 'next_ch_button': 'next',
                 'speed_button': 'speed', 'aspect_button': 'aspect',
                 'audio_track_button': 'audio_track', 'sub_track_button': 'subtitle',
@@ -828,8 +836,16 @@ class UIController:
                 btn = getattr(self.window, attr, None)
                 if btn:
                     btn.setIcon(QIcon(AppStyles.get_icon(icon_name, btn_color)))
+            play_btn = getattr(self.window, 'play_button', None)
+            if play_btn:
+                is_paused = hasattr(self.window, 'player_controller') and hasattr(self.window.player_controller, 'player') and self.window.player_controller.player.pause
+                play_icon = 'pause' if is_paused else 'play'
+                play_btn.setIcon(QIcon(AppStyles.get_icon(play_icon, btn_color)))
             if hasattr(self.window, 'exit_catchup_button'):
                 self.window.exit_catchup_button.setStyleSheet(AppStyles.player_button_style())
+                icon_path = AppStyles.get_icon('prev', btn_color)
+                if icon_path:
+                    self.window.exit_catchup_button.setIcon(QIcon(icon_path))
             if hasattr(self.window, 'catchup_indicator'):
                 self.window.catchup_indicator.setStyleSheet(AppStyles.player_catchup_indicator_style())
             for slider in fp.findChildren(QSlider):
