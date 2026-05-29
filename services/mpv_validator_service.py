@@ -7,6 +7,7 @@ from core.log_manager import global_logger
 from services.mpv_common import (
     MPV_EVENT_FILE_LOADED,
     MPV_EVENT_END_FILE,
+    MPV_EVENT_VIDEO_RECONFIG,
     MPV_EVENT_SHUTDOWN,
     MPV_FORMAT_INT64,
     MPV_END_FILE_REASON_ERROR,
@@ -191,6 +192,11 @@ class MpvStreamValidator:
             if event_id == MPV_EVENT_FILE_LOADED:
                 result['valid'] = True
                 result['latency'] = latency
+
+                vid_event, _, _ = wait_for_specific_event(
+                    handle, min(timeout, 3),
+                    {MPV_EVENT_VIDEO_RECONFIG, MPV_EVENT_END_FILE}
+                )
 
                 w = _mpv_get_property_int(handle, 'width')
                 h = _mpv_get_property_int(handle, 'height')
