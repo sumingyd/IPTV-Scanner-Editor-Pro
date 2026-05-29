@@ -446,7 +446,7 @@ class ScanChannelDialog(FloatingDialog):
         timeout_label = QtWidgets.QLabel(tr("scan_timeout", "Timeout(s):"))
         self.timeout_label = timeout_label
         timeout_row.addWidget(timeout_label)
-        self.timeout_input = QtWidgets.QLineEdit("5")
+        self.timeout_input = QtWidgets.QLineEdit("10")
         self.timeout_input.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         self.timeout_input.setPlaceholderText("1-60")
         self.timeout_input.setFixedHeight(34)
@@ -510,8 +510,8 @@ class ScanChannelDialog(FloatingDialog):
         except Exception as e:
             self.logger.error(f"加载重试扫描设置失败: {e}")
 
-    def _get_scan_params(self, default_timeout=5, default_threads=4, timeout_multiplier=1):
-        """从配置读取扫描参数
+    def _get_scan_params(self, default_timeout=10, default_threads=4, timeout_multiplier=1):
+        """从UI输入框读取扫描参数，若无效则使用配置文件或默认值
 
         Args:
             default_timeout: 默认超时秒数
@@ -523,17 +523,35 @@ class ScanChannelDialog(FloatingDialog):
         """
         timeout = default_timeout
         threads = default_threads
-        try:
-            if hasattr(self, 'config') and self.config:
-                network_settings = self.config.load_network_settings()
-                configured_timeout = network_settings.get('timeout', default_timeout)
-                if configured_timeout and configured_timeout > 0:
-                    timeout = max(3, min(30, int(configured_timeout) * timeout_multiplier))
-                configured_threads = network_settings.get('threads', default_threads)
-                if configured_threads and configured_threads > 0:
-                    threads = max(1, min(32, int(configured_threads)))
-        except Exception as e:
-            self.logger.debug(f"读取扫描配置失败，使用默认值: {e}")
+
+        if hasattr(self, 'timeout_input') and self.timeout_input:
+            try:
+                ui_timeout = int(self.timeout_input.text().strip())
+                if ui_timeout > 0:
+                    timeout = max(3, min(60, ui_timeout * timeout_multiplier))
+            except (ValueError, AttributeError):
+                pass
+
+        if hasattr(self, 'threads_input') and self.threads_input:
+            try:
+                ui_threads = int(self.threads_input.text().strip())
+                if ui_threads > 0:
+                    threads = max(1, min(32, ui_threads))
+            except (ValueError, AttributeError):
+                pass
+
+        if timeout == default_timeout and threads == default_threads:
+            try:
+                if hasattr(self, 'config') and self.config:
+                    network_settings = self.config.load_network_settings()
+                    configured_timeout = network_settings.get('timeout', default_timeout)
+                    if configured_timeout and configured_timeout > 0:
+                        timeout = max(3, min(60, int(configured_timeout) * timeout_multiplier))
+                    configured_threads = network_settings.get('threads', default_threads)
+                    if configured_threads and configured_threads > 0:
+                        threads = max(1, min(32, int(configured_threads)))
+            except Exception as e:
+                self.logger.debug(f"读取扫描配置失败，使用默认值: {e}")
         return timeout, threads
 
     def _load_timeout_threads_settings(self):
@@ -541,7 +559,7 @@ class ScanChannelDialog(FloatingDialog):
         try:
             if hasattr(self, 'config') and self.config:
                 network_settings = self.config.load_network_settings()
-                timeout = network_settings.get('timeout', 5)
+                timeout = network_settings.get('timeout', 10)
                 threads = network_settings.get('threads', 4)
                 if hasattr(self, 'timeout_input'):
                     self.timeout_input.setText(str(timeout))
@@ -1866,7 +1884,7 @@ class ScanChannelDialog(FloatingDialog):
                 self.referer_input.setText(settings['referer'])
 
             if hasattr(self, 'timeout_input'):
-                self.timeout_input.setText(str(settings.get('timeout', 5)))
+                self.timeout_input.setText(str(settings.get('timeout', 10)))
             if hasattr(self, 'threads_input'):
                 self.threads_input.setText(str(settings.get('threads', 4)))
 
