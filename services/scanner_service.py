@@ -781,17 +781,24 @@ class ScannerController(QObject):
         if referer is not None:
             MpvStreamValidator.set_referer(referer)
 
+        total = 0
+        for i in range(model.rowCount()):
+            channel = model.get_channel(i)
+            url = channel.get('url', '').strip()
+            if not url:
+                continue
+            if channel.get('valid') is True:
+                continue
+            self.validation_queue.put((url, i))
+            total += 1
+
         self.stats = {
-            'total': model.rowCount(),
+            'total': total,
             'valid': 0,
             'invalid': 0,
             'start_time': time.time(),
             'elapsed': 0
         }
-
-        for i in range(model.rowCount()):
-            channel = model.get_channel(i)
-            self.validation_queue.put((channel['url'], i))
 
         self.workers = []
         for i in range(threads):

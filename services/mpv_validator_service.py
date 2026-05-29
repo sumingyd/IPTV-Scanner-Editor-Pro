@@ -1,4 +1,4 @@
-import ctypes
+import json
 import os
 import threading
 import time
@@ -21,6 +21,7 @@ from services.mpv_common import (
     set_option_string as _mpv_set_option_string,
     send_command as _mpv_send_command,
     wait_for_specific_event,
+    wait_for_event,
     get_property_string as _mpv_get_property_string,
     get_property_int as _mpv_get_property_int,
     _is_mpv_available,
@@ -166,16 +167,10 @@ class MpvStreamValidator:
                     pass
                 _mpv_set_property_string(handle, 'rtsp-transport', rtsp_transport)
                 _mpv_set_property_string(handle, 'demuxer', 'lavf')
-                _mpv_set_property_string(handle, 'demuxer-lavf-probesize', '32')
-                _mpv_set_property_string(handle, 'demuxer-lavf-analyzeduration', '0')
-                _mpv_set_property_string(handle, 'demuxer-lavf-buffersize', '128000')
                 _mpv_set_property_string(handle, 'force-seekable', 'yes')
             elif looks_ts:
                 _mpv_set_property_string(handle, 'demuxer', 'lavf')
                 _mpv_set_property_string(handle, 'demuxer-lavf-format', 'mpegts')
-                _mpv_set_property_string(handle, 'demuxer-lavf-probesize', '32')
-                _mpv_set_property_string(handle, 'demuxer-lavf-analyzeduration', '0')
-                _mpv_set_property_string(handle, 'demuxer-lavf-buffersize', '128000')
                 _mpv_set_property_string(handle, 'force-seekable', 'yes')
             elif u.startswith('http://') or u.startswith('https://'):
                 _mpv_set_property_string(handle, 'force-seekable', 'yes')
@@ -184,14 +179,50 @@ class MpvStreamValidator:
 
             _mpv_send_command(handle, ['loadfile', url])
 
-            event_id, error_code, event_data = wait_for_specific_event(
-                handle, timeout,
-                {MPV_EVENT_FILE_LOADED, MPV_EVENT_END_FILE}
-            )
+            found_tracks = False
+            event_id = 0
+            event_data = None
+            deadline = time.time() + timeout
+            while time.time() < deadline:
+                evt = wait_for_event(handle, 0.05)
+                if evt:
+                    eid = evt.event_id
+                    if eid in (MPV_EVENT_FILE_LOADED, MPV_EVENT_END_FILE):
+                        event_id = eid
+                        event_data = evt.data
+                        break
+                    if eid == MPV_EVENT_SHUTDOWN:
+                        event_id = MPV_EVENT_SHUTDOWN
+                        break
+                if not found_tracks:
+                    try:
+                        tl = _mpv_get_property_string(handle, 'track-list')
+                        if tl and '"id"' in tl:
+                            tracks = json.loads(tl)
+                            if len(tracks) > 0:
+                                found_tracks = True
+                    except Exception:
+                        pass
 
             latency = int((time.time() - start_time) * 1000)
 
-            if event_id == MPV_EVENT_FILE_LOADED:
+            if found_tracks:
+                result['valid'] = True
+                result['latency'] = latency
+                w = _mpv_get_property_int(handle, 'width')
+                h = _mpv_get_property_int(handle, 'height')
+                if w and h and w > 0 and h > 0:
+                    result['resolution'] = f"{w}x{h}"
+                codec = _mpv_get_property_string(handle, 'video-codec')
+                if codec:
+                    result['codec'] = codec
+                try:
+                    from models.channel_mappings import extract_channel_name_from_url
+                    result['service_name'] = extract_channel_name_from_url(url)
+                except Exception:
+                    result['service_name'] = ''
+
+            elif event_id == MPV_EVENT_FILE_LOADED:
                 result['valid'] = True
                 result['latency'] = latency
 
@@ -221,7 +252,8 @@ class MpvStreamValidator:
                 end_error = 0
                 if event_data:
                     try:
-                        end_file = ctypes.cast(event_data, ctypes.POINTER(mpv_event_end_file)).contents
+                        import ctypes as _ctypes
+                        end_file = _ctypes.cast(event_data, _ctypes.POINTER(mpv_event_end_file)).contents
                         end_reason = end_file.reason
                         end_error = end_file.error
                     except Exception:
@@ -237,19 +269,17 @@ class MpvStreamValidator:
                     if codec:
                         result['codec'] = codec
                 elif end_reason == MPV_END_FILE_REASON_ERROR:
-                    track_count = 0
-                    try:
-                        track_list = _mpv_get_property_string(handle, 'track-list')
-                        if track_list and '"id"' in track_list:
-                            import json
-                            tracks = json.loads(track_list)
-                            track_count = len(tracks)
-                    except Exception:
-                        pass
-                    if track_count > 0:
+                    if found_tracks:
                         result['valid'] = True
-                        result['error'] = f'播放警告(vo=null,发现{track_count}个轨道)'
+                        result['error'] = f'播放警告(vo=null,END_FILE错误码:{end_error})'
                         result['error_type'] = 'playback_warning'
+                        w = _mpv_get_property_int(handle, 'width')
+                        h = _mpv_get_property_int(handle, 'height')
+                        if w and h and w > 0 and h > 0:
+                            result['resolution'] = f"{w}x{h}"
+                        codec = _mpv_get_property_string(handle, 'video-codec')
+                        if codec:
+                            result['codec'] = codec
                     else:
                         result['valid'] = False
                         result['error'] = f'播放失败(错误码:{end_error})'
