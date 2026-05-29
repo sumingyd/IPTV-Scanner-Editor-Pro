@@ -158,8 +158,8 @@ class UIController:
             aline.append(f'{tr("osd_codec", "Codec")}: {acodec}')
         audio_channels = info.get('audio_channels', 0) or 0
         if audio_channels > 0:
-            ch_map = {1: 'Mono', 2: 'Stereo', 6: '5.1', 8: '7.1'}
-            ch_label = ch_map.get(audio_channels, f'{audio_channels}ch')
+            ch_map = {1: tr('osd_mono', 'Mono'), 2: tr('osd_stereo', 'Stereo'), 6: '5.1', 8: '7.1'}
+            ch_label = ch_map.get(audio_channels, f'{audio_channels}{tr("osd_ch_suffix", "ch")}')
             aline.append(f'{tr("osd_channels", "Channels")}: {ch_label}')
         sample_rate = info.get('sample_rate', 0) or 0
         if sample_rate > 0:
@@ -185,14 +185,15 @@ class UIController:
 
         container_line = []
         container = info.get('container', '') or ''
-        if container and container != '未知':
+        unknown_marker = tr('unknown', 'Unknown')
+        if container and container not in ('未知', 'Unknown', unknown_marker):
             container_line.append(f'{tr("osd_container", "Container")}: {container}')
         protocol = info.get('protocol', '') or ''
         if not protocol:
             cached_media = getattr(pc, 'media_info', None) or {}
             if isinstance(cached_media, dict):
                 protocol = cached_media.get('protocol', '') or ''
-        if protocol and protocol != '未知':
+        if protocol and protocol not in ('未知', 'Unknown', unknown_marker):
             container_line.append(f'{tr("osd_protocol", "Protocol")}: {protocol}')
         demuxer = info.get('demuxer', '') or ''
         if demuxer:

@@ -423,13 +423,19 @@ class MediaController:
         self._current_aspect_idx = (self._current_aspect_idx + 1) % len(self.ASPECT_CYCLE)
         ratio = self.ASPECT_CYCLE[self._current_aspect_idx]
         pc.set_aspect_ratio(ratio)
-        labels = {'default': 'Auto', '16:9': '16:9', '4:3': '4:3', 'stretch': 'Fill', 'fill': 'Crop'}
+        tr = self.window.language_manager.tr
+        labels = {
+            'default': tr('ctx_aspect_default', 'Default'),
+            '16:9': '16:9',
+            '4:3': '4:3',
+            'stretch': tr('ctx_aspect_stretch', 'Stretch'),
+            'fill': tr('ctx_aspect_fill', 'Fill')
+        }
         aspect_btn = self.window.aspect_button
         if aspect_btn:
-            aspect_btn.setText(labels.get(ratio, 'Auto'))
+            aspect_btn.setText(labels.get(ratio, tr('ctx_aspect_default', 'Default')))
         if hasattr(self.window, '_show_osd_feedback'):
-            tr = self.window.language_manager.tr
-            osd_text = tr('osd_aspect_ratio', 'Aspect: {}').format(labels.get(ratio, 'Auto'))
+            osd_text = f"{tr('osd_aspect_ratio', 'Aspect')}: {labels.get(ratio, tr('ctx_aspect_default', 'Default'))}"
             self.window._show_osd_feedback(osd_text)
         self._save_aspect_ratio(ratio)
 
@@ -451,10 +457,17 @@ class MediaController:
             pc = self.window.player_controller
             if pc:
                 pc.set_aspect_ratio(ratio)
-            labels = {'default': 'Auto', '16:9': '16:9', '4:3': '4:3', 'stretch': 'Fill', 'fill': 'Crop'}
+            tr = self.window.language_manager.tr
+            labels = {
+                'default': tr('ctx_aspect_default', 'Default'),
+                '16:9': '16:9',
+                '4:3': '4:3',
+                'stretch': tr('ctx_aspect_stretch', 'Stretch'),
+                'fill': tr('ctx_aspect_fill', 'Fill')
+            }
             aspect_btn = self.window.aspect_button
             if aspect_btn:
-                aspect_btn.setText(labels.get(ratio, 'Auto'))
+                aspect_btn.setText(labels.get(ratio, tr('ctx_aspect_default', 'Default')))
         except Exception as e:
             logger.debug(f"恢复画面比例失败: {e}")
 
@@ -499,13 +512,19 @@ class MediaController:
             return
         if ratio in self.ASPECT_CYCLE:
             self._current_aspect_idx = self.ASPECT_CYCLE.index(ratio)
-        labels = {'default': 'Auto', '16:9': '16:9', '4:3': '4:3', 'stretch': 'Fill', 'fill': 'Crop'}
+        tr = self.window.language_manager.tr
+        labels = {
+            'default': tr('ctx_aspect_default', 'Default'),
+            '16:9': '16:9',
+            '4:3': '4:3',
+            'stretch': tr('ctx_aspect_stretch', 'Stretch'),
+            'fill': tr('ctx_aspect_fill', 'Fill')
+        }
         aspect_btn = self.window.aspect_button
         if aspect_btn:
-            aspect_btn.setText(labels.get(ratio, 'Auto'))
+            aspect_btn.setText(labels.get(ratio, tr('ctx_aspect_default', 'Default')))
         if hasattr(self.window, '_show_osd_feedback'):
-            tr = self.window.language_manager.tr
-            self.window._show_osd_feedback(f"{tr('osd_aspect_ratio', 'Aspect')}: {labels.get(ratio, 'Auto')}")
+            self.window._show_osd_feedback(f"{tr('osd_aspect_ratio', 'Aspect')}: {labels.get(ratio, tr('ctx_aspect_default', 'Default'))}")
         self._save_aspect_ratio(ratio)
 
     def update_catchup_indicator(self):
