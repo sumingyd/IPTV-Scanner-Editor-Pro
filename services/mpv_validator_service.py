@@ -237,17 +237,27 @@ class MpvStreamValidator:
                     if codec:
                         result['codec'] = codec
                 elif end_reason == MPV_END_FILE_REASON_ERROR:
-                    if end_error == -13 and latency < timeout * 1000:
+                    _mpv_send_command(handle, ['loadfile', url])
+                    retry_event, retry_error, retry_data = wait_for_specific_event(
+                        handle, min(timeout, 5),
+                        {MPV_EVENT_FILE_LOADED, MPV_EVENT_END_FILE}
+                    )
+                    if retry_event == MPV_EVENT_FILE_LOADED:
                         result['valid'] = True
-                        result['error'] = f'播放警告(vo=null下无可播放内容,延迟{latency}ms)'
-                        result['error_type'] = 'playback_warning'
+                        vid_event, _, _ = wait_for_specific_event(
+                            handle, min(timeout, 3),
+                            {MPV_EVENT_VIDEO_RECONFIG, MPV_EVENT_END_FILE}
+                        )
                         w = _mpv_get_property_int(handle, 'width')
                         h = _mpv_get_property_int(handle, 'height')
                         if w and h and w > 0 and h > 0:
                             result['resolution'] = f"{w}x{h}"
+                        codec = _mpv_get_property_string(handle, 'video-codec')
+                        if codec:
+                            result['codec'] = codec
                     else:
                         result['valid'] = False
-                        result['error'] = f'播放失败(错误码:{end_error})'
+                        result['error'] = f'播放失败(错误码:{end_error},重试确认)'
                         result['error_type'] = 'playback_failed'
                 else:
                     result['valid'] = False
