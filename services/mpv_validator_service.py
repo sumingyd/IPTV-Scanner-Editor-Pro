@@ -53,16 +53,34 @@ def _create_lightweight_mpv():
         _mpv_set_option_string(handle, 'demuxer-max-bytes', '16MiB')
         _mpv_set_option_string(handle, 'demuxer-max-back-bytes', '8MiB')
         _mpv_set_option_string(handle, 'tls-verify', 'no')
-        _mpv_set_option_string(handle, 'network-timeout', '10')
+
+        try:
+            from core.config_manager import ConfigManager
+            playback = ConfigManager().load_playback_settings()
+        except Exception:
+            playback = {}
+
+        net_timeout = playback.get('network_timeout_sec', 0)
+        if net_timeout > 0:
+            _mpv_set_option_string(handle, 'network-timeout', str(net_timeout))
+        else:
+            _mpv_set_option_string(handle, 'network-timeout', '10')
 
         user_agent = MpvStreamValidator.get_user_agent()
+        if not user_agent:
+            user_agent = playback.get('user_agent', '')
         if user_agent:
             _mpv_set_option_string(handle, 'user-agent', user_agent)
 
+        http_headers = playback.get('http_headers', '')
         referer = MpvStreamValidator.get_referer()
-        if referer:
-            header_val = f'Referer: {referer}'
+        if http_headers:
+            header_val = http_headers.replace('\r\n', '\n').replace('\n', '\\n')
+            if referer and 'eferer' not in header_val:
+                header_val += f'\\nReferer: {referer}'
             _mpv_set_option_string(handle, 'http-header-fields', header_val)
+        elif referer:
+            _mpv_set_option_string(handle, 'http-header-fields', f'Referer: {referer}')
 
         if not initialize_mpv(handle):
             destroy_mpv(handle)
