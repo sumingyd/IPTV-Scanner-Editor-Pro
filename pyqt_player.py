@@ -1222,7 +1222,6 @@ class IPTVPlayer(QMainWindow):
         text_layout = QVBoxLayout()
         text_layout.setSpacing(2)
         text_layout.setContentsMargins(0, 0, 0, 0)
-        text_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # 第一行：频道名称 + 节目名称 + 时间 + 播放状态
         row1 = QHBoxLayout()
@@ -1264,6 +1263,7 @@ class IPTVPlayer(QMainWindow):
         self.program_desc.setFixedHeight(54)
         self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         text_layout.addWidget(self.program_desc, 0)
+        text_layout.addStretch(1)
 
         info_layout.addLayout(text_layout, 1)
 
