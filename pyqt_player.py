@@ -1207,6 +1207,7 @@ class IPTVPlayer(QMainWindow):
         # 信息区：LOGO在左(跨全高居中)，右侧两行文字自适应
         info_layout = QHBoxLayout()
         info_layout.setSpacing(12)
+        info_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # 左侧：频道LOGO
         self.channel_logo = QLabel()
@@ -1221,6 +1222,7 @@ class IPTVPlayer(QMainWindow):
         text_layout = QVBoxLayout()
         text_layout.setSpacing(2)
         text_layout.setContentsMargins(0, 0, 0, 0)
+        text_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # 第一行：频道名称 + 节目名称 + 时间 + 播放状态
         row1 = QHBoxLayout()
