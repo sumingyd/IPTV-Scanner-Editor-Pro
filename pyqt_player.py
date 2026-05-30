@@ -1261,7 +1261,8 @@ class IPTVPlayer(QMainWindow):
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.program_desc.setFixedHeight(54)
         self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        text_layout.addWidget(self.program_desc)
+        text_layout.addWidget(self.program_desc, 0, Qt.AlignmentFlag.AlignTop)
+        text_layout.addStretch(1)
 
         info_layout.addLayout(text_layout)
 
