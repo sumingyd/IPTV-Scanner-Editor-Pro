@@ -233,25 +233,25 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         elif role == QtCore.Qt.ItemDataRole.TextAlignmentRole:
             return QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignLeft
         elif role == QtCore.Qt.ItemDataRole.BackgroundRole:
-            from ui.styles import AppStyles
+            from ui.styles import AppStyles, color_to_qcolor
             colors = AppStyles._get_colors()
             valid = channel.get('valid')
             if valid is False:
-                return QtGui.QColor(colors.get('error_background', '#ffdddd'))
+                return color_to_qcolor(colors.get('error_background', '#ffdddd'))
             else:
-                return QtGui.QColor(colors['table_alternate'])
+                return color_to_qcolor(colors['table_alternate'])
         elif role == QtCore.Qt.ItemDataRole.ForegroundRole:
-            from ui.styles import AppStyles
+            from ui.styles import AppStyles, color_to_qcolor
             colors = AppStyles._get_colors()
             status = channel.get('status', '待检测')
             valid = channel.get('valid')
 
             if valid is False and status != '待检测':
-                return QtGui.QColor(colors.get('error', '#ff6666'))
+                return color_to_qcolor(colors.get('error', '#ff6666'))
             elif status == '待检测':
-                return QtGui.QColor(colors.get('placeholder', '#999999'))
+                return color_to_qcolor(colors.get('placeholder', '#999999'))
             else:
-                return QtGui.QColor(colors['window_text'])
+                return color_to_qcolor(colors['window_text'])
 
         return None
 

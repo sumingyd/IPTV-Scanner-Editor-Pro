@@ -109,8 +109,9 @@ class VideoOverlayBadge(QWidget):
         path.addRoundedRect(0, 0, r.width(), r.height(), radius, radius)
 
         grad = QLinearGradient(0, 0, r.width(), 0)
-        grad.setColorAt(0, QColor(color1))
-        grad.setColorAt(1, QColor(color2))
+        from ui.styles import color_to_qcolor
+        grad.setColorAt(0, color_to_qcolor(color1))
+        grad.setColorAt(1, color_to_qcolor(color2))
 
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QBrush(grad))
@@ -123,7 +124,7 @@ class VideoOverlayBadge(QWidget):
 
         # 绘制文字 (图标 + 标签)
         painter.setFont(self._font)
-        painter.setPen(QColor(text_color))
+        painter.setPen(color_to_qcolor(text_color))
         full_text = icon + self._label_text
         painter.drawText(r, Qt.AlignmentFlag.AlignCenter, full_text)
 

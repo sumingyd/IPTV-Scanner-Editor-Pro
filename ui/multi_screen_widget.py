@@ -259,8 +259,9 @@ class MultiScreenCell(QWidget):
         if self._drag_highlight:
             painter = QPainter(self)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            from ui.styles import AppStyles, color_to_qcolor
             colors = AppStyles._get_colors()
-            pen = QPen(QColor(colors.get('accent', '#00aaff')), 3)
+            pen = QPen(color_to_qcolor(colors.get('accent', '#00aaff')), 3)
             pen.setStyle(Qt.PenStyle.SolidLine)
             painter.setPen(pen)
             painter.drawRect(self.rect().adjusted(2, 2, -2, -2))

@@ -4,9 +4,44 @@ import atexit
 import shutil
 
 
-# 模块级临时目录：程序生命周期内只创建一次，进程退出后由 OS 自动清理
 _SVG_TMPDIR: str = tempfile.mkdtemp(prefix='iptv_svg_')
 atexit.register(shutil.rmtree, _SVG_TMPDIR, ignore_errors=True)
+
+
+def color_to_qcolor(color_str):
+    if not color_str:
+        from PyQt6.QtGui import QColor
+        return QColor()
+    if color_str.startswith('#'):
+        from PyQt6.QtGui import QColor
+        return QColor(color_str)
+    if color_str.startswith('rgba('):
+        try:
+            inner = color_str[5:].rstrip(')')
+            parts = [p.strip() for p in inner.split(',')]
+            from PyQt6.QtGui import QColor
+            return QColor(int(parts[0]), int(parts[1]), int(parts[2]), int(float(parts[3]) * 255))
+        except Exception:
+            from PyQt6.QtGui import QColor
+            return QColor()
+    if color_str.startswith('rgb('):
+        try:
+            inner = color_str[4:].rstrip(')')
+            parts = [p.strip() for p in inner.split(',')]
+            from PyQt6.QtGui import QColor
+            return QColor(int(parts[0]), int(parts[1]), int(parts[2]))
+        except Exception:
+            from PyQt6.QtGui import QColor
+            return QColor()
+    from PyQt6.QtGui import QColor
+    return QColor(color_str)
+
+
+def color_to_hex(color_str):
+    qc = color_to_qcolor(color_str)
+    if qc.isValid():
+        return qc.name()
+    return color_str
 
 
 class AppStyles:
@@ -54,6 +89,7 @@ class AppStyles:
 
     @classmethod
     def _get_arrow_image(cls, color: str) -> str:
+        color = color_to_hex(color)
         svg = (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6">'
             f'<path d="M0 0 L5 6 L10 0 Z" fill="{color}"/>'
@@ -63,6 +99,7 @@ class AppStyles:
 
     @classmethod
     def _get_check_image(cls, color: str) -> str:
+        color = color_to_hex(color)
         svg = (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">'
             f'<path d="M3 8 L6.5 11.5 L13 4.5" stroke="{color}" stroke-width="2.5" '
@@ -73,6 +110,7 @@ class AppStyles:
 
     @classmethod
     def _get_radio_dot_image(cls, color: str) -> str:
+        color = color_to_hex(color)
         svg = (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">'
             f'<circle cx="8" cy="8" r="4" fill="{color}"/>'
@@ -82,6 +120,7 @@ class AppStyles:
 
     @classmethod
     def _get_spin_up_image(cls, color: str) -> str:
+        color = color_to_hex(color)
         svg = (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6">'
             f'<path d="M0 6 L5 0 L10 6 Z" fill="{color}"/>'
@@ -91,6 +130,7 @@ class AppStyles:
 
     @classmethod
     def _get_spin_down_image(cls, color: str) -> str:
+        color = color_to_hex(color)
         svg = (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6">'
             f'<path d="M0 0 L5 6 L10 0 Z" fill="{color}"/>'
@@ -100,16 +140,9 @@ class AppStyles:
 
     @classmethod
     def get_icon(cls, name: str, color: str = None, size: int = 16) -> str:
-        """返回 SVG 文件路径，可用 QIcon(path) 创建图标。
-        name: 图标名称（play, pause, stop, prev, next, volume, volume_low, volume_mute,
-              fullscreen, restore, minimize, close, list_view, grid_view, pip, speed, aspect,
-              audio_track, subtitle, pin, pin_active, tv, speaker, signal, calendar, folder,
-              settings, edit, save, refresh, check, hourglass, backward, chevron_left, chevron_right）
-        color: 填充颜色，默认使用当前主题 window_text
-        size: SVG viewBox 尺寸
-        """
         if color is None:
             color = cls._get_colors().get('window_text', '#ffffff')
+        color = color_to_hex(color)
         key = f'{name}_{size}_{color.lstrip("#")}'
         if key in cls._icon_cache:
             return cls._icon_cache[key]
@@ -565,6 +598,13 @@ class AppStyles:
             c['player_panel'] = 'rgba(35, 35, 35, 0.78)'
             c['player_button'] = 'rgba(60, 60, 60, 0.7)'
             c['player_combo'] = 'rgba(45, 45, 45, 0.65)'
+            c['player_background'] = 'rgba(26, 26, 26, 0.85)'
+            c['player_slider_track'] = 'rgba(85, 85, 85, 0.6)'
+            c['player_volume_track'] = 'rgba(68, 68, 68, 0.6)'
+            c['player_line'] = 'rgba(85, 85, 85, 0.5)'
+            c['table_alternate'] = 'rgba(26, 26, 26, 0.7)'
+            c['table_header'] = 'rgba(58, 58, 58, 0.7)'
+            c['tooltip_base'] = 'rgba(42, 42, 42, 0.85)'
             c['backdrop_tint'] = 'rgba(0, 0, 0, 0.3)'
             c['frosted_opacity'] = 0.78
         else:
@@ -575,6 +615,13 @@ class AppStyles:
             c['player_panel'] = 'rgba(245, 245, 245, 0.78)'
             c['player_button'] = 'rgba(200, 200, 200, 0.7)'
             c['player_combo'] = 'rgba(220, 220, 220, 0.65)'
+            c['player_background'] = 'rgba(26, 26, 26, 0.85)'
+            c['player_slider_track'] = 'rgba(160, 160, 160, 0.5)'
+            c['player_volume_track'] = 'rgba(180, 180, 180, 0.5)'
+            c['player_line'] = 'rgba(180, 180, 180, 0.4)'
+            c['table_alternate'] = 'rgba(240, 240, 240, 0.7)'
+            c['table_header'] = 'rgba(230, 230, 230, 0.7)'
+            c['tooltip_base'] = 'rgba(252, 252, 252, 0.85)'
             c['backdrop_tint'] = 'rgba(255, 255, 255, 0.2)'
             c['frosted_opacity'] = 0.82
         return c

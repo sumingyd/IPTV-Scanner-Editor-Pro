@@ -15,16 +15,16 @@ from controllers.main_window_protocol import MainWindowProtocol
 class EPGItemDelegate(QStyledItemDelegate):
     @staticmethod
     def _get_status_colors():
-        from ui.styles import AppStyles
+        from ui.styles import AppStyles, color_to_qcolor
         colors = AppStyles._get_colors()
-        past_bg = QColor(colors.get('mid', '#999999'))
+        past_bg = color_to_qcolor(colors.get('mid', '#999999'))
         past_bg.setAlpha(160)
-        past_text = QColor(colors.get('window_text', '#cccccc'))
+        past_text = color_to_qcolor(colors.get('window_text', '#cccccc'))
         past_text.setAlpha(200)
         return {
-            'live': (QColor(colors.get('error', '#f44336')), QColor(colors.get('bright_text', '#ffffff'))),
+            'live': (color_to_qcolor(colors.get('error', '#f44336')), color_to_qcolor(colors.get('bright_text', '#ffffff'))),
             'past': (past_bg, past_text),
-            'catchup': (QColor(colors.get('accent', '#4a7eff')), QColor(colors.get('bright_text', '#ffffff'))),
+            'catchup': (color_to_qcolor(colors.get('accent', '#4a7eff')), color_to_qcolor(colors.get('bright_text', '#ffffff'))),
         }
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index):
