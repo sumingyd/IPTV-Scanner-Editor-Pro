@@ -96,7 +96,7 @@ class UIController:
             lines.append(f'> {channel_name}')
 
         tr = self.window.language_manager.tr
-        sep = ' | '
+        sep = ' \u2502 '
 
         vline = []
         w = info.get('width', 0) or 0
