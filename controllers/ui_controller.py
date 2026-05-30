@@ -883,11 +883,7 @@ class UIController:
             # 重新设置控制面板中各QLabel的文字颜色（排除已单独处理的）
             for label in fp.findChildren(QLabel):
                 name = label.objectName()
-                if label is getattr(self.window, 'program_desc', None):
-                    continue
-                if label is getattr(self.window, 'current_program', None):
-                    continue
-                if name in ('channel_name', 'channel_logo',
+                if name in ('program_desc', 'current_program', 'channel_name', 'channel_logo',
                             'time_label', 'remain_label', 'progress_start', 'progress_end',
                             'video_info', 'audio_info', 'network_info', 'buffer_info',
                             'video_info_icon', 'audio_info_icon', 'network_info_icon',

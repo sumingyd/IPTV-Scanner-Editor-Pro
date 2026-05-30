@@ -1229,7 +1229,10 @@ class IPTVPlayer(QMainWindow):
         self.channel_name.setStyleSheet(AppStyles.player_channel_name_style())
         row1.addWidget(self.channel_name, 0)
         self.current_program = QLabel("")
+        self.current_program.setObjectName("current_program")
         self.current_program.setStyleSheet(AppStyles.player_program_style())
+        self.current_program.setAutoFillBackground(False)
+        self.current_program.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.current_program.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         row1.addWidget(self.current_program, 1)
         self.time_label = QLabel("--:-- - --:--")
@@ -1250,7 +1253,10 @@ class IPTVPlayer(QMainWindow):
 
         # 第二行：节目描述（自动换行，占据剩余空间）
         self.program_desc = QLabel(tr("open_playlist_or_import", "Open a playlist file or import channels to start watching"))
+        self.program_desc.setObjectName("program_desc")
         self.program_desc.setStyleSheet(AppStyles.player_program_desc_style())
+        self.program_desc.setAutoFillBackground(False)
+        self.program_desc.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.program_desc.setWordWrap(True)
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.program_desc.setFixedHeight(54)
