@@ -5,7 +5,7 @@
 [![PyQt6](https://img.shields.io/badge/PyQt6-6.0+-green.svg)](https://www.riverbankcomputing.com/software/pyqt/)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://www.microsoft.com/windows)
 
-一款功能全面的 IPTV 频道扫描、验证、播放和管理工具。集成 MPV 播放引擎，支持 EPG 电子节目单、频道台标自动匹配、多主题界面、中英双语，从扫描到观看一站式完成。
+一款功能全面的 IPTV 频道扫描、验证、播放和管理工具。集成 MPV 播放引擎与 FFprobe 流探测，支持 EPG 电子节目单、频道台标自动匹配、多主题界面、中英双语，从扫描到观看一站式完成。
 
 ## ✨ 核心功能
 
@@ -56,10 +56,11 @@
 ### 🔍 智能频道扫描
 - **范围扫描**：支持 IP 范围格式（如 `239.1.1.[1-255]:5002`）
 - **多协议**：单播、组播、HTTP/HTTPS 流链接
+- **FFprobe 探测**：使用 FFprobe 进行流有效性检测和媒体信息获取（分辨率、编码、码率）
 - **FCC 快速换台**：支持 IPTV 组播 FCC（Fast Channel Change）代理，换台时自动向 FCC 代理发送 LEAVE/JOIN 通知，消除 IGMP 加入延迟
 - **自定义参数**：超时时间、线程数、用户代理等可调
 - **追加扫描**：在现有列表基础上增量添加新频道
-- **重试机制**：自动重试失败的频道，支持循环扫描模式
+- **智能重试**：仅对超时失败的频道自动重试，避免对确定无效频道做无意义重试
 - **批量操作**：扫描结果支持一键批量处理
   - **自动分类**：根据频道名称规则自动归类到对应分组
   - **清理名称**：去除多余括号、HD/4K 后缀、空格等，规范化频道名
@@ -68,10 +69,10 @@
   - **按组排序**：按频道分组自动排序
 
 ### ✅ 批量验证
-- **有效性检测**：批量检测所有频道是否可用
-- **性能指标**：检测延迟、分辨率等流媒体参数
+- **有效性检测**：使用 FFprobe 批量检测所有频道是否可用
+- **性能指标**：检测延迟、分辨率、编码、码率等流媒体参数
 - **实时统计**：进度条、有效/无效数量实时更新
-- **智能重试**：自动重试验证失败的项
+- **智能重试**：仅对超时失败的频道自动重试
 
 ### 🎯 频道管理
 - **M3U 播放列表**：支持标准 M3U/M3U8 格式导入导出
@@ -130,6 +131,8 @@
 ```bash
 python pyqt_player.py
 ```
+
+> **注意**：运行需要 `mpv/` 目录（含 libmpv-2.dll）和 `ffmpge/` 目录（含 ffprobe.exe），这些二进制文件未纳入版本控制。请自行下载 [MPV](https://mpv.io/) 和 [FFmpeg](https://ffmpeg.org/) 并放置到对应目录。
 
 ### 方式二：从源码安装依赖
 ```bash
@@ -257,7 +260,8 @@ IPTV-Scanner-Editor-Pro/
 │   ├── mpv_bindings.py        # MPV 绑定封装
 │   ├── mpv_common.py          # MPV 公共模块
 │   ├── mpv_player_service.py # MPV 播放引擎（libmpv）
-│   ├── mpv_validator_service.py # 频道验证服务
+│   ├── mpv_validator_service.py # MPV 频道验证服务（旧版）
+│   ├── ffprobe_validator_service.py # FFprobe 频道验证服务（当前使用）
 │   ├── network_preheat_service.py # 网络预热服务
 │   ├── scanner_service.py     # 频道扫描服务
 │   ├── thumbnail_service.py   # 缩略图服务
@@ -302,6 +306,7 @@ IPTV-Scanner-Editor-Pro/
 |---|---|
 | GUI 框架 | PyQt6 |
 | 播放引擎 | libmpv (MPV) |
+| 流探测 | FFprobe (FFmpeg) |
 | HTTP 客户端 | requests / aiohttp |
 | 图像处理 | Pillow |
 | Excel 处理 | openpyxl |
