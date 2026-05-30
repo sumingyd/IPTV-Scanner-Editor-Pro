@@ -42,6 +42,7 @@ class FloatingDockWidget(QDockWidget):
         empty_bar = QWidget()
         empty_bar.setFixedHeight(0)
         self.setTitleBarWidget(empty_bar)
+        self._dwm_blur_enabled = False
 
     def _on_floating_changed(self, floating):
         if floating:
@@ -56,8 +57,52 @@ class FloatingDockWidget(QDockWidget):
         super().show()
         _hide_from_taskbar(self)
 
+    def _try_enable_dwm_blur(self):
+        if sys.platform != 'win32':
+            return
+        try:
+            from ui.styles import AppStyles
+            if AppStyles._visual_style != 'frosted':
+                if self._dwm_blur_enabled:
+                    self._disable_dwm_blur()
+                    self._dwm_blur_enabled = False
+                return
+            import ctypes
+            hwnd = int(self.winId())
+            try:
+                DWMWA_SYSTEMBACKDROP_TYPE = 38
+                DWMSBT_MAINVIEW = 2
+                value = ctypes.c_int(DWMSBT_MAINVIEW)
+                ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
+                    ctypes.byref(value), ctypes.sizeof(value)
+                )
+                self._dwm_blur_enabled = True
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    def _disable_dwm_blur(self):
+        if sys.platform != 'win32':
+            return
+        try:
+            import ctypes
+            hwnd = int(self.winId())
+            DWMWA_SYSTEMBACKDROP_TYPE = 38
+            DWMSBT_NONE = 1
+            value = ctypes.c_int(DWMSBT_NONE)
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
+                ctypes.byref(value), ctypes.sizeof(value)
+            )
+        except Exception:
+            pass
+
     def paintEvent(self, event):
         from ui.styles import AppStyles
+
+        self._try_enable_dwm_blur()
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -68,13 +113,23 @@ class FloatingDockWidget(QDockWidget):
 
         colors = AppStyles._get_colors()
         neo = AppStyles.is_neumorphic()
+        is_frosted = AppStyles._visual_style == 'frosted'
 
-        r, g, b = _parse_hex_color(colors.get('player_panel', '#1e1e1e'))
-        painter.fillPath(path, QColor(r, g, b, self._opacity))
+        if is_frosted:
+            opacity = int(colors.get('frosted_opacity', 0.78) * 255)
+            r, g, b = _parse_hex_color(colors.get('player_panel', '#1e1e1e'))
+            painter.fillPath(path, QColor(r, g, b, opacity))
+        else:
+            r, g, b = _parse_hex_color(colors.get('player_panel', '#1e1e1e'))
+            painter.fillPath(path, QColor(r, g, b, self._opacity))
 
-        if not neo:
+        if not neo and not is_frosted:
             br, bg, bb = _parse_hex_color(colors.get('mid', '#646464'))
             painter.setPen(QColor(br, bg, bb, 150))
+            painter.drawPath(path)
+        elif is_frosted:
+            br, bg, bb = _parse_hex_color(colors.get('mid', '#646464'))
+            painter.setPen(QColor(br, bg, bb, 80))
             painter.drawPath(path)
 
         super().paintEvent(event)
@@ -105,6 +160,7 @@ class FloatingDialog(QDialog):
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self._dwm_blur_enabled = False
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -151,17 +207,55 @@ class FloatingDialog(QDialog):
 
         colors = AppStyles._get_colors()
         neo = AppStyles.is_neumorphic()
+        is_frosted = AppStyles._visual_style == 'frosted'
 
         path = QPainterPath()
         rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
         path.addRoundedRect(rect, self._corner_radius, self._corner_radius)
 
         r, g, b = _parse_hex_color(colors.get(self._bg_color_key, '#333333'))
-        painter.fillPath(path, QColor(r, g, b, self.opacity))
+        if is_frosted:
+            opacity = int(colors.get('frosted_opacity', 0.82) * 255)
+            painter.fillPath(path, QColor(r, g, b, opacity))
+        else:
+            painter.fillPath(path, QColor(r, g, b, self.opacity))
 
-        if not neo:
+        if not neo and not is_frosted:
             br, bg, bb = _parse_hex_color(colors.get(self._border_color_key, '#999999'))
             painter.setPen(QColor(br, bg, bb, 200))
             painter.drawPath(path)
+        elif is_frosted:
+            br, bg, bb = _parse_hex_color(colors.get(self._border_color_key, '#999999'))
+            painter.setPen(QColor(br, bg, bb, 80))
+            painter.drawPath(path)
+
+        if is_frosted and sys.platform == 'win32':
+            try:
+                import ctypes
+                hwnd = int(self.winId())
+                DWMWA_SYSTEMBACKDROP_TYPE = 38
+                DWMSBT_MAINVIEW = 2
+                value = ctypes.c_int(DWMSBT_MAINVIEW)
+                ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
+                    ctypes.byref(value), ctypes.sizeof(value)
+                )
+                self._dwm_blur_enabled = True
+            except Exception:
+                pass
+        elif self._dwm_blur_enabled and sys.platform == 'win32':
+            try:
+                import ctypes
+                hwnd = int(self.winId())
+                DWMWA_SYSTEMBACKDROP_TYPE = 38
+                DWMSBT_NONE = 1
+                value = ctypes.c_int(DWMSBT_NONE)
+                ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
+                    ctypes.byref(value), ctypes.sizeof(value)
+                )
+                self._dwm_blur_enabled = False
+            except Exception:
+                pass
 
         super().paintEvent(event)

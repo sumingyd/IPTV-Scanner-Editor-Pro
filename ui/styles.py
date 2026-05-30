@@ -676,13 +676,25 @@ class AppStyles:
             registry = ctypes.windll.advapi32
             key = ctypes.c_ulong()
             access = 0x20019
-            result = registry.RegOpenKeyExW(0x80000002, r'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize', 0, access, ctypes.byref(key))
+            result = registry.RegOpenKeyExW(0x80000001, r'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize', 0, access, ctypes.byref(key))
             if result == 0:
                 value = ctypes.c_ulong()
                 size = ctypes.c_ulong(4)
                 registry.RegQueryValueExW(key.value, 'AppsUseLightTheme', 0, None, ctypes.byref(value), ctypes.byref(size))
                 registry.RegCloseKey(key.value)
                 return 'light' if value.value == 1 else 'dark'
+        except Exception:
+            pass
+        try:
+            from PyQt6.QtCore import QCoreApplication
+            palette = QCoreApplication.instance().palette() if QCoreApplication.instance() else None
+            if palette:
+                from PyQt6.QtGui import QPalette
+                window_bg = palette.color(QPalette.ColorRole.Window)
+                text_color = palette.color(QPalette.ColorRole.WindowText)
+                if text_color.lightness() > window_bg.lightness():
+                    return 'dark'
+                return 'light'
         except Exception:
             pass
         return 'dark'
@@ -989,6 +1001,178 @@ class AppStyles:
             return pads.get(style, '6px')
         return '6px 12px'
 
+    @classmethod
+    def _style_slider_decoration(cls, colors):
+        c = colors
+        style = cls._visual_style
+        r = cls._get_style_border_radius()
+        groove_h = 6 if style in ('neumorphic', 'skeuomorphic') else 4
+        handle_size = 14 if style in ('neumorphic', 'skeuomorphic', 'ios') else 10
+        handle_margin = -((handle_size - groove_h) // 2)
+        if style == 'neumorphic':
+            groove = f"background: {c['neumorphic_light']}; height: {groove_h}px; {cls._get_style_inset()} border-radius: {r}px;"
+            handle = f"background: {c['neumorphic_light']}; width: {handle_size}px; height: {handle_size}px; {cls._get_style_raised()} border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
+        elif style == 'skeuomorphic':
+            groove = f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c.get('gradient_start', c['light'])}, stop:1 {c.get('gradient_end', c['dark'])}); height: {groove_h}px; border: 1px inset {c.get('border_3d_dark', c['mid'])}; border-radius: {r}px;"
+            handle = f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c.get('gradient_start', c['light'])}, stop:1 {c['button']}); width: {handle_size}px; height: {handle_size}px; border: 2px outset {c.get('border_3d_light', c['mid'])}; border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
+        elif style == 'frosted':
+            groove = f"background: {c['player_slider_track']}; height: {groove_h}px; border: 1px solid rgba(255,255,255,0.1); border-radius: {r}px;"
+            handle = f"background: {c['player_slider_handle']}; width: {handle_size}px; height: {handle_size}px; border: 1px solid rgba(255,255,255,0.2); border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
+        elif style == 'win11':
+            groove = f"background: {c['player_slider_track']}; height: {groove_h}px; border: none; border-radius: {r}px;"
+            handle = f"background: {c['accent']}; width: {handle_size}px; height: {handle_size}px; border: none; border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
+        elif style == 'mac':
+            groove = f"background: {c['player_slider_track']}; height: {groove_h}px; border: none; border-radius: {r}px;"
+            handle = f"background: {c['player_slider_handle']}; width: {handle_size}px; height: {handle_size}px; border: none; border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
+        elif style == 'ios':
+            groove = f"background: {c['player_slider_track']}; height: {groove_h}px; border: none; border-radius: {r}px;"
+            handle = f"background: white; width: {handle_size}px; height: {handle_size}px; border: none; border-radius: {handle_size // 2}px; margin: {handle_margin}px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"
+        else:
+            groove = f"background: {c['player_slider_track']}; height: {groove_h}px; border-radius: 2px;"
+            handle = f"background: {c['player_slider_handle']}; width: {handle_size}px; height: {handle_size}px; border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
+        sub_page = f"background: {c['player_slider_fill']}; height: {groove_h}px; border-radius: 2px;"
+        return groove, sub_page, handle
+
+    @classmethod
+    def _style_progress_decoration(cls, colors):
+        c = colors
+        style = cls._visual_style
+        r = cls._get_style_border_radius()
+        if style == 'neumorphic':
+            return (
+                f"background-color: {c['neumorphic_light']}; {cls._get_style_inset()} border-radius: {r}px;",
+                f"background-color: {c['accent']}; border-radius: {r}px;"
+            )
+        elif style == 'skeuomorphic':
+            return (
+                f"background-color: {c.get('gradient_start', c['light'])}; border: 1px inset {c.get('border_3d_dark', c['mid'])}; border-radius: {r}px;",
+                f"background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c['accent']}, stop:1 {c.get('accent_pressed', c['dark'])}); border-radius: {r}px;"
+            )
+        elif style == 'frosted':
+            return (
+                f"background-color: {c['alternate_base']}; border: 1px solid rgba(255,255,255,0.1); border-radius: {r}px;",
+                f"background-color: {c['accent']}; border-radius: {r}px;"
+            )
+        elif style == 'win11':
+            return (
+                f"background-color: {c.get('card_color', c['alternate_base'])}; border: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {r}px;",
+                f"background-color: {c['accent']}; border-radius: {r}px;"
+            )
+        elif style in ('mac', 'ios'):
+            return (
+                f"background-color: {c['alternate_base']}; border: none; border-radius: {r}px;",
+                f"background-color: {c['accent']}; border-radius: {r}px;"
+            )
+        return (
+            f"background-color: {c['alternate_base']}; border-radius: {r}px;",
+            f"background-color: {c['accent']}; border-radius: {r}px;"
+        )
+
+    @classmethod
+    def _style_scrollbar_decoration(cls, colors):
+        c = colors
+        style = cls._visual_style
+        r = cls._get_style_border_radius()
+        if style == 'neumorphic':
+            return (
+                f"background-color: {c['neumorphic_light']}; width: 10px; border: none;",
+                f"background-color: {c['neumorphic_light']}; {cls._get_style_raised()} border-radius: 5px; min-height: 40px; margin: 2px;",
+                f"background-color: {c['neumorphic_dark']}; {cls._get_style_inset()} border-radius: 5px; min-height: 40px; margin: 2px;"
+            )
+        elif style == 'skeuomorphic':
+            return (
+                f"background-color: {c['alternate_base']}; width: 10px; border: 1px solid {c.get('border_3d_dark', c['mid'])};",
+                f"background-color: {c['button']}; border: 1px outset {c.get('border_3d_light', c['mid'])}; border-radius: 5px; min-height: 40px; margin: 2px;",
+                f"background-color: {c['dark']}; border: 1px inset {c.get('border_3d_dark', c['mid'])}; border-radius: 5px; min-height: 40px; margin: 2px;"
+            )
+        elif style == 'frosted':
+            return (
+                f"background-color: transparent; width: 10px; border: none;",
+                f"background-color: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.1); border-radius: 5px; min-height: 40px; margin: 2px;",
+                f"background-color: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.15); border-radius: 5px; min-height: 40px; margin: 2px;"
+            )
+        elif style == 'win11':
+            return (
+                f"background-color: transparent; width: 10px; border: none;",
+                f"background-color: {c.get('border_thin', c['mid'])}; border: none; border-radius: 5px; min-height: 40px; margin: 2px;",
+                f"background-color: {c['mid']}; border: none; border-radius: 5px; min-height: 40px; margin: 2px;"
+            )
+        elif style in ('mac', 'ios'):
+            return (
+                f"background-color: transparent; width: 8px; border: none;",
+                f"background-color: {c['mid']}; border: none; border-radius: 4px; min-height: 30px; margin: 2px;",
+                f"background-color: {c['accent']}; border: none; border-radius: 4px; min-height: 30px; margin: 2px;"
+            )
+        return (
+            f"background-color: {c['alternate_base']}; width: 10px; border: none;",
+            f"background-color: {c['mid']}; border-radius: 5px; min-height: 40px; margin: 2px;",
+            f"background-color: {c['accent']}; border-radius: 6px; min-height: 40px; margin: 2px;"
+        )
+
+    @classmethod
+    def _style_checkbox_indicator_decoration(cls, colors, checked=False):
+        c = colors
+        style = cls._visual_style
+        r = cls._get_style_border_radius()
+        indicator_r = max(r - 4, 3)
+        if style == 'neumorphic':
+            bg = c['accent'] if checked else c['neumorphic_light']
+            border = f"border: 2px solid {c['accent']};" if checked else cls._get_style_inset()
+            return f"background-color: {bg}; {border} border-radius: {indicator_r}px;"
+        elif style == 'skeuomorphic':
+            bg = c['accent'] if checked else c.get('gradient_start', c['light'])
+            border = f"border: 2px solid {c['accent']};" if checked else f"border: 2px inset {c.get('border_3d_dark', c['mid'])};"
+            return f"background-color: {bg}; {border} border-radius: {indicator_r}px;"
+        elif style == 'frosted':
+            bg = c['accent'] if checked else c['alternate_base']
+            border = f"border: 1px solid {c['accent']};" if checked else "border: 1px solid rgba(255,255,255,0.1);"
+            return f"background-color: {bg}; {border} border-radius: {indicator_r}px;"
+        elif style == 'win11':
+            bg = c['accent'] if checked else c['alternate_base']
+            border = f"border: 1px solid {c['accent']};" if checked else f"border: 1px solid {c.get('border_thin', c['mid'])};"
+            return f"background-color: {bg}; {border} border-radius: {indicator_r}px;"
+        elif style in ('mac', 'ios'):
+            bg = c['accent'] if checked else c['alternate_base']
+            border = f"border: none;" if not checked else "border: none;"
+            return f"background-color: {bg}; {border} border-radius: {indicator_r}px;"
+        bg = c['accent'] if checked else c['alternate_base']
+        border = f"border: 2px solid {c['accent']};" if checked else f"border: 2px solid {c['mid']};"
+        return f"background-color: {bg}; {border} border-radius: {indicator_r}px;"
+
+    @classmethod
+    def _style_dock_title_decoration(cls, colors):
+        c = colors
+        style = cls._visual_style
+        r = cls._get_style_border_radius()
+        if style == 'neumorphic':
+            return f"background-color: {c['base']}; {cls._get_style_raised()} border-radius: {r}px; padding: 6px;"
+        elif style == 'skeuomorphic':
+            return f"background-color: {c['base']}; border: 2px outset {c.get('border_3d_light', c['mid'])}; border-radius: {r}px; padding: 4px;"
+        elif style == 'frosted':
+            return f"background-color: {c['base']}; border: 1px solid rgba(255,255,255,0.1); border-radius: {r}px; padding: 4px;"
+        elif style == 'win11':
+            return f"background-color: {c.get('card_color', c['base'])}; border: none; border-bottom: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {r}px; padding: 4px;"
+        elif style in ('mac', 'ios'):
+            return f"background-color: {c['base']}; border: none; border-radius: {r}px; padding: 6px;"
+        return f"background-color: {c['base']}; border: none; padding: 4px;"
+
+    @classmethod
+    def _style_tooltip_decoration(cls, colors):
+        c = colors
+        style = cls._visual_style
+        r = cls._get_style_border_radius()
+        if style == 'neumorphic':
+            return f"background-color: {c.get('tooltip_base', c['base'])}; {cls._get_style_raised()} border-radius: {r}px; padding: 6px;"
+        elif style == 'skeuomorphic':
+            return f"background-color: {c.get('tooltip_base', c['base'])}; border: 2px outset {c.get('border_3d_light', c['mid'])}; border-radius: {r}px; padding: 4px;"
+        elif style == 'frosted':
+            return f"background-color: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.15); border-radius: {r}px; padding: 6px;"
+        elif style == 'win11':
+            return f"background-color: {c.get('card_color', c['base'])}; border: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {r}px; padding: 6px;"
+        elif style in ('mac', 'ios'):
+            return f"background-color: {c.get('tooltip_base', c['base'])}; border: none; border-radius: {r}px; padding: 6px;"
+        return f"background-color: {c.get('tooltip_base', c['base'])}; border: 1px solid {c['mid']}; padding: 4px;"
+
     @staticmethod
     def main_window_style() -> str:
         colors = AppStyles._get_colors()
@@ -1006,9 +1190,17 @@ class AppStyles:
         btn_bg = colors.get('button_bg', colors['button'])
         btn_hover_bg = colors.get('button_hover_bg', colors['light'])
         input_bg = colors.get('input_bg', colors['alternate_base'])
-        dock_bg = colors.get('dock_bg', colors['base'])
-        tooltip_bg = colors.get('tooltip_base', colors['base'])
-        tooltip_fg = colors.get('tooltip_text', colors['window_text'])
+        slider_groove, slider_sub_page, slider_handle = AppStyles._style_slider_decoration(colors)
+        progress_bg, progress_chunk = AppStyles._style_progress_decoration(colors)
+        sb_track_v, sb_handle_v, sb_handle_v_hover = AppStyles._style_scrollbar_decoration(colors)
+        sb_track_h = sb_track_v.replace('width: 10px', 'height: 10px').replace('border: none;', 'border: none;')
+        sb_handle_h = sb_handle_v.replace('min-height: 40px', 'min-width: 40px').replace('margin: 2px;', 'margin: 2px;')
+        sb_handle_h_hover = sb_handle_v_hover.replace('min-height: 40px', 'min-width: 40px').replace('margin: 2px;', 'margin: 2px;')
+        sb_handle_h_pressed = sb_handle_h_hover
+        chk_indicator = AppStyles._style_checkbox_indicator_decoration(colors)
+        chk_indicator_checked = AppStyles._style_checkbox_indicator_decoration(colors, checked=True)
+        dock_title_dec = AppStyles._style_dock_title_decoration(colors)
+        tooltip_dec = AppStyles._style_tooltip_decoration(colors)
         return f"""
             QMainWindow {{
                 background-color: transparent;
@@ -1149,36 +1341,25 @@ class AppStyles:
                 font-family: {ff};
             }}
             QSlider::groove:horizontal {{
-                background: {colors['player_slider_track']};
-                height: 4px;
-                border-radius: 2px;
+                {slider_groove}
             }}
             QSlider::sub-page:horizontal {{
-                background: {colors['player_slider_fill']};
-                height: 4px;
-                border-radius: 2px;
+                {slider_sub_page}
             }}
             QSlider::handle:horizontal {{
-                background: {colors['player_slider_handle']};
-                width: 10px;
-                height: 10px;
-                border-radius: 5px;
-                margin: -3px 0;
+                {slider_handle}
             }}
             QDockWidget {{
                 color: {colors['window_text']};
                 font-family: {ff};
             }}
             QDockWidget::title {{
-                background-color: {dock_bg};
+                {dock_title_dec}
                 color: {colors['window_text']};
-                padding: 4px;
             }}
             QToolTip {{
-                background-color: {tooltip_bg};
-                color: {tooltip_fg};
-                border: 1px solid {colors['mid']};
-                padding: 4px;
+                {tooltip_dec}
+                color: {colors.get('tooltip_text', colors['window_text'])};
                 font-family: {ff};
             }}
             QGroupBox {{
@@ -1209,19 +1390,38 @@ class AppStyles:
                 font-family: {ff};
                 spacing: 8px;
             }}
+            QCheckBox::indicator {{
+                width: 16px; height: 16px;
+                {chk_indicator}
+            }}
+            QCheckBox::indicator:checked {{
+                {chk_indicator_checked}
+                image: url({AppStyles._get_check_image(AppStyles.COLOR_WHITE)});
+            }}
+            QCheckBox::indicator:hover {{
+                border: 2px solid {colors['accent']};
+            }}
             QRadioButton {{
                 color: {colors['window_text']};
                 font-family: {ff};
                 spacing: 8px;
             }}
+            QRadioButton::indicator {{
+                width: 14px; height: 14px;
+                {chk_indicator}
+            }}
+            QRadioButton::indicator:checked {{
+                {chk_indicator_checked}
+            }}
             QProgressBar {{
-                background-color: {colors['alternate_base']};
+                {progress_bg}
                 color: {colors['window_text']};
                 text-align: center;
                 font-family: {ff};
+                min-height: 8px;
             }}
             QProgressBar::chunk {{
-                background-color: {colors['accent']};
+                {progress_chunk}
             }}
             QSpinBox {{
                 padding: 6px 10px;
@@ -1275,24 +1475,17 @@ class AppStyles:
                 image: url({AppStyles._get_spin_down_image(colors['accent'])});
             }}
             QScrollBar:vertical {{
-                border: none;
-                background-color: {colors['alternate_base']};
-                width: 10px;
+                {sb_track_v}
                 margin: 2px 0;
             }}
             QScrollBar::handle:vertical {{
-                background-color: {colors['mid']};
-                min-height: 40px;
-                border-radius: 5px;
-                margin: 2px;
+                {sb_handle_v}
             }}
             QScrollBar::handle:vertical:hover {{
-                background-color: {colors['accent']};
-                border-radius: 6px;
+                {sb_handle_v_hover}
             }}
             QScrollBar::handle:vertical:pressed {{
-                background-color: {colors['accent_pressed']};
-                border-radius: 6px;
+                {sb_handle_v_hover}
             }}
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
                 height: 0px;
@@ -1303,24 +1496,17 @@ class AppStyles:
                 background-color: transparent;
             }}
             QScrollBar:horizontal {{
-                border: none;
-                background-color: {colors['alternate_base']};
-                height: 10px;
+                {sb_track_h}
                 margin: 0 2px;
             }}
             QScrollBar::handle:horizontal {{
-                background-color: {colors['mid']};
-                min-width: 40px;
-                border-radius: 5px;
-                margin: 2px;
+                {sb_handle_h}
             }}
             QScrollBar::handle:horizontal:hover {{
-                background-color: {colors['accent']};
-                border-radius: 6px;
+                {sb_handle_h_hover}
             }}
             QScrollBar::handle:horizontal:pressed {{
-                background-color: {colors['accent_pressed']};
-                border-radius: 6px;
+                {sb_handle_h_pressed}
             }}
             QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
                 width: 0px;
@@ -1426,9 +1612,22 @@ class AppStyles:
     def statusbar_style() -> str:
         colors = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
+        style = AppStyles._visual_style
+        if style == 'neumorphic':
+            sb_dec = f"background-color: {colors['player_panel']}; {AppStyles._get_style_raised()}"
+        elif style == 'skeuomorphic':
+            sb_dec = f"background-color: {colors['player_panel']}; border: 1px outset {colors.get('border_3d_light', colors['mid'])}"
+        elif style == 'frosted':
+            sb_dec = f"background-color: {colors['player_panel']}; border: 1px solid rgba(255,255,255,0.1)"
+        elif style == 'win11':
+            sb_dec = f"background-color: {colors['player_panel']}; border-top: 1px solid {colors.get('border_thin', colors['mid'])}"
+        elif style in ('mac', 'ios'):
+            sb_dec = f"background-color: {colors['player_panel']}; border: none"
+        else:
+            sb_dec = f"background-color: {colors['player_panel']}; border: none"
         return f"""
             QStatusBar {{
-                background-color: {colors['player_panel']};
+                {sb_dec}
                 color: {colors['player_panel_text']};
                 padding: 4px;
                 border-bottom-left-radius: {r}px;
@@ -1466,6 +1665,31 @@ class AppStyles:
         colors = AppStyles._get_colors()
         ff = AppStyles._get_style_font_family()
         r = AppStyles._get_style_border_radius()
+        style = AppStyles._visual_style
+        if style == 'neumorphic':
+            combo_dec = f"border: none; background-color: {colors['player_combo']}; {AppStyles._get_style_inset()} border-radius: {r}px;"
+            list_dec = f"{AppStyles._get_style_inset()} background-color: {colors['player_panel']};"
+            btn_dec = f"background-color: {colors['player_button']}; {AppStyles._get_style_raised()} border-radius: {r}px;"
+        elif style == 'skeuomorphic':
+            combo_dec = f"border: 1px inset {colors.get('border_3d_dark', colors['mid'])}; background-color: {colors['player_combo']}; border-radius: {r}px;"
+            list_dec = f"border: 1px outset {colors.get('border_3d_light', colors['mid'])}; background-color: {colors['player_panel']};"
+            btn_dec = f"background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {colors.get('gradient_start', colors['light'])}, stop:1 {colors['player_button']}); border: 1px outset {colors.get('border_3d_light', colors['mid'])}; border-radius: {r}px;"
+        elif style == 'frosted':
+            combo_dec = f"border: 1px solid rgba(255,255,255,0.1); background-color: {colors['player_combo']}; border-radius: {r}px;"
+            list_dec = f"border: 1px solid rgba(255,255,255,0.1); background-color: {colors['player_panel']};"
+            btn_dec = f"background-color: {colors['player_button']}; border: 1px solid rgba(255,255,255,0.1); border-radius: {r}px;"
+        elif style == 'win11':
+            combo_dec = f"border: 1px solid {colors.get('border_thin', colors['mid'])}; background-color: {colors['player_combo']}; border-radius: {r}px; border-bottom: 2px solid {colors['accent']};"
+            list_dec = f"border: 1px solid {colors.get('border_thin', colors['mid'])}; background-color: {colors['player_panel']};"
+            btn_dec = f"background-color: {colors['player_button']}; border: 1px solid {colors.get('border_thin', colors['mid'])}; border-radius: {r}px;"
+        elif style in ('mac', 'ios'):
+            combo_dec = f"border: none; background-color: {colors['player_combo']}; border-radius: {r}px;"
+            list_dec = f"border: none; background-color: {colors['player_panel']};"
+            btn_dec = f"background-color: {colors['player_button']}; border: none; border-radius: {r}px;"
+        else:
+            combo_dec = f"border: 1px solid {colors['mid']}; background-color: {colors['player_combo']}; border-radius: {r}px;"
+            list_dec = f"border: 1px solid {colors['mid']}; background-color: {colors['player_panel']};"
+            btn_dec = f"background-color: {colors['player_button']}; border: 1px solid {colors.get('player_line', colors['mid'])}; border-radius: {r}px;"
         return f"""
             * {{
                 font-family: {ff};
@@ -1478,14 +1702,12 @@ class AppStyles:
                 background-color: transparent;
             }}
             QListWidget {{
-                border: none;
-                background-color: {colors['player_panel']};
+                {list_dec}
                 color: {colors['player_panel_text']};
                 outline: none;
             }}
             QComboBox {{
-                border: none;
-                background-color: {colors['player_combo']};
+                {combo_dec}
                 color: {colors['player_panel_text']};
                 padding: 2px 6px;
             }}
@@ -1501,14 +1723,14 @@ class AppStyles:
                 height: 6px;
             }}
             QToolButton {{
+                {btn_dec}
                 padding: 0px;
                 margin: 0px;
-                border: none;
             }}
             QPushButton {{
+                {btn_dec}
                 padding: 0px;
                 margin: 0px;
-                border: none;
             }}
         """
 
@@ -1517,49 +1739,43 @@ class AppStyles:
         colors = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
         style = AppStyles._visual_style
-        btn_border = "none" if style in ('mac', 'ios', 'neumorphic') else f"1px solid {colors.get('player_line', colors['mid'])}"
+        btn_dec = AppStyles._style_btn_decoration(colors)
+        btn_dec_hover = AppStyles._style_btn_decoration(colors, hover=True)
+        btn_dec_pressed = AppStyles._style_btn_decoration(colors, pressed=True)
         return f"""
             QToolButton {{
                 color: {colors['player_panel_text']};
                 font-size: 14px;
-                background-color: {colors['player_button']};
-                border-radius: {r}px;
+                {btn_dec}
                 padding: 0px;
                 margin: 0px;
-                border: {btn_border};
             }}
             QToolButton:hover {{
-                background-color: {colors['player_accent']};
+                color: {colors['player_panel_text']};
+                {btn_dec_hover}
             }}
             QToolButton:pressed {{
-                background-color: {colors['player_panel_text']};
                 color: {colors['player_button']};
+                {btn_dec_pressed}
             }}
         """
 
     @staticmethod
     def player_slider_style() -> str:
         colors = AppStyles._get_colors()
+        groove, sub_page, handle = AppStyles._style_slider_decoration(colors)
         return f"""
             QSlider {{
                 background-color: transparent;
             }}
             QSlider::groove:horizontal {{ 
-                background: {colors['player_slider_track']}; 
-                height: 4px; 
-                border-radius: 2px;
+                {groove}
             }} 
             QSlider::sub-page:horizontal {{
-                background: {colors['player_slider_fill']};
-                height: 4px;
-                border-radius: 2px;
+                {sub_page}
             }}
             QSlider::handle:horizontal {{ 
-                background: {colors['player_slider_handle']}; 
-                width: 10px; 
-                height: 10px; 
-                border-radius: 5px;
-                margin: -3px 0;
+                {handle}
             }}
         """
 
@@ -1951,9 +2167,22 @@ class AppStyles:
     def title_bar_style() -> str:
         colors = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
+        style = AppStyles._visual_style
         title_bg = colors.get('window', '#1e1e1e')
         title_text = colors.get('window_text', '#ffffff')
         accent_color = colors.get('accent', '#0078d4')
+        if style == 'neumorphic':
+            btn_dec = f"background-color: transparent; border: none; font-size: 14px; padding: 4px 12px; margin: 2px; border-radius: {r}px;"
+        elif style == 'skeuomorphic':
+            btn_dec = f"background-color: transparent; border: 1px outset {colors.get('border_3d_light', colors['mid'])}; font-size: 14px; padding: 4px 12px; margin: 2px; border-radius: {r}px;"
+        elif style == 'frosted':
+            btn_dec = f"background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); font-size: 14px; padding: 4px 12px; margin: 2px; border-radius: {r}px;"
+        elif style == 'win11':
+            btn_dec = f"background-color: transparent; border: none; font-size: 14px; padding: 4px 12px; margin: 2px; border-radius: {r}px;"
+        elif style in ('mac', 'ios'):
+            btn_dec = f"background-color: transparent; border: none; font-size: 14px; padding: 4px 14px; margin: 1px; border-radius: {r}px;"
+        else:
+            btn_dec = f"background-color: transparent; border: none; font-size: 14px; padding: 4px 12px; margin: 2px; border-radius: {r}px;"
         return f"""
             QWidget#titleBar {{
                 background-color: {title_bg};
@@ -1961,19 +2190,16 @@ class AppStyles:
                 border-top-right-radius: {r}px;
             }}
             QWidget#titleBar > QPushButton {{
-                background-color: transparent;
                 color: {title_text};
-                border: none;
-                font-size: 14px;
-                padding: 4px 12px;
-                margin: 2px;
-                border-radius: {r}px;
+                {btn_dec}
             }}
             QWidget#titleBar > QPushButton:hover {{
                 background-color: {accent_color};
+                color: white;
             }}
             QWidget#titleBar > QPushButton#closeButton:hover {{
                 background-color: {AppStyles.COLOR_CLOSE_HOVER};
+                color: white;
             }}
         """
 
@@ -1997,10 +2223,34 @@ class AppStyles:
         item_r = max(r - 2, 4)
         if style in ('neumorphic', 'skeuomorphic'):
             item_pad = "6px 24px"
+        elif style == 'ios':
+            item_pad = "8px 28px"
         else:
             item_pad = "4px 20px"
-        menubar_border_bottom = f"border-bottom: 2px solid {colors['shadow_dark']};" if style == 'neumorphic' else ""
-        menubar_item_dec = AppStyles._style_btn_decoration(colors) if style == 'neumorphic' else ""
+        if style == 'neumorphic':
+            menubar_border_bottom = f"border-bottom: 2px solid {colors['shadow_dark']};"
+            menubar_item_dec = AppStyles._style_btn_decoration(colors)
+        elif style == 'skeuomorphic':
+            menubar_border_bottom = f"border-bottom: 1px solid {colors.get('border_3d_dark', colors['mid'])};"
+            menubar_item_dec = ""
+        elif style == 'win11':
+            menubar_border_bottom = f"border-bottom: 1px solid {colors.get('border_thin', colors['mid'])};"
+            menubar_item_dec = ""
+        else:
+            menubar_border_bottom = ""
+            menubar_item_dec = ""
+        if style == 'neumorphic':
+            item_selected_dec = f"background-color: {menu_hover_bg}; {AppStyles._get_style_inset()} border-radius: {item_r}px;"
+        elif style == 'skeuomorphic':
+            item_selected_dec = f"background-color: {menu_hover_bg}; border: 1px inset {colors.get('border_3d_dark', colors['mid'])}; border-radius: {item_r}px;"
+        elif style == 'frosted':
+            item_selected_dec = f"background-color: {menu_hover_bg}; border: 1px solid rgba(255,255,255,0.15); border-radius: {item_r}px;"
+        elif style == 'win11':
+            item_selected_dec = f"background-color: {menu_hover_bg}; border-bottom: 2px solid {colors['accent']}; border-radius: {item_r}px;"
+        elif style in ('mac', 'ios'):
+            item_selected_dec = f"background-color: {menu_hover_bg}; border-radius: {item_r}px;"
+        else:
+            item_selected_dec = f"background-color: {menu_hover_bg}; border: 1px solid {colors['accent']}; border-radius: {item_r}px;"
         return f"""
             QMenuBar {{
                 background-color: {menu_bg};
@@ -2015,10 +2265,8 @@ class AppStyles:
                 {menubar_item_dec}
             }}
             QMenuBar::item:selected {{
-                background-color: {menu_hover_bg};
+                {item_selected_dec}
                 color: {menu_hover_text};
-                border: 1px solid {colors['accent']};
-                border-radius: {item_r}px;
             }}
             QMenu {{
                 color: {menu_text};
@@ -2030,9 +2278,8 @@ class AppStyles:
                 border-radius: {item_r}px;
             }}
             QMenu::item:selected {{
-                background-color: {menu_hover_bg};
+                {item_selected_dec}
                 color: {menu_hover_text};
-                border-radius: {item_r}px;
             }}
             QMenu::separator {{
                 height: 1px;

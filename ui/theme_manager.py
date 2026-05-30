@@ -63,6 +63,7 @@ class ThemeManager(Singleton, QtCore.QObject):
 
     def _apply_theme_to_window(self, window: QtWidgets.QWidget):
         try:
+            self._apply_window_backdrop(window)
             window.setStyleSheet("")
             if isinstance(window, QtWidgets.QMainWindow):
                 window.setStyleSheet(AppStyles.main_window_style())
@@ -77,6 +78,109 @@ class ThemeManager(Singleton, QtCore.QObject):
             QtWidgets.QApplication.processEvents()
         except Exception as e:
             print(f"应用主题到窗口失败: {e}")
+
+    def _apply_window_backdrop(self, window):
+        try:
+            is_frosted = AppStyles._visual_style == 'frosted'
+            if isinstance(window, QtWidgets.QMainWindow):
+                if is_frosted:
+                    window.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+                    self._enable_dwm_blur(window)
+                else:
+                    window.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+                    self._disable_dwm_blur(window)
+        except Exception as e:
+            print(f"设置窗口背景模糊失败: {e}")
+
+    def _enable_dwm_blur(self, window):
+        if not self._is_windows():
+            return
+        try:
+            import ctypes
+            hwnd = int(window.winId())
+            DWMWA_SYSTEMBACKDROP_TYPE = 38
+            DWMSBT_MAINVIEW = 2
+            value = ctypes.c_int(DWMSBT_MAINVIEW)
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
+                ctypes.byref(value), ctypes.sizeof(value)
+            )
+        except Exception:
+            try:
+                import ctypes
+                hwnd = int(window.winId())
+                ACCENT_ENABLE_ACRYLICBLURBEHIND = 4
+                accent_policy = ctypes.c_int * 4
+                data = accent_policy(ACCENT_ENABLE_ACRYLICBLURBEHIND, 0, 0, 0)
+                DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+                dark = ctypes.c_int(1 if AppStyles._get_effective_color_mode() == 'dark' else 0)
+                ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
+                    ctypes.byref(dark), ctypes.sizeof(dark)
+                )
+                class ACCENT_POLICY(ctypes.Structure):
+                    _fields_ = [
+                        ('AccentState', ctypes.c_int),
+                        ('AccentFlags', ctypes.c_int),
+                        ('GradientColor', ctypes.c_uint),
+                        ('AnimationId', ctypes.c_int),
+                    ]
+                class WINDOWCOMPOSITIONATTRIBDATA(ctypes.Structure):
+                    _fields_ = [
+                        ('Attrib', ctypes.c_int),
+                        ('pvData', ctypes.POINTER(ACCENT_POLICY)),
+                        ('cbData', ctypes.c_size_t),
+                    ]
+                WCA_ACCENT_POLICY = 19
+                gradient_color = 0x00000000 if AppStyles._get_effective_color_mode() == 'dark' else 0x00F0F0F0
+                accent = ACCENT_POLICY(ACCENT_ENABLE_ACRYLICBLURBEHIND, 2, gradient_color, 0)
+                data = WINDOWCOMPOSITIONATTRIBDATA(WCA_ACCENT_POLICY, ctypes.pointer(accent), ctypes.sizeof(accent))
+                ctypes.windll.user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(data))
+            except Exception:
+                pass
+
+    def _disable_dwm_blur(self, window):
+        if not self._is_windows():
+            return
+        try:
+            import ctypes
+            hwnd = int(window.winId())
+            try:
+                DWMWA_SYSTEMBACKDROP_TYPE = 38
+                DWMSBT_NONE = 1
+                value = ctypes.c_int(DWMSBT_NONE)
+                ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
+                    ctypes.byref(value), ctypes.sizeof(value)
+                )
+            except Exception:
+                pass
+            try:
+                class ACCENT_POLICY(ctypes.Structure):
+                    _fields_ = [
+                        ('AccentState', ctypes.c_int),
+                        ('AccentFlags', ctypes.c_int),
+                        ('GradientColor', ctypes.c_uint),
+                        ('AnimationId', ctypes.c_int),
+                    ]
+                class WINDOWCOMPOSITIONATTRIBDATA(ctypes.Structure):
+                    _fields_ = [
+                        ('Attrib', ctypes.c_int),
+                        ('pvData', ctypes.POINTER(ACCENT_POLICY)),
+                        ('cbData', ctypes.c_size_t),
+                    ]
+                WCA_ACCENT_POLICY = 19
+                accent = ACCENT_POLICY(0, 0, 0, 0)
+                data = WINDOWCOMPOSITIONATTRIBDATA(WCA_ACCENT_POLICY, ctypes.pointer(accent), ctypes.sizeof(accent))
+                ctypes.windll.user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(data))
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    def _is_windows(self):
+        import sys
+        return sys.platform == 'win32'
 
     def _reapply_main_window_components(self, window):
         """对主窗口的各区域组件逐一重刷样式，确保Dock/面板/标题栏/菜单栏都更新"""
