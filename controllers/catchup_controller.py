@@ -429,10 +429,11 @@ class CatchupController:
                 elapsed_since_rebuild = now_time - self._last_url_rebuild_time
                 if elapsed_since_rebuild < self.URL_REBUILD_COOLDOWN:
                     self._pending_seek_after_cooldown = position
-                    remaining = self.URL_REBUILD_COOLDOWN - elapsed_since_rebuild
-                    logger.info(f"时移seek延迟: URL重建后冷却中({elapsed_since_rebuild:.1f}s/{self.URL_REBUILD_COOLDOWN}s), {remaining:.1f}s后执行")
-                    self._ensure_cooldown_timer(remaining)
+                    logger.info(f"时移seek延迟: URL重建后冷却中({elapsed_since_rebuild:.1f}s/{self.URL_REBUILD_COOLDOWN}s)")
+                    self._ensure_cooldown_timer()
                     return
+                else:
+                    self._url_rebuild_pending = False
 
             channel_name = self.original_channel.get("name", w.language_manager.tr("unknown_channel", "Unknown Channel"))
             title = self.catchup_program.get('title', w.language_manager.tr('unknown_program', 'Unknown Program'))
@@ -572,23 +573,27 @@ class CatchupController:
 
         return True
 
-    def _ensure_cooldown_timer(self, remaining_seconds):
+    def _ensure_cooldown_timer(self):
         if self._cooldown_timer is not None:
-            try:
-                self._cooldown_timer.stop()
-            except Exception:
-                pass
+            return
+        import time as _time
+        remaining_ms = max(200, int((self.URL_REBUILD_COOLDOWN - (_time.time() - self._last_url_rebuild_time)) * 1000))
         from PyQt6.QtCore import QTimer
         self._cooldown_timer = QTimer()
         self._cooldown_timer.setSingleShot(True)
         self._cooldown_timer.timeout.connect(self._execute_pending_seek)
-        self._cooldown_timer.start(int(remaining_seconds * 1000))
+        self._cooldown_timer.start(remaining_ms)
 
     def _execute_pending_seek(self):
         self._cooldown_timer = None
         position = self._pending_seek_after_cooldown
         self._pending_seek_after_cooldown = None
         if position is not None:
+            import time as _time
+            elapsed = _time.time() - self._last_url_rebuild_time
+            if elapsed < self.URL_REBUILD_COOLDOWN:
+                self._ensure_cooldown_timer()
+                return
             from core.log_manager import global_logger as logger
             logger.info(f"冷却期结束，执行延迟的时移seek: position={position:.1f}s")
             self.seek_catchup(position)
