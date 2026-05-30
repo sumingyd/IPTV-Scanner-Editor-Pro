@@ -83,11 +83,10 @@ class ThemeManager(Singleton, QtCore.QObject):
         try:
             is_frosted = AppStyles._visual_style == 'frosted'
             if isinstance(window, QtWidgets.QMainWindow):
+                window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
                 if is_frosted:
-                    window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
                     self._enable_dwm_blur(window)
                 else:
-                    window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)
                     self._disable_dwm_blur(window)
         except Exception as e:
             print(f"设置窗口背景模糊失败: {e}")
