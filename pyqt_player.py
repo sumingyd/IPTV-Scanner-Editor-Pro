@@ -1934,6 +1934,46 @@ class IPTVPlayer(QMainWindow):
     def _on_progress_slider_pressed(self):
         self._stop_auto_hide_timer()
 
+    def _on_progress_preview(self, seconds):
+        mode = getattr(self, '_progress_time_mode', None)
+        if mode == 'vod':
+            self.program_progress.set_preview_text(self._format_seconds_to_time(seconds))
+        elif mode == 'epg':
+            program_start = getattr(self, '_progress_program_start', None)
+            if program_start:
+                from datetime import timedelta
+                preview_time = program_start + timedelta(seconds=seconds)
+                self.program_progress.set_preview_text(preview_time.strftime("%H:%M:%S"))
+            else:
+                self.program_progress.set_preview_text(self._format_seconds_to_time(seconds))
+        elif mode == 'hour':
+            from datetime import datetime, timedelta
+            now = datetime.now()
+            hour_start = now.replace(minute=0, second=0, microsecond=0)
+            preview_time = hour_start + timedelta(seconds=seconds)
+            self.program_progress.set_preview_text(preview_time.strftime("%H:%M:%S"))
+        else:
+            is_catchup = self.play_state.is_catchup_or_timeshift
+            if is_catchup:
+                catchup_program = getattr(self, 'catchup_program', None)
+                if catchup_program:
+                    start_time = catchup_program.get('start')
+                    if start_time:
+                        from datetime import timedelta
+                        preview_time = start_time + timedelta(seconds=seconds)
+                        self.program_progress.set_preview_text(preview_time.strftime("%H:%M:%S"))
+                        return
+            self.program_progress.set_preview_text(self._format_seconds_to_time(seconds))
+
+    def _format_seconds_to_time(self, seconds):
+        seconds = max(0, int(seconds))
+        h = seconds // 3600
+        m = (seconds % 3600) // 60
+        s = seconds % 60
+        if h > 0:
+            return f"{h}:{m:02d}:{s:02d}"
+        return f"{m}:{s:02d}"
+
     def on_progress_slider_released(self):
         if hasattr(self, '_slider_debounce_timer') and self._slider_debounce_timer is not None:
             self._slider_debounce_timer.stop()
