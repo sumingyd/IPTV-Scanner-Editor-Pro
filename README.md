@@ -7,6 +7,14 @@
 
 一款功能全面的 IPTV 频道扫描、验证、播放和管理工具。集成 MPV 播放引擎与 FFprobe 流探测，支持 EPG 电子节目单、频道台标自动匹配、多主题界面、中英双语，从扫描到观看一站式完成。
 
+## 📸 程序截图
+
+|---------|-----------|-----------|
+| ![](icons/1.png) | ![](icons/2.png) | ![](icons/3.png) |
+| ![](icons/4.png) | ![](icons/5.png) | ![](icons/6.png) |
+| ![](icons/7.png) | ![](icons/8.png) | ![](icons/9.png) |
+| ![](icons/10.png) | ![](icons/11.png) | ![](icons/12.png) |
+
 ## ✨ 核心功能
 
 ### 🎬 集成播放器
@@ -311,14 +319,6 @@ IPTV-Scanner-Editor-Pro/
 | 图像处理 | Pillow |
 | Excel 处理 | openpyxl |
 | 拼音排序 | pypinyin |
-
-## 📸 程序截图
-
-|---------|-----------|-----------|
-|![](icons/1.png)|![](icons/2.png)|![](icons/3.png)|
-|![](icons/4.png)|![](icons/5.png)|![](icons/6.png)|
-|![](icons/7.png)|![](icons/8.png)|![](icons/9.png)|
-|![](icons/10.png)|![](icons/11.png)|![](icons/12.png)|
 
 ## 🤝 贡献指南
 
