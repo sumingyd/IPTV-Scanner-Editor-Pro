@@ -1026,7 +1026,7 @@ class AppStyles:
             handle = f"background: {c['player_slider_handle']}; width: {handle_size}px; height: {handle_size}px; border: none; border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
         elif style == 'ios':
             groove = f"background: {c['player_slider_track']}; height: {groove_h}px; border: none; border-radius: {r}px;"
-            handle = f"background: white; width: {handle_size}px; height: {handle_size}px; border: none; border-radius: {handle_size // 2}px; margin: {handle_margin}px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"
+            handle = f"background: white; width: {handle_size}px; height: {handle_size}px; border: 1px solid rgba(0,0,0,0.15); border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
         else:
             groove = f"background: {c['player_slider_track']}; height: {groove_h}px; border-radius: 2px;"
             handle = f"background: {c['player_slider_handle']}; width: {handle_size}px; height: {handle_size}px; border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"

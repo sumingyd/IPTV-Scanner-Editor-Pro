@@ -1,4 +1,4 @@
-from PyQt6 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets, QtGui
 from ui.styles import AppStyles
 from utils.singleton import Singleton
 
@@ -84,10 +84,10 @@ class ThemeManager(Singleton, QtCore.QObject):
             is_frosted = AppStyles._visual_style == 'frosted'
             if isinstance(window, QtWidgets.QMainWindow):
                 if is_frosted:
-                    window.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+                    window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
                     self._enable_dwm_blur(window)
                 else:
-                    window.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+                    window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
                     self._disable_dwm_blur(window)
         except Exception as e:
             print(f"设置窗口背景模糊失败: {e}")
