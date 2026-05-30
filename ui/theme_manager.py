@@ -86,6 +86,9 @@ class ThemeManager(Singleton, QtCore.QObject):
                 window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
                 if is_frosted:
                     self._enable_dwm_blur(window)
+                    for child in window.findChildren(QtWidgets.QDialog):
+                        child.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+                        self._enable_dwm_blur(child)
                 else:
                     self._disable_dwm_blur(window)
         except Exception as e:

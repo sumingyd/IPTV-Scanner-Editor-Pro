@@ -1269,7 +1269,7 @@ class IPTVPlayer(QMainWindow):
         row1.addWidget(self.remain_label, 0)
         text_layout.addLayout(row1)
 
-        # 第二行：节目描述（自动换行，占据剩余空间）
+        # 第二行：节目描述（自动换行，最多3行，紧贴标题行）
         self.program_desc = QLabel(tr("open_playlist_or_import", "Open a playlist file or import channels to start watching"))
         self.program_desc.setObjectName("program_desc")
         self.program_desc.setStyleSheet(AppStyles.player_program_desc_style())
@@ -1277,10 +1277,8 @@ class IPTVPlayer(QMainWindow):
         self.program_desc.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.program_desc.setWordWrap(True)
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self.program_desc.setFixedHeight(54)
-        self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         text_layout.addWidget(self.program_desc, 0, Qt.AlignmentFlag.AlignTop)
-        text_layout.addStretch(1)
 
         info_layout.addLayout(text_layout)
 
@@ -1369,6 +1367,7 @@ class IPTVPlayer(QMainWindow):
         self.program_progress.setPageStep(30)
         self.program_progress.setStyleSheet(AppStyles.player_slider_style())
         self.program_progress.set_cache_color(AppStyles._get_colors().get('player_cache_bar', 'rgba(76,175,80,0.4)'))
+        self.program_progress.setToolTip(tr("panel_progress", "节目进度"))
         self.program_progress.sliderReleased.connect(self.on_progress_slider_released)
         self.program_progress.sliderPressed.connect(self._on_progress_slider_pressed)
         self.program_progress.preview_position_changed.connect(self._on_progress_preview)
@@ -1398,6 +1397,7 @@ class IPTVPlayer(QMainWindow):
         self.volume_slider.setValue(80)
         self.volume_slider.setFixedWidth(90)
         self.volume_slider.setStyleSheet(AppStyles.player_volume_slider_style())
+        self.volume_slider.setToolTip(tr("panel_volume_slider", "音量调节"))
         self.volume_slider.valueChanged.connect(self.set_volume)
         self.control_row.addWidget(self.volume_slider)
         

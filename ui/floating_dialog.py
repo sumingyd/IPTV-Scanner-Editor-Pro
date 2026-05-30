@@ -130,7 +130,7 @@ class FloatingDockWidget(QDockWidget):
         is_frosted = AppStyles._visual_style == 'frosted'
 
         if is_frosted:
-            opacity = int(colors.get('frosted_opacity', 0.78) * 255)
+            opacity = int(colors.get('frosted_opacity', 0.65) * 255)
             r, g, b = _parse_hex_color(colors.get('player_panel', '#1e1e1e'))
             painter.fillPath(path, QColor(r, g, b, opacity))
         else:
@@ -229,7 +229,7 @@ class FloatingDialog(QDialog):
 
         r, g, b = _parse_hex_color(colors.get(self._bg_color_key, '#333333'))
         if is_frosted:
-            opacity = int(colors.get('frosted_opacity', 0.82) * 255)
+            opacity = int(colors.get('frosted_opacity', 0.65) * 255)
             painter.fillPath(path, QColor(r, g, b, opacity))
         else:
             painter.fillPath(path, QColor(r, g, b, self.opacity))

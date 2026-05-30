@@ -20,6 +20,15 @@ class UIController:
         self._osd_timer.setInterval(1000)
         self._osd_timer.timeout.connect(self._refresh_osd)
 
+    @staticmethod
+    def _truncate_to_lines(text: str, max_lines: int = 3) -> str:
+        if not text:
+            return text
+        lines = text.split('\n')
+        if len(lines) <= max_lines:
+            return text
+        return '\n'.join(lines[:max_lines]) + '...'
+
     @property
     def osd_visible(self) -> bool:
         return self._osd_visible
@@ -84,9 +93,10 @@ class UIController:
             play_url = current.get('url', '') or ''
 
         if channel_name:
-            lines.append(channel_name)
+            lines.append(f'> {channel_name}')
 
         tr = self.window.language_manager.tr
+        sep = ' | '
 
         vline = []
         w = info.get('width', 0) or 0
@@ -128,7 +138,7 @@ class UIController:
             vline.append(f'{tr("osd_dynamic", "Dynamic")}: {hdr_type}')
 
         if vline:
-            lines.append('  '.join(vline))
+            lines.append(sep.join(vline))
 
         pix_line = []
         pix_fmt = info.get('pixel_format', '') or ''
@@ -150,7 +160,7 @@ class UIController:
         if sig_avg > 0:
             pix_line.append(f'{tr("osd_avg", "Avg")}: {sig_avg:.1f}')
         if pix_line:
-            lines.append('  '.join(pix_line))
+            lines.append(sep.join(pix_line))
 
         aline = []
         acodec = info.get('audio_codec', '') or ''
@@ -171,7 +181,7 @@ class UIController:
         if a_br > 0:
             aline.append(f'{tr("osd_bitrate", "Bitrate")}: {self.format_bitrate(a_br)}')
         if aline:
-            lines.append('  '.join(aline))
+            lines.append(sep.join(aline))
 
         br_line = []
         v_br = info.get('video_bitrate', 0) or 0
@@ -181,7 +191,7 @@ class UIController:
         if cache_speed > 0:
             br_line.append(f'{tr("osd_cache", "Cache")}: {self.format_bitrate(cache_speed)}')
         if br_line:
-            lines.append('  '.join(br_line))
+            lines.append(sep.join(br_line))
 
         container_line = []
         container = info.get('container', '') or ''
@@ -199,7 +209,7 @@ class UIController:
         if demuxer:
             container_line.append(f'{tr("osd_demuxer", "Demuxer")}: {demuxer}')
         if container_line:
-            lines.append('  '.join(container_line))
+            lines.append(sep.join(container_line))
 
         if play_url:
             display_url = play_url
@@ -212,7 +222,7 @@ class UIController:
         is_live = (total_time or 0) <= 0
 
         if is_live:
-            lines.append(tr('osd_live', '● LIVE'))
+            lines.append(tr('osd_live', 'LIVE'))
         else:
             current_time = pc.get_current_time() or 0
             from datetime import timedelta
@@ -222,7 +232,7 @@ class UIController:
             tot_str = str(tot_td).split('.')[0] if tot_td else '--:--:--'
             if total_time > 0 and current_time > 0:
                 pct = current_time / total_time * 100
-                lines.append(f'{cur_str} / {tot_str}  ({pct:.1f}%)')
+                lines.append(f'{cur_str} / {tot_str} ({pct:.1f}%)')
             else:
                 lines.append(f'{cur_str} / {tot_str}')
 
@@ -511,7 +521,7 @@ class UIController:
                                                 continue
                             if not desc or desc.strip() == '':
                                 desc = self.window.language_manager.tr('no_program_desc', 'No program description')
-                        self.window.program_desc.setText(desc)
+                        self.window.program_desc.setText(self._truncate_to_lines(desc))
                         self.window.current_program.setText(f"· {title}" if title else "")
                         if start_time and end_time:
                             start_str = start_time.strftime("%H:%M")
@@ -540,7 +550,7 @@ class UIController:
                     elif channel_name:
                         current_program = self.window.epg_parser.get_current_program(channel_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
                         if current_program:
-                            self.window.program_desc.setText(current_program.get("desc", self.window.language_manager.tr("no_program_desc", "No program description")))
+                            self.window.program_desc.setText(self._truncate_to_lines(current_program.get("desc", self.window.language_manager.tr("no_program_desc", "No program description"))))
                             try:
                                 start_time = datetime.fromisoformat(current_program.get('start', ''))
                                 end_time = datetime.fromisoformat(current_program.get('end', ''))
@@ -880,7 +890,7 @@ class UIController:
                 progress_slider.setStyleSheet(AppStyles.player_slider_style())
                 progress_slider.update()
 
-            # 重新设置控制面板中各QLabel的文字颜色（排除已单独处理的）
+            # 重新设置控制面板中各QLabel的文字颜色（排除已单独处理的和图标label）
             for label in fp.findChildren(QLabel):
                 name = label.objectName()
                 if name in ('program_desc', 'current_program', 'channel_name', 'channel_logo',
@@ -891,9 +901,9 @@ class UIController:
                     continue
                 if label.pixmap() is not None:
                     continue
-                existing = label.styleSheet()
-                if existing and 'color:' in existing:
-                    label.setStyleSheet(AppStyles.player_label_style())
+                if label.text() == '' and not label.styleSheet():
+                    continue
+                label.setStyleSheet(AppStyles.player_label_style())
         except Exception as e:
             logger.error(f"重新应用悬浮面板样式失败: {e}")
 
