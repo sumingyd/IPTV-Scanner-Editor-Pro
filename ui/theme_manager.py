@@ -213,7 +213,7 @@ class ThemeManager(Singleton, QtCore.QObject):
             QtWidgets.QToolButton: lambda w: AppStyles.toolbar_button_style(),
             QtWidgets.QLineEdit: lambda w: AppStyles.common_line_edit_style() if (not w.styleSheet() or 'common_line_edit' not in w.styleSheet()) else None,
             QtWidgets.QComboBox: lambda w: AppStyles.common_combo_box_style() if (not w.styleSheet() or 'common_combo' not in w.styleSheet()) else None,
-            QtWidgets.QLabel: lambda w: AppStyles.common_label_style(),
+            QtWidgets.QLabel: lambda w: None,
             QtWidgets.QCheckBox: lambda w: AppStyles.common_check_box_style(),
             QtWidgets.QRadioButton: lambda w: AppStyles.common_radio_button_style() if hasattr(AppStyles, 'common_radio_button_style') else None,
             QtWidgets.QProgressBar: lambda w: AppStyles.progress_style(),

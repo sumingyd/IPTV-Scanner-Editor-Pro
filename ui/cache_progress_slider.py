@@ -1,9 +1,11 @@
-from PyQt6.QtWidgets import QSlider
-from PyQt6.QtCore import Qt, QRectF
-from PyQt6.QtGui import QPainter, QColor
+from PyQt6.QtWidgets import QSlider, QLabel
+from PyQt6.QtCore import Qt, QRectF, pyqtSignal, QPoint
+from PyQt6.QtGui import QPainter, QColor, QFont
 
 
 class CacheProgressSlider(QSlider):
+
+    preview_position_changed = pyqtSignal(int)
 
     def __init__(self, orientation=Qt.Orientation.Horizontal, parent=None):
         super().__init__(orientation, parent)
@@ -14,9 +16,37 @@ class CacheProgressSlider(QSlider):
         from ui.theme_manager import get_theme_manager
         get_theme_manager().theme_changed.connect(self._on_theme_changed)
 
+        self._preview_label = QLabel(self)
+        self._preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._preview_label.setVisible(False)
+        self._preview_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self._update_preview_style()
+        self._is_dragging = False
+
     def _on_theme_changed(self, _theme_name):
         self._update_cache_color_from_theme()
+        self._update_preview_style()
         self.update()
+
+    def _update_preview_style(self):
+        try:
+            from ui.styles import AppStyles
+            colors = AppStyles._get_colors()
+            bg = colors.get('player_background', '#1a1a1a')
+            text_color = colors.get('player_slider_handle', '#ffffff')
+            border_color = colors.get('player_slider_fill', '#4CAF50')
+        except Exception:
+            bg, text_color, border_color = '#1a1a1a', '#ffffff', '#4CAF50'
+        self._preview_label.setStyleSheet(
+            f"QLabel {{"
+            f"  color: {text_color};"
+            f"  background-color: {bg};"
+            f"  border: 1px solid {border_color};"
+            f"  border-radius: 4px;"
+            f"  padding: 2px 6px;"
+            f"  font-size: 11px;"
+            f"}}"
+        )
 
     def _update_cache_color_from_theme(self):
         try:
@@ -53,6 +83,57 @@ class CacheProgressSlider(QSlider):
                 self._cache_color = QColor(color_str)
         except Exception:
             self._cache_color = QColor(76, 175, 80, 100)
+
+    def set_preview_text(self, text: str):
+        self._preview_label.setText(text)
+        self._preview_label.adjustSize()
+        if self._is_dragging:
+            self._update_preview_position()
+
+    def _get_handle_x(self) -> int:
+        value = self.value()
+        min_val = self.minimum()
+        max_val = self.maximum()
+        if max_val == min_val:
+            return 0
+        ratio = (value - min_val) / (max_val - min_val)
+        groove_rect = self._get_groove_rect()
+        return int(groove_rect.x() + groove_rect.width() * ratio)
+
+    def _update_preview_position(self):
+        handle_x = self._get_handle_x()
+        label_w = self._preview_label.width()
+        label_h = self._preview_label.height()
+        x = handle_x - label_w // 2
+        x = max(0, min(x, self.width() - label_w))
+        y = -label_h - 4
+        self._preview_label.move(x, y)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._is_dragging = True
+            super().mousePressEvent(event)
+            self.preview_position_changed.emit(self.value())
+            self._preview_label.setVisible(True)
+            self._update_preview_position()
+        else:
+            super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._is_dragging:
+            super().mouseMoveEvent(event)
+            self.preview_position_changed.emit(self.value())
+            self._update_preview_position()
+        else:
+            super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self._is_dragging:
+            self._is_dragging = False
+            self._preview_label.setVisible(False)
+            super().mouseReleaseEvent(event)
+        else:
+            super().mouseReleaseEvent(event)
 
     def paintEvent(self, event):
         super().paintEvent(event)

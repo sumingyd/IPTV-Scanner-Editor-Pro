@@ -1345,6 +1345,7 @@ class IPTVPlayer(QMainWindow):
         self.program_progress.set_cache_color(AppStyles._get_colors().get('player_cache_bar', 'rgba(76,175,80,0.4)'))
         self.program_progress.sliderReleased.connect(self.on_progress_slider_released)
         self.program_progress.sliderPressed.connect(self._on_progress_slider_pressed)
+        self.program_progress.preview_position_changed.connect(self._on_progress_preview)
         self._progress_total_seconds = 3600
         self.progress_group.addWidget(self.program_progress, 1)
         
