@@ -1277,7 +1277,8 @@ class IPTVPlayer(QMainWindow):
         self.program_desc.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.program_desc.setWordWrap(True)
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        self.program_desc.setFixedHeight(48)
+        self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         text_layout.addWidget(self.program_desc, 0, Qt.AlignmentFlag.AlignTop)
 
         info_layout.addLayout(text_layout)

@@ -392,6 +392,8 @@ class EPGController:
                 if duration_min:
                     tip_parts.append(f"({duration_min})")
                 if desc:
+                    if len(desc) > 120:
+                        desc = desc[:117] + '...'
                     tip_parts.append(desc)
                 item.setToolTip('\n'.join(tip_parts))
 
