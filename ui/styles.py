@@ -1675,15 +1675,15 @@ class AppStyles:
         if style == 'neumorphic':
             sb_dec = f"background-color: {sb_bg}; {AppStyles._get_style_raised()}"
         elif style == 'skeuomorphic':
-            sb_dec = f"background-color: {sb_bg}; border: 1px outset {colors.get('border_3d_light', colors['mid'])}"
+            sb_dec = f"background-color: {sb_bg}; border: 1px outset {colors.get('border_3d_light', colors['mid'])};"
         elif style == 'frosted':
-            sb_dec = f"background-color: {sb_bg}; border: 1px solid rgba(255,255,255,0.1)"
+            sb_dec = f"background-color: {sb_bg}; border: 1px solid rgba(255,255,255,0.1);"
         elif style == 'win11':
-            sb_dec = f"background-color: {sb_bg}; border-top: 1px solid {colors.get('border_thin', colors['mid'])}"
+            sb_dec = f"background-color: {sb_bg}; border-top: 1px solid {colors.get('border_thin', colors['mid'])};"
         elif style in ('mac', 'ios'):
-            sb_dec = f"background-color: {sb_bg}; border: none"
+            sb_dec = f"background-color: {sb_bg}; border: none;"
         else:
-            sb_dec = f"background-color: {sb_bg}; border: none"
+            sb_dec = f"background-color: {sb_bg}; border: none;"
         return f"""
             QStatusBar {{
                 {sb_dec}
@@ -2723,15 +2723,15 @@ class AppStyles:
         if style == 'neumorphic':
             sb_dec = f"background-color: {sb_bg}; {AppStyles._get_style_raised()}"
         elif style == 'skeuomorphic':
-            sb_dec = f"background-color: {sb_bg}; border: 1px outset {colors.get('border_3d_light', colors['mid'])}"
+            sb_dec = f"background-color: {sb_bg}; border: 1px outset {colors.get('border_3d_light', colors['mid'])};"
         elif style == 'frosted':
-            sb_dec = f"background-color: {sb_bg}; border: 1px solid rgba(255,255,255,0.1)"
+            sb_dec = f"background-color: {sb_bg}; border: 1px solid rgba(255,255,255,0.1);"
         elif style == 'win11':
-            sb_dec = f"background-color: {sb_bg}; border-top: 1px solid {colors.get('border_thin', colors['mid'])}"
+            sb_dec = f"background-color: {sb_bg}; border-top: 1px solid {colors.get('border_thin', colors['mid'])};"
         elif style in ('mac', 'ios'):
-            sb_dec = f"background-color: {sb_bg}; border: none"
+            sb_dec = f"background-color: {sb_bg}; border: none;"
         else:
-            sb_dec = f"background-color: {sb_bg}; border: none"
+            sb_dec = f"background-color: {sb_bg}; border: none;"
         return f"""
             QStatusBar {{
                 {sb_dec}
