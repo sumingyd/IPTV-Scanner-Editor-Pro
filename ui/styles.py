@@ -1225,53 +1225,61 @@ class AppStyles:
         colors = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
         ff = AppStyles._get_style_font_family()
-        grp_dec = AppStyles._style_group_decoration(colors)
-        inp_dec = AppStyles._style_input_decoration(colors)
-        btn_dec = AppStyles._style_btn_decoration(colors)
-        btn_dec_hover = AppStyles._style_btn_decoration(colors, hover=True)
-        btn_dec_pressed = AppStyles._style_btn_decoration(colors, pressed=True)
         style = AppStyles._visual_style
-        container_border = "none" if style in ('neumorphic', 'mac', 'ios') else f"1px solid {colors['mid']}"
-        spinbox_border = AppStyles._style_input_decoration(colors)
-        spinbox_focus = AppStyles._style_input_decoration(colors, focus=True)
-        btn_bg = colors.get('button_bg', colors['button'])
-        btn_hover_bg = colors.get('button_hover_bg', colors['light'])
-        input_bg = colors.get('input_bg', colors['alternate_base'])
-        slider_groove, slider_sub_page, slider_handle = AppStyles._style_slider_decoration(colors)
-        progress_bg, progress_chunk = AppStyles._style_progress_decoration(colors)
-        sb_track_v, sb_handle_v, sb_handle_v_hover = AppStyles._style_scrollbar_decoration(colors)
+        if style == 'frosted':
+            mw_colors = {}
+            for k, v in colors.items():
+                mw_colors[k] = color_to_hex(v) if isinstance(v, str) and v.startswith('rgba') else v
+        else:
+            mw_colors = colors
+        container_bg = mw_colors['window']
+        content_bg = mw_colors.get('player_background', mw_colors['window'])
+        input_bg = mw_colors.get('input_bg', mw_colors['alternate_base'])
+        dock_bg = mw_colors.get('dock_bg', mw_colors['base'])
+        tooltip_bg = mw_colors.get('tooltip_base', mw_colors['base'])
+        grp_dec = AppStyles._style_group_decoration(mw_colors)
+        inp_dec = AppStyles._style_input_decoration(mw_colors)
+        btn_dec = AppStyles._style_btn_decoration(mw_colors)
+        btn_dec_hover = AppStyles._style_btn_decoration(mw_colors, hover=True)
+        btn_dec_pressed = AppStyles._style_btn_decoration(mw_colors, pressed=True)
+        container_border = "none" if style in ('neumorphic', 'mac', 'ios') else f"1px solid {mw_colors['mid']}"
+        spinbox_border = AppStyles._style_input_decoration(mw_colors)
+        spinbox_focus = AppStyles._style_input_decoration(mw_colors, focus=True)
+        slider_groove, slider_sub_page, slider_handle = AppStyles._style_slider_decoration(mw_colors)
+        progress_bg, progress_chunk = AppStyles._style_progress_decoration(mw_colors)
+        sb_track_v, sb_handle_v, sb_handle_v_hover = AppStyles._style_scrollbar_decoration(mw_colors)
         sb_track_h = sb_track_v.replace('width: 10px', 'height: 10px').replace('border: none;', 'border: none;')
         sb_handle_h = sb_handle_v.replace('min-height: 40px', 'min-width: 40px').replace('margin: 2px;', 'margin: 2px;')
         sb_handle_h_hover = sb_handle_v_hover.replace('min-height: 40px', 'min-width: 40px').replace('margin: 2px;', 'margin: 2px;')
         sb_handle_h_pressed = sb_handle_h_hover
-        chk_indicator = AppStyles._style_checkbox_indicator_decoration(colors)
-        chk_indicator_checked = AppStyles._style_checkbox_indicator_decoration(colors, checked=True)
-        dock_title_dec = AppStyles._style_dock_title_decoration(colors)
-        tooltip_dec = AppStyles._style_tooltip_decoration(colors)
+        chk_indicator = AppStyles._style_checkbox_indicator_decoration(mw_colors)
+        chk_indicator_checked = AppStyles._style_checkbox_indicator_decoration(mw_colors, checked=True)
+        dock_title_dec = AppStyles._style_dock_title_decoration(mw_colors)
+        tooltip_dec = AppStyles._style_tooltip_decoration(mw_colors)
         return f"""
             QMainWindow {{
                 background-color: transparent;
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 font-family: {ff};
                 font-size: 13px;
             }}
             QWidget#mainContainer {{
-                background-color: {colors['window']};
+                background-color: {container_bg};
                 border-radius: {r}px;
                 border: {container_border};
             }}
             QWidget#contentArea {{
-                background-color: {colors['player_background']};
+                background-color: {content_bg};
                 border-bottom-left-radius: {r}px;
                 border-bottom-right-radius: {r}px;
             }}
             QLabel {{
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 background-color: transparent;
                 font-family: {ff};
             }}
             QPushButton {{
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 padding: 6px 12px;
                 font-weight: 500;
                 font-size: 12px;
@@ -1279,30 +1287,30 @@ class AppStyles:
                 {btn_dec}
             }}
             QPushButton:hover {{
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 {btn_dec_hover}
             }}
             QPushButton:pressed {{
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 {btn_dec_pressed}
             }}
             QPushButton:disabled {{
-                background-color: {colors['light']};
-                color: {colors['placeholder']};
+                background-color: {mw_colors['light']};
+                color: {mw_colors['placeholder']};
             }}
             QLineEdit {{
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 padding: 6px;
                 font-size: 12px;
                 font-family: {ff};
                 {inp_dec}
             }}
             QLineEdit:focus {{
-                border-color: {colors['accent']};
+                border-color: {mw_colors['accent']};
                 outline: none;
             }}
             QComboBox {{
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 padding: 6px;
                 font-size: 12px;
                 font-family: {ff};
@@ -1315,76 +1323,76 @@ class AppStyles:
                 border: none;
             }}
             QComboBox::down-arrow {{
-                image: url({AppStyles._get_arrow_image(colors['window_text'])});
+                image: url({AppStyles._get_arrow_image(mw_colors['window_text'])});
                 width: 10px;
                 height: 6px;
             }}
             QComboBox QAbstractItemView {{
-                background-color: {colors['base']};
-                color: {colors['window_text']};
-                selection-background-color: {colors['accent']};
+                background-color: {mw_colors['base']};
+                color: {mw_colors['window_text']};
+                selection-background-color: {mw_colors['accent']};
                 selection-color: {AppStyles.COLOR_WHITE};
-                border: 1px solid {colors['mid']};
+                border: 1px solid {mw_colors['mid']};
                 outline: none;
             }}
             QTableView {{
-                background-color: {colors['alternate_base']};
-                alternate-background-color: {colors['table_alternate']};
-                selection-background-color: {colors['table_selection']};
-                selection-color: {colors['table_selection_text']};
-                gridline-color: {colors['table_grid']};
-                color: {colors['window_text']};
+                background-color: {mw_colors['alternate_base']};
+                alternate-background-color: {mw_colors['table_alternate']};
+                selection-background-color: {mw_colors['table_selection']};
+                selection-color: {mw_colors['table_selection_text']};
+                gridline-color: {mw_colors['table_grid']};
+                color: {mw_colors['window_text']};
                 font-size: 12px;
                 font-family: {ff};
             }}
             QTableView::item {{
                 padding: 6px 10px;
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
             }}
             QTableView::item:hover {{
-                background-color: {colors['table_hover']};
+                background-color: {mw_colors['table_hover']};
             }}
             QTableView::item:selected {{
-                background-color: {colors['table_selection']};
-                color: {colors['table_selection_text']};
+                background-color: {mw_colors['table_selection']};
+                color: {mw_colors['table_selection_text']};
             }}
             QHeaderView {{
-                background-color: {colors['table_header']};
+                background-color: {mw_colors['table_header']};
             }}
             QHeaderView::section {{
-                background-color: {colors['table_header']};
-                color: {colors['window_text']};
+                background-color: {mw_colors['table_header']};
+                color: {mw_colors['window_text']};
                 padding: 8px 12px;
                 font-weight: 600;
                 font-size: 12px;
                 font-family: {ff};
                 border: none;
-                border-right: 1px solid {colors['mid']};
+                border-right: 1px solid {mw_colors['mid']};
             }}
             QListWidget {{
-                background-color: {colors['alternate_base']};
-                color: {colors['window_text']};
+                background-color: {mw_colors['alternate_base']};
+                color: {mw_colors['window_text']};
                 font-family: {ff};
                 outline: none;
             }}
             QListWidget::item {{
                 padding: 4px 8px;
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
             }}
             QListWidget::item:hover {{
-                background-color: {colors['highlight']};
+                background-color: {mw_colors['highlight']};
             }}
             QListWidget::item:selected {{
-                background-color: {colors['accent']};
+                background-color: {mw_colors['accent']};
                 color: {AppStyles.COLOR_WHITE};
             }}
             QTextEdit {{
                 background-color: {input_bg};
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 font-family: {ff};
             }}
             QToolButton {{
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 font-family: {ff};
             }}
             QSlider::groove:horizontal {{
@@ -1397,16 +1405,16 @@ class AppStyles:
                 {slider_handle}
             }}
             QDockWidget {{
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 font-family: {ff};
             }}
             QDockWidget::title {{
                 {dock_title_dec}
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
             }}
             QToolTip {{
                 {tooltip_dec}
-                color: {colors.get('tooltip_text', colors['window_text'])};
+                color: {mw_colors.get('tooltip_text', mw_colors['window_text'])};
                 font-family: {ff};
             }}
             QGroupBox {{
@@ -1414,7 +1422,7 @@ class AppStyles:
                 padding-top: 16px;
                 font-weight: 600;
                 font-size: 13px;
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 font-family: {ff};
                 {grp_dec}
             }}
@@ -1422,17 +1430,17 @@ class AppStyles:
                 subcontrol-origin: margin;
                 left: 12px;
                 padding: 0 6px;
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 font-weight: 600;
             }}
             QSplitter::handle {{
-                background-color: {colors['mid']};
+                background-color: {mw_colors['mid']};
             }}
             QSplitter::handle:hover {{
-                background-color: {colors['highlight']};
+                background-color: {mw_colors['highlight']};
             }}
             QCheckBox {{
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 font-size: 13px;
                 font-family: {ff};
                 spacing: 8px;
@@ -1446,10 +1454,10 @@ class AppStyles:
                 image: url({AppStyles._get_check_image(AppStyles.COLOR_WHITE)});
             }}
             QCheckBox::indicator:hover {{
-                border: 2px solid {colors['accent']};
+                border: 2px solid {mw_colors['accent']};
             }}
             QRadioButton {{
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 font-family: {ff};
                 spacing: 8px;
             }}
@@ -1462,7 +1470,7 @@ class AppStyles:
             }}
             QProgressBar {{
                 {progress_bg}
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 text-align: center;
                 font-family: {ff};
                 min-height: 8px;
@@ -1474,7 +1482,7 @@ class AppStyles:
                 padding: 6px 10px;
                 padding-right: 32px;
                 font-size: 13px;
-                color: {colors['window_text']};
+                color: {mw_colors['window_text']};
                 {spinbox_border}
             }}
             QSpinBox:focus {{
@@ -1483,8 +1491,8 @@ class AppStyles:
             QSpinBox::up-button, QSpinBox::down-button {{
                 width: 28px;
                 border: none;
-                border-left: 1px solid {colors['mid']};
-                background-color: {colors['button']};
+                border-left: 1px solid {mw_colors['mid']};
+                background-color: {mw_colors['button']};
                 min-width: 0;
                 min-height: 0;
                 padding: 0;
@@ -1500,26 +1508,26 @@ class AppStyles:
                 border-bottom-right-radius: {r}px;
             }}
             QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
-                background-color: {colors['accent']};
+                background-color: {mw_colors['accent']};
             }}
             QSpinBox::up-button:pressed, QSpinBox::down-button:pressed {{
-                background-color: {colors['accent_pressed']};
+                background-color: {mw_colors['accent_pressed']};
             }}
             QSpinBox::up-arrow {{
-                image: url({AppStyles._get_spin_up_image(colors['window_text'])});
+                image: url({AppStyles._get_spin_up_image(mw_colors['window_text'])});
                 width: 10px;
                 height: 6px;
             }}
             QSpinBox::down-arrow {{
-                image: url({AppStyles._get_spin_down_image(colors['window_text'])});
+                image: url({AppStyles._get_spin_down_image(mw_colors['window_text'])});
                 width: 10px;
                 height: 6px;
             }}
             QSpinBox::up-button:hover::up-arrow {{
-                image: url({AppStyles._get_spin_up_image(colors['accent'])});
+                image: url({AppStyles._get_spin_up_image(mw_colors['accent'])});
             }}
             QSpinBox::down-button:hover::down-arrow {{
-                image: url({AppStyles._get_spin_down_image(colors['accent'])});
+                image: url({AppStyles._get_spin_down_image(mw_colors['accent'])});
             }}
             QScrollBar:vertical {{
                 {sb_track_v}
@@ -1660,18 +1668,22 @@ class AppStyles:
         colors = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
         style = AppStyles._visual_style
+        from ui.styles import color_to_hex
+        sb_bg = colors['player_panel']
+        if style == 'frosted':
+            sb_bg = color_to_hex(colors['player_panel'])
         if style == 'neumorphic':
-            sb_dec = f"background-color: {colors['player_panel']}; {AppStyles._get_style_raised()}"
+            sb_dec = f"background-color: {sb_bg}; {AppStyles._get_style_raised()}"
         elif style == 'skeuomorphic':
-            sb_dec = f"background-color: {colors['player_panel']}; border: 1px outset {colors.get('border_3d_light', colors['mid'])}"
+            sb_dec = f"background-color: {sb_bg}; border: 1px outset {colors.get('border_3d_light', colors['mid'])}"
         elif style == 'frosted':
-            sb_dec = f"background-color: {colors['player_panel']}; border: 1px solid rgba(255,255,255,0.1)"
+            sb_dec = f"background-color: {sb_bg}; border: 1px solid rgba(255,255,255,0.1)"
         elif style == 'win11':
-            sb_dec = f"background-color: {colors['player_panel']}; border-top: 1px solid {colors.get('border_thin', colors['mid'])}"
+            sb_dec = f"background-color: {sb_bg}; border-top: 1px solid {colors.get('border_thin', colors['mid'])}"
         elif style in ('mac', 'ios'):
-            sb_dec = f"background-color: {colors['player_panel']}; border: none"
+            sb_dec = f"background-color: {sb_bg}; border: none"
         else:
-            sb_dec = f"background-color: {colors['player_panel']}; border: none"
+            sb_dec = f"background-color: {sb_bg}; border: none"
         return f"""
             QStatusBar {{
                 {sb_dec}
