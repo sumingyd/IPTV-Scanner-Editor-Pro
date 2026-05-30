@@ -25,6 +25,20 @@ def _hide_from_taskbar(window):
 def _parse_hex_color(hex_str, default=(0, 0, 0)):
     if hex_str and hex_str.startswith('#') and len(hex_str) == 7:
         return int(hex_str[1:3], 16), int(hex_str[3:5], 16), int(hex_str[5:7], 16)
+    if hex_str and hex_str.startswith('rgba('):
+        try:
+            inner = hex_str[5:].rstrip(')')
+            parts = [p.strip() for p in inner.split(',')]
+            return int(parts[0]), int(parts[1]), int(parts[2])
+        except Exception:
+            pass
+    if hex_str and hex_str.startswith('rgb('):
+        try:
+            inner = hex_str[4:].rstrip(')')
+            parts = [p.strip() for p in inner.split(',')]
+            return int(parts[0]), int(parts[1]), int(parts[2])
+        except Exception:
+            pass
     return default
 
 
