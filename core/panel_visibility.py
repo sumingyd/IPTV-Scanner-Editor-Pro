@@ -212,6 +212,12 @@ class PanelVisibilityManager:
         if panel in self.PANELS and hasattr(w, '_sync_panel_actions'):
             w._sync_panel_actions()
 
+        if visible and hasattr(w, 'update_floating_position'):
+            from PyQt6.QtCore import QTimer
+            if not getattr(w, '_position_update_pending', False):
+                w._position_update_pending = True
+                QTimer.singleShot(0, lambda: (setattr(w, '_position_update_pending', False), w.update_floating_position()))
+
     def add_listener(self, callback: Callable[[str, bool], None]):
         with self._lock:
             self._listeners.append(callback)

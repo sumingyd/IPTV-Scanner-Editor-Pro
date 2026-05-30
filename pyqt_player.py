@@ -2929,11 +2929,14 @@ class IPTVPlayer(QMainWindow):
         title_bar_h = 32
         menu_bar_h = 28 if (hasattr(self, '_custom_menu_bar') and self._custom_menu_bar and self._custom_menu_bar.isVisible()) else 0
         floating_dock = getattr(self, 'floating_dock', None)
-        if floating_dock and floating_dock.isVisible():
-            control_panel_h = floating_dock.height()
+        if floating_dock:
+            if floating_dock.isVisible():
+                control_panel_h = floating_dock.height()
+                self._last_control_panel_h = control_panel_h
+            else:
+                control_panel_h = getattr(self, '_last_control_panel_h', floating_dock.height() or 170)
         else:
-            floating_container = getattr(self, 'floating_panel', None)
-            control_panel_h = floating_container.height() if floating_container and floating_container.isVisible() else 170
+            control_panel_h = 170
         status_bar_h = 25
 
         side_top = mw_y + title_bar_h + menu_bar_h + gap
