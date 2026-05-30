@@ -1,0 +1,267 @@
+import os
+
+from PyQt6 import QtWidgets, QtCore, QtGui
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QFrame
+import asyncio
+import platform
+import sys
+from core.log_manager import global_logger as logger
+from ..floating_dialog import FloatingDialog
+
+
+class AboutDialog(FloatingDialog):
+    DEFAULT_VERSION = None
+
+    def __init__(self, parent=None):
+        super().__init__(parent, stay_on_top=False)
+        from core.version import CURRENT_VERSION, BUILD_DATE
+        self.current_version = CURRENT_VERSION
+        self.build_date = BUILD_DATE
+        from core.language_manager import LanguageManager
+        self.language_manager = getattr(parent, 'language_manager', None) or LanguageManager()
+        from ..styles import AppStyles
+        self._colors = AppStyles._get_colors()
+        self._init_ui()
+
+        from ..theme_manager import get_theme_manager
+        get_theme_manager().register_window(self)
+    
+    def _init_ui(self):
+        """初始化 UI"""
+        tr = self.language_manager.tr
+        c = self._colors
+        self.setWindowTitle(tr("about_dialog_title", "About IPTV Scanner Editor Pro"))
+        self.setMinimumSize(420, 380)
+
+        main_layout = QtWidgets.QVBoxLayout(self)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(0)
+
+        # 图标居中显示
+        logo_label = QtWidgets.QLabel()
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        from PyQt6.QtGui import QPixmap, QIcon
+        from utils.general_utils import get_icon_path
+        ico_path = get_icon_path()
+        if os.path.exists(ico_path):
+            # 使用 QIcon 读取 ICO 文件，然后获取最大尺寸的 pixmap
+            icon = QIcon(ico_path)
+            # 获取所有可用尺寸
+            available_sizes = icon.availableSizes()
+            if available_sizes:
+                # 找到最大的尺寸
+                max_size = max(available_sizes, key=lambda s: s.width() * s.height())
+                pixmap = icon.pixmap(max_size)
+            else:
+                pixmap = icon.pixmap(256, 256)  # 默认使用 256x256
+            
+            if not pixmap.isNull():
+                # 缩放到 128x128，保持宽高比，使用平滑变换
+                scaled = pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                logo_label.setPixmap(scaled)
+        else:
+            from ui.styles import AppStyles
+            tv_icon_path = AppStyles.get_icon('tv', AppStyles._get_colors().get('window_text', '#ffffff'), 48)
+            if tv_icon_path:
+                from PyQt6.QtGui import QIcon
+                logo_label.setPixmap(QIcon(tv_icon_path).pixmap(128, 128))
+            logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo_label.setStyleSheet("background-color: transparent;")
+        main_layout.addWidget(logo_label)
+
+        main_layout.addSpacing(16)
+
+        card = QtWidgets.QWidget()
+        card.setStyleSheet(f"""
+            QWidget#infoCard {{
+                background-color: {c['alternate_base']};
+                border-radius: 8px;
+                padding: 4px;
+            }}
+        """)
+        card.setObjectName("infoCard")
+        card_layout = QtWidgets.QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 12, 16, 12)
+        card_layout.setSpacing(8)
+
+        lbl_style = f"font-size: 12px; color: {c['window_text']}; background-color: transparent;"
+        val_style = f"font-size: 12px; color: {c['accent']}; background-color: transparent;"
+
+        rows = [
+            (f"{tr('current_version', 'Current Version')}", self.current_version, True),
+            (f"{tr('latest_version', 'Latest Version')}", None, True),
+            (f"{tr('build_date', 'Build Date')}", self.build_date, False),
+            (f"{tr('qt_version', 'QT Version')}", QtCore.qVersion(), False),
+        ]
+
+        self.latest_version_value = None
+        for label_text, value_text, is_accent in rows:
+            row = QtWidgets.QHBoxLayout()
+            row.setSpacing(8)
+            lbl = QtWidgets.QLabel(label_text)
+            lbl.setStyleSheet(lbl_style)
+            lbl.setFixedWidth(100)
+            val = QtWidgets.QLabel(value_text if value_text else tr("checking_update", "Checking..."))
+            val.setStyleSheet(val_style if is_accent else lbl_style)
+            if value_text is None:
+                self.latest_version_value = val
+            row.addWidget(lbl)
+            row.addWidget(val)
+            row.addStretch()
+            card_layout.addLayout(row)
+
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setStyleSheet(f"background-color: {c['mid']}; max-height: 1px; margin: 4px 0;")
+        card_layout.addWidget(sep)
+
+        sys_row = QtWidgets.QHBoxLayout()
+        sys_row.setSpacing(8)
+        sys_lbl = QtWidgets.QLabel(f"{tr('system_info', 'System Info')}")
+        sys_lbl.setStyleSheet(lbl_style)
+        sys_lbl.setFixedWidth(100)
+        sys_val = QtWidgets.QLabel(f"Python {sys.version.split()[0]}, {platform.system()} {platform.release()}")
+        sys_val.setStyleSheet(lbl_style)
+        sys_row.addWidget(sys_lbl)
+        sys_row.addWidget(sys_val)
+        sys_row.addStretch()
+        card_layout.addLayout(sys_row)
+
+        main_layout.addWidget(card)
+
+        main_layout.addSpacing(16)
+
+        bottom_layout = QtWidgets.QHBoxLayout()
+        bottom_layout.setSpacing(12)
+
+        self.copyright_label = QtWidgets.QLabel(tr("copyright_text", "© 2025-2026 IPTV Scanner Editor Pro"))
+        self.copyright_label.setStyleSheet(f"font-size: 10px; color: {c['player_panel_secondary']}; background-color: transparent;")
+
+        github_link = QtWidgets.QLabel()
+        github_link.setText(f'<a href="https://github.com/sumingyd/IPTV-Scanner-Editor-Pro" style="color: {c["accent"]}; text-decoration: none; font-size: 10px;">{tr("github_repo", "GitHub Repository")}</a>')
+        github_link.setOpenExternalLinks(True)
+
+        close_btn = QtWidgets.QPushButton(tr("close_button", "Close"))
+        close_btn.setFixedSize(72, 28)
+        from ui.styles import AppStyles
+        close_btn.setStyleSheet(AppStyles.button_style())
+        close_btn.clicked.connect(self.close)
+
+        bottom_layout.addWidget(self.copyright_label)
+        bottom_layout.addWidget(github_link)
+        bottom_layout.addStretch()
+        bottom_layout.addWidget(close_btn)
+
+        main_layout.addLayout(bottom_layout)
+
+        self.setStyleSheet(AppStyles.dialog_style())
+        # 使用线程异步检查版本，不阻塞 UI
+        import threading
+        self._version_thread = threading.Thread(target=self._check_version_thread, daemon=True)
+        self._version_thread.start()
+    
+    def _check_version_thread(self):
+        """在线程中检查版本（不阻塞 UI）"""
+        tr = self.language_manager.tr
+        from core.log_manager import global_logger as logger
+        logger.info("开始检查版本...")
+        try:
+            # 在线程中运行异步代码
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                logger.debug("开始获取最新版本...")
+                latest_version, publish_date = loop.run_until_complete(
+                    asyncio.wait_for(self._get_latest_version(), timeout=5)
+                )
+                logger.debug(f"获取到最新版本：{latest_version}")
+                # 保存结果到实例变量
+                self._latest_version_result = latest_version
+                # 在主线程中更新 UI
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(0, self._update_version_ui)
+            finally:
+                loop.close()
+        except asyncio.TimeoutError:
+            logger.error("版本检查超时")
+            self._latest_version_result = tr("request_timeout_text", "(Request Timeout)")
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(0, self._update_version_ui)
+        except Exception as e:
+            logger.error(f"版本检查失败：{e}")
+            self._latest_version_result = tr("fetch_failed_text", "(Fetch Failed)")
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(0, self._update_version_ui)
+    
+    def _update_version_ui(self):
+        """在主线程中更新版本显示"""
+        from core.log_manager import global_logger as logger
+        logger.debug(f"更新 UI 版本号：{self._latest_version_result}")
+        try:
+            if hasattr(self, 'latest_version_value'):
+                self.latest_version_value.setText(self._latest_version_result)
+        except RuntimeError:
+            pass
+
+    async def _get_latest_version(self):
+        tr = self.language_manager.tr
+        try:
+            import aiohttp
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest",
+                    headers={'User-Agent': 'IPTV-Scanner-Editor-Pro'}
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        version = data.get('tag_name', '').lstrip('v')
+                        publish_date = data.get('published_at', '')
+                        return version, publish_date
+                    elif response.status == 403:
+                        return tr("api_limit_text", "(API Limit)"), ""
+                    else:
+                        return tr("fetch_failed_text", "(Fetch Failed)"), ""
+        except asyncio.TimeoutError:
+            return tr("request_timeout_text", "(Request Timeout)"), ""
+        except Exception as e:
+            logger.error(f"获取最新版本失败: {str(e)}")
+            return tr("fetch_failed_text", "(Fetch Failed)"), ""
+
+    def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            widget = self.childAt(event.position().toPoint())
+            if isinstance(widget, QtWidgets.QLabel) and widget.openExternalLinks():
+                return
+        super().mousePressEvent(event)
+
+    def reapply_styles(self):
+        from ..styles import AppStyles
+        self._colors = AppStyles._get_colors()
+        c = self._colors
+        lbl_style = f"font-size: 12px; color: {c['window_text']}; background-color: transparent;"
+        val_style = f"font-size: 12px; color: {c['accent']}; background-color: transparent;"
+        for child in self.findChildren(QtWidgets.QLabel):
+            child_name = child.objectName()
+            if child_name == "infoCard":
+                continue
+            if child == getattr(self, 'copyright_label', None):
+                child.setStyleSheet(f"font-size: 10px; color: {c['player_panel_secondary']}; background-color: transparent;")
+                continue
+            existing = child.styleSheet()
+            if 'accent' in existing or val_style.split(';')[1] in existing:
+                child.setStyleSheet(val_style)
+            else:
+                child.setStyleSheet(lbl_style)
+        for child in self.findChildren(QtWidgets.QPushButton):
+            child.setStyleSheet(AppStyles.button_style())
+        card = self.findChild(QtWidgets.QWidget, "infoCard")
+        if card:
+            card.setStyleSheet(f"""
+                QWidget#infoCard {{
+                    background-color: {c['alternate_base']};
+                    border-radius: 8px;
+                    padding: 4px;
+                }}
+            """)
