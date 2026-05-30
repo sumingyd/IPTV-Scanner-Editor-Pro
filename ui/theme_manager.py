@@ -83,14 +83,27 @@ class ThemeManager(Singleton, QtCore.QObject):
         try:
             is_frosted = AppStyles._visual_style == 'frosted'
             if isinstance(window, QtWidgets.QMainWindow):
-                window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
                 if is_frosted:
+                    window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
                     self._enable_dwm_blur(window)
                     for child in window.findChildren(QtWidgets.QDialog):
                         child.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
                         self._enable_dwm_blur(child)
+                    for dock_attr in ('epg_dock', 'playlist_dock', 'floating_dock'):
+                        dock = getattr(window, dock_attr, None)
+                        if dock:
+                            dock.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+                            self._enable_dwm_blur(dock)
                 else:
+                    window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)
                     self._disable_dwm_blur(window)
+                    for child in window.findChildren(QtWidgets.QDialog):
+                        child.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)
+                        self._disable_dwm_blur(child)
+                    for dock_attr in ('epg_dock', 'playlist_dock', 'floating_dock'):
+                        dock = getattr(window, dock_attr, None)
+                        if dock:
+                            self._disable_dwm_blur(dock)
         except Exception as e:
             print(f"设置窗口背景模糊失败: {e}")
 
@@ -325,6 +338,7 @@ class ThemeManager(Singleton, QtCore.QObject):
             QtWidgets.QProgressBar: lambda w: AppStyles.progress_style(),
             QtWidgets.QGroupBox: lambda w: AppStyles.common_group_box_style(),
             QtWidgets.QScrollArea: lambda w: AppStyles.scroll_area_style() if hasattr(AppStyles, 'scroll_area_style') else None,
+            QtWidgets.QSlider: lambda w: AppStyles.player_slider_style() if hasattr(AppStyles, 'player_slider_style') else None,
         }
         for widget_type, style_func in style_map.items():
             try:

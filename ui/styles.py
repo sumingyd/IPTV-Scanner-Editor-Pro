@@ -842,7 +842,7 @@ class AppStyles:
             'skeuomorphic': 6,
             'frosted': 12,
             'win11': 8,
-            'mac': 10,
+            'mac': 12,
             'ios': 14,
         }
         return radii.get(cls._visual_style, 4)
@@ -858,7 +858,7 @@ class AppStyles:
             'frosted': f"0 4px 16px {c.get('shadow_dark', 'rgba(0,0,0,0.2)')}",
             'win11': f"0 2px 4px {c.get('shadow_dark', 'rgba(0,0,0,0.16)')}",
             'mac': f"0 1px 4px {c.get('shadow_dark', 'rgba(0,0,0,0.1)')}, 0 0 0 0.5px {c.get('border_thin', 'rgba(0,0,0,0.04)')}",
-            'ios': f"0 1px 3px {c.get('shadow_dark', 'rgba(0,0,0,0.06)')}",
+            'ios': f"0 2px 8px {c.get('shadow_dark', 'rgba(0,0,0,0.12)')}",
         }
         return shadows.get(cls._visual_style, f"0 1px 3px {c['shadow_dark']}")
 
@@ -881,6 +881,14 @@ class AppStyles:
                 f"border-bottom-color: {c.get('border_3d_light', c['shadow_light'])};"
                 f"border-right-color: {c.get('border_3d_light', c['shadow_light'])};"
             )
+        if cls._visual_style == 'frosted':
+            return f"border: 1px solid rgba(255,255,255,0.15);"
+        if cls._visual_style == 'win11':
+            return f"border: 1px solid {c.get('border_thin', c['mid'])};"
+        if cls._visual_style == 'mac':
+            return f"border: none; box-shadow: inset 0 1px 2px {c.get('shadow_subtle', c['shadow_dark'])};"
+        if cls._visual_style == 'ios':
+            return f"border: none; box-shadow: inset 0 0 4px {c.get('shadow_subtle', c['shadow_dark'])};"
         return f"border: 1px solid {c.get('mid', '#555')};"
 
     @classmethod
@@ -902,6 +910,14 @@ class AppStyles:
                 f"border-bottom-color: {c.get('border_3d_dark', c['shadow_dark'])};"
                 f"border-right-color: {c.get('border_3d_dark', c['shadow_dark'])};"
             )
+        if cls._visual_style == 'frosted':
+            return f"border: 1px solid rgba(255,255,255,0.2);"
+        if cls._visual_style == 'win11':
+            return f"border: 1px solid {c.get('border_thin', c['mid'])}; box-shadow: 0 1px 2px {c.get('shadow_subtle', c['shadow_dark'])};"
+        if cls._visual_style == 'mac':
+            return f"border: none; box-shadow: 0 1px 3px {c.get('shadow_subtle', c['shadow_dark'])};"
+        if cls._visual_style == 'ios':
+            return f"border: none; box-shadow: 0 2px 8px {c.get('shadow_subtle', c['shadow_dark'])};"
         return f"border: 1px solid {c.get('mid', '#555')};"
 
     @staticmethod
@@ -941,9 +957,9 @@ class AppStyles:
             elif style == 'win11':
                 return f"background-color: {c['dark']}; border: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {r}px;"
             elif style == 'mac':
-                return f"background-color: {c['dark']}; border: none; border-radius: {r}px;"
+                return f"background-color: {c['dark']}; border: none; border-radius: {r}px; box-shadow: inset 0 1px 2px {c.get('shadow_subtle', c['shadow_dark'])};"
             elif style == 'ios':
-                return f"background-color: {c['dark']}; border: none; border-radius: {r}px;"
+                return f"background-color: {c['dark']}; border: none; border-radius: {r - 1}px;"
             return f"background-color: {c['dark']}; border-color: {c.get('accent_pressed', ac)};"
         if hover:
             if style == 'neumorphic':
@@ -955,7 +971,7 @@ class AppStyles:
             elif style == 'win11':
                 return f"background-color: {c['light']}; border: 1px solid {ac}; border-radius: {r}px;"
             elif style == 'mac':
-                return f"background-color: {c['light']}; border: none; border-radius: {r}px;"
+                return f"background-color: {c['light']}; border: none; border-radius: {r}px; box-shadow: 0 1px 3px {c.get('shadow_subtle', c['shadow_dark'])};"
             elif style == 'ios':
                 return f"background-color: {c['light']}; border: none; border-radius: {r}px;"
             return f"background-color: {c['light']}; border-color: {ac};"
@@ -985,6 +1001,14 @@ class AppStyles:
                 return f"border: 2px solid {c['accent']}; border-radius: {r}px; outline: none;"
             elif style == 'skeuomorphic':
                 return f"border: 2px solid {c['accent']}; border-radius: {r}px; outline: none;"
+            elif style == 'frosted':
+                return f"border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 0 4px {c['accent']}; border-radius: {r}px; outline: none;"
+            elif style == 'win11':
+                return f"border: 1px solid {c.get('border_thin', c['mid'])}; border-bottom: 2px solid {c['accent']}; border-radius: {r}px; outline: none;"
+            elif style == 'mac':
+                return f"border: 2px solid {c['accent']}; border-radius: {r}px; outline: none;"
+            elif style == 'ios':
+                return f"border: 2px solid {c['accent']}; border-radius: {r}px; outline: none;"
             return f"border-color: {c['accent']}; outline: none;"
         if style == 'neumorphic':
             return f"background-color: {c['neumorphic_light']}; {cls._get_style_inset()} border-radius: {r}px;"
@@ -995,9 +1019,9 @@ class AppStyles:
         elif style == 'win11':
             return f"background-color: {c['alternate_base']}; border: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {r}px; border-bottom: 2px solid {c['accent']};"
         elif style == 'mac':
-            return f"background-color: {c['alternate_base']}; border: none; border-radius: {r}px;"
+            return f"background-color: {c['alternate_base']}; border: none; border-radius: {r}px; box-shadow: inset 0 1px 2px {c.get('shadow_subtle', c['shadow_dark'])};"
         elif style == 'ios':
-            return f"background-color: {c['alternate_base']}; border: none; border-radius: {r}px;"
+            return f"background-color: {c['alternate_base']}; border: none; border-radius: {r}px; box-shadow: inset 0 0 3px {c.get('shadow_subtle', c['shadow_dark'])};"
         return f"background-color: {c['alternate_base']}; border: 1px solid {c['mid']}; border-radius: {r}px;"
 
     @classmethod
@@ -1014,9 +1038,9 @@ class AppStyles:
         elif style == 'win11':
             return f"background-color: {c.get('card_color', c['alternate_base'])}; border: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {r}px;"
         elif style == 'mac':
-            return f"background-color: {c['alternate_base']}; border: none; border-radius: {r}px;"
+            return f"background-color: {c['alternate_base']}; border-top: 1px solid {c.get('shadow_subtle', c['shadow_dark'])}; border-radius: {r}px;"
         elif style == 'ios':
-            return f"background-color: {c['alternate_base']}; border: none; border-radius: {r}px;"
+            return f"background-color: {c['alternate_base']}; border: none; border-radius: {r}px; box-shadow: 0 1px 3px {c.get('shadow_subtle', c['shadow_dark'])};"
         return f"background-color: {c['alternate_base']}; border: 1px solid {c['mid']}; border-radius: {r}px;"
 
     @classmethod
@@ -1034,9 +1058,9 @@ class AppStyles:
         elif style == 'win11':
             return f"background-color: {c['base']}; padding: 4px; border: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {menu_r}px;"
         elif style == 'mac':
-            return f"background-color: {c['base']}; padding: 4px; border: none; border-radius: {menu_r}px;"
+            return f"background-color: {c['base']}; padding: 4px; border: none; border-radius: {menu_r}px; box-shadow: 0 4px 12px {c.get('shadow_subtle', c['shadow_dark'])};"
         elif style == 'ios':
-            return f"background-color: {c['base']}; padding: 4px; border: none; border-radius: {menu_r}px;"
+            return f"background-color: {c['base']}; padding: 4px; border: none; border-radius: {menu_r}px; box-shadow: 0 8px 24px {c.get('shadow_subtle', c['shadow_dark'])};"
         return f"background-color: {c['base']}; padding: 2px; border: 1px solid {c['mid']}; border-radius: {menu_r}px;"
 
     @classmethod
