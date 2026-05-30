@@ -11,6 +11,7 @@
 
 ### 🎬 集成播放器
 - **MPV 引擎驱动**：基于 libmpv 的高性能流媒体播放
+- **FCC 快速换台**：支持 IPTV 组播 FCC（Fast Channel Change）代理，换台时自动向 FCC 代理发送 LEAVE/JOIN 通知，消除 IGMP 加入延迟
 - **完整播放控制**：播放（▶）、暂停（▮▮）、停止（■）、音量调节、静音切换
 - **倍速播放**：循环切换多种播放速度
 - **画面比例**：支持原始/16:9/4:3/填充等多种比例模式
@@ -57,7 +58,6 @@
 - **范围扫描**：支持 IP 范围格式（如 `239.1.1.[1-255]:5002`）
 - **多协议**：单播、组播、HTTP/HTTPS 流链接
 - **FFprobe 探测**：使用 FFprobe 进行流有效性检测和媒体信息获取（分辨率、编码、码率）
-- **FCC 快速换台**：支持 IPTV 组播 FCC（Fast Channel Change）代理，换台时自动向 FCC 代理发送 LEAVE/JOIN 通知，消除 IGMP 加入延迟
 - **自定义参数**：超时时间、线程数、用户代理等可调
 - **追加扫描**：在现有列表基础上增量添加新频道
 - **智能重试**：仅对超时失败的频道自动重试，避免对确定无效频道做无意义重试
@@ -314,18 +314,11 @@ IPTV-Scanner-Editor-Pro/
 
 ## 📸 程序截图
 
-![](icons/1.png)
-![](icons/2.png)
-![](icons/3.png)
-![](icons/4.png)
-![](icons/5.png)
-![](icons/6.png)
-![](icons/7.png)
-![](icons/8.png)
-![](icons/9.png)
-![](icons/10.png)
-![](icons/11.png)
-![](icons/12.png)
+|---------|-----------|-----------|
+|![](icons/1.png)|![](icons/2.png)|![](icons/3.png)|
+|![](icons/4.png)|![](icons/5.png)|![](icons/6.png)|
+|![](icons/7.png)|![](icons/8.png)|![](icons/9.png)|
+|![](icons/10.png)|![](icons/11.png)|![](icons/12.png)|
 
 ## 🤝 贡献指南
 
