@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QSlider, QLabel
 from PyQt6.QtCore import Qt, QRectF, pyqtSignal, QPoint
-from PyQt6.QtGui import QPainter, QColor, QFont
+from PyQt6.QtGui import QPainter, QColor
 
 
 class CacheProgressSlider(QSlider):
@@ -16,10 +16,15 @@ class CacheProgressSlider(QSlider):
         from ui.theme_manager import get_theme_manager
         get_theme_manager().theme_changed.connect(self._on_theme_changed)
 
-        self._preview_label = QLabel(self)
+        self._preview_label = QLabel()
         self._preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._preview_label.setVisible(False)
         self._preview_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self._preview_label.setWindowFlags(
+            Qt.WindowType.ToolTip |
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.WindowStaysOnTopHint
+        )
         self._update_preview_style()
         self._is_dragging = False
 
@@ -104,15 +109,25 @@ class CacheProgressSlider(QSlider):
         handle_x = self._get_handle_x()
         label_w = self._preview_label.width()
         label_h = self._preview_label.height()
-        x = handle_x - label_w // 2
-        x = max(0, min(x, self.width() - label_w))
-        y = -label_h - 4
+        global_pos = self.mapToGlobal(QPoint(handle_x, 0))
+        x = global_pos.x() - label_w // 2
+        y = global_pos.y() - label_h - 6
         self._preview_label.move(x, y)
+
+    def _pos_to_value(self, pos_x):
+        groove_rect = self._get_groove_rect()
+        if groove_rect.width() <= 0:
+            return self.value()
+        ratio = max(0.0, min(1.0, (pos_x - groove_rect.x()) / groove_rect.width()))
+        return int(self.minimum() + ratio * (self.maximum() - self.minimum()))
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self._is_dragging = True
-            super().mousePressEvent(event)
+            self.setSliderDown(True)
+            new_value = self._pos_to_value(event.position().toPoint().x())
+            self.setValue(new_value)
+            self.sliderPressed.emit()
             self.preview_position_changed.emit(self.value())
             self._preview_label.setVisible(True)
             self._update_preview_position()
@@ -121,7 +136,8 @@ class CacheProgressSlider(QSlider):
 
     def mouseMoveEvent(self, event):
         if self._is_dragging:
-            super().mouseMoveEvent(event)
+            new_value = self._pos_to_value(event.position().toPoint().x())
+            self.setValue(new_value)
             self.preview_position_changed.emit(self.value())
             self._update_preview_position()
         else:
@@ -131,7 +147,8 @@ class CacheProgressSlider(QSlider):
         if event.button() == Qt.MouseButton.LeftButton and self._is_dragging:
             self._is_dragging = False
             self._preview_label.setVisible(False)
-            super().mouseReleaseEvent(event)
+            self.setSliderDown(False)
+            self.sliderReleased.emit()
         else:
             super().mouseReleaseEvent(event)
 

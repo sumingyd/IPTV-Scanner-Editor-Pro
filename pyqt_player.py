@@ -1255,7 +1255,7 @@ class IPTVPlayer(QMainWindow):
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.program_desc.setFixedHeight(54)
         self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        text_layout.addWidget(self.program_desc, 1)
+        text_layout.addWidget(self.program_desc, 0)
 
         info_layout.addLayout(text_layout, 1)
 
@@ -1279,7 +1279,7 @@ class IPTVPlayer(QMainWindow):
         
         # 第三行：播放控制 + 节目进度条
         self.control_row = QHBoxLayout()
-        self.control_row.setSpacing(8)
+        self.control_row.setSpacing(4)
         
         # 左侧：播放按钮
         btn_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
@@ -1323,9 +1323,7 @@ class IPTVPlayer(QMainWindow):
         self.next_ch_button.setToolTip(tr("panel_next_ch", "下一频道"))
         self.control_row.addWidget(self.next_ch_button)
         
-        self.control_row.addStretch()
-        
-        # 中间：时间进度条组（居中）
+        # 中间：时间进度条组
         self.progress_group = QHBoxLayout()
         self.progress_group.setSpacing(4)
         
@@ -1340,7 +1338,6 @@ class IPTVPlayer(QMainWindow):
         self.program_progress.setValue(0)
         self.program_progress.setSingleStep(1)
         self.program_progress.setPageStep(30)
-        self.program_progress.setMinimumWidth(200)
         self.program_progress.setStyleSheet(AppStyles.player_slider_style())
         self.program_progress.set_cache_color(AppStyles._get_colors().get('player_cache_bar', 'rgba(76,175,80,0.4)'))
         self.program_progress.sliderReleased.connect(self.on_progress_slider_released)
@@ -1354,9 +1351,7 @@ class IPTVPlayer(QMainWindow):
         self.progress_end.setStyleSheet(AppStyles.player_progress_label_style())
         self.progress_group.addWidget(self.progress_end)
         
-        self.control_row.addLayout(self.progress_group)
-        
-        self.control_row.addStretch()
+        self.control_row.addLayout(self.progress_group, 1)
         
         # 5. 音量图标
         self.volume_button = QToolButton()

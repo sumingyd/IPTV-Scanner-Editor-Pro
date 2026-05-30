@@ -1028,6 +1028,7 @@ class AppStyles:
             }}
             QLabel {{
                 color: {colors['window_text']};
+                background-color: transparent;
                 font-family: {ff};
             }}
             QPushButton {{
@@ -1474,6 +1475,7 @@ class AppStyles:
             }}
             QLabel {{
                 color: {colors['player_panel_text']};
+                background-color: transparent;
             }}
             QListWidget {{
                 border: none;
