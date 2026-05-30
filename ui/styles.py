@@ -1213,7 +1213,7 @@ class AppStyles:
         elif style == 'skeuomorphic':
             return f"background-color: {c.get('tooltip_base', c['base'])}; border: 2px outset {c.get('border_3d_light', c['mid'])}; border-radius: {r}px; padding: 4px;"
         elif style == 'frosted':
-            return f"background-color: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.15); border-radius: {r}px; padding: 6px;"
+            return f"background-color: {c.get('tooltip_base', c['base'])}; border: 1px solid rgba(255,255,255,0.15); border-radius: {r}px; padding: 6px;"
         elif style == 'win11':
             return f"background-color: {c.get('card_color', c['base'])}; border: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {r}px; padding: 6px;"
         elif style in ('mac', 'ios'):

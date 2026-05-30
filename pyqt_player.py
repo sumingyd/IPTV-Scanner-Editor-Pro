@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
     QTabWidget
 )
 from PyQt6 import QtWidgets
-from PyQt6.QtCore import Qt, QSize, QTimer, QThread, pyqtSlot, pyqtSignal
+from PyQt6.QtCore import Qt, QSize, QTimer, QThread, pyqtSlot, pyqtSignal, QRectF
 from PyQt6 import QtCore
 from PyQt6.QtGui import QIcon, QFont, QFontMetrics, QColor, QAction, QPainter, QBrush, QShortcut, QPen, QLinearGradient, QPainterPath, QPixmap
 
@@ -43,6 +43,23 @@ from controllers import (
 )
 
 from utils.general_utils import calculate_adaptive_delay
+
+
+class _RoundedContainer(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def paintEvent(self, event):
+        from ui.styles import AppStyles
+        r = AppStyles._get_style_border_radius()
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        path = QPainterPath()
+        rect = QRectF(self.rect())
+        path.addRoundedRect(rect, r, r)
+        painter.setClipPath(path)
+        painter.end()
+        super().paintEvent(event)
 
 
 class VideoOverlayBadge(QWidget):
@@ -365,7 +382,7 @@ class IPTVPlayer(QMainWindow):
         self.setMouseTracking(True)
         self.setAcceptDrops(True)
 
-        self._main_container = QWidget()
+        self._main_container = _RoundedContainer()
         self._main_container.setObjectName("mainContainer")
         self.setCentralWidget(self._main_container)
 
