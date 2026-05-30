@@ -1207,6 +1207,7 @@ class IPTVPlayer(QMainWindow):
         # 信息区：LOGO在左(跨全高居中)，右侧两行文字自适应
         info_layout = QHBoxLayout()
         info_layout.setSpacing(12)
+        info_layout.setSizeConstraint(QHBoxLayout.SizeConstraint.SetFixedSize)
 
         # 左侧：频道LOGO
         self.channel_logo = QLabel()
@@ -1219,8 +1220,9 @@ class IPTVPlayer(QMainWindow):
 
         # 右侧：两行文字区
         text_layout = QVBoxLayout()
-        text_layout.setSpacing(0)
+        text_layout.setSpacing(2)
         text_layout.setContentsMargins(0, 0, 0, 0)
+        text_layout.setSizeConstraint(QVBoxLayout.SizeConstraint.SetFixedSize)
 
         # 第一行：频道名称 + 节目名称 + 时间 + 播放状态
         row1 = QHBoxLayout()
@@ -1259,9 +1261,7 @@ class IPTVPlayer(QMainWindow):
         self.program_desc.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.program_desc.setWordWrap(True)
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self.program_desc.setFixedHeight(54)
-        self.program_desc.setContentsMargins(0, 2, 0, 0)
-        self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         text_layout.addWidget(self.program_desc)
 
         info_layout.addLayout(text_layout)
