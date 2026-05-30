@@ -880,8 +880,7 @@ class UIController:
                 progress_slider.setStyleSheet(AppStyles.player_slider_style())
                 progress_slider.update()
 
-            # 重新设置所有QLabel的文字颜色（包括控制面板中的描述性标签）
-            player_label_style = AppStyles.player_label_style()
+            # 重新设置控制面板中各QLabel的文字颜色（排除已单独处理的）
             for label in fp.findChildren(QLabel):
                 name = label.objectName()
                 if name in ('channel_name', 'channel_logo', 'current_program', 'program_desc',
@@ -893,7 +892,7 @@ class UIController:
                 if label.pixmap() is not None:
                     continue
                 existing = label.styleSheet()
-                if existing and ('color:' in existing or 'font-size' in existing or 'font-weight' in existing):
+                if existing and 'color:' in existing:
                     label.setStyleSheet(AppStyles.player_label_style())
         except Exception as e:
             logger.error(f"重新应用悬浮面板样式失败: {e}")

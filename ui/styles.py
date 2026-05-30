@@ -964,20 +964,19 @@ class AppStyles:
     def _style_menu_decoration(cls, colors):
         c = colors
         style = cls._visual_style
-        r = cls._get_style_border_radius()
         if style == 'neumorphic':
-            return f"background-color: {c['base']}; border-radius: {r}px; padding: 4px; border: 2px solid; border-top-color: {c['shadow_light']}; border-left-color: {c['shadow_light']}; border-bottom-color: {c['shadow_dark']}; border-right-color: {c['shadow_dark']};"
+            return f"background-color: {c['base']}; padding: 4px; border: 2px solid; border-top-color: {c['shadow_light']}; border-left-color: {c['shadow_light']}; border-bottom-color: {c['shadow_dark']}; border-right-color: {c['shadow_dark']};"
         elif style == 'skeuomorphic':
-            return f"background-color: {c['base']}; border-radius: {r}px; padding: 4px; border: 2px outset {c.get('border_3d_light', c['mid'])};"
+            return f"background-color: {c['base']}; padding: 4px; border: 2px outset {c.get('border_3d_light', c['mid'])};"
         elif style == 'frosted':
-            return f"background-color: {c['base']}; border-radius: {r}px; padding: 4px; border: 1px solid rgba(255,255,255,0.1);"
+            return f"background-color: {c['base']}; padding: 4px; border: 1px solid rgba(255,255,255,0.1);"
         elif style == 'win11':
-            return f"background-color: {c['base']}; border-radius: {r}px; padding: 4px; border: 1px solid {c.get('border_thin', c['mid'])};"
+            return f"background-color: {c['base']}; padding: 4px; border: 1px solid {c.get('border_thin', c['mid'])};"
         elif style == 'mac':
-            return f"background-color: {c['base']}; border-radius: {r}px; padding: 4px; border: none;"
+            return f"background-color: {c['base']}; padding: 4px; border: none;"
         elif style == 'ios':
-            return f"background-color: {c['base']}; border-radius: {r}px; padding: 4px; border: none;"
-        return f"background-color: {c['base']}; border-radius: {r}px; padding: 2px; border: 1px solid {c['mid']};"
+            return f"background-color: {c['base']}; padding: 4px; border: none;"
+        return f"background-color: {c['base']}; padding: 2px; border: 1px solid {c['mid']};"
 
     @classmethod
     def _style_padding(cls, widget_type='button'):
