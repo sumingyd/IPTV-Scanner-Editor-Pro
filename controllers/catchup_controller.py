@@ -11,10 +11,16 @@ class CatchupController:
         'xc', 'xtream', 'vod', 'timemachine'
     }
 
+    URL_REBUILD_COOLDOWN = 3.0
+
     def __init__(self, main_window: MainWindowProtocol):
         self.window: MainWindowProtocol = main_window
         self._original_channel: dict | None = None
         self._catchup_program: dict | None = None
+        self._last_url_rebuild_time: float = 0.0
+        self._url_rebuild_pending: bool = False
+        self._pending_seek_after_cooldown: float | None = None
+        self._cooldown_timer = None
 
     @property
     def original_channel(self) -> dict | None:
@@ -413,9 +419,20 @@ class CatchupController:
         try:
             from core.log_manager import global_logger as logger
             from datetime import timedelta, datetime
+            import time as _time
 
             if self._try_mpv_seek(position):
                 return
+
+            now_time = _time.time()
+            if self._url_rebuild_pending:
+                elapsed_since_rebuild = now_time - self._last_url_rebuild_time
+                if elapsed_since_rebuild < self.URL_REBUILD_COOLDOWN:
+                    self._pending_seek_after_cooldown = position
+                    remaining = self.URL_REBUILD_COOLDOWN - elapsed_since_rebuild
+                    logger.info(f"时移seek延迟: URL重建后冷却中({elapsed_since_rebuild:.1f}s/{self.URL_REBUILD_COOLDOWN}s), {remaining:.1f}s后执行")
+                    self._ensure_cooldown_timer(remaining)
+                    return
 
             channel_name = self.original_channel.get("name", w.language_manager.tr("unknown_channel", "Unknown Channel"))
             title = self.catchup_program.get('title', w.language_manager.tr('unknown_program', 'Unknown Program'))
@@ -480,7 +497,15 @@ class CatchupController:
 
             w._pending_catchup_progress = position
 
-            import time as _time
+            self._last_url_rebuild_time = _time.time()
+            self._url_rebuild_pending = True
+            self._pending_seek_after_cooldown = None
+            if self._cooldown_timer is not None:
+                try:
+                    self._cooldown_timer.stop()
+                except Exception:
+                    pass
+                self._cooldown_timer = None
             w._catchup_start_time = _time.time()
             w._catchup_start_progress = position
 
@@ -514,6 +539,11 @@ class CatchupController:
         time_pos = seek_range.get('time_pos', 0)
         cache_duration = seek_range.get('cache_duration', 0)
 
+        if cache_duration >= 2 or buffer_end > buffer_start + 1:
+            if self._url_rebuild_pending:
+                self._url_rebuild_pending = False
+                logger.debug(f"缓冲区就绪，清除URL重建pending标记 (cache={cache_duration:.1f}s, buffer={buffer_start:.1f}s~{buffer_end:.1f}s)")
+
         if cache_duration < 2 and buffer_end <= buffer_start:
             return False
 
@@ -541,6 +571,27 @@ class CatchupController:
         w._catchup_start_progress = position
 
         return True
+
+    def _ensure_cooldown_timer(self, remaining_seconds):
+        if self._cooldown_timer is not None:
+            try:
+                self._cooldown_timer.stop()
+            except Exception:
+                pass
+        from PyQt6.QtCore import QTimer
+        self._cooldown_timer = QTimer()
+        self._cooldown_timer.setSingleShot(True)
+        self._cooldown_timer.timeout.connect(self._execute_pending_seek)
+        self._cooldown_timer.start(int(remaining_seconds * 1000))
+
+    def _execute_pending_seek(self):
+        self._cooldown_timer = None
+        position = self._pending_seek_after_cooldown
+        self._pending_seek_after_cooldown = None
+        if position is not None:
+            from core.log_manager import global_logger as logger
+            logger.info(f"冷却期结束，执行延迟的时移seek: position={position:.1f}s")
+            self.seek_catchup(position)
 
     def start_live_timeshift_from_progress(self, slider_seconds, catchup_source):
         w = self.window
@@ -608,6 +659,15 @@ class CatchupController:
 
         offset_seconds = int((target_wallclock - program_start).total_seconds())
         import time as _time
+        self._last_url_rebuild_time = _time.time()
+        self._url_rebuild_pending = True
+        self._pending_seek_after_cooldown = None
+        if self._cooldown_timer is not None:
+            try:
+                self._cooldown_timer.stop()
+            except Exception:
+                pass
+            self._cooldown_timer = None
         w._catchup_start_time = _time.time()
         w._catchup_start_progress = offset_seconds
 
