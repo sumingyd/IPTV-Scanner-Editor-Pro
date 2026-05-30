@@ -787,12 +787,17 @@ class UIController:
     def _reapply_floating_panel_styles(self):
         from core.log_manager import global_logger as logger
         from ui.styles import AppStyles
-        from PyQt6.QtWidgets import QToolButton, QSlider, QComboBox, QFrame
+        from PyQt6.QtWidgets import QToolButton, QSlider, QComboBox, QFrame, QLabel
+        from PyQt6.QtGui import QIcon, QPixmap
+        from PyQt6.QtCore import Qt
 
         try:
             if not hasattr(self.window, 'floating_panel'):
                 return
             fp = self.window.floating_panel
+            colors = AppStyles._get_colors()
+            btn_color = colors.get('player_panel_text', '#ffffff')
+
             if hasattr(self.window, 'video_info'):
                 self.window.video_info.setStyleSheet(AppStyles.player_media_badge_style())
             if hasattr(self.window, 'audio_info'):
@@ -801,6 +806,18 @@ class UIController:
                 self.window.network_info.setStyleSheet(AppStyles.player_media_badge_style())
             if hasattr(self.window, 'buffer_info'):
                 self.window.buffer_info.setStyleSheet(AppStyles.player_media_badge_style())
+
+            # 媒体信息3个图标
+            for icon_attr, icon_name in [('video_info_icon', 'tv'), ('audio_info_icon', 'speaker'), ('network_info_icon', 'signal')]:
+                icon_label = getattr(self.window, icon_attr, None)
+                if icon_label:
+                    icon_path = AppStyles.get_icon(icon_name, btn_color, 14)
+                    if icon_path:
+                        pixmap = QPixmap(icon_path)
+                        if not pixmap.isNull():
+                            icon_label.setPixmap(pixmap.scaled(14, 14, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+                    icon_label.setStyleSheet("background: transparent; border: none;")
+
             if hasattr(self.window, 'channel_logo'):
                 self.window.channel_logo.setStyleSheet(AppStyles.player_channel_logo_style())
             if hasattr(self.window, 'channel_name'):
@@ -820,7 +837,6 @@ class UIController:
             for tool_btn in fp.findChildren(QToolButton):
                 tool_btn.setStyleSheet(AppStyles.player_button_style())
 
-            btn_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
             if hasattr(self.window, 'volume_button'):
                 vol = self.window.volume_slider.value() if hasattr(self.window, 'volume_slider') else 80
                 icon_name = 'volume_mute' if vol == 0 else ('volume_low' if vol < 50 else 'volume')
@@ -857,6 +873,28 @@ class UIController:
             for frame in fp.findChildren(QFrame):
                 if frame.styleSheet() and 'max-height' in frame.styleSheet():
                     frame.setStyleSheet(AppStyles.player_line_style())
+
+            # 进度条滑块handle需要强制刷新
+            progress_slider = getattr(self.window, 'progress_slider', None)
+            if progress_slider:
+                progress_slider.setStyleSheet(AppStyles.player_slider_style())
+                progress_slider.update()
+
+            # 重新设置所有QLabel的文字颜色（包括控制面板中的描述性标签）
+            player_label_style = AppStyles.player_label_style()
+            for label in fp.findChildren(QLabel):
+                name = label.objectName()
+                if name in ('channel_name', 'channel_logo', 'current_program', 'program_desc',
+                            'time_label', 'remain_label', 'progress_start', 'progress_end',
+                            'video_info', 'audio_info', 'network_info', 'buffer_info',
+                            'video_info_icon', 'audio_info_icon', 'network_info_icon',
+                            'catchup_indicator'):
+                    continue
+                if label.pixmap() is not None:
+                    continue
+                existing = label.styleSheet()
+                if existing and ('color:' in existing or 'font-size' in existing or 'font-weight' in existing):
+                    label.setStyleSheet(AppStyles.player_label_style())
         except Exception as e:
             logger.error(f"重新应用悬浮面板样式失败: {e}")
 
