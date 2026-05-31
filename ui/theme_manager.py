@@ -336,13 +336,15 @@ class ThemeManager(Singleton, QtCore.QObject):
             QtWidgets.QToolButton: lambda w: AppStyles.toolbar_button_style(),
             QtWidgets.QLineEdit: lambda w: AppStyles.common_line_edit_style() if (not w.styleSheet() or 'common_line_edit' not in w.styleSheet()) else None,
             QtWidgets.QComboBox: lambda w: AppStyles.common_combo_box_style() if (not w.styleSheet() or 'common_combo' not in w.styleSheet()) else None,
-            QtWidgets.QLabel: lambda w: None,
+            QtWidgets.QLabel: lambda w: AppStyles.label_style() if hasattr(AppStyles, 'label_style') else None,
             QtWidgets.QCheckBox: lambda w: AppStyles.common_check_box_style(),
             QtWidgets.QRadioButton: lambda w: AppStyles.common_radio_button_style() if hasattr(AppStyles, 'common_radio_button_style') else None,
             QtWidgets.QProgressBar: lambda w: AppStyles.progress_style(),
             QtWidgets.QGroupBox: lambda w: AppStyles.common_group_box_style(),
             QtWidgets.QScrollArea: lambda w: AppStyles.scroll_area_style() if hasattr(AppStyles, 'scroll_area_style') else None,
             QtWidgets.QSlider: lambda w: AppStyles.player_slider_style() if hasattr(AppStyles, 'player_slider_style') else None,
+            QtWidgets.QTextEdit: lambda w: AppStyles.text_edit_style() if hasattr(AppStyles, 'text_edit_style') else None,
+            QtWidgets.QFrame: lambda w: AppStyles.frame_style() if hasattr(AppStyles, 'frame_style') else None,
         }
         for widget_type, style_func in style_map.items():
             try:
