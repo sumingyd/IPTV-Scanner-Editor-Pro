@@ -37,17 +37,19 @@ class CacheProgressSlider(QSlider):
         try:
             from ui.styles import AppStyles
             colors = AppStyles._get_colors()
-            bg = colors.get('player_background', '#1a1a1a')
-            text_color = colors.get('player_slider_handle', '#ffffff')
-            border_color = colors.get('player_slider_fill', '#4CAF50')
+            bg = colors.get('player_background', AppStyles._safe_fallback('window'))
+            text_color = colors.get('player_slider_handle', AppStyles._safe_fallback('window_text'))
+            border_color = colors.get('player_slider_fill', AppStyles._safe_fallback('accent'))
+            r = AppStyles._get_style_border_radius()
         except Exception:
             bg, text_color, border_color = '#1a1a1a', '#ffffff', '#4CAF50'
+            r = 4
         self._preview_label.setStyleSheet(
             f"QLabel {{"
             f"  color: {text_color};"
             f"  background-color: {bg};"
             f"  border: 1px solid {border_color};"
-            f"  border-radius: 4px;"
+            f"  border-radius: {r}px;"
             f"  padding: 2px 6px;"
             f"  font-size: 11px;"
             f"}}"
