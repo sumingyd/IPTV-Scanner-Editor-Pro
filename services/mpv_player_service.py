@@ -163,7 +163,7 @@ class MpvPlayerController(QObject):
             _mpv_set_property_string(self.mpv_handle, 'd3d11-sync-interval', '1')
             _mpv_set_property_string(self.mpv_handle, 'osc', 'no')
             _mpv_set_property_string(self.mpv_handle, 'osd-bar', 'no')
-            _mpv_set_property_string(self.mpv_handle, 'osd-font', 'Segoe UI,Microsoft YaHei,sans-serif')
+
             _mpv_set_property_string(self.mpv_handle, 'osd-font-size', '18')
             _mpv_set_property_string(self.mpv_handle, 'osd-border-size', '2')
             _mpv_set_property_string(self.mpv_handle, 'osd-shadow-offset', '1.5')
@@ -1477,9 +1477,9 @@ class MpvPlayerController(QObject):
         try:
             from ui.styles import AppStyles
             colors = AppStyles._get_colors()
-            osd_fg = colors.get('player_panel_text', '#ffffff')
-            osd_border = colors.get('player_panel_secondary', '#000000')
-            osd_shadow = colors.get('player_background', '#000000')
+            osd_fg = colors.get('osd_text', '#ffffff')
+            osd_border = colors.get('osd_border', '#000000')
+            osd_shadow = colors.get('osd_shadow', '#000000')
             _mpv_set_property_string(self.mpv_handle, 'osd-color', osd_fg)
             _mpv_set_property_string(self.mpv_handle, 'osd-border-color', osd_border)
             _mpv_set_property_string(self.mpv_handle, 'osd-shadow-color', osd_shadow)
