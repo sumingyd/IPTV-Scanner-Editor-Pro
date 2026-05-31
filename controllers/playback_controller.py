@@ -83,7 +83,7 @@ class PlaybackController:
             'progress_end': ("--:--", "setText"),
         }
 
-        btn_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        btn_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
 
         for attr_name, (value, action) in ui_elements.items():
             if not hasattr(self.window, attr_name):
@@ -154,7 +154,7 @@ class PlaybackController:
         if not self.window.volume_button:
             return
 
-        color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
         if volume == 0:
             icon_name = 'volume_mute'
         elif volume < 50:
@@ -323,7 +323,7 @@ class PlaybackController:
 
         w = self.window
         tr = w.language_manager.tr
-        btn_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        btn_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
         if is_playing:
             pause_path = AppStyles.get_icon('pause', btn_color)
             if pause_path:
