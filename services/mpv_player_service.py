@@ -1479,8 +1479,12 @@ class MpvPlayerController(QObject):
             colors = AppStyles._get_colors()
             osd_fg = colors.get('player_panel_text', '#ffffff')
             osd_border = colors.get('player_panel_secondary', '#000000')
+            osd_shadow = colors.get('player_background', '#000000')
             _mpv_set_property_string(self.mpv_handle, 'osd-color', osd_fg)
             _mpv_set_property_string(self.mpv_handle, 'osd-border-color', osd_border)
+            _mpv_set_property_string(self.mpv_handle, 'osd-shadow-color', osd_shadow)
+            font_family = colors.get('font_family', "'Segoe UI', 'Microsoft YaHei', sans-serif")
+            _mpv_set_property_string(self.mpv_handle, 'osd-font', font_family)
         except Exception:
             pass
 
