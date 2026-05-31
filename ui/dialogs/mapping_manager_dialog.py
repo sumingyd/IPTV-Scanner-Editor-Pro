@@ -78,10 +78,11 @@ class MappingManagerDialog(FloatingDialog):
         mid_color = colors.get('mid', '#8090a0')
 
         info_box = QtWidgets.QFrame()
+        r = AppStyles._get_style_border_radius()
         info_box.setStyleSheet(f"""
             QFrame {{
                 background-color: {colors['alternate_base']};
-                border-radius: 8px;
+                border-radius: {r}px;
                 border: 1px solid {colors['mid']};
                 padding: 4px;
             }}
@@ -521,10 +522,11 @@ class MappingManagerDialog(FloatingDialog):
         colors = AppStyles._get_colors()
         info_box = self.findChild(QtWidgets.QFrame)
         if info_box:
+            r = AppStyles._get_style_border_radius()
             info_box.setStyleSheet(f"""
                 QFrame {{
                     background-color: {colors['alternate_base']};
-                    border-radius: 8px;
+                    border-radius: {r}px;
                     border: 1px solid {colors['mid']};
                     padding: 4px;
                 }}
