@@ -73,10 +73,11 @@ class AboutDialog(FloatingDialog):
         main_layout.addSpacing(16)
 
         card = QtWidgets.QWidget()
+        r = AppStyles._get_style_border_radius()
         card.setStyleSheet(f"""
             QWidget#infoCard {{
                 background-color: {c['alternate_base']};
-                border-radius: 8px;
+                border-radius: {r}px;
                 padding: 4px;
             }}
         """)
@@ -258,10 +259,11 @@ class AboutDialog(FloatingDialog):
             child.setStyleSheet(AppStyles.button_style())
         card = self.findChild(QtWidgets.QWidget, "infoCard")
         if card:
+            r = AppStyles._get_style_border_radius()
             card.setStyleSheet(f"""
                 QWidget#infoCard {{
                     background-color: {c['alternate_base']};
-                    border-radius: 8px;
+                    border-radius: {r}px;
                     padding: 4px;
                 }}
             """)
