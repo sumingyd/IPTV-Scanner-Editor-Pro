@@ -123,7 +123,8 @@ class FloatingDockWidget(QDockWidget):
 
         path = QPainterPath()
         rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
-        path.addRoundedRect(rect, 8, 8)
+        corner_r = AppStyles._get_style_border_radius()
+        path.addRoundedRect(rect, corner_r, corner_r)
 
         colors = AppStyles._get_colors()
         neo = AppStyles.is_neumorphic()
@@ -152,7 +153,7 @@ class FloatingDockWidget(QDockWidget):
 class FloatingDialog(QDialog):
     _bg_color_key = 'window'
     _border_color_key = 'mid'
-    _corner_radius = 12
+
 
     def __init__(self, parent=None, frameless=True, tool_window=False, stay_on_top=True):
         super().__init__(parent)
@@ -225,7 +226,8 @@ class FloatingDialog(QDialog):
 
         path = QPainterPath()
         rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
-        path.addRoundedRect(rect, self._corner_radius, self._corner_radius)
+        corner_r = AppStyles._get_style_border_radius()
+        path.addRoundedRect(rect, corner_r, corner_r)
 
         r, g, b = _parse_hex_color(colors.get(self._bg_color_key, '#333333'))
         if is_frosted:
