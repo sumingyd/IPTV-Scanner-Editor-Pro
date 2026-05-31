@@ -172,6 +172,7 @@ class MpvPlayerController(QObject):
             _mpv_set_property_string(self.mpv_handle, 'osd-margin-y', '24')
             _mpv_set_property_string(self.mpv_handle, 'osd-align-x', 'left')
             _mpv_set_property_string(self.mpv_handle, 'osd-align-y', 'top')
+            self._apply_osd_colors()
             _mpv_set_property_string(self.mpv_handle, 'log-level', 'error')
             _mpv_set_property_string(self.mpv_handle, 'no-window-dragging', 'yes')
             _mpv_set_property_string(self.mpv_handle, 'window-scale', '1.0')
@@ -1469,6 +1470,22 @@ class MpvPlayerController(QObject):
 
     def show_osd(self, text: str, duration: int = 3000):
         self.send_command(['show-text', text, str(duration)])
+
+    def _apply_osd_colors(self):
+        if not self.mpv_handle:
+            return
+        try:
+            from ui.styles import AppStyles
+            colors = AppStyles._get_colors()
+            osd_fg = colors.get('player_panel_text', '#ffffff')
+            osd_border = colors.get('player_panel_secondary', '#000000')
+            _mpv_set_property_string(self.mpv_handle, 'osd-color', osd_fg)
+            _mpv_set_property_string(self.mpv_handle, 'osd-border-color', osd_border)
+        except Exception:
+            pass
+
+    def update_osd_theme(self):
+        self._apply_osd_colors()
 
     @staticmethod
     def detect_hdr_type(colormatrix: str, gamma: str, sig_peak: float) -> str:
