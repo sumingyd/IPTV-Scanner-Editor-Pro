@@ -2077,7 +2077,7 @@ class AppStyles:
                 padding: 0px;
                 margin: 0px;
                 border: none;
-                max-height: 60px;
+
             }}
         """
 
