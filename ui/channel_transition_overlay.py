@@ -38,14 +38,14 @@ class ChannelTransitionOverlay(QWidget):
 
         self._name_label = QLabel()
         self._name_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self._name_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        self._name_label.setFont(QFont(AppStyles._get_style_font_family().split(",")[0].strip("' "), 18, QFont.Weight.Bold))
         top_row.addWidget(self._name_label, 1)
 
         card_layout.addLayout(top_row)
 
         self._info_label = QLabel()
         self._info_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self._info_label.setFont(QFont("Segoe UI", 10))
+        self._info_label.setFont(QFont(AppStyles._get_style_font_family().split(",")[0].strip("' "), 10))
         card_layout.addWidget(self._info_label)
 
         layout.addWidget(self._card)
@@ -60,16 +60,17 @@ class ChannelTransitionOverlay(QWidget):
 
     def _reapply_overlay_styles(self):
         colors = AppStyles._get_colors()
-        text_color = colors.get('player_panel_text', '#ffffff')
+        text_color = colors.get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
         self._name_label.setStyleSheet(f"color: {text_color}; background: transparent;")
         self._info_label.setStyleSheet(f"color: {colors.get('player_panel_secondary', '#aaaaaa')}; background: transparent;")
         bg_color = colors.get('player_panel', 'rgba(20,20,20,220)')
-        self._card.setStyleSheet(f"background: {bg_color}; border-radius: 8px;")
+        r = AppStyles._get_style_border_radius()
+        self._card.setStyleSheet(f"background: {bg_color}; border-radius: {r}px;")
 
     def show_transition(self, channel_name: str, logo_pixmap: QPixmap = None, info_text: str = ""):
         self._name_label.setText(channel_name)
         colors = AppStyles._get_colors()
-        text_color = colors.get('player_panel_text', '#ffffff')
+        text_color = colors.get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
         self._name_label.setStyleSheet(f"color: {text_color}; background: transparent;")
         self._info_label.setStyleSheet(f"color: {colors.get('player_panel_secondary', '#aaaaaa')}; background: transparent;")
 
@@ -88,10 +89,11 @@ class ChannelTransitionOverlay(QWidget):
             self._logo_label.hide()
 
         bg_color = colors.get('player_panel', 'rgba(20,20,20,220)')
+        r = AppStyles._get_style_border_radius()
         if bg_color.startswith('rgba('):
-            self._card.setStyleSheet(f"background: {bg_color}; border-radius: 8px;")
+            self._card.setStyleSheet(f"background: {bg_color}; border-radius: {r}px;")
         else:
-            self._card.setStyleSheet(f"background: {bg_color}; border-radius: 8px;")
+            self._card.setStyleSheet(f"background: {bg_color}; border-radius: {r}px;")
 
         self._opacity = 1.0
         self.update()
