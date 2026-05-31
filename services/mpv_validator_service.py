@@ -151,7 +151,16 @@ class MpvStreamValidator:
             return result
 
         sem = self._get_semaphore()
-        acquired = sem.acquire(timeout=30)
+        acquired = False
+        for _ in range(60):
+            if self._terminating:
+                result['error'] = '验证器正在关闭'
+                result['error_type'] = 'terminating'
+                return result
+            acquired = sem.acquire(timeout=0.5)
+            if acquired:
+                break
+
         if not acquired:
             result['error'] = '并发数超限'
             result['error_type'] = 'concurrency_limit'
