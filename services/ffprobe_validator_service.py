@@ -42,6 +42,8 @@ class FfprobeStreamValidator:
     _terminating = False
     _ffprobe_path: str | None = None
     _ffprobe_checked = False
+    _active_processes: Dict[int, subprocess.Popen] = {}
+    _process_lock = threading.Lock()
 
     @classmethod
     def _get_ffprobe_path(cls):
@@ -85,7 +87,16 @@ class FfprobeStreamValidator:
             return result
 
         sem = self._get_semaphore()
-        acquired = sem.acquire(timeout=30)
+        acquired = False
+        for _ in range(60):
+            if self._terminating:
+                result['error'] = '验证器正在关闭'
+                result['error_type'] = 'terminating'
+                return result
+            acquired = sem.acquire(timeout=0.5)
+            if acquired:
+                break
+
         if not acquired:
             result['error'] = '并发数超限'
             result['error_type'] = 'concurrency_limit'
@@ -95,27 +106,65 @@ class FfprobeStreamValidator:
             cmd = self._build_ffprobe_command(ffprobe_path, url, timeout)
             start_time = time.time()
 
+            creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                creationflags=creation_flags
+            )
+
+            with self._process_lock:
+                self._active_processes[proc.pid] = proc
+
             try:
-                proc = subprocess.run(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    timeout=timeout + 10,
-                    creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
-                )
-            except subprocess.TimeoutExpired:
-                latency = int((time.time() - start_time) * 1000)
-                result['latency'] = latency
-                result['error'] = f'超时({timeout}秒)'
-                result['error_type'] = 'timeout'
-                return result
+                while proc.poll() is None:
+                    if self._terminating:
+                        try:
+                            proc.kill()
+                            proc.wait(timeout=1)
+                        except Exception:
+                            pass
+                        result['error'] = '验证器正在关闭'
+                        result['error_type'] = 'terminating'
+                        return result
+                    elapsed = time.time() - start_time
+                    if elapsed > timeout + 10:
+                        try:
+                            proc.kill()
+                            proc.wait(timeout=1)
+                        except Exception:
+                            pass
+                        latency = int(elapsed * 1000)
+                        result['latency'] = latency
+                        result['error'] = f'超时({timeout}秒)'
+                        result['error_type'] = 'timeout'
+                        return result
+                    time.sleep(0.2)
+
+                if proc.returncode is None:
+                    latency = int((time.time() - start_time) * 1000)
+                    result['latency'] = latency
+                    result['error'] = f'超时({timeout}秒)'
+                    result['error_type'] = 'timeout'
+                    return result
+            finally:
+                with self._process_lock:
+                    self._active_processes.pop(proc.pid, None)
+                try:
+                    proc.stdout.close()
+                    proc.stderr.close()
+                except Exception:
+                    pass
 
             latency = int((time.time() - start_time) * 1000)
             result['latency'] = latency
 
-            stderr_output = proc.stderr.decode('utf-8', errors='ignore').strip()
+            stdout_data = proc.stdout.read() if proc.stdout else b''
+            stderr_data = proc.stderr.read() if proc.stderr else b''
+            stderr_output = stderr_data.decode('utf-8', errors='ignore').strip()
 
-            probe_data = self._parse_probe_output(proc.stdout)
+            probe_data = self._parse_probe_output(stdout_data)
             if probe_data is not None:
                 streams = probe_data.get('streams', [])
                 if streams:
@@ -306,6 +355,15 @@ class FfprobeStreamValidator:
     @classmethod
     def terminate_all(cls):
         cls._terminating = True
+        with cls._process_lock:
+            for pid, proc in list(cls._active_processes.items()):
+                if proc.poll() is None:
+                    try:
+                        proc.kill()
+                        proc.wait(timeout=1)
+                    except Exception:
+                        pass
+            cls._active_processes.clear()
 
     @classmethod
     def set_terminating(cls):
@@ -313,7 +371,15 @@ class FfprobeStreamValidator:
 
     @classmethod
     def destroy_all_handles(cls):
-        pass
+        with cls._process_lock:
+            for pid, proc in list(cls._active_processes.items()):
+                if proc.poll() is None:
+                    try:
+                        proc.kill()
+                        proc.wait(timeout=1)
+                    except Exception:
+                        pass
+            cls._active_processes.clear()
 
     @classmethod
     def reset_terminating(cls):
