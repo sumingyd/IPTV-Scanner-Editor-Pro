@@ -639,7 +639,7 @@ class ChannelMappingManager:
             remote_url = DEFAULT_REMOTE_URL
             try:
                 config = ConfigManager()
-                remote_url = config.get('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
+                remote_url = config.get_value('channel_mappings', 'remote_url', DEFAULT_REMOTE_URL)
             except Exception as e:
                 logger.debug(f"获取远程映射URL失败: {e}")
 
