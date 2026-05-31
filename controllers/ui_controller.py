@@ -727,13 +727,13 @@ class UIController:
                 self.window.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
             if hasattr(self.window, 'epg_prev_day'):
                 self.window.epg_prev_day.setStyleSheet(AppStyles.player_date_button_style())
-                date_icon_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+                date_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
                 icon_path = AppStyles.get_icon('chevron_left', date_icon_color, 12)
                 if icon_path:
                     self.window.epg_prev_day.setIcon(QIcon(icon_path))
             if hasattr(self.window, 'epg_next_day'):
                 self.window.epg_next_day.setStyleSheet(AppStyles.player_date_button_style())
-                date_icon_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+                date_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
                 icon_path = AppStyles.get_icon('chevron_right', date_icon_color, 12)
                 if icon_path:
                     self.window.epg_next_day.setIcon(QIcon(icon_path))
@@ -776,7 +776,7 @@ class UIController:
                 vb = getattr(self.window, btn_attr, None)
                 if vb:
                     vb.setStyleSheet(AppStyles.player_button_style())
-            btn_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+            btn_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
             for btn_name in ['sub_view_list_btn', 'sub_view_grid_btn', 'local_view_list_btn', 'local_view_grid_btn']:
                 btn = getattr(self.window, btn_name, None)
                 if btn:
@@ -806,7 +806,7 @@ class UIController:
                 return
             fp = self.window.floating_panel
             colors = AppStyles._get_colors()
-            btn_color = colors.get('player_panel_text', '#ffffff')
+            btn_color = colors.get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
 
             if hasattr(self.window, 'video_info'):
                 self.window.video_info.setStyleSheet(AppStyles.player_media_badge_style())
