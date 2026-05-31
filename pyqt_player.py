@@ -275,6 +275,11 @@ class IPTVPlayer(QMainWindow):
         self._init_basic_ui()
 
         self.setStyleSheet(AppStyles.main_window_style())
+
+        from ui.menu_proxy_style import MenuRoundedProxyStyle
+        self._menu_proxy_style = MenuRoundedProxyStyle(self.style())
+        self.setStyle(self._menu_proxy_style)
+
         self._initialize_in_order()
 
     def _init_config(self):
