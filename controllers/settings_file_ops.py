@@ -617,7 +617,7 @@ class SettingsFileOperations:
                 background-color: {colors['alternate_base']};
                 color: {colors['window_text']};
                 border: 1px solid {colors['mid']};
-                border-radius: 6px;
+                border-radius: {AppStyles._get_style_border_radius()}px;
                 padding: 10px;
                 font-size: 13px;
             }}
@@ -696,7 +696,7 @@ class SettingsFileOperations:
         <head>
             <style>
                 body {{
-                    font-family: 'Segoe UI', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
+                    font-family: {AppStyles._get_style_font_family()};
                     font-size: 13px;
                     line-height: 1.6;
                     color: {text_color};
