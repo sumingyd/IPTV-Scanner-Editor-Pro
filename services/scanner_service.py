@@ -177,6 +177,8 @@ class ScannerController(QObject):
                     else:
                         self.stats['invalid'] += 1
                         error_type = result.get('error_type') or 'unknown_error'
+                        error_msg = result.get('error', '')
+                        self.logger.debug(f"扫描无效: {url} | error_type={error_type} | error={error_msg}")
                         if self.stats['invalid'] % 50 == 1:
                             self.logger.debug(f"扫描进度: 有效={self.stats['valid']}, 无效={self.stats['invalid']}, 最新错误类型={error_type}")
                         self.scan_state_manager.add_invalid_url(self.scan_id, url, error_type)
@@ -785,6 +787,7 @@ class ScannerController(QObject):
             channel = model.get_channel(i)
             url = channel.get('url', '').strip()
             if not url:
+                self.logger.debug(f"验证跳过: 频道'{channel.get('name', '?')}' URL为空 (索引={i})")
                 continue
             self.validation_queue.put((url, i))
             total += 1
@@ -868,6 +871,9 @@ class ScannerController(QObject):
                         self.stats['valid'] += 1
                     else:
                         self.stats['invalid'] += 1
+                        error_type = result.get('error_type', 'unknown')
+                        error_msg = result.get('error', '')
+                        self.logger.debug(f"验证无效: {url} | error_type={error_type} | error={error_msg}")
 
                     current = self.stats['valid'] + self.stats['invalid']
                     total = self.stats['total']

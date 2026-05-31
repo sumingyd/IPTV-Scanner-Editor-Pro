@@ -1361,7 +1361,8 @@ class ChannelListModel(QtCore.QAbstractTableModel):
     @staticmethod
     def _is_valid_channel_url(url):
         from services.m3u_parser import is_valid_channel_url
-        return is_valid_channel_url(url)
+        valid, _ = is_valid_channel_url(url)
+        return valid
 
     def _natural_sort_key(self, s):
         """自然排序键函数，将字符串中的数字部分转换为整数用于排序"""

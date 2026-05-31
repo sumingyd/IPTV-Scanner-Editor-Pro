@@ -202,38 +202,39 @@ def extract_header_attributes(line: str) -> Dict[str, str]:
     return result
 
 
-def is_valid_channel_url(url: str) -> bool:
+def is_valid_channel_url(url: str) -> tuple:
+    """返回 (是否有效, 无效原因)"""
     if not url or not url.strip():
-        return False
+        return False, 'URL为空'
     u = url.strip()
     if u.startswith('#'):
-        return False
+        return False, 'URL以#开头'
     if u in ('http://0/0.m3u8', 'http://0', 'rtmp://0'):
-        return False
+        return False, '已知占位URL'
     if u.startswith('http://0/') or u.startswith('http://0:'):
-        return False
+        return False, 'http://0占位地址'
     if u.startswith('rtp://0.') or u.startswith('udp://0.'):
-        return False
+        return False, '组播0.x占位地址'
     if '://' not in u:
-        return False
+        return False, '缺少协议scheme'
     try:
         parsed = urlparse(u)
         host = parsed.hostname
         if not host:
-            return False
+            return False, '无法解析主机名'
         if host in ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
-            return False
+            return False, f'单数字主机名({host})'
         octets = host.split('.')
         if len(octets) == 4:
             try:
                 if all(0 <= int(o) <= 255 for o in octets):
                     if int(octets[0]) == 0:
-                        return False
+                        return False, 'IP首字节为0'
             except ValueError:
                 pass
-        return True
-    except Exception:
-        return True
+        return True, ''
+    except Exception as e:
+        return True, ''
 
 
 _TAG_MAPPING = {
@@ -430,14 +431,19 @@ def parse_m3u_content(content: str) -> Tuple[List[Dict[str, Any]], Dict[str, str
 
         if current_channel:
             url = line.strip()
-            if is_valid_channel_url(url):
+            valid, reason = is_valid_channel_url(url)
+            if valid:
                 current_channel['url'] = url
                 _extract_fcc_to_channel(url, current_channel)
                 channels.append(current_channel)
+            else:
+                ch_name = current_channel.get('name', '?')
+                logger.debug(f"M3U解析跳过: 频道'{ch_name}' URL无效({reason}): {url}")
             current_channel = None
         else:
             url = line.strip()
-            if is_valid_channel_url(url):
+            valid, reason = is_valid_channel_url(url)
+            if valid:
                 try:
                     from models.channel_mappings import extract_channel_name_from_url
                     ch_name = extract_channel_name_from_url(url)
@@ -450,6 +456,8 @@ def parse_m3u_content(content: str) -> Tuple[List[Dict[str, Any]], Dict[str, str
                 ch['url'] = url
                 _inherit_header_attrs(ch, header_attrs)
                 channels.append(ch)
+            else:
+                logger.debug(f"M3U解析跳过: 裸URL无效({reason}): {url}")
 
     for i, ch in enumerate(channels):
         ch['id'] = i + 1
