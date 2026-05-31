@@ -553,7 +553,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
     def to_m3u(self) -> str:
         """将频道列表转换为M3U格式字符串"""
         from models.channel_mappings import get_channel_info
-        logger = LogManager()
+        logger = global_logger
         lines = ["#EXTM3U"]
         for channel in self.channels:
             url = channel.get('url', '')
