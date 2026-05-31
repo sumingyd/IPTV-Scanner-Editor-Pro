@@ -805,7 +805,7 @@ class IPTVPlayer(QMainWindow):
         # EPG标题
         self.epg_title = QLabel(tr('epg_title', 'Program Guide'))
         self.epg_title.setStyleSheet(AppStyles.player_epg_title_style())
-        epg_icon_path = AppStyles.get_icon('calendar', AppStyles._get_colors().get('player_panel_text', '#ffffff'))
+        epg_icon_path = AppStyles.get_icon('calendar', AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text')))
         if epg_icon_path:
             self.epg_title.setProperty('icon_path', epg_icon_path)
         self.epg_layout.addWidget(self.epg_title)
@@ -815,7 +815,7 @@ class IPTVPlayer(QMainWindow):
         date_layout.setContentsMargins(8, 4, 8, 4)
         date_layout.setSpacing(8)
 
-        date_icon_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        date_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
         self.epg_prev_day = QPushButton()
         self.epg_prev_day.setIcon(QIcon(AppStyles.get_icon('chevron_left', date_icon_color, 12)))
         self.epg_prev_day.setIconSize(QSize(12, 12))
@@ -920,7 +920,7 @@ class IPTVPlayer(QMainWindow):
         self.sub_search_input.textChanged.connect(self._on_sub_search_changed)
         sub_search_row.addWidget(self.sub_search_input, 1)
 
-        view_icon_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        view_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
         self.sub_view_list_btn = QToolButton()
         self.sub_view_list_btn.setIcon(QIcon(AppStyles.get_icon('list_view', view_icon_color)))
         self.sub_view_list_btn.setIconSize(QSize(14, 14))
@@ -1020,7 +1020,7 @@ class IPTVPlayer(QMainWindow):
 
         self.playlist_tab.addTab(sub_tab, tr("subscription_tab", "Subscription"))
         self.playlist_tab.addTab(local_tab, tr("local_tab", "Local"))
-        tab_icon_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        tab_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
         signal_icon_path = AppStyles.get_icon('signal', tab_icon_color, 14)
         folder_icon_path = AppStyles.get_icon('folder', tab_icon_color, 14)
         if signal_icon_path:
@@ -1137,7 +1137,7 @@ class IPTVPlayer(QMainWindow):
     
     def _set_info_label_icon(self, icon_label: QLabel, icon_name: str):
         """设置信息行前的小图标"""
-        color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
         icon_path = AppStyles.get_icon(icon_name, color, 14)
         if icon_path:
             from PyQt6.QtGui import QPixmap
@@ -1310,7 +1310,7 @@ class IPTVPlayer(QMainWindow):
         self.control_row.setSpacing(8)
         
         # 左侧：播放按钮
-        btn_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        btn_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
         btn_icon_size = QSize(20, 20)
         self.play_button = QToolButton()
         self.play_button.setIcon(QIcon(AppStyles.get_icon('play', btn_color)))
