@@ -230,6 +230,10 @@ class ThemeManager(Singleton, QtCore.QObject):
                 window._reapply_side_panel_styles()
             if hasattr(window, 'reapply_styles'):
                 window.reapply_styles()
+
+            pc = getattr(window, 'player_controller', None)
+            if pc and hasattr(pc, 'player') and hasattr(pc.player, 'update_osd_theme'):
+                pc.player.update_osd_theme()
         except Exception as e:
             print(f"重刷主窗口组件样式失败: {e}")
 
