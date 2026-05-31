@@ -127,7 +127,7 @@ class MultiScreenCell(QWidget):
 
         vol_label = QLabel()
         vol_label.setFixedSize(18, 18)
-        vol_icon_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        vol_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
         vol_icon_path = AppStyles.get_icon('speaker', vol_icon_color, 14)
         if vol_icon_path:
             vol_label.setPixmap(QIcon(vol_icon_path).pixmap(14, 14))
@@ -291,12 +291,13 @@ class MultiScreenCell(QWidget):
     @staticmethod
     def _combo_style():
         colors = AppStyles._get_colors()
+        r = AppStyles._get_style_border_radius()
         return f"""
             QComboBox {{
                 background-color: {colors['player_combo']};
                 color: {colors['player_panel_text']};
                 border: 1px solid {colors['player_line']};
-                border-radius: 2px;
+                border-radius: {max(r - 4, 2)}px;
                 font-size: 10px;
                 padding: 0px 2px;
             }}
@@ -331,6 +332,7 @@ class MultiScreenCell(QWidget):
     @staticmethod
     def _placeholder_style():
         colors = AppStyles._get_colors()
+        r = AppStyles._get_style_border_radius()
         return f"""
             QLabel {{
                 font-size: 48px;
@@ -338,7 +340,7 @@ class MultiScreenCell(QWidget):
                 color: {colors['player_panel_hint']};
                 background-color: {colors['player_video_placeholder']};
                 border: 1px dashed {colors['player_line']};
-                border-radius: 4px;
+                border-radius: {r}px;
             }}
         """
 
@@ -372,7 +374,7 @@ class MultiScreenWidget(QWidget):
 
         self._mute_button = QToolButton()
         self._mute_button.setFixedSize(24, 20)
-        mute_color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        mute_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
         mute_icon_path = AppStyles.get_icon('volume', mute_color, 14)
         if mute_icon_path:
             self._mute_button.setIcon(QIcon(mute_icon_path))
@@ -458,7 +460,7 @@ class MultiScreenWidget(QWidget):
             self.global_mute_toggled.emit(True)
 
     def _update_mute_button(self, muted: bool):
-        color = AppStyles._get_colors().get('player_panel_text', '#ffffff')
+        color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
         if muted:
             icon_path = AppStyles.get_icon('volume_mute', color, 14)
             self._mute_label.setText("Muted")
