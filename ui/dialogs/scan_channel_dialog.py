@@ -2038,7 +2038,7 @@ class ScanChannelDialog(FloatingDialog):
             return
         try:
             from services.ffprobe_validator_service import FfprobeStreamValidator
-            FfprobeStreamValidator.set_terminating()
+            FfprobeStreamValidator.terminate_all()
 
             if hasattr(self.scanner, '_flush_pending_channels'):
                 self.scanner._flush_pending_channels()
@@ -2063,10 +2063,6 @@ class ScanChannelDialog(FloatingDialog):
             self.scanner.workers = []
 
             FfprobeStreamValidator.destroy_all_handles()
-            FfprobeStreamValidator.reset_terminating()
-
-            if hasattr(self.scanner, 'stats_thread') and self.scanner.stats_thread and self.scanner.stats_thread.is_alive():
-                self.scanner.stats_thread.join(timeout=0.5)
 
             if hasattr(self.scanner, '_mapping_executor') and self.scanner._mapping_executor:
                 try:
@@ -2082,6 +2078,12 @@ class ScanChannelDialog(FloatingDialog):
             self._set_browse_model()
         except Exception as e:
             log_ui_error(f"停止扫描清理失败: {e}")
+        finally:
+            try:
+                from services.ffprobe_validator_service import FfprobeStreamValidator
+                FfprobeStreamValidator.reset_terminating()
+            except Exception:
+                pass
 
     def _on_scan_clicked(self):
         """处理扫描按钮点击事件"""
@@ -2274,7 +2276,7 @@ class ScanChannelDialog(FloatingDialog):
             return
         try:
             from services.ffprobe_validator_service import FfprobeStreamValidator
-            FfprobeStreamValidator.set_terminating()
+            FfprobeStreamValidator.terminate_all()
             self.scanner.stop_event.set()
 
             import queue
@@ -2300,10 +2302,15 @@ class ScanChannelDialog(FloatingDialog):
 
             self.scanner.workers = []
             FfprobeStreamValidator.destroy_all_handles()
-            FfprobeStreamValidator.reset_terminating()
             self._set_browse_model()
         except Exception as e:
             log_ui_error(f"停止验证清理失败: {e}")
+        finally:
+            try:
+                from services.ffprobe_validator_service import FfprobeStreamValidator
+                FfprobeStreamValidator.reset_terminating()
+            except Exception:
+                pass
 
     def _on_channel_validated(self, index, valid, latency, resolution):
         """处理频道验证结果"""
@@ -2677,6 +2684,10 @@ class ScanChannelDialog(FloatingDialog):
         current_count = getattr(self, '_validation_retry_count', 0) or 0
         
         if remaining_invalid and current_count < max_retries:
+            if getattr(self, '_is_stopping', False):
+                self.logger.info("检测重试被用户停止，不启动下一轮")
+                self._is_validation_retrying = False
+                return
             self.logger.info(f"仍有 {len(remaining_invalid)} 个无效频道，继续智能重试(第{current_count + 1}/{max_retries}次)...")
             QtCore.QTimer.singleShot(500, self._start_validation_retry)
         else:
@@ -2923,6 +2934,9 @@ class ScanChannelDialog(FloatingDialog):
 
     def _handle_retry_scan(self):
         """处理重试扫描"""
+        if getattr(self, '_is_stopping', False):
+            self.logger.info("重试扫描被用户停止，不再继续")
+            return
         self.logger.debug("=== _handle_retry_scan 方法开始 ===")
 
         # 使用重试扫描状态上下文管理器
@@ -2931,6 +2945,9 @@ class ScanChannelDialog(FloatingDialog):
 
     def _handle_retry_scan_internal(self):
         """内部重试扫描处理方法"""
+        if getattr(self, '_is_stopping', False):
+            self.logger.info("重试扫描被用户停止，不再继续")
+            return
         # 增加重试计数（每次进入重试扫描时）
         self.scan_state_manager.increment_retry_count(self.retry_id)
         retry_count = self.scan_state_manager.get_retry_count(self.retry_id)
@@ -3031,6 +3048,9 @@ class ScanChannelDialog(FloatingDialog):
 
     def _start_retry_scan(self):
         """启动重试扫描 - 第二阶段深度扫描"""
+        if getattr(self, '_is_stopping', False):
+            self.logger.info("重试扫描被用户停止，不启动新轮次")
+            return
         if not hasattr(self, 'scanner') or self.scanner is None:
             log_ui_error("扫描器未初始化，无法启动重试扫描")
             return
@@ -3071,6 +3091,10 @@ class ScanChannelDialog(FloatingDialog):
         self._set_append_scan_button_text('stop_scan', '停止扫描')
 
     def _handle_retry_scan_completed(self):
+        if getattr(self, '_is_stopping', False):
+            self.logger.info("重试扫描被用户停止，不再继续")
+            self.scan_state_manager.clear_failed_channels(self.retry_id)
+            return
         retry_count = self.scan_state_manager.get_retry_count(self.retry_id)
         max_retries = 3
 
