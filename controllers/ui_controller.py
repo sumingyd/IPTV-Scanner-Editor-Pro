@@ -88,12 +88,21 @@ class UIController:
         current = self.window.current_channel
         channel_name = ''
         play_url = ''
+        channel_group = ''
         if current and isinstance(current, dict):
             channel_name = current.get('name', '') or ''
             play_url = current.get('url', '') or ''
+            channel_group = current.get('group', '') or ''
 
         if channel_name:
-            lines.append(f'> {channel_name}')
+            group_prefix = f'[{channel_group}] ' if channel_group else ''
+            lines.append(f'> {group_prefix}{channel_name}')
+
+        current_program = getattr(self.window, 'current_program', None)
+        if current_program:
+            prog_text = current_program.text().strip()
+            if prog_text:
+                lines.append(f'  {prog_text}')
 
         tr = self.window.language_manager.tr
         sep = ' \u2502 '
@@ -190,6 +199,9 @@ class UIController:
         cache_speed = info.get('cache_speed', 0) or 0
         if cache_speed > 0:
             br_line.append(f'{tr("osd_cache", "Cache")}: {self.format_bitrate(cache_speed)}')
+        buffer_state = info.get('buffer_state', '') or ''
+        if buffer_state:
+            br_line.append(f'{tr("osd_buffer", "Buffer")}: {buffer_state}')
         if br_line:
             lines.append(sep.join(br_line))
 
@@ -857,6 +869,7 @@ class UIController:
                 'speed_button': 'speed', 'aspect_button': 'aspect',
                 'audio_track_button': 'audio_track', 'sub_track_button': 'subtitle',
                 'pip_button': 'pip', 'fullscreen_button': 'fullscreen',
+                'backward_button': 'backward',
             }
             for attr, icon_name in icon_btn_map.items():
                 btn = getattr(self.window, attr, None)
