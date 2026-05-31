@@ -571,6 +571,9 @@ class ScannerController(QObject):
         self.stop_scan()
         self.stop_event.clear()
 
+        from services.ffprobe_validator_service import FfprobeStreamValidator
+        FfprobeStreamValidator.reset_terminating()
+
         # 清空扫描状态管理器中的无效URL
         self.scan_state_manager.clear_invalid_urls(self.scan_id)
 
@@ -650,34 +653,13 @@ class ScannerController(QObject):
             'is_scanning': False
         })
 
-        # 安全停止：1.设置终止标志（让工作线程尽快退出）
         from services.ffprobe_validator_service import FfprobeStreamValidator
-        FfprobeStreamValidator.set_terminating()
+        FfprobeStreamValidator.terminate_all()
 
-        # 2.清空队列
         self._clear_all_queues()
 
-        # 3.等待工作线程退出（足够长timeout确保线程退出）
-        for worker in self.workers:
-            if worker.is_alive():
-                worker.join(timeout=3.0)
         self.workers = []
         self.worker_queue = queue.Queue()
-
-        FfprobeStreamValidator.destroy_all_handles()
-        FfprobeStreamValidator.reset_terminating()
-
-        # 5.清理其他资源
-        self._cleanup_other_resources()
-
-        if hasattr(self, '_mapping_executor') and self._mapping_executor:
-            try:
-                self._mapping_executor.shutdown(wait=False)
-            except Exception:
-                pass
-            self._mapping_executor = None
-
-        self._flush_pending_channels()
 
     def _clear_all_queues(self):
         """清空所有队列"""
@@ -769,6 +751,9 @@ class ScannerController(QObject):
         self.stop_event.clear()
         self.timeout = timeout
 
+        from services.ffprobe_validator_service import FfprobeStreamValidator
+        FfprobeStreamValidator.reset_terminating()
+
         # 更新扫描状态管理器
         self.scan_state_manager.update_scan_state(self.scan_id, {
             'is_validating': True
@@ -825,31 +810,21 @@ class ScannerController(QObject):
         self.stop_event.set()
         self.is_validating = False
 
-        # 更新扫描状态管理器
         self.scan_state_manager.update_scan_state(self.scan_id, {
             'is_validating': False
         })
 
-        # 安全停止：1.设置终止标志
         from services.ffprobe_validator_service import FfprobeStreamValidator
-        FfprobeStreamValidator.set_terminating()
+        FfprobeStreamValidator.terminate_all()
 
-        # 2.清空任务队列
         while not self.validation_queue.empty():
             try:
                 self.validation_queue.get_nowait()
             except queue.Empty:
                 break
 
-        # 3.等待工作线程退出
-        for worker in self.workers:
-            if worker.is_alive():
-                worker.join(timeout=1.0)
-
         self.workers = []
         self.worker_queue = queue.Queue()
-
-        FfprobeStreamValidator.destroy_all_handles()
 
     def _validation_worker(self):
         while not self.stop_event.is_set():
