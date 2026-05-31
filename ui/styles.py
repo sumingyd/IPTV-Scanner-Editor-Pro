@@ -88,6 +88,50 @@ class AppStyles:
         return path
 
     @classmethod
+    def _safe_fallback(cls, key: str) -> str:
+        dark_fallbacks = {
+            'window_text': '#ffffff',
+            'accent': '#0078d4',
+            'player_panel_text': '#ffffff',
+            'window': '#1e1e1e',
+            'mid': '#555555',
+            'border_3d_light': 'rgba(255,255,255,0.15)',
+            'border_3d_dark': 'rgba(0,0,0,0.5)',
+            'shadow_subtle': 'rgba(0,0,0,0.3)',
+            'border_thin': 'rgba(255,255,255,0.08)',
+        }
+        light_fallbacks = {
+            'window_text': '#1e1e1e',
+            'accent': '#005fb8',
+            'player_panel_text': '#1e1e1e',
+            'window': '#f3f3f3',
+            'mid': '#b8bec7',
+            'border_3d_light': 'rgba(255,255,255,0.8)',
+            'border_3d_dark': 'rgba(0,0,0,0.15)',
+            'shadow_subtle': 'rgba(0,0,0,0.08)',
+            'border_thin': 'rgba(0,0,0,0.06)',
+        }
+        mode = cls._get_effective_color_mode()
+        if mode == 'light':
+            return light_fallbacks.get(key, '#888888')
+        return dark_fallbacks.get(key, '#888888')
+
+    @classmethod
+    def _get_scaled_radius(cls, widget_type: str) -> int:
+        r = cls._get_style_border_radius()
+        scaling = {
+            'default': r,
+            'tab': max(r - 2, 4),
+            'list_item': max(r - 4, 2),
+            'indicator': max(r - 4, 3),
+            'badge': max(r - 6, 2),
+            'slider_handle': max(r - 2, 3),
+            'menu': max(r - 2, 4),
+            'scrollbar': max(r - 4, 3),
+        }
+        return scaling.get(widget_type, r)
+
+    @classmethod
     def _get_arrow_image(cls, color: str) -> str:
         color = color_to_hex(color)
         svg = (
@@ -141,7 +185,7 @@ class AppStyles:
     @classmethod
     def get_icon(cls, name: str, color: str = None, size: int = 16) -> str:
         if color is None:
-            color = cls._get_colors().get('window_text', '#ffffff')
+            color = cls._get_colors().get('window_text', cls._safe_fallback('window_text'))
         color = color_to_hex(color)
         key = f'{name}_{size}_{color.lstrip("#")}'
         if key in cls._icon_cache:
@@ -572,58 +616,70 @@ class AppStyles:
             c['shadow_light'] = 'rgba(255,255,255,0.08)'
             c['neumorphic_light'] = '#383838'
             c['neumorphic_dark'] = '#080808'
-            c['gradient_start'] = '#404040'
-            c['gradient_end'] = '#2a2a2a'
-            c['border_3d_light'] = 'rgba(255,255,255,0.15)'
+            c['gradient_start'] = '#403830'
+            c['gradient_end'] = '#2a2218'
+            c['border_3d_light'] = 'rgba(255,200,150,0.12)'
             c['border_3d_dark'] = 'rgba(0,0,0,0.5)'
+            c['accent'] = '#e8a040'
+            c['accent_hover'] = '#d89030'
+            c['accent_pressed'] = '#c88020'
         else:
             c['shadow_dark'] = 'rgba(0,0,0,0.25)'
             c['shadow_light'] = 'rgba(255,255,255,0.9)'
             c['neumorphic_light'] = '#f0f0f0'
             c['neumorphic_dark'] = '#c8c8c8'
-            c['gradient_start'] = '#e8e8e8'
-            c['gradient_end'] = '#d0d0d0'
+            c['gradient_start'] = '#f0e8e0'
+            c['gradient_end'] = '#d8d0c8'
             c['border_3d_light'] = 'rgba(255,255,255,0.8)'
             c['border_3d_dark'] = 'rgba(0,0,0,0.15)'
+            c['accent'] = '#c87820'
+            c['accent_hover'] = '#b06818'
+            c['accent_pressed'] = '#985810'
         return c
 
     @classmethod
     def _style_modifier_frosted(cls, colors, color_mode):
         c = colors.copy()
         if color_mode == 'dark':
-            c['window'] = 'rgba(20, 20, 20, 0.82)'
-            c['base'] = 'rgba(30, 30, 30, 0.78)'
-            c['alternate_base'] = 'rgba(40, 40, 40, 0.75)'
-            c['button'] = 'rgba(55, 55, 55, 0.72)'
-            c['player_panel'] = 'rgba(35, 35, 35, 0.78)'
-            c['player_button'] = 'rgba(60, 60, 60, 0.7)'
-            c['player_combo'] = 'rgba(45, 45, 45, 0.65)'
-            c['player_background'] = 'rgba(26, 26, 26, 0.85)'
-            c['player_slider_track'] = 'rgba(85, 85, 85, 0.6)'
-            c['player_volume_track'] = 'rgba(68, 68, 68, 0.6)'
-            c['player_line'] = 'rgba(85, 85, 85, 0.5)'
-            c['table_alternate'] = 'rgba(26, 26, 26, 0.7)'
-            c['table_header'] = 'rgba(58, 58, 58, 0.7)'
-            c['tooltip_base'] = 'rgba(42, 42, 42, 0.85)'
-            c['backdrop_tint'] = 'rgba(0, 0, 0, 0.3)'
+            c['window'] = 'rgba(16, 20, 28, 0.82)'
+            c['base'] = 'rgba(24, 28, 38, 0.78)'
+            c['alternate_base'] = 'rgba(32, 36, 48, 0.75)'
+            c['button'] = 'rgba(44, 48, 62, 0.72)'
+            c['player_panel'] = 'rgba(28, 32, 42, 0.78)'
+            c['player_button'] = 'rgba(48, 52, 66, 0.7)'
+            c['player_combo'] = 'rgba(36, 40, 52, 0.65)'
+            c['player_background'] = 'rgba(12, 16, 24, 0.85)'
+            c['player_slider_track'] = 'rgba(70, 80, 100, 0.6)'
+            c['player_volume_track'] = 'rgba(56, 64, 80, 0.6)'
+            c['player_line'] = 'rgba(70, 80, 100, 0.5)'
+            c['table_alternate'] = 'rgba(16, 20, 28, 0.7)'
+            c['table_header'] = 'rgba(48, 52, 66, 0.7)'
+            c['tooltip_base'] = 'rgba(32, 36, 48, 0.85)'
+            c['backdrop_tint'] = 'rgba(0, 20, 40, 0.3)'
             c['frosted_opacity'] = 0.78
+            c['accent'] = '#40a0e0'
+            c['accent_hover'] = '#3090d0'
+            c['accent_pressed'] = '#2080c0'
         else:
-            c['window'] = 'rgba(240, 240, 240, 0.82)'
-            c['base'] = 'rgba(255, 255, 255, 0.78)'
-            c['alternate_base'] = 'rgba(232, 232, 232, 0.75)'
-            c['button'] = 'rgba(210, 210, 210, 0.72)'
-            c['player_panel'] = 'rgba(245, 245, 245, 0.78)'
-            c['player_button'] = 'rgba(200, 200, 200, 0.7)'
-            c['player_combo'] = 'rgba(220, 220, 220, 0.65)'
+            c['window'] = 'rgba(238, 242, 248, 0.82)'
+            c['base'] = 'rgba(248, 250, 255, 0.78)'
+            c['alternate_base'] = 'rgba(228, 232, 240, 0.75)'
+            c['button'] = 'rgba(210, 214, 224, 0.72)'
+            c['player_panel'] = 'rgba(242, 244, 250, 0.78)'
+            c['player_button'] = 'rgba(200, 204, 216, 0.7)'
+            c['player_combo'] = 'rgba(218, 222, 232, 0.65)'
             c['player_background'] = 'rgba(26, 26, 26, 0.85)'
-            c['player_slider_track'] = 'rgba(160, 160, 160, 0.5)'
-            c['player_volume_track'] = 'rgba(180, 180, 180, 0.5)'
-            c['player_line'] = 'rgba(180, 180, 180, 0.4)'
-            c['table_alternate'] = 'rgba(240, 240, 240, 0.7)'
-            c['table_header'] = 'rgba(230, 230, 230, 0.7)'
-            c['tooltip_base'] = 'rgba(252, 252, 252, 0.85)'
-            c['backdrop_tint'] = 'rgba(255, 255, 255, 0.2)'
+            c['player_slider_track'] = 'rgba(150, 160, 180, 0.5)'
+            c['player_volume_track'] = 'rgba(170, 178, 196, 0.5)'
+            c['player_line'] = 'rgba(170, 178, 196, 0.4)'
+            c['table_alternate'] = 'rgba(238, 242, 248, 0.7)'
+            c['table_header'] = 'rgba(228, 232, 240, 0.7)'
+            c['tooltip_base'] = 'rgba(250, 252, 255, 0.85)'
+            c['backdrop_tint'] = 'rgba(200, 220, 255, 0.2)'
             c['frosted_opacity'] = 0.82
+            c['accent'] = '#2080c0'
+            c['accent_hover'] = '#1870b0'
+            c['accent_pressed'] = '#1060a0'
         return c
 
     @classmethod
@@ -642,9 +698,9 @@ class AppStyles:
             c['window'] = '#f3f3f3'
             c['base'] = '#ffffff'
             c['button'] = '#e5e5e5'
-            c['accent'] = '#005fb8'
-            c['accent_hover'] = '#004e99'
-            c['accent_pressed'] = '#003d75'
+            c['accent'] = '#0078d4'
+            c['accent_hover'] = '#006cbe'
+            c['accent_pressed'] = '#005fa8'
             c['mica_color'] = '#f9f9f9'
             c['card_color'] = '#ffffff'
         c['font_family'] = "'Segoe UI Variable', 'Segoe UI', 'Microsoft YaHei', sans-serif"
@@ -665,16 +721,18 @@ class AppStyles:
             c['window_text'] = '#f5f5f7'
             c['shadow_dark'] = 'rgba(0,0,0,0.3)'
             c['shadow_light'] = 'rgba(255,255,255,0.06)'
+            c['shadow_subtle'] = '0 2px 8px rgba(0,0,0,0.24)'
         else:
             c['window'] = '#f5f5f7'
             c['base'] = '#ffffff'
             c['button'] = '#e8e8ed'
-            c['accent'] = '#0066cc'
-            c['accent_hover'] = '#0055aa'
-            c['accent_pressed'] = '#004488'
+            c['accent'] = '#0a84ff'
+            c['accent_hover'] = '#0070e0'
+            c['accent_pressed'] = '#0058b0'
             c['window_text'] = '#1d1d1f'
             c['shadow_dark'] = 'rgba(0,0,0,0.1)'
             c['shadow_light'] = 'rgba(255,255,255,0.9)'
+            c['shadow_subtle'] = '0 2px 8px rgba(0,0,0,0.12)'
         c['font_family'] = "'SF Pro Display', 'SF Pro', 'Segoe UI', 'Microsoft YaHei', sans-serif"
         return c
 
@@ -686,11 +744,12 @@ class AppStyles:
             c['base'] = '#2c2c2e'
             c['button'] = '#3a3a3c'
             c['accent'] = '#0a84ff'
-            c['accent_hover'] = '#0070e0'
-            c['accent_pressed'] = '#0058b0'
+            c['accent_hover'] = '#409cff'
+            c['accent_pressed'] = '#0070e0'
             c['window_text'] = '#f5f5f7'
             c['shadow_dark'] = 'rgba(0,0,0,0.2)'
             c['shadow_light'] = 'rgba(255,255,255,0.04)'
+            c['shadow_subtle'] = '0 1px 4px rgba(0,0,0,0.16)'
         else:
             c['window'] = '#f2f2f7'
             c['base'] = '#ffffff'
@@ -701,6 +760,7 @@ class AppStyles:
             c['window_text'] = '#1c1c1e'
             c['shadow_dark'] = 'rgba(0,0,0,0.06)'
             c['shadow_light'] = 'rgba(255,255,255,0.95)'
+            c['shadow_subtle'] = '0 1px 4px rgba(0,0,0,0.08)'
         c['font_family'] = "'SF Pro Display', 'SF Pro', 'Segoe UI', 'Microsoft YaHei', sans-serif"
         return c
 
@@ -889,7 +949,7 @@ class AppStyles:
             return f"border: 1px solid; border-top-color: {c.get('shadow_subtle', c['shadow_dark'])}; border-left-color: {c.get('shadow_subtle', c['shadow_dark'])}; border-bottom-color: {c['mid']}; border-right-color: {c['mid']};"
         if cls._visual_style == 'ios':
             return f"border: 1px solid {c.get('shadow_subtle', c['shadow_dark'])};"
-        return f"border: 1px solid {c.get('mid', '#555')};"
+        return f"border: 1px solid {c.get('mid', cls._safe_fallback('mid'))};"
 
     @classmethod
     def _get_style_raised(cls):
@@ -918,7 +978,7 @@ class AppStyles:
             return f"border: 1px solid {c.get('shadow_subtle', c['mid'])};"
         if cls._visual_style == 'ios':
             return f"border: 1px solid {c.get('shadow_subtle', c['mid'])};"
-        return f"border: 1px solid {c.get('mid', '#555')};"
+        return f"border: 1px solid {c.get('mid', cls._safe_fallback('mid'))};"
 
     @staticmethod
     def _neumorphic_inset():
@@ -1049,18 +1109,19 @@ class AppStyles:
         style = cls._visual_style
         r = cls._get_style_border_radius()
         menu_r = max(r - 2, 4)
+        menu_pad = max(menu_r // 2, 4)
         if style == 'neumorphic':
-            return f"background-color: {c['base']}; padding: 4px; border: 2px solid; border-top-color: {c['shadow_light']}; border-left-color: {c['shadow_light']}; border-bottom-color: {c['shadow_dark']}; border-right-color: {c['shadow_dark']}; border-radius: {menu_r}px;"
+            return f"background-color: {c['base']}; padding: {menu_pad}px; border: 2px solid; border-top-color: {c['shadow_light']}; border-left-color: {c['shadow_light']}; border-bottom-color: {c['shadow_dark']}; border-right-color: {c['shadow_dark']}; border-radius: {menu_r}px;"
         elif style == 'skeuomorphic':
-            return f"background-color: {c['base']}; padding: 4px; border: 2px outset {c.get('border_3d_light', c['mid'])}; border-radius: {menu_r}px;"
+            return f"background-color: {c['base']}; padding: {menu_pad}px; border: 2px outset {c.get('border_3d_light', c['mid'])}; border-radius: {menu_r}px;"
         elif style == 'frosted':
-            return f"background-color: {c['base']}; padding: 4px; border: 1px solid rgba(255,255,255,0.1); border-radius: {menu_r}px;"
+            return f"background-color: {c['base']}; padding: {menu_pad}px; border: 1px solid rgba(255,255,255,0.1); border-radius: {menu_r}px;"
         elif style == 'win11':
-            return f"background-color: {c['base']}; padding: 4px; border: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {menu_r}px;"
+            return f"background-color: {c['base']}; padding: {menu_pad}px; border: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {menu_r}px;"
         elif style == 'mac':
-            return f"background-color: {c['base']}; padding: 4px; border: 1px solid {c.get('shadow_subtle', c['mid'])}; border-radius: {menu_r}px;"
+            return f"background-color: {c['base']}; padding: {menu_pad}px; border: 1px solid {c.get('shadow_subtle', c['mid'])}; border-radius: {menu_r}px;"
         elif style == 'ios':
-            return f"background-color: {c['base']}; padding: 4px; border: 1px solid {c.get('shadow_subtle', c['shadow_dark'])}; border-radius: {menu_r}px;"
+            return f"background-color: {c['base']}; padding: {menu_pad}px; border: 1px solid {c.get('shadow_subtle', c['shadow_dark'])}; border-radius: {menu_r}px;"
         return f"background-color: {c['base']}; padding: 2px; border: 1px solid {c['mid']}; border-radius: {menu_r}px;"
 
     @classmethod
@@ -1099,11 +1160,11 @@ class AppStyles:
             handle = f"background: {c['player_slider_handle']}; width: {handle_size}px; height: {handle_size}px; border: none; border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
         elif style == 'ios':
             groove = f"background: {c['player_slider_track']}; height: {groove_h}px; border: none; border-radius: {r}px;"
-            handle = f"background: white; width: {handle_size}px; height: {handle_size}px; border: 1px solid rgba(0,0,0,0.15); border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
+            handle = f"background: {c.get('slider_handle_light', c['light'])}; width: {handle_size}px; height: {handle_size}px; border: 1px solid rgba(0,0,0,0.15); border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
         else:
-            groove = f"background: {c['player_slider_track']}; height: {groove_h}px; border-radius: 2px;"
+            groove = f"background: {c['player_slider_track']}; height: {groove_h}px; border-radius: {cls._get_scaled_radius('scrollbar')}px;"
             handle = f"background: {c['player_slider_handle']}; width: {handle_size}px; height: {handle_size}px; border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
-        sub_page = f"background: {c['player_slider_fill']}; height: {groove_h}px; border-radius: 2px;"
+        sub_page = f"background: {c['player_slider_fill']}; height: {groove_h}px; border-radius: {cls._get_scaled_radius('scrollbar')}px;"
         return groove, sub_page, handle
 
     @classmethod
@@ -1149,37 +1210,37 @@ class AppStyles:
         if style == 'neumorphic':
             return (
                 f"background-color: {c['neumorphic_light']}; width: 10px; border: none;",
-                f"background-color: {c['neumorphic_light']}; {cls._get_style_raised()} border-radius: 5px; min-height: 40px; margin: 2px;",
-                f"background-color: {c['neumorphic_dark']}; {cls._get_style_inset()} border-radius: 5px; min-height: 40px; margin: 2px;"
+                f"background-color: {c['neumorphic_light']}; {cls._get_style_raised()} border-radius: {r}px; min-height: 40px; margin: 2px;",
+                f"background-color: {c['neumorphic_dark']}; {cls._get_style_inset()} border-radius: {r}px; min-height: 40px; margin: 2px;"
             )
         elif style == 'skeuomorphic':
             return (
                 f"background-color: {c['alternate_base']}; width: 10px; border: 1px solid {c.get('border_3d_dark', c['mid'])};",
-                f"background-color: {c['button']}; border: 1px outset {c.get('border_3d_light', c['mid'])}; border-radius: 5px; min-height: 40px; margin: 2px;",
-                f"background-color: {c['dark']}; border: 1px inset {c.get('border_3d_dark', c['mid'])}; border-radius: 5px; min-height: 40px; margin: 2px;"
+                f"background-color: {c['button']}; border: 1px outset {c.get('border_3d_light', c['mid'])}; border-radius: {r}px; min-height: 40px; margin: 2px;",
+                f"background-color: {c['dark']}; border: 1px inset {c.get('border_3d_dark', c['mid'])}; border-radius: {r}px; min-height: 40px; margin: 2px;"
             )
         elif style == 'frosted':
             return (
                 f"background-color: transparent; width: 10px; border: none;",
-                f"background-color: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.1); border-radius: 5px; min-height: 40px; margin: 2px;",
-                f"background-color: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.15); border-radius: 5px; min-height: 40px; margin: 2px;"
+                f"background-color: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.1); border-radius: {r}px; min-height: 40px; margin: 2px;",
+                f"background-color: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.15); border-radius: {r}px; min-height: 40px; margin: 2px;"
             )
         elif style == 'win11':
             return (
                 f"background-color: transparent; width: 10px; border: none;",
-                f"background-color: {c.get('border_thin', c['mid'])}; border: none; border-radius: 5px; min-height: 40px; margin: 2px;",
-                f"background-color: {c['mid']}; border: none; border-radius: 5px; min-height: 40px; margin: 2px;"
+                f"background-color: {c.get('border_thin', c['mid'])}; border: none; border-radius: {r}px; min-height: 40px; margin: 2px;",
+                f"background-color: {c['mid']}; border: none; border-radius: {r}px; min-height: 40px; margin: 2px;"
             )
         elif style in ('mac', 'ios'):
             return (
                 f"background-color: transparent; width: 8px; border: none;",
-                f"background-color: {c['mid']}; border: none; border-radius: 4px; min-height: 30px; margin: 2px;",
-                f"background-color: {c['accent']}; border: none; border-radius: 4px; min-height: 30px; margin: 2px;"
+                f"background-color: {c['mid']}; border: none; border-radius: {r}px; min-height: 30px; margin: 2px;",
+                f"background-color: {c['accent']}; border: none; border-radius: {r}px; min-height: 30px; margin: 2px;"
             )
         return (
             f"background-color: {c['alternate_base']}; width: 10px; border: none;",
-            f"background-color: {c['mid']}; border-radius: 5px; min-height: 40px; margin: 2px;",
-            f"background-color: {c['accent']}; border-radius: 6px; min-height: 40px; margin: 2px;"
+            f"background-color: {c['mid']}; border-radius: {r}px; min-height: 40px; margin: 2px;",
+            f"background-color: {c['accent']}; border-radius: {r}px; min-height: 40px; margin: 2px;"
         )
 
     @classmethod
@@ -1618,6 +1679,7 @@ class AppStyles:
         else:
             tv_border = f"border: 2px solid {colors['table_border']};"
         hdr_sep = colors['shadow_dark'] if style in ('neumorphic', 'skeuomorphic') else colors['table_border']
+        list_r = AppStyles._get_scaled_radius('list_item')
         return f"""
             QTableView {{
                 {tv_border}
@@ -1638,14 +1700,14 @@ class AppStyles:
             QTableView::item:hover {{
                 background-color: {colors['table_hover']};
                 border: 1px solid {colors['accent']};
-                border-radius: 4px;
+                border-radius: {list_r}px;
             }}
             QTableView::item:selected {{
                 background-color: {colors['table_selection']};
                 color: {colors['table_selection_text']};
                 font-weight: 500;
                 border: 1px solid {colors['accent_pressed']};
-                border-radius: 4px;
+                border-radius: {list_r}px;
             }}
             QTableView::item:selected:hover {{
                 background-color: {colors['accent_hover']};
@@ -1679,13 +1741,13 @@ class AppStyles:
                 background-color: {colors['table_selection']};
                 color: {colors['table_selection_text']};
                 border: 2px dashed {colors['accent_pressed']};
-                border-radius: 4px;
+                border-radius: {list_r}px;
                 opacity: 0.7;
             }}
             QTableView::item:drop {{
                 background-color: {colors['table_hover']};
                 border: 2px solid {colors['accent']};
-                border-radius: 4px;
+                border-radius: {list_r}px;
             }}
         """
 
@@ -1867,23 +1929,16 @@ class AppStyles:
     @staticmethod
     def player_volume_slider_style() -> str:
         colors = AppStyles._get_colors()
+        groove, sub_page, handle = AppStyles._style_slider_decoration(colors)
         return f"""
             QSlider::groove:horizontal {{ 
-                background: {colors['player_volume_track']}; 
-                height: 4px; 
-                border-radius: 2px;
+                {groove}
             }} 
             QSlider::sub-page:horizontal {{
-                background: {colors['player_slider_fill']};
-                height: 4px;
-                border-radius: 2px;
+                {sub_page}
             }}
             QSlider::handle:horizontal {{ 
-                background: {colors['player_slider_handle']}; 
-                width: 12px; 
-                height: 12px; 
-                border-radius: 6px;
-                margin: -4px 0;
+                {handle}
             }}
         """
 
@@ -1920,6 +1975,7 @@ class AppStyles:
     @staticmethod
     def player_media_badge_style() -> str:
         colors = AppStyles._get_colors()
+        badge_r = AppStyles._get_scaled_radius('badge')
         return f"""
             QLabel {{
                 color: {colors['player_panel_secondary']};
@@ -1927,13 +1983,14 @@ class AppStyles:
                 background-color: transparent;
                 padding: 1px 5px;
                 border: 1px solid {colors['player_line']};
-                border-radius: 3px;
+                border-radius: {badge_r}px;
             }}
         """
 
     @staticmethod
     def player_time_badge_style() -> str:
         colors = AppStyles._get_colors()
+        badge_r = AppStyles._get_scaled_radius('badge')
         return f"""
             QLabel {{
                 color: {colors['player_panel_disabled']};
@@ -1941,13 +1998,14 @@ class AppStyles:
                 background-color: transparent;
                 padding: 1px 5px;
                 border: 1px solid {colors['player_line']};
-                border-radius: 3px;
+                border-radius: {badge_r}px;
             }}
         """
 
     @staticmethod
     def player_status_badge_style() -> str:
         colors = AppStyles._get_colors()
+        badge_r = AppStyles._get_scaled_radius('badge')
         return f"""
             QLabel {{
                 color: {colors['player_success']};
@@ -1955,7 +2013,7 @@ class AppStyles:
                 background-color: transparent;
                 padding: 1px 5px;
                 border: 1px solid {colors['player_success']};
-                border-radius: 3px;
+                border-radius: {badge_r}px;
             }}
         """
 
@@ -1996,6 +2054,7 @@ class AppStyles:
     @staticmethod
     def player_catchup_indicator_style() -> str:
         colors = AppStyles._get_colors()
+        badge_r = AppStyles._get_scaled_radius('badge')
         return f"""
             QLabel {{
                 color: {colors['player_accent']};
@@ -2003,7 +2062,7 @@ class AppStyles:
                 background-color: transparent;
                 padding: 1px 4px;
                 border: 1px solid {colors['player_accent']};
-                border-radius: 3px;
+                border-radius: {badge_r}px;
             }}
         """
 
@@ -2018,7 +2077,7 @@ class AppStyles:
                 padding: 0px;
                 margin: 0px;
                 border: none;
-                max-height: 48px;
+                max-height: 60px;
             }}
         """
 
@@ -2062,13 +2121,16 @@ class AppStyles:
     @staticmethod
     def player_group_combo_style() -> str:
         colors = AppStyles._get_colors()
+        r = AppStyles._get_style_border_radius()
+        inp_dec = AppStyles._style_input_decoration(colors)
+        inp_focus = AppStyles._style_input_decoration(colors, focus=True)
+        pad = AppStyles._style_padding('input')
         return f"""
             QComboBox {{
                 background-color: {colors['player_combo']};
                 color: {colors['player_panel_text']};
-                padding: 4px 8px;
-                border: 1px solid {colors['player_line']};
-                border-radius: 4px;
+                padding: {pad};
+                {inp_dec}
                 font-size: 12px;
                 min-width: 80px;
             }}
@@ -2080,8 +2142,8 @@ class AppStyles:
                 subcontrol-position: right center;
                 width: 16px;
                 border-left: none;
-                border-top-right-radius: 4px;
-                border-bottom-right-radius: 4px;
+                border-top-right-radius: {r}px;
+                border-bottom-right-radius: {r}px;
             }}
             QComboBox::down-arrow {{
                 image: url({AppStyles._get_arrow_image(colors['player_panel_secondary'])});
@@ -2094,7 +2156,13 @@ class AppStyles:
                 selection-background-color: {colors['player_accent']};
                 selection-color: {colors['player_panel_text']};
                 border: 1px solid {colors['player_line']};
+                border-radius: {AppStyles._get_scaled_radius('list_item')}px;
+                padding: 4px;
                 outline: none;
+            }}
+            QComboBox QAbstractItemView::item {{
+                padding: 6px 10px;
+                min-height: 24px;
             }}
         """
 
@@ -2142,13 +2210,16 @@ class AppStyles:
     @staticmethod
     def player_search_input_style() -> str:
         colors = AppStyles._get_colors()
+        r = AppStyles._get_style_border_radius()
+        inp_dec = AppStyles._style_input_decoration(colors)
+        inp_focus = AppStyles._style_input_decoration(colors, focus=True)
+        pad = AppStyles._style_padding('input')
         return f"""
             QLineEdit {{
                 background-color: {colors['player_combo']};
                 color: {colors['player_panel_text']};
-                border: 1px solid {colors['player_line']};
-                border-radius: 4px;
-                padding: 4px 8px;
+                {inp_dec}
+                padding: {pad};
                 font-size: 12px;
             }}
             QLineEdit:focus {{
@@ -2196,6 +2267,7 @@ class AppStyles:
     @staticmethod
     def player_list_style() -> str:
         colors = AppStyles._get_colors()
+        list_r = AppStyles._get_scaled_radius('list_item')
         return f"""
             QListWidget {{
                 background-color: transparent;
@@ -2207,7 +2279,7 @@ class AppStyles:
                 padding: 2px 4px;
                 min-height: 26px;
                 border: 1px solid transparent;
-                border-radius: 3px;
+                border-radius: {list_r}px;
             }}
             QListWidget::item:selected {{
                 border: 1px solid {colors['player_accent']};
@@ -2253,9 +2325,9 @@ class AppStyles:
         colors = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
         style = AppStyles._visual_style
-        title_bg = colors.get('window', '#1e1e1e')
-        title_text = colors.get('window_text', '#ffffff')
-        accent_color = colors.get('accent', '#0078d4')
+        title_bg = colors.get('window', AppStyles._safe_fallback('window'))
+        title_text = colors.get('window_text', AppStyles._safe_fallback('window_text'))
+        accent_color = colors.get('accent', AppStyles._safe_fallback('accent'))
         if style == 'neumorphic':
             btn_dec = f"background-color: transparent; border: none; font-size: 14px; padding: 4px 12px; margin: 2px; border-radius: {r}px;"
         elif style == 'skeuomorphic':
@@ -2291,7 +2363,7 @@ class AppStyles:
     @staticmethod
     def title_label_style() -> str:
         colors = AppStyles._get_colors()
-        title_text = colors.get('window_text', '#ffffff')
+        title_text = colors.get('window_text', AppStyles._safe_fallback('window_text'))
         return f"color: {title_text}; font-size: 13px; font-weight: bold; background: transparent; padding-left: 6px;"
 
     @staticmethod
@@ -2429,6 +2501,8 @@ class AppStyles:
         chk_border = f"2px solid {colors['mid']}" if style != 'neumorphic' else ""
         input_bg = colors['neumorphic_light'] if style == 'neumorphic' else colors['alternate_base']
         dialog_r = r + 4 if r > 4 else 12
+        indicator_r = AppStyles._get_scaled_radius('indicator')
+        list_item_r = AppStyles._get_scaled_radius('list_item')
         return f"""
             QDialog {{
                 background-color: {window_bg};
@@ -2485,7 +2559,7 @@ class AppStyles:
                 background-color: {colors['window']};
                 color: {colors['window_text']};
                 border: 1px solid {colors['mid']};
-                border-radius: 4px;
+                border-radius: {list_item_r}px;
             }}
             QDialog QComboBox::drop-down {{
                 subcontrol-origin: padding;
@@ -2507,7 +2581,7 @@ class AppStyles:
             QDialog QCheckBox::indicator {{
                 width: 18px;
                 height: 18px;
-                border-radius: 4px;
+                border-radius: {indicator_r}px;
                 background-color: {chk_bg};
                 {chk_inset}
                 border: {chk_border};
@@ -2515,17 +2589,17 @@ class AppStyles:
             QDialog QCheckBox::indicator:checked {{
                 background-color: {colors['accent']};
                 border: 2px solid {colors['accent']};
-                border-radius: 4px;
+                border-radius: {indicator_r}px;
                 image: url({AppStyles._get_check_image(AppStyles.COLOR_WHITE)});
             }}
             QDialog QCheckBox::indicator:hover {{
                 border: 2px solid {colors['accent']};
-                border-radius: 4px;
+                border-radius: {indicator_r}px;
             }}
             QDialog QCheckBox::indicator:pressed {{
                 background-color: {colors['accent_pressed']};
                 border: 2px solid {colors['accent_pressed']};
-                border-radius: 4px;
+                border-radius: {indicator_r}px;
             }}
             QDialog QTextEdit {{
                 padding: 10px;
@@ -2544,7 +2618,7 @@ class AppStyles:
             }}
             QDialog QListWidget::item {{
                 padding: 4px 8px;
-                border-radius: 4px;
+                border-radius: {list_item_r}px;
             }}
             QDialog QListWidget::item:selected {{
                 background-color: {colors['accent']};
@@ -2557,7 +2631,7 @@ class AppStyles:
                 width: 16px;
                 height: 16px;
                 border: 1px solid {colors['mid']};
-                border-radius: 4px;
+                border-radius: {indicator_r}px;
                 background-color: {input_bg};
             }}
             QDialog QListWidget::indicator:checked {{
@@ -2824,12 +2898,13 @@ class AppStyles:
     @staticmethod
     def secondary_label_style() -> str:
         colors = AppStyles._get_colors()
+        ff = AppStyles._get_style_font_family()
         return f"""
             QLabel {{
                 color: {colors['window_text']};
                 padding: 0 5px;
                 font-size: 13px;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                font-family: {ff};
                 opacity: 0.8;
             }}
         """
@@ -2949,12 +3024,12 @@ class AppStyles:
     @staticmethod
     def common_label_style() -> str:
         colors = AppStyles._get_colors()
+        ff = AppStyles._get_style_font_family()
         return f"""
             QLabel {{
                 color: {colors['window_text']};
                 font-size: 12px;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                background-color: transparent;
+                font-family: {ff};
             }}
         """
 
@@ -2974,6 +3049,7 @@ class AppStyles:
                 padding: {pad};
                 font-size: 12px;
                 font-family: {ff};
+                min-height: 20px;
             }}
             QLineEdit:focus {{
                 {inp_focus}
@@ -2992,6 +3068,7 @@ class AppStyles:
         inp_focus = AppStyles._style_input_decoration(colors, focus=True)
         inp_disabled = AppStyles._style_input_decoration(colors, disabled=True)
         pad = AppStyles._style_padding('input')
+        list_item_r = AppStyles._get_scaled_radius('list_item')
         return f"""
             QComboBox {{
                 color: {colors['window_text']};
@@ -3022,16 +3099,85 @@ class AppStyles:
                 background-color: {colors['alternate_base']};
                 color: {colors['window_text']};
                 border: 1px solid {colors['mid']};
-                border-radius: 4px;
+                border-radius: {list_item_r}px;
                 padding: 4px;
             }}
             QComboBox QAbstractItemView::item {{
                 padding: 6px 10px;
+                min-height: 24px;
                 margin: 2px 0;
             }}
             QComboBox QAbstractItemView::item:hover {{
                 background-color: {colors['accent']};
                 color: {AppStyles.COLOR_WHITE};
+            }}
+        """
+
+    @staticmethod
+    def common_spin_box_style() -> str:
+        colors = AppStyles._get_colors()
+        r = AppStyles._get_style_border_radius()
+        ff = AppStyles._get_style_font_family()
+        inp_dec = AppStyles._style_input_decoration(colors)
+        inp_focus = AppStyles._style_input_decoration(colors, focus=True)
+        inp_disabled = AppStyles._style_input_decoration(colors, disabled=True)
+        pad = AppStyles._style_padding('input')
+        return f"""
+            QSpinBox {{
+                color: {colors['window_text']};
+                {inp_dec}
+                padding: {pad};
+                padding-right: 32px;
+                font-size: 12px;
+                font-family: {ff};
+                min-height: 20px;
+            }}
+            QSpinBox:focus {{
+                {inp_focus}
+            }}
+            QSpinBox:disabled {{
+                {inp_disabled}
+            }}
+            QSpinBox::up-button, QSpinBox::down-button {{
+                width: 20px;
+                border: none;
+                border-left: 1px solid {colors['mid']};
+                background-color: {colors['button']};
+                min-width: 0;
+                min-height: 0;
+                padding: 0;
+            }}
+            QSpinBox::up-button {{
+                subcontrol-origin: border;
+                subcontrol-position: right top;
+                border-top-right-radius: {r}px;
+            }}
+            QSpinBox::down-button {{
+                subcontrol-origin: border;
+                subcontrol-position: right bottom;
+                border-bottom-right-radius: {r}px;
+            }}
+            QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
+                background-color: {colors['accent']};
+            }}
+            QSpinBox::up-button:pressed, QSpinBox::down-button:pressed {{
+                background-color: {colors['accent_pressed']};
+            }}
+            QSpinBox::up-arrow {{
+                image: url({AppStyles._get_spin_up_image(colors['window_text'])});
+                width: 10px;
+                height: 6px;
+            }}
+            QSpinBox::down-arrow {{
+                image: url({AppStyles._get_spin_down_image(colors['window_text'])});
+                width: 10px;
+                height: 6px;
+            }}
+            QSpinBox::up-button:hover::up-arrow {{
+                image: url({AppStyles._get_spin_up_image(colors['accent'])});
+            }}
+            QSpinBox::down-button:hover::down-arrow {{
+                image: url({AppStyles._get_spin_down_image(colors['accent'])});
             }}
         """
 
@@ -3098,6 +3244,7 @@ class AppStyles:
         r = AppStyles._get_style_border_radius()
         ff = AppStyles._get_style_font_family()
         style = AppStyles._visual_style
+        indicator_r = AppStyles._get_scaled_radius('indicator')
         chk_bg = colors['neumorphic_light'] if style == 'neumorphic' else colors['alternate_base']
         if style == 'neumorphic':
             chk_border_dec = AppStyles._get_style_inset()
@@ -3121,19 +3268,19 @@ class AppStyles:
             QCheckBox::indicator {{
                 width: 16px;
                 height: 16px;
-                border-radius: 4px;
+                border-radius: {indicator_r}px;
                 background-color: {chk_bg};
                 {chk_border_dec}
             }}
             QCheckBox::indicator:checked {{
                 background-color: {colors['accent']};
                 border: 2px solid {colors['accent']};
-                border-radius: 4px;
+                border-radius: {indicator_r}px;
                 image: url({AppStyles._get_check_image(AppStyles.COLOR_WHITE)});
             }}
             QCheckBox::indicator:hover {{
                 border: 2px solid {colors['accent']};
-                border-radius: 4px;
+                border-radius: {indicator_r}px;
             }}
         """
 
@@ -3143,6 +3290,7 @@ class AppStyles:
         r = AppStyles._get_style_border_radius()
         ff = AppStyles._get_style_font_family()
         style = AppStyles._visual_style
+        indicator_r = AppStyles._get_scaled_radius('indicator')
         chk_bg = colors['neumorphic_light'] if style == 'neumorphic' else colors['alternate_base']
         if style == 'neumorphic':
             chk_border_dec = AppStyles._get_style_inset()
@@ -3166,19 +3314,19 @@ class AppStyles:
             QRadioButton::indicator {{
                 width: 16px;
                 height: 16px;
-                border-radius: 8px;
+                border-radius: {indicator_r}px;
                 background-color: {chk_bg};
                 {chk_border_dec}
             }}
             QRadioButton::indicator:checked {{
                 background-color: {colors['accent']};
                 border: 3px solid {colors['accent']};
-                border-radius: 8px;
+                border-radius: {indicator_r}px;
                 image: url({AppStyles._get_radio_dot_image(AppStyles.COLOR_WHITE)});
             }}
             QRadioButton::indicator:hover {{
                 border: 2px solid {colors['accent']};
-                border-radius: 8px;
+                border-radius: {indicator_r}px;
             }}
         """
 
@@ -3225,12 +3373,13 @@ class AppStyles:
     @staticmethod
     def common_title_style() -> str:
         colors = AppStyles._get_colors()
+        ff = AppStyles._get_style_font_family()
         return f"""
             QLabel {{
                 color: {colors['window_text']};
                 font-size: 16px;
                 font-weight: bold;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                font-family: {ff};
                 background-color: transparent;
             }}
         """
@@ -3238,11 +3387,12 @@ class AppStyles:
     @staticmethod
     def common_link_style() -> str:
         colors = AppStyles._get_colors()
+        ff = AppStyles._get_style_font_family()
         return f"""
             QLabel {{
                 color: {colors['link']};
                 font-size: 12px;
-                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                font-family: {ff};
                 background-color: transparent;
                 text-decoration: underline;
             }}
