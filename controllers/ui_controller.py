@@ -848,6 +848,8 @@ class UIController:
                 self.window.current_program.setStyleSheet(AppStyles.player_program_style())
             if hasattr(self.window, 'program_desc'):
                 self.window.program_desc.setStyleSheet(AppStyles.player_program_desc_style())
+                self.window.program_desc.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+                self.window.program_desc.setAutoFillBackground(False)
             if hasattr(self.window, 'time_label'):
                 self.window.time_label.setStyleSheet(AppStyles.player_time_badge_style())
             if hasattr(self.window, 'remain_label'):
