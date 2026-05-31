@@ -801,6 +801,7 @@ class IPTVPlayer(QMainWindow):
 
         # EPG 面板内容容器（保持原有UI不变）
         epg_container = QWidget()
+        epg_container.setObjectName("panelContainer")
         epg_container.setStyleSheet(AppStyles.player_panel_style())
         epg_container.setMinimumWidth(200)
         self.epg_layout = QVBoxLayout(epg_container)
@@ -889,10 +890,11 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
 
         playlist_container = QWidget()
+        playlist_container.setObjectName("panelContainer")
         playlist_container.setStyleSheet(AppStyles.player_panel_style())
         playlist_container.setMinimumWidth(200)
         self.playlist_layout = QVBoxLayout(playlist_container)
-        self.playlist_layout.setContentsMargins(0, 0, 0, 0)
+        self.playlist_layout.setContentsMargins(6, 6, 6, 6)
 
         self.playlist_title = QLabel(tr('playlist_title', 'Playlist'))
         self.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
@@ -903,8 +905,8 @@ class IPTVPlayer(QMainWindow):
 
         sub_tab = QWidget()
         sub_layout = QVBoxLayout(sub_tab)
-        sub_layout.setContentsMargins(0, 0, 0, 0)
-        sub_layout.setSpacing(0)
+        sub_layout.setContentsMargins(4, 4, 4, 4)
+        sub_layout.setSpacing(4)
 
         self.sub_group_combo = QComboBox()
         self.sub_group_combo.addItems(app_state._channel_groups)
@@ -965,8 +967,8 @@ class IPTVPlayer(QMainWindow):
 
         local_tab = QWidget()
         local_layout = QVBoxLayout(local_tab)
-        local_layout.setContentsMargins(0, 0, 0, 0)
-        local_layout.setSpacing(0)
+        local_layout.setContentsMargins(4, 4, 4, 4)
+        local_layout.setSpacing(4)
 
         self.local_group_combo = QComboBox()
         self.local_group_combo.addItems([tr("all_channels", "All Channels")])
@@ -1111,6 +1113,7 @@ class IPTVPlayer(QMainWindow):
 
         # 控制面板内容容器
         floating_container = QWidget()
+        floating_container.setObjectName("panelContainer")
         floating_container.setStyleSheet(AppStyles.player_panel_style())
         floating_container.setMinimumHeight(120)
         floating_container.setMinimumWidth(480)
