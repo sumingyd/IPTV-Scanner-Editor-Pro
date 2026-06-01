@@ -53,7 +53,7 @@ PYINSTALLER_CMD = [
     "--hidden-import", "controllers.favorites_controller",
     "--hidden-import", "controllers.main_window_protocol",
     "--hidden-import", "controllers.media_controller",
-    "--hidden-import", "controllers.mini_mode_controller",
+
     "--hidden-import", "controllers.multi_screen_controller",
     "--hidden-import", "controllers.pip_controller",
     "--hidden-import", "controllers.playback_controller",
