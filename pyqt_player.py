@@ -1002,6 +1002,8 @@ class IPTVPlayer(QMainWindow):
         self.sub_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.sub_channel_list.itemClicked.connect(self._on_channel_single_click)
         self.sub_channel_list.itemDoubleClicked.connect(self._on_channel_double_clicked)
+        self.sub_channel_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.sub_channel_list.customContextMenuRequested.connect(self._on_sub_channel_context_menu)
         sub_layout.addWidget(self.sub_channel_list, 1)
 
         self.sub_empty_label = QLabel(tr("no_channels", "No channels"))
@@ -1062,6 +1064,8 @@ class IPTVPlayer(QMainWindow):
         self.local_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.local_channel_list.itemClicked.connect(self._on_channel_single_click)
         self.local_channel_list.itemDoubleClicked.connect(self._on_channel_double_clicked)
+        self.local_channel_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.local_channel_list.customContextMenuRequested.connect(self._on_local_channel_context_menu)
         local_layout.addWidget(self.local_channel_list, 1)
 
         self.local_empty_label = QLabel(tr("no_channels", "No channels"))
@@ -1103,6 +1107,8 @@ class IPTVPlayer(QMainWindow):
         self.history_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.history_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.history_channel_list.itemClicked.connect(self.favorites_ctrl.on_history_item_clicked)
+        self.history_channel_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.history_channel_list.customContextMenuRequested.connect(self.favorites_ctrl.show_history_context_menu)
         history_layout.addWidget(self.history_channel_list, 1)
 
         self.history_empty_label = QLabel(tr("no_history", "No play history"))
@@ -1558,16 +1564,7 @@ class IPTVPlayer(QMainWindow):
         self.sub_track_button.clicked.connect(self.media_ctrl.show_sub_track_menu)
         self.control_row.addWidget(self.sub_track_button)
         
-        # 收藏按钮
-        self.favorite_button = QToolButton()
-        self.favorite_button.setIcon(QIcon(AppStyles.get_icon('favorite', btn_color)))
-        self.favorite_button.setIconSize(btn_icon_size)
-        self.favorite_button.setFixedSize(36, 32)
-        self.favorite_button.setStyleSheet(AppStyles.player_button_style())
-        self.favorite_button.clicked.connect(lambda: self.favorites_ctrl.toggle_favorite())
-        self.favorite_button.setToolTip(tr("panel_favorite", "收藏"))
-        self.control_row.addWidget(self.favorite_button)
-        
+
         # PiP按钮
         self.pip_button = QToolButton()
         self.pip_button.setIcon(QIcon(AppStyles.get_icon('pip', btn_color)))
@@ -2298,7 +2295,6 @@ class IPTVPlayer(QMainWindow):
             if not self._is_local_file():
                 self.populate_epg_list()
             self.play_channel(self.current_channel)
-            self.favorites_ctrl.update_favorite_button_state()
         except Exception as e:
             logger.error(f"select_channel: 选择频道失败: {e}", exc_info=True)
     
@@ -2306,6 +2302,12 @@ class IPTVPlayer(QMainWindow):
         self._pending_click_item = item
         self._pending_click_source = self.sender()
         self._click_timer.start(300)
+
+    def _on_sub_channel_context_menu(self, pos):
+        self.favorites_ctrl.show_channel_list_context_menu(pos, self.sub_channel_list, 'subscription')
+
+    def _on_local_channel_context_menu(self, pos):
+        self.favorites_ctrl.show_channel_list_context_menu(pos, self.local_channel_list, 'local')
 
     def _deferred_single_click(self):
         if self._pending_click_item:
@@ -2637,7 +2639,6 @@ class IPTVPlayer(QMainWindow):
             if not self._is_local_file():
                 self.populate_epg_list()
             self.play_channel(self.current_channel)
-            self.favorites_ctrl.update_favorite_button_state()
         except Exception as e:
             logger.error(f"select_channel: 选择频道失败: {e}", exc_info=True)
     
