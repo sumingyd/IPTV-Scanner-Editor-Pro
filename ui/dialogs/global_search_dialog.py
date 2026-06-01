@@ -1,0 +1,205 @@
+from typing import Dict, Any, List
+from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLineEdit,
+                              QListWidget, QListWidgetItem, QLabel)
+from PyQt6.QtCore import Qt, QSize, pyqtSignal, QTimer
+from PyQt6 import QtWidgets
+from ui.styles import AppStyles
+from ui.floating_dialog import FloatingDialog
+from core.log_manager import global_logger as logger
+
+
+class GlobalSearchDialog(FloatingDialog):
+    channel_selected = pyqtSignal(dict)
+
+    def __init__(self, main_window, parent=None):
+        super().__init__(parent, frameless=False, stay_on_top=False)
+        self.window = main_window
+        self.setWindowTitle(main_window.language_manager.tr('global_search', '全局搜索'))
+        self.setMinimumSize(500, 400)
+        self._results: List[Dict[str, Any]] = []
+        self._setup_ui()
+        self._apply_theme()
+        try:
+            from ui.theme_manager import get_theme_manager
+            get_theme_manager().register_window(self)
+        except Exception:
+            pass
+
+    def _apply_theme(self):
+        c = AppStyles._get_colors()
+        r = AppStyles._get_style_border_radius()
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {c.get('panel', '#1e1e1e')};
+                color: {c.get('window_text', '#ffffff')};
+            }}
+            QLabel {{
+                color: {c.get('window_text', '#ffffff')};
+                background-color: transparent;
+            }}
+            QLineEdit {{
+                background-color: {c.get('player_combo', '#2a2a2a')};
+                color: {c.get('window_text', '#ffffff')};
+                border: 1px solid {c.get('player_line', '#555')};
+                border-radius: {r}px;
+                padding: 4px 8px;
+                min-height: 28px;
+            }}
+            QListWidget {{
+                background-color: transparent;
+                color: {c.get('window_text', '#ffffff')};
+                border: none; outline: none;
+            }}
+            QListWidget::item {{
+                padding: 2px 4px; min-height: 26px;
+                border: 1px solid transparent; border-radius: {r}px;
+            }}
+            QListWidget::item:selected {{
+                border: 1px solid {c.get('accent', '#4a9eff')};
+                background-color: {c.get('highlight', '#264f78')};
+                color: {c.get('highlighted_text', '#ffffff')};
+            }}
+            QListWidget::item:hover {{
+                border: 1px solid {c.get('player_line', '#555')};
+                background-color: {c.get('highlight', '#264f78')};
+            }}
+        """)
+
+    def _setup_ui(self):
+        tr = self.window.language_manager.tr
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
+
+        search_row = QHBoxLayout()
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText(tr('global_search_placeholder', '搜索频道名/分组/节目...'))
+        self.search_input.setClearButtonEnabled(True)
+        self.search_input.textChanged.connect(self._on_search_text_changed)
+        search_row.addWidget(self.search_input)
+        layout.addLayout(search_row)
+
+        self.result_list = QListWidget()
+        self.result_list.setSpacing(2)
+        self.result_list.itemDoubleClicked.connect(self._on_item_double_clicked)
+        layout.addWidget(self.result_list, 1)
+
+        self.count_label = QLabel(tr('search_type_to_search', '输入关键词开始搜索'))
+        layout.addWidget(self.count_label)
+
+        self._search_timer = QTimer()
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(200)
+        self._search_timer.timeout.connect(self._on_search)
+        self._pending_text = ''
+
+    def _on_search_text_changed(self, text: str):
+        self._search_timer.stop()
+        text = text.strip().lower()
+        if not text:
+            self.result_list.clear()
+            self._results.clear()
+            tr = self.window.language_manager.tr
+            self.count_label.setText(tr('search_type_to_search', '输入关键词开始搜索'))
+            return
+        self._pending_text = text
+        tr = self.window.language_manager.tr
+        self.count_label.setText(tr('searching', '搜索中...'))
+        self._search_timer.start()
+
+    def _on_search(self):
+        text = self._pending_text
+        self.result_list.clear()
+        self._results.clear()
+        if not text:
+
+            return
+
+        w = self.window
+        tr = w.language_manager.tr
+        c = AppStyles._get_colors()
+        name_style = f"color: {c.get('window_text', '#ffffff')}; background-color: transparent;"
+        all_channels = list(getattr(w, '_sub_channels', [])) + list(getattr(w, '_local_channels', []))
+        seen_urls = set()
+
+        for ch in all_channels:
+            url = ch.get('url', '')
+            if url in seen_urls:
+                continue
+            name = ch.get('name', '').lower()
+            group = ch.get('group', '').lower()
+            if text in name or text in group or text in url:
+                self._results.append(ch)
+                seen_urls.add(url)
+
+        try:
+            epg_parser = getattr(w, 'epg_parser', None)
+            if epg_parser and hasattr(epg_parser, '_epg_data'):
+                for epg_id, programs in epg_parser._epg_data.items():
+                    if not isinstance(programs, list):
+                        continue
+                    for prog in programs:
+                        title = (prog.get('title', '') or '').lower()
+                        desc = (prog.get('desc', '') or '').lower()
+                        if text in title or text in desc:
+                            entry = {
+                                'name': f"{tr('epg_program', '节目')}: {prog.get('title', '')} ({epg_id})",
+                                'url': '',
+                                'group': tr('epg_search_result', 'EPG搜索结果'),
+                                '_is_epg': True,
+                                '_channel_name': epg_id,
+                                '_program': prog,
+                            }
+                            self._results.append(entry)
+                            break
+        except Exception as e:
+            logger.debug(f"EPG搜索异常: {e}")
+
+        for idx, ch in enumerate(self._results):
+            try:
+                channel_name = ch.get('name', '')
+                group = ch.get('group', '')
+                display = f"{channel_name}  [{group}]" if group else channel_name
+
+                item_widget = QtWidgets.QWidget()
+                item_layout = QtWidgets.QHBoxLayout(item_widget)
+                item_layout.setContentsMargins(5, 2, 5, 2)
+                item_layout.setSpacing(8)
+
+                name_label = QtWidgets.QLabel(display)
+                name_label.setStyleSheet(name_style)
+                name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+                name_label.setWordWrap(False)
+                item_layout.addWidget(name_label, 1)
+
+                item = QListWidgetItem()
+                item.setSizeHint(QSize(0, 36))
+                item.setData(Qt.ItemDataRole.UserRole, idx)
+                self.result_list.addItem(item)
+                self.result_list.setItemWidget(item, item_widget)
+            except Exception:
+                pass
+
+        count = len(self._results)
+        self.count_label.setText(tr('search_results_count', '找到 {count} 个结果').format(count=count))
+
+    def _on_item_double_clicked(self, item):
+        idx = item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(idx, int) and 0 <= idx < len(self._results):
+            ch = self._results[idx]
+            if ch.get('_is_epg'):
+                ch_name = ch.get('_channel_name', '')
+                w = self.window
+                for src_ch in list(getattr(w, '_sub_channels', [])) + list(getattr(w, '_local_channels', [])):
+                    if src_ch.get('name', '') == ch_name or src_ch.get('tvg_id', '') == ch_name:
+                        self.channel_selected.emit(src_ch)
+                        break
+            else:
+                self.channel_selected.emit(ch)
+            self.accept()
+
+    def show_and_focus(self):
+        self.show()
+        self.search_input.setFocus()
+        self.search_input.selectAll()
