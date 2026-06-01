@@ -1,5 +1,7 @@
 from typing import Dict, Any, List, Optional
 from PyQt6.QtCore import QTimer
+from PyQt6.QtWidgets import QMenu
+from PyQt6.QtGui import QAction
 from core.log_manager import global_logger as logger
 from controllers.main_window_protocol import MainWindowProtocol
 
@@ -26,12 +28,12 @@ class FavoritesController:
         if not ch or not self._service:
             return
         is_fav = self._service.toggle_favorite(ch)
-        self._update_favorite_button_icon(ch)
         tr = self.window.language_manager.tr
         if is_fav:
             self.window.status_bar_show_message(tr('added_to_favorites', '已添加到收藏夹'))
         else:
             self.window.status_bar_show_message(tr('removed_from_favorites', '已从收藏夹移除'))
+        self.populate_favorites_tab()
         return is_fav
 
     def is_favorite(self, channel: Optional[Dict[str, Any]] = None) -> bool:
@@ -39,22 +41,6 @@ class FavoritesController:
         if not ch or not self._service:
             return False
         return self._service.is_favorite(ch)
-
-    def _update_favorite_button_icon(self, channel: Optional[Dict[str, Any]] = None):
-        btn = getattr(self.window, 'favorite_button', None)
-        if not btn:
-            return
-        from ui.styles import AppStyles
-        from PyQt6.QtGui import QIcon
-        btn_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
-        is_fav = self.is_favorite(channel)
-        icon_name = 'favorite_filled' if is_fav else 'favorite'
-        icon_path = AppStyles.get_icon(icon_name, btn_color)
-        if icon_path:
-            btn.setIcon(QIcon(icon_path))
-
-    def update_favorite_button_state(self):
-        self._update_favorite_button_icon()
 
     def get_favorites(self) -> List[Dict[str, Any]]:
         if self._service:
@@ -233,3 +219,121 @@ class FavoritesController:
             if hasattr(w, 'channel_name'):
                 w.channel_name.setText(name)
             w.play_channel(channel)
+
+    def show_channel_list_context_menu(self, pos, list_widget, source):
+        w = self.window
+        tr = w.language_manager.tr
+        item = list_widget.itemAt(pos)
+        if not item:
+            return
+
+        idx = item.data(Qt.ItemDataRole.UserRole)
+        if source == 'subscription':
+            channels = getattr(w, '_sub_channels', [])
+        else:
+            channels = getattr(w, '_local_channels', [])
+
+        if not isinstance(idx, int) or idx < 0 or idx >= len(channels):
+            return
+
+        channel = channels[idx]
+        menu = QMenu(list_widget)
+        menu.setStyleSheet(self._get_menu_style())
+
+        is_fav = self.is_favorite(channel)
+        if is_fav:
+            fav_action = menu.addAction(tr('remove_from_favorites', '删除收藏'))
+            fav_action.triggered.connect(lambda: self._do_remove_favorite(channel))
+        else:
+            fav_action = menu.addAction(tr('add_to_favorites', '加入收藏'))
+            fav_action.triggered.connect(lambda: self._do_add_favorite(channel))
+
+        if source == 'local':
+            menu.addSeparator()
+            del_action = menu.addAction(tr('delete_channel', '删除频道'))
+            del_action.triggered.connect(lambda: self._do_delete_local_channel(idx))
+
+        menu.exec(list_widget.mapToGlobal(pos))
+
+    def show_history_context_menu(self, pos):
+        w = self.window
+        tr = w.language_manager.tr
+        list_widget = getattr(w, 'history_channel_list', None)
+        if not list_widget:
+            return
+
+        menu = QMenu(list_widget)
+        menu.setStyleSheet(self._get_menu_style())
+
+        clear_action = menu.addAction(tr('clear_history', '清空历史'))
+        clear_action.triggered.connect(self._do_clear_history)
+
+        menu.exec(list_widget.mapToGlobal(pos))
+
+    def _do_add_favorite(self, channel):
+        if not self._service or not channel:
+            return
+        self._service.add_to_favorites(channel)
+        tr = self.window.language_manager.tr
+        self.window.status_bar_show_message(tr('added_to_favorites', '已添加到收藏夹'))
+        self.populate_favorites_tab()
+
+    def _do_remove_favorite(self, channel):
+        if not self._service or not channel:
+            return
+        self._service.remove_from_favorites(channel)
+        tr = self.window.language_manager.tr
+        self.window.status_bar_show_message(tr('removed_from_favorites', '已从收藏夹移除'))
+        self.populate_favorites_tab()
+
+    def _do_delete_local_channel(self, idx):
+        w = self.window
+        channels = getattr(w, '_local_channels', [])
+        if not isinstance(idx, int) or idx < 0 or idx >= len(channels):
+            return
+        removed = channels.pop(idx)
+        w._local_channels_dirty = True
+        w._update_groups_for('local')
+        w._populate_channel_list_for(
+            w.local_channel_list, w._local_channels,
+            w.local_group_combo.currentText()
+        )
+        tr = w.language_manager.tr
+        name = removed.get('name', '')
+        w.status_bar_show_message(tr('channel_deleted', '频道已删除') + f': {name}')
+
+    def _do_clear_history(self):
+        if not self._service:
+            return
+        self._service.clear_play_history()
+        self.populate_history_tab()
+        tr = self.window.language_manager.tr
+        self.window.status_bar_show_message(tr('history_cleared', '历史已清空'))
+
+    def _get_menu_style(self):
+        from ui.styles import AppStyles
+        c = AppStyles._get_colors()
+        r = AppStyles._get_style_border_radius()
+        return f"""
+            QMenu {{
+                background-color: {c.get('base', '#1e1e1e')};
+                color: {c.get('window_text', '#ffffff')};
+                border: 1px solid {c.get('border', '#444444')};
+                border-radius: {r}px;
+                padding: 4px 0px;
+            }}
+            QMenu::item {{
+                padding: 6px 24px;
+                border-radius: {r}px;
+                margin: 1px 4px;
+            }}
+            QMenu::item:selected {{
+                background-color: {c.get('accent', '#4a9eff')};
+                color: {c.get('highlighted_text', '#ffffff')};
+            }}
+            QMenu::separator {{
+                height: 1px;
+                background-color: {c.get('mid', '#333333')};
+                margin: 4px 8px;
+            }}
+        """
