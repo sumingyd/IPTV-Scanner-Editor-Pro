@@ -293,6 +293,16 @@ class AppStyles:
                 f'<circle cx="{h}" cy="{p+s*0.2}" r="{s*0.12}" stroke="{color}" stroke-width="{s*0.08}" fill="none"/>'
                 f'<line x1="{p+s*0.2}" y1="{s-p-s*0.15}" x2="{s-p-s*0.2}" y2="{s-p-s*0.15}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
             ),
+            'favorite': (
+                f'<path d="M{h},{s-p} L{p+s*0.12},{h+s*0.08} L{p+s*0.05},{p+s*0.2} L{h-s*0.12},{p+s*0.12} L{h},{p+s*0.05} L{h+s*0.12},{p+s*0.12} L{s-p-s*0.05},{p+s*0.2} L{s-p-s*0.12},{h+s*0.08} Z" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linejoin="round"/>'
+            ),
+            'favorite_filled': (
+                f'<path d="M{h},{s-p} L{p+s*0.12},{h+s*0.08} L{p+s*0.05},{p+s*0.2} L{h-s*0.12},{p+s*0.12} L{h},{p+s*0.05} L{h+s*0.12},{p+s*0.12} L{s-p-s*0.05},{p+s*0.2} L{s-p-s*0.12},{h+s*0.08} Z" fill="{color}" stroke="{color}" stroke-width="{s*0.04}" stroke-linejoin="round"/>'
+            ),
+            'history': (
+                f'<circle cx="{h}" cy="{h}" r="{h-p}" stroke="{color}" stroke-width="{s*0.08}" fill="none"/>'
+                f'<polyline points="{h},{p+s*0.15} {h},{h} {s-p-s*0.15},{h}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+            ),
             'pin_active': (
                 f'<path d="M{h},{p+s*0.2} L{h},{s-p-s*0.15}" stroke="{color}" stroke-width="{s*0.08}" stroke-linecap="round"/>'
                 f'<circle cx="{h}" cy="{p+s*0.2}" r="{s*0.12}" fill="{color}"/>'
@@ -1815,27 +1825,27 @@ class AppStyles:
         style = AppStyles._visual_style
         if style == 'neumorphic':
             combo_dec = f"border: none; background-color: {colors['player_combo']}; {AppStyles._get_style_inset()} border-radius: {r}px;"
-            list_dec = f"{AppStyles._get_style_inset()} background-color: {colors['player_panel']};"
+            list_dec = f"border: none; background-color: transparent;"
             btn_dec = f"background-color: {colors['player_button']}; {AppStyles._get_style_raised()} border-radius: {r}px;"
         elif style == 'skeuomorphic':
             combo_dec = f"border: 1px inset {colors.get('border_3d_dark', colors['mid'])}; background-color: {colors['player_combo']}; border-radius: {r}px;"
-            list_dec = f"border: 1px outset {colors.get('border_3d_light', colors['mid'])}; background-color: {colors['player_panel']};"
+            list_dec = f"border: none; background-color: transparent;"
             btn_dec = f"background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {colors.get('gradient_start', colors['light'])}, stop:1 {colors['player_button']}); border: 1px outset {colors.get('border_3d_light', colors['mid'])}; border-radius: {r}px;"
         elif style == 'frosted':
             combo_dec = f"border: 1px solid rgba(255,255,255,0.1); background-color: {colors['player_combo']}; border-radius: {r}px;"
-            list_dec = f"border: 1px solid rgba(255,255,255,0.1); background-color: {colors['player_panel']};"
+            list_dec = f"border: none; background-color: transparent;"
             btn_dec = f"background-color: {colors['player_button']}; border: 1px solid rgba(255,255,255,0.1); border-radius: {r}px;"
         elif style == 'win11':
             combo_dec = f"border: 1px solid {colors.get('border_thin', colors['mid'])}; background-color: {colors['player_combo']}; border-radius: {r}px; border-bottom: 2px solid {colors['accent']};"
-            list_dec = f"border: 1px solid {colors.get('border_thin', colors['mid'])}; background-color: {colors['player_panel']};"
+            list_dec = f"border: none; background-color: transparent;"
             btn_dec = f"background-color: {colors['player_button']}; border: 1px solid {colors.get('border_thin', colors['mid'])}; border-radius: {r}px;"
         elif style in ('mac', 'ios'):
             combo_dec = f"border: none; background-color: {colors['player_combo']}; border-radius: {r}px;"
-            list_dec = f"border: none; background-color: {colors['player_panel']};"
+            list_dec = f"border: none; background-color: transparent;"
             btn_dec = f"background-color: {colors['player_button']}; border: none; border-radius: {r}px;"
         else:
             combo_dec = f"border: 1px solid {colors['mid']}; background-color: {colors['player_combo']}; border-radius: {r}px;"
-            list_dec = f"border: 1px solid {colors['mid']}; background-color: {colors['player_panel']};"
+            list_dec = f"border: none; background-color: transparent;"
             btn_dec = f"background-color: {colors['player_button']}; border: 1px solid {colors.get('player_line', colors['mid'])}; border-radius: {r}px;"
         return f"""
             * {{
@@ -1892,9 +1902,9 @@ class AppStyles:
         return f"""
             QToolButton {{
                 color: {colors['player_panel_text']};
-                font-size: 14px;
+                font-size: 11px;
                 {btn_dec}
-                padding: 0px;
+                padding: 1px 4px;
                 margin: 0px;
             }}
             QToolButton:hover {{
