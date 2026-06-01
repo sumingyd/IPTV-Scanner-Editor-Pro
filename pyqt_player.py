@@ -39,7 +39,9 @@ from controllers import (
     CatchupController,
     PipController,
     MediaController,
-    UpdateController
+    UpdateController,
+    FavoritesController,
+    EpgReminderController
 )
 
 from utils.general_utils import calculate_adaptive_delay
@@ -377,6 +379,10 @@ class IPTVPlayer(QMainWindow):
         self.update_ctrl = UpdateController(self)
         from controllers.multi_screen_controller import MultiScreenController
         self.multi_screen_ctrl = MultiScreenController(self)
+        self.favorites_ctrl = FavoritesController(self)
+        self.epg_reminder_ctrl = EpgReminderController(self)
+        from controllers.mini_mode_controller import MiniModeController
+        self.mini_mode_ctrl = MiniModeController(self)
         logger.debug("业务控制器初始化完成")
 
     def _init_basic_ui(self):
@@ -778,6 +784,9 @@ class IPTVPlayer(QMainWindow):
         self._load_last_channel()
         self.media_ctrl.restore_aspect_ratio()
 
+        self.favorites_ctrl.init_service(self.config)
+        self.epg_reminder_ctrl.init_service(self.config)
+
         logger.debug("_init_player: 完成")
     
 
@@ -859,6 +868,8 @@ class IPTVPlayer(QMainWindow):
         self.epg_content.setItemDelegate(EPGItemDelegate(self.epg_content))
         self.epg_content.addItem(self.language_manager.tr("loading", "Loading..."))
         self.epg_content.itemClicked.connect(self.on_epg_item_clicked)
+        self.epg_content.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.epg_content.customContextMenuRequested.connect(self._on_epg_context_menu)
         self.epg_layout.addWidget(self.epg_content, 1)
 
         self.epg_empty_label = QLabel(tr("no_epg_data", "No program information"), self.epg_content)
@@ -900,8 +911,41 @@ class IPTVPlayer(QMainWindow):
         self.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
         self.playlist_layout.addWidget(self.playlist_title)
 
+        tab_switch_row = QHBoxLayout()
+        tab_switch_row.setContentsMargins(0, 0, 0, 0)
+        tab_switch_row.setSpacing(2)
+        tab_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
+        btn_icon_size = QSize(14, 14)
+
+        self._playlist_tab_btns = []
+        tab_configs = [
+            ('signal', tr("subscription_tab", "Subscription"), 0),
+            ('folder', tr("local_tab", "Local"), 1),
+            ('favorite', tr("favorites_tab", "Favorites"), 2),
+            ('history', tr("history_tab", "History"), 3),
+        ]
+        for icon_name, tooltip, tab_idx in tab_configs:
+            btn = QToolButton()
+            icon_path = AppStyles.get_icon(icon_name, tab_icon_color, 14)
+            if icon_path:
+                btn.setIcon(QIcon(icon_path))
+            btn.setIconSize(btn_icon_size)
+            btn.setText(tooltip)
+            btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            btn.setFixedHeight(22)
+            btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            btn.setStyleSheet(AppStyles.player_button_style())
+            btn.setToolTip(tooltip)
+            btn.setCheckable(True)
+            btn.setChecked(tab_idx == 0)
+            btn.clicked.connect(lambda checked, idx=tab_idx: self._switch_playlist_tab(idx))
+            tab_switch_row.addWidget(btn)
+            self._playlist_tab_btns.append(btn)
+        self.playlist_layout.addLayout(tab_switch_row)
+
         self.playlist_tab = QTabWidget()
         self.playlist_tab.setStyleSheet(AppStyles.player_tab_style())
+        self.playlist_tab.tabBar().hide()
 
         sub_tab = QWidget()
         sub_layout = QVBoxLayout(sub_tab)
@@ -1027,13 +1071,48 @@ class IPTVPlayer(QMainWindow):
 
         self.playlist_tab.addTab(sub_tab, tr("subscription_tab", "Subscription"))
         self.playlist_tab.addTab(local_tab, tr("local_tab", "Local"))
-        tab_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
-        signal_icon_path = AppStyles.get_icon('signal', tab_icon_color, 14)
-        folder_icon_path = AppStyles.get_icon('folder', tab_icon_color, 14)
-        if signal_icon_path:
-            self.playlist_tab.setTabIcon(0, QIcon(signal_icon_path))
-        if folder_icon_path:
-            self.playlist_tab.setTabIcon(1, QIcon(folder_icon_path))
+
+        # 收藏标签页
+        fav_tab = QWidget()
+        fav_layout = QVBoxLayout(fav_tab)
+        fav_layout.setContentsMargins(4, 4, 4, 4)
+        fav_layout.setSpacing(4)
+
+        self.fav_channel_list = DraggableChannelListWidget()
+        self.fav_channel_list.setStyleSheet(AppStyles.player_list_style())
+        self.fav_channel_list.setSpacing(2)
+        self.fav_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.fav_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.fav_channel_list.itemClicked.connect(self.favorites_ctrl.on_favorite_item_clicked)
+        fav_layout.addWidget(self.fav_channel_list, 1)
+
+        self.fav_empty_label = QLabel(tr("no_favorites", "No favorites"))
+        self.fav_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.fav_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
+        fav_layout.addWidget(self.fav_empty_label)
+
+        # 历史标签页
+        history_tab = QWidget()
+        history_layout = QVBoxLayout(history_tab)
+        history_layout.setContentsMargins(4, 4, 4, 4)
+        history_layout.setSpacing(4)
+
+        self.history_channel_list = DraggableChannelListWidget()
+        self.history_channel_list.setStyleSheet(AppStyles.player_list_style())
+        self.history_channel_list.setSpacing(2)
+        self.history_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.history_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.history_channel_list.itemClicked.connect(self.favorites_ctrl.on_history_item_clicked)
+        history_layout.addWidget(self.history_channel_list, 1)
+
+        self.history_empty_label = QLabel(tr("no_history", "No play history"))
+        self.history_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.history_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
+        history_layout.addWidget(self.history_empty_label)
+
+        self.playlist_tab.addTab(fav_tab, tr("favorites_tab", "Favorites"))
+        self.playlist_tab.addTab(history_tab, tr("history_tab", "History"))
+
         self.playlist_tab.currentChanged.connect(self._on_playlist_tab_changed)
         self.playlist_layout.addWidget(self.playlist_tab)
 
@@ -1070,16 +1149,33 @@ class IPTVPlayer(QMainWindow):
 
         logger.debug("_create_playlist_panel: 完成")
 
+    def _switch_playlist_tab(self, idx):
+        self.playlist_tab.setCurrentIndex(idx)
+        for i, btn in enumerate(self._playlist_tab_btns):
+            btn.blockSignals(True)
+            btn.setChecked(i == idx)
+            btn.blockSignals(False)
+
     def _on_playlist_tab_changed(self, index):
         """播放列表标签页切换"""
+        for i, btn in enumerate(self._playlist_tab_btns):
+            btn.blockSignals(True)
+            btn.setChecked(i == index)
+            btn.blockSignals(False)
         if index == 0:
             self.channel_list = self.sub_channel_list
             self.group_combo = self.sub_group_combo
             self.channel_empty_label = self.sub_empty_label
-        else:
+        elif index == 1:
             self.channel_list = self.local_channel_list
             self.group_combo = self.local_group_combo
             self.channel_empty_label = self.local_empty_label
+        elif index == 2:
+            self.favorites_ctrl.populate_favorites_tab()
+            return
+        elif index == 3:
+            self.favorites_ctrl.populate_history_tab()
+            return
 
         if self.channel_list.viewMode() == QListWidget.ViewMode.IconMode:
             tab = 'sub' if index == 0 else 'local'
@@ -1462,6 +1558,16 @@ class IPTVPlayer(QMainWindow):
         self.sub_track_button.clicked.connect(self.media_ctrl.show_sub_track_menu)
         self.control_row.addWidget(self.sub_track_button)
         
+        # 收藏按钮
+        self.favorite_button = QToolButton()
+        self.favorite_button.setIcon(QIcon(AppStyles.get_icon('favorite', btn_color)))
+        self.favorite_button.setIconSize(btn_icon_size)
+        self.favorite_button.setFixedSize(36, 32)
+        self.favorite_button.setStyleSheet(AppStyles.player_button_style())
+        self.favorite_button.clicked.connect(lambda: self.favorites_ctrl.toggle_favorite())
+        self.favorite_button.setToolTip(tr("panel_favorite", "收藏"))
+        self.control_row.addWidget(self.favorite_button)
+        
         # PiP按钮
         self.pip_button = QToolButton()
         self.pip_button.setIcon(QIcon(AppStyles.get_icon('pip', btn_color)))
@@ -1800,6 +1906,49 @@ class IPTVPlayer(QMainWindow):
     def on_epg_item_clicked(self, item):
         """处理EPG列表项点击事件（委托给EPGController）"""
         self.epg_ctrl.on_epg_item_clicked(item)
+
+    def _on_epg_context_menu(self, pos):
+        from PyQt6.QtWidgets import QMenu
+        from PyQt6.QtGui import QAction
+        item = self.epg_content.itemAt(pos)
+        if not item:
+            return
+        program = item.data(Qt.ItemDataRole.UserRole)
+        if not program or not isinstance(program, dict):
+            return
+        tr = self.language_manager.tr
+        menu = QMenu(self.epg_content)
+        menu.setStyleSheet(AppStyles.player_menu_style())
+
+        ch_name = self.current_channel.get('name', '') if self.current_channel else ''
+        prog_title = program.get('title', '')
+        start = program.get('start', '')
+        end = program.get('end', '')
+
+        has_reminder = self.epg_reminder_ctrl.has_reminder(ch_name, prog_title, start)
+        if has_reminder:
+            reminder_action = QAction(tr('epg_cancel_reminder', '取消提醒'), menu)
+            reminder_action.triggered.connect(lambda: self.epg_reminder_ctrl.toggle_reminder_for_program(
+                ch_name, prog_title, start, end, self.current_channel.get('tvg_id', '') if self.current_channel else ''))
+        else:
+            reminder_action = QAction(tr('epg_set_reminder', '设置提醒'), menu)
+            reminder_action.triggered.connect(lambda: self.epg_reminder_ctrl.toggle_reminder_for_program(
+                ch_name, prog_title, start, end, self.current_channel.get('tvg_id', '') if self.current_channel else ''))
+        menu.addAction(reminder_action)
+
+        from datetime import datetime
+        try:
+            start_dt = datetime.fromisoformat(start)
+            end_dt = datetime.fromisoformat(end)
+            now = datetime.now()
+            if start_dt < now and self.current_channel and self.current_channel.get('catchup_source', ''):
+                catchup_action = QAction(tr('menu_catchup', '回看'), menu)
+                catchup_action.triggered.connect(lambda: self.catchup_ctrl.start_catchup(program))
+                menu.addAction(catchup_action)
+        except Exception:
+            pass
+
+        menu.exec(self.epg_content.mapToGlobal(pos))
 
     def start_catchup(self, program):
         """启动回看功能（委托给CatchupController）"""
@@ -2149,6 +2298,8 @@ class IPTVPlayer(QMainWindow):
             if not self._is_local_file():
                 self.populate_epg_list()
             self.play_channel(self.current_channel)
+            self.favorites_ctrl.on_channel_played(self.current_channel)
+            self.favorites_ctrl.update_favorite_button_state()
         except Exception as e:
             logger.error(f"select_channel: 选择频道失败: {e}", exc_info=True)
     
@@ -2367,6 +2518,7 @@ class IPTVPlayer(QMainWindow):
             ('_osd_menu_action', self._osd_visible),
             ('_fullscreen_menu_action', getattr(self, 'is_fullscreen', False)),
             ('_pip_menu_action', self.pip_ctrl.is_active if hasattr(self, 'pip_ctrl') else False),
+            ('_mini_mode_menu_action', self.mini_mode_ctrl.is_mini if hasattr(self, 'mini_mode_ctrl') else False),
         ]:
             action = getattr(self, attr, None)
             if action:
@@ -2484,6 +2636,8 @@ class IPTVPlayer(QMainWindow):
             if not self._is_local_file():
                 self.populate_epg_list()
             self.play_channel(self.current_channel)
+            self.favorites_ctrl.on_channel_played(self.current_channel)
+            self.favorites_ctrl.update_favorite_button_state()
         except Exception as e:
             logger.error(f"select_channel: 选择频道失败: {e}", exc_info=True)
     
@@ -2699,6 +2853,7 @@ class IPTVPlayer(QMainWindow):
             ('_osd_menu_action', self._osd_visible),
             ('_fullscreen_menu_action', getattr(self, 'is_fullscreen', False)),
             ('_pip_menu_action', self.pip_ctrl.is_active if hasattr(self, 'pip_ctrl') else False),
+            ('_mini_mode_menu_action', self.mini_mode_ctrl.is_mini if hasattr(self, 'mini_mode_ctrl') else False),
         ]:
             action = getattr(self, attr, None)
             if action:
@@ -2953,12 +3108,14 @@ class IPTVPlayer(QMainWindow):
 
         if hasattr(self, 'epg_dock') and self.epg_dock:
             self.epg_dock.move(mw_x + gap, side_top)
-            self.epg_dock.setFixedHeight(max(150, side_h))
+            self.epg_dock.setMinimumHeight(max(150, side_h))
+            self.epg_dock.setMaximumHeight(max(150, side_h))
 
         if hasattr(self, 'playlist_dock') and self.playlist_dock:
-            pl_w = self.playlist_dock.width() or 250
+            pl_w = self.playlist_dock.width()
             self.playlist_dock.move(mw_x + mw_w - pl_w - gap, side_top)
-            self.playlist_dock.setFixedHeight(max(150, side_h))
+            self.playlist_dock.setMinimumHeight(max(150, side_h))
+            self.playlist_dock.setMaximumHeight(max(150, side_h))
 
         if hasattr(self, 'floating_dock') and self.floating_dock:
             fl_w = min(mw_w - gap * 2, 1050)
