@@ -1,11 +1,12 @@
 from typing import Dict, Any, List
-from datetime import datetime
+from datetime import datetime, date
 from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QScrollArea,
-                              QPushButton, QDateEdit, QLabel)
-from PyQt6.QtCore import Qt, QDate, pyqtSignal
+                               QPushButton, QDateEdit, QLabel, QWidget,
+                               QCalendarWidget, QSizePolicy, QScrollBar)
+from PyQt6.QtCore import Qt, QDate, pyqtSignal, QTimer
 from ui.styles import AppStyles
 from ui.floating_dialog import FloatingDialog
-from ui.epg_timeline_widget import EpgTimelineWidget
+from ui.epg_timeline_widget import EpgTimelineWidget, EpgChannelHeaderWidget, EpgTimeHeaderWidget
 from core.log_manager import global_logger as logger
 
 
@@ -17,7 +18,8 @@ class EpgTimelineDialog(FloatingDialog):
         self.window = main_window
         tr = main_window.language_manager.tr
         self.setWindowTitle(tr('epg_timeline', 'EPG时间轴'))
-        self.setMinimumSize(900, 500)
+        self.setMinimumSize(1000, 600)
+        self._channels_data: List[Dict[str, Any]] = []
         self._setup_ui()
         self._apply_theme()
         self._load_data()
@@ -44,8 +46,13 @@ class EpgTimelineDialog(FloatingDialog):
                 color: {c.get('window_text', '#ffffff')};
                 border: 1px solid {c.get('player_line', '#555')};
                 border-radius: {r}px;
-                padding: 2px 6px;
+                padding: 2px 8px;
                 min-height: 24px;
+                min-width: 120px;
+            }}
+            QDateEdit::drop-down {{
+                border: none;
+                width: 20px;
             }}
             QPushButton {{
                 background-color: {c.get('player_button', '#3a3a3a')};
@@ -65,14 +72,84 @@ class EpgTimelineDialog(FloatingDialog):
                 background-color: transparent;
                 border: none;
             }}
+            QScrollBar:vertical {{
+                background-color: {c.get('dark', '#1a1a1a')};
+                width: 10px;
+                border-radius: 5px;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: {c.get('mid', '#555555')};
+                min-height: 30px;
+                border-radius: 5px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background-color: {c.get('accent', '#4a9eff')};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                background: none;
+            }}
+            QScrollBar:horizontal {{
+                background-color: {c.get('dark', '#1a1a1a')};
+                height: 10px;
+                border-radius: 5px;
+            }}
+            QScrollBar::handle:horizontal {{
+                background-color: {c.get('mid', '#555555')};
+                min-width: 30px;
+                border-radius: 5px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background-color: {c.get('accent', '#4a9eff')};
+            }}
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+                width: 0px;
+            }}
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+                background: none;
+            }}
+            QCalendarWidget {{
+                background-color: {c.get('base', '#1e1e1e')};
+                color: {c.get('window_text', '#ffffff')};
+            }}
+            QCalendarWidget QWidget {{
+                alternate-background-color: {c.get('alternate_base', '#2d2d2d')};
+            }}
+            QCalendarWidget QToolButton {{
+                color: {c.get('window_text', '#ffffff')};
+                background-color: {c.get('player_button', '#3a3a3a')};
+                border-radius: {r}px;
+                padding: 4px;
+                min-width: 80px;
+            }}
+            QCalendarWidget QToolButton:hover {{
+                background-color: {c.get('accent', '#4a9eff')};
+            }}
+            QCalendarWidget QMenu {{
+                background-color: {c.get('base', '#1e1e1e')};
+                color: {c.get('window_text', '#ffffff')};
+            }}
+            QCalendarWidget QAbstractItemView {{
+                background-color: {c.get('base', '#1e1e1e')};
+                color: {c.get('window_text', '#ffffff')};
+                selection-background-color: {c.get('accent', '#4a9eff')};
+                selection-color: {c.get('highlighted_text', '#ffffff')};
+                alternate-background-color: {c.get('alternate_base', '#2d2d2d')};
+            }}
+            QCalendarWidget QSpinBox {{
+                color: {c.get('window_text', '#ffffff')};
+                background-color: {c.get('player_combo', '#2a2a2a')};
+            }}
         """)
 
     def _setup_ui(self):
         tr = self.window.language_manager.tr
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(6)
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(8, 8, 8, 8)
+        outer_layout.setSpacing(6)
 
         toolbar = QHBoxLayout()
         toolbar.setSpacing(8)
@@ -82,8 +159,11 @@ class EpgTimelineDialog(FloatingDialog):
 
         self.date_edit = QDateEdit()
         self.date_edit.setCalendarPopup(True)
+        self.date_edit.setDisplayFormat('yyyy-MM-dd')
         self.date_edit.setDate(QDate.currentDate())
+        self.date_edit.setMinimumWidth(130)
         self.date_edit.dateChanged.connect(self._on_date_changed)
+        self.date_edit.setFixedSize(140, 30)
         toolbar.addWidget(self.date_edit)
 
         toolbar.addStretch(1)
@@ -92,16 +172,89 @@ class EpgTimelineDialog(FloatingDialog):
         self.refresh_btn.clicked.connect(self._load_data)
         toolbar.addWidget(self.refresh_btn)
 
-        layout.addLayout(toolbar)
+        outer_layout.addLayout(toolbar)
 
-        self.scroll = QScrollArea()
-        self.scroll.setWidgetResizable(True)
+        self._grid_widget = QWidget()
+        self._grid_layout = QVBoxLayout(self._grid_widget)
+        self._grid_layout.setContentsMargins(0, 0, 0, 0)
+        self._grid_layout.setSpacing(0)
+
+        top_row = QHBoxLayout()
+        top_row.setContentsMargins(0, 0, 0, 0)
+        top_row.setSpacing(0)
+
+        self._corner_widget = QWidget()
+        self._corner_widget.setFixedSize(EpgTimelineWidget.LEFT_MARGIN, EpgTimelineWidget.HEADER_HEIGHT)
+        self._corner_widget.setAutoFillBackground(True)
+        top_row.addWidget(self._corner_widget)
+
+        self.time_header_container = QWidget()
+        self.time_header_container.setFixedHeight(EpgTimelineWidget.HEADER_HEIGHT)
+        self._time_header_layout = QHBoxLayout(self.time_header_container)
+        self._time_header_layout.setContentsMargins(0, 0, 0, 0)
+        self._time_header_layout.setSpacing(0)
+        self.time_header = EpgTimeHeaderWidget()
+        self.time_header.setFixedHeight(EpgTimelineWidget.HEADER_HEIGHT)
+        self._time_header_layout.addWidget(self.time_header)
+        self._time_header_layout.addStretch()
+        top_row.addWidget(self.time_header_container, 1)
+
+        self._grid_layout.addLayout(top_row)
+
+        bottom_row = QHBoxLayout()
+        bottom_row.setContentsMargins(0, 0, 0, 0)
+        bottom_row.setSpacing(0)
+
+        self.channel_scroll = QScrollArea()
+        self.channel_scroll.setWidgetResizable(True)
+        self.channel_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.channel_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.channel_scroll.setFixedWidth(EpgTimelineWidget.LEFT_MARGIN)
+        self.channel_header = EpgChannelHeaderWidget()
+        self.channel_scroll.setWidget(self.channel_header)
+        bottom_row.addWidget(self.channel_scroll)
+
+        self.main_scroll = QScrollArea()
+        self.main_scroll.setWidgetResizable(True)
         self.timeline_widget = EpgTimelineWidget()
-        self.scroll.setWidget(self.timeline_widget)
-        layout.addWidget(self.scroll, 1)
+        self.main_scroll.setWidget(self.timeline_widget)
+        bottom_row.addWidget(self.main_scroll, 1)
+
+        self._grid_layout.addLayout(bottom_row, 1)
+
+        outer_layout.addWidget(self._grid_widget, 1)
+
+        self.main_scroll.verticalScrollBar().valueChanged.connect(self._sync_v_scroll)
+        self.main_scroll.horizontalScrollBar().valueChanged.connect(self._sync_h_scroll)
+
+    def _sync_v_scroll(self, value):
+        self.channel_scroll.verticalScrollBar().setValue(value)
+
+    def _sync_h_scroll(self, value):
+        self.time_header.move(-value, 0)
 
     def _on_date_changed(self, date):
         self._load_data()
+
+    def _get_epg_dates(self):
+        epg_parser = getattr(self.window, 'epg_parser', None)
+        if not epg_parser:
+            return set()
+        dates = set()
+        try:
+            epg_data = getattr(epg_parser, '_epg_data', {})
+            for channel_id, programs in epg_data.items():
+                for prog in programs:
+                    try:
+                        start_str = prog.get('start', '')
+                        if start_str:
+                            d = datetime.fromisoformat(start_str).date()
+                            dates.add(d)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return dates
 
     def _load_data(self):
         w = self.window
@@ -110,11 +263,11 @@ class EpgTimelineDialog(FloatingDialog):
             logger.debug("EPG时间轴: epg_parser不可用")
             return
 
-        date = self.date_edit.date().toPyDate()
+        selected_date = self.date_edit.date().toPyDate()
         channels_data = []
         channels = list(getattr(w, '_sub_channels', []))
 
-        for ch in channels[:30]:
+        for ch in channels:
             ch_name = ch.get('name', '')
             tvg_id = ch.get('tvg_id', '')
             all_tags = ch.get('_all_tags', {})
@@ -128,17 +281,67 @@ class EpgTimelineDialog(FloatingDialog):
 
             programs = []
             try:
-                programs = epg_parser.get_channel_epg(
+                all_programs = epg_parser.get_channel_epg(
                     ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name
                 ) or []
+                if all_programs and selected_date:
+                    programs = []
+                    for p in all_programs:
+                        try:
+                            p_start = datetime.fromisoformat(p.get('start', ''))
+                            if p_start.date() == selected_date:
+                                programs.append(p)
+                        except Exception:
+                            pass
+                else:
+                    programs = all_programs
             except Exception as e:
                 logger.debug(f"EPG时间轴获取节目失败: {ch_name} - {e}")
 
-            if programs:
-                channels_data.append({
-                    'name': ch_name,
-                    'programs': programs,
-                })
+            channels_data.append({
+                'name': ch_name,
+                'programs': programs,
+            })
 
+        self._channels_data = channels_data
         logger.debug(f"EPG时间轴: 加载{len(channels_data)}个频道数据")
-        self.timeline_widget.set_data(channels_data, date)
+
+        self.timeline_widget.set_data(channels_data, selected_date)
+        self.channel_header.set_data(channels_data)
+        self.time_header.set_start_hour(self.timeline_widget._start_hour)
+
+        self._update_corner_widget()
+
+        self._mark_calendar_dates()
+
+        QTimer.singleShot(100, self._scroll_to_current_time)
+
+    def _update_corner_widget(self):
+        c = AppStyles._get_colors()
+        header_bg = c.get('alternate_base', c.get('window', '#2d2d2d'))
+        self._corner_widget.setStyleSheet(f"background-color: {header_bg};")
+
+    def _mark_calendar_dates(self):
+        epg_dates = self._get_epg_dates()
+        calendar = self.date_edit.calendarWidget()
+        if not calendar:
+            return
+        try:
+            calendar.setMinimumSize(320, 240)
+            fmt = calendar.dateTextFormat()
+            fmt.clear()
+            accent = AppStyles._get_colors().get('accent', '#4a9eff')
+            for d in epg_dates:
+                qd = QDate(d.year, d.month, d.day)
+                fmt[qd] = Qt.TextFormat.RichText
+            calendar.setDateTextFormat(fmt)
+        except Exception:
+            pass
+
+    def _scroll_to_current_time(self):
+        now_x = self.timeline_widget.get_current_time_x()
+        viewport_width = self.main_scroll.viewport().width()
+        target_x = int(now_x - viewport_width / 2)
+        if target_x < 0:
+            target_x = 0
+        self.main_scroll.horizontalScrollBar().setValue(target_x)
