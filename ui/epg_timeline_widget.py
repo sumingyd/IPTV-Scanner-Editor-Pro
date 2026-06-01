@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from PyQt6.QtWidgets import QWidget, QScrollArea, QVBoxLayout, QHBoxLayout, QLabel, QFrame
-from PyQt6.QtCore import Qt, QRectF
+from PyQt6.QtCore import Qt, QRectF, QPoint
 from PyQt6.QtGui import QPainter, QColor, QPen, QFont, QBrush, QLinearGradient
 from ui.styles import AppStyles
 from core.log_manager import global_logger as logger
@@ -11,7 +11,7 @@ class EpgTimelineWidget(QWidget):
     HOUR_WIDTH = 120
     ROW_HEIGHT = 36
     HEADER_HEIGHT = 28
-    LEFT_MARGIN = 100
+    LEFT_MARGIN = 120
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -27,15 +27,23 @@ class EpgTimelineWidget(QWidget):
     def set_data(self, channels: List[Dict[str, Any]], date=None):
         self._channels = channels
         if date:
+            now = datetime.now()
             self._start_hour = 0
         else:
             now = datetime.now()
             self._start_hour = max(0, now.hour - 2)
         n = len(self._channels)
-        h = self.HEADER_HEIGHT + n * self.ROW_HEIGHT + 10
+        h = n * self.ROW_HEIGHT + 10
         self.setMinimumHeight(max(200, h))
-        self.setFixedWidth(self.LEFT_MARGIN + self._hours * self.HOUR_WIDTH)
+        self.setFixedWidth(self._hours * self.HOUR_WIDTH)
         self.update()
+
+    def get_current_time_x(self):
+        now = datetime.now()
+        base = datetime.now().replace(hour=self._start_hour, minute=0, second=0, microsecond=0)
+        now_sec = (now - base).total_seconds()
+        now_x = (now_sec / 3600) * self.HOUR_WIDTH
+        return now_x
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -51,37 +59,27 @@ class EpgTimelineWidget(QWidget):
 
         painter.fillRect(self.rect(), bg)
 
-        w = self.LEFT_MARGIN + self._hours * self.HOUR_WIDTH
-        painter.fillRect(0, 0, w, self.HEADER_HEIGHT, header_bg)
-        pen = QPen(border, 1)
-        painter.setPen(pen)
-        painter.drawLine(0, self.HEADER_HEIGHT, w, self.HEADER_HEIGHT)
-
+        w = self._hours * self.HOUR_WIDTH
         font = QFont()
         font.setPixelSize(11)
         painter.setFont(font)
         painter.setPen(text)
+
         for h in range(self._hours + 1):
             hour = self._start_hour + h
             if hour > 23:
                 hour -= 24
-            x = self.LEFT_MARGIN + h * self.HOUR_WIDTH
+            x = h * self.HOUR_WIDTH
             painter.drawText(x + 4, 0, self.HOUR_WIDTH - 8, self.HEADER_HEIGHT,
                            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
                            f"{hour:02d}:00")
-            painter.setPen(pen)
-            painter.drawLine(x, 0, x, self.HEADER_HEIGHT + len(self._channels) * self.ROW_HEIGHT)
+            painter.setPen(QPen(border, 1))
+            painter.drawLine(x, 0, x, len(self._channels) * self.ROW_HEIGHT)
 
         for i, ch_data in enumerate(self._channels):
-            y = self.HEADER_HEIGHT + i * self.ROW_HEIGHT
-            painter.setPen(pen)
+            y = i * self.ROW_HEIGHT
+            painter.setPen(QPen(border, 1))
             painter.drawLine(0, y + self.ROW_HEIGHT, w, y + self.ROW_HEIGHT)
-            painter.fillRect(0, y, self.LEFT_MARGIN, self.ROW_HEIGHT, header_bg)
-            painter.setPen(text)
-            ch_name = ch_data.get('name', '')
-            painter.drawText(4, y, self.LEFT_MARGIN - 8, self.ROW_HEIGHT,
-                           Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-                           ch_name)
 
             programs = ch_data.get('programs', [])
             for prog in programs:
@@ -91,11 +89,11 @@ class EpgTimelineWidget(QWidget):
                     base = datetime.now().replace(hour=self._start_hour, minute=0, second=0, microsecond=0)
                     start_sec = (start - base).total_seconds()
                     end_sec = (end - base).total_seconds()
-                    x1 = self.LEFT_MARGIN + (start_sec / 3600) * self.HOUR_WIDTH
-                    x2 = self.LEFT_MARGIN + (end_sec / 3600) * self.HOUR_WIDTH
-                    if x2 < self.LEFT_MARGIN or x1 > w:
+                    x1 = (start_sec / 3600) * self.HOUR_WIDTH
+                    x2 = (end_sec / 3600) * self.HOUR_WIDTH
+                    if x2 < 0 or x1 > w:
                         continue
-                    x1 = max(self.LEFT_MARGIN, x1)
+                    x1 = max(0, x1)
                     x2 = min(w, x2)
                     if x2 - x1 < 2:
                         continue
@@ -117,24 +115,22 @@ class EpgTimelineWidget(QWidget):
         now = datetime.now()
         base = datetime.now().replace(hour=self._start_hour, minute=0, second=0, microsecond=0)
         now_sec = (now - base).total_seconds()
-        now_x = self.LEFT_MARGIN + (now_sec / 3600) * self.HOUR_WIDTH
-        if self.LEFT_MARGIN <= now_x <= w:
+        now_x = (now_sec / 3600) * self.HOUR_WIDTH
+        if 0 <= now_x <= w:
             pen_now = QPen(accent, 2)
             painter.setPen(pen_now)
-            painter.drawLine(int(now_x), 0, int(now_x), self.HEADER_HEIGHT + len(self._channels) * self.ROW_HEIGHT)
+            painter.drawLine(int(now_x), 0, int(now_x), len(self._channels) * self.ROW_HEIGHT)
 
         painter.end()
 
     def _get_program_at(self, pos):
         x, y = pos.x(), pos.y()
-        if y < self.HEADER_HEIGHT or x < self.LEFT_MARGIN:
-            return None, None
-        row = (y - self.HEADER_HEIGHT) // self.ROW_HEIGHT
+        row = y // self.ROW_HEIGHT
         if row < 0 or row >= len(self._channels):
             return None, None
         ch = self._channels[row]
         base = datetime.now().replace(hour=self._start_hour, minute=0, second=0, microsecond=0)
-        click_sec = ((x - self.LEFT_MARGIN) / self.HOUR_WIDTH) * 3600
+        click_sec = (x / self.HOUR_WIDTH) * 3600
         click_time = base + timedelta(seconds=click_sec)
         for prog in ch.get('programs', []):
             try:
@@ -145,3 +141,97 @@ class EpgTimelineWidget(QWidget):
             except Exception:
                 pass
         return ch, None
+
+
+class EpgChannelHeaderWidget(QWidget):
+    ROW_HEIGHT = 36
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._channels: List[Dict[str, Any]] = []
+        self.setAutoFillBackground(False)
+
+    def set_data(self, channels: List[Dict[str, Any]]):
+        self._channels = channels
+        n = len(self._channels)
+        h = n * self.ROW_HEIGHT + 10
+        self.setFixedHeight(max(200, h))
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        c = AppStyles._get_colors()
+        bg = QColor(c.get('player_panel', c.get('window', '#1e1e1e')))
+        text = QColor(c.get('player_panel_text', c.get('window_text', '#ffffff')))
+        border = QColor(c.get('player_line', c.get('mid', '#333333')))
+        header_bg = QColor(c.get('alternate_base', c.get('window', '#2d2d2d')))
+
+        w = self.width()
+        painter.fillRect(self.rect(), header_bg)
+
+        pen = QPen(border, 1)
+        font = QFont()
+        font.setPixelSize(11)
+        painter.setFont(font)
+        painter.setPen(text)
+
+        for i, ch_data in enumerate(self._channels):
+            y = i * self.ROW_HEIGHT
+            painter.setPen(pen)
+            painter.drawLine(0, y + self.ROW_HEIGHT, w, y + self.ROW_HEIGHT)
+            painter.setPen(text)
+            ch_name = ch_data.get('name', '')
+            painter.drawText(4, y, w - 8, self.ROW_HEIGHT,
+                           Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                           ch_name)
+
+        painter.end()
+
+
+class EpgTimeHeaderWidget(QWidget):
+    HOUR_WIDTH = 120
+    HEADER_HEIGHT = 28
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._start_hour = 0
+        self._hours = 24
+        self.setAutoFillBackground(False)
+
+    def set_start_hour(self, start_hour):
+        self._start_hour = start_hour
+        self.setFixedWidth(self._hours * self.HOUR_WIDTH)
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        c = AppStyles._get_colors()
+        text = QColor(c.get('player_panel_text', c.get('window_text', '#ffffff')))
+        border = QColor(c.get('player_line', c.get('mid', '#333333')))
+        header_bg = QColor(c.get('alternate_base', c.get('window', '#2d2d2d')))
+
+        w = self._hours * self.HOUR_WIDTH
+        painter.fillRect(0, 0, w, self.HEADER_HEIGHT, header_bg)
+        pen = QPen(border, 1)
+        painter.setPen(pen)
+        painter.drawLine(0, self.HEADER_HEIGHT, w, self.HEADER_HEIGHT)
+
+        font = QFont()
+        font.setPixelSize(11)
+        painter.setFont(font)
+        painter.setPen(text)
+
+        for h in range(self._hours + 1):
+            hour = self._start_hour + h
+            if hour > 23:
+                hour -= 24
+            x = h * self.HOUR_WIDTH
+            painter.drawText(x + 4, 0, self.HOUR_WIDTH - 8, self.HEADER_HEIGHT,
+                           Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                           f"{hour:02d}:00")
+            painter.setPen(pen)
+            painter.drawLine(x, 0, x, self.HEADER_HEIGHT)
+
+        painter.end()
