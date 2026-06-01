@@ -1918,7 +1918,7 @@ class IPTVPlayer(QMainWindow):
             return
         tr = self.language_manager.tr
         menu = QMenu(self.epg_content)
-        menu.setStyleSheet(AppStyles.player_menu_style())
+        menu.setStyleSheet(AppStyles.common_menu_style())
 
         ch_name = self.current_channel.get('name', '') if self.current_channel else ''
         prog_title = program.get('title', '')
@@ -2298,7 +2298,6 @@ class IPTVPlayer(QMainWindow):
             if not self._is_local_file():
                 self.populate_epg_list()
             self.play_channel(self.current_channel)
-            self.favorites_ctrl.on_channel_played(self.current_channel)
             self.favorites_ctrl.update_favorite_button_state()
         except Exception as e:
             logger.error(f"select_channel: 选择频道失败: {e}", exc_info=True)
@@ -2564,6 +2563,8 @@ class IPTVPlayer(QMainWindow):
     def play_channel(self, channel):
         """播放指定频道（委托给PlaybackController）"""
         self.playback_ctrl.play_channel(channel)
+        if channel and channel.get('url'):
+            self.favorites_ctrl.on_channel_played(channel)
 
     def _do_play_channel(self, channel):
         """实际执行频道切换（委托给PlaybackController）"""
@@ -2636,7 +2637,6 @@ class IPTVPlayer(QMainWindow):
             if not self._is_local_file():
                 self.populate_epg_list()
             self.play_channel(self.current_channel)
-            self.favorites_ctrl.on_channel_played(self.current_channel)
             self.favorites_ctrl.update_favorite_button_state()
         except Exception as e:
             logger.error(f"select_channel: 选择频道失败: {e}", exc_info=True)
@@ -2899,6 +2899,8 @@ class IPTVPlayer(QMainWindow):
     def play_channel(self, channel):
         """播放指定频道（委托给PlaybackController）"""
         self.playback_ctrl.play_channel(channel)
+        if channel and channel.get('url'):
+            self.favorites_ctrl.on_channel_played(channel)
 
     def _do_play_channel(self, channel):
         """实际执行频道切换（委托给PlaybackController）"""
