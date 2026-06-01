@@ -14,6 +14,9 @@ _CONTROLLER_MODULES = {
     'PipController': '.pip_controller',
     'MediaController': '.media_controller',
     'UpdateController': '.update_controller',
+    'FavoritesController': '.favorites_controller',
+    'EpgReminderController': '.epg_reminder_controller',
+    'MiniModeController': '.mini_mode_controller',
 }
 
 
