@@ -188,7 +188,15 @@ class MainWindowProtocol(Protocol):
     subscription_ui_ctrl: Any
     settings_ops: Any
     update_ctrl: Any
+    favorites_ctrl: Any
+    epg_reminder_ctrl: Any
+    mini_mode_ctrl: Any
     _thumbnail_service: Any
     _scan_dialog: Any
     scan_window: Any
     config_manager: Any
+    favorite_button: Any
+    fav_channel_list: Any
+    fav_empty_label: Any
+    history_channel_list: Any
+    history_empty_label: Any
