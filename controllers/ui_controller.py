@@ -1162,7 +1162,15 @@ class UIController:
             view_menu.addAction(pip_action)
             self.window._pip_menu_action = pip_action
 
+            mini_mode_action = QAction(tr("menu_mini_mode", "Mini Mode\tCtrl+Shift+M"), self.window)
+            mini_mode_action.setCheckable(True)
+            mini_mode_action.triggered.connect(self.window.mini_mode_ctrl.toggle)
+            view_menu.addAction(mini_mode_action)
+            self.window._mini_mode_menu_action = mini_mode_action
+
             view_menu.addSeparator()
+
+
             multi_screen_menu = view_menu.addMenu(tr("menu_multi_screen", "Multi Screen"))
 
             ms_4 = QAction(tr("menu_multi_2x2", "2×2 (4 Screens)"), self.window)
@@ -1194,6 +1202,20 @@ class UIController:
             channel_mapping = QAction(tr("menu_mapping", "Mapping"), self.window)
             channel_mapping.triggered.connect(self.window.open_channel_mapping)
             tools_menu.addAction(channel_mapping)
+
+            tools_menu.addSeparator()
+
+            epg_timeline = QAction(tr("menu_epg_timeline", "EPG Timeline"), self.window)
+            epg_timeline.triggered.connect(self._show_epg_timeline)
+            tools_menu.addAction(epg_timeline)
+
+            epg_search = QAction(tr("menu_epg_search", "EPG Search\tCtrl+Shift+E"), self.window)
+            epg_search.triggered.connect(self._show_epg_search)
+            tools_menu.addAction(epg_search)
+
+            global_search = QAction(tr("global_search", "Global Search\tCtrl+Shift+F"), self.window)
+            global_search.triggered.connect(self._show_global_search)
+            tools_menu.addAction(global_search)
 
             tools_menu.addSeparator()
 
@@ -1305,3 +1327,69 @@ class UIController:
         if hasattr(self.window, '_custom_menu_bar') and self.window._custom_menu_bar and hasattr(self.window, 'main_layout'):
             if self.window._custom_menu_bar.parent() != self.window._main_container:
                 self.window.main_layout.insertWidget(1, self.window._custom_menu_bar)
+
+        self._register_global_shortcuts()
+
+    def _register_global_shortcuts(self):
+        from PyQt6.QtGui import QShortcut, QKeySequence
+        from PyQt6.QtCore import Qt
+        from PyQt6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if not app:
+            return
+
+        search_shortcut = QShortcut(QKeySequence("Ctrl+Shift+F"), app)
+        search_shortcut.activated.connect(self._show_global_search)
+        search_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        self.window._global_search_shortcut = search_shortcut
+
+        epg_search_shortcut = QShortcut(QKeySequence("Ctrl+Shift+E"), app)
+        epg_search_shortcut.activated.connect(self._show_epg_search)
+        epg_search_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        self.window._epg_search_shortcut = epg_search_shortcut
+
+        mini_mode_shortcut = QShortcut(QKeySequence("Ctrl+Shift+M"), app)
+        mini_mode_shortcut.activated.connect(self.window.mini_mode_ctrl.toggle)
+        mini_mode_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        self.window._mini_mode_shortcut = mini_mode_shortcut
+
+    def _show_global_search(self):
+        from ui.dialogs.global_search_dialog import GlobalSearchDialog
+        dialog = GlobalSearchDialog(self.window, parent=self.window)
+        dialog.channel_selected.connect(self._on_global_search_channel_selected)
+        dialog.show_and_focus()
+
+    def _on_global_search_channel_selected(self, channel):
+        self.window.current_channel = channel
+        self.window.update_channel_info_on_selection()
+        self.window.play_channel(channel)
+
+    def _show_epg_search(self):
+        from ui.dialogs.epg_search_dialog import EpgSearchDialog
+        dialog = EpgSearchDialog(self.window, parent=self.window)
+        dialog.channel_selected.connect(self._on_epg_search_program_selected)
+        dialog.show()
+
+    def _on_epg_search_program_selected(self, channel, program):
+        w = self.window
+        w.current_channel = channel
+        w.update_channel_info_on_selection()
+        w.play_channel(channel)
+        from datetime import datetime
+        try:
+            start = datetime.fromisoformat(program.get('start', ''))
+            end = datetime.fromisoformat(program.get('end', ''))
+            now = datetime.now()
+            if start <= now <= end:
+                return
+            if start < now and channel.get('catchup_source', ''):
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(500, lambda: w.catchup_ctrl.start_catchup(program))
+        except Exception:
+            pass
+
+    def _show_epg_timeline(self):
+        from ui.dialogs.epg_timeline_dialog import EpgTimelineDialog
+        dialog = EpgTimelineDialog(self.window, parent=self.window)
+        dialog.channel_selected.connect(self._on_global_search_channel_selected)
+        dialog.exec()
