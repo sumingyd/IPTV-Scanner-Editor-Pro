@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QDialog, QDockWidget, QWidget, QApplication
 from PyQt6 import QtWidgets
-from PyQt6.QtGui import QPainter, QColor, QPainterPath
+from PyQt6.QtGui import QPainter, QColor, QPainterPath, QCursor
 from PyQt6.QtCore import Qt, QRectF
 import sys
 
@@ -45,6 +45,8 @@ def _parse_hex_color(hex_str, default=(0, 0, 0)):
 class FloatingDockWidget(QDockWidget):
     """浮动停靠窗口 - QDockWidget 子控件模式（用于诊断对比）"""
 
+    _RESIZE_MARGIN = 6
+
     def __init__(self, title, parent=None, opacity=180):
         super().__init__(title, parent)
         self._opacity = opacity
@@ -57,6 +59,10 @@ class FloatingDockWidget(QDockWidget):
         empty_bar.setFixedHeight(0)
         self.setTitleBarWidget(empty_bar)
         self._dwm_blur_enabled = False
+        self._resizing = False
+        self._resize_edge = None
+        self._resize_start_geo = None
+        self._resize_start_pos = None
 
     def _on_floating_changed(self, floating):
         if floating:
@@ -112,6 +118,95 @@ class FloatingDockWidget(QDockWidget):
             )
         except Exception:
             pass
+
+    def _hit_resize_edge(self, pos):
+        m = self._RESIZE_MARGIN
+        w, h = self.width(), self.height()
+        x, y = pos.x(), pos.y()
+        on_left = x < m
+        on_right = x > w - m
+        on_top = y < m
+        on_bottom = y > h - m
+        if on_top and on_left:
+            return 'top_left'
+        if on_top and on_right:
+            return 'top_right'
+        if on_bottom and on_left:
+            return 'bottom_left'
+        if on_bottom and on_right:
+            return 'bottom_right'
+        if on_left:
+            return 'left'
+        if on_right:
+            return 'right'
+        if on_top:
+            return 'top'
+        if on_bottom:
+            return 'bottom'
+        return None
+
+    def _edge_cursor(self, edge):
+        cursors = {
+            'left': Qt.CursorShape.SizeHorCursor,
+            'right': Qt.CursorShape.SizeHorCursor,
+            'top': Qt.CursorShape.SizeVerCursor,
+            'bottom': Qt.CursorShape.SizeVerCursor,
+            'top_left': Qt.CursorShape.SizeFDiagCursor,
+            'bottom_right': Qt.CursorShape.SizeFDiagCursor,
+            'top_right': Qt.CursorShape.SizeBDiagCursor,
+            'bottom_left': Qt.CursorShape.SizeBDiagCursor,
+        }
+        return cursors.get(edge, Qt.CursorShape.ArrowCursor)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            edge = self._hit_resize_edge(event.position().toPoint())
+            if edge:
+                self._resizing = True
+                self._resize_edge = edge
+                self._resize_start_geo = self.geometry()
+                self._resize_start_pos = event.globalPosition().toPoint()
+                return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._resizing and self._resize_edge and self._resize_start_geo and self._resize_start_pos:
+            delta = event.globalPosition().toPoint() - self._resize_start_pos
+            geo = self._resize_start_geo.__class__(self._resize_start_geo)
+            edge = self._resize_edge
+            min_w = self.minimumWidth() if self.minimumWidth() > 0 else 200
+            min_h = self.minimumHeight() if self.minimumHeight() > 0 else 150
+            if 'right' in edge:
+                new_w = max(min_w, self._resize_start_geo.width() + delta.x())
+                geo.setWidth(new_w)
+            if 'left' in edge:
+                new_w = max(min_w, self._resize_start_geo.width() - delta.x())
+                geo.setX(self._resize_start_geo.x() + self._resize_start_geo.width() - new_w)
+                geo.setWidth(new_w)
+            if 'bottom' in edge:
+                new_h = max(min_h, self._resize_start_geo.height() + delta.y())
+                geo.setHeight(new_h)
+            if 'top' in edge:
+                new_h = max(min_h, self._resize_start_geo.height() - delta.y())
+                geo.setY(self._resize_start_geo.y() + self._resize_start_geo.height() - new_h)
+                geo.setHeight(new_h)
+            self.setGeometry(geo)
+            return
+        edge = self._hit_resize_edge(event.position().toPoint())
+        if edge:
+            self.setCursor(QCursor(self._edge_cursor(edge)))
+        else:
+            self.unsetCursor()
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self._resizing:
+            self._resizing = False
+            self._resize_edge = None
+            self._resize_start_geo = None
+            self._resize_start_pos = None
+            return
+        super().mouseReleaseEvent(event)
 
     def paintEvent(self, event):
         from ui.styles import AppStyles
