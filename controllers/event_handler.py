@@ -356,9 +356,13 @@ class EventHandler:
                 self.window.floating_panel_visible = True
 
                 if hasattr(self.window, 'epg_dock') and self.window.epg_dock:
-                    self.window.epg_dock.setFixedWidth(max(200, settings.get('epg_width', 280)))
+                    epg_w = max(200, settings.get('epg_width', 280))
+                    self.window.epg_dock.setMinimumWidth(epg_w)
+                    self.window.epg_dock.resize(epg_w, self.window.epg_dock.height())
                 if hasattr(self.window, 'playlist_dock') and self.window.playlist_dock:
-                    self.window.playlist_dock.setFixedWidth(max(200, settings.get('playlist_width', 280)))
+                    pl_w = max(200, settings.get('playlist_width', epg_w))
+                    self.window.playlist_dock.setMinimumWidth(pl_w)
+                    self.window.playlist_dock.resize(pl_w, self.window.playlist_dock.height())
                 if hasattr(self.window, 'floating_dock') and self.window.floating_dock:
                     self.window.floating_dock.setMinimumWidth(max(480, settings.get('floating_width', 1050)))
 
