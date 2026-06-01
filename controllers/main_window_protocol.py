@@ -190,7 +190,7 @@ class MainWindowProtocol(Protocol):
     update_ctrl: Any
     favorites_ctrl: Any
     epg_reminder_ctrl: Any
-    mini_mode_ctrl: Any
+
     _thumbnail_service: Any
     _scan_dialog: Any
     scan_window: Any
