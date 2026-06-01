@@ -1162,11 +1162,6 @@ class UIController:
             view_menu.addAction(pip_action)
             self.window._pip_menu_action = pip_action
 
-            mini_mode_action = QAction(tr("menu_mini_mode", "Mini Mode\tCtrl+Shift+M"), self.window)
-            mini_mode_action.setCheckable(True)
-            mini_mode_action.triggered.connect(self.window.mini_mode_ctrl.toggle)
-            view_menu.addAction(mini_mode_action)
-            self.window._mini_mode_menu_action = mini_mode_action
 
             view_menu.addSeparator()
 
@@ -1352,10 +1347,6 @@ class UIController:
         epg_search_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
         self.window._epg_search_shortcut = epg_search_shortcut
 
-        mini_mode_shortcut = QShortcut(QKeySequence("Ctrl+Shift+M"), app)
-        mini_mode_shortcut.activated.connect(self.window.mini_mode_ctrl.toggle)
-        mini_mode_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
-        self.window._mini_mode_shortcut = mini_mode_shortcut
 
     def _show_global_search(self):
         from ui.dialogs.global_search_dialog import GlobalSearchDialog
