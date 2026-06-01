@@ -224,9 +224,7 @@ BUILTIN_TRANSLATIONS = {
         'reminder_count_info': '共 {count} 个提醒 | 提醒基于具体频道+节目+开始时间，节目开始前60秒触发通知',
         'remove_selected': '删除选中',
         'clear_all': '清空全部',
-        'mini_mode_entered': '已进入迷你模式',
-        'mini_mode_exited': '已退出迷你模式',
-        'menu_mini_mode': '迷你模式',
+
         'global_search': '全局搜索',
         'global_search_placeholder': '搜索频道名/分组/节目...',
         'search_no_results': '无结果',
@@ -894,9 +892,7 @@ BUILTIN_TRANSLATIONS = {
         'reminder_count_info': '{count} reminders | Based on channel+program+start time, triggered 60s before start',
         'remove_selected': 'Remove Selected',
         'clear_all': 'Clear All',
-        'mini_mode_entered': 'Mini mode entered',
-        'mini_mode_exited': 'Mini mode exited',
-        'menu_mini_mode': 'Mini Mode',
+
         'global_search': 'Global Search',
         'global_search_placeholder': 'Search channels/groups/programs...',
         'search_no_results': 'No results',
