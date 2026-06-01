@@ -29,6 +29,7 @@ class AboutDialog(FloatingDialog):
     
     def _init_ui(self):
         """初始化 UI"""
+        from ui.styles import AppStyles
         tr = self.language_manager.tr
         c = self._colors
         self.setWindowTitle(tr("about_dialog_title", "About IPTV Scanner Editor Pro"))
@@ -61,7 +62,7 @@ class AboutDialog(FloatingDialog):
                 scaled = pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
                 logo_label.setPixmap(scaled)
         else:
-            from ui.styles import AppStyles
+
             tv_icon_path = AppStyles.get_icon('tv', AppStyles._get_colors().get('window_text', '#ffffff'), 48)
             if tv_icon_path:
                 from PyQt6.QtGui import QIcon
