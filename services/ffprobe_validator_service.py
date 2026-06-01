@@ -151,17 +151,20 @@ class FfprobeStreamValidator:
             finally:
                 with self._process_lock:
                     self._active_processes.pop(proc.pid, None)
-                try:
-                    proc.stdout.close()
-                    proc.stderr.close()
-                except Exception:
-                    pass
+
 
             latency = int((time.time() - start_time) * 1000)
             result['latency'] = latency
 
             stdout_data = proc.stdout.read() if proc.stdout else b''
             stderr_data = proc.stderr.read() if proc.stderr else b''
+            
+            try:
+                proc.stdout.close()
+                proc.stderr.close()
+            except Exception:
+                pass
+
             stderr_output = stderr_data.decode('utf-8', errors='ignore').strip()
 
             probe_data = self._parse_probe_output(stdout_data)
