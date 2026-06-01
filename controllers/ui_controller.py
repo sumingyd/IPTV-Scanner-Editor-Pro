@@ -1217,6 +1217,10 @@ class UIController:
             global_search.triggered.connect(self._show_global_search)
             tools_menu.addAction(global_search)
 
+            reminder_manager = QAction(tr("reminder_manager", "Reminder Manager"), self.window)
+            reminder_manager.triggered.connect(self._show_reminder_manager)
+            tools_menu.addAction(reminder_manager)
+
             tools_menu.addSeparator()
 
             player_settings = QAction(tr("menu_subscription_settings", "Subscription Settings"), self.window)
@@ -1393,3 +1397,8 @@ class UIController:
         dialog = EpgTimelineDialog(self.window, parent=self.window)
         dialog.channel_selected.connect(self._on_global_search_channel_selected)
         dialog.exec()
+
+    def _show_reminder_manager(self):
+        from ui.dialogs.reminder_manager_dialog import ReminderManagerDialog
+        dialog = ReminderManagerDialog(self.window, parent=self.window)
+        dialog.show()
