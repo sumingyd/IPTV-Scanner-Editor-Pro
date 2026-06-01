@@ -195,7 +195,7 @@ class MainWindowProtocol(Protocol):
     _scan_dialog: Any
     scan_window: Any
     config_manager: Any
-    favorite_button: Any
+
     fav_channel_list: Any
     fav_empty_label: Any
     history_channel_list: Any
