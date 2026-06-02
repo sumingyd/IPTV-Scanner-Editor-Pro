@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from PyQt6.QtWidgets import QWidget, QScrollArea, QVBoxLayout, QHBoxLayout, QLabel, QFrame
-from PyQt6.QtCore import Qt, QRectF, QPoint
+from PyQt6.QtCore import Qt, QRectF, QPoint, pyqtSignal
 from PyQt6.QtGui import QPainter, QColor, QPen, QFont, QBrush, QLinearGradient
 from ui.styles import AppStyles
 from core.log_manager import global_logger as logger
@@ -12,6 +12,7 @@ class EpgTimelineWidget(QWidget):
     ROW_HEIGHT = 36
     HEADER_HEIGHT = 28
     LEFT_MARGIN = 120
+    channel_double_clicked = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -23,11 +24,12 @@ class EpgTimelineWidget(QWidget):
         self._hover_program = -1
         self.setMouseTracking(True)
         self.setAutoFillBackground(False)
+        self._cached_rects: List[List[Dict[str, Any]]] = []
+        self._cache_valid = False
 
     def set_data(self, channels: List[Dict[str, Any]], date=None):
         self._channels = channels
         if date:
-            now = datetime.now()
             self._start_hour = 0
         else:
             now = datetime.now()
@@ -36,57 +38,21 @@ class EpgTimelineWidget(QWidget):
         h = n * self.ROW_HEIGHT + 10
         self.setMinimumHeight(max(200, h))
         self.setFixedWidth(self._hours * self.HOUR_WIDTH)
+        self._cache_valid = False
+        self._build_cache()
         self.update()
 
-    def get_current_time_x(self):
-        now = datetime.now()
+    def _build_cache(self):
+        self._cached_rects = []
         base = datetime.now().replace(hour=self._start_hour, minute=0, second=0, microsecond=0)
-        now_sec = (now - base).total_seconds()
-        now_x = (now_sec / 3600) * self.HOUR_WIDTH
-        return now_x
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        c = AppStyles._get_colors()
-        bg = QColor(c.get('player_panel', c.get('window', '#1e1e1e')))
-        text = QColor(c.get('player_panel_text', c.get('window_text', '#ffffff')))
-        accent = QColor(c.get('accent', '#4a9eff'))
-        border = QColor(c.get('player_line', c.get('mid', '#333333')))
-        header_bg = QColor(c.get('alternate_base', c.get('window', '#2d2d2d')))
-        program_bg = QColor(c.get('alternate_base', '#2a2a2a'))
-        current_bg = QColor(c.get('highlight', '#264f78'))
-
-        painter.fillRect(self.rect(), bg)
-
         w = self._hours * self.HOUR_WIDTH
-        font = QFont()
-        font.setPixelSize(11)
-        painter.setFont(font)
-        painter.setPen(text)
-
-        for h in range(self._hours + 1):
-            hour = self._start_hour + h
-            if hour > 23:
-                hour -= 24
-            x = h * self.HOUR_WIDTH
-            painter.drawText(x + 4, 0, self.HOUR_WIDTH - 8, self.HEADER_HEIGHT,
-                           Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-                           f"{hour:02d}:00")
-            painter.setPen(QPen(border, 1))
-            painter.drawLine(x, 0, x, len(self._channels) * self.ROW_HEIGHT)
-
-        for i, ch_data in enumerate(self._channels):
-            y = i * self.ROW_HEIGHT
-            painter.setPen(QPen(border, 1))
-            painter.drawLine(0, y + self.ROW_HEIGHT, w, y + self.ROW_HEIGHT)
-
+        for ch_data in self._channels:
+            row_rects = []
             programs = ch_data.get('programs', [])
             for prog in programs:
                 try:
                     start = datetime.fromisoformat(prog.get('start', ''))
                     end = datetime.fromisoformat(prog.get('end', ''))
-                    base = datetime.now().replace(hour=self._start_hour, minute=0, second=0, microsecond=0)
                     start_sec = (start - base).total_seconds()
                     end_sec = (end - base).total_seconds()
                     x1 = (start_sec / 3600) * self.HOUR_WIDTH
@@ -97,20 +63,84 @@ class EpgTimelineWidget(QWidget):
                     x2 = min(w, x2)
                     if x2 - x1 < 2:
                         continue
-                    is_current = start <= datetime.now() <= end
-                    fill = current_bg if is_current else program_bg
-                    painter.fillRect(int(x1) + 1, y + 3, int(x2 - x1) - 2, self.ROW_HEIGHT - 6, fill)
-                    painter.setPen(text)
-                    title = prog.get('title', '')
-                    small_font = QFont()
-                    small_font.setPixelSize(10)
-                    painter.setFont(small_font)
-                    painter.drawText(int(x1) + 4, y + 3, int(x2 - x1) - 8, self.ROW_HEIGHT - 6,
-                                   Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-                                   title)
-                    painter.setFont(font)
+                    row_rects.append({
+                        'x1': int(x1), 'x2': int(x2),
+                        'title': prog.get('title', ''),
+                        'is_current': start <= datetime.now() <= end,
+                    })
                 except Exception:
                     pass
+            self._cached_rects.append(row_rects)
+        self._cache_valid = True
+
+    def get_current_time_x(self):
+        now = datetime.now()
+        base = datetime.now().replace(hour=self._start_hour, minute=0, second=0, microsecond=0)
+        now_sec = (now - base).total_seconds()
+        now_x = (now_sec / 3600) * self.HOUR_WIDTH
+        return now_x
+
+    def paintEvent(self, event):
+        if not self._cache_valid:
+            self._build_cache()
+        painter = QPainter(self)
+        c = AppStyles._get_colors()
+        bg = QColor(c.get('player_panel', c.get('window', '#1e1e1e')))
+        text = QColor(c.get('player_panel_text', c.get('window_text', '#ffffff')))
+        accent = QColor(c.get('accent', '#4a9eff'))
+        border = QColor(c.get('player_line', c.get('mid', '#333333')))
+        program_bg = QColor(c.get('alternate_base', '#2a2a2a'))
+        current_bg = QColor(c.get('highlight', '#264f78'))
+
+        clip = event.rect()
+        painter.fillRect(clip, bg)
+
+        w = self._hours * self.HOUR_WIDTH
+        font = QFont()
+        font.setPixelSize(11)
+        painter.setFont(font)
+        painter.setPen(text)
+
+        first_hour = max(0, clip.left() // self.HOUR_WIDTH)
+        last_hour = min(self._hours, clip.right() // self.HOUR_WIDTH + 1)
+        for h in range(first_hour, last_hour + 1):
+            hour = self._start_hour + h
+            if hour > 23:
+                hour -= 24
+            x = h * self.HOUR_WIDTH
+            painter.drawText(x + 4, 0, self.HOUR_WIDTH - 8, self.HEADER_HEIGHT,
+                           Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                           f"{hour:02d}:00")
+            painter.setPen(QPen(border, 1))
+            painter.drawLine(x, 0, x, len(self._channels) * self.ROW_HEIGHT)
+            painter.setPen(text)
+
+        first_row = max(0, clip.top() // self.ROW_HEIGHT)
+        last_row = min(len(self._channels), clip.bottom() // self.ROW_HEIGHT + 1)
+
+        pen_border = QPen(border, 1)
+        small_font = QFont()
+        small_font.setPixelSize(10)
+
+        for i in range(first_row, last_row):
+            ch_data = self._channels[i]
+            y = i * self.ROW_HEIGHT
+            painter.setPen(pen_border)
+            painter.drawLine(0, y + self.ROW_HEIGHT, w, y + self.ROW_HEIGHT)
+
+            if i < len(self._cached_rects):
+                for rect_info in self._cached_rects[i]:
+                    rx1, rx2 = rect_info['x1'], rect_info['x2']
+                    if rx2 < clip.left() or rx1 > clip.right():
+                        continue
+                    fill = current_bg if rect_info['is_current'] else program_bg
+                    painter.fillRect(rx1 + 1, y + 3, rx2 - rx1 - 2, self.ROW_HEIGHT - 6, fill)
+                    painter.setPen(text)
+                    painter.setFont(small_font)
+                    painter.drawText(rx1 + 4, y + 3, rx2 - rx1 - 8, self.ROW_HEIGHT - 6,
+                                   Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                                   rect_info['title'])
+                    painter.setFont(font)
 
         now = datetime.now()
         base = datetime.now().replace(hour=self._start_hour, minute=0, second=0, microsecond=0)
@@ -142,6 +172,13 @@ class EpgTimelineWidget(QWidget):
                 pass
         return ch, None
 
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            ch, prog = self._get_program_at(event.position().toPoint() if hasattr(event, 'position') else event.pos())
+            if ch:
+                ch_name = ch.get('name', '')
+                self.channel_double_clicked.emit(ch_name)
+
 
 class EpgChannelHeaderWidget(QWidget):
     ROW_HEIGHT = 36
@@ -160,15 +197,14 @@ class EpgChannelHeaderWidget(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         c = AppStyles._get_colors()
-        bg = QColor(c.get('player_panel', c.get('window', '#1e1e1e')))
         text = QColor(c.get('player_panel_text', c.get('window_text', '#ffffff')))
         border = QColor(c.get('player_line', c.get('mid', '#333333')))
         header_bg = QColor(c.get('alternate_base', c.get('window', '#2d2d2d')))
 
         w = self.width()
-        painter.fillRect(self.rect(), header_bg)
+        clip = event.rect()
+        painter.fillRect(clip, header_bg)
 
         pen = QPen(border, 1)
         font = QFont()
@@ -176,12 +212,15 @@ class EpgChannelHeaderWidget(QWidget):
         painter.setFont(font)
         painter.setPen(text)
 
-        for i, ch_data in enumerate(self._channels):
+        first_row = max(0, clip.top() // self.ROW_HEIGHT)
+        last_row = min(len(self._channels), clip.bottom() // self.ROW_HEIGHT + 1)
+
+        for i in range(first_row, last_row):
             y = i * self.ROW_HEIGHT
             painter.setPen(pen)
             painter.drawLine(0, y + self.ROW_HEIGHT, w, y + self.ROW_HEIGHT)
             painter.setPen(text)
-            ch_name = ch_data.get('name', '')
+            ch_name = self._channels[i].get('name', '')
             painter.drawText(4, y, w - 8, self.ROW_HEIGHT,
                            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
                            ch_name)
@@ -206,14 +245,14 @@ class EpgTimeHeaderWidget(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         c = AppStyles._get_colors()
         text = QColor(c.get('player_panel_text', c.get('window_text', '#ffffff')))
         border = QColor(c.get('player_line', c.get('mid', '#333333')))
         header_bg = QColor(c.get('alternate_base', c.get('window', '#2d2d2d')))
 
         w = self._hours * self.HOUR_WIDTH
-        painter.fillRect(0, 0, w, self.HEADER_HEIGHT, header_bg)
+        clip = event.rect()
+        painter.fillRect(clip, header_bg)
         pen = QPen(border, 1)
         painter.setPen(pen)
         painter.drawLine(0, self.HEADER_HEIGHT, w, self.HEADER_HEIGHT)
@@ -223,7 +262,10 @@ class EpgTimeHeaderWidget(QWidget):
         painter.setFont(font)
         painter.setPen(text)
 
-        for h in range(self._hours + 1):
+        first_hour = max(0, clip.left() // self.HOUR_WIDTH)
+        last_hour = min(self._hours, clip.right() // self.HOUR_WIDTH + 1)
+
+        for h in range(first_hour, last_hour + 1):
             hour = self._start_hour + h
             if hour > 23:
                 hour -= 24
@@ -233,5 +275,6 @@ class EpgTimeHeaderWidget(QWidget):
                            f"{hour:02d}:00")
             painter.setPen(pen)
             painter.drawLine(x, 0, x, self.HEADER_HEIGHT)
+            painter.setPen(text)
 
         painter.end()
