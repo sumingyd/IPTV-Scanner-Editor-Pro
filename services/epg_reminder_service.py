@@ -6,7 +6,7 @@ from core.log_manager import global_logger as logger
 
 
 class EpgReminderService:
-    CHECK_INTERVAL_SEC = 30
+    CHECK_INTERVAL_SEC = 10
     EARLY_NOTIFY_SEC = 60
 
     def __init__(self, config_manager=None):
