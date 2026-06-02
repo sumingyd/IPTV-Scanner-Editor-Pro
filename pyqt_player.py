@@ -758,7 +758,7 @@ class IPTVPlayer(QMainWindow):
         logger.debug("_init_player: 开始")
         
         self.player_controller = MpvPlayerController(self.video_widget)
-        self.player_controller.play_state_changed.connect(self.on_play_state_changed)
+        self.player_controller.play_state_changed.connect(self.playback_ctrl.handle_play_state_change)
         self.player_controller.live_media_info_updated.connect(self.on_live_media_info_updated)
         self.player_controller.play_error.connect(self.on_play_error)
         self.player_controller.reconnect_requested.connect(self._on_reconnect_requested)
@@ -1163,6 +1163,7 @@ class IPTVPlayer(QMainWindow):
 
     def _on_playlist_tab_changed(self, index):
         """播放列表标签页切换"""
+        print(f"[DBG] _on_playlist_tab_changed: index={index}")
         for i, btn in enumerate(self._playlist_tab_btns):
             btn.blockSignals(True)
             btn.setChecked(i == index)
@@ -1909,9 +1910,10 @@ class IPTVPlayer(QMainWindow):
         item = self.epg_content.itemAt(pos)
         if not item:
             return
-        program = item.data(Qt.ItemDataRole.UserRole)
-        if not program or not isinstance(program, dict):
+        item_data = item.data(Qt.ItemDataRole.UserRole)
+        if not item_data or not isinstance(item_data, dict):
             return
+        program = item_data.get('program', item_data)
         tr = self.language_manager.tr
         menu = QMenu(self.epg_content)
         menu.setStyleSheet(AppStyles.common_menu_style())
@@ -2577,6 +2579,8 @@ class IPTVPlayer(QMainWindow):
 
     def play_channel(self, channel):
         """播放指定频道（委托给PlaybackController）"""
+        if self.playback_ctrl._is_switching:
+            return
         self.playback_ctrl.play_channel(channel)
         if channel and channel.get('url'):
             self.favorites_ctrl.on_channel_played(channel)
@@ -2619,6 +2623,7 @@ class IPTVPlayer(QMainWindow):
                     f"{tr('timeshift_failed_back_to_live', '时移播放失败，退回直播')}: {channel_name}"
                 )
             self.playback_ctrl.play_channel(self.current_channel)
+
 
     def on_live_media_info_updated(self, info: Dict[str, Any]):
         self.ui_ctrl.on_live_media_info_updated(info)
