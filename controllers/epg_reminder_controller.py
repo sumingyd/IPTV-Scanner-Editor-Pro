@@ -73,9 +73,13 @@ class EpgReminderController:
                              start_time: str = '', auto_switch: bool = False):
         w = self.window
         try:
-            switch_cb = None
-            if auto_switch:
-                switch_cb = lambda cn=channel_name, tid='': self._switch_to_channel(cn, tid)
+            tvg_id = ''
+            reminders = self.get_reminders()
+            for r in reminders:
+                if r.get('channel_name') == channel_name and r.get('program_title') == program_title and r.get('start_time') == start_time:
+                    tvg_id = r.get('tvg_id', '')
+                    break
+            switch_cb = lambda cn=channel_name, tid=tvg_id: self._switch_to_channel(cn, tid)
             popup = ReminderPopup(
                 w, channel_name, program_title,
                 start_time_str=start_time,
