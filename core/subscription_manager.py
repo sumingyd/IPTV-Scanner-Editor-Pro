@@ -479,6 +479,8 @@ class SubscriptionManager(Singleton):
 
     def _parse_xmltv_time(self, time_str):
         time_str = time_str.strip()
+        if not time_str or not time_str[0].isdigit():
+            raise ValueError(f"非标准XMLTV时间格式: '{time_str}'")
         parts = time_str.split()
         dt_part = parts[0][:14]
         tz_part = parts[1] if len(parts) > 1 else None
@@ -543,10 +545,17 @@ class SubscriptionManager(Singleton):
                 
                 if channel_id and start and title:
                     try:
-                        start_time = self._parse_xmltv_time(start)
+                        try:
+                            start_time = self._parse_xmltv_time(start)
+                        except ValueError:
+                            now = datetime.now()
+                            start_time = now.replace(minute=(now.minute // 30) * 30, second=0, microsecond=0)
 
                         if end:
-                            end_time = self._parse_xmltv_time(end)
+                            try:
+                                end_time = self._parse_xmltv_time(end)
+                            except ValueError:
+                                end_time = start_time + timedelta(minutes=30)
                         else:
                             end_time = start_time + timedelta(minutes=30)
                         
