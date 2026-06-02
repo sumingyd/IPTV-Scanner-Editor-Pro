@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Optional
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QMenu
 from PyQt6.QtGui import QAction
 from core.log_manager import global_logger as logger
@@ -15,6 +15,7 @@ class FavoritesController:
         from services.favorites_service import FavoritesService
         self._service = FavoritesService(config_manager)
 
+
     @property
     def service(self):
         return self._service
@@ -22,6 +23,9 @@ class FavoritesController:
     def on_channel_played(self, channel: Dict[str, Any]):
         if self._service and channel and channel.get('url'):
             self._service.record_play(channel)
+            playlist_tab = getattr(self.window, 'playlist_tab', None)
+            if playlist_tab and playlist_tab.currentIndex() == 3:
+                self.populate_history_tab()
 
     def toggle_favorite(self, channel: Optional[Dict[str, Any]] = None):
         ch = channel or getattr(self.window, 'current_channel', None)
@@ -54,6 +58,7 @@ class FavoritesController:
 
     def populate_favorites_tab(self):
         list_widget = getattr(self.window, 'fav_channel_list', None)
+        print(f"[DBG] populate_favorites_tab: list_widget={list_widget}, service={self._service is not None}")
         if not list_widget:
             return
         list_widget.clear()
@@ -67,29 +72,37 @@ class FavoritesController:
         tr = w.language_manager.tr
         name_style = AppStyles.player_channel_list_name_style()
         channels = self._service.get_favorites()
+
         for idx, channel in enumerate(channels):
             try:
                 channel_name = channel.get('name', tr('unnamed', 'Unnamed'))
-                item_widget = QtWidgets.QWidget()
-                item_layout = QtWidgets.QHBoxLayout(item_widget)
-                item_layout.setContentsMargins(5, 2, 5, 2)
-                item_layout.setSpacing(8)
-                logo_label = QtWidgets.QLabel()
-                logo_label.setFixedSize(44, 32)
-                logo_label.setStyleSheet("background-color: transparent; border: none;")
-                logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                logo_label.setObjectName("channel_logo_label")
-                name_label = QtWidgets.QLabel(channel_name)
-                name_label.setStyleSheet(name_style)
-                name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-                name_label.setWordWrap(False)
-                item_layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignVCenter)
-                item_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
-                item = QListWidgetItem()
-                item.setSizeHint(QSize(0, 40))
-                item.setData(Qt.ItemDataRole.UserRole, idx)
-                list_widget.addItem(item)
-                list_widget.setItemWidget(item, item_widget)
+                try:
+                    item_widget = QtWidgets.QWidget()
+                    item_layout = QtWidgets.QHBoxLayout(item_widget)
+                    item_layout.setContentsMargins(5, 2, 5, 2)
+                    item_layout.setSpacing(8)
+                    logo_label = QtWidgets.QLabel()
+                    logo_label.setFixedSize(44, 32)
+                    logo_label.setStyleSheet("background-color: transparent; border: none;")
+                    logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    logo_label.setObjectName("channel_logo_label")
+                    name_label = QtWidgets.QLabel(channel_name)
+                    name_label.setStyleSheet(name_style)
+                    name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+                    name_label.setWordWrap(False)
+                    item_layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignVCenter)
+                    item_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
+                    item = QListWidgetItem()
+                    item.setSizeHint(QSize(0, 40))
+                    item.setData(Qt.ItemDataRole.UserRole, idx)
+                    list_widget.addItem(item)
+                    list_widget.setItemWidget(item, item_widget)
+                except Exception as widget_ex:
+                    simple_item = QListWidgetItem(channel_name)
+                    simple_item.setData(Qt.ItemDataRole.UserRole, idx)
+                    list_widget.addItem(simple_item)
+                    if logger:
+                        logger.warning(f"收藏项自定义widget创建失败(idx={idx})，使用简单文本: {widget_ex}")
                 logo_url = channel.get('logo', '')
                 if logo_url:
                     logo_cache = getattr(w, '_logo_cache_service', None)
@@ -102,7 +115,7 @@ class FavoritesController:
                             logo_cache.fetch_async(logo_url)
             except Exception as e:
                 if logger:
-                    logger.debug(f"填充收藏项失败: {e}")
+                    logger.warning(f"填充收藏项失败(idx={idx}): {e}")
         empty_label = getattr(self.window, 'fav_empty_label', None)
         if empty_label:
             if len(channels) == 0:
@@ -112,6 +125,7 @@ class FavoritesController:
 
     def populate_history_tab(self):
         list_widget = getattr(self.window, 'history_channel_list', None)
+        print(f"[DBG] populate_history_tab: list_widget={list_widget}, service={self._service is not None}")
         if not list_widget:
             return
         list_widget.clear()
@@ -125,6 +139,8 @@ class FavoritesController:
         tr = w.language_manager.tr
         name_style = AppStyles.player_channel_list_name_style()
         channels = self._service.get_play_history()
+        print(f"[DBG] populate_history_tab: channels={len(channels)}, list_count_before={list_widget.count()}")
+
         for idx, channel in enumerate(channels):
             try:
                 channel_name = channel.get('name', tr('unnamed', 'Unnamed'))
@@ -138,26 +154,33 @@ class FavoritesController:
                     except Exception:
                         pass
                 display_name = f"{channel_name}  {time_str}" if time_str else channel_name
-                item_widget = QtWidgets.QWidget()
-                item_layout = QtWidgets.QHBoxLayout(item_widget)
-                item_layout.setContentsMargins(5, 2, 5, 2)
-                item_layout.setSpacing(8)
-                logo_label = QtWidgets.QLabel()
-                logo_label.setFixedSize(44, 32)
-                logo_label.setStyleSheet("background-color: transparent; border: none;")
-                logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                logo_label.setObjectName("channel_logo_label")
-                name_label = QtWidgets.QLabel(display_name)
-                name_label.setStyleSheet(name_style)
-                name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-                name_label.setWordWrap(False)
-                item_layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignVCenter)
-                item_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
-                item = QListWidgetItem()
-                item.setSizeHint(QSize(0, 40))
-                item.setData(Qt.ItemDataRole.UserRole, idx)
-                list_widget.addItem(item)
-                list_widget.setItemWidget(item, item_widget)
+                try:
+                    item_widget = QtWidgets.QWidget()
+                    item_layout = QtWidgets.QHBoxLayout(item_widget)
+                    item_layout.setContentsMargins(5, 2, 5, 2)
+                    item_layout.setSpacing(8)
+                    logo_label = QtWidgets.QLabel()
+                    logo_label.setFixedSize(44, 32)
+                    logo_label.setStyleSheet("background-color: transparent; border: none;")
+                    logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    logo_label.setObjectName("channel_logo_label")
+                    name_label = QtWidgets.QLabel(display_name)
+                    name_label.setStyleSheet(name_style)
+                    name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+                    name_label.setWordWrap(False)
+                    item_layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignVCenter)
+                    item_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
+                    item = QListWidgetItem()
+                    item.setSizeHint(QSize(0, 40))
+                    item.setData(Qt.ItemDataRole.UserRole, idx)
+                    list_widget.addItem(item)
+                    list_widget.setItemWidget(item, item_widget)
+                except Exception as widget_ex:
+                    simple_item = QListWidgetItem(display_name)
+                    simple_item.setData(Qt.ItemDataRole.UserRole, idx)
+                    list_widget.addItem(simple_item)
+                    if logger:
+                        logger.warning(f"历史项自定义widget创建失败(idx={idx})，使用简单文本: {widget_ex}")
                 logo_url = channel.get('logo', '')
                 if logo_url:
                     logo_cache = getattr(w, '_logo_cache_service', None)
@@ -170,7 +193,8 @@ class FavoritesController:
                             logo_cache.fetch_async(logo_url)
             except Exception as e:
                 if logger:
-                    logger.debug(f"填充历史项失败: {e}")
+                    logger.warning(f"填充历史项失败(idx={idx}): {e}")
+        print(f"[DBG] populate_history_tab DONE: list_count={list_widget.count()}, channels={len(channels)}")
         empty_label = getattr(self.window, 'history_empty_label', None)
         if empty_label:
             if len(channels) == 0:
