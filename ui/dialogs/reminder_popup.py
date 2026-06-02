@@ -78,7 +78,7 @@ class ReminderPopup(FloatingDialog):
         btn_layout.setSpacing(8)
         btn_layout.addStretch()
 
-        if self._auto_switch and self._on_switch_callback:
+        if self._on_switch_callback:
             self._switch_btn = QPushButton(tr('reminder_popup_switch', '切换频道'))
             self._switch_btn.clicked.connect(self._on_switch_clicked)
             btn_layout.addWidget(self._switch_btn)
@@ -116,8 +116,16 @@ class ReminderPopup(FloatingDialog):
             return
         geo = screen.availableGeometry()
         margin = 16
+        gap = 8
         x = geo.right() - self.width() - margin
         y = geo.bottom() - self.height() - margin
+        if self.window and hasattr(self.window, 'epg_reminder_ctrl'):
+            ctrl = self.window.epg_reminder_ctrl
+            existing_popups = [p for p in getattr(ctrl, '_active_popups', []) if p is not self and p.isVisible()]
+            for p in existing_popups:
+                y = min(y, p.y() - self.height() - gap)
+        if y < geo.top() + margin:
+            y = geo.top() + margin
         self.move(x, y)
 
     def _apply_theme(self):
@@ -126,10 +134,10 @@ class ReminderPopup(FloatingDialog):
         accent = colors.get('accent', '#0078d4')
         window_text = colors.get('window_text', '#ffffff')
         for btn in self.findChildren(QPushButton):
-            if btn.objectName() == '' or btn is getattr(self, '_close_btn', None):
-                btn.setStyleSheet(AppStyles.button_style())
-            else:
+            if btn is getattr(self, '_switch_btn', None):
                 btn.setStyleSheet(AppStyles.apply_button_style())
+            else:
+                btn.setStyleSheet(AppStyles.button_style())
 
     def _register_theme(self):
         try:
