@@ -124,22 +124,24 @@ class FavoritesController:
                 empty_label.hide()
 
     def populate_history_tab(self):
-        list_widget = getattr(self.window, 'history_channel_list', None)
-        print(f"[DBG] populate_history_tab: list_widget={list_widget}, service={self._service is not None}")
-        if not list_widget:
-            return
-        list_widget.clear()
-        if not self._service:
-            return
-        from PyQt6.QtWidgets import QListWidgetItem, QListWidget
-        from PyQt6.QtCore import Qt, QSize
-        from PyQt6 import QtWidgets
-        from ui.styles import AppStyles
-        w = self.window
-        tr = w.language_manager.tr
-        name_style = AppStyles.player_channel_list_name_style()
-        channels = self._service.get_play_history()
-        print(f"[DBG] populate_history_tab: channels={len(channels)}, list_count_before={list_widget.count()}")
+        try:
+            list_widget = getattr(self.window, 'history_channel_list', None)
+            print(f"[DBG-H1] list_widget={list_widget is not None}, service={self._service is not None}")
+            if not list_widget:
+                return
+            list_widget.clear()
+            if not self._service:
+                return
+            from PyQt6.QtWidgets import QListWidgetItem, QListWidget
+            from PyQt6.QtCore import Qt, QSize
+            from PyQt6 import QtWidgets
+            from ui.styles import AppStyles
+            w = self.window
+            tr = w.language_manager.tr
+            name_style = AppStyles.player_channel_list_name_style()
+            print("[DBG-H2] getting history...")
+            channels = self._service.get_play_history()
+            print(f"[DBG-H3] channels={len(channels)}")
 
         for idx, channel in enumerate(channels):
             try:
