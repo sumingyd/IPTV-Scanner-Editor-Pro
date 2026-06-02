@@ -266,6 +266,7 @@ class EpgTimelineDialog(FloatingDialog):
         self.main_scroll = QScrollArea()
         self.main_scroll.setWidgetResizable(True)
         self.timeline_widget = EpgTimelineWidget()
+        self.timeline_widget.channel_double_clicked.connect(self._on_channel_double_clicked)
         self.main_scroll.setWidget(self.timeline_widget)
         bottom_row.addWidget(self.main_scroll, 1)
 
@@ -275,12 +276,32 @@ class EpgTimelineDialog(FloatingDialog):
 
         self.main_scroll.verticalScrollBar().valueChanged.connect(self._sync_v_scroll)
         self.main_scroll.horizontalScrollBar().valueChanged.connect(self._sync_h_scroll)
+        self._v_scroll_timer = QTimer()
+        self._v_scroll_timer.setSingleShot(True)
+        self._v_scroll_timer.setInterval(16)
+        self._v_scroll_timer.timeout.connect(self._apply_v_scroll)
+        self._pending_v_value = 0
+        self._h_scroll_timer = QTimer()
+        self._h_scroll_timer.setSingleShot(True)
+        self._h_scroll_timer.setInterval(16)
+        self._h_scroll_timer.timeout.connect(self._apply_h_scroll)
+        self._pending_h_value = 0
 
     def _sync_v_scroll(self, value):
-        self.channel_scroll.verticalScrollBar().setValue(value)
+        self._pending_v_value = value
+        if not self._v_scroll_timer.isActive():
+            self._v_scroll_timer.start()
+
+    def _apply_v_scroll(self):
+        self.channel_scroll.verticalScrollBar().setValue(self._pending_v_value)
 
     def _sync_h_scroll(self, value):
-        self.time_header.move(-value, 0)
+        self._pending_h_value = value
+        if not self._h_scroll_timer.isActive():
+            self._h_scroll_timer.start()
+
+    def _apply_h_scroll(self):
+        self.time_header.move(-self._pending_h_value, 0)
 
     def _on_date_changed(self, date):
         self._load_data()
@@ -367,3 +388,16 @@ class EpgTimelineDialog(FloatingDialog):
         if target_x < 0:
             target_x = 0
         self.main_scroll.horizontalScrollBar().setValue(target_x)
+
+    def _on_channel_double_clicked(self, channel_name: str):
+        w = self.window
+        channels = getattr(w, '_sub_channels', []) + getattr(w, '_local_channels', [])
+        for ch in channels:
+            if ch.get('name', '') == channel_name:
+                w.current_channel = ch
+                if hasattr(w, 'update_channel_info_on_selection'):
+                    w.update_channel_info_on_selection()
+                if hasattr(w, 'play_channel'):
+                    w.play_channel(ch)
+                self.close()
+                return
