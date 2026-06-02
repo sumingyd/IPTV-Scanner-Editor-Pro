@@ -2,12 +2,14 @@ from typing import Dict, Any, List, Optional
 from PyQt6.QtCore import QTimer
 from core.log_manager import global_logger as logger
 from controllers.main_window_protocol import MainWindowProtocol
+from ui.dialogs.reminder_popup import ReminderPopup
 
 
 class EpgReminderController:
     def __init__(self, main_window: MainWindowProtocol):
         self.window: MainWindowProtocol = main_window
         self._service = None
+        self._active_popups: List[ReminderPopup] = []
 
     def init_service(self, config_manager):
         from services.epg_reminder_service import EpgReminderService
@@ -45,16 +47,17 @@ class EpgReminderController:
         tr = w.language_manager.tr
         channel_name = reminder.get('channel_name', '')
         program_title = reminder.get('program_title', '')
+        start_time = reminder.get('start_time', '')
         auto_switch = reminder.get('auto_switch', False)
 
         if auto_switch:
             self._switch_to_channel(channel_name, reminder.get('tvg_id', ''))
             msg = tr('reminder_auto_switch', '提醒: 即将开播 {title}，已自动切换到 {channel}')
             w.status_bar_show_message(msg.format(title=program_title, channel=channel_name))
-        else:
-            msg = tr('reminder_notify', '提醒: {channel} 即将开播 {title}')
-            w.status_bar_show_message(msg.format(channel=channel_name, title=program_title))
-            self._show_reminder_notification(channel_name, program_title)
+
+        msg = tr('reminder_notify', '提醒: {channel} 即将开播 {title}')
+        w.status_bar_show_message(msg.format(channel=channel_name, title=program_title))
+        self._show_reminder_popup(channel_name, program_title, start_time, auto_switch)
 
     def _switch_to_channel(self, channel_name: str, tvg_id: str = ''):
         w = self.window
@@ -65,6 +68,30 @@ class EpgReminderController:
                 w.update_channel_info_on_selection()
                 w.play_channel(ch)
                 return
+
+    def _show_reminder_popup(self, channel_name: str, program_title: str,
+                             start_time: str = '', auto_switch: bool = False):
+        w = self.window
+        try:
+            switch_cb = None
+            if auto_switch:
+                switch_cb = lambda cn=channel_name, tid='': self._switch_to_channel(cn, tid)
+            popup = ReminderPopup(
+                w, channel_name, program_title,
+                start_time_str=start_time,
+                auto_switch=auto_switch,
+                on_switch_callback=switch_cb
+            )
+            popup.show()
+            self._active_popups.append(popup)
+            popup.destroyed.connect(lambda obj=None, p=popup: self._on_popup_destroyed(p))
+        except Exception as e:
+            logger.debug(f"提醒弹窗显示失败: {e}")
+            self._show_reminder_notification(channel_name, program_title)
+
+    def _on_popup_destroyed(self, popup):
+        if popup in self._active_popups:
+            self._active_popups.remove(popup)
 
     def _show_reminder_notification(self, channel_name: str, program_title: str):
         from PyQt6.QtWidgets import QSystemTrayIcon
