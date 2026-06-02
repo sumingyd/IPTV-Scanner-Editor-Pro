@@ -275,7 +275,7 @@ class PlaybackController:
                     channel_list = self.window.sub_channel_list
             elif hasattr(self.window, 'channel_list'):
                 channel_list = self.window.channel_list
-            if not channel_list:
+            if channel_list is None:
                 return
 
             current_row = channel_list.currentRow()
