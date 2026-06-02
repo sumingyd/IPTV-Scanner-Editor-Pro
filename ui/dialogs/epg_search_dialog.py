@@ -23,34 +23,33 @@ class _EpgSearchWorker(QThread):
         result_channels = []
         seen = set()
 
+        ch_map = {}
         for ch in self._channels:
-            ch_name = ch.get('name', '')
+            name = ch.get('name', '')
+            if name and name not in ch_map:
+                ch_map[name] = ch
             tvg_id = ch.get('tvg_id', '')
-            all_tags = ch.get('_all_tags', {})
-            tvg_name = all_tags.get('tvg-name', '')
-            comma_name = ''
-            raw_extinf = ch.get('_raw_extinf', '')
-            if raw_extinf and ',' in raw_extinf:
-                comma_name = raw_extinf.split(',', 1)[-1].strip()
-                if comma_name.startswith('"') and comma_name.endswith('"'):
-                    comma_name = comma_name[1:-1]
+            if tvg_id and tvg_id not in ch_map:
+                ch_map[tvg_id] = ch
 
-            try:
-                programs = self._epg_parser.get_channel_epg(
-                    ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name
-                ) or []
-            except Exception:
+        epg_data = getattr(self._epg_parser, '_epg_data', None)
+        if not epg_data or not isinstance(epg_data, dict):
+            self.results_ready.emit(results, result_channels)
+            return
+
+        for epg_id, programs in epg_data.items():
+            if not isinstance(programs, list):
                 continue
-
+            ch = ch_map.get(epg_id)
             for prog in programs:
                 title = (prog.get('title', '') or '').lower()
                 desc = (prog.get('desc', '') or '').lower()
                 if keyword in title or keyword in desc:
-                    key = f"{ch_name}_{prog.get('title', '')}_{prog.get('start', '')}"
+                    key = f"{epg_id}_{prog.get('title', '')}_{prog.get('start', '')}"
                     if key not in seen:
                         seen.add(key)
                         results.append(prog)
-                        result_channels.append(ch)
+                        result_channels.append(ch if ch else {'name': epg_id})
 
         results.sort(key=lambda r: r.get('start', ''))
         self.results_ready.emit(results, result_channels)
