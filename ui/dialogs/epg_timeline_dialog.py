@@ -3,11 +3,59 @@ from datetime import datetime, date
 from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QScrollArea,
                                QPushButton, QDateEdit, QLabel, QWidget,
                                QCalendarWidget, QSizePolicy, QScrollBar)
-from PyQt6.QtCore import Qt, QDate, pyqtSignal, QTimer
+from PyQt6.QtCore import Qt, QDate, pyqtSignal, QThread, QTimer
 from ui.styles import AppStyles
 from ui.floating_dialog import FloatingDialog
 from ui.epg_timeline_widget import EpgTimelineWidget, EpgChannelHeaderWidget, EpgTimeHeaderWidget
 from core.log_manager import global_logger as logger
+
+
+class _TimelineLoadWorker(QThread):
+    data_ready = pyqtSignal(list, object)
+
+    def __init__(self, epg_parser, channels, selected_date):
+        super().__init__()
+        self._epg_parser = epg_parser
+        self._channels = channels
+        self._selected_date = selected_date
+
+    def run(self):
+        channels_data = []
+        for ch in self._channels:
+            ch_name = ch.get('name', '')
+            tvg_id = ch.get('tvg_id', '')
+            all_tags = ch.get('_all_tags', {})
+            tvg_name = all_tags.get('tvg-name', '')
+            comma_name = ''
+            raw_extinf = ch.get('_raw_extinf', '')
+            if raw_extinf and ',' in raw_extinf:
+                comma_name = raw_extinf.split(',', 1)[-1].strip()
+                if comma_name.startswith('"') and comma_name.endswith('"'):
+                    comma_name = comma_name[1:-1]
+
+            programs = []
+            try:
+                all_programs = self._epg_parser.get_channel_epg(
+                    ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name
+                ) or []
+                if all_programs and self._selected_date:
+                    for p in all_programs:
+                        try:
+                            p_start = datetime.fromisoformat(p.get('start', ''))
+                            if p_start.date() == self._selected_date:
+                                programs.append(p)
+                        except Exception:
+                            pass
+                else:
+                    programs = all_programs
+            except Exception as e:
+                logger.debug(f"EPG时间轴获取节目失败: {ch_name} - {e}")
+
+            channels_data.append({
+                'name': ch_name,
+                'programs': programs,
+            })
+        self.data_ready.emit(channels_data, self._selected_date)
 
 
 class EpgTimelineDialog(FloatingDialog):
@@ -20,6 +68,7 @@ class EpgTimelineDialog(FloatingDialog):
         self.setWindowTitle(tr('epg_timeline', 'EPG时间轴'))
         self.setMinimumSize(1000, 600)
         self._channels_data: List[Dict[str, Any]] = []
+        self._load_worker = None
         self._setup_ui()
         self._apply_theme()
         self._load_data()
@@ -264,45 +313,18 @@ class EpgTimelineDialog(FloatingDialog):
             return
 
         selected_date = self.date_edit.date().toPyDate()
-        channels_data = []
         channels = list(getattr(w, '_sub_channels', []))
 
-        for ch in channels:
-            ch_name = ch.get('name', '')
-            tvg_id = ch.get('tvg_id', '')
-            all_tags = ch.get('_all_tags', {})
-            tvg_name = all_tags.get('tvg-name', '')
-            comma_name = ''
-            raw_extinf = ch.get('_raw_extinf', '')
-            if raw_extinf and ',' in raw_extinf:
-                comma_name = raw_extinf.split(',', 1)[-1].strip()
-                if comma_name.startswith('"') and comma_name.endswith('"'):
-                    comma_name = comma_name[1:-1]
+        if self._load_worker and self._load_worker.isRunning():
+            self._load_worker.data_ready.disconnect(self._on_data_loaded)
+            self._load_worker.quit()
+            self._load_worker.wait(1000)
 
-            programs = []
-            try:
-                all_programs = epg_parser.get_channel_epg(
-                    ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name
-                ) or []
-                if all_programs and selected_date:
-                    programs = []
-                    for p in all_programs:
-                        try:
-                            p_start = datetime.fromisoformat(p.get('start', ''))
-                            if p_start.date() == selected_date:
-                                programs.append(p)
-                        except Exception:
-                            pass
-                else:
-                    programs = all_programs
-            except Exception as e:
-                logger.debug(f"EPG时间轴获取节目失败: {ch_name} - {e}")
+        self._load_worker = _TimelineLoadWorker(epg_parser, channels, selected_date)
+        self._load_worker.data_ready.connect(self._on_data_loaded)
+        self._load_worker.start()
 
-            channels_data.append({
-                'name': ch_name,
-                'programs': programs,
-            })
-
+    def _on_data_loaded(self, channels_data, selected_date):
         self._channels_data = channels_data
         logger.debug(f"EPG时间轴: 加载{len(channels_data)}个频道数据")
 
