@@ -108,6 +108,7 @@ class EpgReminderService:
 
     def _check_reminders(self):
         now = datetime.now()
+        triggered = []
         with self._lock:
             for reminder in self._reminders:
                 try:
@@ -116,12 +117,22 @@ class EpgReminderService:
                     rid = reminder['id']
                     if 0 < diff <= self.EARLY_NOTIFY_SEC and rid not in self._notified_ids:
                         self._notified_ids.add(rid)
-                        if self._on_reminder_callback:
-                            self._on_reminder_callback(reminder)
+                        triggered.append(reminder)
                     elif diff < -3600:
                         self._notified_ids.discard(rid)
                 except Exception as e:
                     logger.debug(f"检查提醒异常: {e}")
+        auto_switched = False
+        for reminder in triggered:
+            if reminder.get('auto_switch') and not auto_switched:
+                auto_switched = True
+                if self._on_reminder_callback:
+                    self._on_reminder_callback(reminder)
+            else:
+                reminder_no_switch = dict(reminder)
+                reminder_no_switch['auto_switch'] = False
+                if self._on_reminder_callback:
+                    self._on_reminder_callback(reminder_no_switch)
 
     def cleanup_expired(self):
         now = datetime.now()
