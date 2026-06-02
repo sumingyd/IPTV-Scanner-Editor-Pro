@@ -1,11 +1,42 @@
 from typing import Dict, Any, List
 from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLineEdit,
-                              QListWidget, QListWidgetItem, QLabel)
-from PyQt6.QtCore import Qt, QSize, pyqtSignal, QTimer
+                               QListWidget, QListWidgetItem, QLabel)
+from PyQt6.QtCore import Qt, QSize, pyqtSignal, QThread, QTimer
 from PyQt6 import QtWidgets
 from ui.styles import AppStyles
 from ui.floating_dialog import FloatingDialog
 from core.log_manager import global_logger as logger
+
+
+class _EpgSearchWorker(QThread):
+    results_ready = pyqtSignal(list)
+
+    def __init__(self, epg_parser, keyword):
+        super().__init__()
+        self._epg_parser = epg_parser
+        self._keyword = keyword
+
+    def run(self):
+        results = []
+        try:
+            epg_data = getattr(self._epg_parser, '_epg_data', None)
+            if epg_data and isinstance(epg_data, dict):
+                for epg_id, programs in epg_data.items():
+                    if not isinstance(programs, list):
+                        continue
+                    for prog in programs:
+                        title = (prog.get('title', '') or '').lower()
+                        desc = (prog.get('desc', '') or '').lower()
+                        if self._keyword in title or self._keyword in desc:
+                            results.append({
+                                'name': prog.get('title', ''),
+                                'epg_id': epg_id,
+                                '_program': prog,
+                            })
+                            break
+        except Exception as e:
+            logger.debug(f"EPG搜索异常: {e}")
+        self.results_ready.emit(results)
 
 
 class GlobalSearchDialog(FloatingDialog):
@@ -93,6 +124,7 @@ class GlobalSearchDialog(FloatingDialog):
         self._search_timer.setInterval(200)
         self._search_timer.timeout.connect(self._on_search)
         self._pending_text = ''
+        self._epg_worker = None
 
     def _on_search_text_changed(self, text: str):
         self._search_timer.stop()
@@ -100,6 +132,10 @@ class GlobalSearchDialog(FloatingDialog):
         if not text:
             self.result_list.clear()
             self._results.clear()
+            if self._epg_worker and self._epg_worker.isRunning():
+                self._epg_worker.results_ready.disconnect(self._on_epg_results)
+                self._epg_worker.quit()
+                self._epg_worker.wait(1000)
             tr = self.window.language_manager.tr
             self.count_label.setText(tr('search_type_to_search', '输入关键词开始搜索'))
             return
@@ -113,13 +149,9 @@ class GlobalSearchDialog(FloatingDialog):
         self.result_list.clear()
         self._results.clear()
         if not text:
-
             return
 
         w = self.window
-        tr = w.language_manager.tr
-        c = AppStyles._get_colors()
-        name_style = f"color: {c.get('window_text', '#ffffff')}; background-color: transparent;"
         all_channels = list(getattr(w, '_sub_channels', [])) + list(getattr(w, '_local_channels', []))
         seen_urls = set()
 
@@ -133,28 +165,35 @@ class GlobalSearchDialog(FloatingDialog):
                 self._results.append(ch)
                 seen_urls.add(url)
 
-        try:
-            epg_parser = getattr(w, 'epg_parser', None)
-            if epg_parser and hasattr(epg_parser, '_epg_data'):
-                for epg_id, programs in epg_parser._epg_data.items():
-                    if not isinstance(programs, list):
-                        continue
-                    for prog in programs:
-                        title = (prog.get('title', '') or '').lower()
-                        desc = (prog.get('desc', '') or '').lower()
-                        if text in title or text in desc:
-                            entry = {
-                                'name': f"{tr('epg_program', '节目')}: {prog.get('title', '')} ({epg_id})",
-                                'url': '',
-                                'group': tr('epg_search_result', 'EPG搜索结果'),
-                                '_is_epg': True,
-                                '_channel_name': epg_id,
-                                '_program': prog,
-                            }
-                            self._results.append(entry)
-                            break
-        except Exception as e:
-            logger.debug(f"EPG搜索异常: {e}")
+        epg_parser = getattr(w, 'epg_parser', None)
+        if epg_parser:
+            if self._epg_worker and self._epg_worker.isRunning():
+                self._epg_worker.results_ready.disconnect(self._on_epg_results)
+                self._epg_worker.quit()
+                self._epg_worker.wait(1000)
+            self._epg_worker = _EpgSearchWorker(epg_parser, text)
+            self._epg_worker.results_ready.connect(self._on_epg_results)
+            self._epg_worker.start()
+        else:
+            self._render_results()
+
+    def _on_epg_results(self, epg_results):
+        tr = self.window.language_manager.tr
+        for item in epg_results:
+            entry = {
+                'name': f"{tr('epg_program', '节目')}: {item['name']} ({item['epg_id']})",
+                'url': '',
+                'group': tr('epg_search_result', 'EPG搜索结果'),
+                '_is_epg': True,
+                '_channel_name': item['epg_id'],
+                '_program': item['_program'],
+            }
+            self._results.append(entry)
+        self._render_results()
+
+    def _render_results(self):
+        c = AppStyles._get_colors()
+        name_style = f"color: {c.get('window_text', '#ffffff')}; background-color: transparent;"
 
         for idx, ch in enumerate(self._results):
             try:
