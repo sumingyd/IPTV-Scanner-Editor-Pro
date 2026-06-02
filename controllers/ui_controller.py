@@ -761,7 +761,7 @@ class UIController:
                 self.window.local_group_combo.setStyleSheet(AppStyles.player_group_combo_style())
             if hasattr(self.window, 'playlist_tab'):
                 self.window.playlist_tab.setStyleSheet(AppStyles.player_tab_style())
-            for list_attr in ['sub_channel_list', 'local_channel_list']:
+            for list_attr in ['sub_channel_list', 'local_channel_list', 'fav_channel_list', 'history_channel_list']:
                 cl = getattr(self.window, list_attr, None)
                 if cl:
                     cl.setStyleSheet(AppStyles.player_list_style())
@@ -776,7 +776,7 @@ class UIController:
                                     label.setFixedSize(44, 32)
                                 else:
                                     label.setStyleSheet(name_style)
-            for empty_attr in ['sub_empty_label', 'local_empty_label']:
+            for empty_attr in ['sub_empty_label', 'local_empty_label', 'fav_empty_label', 'history_empty_label']:
                 el = getattr(self.window, empty_attr, None)
                 if el:
                     el.setStyleSheet(AppStyles.player_empty_label_style())
