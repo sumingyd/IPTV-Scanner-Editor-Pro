@@ -58,8 +58,7 @@ class FavoritesController:
 
     def populate_favorites_tab(self):
         list_widget = getattr(self.window, 'fav_channel_list', None)
-        print(f"[DBG] populate_favorites_tab: list_widget={list_widget}, service={self._service is not None}")
-        if not list_widget:
+        if list_widget is None:
             return
         list_widget.clear()
         if not self._service:
@@ -124,24 +123,20 @@ class FavoritesController:
                 empty_label.hide()
 
     def populate_history_tab(self):
-        try:
-            list_widget = getattr(self.window, 'history_channel_list', None)
-            print(f"[DBG-H1] list_widget={list_widget is not None}, service={self._service is not None}")
-            if not list_widget:
-                return
-            list_widget.clear()
-            if not self._service:
-                return
-            from PyQt6.QtWidgets import QListWidgetItem, QListWidget
-            from PyQt6.QtCore import Qt, QSize
-            from PyQt6 import QtWidgets
-            from ui.styles import AppStyles
-            w = self.window
-            tr = w.language_manager.tr
-            name_style = AppStyles.player_channel_list_name_style()
-            print("[DBG-H2] getting history...")
-            channels = self._service.get_play_history()
-            print(f"[DBG-H3] channels={len(channels)}")
+        list_widget = getattr(self.window, 'history_channel_list', None)
+        if list_widget is None:
+            return
+        list_widget.clear()
+        if not self._service:
+            return
+        from PyQt6.QtWidgets import QListWidgetItem, QListWidget
+        from PyQt6.QtCore import Qt, QSize
+        from PyQt6 import QtWidgets
+        from ui.styles import AppStyles
+        w = self.window
+        tr = w.language_manager.tr
+        name_style = AppStyles.player_channel_list_name_style()
+        channels = self._service.get_play_history()
 
         for idx, channel in enumerate(channels):
             try:
@@ -196,7 +191,6 @@ class FavoritesController:
             except Exception as e:
                 if logger:
                     logger.warning(f"填充历史项失败(idx={idx}): {e}")
-        print(f"[DBG] populate_history_tab DONE: list_count={list_widget.count()}, channels={len(channels)}")
         empty_label = getattr(self.window, 'history_empty_label', None)
         if empty_label:
             if len(channels) == 0:
@@ -281,11 +275,38 @@ class FavoritesController:
 
         menu.exec(list_widget.mapToGlobal(pos))
 
+    def show_favorites_context_menu(self, pos):
+        w = self.window
+        tr = w.language_manager.tr
+        list_widget = getattr(w, 'fav_channel_list', None)
+        if list_widget is None:
+            return
+
+        menu = QMenu(list_widget)
+        menu.setStyleSheet(self._get_menu_style())
+
+        item = list_widget.itemAt(pos)
+        if item:
+            idx = item.data(Qt.ItemDataRole.UserRole)
+            favorites = self._service.get_favorites() if self._service else []
+            if isinstance(idx, int) and 0 <= idx < len(favorites):
+                channel = favorites[idx]
+                del_action = menu.addAction(tr('remove_from_favorites', '删除收藏'))
+                del_action.triggered.connect(lambda: self._do_remove_favorite(channel))
+
+        if self._service and self._service.get_favorites():
+            menu.addSeparator()
+            clear_action = menu.addAction(tr('clear_favorites', '清空收藏'))
+            clear_action.triggered.connect(self._do_clear_favorites)
+
+        if menu.actions():
+            menu.exec(list_widget.mapToGlobal(pos))
+
     def show_history_context_menu(self, pos):
         w = self.window
         tr = w.language_manager.tr
         list_widget = getattr(w, 'history_channel_list', None)
-        if not list_widget:
+        if list_widget is None:
             return
 
         menu = QMenu(list_widget)
@@ -335,6 +356,14 @@ class FavoritesController:
         self.populate_history_tab()
         tr = self.window.language_manager.tr
         self.window.status_bar_show_message(tr('history_cleared', '历史已清空'))
+
+    def _do_clear_favorites(self):
+        if not self._service:
+            return
+        self._service.clear_favorites()
+        self.populate_favorites_tab()
+        tr = self.window.language_manager.tr
+        self.window.status_bar_show_message(tr('favorites_cleared', '收藏已清空'))
 
     def _get_menu_style(self):
         from ui.styles import AppStyles
