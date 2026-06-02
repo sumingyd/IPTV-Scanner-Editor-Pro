@@ -932,7 +932,7 @@ class IPTVPlayer(QMainWindow):
             btn.setText(tooltip)
             btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
             btn.setFixedHeight(22)
-            btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            btn.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
             btn.setStyleSheet(AppStyles.player_button_style())
             btn.setToolTip(tooltip)
             btn.setCheckable(True)
@@ -1087,6 +1087,8 @@ class IPTVPlayer(QMainWindow):
         self.fav_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.fav_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.fav_channel_list.itemClicked.connect(self.favorites_ctrl.on_favorite_item_clicked)
+        self.fav_channel_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.fav_channel_list.customContextMenuRequested.connect(self.favorites_ctrl.show_favorites_context_menu)
         fav_layout.addWidget(self.fav_channel_list, 1)
 
         self.fav_empty_label = QLabel(tr("no_favorites", "No favorites"))
@@ -1163,7 +1165,7 @@ class IPTVPlayer(QMainWindow):
 
     def _on_playlist_tab_changed(self, index):
         """播放列表标签页切换"""
-        print(f"[DBG] _on_playlist_tab_changed: index={index}")
+
         for i, btn in enumerate(self._playlist_tab_btns):
             btn.blockSignals(True)
             btn.setChecked(i == index)
@@ -2793,15 +2795,21 @@ class IPTVPlayer(QMainWindow):
         side_h = mw_h - title_bar_h - menu_bar_h - control_panel_h - status_bar_h - gap * 2
 
         if hasattr(self, 'epg_dock') and self.epg_dock:
+            if not hasattr(self, '_epg_dock_w') or self._epg_dock_w <= 0:
+                self._epg_dock_w = self.epg_dock.width()
             self.epg_dock.move(mw_x + gap, side_top)
             self.epg_dock.setMinimumHeight(max(150, side_h))
             self.epg_dock.setMaximumHeight(max(150, side_h))
+            self.epg_dock.setFixedWidth(self._epg_dock_w)
 
         if hasattr(self, 'playlist_dock') and self.playlist_dock:
-            pl_w = self.playlist_dock.width()
+            if not hasattr(self, '_playlist_dock_w') or self._playlist_dock_w <= 0:
+                self._playlist_dock_w = self.playlist_dock.width()
+            pl_w = self._playlist_dock_w
             self.playlist_dock.move(mw_x + mw_w - pl_w - gap, side_top)
             self.playlist_dock.setMinimumHeight(max(150, side_h))
             self.playlist_dock.setMaximumHeight(max(150, side_h))
+            self.playlist_dock.setFixedWidth(pl_w)
 
         if hasattr(self, 'floating_dock') and self.floating_dock:
             fl_w = min(mw_w - gap * 2, 1050)
