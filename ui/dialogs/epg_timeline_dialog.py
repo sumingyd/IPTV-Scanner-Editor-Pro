@@ -62,7 +62,7 @@ class EpgTimelineDialog(FloatingDialog):
     channel_selected = pyqtSignal(dict)
 
     def __init__(self, main_window, parent=None):
-        super().__init__(parent, frameless=False, stay_on_top=False)
+        super().__init__(parent, frameless=False, stay_on_top=False, tool_window=False)
         self.window = main_window
         tr = main_window.language_manager.tr
         self.setWindowTitle(tr('epg_timeline', 'EPG时间轴'))
@@ -97,11 +97,20 @@ class EpgTimelineDialog(FloatingDialog):
                 border-radius: {r}px;
                 padding: 2px 8px;
                 min-height: 24px;
-                min-width: 120px;
+            }}
+            QDateEdit::up-button {{
+                width: 0px;
+                border: none;
+            }}
+            QDateEdit::down-button {{
+                width: 0px;
+                border: none;
             }}
             QDateEdit::drop-down {{
                 border: none;
-                width: 20px;
+                width: 24px;
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
             }}
             QPushButton {{
                 background-color: {c.get('player_button', '#3a3a3a')};
@@ -210,9 +219,8 @@ class EpgTimelineDialog(FloatingDialog):
         self.date_edit.setCalendarPopup(True)
         self.date_edit.setDisplayFormat('yyyy-MM-dd')
         self.date_edit.setDate(QDate.currentDate())
-        self.date_edit.setMinimumWidth(130)
         self.date_edit.dateChanged.connect(self._on_date_changed)
-        self.date_edit.setFixedSize(140, 30)
+        self.date_edit.setFixedSize(130, 30)
         toolbar.addWidget(self.date_edit)
 
         toolbar.addStretch(1)
@@ -399,5 +407,5 @@ class EpgTimelineDialog(FloatingDialog):
                     w.update_channel_info_on_selection()
                 if hasattr(w, 'play_channel'):
                     w.play_channel(ch)
-                self.close()
+
                 return
