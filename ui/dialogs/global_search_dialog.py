@@ -10,6 +10,7 @@ from core.log_manager import global_logger as logger
 
 class _EpgSearchWorker(QThread):
     results_ready = pyqtSignal(list)
+    MAX_RESULTS = 200
 
     def __init__(self, epg_parser, keyword):
         super().__init__()
@@ -26,14 +27,15 @@ class _EpgSearchWorker(QThread):
                         continue
                     for prog in programs:
                         title = (prog.get('title', '') or '').lower()
-                        desc = (prog.get('desc', '') or '').lower()
-                        if self._keyword in title or self._keyword in desc:
+                        if self._keyword in title:
                             results.append({
                                 'name': prog.get('title', ''),
                                 'epg_id': epg_id,
                                 '_program': prog,
                             })
                             break
+                    if len(results) >= self.MAX_RESULTS:
+                        break
         except Exception as e:
             logger.debug(f"EPG搜索异常: {e}")
         self.results_ready.emit(results)
@@ -221,6 +223,7 @@ class GlobalSearchDialog(FloatingDialog):
                 pass
 
         count = len(self._results)
+        tr = self.window.language_manager.tr
         self.count_label.setText(tr('search_results_count', '找到 {count} 个结果').format(count=count))
 
     def _on_item_double_clicked(self, item):
