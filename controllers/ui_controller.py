@@ -1204,13 +1204,10 @@ class UIController:
             epg_timeline.triggered.connect(self._show_epg_timeline)
             tools_menu.addAction(epg_timeline)
 
-            epg_search = QAction(tr("menu_epg_search", "EPG Search\tCtrl+Shift+E"), self.window)
-            epg_search.triggered.connect(self._show_epg_search)
-            tools_menu.addAction(epg_search)
+            search = QAction(tr("menu_search", "Search\tCtrl+Shift+F"), self.window)
+            search.triggered.connect(self._show_global_search)
+            tools_menu.addAction(search)
 
-            global_search = QAction(tr("global_search", "Global Search\tCtrl+Shift+F"), self.window)
-            global_search.triggered.connect(self._show_global_search)
-            tools_menu.addAction(global_search)
 
             reminder_manager = QAction(tr("reminder_manager", "Reminder Manager"), self.window)
             reminder_manager.triggered.connect(self._show_reminder_manager)
@@ -1342,16 +1339,13 @@ class UIController:
         search_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
         self.window._global_search_shortcut = search_shortcut
 
-        epg_search_shortcut = QShortcut(QKeySequence("Ctrl+Shift+E"), app)
-        epg_search_shortcut.activated.connect(self._show_epg_search)
-        epg_search_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
-        self.window._epg_search_shortcut = epg_search_shortcut
 
 
     def _show_global_search(self):
-        from ui.dialogs.global_search_dialog import GlobalSearchDialog
-        dialog = GlobalSearchDialog(self.window, parent=self.window)
+        from ui.dialogs.unified_search_dialog import UnifiedSearchDialog
+        dialog = UnifiedSearchDialog(self.window, parent=self.window, search_epg=True, search_channel=True)
         dialog.channel_selected.connect(self._on_global_search_channel_selected)
+        dialog.epg_program_selected.connect(self._on_epg_search_program_selected)
         dialog.show_and_focus()
 
     def _on_global_search_channel_selected(self, channel):
@@ -1359,11 +1353,6 @@ class UIController:
         self.window.update_channel_info_on_selection()
         self.window.play_channel(channel)
 
-    def _show_epg_search(self):
-        from ui.dialogs.epg_search_dialog import EpgSearchDialog
-        dialog = EpgSearchDialog(self.window, parent=self.window)
-        dialog.channel_selected.connect(self._on_epg_search_program_selected)
-        dialog.show()
 
     def _on_epg_search_program_selected(self, channel, program):
         w = self.window
