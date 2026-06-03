@@ -258,7 +258,7 @@ class FloatingDialog(QDialog):
         colors = AppStyles._get_colors()
         self.opacity = colors.get('window_opacity', 220)
 
-        flags = Qt.WindowType.Dialog
+        flags = Qt.WindowType.Window
         if stay_on_top:
             flags |= Qt.WindowType.WindowStaysOnTopHint
         if tool_window:
