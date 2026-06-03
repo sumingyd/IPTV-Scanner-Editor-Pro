@@ -10,6 +10,7 @@ from core.log_manager import global_logger as logger
 
 class _EpgSearchWorker(QThread):
     results_ready = pyqtSignal(list, list)
+    MAX_RESULTS = 200
 
     def __init__(self, epg_parser, channels, keyword):
         super().__init__()
@@ -43,13 +44,16 @@ class _EpgSearchWorker(QThread):
             ch = ch_map.get(epg_id)
             for prog in programs:
                 title = (prog.get('title', '') or '').lower()
-                desc = (prog.get('desc', '') or '').lower()
-                if keyword in title or keyword in desc:
+                if keyword in title:
                     key = f"{epg_id}_{prog.get('title', '')}_{prog.get('start', '')}"
                     if key not in seen:
                         seen.add(key)
                         results.append(prog)
                         result_channels.append(ch if ch else {'name': epg_id})
+                        if len(results) >= self.MAX_RESULTS:
+                            break
+            if len(results) >= self.MAX_RESULTS:
+                break
 
         results.sort(key=lambda r: r.get('start', ''))
         self.results_ready.emit(results, result_channels)
@@ -171,8 +175,8 @@ class EpgSearchDialog(FloatingDialog):
 
         if self._worker and self._worker.isRunning():
             self._worker.results_ready.disconnect(self._on_search_results)
-            self._worker.quit()
-            self._worker.wait(1000)
+            self._worker.terminate()
+            self._worker.wait(100)
 
         channels = list(getattr(w, '_sub_channels', []))
         self._worker = _EpgSearchWorker(epg_parser, channels, text)
@@ -184,8 +188,6 @@ class EpgSearchDialog(FloatingDialog):
         self._result_channels = result_channels
         self.result_list.clear()
 
-        c = AppStyles._get_colors()
-        name_style = f"color: {c.get('window_text', '#ffffff')}; background-color: transparent;"
         tr = self.window.language_manager.tr
 
         for idx, prog in enumerate(results):
@@ -193,6 +195,7 @@ class EpgSearchDialog(FloatingDialog):
                 ch = result_channels[idx]
                 ch_name = ch.get('name', '')
                 title = prog.get('title', '')
+                desc = prog.get('desc', '')
                 start = prog.get('start', '')
                 time_str = ''
                 if start:
@@ -202,29 +205,27 @@ class EpgSearchDialog(FloatingDialog):
                         time_str = dt.strftime('%H:%M')
                     except Exception:
                         pass
-                display = f"{time_str} {title} ({ch_name})" if time_str else f"{title} ({ch_name})"
+                parts = []
+                if time_str:
+                    parts.append(time_str)
+                parts.append(title)
+                if ch_name:
+                    parts.append(f'({ch_name})')
+                display = ' '.join(parts)
 
-                item_widget = QtWidgets.QWidget()
-                item_layout = QtWidgets.QHBoxLayout(item_widget)
-                item_layout.setContentsMargins(5, 2, 5, 2)
-                item_layout.setSpacing(8)
 
-                name_label = QtWidgets.QLabel(display)
-                name_label.setStyleSheet(name_style)
-                name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-                name_label.setWordWrap(False)
-                item_layout.addWidget(name_label, 1)
-
-                item = QListWidgetItem()
-                item.setSizeHint(QSize(0, 36))
+                item = QListWidgetItem(display)
                 item.setData(Qt.ItemDataRole.UserRole, idx)
                 self.result_list.addItem(item)
-                self.result_list.setItemWidget(item, item_widget)
             except Exception:
                 pass
 
+        is_truncated = len(results) >= _EpgSearchWorker.MAX_RESULTS
         count = len(results)
-        self.count_label.setText(tr('search_results_count', '找到 {count} 个结果').format(count=count))
+        if is_truncated:
+            self.count_label.setText(tr('search_results_truncated', '找到 {count}+ 个结果（已截断）').format(count=count))
+        else:
+            self.count_label.setText(tr('search_results_count', '找到 {count} 个结果').format(count=count))
 
     def _on_item_double_clicked(self, item):
         idx = item.data(Qt.ItemDataRole.UserRole)
