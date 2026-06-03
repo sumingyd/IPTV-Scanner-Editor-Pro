@@ -3255,10 +3255,11 @@ class IPTVPlayer(QMainWindow):
         self.show()
         self.activateWindow()
         self.raise_()
-        for dock_name in ('epg_dock', 'playlist_dock', 'floating_dock'):
+        for dock_name in getattr(self, '_tray_hidden_docks', []):
             dock = getattr(self, dock_name, None)
             if dock:
                 dock.show()
+                dock.setFloating(True)
 
     def _tray_quit(self):
         self._is_hidden_to_tray = False
@@ -3321,10 +3322,12 @@ class IPTVPlayer(QMainWindow):
                 self._was_playing_before_tray = True
             else:
                 self._was_playing_before_tray = False
+            self._tray_hidden_docks = []
             for dock_name in ('epg_dock', 'playlist_dock', 'floating_dock'):
                 dock = getattr(self, dock_name, None)
                 if dock and dock.isVisible():
-                    dock.hide()
+                    self._tray_hidden_docks.append(dock_name)
+                    dock.close()
             self.hide()
             tray = getattr(self, '_system_tray', None)
             if tray:
