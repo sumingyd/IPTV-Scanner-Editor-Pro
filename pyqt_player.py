@@ -3255,6 +3255,10 @@ class IPTVPlayer(QMainWindow):
         self.show()
         self.activateWindow()
         self.raise_()
+        for dock_name in ('epg_dock', 'playlist_dock', 'floating_dock'):
+            dock = getattr(self, dock_name, None)
+            if dock:
+                dock.show()
 
     def _tray_quit(self):
         self._is_hidden_to_tray = False
@@ -3305,12 +3309,22 @@ class IPTVPlayer(QMainWindow):
         """)
         msg_box.exec()
         clicked = msg_box.clickedButton()
-        if clicked == cancel_btn:
+        if clicked == cancel_btn or clicked is None:
             event.ignore()
             return
         if clicked == min_btn:
             event.ignore()
             self._is_hidden_to_tray = True
+            pc = getattr(self, 'player_controller', None)
+            if pc and pc.is_playing and not pc.is_paused:
+                pc.pause()
+                self._was_playing_before_tray = True
+            else:
+                self._was_playing_before_tray = False
+            for dock_name in ('epg_dock', 'playlist_dock', 'floating_dock'):
+                dock = getattr(self, dock_name, None)
+                if dock and dock.isVisible():
+                    dock.hide()
             self.hide()
             tray = getattr(self, '_system_tray', None)
             if tray:
