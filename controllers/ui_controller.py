@@ -1387,7 +1387,7 @@ class UIController:
         from ui.dialogs.epg_timeline_dialog import EpgTimelineDialog
         dialog = EpgTimelineDialog(self.window, parent=self.window)
         dialog.channel_selected.connect(self._on_global_search_channel_selected)
-        dialog.exec()
+        dialog.show()
 
     def _show_reminder_manager(self):
         from ui.dialogs.reminder_manager_dialog import ReminderManagerDialog
