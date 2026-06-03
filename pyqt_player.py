@@ -785,6 +785,7 @@ class IPTVPlayer(QMainWindow):
 
         self.favorites_ctrl.init_service(self.config)
         self.epg_reminder_ctrl.init_service(self.config)
+        self._setup_system_tray()
 
         logger.debug("_init_player: 完成")
     
@@ -3226,8 +3227,72 @@ class IPTVPlayer(QMainWindow):
         else:
             super().resizeEvent(event)
 
+    def _setup_system_tray(self):
+        from PyQt6.QtWidgets import QSystemTrayIcon, QMenu
+        from PyQt6.QtGui import QIcon
+        import os
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources', 'logo.ico')
+        icon = QIcon(icon_path) if os.path.exists(icon_path) else QIcon()
+        self._system_tray = QSystemTrayIcon(icon, self)
+        tray_menu = QMenu()
+        tr = self.language_manager.tr
+        show_action = tray_menu.addAction(tr('tray_show', '显示主窗口'))
+        show_action.triggered.connect(self._tray_show_window)
+        tray_menu.addSeparator()
+        quit_action = tray_menu.addAction(tr('tray_quit', '退出程序'))
+        quit_action.triggered.connect(self._tray_quit)
+        self._system_tray.setContextMenu(tray_menu)
+        self._system_tray.activated.connect(self._on_tray_activated)
+        self._is_hidden_to_tray = False
+
+    def _on_tray_activated(self, reason):
+        from PyQt6.QtWidgets import QSystemTrayIcon
+        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
+            self._tray_show_window()
+
+    def _tray_show_window(self):
+        self._is_hidden_to_tray = False
+        self.show()
+        self.activateWindow()
+        self.raise_()
+
+    def _tray_quit(self):
+        self._is_hidden_to_tray = False
+        self.close()
+
     def closeEvent(self, event):
-        """窗口关闭事件（委托给EventHandler）"""
+        """窗口关闭事件"""
+        if getattr(self, '_is_hidden_to_tray', False):
+            if hasattr(self, 'event_handler') and self.event_handler:
+                self.event_handler.closeEvent(event)
+            else:
+                super().closeEvent(event)
+            return
+
+        from PyQt6.QtWidgets import QMessageBox
+        tr = self.language_manager.tr
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle(tr('close_confirm_title', '关闭确认'))
+        msg_box.setText(tr('close_confirm_text', '选择关闭方式：'))
+        msg_box.setIcon(QMessageBox.Icon.Question)
+        min_btn = msg_box.addButton(tr('close_minimize_tray', '最小化到托盘'), QMessageBox.ButtonRole.AcceptRole)
+        close_btn = msg_box.addButton(tr('close_exit', '直接退出'), QMessageBox.ButtonRole.RejectRole)
+        cancel_btn = msg_box.addButton(QMessageBox.StandardButton.Cancel)
+        msg_box.setDefaultButton(min_btn)
+        msg_box.exec()
+        clicked = msg_box.clickedButton()
+        if clicked == cancel_btn:
+            event.ignore()
+            return
+        if clicked == min_btn:
+            event.ignore()
+            self._is_hidden_to_tray = True
+            self.hide()
+            tray = getattr(self, '_system_tray', None)
+            if tray:
+                tray.show()
+                tray.setToolTip(tr('app_title', 'IPTV Scanner Editor Pro'))
+            return
         if hasattr(self, 'event_handler') and self.event_handler:
             self.event_handler.closeEvent(event)
         else:
