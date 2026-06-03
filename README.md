@@ -44,13 +44,19 @@
 - **最近打开文件**：文件菜单记录最近访问的播放列表，快速重开
 
 ### 📺 EPG 电子节目单
-- **XMLTV 格式解析**：支持标准 XMLTV / JSON 格式 EPG 数据源
+- **XMLTV 格式解析**：支持标准 XMLTV / JSON 格式 EPG 数据源，兼容非标准时间格式（如"在播"）
 - **智能匹配**：优先 tvg-id → 其次 tvg-name → 最后频道名，全部模糊匹配
 - **日期导航**：查看历史/当天/未来日期的节目安排
 - **实时进度条**：显示当前节目的播放进度和时间轴
 - **自动订阅**：配置 EPG 地址后自动下载更新，支持过期检测和 URL 变更感知
 - **Gzip 兼容**：自动识别并解压 .gz 压缩的 EPG 数据
 - **M3U 内嵌 EPG**：自动识别 M3U 文件头 `x-tvg-url` / `tvg-url` / `epg-url` 等属性，未配置 EPG 源时自动加载
+- **EPG 时间轴**：可视化时间轴界面，按频道×时间展示全天节目，支持水平/垂直滚动浏览，双击节目直接跳转播放对应频道
+- **EPG 搜索**：按节目名称快速搜索所有频道节目，双击结果跳转播放，结果上限200条防止卡顿
+- **全局搜索**：跨频道列表和EPG数据的全局搜索功能（Ctrl+Shift+F）
+- **节目提醒**：为即将开播的节目设置提醒，到时间弹出提醒弹窗，支持自动切换频道
+  - 多提醒并发处理：多个提醒同时触发时弹窗堆叠显示，仅第一个自动切换，其余可手动切换
+  - 系统托盘通知：最小化到托盘时通过系统托盘显示提醒
 
 ### 🖼️ 频道台标系统
 - **智能台标匹配**：内置 400+ 频道台标规则，根据频道名称自动匹配对应台标图片
@@ -93,6 +99,8 @@
 - **名称清理**：智能去除频道名中的冗余信息，规范化显示
 - **拼音排序**：中文频道名按拼音首字母排序
 - **多格式导出**：M3U、TXT、Excel（需 openpyxl）
+- **收藏列表**：右键收藏频道，收藏列表支持右键删除单个收藏和清空收藏
+- **播放历史**：自动记录播放过的频道，支持右键清空历史
 
 ### 🎨 界面与体验
 - **颜色模式 × 视觉风格组合主题**：3 种颜色模式与 7 种视觉风格任意组合，共 21 种搭配
@@ -102,6 +110,7 @@
 - **日志等级切换**：帮助菜单可切换 DEBUG / INFO / WARNING / ERROR 日志等级，方便调试和排查问题
 - **三栏布局**：左侧 EPG 节目单 | 中间视频区域 | 右侧频道列表面板
 - **悬浮面板**：EPG 列表、频道列表、播放控制面板均可独立开关
+- **系统托盘**：关闭窗口时可选择最小化到系统托盘（继续执行定时提醒）或直接退出，双击托盘图标恢复主窗口
 - **文件关联**：可自定义关联 .m3u/.m3u8/.txt 及常见视频格式，右键即可用本程序打开
 - **拖放打开**：支持将文件直接拖放到主窗口打开
 - **键盘快捷键**：
@@ -120,7 +129,8 @@
   - `Ctrl+S` 另存为
   - `Ctrl+U` 打开流地址
   - `F5` 刷新界面
-  - `Ctrl+Q` 退出
+  - `Ctrl+Shift+E` EPG 搜索
+  - `Ctrl+Shift+F` 全局搜索
 
 ### ⚙️ 订阅与自动化
 - **多源管理**：支持配置多个播放列表源和多个 EPG 源，独立管理
@@ -242,6 +252,7 @@ IPTV-Scanner-Editor-Pro/
 │   ├── catchup_controller.py   # 时移/回看控制器
 │   ├── channel_controller.py   # 频道管理控制器
 │   ├── epg_controller.py      # EPG 电子节目单控制器
+│   ├── epg_reminder_controller.py # EPG 节目提醒控制器
 │   ├── event_handler.py       # 事件处理器
 │   ├── main_window_protocol.py # 主窗口协议接口
 │   ├── media_controller.py    # 媒体控制器
@@ -262,6 +273,9 @@ IPTV-Scanner-Editor-Pro/
 │   ├── channel_classifier.py  # 频道自动分类服务（正则规则引擎）
 │   ├── channel_cleaner.py     # 频道名称清理服务
 │   ├── epg_matcher.py         # EPG 模糊匹配引擎
+│   ├── epg_reminder_service.py # EPG 提醒服务
+│   ├── epg_search_service.py  # EPG 搜索服务
+│   ├── favorites_service.py   # 收藏与历史服务
 │   ├── fcc_service.py         # FCC 快速换台服务（组播代理通知）
 │   ├── logo_cache_service.py   # 台标缓存服务（异步+DPI）
 │   ├── logo_matcher.py        # 台标智能匹配服务（400+ 规则）
@@ -278,13 +292,20 @@ IPTV-Scanner-Editor-Pro/
 ├── ui/
 │   ├── dialogs/
 │   │   ├── about_dialog.py    # 关于对话框（含版本检查）
+│   │   ├── epg_search_dialog.py # EPG 搜索对话框
+│   │   ├── epg_timeline_dialog.py # EPG 时间轴对话框
+│   │   ├── global_search_dialog.py # 全局搜索对话框
+│   │   ├── reminder_popup.py  # 节目提醒弹窗
+│   │   ├── reminder_manager_dialog.py # 提醒管理对话框
 │   │   ├── file_association_dialog.py # 文件关联对话框
 │   │   ├── mapping_manager_dialog.py # 映射管理器
 │   │   └── scan_channel_dialog.py # 扫描频道对话框
+│   ├── epg_timeline_widget.py # EPG 时间轴组件
 │   ├── floating_dialog.py     # 悬浮对话框基类
 │   ├── multi_screen_widget.py # 多屏窗口组件
 │   ├── styles.py              # 5 套主题样式定义
 │   └── theme_manager.py       # 主题管理器
+
 ├── utils/                      # 工具模块
 │   ├── config_notifier.py     # 配置变更通知器
 │   ├── error_handler.py       # 错误处理器
