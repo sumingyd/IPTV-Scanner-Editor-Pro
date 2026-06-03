@@ -1,7 +1,8 @@
-from PyQt6.QtWidgets import QDialog, QDockWidget, QWidget, QApplication
+from PyQt6.QtWidgets import (QDialog, QDockWidget, QWidget, QApplication,
+                              QHBoxLayout, QLabel, QPushButton)
 from PyQt6 import QtWidgets
-from PyQt6.QtGui import QPainter, QColor, QPainterPath, QCursor
-from PyQt6.QtCore import Qt, QRectF
+from PyQt6.QtGui import QPainter, QColor, QPainterPath, QCursor, QIcon
+from PyQt6.QtCore import Qt, QRectF, QSize
 import sys
 
 
@@ -249,6 +250,58 @@ class FloatingDialog(QDialog):
     _bg_color_key = 'window'
     _border_color_key = 'mid'
 
+    @staticmethod
+    def create_dialog_title_bar(title_text, close_target, min_width=46, height=32):
+        from ui.styles import AppStyles
+        colors = AppStyles._get_colors()
+        r = AppStyles._get_style_border_radius()
+        title_bg = colors.get('window', '#1e1e1e')
+        title_text_color = colors.get('window_text', '#ffffff')
+        accent = colors.get('accent', '#4a9eff')
+        close_hover = AppStyles.COLOR_CLOSE_HOVER if hasattr(AppStyles, 'COLOR_CLOSE_HOVER') else '#e81123'
+
+        bar = QWidget()
+        bar.setFixedHeight(height)
+        bar.setObjectName("dialogTitleBar")
+        bar.setStyleSheet(f"""
+            QWidget#dialogTitleBar {{
+                background-color: {title_bg};
+                border-top-left-radius: {r}px;
+                border-top-right-radius: {r}px;
+            }}
+        """)
+
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(12, 0, 4, 0)
+        layout.setSpacing(0)
+
+        label = QLabel(title_text)
+        label.setStyleSheet(f"color: {title_text_color}; font-size: 13px; font-weight: bold; background: transparent; padding-left: 4px;")
+        layout.addWidget(label, 1)
+
+        icon_color = title_text_color
+        icon_size = QSize(14, 14)
+
+        close_btn = QPushButton()
+        close_icon_path = AppStyles.get_icon('close', icon_color, 14)
+        if close_icon_path:
+            close_btn.setIcon(QIcon(close_icon_path))
+        close_btn.setIconSize(icon_size)
+        close_btn.setFixedSize(min_width, height - 4)
+        close_btn.setObjectName("closeButton")
+        close_btn.setToolTip('关闭')
+        close_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent; border: none; border-radius: {r}px;
+            }}
+            QPushButton:hover {{
+                background-color: {close_hover}; color: white;
+            }}
+        """)
+        close_btn.clicked.connect(close_target.close)
+        layout.addWidget(close_btn)
+
+        return bar
 
     def __init__(self, parent=None, frameless=True, tool_window=False, stay_on_top=True):
         super().__init__(parent)
