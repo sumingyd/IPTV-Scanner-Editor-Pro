@@ -62,10 +62,11 @@ class EpgTimelineDialog(FloatingDialog):
     channel_selected = pyqtSignal(dict)
 
     def __init__(self, main_window, parent=None):
-        super().__init__(parent, frameless=False, stay_on_top=False, tool_window=False)
+        super().__init__(parent, frameless=True, stay_on_top=False, tool_window=False)
         self.window = main_window
         tr = main_window.language_manager.tr
-        self.setWindowTitle(tr('epg_timeline', 'EPG时间轴'))
+        self._title_text = tr('epg_timeline', 'EPG时间轴')
+        self.setWindowTitle(self._title_text)
         self.setMinimumSize(1000, 600)
         self._channels_data: List[Dict[str, Any]] = []
         self._load_worker = None
@@ -206,8 +207,15 @@ class EpgTimelineDialog(FloatingDialog):
         tr = self.window.language_manager.tr
 
         outer_layout = QVBoxLayout(self)
-        outer_layout.setContentsMargins(8, 8, 8, 8)
-        outer_layout.setSpacing(6)
+        outer_layout.setContentsMargins(8, 0, 8, 8)
+        outer_layout.setSpacing(0)
+
+        title_bar = FloatingDialog.create_dialog_title_bar(self._title_text, self)
+        outer_layout.addWidget(title_bar)
+
+        content_layout = QVBoxLayout()
+        content_layout.setContentsMargins(8, 8, 8, 0)
+        content_layout.setSpacing(6)
 
         toolbar = QHBoxLayout()
         toolbar.setSpacing(8)
@@ -229,7 +237,7 @@ class EpgTimelineDialog(FloatingDialog):
         self.refresh_btn.clicked.connect(self._load_data)
         toolbar.addWidget(self.refresh_btn)
 
-        outer_layout.addLayout(toolbar)
+        content_layout.addLayout(toolbar)
 
         self._grid_widget = QWidget()
         self._grid_layout = QVBoxLayout(self._grid_widget)
@@ -280,7 +288,8 @@ class EpgTimelineDialog(FloatingDialog):
 
         self._grid_layout.addLayout(bottom_row, 1)
 
-        outer_layout.addWidget(self._grid_widget, 1)
+        content_layout.addWidget(self._grid_widget, 1)
+        outer_layout.addLayout(content_layout)
 
         self.main_scroll.verticalScrollBar().valueChanged.connect(self._sync_v_scroll)
         self.main_scroll.horizontalScrollBar().valueChanged.connect(self._sync_h_scroll)
