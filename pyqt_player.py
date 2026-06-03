@@ -3270,15 +3270,39 @@ class IPTVPlayer(QMainWindow):
             return
 
         from PyQt6.QtWidgets import QMessageBox
+        from ui.styles import AppStyles
         tr = self.language_manager.tr
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle(tr('close_confirm_title', '关闭确认'))
-        msg_box.setText(tr('close_confirm_text', '选择关闭方式：'))
+        msg_box.setText(tr('close_confirm_text', '关闭后将无法接收节目提醒，是否最小化到系统托盘继续运行提醒功能？'))
         msg_box.setIcon(QMessageBox.Icon.Question)
         min_btn = msg_box.addButton(tr('close_minimize_tray', '最小化到托盘'), QMessageBox.ButtonRole.AcceptRole)
         close_btn = msg_box.addButton(tr('close_exit', '直接退出'), QMessageBox.ButtonRole.RejectRole)
-        cancel_btn = msg_box.addButton(QMessageBox.StandardButton.Cancel)
+        cancel_btn = msg_box.addButton(tr('cancel', '取消'), QMessageBox.ButtonRole.DestructiveRole)
         msg_box.setDefaultButton(min_btn)
+        c = AppStyles._get_colors()
+        r = AppStyles._get_style_border_radius()
+        msg_box.setStyleSheet(f"""
+            QMessageBox {{
+                background-color: {c.get('panel', '#1e1e1e')};
+                color: {c.get('window_text', '#ffffff')};
+            }}
+            QLabel {{
+                color: {c.get('window_text', '#ffffff')};
+                background-color: transparent;
+            }}
+            QPushButton {{
+                background-color: {c.get('player_button', '#3a3a3a')};
+                color: {c.get('window_text', '#ffffff')};
+                border: 1px solid {c.get('player_line', '#555')};
+                border-radius: {r}px;
+                padding: 4px 16px;
+                min-height: 24px;
+            }}
+            QPushButton:hover {{
+                background-color: {c.get('accent', '#4a9eff')};
+            }}
+        """)
         msg_box.exec()
         clicked = msg_box.clickedButton()
         if clicked == cancel_btn:
