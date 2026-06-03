@@ -12,10 +12,11 @@ class ReminderManagerDialog(FloatingDialog):
     reminder_removed = pyqtSignal(str)
 
     def __init__(self, main_window, parent=None):
-        super().__init__(parent, frameless=False, stay_on_top=False)
+        super().__init__(parent, frameless=True, stay_on_top=False)
         self.window = main_window
         tr = main_window.language_manager.tr
-        self.setWindowTitle(tr('reminder_manager', '提醒管理'))
+        self._title_text = tr('reminder_manager', '提醒管理')
+        self.setWindowTitle(self._title_text)
         self.setMinimumSize(500, 400)
         self._setup_ui()
         self._apply_theme()
@@ -66,16 +67,23 @@ class ReminderManagerDialog(FloatingDialog):
     def _setup_ui(self):
         tr = self.window.language_manager.tr
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(8, 0, 8, 8)
+        layout.setSpacing(0)
+
+        title_bar = FloatingDialog.create_dialog_title_bar(self._title_text, self)
+        layout.addWidget(title_bar)
+
+        content_layout = QVBoxLayout()
+        content_layout.setContentsMargins(12, 12, 12, 12)
+        content_layout.setSpacing(8)
 
         self.info_label = QLabel(tr('reminder_info', '提醒基于具体频道+节目+开始时间，节目开始前60秒触发通知'))
         self.info_label.setWordWrap(True)
-        layout.addWidget(self.info_label)
+        content_layout.addWidget(self.info_label)
 
         self.reminder_list = QListWidget()
         self.reminder_list.setSpacing(2)
-        layout.addWidget(self.reminder_list, 1)
+        content_layout.addWidget(self.reminder_list, 1)
 
         btn_row = QHBoxLayout()
         self.remove_btn = QPushButton(tr('remove_selected', '删除选中'))
@@ -87,7 +95,8 @@ class ReminderManagerDialog(FloatingDialog):
         btn_row.addWidget(self.clear_btn)
 
         btn_row.addStretch(1)
-        layout.addLayout(btn_row)
+        content_layout.addLayout(btn_row)
+        layout.addLayout(content_layout)
 
     def _load_reminders(self):
         self.reminder_list.clear()
