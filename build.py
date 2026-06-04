@@ -103,7 +103,7 @@ PYINSTALLER_CMD = [
     "--hidden-import", "ui.dialogs.about_dialog",
     "--hidden-import", "ui.dialogs.epg_timeline_dialog",
     "--hidden-import", "ui.dialogs.file_association_dialog",
-    "--hidden-import", "ui.dialogs.global_search_dialog",
+
     "--hidden-import", "ui.dialogs.mapping_manager_dialog",
     "--hidden-import", "ui.dialogs.scan_channel_dialog",
     "--hidden-import", "ui.dialogs.subscription_settings_dialog",
