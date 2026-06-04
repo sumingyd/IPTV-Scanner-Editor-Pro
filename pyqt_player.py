@@ -3327,7 +3327,9 @@ class IPTVPlayer(QMainWindow):
                 dock = getattr(self, dock_name, None)
                 if dock and dock.isVisible():
                     self._tray_hidden_docks.append(dock_name)
-                    dock.close()
+                    dock.blockSignals(True)
+                    dock.setFloating(False)
+                    dock.blockSignals(False)
             self.hide()
             tray = getattr(self, '_system_tray', None)
             if tray:
