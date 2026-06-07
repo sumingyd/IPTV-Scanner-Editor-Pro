@@ -119,6 +119,8 @@ class ScanChannelDialog(FloatingDialog):
                     if isinstance(w, interactive_types):
                         return
                     w = w.parent()
+                if hasattr(self, 'channel_list') and self.channel_list.selectionModel():
+                    self.channel_list.clearSelection()
         super().mousePressEvent(event)
 
     def reapply_styles(self):
