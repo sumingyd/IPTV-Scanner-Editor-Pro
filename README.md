@@ -15,6 +15,7 @@
 | ![](icons/4.png) | ![](icons/5.png) | ![](icons/6.png) |
 | ![](icons/7.png) | ![](icons/8.png) | ![](icons/9.png) |
 | ![](icons/10.png) | ![](icons/11.png) | ![](icons/12.png) |
+| ![](icons/13.png) | ![](icons/14.png) | ![](icons/15.png) |
 
 ## ✨ 核心功能
 
