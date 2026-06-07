@@ -1005,15 +1005,83 @@ class SettingsFileOperations:
         if dialog.exec() == QDialog.DialogCode.Accepted:
             url = url_input.text().strip()
             if url:
-                name = name_input.text().strip()
-                if not name:
-                    name = url.split('/')[-1][:30] if '/' in url else url[:30]
-                channel = {
-                    'name': name,
-                    'url': url,
-                    'group': tr("temp_stream", "临时串流"),
-                    '_groups': [tr("temp_stream", "临时串流")],
-                }
-                w._add_to_local_list(channel)
+                self._open_stream_by_content(url, name_input.text().strip())
                 w.config.add_recent_file(url)
                 w.update_recent_files_menu()
+
+    def _open_stream_by_content(self, url: str, custom_name: str = ''):
+        """根据URL内容自动判断是M3U列表还是单个串流"""
+        from core.log_manager import global_logger as logger
+        from services.m3u_parser import parse_m3u_content, load_m3u_from_url_data
+        from urllib.parse import urlparse
+        w = self.window
+        tr = w.language_manager.tr
+
+        path_lower = urlparse(url).path.lower()
+        maybe_m3u = path_lower.endswith(('.m3u', '.m3u8'))
+
+        if maybe_m3u:
+            try:
+                import requests
+                config = w.config
+                timeout = int(config.get_value('Network', 'timeout', '30') or 30)
+                headers = {}
+                user_agent = config.get_value('Network', 'user_agent', '')
+                referer = config.get_value('Network', 'referer', '')
+                if user_agent:
+                    headers['User-Agent'] = user_agent
+                if referer:
+                    headers['Referer'] = referer
+
+                response = requests.get(url, timeout=timeout, headers=headers,
+                                        allow_redirects=True, verify=False)
+                response.raise_for_status()
+                content = load_m3u_from_url_data(response.content)
+            except Exception as e:
+                logger.error(f"下载M3U列表失败: {e}")
+                if hasattr(w, 'status_bar_show_message'):
+                    w.status_bar_show_message(tr("m3u_download_failed", "M3U列表下载失败"))
+                return
+
+            if content.lstrip().startswith('#EXTM3U'):
+                try:
+                    channels, _ = parse_m3u_content(content)
+                except Exception as e:
+                    logger.error(f"解析M3U列表失败: {e}")
+                    return
+
+                if not channels:
+                    logger.warning("M3U列表解析结果为空")
+                    return
+
+                import copy
+                w.playlist_tab.setCurrentIndex(1)
+                for ch in channels:
+                    w._local_channels.append(copy.deepcopy(ch))
+                w._local_channels_dirty = True
+                w._update_groups_for('local')
+                w._populate_channel_list_for(
+                    w.local_channel_list, w._local_channels,
+                    w.local_group_combo.currentText()
+                )
+                logger.info(f"已从M3U列表加载 {len(channels)} 个频道到本地列表")
+                if hasattr(w, 'status_bar_show_message'):
+                    w.status_bar_show_message(
+                        tr("m3u_loaded_n_channels", "已加载 {n} 个频道").format(n=len(channels))
+                    )
+                if channels:
+                    w.current_channel = channels[0]
+                    w.update_channel_info_on_selection()
+                    w.play_channel(channels[0])
+                return
+
+        name = custom_name
+        if not name:
+            name = url.split('/')[-1][:30] if '/' in url else url[:30]
+        channel = {
+            'name': name,
+            'url': url,
+            'group': tr("temp_stream", "临时串流"),
+            '_groups': [tr("temp_stream", "临时串流")],
+        }
+        w._add_to_local_list(channel)
