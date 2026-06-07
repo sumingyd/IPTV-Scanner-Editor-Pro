@@ -25,6 +25,9 @@ class MultiScreenController(QObject):
 
     def enter_multi_screen(self, count: int = 4):
         if self._active:
+            if self._widget and self._widget.grid_count == count:
+                return
+            self._stop_all_cells()
             self._widget.set_layout(count)
             return
 
