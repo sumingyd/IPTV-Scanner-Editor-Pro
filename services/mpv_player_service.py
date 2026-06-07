@@ -173,7 +173,7 @@ class MpvPlayerController(QObject):
             _mpv_set_property_string(self.mpv_handle, 'osd-align-x', 'left')
             _mpv_set_property_string(self.mpv_handle, 'osd-align-y', 'top')
             self._apply_osd_colors()
-            _mpv_set_property_string(self.mpv_handle, 'log-level', 'error')
+            _mpv_set_property_string(self.mpv_handle, 'log-level', 'fatal')
             _mpv_set_property_string(self.mpv_handle, 'no-window-dragging', 'yes')
             _mpv_set_property_string(self.mpv_handle, 'window-scale', '1.0')
             _mpv_set_property_string(self.mpv_handle, 'border', 'no')
