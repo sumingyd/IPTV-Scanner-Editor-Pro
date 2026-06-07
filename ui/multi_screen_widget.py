@@ -410,9 +410,11 @@ class MultiScreenWidget(QWidget):
         if count == self._grid_count:
             return
         self._grid_count = count
-        for cell in self._cells:
+        old_cells = list(self._cells)
+        for cell in old_cells:
             self._grid_layout.removeWidget(cell)
             cell.setParent(None)
+            cell.deleteLater()
         self._build_cells(count)
         self.layout_changed.emit(count)
 
