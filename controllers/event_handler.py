@@ -542,6 +542,22 @@ class EventHandler:
                     except Exception:
                         pass
 
+        # 7.5 断开控制器与主窗口的引用循环
+        controller_attrs = [
+            'window_ctrl', 'playback_ctrl', 'epg_ctrl', 'channel_ctrl',
+            'settings_ops', 'ui_ctrl', 'subscription_ctrl', 'subscription_ui_ctrl',
+            'catchup_ctrl', 'pip_ctrl', 'media_ctrl', 'update_ctrl',
+            'favorites_ctrl', 'epg_reminder_ctrl', 'event_handler',
+        ]
+        for attr in controller_attrs:
+            ctrl = getattr(self.window, attr, None)
+            if ctrl is not None:
+                try:
+                    if hasattr(ctrl, 'window'):
+                        ctrl.window = None
+                except Exception:
+                    pass
+
         # 8. 退出应用
         event.accept()
 
