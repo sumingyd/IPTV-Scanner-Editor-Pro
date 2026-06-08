@@ -1,7 +1,7 @@
 import os
 from typing import Dict, Any, Optional
 from PyQt6.QtGui import QIcon
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, Qt
 from core.play_state import PlayMode
 from core.log_manager import global_logger as logger
 from controllers.main_window_protocol import MainWindowProtocol
@@ -301,7 +301,7 @@ class PlaybackController:
                     continue
                 item = channel_list.item(adj_row)
                 if item:
-                    ch_data = item.data(256)
+                    ch_data = item.data(Qt.ItemDataRole.UserRole)
                     if ch_data and isinstance(ch_data, dict):
                         adj_url = ch_data.get('url', '')
                         if adj_url:
