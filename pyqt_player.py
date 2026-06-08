@@ -2980,7 +2980,7 @@ class IPTVPlayer(QMainWindow):
             logger.error(f"在主线程更新UI失败: {ex}")
 
     @pyqtSlot()
-    @pyqtSlot()
+
     def _do_show_status_bar_message(self):
         msg = getattr(self, '_pending_status_bar_msg', '')
         self._pending_status_bar_msg = None
