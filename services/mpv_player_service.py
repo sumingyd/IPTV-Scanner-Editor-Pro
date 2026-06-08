@@ -26,6 +26,7 @@ from services.mpv_common import (
     terminate_destroy_mpv,
     set_property_string as _mpv_set_property_string,
     set_property_int64 as _mpv_set_property_int64,
+    set_option_string as _mpv_set_option_string,
     send_command as _mpv_send_command,
     observe_property as _mpv_observe_property,
     wait_for_event as _mpv_wait_event,
