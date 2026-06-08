@@ -207,6 +207,10 @@ class MpvStreamValidator:
             event_data = None
             deadline = time.time() + timeout
             while time.time() < deadline:
+                if self._terminating:
+                    result['error'] = '验证器正在关闭'
+                    result['error_type'] = 'terminating'
+                    break
                 evt = wait_for_event(handle, 0.05)
                 if evt:
                     eid = evt.event_id
