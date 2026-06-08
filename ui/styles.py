@@ -2251,7 +2251,7 @@ class AppStyles:
             QListWidget::item {{
                 padding: 2px 4px;
                 min-height: 26px;
-                border: 1px solid transparent;
+                border: none;
                 border-radius: {list_r}px;
             }}
             QListWidget::item:selected {{
@@ -2260,7 +2260,7 @@ class AppStyles:
                 color: {colors['highlighted_text']};
             }}
             QListWidget::item:hover {{
-                border: 1px solid {colors['player_line']};
+
                 background-color: {colors['highlight']};
             }}
         """
