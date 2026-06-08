@@ -5,6 +5,7 @@
 
 from typing import Dict, Any
 from datetime import datetime
+from collections import deque
 
 from PyQt6.QtWidgets import QListWidgetItem, QListWidget
 from PyQt6.QtCore import Qt, QSize, QTimer
@@ -170,7 +171,7 @@ class ChannelController:
         w = self.window
 
         if not hasattr(w, '_icon_load_queue'):
-            w._icon_load_queue = []
+            w._icon_load_queue = deque()
             w._icon_load_set = set()
             w._icon_load_timer = QTimer(w)
             w._icon_load_timer.setInterval(16)

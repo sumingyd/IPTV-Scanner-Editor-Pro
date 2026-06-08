@@ -1827,7 +1827,7 @@ class IPTVPlayer(QMainWindow):
                 if hasattr(self, '_icon_load_set'):
                     self._icon_load_set.clear()
                 break
-            task = self._icon_load_queue.pop(0)
+            task = self._icon_load_queue.popleft()
             try:
                 kind = task[0]
                 if kind == 'grid_thumb':
