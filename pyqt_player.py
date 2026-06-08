@@ -926,6 +926,7 @@ class IPTVPlayer(QMainWindow):
         ]
         for icon_name, tooltip, tab_idx in tab_configs:
             btn = QToolButton()
+            btn.style_type = 'tab_switch'
             icon_path = AppStyles.get_icon(icon_name, tab_icon_color, 14)
             if icon_path:
                 btn.setIcon(QIcon(icon_path))
@@ -1011,6 +1012,7 @@ class IPTVPlayer(QMainWindow):
 
         from ui.multi_screen_widget import DraggableChannelListWidget
         self.sub_channel_list = DraggableChannelListWidget()
+        self.sub_channel_list.style_type = 'player'
         self.sub_channel_list.setStyleSheet(AppStyles.player_list_style())
         self.sub_channel_list.setSpacing(2)
         self.sub_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -1073,6 +1075,7 @@ class IPTVPlayer(QMainWindow):
         local_layout.addLayout(local_search_row)
 
         self.local_channel_list = DraggableChannelListWidget()
+        self.local_channel_list.style_type = 'player'
         self.local_channel_list.setStyleSheet(AppStyles.player_list_style())
         self.local_channel_list.setSpacing(2)
         self.local_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -1098,6 +1101,7 @@ class IPTVPlayer(QMainWindow):
         fav_layout.setSpacing(4)
 
         self.fav_channel_list = DraggableChannelListWidget()
+        self.fav_channel_list.style_type = 'player'
         self.fav_channel_list.setStyleSheet(AppStyles.player_list_style())
         self.fav_channel_list.setSpacing(2)
         self.fav_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -1119,6 +1123,7 @@ class IPTVPlayer(QMainWindow):
         history_layout.setSpacing(4)
 
         self.history_channel_list = DraggableChannelListWidget()
+        self.history_channel_list.style_type = 'player'
         self.history_channel_list.setStyleSheet(AppStyles.player_list_style())
         self.history_channel_list.setSpacing(2)
         self.history_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)

@@ -48,7 +48,7 @@ class FloatingDockWidget(QDockWidget):
 
     _RESIZE_MARGIN = 6
 
-    def __init__(self, title, parent=None, opacity=160):
+    def __init__(self, title, parent=None, opacity=130):
         super().__init__(title, parent)
         self._opacity = opacity
         self._base_title = title
@@ -218,6 +218,11 @@ class FloatingDockWidget(QDockWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        if AppStyles._visual_style == 'frosted':
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+            painter.fillRect(self.rect(), QColor(0, 0, 0, 0))
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+
         path = QPainterPath()
         rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
         corner_r = AppStyles._get_style_border_radius()
@@ -372,6 +377,11 @@ class FloatingDialog(QDialog):
         colors = AppStyles._get_colors()
         neo = AppStyles.is_neumorphic()
         is_frosted = AppStyles._visual_style == 'frosted'
+
+        if is_frosted:
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+            painter.fillRect(self.rect(), QColor(0, 0, 0, 0))
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
         path = QPainterPath()
         rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
