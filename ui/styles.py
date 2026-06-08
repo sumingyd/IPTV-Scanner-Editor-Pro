@@ -428,7 +428,7 @@ class AppStyles:
             'player_cache_bar': 'rgba(76, 175, 80, 0.4)',
             'player_volume_track': '#444444',
             'player_video_placeholder': '#1a1a1a',
-            'window_opacity': 220,
+            'window_opacity': 180,
             'shadow_light': 'rgba(255,255,255,0.05)',
             'shadow_dark': 'rgba(0,0,0,0.4)',
             'neumorphic_light': '#323232',
@@ -489,7 +489,7 @@ class AppStyles:
             'player_cache_bar': 'rgba(42, 110, 255, 0.35)',
             'player_volume_track': '#d0d0d0',
             'player_video_placeholder': '#e0e0e0',
-            'window_opacity': 240,
+            'window_opacity': 200,
             'shadow_light': 'rgba(255,255,255,0.8)',
             'shadow_dark': 'rgba(0,0,0,0.12)',
             'neumorphic_light': '#ffffff',
@@ -2240,27 +2240,24 @@ class AppStyles:
     @staticmethod
     def player_list_style() -> str:
         colors = AppStyles._get_colors()
-        list_r = AppStyles._get_scaled_radius('list_item')
         return f"""
             QListWidget {{
                 background-color: transparent;
                 color: {colors['player_panel_text']};
                 border: none;
                 padding: 2px;
+                outline: none;
             }}
             QListWidget::item {{
                 padding: 2px 4px;
                 min-height: 26px;
                 border: none;
-                border-radius: {list_r}px;
             }}
             QListWidget::item:selected {{
-                border: 1px solid {colors['player_accent']};
                 background-color: {colors['highlight']};
                 color: {colors['highlighted_text']};
             }}
             QListWidget::item:hover {{
-
                 background-color: {colors['highlight']};
             }}
         """

@@ -932,10 +932,24 @@ class IPTVPlayer(QMainWindow):
             btn.setIconSize(btn_icon_size)
             btn.setText(tooltip)
             btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-            btn.setFixedHeight(22)
-            btn.setMinimumWidth(0)
+            btn.setFixedHeight(20)
             btn.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
-            btn.setStyleSheet(AppStyles.player_button_style())
+            btn.setStyleSheet(f"""
+                QToolButton {{
+                    color: {tab_icon_color};
+                    background: transparent;
+                    border: none;
+                    padding: 1px 3px;
+                    font-size: 11px;
+                }}
+                QToolButton:checked {{
+                    color: {AppStyles._get_colors().get('accent', AppStyles._safe_fallback('accent'))};
+                    font-weight: bold;
+                }}
+                QToolButton:hover {{
+                    color: {AppStyles._get_colors().get('accent', AppStyles._safe_fallback('accent'))};
+                }}
+            """)
             btn.setToolTip(tooltip)
             btn.setCheckable(True)
             btn.setChecked(tab_idx == 0)

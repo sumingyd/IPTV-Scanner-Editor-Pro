@@ -48,7 +48,7 @@ class FloatingDockWidget(QDockWidget):
 
     _RESIZE_MARGIN = 6
 
-    def __init__(self, title, parent=None, opacity=180):
+    def __init__(self, title, parent=None, opacity=160):
         super().__init__(title, parent)
         self._opacity = opacity
         self._base_title = title
@@ -70,6 +70,7 @@ class FloatingDockWidget(QDockWidget):
             flags = Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool
             if self.parent() and (self.parent().windowFlags() & Qt.WindowType.WindowStaysOnTopHint):
                 flags |= Qt.WindowType.WindowStaysOnTopHint
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             self.setWindowFlags(flags)
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             self.show()
