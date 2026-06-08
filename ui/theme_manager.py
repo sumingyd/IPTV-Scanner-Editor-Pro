@@ -132,39 +132,38 @@ class ThemeManager(Singleton, QtCore.QObject):
                     ctypes.byref(value), ctypes.sizeof(value)
                 )
             except Exception:
-                pass
-            try:
-                import ctypes
-                hwnd = int(window.winId())
-                ACCENT_ENABLE_ACRYLICBLURBEHIND = 4
-                accent_policy = ctypes.c_int * 4
-                data = accent_policy(ACCENT_ENABLE_ACRYLICBLURBEHIND, 0, 0, 0)
-                DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-                dark = ctypes.c_int(1 if AppStyles._get_effective_color_mode() == 'dark' else 0)
-                ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                    hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
-                    ctypes.byref(dark), ctypes.sizeof(dark)
-                )
-                class ACCENT_POLICY(ctypes.Structure):
-                    _fields_ = [
-                        ('AccentState', ctypes.c_int),
-                        ('AccentFlags', ctypes.c_int),
-                        ('GradientColor', ctypes.c_uint),
-                        ('AnimationId', ctypes.c_int),
-                    ]
-                class WINDOWCOMPOSITIONATTRIBDATA(ctypes.Structure):
-                    _fields_ = [
-                        ('Attrib', ctypes.c_int),
-                        ('pvData', ctypes.POINTER(ACCENT_POLICY)),
-                        ('cbData', ctypes.c_size_t),
-                    ]
-                WCA_ACCENT_POLICY = 19
-                gradient_color = 0x00000000 if AppStyles._get_effective_color_mode() == 'dark' else 0x00000000
-                accent = ACCENT_POLICY(ACCENT_ENABLE_ACRYLICBLURBEHIND, 2, gradient_color, 0)
-                data = WINDOWCOMPOSITIONATTRIBDATA(WCA_ACCENT_POLICY, ctypes.pointer(accent), ctypes.sizeof(accent))
-                ctypes.windll.user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(data))
-            except Exception:
-                pass
+                try:
+                    ACCENT_ENABLE_ACRYLICBLURBEHIND = 4
+                    accent_policy = ctypes.c_int * 4
+                    data = accent_policy(ACCENT_ENABLE_ACRYLICBLURBEHIND, 0, 0, 0)
+                    DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+                    dark = ctypes.c_int(1 if AppStyles._get_effective_color_mode() == 'dark' else 0)
+                    ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                        hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
+                        ctypes.byref(dark), ctypes.sizeof(dark)
+                    )
+                    class ACCENT_POLICY(ctypes.Structure):
+                        _fields_ = [
+                            ('AccentState', ctypes.c_int),
+                            ('AccentFlags', ctypes.c_int),
+                            ('GradientColor', ctypes.c_uint),
+                            ('AnimationId', ctypes.c_int),
+                        ]
+                    class WINDOWCOMPOSITIONATTRIBDATA(ctypes.Structure):
+                        _fields_ = [
+                            ('Attrib', ctypes.c_int),
+                            ('pvData', ctypes.POINTER(ACCENT_POLICY)),
+                            ('cbData', ctypes.c_size_t),
+                        ]
+                    WCA_ACCENT_POLICY = 19
+                    gradient_color = 0x00000000
+                    accent = ACCENT_POLICY(ACCENT_ENABLE_ACRYLICBLURBEHIND, 2, gradient_color, 0)
+                    data = WINDOWCOMPOSITIONATTRIBDATA(WCA_ACCENT_POLICY, ctypes.pointer(accent), ctypes.sizeof(accent))
+                    ctypes.windll.user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(data))
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     def _disable_dwm_blur(self, window):
         if not self._is_windows():
