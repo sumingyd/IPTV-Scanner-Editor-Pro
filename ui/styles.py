@@ -2137,6 +2137,7 @@ class AppStyles:
     @staticmethod
     def player_tab_style() -> str:
         colors = AppStyles._get_colors()
+        tab_r = AppStyles._get_scaled_radius('tab')
         return f"""
             QTabWidget::pane {{
                 border: none;
@@ -2148,8 +2149,8 @@ class AppStyles:
                 padding: 5px 10px;
                 border: 1px solid {colors['player_line']};
                 border-bottom: none;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
+                border-top-left-radius: {tab_r}px;
+                border-top-right-radius: {tab_r}px;
                 font-size: 11px;
                 min-width: 90px;
             }}
