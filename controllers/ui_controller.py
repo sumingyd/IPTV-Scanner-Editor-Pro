@@ -421,7 +421,7 @@ class UIController:
             if self.window.status_bar:
                 self.window.status_bar.setStyleSheet(AppStyles.statusbar_style())
             if self.window.toolbar:
-                self.window.toolbar.setStyleSheet(AppStyles.player_toolbar_style())
+                self.window.toolbar.setStyleSheet(AppStyles.player_menu_bar_style())
 
             for panel_attr in ['epg_dock', 'playlist_dock', 'floating_dock']:
                 dock = getattr(self.window, panel_attr, None)

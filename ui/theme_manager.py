@@ -208,7 +208,7 @@ class ThemeManager(Singleton, QtCore.QObject):
                 ('video_frame', AppStyles.player_background_style),
                 ('video_placeholder', AppStyles.player_video_placeholder_style),
                 ('status_bar', AppStyles.statusbar_style),
-                ('toolbar', AppStyles.player_toolbar_style),
+                ('toolbar', AppStyles.player_menu_bar_style),
             ]:
                 widget = getattr(window, attr, None)
                 if widget:

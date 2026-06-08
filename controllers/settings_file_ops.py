@@ -586,7 +586,7 @@ class SettingsFileOperations:
             ('video_frame', AppStyles.player_background_style),
             ('video_placeholder', AppStyles.player_video_placeholder_style),
             ('status_bar', AppStyles.statusbar_style),
-            ('toolbar', AppStyles.player_toolbar_style),
+            ('toolbar', AppStyles.player_menu_bar_style),
         ]:
             widget = getattr(w, attr, None)
             if widget:

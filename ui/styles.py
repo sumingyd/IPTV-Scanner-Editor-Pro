@@ -1856,7 +1856,7 @@ class AppStyles:
     @staticmethod
     def player_button_style() -> str:
         colors = AppStyles._get_colors()
-        r = AppStyles._get_style_border_radius()
+        r = min(AppStyles._get_style_border_radius(), 6)
         style = AppStyles._visual_style
         btn_dec = AppStyles._style_btn_decoration(colors)
         btn_dec_hover = AppStyles._style_btn_decoration(colors, hover=True)
