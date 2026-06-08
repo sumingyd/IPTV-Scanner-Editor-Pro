@@ -151,10 +151,17 @@ class MediaController:
 
             pc.send_command(['screenshot-to-file', filepath, 'video'])
 
-            clipboard = QApplication.clipboard()
-            pixmap = QPixmap(filepath)
-            if not pixmap.isNull():
-                clipboard.setPixmap(pixmap)
+            def _copy_to_clipboard():
+                try:
+                    clipboard = QApplication.clipboard()
+                    pixmap = QPixmap(filepath)
+                    if not pixmap.isNull():
+                        clipboard.setPixmap(pixmap)
+                except Exception:
+                    pass
+
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(500, _copy_to_clipboard)
 
             self.window.status_bar_show_message(
                 f"{self.window.language_manager.tr('screenshot_saved', 'Screenshot saved')}: {filename}")
