@@ -222,7 +222,7 @@ class ThemeManager(Singleton, QtCore.QObject):
                 if panel:
                     container = panel.widget()
                     if container and hasattr(container, 'setStyleSheet'):
-                        container.setStyleSheet(AppStyles.player_panel_style())
+                        container.setStyleSheet("background-color: transparent;")
                     panel.update()
 
             if hasattr(window, '_reapply_floating_panel_styles'):
@@ -331,7 +331,7 @@ class ThemeManager(Singleton, QtCore.QObject):
             ),
             QtWidgets.QTableView: lambda w: AppStyles.list_style(),
             QtWidgets.QTableWidget: lambda w: AppStyles.list_style(),
-            QtWidgets.QListWidget: lambda w: AppStyles.player_list_style() if hasattr(w, 'style_type') and w.style_type == 'player' else AppStyles.list_style(),
+            QtWidgets.QListWidget: lambda w: AppStyles.player_list_style(),
             QtWidgets.QStatusBar: lambda w: AppStyles.statusbar_style(),
             QtWidgets.QTabWidget: lambda w: AppStyles.tab_widget_style(),
             QtWidgets.QToolButton: lambda w: None if hasattr(w, 'style_type') else AppStyles.toolbar_button_style(),

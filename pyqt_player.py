@@ -811,7 +811,7 @@ class IPTVPlayer(QMainWindow):
         # EPG 面板内容容器（保持原有UI不变）
         epg_container = QWidget()
         epg_container.setObjectName("panelContainer")
-        epg_container.setStyleSheet(AppStyles.player_panel_style())
+        epg_container.setStyleSheet("background-color: transparent;")
         epg_container.setMinimumWidth(200)
         self.epg_layout = QVBoxLayout(epg_container)
         self.epg_layout.setContentsMargins(0, 0, 0, 0)
@@ -902,7 +902,7 @@ class IPTVPlayer(QMainWindow):
 
         playlist_container = QWidget()
         playlist_container.setObjectName("panelContainer")
-        playlist_container.setStyleSheet(AppStyles.player_panel_style())
+        playlist_container.setStyleSheet("background-color: transparent;")
         playlist_container.setMinimumWidth(200)
         self.playlist_layout = QVBoxLayout(playlist_container)
         self.playlist_layout.setContentsMargins(6, 6, 6, 6)
@@ -1239,7 +1239,7 @@ class IPTVPlayer(QMainWindow):
         # 控制面板内容容器
         floating_container = QWidget()
         floating_container.setObjectName("panelContainer")
-        floating_container.setStyleSheet(AppStyles.player_panel_style())
+        floating_container.setStyleSheet("background-color: transparent;")
         floating_container.setMinimumHeight(120)
         floating_container.setMinimumWidth(480)
         floating_container.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
