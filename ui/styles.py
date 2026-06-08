@@ -1813,9 +1813,7 @@ class AppStyles:
             * {{
                 font-family: {ff};
             }}
-            QWidget {{
-                background-color: transparent;
-            }}
+
             QLabel {{
                 color: {colors['player_panel_text']};
                 background-color: transparent;
