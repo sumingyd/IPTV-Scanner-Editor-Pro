@@ -143,6 +143,8 @@ class SettingsFileOperations:
 
         main_layout.addWidget(self._build_protocol_section(tr, playback_settings))
 
+        main_layout.addWidget(self._build_close_behavior_section(tr))
+
         playlist_section = self._build_subscription_section(tr, 'playlist', playback=False)
         epg_section = self._build_subscription_section(tr, 'epg', playback=False)
 
@@ -196,6 +198,30 @@ class SettingsFileOperations:
         dialog.resize(800, 520)
         dialog.setStyleSheet(AppStyles.dialog_style())
         return dialog
+
+    def _build_close_behavior_section(self, tr):
+        group = QGroupBox(tr("close_behavior_settings", "关闭行为"))
+        layout = QFormLayout()
+
+        close_combo = QComboBox()
+        close_combo.setObjectName("close_behavior_combo")
+        close_combo.addItem(tr("close_behavior_ask", "每次询问"), "ask")
+        close_combo.addItem(tr("close_minimize_tray", "最小化到托盘"), "minimize_tray")
+        close_combo.addItem(tr("close_exit", "直接退出"), "exit")
+
+        config = self.window.config
+        if config:
+            saved = config.load_close_behavior()
+            if saved == 'minimize_tray':
+                close_combo.setCurrentIndex(1)
+            elif saved == 'exit':
+                close_combo.setCurrentIndex(2)
+            else:
+                close_combo.setCurrentIndex(0)
+
+        layout.addRow(tr("close_action_label", "关闭窗口时:"), close_combo)
+        group.setLayout(layout)
+        return group
 
     def _build_protocol_section(self, tr, playback_settings):
         group = QGroupBox(tr("protocol_settings", "Protocol Settings"))
@@ -391,6 +417,7 @@ class SettingsFileOperations:
                 global_subscription_manager._config.save_epg_sources(new_epg)
 
             self._save_intervals(dialog)
+            self._save_close_behavior(dialog)
             self._apply_playback_settings(new_playback)
 
             playlist_changed, new_active_index = self._check_playlist_changed(old_playlist, new_playlist, old_active_index)
@@ -443,6 +470,15 @@ class SettingsFileOperations:
             combo = dialog.findChild(QComboBox, f"{prefix}_interval_combo")
             if combo and self.window.config:
                 self.window.config.set_value(section, 'update_interval', combo.currentText())
+
+    def _save_close_behavior(self, dialog):
+        combo = dialog.findChild(QComboBox, "close_behavior_combo")
+        if combo and self.window.config:
+            action = combo.currentData()
+            if action == 'ask':
+                self.window.config.clear_close_behavior()
+            else:
+                self.window.config.save_close_behavior(action)
 
     def _apply_playback_settings(self, new_playback):
         if not new_playback or not self.window.config:
