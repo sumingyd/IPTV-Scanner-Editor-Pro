@@ -689,7 +689,7 @@ class IPTVPlayer(QMainWindow):
         # 工具栏（暂时隐藏，等需要时再显示）
         self.toolbar = self.addToolBar("播放控制")
         if self.toolbar:
-            self.toolbar.setStyleSheet(AppStyles.player_toolbar_style())
+            self.toolbar.setStyleSheet(AppStyles.player_menu_bar_style())
             self.toolbar.hide()
         
         logger.debug("_create_tool_bar: 完成")
