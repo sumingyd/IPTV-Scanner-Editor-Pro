@@ -3,6 +3,7 @@ import hashlib
 import time
 import json
 import threading
+from collections import OrderedDict
 from PyQt6.QtCore import QObject, pyqtSignal, QUrl, QTimer, Qt, QBuffer, QIODevice, QThread
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from PyQt6.QtGui import QPixmap, QImage
@@ -70,7 +71,7 @@ class LogoCacheService(ThreadSafeQObject):
         os.makedirs(self._cache_dir, exist_ok=True)
         self._meta_path = os.path.join(self._cache_dir, self.META_FILE)
         self._meta = self._load_meta()
-        self._image_cache = {}
+        self._image_cache = OrderedDict()
         self._negative_cache = {}
         self._lock = threading.Lock()
         self._network_manager = QNetworkAccessManager(self)
@@ -189,6 +190,7 @@ class LogoCacheService(ThreadSafeQObject):
                     return None
                 del self._negative_cache[url]
             if url in self._image_cache:
+                self._image_cache.move_to_end(url)
                 return self._image_to_pixmap(self._image_cache[url])
 
         key = self._url_to_key(url)
@@ -210,6 +212,9 @@ class LogoCacheService(ThreadSafeQObject):
             if image.load(disk_path):
                 with self._lock:
                     self._image_cache[url] = image
+                    self._image_cache.move_to_end(url)
+                    while len(self._image_cache) > self.MAX_CACHE_SIZE:
+                        self._image_cache.popitem(last=False)
                 return self._image_to_pixmap(image)
         return None
 
@@ -223,6 +228,7 @@ class LogoCacheService(ThreadSafeQObject):
                     return None
                 del self._negative_cache[url]
             if url in self._image_cache:
+                self._image_cache.move_to_end(url)
                 return QImage(self._image_cache[url])
 
         key = self._url_to_key(url)
@@ -238,6 +244,9 @@ class LogoCacheService(ThreadSafeQObject):
             if image.load(disk_path):
                 with self._lock:
                     self._image_cache[url] = image
+                    self._image_cache.move_to_end(url)
+                    while len(self._image_cache) > self.MAX_CACHE_SIZE:
+                        self._image_cache.popitem(last=False)
                 return QImage(image)
         return None
 
@@ -258,6 +267,9 @@ class LogoCacheService(ThreadSafeQObject):
 
         with self._lock:
             self._image_cache[url] = image
+            self._image_cache.move_to_end(url)
+            while len(self._image_cache) > self.MAX_CACHE_SIZE:
+                self._image_cache.popitem(last=False)
         key = self._url_to_key(url)
 
         old_path = self._find_disk_path(key)
