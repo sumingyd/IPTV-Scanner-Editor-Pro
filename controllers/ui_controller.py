@@ -879,7 +879,7 @@ class UIController:
                     btn.setIcon(QIcon(AppStyles.get_icon(icon_name, btn_color)))
             play_btn = getattr(self.window, 'play_button', None)
             if play_btn:
-                is_paused = hasattr(self.window, 'player_controller') and hasattr(self.window.player_controller, 'player') and self.window.player_controller.player.pause
+                is_paused = hasattr(self.window, 'player_controller') and getattr(self.window.player_controller, 'is_paused', False)
                 play_icon = 'pause' if is_paused else 'play'
                 play_btn.setIcon(QIcon(AppStyles.get_icon(play_icon, btn_color)))
             if hasattr(self.window, 'exit_catchup_button'):
