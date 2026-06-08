@@ -373,6 +373,8 @@ class EventHandler:
 
     def changeEvent(self, event):
         """窗口状态变化事件"""
+        if not self.window:
+            return
         if hasattr(self.window, 'changeEvent'):
             try:
                 from PyQt6.QtWidgets import QMainWindow
@@ -381,7 +383,7 @@ class EventHandler:
                 pass
 
         if event.type() == QEvent.Type.ActivationChange:
-            if self.window.isActiveWindow():
+            if self.window and self.window.isActiveWindow():
                 if not getattr(self.window, 'pip_mode', False):
                     if hasattr(self.window, 'raise_floating_panels'):
                         self.window.raise_floating_panels()
