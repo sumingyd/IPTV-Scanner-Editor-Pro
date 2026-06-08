@@ -667,6 +667,10 @@ class AppStyles:
             c['tooltip_base'] = 'rgba(32, 36, 48, 0.85)'
             c['backdrop_tint'] = 'rgba(0, 20, 40, 0.3)'
             c['frosted_opacity'] = 0.78
+            c['frosted_border'] = 'rgba(255,255,255,0.1)'
+            c['frosted_border_mid'] = 'rgba(255,255,255,0.15)'
+            c['frosted_border_strong'] = 'rgba(255,255,255,0.2)'
+            c['frosted_border_focus'] = 'rgba(255,255,255,0.3)'
             c['accent'] = '#40a0e0'
             c['accent_hover'] = '#3090d0'
             c['accent_pressed'] = '#2080c0'
@@ -687,6 +691,10 @@ class AppStyles:
             c['tooltip_base'] = 'rgba(250, 252, 255, 0.85)'
             c['backdrop_tint'] = 'rgba(200, 220, 255, 0.2)'
             c['frosted_opacity'] = 0.82
+            c['frosted_border'] = 'rgba(0,0,0,0.06)'
+            c['frosted_border_mid'] = 'rgba(0,0,0,0.1)'
+            c['frosted_border_strong'] = 'rgba(0,0,0,0.12)'
+            c['frosted_border_focus'] = 'rgba(0,0,0,0.2)'
             c['accent'] = '#2080c0'
             c['accent_hover'] = '#1870b0'
             c['accent_pressed'] = '#1060a0'
@@ -952,7 +960,7 @@ class AppStyles:
                 f"border-right-color: {c.get('border_3d_light', c['shadow_light'])};"
             )
         if cls._visual_style == 'frosted':
-            return f"border: 1px solid rgba(255,255,255,0.15);"
+            return f"border: 1px solid {c.get('frosted_border_mid', c['mid'])};"
         if cls._visual_style == 'win11':
             return f"border: 1px solid {c.get('border_thin', c['mid'])};"
         if cls._visual_style == 'mac':
@@ -981,7 +989,7 @@ class AppStyles:
                 f"border-right-color: {c.get('border_3d_dark', c['shadow_dark'])};"
             )
         if cls._visual_style == 'frosted':
-            return f"border: 1px solid rgba(255,255,255,0.2);"
+            return f"border: 1px solid {c.get('frosted_border_strong', c['mid'])};"
         if cls._visual_style == 'win11':
             return f"border: 1px solid {c.get('border_thin', c['mid'])};"
         if cls._visual_style == 'mac':
@@ -1023,7 +1031,7 @@ class AppStyles:
             elif style == 'skeuomorphic':
                 return f"background-color: {c.get('gradient_end', c['dark'])}; border: 2px inset {c.get('border_3d_dark', c['mid'])}; border-radius: {r}px;"
             elif style == 'frosted':
-                return f"background-color: {c['dark']}; border: 1px solid rgba(255,255,255,0.15); border-radius: {r}px;"
+                return f"background-color: {c['dark']}; border: 1px solid {c.get('frosted_border_mid', c['mid'])}; border-radius: {r}px;"
             elif style == 'win11':
                 return f"background-color: {c['dark']}; border: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {r}px;"
             elif style == 'mac':
@@ -1037,7 +1045,7 @@ class AppStyles:
             elif style == 'skeuomorphic':
                 return f"background-color: {c.get('gradient_start', c['light'])}; border: 2px outset {ac}; border-radius: {r}px;"
             elif style == 'frosted':
-                return f"background-color: {c['light']}; border: 1px solid rgba(255,255,255,0.2); border-radius: {r}px;"
+                return f"background-color: {c['light']}; border: 1px solid {c.get('frosted_border_strong', c['mid'])}; border-radius: {r}px;"
             elif style == 'win11':
                 return f"background-color: {c['light']}; border: 1px solid {ac}; border-radius: {r}px;"
             elif style == 'mac':
@@ -1050,7 +1058,7 @@ class AppStyles:
         elif style == 'skeuomorphic':
             return f"background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c.get('gradient_start', c['light'])}, stop:1 {c['button']}); border: 2px outset {c.get('border_3d_light', c['mid'])}; border-radius: {r}px;"
         elif style == 'frosted':
-            return f"background-color: {c['button']}; border: 1px solid rgba(255,255,255,0.1); border-radius: {r}px;"
+            return f"background-color: {c['button']}; border: 1px solid {c.get('frosted_border', c['mid'])}; border-radius: {r}px;"
         elif style == 'win11':
             return f"background-color: {c['button']}; border: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {r}px;"
         elif style == 'mac':
@@ -1072,7 +1080,7 @@ class AppStyles:
             elif style == 'skeuomorphic':
                 return f"border: 2px solid {c['accent']}; border-radius: {r}px; outline: none;"
             elif style == 'frosted':
-                return f"border: 1px solid rgba(255,255,255,0.3); border-radius: {r}px; outline: none;"
+                return f"border: 1px solid {c.get('frosted_border_focus', c['mid'])}; border-radius: {r}px; outline: none;"
             elif style == 'win11':
                 return f"border: 1px solid {c.get('border_thin', c['mid'])}; border-bottom: 2px solid {c['accent']}; border-radius: {r}px; outline: none;"
             elif style == 'mac':
@@ -1085,7 +1093,7 @@ class AppStyles:
         elif style == 'skeuomorphic':
             return f"background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c.get('gradient_start', c['light'])}, stop:1 {c['alternate_base']}); border: 2px inset {c.get('border_3d_dark', c['mid'])}; border-radius: {r}px;"
         elif style == 'frosted':
-            return f"background-color: {c['alternate_base']}; border: 1px solid rgba(255,255,255,0.1); border-radius: {r}px;"
+            return f"background-color: {c['alternate_base']}; border: 1px solid {c.get('frosted_border', c['mid'])}; border-radius: {r}px;"
         elif style == 'win11':
             return f"background-color: {c['alternate_base']}; border: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {r}px; border-bottom: 2px solid {c['accent']};"
         elif style == 'mac':
@@ -1104,7 +1112,7 @@ class AppStyles:
         elif style == 'skeuomorphic':
             return f"background-color: {c['alternate_base']}; border: 2px outset {c.get('border_3d_light', c['mid'])}; border-radius: {r}px;"
         elif style == 'frosted':
-            return f"background-color: {c['alternate_base']}; border: 1px solid rgba(255,255,255,0.1); border-radius: {r}px;"
+            return f"background-color: {c['alternate_base']}; border: 1px solid {c.get('frosted_border', c['mid'])}; border-radius: {r}px;"
         elif style == 'win11':
             return f"background-color: {c.get('card_color', c['alternate_base'])}; border: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {r}px;"
         elif style == 'mac':
@@ -1125,7 +1133,7 @@ class AppStyles:
         elif style == 'skeuomorphic':
             return f"background-color: {c['base']}; padding: {menu_pad}px; border: 2px outset {c.get('border_3d_light', c['mid'])}; border-radius: {menu_r}px;"
         elif style == 'frosted':
-            return f"background-color: {c['base']}; padding: {menu_pad}px; border: 1px solid rgba(255,255,255,0.1); border-radius: {menu_r}px;"
+            return f"background-color: {c['base']}; padding: {menu_pad}px; border: 1px solid {c.get('frosted_border', c['mid'])}; border-radius: {menu_r}px;"
         elif style == 'win11':
             return f"background-color: {c['base']}; padding: {menu_pad}px; border: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {menu_r}px;"
         elif style == 'mac':
@@ -1160,8 +1168,8 @@ class AppStyles:
             groove = f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c.get('gradient_start', c['light'])}, stop:1 {c.get('gradient_end', c['dark'])}); height: {groove_h}px; border: 1px inset {c.get('border_3d_dark', c['mid'])}; border-radius: {r}px;"
             handle = f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c.get('gradient_start', c['light'])}, stop:1 {c['button']}); width: {handle_size}px; height: {handle_size}px; border: 2px outset {c.get('border_3d_light', c['mid'])}; border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
         elif style == 'frosted':
-            groove = f"background: {c['player_slider_track']}; height: {groove_h}px; border: 1px solid rgba(255,255,255,0.1); border-radius: {r}px;"
-            handle = f"background: {c['player_slider_handle']}; width: {handle_size}px; height: {handle_size}px; border: 1px solid rgba(255,255,255,0.2); border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
+            groove = f"background: {c['player_slider_track']}; height: {groove_h}px; border: 1px solid {c.get('frosted_border', c['mid'])}; border-radius: {r}px;"
+            handle = f"background: {c['player_slider_handle']}; width: {handle_size}px; height: {handle_size}px; border: 1px solid {c.get('frosted_border_strong', c['mid'])}; border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
         elif style == 'win11':
             groove = f"background: {c['player_slider_track']}; height: {groove_h}px; border: none; border-radius: {r}px;"
             handle = f"background: {c['accent']}; width: {handle_size}px; height: {handle_size}px; border: none; border-radius: {handle_size // 2}px; margin: {handle_margin}px 0;"
@@ -1194,7 +1202,7 @@ class AppStyles:
             )
         elif style == 'frosted':
             return (
-                f"background-color: {c['alternate_base']}; border: 1px solid rgba(255,255,255,0.1); border-radius: {r}px;",
+                f"background-color: {c['alternate_base']}; border: 1px solid {c.get('frosted_border', c['mid'])}; border-radius: {r}px;",
                 f"background-color: {c['accent']}; border-radius: {r}px;"
             )
         elif style == 'win11':
@@ -1232,8 +1240,8 @@ class AppStyles:
         elif style == 'frosted':
             return (
                 f"background-color: transparent; width: 10px; border: none;",
-                f"background-color: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.1); border-radius: {r}px; min-height: 40px; margin: 2px;",
-                f"background-color: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.15); border-radius: {r}px; min-height: 40px; margin: 2px;"
+                f"background-color: {c.get('frosted_border_mid', c['mid'])}; border: 1px solid {c.get('frosted_border', c['mid'])}; border-radius: {r}px; min-height: 40px; margin: 2px;",
+                f"background-color: {c.get('frosted_border_strong', c['mid'])}; border: 1px solid {c.get('frosted_border_mid', c['mid'])}; border-radius: {r}px; min-height: 40px; margin: 2px;"
             )
         elif style == 'win11':
             return (
@@ -1269,7 +1277,7 @@ class AppStyles:
             return f"background-color: {bg}; {border} border-radius: {indicator_r}px;"
         elif style == 'frosted':
             bg = c['accent'] if checked else c['alternate_base']
-            border = f"border: 1px solid {c['accent']};" if checked else "border: 1px solid rgba(255,255,255,0.1);"
+            border = f"border: 1px solid {c['accent']};" if checked else f"border: 1px solid {c.get('frosted_border', c['mid'])};"
             return f"background-color: {bg}; {border} border-radius: {indicator_r}px;"
         elif style == 'win11':
             bg = c['accent'] if checked else c['alternate_base']
@@ -1293,7 +1301,7 @@ class AppStyles:
         elif style == 'skeuomorphic':
             return f"background-color: {c['base']}; border: 2px outset {c.get('border_3d_light', c['mid'])}; border-radius: {r}px; padding: 4px;"
         elif style == 'frosted':
-            return f"background-color: {c['base']}; border: 1px solid rgba(255,255,255,0.1); border-radius: {r}px; padding: 4px;"
+            return f"background-color: {c['base']}; border: 1px solid {c.get('frosted_border', c['mid'])}; border-radius: {r}px; padding: 4px;"
         elif style == 'win11':
             return f"background-color: {c.get('card_color', c['base'])}; border: none; border-bottom: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {r}px; padding: 4px;"
         elif style in ('mac', 'ios'):
@@ -1310,7 +1318,7 @@ class AppStyles:
         elif style == 'skeuomorphic':
             return f"background-color: {c.get('tooltip_base', c['base'])}; border: 2px outset {c.get('border_3d_light', c['mid'])}; border-radius: {r}px; padding: 4px;"
         elif style == 'frosted':
-            return f"background-color: {c.get('tooltip_base', c['base'])}; border: 1px solid rgba(255,255,255,0.15); border-radius: {r}px; padding: 6px;"
+            return f"background-color: {c.get('tooltip_base', c['base'])}; border: 1px solid {c.get('frosted_border_mid', c['mid'])}; border-radius: {r}px; padding: 6px;"
         elif style == 'win11':
             return f"background-color: {c.get('card_color', c['base'])}; border: 1px solid {c.get('border_thin', c['mid'])}; border-radius: {r}px; padding: 6px;"
         elif style in ('mac', 'ios'):
@@ -1681,7 +1689,7 @@ class AppStyles:
         elif style == 'skeuomorphic':
             tv_border = f"border: 2px outset {colors.get('border_3d_light', colors['mid'])};"
         elif style == 'frosted':
-            tv_border = "border: 1px solid rgba(255,255,255,0.1);"
+            tv_border = f"border: 1px solid {colors.get('frosted_border', colors['mid'])};"
         elif style == 'win11':
             tv_border = f"border: 1px solid {colors.get('border_thin', colors['mid'])};"
         elif style in ('mac', 'ios'):
@@ -1775,66 +1783,16 @@ class AppStyles:
         elif style == 'skeuomorphic':
             sb_dec = f"background-color: {sb_bg}; border: 1px outset {colors.get('border_3d_light', colors['mid'])};"
         elif style == 'frosted':
-            sb_dec = f"background-color: {sb_bg}; border: 1px solid rgba(255,255,255,0.1);"
+            sb_dec = f"background-color: {sb_bg}; border: 1px solid {colors.get('frosted_border', colors['mid'])};"
         elif style == 'win11':
             sb_dec = f"background-color: {sb_bg}; border-top: 1px solid {colors.get('border_thin', colors['mid'])};"
         elif style in ('mac', 'ios'):
             sb_dec = f"background-color: {sb_bg}; border: none;"
         else:
-            sb_dec = f"background-color: {sb_bg}; border: none;"
-        return f"""
-            QStatusBar {{
-                {sb_dec}
-                color: {colors['player_panel_text']};
-                padding: 4px;
-                border-bottom-left-radius: {r}px;
-                border-bottom-right-radius: {r}px;
-            }}
-        """
-
-    @staticmethod
-    def player_toolbar_style() -> str:
-        colors = AppStyles._get_colors()
-        r = AppStyles._get_style_border_radius()
-        style = AppStyles._visual_style
-        btn_border = "none" if style in ('mac', 'ios') else f"1px solid {colors['player_line']}"
-        return f"""
-            QToolBar {{
-                background-color: {colors['player_panel']};
-                color: {colors['player_panel_text']};
-                padding: 4px;
-            }}
-            QToolBar QPushButton {{
-                background-color: {colors['player_button']};
-                color: {colors['player_panel_text']};
-                border: {btn_border};
-                padding: 5px 10px;
-                border-radius: {r}px;
-                margin: 2px;
-            }}
-            QToolBar QPushButton:hover {{
-                background-color: {colors['player_line']};
-            }}
-        """
-
-    @staticmethod
-    def player_panel_style() -> str:
-        colors = AppStyles._get_colors()
-        ff = AppStyles._get_style_font_family()
-        r = AppStyles._get_style_border_radius()
-        style = AppStyles._visual_style
-        if style == 'neumorphic':
-            combo_dec = f"border: none; background-color: {colors['player_combo']}; {AppStyles._get_style_inset()} border-radius: {r}px;"
+            sb_dec = f"background-color: {sb_bg}; border: 1px solid {colors['mid']};"
+        combo_dec = f"border: 1px solid {colors.get('frosted_border', colors['mid'])}; background-color: {colors['player_combo']}; border-radius: {r}px;"
             list_dec = f"border: none; background-color: transparent;"
-            btn_dec = f"background-color: {colors['player_button']}; {AppStyles._get_style_raised()} border-radius: {r}px;"
-        elif style == 'skeuomorphic':
-            combo_dec = f"border: 1px inset {colors.get('border_3d_dark', colors['mid'])}; background-color: {colors['player_combo']}; border-radius: {r}px;"
-            list_dec = f"border: none; background-color: transparent;"
-            btn_dec = f"background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {colors.get('gradient_start', colors['light'])}, stop:1 {colors['player_button']}); border: 1px outset {colors.get('border_3d_light', colors['mid'])}; border-radius: {r}px;"
-        elif style == 'frosted':
-            combo_dec = f"border: 1px solid rgba(255,255,255,0.1); background-color: {colors['player_combo']}; border-radius: {r}px;"
-            list_dec = f"border: none; background-color: transparent;"
-            btn_dec = f"background-color: {colors['player_button']}; border: 1px solid rgba(255,255,255,0.1); border-radius: {r}px;"
+            btn_dec = f"background-color: {colors['player_button']}; border: 1px solid {colors.get('frosted_border', colors['mid'])}; border-radius: {r}px;"
         elif style == 'win11':
             combo_dec = f"border: 1px solid {colors.get('border_thin', colors['mid'])}; background-color: {colors['player_combo']}; border-radius: {r}px; border-bottom: 2px solid {colors['accent']};"
             list_dec = f"border: none; background-color: transparent;"
@@ -2343,7 +2301,7 @@ class AppStyles:
         elif style == 'skeuomorphic':
             btn_dec = f"background-color: transparent; border: 1px outset {colors.get('border_3d_light', colors['mid'])}; font-size: 14px; padding: 4px 12px; margin: 2px; border-radius: {r}px;"
         elif style == 'frosted':
-            btn_dec = f"background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); font-size: 14px; padding: 4px 12px; margin: 2px; border-radius: {r}px;"
+            btn_dec = f"background-color: {colors.get('frosted_border', 'transparent')}; border: 1px solid {colors.get('frosted_border', colors.get('border_thin', colors['mid']))}; font-size: 14px; padding: 4px 12px; margin: 2px; border-radius: {r}px;"
         elif style == 'win11':
             btn_dec = f"background-color: transparent; border: none; font-size: 14px; padding: 4px 12px; margin: 2px; border-radius: {r}px;"
         elif style in ('mac', 'ios'):
@@ -2411,7 +2369,7 @@ class AppStyles:
         elif style == 'skeuomorphic':
             item_selected_dec = f"background-color: {menu_hover_bg}; border: 1px inset {colors.get('border_3d_dark', colors['mid'])}; border-radius: {item_r}px;"
         elif style == 'frosted':
-            item_selected_dec = f"background-color: {menu_hover_bg}; border: 1px solid rgba(255,255,255,0.15); border-radius: {item_r}px;"
+            item_selected_dec = f"background-color: {menu_hover_bg}; border: 1px solid {colors.get('frosted_border_mid', colors['mid'])}; border-radius: {item_r}px;"
         elif style == 'win11':
             item_selected_dec = f"background-color: {menu_hover_bg}; border-bottom: 2px solid {colors['accent']}; border-radius: {item_r}px;"
         elif style in ('mac', 'ios'):
@@ -2671,7 +2629,7 @@ class AppStyles:
         elif style in ('mac', 'ios'):
             progress_border = "border: none;"
         elif style == 'frosted':
-            progress_border = "border: 1px solid rgba(255,255,255,0.1);"
+            progress_border = f"border: 1px solid {colors.get('frosted_border', colors['mid'])};"
         elif style == 'win11':
             progress_border = f"border: 1px solid {colors.get('border_thin', colors['mid'])};"
         else:
@@ -2743,7 +2701,7 @@ class AppStyles:
             item_bg = f"qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {colors.get('gradient_start', colors['light'])}, stop:1 {colors['button']})"
             item_dec = ""
         elif style == 'frosted':
-            list_border = "border: 1px solid rgba(255,255,255,0.1);"
+            list_border = f"border: 1px solid {colors.get('frosted_border', colors['mid'])};"
             item_bg = colors['light']
             item_dec = ""
         elif style == 'win11':
@@ -2835,7 +2793,7 @@ class AppStyles:
         elif style == 'skeuomorphic':
             sb_dec = f"background-color: {sb_bg}; border: 1px outset {colors.get('border_3d_light', colors['mid'])};"
         elif style == 'frosted':
-            sb_dec = f"background-color: {sb_bg}; border: 1px solid rgba(255,255,255,0.1);"
+            sb_dec = f"background-color: {sb_bg}; border: 1px solid {colors.get('frosted_border', colors['mid'])};"
         elif style == 'win11':
             sb_dec = f"background-color: {sb_bg}; border-top: 1px solid {colors.get('border_thin', colors['mid'])};"
         elif style in ('mac', 'ios'):
@@ -3263,7 +3221,7 @@ class AppStyles:
         elif style in ('mac', 'ios'):
             chk_border_dec = "border: none;"
         elif style == 'frosted':
-            chk_border_dec = "border: 1px solid rgba(255,255,255,0.1);"
+            chk_border_dec = f"border: 1px solid {colors.get('frosted_border', colors['mid'])};"
         elif style == 'win11':
             chk_border_dec = f"border: 1px solid {colors.get('border_thin', colors['mid'])};"
         else:
@@ -3309,7 +3267,7 @@ class AppStyles:
         elif style in ('mac', 'ios'):
             chk_border_dec = "border: none;"
         elif style == 'frosted':
-            chk_border_dec = "border: 1px solid rgba(255,255,255,0.1);"
+            chk_border_dec = f"border: 1px solid {colors.get('frosted_border', colors['mid'])};"
         elif style == 'win11':
             chk_border_dec = f"border: 1px solid {colors.get('border_thin', colors['mid'])};"
         else:
@@ -3432,7 +3390,7 @@ class AppStyles:
         elif style == 'skeuomorphic':
             panel_dec = f"border: 2px outset {colors.get('border_3d_light', colors['mid'])};"
         elif style == 'frosted':
-            panel_dec = "border: 1px solid rgba(255,255,255,0.1);"
+            panel_dec = f"border: 1px solid {colors.get('frosted_border', colors['mid'])};"
         elif style == 'win11':
             panel_dec = f"border: 1px solid {colors.get('border_thin', colors['mid'])};"
         elif style in ('mac', 'ios'):
