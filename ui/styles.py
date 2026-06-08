@@ -678,7 +678,7 @@ class AppStyles:
             c['player_panel'] = 'rgba(242, 244, 250, 0.78)'
             c['player_button'] = 'rgba(200, 204, 216, 0.7)'
             c['player_combo'] = 'rgba(218, 222, 232, 0.65)'
-            c['player_background'] = 'rgba(26, 26, 26, 0.85)'
+            c['player_background'] = 'rgba(242, 244, 250, 0.85)'
             c['player_slider_track'] = 'rgba(150, 160, 180, 0.5)'
             c['player_volume_track'] = 'rgba(170, 178, 196, 0.5)'
             c['player_line'] = 'rgba(170, 178, 196, 0.4)'
