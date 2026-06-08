@@ -103,6 +103,7 @@ class ThemeManager(Singleton, QtCore.QObject):
                     for dock_attr in ('epg_dock', 'playlist_dock', 'floating_dock'):
                         dock = getattr(window, dock_attr, None)
                         if dock:
+                            dock.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
                             self._disable_dwm_blur(dock)
         except Exception as e:
             print(f"设置窗口背景模糊失败: {e}")
