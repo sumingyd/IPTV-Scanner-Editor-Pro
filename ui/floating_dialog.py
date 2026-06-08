@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (QDialog, QDockWidget, QWidget, QApplication,
 from PyQt6 import QtWidgets
 from PyQt6.QtGui import QPainter, QColor, QPainterPath, QCursor, QIcon
 from PyQt6.QtCore import Qt, QRectF, QSize
+import PyQt6.QtCore as QtCore
 import sys
 
 
@@ -53,6 +54,7 @@ class FloatingDockWidget(QDockWidget):
         self._opacity = opacity
         self._base_title = title
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAutoFillBackground(False)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.topLevelChanged.connect(self._on_floating_changed)
@@ -88,6 +90,7 @@ class FloatingDockWidget(QDockWidget):
                 if self._dwm_blur_enabled:
                     self._disable_dwm_blur()
                     self._dwm_blur_enabled = False
+                self.clearMask()
                 return
             import ctypes
             hwnd = int(self.winId())
@@ -100,6 +103,24 @@ class FloatingDockWidget(QDockWidget):
                     ctypes.byref(value), ctypes.sizeof(value)
                 )
                 self._dwm_blur_enabled = True
+            except Exception:
+                pass
+            try:
+                from PyQt6.QtGui import QBitmap, QPainterPath
+                from PyQt6.QtCore import QRectF
+                corner_r = AppStyles._get_style_border_radius()
+                size = self.size()
+                bitmap = QBitmap(size)
+                bitmap.fill(QtCore.Qt.GlobalColor.color0)
+                p = QPainter(bitmap)
+                p.setRenderHint(QPainter.RenderHint.Antialiasing)
+                p.setBrush(QtCore.Qt.GlobalColor.color1)
+                p.setPen(QtCore.Qt.PenStyle.NoPen)
+                path = QPainterPath()
+                path.addRoundedRect(QRectF(0, 0, size.width(), size.height()), corner_r, corner_r)
+                p.drawPath(path)
+                p.end()
+                self.setMask(bitmap)
             except Exception:
                 pass
         except Exception:
@@ -233,8 +254,19 @@ class FloatingDockWidget(QDockWidget):
         is_frosted = AppStyles._visual_style == 'frosted'
 
         if is_frosted:
-            opacity = int(colors.get('frosted_opacity', 0.65) * 255)
-            r, g, b = _parse_hex_color(colors.get('player_panel', '#1e1e1e'))
+            panel_color = colors.get('player_panel', 'rgba(28,32,42,0.78)')
+            if panel_color.startswith('rgba('):
+                try:
+                    inner = panel_color[5:].rstrip(')')
+                    parts = [p.strip() for p in inner.split(',')]
+                    r, g, b = int(parts[0]), int(parts[1]), int(parts[2])
+                    opacity = int(float(parts[3]) * 255)
+                except Exception:
+                    r, g, b = _parse_hex_color(panel_color)
+                    opacity = 160
+            else:
+                r, g, b = _parse_hex_color(panel_color)
+                opacity = 160
             painter.fillPath(path, QColor(r, g, b, opacity))
         else:
             r, g, b = _parse_hex_color(colors.get('player_panel', '#1e1e1e'))
@@ -390,7 +422,17 @@ class FloatingDialog(QDialog):
 
         r, g, b = _parse_hex_color(colors.get(self._bg_color_key, '#333333'))
         if is_frosted:
-            opacity = int(colors.get('frosted_opacity', 0.65) * 255)
+            bg_color = colors.get(self._bg_color_key, 'rgba(16,20,28,0.82)')
+            if bg_color.startswith('rgba('):
+                try:
+                    inner = bg_color[5:].rstrip(')')
+                    parts = [p.strip() for p in inner.split(',')]
+                    r, g, b = int(parts[0]), int(parts[1]), int(parts[2])
+                    opacity = int(float(parts[3]) * 255)
+                except Exception:
+                    opacity = 160
+            else:
+                opacity = 160
             painter.fillPath(path, QColor(r, g, b, opacity))
         else:
             painter.fillPath(path, QColor(r, g, b, self.opacity))
