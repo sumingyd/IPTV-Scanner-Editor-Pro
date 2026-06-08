@@ -102,6 +102,8 @@ class ChannelController:
                         list_widget.addItem(item)
                     else:
                         item_widget = QtWidgets.QWidget()
+                        item_widget.style_type = 'channel_item'
+                        item_widget.setStyleSheet("background-color: transparent; border: none;")
                         item_layout = QtWidgets.QHBoxLayout(item_widget)
                         item_layout.setContentsMargins(5, 2, 5, 2)
                         item_layout.setSpacing(8)

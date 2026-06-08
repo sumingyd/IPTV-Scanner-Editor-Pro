@@ -3361,7 +3361,7 @@ class AppStyles:
     def frame_style() -> str:
         colors = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
-        return f"background-color: transparent; border: 1px solid {colors['mid']}; border-radius: {r}px;"
+        return f"background-color: transparent; border: none; border-radius: {r}px;"
 
     @staticmethod
     def close_confirm_dialog_style() -> str:

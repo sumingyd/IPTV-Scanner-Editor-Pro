@@ -345,7 +345,7 @@ class ThemeManager(Singleton, QtCore.QObject):
             QtWidgets.QScrollArea: lambda w: AppStyles.scroll_area_style() if hasattr(AppStyles, 'scroll_area_style') else None,
             QtWidgets.QSlider: lambda w: AppStyles.player_slider_style() if hasattr(AppStyles, 'player_slider_style') else None,
             QtWidgets.QTextEdit: lambda w: AppStyles.text_edit_style() if hasattr(AppStyles, 'text_edit_style') else None,
-            QtWidgets.QFrame: lambda w: AppStyles.frame_style() if hasattr(AppStyles, 'frame_style') else None,
+            QtWidgets.QFrame: lambda w: None if hasattr(w, 'style_type') else (AppStyles.frame_style() if hasattr(AppStyles, 'frame_style') else None),
         }
         for widget_type, style_func in style_map.items():
             try:
