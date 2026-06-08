@@ -628,6 +628,9 @@ class UIController:
         if not self.window.player_controller or not self.window.current_channel:
             return
 
+        if getattr(self.window.player_controller, '_terminated', False):
+            return
+
         import time as _time
         now = _time.monotonic()
         if now - getattr(self.window, '_last_epg_refresh', 0) >= 30:
