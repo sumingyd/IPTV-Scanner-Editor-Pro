@@ -298,7 +298,6 @@ class MpvPlayerController(QObject):
         except Exception:
             return False
 
-    _reachability_result = pyqtSignal(str, object)
 
     @staticmethod
     def _check_path_reachability_sync(url):
@@ -657,9 +656,7 @@ class MpvPlayerController(QObject):
                         return
                 from services.mpv_common import libmpv as _libmpv
                 event_ptr = _libmpv.mpv_wait_event(handle, 0.0)
-                with self._lock:
-                    if self.mpv_handle is not handle:
-                        return
+
                 if not event_ptr:
                     return
 
