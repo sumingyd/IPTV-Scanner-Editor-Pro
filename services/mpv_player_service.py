@@ -1143,9 +1143,14 @@ class MpvPlayerController(QObject):
             acodec = get_str('audio-codec') or ''
 
             v_br = get_double('video-params/bitrate')
-            if v_br == 0:
-                v_br = get_double('demuxer-bitrate')
+            demux_br = get_double('demuxer-bitrate')
+            if v_br == 0 and demux_br > 0:
+                v_br = demux_br
             a_br = get_double('audio-params/bitrate')
+            if v_br == 0 and a_br == 0 and demux_br == 0:
+                est_br = get_double('demuxer-cache-state/bytes-per-second') or 0
+                if est_br > 0:
+                    v_br = est_br
 
             container = get_str('file-format') or ''
 
@@ -1193,6 +1198,7 @@ class MpvPlayerController(QObject):
                 'pixel_format': pix_fmt,
                 'video_bitrate': v_br,
                 'audio_bitrate': a_br,
+                'demuxer_bitrate': demux_br,
                 'colormatrix': colormatrix,
                 'color_primaries': color_primaries,
                 'gamma': gamma,
