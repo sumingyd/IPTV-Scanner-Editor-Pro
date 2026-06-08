@@ -11,7 +11,7 @@ from models.channel_model import ChannelListModel
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QListWidget, QListWidgetItem,
-    QStatusBar, QSizePolicy,
+    QStatusBar, QSizePolicy, QDialog,
     QFrame, QToolButton, QSlider, QComboBox,
     QTabWidget
 )
@@ -3076,65 +3076,12 @@ class IPTVPlayer(QMainWindow):
 
     def _open_video_file(self):
         """打开本地视频文件或文件夹"""
-        import os
-        from PyQt6.QtWidgets import QFileDialog, QPushButton
-        from PyQt6.QtCore import QDir
-        tr = self.language_manager.tr
-
-        dialog = QFileDialog(self)
-        dialog.setWindowTitle(tr("open_video", "打开视频"))
-        dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
-        dialog.setOption(QFileDialog.Option.DontUseNativeDialog, True)
-        dialog.setNameFilter(
-            tr("video_files", "视频文件 (*.mp4 *.mkv *.avi *.mov *.flv *.wmv *.ts *.m2ts *.webm);;所有文件 (*)")
-        )
-        dialog.setDirectory(QDir.homePath())
-        dialog.setStyleSheet(AppStyles.popup_dialog_style())
-
-        for btn in dialog.findChildren(QPushButton):
-            text = btn.text()
-            if text in ('Open', '打开', '&Open', '&打开'):
-                btn.setText(tr("select_confirm", "选定"))
-
-        select_folder_btn = QPushButton(tr("select_current_folder", "选定当前文件夹"))
-        layout = dialog.layout()
-        if layout:
-            last_row = layout.rowCount() - 1
-            inserted = False
-            for col in range(layout.columnCount()):
-                item = layout.itemAtPosition(last_row, col)
-                if item and item.layout():
-                    item.layout().insertWidget(0, select_folder_btn)
-                    inserted = True
-                    break
-            if not inserted:
-                for i in range(layout.count()):
-                    item = layout.itemAt(i)
-                    if item and item.layout():
-                        sub = item.layout()
-                        if sub.count() >= 2:
-                            sub.insertWidget(0, select_folder_btn)
-                            inserted = True
-                            break
-            if not inserted:
-                layout.addWidget(select_folder_btn, last_row, 0)
-
-        folder_selected = [None]
-
-        def _on_select_folder():
-            folder_selected[0] = dialog.directory().absolutePath()
-            dialog.reject()
-
-        select_folder_btn.clicked.connect(_on_select_folder)
-
-        if dialog.exec() == QFileDialog.DialogCode.Accepted:
-            selected = dialog.selectedFiles()
-            if selected:
-                self._open_video_path(selected[0])
-            return
-
-        if folder_selected[0]:
-            self._open_video_path(folder_selected[0])
+        from ui.dialogs.video_open_dialog import VideoOpenDialog
+        dialog = VideoOpenDialog(self, language_manager=self.language_manager)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            path = dialog.get_selected_path()
+            if path:
+                self._open_video_path(path)
 
     def _open_video_path(self, path):
         """根据路径类型自动处理：蓝光文件夹、普通文件夹、视频文件"""
