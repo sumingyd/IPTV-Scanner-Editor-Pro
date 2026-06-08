@@ -3075,58 +3075,131 @@ class IPTVPlayer(QMainWindow):
         self.settings_ops._open_stream()
 
     def _open_video_file(self):
-        """打开本地视频文件或蓝光原盘目录"""
+        """打开本地视频文件或文件夹"""
+        import os
         from PyQt6.QtWidgets import QFileDialog
         tr = self.language_manager.tr
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, tr("open_video", "打开视频"),
-            "",
-            tr("video_files", "视频文件 (*.mp4 *.mkv *.avi *.mov *.flv *.wmv *.ts *.m2ts *.webm);;所有文件 (*)"),
-        )
-        if file_path:
-            import os
-            name = os.path.splitext(os.path.basename(file_path))[0]
+
+        dialog = QFileDialog(self)
+        dialog.setWindowTitle(tr("open_video", "打开视频"))
+        dialog.setFileMode(QFileDialog.FileMode.ExistingFiles)
+        video_filter = tr("video_files", "视频文件 (*.mp4 *.mkv *.avi *.mov *.flv *.wmv *.ts *.m2ts *.webm);;所有文件 (*)")
+        dialog.setNameFilter(video_filter)
+        dialog.setOption(QFileDialog.Option.DontUseNativeDialog, True)
+
+        select_dir_btn = None
+
+        def _on_select_dir():
+            urls = dialog.selectedUrls()
+            if urls:
+                dir_path = urls[0].toLocalFile()
+            else:
+                dir_path = QFileDialog.getExistingDirectory(
+                    self, tr("select_folder", "选择文件夹"), ""
+                )
+            if dir_path:
+                self._open_video_path(dir_path)
+                dialog.reject()
+
+        from PyQt6.QtWidgets import QPushButton
+        select_dir_btn = QPushButton(tr("select_folder", "选择文件夹"))
+        select_dir_btn.clicked.connect(_on_select_dir)
+        layout = dialog.layout()
+        if layout:
+            last_row = layout.rowCount() - 1
+            inserted = False
+            for col in range(layout.columnCount()):
+                item = layout.itemAtPosition(last_row, col)
+                if item and item.layout():
+                    item.layout().insertWidget(0, select_dir_btn)
+                    inserted = True
+                    break
+            if not inserted:
+                for i in range(layout.count()):
+                    item = layout.itemAt(i)
+                    if item and item.layout():
+                        sub = item.layout()
+                        if sub.count() >= 2:
+                            sub.insertWidget(0, select_dir_btn)
+                            inserted = True
+                            break
+            if not inserted:
+                layout.addWidget(select_dir_btn, last_row, 0)
+
+        if dialog.exec() == QFileDialog.DialogCode.Accepted:
+            file_paths = dialog.selectedFiles()
+            if not file_paths:
+                return
+            for file_path in file_paths:
+                if os.path.isdir(file_path):
+                    self._open_video_path(file_path)
+                elif os.path.isfile(file_path):
+                    self._open_video_path(file_path)
+
+    def _open_video_path(self, path):
+        """根据路径类型自动处理：蓝光文件夹、普通文件夹、视频文件"""
+        import os
+        tr = self.language_manager.tr
+
+        if os.path.isfile(path):
+            name = os.path.splitext(os.path.basename(path))[0]
             channel = {
                 'name': name,
-                'url': file_path,
+                'url': path,
                 'group': tr("local_video", "本地视频"),
                 '_groups': [tr("local_video", "本地视频")],
             }
             self._add_to_local_list(channel)
-            self.config.add_recent_file(file_path)
+            self.config.add_recent_file(path)
             self.update_recent_files_menu()
             return
-        from PyQt6.QtWidgets import QMessageBox
-        reply = QMessageBox.question(
-            self, tr("open_bluray", "打开蓝光原盘"),
-            tr("open_bluray_ask", "是否选择蓝光原盘目录？"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            dir_path = QFileDialog.getExistingDirectory(
-                self, tr("select_bluray_dir", "选择蓝光原盘目录"), ""
-            )
-            if dir_path:
-                from services.mpv_player_service import MpvPlayerController
-                bdmv = MpvPlayerController._detect_bdmv_path(dir_path)
-                if bdmv:
-                    import os
-                    name = os.path.basename(os.path.dirname(bdmv)) or os.path.basename(bdmv)
-                    channel = {
-                        'name': name,
-                        'url': dir_path,
-                        'group': tr("bluray", "蓝光原盘"),
-                        '_groups': [tr("bluray", "蓝光原盘")],
-                    }
-                    self._add_to_local_list(channel)
-                    self.config.add_recent_file(dir_path)
-                    self.update_recent_files_menu()
-                else:
-                    QMessageBox.warning(
-                        self, tr("not_bluray", "非蓝光原盘"),
-                        tr("not_bluray_msg", "所选目录不是有效的蓝光原盘结构（未找到BDMV/STREAM目录）"),
-                    )
+
+        if os.path.isdir(path):
+            from services.mpv_player_service import MpvPlayerController
+            bdmv = MpvPlayerController._detect_bdmv_path(path)
+            if bdmv:
+                name = os.path.basename(os.path.dirname(bdmv)) or os.path.basename(bdmv)
+                channel = {
+                    'name': name,
+                    'url': path,
+                    'group': tr("bluray", "蓝光原盘"),
+                    '_groups': [tr("bluray", "蓝光原盘")],
+                }
+                self._add_to_local_list(channel)
+                self.config.add_recent_file(path)
+                self.update_recent_files_menu()
+                return
+
+            video_exts = ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.m2ts', '.webm')
+            video_files = []
+            try:
+                for f in os.listdir(path):
+                    if f.lower().endswith(video_exts):
+                        video_files.append(os.path.join(path, f))
+                video_files.sort(key=lambda x: x.lower())
+            except Exception:
+                pass
+
+            if not video_files:
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.information(
+                    self, tr("open_video", "打开视频"),
+                    tr("no_video_in_folder", "所选文件夹中未找到支持的视频文件"),
+                )
+                return
+
+            folder_name = os.path.basename(path) or os.path.split(path)[-1] or "视频"
+            for vf in video_files:
+                name = os.path.splitext(os.path.basename(vf))[0]
+                channel = {
+                    'name': name,
+                    'url': vf,
+                    'group': folder_name,
+                    '_groups': [folder_name],
+                }
+                self._add_to_local_list(channel)
+            self.config.add_recent_file(path)
+            self.update_recent_files_menu()
 
     def _add_to_local_list(self, channel):
         """将频道添加到本地列表并播放"""
