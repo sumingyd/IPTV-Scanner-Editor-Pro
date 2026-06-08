@@ -194,6 +194,10 @@ class UIController:
 
         br_line = []
         v_br = info.get('video_bitrate', 0) or 0
+        a_br_osd = info.get('audio_bitrate', 0) or 0
+        total_br_osd = v_br + a_br_osd
+        if total_br_osd > 0:
+            br_line.append(f'{tr("osd_total_br", "Total")}: {self.format_bitrate(total_br_osd)}')
         if v_br > 0:
             br_line.append(f'{tr("osd_video_br", "Video")}: {self.format_bitrate(v_br)}')
         cache_speed = info.get('cache_speed', 0) or 0
@@ -321,9 +325,8 @@ class UIController:
 
         v_br = info.get('video_bitrate', 0)
         a_br = info.get('audio_bitrate', 0)
-        total_br = v_br + a_br
-        if total_br and total_br > 0:
-            video_parts.append(self.format_bitrate(total_br))
+        if v_br and v_br > 0:
+            video_parts.append("{}: {}".format(tr('vbitrate_label', 'V.Bitrate') or 'V.Bitrate', self.format_bitrate(v_br)))
 
         video_text = " | ".join(video_parts) if video_parts else (tr('live_stream', 'Live Stream') or 'Live Stream')
 
@@ -355,6 +358,15 @@ class UIController:
             network_parts.append(f"{tr('format_label', 'Format')}: {container}")
         if proto and proto != '未知':
             network_parts.append(f"{tr('protocol_label', 'Protocol')}: {proto}")
+
+        v_br_net = info.get('video_bitrate', 0) or 0
+        a_br_net = info.get('audio_bitrate', 0) or 0
+        total_br_net = v_br_net + a_br_net
+        if total_br_net > 0:
+            network_parts.append("{}: {}".format(tr('bitrate_label', 'Bitrate') or 'Bitrate', self.format_bitrate(total_br_net)))
+        cache_speed = info.get('cache_speed', 0) or 0
+        if cache_speed > 0:
+            network_parts.append("{}: {}".format(tr('cache_speed_label', 'Cache') or 'Cache', self.format_bitrate(cache_speed)))
 
         network_text = ' | '.join(network_parts) if network_parts else tr('no_network_info', 'No network info available')
 
