@@ -441,49 +441,7 @@ class EventHandler:
             except Exception as e:
                 logger.error(f"保存窗口布局失败: {e}")
 
-        # 2. 彻底终止MPV播放器（关键修复！）
-        if hasattr(self.window, 'player_controller') and self.window.player_controller:
-            try:
-                logger.debug("正在终止MPV播放器...")
-                if hasattr(self.window.player_controller, 'terminate'):
-                    self.window.player_controller.terminate()
-                else:
-                    self.window.player_controller.stop()
-                logger.info("MPV播放器已终止")
-            except Exception as e:
-                logger.error(f"终止MPV播放器失败: {e}")
-
-        # 2.5 终止多画面控制器
-        if hasattr(self.window, 'multi_screen_ctrl') and self.window.multi_screen_ctrl:
-            try:
-                self.window.multi_screen_ctrl.terminate()
-            except Exception as e:
-                logger.error(f"终止多画面控制器失败: {e}")
-
-        # 3. 关闭扫描窗口
-        scan_dialog = getattr(self.window, '_scan_dialog', None) or getattr(self.window, 'scan_window', None)
-        if scan_dialog:
-            try:
-                scan_dialog.close()
-                scan_dialog.deleteLater()
-            except Exception:
-                pass
-            self.window._scan_dialog = None
-            self.window.scan_window = None
-
-        # 4. 关闭所有悬浮窗
-        for panel_name in ['floating_panel', 'epg_panel', 'playlist_panel']:
-            panel = getattr(self.window, panel_name, None)
-            if panel:
-                try:
-                    logger.debug(f"关闭悬浮窗: {panel_name}")
-                    panel.close()
-                    panel.deleteLater()
-                except Exception as e:
-                    logger.error(f"关闭{panel_name}失败: {e}")
-                setattr(self.window, panel_name, None)
-
-        # 5. 停止所有定时器
+        # 2. 先停止所有可能访问mpv_handle的定时器（必须在终止MPV之前！）
         timer_attrs = ['update_timer', '_source_timeout_timer', '_auto_hide_timer']
         for attr in timer_attrs:
             timer = getattr(self.window, attr, None)
@@ -498,14 +456,56 @@ class EventHandler:
             except Exception:
                 pass
 
-        # 5.5 停止缩略图服务
+        # 3. 终止MPV播放器（定时器已停止，不会再访问mpv_handle）
+        if hasattr(self.window, 'player_controller') and self.window.player_controller:
+            try:
+                logger.debug("正在终止MPV播放器...")
+                if hasattr(self.window.player_controller, 'terminate'):
+                    self.window.player_controller.terminate()
+                else:
+                    self.window.player_controller.stop()
+                logger.info("MPV播放器已终止")
+            except Exception as e:
+                logger.error(f"终止MPV播放器失败: {e}")
+
+        # 3.5 终止多画面控制器
+        if hasattr(self.window, 'multi_screen_ctrl') and self.window.multi_screen_ctrl:
+            try:
+                self.window.multi_screen_ctrl.terminate()
+            except Exception as e:
+                logger.error(f"终止多画面控制器失败: {e}")
+
+        # 4. 关闭扫描窗口
+        scan_dialog = getattr(self.window, '_scan_dialog', None) or getattr(self.window, 'scan_window', None)
+        if scan_dialog:
+            try:
+                scan_dialog.close()
+                scan_dialog.deleteLater()
+            except Exception:
+                pass
+            self.window._scan_dialog = None
+            self.window.scan_window = None
+
+        # 5. 关闭所有悬浮窗
+        for panel_name in ['floating_panel', 'epg_panel', 'playlist_panel']:
+            panel = getattr(self.window, panel_name, None)
+            if panel:
+                try:
+                    logger.debug(f"关闭悬浮窗: {panel_name}")
+                    panel.close()
+                    panel.deleteLater()
+                except Exception as e:
+                    logger.error(f"关闭{panel_name}失败: {e}")
+                setattr(self.window, panel_name, None)
+
+        # 6. 停止缩略图服务
         if hasattr(self.window, '_thumbnail_service'):
             try:
                 self.window._thumbnail_service.stop()
             except Exception:
                 pass
 
-        # 5.6 停止台标缓存服务
+        # 6.5 停止台标缓存服务
         logo_svc = getattr(self.window, '_logo_cache_service', None)
         if logo_svc:
             try:
@@ -515,7 +515,7 @@ class EventHandler:
             except Exception:
                 pass
 
-        # 5.7 停止DNS预取/连接预热
+        # 6.6 停止DNS预取/连接预热
         for svc_name in ('_dns_prefetcher', '_connection_preheater'):
             svc = getattr(self.window, svc_name, None)
             if svc and hasattr(svc, 'stop'):
@@ -524,14 +524,14 @@ class EventHandler:
                 except Exception:
                     pass
 
-        # 5.8 执行注册的资源清理器
+        # 6.7 执行注册的资源清理器
         try:
             from utils.resource_cleaner import cleanup_all
             cleanup_all()
         except Exception:
             pass
 
-        # 6. 等待后台工作线程完成
+        # 7. 等待后台工作线程完成
         if hasattr(self.window, 'subscription_ctrl'):
             for worker in self.window.subscription_ctrl._workers:
                 if worker.isRunning():
@@ -542,7 +542,7 @@ class EventHandler:
                     except Exception:
                         pass
 
-        # 7. 退出应用
+        # 8. 退出应用
         event.accept()
 
         from PyQt6.QtWidgets import QApplication
