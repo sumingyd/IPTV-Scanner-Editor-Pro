@@ -649,7 +649,10 @@ class MpvPlayerController(QObject):
                 if current_handle is not handle:
                     return
                 from services.mpv_common import libmpv as _libmpv
-                event_ptr = _libmpv.mpv_wait_event(handle, 0.0)
+                with self._lock:
+                    if self.mpv_handle is not handle:
+                        return
+                    event_ptr = _libmpv.mpv_wait_event(handle, 0.0)
                 if not event_ptr:
                     return
 
