@@ -3343,45 +3343,7 @@ class IPTVPlayer(QMainWindow):
         remember_cb = QCheckBox(tr('close_remember_choice', '记住选择，不再询问'))
         msg_box.setCheckBox(remember_cb)
 
-        c = AppStyles._get_colors()
-        r = AppStyles._get_style_border_radius()
-        msg_box.setStyleSheet(f"""
-            QMessageBox {{
-                background-color: {c.get('panel', '#1e1e1e')};
-                color: {c.get('window_text', '#ffffff')};
-            }}
-            QLabel {{
-                color: {c.get('window_text', '#ffffff')};
-                background-color: transparent;
-            }}
-            QPushButton {{
-                background-color: {c.get('player_button', '#3a3a3a')};
-                color: {c.get('window_text', '#ffffff')};
-                border: 1px solid {c.get('player_line', '#555')};
-                border-radius: {r}px;
-                padding: 4px 16px;
-                min-height: 24px;
-            }}
-            QPushButton:hover {{
-                background-color: {c.get('accent', '#4a9eff')};
-            }}
-            QCheckBox {{
-                color: {c.get('window_text', '#ffffff')};
-                background-color: transparent;
-                spacing: 6px;
-            }}
-            QCheckBox::indicator {{
-                width: 16px;
-                height: 16px;
-                border: 1px solid {c.get('player_line', '#555')};
-                border-radius: 3px;
-                background-color: {c.get('player_button', '#3a3a3a')};
-            }}
-            QCheckBox::indicator:checked {{
-                background-color: {c.get('accent', '#4a9eff')};
-                border-color: {c.get('accent', '#4a9eff')};
-            }}
-        """)
+        msg_box.setStyleSheet(AppStyles.close_confirm_dialog_style())
         msg_box.exec()
         clicked = msg_box.clickedButton()
         if clicked == cancel_btn or clicked is None:

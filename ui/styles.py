@@ -3357,6 +3357,49 @@ class AppStyles:
         return f"background-color: transparent; border: 1px solid {colors['mid']}; border-radius: {r}px;"
 
     @staticmethod
+    def close_confirm_dialog_style() -> str:
+        colors = AppStyles._get_colors()
+        r = AppStyles._get_style_border_radius()
+        c = colors
+        return f"""
+            QMessageBox {{
+                background-color: {c.get('panel', c['base'])};
+                color: {c.get('window_text', AppStyles._safe_fallback('window_text'))};
+            }}
+            QLabel {{
+                color: {c.get('window_text', AppStyles._safe_fallback('window_text'))};
+                background-color: transparent;
+            }}
+            QPushButton {{
+                background-color: {c.get('player_button', c['button'])};
+                color: {c.get('window_text', AppStyles._safe_fallback('window_text'))};
+                border: 1px solid {c.get('player_line', c['mid'])};
+                border-radius: {r}px;
+                padding: 4px 16px;
+                min-height: 24px;
+            }}
+            QPushButton:hover {{
+                background-color: {c.get('accent', AppStyles._safe_fallback('accent'))};
+            }}
+            QCheckBox {{
+                color: {c.get('window_text', AppStyles._safe_fallback('window_text'))};
+                background-color: transparent;
+                spacing: 6px;
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+                border: 1px solid {c.get('player_line', c['mid'])};
+                border-radius: 3px;
+                background-color: {c.get('player_button', c['button'])};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {c.get('accent', AppStyles._safe_fallback('accent'))};
+                border-color: {c.get('accent', AppStyles._safe_fallback('accent'))};
+            }}
+        """
+
+    @staticmethod
     def common_title_style() -> str:
         colors = AppStyles._get_colors()
         ff = AppStyles._get_style_font_family()
