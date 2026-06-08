@@ -2523,20 +2523,7 @@ class IPTVPlayer(QMainWindow):
             ('_osd_menu_action', self._osd_visible),
             ('_fullscreen_menu_action', getattr(self, 'is_fullscreen', False)),
             ('_pip_menu_action', self.pip_ctrl.is_active if hasattr(self, 'pip_ctrl') else False),
-        ]:
-            action = getattr(self, attr, None)
-            if action:
-                action.blockSignals(True)
 
-    def _sync_panel_actions(self):
-        """同步所有面板相关 QAction 的 checked 状态"""
-        for attr, visible in [
-            ('_epg_menu_action', self.epg_visible),
-            ('_playlist_menu_action', self.playlist_visible),
-            ('_floating_menu_action', self.floating_panel_visible),
-            ('_osd_menu_action', self._osd_visible),
-            ('_fullscreen_menu_action', getattr(self, 'is_fullscreen', False)),
-            ('_pip_menu_action', self.pip_ctrl.is_active if hasattr(self, 'pip_ctrl') else False),
 
         ]:
             action = getattr(self, attr, None)
