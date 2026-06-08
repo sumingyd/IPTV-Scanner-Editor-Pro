@@ -278,15 +278,17 @@ class ConfigManager(Singleton):
         for key, default_value in defaults.items():
             value = self.get_value('UI', key)
             if value is not None:
-                # 根据默认值的类型进行转换
-                if isinstance(default_value, bool):
-                    settings[key] = self._parse_bool(value)
-                elif isinstance(default_value, int):
-                    settings[key] = int(value)
-                elif isinstance(default_value, float):
-                    settings[key] = float(value)
-                else:
-                    settings[key] = value
+                try:
+                    if isinstance(default_value, bool):
+                        settings[key] = self._parse_bool(value)
+                    elif isinstance(default_value, int):
+                        settings[key] = int(value)
+                    elif isinstance(default_value, float):
+                        settings[key] = float(value)
+                    else:
+                        settings[key] = value
+                except (ValueError, TypeError):
+                    settings[key] = default_value
             else:
                 settings[key] = default_value
         return settings
