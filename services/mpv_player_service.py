@@ -26,7 +26,7 @@ from services.mpv_common import (
     terminate_destroy_mpv,
     set_property_string as _mpv_set_property_string,
     set_property_int64 as _mpv_set_property_int64,
-    set_option_string as _mpv_set_option_string,
+
     send_command as _mpv_send_command,
     observe_property as _mpv_observe_property,
     wait_for_event as _mpv_wait_event,
@@ -158,16 +158,13 @@ class MpvPlayerController(QObject):
             except Exception as e:
                 self.logger.error(f"设置窗口ID失败: {str(e)}")
 
-            vo_ret = _mpv_set_option_string(self.mpv_handle, 'vo', 'gpu')
-            if vo_ret < 0:
-                self.logger.warning(f"set_option vo=gpu 失败: {vo_ret}")
+            _mpv_set_property_string(self.mpv_handle, 'vo', 'gpu')
             hwdec = 'auto-safe' if self._playback_settings.get('hwdec', True) else 'no'
-            _mpv_set_option_string(self.mpv_handle, 'hwdec', hwdec)
-            _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'd3d11')
-            _mpv_set_option_string(self.mpv_handle, 'd3d11-sync-interval', '1')
-            _mpv_set_option_string(self.mpv_handle, 'd3d11-flip', 'no')
-            _mpv_set_option_string(self.mpv_handle, 'gpu-fallback', 'yes')
-            self.logger.info(f"mpv视频输出: vo=gpu, hwdec={hwdec}, wid={window_id_int}")
+            _mpv_set_property_string(self.mpv_handle, 'hwdec', hwdec)
+            _mpv_set_property_string(self.mpv_handle, 'gpu-api', 'd3d11')
+            _mpv_set_property_string(self.mpv_handle, 'd3d11-sync-interval', '1')
+            _mpv_set_property_string(self.mpv_handle, 'd3d11-flip', 'no')
+            _mpv_set_property_string(self.mpv_handle, 'gpu-fallback', 'yes')
             _mpv_set_property_string(self.mpv_handle, 'osc', 'no')
             _mpv_set_property_string(self.mpv_handle, 'osd-bar', 'no')
 
