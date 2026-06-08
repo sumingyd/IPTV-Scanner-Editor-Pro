@@ -3340,6 +3340,23 @@ class AppStyles:
         """
 
     @staticmethod
+    def label_style() -> str:
+        colors = AppStyles._get_colors()
+        return f"color: {colors['window_text']}; background-color: transparent;"
+
+    @staticmethod
+    def text_edit_style() -> str:
+        colors = AppStyles._get_colors()
+        r = AppStyles._get_style_border_radius()
+        return f"color: {colors['window_text']}; background-color: {colors['base']}; border: 1px solid {colors['mid']}; border-radius: {r}px;"
+
+    @staticmethod
+    def frame_style() -> str:
+        colors = AppStyles._get_colors()
+        r = AppStyles._get_style_border_radius()
+        return f"background-color: transparent; border: 1px solid {colors['mid']}; border-radius: {r}px;"
+
+    @staticmethod
     def common_title_style() -> str:
         colors = AppStyles._get_colors()
         ff = AppStyles._get_style_font_family()
