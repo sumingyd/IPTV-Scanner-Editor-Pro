@@ -157,11 +157,13 @@ class MpvPlayerController(QObject):
             except Exception as e:
                 self.logger.error(f"设置窗口ID失败: {str(e)}")
 
-            _mpv_set_property_string(self.mpv_handle, 'vo', 'gpu')
-            hwdec = 'auto' if self._playback_settings.get('hwdec', True) else 'no'
-            _mpv_set_property_string(self.mpv_handle, 'hwdec', hwdec)
-            _mpv_set_property_string(self.mpv_handle, 'gpu-api', 'd3d11')
-            _mpv_set_property_string(self.mpv_handle, 'd3d11-sync-interval', '1')
+            _mpv_set_option_string(self.mpv_handle, 'vo', 'gpu')
+            hwdec = 'auto-safe' if self._playback_settings.get('hwdec', True) else 'no'
+            _mpv_set_option_string(self.mpv_handle, 'hwdec', hwdec)
+            _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'd3d11')
+            _mpv_set_option_string(self.mpv_handle, 'd3d11-sync-interval', '1')
+            _mpv_set_option_string(self.mpv_handle, 'd3d11-flip', 'no')
+            _mpv_set_option_string(self.mpv_handle, 'gpu-fallback', 'yes')
             _mpv_set_property_string(self.mpv_handle, 'osc', 'no')
             _mpv_set_property_string(self.mpv_handle, 'osd-bar', 'no')
 
@@ -689,25 +691,27 @@ class MpvPlayerController(QObject):
                                 is_net_file = self._is_network_drive(self.current_url)
                                 is_network_url = self.current_url.lower().startswith(
                                     ('http://', 'https://', 'rtsp://', 'rtp://', 'udp://', 'rtmp://'))
-                                if reason == 4 and not is_net_file and not is_network_url:
-                                    self.logger.debug(f"END_FILE错误(本地文件)，不重连: reason={reason}")
-                                    self.is_playing = False
-                                    self.is_paused = False
-                                    self.play_state_changed.emit(False)
+                                if reason == 4:
+                                    end_error = end_file.error if hasattr(end_file, 'error') else 0
+                                    err_str = self._get_mpv_error_string(end_error) if end_error else f"error_code={reason}"
+                                    self._handle_playback_error(end_error, err_str)
+                                    if not is_net_file and not is_network_url:
+                                        self.logger.debug(f"END_FILE错误(本地文件)，不重连: reason={reason}")
+                                        self.is_playing = False
+                                        self.is_paused = False
+                                        self.play_state_changed.emit(False)
+                                        continue
+                                    self.logger.warning(f"END_FILE错误，尝试重连: {err_str}, is_net_file={is_net_file}")
+                                self.is_playing = False
+                                self.is_paused = False
+                                self.play_state_changed.emit(False)
+                                if self._reconnect_count < self._max_reconnect:
+                                    self._reconnect_count += 1
+                                    self.logger.info(f"断线自动重连 ({self._reconnect_count}/{self._max_reconnect})")
+                                    self.reconnect_requested.emit(self.current_url)
                                 else:
-                                    if reason == 4:
-                                        err_str = self._get_mpv_error_string(end_file.error) if hasattr(end_file, 'error') else f"error_code={reason}"
-                                        self.logger.warning(f"END_FILE错误，尝试重连: {err_str}, is_net_file={is_net_file}")
-                                    self.is_playing = False
-                                    self.is_paused = False
-                                    self.play_state_changed.emit(False)
-                                    if self._reconnect_count < self._max_reconnect:
-                                        self._reconnect_count += 1
-                                        self.logger.info(f"断线自动重连 ({self._reconnect_count}/{self._max_reconnect})")
-                                        self.reconnect_requested.emit(self.current_url)
-                                    else:
-                                        self.logger.info("已达最大重连次数，停止重连")
-                                        self._reconnect_count = 0
+                                    self.logger.info("已达最大重连次数，停止重连")
+                                    self._reconnect_count = 0
 
         except Exception as e:
             self.logger.error(f"处理 mpv 事件失败：{str(e)}")
@@ -1343,6 +1347,19 @@ class MpvPlayerController(QObject):
                 return 'NET-FILE'
             return 'FILE'
         return '未知'
+
+    def _handle_playback_error(self, error_code, error_str):
+        if not self.mpv_handle or self._terminated:
+            return
+        hwdec_current = self._get_mpv_property_string('hwdec-current') or ''
+        if hwdec_current and hwdec_current != 'no':
+            if error_code in (-10, -3, -4, -8) or 'vo' in error_str.lower() or 'decoder' in error_str.lower():
+                self.logger.warning(f"检测到GPU/硬件解码错误(hwdec={hwdec_current}, err={error_str})，回退到软解")
+                try:
+                    _mpv_set_property_string(self.mpv_handle, 'hwdec', 'no')
+                    self.logger.info("已回退到软件解码，将重新尝试播放")
+                except Exception as e:
+                    self.logger.error(f"回退到软解失败: {e}")
 
     def _get_mpv_property_string(self, property_name):
         if self._terminated:
