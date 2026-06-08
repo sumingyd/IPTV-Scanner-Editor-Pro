@@ -19,6 +19,7 @@ class PlaybackController:
         self._is_switching = False
         self._live_timeshift_seconds = 0
         self._last_program_id = None
+        self._aspect_ratio_restored = False
         self.fcc = FCCService()
 
     def toggle_play(self):
@@ -208,6 +209,16 @@ class PlaybackController:
 
         self.fcc.on_channel_change(url)
         self.window.player_controller.play(url)
+
+        if not self._aspect_ratio_restored:
+            self._aspect_ratio_restored = True
+            try:
+                media_ctrl = getattr(self.window, 'media_ctrl', None)
+                if media_ctrl:
+                    media_ctrl.restore_aspect_ratio()
+            except Exception as e:
+                logger.debug(f"恢复画面比例失败: {e}")
+
         self.current_channel = channel
         self.window.play_state.set_live()
 
