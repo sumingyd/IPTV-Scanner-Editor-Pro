@@ -340,6 +340,25 @@ class ConfigManager(Singleton):
         return {
             'enable_mapping': self._parse_bool(self.get_value('Mapping', 'enable_mapping', 'True'), True)
         }
+
+    def save_close_behavior(self, action: str):
+        """保存关闭行为设置，action: 'minimize_tray' 或 'exit'"""
+        self.set_value('UI', 'close_action', action)
+        return self.save_config()
+
+    def load_close_behavior(self) -> str | None:
+        """加载关闭行为设置，返回 'minimize_tray'、'exit' 或 None（未设置则弹窗询问）"""
+        value = self.get_value('UI', 'close_action')
+        if value in ('minimize_tray', 'exit'):
+            return value
+        return None
+
+    def clear_close_behavior(self):
+        """清除记住的关闭行为设置"""
+        with self._lock:
+            if self.config.has_section('UI') and self.config.has_option('UI', 'close_action'):
+                self.config.remove_option('UI', 'close_action')
+        return self.save_config()
     
     def save_playlist_sources(self, sources: list):
         """保存多个直播源配置
