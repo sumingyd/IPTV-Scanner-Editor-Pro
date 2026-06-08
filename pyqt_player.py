@@ -3322,6 +3322,7 @@ class IPTVPlayer(QMainWindow):
                 dock.setFloating(True)
 
     def _tray_quit(self):
+        self._force_quit = True
         self._is_hidden_to_tray = False
         self.close()
 
@@ -3352,6 +3353,14 @@ class IPTVPlayer(QMainWindow):
     def closeEvent(self, event):
         """窗口关闭事件"""
         if getattr(self, '_is_hidden_to_tray', False):
+            if hasattr(self, 'event_handler') and self.event_handler:
+                self.event_handler.closeEvent(event)
+            else:
+                super().closeEvent(event)
+            return
+
+        if getattr(self, '_force_quit', False):
+            self._force_quit = False
             if hasattr(self, 'event_handler') and self.event_handler:
                 self.event_handler.closeEvent(event)
             else:
