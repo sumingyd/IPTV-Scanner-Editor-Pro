@@ -443,6 +443,30 @@ class EventHandler:
             except Exception as e:
                 logger.error(f"保存窗口布局失败: {e}")
 
+        # 1.5 保存当前频道
+        if hasattr(self.window, 'current_channel') and hasattr(self.window, 'config'):
+            try:
+                ch = self.window.current_channel
+                if ch:
+                    ch_name = ch.get('name', '')
+                    ch_idx = -1
+                    channels = getattr(self.window, '_sub_channels', [])
+                    for i, c in enumerate(channels):
+                        if c.get('name', '') == ch_name:
+                            ch_idx = i
+                            break
+                    if ch_idx < 0:
+                        channels = getattr(self.window, '_local_channels', [])
+                        for i, c in enumerate(channels):
+                            if c.get('name', '') == ch_name:
+                                ch_idx = i
+                                break
+                    is_local = getattr(self.window, 'channel_list', None) is getattr(self.window, 'local_channel_list', None)
+                    ch_file = getattr(self.window, '_local_playlist_path', '') if is_local else getattr(self.window, '_subscription_url', '')
+                    self.window.config.save_last_channel(ch_file, ch_name, ch_idx)
+            except Exception as e:
+                logger.debug(f"保存最后频道失败: {e}")
+
         # 2. 先停止所有可能访问mpv_handle的定时器（必须在终止MPV之前！）
         timer_attrs = ['update_timer', '_source_timeout_timer', '_auto_hide_timer']
         for attr in timer_attrs:

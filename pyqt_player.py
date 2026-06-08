@@ -1765,6 +1765,7 @@ class IPTVPlayer(QMainWindow):
         pending = getattr(self, '_pending_last_channel', None)
         if pending:
             channels_to_search = self._sub_channels if source == 'subscription' else self._local_channels
+            target_list = self.sub_channel_list if source == 'subscription' else self.local_channel_list
             if len(channels_to_search) > 0:
                 self._pending_last_channel = None
                 last_name = pending.get('name', '')
@@ -1775,10 +1776,10 @@ class IPTVPlayer(QMainWindow):
                         if ch.get('name', '') == last_name:
                             target_idx = i
                             break
-                if target_idx < 0 and last_idx >= 0:
+                if target_idx < 0 and last_idx >= 0 and last_idx < len(channels_to_search):
                     target_idx = last_idx
                 if target_idx >= 0:
-                    QTimer.singleShot(100, lambda idx=target_idx: self.select_channel_by_index(idx))
+                    QTimer.singleShot(100, lambda idx=target_idx, sl=target_list: self.select_channel_by_index(idx, source_list=sl))
 
     def _update_groups_for(self, source):
         """更新指定源的分组下拉框"""
@@ -2329,6 +2330,15 @@ class IPTVPlayer(QMainWindow):
 
             if old_channel and old_channel is not self.current_channel:
                 self._previous_channel = dict(old_channel)
+
+            try:
+                ch_name = self.current_channel.get('name', '')
+                ch_idx = idx if isinstance(idx, int) and 0 <= idx < len(channels) else self.channel_list.row(item)
+                is_local = channel_list is self.local_channel_list
+                ch_file = getattr(self, '_local_playlist_path', '') if is_local else getattr(self, '_subscription_url', '')
+                self.config.save_last_channel(ch_file, ch_name, ch_idx)
+            except Exception:
+                pass
 
             if self.play_state.is_catchup_or_timeshift:
                 self.playback_ctrl._exit_catchup_mode()
@@ -3481,14 +3491,15 @@ class IPTVPlayer(QMainWindow):
         except Exception as e:
             logger.debug(f"加载最后频道失败: {e}")
 
-    def select_channel_by_index(self, idx):
-        if not hasattr(self, 'channel_list') or idx < 0:
+    def select_channel_by_index(self, idx, source_list=None):
+        target_list = source_list if source_list is not None else getattr(self, 'channel_list', None)
+        if not target_list or idx < 0:
             return
-        for i in range(self.channel_list.count()):
-            item = self.channel_list.item(i)
+        for i in range(target_list.count()):
+            item = target_list.item(i)
             if item.data(Qt.ItemDataRole.UserRole) == idx:
-                self.channel_list.setCurrentItem(item)
-                self.select_channel(item, source_list=self.channel_list)
+                target_list.setCurrentItem(item)
+                self.select_channel(item, source_list=target_list)
                 return
 
     def switch_to_previous_channel(self):
