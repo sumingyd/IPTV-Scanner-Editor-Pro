@@ -92,40 +92,7 @@ class FloatingDockWidget(QDockWidget):
                     self._dwm_blur_enabled = False
                 self.clearMask()
                 return
-            import ctypes
-            hwnd = int(self.winId())
-            try:
-                DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-                dark = ctypes.c_int(1 if AppStyles._get_effective_color_mode() == 'dark' else 0)
-                ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                    hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
-                    ctypes.byref(dark), ctypes.sizeof(dark)
-                )
-            except Exception:
-                pass
-            try:
-                ACCENT_ENABLE_ACRYLICBLURBEHIND = 4
-                class ACCENT_POLICY(ctypes.Structure):
-                    _fields_ = [
-                        ('AccentState', ctypes.c_int),
-                        ('AccentFlags', ctypes.c_int),
-                        ('GradientColor', ctypes.c_uint),
-                        ('AnimationId', ctypes.c_int),
-                    ]
-                class WINDOWCOMPOSITIONATTRIBDATA(ctypes.Structure):
-                    _fields_ = [
-                        ('Attrib', ctypes.c_int),
-                        ('pvData', ctypes.POINTER(ACCENT_POLICY)),
-                        ('cbData', ctypes.c_size_t),
-                    ]
-                WCA_ACCENT_POLICY = 19
-                gradient_color = 0x00000000
-                accent = ACCENT_POLICY(ACCENT_ENABLE_ACRYLICBLURBEHIND, 2, gradient_color, 0)
-                data = WINDOWCOMPOSITIONATTRIBDATA(WCA_ACCENT_POLICY, ctypes.pointer(accent), ctypes.sizeof(accent))
-                ctypes.windll.user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(data))
-                self._dwm_blur_enabled = True
-            except Exception:
-                pass
+            self._dwm_blur_enabled = True
             try:
                 DWMWA_SYSTEMBACKDROP_TYPE = 38
                 DWMSBT_MAINVIEW = 2
@@ -159,20 +126,7 @@ class FloatingDockWidget(QDockWidget):
             pass
 
     def _disable_dwm_blur(self):
-        if sys.platform != 'win32':
-            return
-        try:
-            import ctypes
-            hwnd = int(self.winId())
-            DWMWA_SYSTEMBACKDROP_TYPE = 38
-            DWMSBT_NONE = 1
-            value = ctypes.c_int(DWMSBT_NONE)
-            ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
-                ctypes.byref(value), ctypes.sizeof(value)
-            )
-        except Exception:
-            pass
+        pass
 
     def _hit_resize_edge(self, pos):
         m = self._RESIZE_MARGIN

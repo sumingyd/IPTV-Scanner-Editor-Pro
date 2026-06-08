@@ -123,28 +123,7 @@ class ThemeManager(Singleton, QtCore.QObject):
                 )
             except Exception:
                 pass
-            try:
-                ACCENT_ENABLE_ACRYLICBLURBEHIND = 4
-                class ACCENT_POLICY(ctypes.Structure):
-                    _fields_ = [
-                        ('AccentState', ctypes.c_int),
-                        ('AccentFlags', ctypes.c_int),
-                        ('GradientColor', ctypes.c_uint),
-                        ('AnimationId', ctypes.c_int),
-                    ]
-                class WINDOWCOMPOSITIONATTRIBDATA(ctypes.Structure):
-                    _fields_ = [
-                        ('Attrib', ctypes.c_int),
-                        ('pvData', ctypes.POINTER(ACCENT_POLICY)),
-                        ('cbData', ctypes.c_size_t),
-                    ]
-                WCA_ACCENT_POLICY = 19
-                gradient_color = 0x00000000
-                accent = ACCENT_POLICY(ACCENT_ENABLE_ACRYLICBLURBEHIND, 2, gradient_color, 0)
-                data = WINDOWCOMPOSITIONATTRIBDATA(WCA_ACCENT_POLICY, ctypes.pointer(accent), ctypes.sizeof(accent))
-                ctypes.windll.user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(data))
-            except Exception:
-                pass
+
         except Exception:
             pass
 
