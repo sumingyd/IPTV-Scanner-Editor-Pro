@@ -2294,6 +2294,12 @@ class AppStyles:
         return f"background-color: {colors['player_background']};"
 
     @staticmethod
+    def player_panel_style() -> str:
+        colors = AppStyles._get_colors()
+        r = AppStyles._get_style_border_radius()
+        return f"background-color: {colors['player_panel']}; border: 1px solid {colors['player_line']}; border-radius: {r}px;"
+
+    @staticmethod
     def title_bar_style() -> str:
         colors = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
