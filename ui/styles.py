@@ -1780,28 +1780,31 @@ class AppStyles:
             sb_bg = color_to_hex(colors['player_panel'])
         if style == 'neumorphic':
             sb_dec = f"background-color: {sb_bg}; {AppStyles._get_style_raised()}"
+            combo_dec = f"background-color: {colors['player_combo']}; {AppStyles._get_style_inset()} border-radius: {r}px;"
+            list_dec = f"border: none; background-color: transparent;"
+            btn_dec = f"background-color: {colors['player_button']}; {AppStyles._get_style_raised()} border-radius: {r}px;"
         elif style == 'skeuomorphic':
             sb_dec = f"background-color: {sb_bg}; border: 1px outset {colors.get('border_3d_light', colors['mid'])};"
+            combo_dec = f"border: 1px inset {colors.get('border_3d_dark', colors['mid'])}; background-color: {colors['player_combo']}; border-radius: {r}px;"
+            list_dec = f"border: none; background-color: transparent;"
+            btn_dec = f"background-color: {colors['player_button']}; border: 1px outset {colors.get('border_3d_light', colors['mid'])}; border-radius: {r}px;"
         elif style == 'frosted':
             sb_dec = f"background-color: {sb_bg}; border: 1px solid {colors.get('frosted_border', colors['mid'])};"
-        elif style == 'win11':
-            sb_dec = f"background-color: {sb_bg}; border-top: 1px solid {colors.get('border_thin', colors['mid'])};"
-        elif style in ('mac', 'ios'):
-            sb_dec = f"background-color: {sb_bg}; border: none;"
-        else:
-            sb_dec = f"background-color: {sb_bg}; border: 1px solid {colors['mid']};"
-        combo_dec = f"border: 1px solid {colors.get('frosted_border', colors['mid'])}; background-color: {colors['player_combo']}; border-radius: {r}px;"
+            combo_dec = f"border: 1px solid {colors.get('frosted_border', colors['mid'])}; background-color: {colors['player_combo']}; border-radius: {r}px;"
             list_dec = f"border: none; background-color: transparent;"
             btn_dec = f"background-color: {colors['player_button']}; border: 1px solid {colors.get('frosted_border', colors['mid'])}; border-radius: {r}px;"
         elif style == 'win11':
+            sb_dec = f"background-color: {sb_bg}; border-top: 1px solid {colors.get('border_thin', colors['mid'])};"
             combo_dec = f"border: 1px solid {colors.get('border_thin', colors['mid'])}; background-color: {colors['player_combo']}; border-radius: {r}px; border-bottom: 2px solid {colors['accent']};"
             list_dec = f"border: none; background-color: transparent;"
             btn_dec = f"background-color: {colors['player_button']}; border: 1px solid {colors.get('border_thin', colors['mid'])}; border-radius: {r}px;"
         elif style in ('mac', 'ios'):
+            sb_dec = f"background-color: {sb_bg}; border: none;"
             combo_dec = f"border: none; background-color: {colors['player_combo']}; border-radius: {r}px;"
             list_dec = f"border: none; background-color: transparent;"
             btn_dec = f"background-color: {colors['player_button']}; border: none; border-radius: {r}px;"
         else:
+            sb_dec = f"background-color: {sb_bg}; border: 1px solid {colors['mid']};"
             combo_dec = f"border: 1px solid {colors['mid']}; background-color: {colors['player_combo']}; border-radius: {r}px;"
             list_dec = f"border: none; background-color: transparent;"
             btn_dec = f"background-color: {colors['player_button']}; border: 1px solid {colors.get('player_line', colors['mid'])}; border-radius: {r}px;"
