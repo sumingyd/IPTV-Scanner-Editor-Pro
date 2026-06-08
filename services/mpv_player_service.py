@@ -292,8 +292,10 @@ class MpvPlayerController(QObject):
         except Exception:
             return False
 
+    _reachability_result = pyqtSignal(str, object)
+
     @staticmethod
-    def _check_path_reachability(url):
+    def _check_path_reachability_sync(url):
         if not url:
             return None
         u = url.lower()
@@ -321,6 +323,22 @@ class MpvPlayerController(QObject):
                 pass
             return None
         return None
+
+    def _check_path_reachability(self, url):
+        if not url or not url.lower().startswith(('http://', 'https://')):
+            return None
+        result = [None]
+        event = threading.Event()
+
+        def _worker():
+            result[0] = self._check_path_reachability_sync(url)
+            event.set()
+
+        t = threading.Thread(target=_worker, daemon=True)
+        t.start()
+        if not event.wait(timeout=3.5):
+            return None
+        return result[0]
 
     @staticmethod
     def _fix_unc_path(path):
