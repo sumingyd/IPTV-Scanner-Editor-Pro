@@ -1810,6 +1810,14 @@ class AppStyles:
             list_dec = f"border: none; background-color: transparent;"
             btn_dec = f"background-color: {colors['player_button']}; border: 1px solid {colors.get('player_line', colors['mid'])}; border-radius: {r}px;"
         return f"""
+            QStatusBar {{
+                {sb_dec}
+                color: {colors['player_panel_text']};
+                padding: 2px 4px;
+                border-bottom-left-radius: {r}px;
+                border-bottom-right-radius: {r}px;
+            }}
+
             * {{
                 font-family: {ff};
             }}
