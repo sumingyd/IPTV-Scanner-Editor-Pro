@@ -1742,6 +1742,13 @@ class IPTVPlayer(QMainWindow):
             self._populate_channel_list_for(self.local_channel_list, self._local_channels,
                                             self.local_group_combo.currentText())
 
+        pending = getattr(self, '_pending_last_channel', None)
+        if pending:
+            self._pending_last_channel = None
+            idx = pending.get('index', -1)
+            if idx >= 0:
+                QTimer.singleShot(100, lambda: self.select_channel_by_index(idx))
+
     def _update_groups_for(self, source):
         """更新指定源的分组下拉框"""
         channels = self._sub_channels if source == 'subscription' else self._local_channels
