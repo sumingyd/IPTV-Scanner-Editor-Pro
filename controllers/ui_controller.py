@@ -196,6 +196,10 @@ class UIController:
         v_br = info.get('video_bitrate', 0) or 0
         a_br_osd = info.get('audio_bitrate', 0) or 0
         total_br_osd = v_br + a_br_osd
+        if total_br_osd == 0:
+            demux_br_osd = info.get('demuxer_bitrate', 0) or 0
+            if demux_br_osd > 0:
+                total_br_osd = demux_br_osd
         if total_br_osd > 0:
             br_line.append(f'{tr("osd_total_br", "Total")}: {self.format_bitrate(total_br_osd)}')
         if v_br > 0:
@@ -242,8 +246,10 @@ class UIController:
         else:
             current_time = pc.get_current_time() or 0
             from datetime import timedelta
-            cur_td = timedelta(seconds=current_time) if current_time else None
-            tot_td = timedelta(seconds=total_time) if total_time else None
+            cur_sec = current_time / 1000.0
+            tot_sec = total_time / 1000.0
+            cur_td = timedelta(seconds=cur_sec) if current_time else None
+            tot_td = timedelta(seconds=tot_sec) if total_time else None
             cur_str = str(cur_td).split('.')[0] if cur_td else '--:--:--'
             tot_str = str(tot_td).split('.')[0] if tot_td else '--:--:--'
             if total_time > 0 and current_time > 0:
@@ -323,10 +329,14 @@ class UIController:
         if fps and fps > 0:
             video_parts.append("{}: {:.0f}fps".format(tr('frame_rate_label', 'FPS') or 'FPS', fps))
 
-        v_br = info.get('video_bitrate', 0)
-        a_br = info.get('audio_bitrate', 0)
-        if v_br and v_br > 0:
+        v_br = info.get('video_bitrate', 0) or 0
+        a_br = info.get('audio_bitrate', 0) or 0
+        if v_br > 0:
             video_parts.append("{}: {}".format(tr('vbitrate_label', 'V.Bitrate') or 'V.Bitrate', self.format_bitrate(v_br)))
+        elif a_br == 0:
+            demux_br = info.get('demuxer_bitrate', 0) or 0
+            if demux_br > 0:
+                video_parts.append("{}: {}".format(tr('bitrate_label', 'Bitrate') or 'Bitrate', self.format_bitrate(demux_br)))
 
         video_text = " | ".join(video_parts) if video_parts else (tr('live_stream', 'Live Stream') or 'Live Stream')
 
@@ -362,6 +372,10 @@ class UIController:
         v_br_net = info.get('video_bitrate', 0) or 0
         a_br_net = info.get('audio_bitrate', 0) or 0
         total_br_net = v_br_net + a_br_net
+        if total_br_net == 0:
+            demux_br = info.get('demuxer_bitrate', 0) or 0
+            if demux_br > 0:
+                total_br_net = demux_br
         if total_br_net > 0:
             network_parts.append("{}: {}".format(tr('bitrate_label', 'Bitrate') or 'Bitrate', self.format_bitrate(total_br_net)))
         cache_speed = info.get('cache_speed', 0) or 0
