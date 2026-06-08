@@ -3252,6 +3252,30 @@ class IPTVPlayer(QMainWindow):
         self._is_hidden_to_tray = False
         self.close()
 
+    def _do_close_minimize_tray(self):
+        """执行最小化到托盘操作"""
+        tr = self.language_manager.tr
+        self._is_hidden_to_tray = True
+        pc = getattr(self, 'player_controller', None)
+        if pc and pc.is_playing and not pc.is_paused:
+            pc.pause()
+            self._was_playing_before_tray = True
+        else:
+            self._was_playing_before_tray = False
+        self._tray_hidden_docks = []
+        for dock_name in ('epg_dock', 'playlist_dock', 'floating_dock'):
+            dock = getattr(self, dock_name, None)
+            if dock and dock.isVisible():
+                self._tray_hidden_docks.append(dock_name)
+                dock.blockSignals(True)
+                dock.setFloating(False)
+                dock.blockSignals(False)
+        self.hide()
+        tray = getattr(self, '_system_tray', None)
+        if tray:
+            tray.show()
+            tray.setToolTip(tr('app_title', 'IPTV Scanner Editor Pro'))
+
     def closeEvent(self, event):
         """窗口关闭事件"""
         if getattr(self, '_is_hidden_to_tray', False):
@@ -3261,7 +3285,21 @@ class IPTVPlayer(QMainWindow):
                 super().closeEvent(event)
             return
 
-        from PyQt6.QtWidgets import QMessageBox
+        config = getattr(self, 'config', None) or getattr(self, 'config_manager', None)
+        if config:
+            close_action = config.load_close_behavior()
+            if close_action == 'minimize_tray':
+                event.ignore()
+                self._do_close_minimize_tray()
+                return
+            elif close_action == 'exit':
+                if hasattr(self, 'event_handler') and self.event_handler:
+                    self.event_handler.closeEvent(event)
+                else:
+                    super().closeEvent(event)
+                return
+
+        from PyQt6.QtWidgets import QMessageBox, QCheckBox
         from ui.styles import AppStyles
         tr = self.language_manager.tr
         msg_box = QMessageBox(self)
@@ -3272,6 +3310,10 @@ class IPTVPlayer(QMainWindow):
         close_btn = msg_box.addButton(tr('close_exit', '直接退出'), QMessageBox.ButtonRole.NoRole)
         cancel_btn = msg_box.addButton(tr('cancel', '取消'), QMessageBox.ButtonRole.RejectRole)
         msg_box.setDefaultButton(min_btn)
+
+        remember_cb = QCheckBox(tr('close_remember_choice', '记住选择，不再询问'))
+        msg_box.setCheckBox(remember_cb)
+
         c = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
         msg_box.setStyleSheet(f"""
@@ -3294,35 +3336,38 @@ class IPTVPlayer(QMainWindow):
             QPushButton:hover {{
                 background-color: {c.get('accent', '#4a9eff')};
             }}
+            QCheckBox {{
+                color: {c.get('window_text', '#ffffff')};
+                background-color: transparent;
+                spacing: 6px;
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+                border: 1px solid {c.get('player_line', '#555')};
+                border-radius: 3px;
+                background-color: {c.get('player_button', '#3a3a3a')};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {c.get('accent', '#4a9eff')};
+                border-color: {c.get('accent', '#4a9eff')};
+            }}
         """)
         msg_box.exec()
         clicked = msg_box.clickedButton()
         if clicked == cancel_btn or clicked is None:
             event.ignore()
             return
+
+        remember = remember_cb.isChecked()
         if clicked == min_btn:
+            if remember and config:
+                config.save_close_behavior('minimize_tray')
             event.ignore()
-            self._is_hidden_to_tray = True
-            pc = getattr(self, 'player_controller', None)
-            if pc and pc.is_playing and not pc.is_paused:
-                pc.pause()
-                self._was_playing_before_tray = True
-            else:
-                self._was_playing_before_tray = False
-            self._tray_hidden_docks = []
-            for dock_name in ('epg_dock', 'playlist_dock', 'floating_dock'):
-                dock = getattr(self, dock_name, None)
-                if dock and dock.isVisible():
-                    self._tray_hidden_docks.append(dock_name)
-                    dock.blockSignals(True)
-                    dock.setFloating(False)
-                    dock.blockSignals(False)
-            self.hide()
-            tray = getattr(self, '_system_tray', None)
-            if tray:
-                tray.show()
-                tray.setToolTip(tr('app_title', 'IPTV Scanner Editor Pro'))
+            self._do_close_minimize_tray()
             return
+        if remember and config:
+            config.save_close_behavior('exit')
         if hasattr(self, 'event_handler') and self.event_handler:
             self.event_handler.closeEvent(event)
         else:
