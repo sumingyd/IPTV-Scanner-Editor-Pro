@@ -2001,7 +2001,7 @@ class IPTVPlayer(QMainWindow):
             ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.webm', '.mp3', '.wav', '.flac')
         ):
             return True
-        if not url.startswith(('http://', 'https://', 'rtmp://', 'rtsp://', 'rtp://')):
+        if not url.startswith(('http://', 'https://', 'rtmp://', 'rtsp://', 'rtp://', 'udp://', 'srt://', 'rist://', 'hls://', 'dash://')):
             return True
         return False
 
