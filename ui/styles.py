@@ -1774,6 +1774,7 @@ class AppStyles:
         colors = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
         style = AppStyles._visual_style
+        ff = AppStyles._get_style_font_family()
         from ui.styles import color_to_hex
         sb_bg = colors['player_panel']
         if style == 'frosted':
