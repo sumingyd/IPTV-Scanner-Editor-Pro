@@ -95,6 +95,15 @@ class FloatingDockWidget(QDockWidget):
             import ctypes
             hwnd = int(self.winId())
             try:
+                DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+                dark = ctypes.c_int(1 if AppStyles._get_effective_color_mode() == 'dark' else 0)
+                ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
+                    ctypes.byref(dark), ctypes.sizeof(dark)
+                )
+            except Exception:
+                pass
+            try:
                 DWMWA_SYSTEMBACKDROP_TYPE = 38
                 DWMSBT_MAINVIEW = 2
                 value = ctypes.c_int(DWMSBT_MAINVIEW)

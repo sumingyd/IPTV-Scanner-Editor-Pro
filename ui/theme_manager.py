@@ -114,14 +114,25 @@ class ThemeManager(Singleton, QtCore.QObject):
         try:
             import ctypes
             hwnd = int(window.winId())
-            DWMWA_SYSTEMBACKDROP_TYPE = 38
-            DWMSBT_MAINVIEW = 2
-            value = ctypes.c_int(DWMSBT_MAINVIEW)
-            ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
-                ctypes.byref(value), ctypes.sizeof(value)
-            )
-        except Exception:
+            try:
+                DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+                dark = ctypes.c_int(1 if AppStyles._get_effective_color_mode() == 'dark' else 0)
+                ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
+                    ctypes.byref(dark), ctypes.sizeof(dark)
+                )
+            except Exception:
+                pass
+            try:
+                DWMWA_SYSTEMBACKDROP_TYPE = 38
+                DWMSBT_MAINVIEW = 2
+                value = ctypes.c_int(DWMSBT_MAINVIEW)
+                ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
+                    ctypes.byref(value), ctypes.sizeof(value)
+                )
+            except Exception:
+                pass
             try:
                 import ctypes
                 hwnd = int(window.winId())
@@ -148,7 +159,7 @@ class ThemeManager(Singleton, QtCore.QObject):
                         ('cbData', ctypes.c_size_t),
                     ]
                 WCA_ACCENT_POLICY = 19
-                gradient_color = 0x00000000 if AppStyles._get_effective_color_mode() == 'dark' else 0x00F0F0F0
+                gradient_color = 0x00000000 if AppStyles._get_effective_color_mode() == 'dark' else 0x00000000
                 accent = ACCENT_POLICY(ACCENT_ENABLE_ACRYLICBLURBEHIND, 2, gradient_color, 0)
                 data = WINDOWCOMPOSITIONATTRIBDATA(WCA_ACCENT_POLICY, ctypes.pointer(accent), ctypes.sizeof(accent))
                 ctypes.windll.user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(data))
