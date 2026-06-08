@@ -654,9 +654,19 @@ class ScannerController(QObject):
         })
 
         from services.ffprobe_validator_service import FfprobeStreamValidator
-        FfprobeStreamValidator.terminate_all()
+        FfprobeStreamValidator.set_terminating()
 
         self._clear_all_queues()
+
+        alive_workers = [w for w in self.workers if w.is_alive()]
+        if alive_workers:
+            for worker in alive_workers:
+                worker.join(timeout=2.0)
+            still_alive = [w for w in alive_workers if w.is_alive()]
+            if still_alive:
+                self.logger.warning(f"{len(still_alive)} 个扫描工作线程未在2秒内退出")
+
+        FfprobeStreamValidator.destroy_all_handles()
 
         self.workers = []
         self.worker_queue = queue.Queue()
@@ -684,7 +694,12 @@ class ScannerController(QObject):
     def _terminate_all_processes(self):
         try:
             from services.ffprobe_validator_service import FfprobeStreamValidator
-            FfprobeStreamValidator.terminate_all()
+            FfprobeStreamValidator.set_terminating()
+            alive_workers = [w for w in self.workers if w.is_alive()]
+            if alive_workers:
+                for worker in alive_workers:
+                    worker.join(timeout=2.0)
+            FfprobeStreamValidator.destroy_all_handles()
         except Exception:
             pass
 
@@ -815,13 +830,20 @@ class ScannerController(QObject):
         })
 
         from services.ffprobe_validator_service import FfprobeStreamValidator
-        FfprobeStreamValidator.terminate_all()
+        FfprobeStreamValidator.set_terminating()
 
         while not self.validation_queue.empty():
             try:
                 self.validation_queue.get_nowait()
             except queue.Empty:
                 break
+
+        alive_workers = [w for w in self.workers if w.is_alive()]
+        if alive_workers:
+            for worker in alive_workers:
+                worker.join(timeout=2.0)
+
+        FfprobeStreamValidator.destroy_all_handles()
 
         self.workers = []
         self.worker_queue = queue.Queue()
