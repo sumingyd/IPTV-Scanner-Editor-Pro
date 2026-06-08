@@ -668,6 +668,13 @@ class ScannerController(QObject):
 
         FfprobeStreamValidator.destroy_all_handles()
 
+        if self._mapping_executor is not None:
+            try:
+                self._mapping_executor.shutdown(wait=False)
+            except Exception:
+                pass
+            self._mapping_executor = None
+
         self.workers = []
         self.worker_queue = queue.Queue()
 
