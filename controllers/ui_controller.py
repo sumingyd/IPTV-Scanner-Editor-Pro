@@ -432,25 +432,6 @@ class UIController:
         try:
             tr = self.window.language_manager.tr
 
-            key = (
-                info.get('width', 0),
-                info.get('height', 0),
-                info.get('video_codec', ''),
-                info.get('audio_codec', ''),
-                info.get('fps', 0),
-                info.get('hwdec', ''),
-                info.get('video_bitrate', 0),
-                info.get('audio_bitrate', 0),
-                info.get('audio_channels', 0),
-                info.get('sample_rate', 0),
-                info.get('colormatrix', ''),
-                info.get('gamma', ''),
-                info.get('sig_peak', 0),
-            )
-            if self.window._last_info_key == key:
-                return
-            self.window._last_info_key = key
-
             has_video = info.get('width', 0) > 0 and info.get('height', 0) > 0
             has_codec = bool(info.get('video_codec', ''))
 
@@ -468,6 +449,7 @@ class UIController:
                     info = merged
                 else:
                     self.window._last_media_info.update(info)
+                    return
             else:
                 self.window._last_media_info = info.copy()
 
@@ -475,6 +457,28 @@ class UIController:
                 proto = self.window.player_controller._guess_protocol(self.window.current_channel.get('url', '') if self.window.current_channel else '')
                 if proto:
                     info['protocol'] = proto
+
+            static_key = (
+                info.get('width', 0),
+                info.get('height', 0),
+                info.get('video_codec', ''),
+                info.get('audio_codec', ''),
+                info.get('fps', 0),
+                info.get('hwdec', ''),
+                info.get('video_bitrate', 0),
+                info.get('audio_bitrate', 0),
+                info.get('audio_channels', 0),
+                info.get('sample_rate', 0),
+                info.get('colormatrix', ''),
+                info.get('gamma', ''),
+                info.get('sig_peak', 0),
+                info.get('container', ''),
+                info.get('protocol', ''),
+            )
+
+            if self.window._last_info_key == static_key:
+                return
+            self.window._last_info_key = static_key
 
             self.update_media_info_labels(info, tr)
             self.window._network_base_info = self.window.network_info.text()
