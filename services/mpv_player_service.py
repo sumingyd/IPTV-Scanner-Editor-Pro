@@ -295,7 +295,6 @@ class MpvPlayerController(QObject):
         except Exception:
             return False
 
-    _reachability_result = pyqtSignal(str, object)
 
     @staticmethod
     def _check_path_reachability_sync(url):
