@@ -119,6 +119,7 @@ class MpvPlayerController(QObject):
         self._user_stopped = False
         self._switching_channel = False
         self._mpv_initialized = False
+        self._terminated = False
 
     def _ensure_mpv_initialized(self):
         if self._mpv_initialized:
@@ -254,6 +255,8 @@ class MpvPlayerController(QObject):
             return False
 
     def _set_mpv_string(self, name, value):
+        if self._terminated or not self.mpv_handle:
+            return -1
         return _mpv_set_property_string(self.mpv_handle, name, str(value))
 
     def _extract_original_url(self, url):
@@ -638,6 +641,8 @@ class MpvPlayerController(QObject):
                 self._set_mpv_string('user-agent', ua)
 
     def _process_events(self):
+        if self._terminated:
+            return
         with self._lock:
             handle = self.mpv_handle
             if not handle:
@@ -869,6 +874,7 @@ class MpvPlayerController(QObject):
 
     def terminate(self):
         try:
+            self._terminated = True
             self.logger.info("正在终止MPV播放器...")
 
             for timer_attr in ['_media_info_timer', '_live_info_timer', 'event_timer']:
@@ -879,15 +885,18 @@ class MpvPlayerController(QObject):
                     except Exception:
                         pass
 
-            if self.mpv_handle:
+            with self._lock:
+                handle = self.mpv_handle
+                self.mpv_handle = None
+
+            if handle:
                 try:
-                    _mpv_send_command(self.mpv_handle, ['quit'])
+                    _mpv_send_command(handle, ['quit'])
                 except Exception as e:
                     self.logger.debug(f"发送quit命令失败（可能已关闭）: {e}")
 
                 with self._lock:
-                    terminate_destroy_mpv(self.mpv_handle)
-                    self.mpv_handle = None
+                    terminate_destroy_mpv(handle)
 
             self.is_playing = False
             self.is_paused = False
@@ -1224,7 +1233,7 @@ class MpvPlayerController(QObject):
     _STATIC_INFO_REFRESH_TICKS = 10
 
     def _update_live_info(self):
-        if not self.mpv_handle:
+        if self._terminated or not self.mpv_handle:
             return
 
         self._static_info_counter = getattr(self, '_static_info_counter', 0) + 1
@@ -1330,7 +1339,12 @@ class MpvPlayerController(QObject):
         return '未知'
 
     def _get_mpv_property_string(self, property_name):
-        return _mpv_get_property_string(self.mpv_handle, property_name)
+        if self._terminated:
+            return None
+        with self._lock:
+            if not self.mpv_handle:
+                return None
+            return _mpv_get_property_string(self.mpv_handle, property_name)
 
     def _get_mpv_error_string(self, error_code):
         try:
@@ -1344,10 +1358,20 @@ class MpvPlayerController(QObject):
         return f"错误码: {error_code}"
 
     def _get_mpv_property_int(self, property_name):
-        return _mpv_get_property_int(self.mpv_handle, property_name)
+        if self._terminated:
+            return None
+        with self._lock:
+            if not self.mpv_handle:
+                return None
+            return _mpv_get_property_int(self.mpv_handle, property_name)
 
     def _get_mpv_property_double(self, property_name):
-        return _mpv_get_property_double(self.mpv_handle, property_name)
+        if self._terminated:
+            return None
+        with self._lock:
+            if not self.mpv_handle:
+                return None
+            return _mpv_get_property_double(self.mpv_handle, property_name)
 
     def get_video_resolution(self):
         try:
@@ -1380,7 +1404,7 @@ class MpvPlayerController(QObject):
 
     def get_buffer_state(self):
         try:
-            if not self.mpv_handle:
+            if self._terminated or not self.mpv_handle:
                 return None
             cache_state_str = self._get_mpv_property_string('demuxer-cache-state')
             cache_duration = 0
@@ -1412,7 +1436,7 @@ class MpvPlayerController(QObject):
 
     def get_track_list(self, track_type='audio'):
         try:
-            if not self.mpv_handle:
+            if self._terminated or not self.mpv_handle:
                 return []
             track_list_str = self._get_mpv_property_string('track-list')
             if not track_list_str:
@@ -1487,7 +1511,12 @@ class MpvPlayerController(QObject):
         self._set_mpv_string(name, value)
 
     def send_command(self, cmd_args):
-        return _mpv_send_command(self.mpv_handle, cmd_args)
+        if self._terminated:
+            return -1
+        with self._lock:
+            if not self.mpv_handle:
+                return -1
+            return _mpv_send_command(self.mpv_handle, cmd_args)
 
     def show_osd(self, text: str, duration: int = 3000):
         self.send_command(['show-text', text, str(duration)])
@@ -1539,7 +1568,7 @@ class MpvPlayerController(QObject):
     def get_available_seek_range(self) -> dict:
         empty = {'max_back': 0, 'max_forward': 0, 'cache_duration': 0,
                  'buffer_start': 0, 'buffer_end': 0, 'time_pos': 0}
-        if not self.mpv_handle:
+        if self._terminated or not self.mpv_handle:
             return empty
         try:
             time_pos = self._get_mpv_property_double('time-pos') or 0
