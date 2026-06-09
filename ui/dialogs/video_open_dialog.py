@@ -1,4 +1,5 @@
 import os
+import sys
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem,
     QPushButton, QLabel, QComboBox, QSizePolicy, QStyle,
@@ -36,6 +37,14 @@ class VideoOpenDialog(QDialog):
         self._up_btn.setFixedWidth(90)
         self._up_btn.clicked.connect(self._go_up)
         nav.addWidget(self._up_btn)
+
+        self._drive_combo = None
+        if sys.platform == 'win32':
+            self._drive_combo = QComboBox()
+            self._drive_combo.setFixedWidth(60)
+            self._drive_combo.currentIndexChanged.connect(self._on_drive_changed)
+            self._populate_drives()
+            nav.addWidget(self._drive_combo)
 
         self._path_label = QLabel()
         self._path_label.setObjectName("pathLabel")
@@ -116,6 +125,29 @@ class VideoOpenDialog(QDialog):
         parent = os.path.dirname(self._current_dir)
         if parent and parent != self._current_dir:
             self._current_dir = parent
+            self._refresh_list()
+
+    def _populate_drives(self):
+        if not self._drive_combo:
+            return
+        self._drive_combo.blockSignals(True)
+        self._drive_combo.clear()
+        current_drive = os.path.splitdrive(self._current_dir)[0]
+        for d in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+            root = f'{d}:\\'
+            if os.path.isdir(root):
+                self._drive_combo.addItem(f'{d}:')
+                if f'{d}:' == current_drive:
+                    self._drive_combo.setCurrentIndex(self._drive_combo.count() - 1)
+        self._drive_combo.blockSignals(False)
+
+    def _on_drive_changed(self, index):
+        if index < 0 or not self._drive_combo:
+            return
+        drive = self._drive_combo.itemText(index)
+        root = f'{drive}\\'
+        if os.path.isdir(root):
+            self._current_dir = root
             self._refresh_list()
 
     def _on_filter_changed(self, index):
