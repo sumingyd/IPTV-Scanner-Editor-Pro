@@ -996,15 +996,19 @@ class SettingsFileOperations:
     def _open_stream(self):
         """打开串流地址"""
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QHBoxLayout, QPushButton
+        from ui.floating_dialog import FloatingDialog
+        from ui.styles import AppStyles
+        from ui.theme_manager import get_theme_manager
         w = self.window
         tr = w.language_manager.tr
 
-        dialog = QDialog(w)
+        dialog = FloatingDialog(w, frameless=False, stay_on_top=False)
         dialog.setWindowTitle(tr("open_stream", "打开串流"))
         dialog.setMinimumWidth(600)
         dialog.setMinimumHeight(160)
 
         layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(10)
 
         label = QLabel(tr("open_stream_url", "请输入直播地址或串流URL:"))
@@ -1036,6 +1040,11 @@ class SettingsFileOperations:
         btn_layout.addWidget(ok_btn)
         layout.addLayout(btn_layout)
 
+        dialog.setStyleSheet(AppStyles.popup_dialog_style())
+
+        tm = get_theme_manager()
+        tm.register_window(dialog)
+
         url_input.setFocus()
 
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -1044,6 +1053,9 @@ class SettingsFileOperations:
                 self._open_stream_by_content(url, name_input.text().strip())
                 w.config.add_recent_file(url)
                 w.update_recent_files_menu()
+            tm.unregister_window(dialog)
+        else:
+            tm.unregister_window(dialog)
 
     def _open_stream_by_content(self, url: str, custom_name: str = ''):
         """根据URL内容自动判断是M3U列表还是单个串流"""
@@ -1080,36 +1092,40 @@ class SettingsFileOperations:
                 return
 
             if content.lstrip().startswith('#EXTM3U'):
-                try:
-                    channels, _ = parse_m3u_content(content)
-                except Exception as e:
-                    logger.error(f"解析M3U列表失败: {e}")
-                    return
+                is_hls_master = '#EXT-X-STREAM-INF' in content
+                if is_hls_master:
+                    logger.info("检测到HLS Master Playlist，作为单频道串流处理")
+                else:
+                    try:
+                        channels, _ = parse_m3u_content(content)
+                    except Exception as e:
+                        logger.error(f"解析M3U列表失败: {e}")
+                        return
 
-                if not channels:
-                    logger.warning("M3U列表解析结果为空")
-                    return
+                    if not channels:
+                        logger.warning("M3U列表解析结果为空")
+                        return
 
-                import copy
-                w.playlist_tab.setCurrentIndex(1)
-                for ch in channels:
-                    w._local_channels.append(copy.deepcopy(ch))
-                w._local_channels_dirty = True
-                w._update_groups_for('local')
-                w._populate_channel_list_for(
-                    w.local_channel_list, w._local_channels,
-                    w.local_group_combo.currentText()
-                )
-                logger.info(f"已从M3U列表加载 {len(channels)} 个频道到本地列表")
-                if hasattr(w, 'status_bar_show_message'):
-                    w.status_bar_show_message(
-                        tr("m3u_loaded_n_channels", "已加载 {n} 个频道").format(n=len(channels))
+                    import copy
+                    w.playlist_tab.setCurrentIndex(1)
+                    for ch in channels:
+                        w._local_channels.append(copy.deepcopy(ch))
+                    w._local_channels_dirty = True
+                    w._update_groups_for('local')
+                    w._populate_channel_list_for(
+                        w.local_channel_list, w._local_channels,
+                        w.local_group_combo.currentText()
                     )
-                if channels:
-                    w.current_channel = channels[0]
-                    w.update_channel_info_on_selection()
-                    w.play_channel(channels[0])
-                return
+                    logger.info(f"已从M3U列表加载 {len(channels)} 个频道到本地列表")
+                    if hasattr(w, 'status_bar_show_message'):
+                        w.status_bar_show_message(
+                            tr("m3u_loaded_n_channels", "已加载 {n} 个频道").format(n=len(channels))
+                        )
+                    if channels:
+                        w.current_channel = channels[0]
+                        w.update_channel_info_on_selection()
+                        w.play_channel(channels[0])
+                    return
 
         name = custom_name
         if not name:
