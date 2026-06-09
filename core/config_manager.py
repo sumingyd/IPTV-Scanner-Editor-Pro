@@ -643,6 +643,7 @@ class ConfigManager(Singleton):
             'rtsp_user_agent': 'VLC/3.0.18Libmpv',
             'network_timeout_sec': 0,
             'audio_passthrough': 'never',
+            'hdr_output_mode': 'auto',
         }
         if settings:
             defaults.update(settings)
@@ -675,6 +676,7 @@ class ConfigManager(Singleton):
             'rtsp_user_agent': 'VLC/3.0.18Libmpv',
             'network_timeout_sec': 0,
             'audio_passthrough': 'never',
+            'hdr_output_mode': 'auto',
         }
         result = {}
         need_save = False
