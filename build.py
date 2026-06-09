@@ -129,6 +129,7 @@ PYINSTALLER_CMD = [
     "--hidden-import", "utils.config_notifier",
     "--hidden-import", "utils.error_handler",
     "--hidden-import", "utils.general_utils",
+    "--hidden-import", "utils.hdr_detect",
     "--hidden-import", "utils.logging_helper",
     "--hidden-import", "utils.memory_manager",
     "--hidden-import", "utils.progress_manager",
