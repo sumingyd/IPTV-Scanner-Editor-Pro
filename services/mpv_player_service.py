@@ -415,7 +415,7 @@ class MpvPlayerController(QObject):
             if os.path.isdir(stream_dir):
                 m2ts_files = [f for f in os.listdir(stream_dir) if f.lower().endswith('.m2ts')]
                 if m2ts_files:
-                    return bdmv_dir
+                    return path
         for item in os.listdir(path):
             sub = os.path.join(path, item)
             if os.path.isdir(sub):
@@ -425,7 +425,7 @@ class MpvPlayerController(QObject):
                     if os.path.isdir(stream_dir):
                         m2ts_files = [f for f in os.listdir(stream_dir) if f.lower().endswith('.m2ts')]
                         if m2ts_files:
-                            return sub_bdmv
+                            return sub
         return None
 
     def _normalize_url(self, url):
