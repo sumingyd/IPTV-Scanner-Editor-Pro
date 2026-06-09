@@ -157,11 +157,25 @@ class MpvPlayerController(QObject):
             except Exception as e:
                 self.logger.error(f"设置窗口ID失败: {str(e)}")
 
-            _mpv_set_property_string(self.mpv_handle, 'vo', 'gpu')
+            hdr_mode = self._playback_settings.get('hdr_output_mode', 'auto')
+            if hdr_mode == 'passthrough':
+                vo = 'gpu-next'
+                gpu_api = 'vulkan'
+            elif hdr_mode == 'scrgb':
+                vo = 'gpu-next'
+                gpu_api = 'd3d11'
+            elif hdr_mode == 'tonemap':
+                vo = 'gpu'
+                gpu_api = 'd3d11'
+            else:
+                vo = 'gpu-next'
+                gpu_api = 'vulkan'
+            _mpv_set_property_string(self.mpv_handle, 'vo', vo)
             hwdec = 'auto' if self._playback_settings.get('hwdec', True) else 'no'
             _mpv_set_property_string(self.mpv_handle, 'hwdec', hwdec)
-            _mpv_set_property_string(self.mpv_handle, 'gpu-api', 'd3d11')
-            _mpv_set_property_string(self.mpv_handle, 'd3d11-sync-interval', '1')
+            _mpv_set_property_string(self.mpv_handle, 'gpu-api', gpu_api)
+            if gpu_api == 'd3d11':
+                _mpv_set_property_string(self.mpv_handle, 'd3d11-sync-interval', '1')
             _mpv_set_property_string(self.mpv_handle, 'osc', 'no')
             _mpv_set_property_string(self.mpv_handle, 'osd-bar', 'no')
 
@@ -187,9 +201,33 @@ class MpvPlayerController(QObject):
             _mpv_set_property_string(self.mpv_handle, 'keepaspect', 'yes')
             _mpv_set_property_string(self.mpv_handle, 'panscan', '0.0')
 
-            _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'hable')
-            _mpv_set_property_string(self.mpv_handle, 'tone-mapping-mode', 'auto')
-            _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'yes')
+            if hdr_mode == 'passthrough':
+                _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.2020')
+                _mpv_set_property_string(self.mpv_handle, 'target-trc', 'pq')
+                _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
+                _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'no')
+                if gpu_api == 'd3d11':
+                    _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'pq')
+            elif hdr_mode == 'scrgb':
+                _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.2020')
+                _mpv_set_property_string(self.mpv_handle, 'target-trc', 'linear')
+                _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
+                _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'no')
+                if gpu_api == 'd3d11':
+                    _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'scrgb')
+            elif hdr_mode == 'tonemap':
+                _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'hable')
+                _mpv_set_property_string(self.mpv_handle, 'tone-mapping-mode', 'auto')
+                _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'yes')
+                if gpu_api == 'd3d11':
+                    _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
+            else:
+                _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.2020')
+                _mpv_set_property_string(self.mpv_handle, 'target-trc', 'linear')
+                _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
+                _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'no')
+                if gpu_api == 'd3d11':
+                    _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'scrgb')
 
             ua = self._playback_settings.get('user_agent', DEFAULT_USER_AGENT)
             if ua:
@@ -238,6 +276,18 @@ class MpvPlayerController(QObject):
                 self.logger.warning(f"订阅pause属性失败: {str(e)}")
 
             self.logger.info("mpv播放器初始化成功")
+
+            try:
+                _vo = self._get_mpv_property_string('vo') or '?'
+                _tp = self._get_mpv_property_string('target-prim') or '?'
+                _tt = self._get_mpv_property_string('target-trc') or '?'
+                _tm = self._get_mpv_property_string('tone-mapping') or '?'
+                _tch = self._get_mpv_property_string('target-colorspace-hint') or '?'
+                _ga = self._get_mpv_property_string('gpu-api') or '?'
+                _csp = self._get_mpv_property_string('d3d11-output-csp') or '?'
+                self.logger.info(f"HDR诊断: vo={_vo}, gpu-api={_ga}, target-prim={_tp}, target-trc={_tt}, tone-mapping={_tm}, target-colorspace-hint={_tch}, d3d11-output-csp={_csp}, hdr_mode={hdr_mode}")
+            except Exception as e:
+                self.logger.debug(f"HDR诊断读取失败: {e}")
 
             self.event_timer = QTimer(self)
             self.event_timer.timeout.connect(self._process_events)
@@ -410,6 +460,58 @@ class MpvPlayerController(QObject):
         except Exception as e:
             self.logger.debug(f"路径规范化失败，使用原始URL: {e}")
         return url
+
+    def _apply_hdr_on_file_loaded(self):
+        try:
+            if not self.mpv_handle:
+                return
+            hdr_mode = self._playback_settings.get('hdr_output_mode', 'auto')
+            gpu_api = self._get_mpv_property_string('gpu-api') or 'd3d11'
+            if hdr_mode == 'tonemap':
+                if gpu_api == 'd3d11':
+                    _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
+                return
+
+            vp_prim = (self._get_mpv_property_string('video-params/primaries') or '').lower()
+            vp_gamma = (self._get_mpv_property_string('video-params/gamma') or '').lower()
+            vp_matrix = (self._get_mpv_property_string('video-params/colormatrix') or '').lower()
+            vp_peak = self._get_mpv_property_double('video-params/sig-peak') or 0
+
+            self.logger.info(f"视频HDR参数: primaries={vp_prim}, gamma={vp_gamma}, matrix={vp_matrix}, sig_peak={vp_peak}")
+
+            is_hdr_video = ('pq' in vp_gamma or 'smpte2084' in vp_gamma or
+                           'hlg' in vp_gamma or 'arib-std-b67' in vp_gamma or
+                           vp_peak > 100 or
+                           'bt.2020' in vp_prim or 'bt.2100' in vp_prim)
+
+            if not is_hdr_video:
+                self.logger.info("非HDR视频，恢复SDR输出")
+                if gpu_api == 'd3d11':
+                    _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
+                return
+
+            target_trc = 'pq'
+            if hdr_mode in ('auto', 'scrgb'):
+                target_trc = 'linear'
+            elif 'hlg' in vp_gamma or 'arib-std-b67' in vp_gamma:
+                target_trc = 'hlg'
+
+            if hdr_mode in ('passthrough', 'auto', 'scrgb'):
+                _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.2020')
+                _mpv_set_property_string(self.mpv_handle, 'target-trc', target_trc)
+                _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
+                if gpu_api == 'd3d11':
+                    csp = 'scrgb' if target_trc == 'linear' else target_trc
+                    _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', csp)
+                self.logger.info(f"HDR已应用: target-prim=bt.2020, target-trc={target_trc}, tone-mapping=clip, gpu-api={gpu_api}")
+
+            actual_tp = self._get_mpv_property_string('target-prim') or '?'
+            actual_tt = self._get_mpv_property_string('target-trc') or '?'
+            actual_tm = self._get_mpv_property_string('tone-mapping') or '?'
+            actual_ga = self._get_mpv_property_string('gpu-api') or '?'
+            self.logger.info(f"HDR直通验证: target-prim={actual_tp}, target-trc={actual_tt}, tone-mapping={actual_tm}, gpu-api={actual_ga}")
+        except Exception as e:
+            self.logger.error(f"应用HDR直通设置失败: {e}")
 
     def _reset_demuxer_options(self):
         try:
@@ -673,6 +775,7 @@ class MpvPlayerController(QObject):
                     self._switching_channel = False
                     self._schedule_media_info_start()
                     self._adjust_buffer_for_content()
+                    self._apply_hdr_on_file_loaded()
 
                 elif event.event_id == MPV_EVENT_END_FILE:
                     if event.data:
@@ -905,6 +1008,50 @@ class MpvPlayerController(QObject):
             self.logger.info("MPV播放器已完全终止")
         except Exception as e:
             self.logger.error(f"终止MPV播放器失败: {str(e)}")
+
+    def reinit_for_hdr_change(self, new_hdr_mode):
+        saved_url = self.current_url
+        saved_position = 0.0
+        was_playing = self.is_playing and not self.is_paused
+        if self.mpv_handle:
+            try:
+                saved_position = self._get_mpv_property_double('time-pos') or 0.0
+            except Exception:
+                pass
+        self.stop()
+        for timer_attr in ['_media_info_timer', '_live_info_timer', 'event_timer']:
+            timer = getattr(self, timer_attr, None)
+            if timer:
+                try:
+                    timer.stop()
+                except Exception:
+                    pass
+        with self._lock:
+            handle = self.mpv_handle
+            self.mpv_handle = None
+        if handle:
+            try:
+                _mpv_send_command(handle, ['quit'])
+            except Exception:
+                pass
+            with self._lock:
+                terminate_destroy_mpv(handle)
+        self._mpv_initialized = False
+        self._terminated = False
+        self._playback_settings['hdr_output_mode'] = new_hdr_mode
+        if not self._ensure_mpv_initialized():
+            self.logger.error("HDR模式切换后重新初始化mpv失败")
+            return
+        if saved_url and was_playing:
+            self.play(saved_url)
+            if saved_position > 0:
+                from PyQt6.QtCore import QTimer
+                pos = saved_position
+                def _do_seek():
+                    if self.mpv_handle and self.is_playing:
+                        _mpv_send_command(self.mpv_handle, ['seek', str(pos), 'absolute'])
+                QTimer.singleShot(1500, _do_seek)
+        self.logger.info(f"HDR模式已切换为: {new_hdr_mode}")
 
     def pause(self):
         try:
