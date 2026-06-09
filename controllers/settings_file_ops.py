@@ -291,6 +291,23 @@ class SettingsFileOperations:
         passthrough_combo.setCurrentIndex(selected_pt_idx)
         layout.addRow(tr("audio_passthrough_colon", "Audio Pass-through:"), passthrough_combo)
 
+        hdr_combo = QComboBox()
+        hdr_combo.setObjectName("hdr_output_mode_combo")
+        hdr_items = [
+            ('auto', tr("hdr_auto", "Auto (scRGB for Windows HDR)")),
+            ('scrgb', tr("hdr_scrgb", "scRGB (Windows HDR ON)")),
+            ('passthrough', tr("hdr_passthrough", "PQ Passthrough (Windows HDR OFF)")),
+            ('tonemap', tr("hdr_tonemap", "Tone Map to SDR")),
+        ]
+        current_hdr = playback_settings.get('hdr_output_mode', 'auto')
+        selected_hdr_idx = 0
+        for i, (val, label) in enumerate(hdr_items):
+            hdr_combo.addItem(label, val)
+            if val == current_hdr:
+                selected_hdr_idx = i
+        hdr_combo.setCurrentIndex(selected_hdr_idx)
+        layout.addRow(tr("hdr_output_mode_colon", "HDR Output:"), hdr_combo)
+
         group.setLayout(layout)
         return group
 
@@ -463,6 +480,9 @@ class SettingsFileOperations:
         combo = dialog.findChild(QComboBox, "audio_passthrough_combo")
         if combo:
             settings['audio_passthrough'] = combo.currentData() if combo.currentData() is not None else 'never'
+        combo = dialog.findChild(QComboBox, "hdr_output_mode_combo")
+        if combo:
+            settings['hdr_output_mode'] = combo.currentData() if combo.currentData() is not None else 'auto'
         return settings
 
     def _save_intervals(self, dialog):
@@ -491,7 +511,11 @@ class SettingsFileOperations:
             try:
                 pc = self.window.player_controller
                 if pc and hasattr(pc, '_playback_settings'):
+                    old_hdr = pc._playback_settings.get('hdr_output_mode', 'auto')
+                    new_hdr = new_playback.get('hdr_output_mode', 'auto')
                     pc._playback_settings.update(new_playback)
+                    if old_hdr != new_hdr and hasattr(pc, 'reinit_for_hdr_change'):
+                        pc.reinit_for_hdr_change(new_hdr)
             except Exception as e:
                 from core.log_manager import global_logger
                 global_logger.debug(f"更新播放设置失败: {e}")
