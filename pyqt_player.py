@@ -19,7 +19,8 @@ from PySide6 import QtWidgets
 from PySide6.QtCore import Qt, QSize, QTimer, QThread, Slot, Signal, QRectF
 from PySide6 import QtCore
 from PySide6.QtGui import QIcon, QFont, QFontMetrics, QColor, QPainter, QBrush, QPen, QLinearGradient, QPainterPath, QPixmap
-from PySide6.QtWidgets import QAction, QShortcut
+from PySide6.QtGui import QAction
+from PySide6.QtGui import QShortcut
 
 from core.log_manager import global_logger as logger
 from core.application_state import app_state
@@ -1948,7 +1949,8 @@ class IPTVPlayer(QMainWindow):
         self.epg_ctrl.on_epg_item_clicked(item)
 
     def _on_epg_context_menu(self, pos):
-        from PySide6.QtWidgets import QMenu, QAction
+        from PySide6.QtWidgets import QMenu
+        from PySide6.QtGui import QAction
         item = self.epg_content.itemAt(pos)
         if not item:
             return
@@ -3415,7 +3417,8 @@ class IPTVPlayer(QMainWindow):
     def _check_for_updates_async(self):
         """异步检查新版本"""
         if QThread.currentThread() != self.thread():
-            QTimer.singleShot(0, self._do_check_for_updates_async)
+            from utils.thread_safety import invoke_on_thread
+            invoke_on_thread(self, self._do_check_for_updates_async)
             return
         self._do_check_for_updates_async()
 

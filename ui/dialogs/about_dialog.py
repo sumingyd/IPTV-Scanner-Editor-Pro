@@ -182,20 +182,20 @@ class AboutDialog(FloatingDialog):
                 # 保存结果到实例变量
                 self._latest_version_result = latest_version
                 # 在主线程中更新 UI
-                from PySide6.QtCore import QTimer
-                QTimer.singleShot(0, self._update_version_ui)
+                from utils.thread_safety import invoke_on_thread
+                invoke_on_thread(self, self._update_version_ui)
             finally:
                 loop.close()
         except asyncio.TimeoutError:
             logger.error("版本检查超时")
             self._latest_version_result = tr("request_timeout_text", "(Request Timeout)")
-            from PySide6.QtCore import QTimer
-            QTimer.singleShot(0, self._update_version_ui)
+            from utils.thread_safety import invoke_on_thread
+            invoke_on_thread(self, self._update_version_ui)
         except Exception as e:
             logger.error(f"版本检查失败：{e}")
             self._latest_version_result = tr("fetch_failed_text", "(Fetch Failed)")
-            from PySide6.QtCore import QTimer
-            QTimer.singleShot(0, self._update_version_ui)
+            from utils.thread_safety import invoke_on_thread
+            invoke_on_thread(self, self._update_version_ui)
     
     def _update_version_ui(self):
         """在主线程中更新版本显示"""

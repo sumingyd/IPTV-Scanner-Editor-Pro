@@ -213,10 +213,10 @@ class PanelVisibilityManager:
             w._sync_panel_actions()
 
         if visible and hasattr(w, 'update_floating_position'):
-            from PySide6.QtCore import QTimer
+            from utils.thread_safety import invoke_on_thread
             if not getattr(w, '_position_update_pending', False):
                 w._position_update_pending = True
-                QTimer.singleShot(0, lambda: (setattr(w, '_position_update_pending', False), w.update_floating_position()))
+                invoke_on_thread(w, lambda: (setattr(w, '_position_update_pending', False), w.update_floating_position()))
 
     def add_listener(self, callback: Callable[[str, bool], None]):
         with self._lock:

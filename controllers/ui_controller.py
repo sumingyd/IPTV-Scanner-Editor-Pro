@@ -1024,7 +1024,8 @@ class UIController:
 
     def setup_menu_bar(self, skip_recent_files=False):
         """设置菜单栏"""
-        from PySide6.QtWidgets import QMenuBar, QAction
+        from PySide6.QtWidgets import QMenuBar
+        from PySide6.QtGui import QAction
         from ui.styles import AppStyles
         from core.log_manager import global_logger as logger
 
@@ -1273,7 +1274,7 @@ class UIController:
             english.triggered.connect(lambda: self.window.set_language("en"))
             language_menu.addAction(english)
 
-            from PySide6.QtWidgets import QActionGroup
+            from PySide6.QtGui import QActionGroup
             lang_group = QActionGroup(self.window)
             lang_group.setExclusive(True)
             lang_group.addAction(chinese)
@@ -1360,7 +1361,7 @@ class UIController:
 
     def _register_global_shortcuts(self):
         from PySide6.QtGui import QKeySequence
-        from PySide6.QtWidgets import QShortcut
+        from PySide6.QtGui import QShortcut
         from PySide6.QtCore import Qt
         from PySide6.QtWidgets import QApplication
         app = QApplication.instance()

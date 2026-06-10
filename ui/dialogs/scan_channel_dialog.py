@@ -2003,7 +2003,7 @@ class ScanChannelDialog(FloatingDialog):
     def _setup_shortcuts(self):
         """设置快捷键"""
         from PySide6.QtGui import QKeySequence
-        from PySide6.QtWidgets import QShortcut
+        from PySide6.QtGui import QShortcut
         QShortcut(QKeySequence("Ctrl+S"), self, self._on_save_m3u_clicked)
         QShortcut(QKeySequence("Ctrl+F"), self, self._focus_search)
         QShortcut(QKeySequence("Ctrl+A"), self, self._select_all_channels)
@@ -2104,7 +2104,8 @@ class ScanChannelDialog(FloatingDialog):
                 self._show_input_warning(self.ip_range_input, self.language_manager.tr("please_input_url", "请输入扫描地址"))
                 return
 
-            QtCore.QTimer.singleShot(0, lambda: self._start_scan_delayed(url, clear_list=True))
+            from utils.thread_safety import invoke_on_thread
+            invoke_on_thread(self, lambda: self._start_scan_delayed(url, clear_list=True))
 
     def _on_append_scan_clicked(self):
         """处理追加扫描按钮点击事件"""
@@ -2121,7 +2122,8 @@ class ScanChannelDialog(FloatingDialog):
                 self._show_input_warning(self.ip_range_input, self.language_manager.tr("please_input_url", "请输入扫描地址"))
                 return
 
-            QtCore.QTimer.singleShot(0, lambda: self._start_scan_delayed(url, clear_list=False))
+            from utils.thread_safety import invoke_on_thread
+            invoke_on_thread(self, lambda: self._start_scan_delayed(url, clear_list=False))
 
     def _start_scan_delayed(self, url, clear_list=True):
         """延迟启动扫描，避免UI阻塞"""

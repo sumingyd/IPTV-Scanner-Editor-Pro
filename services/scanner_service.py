@@ -122,7 +122,13 @@ class ScannerController(QObject):
 
     @staticmethod
     def _run_on_main(func, *args):
-        QtCore.QTimer.singleShot(0, functools.partial(func, *args))
+        from PySide6.QtWidgets import QApplication
+        from utils.thread_safety import invoke_on_thread
+        app = QApplication.instance()
+        if app:
+            invoke_on_thread(app, functools.partial(func, *args))
+        else:
+            QtCore.QTimer.singleShot(0, functools.partial(func, *args))
 
     def _worker(self) -> None:
         """工作线程函数"""
@@ -203,7 +209,7 @@ class ScannerController(QObject):
 
                 continue
 
-        QtCore.QTimer.singleShot(0, self._flush_pending_channels)
+        self._run_on_main(self._flush_pending_channels)
 
         with self.stats_lock:
             current = self.stats['valid'] + self.stats['invalid']
@@ -554,7 +560,7 @@ class ScannerController(QObject):
         self.stats_thread.start()
 
         # 扫描开始时发送进度更新信号
-        QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(0, 1))
+        self._run_on_main(self.progress_updated.emit, 0, 1)
 
     def start_scan_from_urls(
         self, urls: list, thread_count: int = 10, timeout: int = 10,
@@ -825,7 +831,7 @@ class ScannerController(QObject):
         self.stats_thread.start()
 
         # 验证开始时发送进度更新信号
-        QtCore.QTimer.singleShot(0, lambda: self.progress_updated.emit(0, 1))
+        self._run_on_main(self.progress_updated.emit, 0, 1)
 
     def stop_validation(self):
         """停止有效性验证"""
@@ -945,9 +951,9 @@ class ScannerController(QObject):
                         else:
                             stats_copy = self.stats.copy()
                             is_validating_copy = self.is_validating
-                            QtCore.QTimer.singleShot(0, lambda sc=stats_copy, iv=is_validating_copy: self.stats_updated.emit({
-                                'stats': sc, 'is_validation': iv
-                            }))
+                            self._run_on_main(self.stats_updated.emit, {
+                                'stats': stats_copy, 'is_validation': is_validating_copy
+                            })
 
                     # 检查扫描是否完成：填充线程结束、所有工作线程都完成且队列为空
                     filler_alive = (
@@ -991,7 +997,7 @@ class ScannerController(QObject):
                 )
                 if self.main_window and hasattr(self.main_window, '_on_validation_completed'):
                     try:
-                        QtCore.QTimer.singleShot(0, self.main_window._on_validation_completed)
+                        self._run_on_main(self.main_window._on_validation_completed)
                     except RuntimeError:
                         self.logger.debug("主窗口已销毁，跳过验证完成回调")
             else:
@@ -1024,7 +1030,7 @@ class ScannerController(QObject):
                 try:
                     if self.main_window and hasattr(self.main_window, '_on_scan_completed'):
                         callback = self.main_window._on_scan_completed
-                        QtCore.QTimer.singleShot(0, callback)
+                        self._run_on_main(callback)
                     else:
                         self.logger.warning("无法调用主窗口方法")
                 except RuntimeError:
@@ -1056,9 +1062,9 @@ class ScannerController(QObject):
                         try:
                             stats_copy = self.stats.copy()
                             is_validating_copy = self.is_validating or was_validation
-                            QtCore.QTimer.singleShot(0, lambda sc=stats_copy, iv=is_validating_copy: self.stats_updated.emit({
-                                'stats': sc, 'is_validation': iv
-                            }))
+                            self._run_on_main(self.stats_updated.emit, {
+                                'stats': stats_copy, 'is_validation': is_validating_copy
+                            })
                         except RuntimeError:
                             pass
             except Exception as e:

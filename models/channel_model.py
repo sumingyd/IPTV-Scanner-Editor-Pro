@@ -1483,16 +1483,16 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
             # 通知UI更新状态标签 - 使用QTimer确保在主线程执行
             if hasattr(self, 'update_status_label') and self.update_status_label:
-                from PySide6.QtCore import QTimer
-                QTimer.singleShot(0, lambda: self.update_status_label("请点击检测有效性按钮"))
+                from utils.thread_safety import invoke_on_thread
+                invoke_on_thread(self, lambda: self.update_status_label("请点击检测有效性按钮"))
 
             self.endResetModel()
 
             # 数据加载完成后调整列宽 - 使用QTimer确保在主线程执行
             view = self.parent()
             if view and hasattr(view, 'resizeColumnsToContents'):
-                from PySide6.QtCore import QTimer
-                QTimer.singleShot(0, view.resizeColumnsToContents)
+                from utils.thread_safety import invoke_on_thread
+                invoke_on_thread(self, view.resizeColumnsToContents)
 
             return True
         except Exception as e:

@@ -271,9 +271,10 @@ class SubscriptionController:
                 logger.debug(f"订阅源 '{source.get('name', '')}' 需要更新: {need_update}")
                 self.handle_playlist_subscription(need_update, playlist_url, i)
 
-                from PySide6.QtCore import QTimer, QThread
+                from PySide6.QtCore import QThread
+                from utils.thread_safety import invoke_on_thread
                 if QThread.currentThread() != self.window.thread():
-                    QTimer.singleShot(0, self.window._do_on_playlist_updated_in_main_thread)
+                    invoke_on_thread(self.window, self.window._do_on_playlist_updated_in_main_thread)
                 else:
                     self.window._do_on_playlist_updated_in_main_thread()
                 break
@@ -338,7 +339,8 @@ class SubscriptionController:
             except Exception as e:
                 logger.error(f"刷新UI失败: {e}", exc_info=True)
 
-        QTimer.singleShot(0, refresh_ui)
+        from utils.thread_safety import invoke_on_thread
+        invoke_on_thread(self.window, refresh_ui)
 
     def update_playlist_subscription(self, source_index=None):
         """更新列表订阅 - 线程安全版本"""

@@ -684,15 +684,13 @@ class SubscriptionManager(Singleton):
         for callback in callbacks:
             try:
                 # 如果当前在子线程，通过 QMetaObject.invokeMethod 调度到主线程
-                from PySide6.QtCore import QThread, QMetaObject, Qt
+                from PySide6.QtCore import QThread
                 from PySide6.QtWidgets import QApplication
                 main_thread = QApplication.instance().thread() if QApplication.instance() else None
                 if main_thread and QThread.currentThread() != main_thread:
-                    # 使用 Qt.ConnectionType.QueuedConnection 将回调 marshal 到主线程
-                    # 由于 callback 可能不是 QObject 方法，用 QTimer.singleShot 代替
-                    from PySide6.QtCore import QTimer
-                    # 捕获 callback 避免闭包引用问题
-                    QTimer.singleShot(0, callback)
+                    from utils.thread_safety import invoke_on_thread
+                    app_instance = QApplication.instance()
+                    invoke_on_thread(app_instance, callback)
                 else:
                     callback()
             except Exception as e:

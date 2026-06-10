@@ -17,7 +17,13 @@ def _is_main_thread() -> bool:
 
 
 def _run_on_main(func, *args):
-    QtCore.QTimer.singleShot(0, lambda: func(*args))
+    from PySide6.QtWidgets import QApplication
+    from utils.thread_safety import invoke_on_thread
+    app = QApplication.instance()
+    if app:
+        invoke_on_thread(app, lambda: func(*args))
+    else:
+        QtCore.QTimer.singleShot(0, lambda: func(*args))
 
 
 class ProgressManager(Singleton):

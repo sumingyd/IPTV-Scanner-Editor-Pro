@@ -1,7 +1,7 @@
 from typing import Dict, Any, List, Optional
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QMenu
-from PySide6.QtWidgets import QAction
+from PySide6.QtGui import QAction
 from core.log_manager import global_logger as logger
 from controllers.main_window_protocol import MainWindowProtocol
 
