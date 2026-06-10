@@ -327,13 +327,13 @@ class MpvPlayerController(QObject):
         self.logger.info("HDR配置: scrgb → 线性光 (bt.2020, linear)")
 
     def _reset_hdr_params(self):
-        self._set_mpv_string('tone-mapping', 'auto')
+        self._set_mpv_string('tone-mapping', '')
         self._set_mpv_string('tone-mapping-mode', '')
         self._set_mpv_string('hdr-compute-peak', '')
-        self._set_mpv_string('d3d11-output-csp', 'auto')
+        self._set_mpv_string('d3d11-output-csp', 'srgb')
         self._set_mpv_string('target-prim', '')
         self._set_mpv_string('target-trc', '')
-        self.logger.info("HDR配置: 已重置为默认值")
+        self.logger.info("HDR配置: 已重置为SDR默认值")
 
 
     def _set_mpv_string(self, name, value):
@@ -500,7 +500,7 @@ class MpvPlayerController(QObject):
             hdr_mode = self._playback_settings.get('hdr_output_mode', 'disable')
 
             if hdr_mode == 'disable':
-                self._reset_hdr_params()
+
                 return
 
             vp_prim = (self._get_mpv_property_string('video-params/primaries') or '').lower()
