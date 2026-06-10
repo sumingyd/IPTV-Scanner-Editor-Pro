@@ -252,7 +252,7 @@ class FfprobeStreamValidator:
             '-show_format',
             '-show_streams',
             '-analyzeduration', str(timeout * 1000000),
-            '-probesize', '1048576',
+            '-probesize', '5242880',
             '-timeout', str(timeout * 1000000),
         ]
 

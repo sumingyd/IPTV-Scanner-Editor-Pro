@@ -2380,7 +2380,7 @@ class ScanChannelDialog(FloatingDialog):
                 pass
 
     def _on_channel_validated(self, index, valid, latency, resolution):
-        """处理频道验证结果"""
+        """处理频道验证结果（_flush_pending_validations 已通过URL更新模型，此方法为辅助更新）"""
         if not (0 <= index < self.model.rowCount()):
             return
         channel_info = {
@@ -2724,7 +2724,11 @@ class ScanChannelDialog(FloatingDialog):
             self._is_stopping = False
             return
 
-        found_urls = {ch.get('url', '') for ch in self.scanner.found_channels} if hasattr(self, 'scanner') and self.scanner and hasattr(self.scanner, 'found_channels') else set()
+        found_urls = set()
+        if hasattr(self, 'model') and self.model:
+            for ch in self.model.channels:
+                if ch.get('valid') is True and ch.get('url'):
+                    found_urls.add(ch.get('url'))
 
         url_to_index = {}
         for i, ch in enumerate(self.model.channels):

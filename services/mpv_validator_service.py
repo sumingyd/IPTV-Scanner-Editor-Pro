@@ -50,8 +50,8 @@ def _create_lightweight_mpv():
         _mpv_set_option_string(handle, 'keep-open', 'yes')
         _mpv_set_option_string(handle, 'log-level', 'fatal')
         _mpv_set_option_string(handle, 'config', 'no')
-        _mpv_set_option_string(handle, 'demuxer-lavf-probesize', '32768')
-        _mpv_set_option_string(handle, 'demuxer-lavf-analyzeduration', '1000000')
+        _mpv_set_option_string(handle, 'demuxer-lavf-probesize', '1048576')
+        _mpv_set_option_string(handle, 'demuxer-lavf-analyzeduration', '5000000')
         _mpv_set_option_string(handle, 'cache', 'yes')
         _mpv_set_option_string(handle, 'cache-secs', '10')
         _mpv_set_option_string(handle, 'demuxer-max-bytes', '16MiB')
@@ -203,6 +203,7 @@ class MpvStreamValidator:
             _mpv_send_command(handle, ['loadfile', url])
 
             found_tracks = False
+            found_tracks_time = 0.0
             event_id = 0
             event_data = None
             deadline = time.time() + timeout
@@ -228,8 +229,12 @@ class MpvStreamValidator:
                             tracks = json.loads(tl)
                             if len(tracks) > 0:
                                 found_tracks = True
+                                found_tracks_time = time.time()
                     except Exception:
                         pass
+                else:
+                    if found_tracks_time > 0 and (time.time() - found_tracks_time) > 1.5:
+                        break
 
             latency = int((time.time() - start_time) * 1000)
 
@@ -303,9 +308,27 @@ class MpvStreamValidator:
                         if codec:
                             result['codec'] = codec
                     else:
-                        result['valid'] = False
-                        result['error'] = f'播放失败(错误码:{end_error})'
-                        result['error_type'] = 'playback_failed'
+                        try:
+                            tl = _mpv_get_property_string(handle, 'track-list')
+                            if tl and '"id"' in tl:
+                                tracks = json.loads(tl)
+                                if len(tracks) > 0:
+                                    found_tracks = True
+                        except Exception:
+                            pass
+                        if found_tracks:
+                            result['valid'] = True
+                            result['error'] = f'播放警告(vo=null,END_FILE错误码:{end_error})'
+                            result['error_type'] = 'playback_warning'
+                            res, codec = _try_get_resolution_and_codec(handle, retries=2, interval=0.2)
+                            if res:
+                                result['resolution'] = res
+                            if codec:
+                                result['codec'] = codec
+                        else:
+                            result['valid'] = False
+                            result['error'] = f'播放失败(错误码:{end_error})'
+                            result['error_type'] = 'playback_failed'
                 else:
                     result['valid'] = False
                     if end_reason is not None:
