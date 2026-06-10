@@ -158,10 +158,43 @@ class MpvPlayerController(QObject):
                 self.logger.error(f"设置窗口ID失败: {str(e)}")
 
             hdr_mode = self._playback_settings.get('hdr_output_mode', 'auto')
+
+            system_hdr_enabled = False
+            try:
+                from utils.hdr_detect import is_windows_hdr_enabled
+                system_hdr_enabled = is_windows_hdr_enabled()
+            except Exception as e:
+                self.logger.warning(f"HDR检测失败，保守使用SDR模式: {e}")
+
             if hdr_mode == 'tonemap':
                 vo = 'gpu'
+                self._apply_tonemap_config()
+            elif hdr_mode == 'passthrough':
+                if system_hdr_enabled:
+                    vo = 'gpu-next'
+                    self._apply_passthrough_config()
+                else:
+                    self.logger.warning("系统未启用HDR，passthrough模式回退到tonemap")
+                    vo = 'gpu'
+                    self._apply_tonemap_config()
+            elif hdr_mode == 'scrgb':
+                if system_hdr_enabled:
+                    vo = 'gpu-next'
+                    self._apply_scrgb_config()
+                else:
+                    self.logger.warning("系统未启用HDR，scrgb模式回退到tonemap")
+                    vo = 'gpu'
+                    self._apply_tonemap_config()
             else:
-                vo = 'gpu-next'
+                if system_hdr_enabled:
+                    self.logger.info("检测到系统HDR已启用，使用HDR直通模式")
+                    vo = 'gpu-next'
+                    self._apply_passthrough_config()
+                else:
+                    self.logger.info("系统HDR未启用，使用SDR色调映射模式")
+                    vo = 'gpu'
+                    self._apply_tonemap_config()
+
             _mpv_set_property_string(self.mpv_handle, 'vo', vo)
             hwdec = 'auto' if self._playback_settings.get('hwdec', True) else 'no'
             _mpv_set_property_string(self.mpv_handle, 'hwdec', hwdec)
@@ -191,30 +224,6 @@ class MpvPlayerController(QObject):
             _mpv_set_property_string(self.mpv_handle, 'video-aspect-override', '-1')
             _mpv_set_property_string(self.mpv_handle, 'keepaspect', 'yes')
             _mpv_set_property_string(self.mpv_handle, 'panscan', '0.0')
-
-            if hdr_mode == 'passthrough':
-                _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.2020')
-                _mpv_set_property_string(self.mpv_handle, 'target-trc', 'pq')
-                _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
-                _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'no')
-                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'pq')
-            elif hdr_mode == 'scrgb':
-                _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.2020')
-                _mpv_set_property_string(self.mpv_handle, 'target-trc', 'linear')
-                _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
-                _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'no')
-                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'scrgb')
-            elif hdr_mode == 'tonemap':
-                _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'hable')
-                _mpv_set_property_string(self.mpv_handle, 'tone-mapping-mode', 'auto')
-                _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'yes')
-                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
-            else:
-                _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.2020')
-                _mpv_set_property_string(self.mpv_handle, 'target-trc', 'linear')
-                _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
-                _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'no')
-                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'scrgb')
 
             ua = self._playback_settings.get('user_agent', DEFAULT_USER_AGENT)
             if ua:
@@ -290,6 +299,29 @@ class MpvPlayerController(QObject):
                 destroy_mpv(self.mpv_handle)
                 self.mpv_handle = None
             return False
+
+    def _apply_tonemap_config(self):
+        _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'hable')
+        _mpv_set_property_string(self.mpv_handle, 'tone-mapping-mode', 'auto')
+        _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'yes')
+        _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
+        self.logger.info("HDR配置: tonemap → SDR (hable, srgb)")
+
+    def _apply_passthrough_config(self):
+        _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.2020')
+        _mpv_set_property_string(self.mpv_handle, 'target-trc', 'pq')
+        _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
+        _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'no')
+        _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'pq')
+        self.logger.info("HDR配置: passthrough → HDR (bt.2020, pq)")
+
+    def _apply_scrgb_config(self):
+        _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.2020')
+        _mpv_set_property_string(self.mpv_handle, 'target-trc', 'linear')
+        _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
+        _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'no')
+        _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'scrgb')
+        self.logger.info("HDR配置: scrgb → 线性光 (bt.2020, linear)")
 
     def _set_mpv_string(self, name, value):
         if self._terminated or not self.mpv_handle:
@@ -453,16 +485,16 @@ class MpvPlayerController(QObject):
             if not self.mpv_handle:
                 return
             hdr_mode = self._playback_settings.get('hdr_output_mode', 'auto')
+
             if hdr_mode == 'tonemap':
                 _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
                 return
 
             vp_prim = (self._get_mpv_property_string('video-params/primaries') or '').lower()
             vp_gamma = (self._get_mpv_property_string('video-params/gamma') or '').lower()
-            vp_matrix = (self._get_mpv_property_string('video-params/colormatrix') or '').lower()
             vp_peak = self._get_mpv_property_double('video-params/sig-peak') or 0
 
-            self.logger.info(f"视频HDR参数: primaries={vp_prim}, gamma={vp_gamma}, matrix={vp_matrix}, sig_peak={vp_peak}")
+            self.logger.info(f"视频HDR参数: primaries={vp_prim}, gamma={vp_gamma}, sig_peak={vp_peak}")
 
             is_hdr_video = ('pq' in vp_gamma or 'smpte2084' in vp_gamma or
                            'hlg' in vp_gamma or 'arib-std-b67' in vp_gamma or
@@ -472,21 +504,26 @@ class MpvPlayerController(QObject):
             if not is_hdr_video:
                 self.logger.info("非HDR视频，恢复SDR输出")
                 _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
+                _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.709')
+                _mpv_set_property_string(self.mpv_handle, 'target-trc', 'srgb')
                 return
 
-            target_trc = 'pq'
-            if hdr_mode in ('auto', 'scrgb'):
-                target_trc = 'linear'
-            elif 'hlg' in vp_gamma or 'arib-std-b67' in vp_gamma:
-                target_trc = 'hlg'
+            system_hdr_enabled = False
+            try:
+                from utils.hdr_detect import is_windows_hdr_enabled
+                system_hdr_enabled = is_windows_hdr_enabled()
+            except Exception:
+                pass
 
-            if hdr_mode in ('passthrough', 'auto', 'scrgb'):
-                _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.2020')
-                _mpv_set_property_string(self.mpv_handle, 'target-trc', target_trc)
-                _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
-                csp = 'scrgb' if target_trc == 'linear' else target_trc
-                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', csp)
-                self.logger.info(f"HDR已应用: target-prim=bt.2020, target-trc={target_trc}, d3d11-output-csp={csp}")
+            if not system_hdr_enabled and hdr_mode == 'auto':
+                self.logger.info("HDR视频在SDR显示器上，启用实时色调映射")
+                _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'hable')
+                _mpv_set_property_string(self.mpv_handle, 'tone-mapping-mode', 'auto')
+                _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'yes')
+                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
+                return
+
+            self.logger.info(f"HDR视频在HDR显示器上，保持直通模式")
 
             actual_tp = self._get_mpv_property_string('target-prim') or '?'
             actual_tt = self._get_mpv_property_string('target-trc') or '?'
@@ -494,7 +531,7 @@ class MpvPlayerController(QObject):
             actual_csp = self._get_mpv_property_string('d3d11-output-csp') or '?'
             self.logger.info(f"HDR验证: target-prim={actual_tp}, target-trc={actual_tt}, tone-mapping={actual_tm}, d3d11-output-csp={actual_csp}")
         except Exception as e:
-            self.logger.error(f"应用HDR直通设置失败: {e}")
+            self.logger.error(f"应用HDR设置失败: {e}")
 
     def _reset_demuxer_options(self):
         try:
