@@ -40,7 +40,7 @@ jobs:
           dir ./mpv
           Invoke-WebRequest -Uri "https://github.com/GyanD/codexffmpeg/releases/download/2026-06-08-git-6028720d70/ffmpeg-2026-06-08-git-6028720d70-essentials_build.7z" -OutFile "ffmpge.7z"
           7z x ffmpge.7z -offmpge1
-          move ./ffmpge1/bin ./ffmpge
+          move ./ffmpge1/ffmpeg-2026-06-08-git-6028720d70-essentials_build/bin ./ffmpge
           dir ./ffmpge
 
       - name: Set up Python
