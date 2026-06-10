@@ -3477,33 +3477,40 @@ class IPTVPlayer(QMainWindow):
             server = get_server()
             port = server.port if server and server.is_running() else 8080
             import webbrowser
-            webbrowser.open(f'http://localhost:{port}/api/status')
-        except Exception as e:
-            logger.error(f"打开Server API失败: {e}")
-
-    def _open_server_api(self):
-        """在浏览器中打开Server API"""
-        try:
-            from server.app import get_server
-            server = get_server()
-            port = server.port if server and server.is_running() else 8080
-            import webbrowser
-            webbrowser.open(f'http://localhost:{port}/api/status')
+            webbrowser.open(f'http://localhost:{port}/')
         except Exception as e:
             logger.error(f"打开Server API失败: {e}")
 
     def _show_server_settings(self):
         """显示Server设置对话框"""
-        from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QCheckBox, QPushButton
+        from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
+                                        QSpinBox, QCheckBox, QPushButton, QComboBox)
         from ui.styles import AppStyles
         tr = self.language_manager.tr
         dialog = QDialog(self)
         dialog.setWindowTitle(tr('server_settings', 'Server设置'))
-        dialog.setMinimumWidth(360)
+        dialog.setMinimumWidth(400)
         layout = QVBoxLayout(dialog)
-        layout.setSpacing(12)
+        layout.setSpacing(16)
+        layout.setContentsMargins(24, 20, 24, 20)
 
         settings = self.config.load_server_settings()
+
+        from server.app import get_server
+        server = get_server()
+        is_running = server.is_running()
+        port = server.port if is_running else settings.get('port', 8080)
+
+        status_label = QLabel()
+        if is_running:
+            status_label.setText(f"● {tr('server_running', 'Server运行中')}  http://localhost:{port}")
+            status_label.setStyleSheet("color: #4CAF50; font-weight: bold; font-size: 13px;")
+        else:
+            status_label.setText(f"○ {tr('server_not_running', 'Server未运行')}")
+            status_label.setStyleSheet("color: #FF9800; font-weight: bold; font-size: 13px;")
+        layout.addWidget(status_label)
+
+        layout.addSpacing(4)
 
         auto_start_cb = QCheckBox(tr('server_auto_start', '启动时自动运行Server'))
         auto_start_cb.setChecked(settings.get('auto_start', True))
@@ -3511,40 +3518,33 @@ class IPTVPlayer(QMainWindow):
 
         port_layout = QHBoxLayout()
         port_label = QLabel(tr('server_port', '端口:'))
+        port_label.setFixedWidth(70)
         port_layout.addWidget(port_label)
         port_spin = QSpinBox()
         port_spin.setRange(1024, 65535)
-        port_spin.setValue(settings.get('port', 8080))
-        port_layout.addWidget(port_spin)
+        port_spin.setValue(port)
+        port_layout.addWidget(port_spin, 1)
         layout.addLayout(port_layout)
 
         host_layout = QHBoxLayout()
         host_label = QLabel(tr('server_host', '监听地址:'))
+        host_label.setFixedWidth(70)
         host_layout.addWidget(host_label)
-        from PySide6.QtWidgets import QComboBox
         host_combo = QComboBox()
         host_combo.addItem('0.0.0.0 (所有接口)', '0.0.0.0')
         host_combo.addItem('127.0.0.1 (仅本机)', '127.0.0.1')
         host_idx = host_combo.findData(settings.get('host', '0.0.0.0'))
         if host_idx >= 0:
             host_combo.setCurrentIndex(host_idx)
-        host_layout.addWidget(host_combo)
+        host_layout.addWidget(host_combo, 1)
         layout.addLayout(host_layout)
 
-        from server.app import get_server
-        server = get_server()
-        if server.is_running():
-            info_label = QLabel(f"✓ {tr('server_running', 'Server运行中')} - http://localhost:{server.port}")
-            info_label.setStyleSheet("color: #4CAF50; font-weight: bold;")
-        else:
-            info_label = QLabel(tr('server_not_running', 'Server未运行'))
-            info_label.setStyleSheet("color: #FF9800;")
-        layout.addWidget(info_label)
+        layout.addSpacing(8)
 
         btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
         save_btn = QPushButton(tr('save', '保存'))
         cancel_btn = QPushButton(tr('cancel', '取消'))
-        btn_layout.addStretch()
         btn_layout.addWidget(save_btn)
         btn_layout.addWidget(cancel_btn)
         layout.addLayout(btn_layout)
@@ -3563,7 +3563,7 @@ class IPTVPlayer(QMainWindow):
         save_btn.setStyleSheet(AppStyles.common_button_style())
         cancel_btn.setStyleSheet(AppStyles.common_button_style())
 
-        dialog.setStyleSheet(AppStyles.settings_dialog_style() if hasattr(AppStyles, 'settings_dialog_style') else '')
+        dialog.setStyleSheet(AppStyles.popup_dialog_style())
         dialog.exec()
 
     def _check_for_updates_async(self):
