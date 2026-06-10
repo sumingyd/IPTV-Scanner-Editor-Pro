@@ -1117,6 +1117,7 @@ class ScanChannelDialog(FloatingDialog):
         self._exec_themed_dialog(dialog)
 
     def _show_assign_fields_dialog(self):
+        from models.channel_model import ChannelListModel as CLM
         tr = self.language_manager.tr
 
         channels = self._get_all_channels()
