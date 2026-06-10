@@ -94,7 +94,7 @@ class MpvPlayerController(QObject):
     play_error = Signal(str)
     reconnect_requested = Signal(str)
     live_media_info_updated = Signal(dict)
-    playback_position_updated = Signal(float, float, float)
+    playback_position_updated = Signal(int, int, float)
     logo_cache_loaded = Signal(str, object)
     thumbnail_captured = Signal(str)
 
@@ -131,20 +131,20 @@ class MpvPlayerController(QObject):
             if not _mpv_mod._ensure_libmpv_loaded():
                 error_msg = "libmpv-2.dll加载失败"
                 self.logger.error(error_msg)
-                self.play_error.emit(error_msg)
+                self._safe_emit(self.play_error, error_msg)
                 return False
 
             if not _mpv_mod.MPV_AVAILABLE or _mpv_mod.libmpv is None:
                 error_msg = "libmpv-2.dll加载失败"
                 self.logger.error(error_msg)
-                self.play_error.emit(error_msg)
+                self._safe_emit(self.play_error, error_msg)
                 return False
 
             self.mpv_handle = create_mpv_handle()
             if not self.mpv_handle:
                 error_msg = "创建mpv实例失败"
                 self.logger.error(error_msg)
-                self.play_error.emit(error_msg)
+                self._safe_emit(self.play_error, error_msg)
                 return False
 
             window_id = self.video_widget.winId()
@@ -261,7 +261,7 @@ class MpvPlayerController(QObject):
             if not initialize_mpv(self.mpv_handle):
                 error_msg = "初始化mpv失败"
                 self.logger.error(error_msg)
-                self.play_error.emit(error_msg)
+                self._safe_emit(self.play_error, error_msg)
                 destroy_mpv(self.mpv_handle)
                 self.mpv_handle = None
                 return False
@@ -294,11 +294,19 @@ class MpvPlayerController(QObject):
         except Exception as e:
             error_msg = f"初始化mpv播放器失败: {str(e)}"
             self.logger.error(error_msg)
-            self.play_error.emit(error_msg)
+            self._safe_emit(self.play_error, error_msg)
             if self.mpv_handle:
                 destroy_mpv(self.mpv_handle)
                 self.mpv_handle = None
             return False
+
+    def _safe_emit(self, signal, *args):
+        if self._terminated:
+            return
+        try:
+            signal.emit(*args)
+        except RuntimeError:
+            pass
 
     def _apply_tonemap_config(self):
         _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'hable')
@@ -769,7 +777,7 @@ class MpvPlayerController(QObject):
             if not handle:
                 return
         try:
-            while True:
+            while not self._terminated:
                 with self._lock:
                     current_handle = self.mpv_handle
                 if current_handle is not handle:
@@ -815,18 +823,18 @@ class MpvPlayerController(QObject):
                                     self.logger.debug(f"END_FILE错误(本地文件)，不重连: reason={reason}")
                                     self.is_playing = False
                                     self.is_paused = False
-                                    self.play_state_changed.emit(False)
+                                    self._safe_emit(self.play_state_changed, False)
                                 else:
                                     if reason == 4:
                                         err_str = self._get_mpv_error_string(end_file.error) if hasattr(end_file, 'error') else f"error_code={reason}"
                                         self.logger.warning(f"END_FILE错误，尝试重连: {err_str}, is_net_file={is_net_file}")
                                     self.is_playing = False
                                     self.is_paused = False
-                                    self.play_state_changed.emit(False)
+                                    self._safe_emit(self.play_state_changed, False)
                                     if self._reconnect_count < self._max_reconnect:
                                         self._reconnect_count += 1
                                         self.logger.info(f"断线自动重连 ({self._reconnect_count}/{self._max_reconnect})")
-                                        self.reconnect_requested.emit(self.current_url)
+                                        self._safe_emit(self.reconnect_requested, self.current_url)
                                     else:
                                         self.logger.info("已达最大重连次数，停止重连")
                                         self._reconnect_count = 0
@@ -838,7 +846,7 @@ class MpvPlayerController(QObject):
         try:
             if not self._ensure_mpv_initialized():
                 self.logger.error("mpv播放器初始化失败，无法播放")
-                self.play_error.emit("mpv播放器初始化失败")
+                self._safe_emit(self.play_error, "mpv播放器初始化失败")
                 return False
 
             self.current_url = url
@@ -848,12 +856,12 @@ class MpvPlayerController(QObject):
             reachability = self._check_path_reachability(url)
             if reachability is not None:
                 self.logger.warning(f"路径不可达，取消播放: {reachability}")
-                self.play_error.emit(reachability)
+                self._safe_emit(self.play_error, reachability)
                 return False
 
             if not self.mpv_handle:
                 self.logger.error("mpv播放器未初始化")
-                self.play_error.emit("mpv播放器未初始化")
+                self._safe_emit(self.play_error, "mpv播放器未初始化")
                 return False
 
             if hasattr(self, 'event_timer') and self.event_timer and not self.event_timer.isActive():
@@ -878,7 +886,7 @@ class MpvPlayerController(QObject):
             if result < 0:
                 error_msg = f"播放失败: {result}"
                 self.logger.error(error_msg)
-                self.play_error.emit(error_msg)
+                self._safe_emit(self.play_error, error_msg)
                 return False
 
             _mpv_set_property_string(self.mpv_handle, 'pause', 'no')
@@ -888,7 +896,7 @@ class MpvPlayerController(QObject):
 
             self.is_paused = False
             self.is_playing = True
-            self.play_state_changed.emit(True)
+            self._safe_emit(self.play_state_changed, True)
 
             self._schedule_media_info_start()
 
@@ -897,7 +905,7 @@ class MpvPlayerController(QObject):
         except Exception as e:
             error_msg = f"播放失败: {str(e)}"
             self.logger.error(error_msg)
-            self.play_error.emit(error_msg)
+            self._safe_emit(self.play_error, error_msg)
             return False
 
     def play_with_prefetch(self, url, next_urls=None, program_duration=0):
@@ -907,7 +915,7 @@ class MpvPlayerController(QObject):
             self._switching_channel = True
 
             if not self.mpv_handle:
-                self.play_error.emit("mpv播放器未初始化")
+                self._safe_emit(self.play_error, "mpv播放器未初始化")
                 return False
 
             self._setup_protocol_options(url, program_duration)
@@ -931,7 +939,7 @@ class MpvPlayerController(QObject):
 
             self.is_paused = False
             self.is_playing = True
-            self.play_state_changed.emit(True)
+            self._safe_emit(self.play_state_changed, True)
             self._schedule_media_info_start()
 
             if next_urls:
@@ -982,7 +990,7 @@ class MpvPlayerController(QObject):
 
             self.is_playing = False
             self.is_paused = False
-            self.play_state_changed.emit(False)
+            self._safe_emit(self.play_state_changed, False)
             self.current_url = None
             self.media_info = {}
 
@@ -1017,8 +1025,10 @@ class MpvPlayerController(QObject):
                 except Exception as e:
                     self.logger.debug(f"发送quit命令失败（可能已关闭）: {e}")
 
-                with self._lock:
+                try:
                     terminate_destroy_mpv(handle)
+                except Exception as e:
+                    self.logger.debug(f"销毁mpv handle失败: {e}")
 
             self.is_playing = False
             self.is_paused = False
@@ -1068,7 +1078,7 @@ class MpvPlayerController(QObject):
                 from PySide6.QtCore import QTimer
                 pos = saved_position
                 def _do_seek():
-                    if self.mpv_handle and self.is_playing:
+                    if not self._terminated and self.mpv_handle and self.is_playing:
                         _mpv_send_command(self.mpv_handle, ['seek', str(pos), 'absolute'])
                 QTimer.singleShot(1500, _do_seek)
         self.logger.info(f"HDR模式已切换为: {new_hdr_mode}")
@@ -1092,7 +1102,7 @@ class MpvPlayerController(QObject):
                     else:
                         self.logger.info("恢复播放")
 
-                    self.play_state_changed.emit(self.is_playing)
+                    self._safe_emit(self.play_state_changed, self.is_playing)
         except Exception as e:
             self.logger.error(f"暂停播放失败: {str(e)}")
 
@@ -1413,12 +1423,7 @@ class MpvPlayerController(QObject):
             self._static_info_counter = 0
             info = self.get_live_media_info()
             if info:
-                try:
-                    self.live_media_info_updated.emit(info)
-                except RuntimeError as e:
-                    self.logger.error(f"_update_live_info: 信号发送失败 {str(e)}")
-                    self._stop_live_info_timer()
-                    return
+                self._safe_emit(self.live_media_info_updated, info)
 
         if self.is_playing:
             try:
@@ -1430,7 +1435,7 @@ class MpvPlayerController(QObject):
                 if self._pos_log_count in (1, 2, 3, 5, 10):
                     self.logger.debug(f"[SRC{self._pos_log_count}] total={total_time} cur={current_time} pos={position} url={self.current_url[:60] if self.current_url else 'None'}...")
 
-                self.playback_position_updated.emit(
+                self._safe_emit(self.playback_position_updated,
                     int(current_time or 0),
                     int(total_time or 0),
                     float(position or 0)
@@ -1463,14 +1468,16 @@ class MpvPlayerController(QObject):
             if os.path.exists(filepath):
                 return
             self.send_command(['screenshot-to-file', filepath, 'video'])
-            QTimer.singleShot(1500, lambda: self._check_thumbnail_saved(filepath))
+            QTimer.singleShot(1500, lambda: self._check_thumbnail_saved(filepath) if not self._terminated else None)
         except Exception as e:
             self.logger.debug(f"缩略图截取失败: {e}")
 
     def _check_thumbnail_saved(self, filepath):
         try:
+            if self._terminated:
+                return
             if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
-                self.thumbnail_captured.emit(self.current_url)
+                self._safe_emit(self.thumbnail_captured, self.current_url)
         except Exception:
             pass
 
