@@ -4,7 +4,7 @@
 
 import os
 import time
-from PyQt6 import QtWidgets, QtCore, QtGui
+from PySide6 import QtWidgets, QtCore, QtGui
 
 # 导入自定义模块
 from models.channel_model import ChannelListModel
@@ -181,7 +181,7 @@ class ScanChannelDialog(FloatingDialog):
         from utils.general_utils import get_icon_path
         ico_path = get_icon_path()
         if os.path.exists(ico_path):
-            from PyQt6.QtGui import QIcon
+            from PySide6.QtGui import QIcon
             self.setWindowIcon(QIcon(ico_path))
         self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Window)
         # 设置透明背景，实现圆角窗口效果
@@ -2001,7 +2001,8 @@ class ScanChannelDialog(FloatingDialog):
 
     def _setup_shortcuts(self):
         """设置快捷键"""
-        from PyQt6.QtGui import QShortcut, QKeySequence
+        from PySide6.QtGui import QKeySequence
+        from PySide6.QtWidgets import QShortcut
         QShortcut(QKeySequence("Ctrl+S"), self, self._on_save_m3u_clicked)
         QShortcut(QKeySequence("Ctrl+F"), self, self._focus_search)
         QShortcut(QKeySequence("Ctrl+A"), self, self._select_all_channels)
@@ -2592,7 +2593,7 @@ class ScanChannelDialog(FloatingDialog):
         except Exception as e:
             self.logger.error(f"保存配置失败: {e}")
 
-    @QtCore.pyqtSlot(dict)
+    @QtCore.Slot(dict)
     def _on_channel_found(self, channel_info):
         """处理发现有效频道事件"""
         self._invalidate_channels_cache()
@@ -2600,7 +2601,7 @@ class ScanChannelDialog(FloatingDialog):
         channel_info['status'] = self.language_manager.tr('valid', '有效') if is_valid else self.language_manager.tr('invalid', '无效')
         self.model.add_channel(channel_info)
 
-    @QtCore.pyqtSlot()
+    @QtCore.Slot()
     def _on_scan_completed(self):
         """处理扫描完成事件"""
         if not hasattr(self, 'scanner') or self.scanner is None:
@@ -2703,7 +2704,7 @@ class ScanChannelDialog(FloatingDialog):
             )
             self._validation_retry_urls = None
 
-    @QtCore.pyqtSlot(dict)
+    @QtCore.Slot(dict)
     def _update_stats_display(self, stats_data):
         """更新统计信息显示，包括扫描次数"""
         try:

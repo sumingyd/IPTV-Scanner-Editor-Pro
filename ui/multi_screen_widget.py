@@ -1,11 +1,11 @@
 import json
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget, QGridLayout, QLabel, QSlider, QToolButton,
     QComboBox, QFrame, QVBoxLayout, QHBoxLayout, QSizePolicy,
     QListWidget
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QMimeData, QByteArray, QSize
-from PyQt6.QtGui import QDrag, QPainter, QColor, QPen, QIcon
+from PySide6.QtCore import Qt, Signal, QMimeData, QByteArray, QSize
+from PySide6.QtGui import QDrag, QPainter, QColor, QPen, QIcon
 from ui.styles import AppStyles
 
 
@@ -59,11 +59,11 @@ class DraggableChannelListWidget(QListWidget):
 
 
 class MultiScreenCell(QWidget):
-    channel_dropped = pyqtSignal(int, dict)
-    close_requested = pyqtSignal(int)
-    volume_changed = pyqtSignal(int, int)
-    audio_track_changed = pyqtSignal(int, int)
-    clicked = pyqtSignal(int)
+    channel_dropped = Signal(int, dict)
+    close_requested = Signal(int)
+    volume_changed = Signal(int, int)
+    audio_track_changed = Signal(int, int)
+    clicked = Signal(int)
 
     def __init__(self, index: int, parent=None):
         super().__init__(parent)
@@ -346,13 +346,13 @@ class MultiScreenCell(QWidget):
 
 
 class MultiScreenWidget(QWidget):
-    layout_changed = pyqtSignal(int)
-    cell_channel_dropped = pyqtSignal(int, dict)
-    cell_close_requested = pyqtSignal(int)
-    cell_volume_changed = pyqtSignal(int, int)
-    cell_audio_track_changed = pyqtSignal(int, int)
-    cell_clicked = pyqtSignal(int)
-    global_mute_toggled = pyqtSignal(bool)
+    layout_changed = Signal(int)
+    cell_channel_dropped = Signal(int, dict)
+    cell_close_requested = Signal(int)
+    cell_volume_changed = Signal(int, int)
+    cell_audio_track_changed = Signal(int, int)
+    cell_clicked = Signal(int)
+    global_mute_toggled = Signal(bool)
 
     LAYOUT_1x1 = 1
     LAYOUT_2x2 = 4

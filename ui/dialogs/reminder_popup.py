@@ -1,7 +1,7 @@
-from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+from PySide6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
                              QProgressBar, QWidget, QApplication)
-from PyQt6.QtCore import Qt, QTimer, QRect
-from PyQt6.QtGui import QFont, QCursor
+from PySide6.QtCore import Qt, QTimer, QRect
+from PySide6.QtGui import QFont, QCursor
 from ui.floating_dialog import FloatingDialog
 from ui.styles import AppStyles
 from core.log_manager import global_logger as logger

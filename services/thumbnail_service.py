@@ -4,7 +4,7 @@ import threading
 import time
 from collections import deque
 from typing import Optional
-from PyQt6.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 from services.mpv_common import (
     MPV_EVENT_FILE_LOADED,
     MPV_EVENT_END_FILE,
@@ -135,11 +135,11 @@ def _capture_single(url: str, timeout: int = 8, wid: int = 0, force: bool = Fals
 
 
 class ThumbnailService(QObject):
-    thumbnail_ready = pyqtSignal(str, str)
+    thumbnail_ready = Signal(str, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        from PyQt6.QtWidgets import QWidget
+        from PySide6.QtWidgets import QWidget
         self._hidden_widget = QWidget()
         self._hidden_widget.resize(320, 180)
         self._hidden_winid = int(self._hidden_widget.winId())

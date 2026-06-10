@@ -94,7 +94,7 @@ class EpgReminderService:
     def start_check_timer(self):
         if self._timer is not None:
             return
-        from PyQt6.QtCore import QTimer
+        from PySide6.QtCore import QTimer
         self._timer = QTimer()
         self._timer.setInterval(self.CHECK_INTERVAL_SEC * 1000)
         self._timer.timeout.connect(self._check_reminders)

@@ -1,7 +1,7 @@
 import os
 from typing import Dict, Any, Optional
-from PyQt6.QtGui import QIcon
-from PyQt6.QtCore import QTimer, Qt
+from PySide6.QtGui import QIcon
+from PySide6.QtCore import QTimer, Qt
 from core.play_state import PlayMode
 from core.log_manager import global_logger as logger
 from controllers.main_window_protocol import MainWindowProtocol
@@ -46,7 +46,7 @@ class PlaybackController:
             ico_path = get_icon_path()
             if os.path.exists(ico_path):
                 icon = QIcon(ico_path)
-                from PyQt6.QtWidgets import QApplication
+                from PySide6.QtWidgets import QApplication
                 screen = QApplication.primaryScreen()
                 dpr = screen.devicePixelRatio() if screen else 1.0
                 size = int(256 * dpr)
@@ -329,7 +329,7 @@ class PlaybackController:
 
     def handle_play_state_change(self, is_playing):
         from ui.styles import AppStyles
-        from PyQt6.QtGui import QIcon
+        from PySide6.QtGui import QIcon
         from core.log_manager import global_logger as logger
 
         w = self.window

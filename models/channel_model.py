@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from PyQt6 import QtCore, QtGui
+from PySide6 import QtCore, QtGui
 from typing import List, Dict, Any
 from core.log_manager import global_logger as logger
 from ui.styles import AppStyles
@@ -1483,7 +1483,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
             # 通知UI更新状态标签 - 使用QTimer确保在主线程执行
             if hasattr(self, 'update_status_label') and self.update_status_label:
-                from PyQt6.QtCore import QTimer
+                from PySide6.QtCore import QTimer
                 QTimer.singleShot(0, lambda: self.update_status_label("请点击检测有效性按钮"))
 
             self.endResetModel()
@@ -1491,7 +1491,7 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             # 数据加载完成后调整列宽 - 使用QTimer确保在主线程执行
             view = self.parent()
             if view and hasattr(view, 'resizeColumnsToContents'):
-                from PyQt6.QtCore import QTimer
+                from PySide6.QtCore import QTimer
                 QTimer.singleShot(0, view.resizeColumnsToContents)
 
             return True

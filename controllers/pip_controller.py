@@ -3,9 +3,9 @@
 从 pyqt_player.py 提取的独立模块
 """
 
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QPainter, QPen, QColor, QFont, QRegion
-from PyQt6.QtCore import QRect
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QPainter, QPen, QColor, QFont, QRegion
+from PySide6.QtCore import QRect
 
 from core.log_manager import global_logger as logger
 from controllers.main_window_protocol import MainWindowProtocol
@@ -15,7 +15,7 @@ class PipButton:
     """画中画圆形按钮（自定义绘制，无背景填充）"""
 
     def __init__(self, label, size, parent, click_callback):
-        from PyQt6.QtWidgets import QWidget
+        from PySide6.QtWidgets import QWidget
         widget = QWidget(parent)
         widget._label = label
         widget._size = size
@@ -187,7 +187,7 @@ class PipController:
                 floating_panel.hide()
 
             pip_w, pip_h = 480, 270
-            from PyQt6.QtWidgets import QApplication
+            from PySide6.QtWidgets import QApplication
             scr = self.window.screen()
             primary = QApplication.primaryScreen()
             if scr:
@@ -305,7 +305,7 @@ class PipController:
             self._pip_exit_status_msg = ''
 
     def _create_overlay(self):
-        from PyQt6.QtWidgets import QWidget
+        from PySide6.QtWidgets import QWidget
 
         self._pip_overlay_widget = QWidget(
             self.window,
@@ -518,8 +518,8 @@ class PipController:
         if self._pip_close_btn:
             self._pip_close_btn.move(vw.width() - btn_size - close_margin, close_margin)
 
-        from PyQt6.QtGui import QRegion
-        from PyQt6.QtCore import QRect
+        from PySide6.QtGui import QRegion
+        from PySide6.QtCore import QRect
         mask = QRegion()
         for btn in self._pip_buttons:
             if not btn.isHidden():

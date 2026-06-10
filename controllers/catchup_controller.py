@@ -578,7 +578,7 @@ class CatchupController:
             return
         import time as _time
         remaining_ms = max(200, int((self.URL_REBUILD_COOLDOWN - (_time.time() - self._last_url_rebuild_time)) * 1000))
-        from PyQt6.QtCore import QTimer
+        from PySide6.QtCore import QTimer
         self._cooldown_timer = QTimer()
         self._cooldown_timer.setSingleShot(True)
         self._cooldown_timer.timeout.connect(self._execute_pending_seek)

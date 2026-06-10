@@ -8,17 +8,18 @@ from core.play_state import PlayStateManager
 from core.panel_visibility import PanelVisibilityManager
 from controllers.progress_controller import ProgressController
 from models.channel_model import ChannelListModel
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QListWidget, QListWidgetItem,
     QStatusBar, QSizePolicy, QDialog,
     QFrame, QToolButton, QSlider, QComboBox,
     QTabWidget
 )
-from PyQt6 import QtWidgets
-from PyQt6.QtCore import Qt, QSize, QTimer, QThread, pyqtSlot, pyqtSignal, QRectF
-from PyQt6 import QtCore
-from PyQt6.QtGui import QIcon, QFont, QFontMetrics, QColor, QAction, QPainter, QBrush, QShortcut, QPen, QLinearGradient, QPainterPath, QPixmap
+from PySide6 import QtWidgets
+from PySide6.QtCore import Qt, QSize, QTimer, QThread, Slot, Signal, QRectF
+from PySide6 import QtCore
+from PySide6.QtGui import QIcon, QFont, QFontMetrics, QColor, QPainter, QBrush, QPen, QLinearGradient, QPainterPath, QPixmap
+from PySide6.QtWidgets import QAction, QShortcut
 
 from core.log_manager import global_logger as logger
 from core.application_state import app_state
@@ -155,10 +156,10 @@ from services.mpv_player_service import MpvPlayerController
 
 
 class IPTVPlayer(QMainWindow):
-    epg_status_signal = pyqtSignal(str)
-    channel_list_updated = pyqtSignal()
-    epg_list_updated = pyqtSignal()
-    status_message = pyqtSignal(str)
+    epg_status_signal = Signal(str)
+    channel_list_updated = Signal()
+    epg_list_updated = Signal()
+    status_message = Signal(str)
 
     player_controller = None
     config = None
@@ -305,7 +306,7 @@ class IPTVPlayer(QMainWindow):
         from utils.general_utils import get_icon_path
         ico_path = get_icon_path()
         if os.path.exists(ico_path):
-            from PyQt6.QtGui import QIcon
+            from PySide6.QtGui import QIcon
             self.setWindowIcon(QIcon(ico_path))
 
         x, y, width, height, _ = self.config.load_window_layout(
@@ -560,16 +561,16 @@ class IPTVPlayer(QMainWindow):
     def leaveEvent(self, event):
         """鼠标离开窗口"""
         if self.pip_mode:
-            from PyQt6.QtCore import QTimer
+            from PySide6.QtCore import QTimer
             QTimer.singleShot(50, self.pip_ctrl.delayed_hide_overlay)
         elif not getattr(self, '_floating_hidden', False) and not getattr(self, 'is_fullscreen', False):
-            from PyQt6.QtCore import QTimer
+            from PySide6.QtCore import QTimer
             QTimer.singleShot(50, self._delayed_hide_floating_panels)
         super().leaveEvent(event)
     
     def _update_splash(self, message):
         try:
-            from PyQt6.QtWidgets import QSplashScreen
+            from PySide6.QtWidgets import QSplashScreen
             app = QApplication.instance()
             for widget in app.topLevelWidgets():
                 if isinstance(widget, QSplashScreen):
@@ -617,7 +618,7 @@ class IPTVPlayer(QMainWindow):
 
         self._theme_manager.register_window(self)
 
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
         app = QApplication.instance()
         self._space_shortcut = QShortcut(' ', app)
         self._space_shortcut.activated.connect(self.toggle_play)
@@ -715,7 +716,7 @@ class IPTVPlayer(QMainWindow):
         self.video_placeholder.setStyleSheet(AppStyles.player_video_placeholder_style())
         if os.path.exists(ico_path):
             icon = QIcon(ico_path)
-            from PyQt6.QtWidgets import QApplication
+            from PySide6.QtWidgets import QApplication
             screen = QApplication.primaryScreen()
             dpr = screen.devicePixelRatio() if screen else 1.0
             size = int(256 * dpr)
@@ -796,7 +797,7 @@ class IPTVPlayer(QMainWindow):
         logger.debug("_create_timer: 开始")
         
         # 创建定时器，定期更新悬浮窗信息
-        from PyQt6.QtCore import QTimer
+        from PySide6.QtCore import QTimer
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_floating_panel_info)
         self.player_controller.playback_position_updated.connect(self._on_playback_position_updated)
@@ -878,7 +879,7 @@ class IPTVPlayer(QMainWindow):
         self.epg_empty_label.hide()
 
         # 用 FloatingDockWidget 包装（圆角半透明 + Qt管理）
-        from PyQt6.QtWidgets import QDockWidget
+        from PySide6.QtWidgets import QDockWidget
         from ui.floating_dialog import FloatingDockWidget
         self.epg_dock = FloatingDockWidget(tr("epg_title", "Program Guide"), self)
         self.epg_dock.setWidget(epg_container)
@@ -1160,7 +1161,7 @@ class IPTVPlayer(QMainWindow):
         self._sub_groups = [tr("all_channels", "All Channels")]
         self._local_groups = [tr("all_channels", "All Channels")]
 
-        from PyQt6.QtWidgets import QDockWidget
+        from PySide6.QtWidgets import QDockWidget
         from ui.floating_dialog import FloatingDockWidget
         self.playlist_dock = FloatingDockWidget(tr("channel_list", "Channel List"), self)
         self.playlist_dock.setWidget(playlist_container)
@@ -1251,7 +1252,7 @@ class IPTVPlayer(QMainWindow):
         self._create_media_row()
 
         # 用 FloatingDockWidget 包装（圆角半透明 + Qt管理）
-        from PyQt6.QtWidgets import QDockWidget
+        from PySide6.QtWidgets import QDockWidget
         from ui.floating_dialog import FloatingDockWidget
         self.floating_dock = FloatingDockWidget(tr("control_panel", "Control Panel"), self)
         self.floating_dock.setWidget(floating_container)
@@ -1273,7 +1274,7 @@ class IPTVPlayer(QMainWindow):
         color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
         icon_path = AppStyles.get_icon(icon_name, color, 14)
         if icon_path:
-            from PyQt6.QtGui import QPixmap
+            from PySide6.QtGui import QPixmap
             pixmap = QPixmap(icon_path)
             if not pixmap.isNull():
                 icon_label.setPixmap(pixmap.scaled(14, 14, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
@@ -1632,7 +1633,7 @@ class IPTVPlayer(QMainWindow):
             self.video_placeholder.installEventFilter(self)
         
         # 安装 QApplication 级别事件过滤器（用于全局快捷键）
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
         app = QApplication.instance()
         if app:
             app.installEventFilter(self)
@@ -1947,8 +1948,7 @@ class IPTVPlayer(QMainWindow):
         self.epg_ctrl.on_epg_item_clicked(item)
 
     def _on_epg_context_menu(self, pos):
-        from PyQt6.QtWidgets import QMenu
-        from PyQt6.QtGui import QAction
+        from PySide6.QtWidgets import QMenu, QAction
         item = self.epg_content.itemAt(pos)
         if not item:
             return
@@ -2200,7 +2200,7 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, '_slider_debounce_timer') and self._slider_debounce_timer is not None:
             self._slider_debounce_timer.stop()
         else:
-            from PyQt6.QtCore import QTimer
+            from PySide6.QtCore import QTimer
             self._slider_debounce_timer = QTimer()
             self._slider_debounce_timer.setSingleShot(True)
             self._slider_debounce_timer.timeout.connect(self._do_progress_slider_released)
@@ -2540,7 +2540,7 @@ class IPTVPlayer(QMainWindow):
     def _restart_auto_hide_timer(self):
         if getattr(self, 'is_fullscreen', False) and not self.panel_vis.manually_hidden:
             if not hasattr(self, '_auto_hide_timer'):
-                from PyQt6.QtCore import QTimer
+                from PySide6.QtCore import QTimer
                 self._auto_hide_timer = QTimer(self)
                 self._auto_hide_timer.setSingleShot(True)
                 self._auto_hide_timer.setInterval(5000)
@@ -2638,7 +2638,7 @@ class IPTVPlayer(QMainWindow):
 
     def _on_reconnect_requested(self, url):
         """断线自动重连"""
-        from PyQt6.QtCore import QTimer
+        from PySide6.QtCore import QTimer
         tr = self.language_manager.tr
         if self.current_channel:
             channel_name = self.current_channel.get('name', '')
@@ -2924,7 +2924,7 @@ class IPTVPlayer(QMainWindow):
         try:
             # 导入扫描窗口模块
             from ui.dialogs.scan_channel_dialog import ScanChannelDialog
-            from PyQt6.QtCore import Qt
+            from PySide6.QtCore import Qt
 
             # 创建扫描窗口，必须传递parent参数（主窗口self）
             # 这样scan_dialog.parent()才能返回主窗口，双击播放功能才能正常工作
@@ -2957,7 +2957,7 @@ class IPTVPlayer(QMainWindow):
 
     def _raise_child_dialogs(self):
         """将所有可见的子对话框提升到悬浮窗之上，避免悬浮窗覆盖子对话框"""
-        from PyQt6.QtWidgets import QDialog
+        from PySide6.QtWidgets import QDialog
         for dialog in self.findChildren(QDialog):
             if dialog.isVisible() and not dialog.isModal():
                 dialog.raise_()
@@ -2966,7 +2966,7 @@ class IPTVPlayer(QMainWindow):
         """打开频道映射管理器"""
         try:
             from ui.dialogs.mapping_manager_dialog import MappingManagerDialog
-            from PyQt6.QtCore import Qt
+            from PySide6.QtCore import Qt
             
             dialog = MappingManagerDialog(self)
             dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
@@ -2978,7 +2978,7 @@ class IPTVPlayer(QMainWindow):
 
     def _center_dialog_on_screen(self, dialog):
         """将对话框居中显示到屏幕中心（修复多显示器环境下窗口不显示的问题）"""
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
         app = QApplication.instance()
         if app:
             screen = app.primaryScreen()
@@ -3003,7 +3003,7 @@ class IPTVPlayer(QMainWindow):
         """更新列表订阅 - 线程安全版本（委托给SubscriptionController）"""
         self.subscription_ctrl.update_playlist_subscription(source_index)
 
-    @pyqtSlot()
+    @Slot()
     def _do_on_playlist_updated_in_main_thread(self):
         """在主线程中处理订阅更新完成后的UI操作"""
         try:
@@ -3027,19 +3027,19 @@ class IPTVPlayer(QMainWindow):
         except Exception as ex:
             logger.error(f"在主线程更新UI失败: {ex}")
 
-    @pyqtSlot()
+    @Slot()
 
     def _do_show_status_bar_message(self):
         msg = getattr(self, '_pending_status_bar_msg', '')
         self._pending_status_bar_msg = None
         self.status_bar_show_message(msg)
 
-    @pyqtSlot()
+    @Slot()
     def _do_on_epg_cache(self):
         self.epg_list_updated.emit()
         self.status_bar_show_message(self.language_manager.tr("epg_using_cache", "Using cached EPG data"))
 
-    @pyqtSlot()
+    @Slot()
     def _do_on_epg_success(self):
         self.epg_list_updated.emit()
         self.status_bar_show_message(self.language_manager.tr("epg_sub_updated", "EPG subscription updated"))
@@ -3176,7 +3176,7 @@ class IPTVPlayer(QMainWindow):
                 pass
 
             if not video_files:
-                from PyQt6.QtWidgets import QMessageBox
+                from PySide6.QtWidgets import QMessageBox
                 QMessageBox.information(
                     self, tr("open_video", "打开视频"),
                     tr("no_video_in_folder", "所选文件夹中未找到支持的视频文件"),
@@ -3283,8 +3283,8 @@ class IPTVPlayer(QMainWindow):
             super().resizeEvent(event)
 
     def _setup_system_tray(self):
-        from PyQt6.QtWidgets import QSystemTrayIcon, QMenu
-        from PyQt6.QtGui import QIcon
+        from PySide6.QtWidgets import QSystemTrayIcon, QMenu
+        from PySide6.QtGui import QIcon
         import os
         icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources', 'logo.ico')
         icon = QIcon(icon_path) if os.path.exists(icon_path) else QIcon()
@@ -3301,7 +3301,7 @@ class IPTVPlayer(QMainWindow):
         self._is_hidden_to_tray = False
 
     def _on_tray_activated(self, reason):
-        from PyQt6.QtWidgets import QSystemTrayIcon
+        from PySide6.QtWidgets import QSystemTrayIcon
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self._tray_show_window()
 
@@ -3376,7 +3376,7 @@ class IPTVPlayer(QMainWindow):
                     super().closeEvent(event)
                 return
 
-        from PyQt6.QtWidgets import QMessageBox, QCheckBox
+        from PySide6.QtWidgets import QMessageBox, QCheckBox
         from ui.styles import AppStyles
         tr = self.language_manager.tr
         msg_box = QMessageBox(self)
@@ -3419,7 +3419,7 @@ class IPTVPlayer(QMainWindow):
             return
         self._do_check_for_updates_async()
 
-    @pyqtSlot()
+    @Slot()
     def _do_check_for_updates_async(self):
         self.update_ctrl.check_for_updates()
 
@@ -3572,11 +3572,11 @@ if __name__ == "__main__":
     splash = None
     try:
         from utils.general_utils import get_icon_path
-        from PyQt6.QtGui import QPixmap
-        from PyQt6.QtWidgets import QSplashScreen
+        from PySide6.QtGui import QPixmap
+        from PySide6.QtWidgets import QSplashScreen
         ico_path = get_icon_path()
         if os.path.exists(ico_path):
-            from PyQt6.QtGui import QIcon
+            from PySide6.QtGui import QIcon
             splash_pixmap = QIcon(ico_path).pixmap(128, 128)
         else:
             splash_pixmap = QPixmap(128, 128)
@@ -3609,11 +3609,11 @@ if __name__ == "__main__":
         file_path = sys.argv[1]
         if os.path.isfile(file_path):
             if file_path.lower().endswith(('.m3u', '.m3u8', '.txt')):
-                from PyQt6.QtCore import QTimer
+                from PySide6.QtCore import QTimer
                 QTimer.singleShot(800, lambda fp=file_path: player.settings_ops.open_specific_file(fp))
             elif file_path.lower().endswith(('.mp4', '.mkv', '.avi', '.mov',
                                              '.flv', '.wmv', '.ts', '.webm')):
-                from PyQt6.QtCore import QTimer
+                from PySide6.QtCore import QTimer
                 def _open_video_from_cmdline(fp=file_path):
                     name = os.path.splitext(os.path.basename(fp))[0]
                     channel = {

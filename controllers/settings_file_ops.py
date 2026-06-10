@@ -8,9 +8,9 @@ import re
 import threading
 from typing import Optional
 
-from PyQt6 import QtCore, QtGui
-from PyQt6.QtCore import Qt, QTimer, QThread, QMetaObject
-from PyQt6.QtWidgets import (
+from PySide6 import QtCore, QtGui
+from PySide6.QtCore import Qt, QTimer, QThread, QMetaObject
+from PySide6.QtWidgets import (
     QFileDialog, QMessageBox, QComboBox, QApplication,
     QCheckBox, QSpinBox, QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QLineEdit, QGroupBox, QListWidget, QListWidgetItem,
@@ -1019,7 +1019,7 @@ class SettingsFileOperations:
 
     def _open_stream(self):
         """打开串流地址"""
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QHBoxLayout, QPushButton
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QHBoxLayout, QPushButton
         from ui.floating_dialog import FloatingDialog
         from ui.styles import AppStyles
         from ui.theme_manager import get_theme_manager

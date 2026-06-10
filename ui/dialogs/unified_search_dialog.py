@@ -1,16 +1,16 @@
 from typing import Dict, Any, List
-from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLineEdit,
+from PySide6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLineEdit,
                                QListWidget, QListWidgetItem, QLabel,
                                QCheckBox, QWidget)
-from PyQt6.QtCore import Qt, QSize, pyqtSignal, QThread, QTimer
-from PyQt6 import QtWidgets
+from PySide6.QtCore import Qt, QSize, Signal, QThread, QTimer
+from PySide6 import QtWidgets
 from ui.styles import AppStyles
 from ui.floating_dialog import FloatingDialog
 from core.log_manager import global_logger as logger
 
 
 class _EpgSearchWorker(QThread):
-    results_ready = pyqtSignal(list, list)
+    results_ready = Signal(list, list)
     MAX_RESULTS = 200
 
     def __init__(self, epg_parser, channels, keyword):
@@ -61,8 +61,8 @@ class _EpgSearchWorker(QThread):
 
 
 class UnifiedSearchDialog(FloatingDialog):
-    channel_selected = pyqtSignal(dict)
-    epg_program_selected = pyqtSignal(dict, dict)
+    channel_selected = Signal(dict)
+    epg_program_selected = Signal(dict, dict)
 
     def __init__(self, main_window, parent=None, search_epg=True, search_channel=True):
         super().__init__(parent, frameless=True, stay_on_top=False)

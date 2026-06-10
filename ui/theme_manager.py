@@ -1,12 +1,12 @@
-from PyQt6 import QtCore, QtWidgets, QtGui
+from PySide6 import QtCore, QtWidgets, QtGui
 from ui.styles import AppStyles
 from utils.singleton import Singleton
 
 
 class ThemeManager(Singleton, QtCore.QObject):
-    theme_changed = QtCore.pyqtSignal(str)
-    color_mode_changed = QtCore.pyqtSignal(str)
-    visual_style_changed = QtCore.pyqtSignal(str)
+    theme_changed = QtCore.Signal(str)
+    color_mode_changed = QtCore.Signal(str)
+    visual_style_changed = QtCore.Signal(str)
 
     def __init__(self):
         if self._initialized:
@@ -216,8 +216,8 @@ class ThemeManager(Singleton, QtCore.QObject):
             window_ctrl = getattr(window, 'window_ctrl', None)
             if not window_ctrl:
                 return
-            from PyQt6.QtGui import QIcon
-            from PyQt6.QtCore import QSize
+            from PySide6.QtGui import QIcon
+            from PySide6.QtCore import QSize
             btn_color = AppStyles._get_colors().get('window_text', '#ffffff')
             icon_size = QSize(14, 14)
             btn_style = window_ctrl._title_btn_style()

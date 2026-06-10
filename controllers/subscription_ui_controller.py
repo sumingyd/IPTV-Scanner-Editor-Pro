@@ -3,8 +3,8 @@
 从 pyqt_player.py 提取的独立模块
 """
 
-from PyQt6.QtWidgets import QListWidgetItem
-from PyQt6 import QtCore
+from PySide6.QtWidgets import QListWidgetItem
+from PySide6 import QtCore
 from controllers.main_window_protocol import MainWindowProtocol
 
 

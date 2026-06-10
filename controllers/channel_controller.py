@@ -7,9 +7,9 @@ from typing import Dict, Any
 from datetime import datetime
 from collections import deque
 
-from PyQt6.QtWidgets import QListWidgetItem, QListWidget
-from PyQt6.QtCore import Qt, QSize, QTimer
-from PyQt6 import QtWidgets
+from PySide6.QtWidgets import QListWidgetItem, QListWidget
+from PySide6.QtCore import Qt, QSize, QTimer
+from PySide6 import QtWidgets
 
 from core.application_state import app_state
 from core.log_manager import global_logger as logger

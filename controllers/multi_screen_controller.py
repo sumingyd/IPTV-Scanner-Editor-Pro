@@ -1,6 +1,6 @@
 import os
 from typing import Dict, Optional, Any
-from PyQt6.QtCore import QObject, QTimer
+from PySide6.QtCore import QObject, QTimer
 from core.log_manager import global_logger as logger
 from ui.multi_screen_widget import MultiScreenWidget, MultiScreenCell
 

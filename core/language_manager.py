@@ -2,7 +2,7 @@ import os
 import threading
 from typing import overload
 from core.log_manager import LogManager
-from PyQt6.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 from utils.singleton import Singleton
 
 logger = LogManager()
@@ -1423,7 +1423,7 @@ BUILTIN_TRANSLATIONS = {
 
 
 class _LanguageSignalHelper(QObject):
-    language_changed = pyqtSignal()
+    language_changed = Signal()
 
 
 class LanguageManager(Singleton):
@@ -1556,7 +1556,7 @@ class LanguageManager(Singleton):
 
     def _update_dialogs(self, main_window):
         try:
-            from PyQt6 import QtWidgets
+            from PySide6 import QtWidgets
             for widget in main_window.findChildren(QtWidgets.QDialog):
                 if hasattr(widget, 'update_ui_texts'):
                     widget.update_ui_texts()

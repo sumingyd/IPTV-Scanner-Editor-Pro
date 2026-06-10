@@ -7,8 +7,8 @@ from typing import List, Dict, Any
 from services.url_parser_service import URLRangeParser
 from core.log_manager import global_logger
 from models.channel_model import ChannelListModel
-from PyQt6 import QtCore
-from PyQt6.QtCore import pyqtSignal, QObject
+from PySide6 import QtCore
+from PySide6.QtCore import Signal, QObject
 from models.channel_mappings import extract_channel_name_from_url
 from utils.scan_state_manager import get_scan_state_manager
 
@@ -64,13 +64,13 @@ class ScannerController(QObject):
     """扫描控制器，管理多线程扫描过程"""
 
     # 定义信号
-    progress_updated = pyqtSignal(int, int)  # 当前进度, 总数
-    channel_found = pyqtSignal(dict)  # 有效的频道信息
-    scan_completed = pyqtSignal()
-    stats_updated = pyqtSignal(dict)  # 统计信息
+    progress_updated = Signal(int, int)  # 当前进度, 总数
+    channel_found = Signal(dict)  # 有效的频道信息
+    scan_completed = Signal()
+    stats_updated = Signal(dict)  # 统计信息
 
     # 在类定义中声明信号
-    channel_validated = pyqtSignal(int, bool, int, str)
+    channel_validated = Signal(int, bool, int, str)
 
     def __init__(self, model: ChannelListModel, main_window=None) -> None:
         super().__init__()

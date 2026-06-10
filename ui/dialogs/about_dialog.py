@@ -1,8 +1,8 @@
 import os
 
-from PyQt6 import QtWidgets, QtCore, QtGui
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFrame
+from PySide6 import QtWidgets, QtCore, QtGui
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QFrame
 import asyncio
 import platform
 import sys
@@ -42,7 +42,7 @@ class AboutDialog(FloatingDialog):
         # 图标居中显示
         logo_label = QtWidgets.QLabel()
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        from PyQt6.QtGui import QPixmap, QIcon
+        from PySide6.QtGui import QPixmap, QIcon
         from utils.general_utils import get_icon_path
         ico_path = get_icon_path()
         if os.path.exists(ico_path):
@@ -65,7 +65,7 @@ class AboutDialog(FloatingDialog):
 
             tv_icon_path = AppStyles.get_icon('tv', AppStyles._get_colors().get('window_text', '#ffffff'), 48)
             if tv_icon_path:
-                from PyQt6.QtGui import QIcon
+                from PySide6.QtGui import QIcon
                 logo_label.setPixmap(QIcon(tv_icon_path).pixmap(128, 128))
             logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo_label.setStyleSheet("background-color: transparent;")
@@ -182,19 +182,19 @@ class AboutDialog(FloatingDialog):
                 # 保存结果到实例变量
                 self._latest_version_result = latest_version
                 # 在主线程中更新 UI
-                from PyQt6.QtCore import QTimer
+                from PySide6.QtCore import QTimer
                 QTimer.singleShot(0, self._update_version_ui)
             finally:
                 loop.close()
         except asyncio.TimeoutError:
             logger.error("版本检查超时")
             self._latest_version_result = tr("request_timeout_text", "(Request Timeout)")
-            from PyQt6.QtCore import QTimer
+            from PySide6.QtCore import QTimer
             QTimer.singleShot(0, self._update_version_ui)
         except Exception as e:
             logger.error(f"版本检查失败：{e}")
             self._latest_version_result = tr("fetch_failed_text", "(Fetch Failed)")
-            from PyQt6.QtCore import QTimer
+            from PySide6.QtCore import QTimer
             QTimer.singleShot(0, self._update_version_ui)
     
     def _update_version_ui(self):

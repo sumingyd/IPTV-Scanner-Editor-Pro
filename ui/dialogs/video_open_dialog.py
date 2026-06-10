@@ -1,12 +1,13 @@
 import os
 import sys
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem,
     QPushButton, QLabel, QComboBox, QSizePolicy, QStyle, QLineEdit,
     QInputDialog, QMenu,
 )
-from PyQt6.QtCore import Qt, QDir, QSize
-from PyQt6.QtGui import QIcon, QAction
+from PySide6.QtCore import Qt, QDir, QSize
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QAction
 
 
 _VIDEO_EXTS = ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.m2ts', '.webm')

@@ -7,7 +7,7 @@ import hashlib
 import os
 from typing import Optional, Dict, Any
 from datetime import datetime
-from PyQt6.QtCore import QThread, pyqtSignal, QTimer
+from PySide6.QtCore import QThread, Signal, QTimer
 
 from core.log_manager import global_logger as logger
 from core.config_manager import ConfigManager
@@ -18,8 +18,8 @@ from controllers.main_window_protocol import MainWindowProtocol
 
 class SubscriptionWorker(QThread):
     """后台线程处理订阅更新"""
-    finished = pyqtSignal(object)
-    error = pyqtSignal(str)
+    finished = Signal(object)
+    error = Signal(str)
 
     def __init__(self, callback, parent=None):
         super().__init__(parent)
@@ -271,7 +271,7 @@ class SubscriptionController:
                 logger.debug(f"订阅源 '{source.get('name', '')}' 需要更新: {need_update}")
                 self.handle_playlist_subscription(need_update, playlist_url, i)
 
-                from PyQt6.QtCore import QTimer, QThread
+                from PySide6.QtCore import QTimer, QThread
                 if QThread.currentThread() != self.window.thread():
                     QTimer.singleShot(0, self.window._do_on_playlist_updated_in_main_thread)
                 else:

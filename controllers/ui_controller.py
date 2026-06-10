@@ -6,7 +6,7 @@ UI控制器 - 负责OSD显示、媒体信息更新、样式管理等
 import re
 from typing import Optional, Dict, Any
 from datetime import timedelta
-from PyQt6.QtCore import QTimer
+from PySide6.QtCore import QTimer
 from controllers.main_window_protocol import MainWindowProtocol
 
 
@@ -761,9 +761,9 @@ class UIController:
     def _reapply_side_panel_styles(self):
         from core.log_manager import global_logger as logger
         from ui.styles import AppStyles
-        from PyQt6.QtCore import QSize
-        from PyQt6 import QtWidgets
-        from PyQt6.QtGui import QIcon
+        from PySide6.QtCore import QSize
+        from PySide6 import QtWidgets
+        from PySide6.QtGui import QIcon
 
         try:
             if hasattr(self.window, 'epg_title'):
@@ -842,9 +842,9 @@ class UIController:
     def _reapply_floating_panel_styles(self):
         from core.log_manager import global_logger as logger
         from ui.styles import AppStyles
-        from PyQt6.QtWidgets import QToolButton, QSlider, QComboBox, QFrame, QLabel
-        from PyQt6.QtGui import QIcon, QPixmap
-        from PyQt6.QtCore import Qt
+        from PySide6.QtWidgets import QToolButton, QSlider, QComboBox, QFrame, QLabel
+        from PySide6.QtGui import QIcon, QPixmap
+        from PySide6.QtCore import Qt
 
         try:
             if not hasattr(self.window, 'floating_panel'):
@@ -958,10 +958,10 @@ class UIController:
     def _on_logo_cache_loaded(self, url, pixmap):
         """台标加载完成的回调"""
         from core.log_manager import global_logger as logger
-        from PyQt6.QtWidgets import QListWidget
-        from PyQt6.QtCore import Qt
-        from PyQt6.QtGui import QIcon
-        from PyQt6 import QtWidgets
+        from PySide6.QtWidgets import QListWidget
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QIcon
+        from PySide6 import QtWidgets
 
         logger.debug(f"台标加载完成: {url[:50]}..., pixmap有效: {not pixmap.isNull()}")
 
@@ -1024,8 +1024,7 @@ class UIController:
 
     def setup_menu_bar(self, skip_recent_files=False):
         """设置菜单栏"""
-        from PyQt6.QtWidgets import QMenuBar
-        from PyQt6.QtGui import QAction
+        from PySide6.QtWidgets import QMenuBar, QAction
         from ui.styles import AppStyles
         from core.log_manager import global_logger as logger
 
@@ -1274,7 +1273,7 @@ class UIController:
             english.triggered.connect(lambda: self.window.set_language("en"))
             language_menu.addAction(english)
 
-            from PyQt6.QtGui import QActionGroup
+            from PySide6.QtWidgets import QActionGroup
             lang_group = QActionGroup(self.window)
             lang_group.setExclusive(True)
             lang_group.addAction(chinese)
@@ -1360,9 +1359,10 @@ class UIController:
         self._register_global_shortcuts()
 
     def _register_global_shortcuts(self):
-        from PyQt6.QtGui import QShortcut, QKeySequence
-        from PyQt6.QtCore import Qt
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtGui import QKeySequence
+        from PySide6.QtWidgets import QShortcut
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QApplication
         app = QApplication.instance()
         if not app:
             return
@@ -1400,7 +1400,7 @@ class UIController:
             if start <= now <= end:
                 return
             if start < now and channel.get('catchup_source', ''):
-                from PyQt6.QtCore import QTimer
+                from PySide6.QtCore import QTimer
                 QTimer.singleShot(500, lambda: w.catchup_ctrl.start_catchup(program))
         except Exception:
             pass

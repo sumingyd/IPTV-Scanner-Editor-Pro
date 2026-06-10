@@ -25,7 +25,7 @@ class MediaController:
         return getattr(self.window, '_osd_visible', False)
 
     def show_video_context_menu(self, pos):
-        from PyQt6.QtWidgets import QMenu
+        from PySide6.QtWidgets import QMenu
         from ui.styles import AppStyles
         tr = self.window.language_manager.tr
         menu = QMenu(self.window)
@@ -133,8 +133,8 @@ class MediaController:
             return
         try:
             from datetime import datetime
-            from PyQt6.QtWidgets import QApplication
-            from PyQt6.QtGui import QPixmap
+            from PySide6.QtWidgets import QApplication
+            from PySide6.QtGui import QPixmap
 
             screenshot_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'screenshots')
             os.makedirs(screenshot_dir, exist_ok=True)
@@ -160,7 +160,7 @@ class MediaController:
                 except Exception:
                     pass
 
-            from PyQt6.QtCore import QTimer
+            from PySide6.QtCore import QTimer
             QTimer.singleShot(500, _copy_to_clipboard)
 
             self.window.status_bar_show_message(
@@ -320,7 +320,7 @@ class MediaController:
         pc = self.window.player_controller
         if not pc or not pc.is_playing:
             return
-        from PyQt6.QtWidgets import QMenu
+        from PySide6.QtWidgets import QMenu
         from ui.styles import AppStyles
         menu = QMenu(self.window)
         menu.setStyleSheet(AppStyles.player_menu_bar_style())
@@ -332,7 +332,7 @@ class MediaController:
         pc = self.window.player_controller
         if not pc or not pc.is_playing:
             return
-        from PyQt6.QtWidgets import QMenu
+        from PySide6.QtWidgets import QMenu
         from ui.styles import AppStyles
         menu = QMenu(self.window)
         menu.setStyleSheet(AppStyles.player_menu_bar_style())
@@ -341,7 +341,7 @@ class MediaController:
         menu.exec(btn.mapToGlobal(btn.rect().bottomLeft()))
 
     def show_speed_menu(self):
-        from PyQt6.QtWidgets import QMenu
+        from PySide6.QtWidgets import QMenu
         from ui.styles import AppStyles
         tr = self.window.language_manager.tr
         menu = QMenu(self.window)
@@ -358,7 +358,7 @@ class MediaController:
         menu.exec(btn.mapToGlobal(btn.rect().bottomLeft()))
 
     def show_aspect_menu(self):
-        from PyQt6.QtWidgets import QMenu
+        from PySide6.QtWidgets import QMenu
         from ui.styles import AppStyles
         tr = self.window.language_manager.tr
         menu = QMenu(self.window)
@@ -382,7 +382,7 @@ class MediaController:
         pc = self.window.player_controller
         if not pc or not pc.is_playing:
             return
-        from PyQt6.QtWidgets import QFileDialog
+        from PySide6.QtWidgets import QFileDialog
         tr = self.window.language_manager.tr
         file_path, _ = QFileDialog.getOpenFileName(
             self.window, tr("ctx_load_subtitle", "Load Subtitle..."), '',

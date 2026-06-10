@@ -4,15 +4,15 @@ import time
 import json
 import threading
 from collections import OrderedDict
-from PyQt6.QtCore import QObject, pyqtSignal, QUrl, QTimer, Qt, QBuffer, QIODevice, QThread
-from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
-from PyQt6.QtGui import QPixmap, QImage
+from PySide6.QtCore import QObject, Signal, QUrl, QTimer, Qt, QBuffer, QIODevice, QThread
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
+from PySide6.QtGui import QPixmap, QImage
 from utils.thread_safety import ThreadSafeQObject
 from core.log_manager import global_logger as logger
 
 
 class LogoCacheService(ThreadSafeQObject):
-    logo_loaded = pyqtSignal(str, QPixmap)
+    logo_loaded = Signal(str, QPixmap)
 
     CACHE_DIR_NAME = 'logo_cache'
     META_FILE = 'meta.json'
@@ -27,7 +27,7 @@ class LogoCacheService(ThreadSafeQObject):
         if pixmap.isNull():
             return pixmap
 
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
         screen = QApplication.primaryScreen()
         if screen:
             device_pixel_ratio = screen.devicePixelRatio()
@@ -47,7 +47,7 @@ class LogoCacheService(ThreadSafeQObject):
         if pixmap.isNull():
             return pixmap
 
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
         screen = QApplication.primaryScreen()
         if screen:
             device_pixel_ratio = screen.devicePixelRatio()

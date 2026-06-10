@@ -213,7 +213,7 @@ class PanelVisibilityManager:
             w._sync_panel_actions()
 
         if visible and hasattr(w, 'update_floating_position'):
-            from PyQt6.QtCore import QTimer
+            from PySide6.QtCore import QTimer
             if not getattr(w, '_position_update_pending', False):
                 w._position_update_pending = True
                 QTimer.singleShot(0, lambda: (setattr(w, '_position_update_pending', False), w.update_floating_position()))

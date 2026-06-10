@@ -1,5 +1,5 @@
 from concurrent.futures import Future
-from PyQt6.QtCore import QThread, QTimer, QObject
+from PySide6.QtCore import QThread, QTimer, QObject
 
 
 class ThreadSafeQObject(QObject):

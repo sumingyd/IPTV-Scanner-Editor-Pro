@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Optional
-from PyQt6.QtCore import QTimer
+from PySide6.QtCore import QTimer
 from core.log_manager import global_logger as logger
 from controllers.main_window_protocol import MainWindowProtocol
 from ui.dialogs.reminder_popup import ReminderPopup
@@ -98,7 +98,7 @@ class EpgReminderController:
             self._active_popups.remove(popup)
 
     def _show_reminder_notification(self, channel_name: str, program_title: str):
-        from PyQt6.QtWidgets import QSystemTrayIcon
+        from PySide6.QtWidgets import QSystemTrayIcon
         w = self.window
         try:
             tray = getattr(w, '_system_tray', None)

@@ -3,7 +3,7 @@
 提供统一的进度条管理接口，消除重复的进度条处理逻辑
 """
 
-from PyQt6 import QtWidgets, QtCore
+from PySide6 import QtWidgets, QtCore
 from typing import Optional, Callable
 from core.log_manager import global_logger
 from utils.singleton import Singleton
