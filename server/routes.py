@@ -9,8 +9,126 @@ from server.app import get_channel_model, get_config, get_main_window, get_serve
 logger = logging.getLogger('server.routes')
 
 
+def _get_all_channels():
+    mw = get_main_window()
+    channels = []
+    if mw:
+        sub = getattr(mw, '_sub_channels', [])
+        local = getattr(mw, '_local_channels', [])
+        seen = set()
+        for ch in sub:
+            url = ch.get('url', '')
+            if url and url not in seen:
+                channels.append(ch)
+                seen.add(url)
+        for ch in local:
+            url = ch.get('url', '')
+            if url and url not in seen:
+                channels.append(ch)
+                seen.add(url)
+    if not channels:
+        model = get_channel_model()
+        if model:
+            for i in range(model.rowCount()):
+                ch = model.get_channel(i)
+                if ch:
+                    channels.append(ch)
+    return channels
+
+
+_I18N = {
+    'zh': {
+        'title': 'IPTV扫描编辑器专业版',
+        'subtitle': '直播Server & RESTful API',
+        'status': '服务器状态',
+        'running': '运行中',
+        'stopped': '已停止',
+        'uptime': '运行时间',
+        'base_url': '访问地址',
+        'playlist': '播放列表',
+        'channels': '频道管理',
+        'sources': '订阅源',
+        'scan': '扫描',
+        'epg': '节目单',
+        'stream_proxy': '流代理',
+        'footer': 'IPTV扫描编辑器专业版 · 内置HTTP Server · 基于 aiohttp',
+        'm3u_desc': 'M3U播放列表 (参数: valid=1, search=, group=)',
+        'm3u_group_desc': '按分组获取M3U播放列表',
+        'ch_list_desc': '频道列表 (参数: valid=1/0, group=, search=, page=, size=)',
+        'ch_get_desc': '按索引获取频道',
+        'ch_add_desc': '添加频道 (body: {url, name, group})',
+        'ch_update_desc': '更新频道',
+        'ch_delete_desc': '删除频道',
+        'src_list_desc': '获取订阅源列表',
+        'src_add_desc': '添加订阅源 (body: {url, name})',
+        'src_delete_desc': '删除订阅源',
+        'scan_start_desc': '开始扫描 (body: {url})',
+        'scan_stop_desc': '停止扫描',
+        'scan_status_desc': '扫描状态和统计',
+        'epg_desc': 'EPG节目单数据 (参数: id=, search=)',
+        'stream_desc': '按索引代理频道流',
+        'quick_m3u': 'M3U播放列表',
+        'quick_channels': '频道列表',
+        'quick_status': '运行状态',
+        'quick_epg': '节目单',
+        'no_data': '暂无频道数据',
+    },
+    'en': {
+        'title': 'IPTV Scanner Editor Pro',
+        'subtitle': 'Live Streaming Server & RESTful API',
+        'status': 'Server Status',
+        'running': 'Running',
+        'stopped': 'Stopped',
+        'uptime': 'Uptime',
+        'base_url': 'Base URL',
+        'playlist': 'Playlist',
+        'channels': 'Channels',
+        'sources': 'Sources',
+        'scan': 'Scan',
+        'epg': 'EPG',
+        'stream_proxy': 'Stream Proxy',
+        'footer': 'IPTV Scanner Editor Pro · Built-in HTTP Server · Powered by aiohttp',
+        'm3u_desc': 'M3U playlist (params: valid=1, search=, group=)',
+        'm3u_group_desc': 'M3U playlist by group',
+        'ch_list_desc': 'Channel list (params: valid=1/0, group=, search=, page=, size=)',
+        'ch_get_desc': 'Get channel by index',
+        'ch_add_desc': 'Add channel (body: {url, name, group})',
+        'ch_update_desc': 'Update channel',
+        'ch_delete_desc': 'Delete channel',
+        'src_list_desc': 'List subscription sources',
+        'src_add_desc': 'Add source (body: {url, name})',
+        'src_delete_desc': 'Delete source',
+        'scan_start_desc': 'Start scan (body: {url})',
+        'scan_stop_desc': 'Stop scan',
+        'scan_status_desc': 'Scan status & stats',
+        'epg_desc': 'EPG data (params: id=, search=)',
+        'stream_desc': 'Proxy stream for channel by index',
+        'quick_m3u': 'M3U Playlist',
+        'quick_channels': 'Channels',
+        'quick_status': 'Status',
+        'quick_epg': 'EPG',
+        'no_data': 'No channel data',
+    }
+}
+
+
+def _get_lang(request):
+    lang = request.rel_url.query.get('lang', '').strip().lower()
+    if lang in ('zh', 'cn', 'zh-cn', 'zh_cn'):
+        return 'zh'
+    accept = request.headers.get('Accept-Language', '')
+    if 'zh' in accept.lower():
+        return 'zh'
+    return 'en'
+
+
+def _t(lang, key, default=''):
+    return _I18N.get(lang, {}).get(key, _I18N.get('en', {}).get(key, default))
+
+
 def create_app() -> web.Application:
     app = web.Application(middlewares=[error_middleware, cors_middleware])
+    app.router.add_get('/', handle_index)
     app.router.add_get('/api/status', handle_status)
     app.router.add_get('/api/m3u', handle_m3u)
     app.router.add_get('/api/m3u/{group}', handle_m3u)
@@ -65,16 +183,172 @@ def _json_error(message, status=400):
     return web.json_response({'success': False, 'error': message}, status=status)
 
 
+async def handle_index(request):
+    server = get_server()
+    base_url = f"http://{request.host}"
+    lang = _get_lang(request)
+    html = _render_index_page(base_url, server, lang)
+    return web.Response(text=html, content_type='text/html', charset='utf-8')
+
+
+def _render_index_page(base_url, server, lang='en'):
+    is_running = server.is_running() if server else False
+    uptime = server.get_uptime() if server else 0
+    uptime_str = f"{uptime // 3600}h {uptime % 3600 // 60}m {uptime % 60}s" if uptime > 0 else "-"
+    status_color = "#4CAF50" if is_running else "#FF9800"
+    status_text = _t(lang, 'running') if is_running else _t(lang, 'stopped')
+
+    api_groups = [
+        {
+            "title": _t(lang, 'playlist'),
+            "icon": "&#9654;",
+            "apis": [
+                {"method": "GET", "path": "/api/m3u", "desc": _t(lang, 'm3u_desc'), "type": "link"},
+                {"method": "GET", "path": "/api/m3u/{group}", "desc": _t(lang, 'm3u_group_desc'), "type": "link"},
+            ]
+        },
+        {
+            "title": _t(lang, 'channels'),
+            "icon": "&#128250;",
+            "apis": [
+                {"method": "GET", "path": "/api/channels", "desc": _t(lang, 'ch_list_desc'), "type": "json"},
+                {"method": "GET", "path": "/api/channels/{id}", "desc": _t(lang, 'ch_get_desc'), "type": "json"},
+                {"method": "POST", "path": "/api/channels", "desc": _t(lang, 'ch_add_desc'), "type": "json"},
+                {"method": "PUT", "path": "/api/channels/{id}", "desc": _t(lang, 'ch_update_desc'), "type": "json"},
+                {"method": "DELETE", "path": "/api/channels/{id}", "desc": _t(lang, 'ch_delete_desc'), "type": "json"},
+            ]
+        },
+        {
+            "title": _t(lang, 'sources'),
+            "icon": "&#128229;",
+            "apis": [
+                {"method": "GET", "path": "/api/sources", "desc": _t(lang, 'src_list_desc'), "type": "json"},
+                {"method": "POST", "path": "/api/sources", "desc": _t(lang, 'src_add_desc'), "type": "json"},
+                {"method": "DELETE", "path": "/api/sources/{id}", "desc": _t(lang, 'src_delete_desc'), "type": "json"},
+            ]
+        },
+        {
+            "title": _t(lang, 'scan'),
+            "icon": "&#128269;",
+            "apis": [
+                {"method": "POST", "path": "/api/scan/start", "desc": _t(lang, 'scan_start_desc'), "type": "json"},
+                {"method": "POST", "path": "/api/scan/stop", "desc": _t(lang, 'scan_stop_desc'), "type": "json"},
+                {"method": "GET", "path": "/api/scan/status", "desc": _t(lang, 'scan_status_desc'), "type": "json"},
+            ]
+        },
+        {
+            "title": _t(lang, 'epg'),
+            "icon": "&#128197;",
+            "apis": [
+                {"method": "GET", "path": "/api/epg", "desc": _t(lang, 'epg_desc'), "type": "json"},
+            ]
+        },
+        {
+            "title": _t(lang, 'stream_proxy'),
+            "icon": "&#127909;",
+            "apis": [
+                {"method": "GET", "path": "/stream/{id}", "desc": _t(lang, 'stream_desc'), "type": "stream"},
+            ]
+        },
+    ]
+
+    method_colors = {"GET": "#4CAF50", "POST": "#FF9800", "PUT": "#2196F3", "DELETE": "#F44336"}
+
+    api_sections = ""
+    for group in api_groups:
+        rows = ""
+        for api in group["apis"]:
+            mc = method_colors.get(api["method"], "#999")
+            type_badge = ""
+            if api["type"] == "link":
+                type_badge = f'<a href="{base_url}{api["path"]}" target="_blank" style="color:#4CAF50;font-size:11px;text-decoration:none;">&#128279; Open</a>'
+            elif api["type"] == "stream":
+                type_badge = '<span style="color:#9C27B0;font-size:11px;">STREAM</span>'
+            else:
+                type_badge = '<span style="color:#607D8B;font-size:11px;">JSON</span>'
+            rows += f"""
+            <tr>
+                <td style="padding:8px 12px;"><span style="background:{mc};color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">{api["method"]}</span></td>
+                <td style="padding:8px 12px;font-family:monospace;font-size:13px;color:#E0E0E0;">{api["path"]}</td>
+                <td style="padding:8px 12px;font-size:12px;color:#BDBDBD;">{api["desc"]}</td>
+                <td style="padding:8px 12px;">{type_badge}</td>
+            </tr>"""
+        api_sections += f"""
+        <div style="margin-bottom:24px;">
+            <h3 style="color:#E0E0E0;margin:0 0 8px 0;font-size:15px;">{group["icon"]} {group["title"]}</h3>
+            <table style="width:100%;border-collapse:collapse;background:rgba(255,255,255,0.03);border-radius:8px;overflow:hidden;">
+                {rows}
+            </table>
+        </div>"""
+
+    lang_toggle = 'en' if lang == 'zh' else 'zh'
+    lang_label = 'English' if lang == 'zh' else '中文'
+
+    return f"""<!DOCTYPE html>
+<html lang="{lang}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{_t(lang, 'title')} - API</title>
+<style>
+* {{ margin:0; padding:0; box-sizing:border-box; }}
+body {{ background:#1a1a2e; color:#E0E0E0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; min-height:100vh; }}
+.container {{ max-width:960px; margin:0 auto; padding:40px 24px; }}
+.header {{ text-align:center; margin-bottom:40px; }}
+.header h1 {{ font-size:28px; font-weight:700; color:#fff; margin-bottom:8px; }}
+.header p {{ font-size:14px; color:#9E9E9E; }}
+.lang-toggle {{ position:absolute; top:16px; right:24px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:6px 14px; color:#BDBDBD; font-size:12px; text-decoration:none; transition:all 0.2s; }}
+.lang-toggle:hover {{ background:rgba(255,255,255,0.15); color:#fff; }}
+.status-card {{ display:flex; align-items:center; justify-content:center; gap:16px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:20px; margin-bottom:32px; }}
+.status-dot {{ width:12px; height:12px; border-radius:50%; background:{status_color}; box-shadow:0 0 8px {status_color}; }}
+.status-info {{ text-align:left; }}
+.status-info .label {{ font-size:12px; color:#9E9E9E; text-transform:uppercase; letter-spacing:1px; }}
+.status-info .value {{ font-size:16px; font-weight:600; color:#fff; }}
+.quick-links {{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:32px; }}
+.quick-link {{ background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px 20px; text-decoration:none; color:#E0E0E0; font-size:13px; transition:all 0.2s; }}
+.quick-link:hover {{ background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.2); color:#fff; }}
+.quick-link .path {{ font-family:monospace; color:#4CAF50; font-size:12px; }}
+.footer {{ text-align:center; margin-top:40px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.06); color:#616161; font-size:12px; }}
+</style>
+</head>
+<body>
+<a class="lang-toggle" href="?lang={lang_toggle}">{lang_label}</a>
+<div class="container">
+    <div class="header">
+        <h1>{_t(lang, 'title')}</h1>
+        <p>{_t(lang, 'subtitle')}</p>
+    </div>
+    <div class="status-card">
+        <div class="status-dot"></div>
+        <div class="status-info">
+            <div class="label">{_t(lang, 'status')}</div>
+            <div class="value">{status_text} &middot; {_t(lang, 'uptime')}: {uptime_str}</div>
+        </div>
+        <div class="status-info" style="margin-left:32px;">
+            <div class="label">{_t(lang, 'base_url')}</div>
+            <div class="value" style="font-family:monospace;font-size:14px;">{base_url}</div>
+        </div>
+    </div>
+    <div class="quick-links">
+        <a class="quick-link" href="{base_url}/api/m3u" target="_blank">&#9654; {_t(lang, 'quick_m3u')} <span class="path">/api/m3u</span></a>
+        <a class="quick-link" href="{base_url}/api/channels" target="_blank">&#128250; {_t(lang, 'quick_channels')} <span class="path">/api/channels</span></a>
+        <a class="quick-link" href="{base_url}/api/status" target="_blank">&#8505; {_t(lang, 'quick_status')} <span class="path">/api/status</span></a>
+        <a class="quick-link" href="{base_url}/api/epg" target="_blank">&#128197; {_t(lang, 'quick_epg')} <span class="path">/api/epg</span></a>
+    </div>
+    {api_sections}
+    <div class="footer">
+        {_t(lang, 'footer')}
+    </div>
+</div>
+</body>
+</html>"""
+
+
 async def handle_status(request):
     server = get_server()
-    model = get_channel_model()
-    total = model.rowCount() if model else 0
-    valid = 0
-    if model:
-        for i in range(total):
-            ch = model.get_channel(i)
-            if ch and ch.get('valid') is True:
-                valid += 1
+    channels = _get_all_channels()
+    total = len(channels)
+    valid = sum(1 for ch in channels if ch.get('valid') is True)
     config = get_config()
     port = 8080
     if config:
@@ -93,18 +367,14 @@ async def handle_status(request):
 
 
 async def handle_m3u(request):
-    model = get_channel_model()
-    if not model:
-        return _json_error('频道模型未初始化', 503)
+    channels = _get_all_channels()
+    if not channels:
+        return _json_error('暂无频道数据', 503)
     group_filter = request.match_info.get('group', None)
     valid_only = request.rel_url.query.get('valid', '0') == '1'
     search = request.rel_url.query.get('search', '').strip().lower()
     lines = ['#EXTM3U']
-    total = model.rowCount()
-    for i in range(total):
-        ch = model.get_channel(i)
-        if not ch:
-            continue
+    for ch in channels:
         if valid_only and ch.get('valid') is not True:
             continue
         group = ch.get('group', '')
@@ -140,20 +410,16 @@ async def handle_m3u(request):
 
 
 async def handle_channels_list(request):
-    model = get_channel_model()
-    if not model:
-        return _json_error('频道模型未初始化', 503)
+    all_channels = _get_all_channels()
+    if not all_channels:
+        return _json_error('暂无频道数据', 503)
     valid_only = request.rel_url.query.get('valid', '').strip()
     group = request.rel_url.query.get('group', '').strip()
     search = request.rel_url.query.get('search', '').strip().lower()
     page = max(1, int(request.rel_url.query.get('page', '1')))
     page_size = min(500, max(1, int(request.rel_url.query.get('size', '100'))))
     channels = []
-    total = model.rowCount()
-    for i in range(total):
-        ch = model.get_channel(i)
-        if not ch:
-            continue
+    for i, ch in enumerate(all_channels):
         if valid_only == '1' and ch.get('valid') is not True:
             continue
         if valid_only == '0' and ch.get('valid') is False:
@@ -167,7 +433,7 @@ async def handle_channels_list(request):
     start = (page - 1) * page_size
     end = start + page_size
     page_items = channels[start:end]
-    groups = sorted(set(ch.get('group', '') for ch in [model.get_channel(i) for i in range(total)] if ch))
+    groups = sorted(set(ch.get('group', '') for ch in all_channels if ch.get('group')))
     return _json_success(
         channels=page_items,
         total=total_filtered,
@@ -178,52 +444,56 @@ async def handle_channels_list(request):
 
 
 async def handle_channel_get(request):
-    model = get_channel_model()
-    if not model:
-        return _json_error('频道模型未初始化', 503)
+    all_channels = _get_all_channels()
+    if not all_channels:
+        return _json_error('暂无频道数据', 503)
     try:
         idx = int(request.match_info['id'])
     except ValueError:
         return _json_error('无效的频道ID')
-    if not (0 <= idx < model.rowCount()):
+    if not (0 <= idx < len(all_channels)):
         return _json_error('频道不存在', 404)
-    ch = model.get_channel(idx)
+    ch = all_channels[idx]
     return _json_success(channel={**ch, '_index': idx} if ch else None)
 
 
 async def handle_channel_update(request):
     model = get_channel_model()
-    if not model:
-        return _json_error('频道模型未初始化', 503)
+    all_channels = _get_all_channels()
+    if not all_channels:
+        return _json_error('暂无频道数据', 503)
     try:
         idx = int(request.match_info['id'])
     except ValueError:
         return _json_error('无效的频道ID')
-    if not (0 <= idx < model.rowCount()):
-        return _json_error('频道不存在', 404)
     data = await request.json()
-    model.update_channel(idx, data)
+    if model and 0 <= idx < model.rowCount():
+        model.update_channel(idx, data)
+    else:
+        mw = get_main_window()
+        if mw:
+            for ch_list in (getattr(mw, '_sub_channels', []), getattr(mw, '_local_channels', [])):
+                if 0 <= idx < len(ch_list):
+                    ch_list[idx].update(data)
+                    break
     return _json_success()
 
 
 async def handle_channel_delete(request):
     model = get_channel_model()
-    if not model:
-        return _json_error('频道模型未初始化', 503)
+    all_channels = _get_all_channels()
+    if not all_channels:
+        return _json_error('暂无频道数据', 503)
     try:
         idx = int(request.match_info['id'])
     except ValueError:
         return _json_error('无效的频道ID')
-    if not (0 <= idx < model.rowCount()):
-        return _json_error('频道不存在', 404)
-    model.remove_channel(idx)
+    if model and 0 <= idx < model.rowCount():
+        model.remove_channel(idx)
     return _json_success()
 
 
 async def handle_channel_add(request):
-    model = get_channel_model()
-    if not model:
-        return _json_error('频道模型未初始化', 503)
     data = await request.json()
     if not data.get('url'):
         return _json_error('URL不能为空')
@@ -231,7 +501,9 @@ async def handle_channel_add(request):
     data.setdefault('group', '未分类')
     data.setdefault('valid', None)
     data.setdefault('status', '')
-    model.add_channel(data)
+    model = get_channel_model()
+    if model:
+        model.add_channel(data)
     return _json_success()
 
 
@@ -372,16 +644,16 @@ async def handle_epg(request):
 
 
 async def handle_stream_proxy(request):
-    model = get_channel_model()
-    if not model:
-        return _json_error('频道模型未初始化', 503)
+    all_channels = _get_all_channels()
+    if not all_channels:
+        return _json_error('暂无频道数据', 503)
     try:
         idx = int(request.match_info['id'])
     except ValueError:
         return _json_error('无效的频道ID')
-    if not (0 <= idx < model.rowCount()):
+    if not (0 <= idx < len(all_channels)):
         return _json_error('频道不存在', 404)
-    ch = model.get_channel(idx)
+    ch = all_channels[idx]
     if not ch or not ch.get('url'):
         return _json_error('频道URL为空', 404)
     stream_url = ch['url']
