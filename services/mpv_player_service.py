@@ -157,7 +157,7 @@ class MpvPlayerController(QObject):
             except Exception as e:
                 self.logger.error(f"设置窗口ID失败: {str(e)}")
 
-            hdr_mode = self._playback_settings.get('hdr_output_mode', 'auto')
+            hdr_mode = self._playback_settings.get('hdr_output_mode', 'disable')
 
             system_hdr_enabled = False
             try:
@@ -166,34 +166,27 @@ class MpvPlayerController(QObject):
             except Exception as e:
                 self.logger.warning(f"HDR检测失败，保守使用SDR模式: {e}")
 
-            if hdr_mode == 'tonemap':
+            if hdr_mode == 'disable':
                 vo = 'gpu'
-                self._apply_tonemap_config()
+            elif hdr_mode == 'tonemap':
+                vo = 'gpu'
             elif hdr_mode == 'passthrough':
                 if system_hdr_enabled:
                     vo = 'gpu-next'
-                    self._apply_passthrough_config()
                 else:
-                    self.logger.warning("系统未启用HDR，passthrough模式回退到tonemap")
+                    self.logger.warning("系统未启用HDR，passthrough模式回退到SDR")
                     vo = 'gpu'
-                    self._apply_tonemap_config()
             elif hdr_mode == 'scrgb':
                 if system_hdr_enabled:
                     vo = 'gpu-next'
-                    self._apply_scrgb_config()
                 else:
-                    self.logger.warning("系统未启用HDR，scrgb模式回退到tonemap")
+                    self.logger.warning("系统未启用HDR，scrgb模式回退到SDR")
                     vo = 'gpu'
-                    self._apply_tonemap_config()
             else:
                 if system_hdr_enabled:
-                    self.logger.info("检测到系统HDR已启用，使用HDR直通模式")
                     vo = 'gpu-next'
-                    self._apply_passthrough_config()
                 else:
-                    self.logger.info("系统HDR未启用，使用SDR色调映射模式")
                     vo = 'gpu'
-                    self._apply_tonemap_config()
 
             _mpv_set_property_string(self.mpv_handle, 'vo', vo)
             hwdec = 'auto' if self._playback_settings.get('hwdec', True) else 'no'
@@ -309,27 +302,39 @@ class MpvPlayerController(QObject):
             pass
 
     def _apply_tonemap_config(self):
-        _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'hable')
-        _mpv_set_property_string(self.mpv_handle, 'tone-mapping-mode', 'auto')
-        _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'yes')
-        _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
+        self._set_mpv_string('tone-mapping', 'hable')
+        self._set_mpv_string('tone-mapping-mode', 'auto')
+        self._set_mpv_string('hdr-compute-peak', 'yes')
+        self._set_mpv_string('d3d11-output-csp', 'srgb')
+        self._set_mpv_string('target-prim', '')
+        self._set_mpv_string('target-trc', '')
         self.logger.info("HDR配置: tonemap → SDR (hable, srgb)")
 
     def _apply_passthrough_config(self):
-        _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.2020')
-        _mpv_set_property_string(self.mpv_handle, 'target-trc', 'pq')
-        _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
-        _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'no')
-        _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'pq')
+        self._set_mpv_string('target-prim', 'bt.2020')
+        self._set_mpv_string('target-trc', 'pq')
+        self._set_mpv_string('tone-mapping', 'clip')
+        self._set_mpv_string('hdr-compute-peak', 'no')
+        self._set_mpv_string('d3d11-output-csp', 'pq')
         self.logger.info("HDR配置: passthrough → HDR (bt.2020, pq)")
 
     def _apply_scrgb_config(self):
-        _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.2020')
-        _mpv_set_property_string(self.mpv_handle, 'target-trc', 'linear')
-        _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
-        _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'no')
-        _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'scrgb')
+        self._set_mpv_string('target-prim', 'bt.2020')
+        self._set_mpv_string('target-trc', 'linear')
+        self._set_mpv_string('tone-mapping', 'clip')
+        self._set_mpv_string('hdr-compute-peak', 'no')
+        self._set_mpv_string('d3d11-output-csp', 'scrgb')
         self.logger.info("HDR配置: scrgb → 线性光 (bt.2020, linear)")
+
+    def _reset_hdr_params(self):
+        self._set_mpv_string('tone-mapping', 'auto')
+        self._set_mpv_string('tone-mapping-mode', '')
+        self._set_mpv_string('hdr-compute-peak', '')
+        self._set_mpv_string('d3d11-output-csp', 'auto')
+        self._set_mpv_string('target-prim', '')
+        self._set_mpv_string('target-trc', '')
+        self.logger.info("HDR配置: 已重置为默认值")
+
 
     def _set_mpv_string(self, name, value):
         if self._terminated or not self.mpv_handle:
@@ -490,12 +495,12 @@ class MpvPlayerController(QObject):
 
     def _apply_hdr_on_file_loaded(self):
         try:
-            if not self.mpv_handle:
+            if not self.mpv_handle or self._terminated:
                 return
-            hdr_mode = self._playback_settings.get('hdr_output_mode', 'auto')
+            hdr_mode = self._playback_settings.get('hdr_output_mode', 'disable')
 
-            if hdr_mode == 'tonemap':
-                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
+            if hdr_mode == 'disable':
+                self._reset_hdr_params()
                 return
 
             vp_prim = (self._get_mpv_property_string('video-params/primaries') or '').lower()
@@ -510,34 +515,36 @@ class MpvPlayerController(QObject):
                            'bt.2020' in vp_prim or 'bt.2100' in vp_prim)
 
             if not is_hdr_video:
-                self.logger.info("非HDR视频，恢复SDR输出")
-                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
-                _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.709')
-                _mpv_set_property_string(self.mpv_handle, 'target-trc', 'srgb')
+                self.logger.info("非HDR视频，重置HDR参数为默认值")
+                self._reset_hdr_params()
                 return
 
-            system_hdr_enabled = False
-            try:
-                from utils.hdr_detect import is_windows_hdr_enabled
-                system_hdr_enabled = is_windows_hdr_enabled()
-            except Exception:
-                pass
-
-            if not system_hdr_enabled and hdr_mode == 'auto':
-                self.logger.info("HDR视频在SDR显示器上，启用实时色调映射")
-                _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'hable')
-                _mpv_set_property_string(self.mpv_handle, 'tone-mapping-mode', 'auto')
-                _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'yes')
-                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
+            if hdr_mode == 'tonemap':
+                self._apply_tonemap_config()
                 return
 
-            self.logger.info(f"HDR视频在HDR显示器上，保持直通模式")
+            if hdr_mode == 'passthrough':
+                self._apply_passthrough_config()
+                return
 
-            actual_tp = self._get_mpv_property_string('target-prim') or '?'
-            actual_tt = self._get_mpv_property_string('target-trc') or '?'
-            actual_tm = self._get_mpv_property_string('tone-mapping') or '?'
-            actual_csp = self._get_mpv_property_string('d3d11-output-csp') or '?'
-            self.logger.info(f"HDR验证: target-prim={actual_tp}, target-trc={actual_tt}, tone-mapping={actual_tm}, d3d11-output-csp={actual_csp}")
+            if hdr_mode == 'scrgb':
+                self._apply_scrgb_config()
+                return
+
+            if hdr_mode == 'auto':
+                system_hdr_enabled = False
+                try:
+                    from utils.hdr_detect import is_windows_hdr_enabled
+                    system_hdr_enabled = is_windows_hdr_enabled()
+                except Exception:
+                    pass
+
+                if system_hdr_enabled:
+                    self._apply_passthrough_config()
+                else:
+                    self._apply_tonemap_config()
+                return
+
         except Exception as e:
             self.logger.error(f"应用HDR设置失败: {e}")
 
@@ -779,18 +786,13 @@ class MpvPlayerController(QObject):
         try:
             while not self._terminated:
                 with self._lock:
-                    current_handle = self.mpv_handle
-                if current_handle is not handle:
-                    return
-                from services.mpv_common import libmpv as _libmpv
-                with self._lock:
-                    if self.mpv_handle is not handle:
+                    if self._terminated or self.mpv_handle is not handle:
                         return
+                    from services.mpv_common import libmpv as _libmpv
                     event_ptr = _libmpv.mpv_wait_event(handle, 0.0)
-                if not event_ptr:
-                    return
-
-                event = ctypes.cast(event_ptr, ctypes.POINTER(mpv_event)).contents
+                    if not event_ptr:
+                        return
+                    event = ctypes.cast(event_ptr, ctypes.POINTER(mpv_event)).contents
 
                 if event.event_id == MPV_EVENT_NONE:
                     return
@@ -864,6 +866,9 @@ class MpvPlayerController(QObject):
                 self._safe_emit(self.play_error, "mpv播放器未初始化")
                 return False
 
+            if self._terminated:
+                return False
+
             if hasattr(self, 'event_timer') and self.event_timer and not self.event_timer.isActive():
                 self.event_timer.start(100)
 
@@ -881,7 +886,10 @@ class MpvPlayerController(QObject):
                 self._set_mpv_string('prefetch-playlist', 'yes')
 
             mpv_url = self._normalize_url(url)
-            result = _mpv_send_command(self.mpv_handle, ['loadfile', mpv_url])
+            with self._lock:
+                if not self.mpv_handle or self._terminated:
+                    return False
+                result = _mpv_send_command(self.mpv_handle, ['loadfile', mpv_url])
 
             if result < 0:
                 error_msg = f"播放失败: {result}"
@@ -889,7 +897,7 @@ class MpvPlayerController(QObject):
                 self._safe_emit(self.play_error, error_msg)
                 return False
 
-            _mpv_set_property_string(self.mpv_handle, 'pause', 'no')
+            self._set_mpv_string('pause', 'no')
 
             if self._current_speed != 1.0:
                 self._set_mpv_string('speed', str(self._current_speed))
@@ -914,7 +922,7 @@ class MpvPlayerController(QObject):
             self._user_stopped = False
             self._switching_channel = True
 
-            if not self.mpv_handle:
+            if not self.mpv_handle or self._terminated:
                 self._safe_emit(self.play_error, "mpv播放器未初始化")
                 return False
 
@@ -927,13 +935,16 @@ class MpvPlayerController(QObject):
                 self._set_mpv_string('prefetch-playlist', 'yes')
 
             mpv_url = self._normalize_url(url)
-            result = _mpv_send_command(self.mpv_handle, ['loadfile', mpv_url])
+            with self._lock:
+                if not self.mpv_handle or self._terminated:
+                    return False
+                result = _mpv_send_command(self.mpv_handle, ['loadfile', mpv_url])
 
             if result < 0:
                 self.logger.error(f"预取播放失败: {result}")
                 return False
 
-            _mpv_set_property_string(self.mpv_handle, 'pause', 'no')
+            self._set_mpv_string('pause', 'no')
             if self._current_speed != 1.0:
                 self._set_mpv_string('speed', str(self._current_speed))
 
@@ -980,8 +991,9 @@ class MpvPlayerController(QObject):
             self._user_stopped = True
             was_playing = self.is_playing or self.current_url
 
-            if self.mpv_handle:
-                _mpv_send_command(self.mpv_handle, ['stop'])
+            with self._lock:
+                if self.mpv_handle and not self._terminated:
+                    _mpv_send_command(self.mpv_handle, ['stop'])
 
             if hasattr(self, '_media_info_timer') and self._media_info_timer:
                 self._media_info_timer.stop()
@@ -1024,6 +1036,11 @@ class MpvPlayerController(QObject):
                     _mpv_send_command(handle, ['quit'])
                 except Exception as e:
                     self.logger.debug(f"发送quit命令失败（可能已关闭）: {e}")
+
+                time.sleep(0.15)
+
+                with self._lock:
+                    pass
 
                 try:
                     terminate_destroy_mpv(handle)
@@ -1079,14 +1096,17 @@ class MpvPlayerController(QObject):
                 pos = saved_position
                 def _do_seek():
                     if not self._terminated and self.mpv_handle and self.is_playing:
-                        _mpv_send_command(self.mpv_handle, ['seek', str(pos), 'absolute'])
+                        self.send_command(['seek', str(pos), 'absolute'])
                 QTimer.singleShot(1500, _do_seek)
         self.logger.info(f"HDR模式已切换为: {new_hdr_mode}")
 
     def pause(self):
         try:
-            if self.mpv_handle:
-                result = _mpv_send_command(self.mpv_handle, ['cycle', 'pause'])
+            if self.mpv_handle and not self._terminated:
+                with self._lock:
+                    if not self.mpv_handle or self._terminated:
+                        return
+                    result = _mpv_send_command(self.mpv_handle, ['cycle', 'pause'])
                 if result < 0:
                     self.logger.error(f"切换暂停状态失败: {result}")
                 else:
@@ -1109,8 +1129,8 @@ class MpvPlayerController(QObject):
     def set_volume(self, volume):
         try:
             self._last_volume = volume
-            if self.mpv_handle:
-                _mpv_set_property_string(self.mpv_handle, 'volume', f"{volume}")
+            if self.mpv_handle and not self._terminated:
+                self._set_mpv_string('volume', f"{volume}")
         except Exception as e:
             self.logger.error(f"设置音量失败: {str(e)}")
 
@@ -1170,8 +1190,8 @@ class MpvPlayerController(QObject):
 
     def set_mute(self, muted):
         try:
-            if self.mpv_handle:
-                _mpv_set_property_string(self.mpv_handle, 'mute', 'yes' if muted else 'no')
+            if self.mpv_handle and not self._terminated:
+                self._set_mpv_string('mute', 'yes' if muted else 'no')
         except Exception as e:
             self.logger.error(f"设置静音失败: {str(e)}")
 
@@ -1237,8 +1257,8 @@ class MpvPlayerController(QObject):
 
     def seek_absolute(self, target_seconds):
         try:
-            if self.mpv_handle and target_seconds >= 0:
-                result = _mpv_send_command(self.mpv_handle, ['seek', f'{target_seconds:.3f}', 'absolute'])
+            if self.mpv_handle and not self._terminated and target_seconds >= 0:
+                result = self.send_command(['seek', f'{target_seconds:.3f}', 'absolute'])
                 if result < 0:
                     self.logger.warning(f"绝对seek到{target_seconds:.1f}秒失败，错误码: {result}")
                 else:
@@ -1250,24 +1270,24 @@ class MpvPlayerController(QObject):
 
     def seek(self, position):
         try:
-            if self.mpv_handle:
+            if self.mpv_handle and not self._terminated:
                 duration_seconds = self._get_mpv_property_double('duration')
                 if duration_seconds:
                     target_position = duration_seconds * position
-                    result = _mpv_send_command(self.mpv_handle, ['seek', f'{target_position}', 'absolute'])
+                    result = self.send_command(['seek', f'{target_position}', 'absolute'])
                     if result < 0:
                         seek_percent = position * 100.0
-                        _mpv_send_command(self.mpv_handle, ['seek', f'{seek_percent}', 'absolute-percent'])
+                        self.send_command(['seek', f'{seek_percent}', 'absolute-percent'])
                 else:
                     seek_percent = position * 100.0
-                    _mpv_send_command(self.mpv_handle, ['seek', f'{seek_percent}', 'absolute-percent'])
+                    self.send_command(['seek', f'{seek_percent}', 'absolute-percent'])
         except Exception as e:
             self.logger.error(f"设置播放位置失败: {str(e)}")
 
     def seek_relative_seconds(self, seconds):
         try:
-            if self.mpv_handle and seconds != 0:
-                result = _mpv_send_command(self.mpv_handle, ['seek', f'{seconds:.1f}', 'relative'])
+            if self.mpv_handle and not self._terminated and seconds != 0:
+                result = self.send_command(['seek', f'{seconds:.1f}', 'relative'])
                 if result < 0:
                     self.logger.warning(f"相对seek {seconds}秒失败，错误码: {result}")
                 else:
@@ -1564,12 +1584,12 @@ class MpvPlayerController(QObject):
 
     def ensure_ready_for_load(self):
         try:
-            if not self.mpv_handle:
+            if not self.mpv_handle or self._terminated:
                 return
-            _mpv_set_property_string(self.mpv_handle, 'pause', 'no')
+            self._set_mpv_string('pause', 'no')
             eof = self._get_mpv_property_string('eof-reached')
             if eof and eof.lower() == 'yes':
-                _mpv_send_command(self.mpv_handle, ['stop'])
+                self.send_command(['stop'])
                 time.sleep(0.08)
         except Exception:
             pass
@@ -1638,13 +1658,16 @@ class MpvPlayerController(QObject):
 
     def set_track(self, track_type, track_id):
         try:
-            if not self.mpv_handle:
+            if not self.mpv_handle or self._terminated:
                 return False
             prop = f'{track_type}-track' if track_type in ('audio', 'sub') else track_type
             current = self.get_current_track(track_type)
             if current is not None and current == track_id:
                 return True
-            result = _mpv_set_property_int64(self.mpv_handle, prop, int(track_id))
+            with self._lock:
+                if not self.mpv_handle or self._terminated:
+                    return False
+                result = _mpv_set_property_int64(self.mpv_handle, prop, int(track_id))
             if result < 0:
                 result2 = self._set_mpv_string(prop, str(track_id))
                 if result2 < 0:
@@ -1701,7 +1724,7 @@ class MpvPlayerController(QObject):
         self.send_command(['show-text', text, str(duration)])
 
     def _apply_osd_colors(self):
-        if not self.mpv_handle:
+        if not self.mpv_handle or self._terminated:
             return
         try:
             from ui.styles import AppStyles
@@ -1709,11 +1732,11 @@ class MpvPlayerController(QObject):
             osd_fg = colors.get('osd_text', '#ffffff')
             osd_border = colors.get('osd_border', '#000000')
             osd_shadow = colors.get('osd_shadow', '#000000')
-            _mpv_set_property_string(self.mpv_handle, 'osd-color', osd_fg)
-            _mpv_set_property_string(self.mpv_handle, 'osd-border-color', osd_border)
-            _mpv_set_property_string(self.mpv_handle, 'osd-shadow-color', osd_shadow)
+            self._set_mpv_string('osd-color', osd_fg)
+            self._set_mpv_string('osd-border-color', osd_border)
+            self._set_mpv_string('osd-shadow-color', osd_shadow)
             font_family = colors.get('font_family', "'Segoe UI', 'Microsoft YaHei', sans-serif")
-            _mpv_set_property_string(self.mpv_handle, 'osd-font', font_family)
+            self._set_mpv_string('osd-font', font_family)
         except Exception:
             pass
 
@@ -1722,8 +1745,6 @@ class MpvPlayerController(QObject):
 
     @staticmethod
     def detect_hdr_type(colormatrix: str, gamma: str, sig_peak: float) -> str:
-        if not colormatrix and not gamma:
-            return 'SDR'
         if gamma and 'pq' in gamma.lower() and sig_peak > 4000:
             if 'bt.2020' in colormatrix.lower():
                 return 'DV'
@@ -1740,8 +1761,6 @@ class MpvPlayerController(QObject):
                     return 'HLG'
                 else:
                     return 'WCG'
-            if 'bt.709' in cm_lower or 'bt.601' in cm_lower:
-                return 'SDR'
         return 'SDR'
 
     def get_available_seek_range(self) -> dict:

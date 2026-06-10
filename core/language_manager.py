@@ -1189,7 +1189,7 @@ BUILTIN_TRANSLATIONS = {
         'hwdec_label': 'HW',
         'vcodec_label': 'Video',
         'acodec_label': 'Audio',
-        'hdr_label': 'HDR',
+        'hdr_label': 'Dynamic',
         'no_video_info': 'No video info',
         'no_audio_info': 'No audio info',
         'no_network_info': 'No network info',
