@@ -495,8 +495,8 @@ class ScanChannelDialog(FloatingDialog):
         engine_layout.addWidget(engine_label)
 
         self.scan_engine_combo = QtWidgets.QComboBox()
-        self.scan_engine_combo.addItem("mpv", "mpv")
-        self.scan_engine_combo.addItem("ffprobe", "ffprobe")
+        self.scan_engine_combo.addItem(tr('scan_engine_mpv', 'mpv (Lightweight)'), "mpv")
+        self.scan_engine_combo.addItem(tr('scan_engine_ffprobe', 'ffprobe (Detailed)'), "ffprobe")
         self.scan_engine_combo.setFixedHeight(28)
         self.scan_engine_combo.setToolTip(
             tr("scan_engine_tooltip", "Select the core engine for scanning and validation")

@@ -166,6 +166,8 @@ def safe_connect(signal, slot):
         signal.disconnect(slot)
     except (TypeError, RuntimeError):
         pass
+    except Exception:
+        pass
 
     try:
         signal.connect(slot)
