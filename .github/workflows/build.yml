@@ -31,6 +31,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.branch }}
+          
+      - name: Download and Extract MPV/FFmpeg (PowerShell)
+        shell: powershell
+        run: |
+          # 创建 mpv 目录
+          New-Item -ItemType Directory -Force -Path .\mpv
+          Invoke-WebRequest -Uri "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260610/mpv-dev-x86_64-v3-20260610-git-304426c.7z" -OutFile "mpv.7z"
+          # 解压到当前目录（压缩包内已包含 mpv 根目录或直接释放，7z x -o. 会自动处理）
+          7z x mpv.7z -o .
+
+          New-Item -ItemType Directory -Force -Path .\ffmpeg
+          Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z" -OutFile "ffmpeg.7z"
+          7z x ffmpeg.7z -o .
 
       - name: Set up Python
         uses: actions/setup-python@v5
