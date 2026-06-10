@@ -331,6 +331,17 @@ class ConfigManager(Singleton):
             'validate_timeout': self._parse_int(self.get_value('Validation', 'validate_timeout', '10'), 10)
         }
 
+    def save_scan_engine_settings(self, engine: str):
+        """保存扫描引擎设置，engine: 'mpv' 或 'ffprobe'"""
+        self.set_value('ScanEngine', 'engine', engine)
+        return self.save_config()
+
+    def load_scan_engine_settings(self) -> dict:
+        """加载扫描引擎设置"""
+        return {
+            'engine': self.get_value('ScanEngine', 'engine', 'mpv')
+        }
+
     def save_mapping_settings(self, enable_mapping: bool = True):
         """保存映射功能设置"""
         self.set_value('Mapping', 'enable_mapping', str(enable_mapping))

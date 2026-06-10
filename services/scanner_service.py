@@ -103,6 +103,7 @@ class ScannerController(QObject):
         self.scan_state_manager = get_scan_state_manager()
         self.scan_id = 'main_scan'
         self._validator = None
+        self._scan_engine = None
         self._mapping_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mapper")
         self._pending_channels = []
         self._pending_lock = threading.Lock()
@@ -415,12 +416,30 @@ class ScannerController(QObject):
         except Exception as e:
             self.logger.debug(f"更新频道详细信息失败: {e}")
 
+    def _get_validator_class(self):
+        """根据配置获取验证器类"""
+        engine = 'mpv'
+        try:
+            from core.config_manager import ConfigManager
+            settings = ConfigManager().load_scan_engine_settings()
+            engine = settings.get('engine', 'mpv')
+        except Exception:
+            pass
+        self._scan_engine = engine
+        if engine == 'ffprobe':
+            from services.ffprobe_validator_service import FfprobeStreamValidator
+            return FfprobeStreamValidator
+        else:
+            from services.mpv_validator_service import MpvStreamValidator
+            return MpvStreamValidator
+
     def _check_channel(
         self, url: str, raw_channel_name: str | None = None
     ) -> Dict[str, Any]:
         if self._validator is None:
-            from services.ffprobe_validator_service import FfprobeStreamValidator
-            self._validator = FfprobeStreamValidator(self.main_window)
+            ValidatorClass = self._get_validator_class()
+            self._validator = ValidatorClass(self.main_window)
+            self.logger.info(f"扫描引擎: {self._scan_engine}")
         return self._validator.validate_stream(
             url,
             raw_channel_name=raw_channel_name,
@@ -482,8 +501,9 @@ class ScannerController(QObject):
         self.stop_scan()
         self.stop_event.clear()
 
-        from services.ffprobe_validator_service import FfprobeStreamValidator
-        FfprobeStreamValidator.reset_terminating()
+        ValidatorClass = self._get_validator_class()
+        ValidatorClass.reset_terminating()
+        self._validator = None
 
         self._skip_urls = skip_urls or set()
 
@@ -504,13 +524,13 @@ class ScannerController(QObject):
         self._optimal_queue_size = calculate_optimal_queue_size(thread_count)
         self.logger.debug(f"动态计算最优队列大小: {self._optimal_queue_size}（线程数: {thread_count}）")
 
-        from services.ffprobe_validator_service import FfprobeStreamValidator
-        FfprobeStreamValidator.set_max_concurrent(thread_count)
-        FfprobeStreamValidator.reset_terminating()
+        ValidatorClass = self._get_validator_class()
+        ValidatorClass.set_max_concurrent(thread_count)
+        ValidatorClass.reset_terminating()
         if user_agent is not None:
-            FfprobeStreamValidator.set_user_agent(user_agent)
+            ValidatorClass.set_user_agent(user_agent)
         if referer is not None:
-            FfprobeStreamValidator.set_referer(referer)
+            ValidatorClass.set_referer(referer)
 
         # 初始化统计信息
         self.stats = {
@@ -577,8 +597,9 @@ class ScannerController(QObject):
         self.stop_scan()
         self.stop_event.clear()
 
-        from services.ffprobe_validator_service import FfprobeStreamValidator
-        FfprobeStreamValidator.reset_terminating()
+        ValidatorClass = self._get_validator_class()
+        ValidatorClass.reset_terminating()
+        self._validator = None
 
         # 清空扫描状态管理器中的无效URL
         self.scan_state_manager.clear_invalid_urls(self.scan_id)
@@ -603,13 +624,13 @@ class ScannerController(QObject):
 
         self.timeout = timeout
 
-        from services.ffprobe_validator_service import FfprobeStreamValidator
-        FfprobeStreamValidator.set_max_concurrent(thread_count)
-        FfprobeStreamValidator.reset_terminating()
+        ValidatorClass = self._get_validator_class()
+        ValidatorClass.set_max_concurrent(thread_count)
+        ValidatorClass.reset_terminating()
         if user_agent is not None:
-            FfprobeStreamValidator.set_user_agent(user_agent)
+            ValidatorClass.set_user_agent(user_agent)
         if referer is not None:
-            FfprobeStreamValidator.set_referer(referer)
+            ValidatorClass.set_referer(referer)
 
         # 初始化统计信息
         self.stats = {
@@ -659,8 +680,8 @@ class ScannerController(QObject):
             'is_scanning': False
         })
 
-        from services.ffprobe_validator_service import FfprobeStreamValidator
-        FfprobeStreamValidator.set_terminating()
+        ValidatorClass = self._get_validator_class()
+        ValidatorClass.set_terminating()
 
         self._clear_all_queues()
 
@@ -672,7 +693,8 @@ class ScannerController(QObject):
             if still_alive:
                 self.logger.warning(f"{len(still_alive)} 个扫描工作线程未在2秒内退出")
 
-        FfprobeStreamValidator.destroy_all_handles()
+        ValidatorClass.destroy_all_handles()
+        self._validator = None
 
         if self._mapping_executor is not None:
             try:
@@ -706,13 +728,13 @@ class ScannerController(QObject):
 
     def _terminate_all_processes(self):
         try:
-            from services.ffprobe_validator_service import FfprobeStreamValidator
-            FfprobeStreamValidator.set_terminating()
+            ValidatorClass = self._get_validator_class()
+            ValidatorClass.set_terminating()
             alive_workers = [w for w in self.workers if w.is_alive()]
             if alive_workers:
                 for worker in alive_workers:
                     worker.join(timeout=2.0)
-            FfprobeStreamValidator.destroy_all_handles()
+            ValidatorClass.destroy_all_handles()
         except Exception:
             pass
 
@@ -779,21 +801,20 @@ class ScannerController(QObject):
         self.stop_event.clear()
         self.timeout = timeout
 
-        from services.ffprobe_validator_service import FfprobeStreamValidator
-        FfprobeStreamValidator.reset_terminating()
+        ValidatorClass = self._get_validator_class()
+        ValidatorClass.reset_terminating()
+        self._validator = None
 
         # 更新扫描状态管理器
         self.scan_state_manager.update_scan_state(self.scan_id, {
             'is_validating': True
         })
 
-        # 设置验证器的headers，与扫描逻辑相同
-        from services.ffprobe_validator_service import FfprobeStreamValidator
-        FfprobeStreamValidator.set_max_concurrent(threads)
+        ValidatorClass.set_max_concurrent(threads)
         if user_agent is not None:
-            FfprobeStreamValidator.set_user_agent(user_agent)
+            ValidatorClass.set_user_agent(user_agent)
         if referer is not None:
-            FfprobeStreamValidator.set_referer(referer)
+            ValidatorClass.set_referer(referer)
 
         total = 0
         for i in range(model.rowCount()):
@@ -842,8 +863,8 @@ class ScannerController(QObject):
             'is_validating': False
         })
 
-        from services.ffprobe_validator_service import FfprobeStreamValidator
-        FfprobeStreamValidator.set_terminating()
+        ValidatorClass = self._get_validator_class()
+        ValidatorClass.set_terminating()
 
         while not self.validation_queue.empty():
             try:
@@ -856,7 +877,8 @@ class ScannerController(QObject):
             for worker in alive_workers:
                 worker.join(timeout=2.0)
 
-        FfprobeStreamValidator.destroy_all_handles()
+        ValidatorClass.destroy_all_handles()
+        self._validator = None
 
         self.workers = []
         self.worker_queue = queue.Queue()
