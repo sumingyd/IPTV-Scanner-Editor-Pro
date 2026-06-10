@@ -158,24 +158,15 @@ class MpvPlayerController(QObject):
                 self.logger.error(f"设置窗口ID失败: {str(e)}")
 
             hdr_mode = self._playback_settings.get('hdr_output_mode', 'auto')
-            if hdr_mode == 'passthrough':
-                vo = 'gpu-next'
-                gpu_api = 'vulkan'
-            elif hdr_mode == 'scrgb':
-                vo = 'gpu-next'
-                gpu_api = 'd3d11'
-            elif hdr_mode == 'tonemap':
+            if hdr_mode == 'tonemap':
                 vo = 'gpu'
-                gpu_api = 'd3d11'
             else:
                 vo = 'gpu-next'
-                gpu_api = 'vulkan'
             _mpv_set_property_string(self.mpv_handle, 'vo', vo)
             hwdec = 'auto' if self._playback_settings.get('hwdec', True) else 'no'
             _mpv_set_property_string(self.mpv_handle, 'hwdec', hwdec)
-            _mpv_set_property_string(self.mpv_handle, 'gpu-api', gpu_api)
-            if gpu_api == 'd3d11':
-                _mpv_set_property_string(self.mpv_handle, 'd3d11-sync-interval', '1')
+            _mpv_set_property_string(self.mpv_handle, 'gpu-api', 'd3d11')
+            _mpv_set_property_string(self.mpv_handle, 'd3d11-sync-interval', '1')
             _mpv_set_property_string(self.mpv_handle, 'osc', 'no')
             _mpv_set_property_string(self.mpv_handle, 'osd-bar', 'no')
 
@@ -206,28 +197,24 @@ class MpvPlayerController(QObject):
                 _mpv_set_property_string(self.mpv_handle, 'target-trc', 'pq')
                 _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
                 _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'no')
-                if gpu_api == 'd3d11':
-                    _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'pq')
+                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'pq')
             elif hdr_mode == 'scrgb':
                 _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.2020')
                 _mpv_set_property_string(self.mpv_handle, 'target-trc', 'linear')
                 _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
                 _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'no')
-                if gpu_api == 'd3d11':
-                    _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'scrgb')
+                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'scrgb')
             elif hdr_mode == 'tonemap':
                 _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'hable')
                 _mpv_set_property_string(self.mpv_handle, 'tone-mapping-mode', 'auto')
                 _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'yes')
-                if gpu_api == 'd3d11':
-                    _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
+                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
             else:
                 _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.2020')
                 _mpv_set_property_string(self.mpv_handle, 'target-trc', 'linear')
                 _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
                 _mpv_set_property_string(self.mpv_handle, 'hdr-compute-peak', 'no')
-                if gpu_api == 'd3d11':
-                    _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'scrgb')
+                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'scrgb')
 
             ua = self._playback_settings.get('user_agent', DEFAULT_USER_AGENT)
             if ua:
@@ -466,10 +453,8 @@ class MpvPlayerController(QObject):
             if not self.mpv_handle:
                 return
             hdr_mode = self._playback_settings.get('hdr_output_mode', 'auto')
-            gpu_api = self._get_mpv_property_string('gpu-api') or 'd3d11'
             if hdr_mode == 'tonemap':
-                if gpu_api == 'd3d11':
-                    _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
+                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
                 return
 
             vp_prim = (self._get_mpv_property_string('video-params/primaries') or '').lower()
@@ -486,8 +471,7 @@ class MpvPlayerController(QObject):
 
             if not is_hdr_video:
                 self.logger.info("非HDR视频，恢复SDR输出")
-                if gpu_api == 'd3d11':
-                    _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
+                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
                 return
 
             target_trc = 'pq'
@@ -500,16 +484,15 @@ class MpvPlayerController(QObject):
                 _mpv_set_property_string(self.mpv_handle, 'target-prim', 'bt.2020')
                 _mpv_set_property_string(self.mpv_handle, 'target-trc', target_trc)
                 _mpv_set_property_string(self.mpv_handle, 'tone-mapping', 'clip')
-                if gpu_api == 'd3d11':
-                    csp = 'scrgb' if target_trc == 'linear' else target_trc
-                    _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', csp)
-                self.logger.info(f"HDR已应用: target-prim=bt.2020, target-trc={target_trc}, tone-mapping=clip, gpu-api={gpu_api}")
+                csp = 'scrgb' if target_trc == 'linear' else target_trc
+                _mpv_set_property_string(self.mpv_handle, 'd3d11-output-csp', csp)
+                self.logger.info(f"HDR已应用: target-prim=bt.2020, target-trc={target_trc}, d3d11-output-csp={csp}")
 
             actual_tp = self._get_mpv_property_string('target-prim') or '?'
             actual_tt = self._get_mpv_property_string('target-trc') or '?'
             actual_tm = self._get_mpv_property_string('tone-mapping') or '?'
-            actual_ga = self._get_mpv_property_string('gpu-api') or '?'
-            self.logger.info(f"HDR直通验证: target-prim={actual_tp}, target-trc={actual_tt}, tone-mapping={actual_tm}, gpu-api={actual_ga}")
+            actual_csp = self._get_mpv_property_string('d3d11-output-csp') or '?'
+            self.logger.info(f"HDR验证: target-prim={actual_tp}, target-trc={actual_tt}, tone-mapping={actual_tm}, d3d11-output-csp={actual_csp}")
         except Exception as e:
             self.logger.error(f"应用HDR直通设置失败: {e}")
 
