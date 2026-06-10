@@ -639,6 +639,7 @@ class IPTVPlayer(QMainWindow):
             self._populate_channel_list(source='subscription')
             self._populate_epg_list()
             self._check_for_updates_async()
+            self._auto_start_server()
 
         adaptive_delay = calculate_adaptive_delay(300, 150, 600)
         logger.debug(f"使用自适应延迟: {adaptive_delay}ms")
@@ -3360,6 +3361,11 @@ class IPTVPlayer(QMainWindow):
 
         if getattr(self, '_force_quit', False):
             self._force_quit = False
+            try:
+                from server.app import stop_server
+                stop_server()
+            except Exception:
+                pass
             if hasattr(self, 'event_handler') and self.event_handler:
                 self.event_handler.closeEvent(event)
             else:
@@ -3374,6 +3380,11 @@ class IPTVPlayer(QMainWindow):
                 self._do_close_minimize_tray()
                 return
             elif close_action == 'exit':
+                try:
+                    from server.app import stop_server
+                    stop_server()
+                except Exception:
+                    pass
                 if hasattr(self, 'event_handler') and self.event_handler:
                     self.event_handler.closeEvent(event)
                 else:
@@ -3415,6 +3426,145 @@ class IPTVPlayer(QMainWindow):
             self.event_handler.closeEvent(event)
         else:
             super().closeEvent(event)
+
+    def _auto_start_server(self):
+        """自动启动Server后端"""
+        try:
+            from server.app import set_main_window, start_server, get_server
+            set_main_window(self)
+            settings = self.config.load_server_settings()
+            if settings.get('auto_start', True):
+                port = settings.get('port', 8080)
+                host = settings.get('host', '0.0.0.0')
+                start_server(host=host, port=port)
+                server = get_server()
+                if server.is_running():
+                    tr = self.language_manager.tr
+                    self.status_bar_show_message(
+                        tr('server_started', 'Server已启动') + f' http://localhost:{port}'
+                    )
+                    logger.info(f"Server后端自动启动: http://{host}:{port}")
+        except Exception as e:
+            logger.error(f"自动启动Server失败: {e}")
+
+    def _toggle_server(self):
+        """切换Server启停"""
+        try:
+            from server.app import get_server, start_server, stop_server, set_main_window
+            set_main_window(self)
+            server = get_server()
+            tr = self.language_manager.tr
+            if server.is_running():
+                stop_server()
+                self.status_bar_show_message(tr('server_stopped', 'Server已停止'))
+                self._server_action.setText(tr('server_start', '启动Server'))
+            else:
+                settings = self.config.load_server_settings()
+                port = settings.get('port', 8080)
+                host = settings.get('host', '0.0.0.0')
+                start_server(host=host, port=port)
+                self.status_bar_show_message(
+                    tr('server_started', 'Server已启动') + f' http://localhost:{port}'
+                )
+                self._server_action.setText(tr('server_stop', '停止Server'))
+        except Exception as e:
+            logger.error(f"切换Server失败: {e}")
+
+    def _open_server_api(self):
+        """在浏览器中打开Server API"""
+        try:
+            from server.app import get_server
+            server = get_server()
+            port = server.port if server and server.is_running() else 8080
+            import webbrowser
+            webbrowser.open(f'http://localhost:{port}/api/status')
+        except Exception as e:
+            logger.error(f"打开Server API失败: {e}")
+
+    def _open_server_api(self):
+        """在浏览器中打开Server API"""
+        try:
+            from server.app import get_server
+            server = get_server()
+            port = server.port if server and server.is_running() else 8080
+            import webbrowser
+            webbrowser.open(f'http://localhost:{port}/api/status')
+        except Exception as e:
+            logger.error(f"打开Server API失败: {e}")
+
+    def _show_server_settings(self):
+        """显示Server设置对话框"""
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QCheckBox, QPushButton
+        from ui.styles import AppStyles
+        tr = self.language_manager.tr
+        dialog = QDialog(self)
+        dialog.setWindowTitle(tr('server_settings', 'Server设置'))
+        dialog.setMinimumWidth(360)
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(12)
+
+        settings = self.config.load_server_settings()
+
+        auto_start_cb = QCheckBox(tr('server_auto_start', '启动时自动运行Server'))
+        auto_start_cb.setChecked(settings.get('auto_start', True))
+        layout.addWidget(auto_start_cb)
+
+        port_layout = QHBoxLayout()
+        port_label = QLabel(tr('server_port', '端口:'))
+        port_layout.addWidget(port_label)
+        port_spin = QSpinBox()
+        port_spin.setRange(1024, 65535)
+        port_spin.setValue(settings.get('port', 8080))
+        port_layout.addWidget(port_spin)
+        layout.addLayout(port_layout)
+
+        host_layout = QHBoxLayout()
+        host_label = QLabel(tr('server_host', '监听地址:'))
+        host_layout.addWidget(host_label)
+        from PySide6.QtWidgets import QComboBox
+        host_combo = QComboBox()
+        host_combo.addItem('0.0.0.0 (所有接口)', '0.0.0.0')
+        host_combo.addItem('127.0.0.1 (仅本机)', '127.0.0.1')
+        host_idx = host_combo.findData(settings.get('host', '0.0.0.0'))
+        if host_idx >= 0:
+            host_combo.setCurrentIndex(host_idx)
+        host_layout.addWidget(host_combo)
+        layout.addLayout(host_layout)
+
+        from server.app import get_server
+        server = get_server()
+        if server.is_running():
+            info_label = QLabel(f"✓ {tr('server_running', 'Server运行中')} - http://localhost:{server.port}")
+            info_label.setStyleSheet("color: #4CAF50; font-weight: bold;")
+        else:
+            info_label = QLabel(tr('server_not_running', 'Server未运行'))
+            info_label.setStyleSheet("color: #FF9800;")
+        layout.addWidget(info_label)
+
+        btn_layout = QHBoxLayout()
+        save_btn = QPushButton(tr('save', '保存'))
+        cancel_btn = QPushButton(tr('cancel', '取消'))
+        btn_layout.addStretch()
+        btn_layout.addWidget(save_btn)
+        btn_layout.addWidget(cancel_btn)
+        layout.addLayout(btn_layout)
+
+        def on_save():
+            self.config.save_server_settings(
+                enabled=True,
+                port=port_spin.value(),
+                host=host_combo.currentData(),
+                auto_start=auto_start_cb.isChecked()
+            )
+            dialog.accept()
+
+        save_btn.clicked.connect(on_save)
+        cancel_btn.clicked.connect(dialog.reject)
+        save_btn.setStyleSheet(AppStyles.common_button_style())
+        cancel_btn.setStyleSheet(AppStyles.common_button_style())
+
+        dialog.setStyleSheet(AppStyles.settings_dialog_style() if hasattr(AppStyles, 'settings_dialog_style') else '')
+        dialog.exec()
 
     def _check_for_updates_async(self):
         """异步检查新版本"""

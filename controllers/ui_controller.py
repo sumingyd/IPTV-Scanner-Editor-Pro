@@ -1312,6 +1312,23 @@ class UIController:
                 style_group.addAction(action)
                 visual_style_menu.addAction(action)
 
+            server_menu = menu_bar.addMenu(tr("menu_server", "Server"))
+
+            server_toggle = QAction(tr("server_start", "启动Server"), self.window)
+            server_toggle.triggered.connect(self.window._toggle_server)
+            server_menu.addAction(server_toggle)
+            self.window._server_action = server_toggle
+
+            server_api = QAction(tr("server_open_api", "打开API"), self.window)
+            server_api.triggered.connect(self.window._open_server_api)
+            server_menu.addAction(server_api)
+
+            server_menu.addSeparator()
+
+            server_settings = QAction(tr("server_settings", "Server设置"), self.window)
+            server_settings.triggered.connect(self.window._show_server_settings)
+            server_menu.addAction(server_settings)
+
             help_menu = menu_bar.addMenu(tr("menu_help", "Help"))
 
             usage_instructions = QAction(tr("menu_instructions", "Instructions"), self.window)
