@@ -1,14 +1,44 @@
 from typing import Dict, Any, List
 from datetime import datetime, date
 from PySide6.QtWidgets import (QVBoxLayout, QHBoxLayout, QScrollArea,
-                               QPushButton, QDateEdit, QLabel, QWidget,
-                               QCalendarWidget, QSizePolicy, QScrollBar)
-from PySide6.QtCore import Qt, QDate, Signal, QThread, QTimer
-from PySide6.QtGui import QTextCharFormat, QColor, QFont
+                                QPushButton, QDateEdit, QLabel, QWidget,
+                                QCalendarWidget, QSizePolicy, QScrollBar,
+                                QToolButton)
+from PySide6.QtCore import Qt, QDate, Signal, QThread, QTimer, QEvent
+from PySide6.QtGui import QTextCharFormat, QColor, QFont, QIcon, QPainter, QPen
 from ui.styles import AppStyles
 from ui.floating_dialog import FloatingDialog
 from ui.epg_timeline_widget import EpgTimelineWidget, EpgChannelHeaderWidget, EpgTimeHeaderWidget
 from core.log_manager import global_logger as logger
+
+
+class _ThemedCalendarWidget(QCalendarWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._prev_icon = None
+        self._next_icon = None
+
+    def set_nav_icons(self, prev_icon: QIcon, next_icon: QIcon):
+        self._prev_icon = prev_icon
+        self._next_icon = next_icon
+        self._apply_nav_icons()
+
+    def _apply_nav_icons(self):
+        tool_buttons = self.findChildren(QToolButton)
+        if len(tool_buttons) >= 4:
+            if self._prev_icon:
+                tool_buttons[0].setIcon(self._prev_icon)
+                tool_buttons[0].setArrowType(Qt.ArrowType.NoArrow)
+            if self._next_icon:
+                tool_buttons[1].setIcon(self._next_icon)
+                tool_buttons[1].setArrowType(Qt.ArrowType.NoArrow)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        QTimer.singleShot(50, self._apply_nav_icons)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
 
 
 class _TimelineLoadWorker(QThread):
@@ -91,9 +121,25 @@ class EpgTimelineDialog(FloatingDialog):
     def reapply_styles(self):
         self._apply_theme()
         self._update_corner_widget()
+        self._update_date_edit_icon()
+        self._update_calendar_nav_icons()
         self.timeline_widget.update()
         self.channel_header.update()
         self.time_header.update()
+
+    def _update_date_edit_icon(self):
+        try:
+            icon_color = AppStyles._get_colors().get('window_text', '#ffffff')
+            icon_path = AppStyles.get_icon('chevron_down', icon_color, 12)
+            if icon_path:
+                self.date_edit.setStyleSheet(self.date_edit.styleSheet() + f"""
+                    QDateEdit::drop-down {{
+                        image: url({icon_path.replace('\\', '/')});
+                    }}
+                """)
+        except Exception:
+            pass
+
 
     def _apply_theme(self):
         c = AppStyles._get_colors()
@@ -112,7 +158,7 @@ class EpgTimelineDialog(FloatingDialog):
                 color: {c.get('window_text', '#ffffff')};
                 border: 1px solid {c.get('player_line', '#555')};
                 border-radius: {r}px;
-                padding: 2px 8px;
+                padding: 2px 4px 2px 8px;
                 min-height: 24px;
             }}
             QDateEdit::up-button {{
@@ -125,10 +171,11 @@ class EpgTimelineDialog(FloatingDialog):
             }}
             QDateEdit::drop-down {{
                 border: none;
-                width: 24px;
+                width: 20px;
                 subcontrol-origin: padding;
                 subcontrol-position: center right;
             }}
+
             QPushButton {{
                 background-color: {c.get('player_button', '#3a3a3a')};
                 color: {c.get('window_text', '#ffffff')};
@@ -195,12 +242,18 @@ class EpgTimelineDialog(FloatingDialog):
             QCalendarWidget QToolButton {{
                 color: {c.get('window_text', '#ffffff')};
                 background-color: {c.get('player_button', '#3a3a3a')};
+                border: 1px solid {c.get('player_line', '#555')};
                 border-radius: {r}px;
                 padding: 4px;
                 min-width: 80px;
             }}
             QCalendarWidget QToolButton:hover {{
+                background-color: {c.get('alternate_base', '#2a2a2a')};
+                border-color: {c.get('accent', '#4a9eff')};
+            }}
+            QCalendarWidget QToolButton:pressed {{
                 background-color: {c.get('accent', '#4a9eff')};
+                color: {c.get('highlighted_text', '#ffffff')};
             }}
             QCalendarWidget QMenu {{
                 background-color: {c.get('base', '#1e1e1e')};
@@ -241,11 +294,15 @@ class EpgTimelineDialog(FloatingDialog):
 
         self.date_edit = QDateEdit()
         self.date_edit.setCalendarPopup(True)
+        self._calendar = _ThemedCalendarWidget()
+        self.date_edit.setCalendarWidget(self._calendar)
         self.date_edit.setDisplayFormat('yyyy-MM-dd')
         self.date_edit.setDate(QDate.currentDate())
         self.date_edit.dateChanged.connect(self._on_date_changed)
-        self.date_edit.setFixedSize(130, 30)
+        self.date_edit.setFixedSize(140, 30)
         toolbar.addWidget(self.date_edit)
+
+        QTimer.singleShot(0, self._update_date_edit_icon)
 
         toolbar.addStretch(1)
 
@@ -349,6 +406,16 @@ class EpgTimelineDialog(FloatingDialog):
             self.timeline_widget._cache_valid = False
         self.timeline_widget.update()
 
+    def _update_calendar_nav_icons(self):
+        try:
+            icon_color = AppStyles._get_colors().get('window_text', '#ffffff')
+            prev_path = AppStyles.get_icon('chevron_left', icon_color, 12)
+            next_path = AppStyles.get_icon('chevron_right', icon_color, 12)
+            if prev_path and next_path:
+                self._calendar.set_nav_icons(QIcon(prev_path), QIcon(next_path))
+        except Exception:
+            pass
+
     def _on_date_changed(self, qdate):
         self._load_data()
 
@@ -426,6 +493,7 @@ class EpgTimelineDialog(FloatingDialog):
         self._update_corner_widget()
 
         self._mark_calendar_dates()
+        QTimer.singleShot(200, self._update_calendar_nav_icons)
 
         QTimer.singleShot(100, self._scroll_to_current_time)
 
