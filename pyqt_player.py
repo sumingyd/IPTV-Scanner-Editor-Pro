@@ -170,6 +170,8 @@ class IPTVPlayer(QMainWindow):
     channels = None
     current_channel: Optional[Dict[str, Any]] = None
     epg_parser = None
+    node_service = None
+    node_ready = False
 
     @property
     def epg_visible(self):
@@ -640,6 +642,7 @@ class IPTVPlayer(QMainWindow):
             self._populate_epg_list()
             self._check_for_updates_async()
             self._auto_start_server()
+            self._auto_start_node_service()
 
         adaptive_delay = calculate_adaptive_delay(300, 150, 600)
         logger.debug(f"使用自适应延迟: {adaptive_delay}ms")
@@ -3366,6 +3369,7 @@ class IPTVPlayer(QMainWindow):
                 stop_server()
             except Exception:
                 pass
+            self._stop_node_service()
             if hasattr(self, 'event_handler') and self.event_handler:
                 self.event_handler.closeEvent(event)
             else:
@@ -3385,6 +3389,7 @@ class IPTVPlayer(QMainWindow):
                     stop_server()
                 except Exception:
                     pass
+                self._stop_node_service()
                 if hasattr(self, 'event_handler') and self.event_handler:
                     self.event_handler.closeEvent(event)
                 else:
@@ -3446,6 +3451,46 @@ class IPTVPlayer(QMainWindow):
                     logger.info(f"Server后端自动启动: http://{host}:{port}")
         except Exception as e:
             logger.error(f"自动启动Server失败: {e}")
+
+    def _auto_start_node_service(self):
+        """自动启动 Node.js 服务容器"""
+        try:
+            from services.node_service import NodeService
+            if not hasattr(self, 'node_service') or self.node_service is None:
+                self.node_service = NodeService(self)
+                self.node_service.set_main_window(self)
+                self.node_service.service_ready.connect(self._on_node_service_ready)
+                self.node_service.service_error.connect(self._on_node_service_error)
+                self.node_service.playlist_loaded.connect(self._on_node_playlist_loaded)
+            node_config = self.config.get_node_config()
+            if node_config.get('auto_start', True):
+                QTimer.singleShot(200, lambda: self.node_service.start(silent=True))
+        except Exception as e:
+            logger.error(f"自动启动 Node.js 服务失败: {e}")
+
+    def _on_node_service_ready(self, base_url):
+        """Node.js 服务就绪"""
+        self.node_ready = True
+        tr = self.language_manager.tr
+        self.status_bar_show_message(tr('node_started', '直播服务已启动') + f' {base_url}')
+        logger.info(f"Node.js 服务就绪: {base_url}")
+
+    def _on_node_service_error(self, error_msg):
+        """Node.js 服务错误"""
+        self.node_ready = False
+        logger.warning(f"Node.js 服务未就绪: {error_msg}")
+
+    def _on_node_playlist_loaded(self, success):
+        """Node.js 播放列表加载完成"""
+        if success:
+            logger.info("Node.js 默认播放列表加载成功")
+        else:
+            logger.warning("Node.js 默认播放列表加载失败")
+
+    def _stop_node_service(self):
+        """停止 Node.js 服务"""
+        if hasattr(self, 'node_service') and self.node_service:
+            self.node_service.stop()
 
     def _toggle_server(self):
         """切换Server启停"""
