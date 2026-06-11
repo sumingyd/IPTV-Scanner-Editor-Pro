@@ -58,7 +58,7 @@ jobs:
           }
 
           Move-Item -Path $ffmpegBin.FullName -Destination ".\ffmpge"
-          dir ./ffmpeg
+          dir ./ffmpge
 
       - name: Set up Python
         uses: actions/setup-python@v5
