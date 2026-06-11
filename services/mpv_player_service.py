@@ -166,6 +166,7 @@ class MpvPlayerController(QObject):
             except Exception as e:
                 self.logger.warning(f"HDR检测失败，保守使用SDR模式: {e}")
 
+            self._hdr_fallback_tonemap = False
             if hdr_mode == 'disable':
                 vo = 'gpu'
             elif hdr_mode == 'tonemap':
@@ -174,14 +175,16 @@ class MpvPlayerController(QObject):
                 if system_hdr_enabled:
                     vo = 'gpu-next'
                 else:
-                    self.logger.warning("系统未启用HDR，passthrough模式回退到SDR")
+                    self.logger.warning("系统未启用HDR，passthrough模式回退到tonemap")
                     vo = 'gpu'
+                    self._hdr_fallback_tonemap = True
             elif hdr_mode == 'scrgb':
                 if system_hdr_enabled:
                     vo = 'gpu-next'
                 else:
-                    self.logger.warning("系统未启用HDR，scrgb模式回退到SDR")
+                    self.logger.warning("系统未启用HDR，scrgb模式回退到tonemap")
                     vo = 'gpu'
+                    self._hdr_fallback_tonemap = True
             else:
                 if system_hdr_enabled:
                     vo = 'gpu-next'
@@ -500,7 +503,7 @@ class MpvPlayerController(QObject):
             hdr_mode = self._playback_settings.get('hdr_output_mode', 'disable')
 
             if hdr_mode == 'disable':
-
+                self._reset_hdr_params()
                 return
 
             vp_prim = (self._get_mpv_property_string('video-params/primaries') or '').lower()
@@ -511,8 +514,7 @@ class MpvPlayerController(QObject):
 
             is_hdr_video = ('pq' in vp_gamma or 'smpte2084' in vp_gamma or
                            'hlg' in vp_gamma or 'arib-std-b67' in vp_gamma or
-                           vp_peak > 100 or
-                           'bt.2020' in vp_prim or 'bt.2100' in vp_prim)
+                           vp_peak > 100)
 
             if not is_hdr_video:
                 self.logger.info("非HDR视频，重置HDR参数为默认值")
@@ -524,11 +526,17 @@ class MpvPlayerController(QObject):
                 return
 
             if hdr_mode == 'passthrough':
-                self._apply_passthrough_config()
+                if getattr(self, '_hdr_fallback_tonemap', False):
+                    self._apply_tonemap_config()
+                else:
+                    self._apply_passthrough_config()
                 return
 
             if hdr_mode == 'scrgb':
-                self._apply_scrgb_config()
+                if getattr(self, '_hdr_fallback_tonemap', False):
+                    self._apply_tonemap_config()
+                else:
+                    self._apply_scrgb_config()
                 return
 
             if hdr_mode == 'auto':
@@ -540,7 +548,7 @@ class MpvPlayerController(QObject):
                     pass
 
                 if system_hdr_enabled:
-                    self._apply_passthrough_config()
+                    self._apply_scrgb_config()
                 else:
                     self._apply_tonemap_config()
                 return
@@ -1057,6 +1065,11 @@ class MpvPlayerController(QObject):
             self.logger.error(f"终止MPV播放器失败: {str(e)}")
 
     def reinit_for_hdr_change(self, new_hdr_mode):
+        try:
+            from utils.hdr_detect import clear_hdr_cache
+            clear_hdr_cache()
+        except Exception:
+            pass
         saved_url = self.current_url
         saved_position = 0.0
         was_playing = self.is_playing and not self.is_paused
@@ -1744,13 +1757,13 @@ class MpvPlayerController(QObject):
         self._apply_osd_colors()
 
     @staticmethod
-    def detect_hdr_type(colormatrix: str, gamma: str, sig_peak: float) -> str:
-        if gamma and 'pq' in gamma.lower() and sig_peak > 4000:
-            if 'bt.2020' in colormatrix.lower():
-                return 'DV'
-        if gamma and 'pq' in gamma.lower() and sig_peak > 1000:
-            return 'HDR10+'
+    def detect_hdr_type(colormatrix: str, gamma: str, sig_peak: float, video_format: str = '') -> str:
+        vf_lower = (video_format or '').lower()
+        if 'dovi' in vf_lower or 'dolbyvision' in vf_lower or 'dolby_vision' in vf_lower:
+            return 'DV'
         if gamma and ('pq' in gamma.lower() or 'smpte2084' in gamma.lower()):
+            if sig_peak > 1000:
+                return 'HDR10+'
             return 'HDR10'
         if gamma and ('hlg' in gamma.lower() or 'arib-std-b67' in gamma.lower()):
             return 'HLG'
