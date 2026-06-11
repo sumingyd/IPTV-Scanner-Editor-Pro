@@ -56,13 +56,11 @@ jobs:
 
           if ($null -eq $ffmpegBin) {
             throw "Could not find ffmpeg.exe after extracting ffmpeg.7z."
-          }
-          
-          Write-Host "Moving folder of ffmpeg.exe to .\ffmpge"
+          }                   
           if (Test-Path ".\ffmpge") {
             Remove-Item ".\ffmpge" -Recurse -Force
           }
-
+          Write-Host "Moving $ffmpegBin.FullName (folder of ffmpeg.exe) to .\ffmpge"
           Move-Item -Path $ffmpegBin.FullName -Destination ".\ffmpge"
           dir ./ffmpge
 
