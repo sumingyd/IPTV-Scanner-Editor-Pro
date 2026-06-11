@@ -37,14 +37,19 @@ jobs:
       - name: Download and Prepare MPV/FFmpeg
         shell: powershell
         run: |
+          Write-Host "Downloading mpv from: $env:MPV_URL"
           Invoke-WebRequest -Uri $env:MPV_URL -OutFile "mpv.7z"
+          Write-Host "Extracting mpv.7z to ./mpv"
           7z x mpv.7z -ompv -y
           dir ./mpv
-       
-          Invoke-WebRequest -Uri $env:FFMPEG_URL -OutFile "ffmpeg.7z"
+
+          Write-Host "Downloading ffmpeg from: $env:FFMPEG_URL"
+          Invoke-WebRequest -Uri $env:FFMPEG_URL -OutFile "ffmpeg.7z"         
           $ffmpegExtractDir = "_ffmpeg_extract"
+          Write-Host "Extracting ffmpeg.7z to ./$ffmpegExtractDir"
           7z x ffmpeg.7z "-o$ffmpegExtractDir" -y
 
+          Write-Host "Trying to find folder of ffmpeg.exe"
           $ffmpegBin = Get-ChildItem -Path $ffmpegExtractDir -Directory -Recurse |
             Where-Object { Test-Path (Join-Path $_.FullName "ffmpeg.exe") } |
             Select-Object -First 1
@@ -52,7 +57,8 @@ jobs:
           if ($null -eq $ffmpegBin) {
             throw "Could not find ffmpeg.exe after extracting ffmpeg.7z."
           }
-
+          
+          Write-Host "Moving folder of ffmpeg.exe to .\ffmpge"
           if (Test-Path ".\ffmpge") {
             Remove-Item ".\ffmpge" -Recurse -Force
           }
