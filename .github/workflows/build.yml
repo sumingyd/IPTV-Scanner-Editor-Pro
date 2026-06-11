@@ -20,6 +20,8 @@ env:
   EXE_PATH: dist/IPTV Scanner Editor Pro.exe
   PYTHONUTF8: "1"
   PYTHONIOENCODING: utf-8
+  MPV_URL: "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260610/mpv-dev-x86_64-v3-20260610-git-304426c.7z"
+  FFMPEG_URL: "https://github.com/GyanD/codexffmpeg/releases/download/2026-06-08-git-6028720d70/ffmpeg-2026-06-08-git-6028720d70-essentials_build.7z"
 
 jobs:
   build-and-publish:
@@ -32,15 +34,16 @@ jobs:
         with:
           ref: ${{ inputs.branch }}
           
-      - name: Download and Extract MPV/FFmpeg (PowerShell)
+      - name: Download and Prepare MPV/FFmpeg
         shell: powershell
         run: |
-          Invoke-WebRequest -Uri "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260610/mpv-dev-x86_64-v3-20260610-git-304426c.7z" -OutFile "mpv.7z"
+          Invoke-WebRequest -Uri $env.MPVURL -OutFile "mpv.7z"
           7z x mpv.7z -ompv
           dir ./mpv
-          Invoke-WebRequest -Uri "https://github.com/GyanD/codexffmpeg/releases/download/2026-06-08-git-6028720d70/ffmpeg-2026-06-08-git-6028720d70-essentials_build.7z" -OutFile "ffmpge.7z"
-          7z x ffmpge.7z -offmpge1
-          move ./ffmpge1/ffmpeg-2026-06-08-git-6028720d70-essentials_build/bin ./ffmpge
+          Invoke-WebRequest -Uri $env.FFMPEG_URL  -OutFile "ffmpeg.7z"
+          7z x ffmpeg.7z
+          $folderName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetFileName($env.FFMPEG_URL))
+          Move-Item -Path ".\$baseName\bin" -Destination ".\ffmpge"
           dir ./ffmpge
 
       - name: Set up Python
