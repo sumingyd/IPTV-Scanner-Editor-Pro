@@ -96,15 +96,17 @@ class NodeService(QObject):
 
         if not node_exe:
             logger.warning(
-                "未找到 Node.js 运行时，跳过启动服务。如需使用直播服务，请将 huanghe.exe 放在程序同目录或配置正确路径。")
+                "未找到 Node.js 运行时，跳过启动服务。如需使用直播服务，请将 huanghe.exe 或 node 放在程序同目录或系统 PATH 中。")
             if not silent:
-                self._show_error_message("未找到 Node.js 运行时")
+                self._show_error_message("未找到 Node.js 运行时，请安装 Node.js 或放置 huanghe.exe")
             self.service_error.emit("未找到 Node.js 运行时")
             return False
 
+        self._ensure_node_deps(script_dir, node_exe)
+
         if self._is_port_occupied(self._port):
             logger.info(f"端口 {self._port} 已被占用，尝试连接现有服务")
-            if self._check_service_ready(max_retries=3):
+            if self._check_service_ready_sync(max_retries=3):
                 self.is_ready = True
                 self.service_ready.emit(self.base_url)
                 self._on_service_ready()
@@ -125,25 +127,12 @@ class NodeService(QObject):
                 text=True
             )
 
-            ready = self._check_service_ready(max_retries=15)
-
-            if ready:
-                self.is_ready = True
-                self.service_ready.emit(self.base_url)
-                self._on_service_ready()
-                return True
-            else:
-                if self.process.poll() is not None:
-                    stderr = self.process.stderr.read()
-                    logger.error(f"Node.js 服务启动失败: {stderr[:300]}")
-                    if not silent:
-                        self._show_error_message(f"服务启动失败: {stderr[:200]}")
-                else:
-                    logger.warning("Node.js 服务启动超时")
-                    if not silent:
-                        self._show_error_message("服务启动超时")
-                self.service_error.emit("服务启动超时")
-                return False
+            self._ready_retries = 0
+            self._ready_timer = QTimer(self)
+            self._ready_timer.setInterval(500)
+            self._ready_timer.timeout.connect(self._check_ready_async)
+            self._ready_timer.start()
+            return True
 
         except Exception as e:
             logger.error(f"启动 Node.js 服务失败: {e}")
@@ -151,6 +140,57 @@ class NodeService(QObject):
                 self._show_error_message(f"启动失败: {str(e)}")
             self.service_error.emit(str(e))
             return False
+
+    def _check_ready_async(self):
+        """异步检测服务就绪（不阻塞主线程）"""
+        self._ready_retries += 1
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex(('127.0.0.1', self._port))
+            sock.close()
+            if result == 0:
+                self._ready_timer.stop()
+                self.is_ready = True
+                self.service_ready.emit(self.base_url)
+                self._on_service_ready()
+                return
+        except Exception:
+            pass
+
+        if self._ready_retries >= 30:
+            self._ready_timer.stop()
+            if self.process and self.process.poll() is not None:
+                try:
+                    stderr = self.process.stderr.read() if self.process.stderr else ''
+                    logger.error(f"Node.js 服务启动失败: {stderr[:300]}")
+                except Exception:
+                    pass
+            else:
+                logger.warning("Node.js 服务启动超时")
+            self.service_error.emit("服务启动超时")
+
+    def _ensure_node_deps(self, script_dir: str, node_exe: str):
+        """检查并安装 Node.js 依赖"""
+        node_modules = os.path.join(script_dir, 'node_modules')
+        if not os.path.exists(node_modules):
+            logger.info("Node.js 依赖未安装，正在安装...")
+            try:
+                install_proc = subprocess.Popen(
+                    [node_exe, 'install'],
+                    cwd=script_dir,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
+                    text=True
+                )
+                install_proc.wait(timeout=60)
+                if install_proc.returncode == 0:
+                    logger.info("Node.js 依赖安装成功")
+                else:
+                    logger.warning(f"Node.js 依赖安装失败: exit code {install_proc.returncode}")
+            except Exception as e:
+                logger.warning(f"Node.js 依赖安装异常: {e}")
 
     def stop(self):
         if self.process:
@@ -267,11 +307,12 @@ class NodeService(QObject):
         sock.close()
         return result == 0
 
-    def _check_service_ready(self, max_retries: int = 10) -> bool:
+    def _check_service_ready_sync(self, max_retries: int = 3) -> bool:
+        """同步检测服务就绪（仅用于端口已占用时的快速探测，最多1.5秒）"""
         for i in range(max_retries):
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(1)
+                sock.settimeout(0.5)
                 result = sock.connect_ex(('127.0.0.1', self._port))
                 sock.close()
                 if result == 0:
