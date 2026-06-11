@@ -37,10 +37,10 @@ jobs:
       - name: Download and Prepare MPV/FFmpeg
         shell: powershell
         run: |
-          Invoke-WebRequest -Uri $env.MPVURL -OutFile "mpv.7z"
+          Invoke-WebRequest -Uri $env:MPVURL -OutFile "mpv.7z"
           7z x mpv.7z -ompv
           dir ./mpv
-          Invoke-WebRequest -Uri $env.FFMPEG_URL  -OutFile "ffmpeg.7z"
+          Invoke-WebRequest -Uri $env:FFMPEG_URL  -OutFile "ffmpeg.7z"
           7z x ffmpeg.7z
           $folderName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetFileName($env.FFMPEG_URL))
           Move-Item -Path ".\$baseName\bin" -Destination ".\ffmpge"
