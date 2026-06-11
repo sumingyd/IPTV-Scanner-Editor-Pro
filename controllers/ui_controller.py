@@ -1315,7 +1315,7 @@ class UIController:
 
             server_menu = menu_bar.addMenu(tr("menu_server", "Server"))
 
-            server_toggle = QAction(tr("server_start", "启动Server"), self.window)
+            server_toggle = QAction(tr("server_start", "启动服务"), self.window)
             server_toggle.triggered.connect(self.window._toggle_server)
             server_menu.addAction(server_toggle)
             self.window._server_action = server_toggle
@@ -1324,9 +1324,13 @@ class UIController:
             server_api.triggered.connect(self.window._open_server_api)
             server_menu.addAction(server_api)
 
+            server_player = QAction(tr("server_open_player", "打开播放器"), self.window)
+            server_player.triggered.connect(self.window._open_server_player)
+            server_menu.addAction(server_player)
+
             server_menu.addSeparator()
 
-            server_settings = QAction(tr("server_settings", "Server设置"), self.window)
+            server_settings = QAction(tr("server_settings", "服务设置"), self.window)
             server_settings.triggered.connect(self.window._show_server_settings)
             server_menu.addAction(server_settings)
 

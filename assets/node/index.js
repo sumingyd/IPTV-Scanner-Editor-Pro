@@ -413,6 +413,37 @@ app.get('/api/sources', (req, res) => {
   res.json(jsonSuccess(null, { sources: CONFIG.sources }));
 });
 
+// --- 数据同步（Python 桌面端推送频道数据到此容器） ---
+app.post('/api/channels/sync', (req, res) => {
+  try {
+    const { channels, sources } = req.body;
+    if (channels && Array.isArray(channels)) {
+      CONFIG.channels = channels;
+      saveChannelsData();
+      console.log(`[IPTV] 同步频道数据: ${channels.length} 个频道`);
+    }
+    if (sources && Array.isArray(sources)) {
+      CONFIG.sources = sources;
+      saveSourcesConfig();
+      console.log(`[IPTV] 同步订阅源: ${sources.length} 个`);
+    }
+    res.json(jsonSuccess(null, { channels: CONFIG.channels.length, sources: CONFIG.sources.length }));
+  } catch (e) {
+    res.status(500).json(jsonError(e.message));
+  }
+});
+
+// --- EPG 数据同步 ---
+app.post('/api/epg/sync', (req, res) => {
+  try {
+    CONFIG.epgData = req.body;
+    console.log(`[IPTV] 同步 EPG 数据`);
+    res.json(jsonSuccess());
+  } catch (e) {
+    res.status(500).json(jsonError(e.message));
+  }
+});
+
 app.post('/api/sources', (req, res) => {
   const { url, name } = req.body;
   if (!url) return res.status(400).json(jsonError('URL 不能为空'));

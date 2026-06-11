@@ -3433,22 +3433,27 @@ class IPTVPlayer(QMainWindow):
             super().closeEvent(event)
 
     def _auto_start_server(self):
-        """自动启动Server后端"""
+        """自动启动Server后端（已合并到 Node 容器，此处仅兼容旧配置）"""
         try:
+            settings = self.config.load_server_settings()
+            if not settings.get('auto_start', True):
+                return
+            node_config = self.config.get_node_config()
+            if node_config.get('auto_start', True):
+                logger.info("Server 功能已合并到 Node.js 容器，跳过 Python server 启动")
+                return
             from server.app import set_main_window, start_server, get_server
             set_main_window(self)
-            settings = self.config.load_server_settings()
-            if settings.get('auto_start', True):
-                port = settings.get('port', 8080)
-                host = settings.get('host', '0.0.0.0')
-                start_server(host=host, port=port)
-                server = get_server()
-                if server.is_running():
-                    tr = self.language_manager.tr
-                    self.status_bar_show_message(
-                        tr('server_started', 'Server已启动') + f' http://localhost:{port}'
-                    )
-                    logger.info(f"Server后端自动启动: http://{host}:{port}")
+            port = settings.get('port', 8080)
+            host = settings.get('host', '0.0.0.0')
+            start_server(host=host, port=port)
+            server = get_server()
+            if server.is_running():
+                tr = self.language_manager.tr
+                self.status_bar_show_message(
+                    tr('server_started', 'Server已启动') + f' http://localhost:{port}'
+                )
+                logger.info(f"Server后端自动启动(兼容模式): http://{host}:{port}")
         except Exception as e:
             logger.error(f"自动启动Server失败: {e}")
 
@@ -3474,6 +3479,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         self.status_bar_show_message(tr('node_started', '直播服务已启动') + f' {base_url}')
         logger.info(f"Node.js 服务就绪: {base_url}")
+        self._sync_channels_to_node()
 
     def _on_node_service_error(self, error_msg):
         """Node.js 服务错误"""
@@ -3492,73 +3498,102 @@ class IPTVPlayer(QMainWindow):
         if hasattr(self, 'node_service') and self.node_service:
             self.node_service.stop()
 
-    def _toggle_server(self):
-        """切换Server启停"""
+    def _sync_channels_to_node(self):
+        """将 Python 端频道数据同步到 Node 容器"""
+        if not self.node_ready or not hasattr(self, 'node_service') or not self.node_service:
+            return
         try:
-            from server.app import get_server, start_server, stop_server, set_main_window
-            set_main_window(self)
-            server = get_server()
-            tr = self.language_manager.tr
-            if server.is_running():
-                stop_server()
-                self.status_bar_show_message(tr('server_stopped', 'Server已停止'))
-                self._server_action.setText(tr('server_start', '启动Server'))
+            import requests
+            base_url = self.node_service.get_base_url()
+            if not base_url:
+                return
+            channels = []
+            if hasattr(self, 'channel_model') and self.channel_model:
+                for i in range(self.channel_model.rowCount()):
+                    ch = self.channel_model.get_channel(i)
+                    if ch:
+                        channels.append(ch)
+            sources = self.config.load_playlist_sources() if self.config else []
+            resp = requests.post(
+                f"{base_url}/api/channels/sync",
+                json={'channels': channels, 'sources': sources},
+                timeout=5,
+                headers={'Content-Type': 'application/json'}
+            )
+            if resp.status_code == 200:
+                logger.info(f"已同步 {len(channels)} 个频道到 Node 容器")
             else:
-                settings = self.config.load_server_settings()
-                port = settings.get('port', 8080)
-                host = settings.get('host', '0.0.0.0')
-                start_server(host=host, port=port)
-                self.status_bar_show_message(
-                    tr('server_started', 'Server已启动') + f' http://localhost:{port}'
-                )
-                self._server_action.setText(tr('server_stop', '停止Server'))
+                logger.warning(f"同步频道到 Node 容器失败: HTTP {resp.status_code}")
         except Exception as e:
-            logger.error(f"切换Server失败: {e}")
+            logger.warning(f"同步频道到 Node 容器失败: {e}")
+
+    def _toggle_server(self):
+        """切换 Node.js 服务容器启停"""
+        tr = self.language_manager.tr
+        if not hasattr(self, 'node_service') or not self.node_service:
+            self.status_bar_show_message(tr('server_not_available', '服务不可用'))
+            return
+        if self.node_service.is_running():
+            self.node_service.stop()
+            self.node_ready = False
+            self.status_bar_show_message(tr('server_stopped', '服务已停止'))
+            self._server_action.setText(tr('server_start', '启动服务'))
+        else:
+            ok = self.node_service.start(silent=False)
+            if ok:
+                self.status_bar_show_message(tr('server_started', '服务已启动'))
+                self._server_action.setText(tr('server_stop', '停止服务'))
 
     def _open_server_api(self):
-        """在浏览器中打开Server API"""
+        """在浏览器中打开服务 API"""
         try:
-            from server.app import get_server
-            server = get_server()
-            port = server.port if server and server.is_running() else 8080
+            node_config = self.config.get_node_config()
+            port = node_config.get('port', 2699)
             import webbrowser
             webbrowser.open(f'http://localhost:{port}/')
         except Exception as e:
-            logger.error(f"打开Server API失败: {e}")
+            logger.error(f"打开服务API失败: {e}")
+
+    def _open_server_player(self):
+        """在浏览器中打开 Web 播放器"""
+        try:
+            node_config = self.config.get_node_config()
+            port = node_config.get('port', 2699)
+            import webbrowser
+            webbrowser.open(f'http://localhost:{port}/player.html')
+        except Exception as e:
+            logger.error(f"打开播放器失败: {e}")
 
     def _show_server_settings(self):
-        """显示Server设置对话框"""
+        """显示服务设置对话框（Node 容器）"""
         from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-                                        QSpinBox, QCheckBox, QPushButton, QComboBox)
+                                        QSpinBox, QCheckBox, QPushButton, QLineEdit)
         from ui.styles import AppStyles
         tr = self.language_manager.tr
         dialog = QDialog(self)
-        dialog.setWindowTitle(tr('server_settings', 'Server设置'))
+        dialog.setWindowTitle(tr('server_settings', '服务设置'))
         dialog.setMinimumWidth(400)
         layout = QVBoxLayout(dialog)
         layout.setSpacing(16)
         layout.setContentsMargins(24, 20, 24, 20)
 
-        settings = self.config.load_server_settings()
-
-        from server.app import get_server
-        server = get_server()
-        is_running = server.is_running()
-        port = server.port if is_running else settings.get('port', 8080)
+        node_config = self.config.get_node_config()
+        is_running = hasattr(self, 'node_service') and self.node_service and self.node_service.is_running()
+        port = node_config.get('port', 2699)
 
         status_label = QLabel()
         if is_running:
-            status_label.setText(f"● {tr('server_running', 'Server运行中')}  http://localhost:{port}")
+            status_label.setText(f"● {tr('server_running', '服务运行中')}  http://localhost:{port}")
             status_label.setStyleSheet("color: #4CAF50; font-weight: bold; font-size: 13px;")
         else:
-            status_label.setText(f"○ {tr('server_not_running', 'Server未运行')}")
+            status_label.setText(f"○ {tr('server_not_running', '服务未运行')}")
             status_label.setStyleSheet("color: #FF9800; font-weight: bold; font-size: 13px;")
         layout.addWidget(status_label)
 
         layout.addSpacing(4)
 
-        auto_start_cb = QCheckBox(tr('server_auto_start', '启动时自动运行Server'))
-        auto_start_cb.setChecked(settings.get('auto_start', True))
+        auto_start_cb = QCheckBox(tr('server_auto_start', '启动时自动运行服务'))
+        auto_start_cb.setChecked(node_config.get('auto_start', True))
         layout.addWidget(auto_start_cb)
 
         port_layout = QHBoxLayout()
@@ -3571,18 +3606,15 @@ class IPTVPlayer(QMainWindow):
         port_layout.addWidget(port_spin, 1)
         layout.addLayout(port_layout)
 
-        host_layout = QHBoxLayout()
-        host_label = QLabel(tr('server_host', '监听地址:'))
-        host_label.setFixedWidth(70)
-        host_layout.addWidget(host_label)
-        host_combo = QComboBox()
-        host_combo.addItem('0.0.0.0 (所有接口)', '0.0.0.0')
-        host_combo.addItem('127.0.0.1 (仅本机)', '127.0.0.1')
-        host_idx = host_combo.findData(settings.get('host', '0.0.0.0'))
-        if host_idx >= 0:
-            host_combo.setCurrentIndex(host_idx)
-        host_layout.addWidget(host_combo, 1)
-        layout.addLayout(host_layout)
+        node_path_layout = QHBoxLayout()
+        node_path_label = QLabel(tr('node_path', 'Node路径:'))
+        node_path_label.setFixedWidth(70)
+        node_path_layout.addWidget(node_path_label)
+        node_path_edit = QLineEdit()
+        node_path_edit.setText(node_config.get('node_path', 'huanghe.exe'))
+        node_path_edit.setPlaceholderText('huanghe.exe 或 node')
+        node_path_layout.addWidget(node_path_edit, 1)
+        layout.addLayout(node_path_layout)
 
         layout.addSpacing(8)
 
@@ -3595,11 +3627,11 @@ class IPTVPlayer(QMainWindow):
         layout.addLayout(btn_layout)
 
         def on_save():
-            self.config.save_server_settings(
-                enabled=True,
+            self.config.save_node_config(
+                node_path=node_path_edit.text().strip() or 'huanghe.exe',
                 port=port_spin.value(),
-                host=host_combo.currentData(),
-                auto_start=auto_start_cb.isChecked()
+                auto_start=auto_start_cb.isChecked(),
+                service_url=f"http://127.0.0.1:{port_spin.value()}"
             )
             dialog.accept()
 
