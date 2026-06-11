@@ -384,7 +384,7 @@ app.get('/playback.xml', (req, res) => {
   }
 });
 
-// --- 流代理 ---
+// --- 流代理（仅代理 HTTP/HTTPS 流，其他协议返回原始 URL 让客户端直连） ---
 app.get('/stream/:id', async (req, res) => {
   try {
     const channels = await getAllChannels();
@@ -395,16 +395,36 @@ app.get('/stream/:id', async (req, res) => {
     const streamUrl = channels[idx].url;
     if (!streamUrl) return res.status(404).json(jsonError('频道 URL 为空'));
 
+    if (!streamUrl.startsWith('http://') && !streamUrl.startsWith('https://')) {
+      res.set('Content-Type', 'application/json');
+      res.set('Access-Control-Allow-Origin', '*');
+      return res.json(jsonSuccess(null, { directUrl: streamUrl, protocol: 'direct' }));
+    }
+
     const upstream = await axios.get(streamUrl, {
       timeout: 30000,
       responseType: 'stream',
-      headers: { 'User-Agent': 'Mozilla/5.0' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
     });
     res.set('Content-Type', upstream.headers['content-type'] || 'video/mp2t');
     res.set('Access-Control-Allow-Origin', '*');
     upstream.data.pipe(res);
   } catch (e) {
     res.status(502).json(jsonError(`流代理失败: ${e.message}`));
+  }
+});
+
+// --- 频道直接播放 URL ---
+app.get('/api/channels/:id/url', async (req, res) => {
+  try {
+    const channels = await getAllChannels();
+    const idx = parseInt(req.params.id, 10);
+    if (isNaN(idx) || idx < 0 || idx >= channels.length) {
+      return res.status(404).json(jsonError('频道不存在'));
+    }
+    res.json(jsonSuccess(null, { url: channels[idx].url, name: channels[idx].name }));
+  } catch (e) {
+    res.status(500).json(jsonError(e.message));
   }
 });
 
