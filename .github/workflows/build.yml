@@ -38,13 +38,27 @@ jobs:
         shell: powershell
         run: |
           Invoke-WebRequest -Uri $env:MPV_URL -OutFile "mpv.7z"
-          7z x mpv.7z -ompv
+          7z x mpv.7z -ompv -y
           dir ./mpv
-          Invoke-WebRequest -Uri $env:FFMPEG_URL  -OutFile "ffmpeg.7z"
-          7z x ffmpeg.7z
-          $folderName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetFileName($env.FFMPEG_URL))
-          Move-Item -Path ".\$baseName\bin" -Destination ".\ffmpge"
-          dir ./ffmpge
+       
+          Invoke-WebRequest -Uri $env:FFMPEG_URL -OutFile "ffmpeg.7z"
+          $ffmpegExtractDir = "_ffmpeg_extract"
+          7z x ffmpeg.7z "-o$ffmpegExtractDir" -y
+
+          $ffmpegBin = Get-ChildItem -Path $ffmpegExtractDir -Directory -Recurse |
+            Where-Object { Test-Path (Join-Path $_.FullName "ffmpeg.exe") } |
+            Select-Object -First 1
+
+          if ($null -eq $ffmpegBin) {
+            throw "Could not find ffmpeg.exe after extracting ffmpeg.7z."
+          }
+
+          if (Test-Path ".\ffmpge") {
+            Remove-Item ".\ffmpge" -Recurse -Force
+          }
+
+          Move-Item -Path $ffmpegBin.FullName -Destination ".\ffmpge"
+          dir ./ffmpeg
 
       - name: Set up Python
         uses: actions/setup-python@v5
