@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (QVBoxLayout, QHBoxLayout, QScrollArea,
                                QPushButton, QDateEdit, QLabel, QWidget,
                                QCalendarWidget, QSizePolicy, QScrollBar)
 from PySide6.QtCore import Qt, QDate, Signal, QThread, QTimer
+from PySide6.QtGui import QTextCharFormat, QColor, QFont
 from ui.styles import AppStyles
 from ui.floating_dialog import FloatingDialog
 from ui.epg_timeline_widget import EpgTimelineWidget, EpgChannelHeaderWidget, EpgTimeHeaderWidget
@@ -18,10 +19,16 @@ class _TimelineLoadWorker(QThread):
         self._epg_parser = epg_parser
         self._channels = channels
         self._selected_date = selected_date
+        self._abort = False
+
+    def abort(self):
+        self._abort = True
 
     def run(self):
         channels_data = []
         for ch in self._channels:
+            if self._abort:
+                return
             ch_name = ch.get('name', '')
             tvg_id = ch.get('tvg_id', '')
             all_tags = ch.get('_all_tags', {})
@@ -42,7 +49,8 @@ class _TimelineLoadWorker(QThread):
                     for p in all_programs:
                         try:
                             p_start = datetime.fromisoformat(p.get('start', ''))
-                            if p_start.date() == self._selected_date:
+                            p_end = datetime.fromisoformat(p.get('end', ''))
+                            if p_start.date() <= self._selected_date <= p_end.date():
                                 programs.append(p)
                         except Exception:
                             pass
@@ -70,6 +78,7 @@ class EpgTimelineDialog(FloatingDialog):
         self.setMinimumSize(1000, 600)
         self._channels_data: List[Dict[str, Any]] = []
         self._load_worker = None
+        self._selected_date_ref = None
         self._setup_ui()
         self._apply_theme()
         self._load_data()
@@ -79,12 +88,19 @@ class EpgTimelineDialog(FloatingDialog):
         except Exception:
             pass
 
+    def reapply_styles(self):
+        self._apply_theme()
+        self._update_corner_widget()
+        self.timeline_widget.update()
+        self.channel_header.update()
+        self.time_header.update()
+
     def _apply_theme(self):
         c = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
         self.setStyleSheet(f"""
             QDialog {{
-                background-color: {c.get('panel', '#1e1e1e')};
+                background-color: {c.get('player_panel', c.get('window', '#1e1e1e'))};
                 color: {c.get('window_text', '#ffffff')};
             }}
             QLabel {{
@@ -233,6 +249,10 @@ class EpgTimelineDialog(FloatingDialog):
 
         toolbar.addStretch(1)
 
+        self._status_label = QLabel('')
+        self._status_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        toolbar.addWidget(self._status_label)
+
         self.refresh_btn = QPushButton(tr('refresh', '刷新'))
         self.refresh_btn.clicked.connect(self._load_data)
         toolbar.addWidget(self.refresh_btn)
@@ -250,19 +270,17 @@ class EpgTimelineDialog(FloatingDialog):
 
         self._corner_widget = QWidget()
         self._corner_widget.setFixedSize(EpgTimelineWidget.LEFT_MARGIN, EpgTimelineWidget.HEADER_HEIGHT)
-        self._corner_widget.setAutoFillBackground(True)
         top_row.addWidget(self._corner_widget)
 
-        self.time_header_container = QWidget()
-        self.time_header_container.setFixedHeight(EpgTimelineWidget.HEADER_HEIGHT)
-        self._time_header_layout = QHBoxLayout(self.time_header_container)
-        self._time_header_layout.setContentsMargins(0, 0, 0, 0)
-        self._time_header_layout.setSpacing(0)
+        self.time_header_scroll = QScrollArea()
+        self.time_header_scroll.setWidgetResizable(True)
+        self.time_header_scroll.setFixedHeight(EpgTimelineWidget.HEADER_HEIGHT)
+        self.time_header_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.time_header_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.time_header = EpgTimeHeaderWidget()
         self.time_header.setFixedHeight(EpgTimelineWidget.HEADER_HEIGHT)
-        self._time_header_layout.addWidget(self.time_header)
-        self._time_header_layout.addStretch()
-        top_row.addWidget(self.time_header_container, 1)
+        self.time_header_scroll.setWidget(self.time_header)
+        top_row.addWidget(self.time_header_scroll, 1)
 
         self._grid_layout.addLayout(top_row)
 
@@ -304,6 +322,11 @@ class EpgTimelineDialog(FloatingDialog):
         self._h_scroll_timer.timeout.connect(self._apply_h_scroll)
         self._pending_h_value = 0
 
+        self._now_timer = QTimer(self)
+        self._now_timer.setInterval(60000)
+        self._now_timer.timeout.connect(self._on_now_timer)
+        self._now_timer.start()
+
     def _sync_v_scroll(self, value):
         self._pending_v_value = value
         if not self._v_scroll_timer.isActive():
@@ -318,9 +341,15 @@ class EpgTimelineDialog(FloatingDialog):
             self._h_scroll_timer.start()
 
     def _apply_h_scroll(self):
-        self.time_header.move(-self._pending_h_value, 0)
+        self.time_header_scroll.horizontalScrollBar().setValue(self._pending_h_value)
 
-    def _on_date_changed(self, date):
+    def _on_now_timer(self):
+        now = datetime.now()
+        if self._selected_date_ref and now.date() != self._selected_date_ref:
+            self.timeline_widget._cache_valid = False
+        self.timeline_widget.update()
+
+    def _on_date_changed(self, qdate):
         self._load_data()
 
     def _get_epg_dates(self):
@@ -329,7 +358,14 @@ class EpgTimelineDialog(FloatingDialog):
             return set()
         dates = set()
         try:
-            epg_data = getattr(epg_parser, '_epg_data', {})
+            lock = getattr(epg_parser, '_epg_lock', None)
+            if lock:
+                lock.acquire()
+            try:
+                epg_data = dict(getattr(epg_parser, '_epg_data', {}))
+            finally:
+                if lock:
+                    lock.release()
             for channel_id, programs in epg_data.items():
                 for prog in programs:
                     try:
@@ -348,27 +384,44 @@ class EpgTimelineDialog(FloatingDialog):
         epg_parser = getattr(w, 'epg_parser', None)
         if not epg_parser:
             logger.debug("EPG时间轴: epg_parser不可用")
+            tr = self.window.language_manager.tr
+            self._status_label.setText(tr('epg_no_data', '无EPG数据'))
             return
 
-        selected_date = self.date_edit.date().toPyDate()
-        channels = list(getattr(w, '_sub_channels', []))
+        qd = self.date_edit.date()
+        selected_date = date(qd.year(), qd.month(), qd.day())
+        channels = list(getattr(w, '_sub_channels', [])) + list(getattr(w, '_local_channels', []))
 
         if self._load_worker and self._load_worker.isRunning():
             self._load_worker.data_ready.disconnect(self._on_data_loaded)
-            self._load_worker.quit()
-            self._load_worker.wait(1000)
+            self._load_worker.abort()
+            self._load_worker.wait(2000)
 
+        tr = self.window.language_manager.tr
+        self._status_label.setText(tr('loading', '加载中...'))
         self._load_worker = _TimelineLoadWorker(epg_parser, channels, selected_date)
         self._load_worker.data_ready.connect(self._on_data_loaded)
         self._load_worker.start()
 
     def _on_data_loaded(self, channels_data, selected_date):
         self._channels_data = channels_data
+        self._selected_date_ref = selected_date
+        tr = self.window.language_manager.tr
+        total_programs = sum(len(ch.get('programs', [])) for ch in channels_data)
+        has_data = any(ch.get('programs') for ch in channels_data)
+        if not has_data:
+            self._status_label.setText(tr('epg_no_programs', '该日期无节目数据'))
+        else:
+            self._status_label.setText(tr('epg_channels_loaded', '{count}个频道 / {prog}个节目').format(count=len(channels_data), prog=total_programs))
         logger.debug(f"EPG时间轴: 加载{len(channels_data)}个频道数据")
 
         self.timeline_widget.set_data(channels_data, selected_date)
         self.channel_header.set_data(channels_data)
         self.time_header.set_start_hour(self.timeline_widget._start_hour)
+
+        current_ch = getattr(self.window, 'current_channel', None)
+        if current_ch:
+            self.channel_header.set_current_channel(current_ch.get('name', ''))
 
         self._update_corner_widget()
 
@@ -380,6 +433,7 @@ class EpgTimelineDialog(FloatingDialog):
         c = AppStyles._get_colors()
         header_bg = c.get('alternate_base', c.get('window', '#2d2d2d'))
         self._corner_widget.setStyleSheet(f"background-color: {header_bg};")
+        self._corner_widget.setAutoFillBackground(True)
 
     def _mark_calendar_dates(self):
         epg_dates = self._get_epg_dates()
@@ -388,13 +442,13 @@ class EpgTimelineDialog(FloatingDialog):
             return
         try:
             calendar.setMinimumSize(320, 240)
-            fmt = calendar.dateTextFormat()
-            fmt.clear()
             accent = AppStyles._get_colors().get('accent', '#4a9eff')
+            fmt = QTextCharFormat()
+            fmt.setForeground(QColor(accent))
+            fmt.setFontWeight(QFont.Weight.Bold)
             for d in epg_dates:
                 qd = QDate(d.year, d.month, d.day)
-                fmt[qd] = Qt.TextFormat.RichText
-            calendar.setDateTextFormat(fmt)
+                calendar.setDateTextFormat(qd, fmt)
         except Exception:
             pass
 
@@ -411,10 +465,27 @@ class EpgTimelineDialog(FloatingDialog):
         channels = getattr(w, '_sub_channels', []) + getattr(w, '_local_channels', [])
         for ch in channels:
             if ch.get('name', '') == channel_name:
+                self.channel_selected.emit(ch)
                 w.current_channel = ch
                 if hasattr(w, 'update_channel_info_on_selection'):
                     w.update_channel_info_on_selection()
                 if hasattr(w, 'play_channel'):
                     w.play_channel(ch)
-
                 return
+
+    def closeEvent(self, event):
+        if self._load_worker and self._load_worker.isRunning():
+            try:
+                self._load_worker.data_ready.disconnect(self._on_data_loaded)
+            except Exception:
+                pass
+            self._load_worker.abort()
+            self._load_worker.wait(3000)
+        if hasattr(self, '_now_timer'):
+            self._now_timer.stop()
+        try:
+            from ui.theme_manager import get_theme_manager
+            get_theme_manager().unregister_window(self)
+        except Exception:
+            pass
+        super().closeEvent(event)
