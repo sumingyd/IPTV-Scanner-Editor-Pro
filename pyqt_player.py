@@ -1770,6 +1770,8 @@ class IPTVPlayer(QMainWindow):
             self._populate_channel_list_for(self.local_channel_list, self._local_channels,
                                             self.local_group_combo.currentText())
 
+        QTimer.singleShot(500, self._sync_channels_to_node)
+
         pending = getattr(self, '_pending_last_channel', None)
         if pending:
             channels_to_search = self._sub_channels if source == 'subscription' else self._local_channels
@@ -3479,7 +3481,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
         self.status_bar_show_message(tr('node_started', '直播服务已启动') + f' {base_url}')
         logger.info(f"Node.js 服务就绪: {base_url}")
-        self._sync_channels_to_node()
+        QTimer.singleShot(3000, self._sync_channels_to_node)
 
     def _on_node_service_error(self, error_msg):
         """Node.js 服务错误"""
@@ -3513,6 +3515,15 @@ class IPTVPlayer(QMainWindow):
                     ch = self.channel_model.get_channel(i)
                     if ch:
                         channels.append(ch)
+            if not channels:
+                sub = getattr(self, '_sub_channels', [])
+                local = getattr(self, '_local_channels', [])
+                seen = set()
+                for ch in sub + local:
+                    url = ch.get('url', '') if isinstance(ch, dict) else getattr(ch, 'url', '')
+                    if url and url not in seen:
+                        channels.append(ch if isinstance(ch, dict) else vars(ch) if hasattr(ch, '__dict__') else {})
+                        seen.add(url)
             sources = self.config.load_playlist_sources() if self.config else []
             resp = requests.post(
                 f"{base_url}/api/channels/sync",

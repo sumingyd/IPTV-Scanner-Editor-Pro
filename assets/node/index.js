@@ -67,6 +67,36 @@ function loadSourcesConfig() {
 loadChannelsData();
 loadSourcesConfig();
 
+// 启动时自动从订阅源拉取频道（如果本地无数据）
+async function autoFetchSources() {
+  if (CONFIG.channels.length > 0) return;
+  for (const source of CONFIG.sources) {
+    if (!source.enabled) continue;
+    try {
+      const fetched = await fetchM3UFromUrl(source.url);
+      if (fetched.length > 0) {
+        CONFIG.channels = CONFIG.channels.concat(fetched);
+        console.log(`[IPTV] 从 ${source.name || source.url} 获取 ${fetched.length} 个频道`);
+      }
+    } catch (e) {
+      console.error(`[IPTV] 自动获取失败: ${source.url}`, e.message);
+    }
+  }
+  if (CONFIG.channels.length > 0) {
+    const seen = new Set();
+    CONFIG.channels = CONFIG.channels.filter(ch => {
+      if (!ch.url || seen.has(ch.url)) return false;
+      seen.add(ch.url);
+      return true;
+    });
+    saveChannelsData();
+    console.log(`[IPTV] 自动获取完成，共 ${CONFIG.channels.length} 个频道`);
+  }
+}
+
+// 延迟 2 秒后尝试自动获取（等待 Python 端可能先同步数据）
+setTimeout(() => { if (CONFIG.channels.length === 0) autoFetchSources(); }, 2000);
+
 // ==================== 工具函数 ====================
 
 function jsonSuccess(data = null, extra = {}) {
