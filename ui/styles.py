@@ -362,6 +362,9 @@ class AppStyles:
             'chevron_right': (
                 f'<polyline points="{p},{p} {s-p},{h} {p},{s-p}" stroke="{color}" stroke-width="{s*0.1}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
             ),
+            'chevron_down': (
+                f'<polyline points="{p},{p} {h},{s-p} {s-p},{p}" stroke="{color}" stroke-width="{s*0.1}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+            ),
         }
         body = icons.get(name)
         if body is None:
