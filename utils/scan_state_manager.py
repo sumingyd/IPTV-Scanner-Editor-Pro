@@ -147,6 +147,10 @@ class ScanStateManager(Singleton):
         retry_error_types = {
             'timeout',
             'playback_warning',
+            'concurrency_limit',
+            'mpv_create_failed',
+            'stream_ended',
+            'scan_exception',
         }
 
         if error_type in retry_error_types:

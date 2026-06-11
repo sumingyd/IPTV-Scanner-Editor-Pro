@@ -83,13 +83,13 @@ def set_default_channel_logo(label, width: int = 100, height: int = 36) -> None:
     当频道无 logo 或处于未选择状态时调用，避免显示 emoji 占位符。
     兼容 PyInstaller 打包和开发环境。
     """
-    from PyQt6.QtGui import QIcon, QPixmap
-    from PyQt6.QtCore import Qt
+    from PySide6.QtGui import QIcon, QPixmap
+    from PySide6.QtCore import Qt
 
     ico_path = get_icon_path()
     label.setPixmap(QPixmap())  # 先清除旧图
     if os.path.exists(ico_path):
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
         screen = QApplication.primaryScreen()
         dpr = screen.devicePixelRatio() if screen else 1.0
         # 请求 2x 分辨率像素，让 Qt 从 ICO 选最清晰帧
@@ -110,7 +110,7 @@ def set_default_channel_logo(label, width: int = 100, height: int = 36) -> None:
     from ui.styles import AppStyles
     tv_icon_path = AppStyles.get_icon('tv', AppStyles._get_colors().get('window_text', '#ffffff'), 48)
     if tv_icon_path:
-        from PyQt6.QtGui import QIcon
+        from PySide6.QtGui import QIcon
         label.setPixmap(QIcon(tv_icon_path).pixmap(label.width() or 48, label.height() or 48))
     else:
         label.setText("")
@@ -165,6 +165,8 @@ def safe_connect(signal, slot):
     try:
         signal.disconnect(slot)
     except (TypeError, RuntimeError):
+        pass
+    except Exception:
         pass
 
     try:

@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
-from PyQt6.QtWidgets import QWidget, QScrollArea, QVBoxLayout, QHBoxLayout, QLabel, QFrame
-from PyQt6.QtCore import Qt, QRectF, QPoint, pyqtSignal
-from PyQt6.QtGui import QPainter, QColor, QPen, QFont, QBrush, QLinearGradient
+from PySide6.QtWidgets import QWidget, QScrollArea, QVBoxLayout, QHBoxLayout, QLabel, QFrame
+from PySide6.QtCore import Qt, QRectF, QPoint, Signal
+from PySide6.QtGui import QPainter, QColor, QPen, QFont, QBrush, QLinearGradient
 from ui.styles import AppStyles
 from core.log_manager import global_logger as logger
 
@@ -12,7 +12,7 @@ class EpgTimelineWidget(QWidget):
     ROW_HEIGHT = 36
     HEADER_HEIGHT = 28
     LEFT_MARGIN = 120
-    channel_double_clicked = pyqtSignal(str)
+    channel_double_clicked = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)

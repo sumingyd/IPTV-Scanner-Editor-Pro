@@ -1,11 +1,11 @@
-from PyQt6.QtWidgets import QSlider, QLabel
-from PyQt6.QtCore import Qt, QRectF, pyqtSignal, QPoint
-from PyQt6.QtGui import QPainter, QColor
+from PySide6.QtWidgets import QSlider, QLabel
+from PySide6.QtCore import Qt, QRectF, Signal, QPoint
+from PySide6.QtGui import QPainter, QColor
 
 
 class CacheProgressSlider(QSlider):
 
-    preview_position_changed = pyqtSignal(int)
+    preview_position_changed = Signal(int)
 
     def __init__(self, orientation=Qt.Orientation.Horizontal, parent=None):
         super().__init__(orientation, parent)

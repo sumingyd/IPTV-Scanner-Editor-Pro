@@ -3,7 +3,7 @@
 从 pyqt_player.py 提取的独立模块
 """
 
-from PyQt6.QtCore import Qt, QEvent, QTimer
+from PySide6.QtCore import Qt, QEvent, QTimer
 from controllers.main_window_protocol import MainWindowProtocol
 
 
@@ -16,7 +16,7 @@ class EventHandler:
 
     def _is_main_window_focused(self) -> bool:
         """判断当前焦点是否在主窗口上（排除悬浮面板、对话框等）"""
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
         focus_widget = QApplication.focusWidget()
         if focus_widget is None:
             return self.window.isActiveWindow()
@@ -63,7 +63,7 @@ class EventHandler:
             if event_type == QEvent.Type.Leave:
                 if obj is self.window or obj is getattr(self.window, 'video_widget', None) or obj is getattr(self.window, 'central_widget', None):
                     if hasattr(self.window, '_delayed_hide_floating_panels'):
-                        from PyQt6.QtCore import QTimer
+                        from PySide6.QtCore import QTimer
                         QTimer.singleShot(200, self.window._delayed_hide_floating_panels)
             elif event_type == QEvent.Type.Enter:
                 if obj is self.window or obj is getattr(self.window, 'video_widget', None):
@@ -81,7 +81,7 @@ class EventHandler:
 
     def _is_input_widget_focused(self) -> bool:
         """判断当前焦点是否在输入控件上（编辑框、文本框等）"""
-        from PyQt6.QtWidgets import QApplication, QLineEdit, QTextEdit, QComboBox, QSpinBox
+        from PySide6.QtWidgets import QApplication, QLineEdit, QTextEdit, QComboBox, QSpinBox
         focus_widget = QApplication.focusWidget()
         if focus_widget:
             if isinstance(focus_widget, (QLineEdit, QTextEdit, QSpinBox)):
@@ -319,7 +319,7 @@ class EventHandler:
     def showEvent(self, event):
         """窗口首次显示后，延迟定位悬浮窗"""
         if hasattr(self.window, 'showEvent'):
-            from PyQt6.QtWidgets import QMainWindow
+            from PySide6.QtWidgets import QMainWindow
             QMainWindow.showEvent(self.window, event)
 
         has_panels = (hasattr(self.window, 'epg_dock') and self.window.epg_dock and
@@ -327,14 +327,14 @@ class EventHandler:
                       hasattr(self.window, 'floating_dock') and self.window.floating_dock)
 
         if has_panels and not getattr(self.window, '_initial_position_fixed', False):
-            from PyQt6.QtCore import QTimer
+            from PySide6.QtCore import QTimer
             QTimer.singleShot(50, self._deferred_position_docks)
             QTimer.singleShot(200, self._deferred_position_docks)
 
     def _deferred_position_docks(self):
         """延迟到事件循环下一帧执行定位（确保主窗口geometry已稳定）"""
         try:
-            from PyQt6.QtWidgets import QApplication
+            from PySide6.QtWidgets import QApplication
             app = QApplication.instance()
             if app:
                 app.processEvents()
@@ -377,7 +377,7 @@ class EventHandler:
             return
         if hasattr(self.window, 'changeEvent'):
             try:
-                from PyQt6.QtWidgets import QMainWindow
+                from PySide6.QtWidgets import QMainWindow
                 QMainWindow.changeEvent(self.window, event)
             except (AttributeError, TypeError):
                 pass
@@ -416,7 +416,7 @@ class EventHandler:
 
     def _schedule_position_update(self):
         if not hasattr(self, '_position_timer'):
-            from PyQt6.QtCore import QTimer
+            from PySide6.QtCore import QTimer
             self._position_timer = QTimer(self.window)
             self._position_timer.setSingleShot(True)
             self._position_timer.setInterval(16)
@@ -587,7 +587,7 @@ class EventHandler:
         # 8. 退出应用
         event.accept()
 
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
         try:
             QApplication.instance().quit()
         except Exception:

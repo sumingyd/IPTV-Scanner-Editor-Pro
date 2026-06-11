@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from PyQt6 import QtCore, QtGui
+from PySide6 import QtCore, QtGui
 from typing import List, Dict, Any
 from core.log_manager import global_logger as logger
 from ui.styles import AppStyles
@@ -378,6 +378,9 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 break
 
         if existing_index >= 0:
+            existing = self.channels[existing_index]
+            if existing.get('valid') is not True and channel_info.get('valid') is True:
+                self.update_channel(existing_index, channel_info)
             return
         else:
             # 添加新频道
@@ -422,11 +425,18 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             return
         existing_urls = {ch.get('url') for ch in self.channels}
         new_channels = []
+        updates = []
         for ch in channels:
-            if ch.get('url') not in existing_urls:
+            url = ch.get('url')
+            if url not in existing_urls:
                 new_channels.append(ch)
-                existing_urls.add(ch.get('url'))
-        if not new_channels:
+                existing_urls.add(url)
+            elif ch.get('valid') is True:
+                for i, existing in enumerate(self.channels):
+                    if existing.get('url') == url and existing.get('valid') is not True:
+                        updates.append((i, ch))
+                        break
+        if not new_channels and not updates:
             return
         if use_reset:
             self.beginResetModel()
@@ -437,17 +447,22 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 for g in ch.get('_groups', [ch.get('group', '')]):
                     if g:
                         self._group_cache.add(g)
+            for idx, ch in updates:
+                self.channels[idx].update(ch)
             self.endResetModel()
         else:
-            self.beginInsertRows(QtCore.QModelIndex(), len(self.channels), len(self.channels) + len(new_channels) - 1)
-            self.channels.extend(new_channels)
-            for ch in new_channels:
-                if 'name' in ch:
-                    self._name_cache.add(ch['name'])
-                for g in ch.get('_groups', [ch.get('group', '')]):
-                    if g:
-                        self._group_cache.add(g)
-            self.endInsertRows()
+            if new_channels:
+                self.beginInsertRows(QtCore.QModelIndex(), len(self.channels), len(self.channels) + len(new_channels) - 1)
+                self.channels.extend(new_channels)
+                for ch in new_channels:
+                    if 'name' in ch:
+                        self._name_cache.add(ch['name'])
+                    for g in ch.get('_groups', [ch.get('group', '')]):
+                        if g:
+                            self._group_cache.add(g)
+                self.endInsertRows()
+            for idx, ch in updates:
+                self.update_channel(idx, ch)
         if is_from_file:
             for ch in new_channels:
                 url = ch.get('url', '')
@@ -1483,16 +1498,16 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
             # 通知UI更新状态标签 - 使用QTimer确保在主线程执行
             if hasattr(self, 'update_status_label') and self.update_status_label:
-                from PyQt6.QtCore import QTimer
-                QTimer.singleShot(0, lambda: self.update_status_label("请点击检测有效性按钮"))
+                from utils.thread_safety import invoke_on_thread
+                invoke_on_thread(self, lambda: self.update_status_label("请点击检测有效性按钮"))
 
             self.endResetModel()
 
             # 数据加载完成后调整列宽 - 使用QTimer确保在主线程执行
             view = self.parent()
             if view and hasattr(view, 'resizeColumnsToContents'):
-                from PyQt6.QtCore import QTimer
-                QTimer.singleShot(0, view.resizeColumnsToContents)
+                from utils.thread_safety import invoke_on_thread
+                invoke_on_thread(self, view.resizeColumnsToContents)
 
             return True
         except Exception as e:

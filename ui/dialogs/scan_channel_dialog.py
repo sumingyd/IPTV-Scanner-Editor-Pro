@@ -4,7 +4,7 @@
 
 import os
 import time
-from PyQt6 import QtWidgets, QtCore, QtGui
+from PySide6 import QtWidgets, QtCore, QtGui
 
 # 导入自定义模块
 from models.channel_model import ChannelListModel
@@ -83,12 +83,27 @@ class ScanChannelDialog(FloatingDialog):
 
         self._setup_shortcuts()
 
+    def _get_validator_class(self):
+        """根据配置获取验证器类"""
+        engine = 'mpv'
+        try:
+            settings = self.config.load_scan_engine_settings()
+            engine = settings.get('engine', 'mpv')
+        except Exception:
+            pass
+        if engine == 'ffprobe':
+            from services.ffprobe_validator_service import FfprobeStreamValidator
+            return FfprobeStreamValidator
+        else:
+            from services.mpv_validator_service import MpvStreamValidator
+            return MpvStreamValidator
+
     def done(self, result):
         if hasattr(self, 'scanner') and self.scanner is not None:
             if self.scanner.is_scanning():
                 self.scanner.stop_event.set()
-                from services.ffprobe_validator_service import FfprobeStreamValidator
-                FfprobeStreamValidator.set_terminating()
+                ValidatorClass = self._get_validator_class()
+                ValidatorClass.set_terminating()
             if getattr(self.scanner, 'is_validating', False):
                 self.scanner.stop_validation()
         self._stop_all_timers()
@@ -181,7 +196,7 @@ class ScanChannelDialog(FloatingDialog):
         from utils.general_utils import get_icon_path
         ico_path = get_icon_path()
         if os.path.exists(ico_path):
-            from PyQt6.QtGui import QIcon
+            from PySide6.QtGui import QIcon
             self.setWindowIcon(QIcon(ico_path))
         self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Window)
         # 设置透明背景，实现圆角窗口效果
@@ -471,6 +486,47 @@ class ScanChannelDialog(FloatingDialog):
 
         self._load_timeout_threads_settings()
 
+    def _setup_scan_engine_options(self):
+        """设置扫描引擎选项"""
+        tr = self.language_manager.tr
+        engine_layout = QtWidgets.QHBoxLayout()
+        engine_label = QtWidgets.QLabel(f"{tr('scan_engine', 'Scan Engine')}：")
+        self.scan_engine_label = engine_label
+        engine_layout.addWidget(engine_label)
+
+        self.scan_engine_combo = QtWidgets.QComboBox()
+        self.scan_engine_combo.addItem(tr('scan_engine_mpv', 'mpv (Lightweight)'), "mpv")
+        self.scan_engine_combo.addItem(tr('scan_engine_ffprobe', 'ffprobe (Detailed)'), "ffprobe")
+        self.scan_engine_combo.setFixedHeight(28)
+        self.scan_engine_combo.setToolTip(
+            tr("scan_engine_tooltip", "Select the core engine for scanning and validation")
+        )
+        engine_layout.addWidget(self.scan_engine_combo, 1)
+
+        self.scan_engine_combo.currentIndexChanged.connect(
+            lambda: self._save_scan_engine_settings()
+        )
+
+        self._load_scan_engine_settings()
+
+        self.scan_engine_layout = engine_layout
+
+    def _save_scan_engine_settings(self):
+        """保存扫描引擎设置到配置文件"""
+        engine = self.scan_engine_combo.currentData() or 'mpv'
+        self.config.save_scan_engine_settings(engine)
+
+    def _load_scan_engine_settings(self):
+        """加载扫描引擎设置"""
+        try:
+            settings = self.config.load_scan_engine_settings()
+            engine = settings.get('engine', 'mpv')
+            index = self.scan_engine_combo.findData(engine)
+            if index >= 0:
+                self.scan_engine_combo.setCurrentIndex(index)
+        except Exception as e:
+            self.logger.error(f"加载扫描引擎设置失败: {e}")
+
     def _setup_scan_retry_options(self):
         """设置扫描重试选项"""
         tr = self.language_manager.tr
@@ -663,6 +719,9 @@ class ScanChannelDialog(FloatingDialog):
         # 设置映射功能选项
         self._setup_mapping_options()
 
+        # 设置扫描引擎选项
+        self._setup_scan_engine_options()
+
         # 地址设置（简化标题）
         address_section = QtWidgets.QVBoxLayout()
         address_section.setSpacing(8)
@@ -707,6 +766,8 @@ class ScanChannelDialog(FloatingDialog):
         # 选项（简化）
         options_section = QtWidgets.QVBoxLayout()
         options_section.setSpacing(8)
+        if hasattr(self, 'scan_engine_layout'):
+            options_section.addLayout(self.scan_engine_layout)
         self.enable_retry_checkbox.setFixedHeight(24)
         options_section.addWidget(self.enable_retry_checkbox)
         self.enable_mapping_checkbox.setFixedHeight(24)
@@ -1117,6 +1178,7 @@ class ScanChannelDialog(FloatingDialog):
         self._exec_themed_dialog(dialog)
 
     def _show_assign_fields_dialog(self):
+        from models.channel_model import ChannelListModel as CLM
         tr = self.language_manager.tr
 
         channels = self._get_all_channels()
@@ -2001,7 +2063,8 @@ class ScanChannelDialog(FloatingDialog):
 
     def _setup_shortcuts(self):
         """设置快捷键"""
-        from PyQt6.QtGui import QShortcut, QKeySequence
+        from PySide6.QtGui import QKeySequence
+        from PySide6.QtGui import QShortcut
         QShortcut(QKeySequence("Ctrl+S"), self, self._on_save_m3u_clicked)
         QShortcut(QKeySequence("Ctrl+F"), self, self._focus_search)
         QShortcut(QKeySequence("Ctrl+A"), self, self._select_all_channels)
@@ -2025,8 +2088,8 @@ class ScanChannelDialog(FloatingDialog):
         self._scan_progress_completed = True
 
         self.scanner.stop_event.set()
-        from services.ffprobe_validator_service import FfprobeStreamValidator
-        FfprobeStreamValidator.set_terminating()
+        ValidatorClass = self._get_validator_class()
+        ValidatorClass.set_terminating()
 
         self.scanner.scan_state_manager.update_scan_state(self.scanner.scan_id, {
             'is_scanning': False
@@ -2039,8 +2102,8 @@ class ScanChannelDialog(FloatingDialog):
         if not hasattr(self, 'scanner') or self.scanner is None:
             return
         try:
-            from services.ffprobe_validator_service import FfprobeStreamValidator
-            FfprobeStreamValidator.terminate_all()
+            ValidatorClass = self._get_validator_class()
+            ValidatorClass.terminate_all()
 
             if hasattr(self.scanner, '_flush_pending_channels'):
                 self.scanner._flush_pending_channels()
@@ -2082,8 +2145,8 @@ class ScanChannelDialog(FloatingDialog):
             log_ui_error(f"停止扫描清理失败: {e}")
         finally:
             try:
-                from services.ffprobe_validator_service import FfprobeStreamValidator
-                FfprobeStreamValidator.reset_terminating()
+                ValidatorClass = self._get_validator_class()
+                ValidatorClass.reset_terminating()
             except Exception:
                 pass
 
@@ -2102,7 +2165,8 @@ class ScanChannelDialog(FloatingDialog):
                 self._show_input_warning(self.ip_range_input, self.language_manager.tr("please_input_url", "请输入扫描地址"))
                 return
 
-            QtCore.QTimer.singleShot(0, lambda: self._start_scan_delayed(url, clear_list=True))
+            from utils.thread_safety import invoke_on_thread
+            invoke_on_thread(self, lambda: self._start_scan_delayed(url, clear_list=True))
 
     def _on_append_scan_clicked(self):
         """处理追加扫描按钮点击事件"""
@@ -2119,7 +2183,8 @@ class ScanChannelDialog(FloatingDialog):
                 self._show_input_warning(self.ip_range_input, self.language_manager.tr("please_input_url", "请输入扫描地址"))
                 return
 
-            QtCore.QTimer.singleShot(0, lambda: self._start_scan_delayed(url, clear_list=False))
+            from utils.thread_safety import invoke_on_thread
+            invoke_on_thread(self, lambda: self._start_scan_delayed(url, clear_list=False))
 
     def _start_scan_delayed(self, url, clear_list=True):
         """延迟启动扫描，避免UI阻塞"""
@@ -2264,8 +2329,8 @@ class ScanChannelDialog(FloatingDialog):
             self.progress_manager.hide_progress()
             self.stats_label.setText(self.language_manager.tr('validate_stopped', '检测已停止'))
             self.scanner.stop_event.set()
-            from services.ffprobe_validator_service import FfprobeStreamValidator
-            FfprobeStreamValidator.set_terminating()
+            ValidatorClass = self._get_validator_class()
+            ValidatorClass.set_terminating()
             self.scanner.is_validating = False
             self.scanner.scan_state_manager.update_scan_state(self.scanner.scan_id, {
                 'is_validating': False
@@ -2277,8 +2342,8 @@ class ScanChannelDialog(FloatingDialog):
         if not hasattr(self, 'scanner') or self.scanner is None:
             return
         try:
-            from services.ffprobe_validator_service import FfprobeStreamValidator
-            FfprobeStreamValidator.terminate_all()
+            ValidatorClass = self._get_validator_class()
+            ValidatorClass.terminate_all()
             self.scanner.stop_event.set()
 
             import queue
@@ -2303,19 +2368,19 @@ class ScanChannelDialog(FloatingDialog):
                 return
 
             self.scanner.workers = []
-            FfprobeStreamValidator.destroy_all_handles()
+            ValidatorClass.destroy_all_handles()
             self._set_browse_model()
         except Exception as e:
             log_ui_error(f"停止验证清理失败: {e}")
         finally:
             try:
-                from services.ffprobe_validator_service import FfprobeStreamValidator
-                FfprobeStreamValidator.reset_terminating()
+                ValidatorClass = self._get_validator_class()
+                ValidatorClass.reset_terminating()
             except Exception:
                 pass
 
     def _on_channel_validated(self, index, valid, latency, resolution):
-        """处理频道验证结果"""
+        """处理频道验证结果（_flush_pending_validations 已通过URL更新模型，此方法为辅助更新）"""
         if not (0 <= index < self.model.rowCount()):
             return
         channel_info = {
@@ -2592,7 +2657,7 @@ class ScanChannelDialog(FloatingDialog):
         except Exception as e:
             self.logger.error(f"保存配置失败: {e}")
 
-    @QtCore.pyqtSlot(dict)
+    @QtCore.Slot(dict)
     def _on_channel_found(self, channel_info):
         """处理发现有效频道事件"""
         self._invalidate_channels_cache()
@@ -2600,7 +2665,7 @@ class ScanChannelDialog(FloatingDialog):
         channel_info['status'] = self.language_manager.tr('valid', '有效') if is_valid else self.language_manager.tr('invalid', '无效')
         self.model.add_channel(channel_info)
 
-    @QtCore.pyqtSlot()
+    @QtCore.Slot()
     def _on_scan_completed(self):
         """处理扫描完成事件"""
         if not hasattr(self, 'scanner') or self.scanner is None:
@@ -2659,7 +2724,11 @@ class ScanChannelDialog(FloatingDialog):
             self._is_stopping = False
             return
 
-        found_urls = {ch.get('url', '') for ch in self.scanner.found_channels} if hasattr(self, 'scanner') and self.scanner and hasattr(self.scanner, 'found_channels') else set()
+        found_urls = set()
+        if hasattr(self, 'model') and self.model:
+            for ch in self.model.channels:
+                if ch.get('valid') is True and ch.get('url'):
+                    found_urls.add(ch.get('url'))
 
         url_to_index = {}
         for i, ch in enumerate(self.model.channels):
@@ -2703,7 +2772,7 @@ class ScanChannelDialog(FloatingDialog):
             )
             self._validation_retry_urls = None
 
-    @QtCore.pyqtSlot(dict)
+    @QtCore.Slot(dict)
     def _update_stats_display(self, stats_data):
         """更新统计信息显示，包括扫描次数"""
         try:
@@ -2771,8 +2840,8 @@ class ScanChannelDialog(FloatingDialog):
                     event.ignore()
                     return
                 self.scanner.stop_event.set()
-                from services.ffprobe_validator_service import FfprobeStreamValidator
-                FfprobeStreamValidator.set_terminating()
+                ValidatorClass = self._get_validator_class()
+                ValidatorClass.set_terminating()
                 if getattr(self.scanner, 'is_validating', False):
                     self.scanner.stop_validation()
         if hasattr(self, 'application') and self.application:

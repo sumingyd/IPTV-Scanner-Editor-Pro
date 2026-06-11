@@ -331,6 +331,34 @@ class ConfigManager(Singleton):
             'validate_timeout': self._parse_int(self.get_value('Validation', 'validate_timeout', '10'), 10)
         }
 
+    def save_scan_engine_settings(self, engine: str):
+        """保存扫描引擎设置，engine: 'mpv' 或 'ffprobe'"""
+        self.set_value('ScanEngine', 'engine', engine)
+        return self.save_config()
+
+    def load_scan_engine_settings(self) -> dict:
+        """加载扫描引擎设置"""
+        return {
+            'engine': self.get_value('ScanEngine', 'engine', 'mpv')
+        }
+
+    def save_server_settings(self, enabled: bool = True, port: int = 8080, host: str = '0.0.0.0', auto_start: bool = True):
+        """保存Server后端设置"""
+        self.set_value('Server', 'enabled', str(enabled))
+        self.set_value('Server', 'port', str(port))
+        self.set_value('Server', 'host', host)
+        self.set_value('Server', 'auto_start', str(auto_start))
+        return self.save_config()
+
+    def load_server_settings(self) -> dict:
+        """加载Server后端设置"""
+        return {
+            'enabled': self._parse_bool(self.get_value('Server', 'enabled', 'True'), True),
+            'port': self._parse_int(self.get_value('Server', 'port', '8080'), 8080),
+            'host': self.get_value('Server', 'host', '0.0.0.0') or '0.0.0.0',
+            'auto_start': self._parse_bool(self.get_value('Server', 'auto_start', 'True'), True)
+        }
+
     def save_mapping_settings(self, enable_mapping: bool = True):
         """保存映射功能设置"""
         self.set_value('Mapping', 'enable_mapping', str(enable_mapping))
@@ -643,7 +671,7 @@ class ConfigManager(Singleton):
             'rtsp_user_agent': 'VLC/3.0.18Libmpv',
             'network_timeout_sec': 0,
             'audio_passthrough': 'never',
-            'hdr_output_mode': 'auto',
+            'hdr_output_mode': 'disable',
         }
         if settings:
             defaults.update(settings)
@@ -676,7 +704,7 @@ class ConfigManager(Singleton):
             'rtsp_user_agent': 'VLC/3.0.18Libmpv',
             'network_timeout_sec': 0,
             'audio_passthrough': 'never',
-            'hdr_output_mode': 'auto',
+            'hdr_output_mode': 'disable',
         }
         result = {}
         need_save = False

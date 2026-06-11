@@ -1,6 +1,6 @@
 from typing import Dict, Any, List, Optional, Callable
-from PyQt6.QtWidgets import QListWidget, QListWidgetItem, QWidget
-from PyQt6.QtCore import Qt, QTimer, QSize
+from PySide6.QtWidgets import QListWidget, QListWidgetItem, QWidget
+from PySide6.QtCore import Qt, QTimer, QSize
 from core.log_manager import global_logger as logger
 
 
@@ -53,7 +53,7 @@ class VirtualChannelListProxy:
         end = min(self._loaded_count + count, len(self._all_channels))
         from ui.styles import AppStyles
         name_style = AppStyles.player_channel_list_name_style()
-        from PyQt6 import QtWidgets
+        from PySide6 import QtWidgets
 
         for idx in range(self._loaded_count, end):
             channel = self._all_channels[idx]

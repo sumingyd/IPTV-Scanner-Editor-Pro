@@ -2,7 +2,7 @@
 # 使用 pip install -r requirements.txt 安装所有依赖
 
 # 核心GUI框架
-PyQt6>=6.4.0
+PySide6>=6.4.0
 
 # 网络请求和流媒体处理
 requests>=2.28.0

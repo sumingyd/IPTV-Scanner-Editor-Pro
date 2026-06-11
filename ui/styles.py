@@ -10,30 +10,30 @@ atexit.register(shutil.rmtree, _SVG_TMPDIR, ignore_errors=True)
 
 def color_to_qcolor(color_str):
     if not color_str:
-        from PyQt6.QtGui import QColor
+        from PySide6.QtGui import QColor
         return QColor()
     if color_str.startswith('#'):
-        from PyQt6.QtGui import QColor
+        from PySide6.QtGui import QColor
         return QColor(color_str)
     if color_str.startswith('rgba('):
         try:
             inner = color_str[5:].rstrip(')')
             parts = [p.strip() for p in inner.split(',')]
-            from PyQt6.QtGui import QColor
+            from PySide6.QtGui import QColor
             return QColor(int(parts[0]), int(parts[1]), int(parts[2]), int(float(parts[3]) * 255))
         except Exception:
-            from PyQt6.QtGui import QColor
+            from PySide6.QtGui import QColor
             return QColor()
     if color_str.startswith('rgb('):
         try:
             inner = color_str[4:].rstrip(')')
             parts = [p.strip() for p in inner.split(',')]
-            from PyQt6.QtGui import QColor
+            from PySide6.QtGui import QColor
             return QColor(int(parts[0]), int(parts[1]), int(parts[2]))
         except Exception:
-            from PyQt6.QtGui import QColor
+            from PySide6.QtGui import QColor
             return QColor()
-    from PyQt6.QtGui import QColor
+    from PySide6.QtGui import QColor
     return QColor(color_str)
 
 
@@ -811,10 +811,10 @@ class AppStyles:
         except Exception:
             pass
         try:
-            from PyQt6.QtCore import QCoreApplication
+            from PySide6.QtCore import QCoreApplication
             palette = QCoreApplication.instance().palette() if QCoreApplication.instance() else None
             if palette:
-                from PyQt6.QtGui import QPalette
+                from PySide6.QtGui import QPalette
                 window_bg = palette.color(QPalette.ColorRole.Window)
                 text_color = palette.color(QPalette.ColorRole.WindowText)
                 if text_color.lightness() > window_bg.lightness():

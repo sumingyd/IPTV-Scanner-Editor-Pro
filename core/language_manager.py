@@ -2,7 +2,7 @@ import os
 import threading
 from typing import overload
 from core.log_manager import LogManager
-from PyQt6.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 from utils.singleton import Singleton
 
 logger = LogManager()
@@ -417,6 +417,7 @@ BUILTIN_TRANSLATIONS = {
         'passthrough_lossless': '仅无损 (FLAC/ALAC/TrueHD)',
         'passthrough_all': '全部编码',
         'hdr_output_mode_colon': 'HDR输出:',
+        'hdr_disable': '禁用（强制SDR输出）',
         'hdr_auto': '自动（Windows HDR开启时用scRGB）',
         'hdr_scrgb': 'scRGB（Windows HDR开启）',
         'hdr_passthrough': 'PQ直通（Windows HDR关闭）',
@@ -554,6 +555,22 @@ BUILTIN_TRANSLATIONS = {
         'enable_smart_retry': '启用智能重试扫描',
         'mapping_options': '映射功能选项',
         'enable_channel_mapping': '启用频道映射',
+        'scan_engine': '扫描引擎',
+        'scan_engine_tooltip': '选择扫描和检测使用的核心引擎。mpv：轻量高效，资源占用低；ffprobe：分析更详细，兼容性更广',
+        'scan_engine_mpv': 'mpv (轻量高效)',
+        'scan_engine_ffprobe': 'ffprobe (详细分析)',
+        'menu_server': 'Server',
+        'server_start': '启动Server',
+        'server_stop': '停止Server',
+        'server_started': 'Server已启动',
+        'server_stopped': 'Server已停止',
+        'server_running': 'Server运行中',
+        'server_not_running': 'Server未运行',
+        'server_open_api': '打开API',
+        'server_settings': 'Server设置',
+        'server_auto_start': '启动时自动运行Server',
+        'server_port': '端口:',
+        'server_host': '监听地址:',
         'save_changes': '保存修改',
         'copy_channel_name': '复制频道名',
         'copy_url': '复制URL',
@@ -1123,6 +1140,7 @@ BUILTIN_TRANSLATIONS = {
         'passthrough_lossless': 'Lossless Only (FLAC/ALAC/TrueHD)',
         'passthrough_all': 'All Codecs',
         'hdr_output_mode_colon': 'HDR Output:',
+        'hdr_disable': 'Disable (Force SDR Output)',
         'hdr_auto': 'Auto (scRGB for Windows HDR ON)',
         'hdr_scrgb': 'scRGB (Windows HDR ON)',
         'hdr_passthrough': 'PQ Passthrough (Windows HDR OFF)',
@@ -1187,7 +1205,7 @@ BUILTIN_TRANSLATIONS = {
         'hwdec_label': 'HW',
         'vcodec_label': 'Video',
         'acodec_label': 'Audio',
-        'hdr_label': 'HDR',
+        'hdr_label': 'Dynamic',
         'no_video_info': 'No video info',
         'no_audio_info': 'No audio info',
         'no_network_info': 'No network info',
@@ -1260,6 +1278,22 @@ BUILTIN_TRANSLATIONS = {
         'enable_smart_retry': 'Enable Smart Retry',
         'mapping_options': 'Mapping Options',
         'enable_channel_mapping': 'Enable Channel Mapping',
+        'scan_engine': 'Scan Engine',
+        'scan_engine_tooltip': 'Select the core engine for scanning and validation. mpv: lightweight and efficient, low resource usage; ffprobe: more detailed analysis, broader compatibility',
+        'scan_engine_mpv': 'mpv (Lightweight)',
+        'scan_engine_ffprobe': 'ffprobe (Detailed)',
+        'menu_server': 'Server',
+        'server_start': 'Start Server',
+        'server_stop': 'Stop Server',
+        'server_started': 'Server started',
+        'server_stopped': 'Server stopped',
+        'server_running': 'Server running',
+        'server_not_running': 'Server not running',
+        'server_open_api': 'Open API',
+        'server_settings': 'Server Settings',
+        'server_auto_start': 'Auto-start Server on launch',
+        'server_port': 'Port:',
+        'server_host': 'Listen address:',
         'save_changes': 'Save Changes',
         'copy_channel_name': 'Copy Channel Name',
         'copy_url': 'Copy URL',
@@ -1423,7 +1457,7 @@ BUILTIN_TRANSLATIONS = {
 
 
 class _LanguageSignalHelper(QObject):
-    language_changed = pyqtSignal()
+    language_changed = Signal()
 
 
 class LanguageManager(Singleton):
@@ -1556,7 +1590,7 @@ class LanguageManager(Singleton):
 
     def _update_dialogs(self, main_window):
         try:
-            from PyQt6 import QtWidgets
+            from PySide6 import QtWidgets
             for widget in main_window.findChildren(QtWidgets.QDialog):
                 if hasattr(widget, 'update_ui_texts'):
                     widget.update_ui_texts()

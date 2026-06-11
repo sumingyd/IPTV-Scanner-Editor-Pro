@@ -4,15 +4,15 @@
 """
 
 import asyncio
-from PyQt6.QtCore import QThread, pyqtSignal, QTimer
+from PySide6.QtCore import QThread, Signal, QTimer
 from core.log_manager import global_logger as logger
 from controllers.main_window_protocol import MainWindowProtocol
 
 
 class UpdateCheckThread(QThread):
     """版本检查线程"""
-    update_found = pyqtSignal(str, str)
-    check_completed = pyqtSignal(bool, str)
+    update_found = Signal(str, str)
+    check_completed = Signal(bool, str)
 
     def run(self):
         try:

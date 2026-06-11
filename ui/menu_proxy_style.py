@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import QProxyStyle, QStyle
-from PyQt6.QtGui import QPainter, QRegion, QBitmap
-from PyQt6.QtCore import Qt, QRect
+from PySide6.QtWidgets import QProxyStyle, QStyle
+from PySide6.QtGui import QPainter, QRegion, QBitmap
+from PySide6.QtCore import Qt, QRect
 
 
 class MenuRoundedProxyStyle(QProxyStyle):
@@ -47,7 +47,7 @@ class MenuRoundedProxyStyle(QProxyStyle):
 
     @staticmethod
     def _is_menu_widget(widget):
-        from PyQt6.QtWidgets import QMenu
+        from PySide6.QtWidgets import QMenu
         while widget:
             if isinstance(widget, QMenu):
                 return True

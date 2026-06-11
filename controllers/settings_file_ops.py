@@ -8,9 +8,9 @@ import re
 import threading
 from typing import Optional
 
-from PyQt6 import QtCore, QtGui
-from PyQt6.QtCore import Qt, QTimer, QThread, QMetaObject
-from PyQt6.QtWidgets import (
+from PySide6 import QtCore, QtGui
+from PySide6.QtCore import Qt, QTimer, QThread, QMetaObject
+from PySide6.QtWidgets import (
     QFileDialog, QMessageBox, QComboBox, QApplication,
     QCheckBox, QSpinBox, QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QLineEdit, QGroupBox, QListWidget, QListWidgetItem,
@@ -294,12 +294,13 @@ class SettingsFileOperations:
         hdr_combo = QComboBox()
         hdr_combo.setObjectName("hdr_output_mode_combo")
         hdr_items = [
+            ('disable', tr("hdr_disable", "Disable (Force SDR Output)")),
             ('auto', tr("hdr_auto", "Auto (scRGB for Windows HDR)")),
             ('scrgb', tr("hdr_scrgb", "scRGB (Windows HDR ON)")),
             ('passthrough', tr("hdr_passthrough", "PQ Passthrough (Windows HDR OFF)")),
             ('tonemap', tr("hdr_tonemap", "Tone Map to SDR")),
         ]
-        current_hdr = playback_settings.get('hdr_output_mode', 'auto')
+        current_hdr = playback_settings.get('hdr_output_mode', 'disable')
         selected_hdr_idx = 0
         for i, (val, label) in enumerate(hdr_items):
             hdr_combo.addItem(label, val)
@@ -482,7 +483,7 @@ class SettingsFileOperations:
             settings['audio_passthrough'] = combo.currentData() if combo.currentData() is not None else 'never'
         combo = dialog.findChild(QComboBox, "hdr_output_mode_combo")
         if combo:
-            settings['hdr_output_mode'] = combo.currentData() if combo.currentData() is not None else 'auto'
+            settings['hdr_output_mode'] = combo.currentData() if combo.currentData() is not None else 'disable'
         return settings
 
     def _save_intervals(self, dialog):
@@ -511,8 +512,8 @@ class SettingsFileOperations:
             try:
                 pc = self.window.player_controller
                 if pc and hasattr(pc, '_playback_settings'):
-                    old_hdr = pc._playback_settings.get('hdr_output_mode', 'auto')
-                    new_hdr = new_playback.get('hdr_output_mode', 'auto')
+                    old_hdr = pc._playback_settings.get('hdr_output_mode', 'disable')
+                    new_hdr = new_playback.get('hdr_output_mode', 'disable')
                     pc._playback_settings.update(new_playback)
                     if old_hdr != new_hdr and hasattr(pc, 'reinit_for_hdr_change'):
                         pc.reinit_for_hdr_change(new_hdr)
@@ -553,8 +554,9 @@ class SettingsFileOperations:
         def _reload_and_refresh():
             try:
                 self.window._handle_playlist_subscription(True, active.get('url', ''), new_active_index)
+                from utils.thread_safety import invoke_on_thread
                 if QThread.currentThread() != self.window.thread():
-                    QTimer.singleShot(0, self.window._do_on_playlist_updated_in_main_thread)
+                    invoke_on_thread(self.window, self.window._do_on_playlist_updated_in_main_thread)
                 else:
                     self.window._do_on_playlist_updated_in_main_thread()
             except Exception as e:
@@ -1019,7 +1021,7 @@ class SettingsFileOperations:
 
     def _open_stream(self):
         """打开串流地址"""
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QHBoxLayout, QPushButton
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QHBoxLayout, QPushButton
         from ui.floating_dialog import FloatingDialog
         from ui.styles import AppStyles
         from ui.theme_manager import get_theme_manager

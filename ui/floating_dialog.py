@@ -1,9 +1,9 @@
-from PyQt6.QtWidgets import (QDialog, QDockWidget, QWidget, QApplication,
+from PySide6.QtWidgets import (QDialog, QDockWidget, QWidget, QApplication,
                               QHBoxLayout, QLabel, QPushButton)
-from PyQt6 import QtWidgets
-from PyQt6.QtGui import QPainter, QColor, QPainterPath, QCursor, QIcon
-from PyQt6.QtCore import Qt, QRectF, QSize
-import PyQt6.QtCore as QtCore
+from PySide6 import QtWidgets
+from PySide6.QtGui import QPainter, QColor, QPainterPath, QCursor, QIcon
+from PySide6.QtCore import Qt, QRectF, QSize
+import PySide6.QtCore as QtCore
 import sys
 
 
@@ -105,8 +105,8 @@ class FloatingDockWidget(QDockWidget):
             except Exception:
                 pass
             try:
-                from PyQt6.QtGui import QBitmap, QPainterPath
-                from PyQt6.QtCore import QRectF
+                from PySide6.QtGui import QBitmap, QPainterPath
+                from PySide6.QtCore import QRectF
                 corner_r = AppStyles._get_style_border_radius()
                 size = self.size()
                 bitmap = QBitmap(size)
@@ -385,8 +385,8 @@ class FloatingDialog(QDialog):
             self.dragging = False
 
     def paintEvent(self, event):
-        from PyQt6.QtGui import QPainterPath
-        from PyQt6.QtCore import QRectF
+        from PySide6.QtGui import QPainterPath
+        from PySide6.QtCore import QRectF
         from ui.styles import AppStyles
 
         painter = QPainter(self)

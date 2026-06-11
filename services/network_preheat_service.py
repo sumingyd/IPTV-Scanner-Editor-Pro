@@ -2,11 +2,11 @@ import socket
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
-from PyQt6.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 
 
 class DnsPrefetcher(QObject):
-    dns_resolved = pyqtSignal(str, str)
+    dns_resolved = Signal(str, str)
 
     MAX_WORKERS = 8
 
@@ -67,7 +67,7 @@ class DnsPrefetcher(QObject):
 
 
 class ConnectionPreheater(QObject):
-    connection_ready = pyqtSignal(str)
+    connection_ready = Signal(str)
 
     MAX_WORKERS = 8
 

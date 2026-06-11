@@ -1,5 +1,5 @@
-from PyQt6 import QtWidgets
-from PyQt6.QtCore import QThread, pyqtSignal
+from PySide6 import QtWidgets
+from PySide6.QtCore import QThread, Signal
 from core.log_manager import LogManager
 from models.channel_mappings import mapping_manager
 from utils.error_handler import show_error, show_warning, show_info, show_confirm
@@ -8,7 +8,7 @@ from ..floating_dialog import FloatingDialog
 
 class _UpdateCheckWorker(QThread):
     """后台线程：执行远程映射更新检查，避免阻塞 UI 线程"""
-    finished = pyqtSignal(dict)  # 检查完成，携带 status dict
+    finished = Signal(dict)  # 检查完成，携带 status dict
 
     def run(self):
         try:
@@ -21,7 +21,7 @@ class _UpdateCheckWorker(QThread):
 
 class _RefreshCacheWorker(QThread):
     """后台线程：执行远程缓存刷新，避免阻塞 UI 线程"""
-    finished = pyqtSignal(bool, str)  # (success, error_message)
+    finished = Signal(bool, str)  # (success, error_message)
 
     def run(self):
         try:

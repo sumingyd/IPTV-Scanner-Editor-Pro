@@ -1,9 +1,9 @@
 from typing import Dict, Any, List
 from datetime import datetime, date
-from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QScrollArea,
+from PySide6.QtWidgets import (QVBoxLayout, QHBoxLayout, QScrollArea,
                                QPushButton, QDateEdit, QLabel, QWidget,
                                QCalendarWidget, QSizePolicy, QScrollBar)
-from PyQt6.QtCore import Qt, QDate, pyqtSignal, QThread, QTimer
+from PySide6.QtCore import Qt, QDate, Signal, QThread, QTimer
 from ui.styles import AppStyles
 from ui.floating_dialog import FloatingDialog
 from ui.epg_timeline_widget import EpgTimelineWidget, EpgChannelHeaderWidget, EpgTimeHeaderWidget
@@ -11,7 +11,7 @@ from core.log_manager import global_logger as logger
 
 
 class _TimelineLoadWorker(QThread):
-    data_ready = pyqtSignal(list, object)
+    data_ready = Signal(list, object)
 
     def __init__(self, epg_parser, channels, selected_date):
         super().__init__()
@@ -59,7 +59,7 @@ class _TimelineLoadWorker(QThread):
 
 
 class EpgTimelineDialog(FloatingDialog):
-    channel_selected = pyqtSignal(dict)
+    channel_selected = Signal(dict)
 
     def __init__(self, main_window, parent=None):
         super().__init__(parent, frameless=True, stay_on_top=False, tool_window=False)
