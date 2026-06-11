@@ -178,8 +178,8 @@ async function getAllChannels(options = {}) {
 app.get('/', (req, res) => {
   const lang = (req.query.lang || req.headers['accept-language'] || 'en').startsWith('zh') ? 'zh' : 'en';
   const i18n = {
-    zh: { title: 'IPTV Node.js 服务容器', subtitle: 'migu API · M3U · EPG · 流代理 · 多端复用' },
-    en: { title: 'IPTV Node.js Service Container', subtitle: 'migu API · M3U · EPG · Stream Proxy · Multi-platform' },
+    zh: { title: 'IPTV Node.js 服务容器', subtitle: 'M3U · EPG · 流代理 · 多端复用' },
+    en: { title: 'IPTV Node.js Service Container', subtitle: 'M3U · EPG · Stream Proxy · Multi-platform' },
   };
   const t = i18n[lang];
   res.send(`<!DOCTYPE html>
@@ -200,6 +200,7 @@ p.sub{text-align:center;color:#9E9E9E;margin-bottom:32px}
 <body><div class="c">
 <h1>${t.title}</h1>
 <p class="sub">${t.subtitle}</p>
+<p style="text-align:center;margin-bottom:24px"><a href="/player.html" style="color:#58a6ff;font-size:15px;text-decoration:none;padding:8px 20px;border:1px solid #58a6ff;border-radius:8px">Open Player</a></p>
 <div class="api"><h3>M3U 播放列表</h3><pre><span class="get">GET</span> /m3u              - 完整 M3U 列表 (params: valid=1, search=, group=)
 <span class="get">GET</span> /m3u/{group}      - 按分组获取</pre></div>
 

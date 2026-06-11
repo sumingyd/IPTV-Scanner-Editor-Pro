@@ -1,0 +1,11 @@
+{
+  "name": "IPTV Player",
+  'version': "1.0.0",
+  "description": "IPTV Player - Multi-platform Node.js service container with Electron wrapper",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder .
+  },
+  "dependencies": {
+    "electron": "�������^�\�Ȏ����N������ܜȎ������H���^[�Ȏ���K�����B�
