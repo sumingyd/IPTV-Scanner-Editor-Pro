@@ -32,12 +32,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ==================== 配置 ====================
 
 const CONFIG = {
-  migu: {
-    baseUrl: 'http://mob.migu.cn',
-    apiPrefix: '/api',
-    channelsUrl: 'https://migu.cn/ott/play/liveChannelList',
-    playbackUrl: 'https://migu.cn/ott/play/playUrl',
-  },
+
   sources: [],
   channels: [],
   epgData: null,
@@ -207,8 +202,7 @@ p.sub{text-align:center;color:#9E9E9E;margin-bottom:32px}
 <p class="sub">${t.subtitle}</p>
 <div class="api"><h3>M3U 播放列表</h3><pre><span class="get">GET</span> /m3u              - 完整 M3U 列表 (params: valid=1, search=, group=)
 <span class="get">GET</span> /m3u/{group}      - 按分组获取</pre></div>
-<div class="api"><h3>migu API</h3><pre><span class="get">GET</span> /migu/channels    - 咪咕频道列表
-<span class="get">GET</span> /migu/play/{id}  - 咪咕播放地址</pre></div>
+
 <div class="api"><h3>频道管理</h3><pre><span class="get">GET</span>    /api/channels       - 频道列表 (params: valid=1/0, group=, search=, page=, size=)
 <span class="get">GET</span>    /api/channels/{id}  - 单个频道
 <span class="post">POST</span>   /api/channels       - 添加频道
@@ -269,32 +263,8 @@ app.get('/m3u/:group', async (req, res) => {
   }
 });
 
-// --- migu API ---
-app.get('/migu/channels', async (req, res) => {
-  try {
-    const resp = await axios.get(CONFIG.migu.channelsUrl, {
-      timeout: 10000,
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-    });
-    res.json(jsonSuccess(resp.data));
-  } catch (e) {
-    res.status(502).json(jsonError(`migu API 请求失败: ${e.message}`));
-  }
-});
-
-app.get('/migu/play/:id', async (req, res) => {
-  try {
-    const channelId = req.params.id;
-    const resp = await axios.get(CONFIG.migu.playbackUrl, {
-      params: { channelId },
-      timeout: 10000,
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-    });
-    res.json(jsonSuccess(resp.data));
-  } catch (e) {
-    res.status(502).json(jsonError(`migu 播放地址获取失败: ${e.message}`));
-  }
-});
+// --- migu API（由外部插件提供，本容器不内置） ---
+// 如需 migu 支持，请在 data/plugins/ 目录放置 migu 插件
 
 // --- 频道管理 API ---
 app.get('/api/channels', async (req, res) => {
