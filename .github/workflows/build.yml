@@ -37,7 +37,7 @@ jobs:
       - name: Download and Prepare MPV/FFmpeg
         shell: powershell
         run: |
-          Invoke-WebRequest -Uri $env:MPVURL -OutFile "mpv.7z"
+          Invoke-WebRequest -Uri $env:MPV_URL -OutFile "mpv.7z"
           7z x mpv.7z -ompv
           dir ./mpv
           Invoke-WebRequest -Uri $env:FFMPEG_URL  -OutFile "ffmpeg.7z"
