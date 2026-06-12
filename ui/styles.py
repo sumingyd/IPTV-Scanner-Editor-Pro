@@ -2513,39 +2513,43 @@ class AppStyles:
     @staticmethod
     def popup_dialog_style() -> str:
         colors = AppStyles._get_colors()
-        opacity = colors.get('window_opacity', 220) / 255.0
-        window_bg = colors['player_panel']
+        style = AppStyles._visual_style
+        if style == 'frosted':
+            dlg_colors = {}
+            for k, v in colors.items():
+                dlg_colors[k] = color_to_hex(v) if isinstance(v, str) and v.startswith('rgba') else v
+        else:
+            dlg_colors = colors
+        window_bg = dlg_colors['player_panel']
         r = AppStyles._get_style_border_radius()
         ff = AppStyles._get_style_font_family()
-        btn_dec = AppStyles._style_btn_decoration(colors)
-        btn_hover = AppStyles._style_btn_decoration(colors, hover=True)
-        btn_pressed = AppStyles._style_btn_decoration(colors, pressed=True)
-        inp_dec = AppStyles._style_input_decoration(colors)
-        inp_focus = AppStyles._style_input_decoration(colors, focus=True)
-        grp_dec = AppStyles._style_group_decoration(colors)
-        style = AppStyles._visual_style
-        chk_bg = colors['neumorphic_light'] if style == 'neumorphic' else colors['alternate_base']
+        btn_dec = AppStyles._style_btn_decoration(dlg_colors)
+        btn_hover = AppStyles._style_btn_decoration(dlg_colors, hover=True)
+        btn_pressed = AppStyles._style_btn_decoration(dlg_colors, pressed=True)
+        inp_dec = AppStyles._style_input_decoration(dlg_colors)
+        inp_focus = AppStyles._style_input_decoration(dlg_colors, focus=True)
+        grp_dec = AppStyles._style_group_decoration(dlg_colors)
+        chk_bg = dlg_colors['neumorphic_light'] if style == 'neumorphic' else dlg_colors['alternate_base']
         chk_inset = AppStyles._get_style_inset() if style == 'neumorphic' else ""
-        chk_border = f"2px solid {colors['mid']}" if style != 'neumorphic' else ""
-        input_bg = colors['neumorphic_light'] if style == 'neumorphic' else colors['alternate_base']
+        chk_border = f"2px solid {dlg_colors['mid']}" if style != 'neumorphic' else ""
+        input_bg = dlg_colors['neumorphic_light'] if style == 'neumorphic' else dlg_colors['alternate_base']
         dialog_r = r + 4 if r > 4 else 12
         indicator_r = AppStyles._get_scaled_radius('indicator')
         list_item_r = AppStyles._get_scaled_radius('list_item')
-        child_widget_bg = 'rgba(0,0,0,0)' if style == 'frosted' else window_bg
         return f"""
             QDialog {{
                 background-color: {window_bg};
-                color: {colors['window_text']};
-                border: 1px solid {colors['mid']};
+                color: {dlg_colors['window_text']};
+                border: 1px solid {dlg_colors['mid']};
                 border-radius: {dialog_r}px;
                 font-family: {ff};
             }}
             QDialog > QWidget {{
-                background-color: {child_widget_bg};
+                background-color: {window_bg};
                 border-radius: {dialog_r}px;
             }}
             QDialog QLabel {{
-                color: {colors['window_text']};
+                color: {dlg_colors['window_text']};
                 font-size: 12px;
             }}
             QDialog QPushButton {{
@@ -2553,7 +2557,7 @@ class AppStyles:
                 padding: {AppStyles._style_padding('button')};
                 font-size: 12px;
                 font-weight: 500;
-                color: {colors['window_text']};
+                color: {dlg_colors['window_text']};
                 {btn_dec}
             }}
             QDialog QPushButton:hover {{
@@ -2571,23 +2575,23 @@ class AppStyles:
                 subcontrol-origin: margin;
                 left: 12px;
                 padding: 0 6px;
-                color: {colors['window_text']};
+                color: {dlg_colors['window_text']};
                 font-weight: 600;
                 font-size: 12px;
             }}
             QDialog QLineEdit, QDialog QComboBox {{
                 padding: {AppStyles._style_padding('input')};
                 font-size: 12px;
-                color: {colors['window_text']};
+                color: {dlg_colors['window_text']};
                 {inp_dec}
             }}
             QDialog QLineEdit:focus, QDialog QComboBox:focus {{
                 {inp_focus}
             }}
             QDialog QComboBox QAbstractItemView {{
-                background-color: {colors['window']};
-                color: {colors['window_text']};
-                border: 1px solid {colors['mid']};
+                background-color: {dlg_colors['window']};
+                color: {dlg_colors['window_text']};
+                border: 1px solid {dlg_colors['mid']};
                 border-radius: {list_item_r}px;
             }}
             QDialog QComboBox::drop-down {{
@@ -2597,12 +2601,12 @@ class AppStyles:
                 border: none;
             }}
             QDialog QComboBox::down-arrow {{
-                image: url({AppStyles._get_arrow_image(colors['window_text'])});
+                image: url({AppStyles._get_arrow_image(dlg_colors['window_text'])});
                 width: 10px;
                 height: 6px;
             }}
             QDialog QCheckBox {{
-                color: {colors['window_text']};
+                color: {dlg_colors['window_text']};
                 font-size: 12px;
                 font-family: {ff};
                 spacing: 8px;
@@ -2616,24 +2620,24 @@ class AppStyles:
                 border: {chk_border};
             }}
             QDialog QCheckBox::indicator:checked {{
-                background-color: {colors['accent']};
-                border: 2px solid {colors['accent']};
+                background-color: {dlg_colors['accent']};
+                border: 2px solid {dlg_colors['accent']};
                 border-radius: {indicator_r}px;
                 image: url({AppStyles._get_check_image(AppStyles.COLOR_WHITE)});
             }}
             QDialog QCheckBox::indicator:hover {{
-                border: 2px solid {colors['accent']};
+                border: 2px solid {dlg_colors['accent']};
                 border-radius: {indicator_r}px;
             }}
             QDialog QCheckBox::indicator:pressed {{
-                background-color: {colors['accent_pressed']};
-                border: 2px solid {colors['accent_pressed']};
+                background-color: {dlg_colors['accent_pressed']};
+                border: 2px solid {dlg_colors['accent_pressed']};
                 border-radius: {indicator_r}px;
             }}
             QDialog QTextEdit {{
                 padding: 10px;
                 font-size: 12px;
-                color: {colors['window_text']};
+                color: {dlg_colors['window_text']};
                 {inp_dec}
             }}
             QDialog QTextEdit:focus {{
@@ -2641,8 +2645,8 @@ class AppStyles:
             }}
             QDialog QListWidget {{
                 background-color: {input_bg};
-                color: {colors['window_text']};
-                border: 1px solid {colors['mid']};
+                color: {dlg_colors['window_text']};
+                border: 1px solid {dlg_colors['mid']};
                 border-radius: {r}px;
             }}
             QDialog QListWidget::item {{
@@ -2650,26 +2654,26 @@ class AppStyles:
                 border-radius: {list_item_r}px;
             }}
             QDialog QListWidget::item:selected {{
-                background-color: {colors['accent']};
-                color: {colors['bright_text']};
+                background-color: {dlg_colors['accent']};
+                color: {dlg_colors['bright_text']};
             }}
             QDialog QListWidget::item:hover {{
-                background-color: {colors['button']};
+                background-color: {dlg_colors['button']};
             }}
             QDialog QListWidget::indicator {{
                 width: 16px;
                 height: 16px;
-                border: 1px solid {colors['mid']};
+                border: 1px solid {dlg_colors['mid']};
                 border-radius: {indicator_r}px;
                 background-color: {input_bg};
             }}
             QDialog QListWidget::indicator:checked {{
-                background-color: {colors['accent']};
-                border-color: {colors['accent']};
-                image: url({AppStyles._get_check_image(colors['bright_text'])});
+                background-color: {dlg_colors['accent']};
+                border-color: {dlg_colors['accent']};
+                image: url({AppStyles._get_check_image(dlg_colors['bright_text'])});
             }}
             QDialog QListWidget::indicator:hover {{
-                border-color: {colors['accent']};
+                border-color: {dlg_colors['accent']};
             }}
         """
 
@@ -3393,15 +3397,13 @@ class AppStyles:
     @staticmethod
     def scroll_area_style() -> str:
         colors = AppStyles._get_colors()
-        style = AppStyles._visual_style
-        sa_bg = 'rgba(0,0,0,0)' if style == 'frosted' else colors['player_panel']
         return f"""
             QScrollArea {{
-                background-color: {sa_bg};
+                background-color: {colors['player_panel']};
                 border: none;
             }}
             QScrollArea > QWidget > QWidget {{
-                background-color: {sa_bg};
+                background-color: {colors['player_panel']};
             }}
         """
 
@@ -3514,25 +3516,19 @@ class AppStyles:
         style = AppStyles._visual_style
         if style == 'neumorphic':
             panel_dec = f"border: none; {AppStyles._get_style_raised()}"
-            panel_bg = colors['alternate_base']
         elif style == 'skeuomorphic':
             panel_dec = f"border: 2px outset {colors.get('border_3d_light', colors['mid'])};"
-            panel_bg = colors['alternate_base']
         elif style == 'frosted':
             panel_dec = f"border: 1px solid {colors.get('frosted_border', colors['mid'])};"
-            panel_bg = 'rgba(0,0,0,0)'
         elif style == 'win11':
             panel_dec = f"border: 1px solid {colors.get('border_thin', colors['mid'])};"
-            panel_bg = colors['alternate_base']
         elif style in ('mac', 'ios'):
             panel_dec = "border: none;"
-            panel_bg = colors['alternate_base']
         else:
             panel_dec = ""
-            panel_bg = colors['alternate_base']
         return f"""
             QWidget {{
-                background-color: {panel_bg};
+                background-color: {colors['alternate_base']};
                 border-radius: {r}px;
                 {panel_dec}
             }}

@@ -232,7 +232,7 @@ class FloatingDockWidget(QDockWidget):
         super().mouseReleaseEvent(event)
 
     def paintEvent(self, event):
-        from ui.styles import AppStyles
+        from ui.styles import AppStyles, color_to_hex
 
         if not self._dwm_blur_enabled:
             self._try_enable_dwm_blur()
@@ -240,45 +240,28 @@ class FloatingDockWidget(QDockWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        colors = AppStyles._get_colors()
+        neo = AppStyles.is_neumorphic()
         is_frosted = AppStyles._visual_style == 'frosted'
 
         if is_frosted:
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
-            painter.fillRect(self.rect(), QColor(0, 0, 0, 0))
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+            dock_colors = {}
+            for k, v in colors.items():
+                dock_colors[k] = color_to_hex(v) if isinstance(v, str) and v.startswith('rgba') else v
+        else:
+            dock_colors = colors
 
         path = QPainterPath()
         corner_r = AppStyles._get_style_border_radius()
         path.addRoundedRect(QRectF(self.rect()), corner_r, corner_r)
 
-        colors = AppStyles._get_colors()
-        neo = AppStyles.is_neumorphic()
-
-        if is_frosted:
-            panel_color = colors.get('player_panel', 'rgba(28,32,42,0.78)')
-            if panel_color.startswith('rgba('):
-                try:
-                    inner = panel_color[5:].rstrip(')')
-                    parts = [p.strip() for p in inner.split(',')]
-                    r, g, b = int(parts[0]), int(parts[1]), int(parts[2])
-                    opacity = int(float(parts[3]) * 255)
-                except Exception:
-                    r, g, b = _parse_hex_color(panel_color)
-                    opacity = 160
-            else:
-                r, g, b = _parse_hex_color(panel_color)
-                opacity = 160
-            painter.fillPath(path, QColor(r, g, b, opacity))
-            br, bg, bb = _parse_hex_color(colors.get('mid', '#646464'))
-            painter.setPen(QColor(br, bg, bb, 80))
+        panel_hex = dock_colors.get('player_panel', '#1e1e1e')
+        r, g, b = _parse_hex_color(panel_hex)
+        painter.fillPath(path, QColor(r, g, b, self._opacity))
+        if neo:
+            br, bg, bb = _parse_hex_color(dock_colors.get('mid', '#646464'))
+            painter.setPen(QColor(br, bg, bb, 60))
             painter.drawPath(path)
-        else:
-            r, g, b = _parse_hex_color(colors.get('player_panel', '#1e1e1e'))
-            painter.fillPath(path, QColor(r, g, b, self._opacity))
-            if neo:
-                br, bg, bb = _parse_hex_color(colors.get('mid', '#646464'))
-                painter.setPen(QColor(br, bg, bb, 60))
-                painter.drawPath(path)
 
         super().paintEvent(event)
 
@@ -400,7 +383,7 @@ class FloatingDialog(QDialog):
     def paintEvent(self, event):
         from PySide6.QtGui import QPainterPath
         from PySide6.QtCore import QRectF
-        from ui.styles import AppStyles
+        from ui.styles import AppStyles, color_to_hex
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -410,48 +393,33 @@ class FloatingDialog(QDialog):
         is_frosted = AppStyles._visual_style == 'frosted'
 
         if is_frosted:
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
-            painter.fillRect(self.rect(), QColor(0, 0, 0, 0))
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+            dlg_colors = {}
+            for k, v in colors.items():
+                dlg_colors[k] = color_to_hex(v) if isinstance(v, str) and v.startswith('rgba') else v
+        else:
+            dlg_colors = colors
 
         path = QPainterPath()
         corner_r = AppStyles._get_style_border_radius()
         path.addRoundedRect(QRectF(self.rect()), corner_r, corner_r)
 
-        r, g, b = _parse_hex_color(colors.get(self._bg_color_key, '#333333'))
-        if is_frosted:
-            bg_color = colors.get(self._bg_color_key, 'rgba(16,20,28,0.82)')
-            if bg_color.startswith('rgba('):
-                try:
-                    inner = bg_color[5:].rstrip(')')
-                    parts = [p.strip() for p in inner.split(',')]
-                    r, g, b = int(parts[0]), int(parts[1]), int(parts[2])
-                    opacity = int(float(parts[3]) * 255)
-                except Exception:
-                    opacity = 160
-            else:
-                opacity = 160
-            painter.fillPath(path, QColor(r, g, b, opacity))
-            br, bg, bb = _parse_hex_color(colors.get(self._border_color_key, '#999999'))
-            painter.setPen(QColor(br, bg, bb, 80))
+        bg_hex = dlg_colors.get(self._bg_color_key, '#333333')
+        r, g, b = _parse_hex_color(bg_hex)
+        painter.fillPath(path, QColor(r, g, b, self.opacity))
+        if neo:
+            br, bg, bb = _parse_hex_color(dlg_colors.get(self._border_color_key, '#999999'))
+            painter.setPen(QColor(br, bg, bb, 60))
             painter.drawPath(path)
-        else:
-            painter.fillPath(path, QColor(r, g, b, self.opacity))
-            if neo:
-                br, bg, bb = _parse_hex_color(colors.get(self._border_color_key, '#999999'))
-                painter.setPen(QColor(br, bg, bb, 60))
-                painter.drawPath(path)
 
         if is_frosted and not self._dwm_blur_enabled and sys.platform == 'win32':
             try:
                 import ctypes
                 hwnd = int(self.winId())
-                DWMWA_SYSTEMBACKDROP_TYPE = 38
-                DWMSBT_MAINVIEW = 2
-                value = ctypes.c_int(DWMSBT_MAINVIEW)
+                DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+                dark = ctypes.c_int(1 if AppStyles._get_effective_color_mode() == 'dark' else 0)
                 ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                    hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
-                    ctypes.byref(value), ctypes.sizeof(value)
+                    hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
+                    ctypes.byref(dark), ctypes.sizeof(dark)
                 )
                 self._dwm_blur_enabled = True
             except Exception:
