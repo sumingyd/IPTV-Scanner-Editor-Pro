@@ -154,10 +154,10 @@ class ScanChannelDialog(FloatingDialog):
             child.setStyleSheet(AppStyles.list_style())
         for child in self.findChildren(QtWidgets.QTabWidget):
             child.setStyleSheet(AppStyles.tab_widget_style())
-        if hasattr(self, 'channel_table'):
-            self.channel_table.setStyleSheet(AppStyles.list_style())
-        if hasattr(self, '_empty_hint_label') and self._empty_hint_label:
-            self._empty_hint_label.setStyleSheet(
+        if hasattr(self, 'channel_list'):
+            self.channel_list.setStyleSheet(AppStyles.list_style())
+        if hasattr(self, '_empty_hint') and self._empty_hint:
+            self._empty_hint.setStyleSheet(
                 f"color: {colors['player_panel_hint']}; font-size: 14px; padding: 40px;"
             )
 
@@ -2899,6 +2899,27 @@ class ScanChannelDialog(FloatingDialog):
                 self.user_agent_label.setStyleSheet(AppStyles.small_label_style())
             if hasattr(self, 'referer_label'):
                 self.referer_label.setStyleSheet(AppStyles.small_label_style())
+            if hasattr(self, 'search_input'):
+                self.search_input.setStyleSheet(AppStyles.common_line_edit_style())
+            if hasattr(self, 'scan_engine_combo'):
+                self.scan_engine_combo.setStyleSheet(AppStyles.common_combo_box_style())
+            if hasattr(self, 'timeout_input'):
+                self.timeout_input.setStyleSheet(AppStyles.common_line_edit_style())
+            if hasattr(self, 'threads_input'):
+                self.threads_input.setStyleSheet(AppStyles.common_line_edit_style())
+            if hasattr(self, 'user_agent_input'):
+                self.user_agent_input.setStyleSheet(AppStyles.common_line_edit_style())
+            if hasattr(self, 'referer_input'):
+                self.referer_input.setStyleSheet(AppStyles.common_line_edit_style())
+            if hasattr(self, 'progress_indicator'):
+                self.progress_indicator.setStyleSheet(AppStyles.progress_style())
+            if hasattr(self, '_empty_hint') and self._empty_hint:
+                hint_colors = AppStyles._get_colors()
+                self._empty_hint.setStyleSheet(
+                    f"color: {hint_colors['player_panel_hint']}; font-size: 14px; padding: 40px;"
+                )
+            if hasattr(self, 'scan_scroll'):
+                self.scan_scroll.setStyleSheet(AppStyles.scroll_area_style() if hasattr(AppStyles, 'scroll_area_style') else '')
         except Exception as e:
             if hasattr(self, 'logger'):
                 self.logger.error(f"重新应用扫描窗口样式失败: {e}")
