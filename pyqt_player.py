@@ -2936,22 +2936,11 @@ class IPTVPlayer(QMainWindow):
     def open_scan_ui(self):
         """打开扫描频道窗口"""
         try:
-            # 导入扫描窗口模块
             from ui.dialogs.scan_channel_dialog import ScanChannelDialog
             from PySide6.QtCore import Qt
 
-            # 创建扫描窗口，必须传递parent参数（主窗口self）
-            # 这样scan_dialog.parent()才能返回主窗口，双击播放功能才能正常工作
             dialog = ScanChannelDialog(self)
-            dialog.config = self.config
-            dialog.language_manager = self.language_manager
             self._scan_dialog = dialog
-
-            from ui.theme_manager import get_theme_manager
-            try:
-                get_theme_manager().register_window(dialog)
-            except Exception:
-                pass
 
             dialog.show()
 
