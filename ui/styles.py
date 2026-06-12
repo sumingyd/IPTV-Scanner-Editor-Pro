@@ -3051,7 +3051,7 @@ class AppStyles:
                 {inp_disabled}
             }}
             QLineEdit::clear-button {{
-                image: url({AppStyles.get_icon('close', colors['mid'], 10)});
+
                 width: 14px;
             }}
         """
