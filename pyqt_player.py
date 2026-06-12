@@ -1286,12 +1286,12 @@ class IPTVPlayer(QMainWindow):
     def _set_info_label_icon(self, icon_label: QLabel, icon_name: str):
         """设置信息行前的小图标"""
         color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
-        icon_path = AppStyles.get_icon(icon_name, color, 14)
+        icon_path = AppStyles.get_icon(icon_name, color, 16)
         if icon_path:
             from PySide6.QtGui import QPixmap
             pixmap = QPixmap(icon_path)
             if not pixmap.isNull():
-                icon_label.setPixmap(pixmap.scaled(14, 14, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+                icon_label.setPixmap(pixmap)
                 icon_label.setFixedSize(16, 16)
                 icon_label.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 

@@ -896,11 +896,11 @@ class UIController:
             for icon_attr, icon_name in [('video_info_icon', 'tv'), ('audio_info_icon', 'speaker'), ('network_info_icon', 'signal')]:
                 icon_label = getattr(self.window, icon_attr, None)
                 if icon_label:
-                    icon_path = AppStyles.get_icon(icon_name, btn_color, 14)
+                    icon_path = AppStyles.get_icon(icon_name, btn_color, 16)
                     if icon_path:
                         pixmap = QPixmap(icon_path)
                         if not pixmap.isNull():
-                            icon_label.setPixmap(pixmap.scaled(14, 14, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+                            icon_label.setPixmap(pixmap)
                     icon_label.setStyleSheet("background: transparent; border: none;")
 
             if hasattr(self.window, 'channel_logo'):
