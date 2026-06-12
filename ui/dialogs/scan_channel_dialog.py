@@ -2282,10 +2282,16 @@ class ScanChannelDialog(FloatingDialog):
         input_widget.setStyleSheet(original_style + f"; border: 2px solid {err_color};")
         self.stats_label.setText(message)
         self.stats_label.setStyleSheet(f"color: {err_color}; font-weight: bold;")
-        QtCore.QTimer.singleShot(2000, lambda: (
-            input_widget.setStyleSheet(original_style),
-            self.stats_label.setStyleSheet(AppStyles.common_label_style())
-        ))
+        QtCore.QTimer.singleShot(2000, lambda: self._clear_input_warning(input_widget, original_style))
+
+    def _clear_input_warning(self, input_widget, original_style):
+        try:
+            if input_widget and hasattr(input_widget, 'setStyleSheet'):
+                input_widget.setStyleSheet(original_style)
+            if hasattr(self, 'stats_label') and self.stats_label:
+                self.stats_label.setStyleSheet(AppStyles.common_label_style())
+        except RuntimeError:
+            pass
 
     def _set_scan_button_text(self, translation_key, default_text):
         """设置扫描按钮文本"""
