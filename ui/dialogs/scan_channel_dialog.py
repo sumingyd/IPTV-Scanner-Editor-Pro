@@ -1531,6 +1531,19 @@ class ScanChannelDialog(FloatingDialog):
         logo_layout.addWidget(self.edit_logo)
         edit_layout.addLayout(logo_layout)
 
+        # Catchup Source
+        catchup_layout = QtWidgets.QVBoxLayout()
+        catchup_layout.setSpacing(4)
+        self.edit_catchup_label = QtWidgets.QLabel(f"{tr('catchup_source', 'Catchup Source')}:")
+        self.edit_catchup_label.setStyleSheet(AppStyles.common_label_style())
+        self.edit_catchup = QtWidgets.QLineEdit()
+        self.edit_catchup.setStyleSheet(AppStyles.common_line_edit_style())
+        self.edit_catchup.setFixedHeight(34)
+        self.edit_catchup.installEventFilter(self._home_on_focus_out)
+        catchup_layout.addWidget(self.edit_catchup_label)
+        catchup_layout.addWidget(self.edit_catchup)
+        edit_layout.addLayout(catchup_layout)
+
         # 增加一些垂直空间，让内容分布更均匀
         edit_layout.addStretch(1)
 
@@ -1565,10 +1578,12 @@ class ScanChannelDialog(FloatingDialog):
             self.edit_url.setReadOnly(True)
             self.edit_tvg_id.setReadOnly(True)
             self.edit_logo.setReadOnly(True)
+            self.edit_catchup.setReadOnly(True)
             self.edit_group.clear()
             self.edit_url.clear()
             self.edit_tvg_id.clear()
             self.edit_logo.clear()
+            self.edit_catchup.clear()
             return
 
         self.edit_name.setReadOnly(False)
@@ -1576,6 +1591,7 @@ class ScanChannelDialog(FloatingDialog):
         self.edit_url.setReadOnly(False)
         self.edit_tvg_id.setReadOnly(False)
         self.edit_logo.setReadOnly(False)
+        self.edit_catchup.setReadOnly(False)
 
         channel = self.model.get_channel(source_row)
         if channel:
@@ -1584,6 +1600,7 @@ class ScanChannelDialog(FloatingDialog):
             self.edit_url.setText(channel.get('url', ''))
             self.edit_tvg_id.setText(channel.get('tvg_id', ''))
             self.edit_logo.setText(channel.get('logo_url', channel.get('logo', '')))
+            self.edit_catchup.setText(channel.get('catchup_source', ''))
             self.edit_url.setCursorPosition(0)
             self.edit_logo.setCursorPosition(0)
 
@@ -1604,7 +1621,8 @@ class ScanChannelDialog(FloatingDialog):
             'url': self.edit_url.text(),
             'tvg_id': self.edit_tvg_id.text(),
             'logo_url': self.edit_logo.text(),
-            'logo': self.edit_logo.text()
+            'logo': self.edit_logo.text(),
+            'catchup_source': self.edit_catchup.text(),
         }
 
         self.model.update_channel(row, channel_info)
@@ -2941,11 +2959,12 @@ class ScanChannelDialog(FloatingDialog):
             if hasattr(self, 'channel_list'):
                 self.channel_list.setStyleSheet(AppStyles.list_style())
             for label in [self.edit_name_label, self.edit_group_label,
-                          self.edit_url_label, self.edit_tvg_id_label, self.edit_logo_label]:
+                          self.edit_url_label, self.edit_tvg_id_label, self.edit_logo_label,
+                          self.edit_catchup_label]:
                 if hasattr(label, 'setStyleSheet'):
                     label.setStyleSheet(AppStyles.common_label_style())
             for edit in [self.edit_name, self.edit_group, self.edit_url,
-                         self.edit_tvg_id, self.edit_logo]:
+                         self.edit_tvg_id, self.edit_logo, self.edit_catchup]:
                 if hasattr(edit, 'setStyleSheet'):
                     edit.setStyleSheet(AppStyles.common_line_edit_style())
             if hasattr(self, 'ip_range_input'):
