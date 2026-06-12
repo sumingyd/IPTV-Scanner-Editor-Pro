@@ -415,9 +415,8 @@ class FloatingDialog(QDialog):
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
         path = QPainterPath()
-        rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
         corner_r = AppStyles._get_style_border_radius()
-        path.addRoundedRect(rect, corner_r, corner_r)
+        path.addRoundedRect(QRectF(self.rect()), corner_r, corner_r)
 
         r, g, b = _parse_hex_color(colors.get(self._bg_color_key, '#333333'))
         if is_frosted:
@@ -433,19 +432,17 @@ class FloatingDialog(QDialog):
             else:
                 opacity = 160
             painter.fillPath(path, QColor(r, g, b, opacity))
-        else:
-            painter.fillPath(path, QColor(r, g, b, self.opacity))
-
-        if not neo and not is_frosted:
-            br, bg, bb = _parse_hex_color(colors.get(self._border_color_key, '#999999'))
-            painter.setPen(QColor(br, bg, bb, 200))
-            painter.drawPath(path)
-        elif is_frosted:
             br, bg, bb = _parse_hex_color(colors.get(self._border_color_key, '#999999'))
             painter.setPen(QColor(br, bg, bb, 80))
             painter.drawPath(path)
+        else:
+            painter.fillPath(path, QColor(r, g, b, self.opacity))
+            if neo:
+                br, bg, bb = _parse_hex_color(colors.get(self._border_color_key, '#999999'))
+                painter.setPen(QColor(br, bg, bb, 60))
+                painter.drawPath(path)
 
-        if is_frosted and sys.platform == 'win32':
+        if is_frosted and not self._dwm_blur_enabled and sys.platform == 'win32':
             try:
                 import ctypes
                 hwnd = int(self.winId())
@@ -459,7 +456,7 @@ class FloatingDialog(QDialog):
                 self._dwm_blur_enabled = True
             except Exception:
                 pass
-        elif self._dwm_blur_enabled and sys.platform == 'win32':
+        elif not is_frosted and self._dwm_blur_enabled and sys.platform == 'win32':
             try:
                 import ctypes
                 hwnd = int(self.winId())
