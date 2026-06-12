@@ -2237,7 +2237,7 @@ class AppStyles:
         colors = AppStyles._get_colors()
         return f"""
             QLabel {{
-                font-size: 200px;
+
                 color: {colors['player_panel_hint']};
                 background-color: {colors['player_video_placeholder']};
             }}
