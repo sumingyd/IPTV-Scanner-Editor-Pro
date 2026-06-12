@@ -5,7 +5,7 @@ EPG节目单控制器 - 负责EPG数据管理、显示、交互
 
 from datetime import datetime, timedelta, date
 from PySide6.QtWidgets import QListWidgetItem, QStyledItemDelegate, QStyleOptionViewItem
-from PySide6.QtGui import QColor, QPainter, QFontMetrics
+from PySide6.QtGui import QColor, QPainter, QFontMetrics, QFont
 from PySide6.QtCore import Qt, QTimer, QRect
 
 from core.log_manager import global_logger as logger
@@ -47,7 +47,9 @@ class EPGItemDelegate(QStyledItemDelegate):
             super().paint(painter, option, index)
             return
 
-        font = option.font
+        font = QFont(option.font)
+        if font.pointSize() <= 0:
+            font.setPointSize(9)
         fm = QFontMetrics(font)
         text_height = fm.height() + 4
         y = option.rect.top() + (option.rect.height() - text_height) // 2
