@@ -2127,7 +2127,8 @@ class ScanChannelDialog(FloatingDialog):
 
             self.scanner.workers = []
 
-            FfprobeStreamValidator.destroy_all_handles()
+            ValidatorClass = self._get_validator_class()
+            ValidatorClass.destroy_all_handles()
 
             if hasattr(self.scanner, '_mapping_executor') and self.scanner._mapping_executor:
                 try:
