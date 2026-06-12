@@ -2211,6 +2211,7 @@ class AppStyles:
                 subcontrol-origin: padding;
                 subcontrol-position: right center;
                 width: 16px;
+                image: url({AppStyles.get_icon('close', colors['player_panel_disabled'], 10)});
             }}
         """
 
