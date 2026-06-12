@@ -2235,12 +2235,20 @@ class ScanChannelDialog(FloatingDialog):
         """扫描期间切换到源模型，断开代理模型避免竞态崩溃"""
         if hasattr(self, '_filter_proxy') and self._filter_proxy:
             self.channel_list.setModel(self.model)
+            self._reconnect_selection_model()
 
     def _set_browse_model(self):
         """扫描结束后恢复代理模型，支持搜索过滤和排序"""
         if hasattr(self, '_filter_proxy') and self._filter_proxy:
             self._filter_proxy.setSourceModel(self.model)
             self.channel_list.setModel(self._filter_proxy)
+            self._reconnect_selection_model()
+
+    def _reconnect_selection_model(self):
+        """模型切换后重新连接selectionModel信号"""
+        sel_model = self.channel_list.selectionModel()
+        if sel_model:
+            sel_model.selectionChanged.connect(self._on_channel_selected)
 
     def _set_buttons_during_scan(self, is_scanning: bool):
         """扫描/验证期间禁用或恢复冲突按钮"""
