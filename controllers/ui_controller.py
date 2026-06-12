@@ -952,10 +952,12 @@ class UIController:
                     self.window.exit_catchup_button.setIcon(QIcon(icon_path))
             if hasattr(self.window, 'catchup_indicator'):
                 self.window.catchup_indicator.setStyleSheet(AppStyles.player_catchup_indicator_style())
-            for slider in fp.findChildren(QSlider):
-                slider.setStyleSheet(AppStyles.player_slider_style())
             if hasattr(self.window, 'volume_slider'):
                 self.window.volume_slider.setStyleSheet(AppStyles.player_volume_slider_style())
+            for slider in fp.findChildren(QSlider):
+                if slider is getattr(self.window, 'volume_slider', None):
+                    continue
+                slider.setStyleSheet(AppStyles.player_slider_style())
             for combo in fp.findChildren(QComboBox):
                 combo.setStyleSheet(AppStyles.player_group_combo_style())
             for frame in fp.findChildren(QFrame):
