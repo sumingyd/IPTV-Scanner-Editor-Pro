@@ -769,6 +769,10 @@ class UIController:
         try:
             if hasattr(self.window, 'epg_title'):
                 self.window.epg_title.setStyleSheet(AppStyles.player_epg_title_style())
+                epg_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
+                epg_icon_path = AppStyles.get_icon('calendar', epg_icon_color)
+                if epg_icon_path:
+                    self.window.epg_title.setProperty('icon_path', epg_icon_path)
             if hasattr(self.window, 'playlist_title'):
                 self.window.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
             if hasattr(self.window, 'epg_prev_day'):
