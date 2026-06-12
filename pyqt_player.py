@@ -1256,7 +1256,7 @@ class IPTVPlayer(QMainWindow):
         floating_container.setObjectName("panelContainer")
         floating_container.setStyleSheet("background-color: transparent;")
         floating_container.setMinimumHeight(120)
-        floating_container.setMinimumWidth(480)
+        floating_container.setMinimumWidth(360)
         floating_container.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.floating_layout = QVBoxLayout(floating_container)
         self.floating_layout.setContentsMargins(12, 8, 12, 8)
@@ -2863,7 +2863,7 @@ class IPTVPlayer(QMainWindow):
 
         if hasattr(self, 'floating_dock') and self.floating_dock:
             fl_w = min(mw_w - gap * 2, 1050)
-            self.floating_dock.setMinimumWidth(max(fl_w, 480))
+            self.floating_dock.setMinimumWidth(max(fl_w, 360))
             fl_x = mw_x + (mw_w - self.floating_dock.width()) // 2
             fl_y = mw_y + mw_h - control_panel_h - status_bar_h - gap
             self.floating_dock.move(fl_x, fl_y)
