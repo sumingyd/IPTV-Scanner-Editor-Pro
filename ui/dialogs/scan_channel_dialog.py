@@ -2019,8 +2019,28 @@ class ScanChannelDialog(FloatingDialog):
         except Exception as e:
             log_ui_error(f"连接扫描器信号失败: {e}")
 
+    def _style_sub_dialog(self, dialog):
+        """为子对话框内部控件统一设置样式"""
+        for cb in dialog.findChildren(QtWidgets.QCheckBox):
+            cb.setStyleSheet(AppStyles.common_check_box_style())
+        for rb in dialog.findChildren(QtWidgets.QRadioButton):
+            rb.setStyleSheet(AppStyles.common_check_box_style())
+        for btn in dialog.findChildren(QtWidgets.QPushButton):
+            btn.setStyleSheet(AppStyles.common_button_style())
+        for le in dialog.findChildren(QtWidgets.QLineEdit):
+            le.setStyleSheet(AppStyles.common_line_edit_style())
+        for combo in dialog.findChildren(QtWidgets.QComboBox):
+            combo.setStyleSheet(AppStyles.common_combo_box_style())
+        for tw in dialog.findChildren(QtWidgets.QTableWidget):
+            tw.setStyleSheet(AppStyles.list_style())
+            tw.horizontalHeader().setStyleSheet(AppStyles.list_style())
+        for lbl in dialog.findChildren(QtWidgets.QLabel):
+            if lbl.objectName() != 'dialogTitleBar':
+                lbl.setStyleSheet(AppStyles.common_label_style())
+
     def _exec_themed_dialog(self, dialog):
         """执行对话框并注册/注销ThemeManager"""
+        self._style_sub_dialog(dialog)
         from ..theme_manager import get_theme_manager
         tm = None
         try:
