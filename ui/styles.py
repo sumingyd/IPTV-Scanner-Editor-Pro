@@ -3498,6 +3498,7 @@ class AppStyles:
                 font-size: 13px;
                 font-weight: bold;
                 color: {colors['window_text']};
+                background-color: transparent;
             }}
         """
 
@@ -3508,6 +3509,7 @@ class AppStyles:
             QLabel {{
                 font-size: 11px;
                 color: {colors['window_text']};
+                background-color: transparent;
             }}
         """
 
@@ -3518,6 +3520,7 @@ class AppStyles:
             QLabel {{
                 font-size: 10px;
                 color: {colors['mid']};
+                background-color: transparent;
             }}
         """
 
