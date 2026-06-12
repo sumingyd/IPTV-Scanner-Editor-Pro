@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QPushButton, QLabel, QListWidget, QListWidgetItem,
     QStatusBar, QSizePolicy, QDialog,
     QFrame, QToolButton, QSlider, QComboBox,
-    QTabWidget
+    QTabWidget, QButtonGroup
 )
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt, QSize, QTimer, QThread, Slot, Signal, QRectF
