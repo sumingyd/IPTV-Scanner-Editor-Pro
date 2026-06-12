@@ -38,14 +38,16 @@ class ChannelTransitionOverlay(QWidget):
 
         self._name_label = QLabel()
         self._name_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self._name_label.setFont(QFont(AppStyles._get_style_font_family().split(",")[0].strip("' "), 18, QFont.Weight.Bold))
+        name_font = QFont(self._resolve_font_family(), 18)
+        name_font.setBold(True)
+        self._name_label.setFont(name_font)
         top_row.addWidget(self._name_label, 1)
 
         card_layout.addLayout(top_row)
 
         self._info_label = QLabel()
         self._info_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self._info_label.setFont(QFont(AppStyles._get_style_font_family().split(",")[0].strip("' "), 10))
+        self._info_label.setFont(QFont(self._resolve_font_family(), 10))
         card_layout.addWidget(self._info_label)
 
         layout.addWidget(self._card)
@@ -53,6 +55,11 @@ class ChannelTransitionOverlay(QWidget):
 
         from ui.theme_manager import get_theme_manager
         get_theme_manager().theme_changed.connect(self._on_theme_changed)
+
+    @staticmethod
+    def _resolve_font_family() -> str:
+        family = AppStyles._get_style_font_family().split(",")[0].strip("' ")
+        return family if family else "sans-serif"
 
     def _on_theme_changed(self, _theme_name):
         if self._opacity > 0 and self._name_label.text():
@@ -66,6 +73,11 @@ class ChannelTransitionOverlay(QWidget):
         bg_color = colors.get('player_panel', 'rgba(20,20,20,220)')
         r = AppStyles._get_style_border_radius()
         self._card.setStyleSheet(f"background: {bg_color}; border-radius: {r}px;")
+        family = self._resolve_font_family()
+        name_font = QFont(family, 18)
+        name_font.setBold(True)
+        self._name_label.setFont(name_font)
+        self._info_label.setFont(QFont(family, 10))
 
     def show_transition(self, channel_name: str, logo_pixmap: QPixmap = None, info_text: str = ""):
         self._name_label.setText(channel_name)
