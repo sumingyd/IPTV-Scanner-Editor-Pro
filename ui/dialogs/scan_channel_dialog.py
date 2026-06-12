@@ -2849,7 +2849,7 @@ class ScanChannelDialog(FloatingDialog):
             if hasattr(self.application, '_scan_dialog'):
                 self.application._scan_dialog = None
         try:
-            from ui.theme_manager import get_theme_manager
+            from ..theme_manager import get_theme_manager
             get_theme_manager().unregister_window(self)
         except Exception:
             pass
