@@ -434,6 +434,7 @@ class ScanChannelDialog(FloatingDialog):
         timeout_row = QtWidgets.QHBoxLayout()
         timeout_row.setSpacing(6)
         timeout_label = QtWidgets.QLabel(tr("scan_timeout", "Timeout(s):"))
+        timeout_label.setStyleSheet(AppStyles.small_label_style())
         self.timeout_label = timeout_label
         timeout_row.addWidget(timeout_label)
         self.timeout_input = QtWidgets.QLineEdit("10")
@@ -446,6 +447,7 @@ class ScanChannelDialog(FloatingDialog):
         threads_row = QtWidgets.QHBoxLayout()
         threads_row.setSpacing(6)
         threads_label = QtWidgets.QLabel(tr("scan_threads", "Threads:"))
+        threads_label.setStyleSheet(AppStyles.small_label_style())
         self.threads_label = threads_label
         threads_row.addWidget(threads_label)
         self.threads_input = QtWidgets.QLineEdit("4")
@@ -464,6 +466,7 @@ class ScanChannelDialog(FloatingDialog):
         tr = self.language_manager.tr
         engine_layout = QtWidgets.QHBoxLayout()
         engine_label = QtWidgets.QLabel(f"{tr('scan_engine', 'Scan Engine')}：")
+        engine_label.setStyleSheet(AppStyles.small_label_style())
         self.scan_engine_label = engine_label
         engine_layout.addWidget(engine_label)
 
@@ -505,6 +508,7 @@ class ScanChannelDialog(FloatingDialog):
         tr = self.language_manager.tr
         retry_layout = QtWidgets.QHBoxLayout()
         retry_label = QtWidgets.QLabel(f"{tr('scan_retry_options', 'Scan Retry Options')}：")
+        retry_label.setStyleSheet(AppStyles.small_label_style())
         self.retry_label = retry_label
         retry_layout.addWidget(retry_label)
 
@@ -604,6 +608,7 @@ class ScanChannelDialog(FloatingDialog):
         tr = self.language_manager.tr
         mapping_layout = QtWidgets.QHBoxLayout()
         mapping_label = QtWidgets.QLabel(f"{tr('mapping_options', 'Mapping Options')}：")
+        mapping_label.setStyleSheet(AppStyles.small_label_style())
         self.mapping_label = mapping_label
         mapping_layout.addWidget(mapping_label)
 
@@ -2891,6 +2896,10 @@ class ScanChannelDialog(FloatingDialog):
                 self.user_agent_label.setStyleSheet(AppStyles.small_label_style())
             if hasattr(self, 'referer_label'):
                 self.referer_label.setStyleSheet(AppStyles.small_label_style())
+            for lbl in [self.timeout_label, self.threads_label,
+                        self.scan_engine_label, self.retry_label, self.mapping_label]:
+                if hasattr(lbl, 'setStyleSheet'):
+                    lbl.setStyleSheet(AppStyles.small_label_style())
             if hasattr(self, 'search_input'):
                 self.search_input.setStyleSheet(AppStyles.common_line_edit_style())
             if hasattr(self, 'scan_engine_combo'):
