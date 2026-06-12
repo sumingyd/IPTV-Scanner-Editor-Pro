@@ -37,11 +37,11 @@ class EPGItemDelegate(QStyledItemDelegate):
         if data.get('is_live'):
             left_badges.append(('LIVE', 'live'))
         elif data.get('is_past'):
-            left_badges.append(('REPLAY', 'past'))
+            left_badges.append(('\u2022', 'past'))
 
         right_badge = None
         if data.get('is_catchup'):
-            right_badge = (data.get('catchup_label', 'CATCHUP'), 'catchup')
+            right_badge = (data.get('catchup_label', '\u21a9'), 'catchup')
 
         if not left_badges and not right_badge:
             super().paint(painter, option, index)
@@ -379,7 +379,7 @@ class EPGController:
                         status_text = tr("epg_status_live", "LIVE")
                         is_live = True
 
-                display_text = f"{start_display}-{end_display}  {title}" if end_display else f"{start_display}  {title}"
+                display_text = f"{start_display}  {title}"
                 item.setText(display_text)
 
                 desc = program.get('desc', '')
