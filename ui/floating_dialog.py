@@ -92,8 +92,11 @@ class FloatingDockWidget(QDockWidget):
                     self._dwm_blur_enabled = False
                 self.clearMask()
                 return
+            if self._dwm_blur_enabled:
+                return
             self._dwm_blur_enabled = True
             try:
+                hwnd = int(self.winId())
                 DWMWA_SYSTEMBACKDROP_TYPE = 38
                 DWMSBT_MAINVIEW = 2
                 value = ctypes.c_int(DWMSBT_MAINVIEW)
@@ -101,7 +104,6 @@ class FloatingDockWidget(QDockWidget):
                     hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
                     ctypes.byref(value), ctypes.sizeof(value)
                 )
-                self._dwm_blur_enabled = True
             except Exception:
                 pass
             try:
@@ -126,7 +128,19 @@ class FloatingDockWidget(QDockWidget):
             pass
 
     def _disable_dwm_blur(self):
-        pass
+        if sys.platform != 'win32':
+            return
+        try:
+            hwnd = int(self.winId())
+            DWMWA_SYSTEMBACKDROP_TYPE = 38
+            DWMSBT_NONE = 1
+            value = ctypes.c_int(DWMSBT_NONE)
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
+                ctypes.byref(value), ctypes.sizeof(value)
+            )
+        except Exception:
+            pass
 
     def _hit_resize_edge(self, pos):
         m = self._RESIZE_MARGIN
@@ -220,24 +234,25 @@ class FloatingDockWidget(QDockWidget):
     def paintEvent(self, event):
         from ui.styles import AppStyles
 
-        self._try_enable_dwm_blur()
+        if not self._dwm_blur_enabled:
+            self._try_enable_dwm_blur()
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        if AppStyles._visual_style == 'frosted':
+        is_frosted = AppStyles._visual_style == 'frosted'
+
+        if is_frosted:
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
             painter.fillRect(self.rect(), QColor(0, 0, 0, 0))
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
         path = QPainterPath()
-        rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
         corner_r = AppStyles._get_style_border_radius()
-        path.addRoundedRect(rect, corner_r, corner_r)
+        path.addRoundedRect(QRectF(self.rect()), corner_r, corner_r)
 
         colors = AppStyles._get_colors()
         neo = AppStyles.is_neumorphic()
-        is_frosted = AppStyles._visual_style == 'frosted'
 
         if is_frosted:
             panel_color = colors.get('player_panel', 'rgba(28,32,42,0.78)')
@@ -254,18 +269,16 @@ class FloatingDockWidget(QDockWidget):
                 r, g, b = _parse_hex_color(panel_color)
                 opacity = 160
             painter.fillPath(path, QColor(r, g, b, opacity))
-        else:
-            r, g, b = _parse_hex_color(colors.get('player_panel', '#1e1e1e'))
-            painter.fillPath(path, QColor(r, g, b, self._opacity))
-
-        if not neo and not is_frosted:
-            br, bg, bb = _parse_hex_color(colors.get('mid', '#646464'))
-            painter.setPen(QColor(br, bg, bb, 150))
-            painter.drawPath(path)
-        elif is_frosted:
             br, bg, bb = _parse_hex_color(colors.get('mid', '#646464'))
             painter.setPen(QColor(br, bg, bb, 80))
             painter.drawPath(path)
+        else:
+            r, g, b = _parse_hex_color(colors.get('player_panel', '#1e1e1e'))
+            painter.fillPath(path, QColor(r, g, b, self._opacity))
+            if neo:
+                br, bg, bb = _parse_hex_color(colors.get('mid', '#646464'))
+                painter.setPen(QColor(br, bg, bb, 60))
+                painter.drawPath(path)
 
         super().paintEvent(event)
 
