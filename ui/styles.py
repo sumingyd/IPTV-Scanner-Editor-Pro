@@ -2496,6 +2496,7 @@ class AppStyles:
         dialog_r = r + 4 if r > 4 else 12
         indicator_r = AppStyles._get_scaled_radius('indicator')
         list_item_r = AppStyles._get_scaled_radius('list_item')
+        child_widget_bg = 'rgba(0,0,0,0)' if style == 'frosted' else window_bg
         return f"""
             QDialog {{
                 background-color: {window_bg};
@@ -2505,7 +2506,7 @@ class AppStyles:
                 font-family: {ff};
             }}
             QDialog > QWidget {{
-                background-color: {window_bg};
+                background-color: {child_widget_bg};
                 border-radius: {dialog_r}px;
             }}
             QDialog QLabel {{
@@ -3476,19 +3477,25 @@ class AppStyles:
         style = AppStyles._visual_style
         if style == 'neumorphic':
             panel_dec = f"border: none; {AppStyles._get_style_raised()}"
+            panel_bg = colors['alternate_base']
         elif style == 'skeuomorphic':
             panel_dec = f"border: 2px outset {colors.get('border_3d_light', colors['mid'])};"
+            panel_bg = colors['alternate_base']
         elif style == 'frosted':
             panel_dec = f"border: 1px solid {colors.get('frosted_border', colors['mid'])};"
+            panel_bg = 'rgba(0,0,0,0)'
         elif style == 'win11':
             panel_dec = f"border: 1px solid {colors.get('border_thin', colors['mid'])};"
+            panel_bg = colors['alternate_base']
         elif style in ('mac', 'ios'):
             panel_dec = "border: none;"
+            panel_bg = colors['alternate_base']
         else:
             panel_dec = ""
+            panel_bg = colors['alternate_base']
         return f"""
             QWidget {{
-                background-color: {colors['alternate_base']};
+                background-color: {panel_bg};
                 border-radius: {r}px;
                 {panel_dec}
             }}
