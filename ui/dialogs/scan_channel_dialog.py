@@ -174,18 +174,13 @@ class ScanChannelDialog(FloatingDialog):
                         )
             self._timers.clear()
         
-        # 停止扫描器中的批量更新定时器
         if hasattr(self, 'scanner') and self.scanner:
-            for attr in ('_batch_timer',):
+            for attr in ('_batch_flush_timer', '_validation_flush_timer'):
                 try:
-                    timer = getattr(self.scanner, attr, None)
-                    if timer and hasattr(timer, 'isActive') and timer.isActive():
-                        if QtCore.QThread.currentThread() == timer.thread():
-                            timer.stop()
-                        else:
-                            QtCore.QMetaObject.invokeMethod(
-                                timer, "stop", QtCore.Qt.ConnectionType.QueuedConnection
-                            )
+                    flag = getattr(self.scanner, attr, None)
+                    if flag is not None and hasattr(self.scanner, 'stop_scan'):
+                        self.scanner.stop_scan()
+                        break
                 except Exception as e:
                     self.logger.error(f"停止扫描器定时器失败: {e}")
 
