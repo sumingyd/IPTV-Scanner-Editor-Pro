@@ -1749,7 +1749,8 @@ class MpvPlayerController(QObject):
             self._set_mpv_string('osd-border-color', osd_border)
             self._set_mpv_string('osd-shadow-color', osd_shadow)
             font_family = colors.get('font_family', "'Segoe UI', 'Microsoft YaHei', sans-serif")
-            self._set_mpv_string('osd-font', font_family)
+            mpv_font = font_family.split(",")[0].strip("' \"")
+            self._set_mpv_string('osd-font', mpv_font)
         except Exception:
             pass
 
