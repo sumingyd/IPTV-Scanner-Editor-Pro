@@ -64,6 +64,7 @@ class ThemeManager(Singleton, QtCore.QObject):
     def _apply_theme_to_window(self, window: QtWidgets.QWidget):
         try:
             self._apply_window_backdrop(window)
+            window.setUpdatesEnabled(False)
             window.setStyleSheet("")
             if isinstance(window, QtWidgets.QMainWindow):
                 window.setStyleSheet(AppStyles.main_window_style())
@@ -74,9 +75,11 @@ class ThemeManager(Singleton, QtCore.QObject):
                 self._update_child_widgets(window)
                 if hasattr(window, 'reapply_styles'):
                     window.reapply_styles()
+            window.setUpdatesEnabled(True)
             window.update()
             QtWidgets.QApplication.processEvents()
         except Exception as e:
+            window.setUpdatesEnabled(True)
             print(f"应用主题到窗口失败: {e}")
 
     def _apply_window_backdrop(self, window):
