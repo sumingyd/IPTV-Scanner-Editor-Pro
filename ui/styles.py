@@ -56,6 +56,8 @@ class AppStyles:
     _spinup_cache = {}
     _spindown_cache = {}
     _icon_cache = {}
+    _sort_up_cache = {}
+    _sort_down_cache = {}
 
     # 固定颜色常量（不随主题变化）
     COLOR_WHITE          = '#ffffff'
@@ -140,6 +142,26 @@ class AppStyles:
             f'</svg>'
         )
         return cls._get_svg_image(cls._arrow_cache, f'arrow_down_{color.lstrip("#")}', svg)
+
+    @classmethod
+    def _get_sort_up_image(cls, color: str) -> str:
+        color = color_to_hex(color)
+        svg = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="8" viewBox="0 0 10 8">'
+            f'<path d="M5 0 L10 8 L0 8 Z" fill="{color}"/>'
+            f'</svg>'
+        )
+        return cls._get_svg_image(cls._sort_up_cache, f'sort_up_{color.lstrip("#")}', svg)
+
+    @classmethod
+    def _get_sort_down_image(cls, color: str) -> str:
+        color = color_to_hex(color)
+        svg = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="8" viewBox="0 0 10 8">'
+            f'<path d="M0 0 L10 0 L5 8 Z" fill="{color}"/>'
+            f'</svg>'
+        )
+        return cls._get_svg_image(cls._sort_down_cache, f'sort_down_{color.lstrip("#")}', svg)
 
     @classmethod
     def _get_check_image(cls, color: str) -> str:
@@ -1756,6 +1778,19 @@ class AppStyles:
                 font-weight: 600;
                 font-size: 12px;
                 font-family: {ff};
+            }}
+            QHeaderView::section:hover {{
+                background-color: {colors['table_hover']};
+            }}
+            QHeaderView::up-arrow {{
+                image: url({AppStyles._get_sort_up_image(colors['window_text'])});
+                width: 10px;
+                height: 8px;
+            }}
+            QHeaderView::down-arrow {{
+                image: url({AppStyles._get_sort_down_image(colors['window_text'])});
+                width: 10px;
+                height: 8px;
             }}
             QHeaderView::section:last {{
                 border-right: none;
