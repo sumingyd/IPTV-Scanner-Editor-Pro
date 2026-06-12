@@ -271,11 +271,11 @@ class UIController:
     @staticmethod
     def format_bitrate(bps: float) -> str:
         if bps >= 1000000:
-            return f"{bps/1000000:.1f}MB/s"
+            return f"{bps/1000000:.1f}Mbps"
         elif bps >= 1000:
-            return f"{bps/1000:.1f}KB/s"
+            return f"{bps/1000:.0f}Kbps"
         else:
-            return f"{bps:.0f}B/s"
+            return f"{bps:.0f}bps"
 
     @staticmethod
     def shorten_codec_name(codec_name: str) -> str:
@@ -686,12 +686,7 @@ class UIController:
                     self.window.buffer_info.setText("...")
                     self.window.buffer_info.show()
                 else:
-                    cache_dur = buffer_state.get('cache_duration', 0)
-                    if cache_dur > 0:
-                        self.window.buffer_info.setText(f"{cache_dur:.0f}s")
-                        self.window.buffer_info.show()
-                    else:
-                        self.window.buffer_info.hide()
+                    self.window.buffer_info.hide()
                 self._update_cache_bar(buffer_state)
             else:
                 self._clear_cache_bar()
