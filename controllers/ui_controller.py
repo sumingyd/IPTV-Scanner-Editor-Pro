@@ -206,7 +206,7 @@ class UIController:
             br_line.append(f'{tr("osd_video_br", "Video")}: {self.format_bitrate(v_br)}')
         cache_speed = info.get('cache_speed', 0) or 0
         if cache_speed > 0:
-            br_line.append(f'{tr("osd_cache", "Cache")}: {self.format_bitrate(cache_speed)}')
+            br_line.append(f'{tr("osd_cache", "Cache")}: {self.format_bytes_per_second(cache_speed)}')
         buffer_state = info.get('buffer_state', '') or ''
         if buffer_state:
             br_line.append(f'{tr("osd_buffer", "Buffer")}: {buffer_state}')
@@ -276,6 +276,15 @@ class UIController:
             return f"{bps/1000:.0f}Kbps"
         else:
             return f"{bps:.0f}bps"
+
+    @staticmethod
+    def format_bytes_per_second(bps: float) -> str:
+        if bps >= 1000000:
+            return f"{bps*8/1000000:.1f}Mbps"
+        elif bps >= 1000:
+            return f"{bps*8/1000:.0f}Kbps"
+        else:
+            return f"{bps*8:.0f}bps"
 
     @staticmethod
     def shorten_codec_name(codec_name: str) -> str:
@@ -381,7 +390,7 @@ class UIController:
             network_parts.append("{}: {}".format(tr('bitrate_label', 'Bitrate') or 'Bitrate', self.format_bitrate(total_br_net)))
         cache_speed = info.get('cache_speed', 0) or 0
         if cache_speed > 0:
-            network_parts.append("{}: {}".format(tr('cache_speed_label', 'Cache') or 'Cache', self.format_bitrate(cache_speed)))
+            network_parts.append("{}: {}".format(tr('cache_speed_label', 'Cache') or 'Cache', self.format_bytes_per_second(cache_speed)))
 
         network_text = ' | '.join(network_parts) if network_parts else tr('no_network_info', 'No network info available')
 
