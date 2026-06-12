@@ -3358,13 +3358,15 @@ class AppStyles:
     @staticmethod
     def scroll_area_style() -> str:
         colors = AppStyles._get_colors()
+        style = AppStyles._visual_style
+        sa_bg = 'rgba(0,0,0,0)' if style == 'frosted' else colors['player_panel']
         return f"""
             QScrollArea {{
-                background-color: {colors['player_panel']};
+                background-color: {sa_bg};
                 border: none;
             }}
             QScrollArea > QWidget > QWidget {{
-                background-color: {colors['player_panel']};
+                background-color: {sa_bg};
             }}
         """
 
