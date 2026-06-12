@@ -837,6 +837,31 @@ class UIController:
                     icon_path = AppStyles.get_icon(icon_name, btn_color, 14)
                     if icon_path:
                         tab.setTabIcon(i, QIcon(icon_path))
+            playlist_tab_btns = getattr(self.window, '_playlist_tab_btns', None)
+            if playlist_tab_btns:
+                tab_icon_names = ['signal', 'folder', 'favorite', 'history']
+                accent = AppStyles._get_colors().get('accent', AppStyles._safe_fallback('accent'))
+                for i, btn in enumerate(playlist_tab_btns):
+                    icon_name = tab_icon_names[i] if i < len(tab_icon_names) else 'signal'
+                    icon_path = AppStyles.get_icon(icon_name, btn_color, 14)
+                    if icon_path:
+                        btn.setIcon(QIcon(icon_path))
+                    btn.setStyleSheet(f"""
+                        QToolButton {{
+                            color: {btn_color};
+                            background: transparent;
+                            border: none;
+                            padding: 1px 3px;
+                            font-size: 11px;
+                        }}
+                        QToolButton:checked {{
+                            color: {accent};
+                            font-weight: bold;
+                        }}
+                        QToolButton:hover {{
+                            color: {accent};
+                        }}
+                    """)
         except Exception as e:
             logger.error(f"重新应用侧边栏样式失败: {e}")
 
