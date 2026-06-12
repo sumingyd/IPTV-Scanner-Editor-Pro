@@ -3000,6 +3000,10 @@ class ScanChannelDialog(FloatingDialog):
                 )
             if hasattr(self, 'scan_scroll'):
                 self.scan_scroll.setStyleSheet(AppStyles.scroll_area_style() if hasattr(AppStyles, 'scroll_area_style') else '')
+            for chk in [getattr(self, 'enable_retry_checkbox', None),
+                        getattr(self, 'enable_mapping_checkbox', None)]:
+                if chk and hasattr(chk, 'setStyleSheet'):
+                    chk.setStyleSheet(AppStyles.common_check_box_style())
         except Exception as e:
             if hasattr(self, 'logger'):
                 self.logger.error(f"重新应用扫描窗口样式失败: {e}")
