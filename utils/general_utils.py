@@ -162,8 +162,11 @@ def safe_connect(signal, slot):
     Returns:
         bool: 连接是否成功
     """
+    import warnings
     try:
-        signal.disconnect(slot)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            signal.disconnect(slot)
     except (TypeError, RuntimeError):
         pass
     except Exception:
