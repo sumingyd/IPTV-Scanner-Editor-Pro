@@ -2931,7 +2931,7 @@ class ScanChannelDialog(FloatingDialog):
 
     def reapply_styles(self):
         try:
-            self.setStyleSheet(AppStyles.popup_dialog_style())
+
             if hasattr(self, 'stats_label'):
                 self.stats_label.setStyleSheet(AppStyles.common_label_style())
             if hasattr(self, 'left_panel'):
