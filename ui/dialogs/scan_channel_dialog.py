@@ -824,10 +824,9 @@ class ScanChannelDialog(FloatingDialog):
 
         # 空状态提示标签（使用QStackedWidget切换列表/提示）
         tr_local = self.language_manager.tr
-        _hint_colors = AppStyles._get_colors()
         self._empty_hint = QtWidgets.QLabel(tr_local("empty_list_hint", "输入地址后点击扫描，或打开已有列表"))
         self._empty_hint.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self._empty_hint.setStyleSheet(f"color: {_hint_colors['player_panel_hint']}; font-size: 14px; padding: 40px;")
+        self._empty_hint.setStyleSheet(AppStyles.hint_label_style() + "font-size: 14px; padding: 40px;")
         self._empty_hint.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self._empty_stack = QtWidgets.QStackedWidget()
         self._empty_stack.addWidget(self.channel_list)
@@ -2994,10 +2993,7 @@ class ScanChannelDialog(FloatingDialog):
             if hasattr(self, 'progress_indicator'):
                 self.progress_indicator.setStyleSheet(AppStyles.progress_style())
             if hasattr(self, '_empty_hint') and self._empty_hint:
-                hint_colors = AppStyles._get_colors()
-                self._empty_hint.setStyleSheet(
-                    f"color: {hint_colors['player_panel_hint']}; font-size: 14px; padding: 40px;"
-                )
+                self._empty_hint.setStyleSheet(AppStyles.hint_label_style() + "font-size: 14px; padding: 40px;")
             if hasattr(self, 'scan_scroll'):
                 self.scan_scroll.setStyleSheet(AppStyles.scroll_area_style() if hasattr(AppStyles, 'scroll_area_style') else '')
             for chk in [getattr(self, 'enable_retry_checkbox', None),
