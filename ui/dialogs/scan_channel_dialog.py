@@ -1542,6 +1542,10 @@ class ScanChannelDialog(FloatingDialog):
             self.edit_url.setReadOnly(True)
             self.edit_tvg_id.setReadOnly(True)
             self.edit_logo.setReadOnly(True)
+            self.edit_group.clear()
+            self.edit_url.clear()
+            self.edit_tvg_id.clear()
+            self.edit_logo.clear()
             return
 
         self.edit_name.setReadOnly(False)
