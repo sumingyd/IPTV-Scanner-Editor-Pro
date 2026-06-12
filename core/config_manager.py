@@ -776,6 +776,29 @@ class ConfigManager(Singleton):
             'prefer_source': self.get_value('ChannelMerge', 'prefer_source', 'file'),
         }
 
+    def save_node_config(self, node_path: str = 'huanghe.exe', port: int = 2699, auto_start: bool = True, service_url: str = 'http://127.0.0.1:2699'):
+        self.set_value('Node', 'node_path', node_path)
+        self.set_value('Node', 'port', str(port))
+        self.set_value('Node', 'auto_start', str(auto_start))
+        self.set_value('Node', 'service_url', service_url)
+        return self.save_config()
+
+    def load_node_config(self) -> dict:
+        return {
+            'node_path': self.get_value('Node', 'node_path', 'huanghe.exe') or 'huanghe.exe',
+            'port': self._parse_int(self.get_value('Node', 'port', '2699'), 2699),
+            'auto_start': self._parse_bool(self.get_value('Node', 'auto_start', 'True'), True),
+            'service_url': self.get_value('Node', 'service_url', 'http://127.0.0.1:2699') or 'http://127.0.0.1:2699',
+        }
+
+    def get_node_config(self) -> dict:
+        return self.load_node_config()
+
+    def is_node_available(self) -> bool:
+        import shutil
+        node_path = self.get_value('Node', 'node_path', 'huanghe.exe')
+        return shutil.which(node_path) is not None or os.path.exists(node_path)
+
     def load_all_settings(self) -> dict:
         """加载所有设置"""
         all_settings = {}

@@ -170,6 +170,8 @@ class IPTVPlayer(QMainWindow):
     channels = None
     current_channel: Optional[Dict[str, Any]] = None
     epg_parser = None
+    node_service = None
+    node_ready = False
 
     @property
     def epg_visible(self):
@@ -640,6 +642,7 @@ class IPTVPlayer(QMainWindow):
             self._populate_epg_list()
             self._check_for_updates_async()
             self._auto_start_server()
+            self._auto_start_node_service()
 
         adaptive_delay = calculate_adaptive_delay(300, 150, 600)
         logger.debug(f"使用自适应延迟: {adaptive_delay}ms")
@@ -1766,6 +1769,8 @@ class IPTVPlayer(QMainWindow):
             self._update_groups_for('local')
             self._populate_channel_list_for(self.local_channel_list, self._local_channels,
                                             self.local_group_combo.currentText())
+
+        QTimer.singleShot(500, self._sync_channels_to_node)
 
         pending = getattr(self, '_pending_last_channel', None)
         if pending:
@@ -3366,6 +3371,7 @@ class IPTVPlayer(QMainWindow):
                 stop_server()
             except Exception:
                 pass
+            self._stop_node_service()
             if hasattr(self, 'event_handler') and self.event_handler:
                 self.event_handler.closeEvent(event)
             else:
@@ -3385,6 +3391,7 @@ class IPTVPlayer(QMainWindow):
                     stop_server()
                 except Exception:
                     pass
+                self._stop_node_service()
                 if hasattr(self, 'event_handler') and self.event_handler:
                     self.event_handler.closeEvent(event)
                 else:
@@ -3428,92 +3435,176 @@ class IPTVPlayer(QMainWindow):
             super().closeEvent(event)
 
     def _auto_start_server(self):
-        """自动启动Server后端"""
+        """自动启动Server后端（已合并到 Node 容器，此处仅兼容旧配置）"""
         try:
+            settings = self.config.load_server_settings()
+            if not settings.get('auto_start', True):
+                return
+            node_config = self.config.get_node_config()
+            if node_config.get('auto_start', True):
+                logger.info("Server 功能已合并到 Node.js 容器，跳过 Python server 启动")
+                return
             from server.app import set_main_window, start_server, get_server
             set_main_window(self)
-            settings = self.config.load_server_settings()
-            if settings.get('auto_start', True):
-                port = settings.get('port', 8080)
-                host = settings.get('host', '0.0.0.0')
-                start_server(host=host, port=port)
-                server = get_server()
-                if server.is_running():
-                    tr = self.language_manager.tr
-                    self.status_bar_show_message(
-                        tr('server_started', 'Server已启动') + f' http://localhost:{port}'
-                    )
-                    logger.info(f"Server后端自动启动: http://{host}:{port}")
-        except Exception as e:
-            logger.error(f"自动启动Server失败: {e}")
-
-    def _toggle_server(self):
-        """切换Server启停"""
-        try:
-            from server.app import get_server, start_server, stop_server, set_main_window
-            set_main_window(self)
+            port = settings.get('port', 8080)
+            host = settings.get('host', '0.0.0.0')
+            start_server(host=host, port=port)
             server = get_server()
-            tr = self.language_manager.tr
             if server.is_running():
-                stop_server()
-                self.status_bar_show_message(tr('server_stopped', 'Server已停止'))
-                self._server_action.setText(tr('server_start', '启动Server'))
-            else:
-                settings = self.config.load_server_settings()
-                port = settings.get('port', 8080)
-                host = settings.get('host', '0.0.0.0')
-                start_server(host=host, port=port)
+                tr = self.language_manager.tr
                 self.status_bar_show_message(
                     tr('server_started', 'Server已启动') + f' http://localhost:{port}'
                 )
-                self._server_action.setText(tr('server_stop', '停止Server'))
+                logger.info(f"Server后端自动启动(兼容模式): http://{host}:{port}")
         except Exception as e:
-            logger.error(f"切换Server失败: {e}")
+            logger.error(f"自动启动Server失败: {e}")
+
+    def _auto_start_node_service(self):
+        """自动启动 Node.js 服务容器"""
+        try:
+            from services.node_service import NodeService
+            if not hasattr(self, 'node_service') or self.node_service is None:
+                self.node_service = NodeService(self)
+                self.node_service.set_main_window(self)
+                self.node_service.service_ready.connect(self._on_node_service_ready)
+                self.node_service.service_error.connect(self._on_node_service_error)
+                self.node_service.playlist_loaded.connect(self._on_node_playlist_loaded)
+            node_config = self.config.get_node_config()
+            if node_config.get('auto_start', True):
+                QTimer.singleShot(200, lambda: self.node_service.start(silent=True))
+        except Exception as e:
+            logger.error(f"自动启动 Node.js 服务失败: {e}")
+
+    def _on_node_service_ready(self, base_url):
+        """Node.js 服务就绪"""
+        self.node_ready = True
+        tr = self.language_manager.tr
+        self.status_bar_show_message(tr('node_started', '直播服务已启动') + f' {base_url}')
+        logger.info(f"Node.js 服务就绪: {base_url}")
+        QTimer.singleShot(3000, self._sync_channels_to_node)
+
+    def _on_node_service_error(self, error_msg):
+        """Node.js 服务错误"""
+        self.node_ready = False
+        logger.warning(f"Node.js 服务未就绪: {error_msg}")
+
+    def _on_node_playlist_loaded(self, success):
+        """Node.js 播放列表加载完成"""
+        if success:
+            logger.info("Node.js 默认播放列表加载成功")
+        else:
+            logger.warning("Node.js 默认播放列表加载失败")
+
+    def _stop_node_service(self):
+        """停止 Node.js 服务"""
+        if hasattr(self, 'node_service') and self.node_service:
+            self.node_service.stop()
+
+    def _sync_channels_to_node(self):
+        """将 Python 端频道数据同步到 Node 容器"""
+        if not self.node_ready or not hasattr(self, 'node_service') or not self.node_service:
+            return
+        try:
+            import requests
+            base_url = self.node_service.get_base_url()
+            if not base_url:
+                return
+            channels = []
+            if hasattr(self, 'channel_model') and self.channel_model:
+                for i in range(self.channel_model.rowCount()):
+                    ch = self.channel_model.get_channel(i)
+                    if ch:
+                        channels.append(ch)
+            if not channels:
+                sub = getattr(self, '_sub_channels', [])
+                local = getattr(self, '_local_channels', [])
+                seen = set()
+                for ch in sub + local:
+                    url = ch.get('url', '') if isinstance(ch, dict) else getattr(ch, 'url', '')
+                    if url and url not in seen:
+                        channels.append(ch if isinstance(ch, dict) else vars(ch) if hasattr(ch, '__dict__') else {})
+                        seen.add(url)
+            sources = self.config.load_playlist_sources() if self.config else []
+            resp = requests.post(
+                f"{base_url}/api/channels/sync",
+                json={'channels': channels, 'sources': sources},
+                timeout=5,
+                headers={'Content-Type': 'application/json'}
+            )
+            if resp.status_code == 200:
+                logger.info(f"已同步 {len(channels)} 个频道到 Node 容器")
+            else:
+                logger.warning(f"同步频道到 Node 容器失败: HTTP {resp.status_code}")
+        except Exception as e:
+            logger.warning(f"同步频道到 Node 容器失败: {e}")
+
+    def _toggle_server(self):
+        """切换 Node.js 服务容器启停"""
+        tr = self.language_manager.tr
+        if not hasattr(self, 'node_service') or not self.node_service:
+            self.status_bar_show_message(tr('server_not_available', '服务不可用'))
+            return
+        if self.node_service.is_running():
+            self.node_service.stop()
+            self.node_ready = False
+            self.status_bar_show_message(tr('server_stopped', '服务已停止'))
+            self._server_action.setText(tr('server_start', '启动服务'))
+        else:
+            ok = self.node_service.start(silent=False)
+            if ok:
+                self.status_bar_show_message(tr('server_started', '服务已启动'))
+                self._server_action.setText(tr('server_stop', '停止服务'))
 
     def _open_server_api(self):
-        """在浏览器中打开Server API"""
+        """在浏览器中打开服务 API"""
         try:
-            from server.app import get_server
-            server = get_server()
-            port = server.port if server and server.is_running() else 8080
+            node_config = self.config.get_node_config()
+            port = node_config.get('port', 2699)
             import webbrowser
             webbrowser.open(f'http://localhost:{port}/')
         except Exception as e:
-            logger.error(f"打开Server API失败: {e}")
+            logger.error(f"打开服务API失败: {e}")
+
+    def _open_server_player(self):
+        """在浏览器中打开 Web 播放器"""
+        try:
+            node_config = self.config.get_node_config()
+            port = node_config.get('port', 2699)
+            import webbrowser
+            webbrowser.open(f'http://localhost:{port}/player.html')
+        except Exception as e:
+            logger.error(f"打开播放器失败: {e}")
 
     def _show_server_settings(self):
-        """显示Server设置对话框"""
+        """显示服务设置对话框（Node 容器）"""
         from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-                                        QSpinBox, QCheckBox, QPushButton, QComboBox)
+                                        QSpinBox, QCheckBox, QPushButton, QLineEdit)
         from ui.styles import AppStyles
         tr = self.language_manager.tr
         dialog = QDialog(self)
-        dialog.setWindowTitle(tr('server_settings', 'Server设置'))
+        dialog.setWindowTitle(tr('server_settings', '服务设置'))
         dialog.setMinimumWidth(400)
         layout = QVBoxLayout(dialog)
         layout.setSpacing(16)
         layout.setContentsMargins(24, 20, 24, 20)
 
-        settings = self.config.load_server_settings()
-
-        from server.app import get_server
-        server = get_server()
-        is_running = server.is_running()
-        port = server.port if is_running else settings.get('port', 8080)
+        node_config = self.config.get_node_config()
+        is_running = hasattr(self, 'node_service') and self.node_service and self.node_service.is_running()
+        port = node_config.get('port', 2699)
 
         status_label = QLabel()
         if is_running:
-            status_label.setText(f"● {tr('server_running', 'Server运行中')}  http://localhost:{port}")
+            status_label.setText(f"● {tr('server_running', '服务运行中')}  http://localhost:{port}")
             status_label.setStyleSheet("color: #4CAF50; font-weight: bold; font-size: 13px;")
         else:
-            status_label.setText(f"○ {tr('server_not_running', 'Server未运行')}")
+            status_label.setText(f"○ {tr('server_not_running', '服务未运行')}")
             status_label.setStyleSheet("color: #FF9800; font-weight: bold; font-size: 13px;")
         layout.addWidget(status_label)
 
         layout.addSpacing(4)
 
-        auto_start_cb = QCheckBox(tr('server_auto_start', '启动时自动运行Server'))
-        auto_start_cb.setChecked(settings.get('auto_start', True))
+        auto_start_cb = QCheckBox(tr('server_auto_start', '启动时自动运行服务'))
+        auto_start_cb.setChecked(node_config.get('auto_start', True))
         layout.addWidget(auto_start_cb)
 
         port_layout = QHBoxLayout()
@@ -3526,18 +3617,15 @@ class IPTVPlayer(QMainWindow):
         port_layout.addWidget(port_spin, 1)
         layout.addLayout(port_layout)
 
-        host_layout = QHBoxLayout()
-        host_label = QLabel(tr('server_host', '监听地址:'))
-        host_label.setFixedWidth(70)
-        host_layout.addWidget(host_label)
-        host_combo = QComboBox()
-        host_combo.addItem('0.0.0.0 (所有接口)', '0.0.0.0')
-        host_combo.addItem('127.0.0.1 (仅本机)', '127.0.0.1')
-        host_idx = host_combo.findData(settings.get('host', '0.0.0.0'))
-        if host_idx >= 0:
-            host_combo.setCurrentIndex(host_idx)
-        host_layout.addWidget(host_combo, 1)
-        layout.addLayout(host_layout)
+        node_path_layout = QHBoxLayout()
+        node_path_label = QLabel(tr('node_path', 'Node路径:'))
+        node_path_label.setFixedWidth(70)
+        node_path_layout.addWidget(node_path_label)
+        node_path_edit = QLineEdit()
+        node_path_edit.setText(node_config.get('node_path', 'huanghe.exe'))
+        node_path_edit.setPlaceholderText('huanghe.exe 或 node')
+        node_path_layout.addWidget(node_path_edit, 1)
+        layout.addLayout(node_path_layout)
 
         layout.addSpacing(8)
 
@@ -3550,11 +3638,11 @@ class IPTVPlayer(QMainWindow):
         layout.addLayout(btn_layout)
 
         def on_save():
-            self.config.save_server_settings(
-                enabled=True,
+            self.config.save_node_config(
+                node_path=node_path_edit.text().strip() or 'huanghe.exe',
                 port=port_spin.value(),
-                host=host_combo.currentData(),
-                auto_start=auto_start_cb.isChecked()
+                auto_start=auto_start_cb.isChecked(),
+                service_url=f"http://127.0.0.1:{port_spin.value()}"
             )
             dialog.accept()
 

@@ -1,0 +1,14 @@
+[
+  {
+    "url": "https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/refs/heads/main/Telecom-Shandong-Multicast.m3u",
+    "name": "电信组播",
+    "enabled": true,
+    "last_update": "2026-06-12T03:43:00.584958"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/sumingyd/Telecom-Shandong-IPTV-List/refs/heads/main/Telecom-Shandong.m3u",
+    "name": "电信单播",
+    "enabled": false,
+    "last_update": "2026-05-19T21:38:11.394731"
+  }
+]
