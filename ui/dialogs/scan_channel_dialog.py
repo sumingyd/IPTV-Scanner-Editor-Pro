@@ -1285,17 +1285,50 @@ class ScanChannelDialog(FloatingDialog):
         if not channels:
             return
 
-        reply = QtWidgets.QMessageBox.question(
-            self,
-            tr("match_logo", "Match Logo"),
-            tr("overwrite_logo_confirm", "Overwrite existing logos?"),
-            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No | QtWidgets.QMessageBox.StandardButton.Cancel,
-        )
+        dialog = FloatingDialog(self, stay_on_top=True)
+        dialog.setWindowTitle(tr("match_logo", "Match Logo"))
+        dialog.setMinimumSize(320, 160)
+        dialog.setStyleSheet(AppStyles.dialog_style())
 
-        if reply == QtWidgets.QMessageBox.StandardButton.Cancel:
+        layout = QtWidgets.QVBoxLayout(dialog)
+        msg_label = QtWidgets.QLabel(tr("overwrite_logo_confirm", "Overwrite existing logos?"))
+        msg_label.setWordWrap(True)
+        layout.addWidget(msg_label)
+
+        btn_layout = QtWidgets.QHBoxLayout()
+        yes_btn = QtWidgets.QPushButton(tr("yes", "Yes"))
+        no_btn = QtWidgets.QPushButton(tr("no", "No"))
+        cancel_btn = QtWidgets.QPushButton(tr("cancel", "Cancel"))
+        btn_layout.addStretch()
+        btn_layout.addWidget(yes_btn)
+        btn_layout.addWidget(no_btn)
+        btn_layout.addWidget(cancel_btn)
+        layout.addLayout(btn_layout)
+
+        result = [None]
+
+        def on_yes():
+            result[0] = 'yes'
+            dialog.accept()
+
+        def on_no():
+            result[0] = 'no'
+            dialog.accept()
+
+        def on_cancel():
+            result[0] = 'cancel'
+            dialog.reject()
+
+        yes_btn.clicked.connect(on_yes)
+        no_btn.clicked.connect(on_no)
+        cancel_btn.clicked.connect(on_cancel)
+
+        self._exec_themed_dialog(dialog)
+
+        if result[0] == 'cancel' or result[0] is None:
             return
 
-        overwrite = (reply == QtWidgets.QMessageBox.StandardButton.Yes)
+        overwrite = (result[0] == 'yes')
 
         try:
             from services.logo_matcher import LogoMatcher
@@ -1315,13 +1348,30 @@ class ScanChannelDialog(FloatingDialog):
             self.model.layoutChanged.emit()
             self._invalidate_channels_cache()
 
-            QtWidgets.QMessageBox.information(
-                self, tr("match_logo", "Match Logo"),
-                f"{len(updates)} channels matched"
-            )
+            result_dialog = FloatingDialog(self, stay_on_top=True)
+            result_dialog.setWindowTitle(tr("match_logo", "Match Logo"))
+            result_dialog.setMinimumSize(280, 120)
+            result_dialog.setStyleSheet(AppStyles.dialog_style())
+            r_layout = QtWidgets.QVBoxLayout(result_dialog)
+            r_label = QtWidgets.QLabel(f"{len(updates)} channels matched")
+            r_layout.addWidget(r_label)
+            ok_btn = QtWidgets.QPushButton(tr("ok", "OK"))
+            ok_btn.clicked.connect(result_dialog.accept)
+            r_layout.addWidget(ok_btn)
+            self._exec_themed_dialog(result_dialog)
         except ImportError:
             self.logger.warning("Logo匹配模块不可用")
-            QtWidgets.QMessageBox.warning(self, tr("match_logo", "Match Logo"), tr("logo_matcher_unavailable", "Logo匹配模块不可用"))
+            err_dialog = FloatingDialog(self, stay_on_top=True)
+            err_dialog.setWindowTitle(tr("match_logo", "Match Logo"))
+            err_dialog.setMinimumSize(280, 120)
+            err_dialog.setStyleSheet(AppStyles.dialog_style())
+            e_layout = QtWidgets.QVBoxLayout(err_dialog)
+            e_label = QtWidgets.QLabel(tr("logo_matcher_unavailable", "Logo匹配模块不可用"))
+            e_layout.addWidget(e_label)
+            ok_btn2 = QtWidgets.QPushButton(tr("ok", "OK"))
+            ok_btn2.clicked.connect(err_dialog.accept)
+            e_layout.addWidget(ok_btn2)
+            self._exec_themed_dialog(err_dialog)
 
     def _show_clear_params_dialog(self):
         tr = self.language_manager.tr
