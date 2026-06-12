@@ -2083,6 +2083,7 @@ class AppStyles:
             QLabel {{
                 color: {colors['player_panel_text']};
                 font-size: 12px;
+                background-color: transparent;
             }}
         """
 
