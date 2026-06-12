@@ -138,28 +138,6 @@ class ScanChannelDialog(FloatingDialog):
                     self.channel_list.clearSelection()
         super().mousePressEvent(event)
 
-    def reapply_styles(self):
-        colors = AppStyles._get_colors()
-        for child in self.findChildren(QtWidgets.QPushButton):
-            child.setStyleSheet(AppStyles.common_button_style())
-        for child in self.findChildren(QtWidgets.QLineEdit):
-            child.setStyleSheet(AppStyles.common_line_edit_style())
-        for child in self.findChildren(QtWidgets.QComboBox):
-            child.setStyleSheet(AppStyles.common_combo_box_style())
-        for child in self.findChildren(QtWidgets.QCheckBox):
-            child.setStyleSheet(AppStyles.common_check_box_style())
-        for child in self.findChildren(QtWidgets.QGroupBox):
-            child.setStyleSheet(AppStyles.common_group_box_style())
-        for child in self.findChildren(QtWidgets.QTableView):
-            child.setStyleSheet(AppStyles.list_style())
-        for child in self.findChildren(QtWidgets.QTabWidget):
-            child.setStyleSheet(AppStyles.tab_widget_style())
-        if hasattr(self, 'channel_list'):
-            self.channel_list.setStyleSheet(AppStyles.list_style())
-        if hasattr(self, '_empty_hint') and self._empty_hint:
-            self._empty_hint.setStyleSheet(
-                f"color: {colors['player_panel_hint']}; font-size: 14px; padding: 40px;"
-            )
 
     def _stop_all_timers(self):
         """安全停止所有定时器"""
@@ -237,11 +215,11 @@ class ScanChannelDialog(FloatingDialog):
         main_layout.setSpacing(0)
 
         # ========== 左侧边栏：扫描设置 (弹性宽度 240~320px) ==========
-        left_panel = QtWidgets.QWidget()
-        left_panel.setMinimumWidth(240)
-        left_panel.setMaximumWidth(320)
-        left_panel.setStyleSheet(AppStyles.side_panel_style())
-        left_layout = QtWidgets.QVBoxLayout(left_panel)
+        self.left_panel = QtWidgets.QWidget()
+        self.left_panel.setMinimumWidth(240)
+        self.left_panel.setMaximumWidth(320)
+        self.left_panel.setStyleSheet(AppStyles.side_panel_style())
+        left_layout = QtWidgets.QVBoxLayout(self.left_panel)
         left_layout.setContentsMargins(12, 12, 12, 12)
         left_layout.setSpacing(8)
 
@@ -251,10 +229,10 @@ class ScanChannelDialog(FloatingDialog):
         left_layout.addWidget(self.left_title)
 
         # 扫描设置内容
-        scan_scroll = QtWidgets.QScrollArea()
-        scan_scroll.setWidgetResizable(True)
-        scan_scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
-        scan_scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scan_scroll = QtWidgets.QScrollArea()
+        self.scan_scroll.setWidgetResizable(True)
+        self.scan_scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        self.scan_scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         scan_widget = QtWidgets.QWidget()
         scan_layout = QtWidgets.QVBoxLayout(scan_widget)
@@ -262,8 +240,8 @@ class ScanChannelDialog(FloatingDialog):
         scan_layout.setSpacing(8)
         self._setup_scan_panel(scan_layout)
 
-        scan_scroll.setWidget(scan_widget)
-        left_layout.addWidget(scan_scroll, 1)
+        self.scan_scroll.setWidget(scan_widget)
+        left_layout.addWidget(self.scan_scroll, 1)
 
         # 关闭按钮放在左下角
         self.close_btn = QtWidgets.QPushButton(tr('close_button', 'Close'))
@@ -272,15 +250,15 @@ class ScanChannelDialog(FloatingDialog):
         self.close_btn.clicked.connect(self.close)
         left_layout.addWidget(self.close_btn)
 
-        main_layout.addWidget(left_panel)
+        main_layout.addWidget(self.left_panel)
 
         # 中间间隔
         main_layout.addSpacing(12)
 
         # ========== 中间区域：频道列表 (自适应宽度) ==========
-        center_panel = QtWidgets.QWidget()
-        center_panel.setStyleSheet(AppStyles.side_panel_style())
-        center_layout = QtWidgets.QVBoxLayout(center_panel)
+        self.center_panel = QtWidgets.QWidget()
+        self.center_panel.setStyleSheet(AppStyles.side_panel_style())
+        center_layout = QtWidgets.QVBoxLayout(self.center_panel)
         center_layout.setContentsMargins(12, 12, 12, 12)
         center_layout.setSpacing(10)
 
@@ -316,17 +294,17 @@ class ScanChannelDialog(FloatingDialog):
         status_layout.addStretch()
         center_layout.addLayout(status_layout)
 
-        main_layout.addWidget(center_panel, 1)
+        main_layout.addWidget(self.center_panel, 1)
 
         # 中间间隔
         main_layout.addSpacing(12)
 
         # ========== 右侧边栏：频道编辑 (弹性宽度 200~280px) ==========
-        right_panel = QtWidgets.QWidget()
-        right_panel.setMinimumWidth(200)
-        right_panel.setMaximumWidth(280)
-        right_panel.setStyleSheet(AppStyles.side_panel_style())
-        right_layout = QtWidgets.QVBoxLayout(right_panel)
+        self.right_panel = QtWidgets.QWidget()
+        self.right_panel.setMinimumWidth(200)
+        self.right_panel.setMaximumWidth(280)
+        self.right_panel.setStyleSheet(AppStyles.side_panel_style())
+        right_layout = QtWidgets.QVBoxLayout(self.right_panel)
         right_layout.setContentsMargins(12, 12, 12, 12)
         right_layout.setSpacing(8)
 
@@ -338,7 +316,7 @@ class ScanChannelDialog(FloatingDialog):
         # 频道编辑内容
         self._setup_channel_edit(right_layout)
 
-        main_layout.addWidget(right_panel)
+        main_layout.addWidget(self.right_panel)
 
         # QDialog使用setLayout直接设置布局
         self.setLayout(main_layout)
