@@ -37,11 +37,11 @@ class EPGItemDelegate(QStyledItemDelegate):
         if data.get('is_live'):
             left_badges.append(('LIVE', 'live'))
         elif data.get('is_past'):
-            left_badges.append(('✓', 'past'))
+            left_badges.append(('REPLAY', 'past'))
 
         right_badge = None
         if data.get('is_catchup'):
-            right_badge = (data.get('catchup_label', '↩'), 'catchup')
+            right_badge = (data.get('catchup_label', 'CATCHUP'), 'catchup')
 
         if not left_badges and not right_badge:
             super().paint(painter, option, index)
