@@ -1013,6 +1013,11 @@ class IPTVPlayer(QMainWindow):
         self.sub_view_grid_btn.clicked.connect(lambda: self._set_channel_view_mode('grid', 'sub'))
         sub_search_row.addWidget(self.sub_view_grid_btn)
 
+        self._sub_view_group = QButtonGroup(self)
+        self._sub_view_group.setExclusive(True)
+        self._sub_view_group.addButton(self.sub_view_list_btn, 0)
+        self._sub_view_group.addButton(self.sub_view_grid_btn, 1)
+
         sub_layout.addLayout(sub_search_row)
 
         from ui.multi_screen_widget import DraggableChannelListWidget
@@ -1076,6 +1081,11 @@ class IPTVPlayer(QMainWindow):
         self.local_view_grid_btn.setToolTip(tr("grid_view", "网格视图"))
         self.local_view_grid_btn.clicked.connect(lambda: self._set_channel_view_mode('grid', 'local'))
         local_search_row.addWidget(self.local_view_grid_btn)
+
+        self._local_view_group = QButtonGroup(self)
+        self._local_view_group.setExclusive(True)
+        self._local_view_group.addButton(self.local_view_list_btn, 0)
+        self._local_view_group.addButton(self.local_view_grid_btn, 1)
 
         local_layout.addLayout(local_search_row)
 
