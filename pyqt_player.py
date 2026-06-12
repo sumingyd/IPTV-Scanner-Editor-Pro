@@ -1425,16 +1425,15 @@ class IPTVPlayer(QMainWindow):
         self.program_desc.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.program_desc.setWordWrap(True)
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self.program_desc.setFixedHeight(48)
+        self.program_desc.setFixedHeight(54)
         self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         text_layout.addWidget(self.program_desc, 0, Qt.AlignmentFlag.AlignTop)
 
         info_layout.addLayout(text_layout)
 
-        # 用一个容器widget包装info_layout，Fixed策略防止被拉伸
         info_widget = QWidget()
         info_widget.setLayout(info_layout)
-        info_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        info_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.floating_layout.addWidget(info_widget)
         
         # 分隔线
