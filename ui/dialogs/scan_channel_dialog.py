@@ -674,16 +674,6 @@ class ScanChannelDialog(FloatingDialog):
         self.btn_generate.setMinimumHeight(32)
         self.btn_generate.setToolTip(tr("generate_list_tooltip", "仅生成URL列表不验证"))
 
-        # 使用水平布局让按钮并排显示，自适应宽度
-        button_layout = QtWidgets.QHBoxLayout()
-        button_layout.addWidget(self.btn_scan, 1)
-        button_layout.addSpacing(4)
-        button_layout.addWidget(self.btn_append_scan, 1)
-        button_layout.addSpacing(4)
-        button_layout.addWidget(self.btn_generate, 1)
-        button_layout.addStretch()
-
-        self.scan_button_layout = button_layout
 
     def _add_scan_controls_to_layout(self, scan_layout):
         """添加扫描控件到布局（优化版，适合窄边栏）"""
