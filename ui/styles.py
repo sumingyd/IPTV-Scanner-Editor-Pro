@@ -365,6 +365,12 @@ class AppStyles:
             'chevron_down': (
                 f'<polyline points="{p},{p} {h},{s-p} {s-p},{p}" stroke="{color}" stroke-width="{s*0.1}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
             ),
+            'exit_catchup': (
+                f'<path d="M{s-p},{h} L{h-s*0.2},{h} A{h-p},{h-p} 0 1,1 {h},{p}" stroke="{color}" stroke-width="{s*0.08}" fill="none" stroke-linecap="round"/>'
+                f'<polygon points="{h-s*0.2},{h} {h-s*0.05},{h-s*0.12} {h-s*0.35},{h-s*0.12}" fill="{color}"/>'
+                f'<line x1="{h+s*0.1}" y1="{h+s*0.1}" x2="{s-p}" y2="{s-p}" stroke="{color}" stroke-width="{s*0.1}" stroke-linecap="round"/>'
+                f'<line x1="{s-p}" y1="{h+s*0.1}" x2="{h+s*0.1}" y2="{s-p}" stroke="{color}" stroke-width="{s*0.1}" stroke-linecap="round"/>'
+            ),
         }
         body = icons.get(name)
         if body is None:

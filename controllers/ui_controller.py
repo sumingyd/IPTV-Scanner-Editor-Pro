@@ -947,7 +947,7 @@ class UIController:
                 play_btn.setIcon(QIcon(AppStyles.get_icon(play_icon, btn_color)))
             if hasattr(self.window, 'exit_catchup_button'):
                 self.window.exit_catchup_button.setStyleSheet(AppStyles.player_button_style())
-                icon_path = AppStyles.get_icon('prev', btn_color)
+                icon_path = AppStyles.get_icon('exit_catchup', btn_color)
                 if icon_path:
                     self.window.exit_catchup_button.setIcon(QIcon(icon_path))
             if hasattr(self.window, 'catchup_indicator'):

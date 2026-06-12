@@ -1551,7 +1551,7 @@ class IPTVPlayer(QMainWindow):
         
         # 7. 退出回看按钮（初始隐藏）
         self.exit_catchup_button = QToolButton()
-        self.exit_catchup_button.setIcon(QIcon(AppStyles.get_icon('prev', btn_color)))
+        self.exit_catchup_button.setIcon(QIcon(AppStyles.get_icon('exit_catchup', btn_color)))
         self.exit_catchup_button.setIconSize(btn_icon_size)
         self.exit_catchup_button.setText(tr("exit_catchup", "退出回看"))
         self.exit_catchup_button.setFixedSize(100, 32)
