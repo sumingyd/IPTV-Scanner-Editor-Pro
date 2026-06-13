@@ -51,7 +51,7 @@ class WindowController:
         self._title_icon_label = QLabel()
         self._title_icon_label.setFixedSize(16, 16)
         from utils.general_utils import get_icon_path
-        from PySide6.QtGui import QIcon
+
         ico_path = get_icon_path()
         if os.path.exists(ico_path):
             pixmap = QIcon(ico_path).pixmap(16, 16)
