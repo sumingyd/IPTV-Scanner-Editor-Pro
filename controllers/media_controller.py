@@ -47,6 +47,7 @@ class MediaController:
             menu.addSeparator()
 
         speed_menu = menu.addMenu(tr("ctx_speed", "Speed"))
+        speed_menu.setStyleSheet(AppStyles.player_menu_bar_style())
         try:
             current_speed = pc.get_speed() if pc and pc.is_playing else 1.0
         except Exception:
@@ -56,6 +57,7 @@ class MediaController:
             speed_menu.addAction(label, lambda *a, speed=s: self._set_speed(speed))
 
         volume_menu = menu.addMenu(tr("ctx_volume", "Volume"))
+        volume_menu.setStyleSheet(AppStyles.player_menu_bar_style())
         try:
             current_vol = pc.get_volume() if pc and pc.is_playing else 80
             is_muted = pc.get_mute() if pc and pc.is_playing else False
@@ -70,6 +72,7 @@ class MediaController:
             volume_menu.addAction(label, lambda *a, vol=v: self._set_volume(vol))
 
         aspect_menu = menu.addMenu(tr("ctx_aspect_ratio", "Aspect Ratio"))
+        aspect_menu.setStyleSheet(AppStyles.player_menu_bar_style())
         aspect_labels = {
             'default': tr("ctx_aspect_default", "Default"),
             '16:9': '16:9',
@@ -84,9 +87,11 @@ class MediaController:
 
         if is_playing:
             audio_menu = menu.addMenu(tr("ctx_audio_track", "Audio Track"))
+            audio_menu.setStyleSheet(AppStyles.player_menu_bar_style())
             self._populate_audio_menu(audio_menu)
 
             sub_menu = menu.addMenu(tr("ctx_subtitle", "Subtitle"))
+            sub_menu.setStyleSheet(AppStyles.player_menu_bar_style())
             self._populate_subtitle_menu(sub_menu)
 
         menu.addSeparator()
@@ -100,6 +105,7 @@ class MediaController:
         menu.addSeparator()
 
         view_menu = menu.addMenu(tr("ctx_view", "View"))
+        view_menu.setStyleSheet(AppStyles.player_menu_bar_style())
         epg_action = view_menu.addAction(tr("ctx_epg", "EPG List\tE"))
         epg_action.setCheckable(True)
         epg_action.setChecked(self.window.epg_visible)
