@@ -74,9 +74,13 @@ class FloatingDockWidget(QDockWidget):
             flags = Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool
             if self.parent() and (self.parent().windowFlags() & Qt.WindowType.WindowStaysOnTopHint):
                 flags |= Qt.WindowType.WindowStaysOnTopHint
-            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+            from ui.styles import AppStyles
+            is_frosted = AppStyles._visual_style == 'frosted'
+            if is_frosted:
+                self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             self.setWindowFlags(flags)
-            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+            if is_frosted:
+                self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             self.show()
 
     def show(self):
@@ -110,8 +114,7 @@ class FloatingDockWidget(QDockWidget):
             except Exception:
                 pass
             try:
-                from PySide6.QtGui import QBitmap, QPainterPath
-                from PySide6.QtCore import QRectF
+
                 corner_r = AppStyles._get_style_border_radius()
                 size = self.size()
                 bitmap = QBitmap(size)
