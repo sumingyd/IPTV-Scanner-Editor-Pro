@@ -891,6 +891,8 @@ class SettingsFileOperations:
                 channels = self.window._local_channels
             else:
                 channels = self.window._sub_channels
+            if not channels:
+                return
             if file_path.endswith('.m3u') or file_path.endswith('.m3u8'):
                 self._save_as_m3u(channels, file_path)
             elif file_path.endswith('.txt'):

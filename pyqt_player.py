@@ -1,7 +1,7 @@
 import sys
 import os
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core.play_state import PlayStateManager
@@ -190,8 +190,9 @@ class IPTVPlayer(QMainWindow):
     config_manager = None
     language_manager = None
     channel_model = None
-    channels = None
+    channels: Optional[List[Dict[str, Any]]] = None
     current_channel: Optional[Dict[str, Any]] = None
+    original_channel: Optional[Dict[str, Any]] = None
     epg_parser = None
 
     @property
@@ -230,6 +231,13 @@ class IPTVPlayer(QMainWindow):
     catchup_ctrl = None
     pip_ctrl = None
     media_ctrl = None
+    update_ctrl = None
+    multi_screen_ctrl = None
+    favorites_ctrl = None
+    epg_reminder_ctrl = None
+    progress_ctrl = None
+    play_state = None
+    panel_vis = None
 
     video_frame = None
     video_widget = None
@@ -244,6 +252,76 @@ class IPTVPlayer(QMainWindow):
     main_layout = None
     content_layout = None
 
+    # UI 控件 - 信息区
+    channel_name = None
+    channel_logo = None
+    channel_list = None
+    group_combo = None
+    video_info = None
+    audio_info = None
+    network_info = None
+    buffer_info = None
+    current_program = None
+    program_desc = None
+    time_label = None
+    remain_label = None
+    catchup_indicator = None
+
+    # UI 控件 - 进度条区
+    program_progress = None
+    progress_start = None
+    progress_end = None
+
+    # UI 控件 - 控制按钮
+    play_button = None
+    volume_slider = None
+    volume_button = None
+    speed_button = None
+    exit_catchup_button = None
+    audio_track_button = None
+    sub_track_button = None
+    aspect_button = None
+    pip_button = None
+    fullscreen_button = None
+    stop_button = None
+    prev_ch_button = None
+    next_ch_button = None
+
+    # UI 控件 - EPG 面板
+    epg_content = None
+    epg_empty_label = None
+    epg_date_label = None
+    epg_title = None
+    epg_prev_day = None
+    epg_next_day = None
+
+    # UI 控件 - 播放列表面板
+    playlist_title = None
+    sub_group_combo = None
+    local_group_combo = None
+    sub_channel_list = None
+    local_channel_list = None
+    fav_channel_list = None
+    fav_empty_label = None
+    history_channel_list = None
+    history_empty_label = None
+
+    # UI 控件 - 视频覆盖层
+    _video_overlay_label = None
+
+    # UI 控件 - 菜单/快捷键/动作
+    recent_menu = None
+    _global_search_shortcut = None
+    _hide_floating_action = None
+    _server_action = None
+    _osd_menu_action = None
+    _pip_menu_action = None
+    _epg_menu_action = None
+    _playlist_menu_action = None
+    _floating_menu_action = None
+    _fullscreen_menu_action = None
+
+    # 标题栏
     _title_bar = None
     _title_label = None
     _title_icon_label = None
@@ -254,6 +332,7 @@ class IPTVPlayer(QMainWindow):
     _custom_menu_bar = None
     _main_container = None
 
+    # 定时器与 Dock
     update_timer = None
     resize_timer = None
     epg_dock = None
@@ -268,6 +347,43 @@ class IPTVPlayer(QMainWindow):
     epg_new_name_edit = None
     _playlist_add_btn = None
     _epg_add_btn = None
+
+    # 频道数据
+    _local_channels: Optional[List[Dict[str, Any]]] = None
+    _sub_channels: Optional[List[Dict[str, Any]]] = None
+    _local_channels_dirty = False
+
+    # 进度/时移状态
+    _progress_total_seconds: float = 3600
+    _progress_time_mode: str = 'hour'
+    _progress_program_start: Optional[datetime] = None
+    _progress_program_end: Optional[datetime] = None
+    _initial_position_fixed: bool = False
+    _floating_hidden: bool = False
+    _osd_visible: bool = False
+    _network_base_info: str = ''
+    last_catchup_state: bool = False
+    _last_epg_refresh: float = 0
+    _pending_catchup_progress: float = 0
+    _target_catchup_progress: float = 0
+    _catchup_start_time: float = 0
+    _catchup_start_progress: float = 0
+    _timeshift_start_time = None
+    _epg_hidden_by_local_file: bool = False
+
+    # 图标加载队列
+    _icon_load_set = None
+    _icon_load_queue = None
+    _icon_load_timer = None
+
+    # 媒体信息缓存
+    _last_media_info: Optional[Dict[str, Any]] = None
+    _last_info_key: Optional[str] = None
+
+    # 服务/对话框引用
+    _thumbnail_service = None
+    _scan_dialog = None
+    scan_window = None
 
     PLAYLIST_EXTENSIONS = ('.m3u', '.m3u8', '.txt')
     VIDEO_EXTENSIONS = ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.webm')
@@ -376,7 +492,7 @@ class IPTVPlayer(QMainWindow):
 
         from datetime import datetime
         self.current_epg_date = datetime.now().date()
-        self._last_media_info: Dict[str, Any] = {}
+        self._last_media_info = {}
         self._last_info_key = None
 
     def _init_signals(self):
@@ -389,7 +505,7 @@ class IPTVPlayer(QMainWindow):
     def _init_controllers(self):
         """初始化所有业务控制器"""
         logger.debug("初始化业务控制器...")
-        self.window_ctrl = WindowController(self)  # type: ignore[arg-type]
+        self.window_ctrl = WindowController(self)
         self.playback_ctrl = PlaybackController(self)
         self.epg_ctrl = EPGController(self)
         self.channel_ctrl = ChannelController(self)

@@ -149,87 +149,87 @@ class MainWindowProtocol(_WidgetBase):
     def setWindowFlags(self, *args, **kwargs) -> None: ...
 
     # === UI 控件 ===
-    status_bar: QStatusBar
-    video_widget: QWidget
-    video_placeholder: QWidget
-    video_frame: QWidget
-    channel_list: QListWidget
-    channel_name: QLabel
-    channel_logo: QLabel
-    video_info: QLabel
-    audio_info: QLabel
-    network_info: QLabel
-    current_program: QLabel
-    program_desc: QLabel
-    time_label: QLabel
-    remain_label: QLabel
-    program_progress: QProgressBar
-    progress_start: QLabel
-    progress_end: QLabel
-    play_button: QPushButton
-    volume_slider: QSlider
-    volume_button: QPushButton
-    speed_button: QPushButton
-    exit_catchup_button: QPushButton
-    group_combo: QComboBox
-    playlist_tab: QTabWidget
-    floating_panel: QWidget
-    epg_panel: QWidget
-    epg_content: QWidget
-    epg_empty_label: QLabel
-    epg_date_label: QLabel
-    epg_dock: QWidget
-    playlist_dock: QWidget
-    floating_dock: QWidget
-    toolbar: QToolBar
-    central_widget: QWidget
-    _title_bar: QWidget
-    _title_label: QLabel
-    _custom_menu_bar: QWidget
+    status_bar: Optional[QStatusBar]
+    video_widget: Optional[QWidget]
+    video_placeholder: Optional[QWidget]
+    video_frame: Optional[QWidget]
+    channel_list: Optional[QListWidget]
+    channel_name: Optional[QLabel]
+    channel_logo: Optional[QLabel]
+    video_info: Optional[QLabel]
+    audio_info: Optional[QLabel]
+    network_info: Optional[QLabel]
+    current_program: Optional[QLabel]
+    program_desc: Optional[QLabel]
+    time_label: Optional[QLabel]
+    remain_label: Optional[QLabel]
+    program_progress: Optional[QProgressBar]
+    progress_start: Optional[QLabel]
+    progress_end: Optional[QLabel]
+    play_button: Optional[QPushButton]
+    volume_slider: Optional[QSlider]
+    volume_button: Optional[QPushButton]
+    speed_button: Optional[QPushButton]
+    exit_catchup_button: Optional[QPushButton]
+    group_combo: Optional[QComboBox]
+    playlist_tab: Optional[QTabWidget]
+    floating_panel: Optional[QWidget]
+    epg_panel: Optional[QWidget]
+    epg_content: Optional[QWidget]
+    epg_empty_label: Optional[QLabel]
+    epg_date_label: Optional[QLabel]
+    epg_dock: Optional[QWidget]
+    playlist_dock: Optional[QWidget]
+    floating_dock: Optional[QWidget]
+    toolbar: Optional[QToolBar]
+    central_widget: Optional[QWidget]
+    _title_bar: Optional[QWidget]
+    _title_label: Optional[QLabel]
+    _custom_menu_bar: Optional[QWidget]
     _osd_menu_action: Any
     _pip_menu_action: Any
     _epg_menu_action: Any
     _playlist_menu_action: Any
     _floating_menu_action: Any
     _fullscreen_menu_action: Any
-    audio_track_button: QPushButton
-    sub_track_button: QPushButton
-    aspect_button: QPushButton
-    playlist_list_widget: QListWidget
-    epg_list_widget: QListWidget
-    playlist_new_url_edit: QLineEdit
-    playlist_new_name_edit: QLineEdit
-    _playlist_add_btn: QPushButton
-    epg_new_url_edit: QLineEdit
-    epg_new_name_edit: QLineEdit
-    _epg_add_btn: QPushButton
-    buffer_info: QLabel
-    catchup_indicator: QLabel
-    epg_title: QLabel
-    playlist_title: QLabel
-    epg_prev_day: QPushButton
-    epg_next_day: QPushButton
-    sub_group_combo: QComboBox
-    local_group_combo: QComboBox
-    sub_channel_list: QListWidget
-    local_channel_list: QListWidget
+    audio_track_button: Optional[QPushButton]
+    sub_track_button: Optional[QPushButton]
+    aspect_button: Optional[QPushButton]
+    playlist_list_widget: Optional[QListWidget]
+    epg_list_widget: Optional[QListWidget]
+    playlist_new_url_edit: Optional[QLineEdit]
+    playlist_new_name_edit: Optional[QLineEdit]
+    _playlist_add_btn: Optional[QPushButton]
+    epg_new_url_edit: Optional[QLineEdit]
+    epg_new_name_edit: Optional[QLineEdit]
+    _epg_add_btn: Optional[QPushButton]
+    buffer_info: Optional[QLabel]
+    catchup_indicator: Optional[QLabel]
+    epg_title: Optional[QLabel]
+    playlist_title: Optional[QLabel]
+    epg_prev_day: Optional[QPushButton]
+    epg_next_day: Optional[QPushButton]
+    sub_group_combo: Optional[QComboBox]
+    local_group_combo: Optional[QComboBox]
+    sub_channel_list: Optional[QListWidget]
+    local_channel_list: Optional[QListWidget]
     _video_overlay_label: Any
-    _main_container: QWidget
-    recent_menu: QMenu
+    _main_container: Optional[QWidget]
+    recent_menu: Optional[QMenu]
     _global_search_shortcut: Any
     _hide_floating_action: Any
     _server_action: Any
-    playlist_panel: QWidget
+    playlist_panel: Optional[QWidget]
 
     # === 状态变量 ===
     current_channel: Optional[Dict[str, Any]]
-    channels: List[Dict[str, Any]]
-    _local_channels: List[Dict[str, Any]]
-    _sub_channels: List[Dict[str, Any]]
+    channels: Optional[List[Dict[str, Any]]]
+    _local_channels: Optional[List[Dict[str, Any]]]
+    _sub_channels: Optional[List[Dict[str, Any]]]
     original_channel: Optional[Dict[str, Any]]
     catchup_program: Optional[CatchupProgram]
     _live_timeshift_seconds: float
-    current_epg_date: date
+    current_epg_date: Optional[date]
     _osd_visible: bool
     _progress_total_seconds: float
     _progress_time_mode: str
@@ -237,14 +237,13 @@ class MainWindowProtocol(_WidgetBase):
     _progress_program_end: Optional[datetime]
     _initial_position_fixed: bool
     _floating_hidden: bool
-    _auto_hide_state: str
     is_fullscreen: bool
     pip_mode: bool
     epg_visible: bool
     playlist_visible: bool
     floating_panel_visible: bool
     _local_channels_dirty: bool
-    _last_media_info: Dict[str, Any]
+    _last_media_info: Optional[Dict[str, Any]]
     _last_info_key: Optional[str]
     _network_base_info: str
     last_catchup_state: bool
@@ -255,9 +254,9 @@ class MainWindowProtocol(_WidgetBase):
     _catchup_start_progress: float
     _timeshift_start_time: Optional[datetime]
     _epg_hidden_by_local_file: bool
-    _icon_load_set: Set[Any]
-    _icon_load_queue: Deque[Any]
-    _icon_load_timer: QTimer
+    _icon_load_set: Optional[Set[Any]]
+    _icon_load_queue: Optional[Deque[Any]]
+    _icon_load_timer: Optional[QTimer]
 
     # === 服务/控制器引用 ===
     language_manager: Any

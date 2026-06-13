@@ -465,14 +465,15 @@ class UIController:
                     return
             elif not has_video and has_codec:
                 cached = self.window._last_media_info
-                if cached.get('width', 0) > 0 and cached.get('height', 0) > 0:
+                if cached and cached.get('width', 0) > 0 and cached.get('height', 0) > 0:
                     merged = dict(info)
                     for k in ('width', 'height', 'fps', 'video_bitrate', 'colormatrix', 'gamma', 'sig_peak'):
                         if k in cached and cached[k]:
                             merged[k] = cached[k]
                     info = merged
                 else:
-                    self.window._last_media_info.update(info)
+                    if self.window._last_media_info is not None:
+                        self.window._last_media_info.update(info)
                     return
             else:
                 self.window._last_media_info = info.copy()
@@ -1018,13 +1019,14 @@ class UIController:
             channels = self.window._sub_channels if list_widget is self.window.sub_channel_list else self.window._local_channels
             is_grid = list_widget.viewMode() == QListWidget.ViewMode.IconMode
             match_idx = None
-            for ci, ch in enumerate(channels):
-                ch_logo = ch.get('logo', '')
-                if ch_logo:
-                    ch_logo = ch_logo.strip('`"\'')
-                    if ch_logo == url:
-                        match_idx = ci
-                        break
+            if channels:
+                for ci, ch in enumerate(channels):
+                    ch_logo = ch.get('logo', '')
+                    if ch_logo:
+                        ch_logo = ch_logo.strip('`"\'')
+                        if ch_logo == url:
+                            match_idx = ci
+                            break
 
             if match_idx is None:
                 continue

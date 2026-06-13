@@ -1468,6 +1468,9 @@ class _LanguageSignalHelper(QObject):
 
 class LanguageManager(Singleton):
 
+    def __new__(cls, *args, **kwargs) -> 'LanguageManager':
+        return super().__new__(cls, *args, **kwargs)
+
     def __init__(self):
         if self._initialized:
             return

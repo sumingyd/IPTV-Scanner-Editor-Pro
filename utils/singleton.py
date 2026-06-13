@@ -1,11 +1,12 @@
 import threading
+from typing import Any
 
 
 class Singleton:
-    _instances = {}
+    _instances: dict[type, Any] = {}
     _global_lock = threading.Lock()
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **kwargs) -> Any:
         if cls not in Singleton._instances:
             with Singleton._global_lock:
                 if cls not in Singleton._instances:

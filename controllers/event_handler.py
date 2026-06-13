@@ -388,7 +388,7 @@ class EventHandler:
                     if hasattr(self.window, 'raise_floating_panels'):
                         self.window.raise_floating_panels()
                     if getattr(self.window, 'is_fullscreen', False):
-                        if getattr(self.window, '_auto_hide_state', 'visible') == 'auto_hidden':
+                        if getattr(self.window, 'panel_vis', None) and self.window.panel_vis.is_auto_hidden:
                             if hasattr(self.window, '_show_floating_panels_on_enter'):
                                 self.window._show_floating_panels_on_enter()
                     if hasattr(self.window, '_on_main_window_activated'):

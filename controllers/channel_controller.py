@@ -60,9 +60,9 @@ class ChannelController:
 
         list_widget.clear()
 
-        if hasattr(w, '_icon_load_set'):
+        if w._icon_load_set:
             w._icon_load_set.clear()
-        if hasattr(w, '_icon_load_queue'):
+        if w._icon_load_queue:
             w._icon_load_queue.clear()
 
         all_channels_text = tr("all_channels", "All Channels")
@@ -172,12 +172,17 @@ class ChannelController:
     def load_visible_icons(self, list_widget, channels):
         w = self.window
 
-        if not hasattr(w, '_icon_load_queue'):
+        if not w._icon_load_queue:
             w._icon_load_queue = deque()
             w._icon_load_set = set()
             w._icon_load_timer = QTimer()
             w._icon_load_timer.setInterval(16)
             w._icon_load_timer.timeout.connect(w._process_icon_load_batch)
+
+        icon_load_set = w._icon_load_set
+        icon_load_queue = w._icon_load_queue
+        icon_load_timer = w._icon_load_timer
+        assert icon_load_set is not None and icon_load_queue is not None
 
         if not hasattr(w, '_logo_cache_service') or not w._logo_cache_service:
             logger.warning("_load_visible_icons: _logo_cache_service未初始化，跳过台标加载")
@@ -216,17 +221,17 @@ class ChannelController:
                     thumb_path = w.player_controller.get_thumbnail_path(ch_url)
                     if thumb_path:
                         dedupe_key = ('grid_thumb', i)
-                        if dedupe_key not in w._icon_load_set:
+                        if dedupe_key not in icon_load_set:
                             queue_items.append(('grid_thumb', item, thumb_path, None))
-                            w._icon_load_set.add(dedupe_key)
+                            icon_load_set.add(dedupe_key)
                         continue
                 if logo_url:
                     cached = w._logo_cache_service.get(logo_url)
                     if cached:
                         dedupe_key = ('grid_logo', i)
-                        if dedupe_key not in w._icon_load_set:
+                        if dedupe_key not in icon_load_set:
                             queue_items.append(('grid_logo', item, None, cached))
-                            w._icon_load_set.add(dedupe_key)
+                            icon_load_set.add(dedupe_key)
                     else:
                         w._logo_cache_service.fetch_async(logo_url)
                 if ch_url:
@@ -244,15 +249,15 @@ class ChannelController:
                     cached = w._logo_cache_service.get(logo_url)
                     if cached:
                         dedupe_key = ('list_logo', i)
-                        if dedupe_key not in w._icon_load_set:
+                        if dedupe_key not in icon_load_set:
                             queue_items.append(('list_logo', item, logo_label, cached))
-                            w._icon_load_set.add(dedupe_key)
+                            icon_load_set.add(dedupe_key)
                     else:
                         w._logo_cache_service.fetch_async(logo_url)
 
-        w._icon_load_queue.extend(queue_items)
-        if w._icon_load_queue and not w._icon_load_timer.isActive():
-            w._icon_load_timer.start()
+        icon_load_queue.extend(queue_items)
+        if icon_load_queue and icon_load_timer and not icon_load_timer.isActive():
+            icon_load_timer.start()
 
         if need_capture and hasattr(w, '_thumbnail_service'):
             w._thumbnail_service.capture_channels(need_capture, force=True)

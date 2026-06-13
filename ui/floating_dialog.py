@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (QDialog, QDockWidget, QWidget, QApplication,
                               QHBoxLayout, QLabel, QPushButton)
 from PySide6 import QtWidgets
-from PySide6.QtGui import QPainter, QColor, QPainterPath, QCursor, QIcon
+from PySide6.QtGui import QPainter, QColor, QPainterPath, QCursor, QIcon, QBitmap
 from PySide6.QtCore import Qt, QRectF, QSize
 import PySide6.QtCore as QtCore
 import sys

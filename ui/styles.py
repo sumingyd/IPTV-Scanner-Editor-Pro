@@ -225,11 +225,6 @@ class AppStyles:
         s = size
         h = round(s / 2)
         p = round(s * 0.15)
-    @classmethod
-    def _build_icon_svg(cls, name: str, color: str, size: int) -> Optional[str]:
-        s = size
-        h = round(s / 2)
-        p = round(s * 0.15)
         def ri(v):
             return round(v)
         icons = {
