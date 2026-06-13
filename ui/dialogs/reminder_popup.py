@@ -130,6 +130,8 @@ class ReminderPopup(FloatingDialog):
 
     def _apply_theme(self):
         self.setStyleSheet(AppStyles.popup_dialog_style())
+        if hasattr(self, '_progress_bar'):
+            self._progress_bar.setStyleSheet(AppStyles.progress_style())
         for btn in self.findChildren(QPushButton):
             if btn is getattr(self, '_switch_btn', None):
                 btn.setStyleSheet(AppStyles.apply_button_style())
