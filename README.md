@@ -125,6 +125,7 @@
 - **拖放打开**：支持将文件直接拖放到主窗口打开
 - **键盘快捷键**：
   - `Space` 播放/暂停
+  - `Escape` 退出全屏 / 停止播放
   - `F11` / `F` 全屏
   - `Tab` 切换 OSD 遮罩
   - `E` / `L` / `M` 切换面板
@@ -132,14 +133,18 @@
   - `P` 画中画
   - `↑` / `↓` 切换频道
   - `←` / `→` 快退 / 快进 10 秒
+  - `Backspace` 切换到上一个频道
+  - `.` / `,` 增加 / 降低播放速度 0.1
   - `滚轮` 调整音量
   - `S` 截图
   - `Ctrl+O` 打开播放列表
   - `Ctrl+Shift+O` 打开视频文件
   - `Ctrl+S` 另存为
   - `Ctrl+U` 打开流地址
+  - `Ctrl+Q` 退出程序
+  - `Ctrl+M` 静音切换
+  - `Ctrl+Shift+←` / `Ctrl+Shift+→` 切换频道
   - `F5` 刷新界面
-  - `Ctrl+Shift+E` EPG 搜索
   - `Ctrl+Shift+F` 全局搜索
 
 ### ⚙️ 订阅与自动化
@@ -371,6 +376,8 @@ IPTV-Scanner-Editor-Pro/
 | Excel 处理 | openpyxl |
 | 拼音排序 | pypinyin |
 | 系统监控 | psutil |
+| 配置管理 | configparser |
+| 类型扩展 | typing-extensions |
 
 ## 🤝 贡献指南
 
