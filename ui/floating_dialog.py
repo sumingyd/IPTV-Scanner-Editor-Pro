@@ -239,7 +239,7 @@ class FloatingDockWidget(QDockWidget):
         super().mouseReleaseEvent(event)
 
     def paintEvent(self, event):
-        from ui.styles import AppStyles, color_to_hex
+        from ui.styles import AppStyles, color_to_hex, rgba_to_blended_hex
 
         if not self._dwm_blur_enabled:
             self._try_enable_dwm_blur()
@@ -254,9 +254,11 @@ class FloatingDockWidget(QDockWidget):
         if is_frosted:
             current_theme = AppStyles._current_theme
             if self._cached_frosted_theme != current_theme:
+                effective_mode = AppStyles._get_effective_color_mode()
+                bg = (0, 0, 0) if effective_mode == 'dark' else (255, 255, 255)
                 self._cached_frosted_colors = {}
                 for k, v in colors.items():
-                    self._cached_frosted_colors[k] = color_to_hex(v) if isinstance(v, str) and v.startswith('rgba') else v
+                    self._cached_frosted_colors[k] = rgba_to_blended_hex(v, bg) if isinstance(v, str) and v.startswith('rgba') else v
                 self._cached_frosted_theme = current_theme
             dock_colors = self._cached_frosted_colors
         else:
@@ -288,26 +290,19 @@ class FloatingDialog(QDialog):
         r = AppStyles._get_style_border_radius()
         title_bg = colors.get('window', '#1e1e1e')
         title_text_color = colors.get('window_text', '#ffffff')
-        accent = colors.get('accent', '#4a9eff')
         close_hover = AppStyles.COLOR_CLOSE_HOVER if hasattr(AppStyles, 'COLOR_CLOSE_HOVER') else '#e81123'
 
         bar = QWidget()
         bar.setFixedHeight(height)
         bar.setObjectName("dialogTitleBar")
-        bar.setStyleSheet(f"""
-            QWidget#dialogTitleBar {{
-                background-color: {title_bg};
-                border-top-left-radius: {r}px;
-                border-top-right-radius: {r}px;
-            }}
-        """)
+        bar.setStyleSheet(AppStyles.dialog_title_bar_style())
 
         layout = QHBoxLayout(bar)
         layout.setContentsMargins(12, 0, 4, 0)
         layout.setSpacing(0)
 
         label = QLabel(title_text)
-        label.setStyleSheet(f"color: {title_text_color}; font-size: 13px; font-weight: bold; background: transparent; padding-left: 4px;")
+        label.setStyleSheet(AppStyles.title_label_style())
         layout.addWidget(label, 1)
 
         icon_color = title_text_color
@@ -408,9 +403,11 @@ class FloatingDialog(QDialog):
         if is_frosted:
             current_theme = AppStyles._current_theme
             if self._cached_frosted_theme != current_theme:
+                effective_mode = AppStyles._get_effective_color_mode()
+                bg = (0, 0, 0) if effective_mode == 'dark' else (255, 255, 255)
                 self._cached_frosted_colors = {}
                 for k, v in colors.items():
-                    self._cached_frosted_colors[k] = color_to_hex(v) if isinstance(v, str) and v.startswith('rgba') else v
+                    self._cached_frosted_colors[k] = rgba_to_blended_hex(v, bg) if isinstance(v, str) and v.startswith('rgba') else v
                 self._cached_frosted_theme = current_theme
             dlg_colors = self._cached_frosted_colors
         else:
@@ -428,7 +425,15 @@ class FloatingDialog(QDialog):
             painter.setPen(QColor(br, bg, bb, 60))
             painter.drawPath(path)
 
-        if is_frosted and not self._dwm_blur_enabled and sys.platform == 'win32':
+        super().paintEvent(event)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if sys.platform != 'win32':
+            return
+        from ui.styles import AppStyles
+        is_frosted = AppStyles._visual_style == 'frosted'
+        if is_frosted and not self._dwm_blur_enabled:
             try:
                 import ctypes
                 hwnd = int(self.winId())
@@ -438,10 +443,17 @@ class FloatingDialog(QDialog):
                     hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
                     ctypes.byref(dark), ctypes.sizeof(dark)
                 )
+                DWMWA_SYSTEMBACKDROP_TYPE = 38
+                DWMSBT_MAINVIEW = 2
+                value = ctypes.c_int(DWMSBT_MAINVIEW)
+                ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
+                    ctypes.byref(value), ctypes.sizeof(value)
+                )
                 self._dwm_blur_enabled = True
             except Exception:
                 pass
-        elif not is_frosted and self._dwm_blur_enabled and sys.platform == 'win32':
+        elif not is_frosted and self._dwm_blur_enabled:
             try:
                 import ctypes
                 hwnd = int(self.winId())
@@ -455,5 +467,3 @@ class FloatingDialog(QDialog):
                 self._dwm_blur_enabled = False
             except Exception:
                 pass
-
-        super().paintEvent(event)
