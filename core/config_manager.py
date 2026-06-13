@@ -624,16 +624,9 @@ class ConfigManager(Singleton):
         visual_style = self.get_value('VisualStyle', 'current_style', '')
         if not color_mode:
             old_theme = self.get_value('Theme', 'current_theme', 'dark') or 'dark'
-            mapping = {
-                'dark': ('dark', 'flat'),
-                'light': ('light', 'flat'),
-                'dark_blue': ('dark', 'neumorphic'),
-                'neumorphic_light': ('light', 'neumorphic'),
-                'github_dark': ('dark', 'flat'),
-                'default': ('dark', 'flat'),
-            }
-            if old_theme in mapping:
-                color_mode, visual_style = mapping[old_theme]
+            from ui.styles import AppStyles
+            if old_theme in AppStyles._OLD_THEME_MAPPING:
+                color_mode, visual_style = AppStyles._OLD_THEME_MAPPING[old_theme]
             else:
                 if '+' in old_theme:
                     parts = old_theme.split('+')
