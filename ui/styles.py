@@ -45,6 +45,23 @@ def color_to_hex(color_str) -> str:
     return color_str
 
 
+def rgba_to_blended_hex(color_str, bg_color=(0, 0, 0)) -> str:
+    if not color_str or not isinstance(color_str, str) or not color_str.startswith('rgba('):
+        return color_to_hex(color_str) if isinstance(color_str, str) else color_str
+    try:
+        inner = color_str[5:].rstrip(')')
+        parts = [p.strip() for p in inner.split(',')]
+        r, g, b = int(parts[0]), int(parts[1]), int(parts[2])
+        a = float(parts[3])
+        br, bg_c, bb = bg_color
+        blended_r = int(r * a + br * (1 - a))
+        blended_g = int(g * a + bg_c * (1 - a))
+        blended_b = int(b * a + bb * (1 - a))
+        return f'#{blended_r:02x}{blended_g:02x}{blended_b:02x}'
+    except Exception:
+        return color_to_hex(color_str)
+
+
 class AppStyles:
     """应用样式管理类 - 支持颜色模式×视觉风格双维度主题"""
 
@@ -75,6 +92,7 @@ class AppStyles:
         'dark_blue': ('dark', 'neumorphic'),
         'neumorphic_light': ('light', 'neumorphic'),
         'github_dark': ('dark', 'flat'),
+        'default': ('dark', 'flat'),
     }
 
     @classmethod
@@ -465,6 +483,9 @@ class AppStyles:
             'player_volume_track': '#444444',
             'player_video_placeholder': '#1a1a1a',
             'window_opacity': 140,
+            'osd_text': '#ffffff',
+            'osd_border': '#000000',
+            'osd_shadow': '#000000',
             'shadow_light': 'rgba(255,255,255,0.05)',
             'shadow_dark': 'rgba(0,0,0,0.4)',
             'neumorphic_light': '#323232',
@@ -526,6 +547,9 @@ class AppStyles:
             'player_volume_track': '#d0d0d0',
             'player_video_placeholder': '#e0e0e0',
             'window_opacity': 160,
+            'osd_text': '#1a1a1a',
+            'osd_border': '#ffffff',
+            'osd_shadow': '#808080',
             'shadow_light': 'rgba(255,255,255,0.8)',
             'shadow_dark': 'rgba(0,0,0,0.12)',
             'neumorphic_light': '#ffffff',
@@ -710,6 +734,9 @@ class AppStyles:
             c['accent'] = '#40a0e0'
             c['accent_hover'] = '#3090d0'
             c['accent_pressed'] = '#2080c0'
+            c['osd_text'] = '#e0f0ff'
+            c['osd_border'] = '#0a1020'
+            c['osd_shadow'] = '#0a1020'
         else:
             c['window'] = 'rgba(238, 242, 248, 0.82)'
             c['base'] = 'rgba(248, 250, 255, 0.78)'
@@ -734,6 +761,9 @@ class AppStyles:
             c['accent'] = '#2080c0'
             c['accent_hover'] = '#1870b0'
             c['accent_pressed'] = '#1060a0'
+            c['osd_text'] = '#1a2a3a'
+            c['osd_border'] = '#ffffff'
+            c['osd_shadow'] = '#c0c0c0'
         return c
 
     @classmethod
@@ -868,7 +898,8 @@ class AppStyles:
 
     @classmethod
     def _get_colors(cls):
-        cache_key = (cls._color_mode, cls._visual_style)
+        effective_mode = cls._get_effective_color_mode()
+        cache_key = (effective_mode, cls._visual_style)
         if cls._colors_cache is not None and cls._colors_cache_key == cache_key:
             return cls._colors_cache
         effective_mode = cls._get_effective_color_mode()
@@ -896,9 +927,14 @@ class AppStyles:
     def _get_qss_colors(cls):
         colors = cls._get_colors()
         if cls._visual_style == 'frosted':
+            effective_mode = cls._get_effective_color_mode()
+            bg = (0, 0, 0) if effective_mode == 'dark' else (255, 255, 255)
             qss_colors = {}
             for k, v in colors.items():
-                qss_colors[k] = color_to_hex(v) if isinstance(v, str) and v.startswith('rgba') else v
+                if isinstance(v, str) and v.startswith('rgba'):
+                    qss_colors[k] = rgba_to_blended_hex(v, bg)
+                else:
+                    qss_colors[k] = v
             return qss_colors
         return colors
 
@@ -951,6 +987,15 @@ class AppStyles:
                       cls._radio_cache, cls._spinup_cache, cls._spindown_cache,
                       cls._sort_up_cache, cls._sort_down_cache):
             cache.clear()
+        try:
+            if os.path.isdir(_SVG_TMPDIR):
+                for f in os.listdir(_SVG_TMPDIR):
+                    try:
+                        os.remove(os.path.join(_SVG_TMPDIR, f))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
 
     @staticmethod
     def get_theme():
@@ -1072,12 +1117,30 @@ class AppStyles:
 
     @classmethod
     def _get_style_font_family(cls):
+        import sys
+        is_mac = sys.platform == 'darwin'
+        is_linux = sys.platform.startswith('linux')
+        cjk = "'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif"
+        if is_mac:
+            fonts = {
+                'win11': f"'Helvetica Neue', {cjk}",
+                'mac': f"'SF Pro Display', 'Helvetica Neue', {cjk}",
+                'ios': f"'SF Pro Display', 'Helvetica Neue', {cjk}",
+            }
+            return fonts.get(cls._visual_style, f"'Helvetica Neue', {cjk}")
+        if is_linux:
+            fonts = {
+                'win11': f"'Noto Sans', 'Ubuntu', {cjk}",
+                'mac': f"'Noto Sans', 'Helvetica Neue', {cjk}",
+                'ios': f"'Noto Sans', 'Helvetica Neue', {cjk}",
+            }
+            return fonts.get(cls._visual_style, f"'Noto Sans', 'Ubuntu', {cjk}")
         fonts = {
-            'win11': "'Segoe UI Variable', 'Segoe UI', 'Microsoft YaHei', sans-serif",
-            'mac': "'SF Pro Display', 'Helvetica Neue', 'Segoe UI', 'Microsoft YaHei', sans-serif",
-            'ios': "'SF Pro Display', 'Helvetica Neue', 'Segoe UI', 'Microsoft YaHei', sans-serif",
+            'win11': f"'Segoe UI Variable', 'Segoe UI', {cjk}",
+            'mac': f"'SF Pro Display', 'Helvetica Neue', 'Segoe UI', {cjk}",
+            'ios': f"'SF Pro Display', 'Helvetica Neue', 'Segoe UI', {cjk}",
         }
-        return fonts.get(cls._visual_style, "'Segoe UI', 'Microsoft YaHei', sans-serif")
+        return fonts.get(cls._visual_style, f"'Segoe UI', {cjk}")
 
     @classmethod
     def _style_btn_decoration(cls, colors, hover=False, pressed=False, disabled=False, accent_color=None):
@@ -2129,10 +2192,11 @@ class AppStyles:
                 color: {colors['player_panel_secondary']};
                 font-size: 14px;
                 background-color: transparent;
+                background: transparent;
                 padding: 0px;
                 margin: 0px;
                 border: none;
-
+                outline: none;
             }}
         """
 
@@ -2379,7 +2443,22 @@ class AppStyles:
     def player_panel_style() -> str:
         colors = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
-        return f"background-color: {colors['player_panel']}; border: 1px solid {colors['player_line']}; border-radius: {r}px;"
+        style = AppStyles._visual_style
+        if style == 'frosted':
+            border_color = colors.get('frosted_border', colors['mid'])
+        elif style == 'win11':
+            border_color = colors.get('border_thin', colors['mid'])
+        elif style in ('mac', 'ios'):
+            border_color = colors.get('shadow_subtle', colors['mid'])
+        elif style == 'neumorphic':
+            border_color = colors['shadow_dark']
+        elif style == 'skeuomorphic':
+            border_color = colors.get('border_3d_light', colors['mid'])
+        else:
+            border_color = colors['player_line']
+        if style in ('mac', 'ios'):
+            return f"background-color: transparent; border: none; border-radius: {r}px;"
+        return f"background-color: transparent; border: 1px solid {border_color}; border-radius: {r}px;"
 
     @staticmethod
     def title_bar_style() -> str:
@@ -2426,6 +2505,47 @@ class AppStyles:
         colors = AppStyles._get_colors()
         title_text = colors.get('window_text', AppStyles._safe_fallback('window_text'))
         return f"color: {title_text}; font-size: 13px; font-weight: bold; background: transparent; padding-left: 6px;"
+
+    @staticmethod
+    def dialog_title_bar_style() -> str:
+        colors = AppStyles._get_colors()
+        r = AppStyles._get_style_border_radius()
+        style = AppStyles._visual_style
+        title_bg = colors.get('window', AppStyles._safe_fallback('window'))
+        title_text = colors.get('window_text', AppStyles._safe_fallback('window_text'))
+        accent = colors.get('accent', AppStyles._safe_fallback('accent'))
+        close_hover = AppStyles.COLOR_CLOSE_HOVER
+        if style == 'neumorphic':
+            btn_dec = f"background-color: transparent; border: none; border-radius: {r}px;"
+        elif style == 'skeuomorphic':
+            btn_dec = f"background-color: transparent; border: 1px outset {colors.get('border_3d_light', colors['mid'])}; border-radius: {r}px;"
+        elif style == 'frosted':
+            btn_dec = f"background-color: {colors.get('frosted_border', 'transparent')}; border: 1px solid {colors.get('frosted_border', colors.get('border_thin', colors['mid']))}; border-radius: {r}px;"
+        elif style == 'win11':
+            btn_dec = f"background-color: transparent; border: none; border-radius: {r}px;"
+        elif style in ('mac', 'ios'):
+            btn_dec = f"background-color: transparent; border: none; border-radius: {r}px;"
+        else:
+            btn_dec = f"background-color: transparent; border: none; border-radius: {r}px;"
+        return f"""
+            QWidget#dialogTitleBar {{
+                background-color: {title_bg};
+                border-top-left-radius: {r}px;
+                border-top-right-radius: {r}px;
+            }}
+            QWidget#dialogTitleBar > QPushButton {{
+                color: {title_text};
+                {btn_dec}
+            }}
+            QWidget#dialogTitleBar > QPushButton:hover {{
+                background-color: {accent};
+                color: white;
+            }}
+            QWidget#dialogTitleBar > QPushButton#closeButton:hover {{
+                background-color: {close_hover};
+                color: white;
+            }}
+        """
 
     @staticmethod
     def player_menu_bar_style() -> str:
@@ -2548,9 +2668,11 @@ class AppStyles:
         colors = AppStyles._get_colors()
         style = AppStyles._visual_style
         if style == 'frosted':
+            effective_mode = AppStyles._get_effective_color_mode()
+            bg = (0, 0, 0) if effective_mode == 'dark' else (255, 255, 255)
             dlg_colors = {}
             for k, v in colors.items():
-                dlg_colors[k] = color_to_hex(v) if isinstance(v, str) and v.startswith('rgba') else v
+                dlg_colors[k] = rgba_to_blended_hex(v, bg) if isinstance(v, str) and v.startswith('rgba') else v
         else:
             dlg_colors = colors
         window_bg = dlg_colors['player_panel']
@@ -2571,14 +2693,14 @@ class AppStyles:
         list_item_r = AppStyles._get_scaled_radius('list_item')
         return f"""
             QDialog {{
-                background-color: {window_bg};
+                background-color: transparent;
                 color: {dlg_colors['window_text']};
                 border: 1px solid {dlg_colors['mid']};
                 border-radius: {dialog_r}px;
                 font-family: {ff};
             }}
             QDialog > QWidget {{
-                background-color: {window_bg};
+                background-color: transparent;
                 border-radius: {dialog_r}px;
             }}
             QDialog QLabel {{
