@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 from core.log_manager import global_logger as logger
 
@@ -8,7 +8,7 @@ class EpgSearchService:
         pass
 
     def search_programs(self, epg_parser, keyword: str,
-                        channels: List[Dict[str, Any]] = None,
+                        channels: Optional[List[Dict[str, Any]]] = None,
                         date=None) -> List[Dict[str, Any]]:
         if not keyword or not keyword.strip():
             return []

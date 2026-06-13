@@ -414,7 +414,7 @@ class MpvPlayerController(QObject):
     def _check_path_reachability(self, url):
         if not url or not url.lower().startswith(('http://', 'https://')):
             return None
-        result = [None]
+        result: list = [None]
         event = threading.Event()
 
         def _worker():

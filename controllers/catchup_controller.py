@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, timedelta, timezone
 from core.play_state import PlayMode
-from controllers.main_window_protocol import MainWindowProtocol
+from controllers.main_window_protocol import MainWindowProtocol, CatchupProgram
 
 
 class CatchupController:
@@ -16,7 +16,7 @@ class CatchupController:
     def __init__(self, main_window: MainWindowProtocol):
         self.window: MainWindowProtocol = main_window
         self._original_channel: dict | None = None
-        self._catchup_program: dict | None = None
+        self._catchup_program: CatchupProgram | None = None
         self._last_url_rebuild_time: float = 0.0
         self._url_rebuild_pending: bool = False
         self._pending_seek_after_cooldown: float | None = None
@@ -32,15 +32,15 @@ class CatchupController:
         self.window.original_channel = value
 
     @property
-    def catchup_program(self) -> dict | None:
+    def catchup_program(self) -> CatchupProgram | None:
         return self._catchup_program
 
     @catchup_program.setter
-    def catchup_program(self, value: dict | None):
+    def catchup_program(self, value: CatchupProgram | None):
         self._catchup_program = value
         self.window.catchup_program = value
 
-    def _enter_catchup_state(self, channel: dict, program: dict, mode: PlayMode = PlayMode.CATCHUP):
+    def _enter_catchup_state(self, channel: dict, program: CatchupProgram, mode: PlayMode = PlayMode.CATCHUP):
         self.original_channel = channel.copy()
         self.catchup_program = program
         self.window.play_state.mode = mode
@@ -56,7 +56,7 @@ class CatchupController:
         self.window._live_timeshift_seconds = 0
         self.window.catchup_program = None
 
-    def replace_catchup_variables(self, catchup_source, start_time, end_time):
+    def replace_catchup_variables(self, catchup_source: str, start_time: datetime, end_time: datetime) -> str:
         if not catchup_source:
             return catchup_source
 
@@ -185,7 +185,7 @@ class CatchupController:
 
         return url
 
-    def build_catchup_url(self, channel, start_time, end_time):
+    def build_catchup_url(self, channel: dict, start_time: datetime, end_time: datetime) -> str:
         from core.log_manager import global_logger as logger
 
         catchup_type = (channel.get('catchup', '') or '').lower().strip()
@@ -408,7 +408,7 @@ class CatchupController:
         if hasattr(self.window, '_set_progress_range'):
             self.window._set_progress_range(total)
 
-    def seek_catchup(self, position):
+    def seek_catchup(self, position: float):
         w = self.window
         if self.catchup_program is None or self.original_channel is None:
             from core.log_manager import global_logger as logger
@@ -445,13 +445,8 @@ class CatchupController:
                 w.status_bar_show_message(w.language_manager.tr("catchup_not_supported", "This channel does not support catchup"))
                 return
 
-            start_time = self.catchup_program.get('start')
-            end_time = self.catchup_program.get('end')
-
-            if not (start_time and end_time):
-                logger.error("回看节目信息不完整")
-                w.status_bar.showMessage(w.language_manager.tr("catchup_error", "Catchup error: Missing program information"))
-                return
+            start_time = self.catchup_program['start']
+            end_time = self.catchup_program['end']
 
             new_start_time = start_time + timedelta(seconds=position)
             now = datetime.now()
@@ -620,6 +615,9 @@ class CatchupController:
             target_wallclock = program_start
 
         end_time = program_end if program_end else now
+
+        if not w.current_channel:
+            return
 
         timeshift_url = self.build_catchup_url(w.current_channel, target_wallclock, end_time)
 

@@ -623,7 +623,7 @@ class ConfigManager(Singleton):
         color_mode = self.get_value('Theme', 'color_mode', '')
         visual_style = self.get_value('VisualStyle', 'current_style', '')
         if not color_mode:
-            old_theme = self.get_value('Theme', 'current_theme', 'dark')
+            old_theme = self.get_value('Theme', 'current_theme', 'dark') or 'dark'
             mapping = {
                 'dark': ('dark', 'flat'),
                 'light': ('light', 'flat'),

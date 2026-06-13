@@ -951,9 +951,7 @@ class UIController:
                 play_btn.setIcon(QIcon(AppStyles.get_icon(play_icon, btn_color)))
             if hasattr(self.window, 'exit_catchup_button'):
                 self.window.exit_catchup_button.setStyleSheet(AppStyles.player_button_style())
-                icon_path = AppStyles.get_icon('exit_catchup', btn_color)
-                if icon_path:
-                    self.window.exit_catchup_button.setIcon(QIcon(icon_path))
+                self.window.exit_catchup_button.setIcon(QIcon(AppStyles.get_icon('exit_catchup', btn_color)))
             if hasattr(self.window, 'catchup_indicator'):
                 self.window.catchup_indicator.setStyleSheet(AppStyles.player_catchup_indicator_style())
             if hasattr(self.window, 'volume_slider'):
@@ -1388,7 +1386,7 @@ class UIController:
                     ('WARNING', logging.WARNING, tr("log_level_warning", "警告")),
                     ('ERROR', logging.ERROR, tr("log_level_error", "错误")),
                 ]
-                current_level_name = ConfigManager().get_value('UI', 'log_level', 'INFO')
+                current_level_name: str = ConfigManager().get_value('UI', 'log_level', 'INFO') or 'INFO'
                 log_group = QActionGroup(self.window)
                 log_group.setExclusive(True)
                 for name, level, label in log_levels:
@@ -1398,7 +1396,7 @@ class UIController:
                     action.triggered.connect(lambda checked, n=name, l=level: self._set_log_level(n, l))
                     log_menu.addAction(action)
                     log_group.addAction(action)
-                current_level = getattr(logging, current_level_name, logging.INFO)
+                current_level: int = getattr(logging, current_level_name, logging.INFO)
                 global_logger.set_level(current_level)
             except Exception:
                 pass

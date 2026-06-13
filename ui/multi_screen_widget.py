@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 from PySide6.QtWidgets import (
     QWidget, QGridLayout, QLabel, QSlider, QToolButton,
     QComboBox, QFrame, QVBoxLayout, QHBoxLayout, QSizePolicy,
@@ -433,12 +434,12 @@ class MultiScreenWidget(QWidget):
             self._grid_layout.addWidget(cell, row, col)
             self._cells.append(cell)
 
-    def get_cell(self, index: int) -> MultiScreenCell:
+    def get_cell(self, index: int) -> Optional[MultiScreenCell]:
         if 0 <= index < len(self._cells):
             return self._cells[index]
         return None
 
-    def find_empty_cell(self) -> MultiScreenCell:
+    def find_empty_cell(self) -> Optional[MultiScreenCell]:
         for cell in self._cells:
             if not cell.is_playing:
                 return cell

@@ -756,7 +756,7 @@ class ScanChannelDialog(FloatingDialog):
 
         scan_layout.addLayout(button_section)
 
-    def _setup_channel_list(self, parent: QtWidgets.QLayout) -> None:
+    def _setup_channel_list(self, parent: QtWidgets.QBoxLayout) -> None:
         """配置频道列表（简化版，不含工具栏和GroupBox）"""
         # 频道列表视图
         self.channel_list = QtWidgets.QTableView()
@@ -1202,7 +1202,7 @@ class ScanChannelDialog(FloatingDialog):
         btn_layout.addWidget(cancel_btn)
         layout.addLayout(btn_layout)
 
-        preview_ref = [None]
+        preview_ref: list = [None]
 
         def _compute_assign(action_key, only_empty, indices):
             results = []
@@ -1294,7 +1294,7 @@ class ScanChannelDialog(FloatingDialog):
         btn_layout.addWidget(cancel_btn)
         layout.addLayout(btn_layout)
 
-        result = [None]
+        result: list = [None]
 
         def on_yes():
             result[0] = 'yes'

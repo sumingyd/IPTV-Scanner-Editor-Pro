@@ -1,3 +1,4 @@
+from typing import Optional
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout
 from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QTimer, Property
 from PySide6.QtGui import QPainter, QColor, QPixmap, QFont
@@ -79,7 +80,7 @@ class ChannelTransitionOverlay(QWidget):
         self._name_label.setFont(name_font)
         self._info_label.setFont(QFont(family, 10))
 
-    def show_transition(self, channel_name: str, logo_pixmap: QPixmap = None, info_text: str = ""):
+    def show_transition(self, channel_name: str, logo_pixmap: Optional[QPixmap] = None, info_text: str = ""):
         self._name_label.setText(channel_name)
         colors = AppStyles._get_colors()
         text_color = colors.get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))

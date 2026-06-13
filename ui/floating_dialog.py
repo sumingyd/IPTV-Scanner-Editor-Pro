@@ -87,6 +87,7 @@ class FloatingDockWidget(QDockWidget):
         if sys.platform != 'win32':
             return
         try:
+            import ctypes
             from ui.styles import AppStyles
             if AppStyles._visual_style != 'frosted':
                 if self._dwm_blur_enabled:
@@ -133,6 +134,7 @@ class FloatingDockWidget(QDockWidget):
         if sys.platform != 'win32':
             return
         try:
+            import ctypes
             hwnd = int(self.winId())
             DWMWA_SYSTEMBACKDROP_TYPE = 38
             DWMSBT_NONE = 1

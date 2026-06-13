@@ -30,7 +30,8 @@ class PlaybackController:
             pc.pause()
         elif self.current_channel or getattr(self.window, 'current_channel', None):
             ch = self.current_channel or self.window.current_channel
-            self.play_channel(ch)
+            if ch:
+                self.play_channel(ch)
 
     def stop_playback(self):
         self.fcc.on_stop()

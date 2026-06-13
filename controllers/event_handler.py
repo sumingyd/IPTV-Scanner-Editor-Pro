@@ -417,7 +417,7 @@ class EventHandler:
     def _schedule_position_update(self):
         if not hasattr(self, '_position_timer'):
             from PySide6.QtCore import QTimer
-            self._position_timer = QTimer(self.window)
+            self._position_timer = QTimer()
             self._position_timer.setSingleShot(True)
             self._position_timer.setInterval(16)
             self._position_timer.timeout.connect(self._do_position_update)

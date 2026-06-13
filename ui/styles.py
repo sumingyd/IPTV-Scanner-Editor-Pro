@@ -2,6 +2,7 @@ import os
 import tempfile
 import atexit
 import shutil
+from typing import Optional
 
 
 _SVG_TMPDIR: str = tempfile.mkdtemp(prefix='iptv_svg_')
@@ -37,7 +38,7 @@ def color_to_qcolor(color_str):
     return QColor(color_str)
 
 
-def color_to_hex(color_str):
+def color_to_hex(color_str) -> str:
     qc = color_to_qcolor(color_str)
     if qc.isValid():
         return qc.name()
@@ -205,7 +206,7 @@ class AppStyles:
         return cls._get_svg_image(cls._spindown_cache, f'spin_down_{color.lstrip("#")}', svg)
 
     @classmethod
-    def get_icon(cls, name: str, color: str = None, size: int = 16) -> str:
+    def get_icon(cls, name: str, color: Optional[str] = None, size: int = 16) -> str:
         if color is None:
             color = cls._get_colors().get('window_text', cls._safe_fallback('window_text'))
         color = color_to_hex(color)
@@ -214,11 +215,11 @@ class AppStyles:
             return cls._icon_cache[key]
         svg = cls._build_icon_svg(name, color, size)
         if svg is None:
-            return None
+            return ''
         return cls._get_svg_image(cls._icon_cache, key, svg)
 
     @classmethod
-    def _build_icon_svg(cls, name: str, color: str, size: int) -> str:
+    def _build_icon_svg(cls, name: str, color: str, size: int) -> Optional[str]:
         s = size
         h = s / 2
         p = s * 0.15

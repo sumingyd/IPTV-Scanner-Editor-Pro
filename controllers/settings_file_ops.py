@@ -813,7 +813,7 @@ class SettingsFileOperations:
 
         geometry = self.window.geometry()
 
-        floating_settings = {
+        floating_settings: dict[str, object] = {
             'epg_visible': self.window.epg_visible,
             'playlist_visible': self.window.playlist_visible,
             'floating_visible': self.window.floating_panel_visible,

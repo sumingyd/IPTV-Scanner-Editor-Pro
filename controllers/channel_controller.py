@@ -175,7 +175,7 @@ class ChannelController:
         if not hasattr(w, '_icon_load_queue'):
             w._icon_load_queue = deque()
             w._icon_load_set = set()
-            w._icon_load_timer = QTimer(w)
+            w._icon_load_timer = QTimer()
             w._icon_load_timer.setInterval(16)
             w._icon_load_timer.timeout.connect(w._process_icon_load_batch)
 

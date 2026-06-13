@@ -327,7 +327,7 @@ def _parse_extinf_line(extinf_content: str, current_group: Union[str, List[str]]
         name = name[1:-1]
 
     channel = _make_empty_channel(
-        group=current_group if genre_group_active else '未分类',
+        group=current_group if isinstance(current_group, str) and genre_group_active else '未分类',
         extinf=extinf_content,
     )
 
@@ -339,7 +339,7 @@ def _parse_extinf_line(extinf_content: str, current_group: Union[str, List[str]]
 
     for key, value in matches:
         all_tags[key] = value
-        field_name = _TAG_MAPPING.get(key, key.replace('-', '_'))
+        field_name = _TAG_MAPPING.get(key) or key.replace('-', '_')
         if key == 'group-title' and value:
             groups = [g.strip() for g in value.split(';') if g.strip()]
             genre_group_active = False

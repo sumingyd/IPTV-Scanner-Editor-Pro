@@ -70,7 +70,7 @@ class LoggingHelper(Singleton):
                 if current_time - last_time < self._suppression_threshold:
                     return
                 if len(self._logged_patterns) >= self._max_pattern_cache:
-                    oldest_keys = sorted(self._logged_patterns, key=self._logged_patterns.get)[:len(self._logged_patterns) // 2]
+                    oldest_keys = sorted(self._logged_patterns, key=lambda k: self._logged_patterns[k])[:len(self._logged_patterns) // 2]
                     for k in oldest_keys:
                         del self._logged_patterns[k]
                 self._logged_patterns[pattern_key] = current_time
