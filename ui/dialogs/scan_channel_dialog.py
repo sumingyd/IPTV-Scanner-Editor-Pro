@@ -53,6 +53,7 @@ class ScanChannelDialog(FloatingDialog):
             self.logger = getattr(parent, 'logger', None) or global_logger
             self.language_manager = getattr(parent, 'language_manager', None)
             if not self.language_manager:
+                from core.language_manager import LanguageManager
                 self.language_manager = LanguageManager()
                 self.language_manager.load_available_languages()
                 language_code = self.config.load_language_settings()
