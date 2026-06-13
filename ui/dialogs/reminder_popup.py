@@ -129,10 +129,7 @@ class ReminderPopup(FloatingDialog):
         self.move(x, y)
 
     def _apply_theme(self):
-        self.setStyleSheet(AppStyles.dialog_style())
-        colors = AppStyles._get_colors()
-        accent = colors.get('accent', '#0078d4')
-        window_text = colors.get('window_text', '#ffffff')
+        self.setStyleSheet(AppStyles.popup_dialog_style())
         for btn in self.findChildren(QPushButton):
             if btn is getattr(self, '_switch_btn', None):
                 btn.setStyleSheet(AppStyles.apply_button_style())
