@@ -391,7 +391,7 @@ class FloatingDialog(QDialog):
     def paintEvent(self, event):
         from PySide6.QtGui import QPainterPath
         from PySide6.QtCore import QRectF
-        from ui.styles import AppStyles, color_to_hex
+        from ui.styles import AppStyles, color_to_hex, rgba_to_blended_hex
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
