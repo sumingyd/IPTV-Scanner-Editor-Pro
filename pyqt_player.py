@@ -78,14 +78,15 @@ class VideoOverlayBadge(QWidget):
         from ui.styles import AppStyles
         c = AppStyles._get_colors()
         return {
-            'catchup': (c['accent'], c['accent_pressed'], '▶ ', c['window']),
-            'timeshift': (c['warning'], c['accent_pressed'], '⏪ ', c['window']),
+            'catchup': (c['accent'], c['accent_pressed'], 'catchup', c['window']),
+            'timeshift': (c['warning'], c['accent_pressed'], 'timeshift', c['window']),
         }
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._mode = self.MODE_CATCHUP
         self._label_text = ''
+        self._icon_pixmap = None
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.setAttribute(Qt.WidgetAttribute.WA_NativeWindow)
         self.setAttribute(Qt.WidgetAttribute.WA_DontCreateNativeAncestors)
@@ -94,39 +95,50 @@ class VideoOverlayBadge(QWidget):
         self._font = QFont()
         self._font.setPixelSize(13)
         self._font.setBold(True)
+        self._update_icon()
         self._update_size()
 
     def set_mode(self, mode: str, label_text: str):
         self._mode = mode
         self._label_text = label_text
+        self._update_icon()
         self._update_size()
         self.update()
 
+    def _update_icon(self):
+        from ui.styles import AppStyles
+        c = AppStyles._get_colors()
+        icon_name = 'play' if self._mode == self.MODE_CATCHUP else 'backward'
+        icon_color = c['window']
+        icon_path = AppStyles.get_icon(icon_name, icon_color, 14)
+        if icon_path:
+            from PySide6.QtGui import QPixmap
+            px = QPixmap(icon_path)
+            if not px.isNull():
+                self._icon_pixmap = px.scaled(14, 14, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                return
+        self._icon_pixmap = None
+
     def _update_size(self):
-        icon, text = self._get_parts()
-        full_text = icon + text
         self._font.setPixelSize(13)
         fm2 = QFontMetrics(self._font)
-        w = fm2.horizontalAdvance(full_text) + 20
-        h = fm2.height() + 12
+        text_w = fm2.horizontalAdvance(self._label_text)
+        icon_w = 18 if self._icon_pixmap else 0
+        spacing = 4 if self._icon_pixmap else 0
+        w = icon_w + spacing + text_w + 20
+        h = max(fm2.height(), 14) + 12
         self.setFixedSize(w, h)
-
-    def _get_parts(self):
-        cfg = self._get_mode_configs().get(self._mode, self._get_mode_configs()[self.MODE_CATCHUP])
-        icon = cfg[2]
-        return icon, self._label_text
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         cfg = self._get_mode_configs().get(self._mode, self._get_mode_configs()[self.MODE_CATCHUP])
-        color1, color2, icon, text_color = cfg
+        color1, color2, _icon_key, text_color = cfg
 
         r = self.rect()
         radius = r.height() / 2
 
-        # 绘制圆角矩形背景 (渐变)
         path = QPainterPath()
         path.addRoundedRect(0, 0, r.width(), r.height(), radius, radius)
 
@@ -139,16 +151,26 @@ class VideoOverlayBadge(QWidget):
         painter.setBrush(QBrush(grad))
         painter.drawPath(path)
 
-        # 微光描边
         painter.setPen(QPen(QColor(255, 255, 255, 40), 1))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPath(path)
 
-        # 绘制文字 (图标 + 标签)
         painter.setFont(self._font)
         painter.setPen(color_to_qcolor(text_color))
-        full_text = icon + self._label_text
-        painter.drawText(r, Qt.AlignmentFlag.AlignCenter, full_text)
+
+        icon_w = 14 if self._icon_pixmap else 0
+        spacing = 4 if self._icon_pixmap else 0
+        total_text_w = QFontMetrics(self._font).horizontalAdvance(self._label_text)
+        total_content_w = icon_w + spacing + total_text_w
+        start_x = (r.width() - total_content_w) / 2
+
+        if self._icon_pixmap:
+            icon_y = (r.height() - 14) / 2
+            painter.drawPixmap(int(start_x), int(icon_y), self._icon_pixmap)
+
+        text_x = start_x + icon_w + spacing
+        text_rect = QRectF(text_x, 0, r.width() - text_x, r.height())
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, self._label_text)
 
         painter.end()
 
@@ -824,12 +846,23 @@ class IPTVPlayer(QMainWindow):
         self.epg_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # EPG标题
+        epg_title_row = QHBoxLayout()
+        epg_title_row.setSpacing(6)
+        epg_title_row.setContentsMargins(8, 4, 8, 0)
+        epg_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
+        self.epg_title_icon = QLabel()
+        self.epg_title_icon.setFixedSize(16, 16)
+        self.epg_title_icon.setStyleSheet("background: transparent; border: none;")
+        epg_icon_path = AppStyles.get_icon('calendar', epg_icon_color)
+        if epg_icon_path:
+            from PySide6.QtGui import QPixmap
+            self.epg_title_icon.setPixmap(QPixmap(epg_icon_path))
+        epg_title_row.addWidget(self.epg_title_icon)
         self.epg_title = QLabel(tr('epg_title', 'Program Guide'))
         self.epg_title.setStyleSheet(AppStyles.player_epg_title_style())
-        epg_icon_path = AppStyles.get_icon('calendar', AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text')))
-        if epg_icon_path:
-            self.epg_title.setProperty('icon_path', epg_icon_path)
-        self.epg_layout.addWidget(self.epg_title)
+        epg_title_row.addWidget(self.epg_title, 1)
+        epg_title_row.addStretch()
+        self.epg_layout.addLayout(epg_title_row)
 
         # 日期选择器
         date_layout = QHBoxLayout()
