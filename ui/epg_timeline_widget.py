@@ -2,9 +2,18 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from PySide6.QtWidgets import QWidget, QScrollArea, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QToolTip
 from PySide6.QtCore import Qt, QRectF, QPoint, Signal
-from PySide6.QtGui import QPainter, QColor, QPen, QFont, QBrush, QLinearGradient, QFontMetrics
-from ui.styles import AppStyles
+from PySide6.QtGui import QPainter, QColor, QPen, QFont, QBrush, QLinearGradient, QFontMetrics, QPainterPath
+from ui.styles import AppStyles, color_to_hex
 from core.log_manager import global_logger as logger
+
+
+def _safe_color(color_val, fallback='#1e1e1e'):
+    if not color_val:
+        return QColor(fallback)
+    if isinstance(color_val, str) and color_val.startswith('rgba('):
+        hex_val = color_to_hex(color_val)
+        return QColor(hex_val)
+    return QColor(color_val)
 
 
 class EpgTimelineWidget(QWidget):
@@ -100,12 +109,15 @@ class EpgTimelineWidget(QWidget):
             self._build_cache()
         painter = QPainter(self)
         c = AppStyles._get_colors()
-        bg = QColor(c.get('player_panel', c.get('window', '#1e1e1e')))
-        text = QColor(c.get('player_panel_text', c.get('window_text', '#ffffff')))
-        accent = QColor(c.get('accent', '#4a9eff'))
-        border = QColor(c.get('player_line', c.get('mid', '#333333')))
-        program_bg = QColor(c.get('alternate_base', '#2a2a2a'))
-        current_bg = QColor(c.get('highlight', '#264f78'))
+        bg = _safe_color(c.get('player_panel', c.get('window', '#1e1e1e')))
+        text = _safe_color(c.get('player_panel_text', c.get('window_text', '#ffffff')))
+        accent = _safe_color(c.get('accent', '#4a9eff'))
+        border = _safe_color(c.get('player_line', c.get('mid', '#333333')))
+        program_bg = _safe_color(c.get('alternate_base', '#2a2a2a'))
+        current_bg = _safe_color(c.get('highlight', '#264f78'))
+        hover_bg = _safe_color(c.get('table_hover', c.get('button', '#3a3a3a')))
+        style = AppStyles._visual_style
+        list_r = AppStyles._get_scaled_radius('list_item')
 
         clip = event.rect()
         painter.fillRect(clip, bg)
@@ -133,15 +145,46 @@ class EpgTimelineWidget(QWidget):
             painter.drawLine(0, y + self.ROW_HEIGHT, w, y + self.ROW_HEIGHT)
 
             if i < len(self._cached_rects):
-                for rect_info in self._cached_rects[i]:
+                for prog_idx, rect_info in enumerate(self._cached_rects[i]):
                     rx1, rx2 = rect_info['x1'], rect_info['x2']
                     if rx2 < clip.left() or rx1 > clip.right():
                         continue
                     is_current = self._is_current_program(rect_info)
-                    fill = current_bg if is_current else program_bg
+                    is_hover = (i == self._hover_channel and prog_idx == self._hover_program_idx)
+                    if is_current:
+                        fill = current_bg
+                    elif is_hover:
+                        fill = hover_bg
+                    else:
+                        fill = program_bg
                     rect_w = rx2 - rx1 - 2
                     rect_h = self.ROW_HEIGHT - 6
-                    painter.fillRect(rx1 + 1, y + 3, rect_w, rect_h, fill)
+                    prog_rect = QRectF(rx1 + 1, y + 3, rect_w, rect_h)
+
+                    if list_r > 0 and rect_w > 4 and rect_h > 4:
+                        prog_path = QPainterPath()
+                        prog_path.addRoundedRect(prog_rect, list_r, list_r)
+                        painter.setPen(Qt.PenStyle.NoPen)
+                        painter.setBrush(fill)
+                        painter.drawPath(prog_path)
+                        if style == 'neumorphic':
+                            shadow_color = QColor(0, 0, 0, 40)
+                            painter.setPen(QPen(shadow_color, 1))
+                            painter.setBrush(Qt.BrushStyle.NoBrush)
+                            painter.drawPath(prog_path)
+                        elif style == 'skeuomorphic':
+                            border_light = _safe_color(c.get('border_3d_light', '#555555'))
+                            painter.setPen(QPen(border_light, 1))
+                            painter.setBrush(Qt.BrushStyle.NoBrush)
+                            painter.drawPath(prog_path)
+                        elif style in ('frosted', 'win11'):
+                            frosted_border = _safe_color(c.get('frosted_border', c.get('border_thin', c.get('mid', '#555555'))))
+                            painter.setPen(QPen(frosted_border, 1))
+                            painter.setBrush(Qt.BrushStyle.NoBrush)
+                            painter.drawPath(prog_path)
+                    else:
+                        painter.fillRect(rx1 + 1, y + 3, rect_w, rect_h, fill)
+
                     painter.setPen(text)
                     painter.setFont(small_font)
                     text_w = rect_w - 8
@@ -160,6 +203,13 @@ class EpgTimelineWidget(QWidget):
             pen_now = QPen(accent, 2)
             painter.setPen(pen_now)
             painter.drawLine(int(now_x), 0, int(now_x), len(self._channels) * self.ROW_HEIGHT)
+            now_label = now.strftime('%H:%M')
+            label_font = QFont()
+            label_font.setPixelSize(9)
+            painter.setFont(label_font)
+            painter.drawText(int(now_x) + 4, 0, 50, self.HEADER_HEIGHT,
+                           Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                           now_label)
 
         painter.end()
 
@@ -253,10 +303,10 @@ class EpgChannelHeaderWidget(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         c = AppStyles._get_colors()
-        text = QColor(c.get('player_panel_text', c.get('window_text', '#ffffff')))
-        border = QColor(c.get('player_line', c.get('mid', '#333333')))
-        header_bg = QColor(c.get('alternate_base', c.get('window', '#2d2d2d')))
-        accent = QColor(c.get('accent', '#4a9eff'))
+        text = _safe_color(c.get('player_panel_text', c.get('window_text', '#ffffff')))
+        border = _safe_color(c.get('player_line', c.get('mid', '#333333')))
+        header_bg = _safe_color(c.get('alternate_base', c.get('window', '#2d2d2d')))
+        accent = _safe_color(c.get('accent', '#4a9eff'))
 
         w = self.width()
         clip = event.rect()
@@ -304,9 +354,9 @@ class EpgTimeHeaderWidget(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         c = AppStyles._get_colors()
-        text = QColor(c.get('player_panel_text', c.get('window_text', '#ffffff')))
-        border = QColor(c.get('player_line', c.get('mid', '#333333')))
-        header_bg = QColor(c.get('alternate_base', c.get('window', '#2d2d2d')))
+        text = _safe_color(c.get('player_panel_text', c.get('window_text', '#ffffff')))
+        border = _safe_color(c.get('player_line', c.get('mid', '#333333')))
+        header_bg = _safe_color(c.get('alternate_base', c.get('window', '#2d2d2d')))
 
         w = self._hours * self.HOUR_WIDTH
         clip = event.rect()
