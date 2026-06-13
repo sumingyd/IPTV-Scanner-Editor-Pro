@@ -930,30 +930,35 @@ class UIController:
             for tool_btn in fp.findChildren(QToolButton):
                 tool_btn.setStyleSheet(AppStyles.player_button_style())
 
-            if hasattr(self.window, 'volume_button'):
-                vol = self.window.volume_slider.value() if hasattr(self.window, 'volume_slider') else 80
-                icon_name = 'volume_mute' if vol == 0 else ('volume_low' if vol < 50 else 'volume')
-                self.window.volume_button.setIcon(QIcon(AppStyles.get_icon(icon_name, btn_color)))
+            def _resolve_icon_name(attr_name):
+                if attr_name == 'play_button':
+                    is_paused = hasattr(self.window, 'player_controller') and getattr(self.window.player_controller, 'is_paused', False)
+                    return 'pause' if is_paused else 'play'
+                if attr_name == 'volume_button':
+                    vol = self.window.volume_slider.value() if hasattr(self.window, 'volume_slider') else 80
+                    return 'volume_mute' if vol == 0 else ('volume_low' if vol < 50 else 'volume')
+                return None
+
             icon_btn_map = {
+                'play_button': None,
                 'stop_button': 'stop',
                 'prev_ch_button': 'prev', 'next_ch_button': 'next',
+                'volume_button': None,
                 'speed_button': 'speed', 'aspect_button': 'aspect',
                 'audio_track_button': 'audio_track', 'sub_track_button': 'subtitle',
                 'pip_button': 'pip', 'fullscreen_button': 'fullscreen',
                 'backward_button': 'backward',
+                'exit_catchup_button': 'exit_catchup',
             }
-            for attr, icon_name in icon_btn_map.items():
+            for attr, static_icon in icon_btn_map.items():
                 btn = getattr(self.window, attr, None)
-                if btn:
+                if not btn:
+                    continue
+                icon_name = _resolve_icon_name(attr) or static_icon
+                if icon_name:
                     btn.setIcon(QIcon(AppStyles.get_icon(icon_name, btn_color)))
-            play_btn = getattr(self.window, 'play_button', None)
-            if play_btn:
-                is_paused = hasattr(self.window, 'player_controller') and getattr(self.window.player_controller, 'is_paused', False)
-                play_icon = 'pause' if is_paused else 'play'
-                play_btn.setIcon(QIcon(AppStyles.get_icon(play_icon, btn_color)))
             if hasattr(self.window, 'exit_catchup_button'):
                 self.window.exit_catchup_button.setStyleSheet(AppStyles.player_button_style())
-                self.window.exit_catchup_button.setIcon(QIcon(AppStyles.get_icon('exit_catchup', btn_color)))
             if hasattr(self.window, 'catchup_indicator'):
                 self.window.catchup_indicator.setStyleSheet(AppStyles.player_catchup_indicator_style())
             if hasattr(self.window, 'volume_slider'):
