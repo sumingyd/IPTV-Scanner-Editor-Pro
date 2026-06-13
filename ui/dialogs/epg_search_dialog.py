@@ -87,23 +87,8 @@ class EpgSearchDialog(FloatingDialog):
     def _apply_theme(self):
         c = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {c.get('panel', '#1e1e1e')};
-                color: {c.get('window_text', '#ffffff')};
-            }}
-            QLabel {{
-                color: {c.get('window_text', '#ffffff')};
-                background-color: transparent;
-            }}
-            QLineEdit {{
-                background-color: {c.get('player_combo', '#2a2a2a')};
-                color: {c.get('window_text', '#ffffff')};
-                border: 1px solid {c.get('player_line', '#555')};
-                border-radius: {r}px;
-                padding: 4px 8px;
-                min-height: 28px;
-            }}
+        list_r = AppStyles._get_scaled_radius('list_item')
+        self.setStyleSheet(AppStyles.popup_dialog_style() + f"""
             QListWidget {{
                 background-color: transparent;
                 color: {c.get('window_text', '#ffffff')};
@@ -111,7 +96,7 @@ class EpgSearchDialog(FloatingDialog):
             }}
             QListWidget::item {{
                 padding: 2px 4px; min-height: 26px;
-                border: 1px solid transparent; border-radius: {r}px;
+                border: 1px solid transparent; border-radius: {list_r}px;
             }}
             QListWidget::item:selected {{
                 border: 1px solid {c.get('accent', '#4a9eff')};
