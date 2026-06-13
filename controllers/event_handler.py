@@ -436,6 +436,14 @@ class EventHandler:
         if hasattr(self.window, '_stop_auto_hide_timer'):
             self.window._stop_auto_hide_timer()
 
+        try:
+            from ui.theme_manager import get_theme_manager
+            tm = get_theme_manager()
+            tm._stop_system_theme_watcher()
+            tm._windows.clear()
+        except Exception:
+            pass
+
         # 1. 保存窗口布局
         if hasattr(self.window, 'settings_ops'):
             try:

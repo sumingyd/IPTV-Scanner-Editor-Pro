@@ -62,6 +62,8 @@ class FloatingDockWidget(QDockWidget):
         empty_bar.setFixedHeight(0)
         self.setTitleBarWidget(empty_bar)
         self._dwm_blur_enabled = False
+        self._cached_frosted_colors = None
+        self._cached_frosted_theme = None
         self._resizing = False
         self._resize_edge = None
         self._resize_start_geo = None
@@ -89,7 +91,7 @@ class FloatingDockWidget(QDockWidget):
             if AppStyles._visual_style != 'frosted':
                 if self._dwm_blur_enabled:
                     self._disable_dwm_blur()
-                    self._dwm_blur_enabled = False
+                self._dwm_blur_enabled = False
                 self.clearMask()
                 return
             if self._dwm_blur_enabled:
@@ -245,9 +247,13 @@ class FloatingDockWidget(QDockWidget):
         is_frosted = AppStyles._visual_style == 'frosted'
 
         if is_frosted:
-            dock_colors = {}
-            for k, v in colors.items():
-                dock_colors[k] = color_to_hex(v) if isinstance(v, str) and v.startswith('rgba') else v
+            current_theme = AppStyles._current_theme
+            if self._cached_frosted_theme != current_theme:
+                self._cached_frosted_colors = {}
+                for k, v in colors.items():
+                    self._cached_frosted_colors[k] = color_to_hex(v) if isinstance(v, str) and v.startswith('rgba') else v
+                self._cached_frosted_theme = current_theme
+            dock_colors = self._cached_frosted_colors
         else:
             dock_colors = colors
 
@@ -344,6 +350,8 @@ class FloatingDialog(QDialog):
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self._dwm_blur_enabled = False
+        self._cached_frosted_colors = None
+        self._cached_frosted_theme = None
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -393,9 +401,13 @@ class FloatingDialog(QDialog):
         is_frosted = AppStyles._visual_style == 'frosted'
 
         if is_frosted:
-            dlg_colors = {}
-            for k, v in colors.items():
-                dlg_colors[k] = color_to_hex(v) if isinstance(v, str) and v.startswith('rgba') else v
+            current_theme = AppStyles._current_theme
+            if self._cached_frosted_theme != current_theme:
+                self._cached_frosted_colors = {}
+                for k, v in colors.items():
+                    self._cached_frosted_colors[k] = color_to_hex(v) if isinstance(v, str) and v.startswith('rgba') else v
+                self._cached_frosted_theme = current_theme
+            dlg_colors = self._cached_frosted_colors
         else:
             dlg_colors = colors
 
