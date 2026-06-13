@@ -147,10 +147,12 @@ class EpgTimelineDialog(FloatingDialog):
         r = AppStyles._get_style_border_radius()
         style = AppStyles._visual_style
         if style == 'frosted':
+            from ui.styles import rgba_to_blended_hex
+            effective_mode = AppStyles._get_effective_color_mode()
+            bg = (0, 0, 0) if effective_mode == 'dark' else (255, 255, 255)
             tc = {}
             for k, v in c.items():
-                from ui.styles import color_to_hex
-                tc[k] = color_to_hex(v) if isinstance(v, str) and v.startswith('rgba') else v
+                tc[k] = rgba_to_blended_hex(v, bg) if isinstance(v, str) and v.startswith('rgba') else v
         else:
             tc = c
         self.setStyleSheet(AppStyles.popup_dialog_style() + f"""
