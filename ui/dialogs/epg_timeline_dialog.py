@@ -144,19 +144,19 @@ class EpgTimelineDialog(FloatingDialog):
     def _apply_theme(self):
         c = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {c.get('player_panel', c.get('window', '#1e1e1e'))};
-                color: {c.get('window_text', '#ffffff')};
-            }}
-            QLabel {{
-                color: {c.get('window_text', '#ffffff')};
-                background-color: transparent;
-            }}
+        style = AppStyles._visual_style
+        if style == 'frosted':
+            tc = {}
+            for k, v in c.items():
+                from ui.styles import color_to_hex
+                tc[k] = color_to_hex(v) if isinstance(v, str) and v.startswith('rgba') else v
+        else:
+            tc = c
+        self.setStyleSheet(AppStyles.popup_dialog_style() + f"""
             QDateEdit {{
-                background-color: {c.get('player_combo', '#2a2a2a')};
-                color: {c.get('window_text', '#ffffff')};
-                border: 1px solid {c.get('player_line', '#555')};
+                background-color: {tc.get('player_combo', '#2a2a2a')};
+                color: {tc.get('window_text', '#ffffff')};
+                border: 1px solid {tc.get('player_line', '#555')};
                 border-radius: {r}px;
                 padding: 2px 4px 2px 8px;
                 min-height: 24px;
@@ -175,100 +175,43 @@ class EpgTimelineDialog(FloatingDialog):
                 subcontrol-origin: padding;
                 subcontrol-position: center right;
             }}
-
-            QPushButton {{
-                background-color: {c.get('player_button', '#3a3a3a')};
-                color: {c.get('window_text', '#ffffff')};
-                border: 1px solid {c.get('player_line', '#555')};
-                border-radius: {r}px;
-                padding: 4px 12px;
-                min-height: 24px;
-            }}
-            QPushButton:hover {{
-                background-color: {c.get('accent', '#4a9eff')};
-            }}
-            QPushButton:pressed {{
-                background-color: {c.get('accent_pressed', '#3a7acc')};
-            }}
-            QScrollArea {{
-                background-color: transparent;
-                border: none;
-            }}
-            QScrollBar:vertical {{
-                background-color: {c.get('dark', '#1a1a1a')};
-                width: 10px;
-                border-radius: 5px;
-            }}
-            QScrollBar::handle:vertical {{
-                background-color: {c.get('mid', '#555555')};
-                min-height: 30px;
-                border-radius: 5px;
-            }}
-            QScrollBar::handle:vertical:hover {{
-                background-color: {c.get('accent', '#4a9eff')};
-            }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-                height: 0px;
-            }}
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
-                background: none;
-            }}
-            QScrollBar:horizontal {{
-                background-color: {c.get('dark', '#1a1a1a')};
-                height: 10px;
-                border-radius: 5px;
-            }}
-            QScrollBar::handle:horizontal {{
-                background-color: {c.get('mid', '#555555')};
-                min-width: 30px;
-                border-radius: 5px;
-            }}
-            QScrollBar::handle:horizontal:hover {{
-                background-color: {c.get('accent', '#4a9eff')};
-            }}
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
-                width: 0px;
-            }}
-            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
-                background: none;
-            }}
             QCalendarWidget {{
-                background-color: {c.get('base', '#1e1e1e')};
-                color: {c.get('window_text', '#ffffff')};
+                background-color: {tc.get('base', '#1e1e1e')};
+                color: {tc.get('window_text', '#ffffff')};
             }}
             QCalendarWidget QWidget {{
-                alternate-background-color: {c.get('alternate_base', '#2d2d2d')};
+                alternate-background-color: {tc.get('alternate_base', '#2d2d2d')};
             }}
             QCalendarWidget QToolButton {{
-                color: {c.get('window_text', '#ffffff')};
-                background-color: {c.get('player_button', '#3a3a3a')};
-                border: 1px solid {c.get('player_line', '#555')};
+                color: {tc.get('window_text', '#ffffff')};
+                background-color: {tc.get('player_button', '#3a3a3a')};
+                border: 1px solid {tc.get('player_line', '#555')};
                 border-radius: {r}px;
                 padding: 4px;
                 min-width: 80px;
             }}
             QCalendarWidget QToolButton:hover {{
-                background-color: {c.get('alternate_base', '#2a2a2a')};
-                border-color: {c.get('accent', '#4a9eff')};
+                background-color: {tc.get('alternate_base', '#2a2a2a')};
+                border-color: {tc.get('accent', '#4a9eff')};
             }}
             QCalendarWidget QToolButton:pressed {{
-                background-color: {c.get('accent', '#4a9eff')};
-                color: {c.get('highlighted_text', '#ffffff')};
+                background-color: {tc.get('accent', '#4a9eff')};
+                color: {tc.get('highlighted_text', '#ffffff')};
             }}
             QCalendarWidget QMenu {{
-                background-color: {c.get('base', '#1e1e1e')};
-                color: {c.get('window_text', '#ffffff')};
+                background-color: {tc.get('base', '#1e1e1e')};
+                color: {tc.get('window_text', '#ffffff')};
             }}
             QCalendarWidget QAbstractItemView {{
-                background-color: {c.get('base', '#1e1e1e')};
-                color: {c.get('window_text', '#ffffff')};
-                selection-background-color: {c.get('accent', '#4a9eff')};
-                selection-color: {c.get('highlighted_text', '#ffffff')};
-                alternate-background-color: {c.get('alternate_base', '#2d2d2d')};
+                background-color: {tc.get('base', '#1e1e1e')};
+                color: {tc.get('window_text', '#ffffff')};
+                selection-background-color: {tc.get('accent', '#4a9eff')};
+                selection-color: {tc.get('highlighted_text', '#ffffff')};
+                alternate-background-color: {tc.get('alternate_base', '#2d2d2d')};
             }}
             QCalendarWidget QSpinBox {{
-                color: {c.get('window_text', '#ffffff')};
-                background-color: {c.get('player_combo', '#2a2a2a')};
+                color: {tc.get('window_text', '#ffffff')};
+                background-color: {tc.get('player_combo', '#2a2a2a')};
             }}
         """)
 
@@ -499,7 +442,10 @@ class EpgTimelineDialog(FloatingDialog):
 
     def _update_corner_widget(self):
         c = AppStyles._get_colors()
+        from ui.styles import color_to_hex
         header_bg = c.get('alternate_base', c.get('window', '#2d2d2d'))
+        if isinstance(header_bg, str) and header_bg.startswith('rgba('):
+            header_bg = color_to_hex(header_bg)
         self._corner_widget.setStyleSheet(f"background-color: {header_bg};")
         self._corner_widget.setAutoFillBackground(True)
 
