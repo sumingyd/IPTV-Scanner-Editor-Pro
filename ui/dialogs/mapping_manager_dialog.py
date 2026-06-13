@@ -37,14 +37,16 @@ class MappingManagerDialog(FloatingDialog):
     def __init__(self, parent=None):
         super().__init__(parent, stay_on_top=False)
         self.logger = LogManager()
-        self._update_check_worker = None  # 持有引用，防止 GC
-        self._refresh_worker = None       # 持有引用，防止 GC
+        self._update_check_worker = None
+        self._refresh_worker = None
         from ..styles import AppStyles
         colors = AppStyles._get_colors()
         self.opacity = colors.get('window_opacity', 220)
 
-        from core.language_manager import LanguageManager
-        self.language_manager = LanguageManager()
+        self.language_manager = getattr(parent, 'language_manager', None)
+        if not self.language_manager:
+            from core.language_manager import LanguageManager
+            self.language_manager = LanguageManager()
 
         self.setWindowTitle(self.language_manager.tr('mapping_manager', 'Channel Mapping Manager'))
         self.setMinimumSize(600, 400)
