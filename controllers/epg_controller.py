@@ -49,7 +49,10 @@ class EPGItemDelegate(QStyledItemDelegate):
 
         font = QFont(option.font)
         if font.pointSize() <= 0:
-            font.setPointSize(9)
+            if font.pixelSize() > 0:
+                pass
+            else:
+                font.setPixelSize(12)
         fm = QFontMetrics(font)
         text_height = fm.height() + 4
         y = option.rect.top() + (option.rect.height() - text_height) // 2

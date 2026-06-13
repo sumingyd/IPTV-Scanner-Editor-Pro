@@ -3870,6 +3870,17 @@ class IPTVPlayer(QMainWindow):
             QTimer.singleShot(200, lambda: self._capture_visible_thumbnails(tab))
 
 if __name__ == "__main__":
+    def _suppress_qfont_pointsize_warning(msg_type, context, msg):
+        if msg_type == msg_type.Warning and 'setPointSize' in msg and 'Point size <= 0' in msg:
+            return
+        if msg_type == msg_type.Warning:
+            sys.stderr.write(f"Qt Warning: {msg}\n")
+        elif msg_type == msg_type.Critical:
+            sys.stderr.write(f"Qt Critical: {msg}\n")
+
+    from PySide6.QtCore import qInstallMessageHandler
+    qInstallMessageHandler(_suppress_qfont_pointsize_warning)
+
     app = QApplication(sys.argv)
 
     splash = None
