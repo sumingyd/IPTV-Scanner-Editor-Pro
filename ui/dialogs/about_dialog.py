@@ -18,8 +18,10 @@ class AboutDialog(FloatingDialog):
         from core.version import CURRENT_VERSION, BUILD_DATE
         self.current_version = CURRENT_VERSION
         self.build_date = BUILD_DATE
-        from core.language_manager import LanguageManager
-        self.language_manager = getattr(parent, 'language_manager', None) or LanguageManager()
+        self.language_manager = getattr(parent, 'language_manager', None)
+        if not self.language_manager:
+            from core.language_manager import LanguageManager
+            self.language_manager = LanguageManager()
         from ..styles import AppStyles
         self._colors = AppStyles._get_colors()
         self._init_ui()
