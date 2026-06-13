@@ -392,7 +392,7 @@ BUILTIN_TRANSLATIONS = {
         'select_channel_to_play': '请选择频道开始播放',
         'open_playlist_or_import': '打开播放列表文件或导入频道以开始观看',
         'waiting_to_play': '等待播放...',
-        'exit_catchup': '退出回看',
+
         'playing': '正在播放',
         'paused': '已暂停',
         'stopped': '已停止',
@@ -1118,7 +1118,7 @@ BUILTIN_TRANSLATIONS = {
         'select_channel_to_play': 'Select a channel to play',
         'open_playlist_or_import': 'Open a playlist file or import channels to start watching',
         'waiting_to_play': 'Waiting to play...',
-        'exit_catchup': 'Exit Catchup',
+
         'playing': 'Playing',
         'paused': 'Paused',
         'stopped': 'Stopped',
