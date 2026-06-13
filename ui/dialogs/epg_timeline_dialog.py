@@ -123,6 +123,7 @@ class EpgTimelineDialog(FloatingDialog):
         self._update_corner_widget()
         self._update_date_edit_icon()
         self._update_calendar_nav_icons()
+        self._mark_calendar_dates()
         self.timeline_widget.update()
         self.channel_header.update()
         self.time_header.update()
