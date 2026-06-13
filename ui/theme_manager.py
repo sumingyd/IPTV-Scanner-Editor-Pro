@@ -92,21 +92,19 @@ class ThemeManager(Singleton, QtCore.QObject):
                     for child in window.findChildren(QtWidgets.QDialog):
                         child.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
                         self._enable_dwm_blur(child)
-                    for dock_attr in ('epg_dock', 'playlist_dock', 'floating_dock'):
-                        dock = getattr(window, dock_attr, None)
-                        if dock:
-                            dock.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
-                            self._enable_dwm_blur(dock)
                 else:
                     window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)
                     self._disable_dwm_blur(window)
                     for child in window.findChildren(QtWidgets.QDialog):
                         child.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)
                         self._disable_dwm_blur(child)
-                    for dock_attr in ('epg_dock', 'playlist_dock', 'floating_dock'):
-                        dock = getattr(window, dock_attr, None)
-                        if dock:
-                            dock.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)
+                for dock_attr in ('epg_dock', 'playlist_dock', 'floating_dock'):
+                    dock = getattr(window, dock_attr, None)
+                    if dock:
+                        dock.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+                        if is_frosted:
+                            self._enable_dwm_blur(dock)
+                        else:
                             self._disable_dwm_blur(dock)
         except Exception as e:
             print(f"设置窗口背景模糊失败: {e}")
@@ -126,7 +124,16 @@ class ThemeManager(Singleton, QtCore.QObject):
                 )
             except Exception:
                 pass
-
+            try:
+                DWMWA_SYSTEMBACKDROP_TYPE = 38
+                DWMSBT_MAINVIEW = 2
+                value = ctypes.c_int(DWMSBT_MAINVIEW)
+                ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
+                    ctypes.byref(value), ctypes.sizeof(value)
+                )
+            except Exception:
+                pass
         except Exception:
             pass
 
@@ -198,6 +205,8 @@ class ThemeManager(Singleton, QtCore.QObject):
                     container = panel.widget()
                     if container and hasattr(container, 'setStyleSheet'):
                         container.setStyleSheet(AppStyles.player_panel_style())
+                        container.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+                        container.setAutoFillBackground(False)
                     panel.update()
 
             if hasattr(window, '_reapply_floating_panel_styles'):
@@ -381,10 +390,8 @@ class ThemeManager(Singleton, QtCore.QObject):
         self.theme_changed.emit(self._current_theme)
 
     def set_theme(self, theme_name: str):
-        old_themes = {'dark', 'light', 'dark_blue', 'neumorphic_light', 'github_dark'}
-        if theme_name in old_themes:
-            mapping = AppStyles._OLD_THEME_MAPPING.get(theme_name, ('dark', 'flat'))
-            self._color_mode, self._visual_style = mapping
+        if theme_name in AppStyles._OLD_THEME_MAPPING:
+            self._color_mode, self._visual_style = AppStyles._OLD_THEME_MAPPING[theme_name]
         elif '+' in theme_name:
             parts = theme_name.split('+')
             if len(parts) == 2:
