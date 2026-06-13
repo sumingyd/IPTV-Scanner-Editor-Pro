@@ -19,16 +19,14 @@ class CatchupProgram(TypedDict):
     desc: str
 
 
-# 类型检查时继承 QWidget，使类型检查器知道协议实例也是 QWidget 子类
-# 运行时继承 object，避免与 QWidget 的 Shiboken 元类冲突
 if TYPE_CHECKING:
     _WidgetBase = QWidget
 else:
-    _WidgetBase = object
+    _WidgetBase = Protocol
 
 
 @runtime_checkable
-class MainWindowProtocol(_WidgetBase, Protocol):
+class MainWindowProtocol(_WidgetBase):
     """主窗口协议 - 控制器通过此协议访问主窗口"""
 
     # === Qt 内置方法 ===
