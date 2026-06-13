@@ -32,6 +32,8 @@ class ReminderPopup(FloatingDialog):
 
     def _setup_ui(self):
         tr = self.window.language_manager.tr
+        ff = AppStyles._get_style_font_family()
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 14, 16, 12)
         layout.setSpacing(8)
@@ -41,6 +43,7 @@ class ReminderPopup(FloatingDialog):
         title_font = QFont()
         title_font.setBold(True)
         title_font.setPointSize(11)
+        title_font.setFamily(ff)
         title_label.setFont(title_font)
         layout.addWidget(title_label)
 
@@ -53,6 +56,7 @@ class ReminderPopup(FloatingDialog):
         program_font = QFont()
         program_font.setBold(True)
         program_font.setPointSize(10)
+        program_font.setFamily(ff)
         program_label.setFont(program_font)
         layout.addWidget(program_label)
 
@@ -111,7 +115,14 @@ class ReminderPopup(FloatingDialog):
         self.close()
 
     def _position_bottom_right(self):
-        screen = QApplication.primaryScreen()
+        screen = None
+        if self.window and hasattr(self.window, 'screen'):
+            try:
+                screen = self.window.screen()
+            except Exception:
+                pass
+        if not screen:
+            screen = QApplication.primaryScreen()
         if not screen:
             return
         geo = screen.availableGeometry()
