@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
-[![PyQt6](https://img.shields.io/badge/PyQt6-6.0+-green.svg)](https://www.riverbankcomputing.com/software/pyqt/)
+[![PySide6](https://img.shields.io/badge/PySide6-6.4+-green.svg)](https://www.qt.io/qt-for-python)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://www.microsoft.com/windows)
 
 一款功能全面的 IPTV 频道扫描、验证、播放和管理工具。集成 MPV 播放引擎与 FFprobe 流探测，支持 EPG 电子节目单、频道台标自动匹配、多主题界面、中英双语，从扫描到观看一站式完成。
@@ -43,6 +43,8 @@
 - **截图**：一键截取当前视频画面保存到 `screenshots/` 目录
 - **音轨/字幕切换**：播放菜单和右键菜单支持切换音轨和字幕轨道
 - **最近打开文件**：文件菜单记录最近访问的播放列表，快速重开
+- **视频文件打开**：支持直接打开本地视频文件播放（Ctrl+Shift+O）
+- **频道切换遮罩**：换台时显示频道信息过渡动画，提升视觉体验
 
 ### 📺 EPG 电子节目单
 - **XMLTV 格式解析**：支持标准 XMLTV / JSON 格式 EPG 数据源，兼容非标准时间格式（如"在播"）
@@ -55,6 +57,7 @@
 - **EPG 时间轴**：可视化时间轴界面，按频道×时间展示全天节目，支持水平/垂直滚动浏览，双击节目直接跳转播放对应频道
 - **EPG 搜索**：按节目名称快速搜索所有频道节目，双击结果跳转播放，结果上限200条防止卡顿
 - **全局搜索**：跨频道列表和EPG数据的全局搜索功能（Ctrl+Shift+F）
+- **统一搜索**：整合频道搜索与EPG搜索的统一搜索界面
 - **节目提醒**：为即将开播的节目设置提醒，到时间弹出提醒弹窗，支持自动切换频道
   - 多提醒并发处理：多个提醒同时触发时弹窗堆叠显示，仅第一个自动切换，其余可手动切换
   - 系统托盘通知：最小化到托盘时通过系统托盘显示提醒
@@ -102,6 +105,12 @@
 - **多格式导出**：M3U、TXT、Excel（需 openpyxl）
 - **收藏列表**：右键收藏频道，收藏列表支持右键删除单个收藏和清空收藏
 - **播放历史**：自动记录播放过的频道，支持右键清空历史
+- **频道去重**：自动检测并去除重复频道，支持按名称/URL/名称+URL多种去重策略
+- **频道评分**：基于流质量参数对频道进行综合评分，优先播放高质量源
+- **流质量评分**：综合分辨率、码率、编码等参数对流质量进行量化评分
+- **批量编辑**：批量修改频道名称、分组、台标等属性
+- **频道快速跳转**：支持按首字母/拼音快速跳转到目标频道
+- **HDR 检测**：自动检测流是否为 HDR 内容，OSD 中显示 HDR 标识
 
 ### 🎨 界面与体验
 - **颜色模式 × 视觉风格组合主题**：3 种颜色模式与 7 种视觉风格任意组合，共 21 种搭配
@@ -144,6 +153,10 @@
 - **缓存回退**：在线下载失败时自动回退到本地缓存；缓存为空时强制在线刷新
 - **过期策略**：可配置的过期时间，到期自动刷新
 - **配置持久化**：所有设置自动保存到 config.ini
+
+### 🌐 内置 Web 服务器
+- **本地服务**：内置轻量级 Web 服务器，提供频道列表和播放接口
+- **远程控制**：通过浏览器访问频道列表和控制播放
 
 ## 🚀 快速开始
 
@@ -225,7 +238,7 @@ python pyqt_player.py
 
 #### 主题与语言
 - 语言菜单：切换 中文 / English
-- 主题菜单：5 种主题即时切换，全局生效
+- 主题菜单：3 种颜色模式 × 7 种视觉风格 = 21 种主题组合即时切换，全局生效
 
 #### 面板控制
 - 视图菜单或快捷键：
@@ -239,6 +252,7 @@ python pyqt_player.py
 ```
 IPTV-Scanner-Editor-Pro/
 ├── pyqt_player.py              # 主窗口 & 播放器核心
+├── build.py                    # PyInstaller 打包脚本
 ├── requirements.txt            # Python 依赖
 ├── core/                       # 核心模块
 │   ├── application_state.py    # 应用程序状态管理
@@ -255,6 +269,7 @@ IPTV-Scanner-Editor-Pro/
 │   ├── epg_controller.py      # EPG 电子节目单控制器
 │   ├── epg_reminder_controller.py # EPG 节目提醒控制器
 │   ├── event_handler.py       # 事件处理器
+│   ├── favorites_controller.py # 收藏控制器
 │   ├── main_window_protocol.py # 主窗口协议接口
 │   ├── media_controller.py    # 媒体控制器
 │   ├── multi_screen_controller.py # 多屏控制器
@@ -271,46 +286,59 @@ IPTV-Scanner-Editor-Pro/
 │   ├── channel_model.py       # 频道数据模型
 │   └── channel_mappings.py    # 频道映射模型
 ├── services/                   # 服务层
+│   ├── batch_edit_service.py  # 批量编辑服务
 │   ├── channel_classifier.py  # 频道自动分类服务（正则规则引擎）
 │   ├── channel_cleaner.py     # 频道名称清理服务
+│   ├── channel_dedup_service.py # 频道去重服务
+│   ├── channel_quick_jump_service.py # 频道快速跳转服务
+│   ├── channel_rating_service.py # 频道评分服务
 │   ├── epg_matcher.py         # EPG 模糊匹配引擎
 │   ├── epg_reminder_service.py # EPG 提醒服务
 │   ├── epg_search_service.py  # EPG 搜索服务
 │   ├── favorites_service.py   # 收藏与历史服务
 │   ├── fcc_service.py         # FCC 快速换台服务（组播代理通知）
+│   ├── ffprobe_validator_service.py # FFprobe 频道验证服务（当前使用）
 │   ├── logo_cache_service.py   # 台标缓存服务（异步+DPI）
 │   ├── logo_matcher.py        # 台标智能匹配服务（400+ 规则）
 │   ├── m3u_parser.py          # M3U 播放列表解析器
-│   ├── mpv_bindings.py        # MPV 绑定封装
 │   ├── mpv_common.py          # MPV 公共模块
 │   ├── mpv_player_service.py # MPV 播放引擎（libmpv）
 │   ├── mpv_validator_service.py # MPV 频道验证服务（旧版）
-│   ├── ffprobe_validator_service.py # FFprobe 频道验证服务（当前使用）
 │   ├── network_preheat_service.py # 网络预热服务
 │   ├── scanner_service.py     # 频道扫描服务
+│   ├── stream_quality_scorer.py # 流质量评分服务
 │   ├── thumbnail_service.py   # 缩略图服务
 │   └── url_parser_service.py  # URL 解析服务
+├── server/                     # 内置 Web 服务器
+│   ├── app.py                 # Web 应用入口
+│   └── routes.py              # 路由定义
 ├── ui/
 │   ├── dialogs/
 │   │   ├── about_dialog.py    # 关于对话框（含版本检查）
 │   │   ├── epg_search_dialog.py # EPG 搜索对话框
 │   │   ├── epg_timeline_dialog.py # EPG 时间轴对话框
-│   │   ├── global_search_dialog.py # 全局搜索对话框
-│   │   ├── reminder_popup.py  # 节目提醒弹窗
-│   │   ├── reminder_manager_dialog.py # 提醒管理对话框
 │   │   ├── file_association_dialog.py # 文件关联对话框
+│   │   ├── global_search_dialog.py # 全局搜索对话框
 │   │   ├── mapping_manager_dialog.py # 映射管理器
-│   │   └── scan_channel_dialog.py # 扫描频道对话框
+│   │   ├── reminder_manager_dialog.py # 提醒管理对话框
+│   │   ├── reminder_popup.py  # 节目提醒弹窗
+│   │   ├── scan_channel_dialog.py # 扫描频道对话框
+│   │   ├── unified_search_dialog.py # 统一搜索对话框
+│   │   └── video_open_dialog.py # 视频文件打开对话框
+│   ├── cache_progress_slider.py # 缓存进度滑块组件
+│   ├── channel_transition_overlay.py # 频道切换遮罩组件
 │   ├── epg_timeline_widget.py # EPG 时间轴组件
 │   ├── floating_dialog.py     # 悬浮对话框基类
+│   ├── menu_proxy_style.py    # 菜单代理样式
 │   ├── multi_screen_widget.py # 多屏窗口组件
-│   ├── styles.py              # 5 套主题样式定义
-│   └── theme_manager.py       # 主题管理器
-
+│   ├── styles.py              # 21 套主题样式定义
+│   ├── theme_manager.py       # 主题管理器
+│   └── virtual_channel_list.py # 虚拟频道列表组件
 ├── utils/                      # 工具模块
 │   ├── config_notifier.py     # 配置变更通知器
 │   ├── error_handler.py       # 错误处理器
 │   ├── general_utils.py       # 通用工具函数
+│   ├── hdr_detect.py          # HDR 检测工具
 │   ├── logging_helper.py      # 日志辅助函数
 │   ├── memory_manager.py      # 内存管理器
 │   ├── progress_manager.py    # 进度管理器
@@ -335,13 +363,14 @@ IPTV-Scanner-Editor-Pro/
 
 | 组件 | 技术 |
 |---|---|
-| GUI 框架 | PyQt6 |
+| GUI 框架 | PySide6 |
 | 播放引擎 | libmpv (MPV) |
 | 流探测 | FFprobe (FFmpeg) |
 | HTTP 客户端 | requests / aiohttp |
 | 图像处理 | Pillow |
 | Excel 处理 | openpyxl |
 | 拼音排序 | pypinyin |
+| 系统监控 | psutil |
 
 ## 🤝 贡献指南
 
