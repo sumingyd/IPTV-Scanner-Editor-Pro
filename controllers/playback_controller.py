@@ -357,7 +357,7 @@ class PlaybackController:
             elif hasattr(w, 'epg_panel') and w.epg_panel:
                 if hasattr(w, '_epg_hidden_by_local_file'):
                     was_visible = w._epg_hidden_by_local_file
-                    del w._epg_hidden_by_local_file
+                    w._epg_hidden_by_local_file = False
                     if was_visible:
                         w.epg_visible = True
                 elif getattr(w, 'epg_visible', True) and not w.epg_panel.isVisible():
