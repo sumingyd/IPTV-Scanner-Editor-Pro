@@ -106,7 +106,7 @@ class ThemeManager(Singleton, QtCore.QObject):
                     for dock_attr in ('epg_dock', 'playlist_dock', 'floating_dock'):
                         dock = getattr(window, dock_attr, None)
                         if dock:
-                            dock.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+                            dock.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)
                             self._disable_dwm_blur(dock)
         except Exception as e:
             print(f"设置窗口背景模糊失败: {e}")
@@ -197,7 +197,7 @@ class ThemeManager(Singleton, QtCore.QObject):
                 if panel:
                     container = panel.widget()
                     if container and hasattr(container, 'setStyleSheet'):
-                        container.setStyleSheet("background-color: transparent;")
+                        container.setStyleSheet(AppStyles.player_panel_style())
                     panel.update()
 
             if hasattr(window, '_reapply_floating_panel_styles'):
