@@ -775,8 +775,9 @@ class UIController:
                 self.window.epg_title.setStyleSheet(AppStyles.player_epg_title_style())
                 epg_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
                 epg_icon_path = AppStyles.get_icon('calendar', epg_icon_color)
-                if epg_icon_path:
-                    self.window.epg_title.setProperty('icon_path', epg_icon_path)
+                if epg_icon_path and hasattr(self.window, 'epg_title_icon'):
+                    from PySide6.QtGui import QPixmap
+                    self.window.epg_title_icon.setPixmap(QPixmap(epg_icon_path))
             if hasattr(self.window, 'playlist_title'):
                 self.window.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
             if hasattr(self.window, 'epg_prev_day'):
@@ -971,6 +972,11 @@ class UIController:
             if progress_slider:
                 progress_slider.setStyleSheet(AppStyles.player_slider_style())
                 progress_slider.update()
+
+            # 更新进度条缓存颜色
+            program_progress = getattr(self.window, 'program_progress', None)
+            if program_progress and hasattr(program_progress, 'set_cache_color'):
+                program_progress.set_cache_color(colors.get('player_cache_bar', 'rgba(76,175,80,0.4)'))
 
             # 重新设置控制面板中各QLabel的文字颜色（排除已单独处理的和图标label）
             for label in fp.findChildren(QLabel):
