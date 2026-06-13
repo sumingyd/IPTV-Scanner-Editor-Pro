@@ -56,6 +56,12 @@ class MenuRoundedProxyStyle(QProxyStyle):
 
     @staticmethod
     def _parse_menu_radius(widget):
+        try:
+            from ui.styles import AppStyles
+            r = AppStyles._get_style_border_radius()
+            return max(r - 2, 4)
+        except Exception:
+            pass
         radius = 0
         if widget:
             ss = widget.styleSheet()
