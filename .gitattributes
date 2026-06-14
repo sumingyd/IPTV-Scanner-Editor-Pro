@@ -1,5 +1,10 @@
 mpv/*.dll filter=lfs diff=lfs merge=lfs -text
 mpv/libmpv-2.dll filter=lfs diff=lfs merge=lfs -text
+# Linux ARM64 / x86_64 mpv libraries
+mpv/libmpv.so* filter=lfs diff=lfs merge=lfs -text
 ffmpeg/bin/ffmpeg.exe filter=lfs diff=lfs merge=lfs -text
 ffmpeg/bin/ffprobe.exe filter=lfs diff=lfs merge=lfs -text
 ffmpeg/bin/ffplay.exe filter=lfs diff=lfs merge=lfs -text
+# Linux ffmpeg binaries
+ffmpeg/ffprobe filter=lfs diff=lfs merge=lfs -text
+ffmpeg/ffmpeg filter=lfs diff=lfs merge=lfs -text

@@ -170,7 +170,7 @@
 python pyqt_player.py
 ```
 
-> **注意**：运行需要 `mpv/` 目录（含 libmpv-2.dll）和 `ffmpge/` 目录（含 ffprobe.exe），这些二进制文件未纳入版本控制。请自行下载 [MPV](https://mpv.io/) 和 [FFmpeg](https://ffmpeg.org/) 并放置到对应目录。
+> **注意**：运行需要 `mpv/` 目录（含 `libmpv-2.dll` on Windows / `libmpv.so.2` on Linux）和 `ffmpeg/` 目录（含 `ffprobe.exe` on Windows / `ffprobe` on Linux），这些二进制文件未纳入版本控制。请自行下载 [MPV](https://mpv.io/) 和 [FFmpeg](https://ffmpeg.org/) 并放置到对应目录。
 
 ### 方式二：从源码安装依赖
 ```bash
@@ -182,7 +182,21 @@ python pyqt_player.py
 ```
 
 ### 系统要求
-- **操作系统**：Windows 10/11
+- **操作系统**：Windows 10/11, Linux (x86_64 / ARM64), macOS (experimental)
+- **Python**：3.8+
+- **内存**：2GB RAM 以上
+- **网络**：需要网络连接用于频道扫描、EPG 下载和流媒体播放
+
+### Linux ARM64 支持
+本项目已添加对 Linux ARM64 平台的基础支持，包括：
+- 跨平台的 libmpv 库加载（自动检测 `.dll` / `.so`）
+- 跨平台的 ffprobe 二进制文件路径检测
+- GitHub Actions CI/CD 流水线中的 linux-arm64 构建作业
+
+在 Linux ARM64 系统上运行前，请确保：
+1. 安装系统依赖：`libmpv2`, `libssl3`, `libegl1`, `libopengl0` 等
+2. 下载适用于 ARM64 的 [MPV](https://github.com/junterpatrol/mpv-linux-arm64) 和 [FFmpeg](https://johnvansickle.com/ffmpeg/) 静态构建版本
+3. 将二进制文件放置到 `mpv/` 和 `ffmpeg/` 目录中
 - **Python**：3.8+
 - **内存**：2GB RAM 以上
 - **网络**：需要网络连接用于频道扫描、EPG 下载和流媒体播放

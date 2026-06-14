@@ -15,17 +15,30 @@ def _get_ffprobe_path():
         from models.channel_mappings import get_app_data_dir
         base_path = get_app_data_dir()
 
-    ffprobe_dir = os.path.join(base_path, 'ffmpge')
-    ffprobe_exe = os.path.join(ffprobe_dir, 'ffprobe.exe')
-    if os.path.exists(ffprobe_exe):
-        return ffprobe_exe
+    ffprobe_dir = os.path.join(base_path, 'ffmpeg')
 
-    ffprobe_dir_alt = os.path.join(base_path, 'ffmpeg')
-    ffprobe_exe_alt = os.path.join(ffprobe_dir_alt, 'ffprobe.exe')
-    if os.path.exists(ffprobe_exe_alt):
-        return ffprobe_exe_alt
+    # Cross-platform ffprobe binary detection
+    if sys.platform == 'win32':
+        _possible_names = ['ffprobe.exe']
+    elif sys.platform.startswith('linux'):
+        _possible_names = ['ffprobe']
+    else:
+        _possible_names = ['ffprobe']
 
-    global_logger.warning(f"未找到ffprobe.exe: {ffprobe_exe}")
+    for _name in _possible_names:
+        _p = os.path.join(ffprobe_dir, _name)
+        if os.path.exists(_p):
+            return _p
+
+    # Also check subdirectories (ffmpeg static builds may nest binaries)
+    if os.path.isdir(ffprobe_dir):
+        for _root, _dirs, _files in os.walk(ffprobe_dir):
+            for _f in _files:
+                if _f == 'ffprobe' or (_f == 'ffprobe.exe' and sys.platform == 'win32'):
+                    return os.path.join(_root, _f)
+
+    binary_name = 'ffprobe.exe' if sys.platform == 'win32' else 'ffprobe'
+    global_logger.warning(f"未找到{binary_name}: ffmpeg目录={ffprobe_dir}")
     return None
 
 

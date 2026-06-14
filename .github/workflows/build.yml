@@ -12,22 +12,31 @@ on:
         description: "Existing release tag to upload the executable to."
         required: true
         type: string
+      platform:
+        description: "Target platform to build for."
+        required: false
+        default: "windows"
+        type: choice
+        options:
+          - windows
+          - linux-arm64
 
 permissions:
   contents: write
 
 env:
-  EXE_PATH: dist/IPTV Scanner Editor Pro.exe
   PYTHONUTF8: "1"
   PYTHONIOENCODING: utf-8
   MPV_URL: "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260610/mpv-dev-x86_64-v3-20260610-git-304426c.7z"
   FFMPEG_URL: "https://github.com/GyanD/codexffmpeg/releases/download/2026-06-08-git-6028720d70/ffmpeg-2026-06-08-git-6028720d70-essentials_build.7z"
+  MPV_LINUX_URL: "https://github.com/junterpatrol/mpv-linux-arm64/releases/download/latest/mpv-arm64.tar.xz"
+  FFMPEG_LINUX_URL: "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz"
 
 jobs:
   build-and-publish:
-    name: Build EXE and update release
+    name: Build Windows exe
     runs-on: windows-latest
-
+    if: inputs.platform == 'windows' || github.event_name != 'workflow_dispatch'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -57,17 +66,17 @@ jobs:
           if ($null -eq $ffmpegBin) {
             throw "Could not find ffmpeg.exe after extracting ffmpeg.7z."
           }                   
-          if (Test-Path ".\ffmpge") {
-            Remove-Item ".\ffmpge" -Recurse -Force
+          if (Test-Path ".\ffmpeg") {
+            Remove-Item ".\ffmpeg" -Recurse -Force
           }
-          Write-Host "Moving $ffmpegBin.FullName (folder of ffmpeg.exe) to .\ffmpge"
-          Move-Item -Path $ffmpegBin.FullName -Destination ".\ffmpge"
-          dir ./ffmpge
+          Write-Host "Moving $ffmpegBin.FullName (folder of ffmpeg.exe) to .\ffmpeg"
+          Move-Item -Path $ffmpegBin.FullName -Destination ".\ffmpeg"
+          dir ./ffmpeg
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.14.5"
+          python-version: "3.12"
           cache: "pip"
 
       - name: Install dependencies
@@ -97,6 +106,148 @@ jobs:
         with:
           tag_name: ${{ inputs.release_tag }}
           files: ${{ env.EXE_PATH }}
+          fail_on_unmatched_files: true
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux-arm64:
+    name: Build Linux ARM64 App (native aarch64)
+    # Use ubuntu-24.04-arm runner — GitHub provides free ARM64 runners for public repos
+    runs-on: ubuntu-24.04-arm
+    if: inputs.platform == 'linux-arm64' || github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Verify ARM64 architecture
+        run: |
+          echo "=== Build Environment ==="
+          uname -a
+          arch
+          lscpu | grep "Architecture" || true
+          python3 --version
+
+      - name: Install system dependencies (ARM64 native)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libxkbcommon0 \
+            libxcb1 \
+            libdbus-1-3 \
+            libfontconfig1 \
+            libfreetype6 \
+            libssl3t64 \
+            libegl1 \
+            libopengl0 \
+            libpulse0 \
+            libglib2.0-0t64 \
+            libmpv-dev \
+            ffmpeg
+
+      - name: Download and Prepare MPV (Linux ARM64 native)
+        run: |
+          echo "=== Preparing MPV for Linux ARM64 ==="
+          
+          # On ubuntu-24.04-arm, system libmpv is already ARM64 native
+          mkdir -p mpv
+          
+          if [ -f /usr/lib/aarch64-linux-gnu/libmpv.so.2 ]; then
+            sudo cp /usr/lib/aarch64-linux-gnu/libmpv.so.2 mpv/
+            echo "Copied system libmpv.so.2 (ARM64 native)"
+            file mpv/libmpv.so.2
+          elif [ -f /usr/lib/x86_64-linux-gnu/libmpv.so.2 ]; then
+            sudo cp /usr/lib/x86_64-linux-gnu/libmpv.so.2 mpv/
+            echo "Copied x86_64 libmpv.so.2 (unexpected on ARM runner)"
+          else
+            # Download pre-built ARM64 libmpv from a reliable source
+            echo "System libmpv not found, downloading ARM64 build..."
+            MPV_ARM_URL="https://github.com/junterpatrol/mpv-linux-arm64/releases/download/latest/libmpv.so.2"
+            wget -q "$MPV_ARM_URL" -O mpv/libmpv.so.2 2>/dev/null || {
+              echo "Warning: Could not download libmpv.so.2, will use system fallback"
+            }
+          fi
+
+      - name: Download and Prepare FFmpeg (Linux ARM64 native)
+        run: |
+          echo "=== Preparing FFmpeg for Linux ARM64 ==="
+          
+          # On ubuntu-24.04-arm, system ffmpeg is already ARM64 native
+          mkdir -p ffmpeg/bin
+          
+          if [ -f /usr/bin/ffprobe ]; then
+            sudo cp /usr/bin/ffprobe ffmpeg/bin/
+            echo "Copied system ffprobe (ARM64 native)"
+            file ffmpeg/bin/ffprobe
+          fi
+          
+          if [ -f /usr/bin/ffmpeg ]; then
+            sudo cp /usr/bin/ffmpeg ffmpeg/bin/
+            echo "Copied system ffmpeg (ARM64 native)"
+            file ffmpeg/bin/ffmpeg
+          else
+            # Download ARM64 static FFmpeg as fallback
+            echo "System ffmpeg not found, please try to use ARM64 static build..."
+            throw "build failed"
+          fi
+
+      - name: Install Python dependencies (ARM64 native)
+        run: |
+          python3 --version
+          python3 -m pip install --upgrade pip
+          
+          # PySide6 provides pre-built wheels for linux-aarch64 since 6.5+
+          python3 -m pip install -r requirements.txt
+          python3 -m pip install pyinstaller
+
+      - name: Build Linux ARM64 App (PyInstaller)
+        run: |
+          echo "=== Building Linux ARM64 Application ==="
+          
+          # Use bash build script for Linux compatibility
+          if [ -f "build.py" ]; then
+            python3 build.py || {
+              echo "build.py script failed."    
+              throw "build failed"         
+            }
+          else
+            echo "build.py not found, build failed."
+            throw "build failed"
+          fi
+
+      - name: Verify ARM64 build output
+        run: |
+          echo "=== Verifying Build Output ==="
+          
+          if [ -f "dist/IPTV Scanner Editor Pro" ]; then
+            chmod +x "dist/IPTV Scanner Editor Pro"
+            
+            # Verify it's actually an ARM64 binary
+            file "dist/IPTV Scanner Editor Pro"
+            echo ""
+            ls -la "dist/IPTV Scanner Editor Pro"
+            
+            # Check architecture matches
+            if file "dist/IPTV Scanner Editor Pro" | grep -q "ARM"; then
+              echo "✅ Build is ARM64 native (correct!)"
+            else
+              echo "⚠️  WARNING: Binary may not be ARM64!"
+              exit 1
+            fi
+          else
+            echo "❌ Expected executable not found in dist/"
+            ls -la dist/ 2>/dev/null || echo "No dist directory found"
+            exit 1
+          fi
+
+      - name: Upload Linux ARM64 build to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          files: |
+            dist/IPTV Scanner Editor Pro
           fail_on_unmatched_files: true
           overwrite_files: true
         env:

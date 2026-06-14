@@ -279,6 +279,9 @@ def _get_exe_command():
 
 
 def _ensure_prog_id(prog_id, app_name=None):
+    """Ensure Windows registry ProgID entry exists (Windows only)"""
+    if sys.platform != 'win32':
+        return False
     try:
         import winreg
     except ImportError:
@@ -306,6 +309,9 @@ def _ensure_prog_id(prog_id, app_name=None):
 
 
 def _delete_prog_id(prog_id):
+    """Delete Windows registry ProgID entry (Windows only)"""
+    if sys.platform != 'win32':
+        return
     try:
         import winreg
     except ImportError:
@@ -318,6 +324,10 @@ def _delete_prog_id(prog_id):
 
 
 def _notify_shell_change():
+    """Notify the shell that file associations have changed (cross-platform)"""
+    # Only Windows supports SHChangeNotify for file association notifications
+    if sys.platform != 'win32':
+        return
     try:
         import ctypes
         ctypes.windll.shell32.SHChangeNotify(0x08000000, 0x1000, None, None)

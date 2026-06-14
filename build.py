@@ -13,6 +13,11 @@ from pathlib import Path
 print(f"当前 Python 版本: {sys.version}")
 print(f"当前工作目录: {os.getcwd()}")
 
+# Cross-platform platform detection
+IS_WINDOWS = sys.platform == 'win32'
+IS_LINUX = sys.platform.startswith('linux')
+IS_MACOS = sys.platform == 'darwin'
+
 # 项目根目录
 PROJECT_ROOT = Path(__file__).parent
 print(f"项目根目录: {PROJECT_ROOT}")
@@ -34,7 +39,7 @@ PYINSTALLER_CMD = [
     "--name", "IPTV Scanner Editor Pro",
     "--icon", str(PROJECT_ROOT / "resources" / "logo.ico"),
     "--add-data", f"{PROJECT_ROOT / 'mpv'};mpv",
-    "--add-data", f"{PROJECT_ROOT / 'ffmpge'};ffmpge",
+    "--add-data", f"{PROJECT_ROOT / 'ffmpeg'};ffmpeg",
     "--add-data", f"{PROJECT_ROOT / 'resources'};resources",
     "--hidden-import", "PySide6.QtNetwork",
     "--hidden-import", "PySide6.QtWidgets",
