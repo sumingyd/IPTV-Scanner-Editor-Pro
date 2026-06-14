@@ -128,7 +128,8 @@ jobs:
 
       - name: Prepare MPV (Linux ARM64 native)
         run: |
-          echo "=== Preparing MPV for Linux ARM64 ==="          
+          echo "=== Preparing MPV for Linux ARM64 ==="  
+          mkdir -p mpv        
           echo "cannot not find a static libmpv package, user need install mpv before using this app."
 
       - name: Prepare FFmpeg (Linux ARM64 native)

@@ -41,6 +41,7 @@ PYINSTALLER_CMD = [
     "--windowed",
     "--name", "IPTV Scanner Editor Pro",
     "--icon", str(PROJECT_ROOT / "resources" / "logo.ico"),
+    "--add-data", f"{PROJECT_ROOT / 'mpv'}{sp}mpv"
     "--add-data", f"{PROJECT_ROOT / 'ffmpeg'}{sp}ffmpeg",
     "--add-data", f"{PROJECT_ROOT / 'resources'}{sp}resources",
     "--hidden-import", "PySide6.QtNetwork",
@@ -150,10 +151,10 @@ PYINSTALLER_CMD = [
     str(PROJECT_ROOT / "pyqt_player.py"),
 ]
 
-if not IS_WINDOWS:
-    mpvdata =["--add-data", f"{PROJECT_ROOT / 'mpv'}{sp}mpv"]
-    for d in mpvdata:
-        PYINSTALLER_CMD.append(d)
+# if IS_WINDOWS:
+#     mpvdata =["--add-data", f"{PROJECT_ROOT / 'mpv'}{sp}mpv"]
+#     for d in mpvdata:
+#         PYINSTALLER_CMD.append(d)
 
 # 清理之前的构建结果
 def clean_build():
