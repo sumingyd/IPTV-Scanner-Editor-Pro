@@ -243,7 +243,7 @@ class IPTVPlayer(QMainWindow):
     video_widget = None
     video_placeholder = None
     central_widget = None
-    toolbar = None
+
     status_bar = None
     epg_panel = None
     playlist_panel = None
@@ -487,7 +487,7 @@ class IPTVPlayer(QMainWindow):
         self.video_widget = None
         self.video_placeholder = None
         self.top_layout = None
-        self.toolbar = None
+
         self.status_bar = None
 
         from datetime import datetime
@@ -821,22 +821,7 @@ class IPTVPlayer(QMainWindow):
         # 菜单栏
         self.setup_menu_bar(skip_recent_files=True)
         
-        # 第二步：创建工具栏
-        self._create_tool_bar()
-        
         logger.debug("_create_menu_bar: 完成")
-    
-    def _create_tool_bar(self):
-        """创建工具栏"""
-        logger.debug("_create_tool_bar: 开始")
-        
-        # 工具栏（暂时隐藏，等需要时再显示）
-        self.toolbar = self.addToolBar("播放控制")
-        if self.toolbar:
-            self.toolbar.setStyleSheet(AppStyles.player_menu_bar_style())
-            self.toolbar.hide()
-        
-        logger.debug("_create_tool_bar: 完成")
     
     def _create_video_area(self):
         """创建视频区域"""
