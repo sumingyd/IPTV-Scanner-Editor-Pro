@@ -410,16 +410,16 @@ class CatchupController:
 
     def seek_catchup(self, position: float):
         w = self.window
+        from core.log_manager import global_logger as logger
+        from datetime import timedelta, datetime
+        import time as _time
+
         if self.catchup_program is None or self.original_channel is None:
-            from core.log_manager import global_logger as logger
             logger.error("回看模式但缺少必要信息")
             w.status_bar.showMessage(w.language_manager.tr("catchup_error", "Catchup error: Missing information"))
             return
 
         try:
-            from core.log_manager import global_logger as logger
-            from datetime import timedelta, datetime
-            import time as _time
 
             if self._try_mpv_seek(position):
                 return
@@ -508,7 +508,7 @@ class CatchupController:
             if hasattr(w, 'player_controller') and w.player_controller:
                 w.player_controller.play(catchup_url, f"{channel_name} - {title} (回看)")
         except Exception as e:
-            from core.log_manager import global_logger as logger
+
             logger.error(f"重新构建回看 URL 失败：{e}")
             w.status_bar.showMessage(w.language_manager.tr("catchup_seek_error", "Catchup seek failed"))
 

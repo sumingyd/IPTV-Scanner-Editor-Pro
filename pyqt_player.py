@@ -690,11 +690,10 @@ class IPTVPlayer(QMainWindow):
 
     def leaveEvent(self, event):
         """鼠标离开窗口"""
+        from PySide6.QtCore import QTimer
         if self.pip_mode:
-            from PySide6.QtCore import QTimer
             QTimer.singleShot(50, self.pip_ctrl.delayed_hide_overlay)
         elif not getattr(self, '_floating_hidden', False) and not getattr(self, 'is_fullscreen', False):
-            from PySide6.QtCore import QTimer
             QTimer.singleShot(50, self._delayed_hide_floating_panels)
         super().leaveEvent(event)
     
@@ -2297,19 +2296,18 @@ class IPTVPlayer(QMainWindow):
         self._disable_progress_auto_update = True
 
     def _on_progress_preview(self, seconds):
+        from datetime import datetime, timedelta
         mode = getattr(self, '_progress_time_mode', None)
         if mode == 'vod':
             self.program_progress.set_preview_text(self._format_seconds_to_time(seconds))
         elif mode == 'epg':
             program_start = getattr(self, '_progress_program_start', None)
             if program_start:
-                from datetime import timedelta
                 preview_time = program_start + timedelta(seconds=seconds)
                 self.program_progress.set_preview_text(preview_time.strftime("%H:%M:%S"))
             else:
                 self.program_progress.set_preview_text(self._format_seconds_to_time(seconds))
         elif mode == 'hour':
-            from datetime import datetime, timedelta
             now = datetime.now()
             hour_start = now.replace(minute=0, second=0, microsecond=0)
             preview_time = hour_start + timedelta(seconds=seconds)
@@ -2321,7 +2319,6 @@ class IPTVPlayer(QMainWindow):
                 if catchup_program:
                     start_time = catchup_program.get('start')
                     if start_time:
-                        from datetime import timedelta
                         preview_time = start_time + timedelta(seconds=seconds)
                         self.program_progress.set_preview_text(preview_time.strftime("%H:%M:%S"))
                         return
@@ -3513,7 +3510,7 @@ class IPTVPlayer(QMainWindow):
                 return
             elif close_action == 'exit':
                 try:
-                    from server.app import stop_server
+
                     stop_server()
                 except Exception:
                     pass
