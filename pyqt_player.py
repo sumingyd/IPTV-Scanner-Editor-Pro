@@ -2951,7 +2951,12 @@ class IPTVPlayer(QMainWindow):
         self._position_floating_docks()
 
     def _position_floating_docks(self):
-        """将3个浮动Dock定位到相对于主窗口的正确位置"""
+        """将3个浮动Dock定位到相对于主窗口的正确位置（带节流）"""
+        import time
+        now = time.time()
+        if hasattr(self, '_last_position_time') and now - self._last_position_time < 0.05:
+            return
+        self._last_position_time = now
         if hasattr(self, '_main_container') and self._main_container.layout():
             self._main_container.layout().activate()
 
