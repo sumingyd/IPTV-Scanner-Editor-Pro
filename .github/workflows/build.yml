@@ -15,7 +15,7 @@ on:
         options:
           - windows
           - linux-arm64
-C
+
 permissions:
   contents: write
 
