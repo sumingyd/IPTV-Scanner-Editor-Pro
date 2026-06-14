@@ -15,8 +15,8 @@ print(f"当前工作目录: {os.getcwd()}")
 
 # Cross-platform platform detection
 IS_WINDOWS = sys.platform == 'win32'
-IS_LINUX = sys.platform.startswith('linux')
-IS_MACOS = sys.platform == 'darwin'
+# IS_LINUX = sys.platform.startswith('linux')
+# IS_MACOS = sys.platform == 'darwin'
 
 # 项目根目录
 PROJECT_ROOT = Path(__file__).parent
@@ -31,7 +31,7 @@ except ImportError:
     sys.exit(1)
 
 
-sp =  ';' if sys.platform == 'win32' else ':'
+sp =  ';' if IS_WINDOWS else ':'
 
 # 定义打包命令
 PYINSTALLER_CMD = [
