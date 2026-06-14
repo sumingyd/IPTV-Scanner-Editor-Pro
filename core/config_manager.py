@@ -265,6 +265,14 @@ class ConfigManager(Singleton):
             except Exception as e:
                 logger.error(f"配置管理-设置配置值失败: {str(e)}", exc_info=True)
 
+    def remove_option(self, section, key):
+        with self._lock:
+            try:
+                if self.config.has_section(section) and self.config.has_option(section, key):
+                    self.config.remove_option(section, key)
+            except Exception as e:
+                logger.debug(f"配置管理-移除选项失败: {section}.{key}: {e}")
+
     def save_ui_settings(self, settings: dict):
         """保存UI相关设置"""
         for key, value in settings.items():

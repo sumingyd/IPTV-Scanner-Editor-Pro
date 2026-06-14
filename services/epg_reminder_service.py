@@ -40,12 +40,11 @@ class EpgReminderService:
                 self._config.set_value('EpgReminders', 'count', str(len(self._reminders)))
                 for i, r in enumerate(self._reminders):
                     self._config.set_value('EpgReminders', f'r_{i}', json.dumps(r, ensure_ascii=False))
-                with self._config._lock:
-                    for i in range(len(self._reminders), old_count + 1):
-                        try:
-                            self._config.config.remove_option('EpgReminders', f'r_{i}')
-                        except Exception:
-                            pass
+                for i in range(len(self._reminders), old_count + 1):
+                    try:
+                        self._config.remove_option('EpgReminders', f'r_{i}')
+                    except Exception:
+                        pass
                 self._config.save_config()
             except Exception as e:
                 logger.error(f"保存EPG提醒失败: {e}")
@@ -122,6 +121,7 @@ class EpgReminderService:
                         self._notified_ids.discard(rid)
                 except Exception as e:
                     logger.debug(f"检查提醒异常: {e}")
+        self.cleanup_expired()
         auto_switched = False
         for reminder in triggered:
             if reminder.get('auto_switch') and not auto_switched:

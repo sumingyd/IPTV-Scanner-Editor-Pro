@@ -41,13 +41,9 @@ class ChannelRatingService:
                 for i, (url, rating) in enumerate(items):
                     self._config.set_value('ChannelRatings', f'url_{i}', url)
                     self._config.set_value('ChannelRatings', f'rating_{i}', rating)
-                with self._config._lock:
-                    for i in range(len(items), old_count + 1):
-                        try:
-                            self._config.config.remove_option('ChannelRatings', f'url_{i}')
-                            self._config.config.remove_option('ChannelRatings', f'rating_{i}')
-                        except Exception:
-                            pass
+                for i in range(len(items), old_count + 1):
+                    self._config.remove_option('ChannelRatings', f'url_{i}')
+                    self._config.remove_option('ChannelRatings', f'rating_{i}')
                 self._config.save_config()
             except Exception as e:
                 logger.error(f"保存频道评分失败: {e}")

@@ -58,12 +58,8 @@ class FavoritesService:
                 self._config.set_value('Favorites', 'count', str(len(self._favorites)))
                 for i, ch in enumerate(self._favorites):
                     self._config.set_value('Favorites', f'ch_{i}', json.dumps(ch, ensure_ascii=False))
-                with self._config._lock:
-                    for i in range(len(self._favorites), old_count + 1):
-                        try:
-                            self._config.config.remove_option('Favorites', f'ch_{i}')
-                        except Exception:
-                            pass
+                for i in range(len(self._favorites), old_count + 1):
+                    self._config.remove_option('Favorites', f'ch_{i}')
                 self._config.save_config()
             except Exception as e:
                 logger.error(f"保存收藏失败: {e}")
@@ -77,12 +73,8 @@ class FavoritesService:
                 self._config.set_value('PlayHistory', 'count', str(len(self._play_history)))
                 for i, ch in enumerate(self._play_history):
                     self._config.set_value('PlayHistory', f'ch_{i}', json.dumps(ch, ensure_ascii=False))
-                with self._config._lock:
-                    for i in range(len(self._play_history), old_count + 1):
-                        try:
-                            self._config.config.remove_option('PlayHistory', f'ch_{i}')
-                        except Exception:
-                            pass
+                for i in range(len(self._play_history), old_count + 1):
+                    self._config.remove_option('PlayHistory', f'ch_{i}')
                 self._config.save_config()
             except Exception as e:
                 logger.error(f"保存历史失败: {e}")
