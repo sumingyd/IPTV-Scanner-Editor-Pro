@@ -15,7 +15,7 @@ on:
         options:
           - windows
           - linux-arm64
-
+C
 permissions:
   contents: write
 
@@ -25,8 +25,8 @@ env:
   MPV_URL: "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260610/mpv-dev-x86_64-v3-20260610-git-304426c.7z"
   FFMPEG_URL: "https://github.com/GyanD/codexffmpeg/releases/download/2026-06-08-git-6028720d70/ffmpeg-2026-06-08-git-6028720d70-essentials_build.7z"
   MPV_LINUX_URL: ""
-  FFMPEG_LINUX_URL2: "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-linuxarm64-gpl-8.1.tar.xz"
-  FFMPEG_LINUX_URL: "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz"
+  FFMPEG_LINUX_ARM64_URL2: "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-linuxarm64-gpl-8.1.tar.xz"
+  FFMPEG_LINUX_ARM64_URL: "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz"
 
 jobs:
   build-and-publish:
@@ -169,7 +169,7 @@ jobs:
           # try to donwload static ffmpeg packages and extract to get target files
           mkdir -p ffmpeg
  
-          wget -q "$FFMPEG_ARM_URL2" -O /tmp/ffmpeg-arm64.tar.xz 2>/dev/null && {
+          wget -q "$FFMPEG_LINUX_ARM64_URL2" -O /tmp/ffmpeg-arm64.tar.xz 2>/dev/null && {
               tar -xf /tmp/ffmpeg-arm64.tar.xz -C /tmp/
               find /tmp -name "ffprobe" -type f -exec cp {} ffmpeg/ \; 2>/dev/null || true
               find /tmp -name "ffmpeg" -type f -exec cp {} ffmpeg/ \; 2>/dev/null || true
