@@ -115,6 +115,14 @@ class mpv_event_end_file(ctypes.Structure):
     ]
 
 
+class mpv_event_property(ctypes.Structure):
+    _fields_ = [
+        ('name', ctypes.c_char_p),
+        ('format', ctypes.c_int),
+        ('data', ctypes.c_void_p),
+    ]
+
+
 MPV_EVENT_NONE = 0
 MPV_EVENT_SHUTDOWN = 1
 MPV_EVENT_LOG_MESSAGE = 2

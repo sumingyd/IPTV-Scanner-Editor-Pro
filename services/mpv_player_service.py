@@ -7,6 +7,7 @@ from core.log_manager import global_logger
 from services.mpv_common import (
     mpv_event,
     mpv_event_end_file,
+    mpv_event_property,
     MPV_EVENT_NONE,
     MPV_EVENT_SHUTDOWN,
     MPV_EVENT_START_FILE,
@@ -810,7 +811,23 @@ class MpvPlayerController(QObject):
                     return
 
                 if event.event_id == MPV_EVENT_PROPERTY_CHANGE:
-                    pass
+                    if event.data:
+                        try:
+                            import ctypes as _ctypes
+                            prop = _ctypes.cast(event.data, _ctypes.POINTER(mpv_event_property)).contents
+                            if prop.name:
+                                name = _ctypes.cast(prop.name, _ctypes.c_char_p).value
+                                if name and name.decode('utf-8', errors='ignore') == 'pause':
+                                    if prop.format == MPV_FORMAT_STRING and prop.data:
+                                        val_ptr = _ctypes.cast(prop.data, _ctypes.POINTER(_ctypes.c_char_p)).contents
+                                        if val_ptr:
+                                            val = val_ptr.decode('utf-8', errors='ignore')
+                                            new_paused = (val == 'yes')
+                                            if new_paused != self.is_paused:
+                                                self.is_paused = new_paused
+                                                self._safe_emit(self.play_state_changed, not new_paused)
+                        except Exception:
+                            pass
 
                 elif event.event_id == MPV_EVENT_FILE_LOADED:
                     self._reconnect_count = 0
