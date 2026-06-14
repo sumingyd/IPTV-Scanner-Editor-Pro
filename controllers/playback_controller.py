@@ -234,13 +234,19 @@ class PlaybackController:
             self.window.exit_catchup_button.hide()
 
         for attr in ['_catchup_start_time', '_catchup_start_progress',
-                     '_target_catchup_progress', '_disable_progress_auto_update',
+                     '_target_catchup_progress',
                      '_pending_catchup_progress',
                      '_timeshift_enter_time_ms', '_timeshift_start_time']:
             if hasattr(self.window, attr):
-                setattr(self.window, attr, None if 'time' in attr or 'progress' in attr or 'shift' in attr or 'range' in attr else False)
+                setattr(self.window, attr, None)
             if hasattr(self, attr):
-                setattr(self, attr, None if 'time' in attr or 'progress' in attr or 'shift' in attr or 'range' in attr else False)
+                setattr(self, attr, None)
+
+        for attr in ['_disable_progress_auto_update']:
+            if hasattr(self.window, attr):
+                setattr(self.window, attr, False)
+            if hasattr(self, attr):
+                setattr(self, attr, False)
 
         if hasattr(self.window, 'program_progress'):
             self.window.program_progress.setValue(0)
