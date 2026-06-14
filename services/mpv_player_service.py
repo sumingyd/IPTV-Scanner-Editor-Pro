@@ -1070,10 +1070,15 @@ class MpvPlayerController(QObject):
                 except Exception as e:
                     self.logger.debug(f"发送quit命令失败（可能已关闭）: {e}")
 
-                time.sleep(0.15)
-
-                with self._lock:
-                    pass
+                from PySide6.QtCore import QElapsedTimer
+                elapsed = QElapsedTimer()
+                elapsed.start()
+                while elapsed.elapsed() < 150:
+                    from PySide6.QtWidgets import QApplication
+                    QApplication.processEvents()
+                    with self._lock:
+                        if self.mpv_handle is None:
+                            break
 
                 try:
                     terminate_destroy_mpv(handle)
