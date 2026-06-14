@@ -52,6 +52,8 @@ from mixins.server_mixin import ServerMixin
 from mixins.tray_mixin import TrayMixin
 from mixins.update_mixin import UpdateMixin
 from mixins.thumbnail_mixin import ThumbnailMixin
+from mixins.file_ops_mixin import FileOpsMixin
+from mixins.panel_mixin import PanelMixin
 
 
 class _RoundedContainer(QWidget):
@@ -183,7 +185,7 @@ class VideoOverlayBadge(QWidget):
 from services.mpv_player_service import MpvPlayerController
 
 
-class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, QMainWindow):
+class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMixin, PanelMixin, QMainWindow):
     epg_status_signal = Signal(str)
     channel_list_updated = Signal()
     epg_list_updated = Signal()
@@ -789,9 +791,7 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, QMainWindo
 
         logger.debug("_initialize_in_order: 完成")
 
-    def _handle_playlist_subscription(self, need_update, playlist_url, source_index=None):
-        """在后台线程中处理列表订阅（委托给SubscriptionController）"""
-        self.subscription_ctrl.handle_playlist_subscription(need_update, playlist_url, source_index)
+
 
     def _update_channel_list_ui(self):
         try:
@@ -1824,11 +1824,7 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, QMainWindo
                     self.video_placeholder.setGeometry(0, 0, w, h)
 
 
-    def _start_subscription_timers(self):
-        """启动订阅更新定时器"""
-        logger.debug("_start_subscription_timers: 开始")
-        self.start_subscription_timers()
-        logger.debug("_start_subscription_timers: 完成")
+
     
     def _update_recent_files_menu(self):
         """初始化最近打开文件菜单"""
@@ -2574,147 +2570,7 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, QMainWindo
         self.epg_ctrl.update_epg_date_display()
 
 
-    def toggle_playlist(self, checked=None):
-        """显示/隐藏播放列表面板"""
-        if self.panel_vis.is_auto_hidden:
-            self._auto_restore_panels()
-            return
-        if checked is None:
-            self.playlist_visible = not self.playlist_panel.isVisible()
-        else:
-            self.playlist_visible = checked
-        self._sync_panel_actions()
 
-    def toggle_floating_panel(self, checked=None):
-        """显示/隐藏底部控制面板"""
-        if self.panel_vis.is_auto_hidden:
-            self._auto_restore_panels()
-            return
-        if checked is None:
-            self.floating_panel_visible = not self.floating_panel.isVisible()
-        else:
-            self.floating_panel_visible = checked
-        self._sync_panel_actions()
-
-    def toggle_hide_floating(self, checked=None):
-        if self.panel_vis.manually_hidden:
-            is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
-            self.panel_vis.restore_from_manual_hide(is_local_file=is_local)
-        else:
-            if self.panel_vis.is_auto_hidden:
-                self.panel_vis._auto_hide_saved = dict(self.panel_vis._auto_hide_saved or {})
-                self.panel_vis.set_auto_hide_visible()
-            self.panel_vis.hide_all()
-        self._sync_panel_actions()
-
-    def _show_floating_panels_on_enter(self):
-        if self.panel_vis.manually_hidden:
-            return
-        if getattr(self, 'is_fullscreen', False):
-            return
-        if getattr(self, '_pip_mode', False):
-            return
-        if not self.panel_vis.is_auto_hidden:
-            return
-
-        is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
-        self.panel_vis.restore_auto_hide_state(is_local_file=is_local)
-        self._sync_panel_actions()
-        self._raise_child_dialogs()
-
-    def _delayed_hide_floating_panels(self):
-        if self.panel_vis.manually_hidden:
-            return
-        if getattr(self, 'is_fullscreen', False):
-            return
-        if getattr(self, '_pip_mode', False):
-            return
-        if not self.panel_vis.is_auto_hide_visible:
-            return
-        cursor_pos = self.cursor().pos()
-        if self.rect().contains(self.mapFromGlobal(cursor_pos)):
-            return
-        if hasattr(self, 'epg_panel') and self.epg_panel.isVisible() and self.epg_panel.geometry().contains(cursor_pos):
-            return
-        if hasattr(self, 'playlist_panel') and self.playlist_panel.isVisible() and self.playlist_panel.geometry().contains(cursor_pos):
-            return
-        if hasattr(self, 'floating_panel') and self.floating_panel.isVisible() and self.floating_panel.geometry().contains(cursor_pos):
-            return
-
-        self.panel_vis.auto_hide_all()
-        self._sync_panel_actions()
-
-    def _auto_hide_panels(self):
-        if not getattr(self, 'is_fullscreen', False):
-            return
-        if self.panel_vis.manually_hidden:
-            return
-        if not self.panel_vis.is_auto_hide_visible:
-            return
-
-        self.panel_vis.auto_hide_all()
-        self.setCursor(Qt.CursorShape.BlankCursor)
-        self._sync_panel_actions()
-
-    def _auto_restore_panels(self):
-        if not getattr(self, 'is_fullscreen', False):
-            if not self.panel_vis.manually_hidden:
-                self._show_floating_panels_on_enter()
-            return
-        if not self.panel_vis.is_auto_hidden:
-            return
-        if self.panel_vis.manually_hidden:
-            return
-
-        is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
-        self.panel_vis.restore_auto_hide_state(is_local_file=is_local)
-        self.unsetCursor()
-        self._sync_panel_actions()
-        self._restart_auto_hide_timer()
-        self._raise_child_dialogs()
-
-    def _restart_auto_hide_timer(self):
-        if getattr(self, 'is_fullscreen', False) and not self.panel_vis.manually_hidden:
-            if not hasattr(self, '_auto_hide_timer'):
-                from PySide6.QtCore import QTimer
-                self._auto_hide_timer = QTimer(self)
-                self._auto_hide_timer.setSingleShot(True)
-                self._auto_hide_timer.setInterval(self.AUTO_HIDE_INTERVAL_MS)
-                self._auto_hide_timer.timeout.connect(self._auto_hide_panels)
-            if self.panel_vis.is_auto_hide_visible:
-                self._auto_hide_timer.start()
-
-    def _stop_auto_hide_timer(self):
-        """停止全屏自动隐藏定时器"""
-        if hasattr(self, '_auto_hide_timer') and self._auto_hide_timer:
-            self._auto_hide_timer.stop()
-
-
-    def _on_mouse_activity(self):
-        if getattr(self, 'is_fullscreen', False) and not self.panel_vis.manually_hidden:
-            if self.panel_vis.is_auto_hidden:
-                self._auto_restore_panels()
-            elif self.panel_vis.is_auto_hide_visible:
-                self._restart_auto_hide_timer()
-
-
-    def _sync_panel_actions(self):
-        """同步所有面板相关 QAction 的 checked 状态"""
-        for attr, visible in [
-            ('_epg_menu_action', self.epg_visible),
-            ('_playlist_menu_action', self.playlist_visible),
-            ('_floating_menu_action', self.floating_panel_visible),
-            ('_osd_menu_action', self._osd_visible),
-            ('_fullscreen_menu_action', getattr(self, 'is_fullscreen', False)),
-            ('_pip_menu_action', self.pip_ctrl.is_active if hasattr(self, 'pip_ctrl') else False),
-
-
-        ]:
-            action = getattr(self, attr, None)
-            if action:
-                action.blockSignals(True)
-                action.setChecked(visible)
-                action.blockSignals(False)
 
     def toggle_osd(self, checked=None):
         """切换OSD显示/隐藏（委托给UIController）"""
@@ -3120,275 +2976,15 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, QMainWindo
                 y = (screen_geometry.height() - dialog_size.height()) // 2 + screen_geometry.y()
                 dialog.move(x, y)
 
-    def reload_subscription(self):
-        """重新加载订阅源"""
-        if self.subscription_ctrl:
-            self.subscription_ctrl.reload_subscription()
 
-    def start_subscription_timers(self):
-        """检查并更新订阅内容（委托给SubscriptionController）"""
-        self.subscription_ctrl.start_subscription_timers()
 
-    def update_playlist_subscription(self, source_index=None):
-        """更新列表订阅 - 线程安全版本（委托给SubscriptionController）"""
-        self.subscription_ctrl.update_playlist_subscription(source_index)
 
-    @Slot()
-    def _do_on_playlist_updated_in_main_thread(self):
-        """在主线程中处理订阅更新完成后的UI操作"""
-        try:
-            message = getattr(self, '_pending_update_message', '')
-            self._pending_update_message = None
-            logger.info(f"_do_on_playlist_updated_in_main_thread: 开始更新UI, CHANNELS数量={app_state.channel_count}")
-            if hasattr(self, 'playlist_tab'):
-                self.playlist_tab.setCurrentIndex(0)
-            try:
-                self.populate_channel_list(source='subscription')
-            except Exception as ex:
-                logger.error(f"populate_channel_list失败: {ex}")
-            try:
-                self._populate_epg_list()
-            except Exception as ex:
-                logger.error(f"_populate_epg_list失败: {ex}")
-            if hasattr(self, 'update_floating_position'):
-                self.update_floating_position()
-            self.status_bar.showMessage(message)
-            logger.info("_do_on_playlist_updated_in_main_thread: UI更新完成")
-        except Exception as ex:
-            logger.error(f"在主线程更新UI失败: {ex}")
 
-    @Slot()
 
-    def _do_show_status_bar_message(self):
-        msg = getattr(self, '_pending_status_bar_msg', '')
-        self._pending_status_bar_msg = None
-        self.status_bar_show_message(msg)
-
-    @Slot()
-    def _do_on_epg_cache(self):
-        self.epg_list_updated.emit()
-        self.status_bar_show_message(self.language_manager.tr("epg_using_cache", "Using cached EPG data"))
-
-    @Slot()
-    def _do_on_epg_success(self):
-        self.epg_list_updated.emit()
-        self.status_bar_show_message(self.language_manager.tr("epg_sub_updated", "EPG subscription updated"))
-
-    def update_recent_files_menu(self):
-        """更新最近打开文件菜单"""
-        
-        # 清空当前菜单
-        self.recent_menu.clear()
-        
-        # 加载最近打开的文件列表
-        recent_files = self.config.load_recent_files()
-        
-        if not recent_files:
-            # 如果没有最近打开的文件，添加一个禁用的菜单项
-            no_recent_action = QAction(self.language_manager.tr("no_recent_files", "No recent files"), self)
-            no_recent_action.setEnabled(False)
-            self.recent_menu.addAction(no_recent_action)
-        else:
-            # 添加最近打开的文件到菜单
-            for file_path in recent_files:
-                action = QAction(file_path, self)
-                action.triggered.connect(lambda checked, path=file_path: self.open_recent_file(path))
-                self.recent_menu.addAction(action)
     
-    def open_recent_file(self, file_path):
-        self.settings_ops.open_recent_file(file_path)
 
-    def _apply_m3u_content(self, content, file_path):
-        """将M3U内容应用到频道列表（供open_recent_file复用）"""
-        tr = self.language_manager.tr
-        try:
-            if self.channel_model.load_from_file(content):
-                self.channel_model._source_file_path = file_path
-                new_channels = []
-                for i, ch in enumerate(self.channel_model.channels):
-                    new_channels.append({
-                        "id": i + 1,
-                        "name": ch.get('name', '未命名'),
-                        "url": ch.get('url', ''),
-                        "logo": ch.get('logo', ''),
-                        "group": ch.get('group', '未分类'),
-                        "_groups": ch.get('_groups', [ch.get('group', '未分类')]),
-                        "tvg_id": ch.get('tvg_id', ''),
-                        "tvg_chno": ch.get('tvg_chno', ''),
-                        "tvg_shift": ch.get('tvg_shift', ''),
-                        "catchup": ch.get('catchup', ''),
-                        "catchup_days": ch.get('catchup_days', ''),
-                        "catchup_source": ch.get('catchup_source', ''),
-                        "resolution": ch.get('resolution', ''),
-                        "current_program": '',
-                        "_raw_extinf": ch.get('_raw_extinf', ''),
-                        "_all_tags": ch.get('_all_tags', {})
-                    })
 
-                app_state.replace_channels(new_channels)
-                self._local_channels = list(new_channels)
-                self._local_channels_dirty = True
 
-                if app_state.channel_count > 0:
-                    self.current_channel = app_state.get_channel_by_index(0)
-                    display_name = self._get_display_channel_name(self.current_channel)
-                    self.channel_name.setText(display_name)
-
-                if hasattr(self, 'playlist_tab'):
-                    self.playlist_tab.setCurrentIndex(1)
-                self.populate_channel_list(source='local')
-                self.status_bar.showMessage(f"{tr('file_opened', 'File opened')}: {file_path}")
-                logger.info(f"成功打开最近文件: {file_path}, 共 {app_state.channel_count} 个频道")
-            else:
-                self.status_bar.showMessage(tr("file_format_error") or '')
-        except Exception as ex:
-            logger.error(f"应用M3U内容失败: {str(ex)}")
-            self.status_bar.showMessage(f"{tr('file_open_failed', 'Failed to open file')}: {str(ex)}")
-    
-    def open_playlist(self):
-        """打开播放列表（委托给SettingsFileOperations）"""
-        self.settings_ops.open_playlist()
-
-    def _open_stream(self):
-        self.settings_ops._open_stream()
-
-    def _open_video_file(self):
-        """打开本地视频文件或文件夹"""
-        from ui.dialogs.video_open_dialog import VideoOpenDialog
-        dialog = VideoOpenDialog(self, language_manager=self.language_manager)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            path = dialog.get_selected_path()
-            if path:
-                self._open_video_path(path)
-
-    def _open_video_path(self, path):
-        """根据路径类型自动处理：蓝光文件夹、普通文件夹、视频文件"""
-        import os
-        tr = self.language_manager.tr
-
-        if os.path.isfile(path):
-            self._add_local_video_and_track(path)
-            return
-
-        if os.path.isdir(path):
-            from services.mpv_player_service import MpvPlayerController
-            bdmv = MpvPlayerController._detect_bdmv_path(path)
-            if bdmv:
-                name = os.path.basename(os.path.dirname(bdmv)) or os.path.basename(bdmv)
-                channel = {
-                    'name': name,
-                    'url': path,
-                    'group': tr("bluray", "蓝光原盘"),
-                    '_groups': [tr("bluray", "蓝光原盘")],
-                }
-                self._add_to_local_list(channel)
-                self.config.add_recent_file(path)
-                self.update_recent_files_menu()
-                return
-
-            video_exts = ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.m2ts', '.webm')
-            video_files = []
-            try:
-                for f in os.listdir(path):
-                    if f.lower().endswith(video_exts):
-                        video_files.append(os.path.join(path, f))
-                video_files.sort(key=lambda x: x.lower())
-            except Exception:
-                pass
-
-            if not video_files:
-                from PySide6.QtWidgets import QMessageBox
-                QMessageBox.information(
-                    self, tr("open_video", "打开视频"),
-                    tr("no_video_in_folder", "所选文件夹中未找到支持的视频文件"),
-                )
-                return
-
-            folder_name = os.path.basename(path) or os.path.split(path)[-1] or "视频"
-            for vf in video_files:
-                name = os.path.splitext(os.path.basename(vf))[0]
-                channel = {
-                    'name': name,
-                    'url': vf,
-                    'group': folder_name,
-                    '_groups': [folder_name],
-                }
-                self._add_to_local_list(channel)
-            self.config.add_recent_file(path)
-            self.update_recent_files_menu()
-
-    def _create_local_video_channel(self, path: str, group_key: str = "local_video", group_default: str = "本地视频") -> dict:
-        name = os.path.splitext(os.path.basename(path))[0]
-        group = self.language_manager.tr(group_key, group_default)
-        return {
-            'name': name,
-            'url': path,
-            'group': group,
-            '_groups': [group],
-        }
-
-    def _add_local_video_and_track(self, path: str, group_key: str = "local_video", group_default: str = "本地视频"):
-        channel = self._create_local_video_channel(path, group_key, group_default)
-        self._add_to_local_list(channel)
-        self.config.add_recent_file(path)
-        self.update_recent_files_menu()
-
-    def _add_to_local_list(self, channel):
-        """将频道添加到本地列表并播放"""
-        import copy
-        self._local_channels.append(copy.deepcopy(channel))
-        self._local_channels_dirty = True
-        new_idx = len(self._local_channels) - 1
-        self.playlist_tab.setCurrentIndex(1)
-        self._update_groups_for('local')
-        self._populate_channel_list_for(
-            self.local_channel_list, self._local_channels,
-            self.local_group_combo.currentText()
-        )
-        for i in range(self.local_channel_list.count()):
-            item = self.local_channel_list.item(i)
-            if item and item.data(Qt.ItemDataRole.UserRole) == new_idx:
-                self.local_channel_list.setCurrentItem(item)
-                break
-        self.current_channel = channel
-        self.update_channel_info_on_selection()
-        self.play_channel(channel)
-
-    def raise_floating_panels(self):
-        """重新显示可见的悬浮窗（与主窗口保持在一起，依赖Tool窗口标志维持层级）"""
-        self.update_floating_position()
-
-        if hasattr(self, 'epg_panel') and self.epg_panel and self.epg_visible:
-            if not self.epg_panel.isVisible():
-                self.epg_panel.show()
-
-        if hasattr(self, 'playlist_panel') and self.playlist_panel and self.playlist_visible:
-            if not self.playlist_panel.isVisible():
-                self.playlist_panel.show()
-
-        if hasattr(self, 'floating_panel') and self.floating_panel and self.floating_panel_visible:
-            if not self.floating_panel.isVisible():
-                self.floating_panel.show()
-
-        self._raise_child_dialogs()
-    
-    def save_as(self):
-        """另存为（委托给SettingsFileOperations）"""
-        self.settings_ops.save_as()
-
-    def show_usage_instructions(self):
-        """显示使用说明（委托给SettingsFileOperations）"""
-        self.settings_ops.show_usage_instructions()
-
-    def _reapply_side_panel_styles(self):
-        self.ui_ctrl._reapply_side_panel_styles()
-
-    def _reapply_floating_panel_styles(self):
-        self.ui_ctrl._reapply_floating_panel_styles()
-
-    def save_window_layout(self):
-        """保存窗口布局（委托给SettingsFileOperations）"""
-        self.settings_ops.save_window_layout()
 
     def showEvent(self, event):
         """窗口显示事件（委托给EventHandler）"""

@@ -33,6 +33,9 @@ class MockMainWindow:
         self.play_state.is_catchup_or_timeshift = False
         self.event_handler = MagicMock()
         self.config_manager = MagicMock()
+        self.epg_visible = False
+        self.playlist_visible = False
+        self.floating_panel_visible = False
 
     def status_bar_show_message(self, message, timeout=0):
         if self.status_bar:
@@ -55,6 +58,25 @@ class MockMainWindow:
 
     def setAttribute(self, *args, **kwargs):
         pass
+
+    def setCursor(self, *args, **kwargs):
+        pass
+
+    def unsetCursor(self, *args, **kwargs):
+        pass
+
+    def cursor(self):
+        m = MagicMock()
+        m.pos.return_value = MagicMock()
+        return m
+
+    def rect(self):
+        m = MagicMock()
+        m.contains.return_value = True
+        return m
+
+    def mapFromGlobal(self, pos):
+        return pos
 
 
 @pytest.fixture

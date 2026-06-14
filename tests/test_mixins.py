@@ -9,6 +9,8 @@ from mixins.server_mixin import ServerMixin
 from mixins.tray_mixin import TrayMixin
 from mixins.update_mixin import UpdateMixin
 from mixins.thumbnail_mixin import ThumbnailMixin
+from mixins.file_ops_mixin import FileOpsMixin
+from mixins.panel_mixin import PanelMixin
 from tests.conftest import MockMainWindow
 
 
@@ -25,6 +27,14 @@ class _UpdateTestHost(MockMainWindow, UpdateMixin):
 
 
 class _ThumbnailTestHost(MockMainWindow, ThumbnailMixin):
+    pass
+
+
+class _FileOpsTestHost(MockMainWindow, FileOpsMixin):
+    pass
+
+
+class _PanelTestHost(MockMainWindow, PanelMixin):
     pass
 
 
@@ -216,3 +226,168 @@ class TestThumbnailMixin:
 
         self.host._update_grid_thumbnail('http://x.com/stream.m3u8')
         mock_item.setIcon.assert_called_once()
+
+
+class TestFileOpsMixin:
+    def setup_method(self):
+        self.host = _FileOpsTestHost()
+        self.host.recent_menu = MagicMock()
+        self.host.config.load_recent_files.return_value = []
+        self.host.settings_ops = MagicMock()
+        self.host.channel_model = MagicMock()
+        self.host._local_channels = []
+        self.host._local_channels_dirty = False
+        self.host.playlist_tab = MagicMock()
+        self.host.local_channel_list = MagicMock()
+        self.host.local_group_combo = MagicMock()
+        self.host.channel_name = MagicMock()
+        self.host.status_bar = MagicMock()
+
+    @patch('mixins.file_ops_mixin.QAction')
+    def test_update_recent_files_menu_empty(self, mock_action_cls):
+        self.host.config.load_recent_files.return_value = []
+        self.host.update_recent_files_menu()
+        self.host.recent_menu.clear.assert_called_once()
+
+    @patch('mixins.file_ops_mixin.QAction')
+    def test_update_recent_files_menu_with_files(self, mock_action_cls):
+        self.host.config.load_recent_files.return_value = ['/a.m3u', '/b.m3u']
+        self.host.update_recent_files_menu()
+        self.host.recent_menu.clear.assert_called_once()
+
+    def test_open_recent_file_delegates(self):
+        self.host.open_recent_file('/test.m3u')
+        self.host.settings_ops.open_recent_file.assert_called_once_with('/test.m3u')
+
+    def test_open_playlist_delegates(self):
+        self.host.open_playlist()
+        self.host.settings_ops.open_playlist.assert_called_once()
+
+    def test_open_stream_delegates(self):
+        self.host._open_stream()
+        self.host.settings_ops._open_stream.assert_called_once()
+
+    def test_save_as_delegates(self):
+        self.host.save_as()
+        self.host.settings_ops.save_as.assert_called_once()
+
+    def test_show_usage_instructions_delegates(self):
+        self.host.show_usage_instructions()
+        self.host.settings_ops.show_usage_instructions.assert_called_once()
+
+    def test_save_window_layout_delegates(self):
+        self.host.save_window_layout()
+        self.host.settings_ops.save_window_layout.assert_called_once()
+
+    def test_create_local_video_channel(self):
+        ch = self.host._create_local_video_channel('/videos/test.mp4')
+        assert ch['name'] == 'test'
+        assert ch['url'] == '/videos/test.mp4'
+
+    @patch('mixins.file_ops_mixin.copy')
+    def test_add_to_local_list(self, mock_copy):
+        mock_copy.deepcopy.return_value = {'name': 'ch1', 'url': 'http://x.com'}
+        self.host.local_channel_list.count.return_value = 1
+        mock_item = MagicMock()
+        mock_item.data.return_value = 0
+        self.host.local_channel_list.item.return_value = mock_item
+        self.host.local_group_combo.currentText.return_value = 'All'
+        self.host._update_groups_for = MagicMock()
+        self.host._populate_channel_list_for = MagicMock()
+        self.host.update_channel_info_on_selection = MagicMock()
+        self.host.play_channel = MagicMock()
+        channel = {'name': 'ch1', 'url': 'http://x.com'}
+        self.host._add_to_local_list(channel)
+        assert len(self.host._local_channels) == 1
+        assert self.host._local_channels_dirty is True
+
+
+class TestPanelMixin:
+    def setup_method(self):
+        self.host = _PanelTestHost()
+        self.host.panel_vis = MagicMock()
+        self.host.panel_vis.is_auto_hidden = False
+        self.host.panel_vis.manually_hidden = False
+        self.host.playlist_panel = MagicMock()
+        self.host.floating_panel = MagicMock()
+        self.host.epg_panel = MagicMock()
+        self.host.is_fullscreen = False
+        self.host._osd_visible = False
+        self.host.pip_ctrl = MagicMock()
+        self.host.pip_ctrl.is_active = False
+        self.host.subscription_ctrl = MagicMock()
+        self.host._epg_menu_action = MagicMock()
+        self.host._playlist_menu_action = MagicMock()
+        self.host._floating_menu_action = MagicMock()
+        self.host._osd_menu_action = MagicMock()
+        self.host._fullscreen_menu_action = MagicMock()
+        self.host._pip_menu_action = MagicMock()
+
+    def test_toggle_playlist(self):
+        self.host.playlist_panel.isVisible.return_value = False
+        self.host.toggle_playlist()
+        assert self.host.playlist_visible is True
+
+    def test_toggle_playlist_checked(self):
+        self.host.toggle_playlist(checked=True)
+        assert self.host.playlist_visible is True
+
+    def test_toggle_floating_panel(self):
+        self.host.floating_panel.isVisible.return_value = False
+        self.host.toggle_floating_panel()
+        assert self.host.floating_panel_visible is True
+
+    def test_toggle_hide_floating_manually_hidden_restores(self):
+        self.host.panel_vis.manually_hidden = True
+        self.host._is_local_file = MagicMock(return_value=False)
+        self.host.toggle_hide_floating()
+        self.host.panel_vis.restore_from_manual_hide.assert_called_once()
+
+    def test_auto_hide_panels_not_fullscreen(self):
+        self.host.is_fullscreen = False
+        self.host._auto_hide_panels()
+        self.host.panel_vis.auto_hide_all.assert_not_called()
+
+    def test_auto_hide_panels_fullscreen(self):
+        self.host.is_fullscreen = True
+        self.host.panel_vis.is_auto_hide_visible = True
+        self.host._auto_hide_panels()
+        self.host.panel_vis.auto_hide_all.assert_called_once()
+
+    def test_stop_auto_hide_timer(self):
+        self.host._auto_hide_timer = MagicMock()
+        self.host._stop_auto_hide_timer()
+        self.host._auto_hide_timer.stop.assert_called_once()
+
+    def test_stop_auto_hide_timer_no_timer(self):
+        self.host._stop_auto_hide_timer()
+
+    def test_sync_panel_actions(self):
+        self.host._sync_panel_actions()
+        self.host._epg_menu_action.blockSignals.assert_called()
+
+    def test_handle_playlist_subscription_delegates(self):
+        self.host._handle_playlist_subscription(True, 'http://x.com/m3u', 0)
+        self.host.subscription_ctrl.handle_playlist_subscription.assert_called_once()
+
+    def test_reload_subscription(self):
+        self.host.reload_subscription()
+        self.host.subscription_ctrl.reload_subscription.assert_called_once()
+
+    def test_start_subscription_timers(self):
+        self.host.start_subscription_timers()
+        self.host.subscription_ctrl.start_subscription_timers.assert_called_once()
+
+    def test_update_playlist_subscription(self):
+        self.host.update_playlist_subscription(source_index=0)
+        self.host.subscription_ctrl.update_playlist_subscription.assert_called_once_with(0)
+
+    def test_reapply_side_panel_styles(self):
+        self.host.ui_ctrl = MagicMock()
+        self.host._reapply_side_panel_styles()
+        self.host.ui_ctrl._reapply_side_panel_styles.assert_called_once()
+
+    def test_reapply_floating_panel_styles(self):
+        self.host.ui_ctrl = MagicMock()
+        self.host._reapply_floating_panel_styles()
+        self.host.ui_ctrl._reapply_floating_panel_styles.assert_called_once()
