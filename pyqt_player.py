@@ -334,7 +334,7 @@ class IPTVPlayer(QMainWindow):
 
     # 定时器与 Dock
     update_timer = None
-    resize_timer = None
+
     epg_dock = None
     playlist_dock = None
     floating_dock = None
@@ -476,7 +476,7 @@ class IPTVPlayer(QMainWindow):
         self.epg_parser = global_subscription_manager
 
         self.update_timer = None
-        self.resize_timer = None
+
         self._initialization_complete = False
         self._panels_initialized = False
         self._ui_initialized = False
