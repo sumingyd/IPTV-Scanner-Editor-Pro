@@ -13,6 +13,14 @@ class ErrorHandler:
         self.parent_window = parent_window
         self._status_bar = None
 
+    @staticmethod
+    def _tr(key: str, default: str) -> str:
+        try:
+            from core.language_manager import LanguageManager
+            return LanguageManager().tr(key, default)
+        except Exception:
+            return default
+
     def set_status_bar(self, status_bar: QtWidgets.QStatusBar):
         """设置状态栏用于显示错误消息"""
         self._status_bar = status_bar
@@ -42,7 +50,7 @@ class ErrorHandler:
                           details: Optional[str] = None,
                           parent: Optional[QtWidgets.QWidget] = None):
         self._show_dialog(
-            QtWidgets.QMessageBox.Icon.Critical, logger.error, "错误",
+            QtWidgets.QMessageBox.Icon.Critical, logger.error, self._tr("error", "错误"),
             title, message, details, parent
         )
 
@@ -50,7 +58,7 @@ class ErrorHandler:
                             details: Optional[str] = None,
                             parent: Optional[QtWidgets.QWidget] = None):
         self._show_dialog(
-            QtWidgets.QMessageBox.Icon.Warning, logger.warning, "警告",
+            QtWidgets.QMessageBox.Icon.Warning, logger.warning, self._tr("warning", "警告"),
             title, message, details, parent
         )
 
@@ -58,7 +66,7 @@ class ErrorHandler:
                          details: Optional[str] = None,
                          parent: Optional[QtWidgets.QWidget] = None):
         self._show_dialog(
-            QtWidgets.QMessageBox.Icon.Information, logger.info, "信息",
+            QtWidgets.QMessageBox.Icon.Information, logger.info, self._tr("info", "信息"),
             title, message, details, parent
         )
 
@@ -135,19 +143,19 @@ class ErrorHandler:
         # 确定错误级别和标题
         if isinstance(exception, (KeyboardInterrupt, SystemExit)):
             log_level = 'info'
-            title = "操作中断"
+            title = self._tr("error_interrupted", "操作中断")
         elif isinstance(exception, (ValueError, TypeError, AttributeError)):
             log_level = 'warning'
-            title = "输入错误"
+            title = self._tr("error_input", "输入错误")
         elif isinstance(exception, (FileNotFoundError, PermissionError)):
             log_level = 'warning'
-            title = "文件操作错误"
+            title = self._tr("error_file_operation", "文件操作错误")
         elif isinstance(exception, (ConnectionError, TimeoutError)):
             log_level = 'warning'
-            title = "网络连接错误"
+            title = self._tr("error_network", "网络连接错误")
         else:
             log_level = 'error'
-            title = "系统错误"
+            title = self._tr("error_system", "系统错误")
 
         return {
             'title': title,
@@ -163,25 +171,25 @@ class ErrorHandler:
         exception_message = str(exception)
 
         if isinstance(exception, FileNotFoundError):
-            return f"文件未找到: {exception_message}"
+            return self._tr("error_file_not_found", "文件未找到") + f": {exception_message}"
         elif isinstance(exception, PermissionError):
-            return f"没有权限访问文件: {exception_message}"
+            return self._tr("error_permission_denied", "没有权限访问文件") + f": {exception_message}"
         elif isinstance(exception, ConnectionError):
-            return f"网络连接失败: {exception_message}"
+            return self._tr("error_connection_failed", "网络连接失败") + f": {exception_message}"
         elif isinstance(exception, TimeoutError):
-            return f"操作超时: {exception_message}"
+            return self._tr("error_timeout", "操作超时") + f": {exception_message}"
         elif isinstance(exception, ValueError):
-            return f"输入值无效: {exception_message}"
+            return self._tr("error_invalid_value", "输入值无效") + f": {exception_message}"
         elif isinstance(exception, TypeError):
-            return f"类型错误: {exception_message}"
+            return self._tr("error_type_error", "类型错误") + f": {exception_message}"
         elif isinstance(exception, AttributeError):
-            return f"对象属性错误: {exception_message}"
+            return self._tr("error_attribute_error", "对象属性错误") + f": {exception_message}"
         elif isinstance(exception, KeyboardInterrupt):
-            return "操作被用户中断"
+            return self._tr("error_user_interrupted", "操作被用户中断")
         elif isinstance(exception, SystemExit):
-            return "程序正在退出"
+            return self._tr("error_program_exiting", "程序正在退出")
         else:
-            return f"发生未知错误: {exception_message}"
+            return self._tr("error_unknown", "发生未知错误") + f": {exception_message}"
 
     def safe_execute(self, func: Callable, *args,
                      user_message: Optional[str] = None,
