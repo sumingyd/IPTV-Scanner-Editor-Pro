@@ -11,6 +11,9 @@ from mixins.update_mixin import UpdateMixin
 from mixins.thumbnail_mixin import ThumbnailMixin
 from mixins.file_ops_mixin import FileOpsMixin
 from mixins.panel_mixin import PanelMixin
+from mixins.progress_mixin import ProgressMixin
+from mixins.playback_mixin import PlaybackMixin
+from mixins.epg_mixin import EpgMixin
 from tests.conftest import MockMainWindow
 
 
@@ -35,6 +38,18 @@ class _FileOpsTestHost(MockMainWindow, FileOpsMixin):
 
 
 class _PanelTestHost(MockMainWindow, PanelMixin):
+    pass
+
+
+class _ProgressTestHost(MockMainWindow, ProgressMixin):
+    pass
+
+
+class _PlaybackTestHost(MockMainWindow, PlaybackMixin):
+    pass
+
+
+class _EpgTestHost(MockMainWindow, EpgMixin):
     pass
 
 
@@ -391,3 +406,208 @@ class TestPanelMixin:
         self.host.ui_ctrl = MagicMock()
         self.host._reapply_floating_panel_styles()
         self.host.ui_ctrl._reapply_floating_panel_styles.assert_called_once()
+
+
+class TestProgressMixin:
+    def setup_method(self):
+        self.host = _ProgressTestHost()
+        self.host.program_progress = MagicMock()
+        self.host.program_progress.isSliderDown.return_value = False
+        self.host.program_progress.maximum.return_value = 3600
+        self.host.program_progress.value.return_value = 100
+        self.host._progress_total_seconds = 3600
+        self.host._progress_time_mode = 'hour'
+        self.host._progress_program_start = None
+        self.host._disable_progress_auto_update = False
+        self.host.play_state = MagicMock()
+        self.host.play_state.is_catchup_or_timeshift = False
+        self.host.player_controller = MagicMock()
+        self.host.current_channel = None
+        self.host._live_timeshift_seconds = 0
+        self.host._stop_auto_hide_timer = MagicMock()
+        self.host._restart_auto_hide_timer = MagicMock()
+        self.host.is_fullscreen = False
+        self.host.catchup_ctrl = MagicMock()
+        self.host.SLIDER_DEBOUNCE_MS = 100
+
+    def test_set_progress_range(self):
+        self.host._set_progress_range(7200)
+        assert self.host._progress_total_seconds == 7200
+        self.host.program_progress.setRange.assert_called_once_with(0, 7200)
+
+    def test_set_progress_value(self):
+        self.host._set_progress_value(100)
+        self.host.program_progress.setValue.assert_called_once_with(100)
+
+    def test_set_progress_value_slider_down(self):
+        self.host.program_progress.isSliderDown.return_value = True
+        self.host._set_progress_value(100)
+        self.host.program_progress.setValue.assert_not_called()
+
+    def test_get_progress_seconds(self):
+        result = self.host._get_progress_seconds()
+        assert result == 100
+
+    def test_format_seconds_to_time(self):
+        assert self.host._format_seconds_to_time(3661) == "1:01:01"
+        assert self.host._format_seconds_to_time(125) == "2:05"
+        assert self.host._format_seconds_to_time(0) == "0:00"
+
+    def test_seek_vod(self):
+        self.host._seek_vod(120)
+        self.host.player_controller.seek_absolute.assert_called_once_with(120.0)
+
+    def test_seek_catchup(self):
+        self.host._seek_catchup(60)
+        self.host.catchup_ctrl.seek_catchup.assert_called_once_with(60)
+
+    def test_on_progress_slider_pressed(self):
+        self.host._on_progress_slider_pressed()
+        assert self.host._disable_progress_auto_update is True
+        self.host._stop_auto_hide_timer.assert_called_once()
+
+    def test_start_live_timeshift_from_progress(self):
+        self.host._start_live_timeshift_from_progress(300, 'catchup://x')
+        self.host.catchup_ctrl.start_live_timeshift_from_progress.assert_called_once()
+
+
+class TestPlaybackMixin:
+    def setup_method(self):
+        self.host = _PlaybackTestHost()
+        self.host.playback_ctrl = MagicMock()
+        self.host.playback_ctrl.is_muted_state = False
+        self.host.ui_ctrl = MagicMock()
+        self.host.favorites_ctrl = MagicMock()
+        self.host.player_controller = MagicMock()
+        self.host.language_manager.tr = lambda k, d='': d
+        self.host._suppress_volume_osd = False
+        self.host._osd_visible = False
+        self.host.volume_slider = MagicMock()
+        self.host.volume_slider.value.return_value = 50
+        self.host.current_channel = None
+        self.host.play_state = MagicMock()
+        self.host.play_state.is_catchup_or_timeshift = False
+        self.host.RECONNECT_DELAY_MS = 2000
+        self.host.status_bar = MagicMock()
+
+    def test_toggle_play(self):
+        self.host.toggle_play()
+        self.host.playback_ctrl.toggle_play.assert_called_once()
+
+    def test_stop_playback(self):
+        self.host.stop_playback()
+        self.host.playback_ctrl.stop_playback.assert_called_once()
+
+    def test_set_volume(self):
+        self.host.set_volume(80)
+        self.host.playback_ctrl.set_volume.assert_called_once_with(80)
+
+    def test_toggle_mute(self):
+        self.host.toggle_mute()
+        self.host.playback_ctrl.toggle_mute.assert_called_once()
+
+    def test_show_osd_feedback(self):
+        self.host._show_osd_feedback("test")
+        self.host.player_controller.show_osd.assert_called_once_with("test", 2000)
+
+    def test_play_channel(self):
+        self.host.playback_ctrl._is_switching = False
+        ch = {'name': 'ch1', 'url': 'http://x.com'}
+        self.host.play_channel(ch)
+        self.host.playback_ctrl.play_channel.assert_called_once_with(ch)
+
+    def test_play_channel_switching(self):
+        self.host.playback_ctrl._is_switching = True
+        ch = {'name': 'ch1', 'url': 'http://x.com'}
+        self.host.play_channel(ch)
+        self.host.playback_ctrl.play_channel.assert_not_called()
+
+    def test_on_play_error(self):
+        self.host.on_play_error("test error")
+        self.host.status_bar.showMessage.assert_called()
+
+    def test_on_live_media_info_updated(self):
+        self.host.on_live_media_info_updated({})
+        self.host.ui_ctrl.on_live_media_info_updated.assert_called_once()
+
+    def test_update_media_info(self):
+        self.host.update_media_info()
+        self.host.ui_ctrl.update_media_info.assert_called_once()
+
+    def test_update_floating_panel_info(self):
+        self.host.update_floating_panel_info()
+        self.host.ui_ctrl.update_floating_panel_info.assert_called_once()
+
+    def test_toggle_osd(self):
+        self.host.toggle_osd()
+        self.host.ui_ctrl.toggle_osd.assert_called_once()
+
+
+class TestEpgMixin:
+    def setup_method(self):
+        self.host = _EpgTestHost()
+        self.host.epg_ctrl = MagicMock()
+        self.host.catchup_ctrl = MagicMock()
+        self.host.epg_reminder_ctrl = MagicMock()
+        self.host.current_channel = None
+        self.host.panel_vis = MagicMock()
+        self.host.panel_vis.is_auto_hidden = False
+        self.host.epg_panel = MagicMock()
+
+    def test_populate_epg_list(self):
+        self.host.populate_epg_list()
+        self.host.epg_ctrl.populate_epg_list.assert_called_once()
+
+    def test_on_epg_item_clicked(self):
+        item = MagicMock()
+        self.host.on_epg_item_clicked(item)
+        self.host.epg_ctrl.on_epg_item_clicked.assert_called_once_with(item)
+
+    def test_start_catchup(self):
+        self.host.start_catchup({})
+        self.host.catchup_ctrl.start_catchup.assert_called_once()
+
+    def test_exit_catchup(self):
+        self.host.exit_catchup()
+        self.host.catchup_ctrl.exit_catchup.assert_called_once()
+
+    def test_add_exit_catchup_button(self):
+        self.host.add_exit_catchup_button()
+        self.host.catchup_ctrl.add_exit_catchup_button.assert_called_once()
+
+    def test_show_exit_timeshift_button(self):
+        self.host._show_exit_timeshift_button()
+        self.host.catchup_ctrl.show_exit_timeshift_button.assert_called_once()
+
+    def test_get_epg_match_params_no_channel(self):
+        result = self.host._get_epg_match_params()
+        assert result == ('', '', '', '')
+
+    def test_get_epg_match_params_with_channel(self):
+        self.host.current_channel = {
+            'name': 'ch1', 'tvg_id': 'id1', '_all_tags': {'tvg-name': 'tn1'},
+            '_raw_extinf': '#EXTINF:1,Test Channel'
+        }
+        result = self.host._get_epg_match_params()
+        assert result[0] == 'ch1'
+        assert result[1] == 'id1'
+        assert result[2] == 'tn1'
+
+    def test_is_local_file_none(self):
+        assert self.host._is_local_file() is False
+
+    def test_is_local_file_http(self):
+        self.host.current_channel = {'url': 'http://x.com/stream.m3u8'}
+        assert self.host._is_local_file() is False
+
+    def test_is_local_file_local(self):
+        self.host.current_channel = {'url': '/videos/test.mp4'}
+        assert self.host._is_local_file() is True
+
+    def test_is_local_file_file_protocol(self):
+        self.host.current_channel = {'url': 'file:///videos/test.mp4'}
+        assert self.host._is_local_file() is True
+
+    def test_update_epg_date_display(self):
+        self.host.update_epg_date_display()
+        self.host.epg_ctrl.update_epg_date_display.assert_called_once()
