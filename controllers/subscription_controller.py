@@ -343,7 +343,7 @@ class SubscriptionController:
         invoke_on_thread(self.window, refresh_ui)
 
     def update_playlist_subscription(self, source_index=None):
-        """更新列表订阅 - 线程安全版本"""
+        """更新列表订阅 - 使用后台线程避免阻塞UI"""
         try:
             sources = global_subscription_manager.get_playlist_sources()
 
@@ -355,7 +355,13 @@ class SubscriptionController:
             playlist_url = target_source.get('url', '')
 
             if playlist_url:
-                self.handle_playlist_subscription(True, playlist_url, source_index)
+                worker = SubscriptionWorker(
+                    lambda: self.handle_playlist_subscription(True, playlist_url, source_index)
+                )
+                self._workers.append(worker)
+                worker.finished.connect(lambda result: self._cleanup_worker(worker))
+                worker.error.connect(lambda err: (logger.error(f"更新列表订阅错误: {err}"), self._cleanup_worker(worker)))
+                worker.start()
 
         except Exception as e:
             logger.error(f"更新列表订阅失败: {e}", exc_info=True)
