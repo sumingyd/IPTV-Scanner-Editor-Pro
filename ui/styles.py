@@ -103,8 +103,20 @@ class AppStyles:
         if filename_prefix in cache:
             return cache[filename_prefix]
         path = os.path.join(_SVG_TMPDIR, f'{filename_prefix}.svg')
-        with open(path, 'w', encoding='utf-8') as f:
-            f.write(svg_content)
+        try:
+            if os.path.exists(path):
+                with open(path, 'r', encoding='utf-8') as f:
+                    if f.read() == svg_content:
+                        path = path.replace('\\', '/')
+                        cache[filename_prefix] = path
+                        return path
+        except Exception:
+            pass
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(svg_content)
+        except Exception:
+            pass
         # Qt QSS 在 Windows 下需要正斜杠路径
         path = path.replace('\\', '/')
         cache[filename_prefix] = path
