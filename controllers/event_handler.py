@@ -441,8 +441,8 @@ class EventHandler:
             tm = get_theme_manager()
             tm._stop_system_theme_watcher()
             tm._windows.clear()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"清理主题管理器失败: {e}")
 
         # 1. 保存窗口布局
         if hasattr(self.window, 'settings_ops'):
@@ -482,13 +482,13 @@ class EventHandler:
             if timer:
                 try:
                     timer.stop()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"停止定时器{attr}失败: {e}")
         if hasattr(self, '_position_timer'):
             try:
                 self._position_timer.stop()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"停止位置定时器失败: {e}")
 
         # 3. 终止MPV播放器（定时器已停止，不会再访问mpv_handle）
         if hasattr(self.window, 'player_controller') and self.window.player_controller:
@@ -515,8 +515,8 @@ class EventHandler:
             try:
                 scan_dialog.close()
                 scan_dialog.deleteLater()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"关闭扫描窗口失败: {e}")
             self.window._scan_dialog = None
             self.window.scan_window = None
 
@@ -536,8 +536,8 @@ class EventHandler:
         if hasattr(self.window, '_thumbnail_service'):
             try:
                 self.window._thumbnail_service.stop()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"停止缩略图服务失败: {e}")
 
         # 6.5 停止台标缓存服务
         logo_svc = getattr(self.window, '_logo_cache_service', None)
@@ -546,8 +546,8 @@ class EventHandler:
                 warmup_timer = getattr(logo_svc, '_warmup_timer', None)
                 if warmup_timer:
                     warmup_timer.stop()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"停止台标缓存定时器失败: {e}")
 
         # 6.6 停止DNS预取/连接预热
         for svc_name in ('_dns_prefetcher', '_connection_preheater'):
@@ -557,8 +557,8 @@ class EventHandler:
                     if hasattr(svc, method_name):
                         try:
                             getattr(svc, method_name)()
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug(f"停止{svc_name}失败: {e}")
                         break
 
         # 6.7 停止EPG提醒服务
@@ -566,16 +566,16 @@ class EventHandler:
         if epg_reminder and hasattr(epg_reminder, '_reminder_service'):
             try:
                 epg_reminder._reminder_service.stop()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"停止EPG提醒服务失败: {e}")
 
         # 6.8 停止FCC服务
         fcc_service = getattr(self.window, '_fcc_service', None)
         if fcc_service and hasattr(fcc_service, 'stop'):
             try:
                 fcc_service.stop()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"停止FCC服务失败: {e}")
 
         # 6.9 清理系统托盘
         tray = getattr(self.window, '_system_tray', None)
@@ -583,16 +583,16 @@ class EventHandler:
             try:
                 tray.hide()
                 tray.deleteLater()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"清理系统托盘失败: {e}")
             self.window._system_tray = None
 
         # 6.7 执行注册的资源清理器
         try:
             from utils.resource_cleaner import cleanup_all
             cleanup_all()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"执行资源清理器失败: {e}")
 
         # 7. 等待后台工作线程完成
         if hasattr(self.window, 'subscription_ctrl'):
@@ -602,8 +602,8 @@ class EventHandler:
                         worker.requestInterruption()
                         if not worker.wait(3000):
                             logger.warning(f"工作线程 {worker} 未在3秒内退出，将随进程终止")
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"等待工作线程失败: {e}")
 
         # 7.5 断开控制器与主窗口的引用循环
         controller_attrs = [
@@ -618,8 +618,8 @@ class EventHandler:
                 try:
                     if hasattr(ctrl, 'window'):
                         ctrl.window = None
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"断开控制器{attr}引用失败: {e}")
 
         # 8. 退出应用
         event.accept()
