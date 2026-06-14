@@ -85,7 +85,23 @@ class UpdateCheckThread(QThread):
                     return False
             return False
         except (ValueError, AttributeError):
-            return latest_version > current_version
+            import re
+            current_digits = re.sub(r'[^0-9.]', '', current_version)
+            latest_digits = re.sub(r'[^0-9.]', '', latest_version)
+            try:
+                current_parts = list(map(int, current_digits.split('.'))) if current_digits else [0]
+                latest_parts = list(map(int, latest_digits.split('.'))) if latest_digits else [0]
+                max_length = max(len(current_parts), len(latest_parts))
+                current_parts.extend([0] * (max_length - len(current_parts)))
+                latest_parts.extend([0] * (max_length - len(latest_parts)))
+                for i in range(max_length):
+                    if latest_parts[i] > current_parts[i]:
+                        return True
+                    elif latest_parts[i] < current_parts[i]:
+                        return False
+                return False
+            except (ValueError, AttributeError):
+                return False
 
 
 class UpdateController:
