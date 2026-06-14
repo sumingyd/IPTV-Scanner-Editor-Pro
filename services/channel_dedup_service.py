@@ -12,11 +12,46 @@ class ChannelDedupService:
     def find_duplicates(self, channels: List[Dict[str, Any]]) -> List[Tuple[int, int, float, str]]:
         results = []
         n = len(channels)
-        for i in range(n):
-            for j in range(i + 1, n):
-                score, reason = self._similarity(channels[i], channels[j])
-                if score > 0:
-                    results.append((i, j, score, reason))
+
+        url_groups = {}
+        for i, ch in enumerate(channels):
+            url = ch.get('url', '')
+            if url:
+                url_groups.setdefault(url, []).append(i)
+
+        checked = set()
+        for indices in url_groups.values():
+            if len(indices) < 2:
+                continue
+            for a in range(len(indices)):
+                for b in range(a + 1, len(indices)):
+                    i, j = indices[a], indices[b]
+                    pair = (min(i, j), max(i, j))
+                    if pair not in checked:
+                        checked.add(pair)
+                        results.append((i, j, 1.0, 'url_exact'))
+
+        name_groups = {}
+        for i, ch in enumerate(channels):
+            name = ch.get('name', '').strip().lower()
+            if name:
+                key = name[:3] if len(name) >= 3 else name
+                name_groups.setdefault(key, []).append(i)
+
+        for indices in name_groups.values():
+            if len(indices) < 2:
+                continue
+            for a in range(len(indices)):
+                for b in range(a + 1, len(indices)):
+                    i, j = indices[a], indices[b]
+                    pair = (min(i, j), max(i, j))
+                    if pair in checked:
+                        continue
+                    checked.add(pair)
+                    score, reason = self._similarity(channels[i], channels[j])
+                    if score > 0:
+                        results.append((i, j, score, reason))
+
         results.sort(key=lambda x: x[2], reverse=True)
         return results
 
