@@ -216,7 +216,7 @@ def run_build():
             else:
                 print("警告: dist 目录不存在")
             
-            print("打包完成! 可执行文件位于: dist/IPTV Scanner Editor Pro.exe")
+            print(f"打包完成! 可执行文件位于: dist/{ 'IPTV Scanner Editor Pro.exe' if IS_WINDOWS else 'IPTV Scanner Editor Pro' }")
         else:
             print("打包失败!")
             sys.exit(1)
