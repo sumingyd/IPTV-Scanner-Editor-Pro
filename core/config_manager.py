@@ -162,7 +162,7 @@ class ConfigManager(Singleton):
             }
 
             # 加载分组优先级
-            group_count = int(self.get_value('SortConfig', 'group_priority_count', '0') or '0')
+            group_count = self._parse_int(self.get_value('SortConfig', 'group_priority_count', '0') or '0')
             for i in range(group_count):
                 group = self.get_value('SortConfig', f'group_priority_{i}')
                 if group:
@@ -436,7 +436,7 @@ class ConfigManager(Singleton):
             直播源列表
         """
         sources = []
-        count = int(self.get_value('PlaylistSources', 'count', '0') or '0')
+        count = self._parse_int(self.get_value('PlaylistSources', 'count', '0') or '0')
         for i in range(count):
             url = self.get_value('PlaylistSources', f'url_{i}')
             if url:
@@ -547,7 +547,7 @@ class ConfigManager(Singleton):
             EPG源列表
         """
         sources = []
-        count = int(self.get_value('EPGSources', 'count', '0') or '0')
+        count = self._parse_int(self.get_value('EPGSources', 'count', '0') or '0')
         for i in range(count):
             url = self.get_value('EPGSources', f'url_{i}')
             if url:
@@ -584,7 +584,7 @@ class ConfigManager(Singleton):
     def save_recent_files(self, recent_files):
         """保存最近打开的文件列表"""
         recent_files = recent_files[:10]
-        old_count = int(self.get_value('RecentFiles', 'count', '0') or '0')
+        old_count = self._parse_int(self.get_value('RecentFiles', 'count', '0') or '0')
         self.set_value('RecentFiles', 'count', str(len(recent_files)))
         for i, file_path in enumerate(recent_files):
             self.set_value('RecentFiles', f'file_{i}', file_path)
@@ -599,7 +599,7 @@ class ConfigManager(Singleton):
     def load_recent_files(self):
         """加载最近打开的文件列表"""
         recent_files = []
-        count = int(self.get_value('RecentFiles', 'count', '0') or '0')
+        count = self._parse_int(self.get_value('RecentFiles', 'count', '0') or '0')
         for i in range(count):
             file_path = self.get_value('RecentFiles', f'file_{i}')
             if file_path:
