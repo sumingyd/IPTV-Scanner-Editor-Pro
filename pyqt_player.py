@@ -48,6 +48,10 @@ from controllers import (
 )
 
 from utils.general_utils import calculate_adaptive_delay
+from mixins.server_mixin import ServerMixin
+from mixins.tray_mixin import TrayMixin
+from mixins.update_mixin import UpdateMixin
+from mixins.thumbnail_mixin import ThumbnailMixin
 
 
 class _RoundedContainer(QWidget):
@@ -179,7 +183,7 @@ class VideoOverlayBadge(QWidget):
 from services.mpv_player_service import MpvPlayerController
 
 
-class IPTVPlayer(QMainWindow):
+class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, QMainWindow):
     epg_status_signal = Signal(str)
     channel_list_updated = Signal()
     epg_list_updated = Signal()
@@ -3415,68 +3419,7 @@ class IPTVPlayer(QMainWindow):
         else:
             super().resizeEvent(event)
 
-    def _setup_system_tray(self):
-        from PySide6.QtWidgets import QSystemTrayIcon, QMenu
-        from PySide6.QtGui import QIcon
-        import os
-        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources', 'logo.ico')
-        icon = QIcon(icon_path) if os.path.exists(icon_path) else QIcon()
-        self._system_tray = QSystemTrayIcon(icon, self)
-        tray_menu = QMenu()
-        tr = self.language_manager.tr
-        show_action = tray_menu.addAction(tr('tray_show', '显示主窗口'))
-        show_action.triggered.connect(self._tray_show_window)
-        tray_menu.addSeparator()
-        quit_action = tray_menu.addAction(tr('tray_quit', '退出程序'))
-        quit_action.triggered.connect(self._tray_quit)
-        self._system_tray.setContextMenu(tray_menu)
-        self._system_tray.activated.connect(self._on_tray_activated)
-        self._is_hidden_to_tray = False
 
-    def _on_tray_activated(self, reason):
-        from PySide6.QtWidgets import QSystemTrayIcon
-        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
-            self._tray_show_window()
-
-    def _tray_show_window(self):
-        self._is_hidden_to_tray = False
-        self.show()
-        self.activateWindow()
-        self.raise_()
-        for dock_name in getattr(self, '_tray_hidden_docks', []):
-            dock = getattr(self, dock_name, None)
-            if dock:
-                dock.show()
-                dock.setFloating(True)
-
-    def _tray_quit(self):
-        self._force_quit = True
-        self._is_hidden_to_tray = False
-        self.close()
-
-    def _do_close_minimize_tray(self):
-        """执行最小化到托盘操作"""
-        tr = self.language_manager.tr
-        self._is_hidden_to_tray = True
-        pc = self.player_controller
-        if pc and pc.is_playing and not pc.is_paused:
-            pc.pause()
-            self._was_playing_before_tray = True
-        else:
-            self._was_playing_before_tray = False
-        self._tray_hidden_docks = []
-        for dock_name in ('epg_dock', 'playlist_dock', 'floating_dock'):
-            dock = getattr(self, dock_name, None)
-            if dock and dock.isVisible():
-                self._tray_hidden_docks.append(dock_name)
-                dock.blockSignals(True)
-                dock.setFloating(False)
-                dock.blockSignals(False)
-        self.hide()
-        tray = self._system_tray
-        if tray:
-            tray.show()
-            tray.setToolTip(tr('app_title', 'IPTV Scanner Editor Pro'))
 
     def closeEvent(self, event):
         """窗口关闭事件"""
@@ -3555,201 +3498,17 @@ class IPTVPlayer(QMainWindow):
         else:
             super().closeEvent(event)
 
-    def _auto_start_server(self):
-        """自动启动Server后端"""
-        try:
-            from server.app import set_main_window, start_server, get_server
-            set_main_window(self)
-            settings = self.config.load_server_settings()
-            if settings.get('auto_start', True):
-                port = settings.get('port', 8080)
-                host = settings.get('host', '0.0.0.0')
-                start_server(host=host, port=port)
-                server = get_server()
-                if server.is_running():
-                    tr = self.language_manager.tr
-                    self.status_bar_show_message(
-                        tr('server_started', 'Server已启动') + f' http://localhost:{port}'
-                    )
-                    logger.info(f"Server后端自动启动: http://{host}:{port}")
-        except Exception as e:
-            logger.error(f"自动启动Server失败: {e}")
 
-    def _toggle_server(self):
-        """切换Server启停"""
-        try:
-            from server.app import get_server, start_server, stop_server, set_main_window
-            set_main_window(self)
-            server = get_server()
-            tr = self.language_manager.tr
-            if server.is_running():
-                stop_server()
-                self.status_bar_show_message(tr('server_stopped', 'Server已停止'))
-                self._server_action.setText(tr('server_start', '启动Server'))
-            else:
-                settings = self.config.load_server_settings()
-                port = settings.get('port', 8080)
-                host = settings.get('host', '0.0.0.0')
-                start_server(host=host, port=port)
-                self.status_bar_show_message(
-                    tr('server_started', 'Server已启动') + f' http://localhost:{port}'
-                )
-                self._server_action.setText(tr('server_stop', '停止Server'))
-        except Exception as e:
-            logger.error(f"切换Server失败: {e}")
 
-    def _open_server_api(self):
-        """在浏览器中打开Server API"""
-        try:
-            from server.app import get_server
-            server = get_server()
-            port = server.port if server and server.is_running() else 8080
-            import webbrowser
-            webbrowser.open(f'http://localhost:{port}/')
-        except Exception as e:
-            logger.error(f"打开Server API失败: {e}")
 
-    def _show_server_settings(self):
-        """显示Server设置对话框"""
-        from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-                                        QSpinBox, QCheckBox, QPushButton, QComboBox)
-        from ui.styles import AppStyles
-        tr = self.language_manager.tr
-        dialog = QDialog(self)
-        dialog.setWindowTitle(tr('server_settings', 'Server设置'))
-        dialog.setMinimumWidth(400)
-        layout = QVBoxLayout(dialog)
-        layout.setSpacing(16)
-        layout.setContentsMargins(24, 20, 24, 20)
-
-        settings = self.config.load_server_settings()
-
-        from server.app import get_server
-        server = get_server()
-        is_running = server.is_running()
-        port = server.port if is_running else settings.get('port', 8080)
-
-        status_label = QLabel()
-        if is_running:
-            status_label.setText(f"● {tr('server_running', 'Server运行中')}  http://localhost:{port}")
-            status_label.setStyleSheet("color: #4CAF50; font-weight: bold; font-size: 13px;")
-        else:
-            status_label.setText(f"○ {tr('server_not_running', 'Server未运行')}")
-            status_label.setStyleSheet("color: #FF9800; font-weight: bold; font-size: 13px;")
-        layout.addWidget(status_label)
-
-        layout.addSpacing(4)
-
-        auto_start_cb = QCheckBox(tr('server_auto_start', '启动时自动运行Server'))
-        auto_start_cb.setChecked(settings.get('auto_start', True))
-        layout.addWidget(auto_start_cb)
-
-        port_layout = QHBoxLayout()
-        port_label = QLabel(tr('server_port', '端口:'))
-        port_label.setFixedWidth(70)
-        port_layout.addWidget(port_label)
-        port_spin = QSpinBox()
-        port_spin.setRange(1024, 65535)
-        port_spin.setValue(port)
-        port_layout.addWidget(port_spin, 1)
-        layout.addLayout(port_layout)
-
-        host_layout = QHBoxLayout()
-        host_label = QLabel(tr('server_host', '监听地址:'))
-        host_label.setFixedWidth(70)
-        host_layout.addWidget(host_label)
-        host_combo = QComboBox()
-        host_combo.addItem('0.0.0.0 (所有接口)', '0.0.0.0')
-        host_combo.addItem('127.0.0.1 (仅本机)', '127.0.0.1')
-        host_idx = host_combo.findData(settings.get('host', '0.0.0.0'))
-        if host_idx >= 0:
-            host_combo.setCurrentIndex(host_idx)
-        host_layout.addWidget(host_combo, 1)
-        layout.addLayout(host_layout)
-
-        layout.addSpacing(8)
-
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-        save_btn = QPushButton(tr('save', '保存'))
-        cancel_btn = QPushButton(tr('cancel', '取消'))
-        btn_layout.addWidget(save_btn)
-        btn_layout.addWidget(cancel_btn)
-        layout.addLayout(btn_layout)
-
-        def on_save():
-            self.config.save_server_settings(
-                enabled=True,
-                port=port_spin.value(),
-                host=host_combo.currentData(),
-                auto_start=auto_start_cb.isChecked()
-            )
-            dialog.accept()
-
-        save_btn.clicked.connect(on_save)
-        cancel_btn.clicked.connect(dialog.reject)
-        save_btn.setStyleSheet(AppStyles.common_button_style())
-        cancel_btn.setStyleSheet(AppStyles.common_button_style())
-
-        dialog.setStyleSheet(AppStyles.popup_dialog_style())
-        dialog.exec()
-
-    def _check_for_updates_async(self):
-        """异步检查新版本"""
-        if QThread.currentThread() != self.thread():
-            from utils.thread_safety import invoke_on_thread
-            invoke_on_thread(self, self._do_check_for_updates_async)
-            return
-        self._do_check_for_updates_async()
-
-    @Slot()
-    def _do_check_for_updates_async(self):
-        self.update_ctrl.check_for_updates()
-
-    def _on_update_found(self, latest_version, current_version):
-        self.update_ctrl._on_update_found(latest_version, current_version)
 
     def _reset_statusbar_style(self):
         """恢复状态栏样式"""
         self.status_bar.setStyleSheet(AppStyles.statusbar_style())
     
-    def _on_update_check_completed(self, success, message):
-        self.update_ctrl._on_update_check_completed(success, message)
 
-    def _on_logo_cache_loaded(self, url, pixmap):
-        self.ui_ctrl._on_logo_cache_loaded(url, pixmap)
 
-    def _on_thumbnail_ready(self, channel_name, url):
-        """后台缩略图截取完成的回调"""
-        self._update_grid_thumbnail(url)
 
-    def _on_player_thumbnail_captured(self, url):
-        """播放器截图完成后的回调"""
-        self._update_grid_thumbnail(url)
-
-    def _update_grid_thumbnail(self, url):
-        """更新grid视图中指定URL频道的缩略图"""
-        from services.thumbnail_service import get_thumbnail_path
-        thumb_path = get_thumbnail_path(url)
-        if not thumb_path:
-            return
-        for list_widget in (self.sub_channel_list, self.local_channel_list):
-            if list_widget.viewMode() != QListWidget.ViewMode.IconMode:
-                continue
-            channels = self._sub_channels if list_widget is self.sub_channel_list else self._local_channels
-            match_idx = None
-            for ci, ch in enumerate(channels or []):
-                if ch.get('url', '') == url:
-                    match_idx = ci
-                    break
-            if match_idx is None:
-                continue
-            item = list_widget.item(match_idx)
-            if item and item.data(Qt.ItemDataRole.UserRole) == match_idx:
-                px = QPixmap(thumb_path)
-                if not px.isNull():
-                    scaled = px.scaled(210, 118, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                    item.setIcon(QIcon(scaled))
 
     def _cancel_source_timeout(self):
         if hasattr(self, '_source_timeout_timer') and self._source_timeout_timer:
