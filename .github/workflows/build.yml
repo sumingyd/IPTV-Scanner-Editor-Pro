@@ -110,7 +110,7 @@ jobs:
   build-linux-arm64:
     name: Build Linux ARM64 App (native aarch64)
     # Use ubuntu-24.04-arm runner — GitHub provides free ARM64 runners for public repos
-    runs-on: ubuntu-arm:latest
+    runs-on: ubuntu-24.04-arm
     if: inputs.platform == 'linux-arm64' || github.event_name != 'workflow_dispatch'
     steps:
       - name: Checkout repository
