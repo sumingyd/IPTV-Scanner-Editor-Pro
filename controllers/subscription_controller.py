@@ -314,7 +314,7 @@ class SubscriptionController:
                         header_success = global_subscription_manager.load_single_epg(header_epg_url)
                         if header_success:
                             from core.application_state import app_state
-                app_state.epg_data = global_subscription_manager.get_epg_data_copy()
+                            app_state.epg_data = global_subscription_manager.get_epg_data_copy()
                     except Exception as epg_err:
                         logger.warning(f"补充加载M3U文件头EPG失败: {epg_err}")
 
