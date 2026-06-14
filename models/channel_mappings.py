@@ -218,23 +218,19 @@ class ChannelMappingManager:
         self._normalized_index = self._build_normalized_index()
 
     def _load_cached_mappings(self) -> Dict[str, dict]:
-        """加载缓存的远程映射规则"""
+        """加载缓存的远程映射规则（构造时仅读缓存，不触发网络请求）"""
         try:
             if os.path.exists(self.cache_file):
                 with open(self.cache_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    # 检查缓存是否过期（24小时）且不为空
                     mappings = data.get('mappings', {})
-                    if time.time() - data.get('timestamp', 0) < 24 * 3600 and mappings:
+                    if mappings:
                         self.logger.debug(f"从缓存加载远程映射规则，共 {len(mappings)} 条映射")
                         return mappings
-                    else:
-                        self.logger.debug("缓存已过期或为空，重新加载远程映射")
         except Exception as e:
             self.logger.error(f"加载缓存映射失败: {e}")
 
-        # 缓存不存在、已过期或为空，重新加载远程映射
-        return self._load_and_cache_remote_mappings()
+        return {}
 
     def _load_and_cache_remote_mappings(self) -> Dict[str, dict]:
         """加载远程映射并缓存到本地"""
@@ -723,21 +719,37 @@ def get_mapping_manager():
 
 
 class MappingManagerProxy:
-    """映射管理器代理类，提供延迟加载功能"""
+    """映射管理器代理类，提供延迟加载和后台刷新功能"""
     def __init__(self):
         self._manager = None
+        self._bg_refresh_done = False
 
     def _get_manager(self):
         if self._manager is None:
             self._manager = ChannelMappingManager()
+            if not self._bg_refresh_done:
+                self._bg_refresh_done = True
+                self._start_background_refresh()
         return self._manager
 
+    def _start_background_refresh(self):
+        def _do_refresh():
+            try:
+                self._manager.remote_mappings = self._manager._load_and_cache_remote_mappings()
+                self._manager.combined_mappings = self._manager._combine_mappings()
+                self._manager.reverse_mappings = create_reverse_mappings(self._manager.combined_mappings)
+                self._manager._normalized_index = self._manager._build_normalized_index()
+                self._manager.logger.info("后台刷新远程映射完成")
+            except Exception as e:
+                self._manager.logger.warning(f"后台刷新远程映射失败: {e}")
+
+        t = threading.Thread(target=_do_refresh, daemon=True)
+        t.start()
+
     def __getattr__(self, name):
-        # 当访问任何属性时，先获取实际的映射管理器实例
         return getattr(self._get_manager(), name)
 
     def __call__(self, *args, **kwargs):
-        # 如果被当作函数调用，返回管理器实例
         return self._get_manager()
 
 
