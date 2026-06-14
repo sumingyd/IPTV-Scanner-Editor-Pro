@@ -710,8 +710,12 @@ class SubscriptionManager(Singleton):
         
         cache_file = os.path.join(cache_dir, 'epg_cache.json')
         try:
+            cache_payload = {
+                'epg_data': data,
+                'channel_names': self._epg_channel_names,
+            }
             with open(cache_file, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
+                json.dump(cache_payload, f, ensure_ascii=False, separators=(',', ':'))
             logger.info(f"EPG数据已保存到缓存: {cache_file}")
         except Exception as e:
             logger.error(f"保存EPG缓存失败: {e}")
@@ -735,7 +739,14 @@ class SubscriptionManager(Singleton):
                 data = json.load(f)
             
             with self._epg_lock:
-                self._epg_data = data
+                if isinstance(data, dict) and 'epg_data' in data:
+                    self._epg_data = data['epg_data']
+                    self._epg_channel_names = data.get('channel_names', {})
+                else:
+                    self._epg_data = data
+                    self._epg_channel_names = {}
+                    for channel_id in data.keys():
+                        self._epg_channel_names[channel_id] = channel_id
                 self._last_epg_update = datetime.now()
             
             logger.debug(f"从缓存加载EPG数据成功: {len(data)} 个频道")
