@@ -159,6 +159,8 @@ class MultiScreenController(QObject):
             player = MpvPlayerController(cell.video_frame)
             cell.player = player
 
+            player.play_error.connect(lambda err, idx=index: self._on_cell_error(idx, err))
+
             url = channel.get('url', '')
             if url:
                 player.play(url)
@@ -224,6 +226,16 @@ class MultiScreenController(QObject):
                 player.send_command(['aid', str(track_id)])
             except Exception as e:
                 logger.debug(f"切换音轨失败: {e}")
+
+    def _on_cell_error(self, index: int, error_msg: str):
+        logger.warning(f"多画面cell={index}播放错误: {error_msg}")
+        cell = self._widget.get_cell(index) if self._widget else None
+        if cell:
+            try:
+                from PySide6.QtWidgets import QApplication
+                QApplication.processEvents()
+            except Exception:
+                pass
 
     def _on_cell_clicked(self, index: int):
         pass
