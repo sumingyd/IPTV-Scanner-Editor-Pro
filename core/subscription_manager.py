@@ -14,6 +14,7 @@ class SubscriptionManager(Singleton):
 
         self._config = ConfigManager()
         self._epg_data = {}
+        self._epg_channel_names = {}
         self._last_epg_update = None
         self._epg_lock = threading.RLock()
         self._update_callbacks = []
@@ -523,6 +524,7 @@ class SubscriptionManager(Singleton):
                             break
                     if channel_id and channel_name:
                         result[channel_id] = []
+                        self._epg_channel_names[channel_id] = channel_name
             
             programmes = list(root.iter('programme'))
             
@@ -602,36 +604,31 @@ class SubscriptionManager(Singleton):
             节目列表
         """
         with self._epg_lock:
-            # 优先级1: tvg-name 精确匹配
             if tvg_name:
                 if tvg_name in self._epg_data:
-                    return self._epg_data[tvg_name]
+                    return list(self._epg_data[tvg_name])
 
-            # 优先级2: tvg-id 精确匹配
             if tvg_id:
                 if tvg_id in self._epg_data:
-                    return self._epg_data[tvg_id]
+                    return list(self._epg_data[tvg_id])
 
-            # 优先级3: comma_name 精确匹配
             if comma_name:
                 if comma_name in self._epg_data:
-                    return self._epg_data[comma_name]
+                    return list(self._epg_data[comma_name])
 
-            # 优先级4: channel_name 精确匹配
             if channel_name:
                 if channel_name in self._epg_data:
-                    return self._epg_data[channel_name]
+                    return list(self._epg_data[channel_name])
 
-            # 通过 EpgMatcher 进行精确匹配（匹配 epg_display_name）
             try:
                 from services.epg_matcher import EpgMatcher
-                epg_channels = {epg_id: epg_id for epg_id in self._epg_data.keys()}
+                epg_channels = {epg_id: self._epg_channel_names.get(epg_id, epg_id) for epg_id in self._epg_data.keys()}
                 matched_id = EpgMatcher.match(
                     channel_name, epg_channels,
                     tvg_id=tvg_id, tvg_name=tvg_name, comma_name=comma_name
                 )
                 if matched_id and matched_id in self._epg_data:
-                    return self._epg_data[matched_id]
+                    return list(self._epg_data[matched_id])
             except Exception as ex:
                 logger.warning(f"EpgMatcher 匹配异常: {ex}")
 
