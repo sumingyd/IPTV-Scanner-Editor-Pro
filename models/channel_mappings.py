@@ -320,19 +320,23 @@ class ChannelMappingManager:
 
     def _schedule_fingerprint_save(self):
         """延迟批量保存指纹数据，避免频繁写磁盘"""
-        self._fingerprint_dirty = True
-        if self._fingerprint_save_timer is not None:
-            return
-        
-        def _do_save():
-            self._fingerprint_save_timer = None
-            if self._fingerprint_dirty:
-                self._fingerprint_dirty = False
+        with self.fingerprint_lock:
+            self._fingerprint_dirty = True
+            if self._fingerprint_save_timer is not None:
+                return
+
+            def _do_save():
+                with self.fingerprint_lock:
+                    self._fingerprint_save_timer = None
+                    if self._fingerprint_dirty:
+                        self._fingerprint_dirty = False
+                    else:
+                        return
                 self._save_channel_fingerprints()
-        
-        self._fingerprint_save_timer = threading.Timer(5.0, _do_save)
-        self._fingerprint_save_timer.daemon = True
-        self._fingerprint_save_timer.start()
+
+            self._fingerprint_save_timer = threading.Timer(5.0, _do_save)
+            self._fingerprint_save_timer.daemon = True
+            self._fingerprint_save_timer.start()
 
     def _combine_mappings(self) -> Dict[str, dict]:
         """组合远程映射和用户自定义映射（用户映射优先级更高）"""
