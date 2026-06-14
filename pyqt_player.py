@@ -2319,6 +2319,7 @@ class IPTVPlayer(QMainWindow):
     
     def _on_progress_slider_pressed(self):
         self._stop_auto_hide_timer()
+        self._disable_progress_auto_update = True
 
     def _on_progress_preview(self, seconds):
         mode = getattr(self, '_progress_time_mode', None)
@@ -2371,6 +2372,7 @@ class IPTVPlayer(QMainWindow):
         self._slider_debounce_timer.start(100)
 
     def _do_progress_slider_released(self):
+        self._disable_progress_auto_update = False
         is_catchup = self.play_state.is_catchup_or_timeshift
         if getattr(self, '_progress_time_mode', None) == 'vod' and not is_catchup:
             self._seek_vod(self._get_progress_seconds())
