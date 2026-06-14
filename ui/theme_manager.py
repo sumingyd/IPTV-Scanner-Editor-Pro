@@ -58,7 +58,7 @@ class ThemeManager(Singleton, QtCore.QObject):
             self._windows.remove(window)
 
     def _update_all_windows(self):
-        for window in self._windows:
+        for window in list(self._windows):
             self._apply_theme_to_window(window)
 
     def _apply_theme_to_window(self, window: QtWidgets.QWidget):
