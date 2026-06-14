@@ -182,8 +182,17 @@ from services.mpv_player_service import MpvPlayerController
 class IPTVPlayer(QMainWindow):
     epg_status_signal = Signal(str)
     channel_list_updated = Signal()
-    epg_list_updated = Signal()
     status_message = Signal(str)
+
+    AUTO_HIDE_INTERVAL_MS = 5000
+    RECONNECT_DELAY_MS = 2000
+    SLIDER_DEBOUNCE_MS = 100
+    CHANNEL_CLICK_DELAY_MS = 300
+    PROGRAM_DESC_HEIGHT = 54
+    CHANNEL_LOGO_WIDTH = 100
+    CHANNEL_LOGO_HEIGHT = 36
+    CTRL_BUTTON_WIDTH = 36
+    CTRL_BUTTON_HEIGHT = 32
 
     player_controller = None
     config = None
@@ -1501,7 +1510,7 @@ class IPTVPlayer(QMainWindow):
         # 左侧：频道LOGO
         self.channel_logo = QLabel()
         self.channel_logo.setStyleSheet(AppStyles.player_channel_logo_style())
-        self.channel_logo.setFixedSize(100, 36)
+        self.channel_logo.setFixedSize(self.CHANNEL_LOGO_WIDTH, self.CHANNEL_LOGO_HEIGHT)
         self.channel_logo.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
         from utils.general_utils import set_default_channel_logo
         set_default_channel_logo(self.channel_logo, 100, 36)
@@ -1549,7 +1558,7 @@ class IPTVPlayer(QMainWindow):
         self.program_desc.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.program_desc.setWordWrap(True)
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self.program_desc.setFixedHeight(54)
+        self.program_desc.setFixedHeight(self.PROGRAM_DESC_HEIGHT)
         self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         text_layout.addWidget(self.program_desc, 0, Qt.AlignmentFlag.AlignTop)
 
@@ -1586,7 +1595,7 @@ class IPTVPlayer(QMainWindow):
         self.play_button = QToolButton()
         self.play_button.setIcon(QIcon(AppStyles.get_icon('play', btn_color)))  # type: ignore[arg-type]
         self.play_button.setIconSize(btn_icon_size)
-        self.play_button.setFixedSize(36, 32)
+        self.play_button.setFixedSize(self.CTRL_BUTTON_WIDTH, self.CTRL_BUTTON_HEIGHT)
         self.play_button.setStyleSheet(AppStyles.player_button_style())
         self.play_button.clicked.connect(self.toggle_play)
         self.play_button.setToolTip(tr("panel_play", "播放/暂停"))
@@ -1596,7 +1605,7 @@ class IPTVPlayer(QMainWindow):
         self.stop_button = QToolButton()
         self.stop_button.setIcon(QIcon(AppStyles.get_icon('stop', btn_color)))  # type: ignore[arg-type]
         self.stop_button.setIconSize(btn_icon_size)
-        self.stop_button.setFixedSize(36, 32)
+        self.stop_button.setFixedSize(self.CTRL_BUTTON_WIDTH, self.CTRL_BUTTON_HEIGHT)
         self.stop_button.setStyleSheet(AppStyles.player_button_style())
         self.stop_button.clicked.connect(self.stop_playback)
         self.stop_button.setToolTip(tr("panel_stop", "停止"))
@@ -1606,7 +1615,7 @@ class IPTVPlayer(QMainWindow):
         self.prev_ch_button = QToolButton()
         self.prev_ch_button.setIcon(QIcon(AppStyles.get_icon('prev', btn_color)))  # type: ignore[arg-type]
         self.prev_ch_button.setIconSize(btn_icon_size)
-        self.prev_ch_button.setFixedSize(36, 32)
+        self.prev_ch_button.setFixedSize(self.CTRL_BUTTON_WIDTH, self.CTRL_BUTTON_HEIGHT)
         self.prev_ch_button.setStyleSheet(AppStyles.player_button_style())
         self.prev_ch_button.clicked.connect(lambda: self.event_handler._switch_channel(-1))
         self.prev_ch_button.setToolTip(tr("panel_prev_ch", "上一频道"))
@@ -1616,7 +1625,7 @@ class IPTVPlayer(QMainWindow):
         self.next_ch_button = QToolButton()
         self.next_ch_button.setIcon(QIcon(AppStyles.get_icon('next', btn_color)))  # type: ignore[arg-type]
         self.next_ch_button.setIconSize(btn_icon_size)
-        self.next_ch_button.setFixedSize(36, 32)
+        self.next_ch_button.setFixedSize(self.CTRL_BUTTON_WIDTH, self.CTRL_BUTTON_HEIGHT)
         self.next_ch_button.setStyleSheet(AppStyles.player_button_style())
         self.next_ch_button.clicked.connect(lambda: self.event_handler._switch_channel(1))
         self.next_ch_button.setToolTip(tr("panel_next_ch", "下一频道"))
@@ -1730,7 +1739,7 @@ class IPTVPlayer(QMainWindow):
         self.pip_button = QToolButton()
         self.pip_button.setIcon(QIcon(AppStyles.get_icon('pip', btn_color)))  # type: ignore[arg-type]
         self.pip_button.setIconSize(btn_icon_size)
-        self.pip_button.setFixedSize(36, 32)
+        self.pip_button.setFixedSize(self.CTRL_BUTTON_WIDTH, self.CTRL_BUTTON_HEIGHT)
         self.pip_button.setStyleSheet(AppStyles.player_button_style())
         self.pip_button.clicked.connect(self.pip_ctrl.toggle)
         self.pip_button.setToolTip(tr("panel_pip", "画中画"))
@@ -1740,7 +1749,7 @@ class IPTVPlayer(QMainWindow):
         self.fullscreen_button = QToolButton()
         self.fullscreen_button.setIcon(QIcon(AppStyles.get_icon('fullscreen', btn_color)))  # type: ignore[arg-type]
         self.fullscreen_button.setIconSize(btn_icon_size)
-        self.fullscreen_button.setFixedSize(36, 32)
+        self.fullscreen_button.setFixedSize(self.CTRL_BUTTON_WIDTH, self.CTRL_BUTTON_HEIGHT)
         self.fullscreen_button.setStyleSheet(AppStyles.player_button_style())
         self.fullscreen_button.clicked.connect(self.toggle_fullscreen)
         self.fullscreen_button.setToolTip(tr("panel_fullscreen", "全屏"))
@@ -2341,7 +2350,7 @@ class IPTVPlayer(QMainWindow):
             self._slider_debounce_timer = QTimer()
             self._slider_debounce_timer.setSingleShot(True)
             self._slider_debounce_timer.timeout.connect(self._do_progress_slider_released)
-        self._slider_debounce_timer.start(100)
+        self._slider_debounce_timer.start(self.SLIDER_DEBOUNCE_MS)
 
     def _do_progress_slider_released(self):
         self._disable_progress_auto_update = False
@@ -2491,7 +2500,7 @@ class IPTVPlayer(QMainWindow):
     def _on_channel_single_click(self, item):
         self._pending_click_item = item
         self._pending_click_source = self.sender()
-        self._click_timer.start(300)
+        self._click_timer.start(self.CHANNEL_CLICK_DELAY_MS)
 
     def _on_sub_channel_context_menu(self, pos):
         self.favorites_ctrl.show_channel_list_context_menu(pos, self.sub_channel_list, 'subscription')
@@ -2681,7 +2690,7 @@ class IPTVPlayer(QMainWindow):
                 from PySide6.QtCore import QTimer
                 self._auto_hide_timer = QTimer(self)
                 self._auto_hide_timer.setSingleShot(True)
-                self._auto_hide_timer.setInterval(5000)
+                self._auto_hide_timer.setInterval(self.AUTO_HIDE_INTERVAL_MS)
                 self._auto_hide_timer.timeout.connect(self._auto_hide_panels)
             if self.panel_vis.is_auto_hide_visible:
                 self._auto_hide_timer.start()
@@ -2783,7 +2792,7 @@ class IPTVPlayer(QMainWindow):
             self.status_bar_show_message(
                 f"{tr('reconnecting', 'Reconnecting')}: {channel_name} "
                 f"({self.player_controller._reconnect_count}/{self.player_controller._max_reconnect})")
-        QTimer.singleShot(2000, lambda: self._do_reconnect(url))
+        QTimer.singleShot(self.RECONNECT_DELAY_MS, lambda: self._do_reconnect(url))
 
     def _do_reconnect(self, url):
         """执行重连"""
