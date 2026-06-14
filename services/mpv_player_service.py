@@ -124,7 +124,7 @@ class MpvPlayerController(QObject):
     def _ensure_mpv_initialized(self):
         if self._mpv_initialized:
             return True
-        self._mpv_initialized = True
+
 
         try:
             import services.mpv_common as _mpv_mod
@@ -285,6 +285,7 @@ class MpvPlayerController(QObject):
             self.event_timer.timeout.connect(self._process_events)
             self.event_timer.start(100)
 
+            self._mpv_initialized = True
             return True
 
         except Exception as e:

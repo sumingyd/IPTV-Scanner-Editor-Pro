@@ -36,7 +36,7 @@ def _ensure_libmpv_loaded():
     global libmpv, MPV_AVAILABLE, _mpv_loaded
     if _mpv_loaded:
         return MPV_AVAILABLE
-    _mpv_loaded = True
+
 
     if not os.path.exists(libmpv_path):
         logger.warning(f"未找到libmpv-2.dll: {libmpv_path}")
@@ -88,9 +88,11 @@ def _ensure_libmpv_loaded():
         libmpv.mpv_get_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p]
 
         MPV_AVAILABLE = True
+        _mpv_loaded = True
         return True
     except Exception as e:
         logger.error(f"加载libmpv-2.dll失败: {e}")
+        _mpv_loaded = False
         return False
 
 
