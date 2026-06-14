@@ -371,14 +371,17 @@ class EpgTimelineDialog(FloatingDialog):
             return set()
         dates = set()
         try:
-            lock = getattr(epg_parser, '_epg_lock', None)
-            if lock:
-                lock.acquire()
-            try:
-                epg_data = dict(getattr(epg_parser, '_epg_data', {}))
-            finally:
+            if hasattr(epg_parser, 'get_epg_data_copy'):
+                epg_data = epg_parser.get_epg_data_copy()
+            else:
+                lock = getattr(epg_parser, '_epg_lock', None)
                 if lock:
-                    lock.release()
+                    lock.acquire()
+                try:
+                    epg_data = dict(getattr(epg_parser, '_epg_data', {}))
+                finally:
+                    if lock:
+                        lock.release()
             for channel_id, programs in epg_data.items():
                 for prog in programs:
                     try:

@@ -20,7 +20,7 @@ class _EpgSearchWorker(QThread):
     def run(self):
         results = []
         try:
-            epg_data = getattr(self._epg_parser, '_epg_data', None)
+            epg_data = self._epg_parser.get_epg_data_copy() if hasattr(self._epg_parser, 'get_epg_data_copy') else getattr(self._epg_parser, '_epg_data', None)
             if epg_data and isinstance(epg_data, dict):
                 for epg_id, programs in epg_data.items():
                     if not isinstance(programs, list):

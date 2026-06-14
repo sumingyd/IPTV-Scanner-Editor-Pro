@@ -289,7 +289,7 @@ class SubscriptionController:
             cached_loaded = global_subscription_manager.load_cached_epg_data()
             if cached_loaded:
                 from core.application_state import app_state
-                app_state.epg_data = dict(global_subscription_manager._epg_data)
+                app_state.epg_data = global_subscription_manager.get_epg_data_copy()
                 success = True
             else:
                 logger.warning("EPG缓存加载失败，重新下载")
@@ -300,7 +300,7 @@ class SubscriptionController:
             success = global_subscription_manager.load_all_epg_data(status_callback)
             if success:
                 from core.application_state import app_state
-                app_state.epg_data = dict(global_subscription_manager._epg_data)
+                app_state.epg_data = global_subscription_manager.get_epg_data_copy()
 
             header_epg_url = getattr(self, '_last_header_epg_url', None)
             if header_epg_url:
@@ -314,7 +314,7 @@ class SubscriptionController:
                         header_success = global_subscription_manager.load_single_epg(header_epg_url)
                         if header_success:
                             from core.application_state import app_state
-                            app_state.epg_data = dict(global_subscription_manager._epg_data)
+                app_state.epg_data = global_subscription_manager.get_epg_data_copy()
                     except Exception as epg_err:
                         logger.warning(f"补充加载M3U文件头EPG失败: {epg_err}")
 

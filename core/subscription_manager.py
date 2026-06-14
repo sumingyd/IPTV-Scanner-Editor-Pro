@@ -577,6 +577,11 @@ class SubscriptionManager(Singleton):
             logger.error(f"XML格式EPG解析失败: {e}")
             return {}
     
+    def get_epg_data_copy(self) -> dict:
+        """线程安全地获取EPG数据的浅拷贝"""
+        with self._epg_lock:
+            return dict(self._epg_data)
+
     def get_channel_epg(self, channel_name: str, tvg_id: str | None = None,
                         tvg_name: str | None = None, comma_name: str | None = None) -> list:
         """获取频道的EPG节目列表（仅精确匹配）

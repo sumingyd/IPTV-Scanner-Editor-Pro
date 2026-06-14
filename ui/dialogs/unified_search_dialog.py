@@ -34,7 +34,7 @@ class _EpgSearchWorker(QThread):
             if tvg_id and tvg_id not in ch_map:
                 ch_map[tvg_id] = ch
 
-        epg_data = getattr(self._epg_parser, '_epg_data', None)
+        epg_data = self._epg_parser.get_epg_data_copy() if hasattr(self._epg_parser, 'get_epg_data_copy') else getattr(self._epg_parser, '_epg_data', None)
         if not epg_data or not isinstance(epg_data, dict):
             self.results_ready.emit(results, result_channels)
             return
