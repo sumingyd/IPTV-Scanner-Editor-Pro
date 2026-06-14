@@ -123,16 +123,22 @@ def send_fcc_notification(
 
 def _send_udp(ip: str, port: int, data: bytes, timeout: float = 1.0) -> bool:
     """发送 UDP 数据包"""
+    sock = None
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(timeout)
         sock.sendto(data, (ip, port))
-        sock.close()
         logger.debug(f"FCC通知已发送: {ip}:{port}, 数据: {data!r}")
         return True
     except Exception as e:
         logger.debug(f"FCC通知发送失败: {e}")
         return False
+    finally:
+        if sock:
+            try:
+                sock.close()
+            except Exception:
+                pass
 
 
 class FCCService:
@@ -168,20 +174,18 @@ class FCCService:
         if leave_addr == join_addr:
             return
 
+        if join_addr:
+            try:
+                send_fcc_notification(fcc_addr[0], fcc_addr[1], None, join_addr, timeout=0.5)
+            except Exception as e:
+                logger.debug(f"FCC join同步发送失败: {e}")
+
         if leave_addr:
             threading.Thread(
                 target=self._notify_fcc,
                 args=(fcc_addr, leave_addr, None),
                 daemon=True,
             ).start()
-
-        if join_addr:
-            try:
-                send_fcc_notification(fcc_addr[0], fcc_addr[1], None, join_addr, timeout=0.5)
-                import time
-                time.sleep(0.05)
-            except Exception as e:
-                logger.debug(f"FCC join同步发送失败: {e}")
 
     def on_stop(self) -> None:
         """停止播放时调用——发送 leave 通知"""
