@@ -1,4 +1,4 @@
-name: Build and Publish Windows EXE
+name: Build and Publish App
 
 on:
   workflow_dispatch:
