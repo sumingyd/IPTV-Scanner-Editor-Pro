@@ -2461,7 +2461,7 @@ class IPTVPlayer(QMainWindow):
             else:
                 channels = self._sub_channels
 
-            old_channel = getattr(self, 'current_channel', None)
+            old_channel = self.current_channel
 
             if isinstance(idx, int) and 0 <= idx < len(channels or []):
                 self.current_channel = channels[idx]
@@ -2963,7 +2963,7 @@ class IPTVPlayer(QMainWindow):
         gap = 8
         title_bar_h = 32
         menu_bar_h = 28 if (hasattr(self, '_custom_menu_bar') and self._custom_menu_bar and self._custom_menu_bar.isVisible()) else 0
-        floating_dock = getattr(self, 'floating_dock', None)
+        floating_dock = self.floating_dock
         if floating_dock:
             if floating_dock.isVisible():
                 control_panel_h = floating_dock.height()
@@ -3468,7 +3468,7 @@ class IPTVPlayer(QMainWindow):
         """执行最小化到托盘操作"""
         tr = self.language_manager.tr
         self._is_hidden_to_tray = True
-        pc = getattr(self, 'player_controller', None)
+        pc = self.player_controller
         if pc and pc.is_playing and not pc.is_paused:
             pc.pause()
             self._was_playing_before_tray = True
@@ -3483,7 +3483,7 @@ class IPTVPlayer(QMainWindow):
                 dock.setFloating(False)
                 dock.blockSignals(False)
         self.hide()
-        tray = getattr(self, '_system_tray', None)
+        tray = self._system_tray
         if tray:
             tray.show()
             tray.setToolTip(tr('app_title', 'IPTV Scanner Editor Pro'))
@@ -3510,7 +3510,7 @@ class IPTVPlayer(QMainWindow):
                 super().closeEvent(event)
             return
 
-        config = getattr(self, 'config', None) or getattr(self, 'config_manager', None)
+        config = self.config or self.config_manager
         if config:
             close_action = config.load_close_behavior()
             if close_action == 'minimize_tray':
