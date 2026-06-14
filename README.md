@@ -170,7 +170,7 @@
 python pyqt_player.py
 ```
 
-> **注意**：运行需要 `mpv/` 目录（含 libmpv-2.dll）和 `ffmpge/` 目录（含 ffprobe.exe），这些二进制文件未纳入版本控制。请自行下载 [MPV](https://mpv.io/) 和 [FFmpeg](https://ffmpeg.org/) 并放置到对应目录。
+> **注意**：运行需要 `mpv/` 目录（含 libmpv-2.dll）和 `ffmpeg/` 目录（含 ffprobe.exe），这些二进制文件未纳入版本控制。请自行下载 [MPV](https://mpv.io/) 和 [FFmpeg](https://ffmpeg.org/) 并放置到对应目录。
 
 ### 方式二：从源码安装依赖
 ```bash

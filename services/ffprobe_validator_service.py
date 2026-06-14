@@ -15,12 +15,12 @@ def _get_ffprobe_path():
         from models.channel_mappings import get_app_data_dir
         base_path = get_app_data_dir()
 
-    ffprobe_dir = os.path.join(base_path, 'ffmpge')
+    ffprobe_dir = os.path.join(base_path, 'ffmpeg')
     ffprobe_exe = os.path.join(ffprobe_dir, 'ffprobe.exe')
     if os.path.exists(ffprobe_exe):
         return ffprobe_exe
 
-    ffprobe_dir_alt = os.path.join(base_path, 'ffmpeg')
+    ffprobe_dir_alt = os.path.join(base_path, 'ffmpge')
     ffprobe_exe_alt = os.path.join(ffprobe_dir_alt, 'ffprobe.exe')
     if os.path.exists(ffprobe_exe_alt):
         return ffprobe_exe_alt

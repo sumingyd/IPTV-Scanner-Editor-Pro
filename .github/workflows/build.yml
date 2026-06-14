@@ -57,12 +57,12 @@ jobs:
           if ($null -eq $ffmpegBin) {
             throw "Could not find ffmpeg.exe after extracting ffmpeg.7z."
           }                   
-          if (Test-Path ".\ffmpge") {
-            Remove-Item ".\ffmpge" -Recurse -Force
+          if (Test-Path ".\ffmpeg") {
+            Remove-Item ".\ffmpeg" -Recurse -Force
           }
-          Write-Host "Moving $ffmpegBin.FullName (folder of ffmpeg.exe) to .\ffmpge"
-          Move-Item -Path $ffmpegBin.FullName -Destination ".\ffmpge"
-          dir ./ffmpge
+          Write-Host "Moving $ffmpegBin.FullName (folder of ffmpeg.exe) to .\ffmpeg"
+          Move-Item -Path $ffmpegBin.FullName -Destination ".\ffmpeg"
+          dir ./ffmpeg
 
       - name: Set up Python
         uses: actions/setup-python@v5

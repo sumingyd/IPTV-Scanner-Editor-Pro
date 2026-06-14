@@ -175,7 +175,7 @@ cython_debug/
 # 项目特定文件
 # 二进制大文件（打包时由build.py从外部提供）
 mpv/
-ffmpge/
+ffmpeg/
 
 # 日志文件
 *.log

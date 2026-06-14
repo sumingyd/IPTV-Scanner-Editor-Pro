@@ -34,7 +34,7 @@ PYINSTALLER_CMD = [
     "--name", "IPTV Scanner Editor Pro",
     "--icon", str(PROJECT_ROOT / "resources" / "logo.ico"),
     "--add-data", f"{PROJECT_ROOT / 'mpv'};mpv",
-    "--add-data", f"{PROJECT_ROOT / 'ffmpge'};ffmpge",
+    "--add-data", f"{PROJECT_ROOT / 'ffmpeg'};ffmpeg",
     "--add-data", f"{PROJECT_ROOT / 'resources'};resources",
     "--hidden-import", "PySide6.QtNetwork",
     "--hidden-import", "PySide6.QtWidgets",
