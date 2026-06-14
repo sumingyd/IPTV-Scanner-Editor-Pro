@@ -173,11 +173,19 @@ jobs:
               tar -xf /tmp/ffmpeg-arm64.tar.xz -C /tmp/
               find /tmp -name "ffprobe" -type f -exec cp {} ffmpeg/ \; 2>/dev/null || true
               find /tmp -name "ffmpeg" -type f -exec cp {} ffmpeg/ \; 2>/dev/null || true
-            } || echo "Warning: Could not download FFmpeg ARM64 static build" >&2 && exit 1
+            } 
+
+          if [ ! -f ./ffmpeg/ffprobe ]; then
+              echo "ffprobe not found"
+              exit 1  
+          fi
+          if [ ! -f ./ffmpeg/ffmpeg ]; then
+              echo "ffmpeg not found"
+              exit 1  
+          fi
 
           echo "list files on ffmpeg folder"
-          ls ./ffmpeg 
-   
+          ls ./ffmpeg    
 
       - name: Install Python dependencies (ARM64 native)
         run: |
