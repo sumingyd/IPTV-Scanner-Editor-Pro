@@ -45,7 +45,10 @@ class ScanChannelDialog(FloatingDialog):
     def __init__(self, parent=None):
         super().__init__(parent, frameless=False, stay_on_top=False)
         colors = AppStyles._get_colors()
-        self.opacity = colors.get('window_opacity', 220)
+        if AppStyles._visual_style == 'frosted':
+            self.opacity = int(colors.get('frosted_opacity', 0.8) * 255)
+        else:
+            self.opacity = colors.get('window_opacity', 220)
         # 保存应用程序引用
         self.application = parent
         if parent:
