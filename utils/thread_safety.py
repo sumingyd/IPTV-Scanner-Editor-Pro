@@ -1,3 +1,5 @@
+import threading
+import weakref
 from concurrent.futures import Future
 from PySide6.QtCore import QThread, QTimer, QObject, Signal, Qt, Slot
 
@@ -25,17 +27,26 @@ class _CallbackRelay(QObject):
             pass
 
 
-_relay_instances = {}
+_relay_instances = weakref.WeakKeyDictionary()
+_relay_lock = threading.Lock()
 
 
 def _get_relay_for_thread(owner_obj):
-    """获取或创建与 owner_obj 关联的回调中继器"""
-    owner_id = id(owner_obj)
-    if owner_id not in _relay_instances:
-        relay = _CallbackRelay()
-        relay.moveToThread(owner_obj.thread())
-        _relay_instances[owner_id] = relay
-    return _relay_instances[owner_id]
+    with _relay_lock:
+        if owner_obj in _relay_instances:
+            return _relay_instances[owner_obj]
+    relay = _CallbackRelay()
+    relay.moveToThread(owner_obj.thread())
+    with _relay_lock:
+        if owner_obj not in _relay_instances:
+            _relay_instances[owner_obj] = relay
+        else:
+            try:
+                relay.deleteLater()
+            except Exception:
+                pass
+            relay = _relay_instances[owner_obj]
+    return relay
 
 
 def invoke_on_thread(owner_obj, callback):
