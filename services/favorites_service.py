@@ -31,23 +31,26 @@ class FavoritesService:
         with self._lock:
             if not self._config:
                 return
-            try:
-                fav_count = int(self._config.get_value('Favorites', 'count', '0') or '0')
-                for i in range(fav_count):
-                    raw = self._config.get_value('Favorites', f'ch_{i}', '')
-                    if raw:
+            fav_count = int(self._config.get_value('Favorites', 'count', '0') or '0')
+            for i in range(fav_count):
+                raw = self._config.get_value('Favorites', f'ch_{i}', '')
+                if raw:
+                    try:
                         ch = json.loads(raw)
                         self._favorites.append(ch)
                         self._favorites_url_set.add(ch.get('url', ''))
+                    except (json.JSONDecodeError, ValueError) as e:
+                        logger.warning(f"跳过损坏的收藏条目#{i}: {e}")
 
-                hist_count = int(self._config.get_value('PlayHistory', 'count', '0') or '0')
-                for i in range(hist_count):
-                    raw = self._config.get_value('PlayHistory', f'ch_{i}', '')
-                    if raw:
+            hist_count = int(self._config.get_value('PlayHistory', 'count', '0') or '0')
+            for i in range(hist_count):
+                raw = self._config.get_value('PlayHistory', f'ch_{i}', '')
+                if raw:
+                    try:
                         ch = json.loads(raw)
                         self._play_history.append(ch)
-            except Exception as e:
-                logger.error(f"加载收藏/历史失败: {e}")
+                    except (json.JSONDecodeError, ValueError) as e:
+                        logger.warning(f"跳过损坏的历史条目#{i}: {e}")
 
     def _save_favorites_to_config(self):
         if not self._config:
