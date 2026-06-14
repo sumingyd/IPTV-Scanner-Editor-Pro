@@ -24,7 +24,8 @@ env:
   PYTHONIOENCODING: utf-8
   MPV_URL: "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260610/mpv-dev-x86_64-v3-20260610-git-304426c.7z"
   FFMPEG_URL: "https://github.com/GyanD/codexffmpeg/releases/download/2026-06-08-git-6028720d70/ffmpeg-2026-06-08-git-6028720d70-essentials_build.7z"
-  MPV_LINUX_URL: "https://github.com/junterpatrol/mpv-linux-arm64/releases/download/latest/mpv-arm64.tar.xz"
+  MPV_LINUX_URL: ""
+  FFMPEG_LINUX_URL2: "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-linuxarm64-gpl-8.1.tar.xz"
   FFMPEG_LINUX_URL: "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz"
 
 jobs:
@@ -109,7 +110,7 @@ jobs:
   build-linux-arm64:
     name: Build Linux ARM64 App (native aarch64)
     # Use ubuntu-24.04-arm runner — GitHub provides free ARM64 runners for public repos
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-arm:latest
     if: inputs.platform == 'linux-arm64' || github.event_name != 'workflow_dispatch'
     steps:
       - name: Checkout repository
@@ -142,52 +143,41 @@ jobs:
             libmpv-dev \
             ffmpeg
 
-      - name: Download and Prepare MPV (Linux ARM64 native)
+      - name: Prepare MPV (Linux ARM64 native)
         run: |
           echo "=== Preparing MPV for Linux ARM64 ==="
           
-          # On ubuntu-24.04-arm, system libmpv is already ARM64 native
+          # did not find a static libmpv package, use libmpv in native arm64 linux
           mkdir -p mpv
           
           if [ -f /usr/lib/aarch64-linux-gnu/libmpv.so.2 ]; then
             sudo cp /usr/lib/aarch64-linux-gnu/libmpv.so.2 mpv/
             echo "Copied system libmpv.so.2 (ARM64 native)"
             file mpv/libmpv.so.2
-          elif [ -f /usr/lib/x86_64-linux-gnu/libmpv.so.2 ]; then
-            sudo cp /usr/lib/x86_64-linux-gnu/libmpv.so.2 mpv/
-            echo "Copied x86_64 libmpv.so.2 (unexpected on ARM runner)"
           else
-            # Download pre-built ARM64 libmpv from a reliable source
-            echo "System libmpv not found, downloading ARM64 build..."
-            MPV_ARM_URL="https://github.com/junterpatrol/mpv-linux-arm64/releases/download/latest/libmpv.so.2"
-            wget -q "$MPV_ARM_URL" -O mpv/libmpv.so.2 2>/dev/null || {
-              echo "Warning: Could not download libmpv.so.2, will use system fallback"
-              raise "build failed"
-            }
+            # Download ARM64 static libmpv as fallback
+            echo "System libmpv.so.2 not found, please try to use ARM64 static build..."
+            exit 1 
           fi
+          echo "list files on mpv folder"
+          ls ./mpv
 
-      - name: Download and Prepare FFmpeg (Linux ARM64 native)
+      - name: Prepare FFmpeg (Linux ARM64 native)
         run: |
           echo "=== Preparing FFmpeg for Linux ARM64 ==="
           
-          # On ubuntu-24.04-arm, system ffmpeg is already ARM64 native
-          mkdir -p ffmpeg/bin
-          
-          if [ -f /usr/bin/ffprobe ]; then
-            sudo cp /usr/bin/ffprobe ffmpeg/bin/
-            echo "Copied system ffprobe (ARM64 native)"
-            file ffmpeg/bin/ffprobe
-          fi
-          
-          if [ -f /usr/bin/ffmpeg ]; then
-            sudo cp /usr/bin/ffmpeg ffmpeg/bin/
-            echo "Copied system ffmpeg (ARM64 native)"
-            file ffmpeg/bin/ffmpeg
-          else
-            # Download ARM64 static FFmpeg as fallback
-            echo "System ffmpeg not found, please try to use ARM64 static build..."
-            throw "build failed"
-          fi
+          # try to donwload static ffmpeg packages and extract to get target files
+          mkdir -p ffmpeg
+ 
+          wget -q "$FFMPEG_ARM_URL2" -O /tmp/ffmpeg-arm64.tar.xz 2>/dev/null && {
+              tar -xf /tmp/ffmpeg-arm64.tar.xz -C /tmp/
+              find /tmp -name "ffprobe" -type f -exec cp {} ffmpeg/ \; 2>/dev/null || true
+              find /tmp -name "ffmpeg" -type f -exec cp {} ffmpeg/ \; 2>/dev/null || true
+            } || echo "Warning: Could not download FFmpeg ARM64 static build" >&2 && exit 1
+
+          echo "list files on ffmpeg folder"
+          ls ./ffmpeg 
+   
 
       - name: Install Python dependencies (ARM64 native)
         run: |
@@ -206,11 +196,11 @@ jobs:
           if [ -f "build.py" ]; then
             python3 build.py || {
               echo "build.py script failed."    
-              throw "build failed"         
+              exit 1         
             }
           else
             echo "build.py not found, build failed."
-            throw "build failed"
+            exit 1 
           fi
 
       - name: Verify ARM64 build output
