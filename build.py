@@ -30,6 +30,9 @@ except ImportError:
     print("错误: PyInstaller 未安装，请运行: pip install pyinstaller")
     sys.exit(1)
 
+
+sp =  ';' if sys.platform == 'win32' else ':'
+
 # 定义打包命令
 PYINSTALLER_CMD = [
     sys.executable,
@@ -38,9 +41,9 @@ PYINSTALLER_CMD = [
     "--windowed",
     "--name", "IPTV Scanner Editor Pro",
     "--icon", str(PROJECT_ROOT / "resources" / "logo.ico"),
-    "--add-data", f"{PROJECT_ROOT / 'mpv'};mpv",
-    "--add-data", f"{PROJECT_ROOT / 'ffmpeg'};ffmpeg",
-    "--add-data", f"{PROJECT_ROOT / 'resources'};resources",
+    "--add-data", f"{PROJECT_ROOT / 'mpv'}{sp}mpv",
+    "--add-data", f"{PROJECT_ROOT / 'ffmpeg'}{sp}ffmpeg",
+    "--add-data", f"{PROJECT_ROOT / 'resources'}{sp}resources",
     "--hidden-import", "PySide6.QtNetwork",
     "--hidden-import", "PySide6.QtWidgets",
     "--hidden-import", "PySide6.QtCore",
