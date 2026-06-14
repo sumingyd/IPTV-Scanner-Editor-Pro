@@ -815,6 +815,7 @@ class MpvPlayerController(QObject):
                 elif event.event_id == MPV_EVENT_FILE_LOADED:
                     self._reconnect_count = 0
                     self._switching_channel = False
+                    self.is_playing = True
                     self._schedule_media_info_start()
                     self._adjust_buffer_for_content()
                     self._apply_hdr_on_file_loaded()
@@ -918,7 +919,7 @@ class MpvPlayerController(QObject):
                 self._set_mpv_string('speed', str(self._current_speed))
 
             self.is_paused = False
-            self.is_playing = True
+
             self._safe_emit(self.play_state_changed, True)
 
             self._schedule_media_info_start()
