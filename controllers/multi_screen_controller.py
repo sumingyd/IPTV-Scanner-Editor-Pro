@@ -259,7 +259,7 @@ class MultiScreenController(QObject):
             self._info_timer.stop()
         self._info_timer = QTimer(self)
         self._info_timer.timeout.connect(self._update_cells_info)
-        self._info_timer.start(2000)
+        self._info_timer.start(5000)
 
     def _update_cells_info(self):
         if not self._active or not self._widget:
