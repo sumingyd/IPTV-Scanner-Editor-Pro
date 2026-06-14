@@ -3,11 +3,6 @@ name: Build and Publish App
 on:
   workflow_dispatch:
     inputs:
-      branch:
-        description: "Branch to check out and build."
-        required: true
-        default: "main"
-        type: string
       release_tag:
         description: "Existing release tag to upload the executable to."
         required: true
@@ -41,7 +36,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.branch }}
+          ref: ${{ github.ref_name }}
           
       - name: Download and Prepare MPV/FFmpeg
         shell: powershell
@@ -120,7 +115,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.branch }}
+          ref: ${{ github.ref_name }}
 
       - name: Verify ARM64 architecture
         run: |
@@ -167,6 +162,7 @@ jobs:
             MPV_ARM_URL="https://github.com/junterpatrol/mpv-linux-arm64/releases/download/latest/libmpv.so.2"
             wget -q "$MPV_ARM_URL" -O mpv/libmpv.so.2 2>/dev/null || {
               echo "Warning: Could not download libmpv.so.2, will use system fallback"
+              raise "build failed"
             }
           fi
 
