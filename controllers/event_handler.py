@@ -552,11 +552,40 @@ class EventHandler:
         # 6.6 停止DNS预取/连接预热
         for svc_name in ('_dns_prefetcher', '_connection_preheater'):
             svc = getattr(self.window, svc_name, None)
-            if svc and hasattr(svc, 'stop'):
-                try:
-                    svc.stop()
-                except Exception:
-                    pass
+            if svc:
+                for method_name in ('shutdown', 'stop'):
+                    if hasattr(svc, method_name):
+                        try:
+                            getattr(svc, method_name)()
+                        except Exception:
+                            pass
+                        break
+
+        # 6.7 停止EPG提醒服务
+        epg_reminder = getattr(self.window, 'epg_reminder_ctrl', None)
+        if epg_reminder and hasattr(epg_reminder, '_reminder_service'):
+            try:
+                epg_reminder._reminder_service.stop()
+            except Exception:
+                pass
+
+        # 6.8 停止FCC服务
+        fcc_service = getattr(self.window, '_fcc_service', None)
+        if fcc_service and hasattr(fcc_service, 'stop'):
+            try:
+                fcc_service.stop()
+            except Exception:
+                pass
+
+        # 6.9 清理系统托盘
+        tray = getattr(self.window, '_system_tray', None)
+        if tray:
+            try:
+                tray.hide()
+                tray.deleteLater()
+            except Exception:
+                pass
+            self.window._system_tray = None
 
         # 6.7 执行注册的资源清理器
         try:
