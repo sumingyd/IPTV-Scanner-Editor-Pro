@@ -324,10 +324,10 @@ class ScanChannelDialog(FloatingDialog):
     def _connect_input_signals(self):
         """在_load_config加载完所有值后，再连接输入控件的保存信号"""
         self.ip_range_input.lineEdit().editingFinished.connect(self._save_network_settings)
-        self.user_agent_input.textChanged.connect(self._save_network_settings)
-        self.referer_input.textChanged.connect(self._save_network_settings)
-        self.timeout_input.textChanged.connect(self._save_network_settings)
-        self.threads_input.textChanged.connect(self._save_network_settings)
+        self.user_agent_input.editingFinished.connect(self._save_network_settings)
+        self.referer_input.editingFinished.connect(self._save_network_settings)
+        self.timeout_input.editingFinished.connect(self._save_network_settings)
+        self.threads_input.editingFinished.connect(self._save_network_settings)
 
     def _save_network_settings(self):
         """保存网络设置到配置文件（提取的重复代码）"""
