@@ -182,6 +182,7 @@ from services.mpv_player_service import MpvPlayerController
 class IPTVPlayer(QMainWindow):
     epg_status_signal = Signal(str)
     channel_list_updated = Signal()
+    epg_list_updated = Signal()
     status_message = Signal(str)
 
     AUTO_HIDE_INTERVAL_MS = 5000
