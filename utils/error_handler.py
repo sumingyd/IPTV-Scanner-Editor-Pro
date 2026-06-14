@@ -374,11 +374,9 @@ def handle_exceptions(
                     if log_level == 'error':
                         logger.error(full_msg, exc_info=True)
                     elif log_level == 'warning':
-                        logger.warning(full_msg)
-                        logger.exception("Exception info:")
+                        logger.warning(full_msg, exc_info=True)
                     else:
-                        logger.info(full_msg)
-                        logger.exception("Exception info:")
+                        logger.info(full_msg, exc_info=True)
 
                     return default_return
 
