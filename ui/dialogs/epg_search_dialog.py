@@ -160,10 +160,10 @@ class EpgSearchDialog(FloatingDialog):
 
         if self._worker and self._worker.isRunning():
             self._worker.results_ready.disconnect(self._on_search_results)
-            self._worker.terminate()
-            self._worker.wait(100)
+            self._worker.requestInterruption()
+            self._worker.wait(500)
 
-        channels = list(getattr(w, '_sub_channels', []))
+        channels = list(getattr(w, '_sub_channels', [])) + list(getattr(w, '_local_channels', []))
         self._worker = _EpgSearchWorker(epg_parser, channels, text)
         self._worker.results_ready.connect(self._on_search_results)
         self._worker.start()
