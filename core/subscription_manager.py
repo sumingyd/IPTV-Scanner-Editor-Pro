@@ -756,7 +756,8 @@ class SubscriptionManager(Singleton):
             return False
     
     def is_epg_valid(self) -> bool:
-        """检查EPG缓存数据是否有效（基于缓存文件修改时间和配置的更新间隔）
+        """检查EPG缓存数据是否有效（基于缓存文件修改时间和配置的更新间隔，
+        同时检查数据中是否包含今天的节目）
 
         Returns:
             是否有效
@@ -777,6 +778,28 @@ class SubscriptionManager(Singleton):
             if age_seconds > max_age_seconds:
                 logger.debug(f"EPG缓存文件已过期: {age_seconds/60:.0f} 分钟前 (配置间隔: {update_interval} 分钟)")
                 return False
+
+            if self._epg_data:
+                from datetime import date as date_type
+                today = date_type.today()
+                has_today = False
+                for programs in self._epg_data.values():
+                    if programs and isinstance(programs, list):
+                        for prog in programs[:3]:
+                            start_str = prog.get('start', '')
+                            if start_str:
+                                try:
+                                    from datetime import datetime as dt
+                                    if dt.fromisoformat(start_str).date() == today:
+                                        has_today = True
+                                        break
+                                except (ValueError, TypeError):
+                                    pass
+                        if has_today:
+                            break
+                if not has_today:
+                    logger.info(f"EPG缓存文件未过期但无今天的节目数据，需要刷新")
+                    return False
 
             return True
         except Exception as e:
