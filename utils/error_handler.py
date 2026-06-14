@@ -445,7 +445,7 @@ def retry_on_exception(
                     try:
                         handler = get_global_error_handler()
                         handler.show_status_message(f"重试 {func.__name__}... (第 {attempt + 1} 次)")
-                    except RuntimeError:
+                    except Exception:
                         pass
 
                     # 等待后重试
