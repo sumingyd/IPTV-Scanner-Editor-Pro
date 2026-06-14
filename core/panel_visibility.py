@@ -109,9 +109,12 @@ class PanelVisibilityManager:
         extra = {}
         if context in ('fullscreen', 'pip'):
             w = self._window
-            extra['title_bar'] = hasattr(w, '_title_bar') and w._title_bar and w._title_bar.isVisible()
-            extra['menu_bar'] = hasattr(w, '_custom_menu_bar') and w._custom_menu_bar and w._custom_menu_bar.isVisible()
-            extra['status_bar'] = hasattr(w, 'status_bar') and w.status_bar and w.status_bar.isVisible()
+            try:
+                extra['title_bar'] = hasattr(w, '_title_bar') and w._title_bar and w._title_bar.isVisible()
+                extra['menu_bar'] = hasattr(w, '_custom_menu_bar') and w._custom_menu_bar and w._custom_menu_bar.isVisible()
+                extra['status_bar'] = hasattr(w, 'status_bar') and w.status_bar and w.status_bar.isVisible()
+            except RuntimeError:
+                pass
         return extra
 
     def _restore_from_saved(self, saved: Dict[str, bool]):
@@ -123,12 +126,21 @@ class PanelVisibilityManager:
             self._manually_hidden = saved.get('manually_hidden', False)
 
         w = self._window
-        if 'title_bar' in saved and hasattr(w, '_title_bar') and w._title_bar:
-            w._title_bar.setVisible(saved['title_bar'])
-        if 'menu_bar' in saved and hasattr(w, '_custom_menu_bar') and w._custom_menu_bar:
-            w._custom_menu_bar.setVisible(saved['menu_bar'])
-        if 'status_bar' in saved and hasattr(w, 'status_bar') and w.status_bar:
-            w.status_bar.setVisible(saved['status_bar'])
+
+        def _restore_widgets():
+            if 'title_bar' in saved and hasattr(w, '_title_bar') and w._title_bar:
+                w._title_bar.setVisible(saved['title_bar'])
+            if 'menu_bar' in saved and hasattr(w, '_custom_menu_bar') and w._custom_menu_bar:
+                w._custom_menu_bar.setVisible(saved['menu_bar'])
+            if 'status_bar' in saved and hasattr(w, 'status_bar') and w.status_bar:
+                w.status_bar.setVisible(saved['status_bar'])
+
+        from PySide6.QtCore import QThread
+        if QThread.currentThread() != w.thread():
+            from utils.thread_safety import invoke_on_thread
+            invoke_on_thread(w, _restore_widgets)
+        else:
+            _restore_widgets()
 
     def save_auto_hide_state(self):
         with self._lock:
@@ -203,20 +215,29 @@ class PanelVisibilityManager:
             'floating': ('floating_panel', None),
         }
         attrs = panel_map.get(panel, ())
-        for attr in attrs:
-            if attr and hasattr(w, attr):
-                widget = getattr(w, attr)
-                if widget:
-                    widget.setVisible(visible)
 
-        if panel in self.PANELS and hasattr(w, '_sync_panel_actions'):
-            w._sync_panel_actions()
+        def _do_apply():
+            for attr in attrs:
+                if attr and hasattr(w, attr):
+                    widget = getattr(w, attr)
+                    if widget:
+                        widget.setVisible(visible)
 
-        if visible and hasattr(w, 'update_floating_position'):
+            if panel in self.PANELS and hasattr(w, '_sync_panel_actions'):
+                w._sync_panel_actions()
+
+            if visible and hasattr(w, 'update_floating_position'):
+                if not getattr(w, '_position_update_pending', False):
+                    w._position_update_pending = True
+                    from utils.thread_safety import invoke_on_thread
+                    invoke_on_thread(w, lambda: (setattr(w, '_position_update_pending', False), w.update_floating_position()))
+
+        from PySide6.QtCore import QThread
+        if QThread.currentThread() != w.thread():
             from utils.thread_safety import invoke_on_thread
-            if not getattr(w, '_position_update_pending', False):
-                w._position_update_pending = True
-                invoke_on_thread(w, lambda: (setattr(w, '_position_update_pending', False), w.update_floating_position()))
+            invoke_on_thread(w, _do_apply)
+        else:
+            _do_apply()
 
     def add_listener(self, callback: Callable[[str, bool], None]):
         with self._lock:
