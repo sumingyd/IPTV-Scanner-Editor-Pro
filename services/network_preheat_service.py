@@ -49,8 +49,7 @@ class DnsPrefetcher(QObject):
                 except RuntimeError:
                     pass
         except Exception:
-            with self._lock:
-                self._cache[host] = None
+            pass
 
     def get_cached_ip(self, host):
         with self._lock:
