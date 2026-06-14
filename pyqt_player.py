@@ -3755,16 +3755,12 @@ class IPTVPlayer(QMainWindow):
                     break
             if match_idx is None:
                 continue
-            for i in range(list_widget.count()):
-                item = list_widget.item(i)
-                if not item:
-                    continue
-                if item.data(Qt.ItemDataRole.UserRole) == match_idx:
-                    px = QPixmap(thumb_path)
-                    if not px.isNull():
-                        scaled = px.scaled(210, 118, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                        item.setIcon(QIcon(scaled))
-                    break
+            item = list_widget.item(match_idx)
+            if item and item.data(Qt.ItemDataRole.UserRole) == match_idx:
+                px = QPixmap(thumb_path)
+                if not px.isNull():
+                    scaled = px.scaled(210, 118, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                    item.setIcon(QIcon(scaled))
 
     def _cancel_source_timeout(self):
         if hasattr(self, '_source_timeout_timer') and self._source_timeout_timer:
