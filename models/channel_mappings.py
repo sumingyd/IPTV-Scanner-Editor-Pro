@@ -252,14 +252,43 @@ class ChannelMappingManager:
         return mappings
 
     def _load_user_mappings(self) -> Dict[str, dict]:
-        """加载用户自定义映射规则"""
+        """加载用户自定义映射规则（兼容旧格式键）"""
         try:
             if os.path.exists(self.user_mappings_file):
                 with open(self.user_mappings_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    data = json.load(f)
+                return self._migrate_user_mappings(data)
         except Exception as e:
             self.logger.error(f"加载用户映射失败: {e}")
         return {}
+
+    def _migrate_user_mappings(self, data: Dict[str, dict]) -> Dict[str, dict]:
+        """将旧格式键(standard_name)迁移为新格式键(standard_name||raw_name)"""
+        migrated = {}
+        for key, value in data.items():
+            if '||' in key:
+                migrated[key] = value
+                continue
+            standard_name = key
+            raw_names = value.get('raw_names', [])
+            if not raw_names:
+                continue
+            for raw_name in raw_names:
+                unique_key = f"{standard_name}||{raw_name}"
+                migrated[unique_key] = {
+                    'standard_name': standard_name,
+                    'raw_names': [raw_name],
+                    'logo_url': value.get('logo_url'),
+                    'group_name': value.get('group_name'),
+                    'tvg_id': value.get('tvg_id'),
+                    'tvg_chno': value.get('tvg_chno'),
+                    'tvg_shift': value.get('tvg_shift'),
+                    'catchup': value.get('catchup'),
+                    'catchup_days': value.get('catchup_days'),
+                    'catchup_source': value.get('catchup_source'),
+                    'resolution': value.get('resolution')
+                }
+        return migrated
 
     def _save_user_mappings(self):
         """保存用户自定义映射规则"""
@@ -313,15 +342,17 @@ class ChannelMappingManager:
 
     def add_user_mapping(self, raw_name: str, standard_name: str, logo_url: str | None = None, group_name: str | None = None):
         """添加用户自定义映射"""
-        if standard_name not in self.user_mappings:
-            self.user_mappings[standard_name] = {
-                'raw_names': [],
+        unique_key = f"{standard_name}||{raw_name}"
+        if unique_key not in self.user_mappings:
+            self.user_mappings[unique_key] = {
+                'standard_name': standard_name,
+                'raw_names': [raw_name],
                 'logo_url': logo_url,
                 'group_name': group_name
             }
-
-        if raw_name not in self.user_mappings[standard_name]['raw_names']:
-            self.user_mappings[standard_name]['raw_names'].append(raw_name)
+        else:
+            if raw_name not in self.user_mappings[unique_key]['raw_names']:
+                self.user_mappings[unique_key]['raw_names'].append(raw_name)
 
         # 更新组合映射和反向映射
         self.combined_mappings = self._combine_mappings()
@@ -334,8 +365,10 @@ class ChannelMappingManager:
 
     def remove_user_mapping(self, standard_name: str):
         """移除用户自定义映射（整个 standard_name 下所有 raw_name）"""
-        if standard_name in self.user_mappings:
-            del self.user_mappings[standard_name]
+        keys_to_remove = [k for k in self.user_mappings if k.split('||')[0] == standard_name or k == standard_name]
+        for key in keys_to_remove:
+            del self.user_mappings[key]
+        if keys_to_remove:
             self.combined_mappings = self._combine_mappings()
             self.reverse_mappings = create_reverse_mappings(self.combined_mappings)
             self._save_user_mappings()
@@ -343,13 +376,19 @@ class ChannelMappingManager:
 
     def remove_user_mapping_entry(self, standard_name: str, raw_name: str):
         """移除用户自定义映射中的单条 raw_name"""
-        if standard_name not in self.user_mappings:
-            return
-        raw_names = self.user_mappings[standard_name].get('raw_names', [])
-        if raw_name in raw_names:
-            raw_names.remove(raw_name)
-            if not raw_names:
-                del self.user_mappings[standard_name]
+        unique_key = f"{standard_name}||{raw_name}"
+        if unique_key in self.user_mappings:
+            del self.user_mappings[unique_key]
+            self.combined_mappings = self._combine_mappings()
+            self.reverse_mappings = create_reverse_mappings(self.combined_mappings)
+            self._save_user_mappings()
+            self.logger.info(f"移除用户映射条目: {raw_name} -> {standard_name}")
+        elif standard_name in self.user_mappings:
+            raw_names = self.user_mappings[standard_name].get('raw_names', [])
+            if raw_name in raw_names:
+                raw_names.remove(raw_name)
+                if not raw_names:
+                    del self.user_mappings[standard_name]
             self.combined_mappings = self._combine_mappings()
             self.reverse_mappings = create_reverse_mappings(self.combined_mappings)
             self._save_user_mappings()
@@ -357,21 +396,27 @@ class ChannelMappingManager:
 
     def import_user_mappings(self, mappings: Dict[str, dict]):
         """批量导入用户自定义映射"""
-        for std_name, data in mappings.items():
-            if std_name not in self.user_mappings:
-                self.user_mappings[std_name] = {
-                    'raw_names': list(data.get('raw_names', [])),
-                    'logo_url': data.get('logo_url'),
-                    'group_name': data.get('group_name')
-                }
-            else:
-                for raw_name in data.get('raw_names', []):
-                    if raw_name not in self.user_mappings[std_name]['raw_names']:
-                        self.user_mappings[std_name]['raw_names'].append(raw_name)
-                if data.get('logo_url'):
-                    self.user_mappings[std_name]['logo_url'] = data['logo_url']
-                if data.get('group_name'):
-                    self.user_mappings[std_name]['group_name'] = data['group_name']
+        for key, data in mappings.items():
+            standard_name = key.split('||')[0] if '||' in key else key
+            raw_names = data.get('raw_names', [])
+            if not raw_names:
+                continue
+            for raw_name in raw_names:
+                unique_key = f"{standard_name}||{raw_name}"
+                if unique_key not in self.user_mappings:
+                    self.user_mappings[unique_key] = {
+                        'standard_name': standard_name,
+                        'raw_names': [raw_name],
+                        'logo_url': data.get('logo_url'),
+                        'group_name': data.get('group_name')
+                    }
+                else:
+                    if raw_name not in self.user_mappings[unique_key]['raw_names']:
+                        self.user_mappings[unique_key]['raw_names'].append(raw_name)
+                    if data.get('logo_url'):
+                        self.user_mappings[unique_key]['logo_url'] = data['logo_url']
+                    if data.get('group_name'):
+                        self.user_mappings[unique_key]['group_name'] = data['group_name']
         self.combined_mappings = self._combine_mappings()
         self.reverse_mappings = create_reverse_mappings(self.combined_mappings)
         self._save_user_mappings()
