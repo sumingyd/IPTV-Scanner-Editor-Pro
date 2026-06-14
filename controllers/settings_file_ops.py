@@ -1109,8 +1109,9 @@ class SettingsFileOperations:
                 if referer:
                     headers['Referer'] = referer
 
+                ssl_verify = config.get_value('Network', 'ssl_verify', 'true').lower() != 'false'
                 response = requests.get(url, timeout=timeout, headers=headers,
-                                        allow_redirects=True, verify=False)
+                                        allow_redirects=True, verify=ssl_verify)
                 response.raise_for_status()
                 content = load_m3u_from_url_data(response.content)
             except Exception as e:

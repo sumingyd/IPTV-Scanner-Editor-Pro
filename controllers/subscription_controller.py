@@ -97,8 +97,9 @@ class SubscriptionController:
             headers['Referer'] = referer
 
         try:
+            ssl_verify = config.get_value('Network', 'ssl_verify', 'true').lower() != 'false'
             response = requests.get(url, timeout=timeout, headers=headers,
-                                   allow_redirects=True, verify=False)
+                                   allow_redirects=True, verify=ssl_verify)
             response.raise_for_status()
             return response.text
         except requests.exceptions.Timeout:
