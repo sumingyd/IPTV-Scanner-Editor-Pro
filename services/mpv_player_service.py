@@ -429,6 +429,7 @@ class MpvPlayerController(QObject):
         t = threading.Thread(target=_worker, daemon=True)
         t.start()
         if not event.wait(timeout=3.5):
+            self.logger.debug("网络可达性检查超时，继续尝试播放")
             return None
         return result[0]
 
