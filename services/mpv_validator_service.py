@@ -109,7 +109,7 @@ def _try_get_resolution_and_codec(handle, retries=3, interval=0.3):
 
 
 class MpvStreamValidator:
-    _semaphore: threading.Semaphore | None = None
+    _semaphore: threading.Semaphore = threading.Semaphore(get_optimal_thread_count())
     _user_agent: str | None = None
     _referer: str | None = None
     _headers_lock = threading.Lock()
@@ -119,8 +119,7 @@ class MpvStreamValidator:
 
     @classmethod
     def _get_semaphore(cls) -> threading.Semaphore:
-        if cls._semaphore is None:
-            cls._semaphore = threading.Semaphore(get_optimal_thread_count())
+
         return cls._semaphore
 
     def __init__(self, main_window=None):
@@ -166,41 +165,41 @@ class MpvStreamValidator:
             result['error_type'] = 'concurrency_limit'
             return result
 
-        handle = None
-        try:
-            handle = _create_lightweight_mpv()
-            if not handle:
-                result['error'] = '创建mpv实例失败'
-                result['error_type'] = 'mpv_create_failed'
-                return result
+            handle = None
+            try:
+                handle = _create_lightweight_mpv()
+                if not handle:
+                    result['error'] = '创建mpv实例失败'
+                    result['error_type'] = 'mpv_create_failed'
+                    return result
 
-            with self._handles_lock:
-                self._active_handles.append(handle)
+                u = url.lower()
+                looks_ts = '/rtp/' in u or u.endswith('.ts') or 'proto=http' in u or u.startswith('udp://')
+                if u.startswith('rtsp://'):
+                    rtsp_transport = 'tcp'
+                    try:
+                        from core.config_manager import ConfigManager
+                        cfg = ConfigManager()
+                        playback = cfg.load_playback_settings()
+                        rtsp_transport = playback.get('rtsp_transport', 'tcp')
+                    except Exception:
+                        pass
+                    _mpv_set_property_string(handle, 'rtsp-transport', rtsp_transport)
+                    _mpv_set_property_string(handle, 'demuxer', 'lavf')
+                    _mpv_set_property_string(handle, 'force-seekable', 'yes')
+                elif looks_ts:
+                    _mpv_set_property_string(handle, 'demuxer', 'lavf')
+                    _mpv_set_property_string(handle, 'demuxer-lavf-format', 'mpegts')
+                    _mpv_set_property_string(handle, 'force-seekable', 'yes')
+                elif u.startswith('http://') or u.startswith('https://'):
+                    _mpv_set_property_string(handle, 'force-seekable', 'yes')
 
-            u = url.lower()
-            looks_ts = '/rtp/' in u or u.endswith('.ts') or 'proto=http' in u or u.startswith('udp://')
-            if u.startswith('rtsp://'):
-                rtsp_transport = 'tcp'
-                try:
-                    from core.config_manager import ConfigManager
-                    cfg = ConfigManager()
-                    playback = cfg.load_playback_settings()
-                    rtsp_transport = playback.get('rtsp_transport', 'tcp')
-                except Exception:
-                    pass
-                _mpv_set_property_string(handle, 'rtsp-transport', rtsp_transport)
-                _mpv_set_property_string(handle, 'demuxer', 'lavf')
-                _mpv_set_property_string(handle, 'force-seekable', 'yes')
-            elif looks_ts:
-                _mpv_set_property_string(handle, 'demuxer', 'lavf')
-                _mpv_set_property_string(handle, 'demuxer-lavf-format', 'mpegts')
-                _mpv_set_property_string(handle, 'force-seekable', 'yes')
-            elif u.startswith('http://') or u.startswith('https://'):
-                _mpv_set_property_string(handle, 'force-seekable', 'yes')
+                start_time = time.time()
 
-            start_time = time.time()
+                _mpv_send_command(handle, ['loadfile', url])
 
-            _mpv_send_command(handle, ['loadfile', url])
+                with self._handles_lock:
+                    self._active_handles.append(handle)
 
             found_tracks = False
             found_tracks_time = 0.0
@@ -354,7 +353,10 @@ class MpvStreamValidator:
                     if was_active:
                         self._active_handles.remove(handle)
                 if was_active:
-                    destroy_mpv(handle)
+                    try:
+                        destroy_mpv(handle)
+                    except Exception:
+                        pass
             sem.release()
 
         if not result.get('valid', False):

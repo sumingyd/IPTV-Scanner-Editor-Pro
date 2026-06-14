@@ -35,7 +35,7 @@ def get_optimal_thread_count():
 
 
 class FfprobeStreamValidator:
-    _semaphore: threading.Semaphore | None = None
+    _semaphore: threading.Semaphore = threading.Semaphore(get_optimal_thread_count())
     _user_agent: str | None = None
     _referer: str | None = None
     _headers_lock = threading.Lock()
@@ -54,8 +54,7 @@ class FfprobeStreamValidator:
 
     @classmethod
     def _get_semaphore(cls) -> threading.Semaphore:
-        if cls._semaphore is None:
-            cls._semaphore = threading.Semaphore(get_optimal_thread_count())
+
         return cls._semaphore
 
     def __init__(self, main_window=None):
