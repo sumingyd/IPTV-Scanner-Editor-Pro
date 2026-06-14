@@ -17,6 +17,9 @@ from services.mpv_common import (
     MPV_FORMAT_INT64,
     MPV_FORMAT_DOUBLE,
     MPV_END_FILE_REASON_EOF,
+    MPV_END_FILE_REASON_ERROR,
+    MPV_END_FILE_REASON_STOP,
+    MPV_END_FILE_REASON_QUIT,
     get_property_string as _mpv_get_property_string,
     get_property_int as _mpv_get_property_int,
     get_property_double as _mpv_get_property_double,
@@ -820,9 +823,9 @@ class MpvPlayerController(QObject):
                     if event.data:
                         end_file = ctypes.cast(event.data, ctypes.POINTER(mpv_event_end_file)).contents
                         reason = end_file.reason
-                        if reason == 0:
+                        if reason == MPV_END_FILE_REASON_EOF:
                             pass
-                        elif reason in (1, 2, 3, 4):
+                        elif reason == MPV_END_FILE_REASON_ERROR:
                             if self._switching_channel:
                                 self.logger.debug("频道切换导致的END_FILE，忽略重连")
                                 self._switching_channel = False
@@ -830,15 +833,14 @@ class MpvPlayerController(QObject):
                                 is_net_file = self._is_network_drive(self.current_url)
                                 is_network_url = self.current_url.lower().startswith(
                                     ('http://', 'https://', 'rtsp://', 'rtp://', 'udp://', 'rtmp://'))
-                                if reason == 4 and not is_net_file and not is_network_url:
+                                if not is_net_file and not is_network_url:
                                     self.logger.debug(f"END_FILE错误(本地文件)，不重连: reason={reason}")
                                     self.is_playing = False
                                     self.is_paused = False
                                     self._safe_emit(self.play_state_changed, False)
                                 else:
-                                    if reason == 4:
-                                        err_str = self._get_mpv_error_string(end_file.error) if hasattr(end_file, 'error') else f"error_code={reason}"
-                                        self.logger.warning(f"END_FILE错误，尝试重连: {err_str}, is_net_file={is_net_file}")
+                                    err_str = self._get_mpv_error_string(end_file.error) if hasattr(end_file, 'error') else f"error_code={reason}"
+                                    self.logger.warning(f"END_FILE错误，尝试重连: {err_str}, is_net_file={is_net_file}")
                                     self.is_playing = False
                                     self.is_paused = False
                                     self._safe_emit(self.play_state_changed, False)
@@ -849,6 +851,10 @@ class MpvPlayerController(QObject):
                                     else:
                                         self.logger.info("已达最大重连次数，停止重连")
                                         self._reconnect_count = 0
+                        elif reason in (MPV_END_FILE_REASON_STOP, MPV_END_FILE_REASON_QUIT):
+                            self.logger.debug(f"END_FILE: 正常停止/退出 reason={reason}")
+                        else:
+                            self.logger.warning(f"END_FILE: 未知reason={reason}")
 
         except Exception as e:
             self.logger.error(f"处理 mpv 事件失败：{str(e)}")
