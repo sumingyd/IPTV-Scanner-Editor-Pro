@@ -107,7 +107,7 @@ class ScannerController(QObject):
         self._mapping_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mapper")
         self._pending_channels = []
         self._pending_lock = threading.Lock()
-        self._batch_flush_timer = None
+        self._batch_flush_pending = None
         self._pending_mappings = {}
         self._pending_validations = []
         self._validation_flush_timer = None
@@ -222,9 +222,9 @@ class ScannerController(QObject):
         """处理频道添加：攒批后一次性插入模型，减少视图通知次数"""
         with self._pending_lock:
             self._pending_channels.append(channel_info)
-            if self._batch_flush_timer is not None:
+            if self._batch_flush_pending is not None:
                 return
-            self._batch_flush_timer = True
+            self._batch_flush_pending = True
 
         QtCore.QTimer.singleShot(100, self._flush_pending_channels)
 
@@ -233,7 +233,7 @@ class ScannerController(QObject):
         with self._pending_lock:
             channels = self._pending_channels
             self._pending_channels = []
-            self._batch_flush_timer = None
+            self._batch_flush_pending = None
 
         if channels:
             is_scanning = not self.stop_event.is_set()
@@ -698,7 +698,7 @@ class ScannerController(QObject):
 
         if self._mapping_executor is not None:
             try:
-                self._mapping_executor.shutdown(wait=False)
+                self._mapping_executor.shutdown(wait=True)
             except Exception:
                 pass
             self._mapping_executor = None
