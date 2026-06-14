@@ -256,8 +256,38 @@ class SubscriptionController:
             self._workers.append(worker)
             worker.start()
 
+            # 启动定期刷新定时器
+            if not hasattr(self, '_refresh_timer') or self._refresh_timer is None:
+                config = ConfigManager()
+                update_interval = int(config.get_value('PlaylistSources', 'update_interval', '60') or 60)
+                refresh_ms = min(update_interval, 60) * 60 * 1000
+                self._refresh_timer = QTimer(self.window)
+                self._refresh_timer.timeout.connect(self._on_refresh_timer)
+                self._refresh_timer.start(refresh_ms)
+                logger.debug(f"订阅/EPG定期刷新定时器已启动: 每 {refresh_ms // 60000} 分钟")
+
         except Exception as e:
             logger.error(f"启动订阅定时器失败: {e}", exc_info=True)
+
+    def _on_refresh_timer(self):
+        """定期检查并刷新订阅和EPG"""
+        try:
+            active_source = global_subscription_manager.get_active_playlist_source()
+            playlist_url = active_source.get('url', '') if active_source else ''
+            if playlist_url:
+                if not global_subscription_manager.is_epg_valid():
+                    logger.info("EPG缓存已过期，触发后台刷新")
+                    worker = SubscriptionWorker(
+                        lambda: self._do_start_subscription(playlist_url),
+                        self.window
+                    )
+                    worker.finished.connect(self._on_subscription_finished)
+                    worker.finished.connect(lambda: self._cleanup_worker(worker))
+                    worker.error.connect(lambda err: logger.error(f"订阅更新错误: {err}"))
+                    self._workers.append(worker)
+                    worker.start()
+        except Exception as e:
+            logger.error(f"定期刷新失败: {e}")
 
     def _do_start_subscription(self, playlist_url: str):
         """执行订阅更新"""
