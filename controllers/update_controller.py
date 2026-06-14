@@ -120,7 +120,7 @@ class UpdateController:
 
         except Exception as e:
             logger.error(f"启动版本检查失败: {str(e)}")
-        finally:
+
             self._update_checking = False
             self._update_checked = True
 
@@ -149,6 +149,8 @@ class UpdateController:
             logger.error(f"更新界面提示失败: {str(e)}")
 
     def _on_update_check_completed(self, success, message):
+        self._update_checking = False
+        self._update_checked = True
         if success:
             logger.info(f"版本检查完成: {message}")
         else:
