@@ -7,6 +7,7 @@ import time
 from typing import Dict
 from core.log_manager import global_logger
 
+IS_WINDOWS = sys.platform == 'win32'
 
 def _get_ffprobe_path():
     if getattr(sys, 'frozen', False):
@@ -15,30 +16,13 @@ def _get_ffprobe_path():
         from models.channel_mappings import get_app_data_dir
         base_path = get_app_data_dir()
 
-    ffprobe_dir = os.path.join(base_path, 'ffmpeg')
+    ffprobeName = 'ffprobe.exe' if IS_WINDOWS else 'ffprobe'
+    ffprobe_dir_alt = os.path.join(base_path, 'ffmpeg')
+    ffprobe_exe_alt = os.path.join(ffprobe_dir_alt, ffprobeName)
+    if os.path.exists(ffprobe_exe_alt):
+        return ffprobe_exe_alt
 
-    # Cross-platform ffprobe binary detection
-    if sys.platform == 'win32':
-        _possible_names = ['ffprobe.exe']
-    elif sys.platform.startswith('linux'):
-        _possible_names = ['ffprobe']
-    else:
-        _possible_names = ['ffprobe']
-
-    for _name in _possible_names:
-        _p = os.path.join(ffprobe_dir, _name)
-        if os.path.exists(_p):
-            return _p
-
-    # Also check subdirectories (ffmpeg static builds may nest binaries)
-    if os.path.isdir(ffprobe_dir):
-        for _root, _dirs, _files in os.walk(ffprobe_dir):
-            for _f in _files:
-                if _f == 'ffprobe' or (_f == 'ffprobe.exe' and sys.platform == 'win32'):
-                    return os.path.join(_root, _f)
-
-    binary_name = 'ffprobe.exe' if sys.platform == 'win32' else 'ffprobe'
-    global_logger.warning(f"未找到{binary_name}: ffmpeg目录={ffprobe_dir}")
+    global_logger.warning(f"未找到{ffprobeName}: ffmpeg目录={ffprobe_dir_alt}")
     return None
 
 
@@ -119,7 +103,7 @@ class FfprobeStreamValidator:
             cmd = self._build_ffprobe_command(ffprobe_path, url, timeout)
             start_time = time.time()
 
-            creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+            creation_flags = subprocess.CREATE_NO_WINDOW if IS_WINDOWS else 0
             proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,

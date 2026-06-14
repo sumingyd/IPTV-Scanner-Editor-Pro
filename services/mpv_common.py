@@ -13,24 +13,65 @@ else:
     base_path = get_app_data_dir()
 
 mpv_dir = os.path.join(base_path, 'mpv')
-os.environ['MPV_HOME'] = mpv_dir
-os.environ['PATH'] = mpv_dir + os.pathsep + os.environ.get('PATH', '')
 
 # Cross-platform libmpv binary detection
 if sys.platform == 'win32':
     libmpv_path = os.path.join(mpv_dir, 'libmpv-2.dll')
 elif sys.platform.startswith('linux'):
     # Try common soname variants for Linux (ARM64/x86_64)
-    _possible_names = ['libmpv.so.2', 'libmpv.so']
+    _possible_names = ['libmpv.so.2', 'libmpv.so.1', 'libmpv.so']
     libmpv_path = None
+    # 1. Check bundled mpv_dir first
     for _name in _possible_names:
         _p = os.path.join(mpv_dir, _name)
         if os.path.exists(_p):
             libmpv_path = _p
             break
+    # 2. Fallback to system-installed mpv (common Linux library paths)
+    if not libmpv_path:
+        # import glob
+        _system_dirs = [
+            '/usr/lib/aarch64-linux-gnu/',      # ARM64 Debian/Ubuntu
+            '/usr/lib/x86_64-linux-gnu/',       # x64 Debian/Ubuntu
+            '/usr/lib64/',                      # Fedora/RHEL/SUSE
+            '/usr/local/lib/',                  # Custom install
+        ]
+        for _dir in _system_dirs:
+            for _name in _possible_names:
+                _p = os.path.join(_dir, _name)
+                if os.path.exists(_p):
+                    libmpv_path = _p
+                    logger.info(f"使用系统安装的libmpv: {_p}")
+                    break
+            if libmpv_path:
+                break
+        # 3. Final fallback: try ldconfig dynamic linker cache
+        if not libmpv_path:
+            try:
+                import subprocess
+                result = subprocess.run(['ldconfig', '-p'], capture_output=True, text=True, timeout=5)
+                for line in result.stdout.splitlines():
+                    for _name in _possible_names:
+                        if _name in line:
+                            # Extract path from ldconfig output: "libmpv.so.2 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libmpv.so.2"
+                            parts = line.strip().split('=>')
+                            if len(parts) == 2:
+                                libmpv_path = parts[1].strip()
+                                logger.info(f"通过ldconfig找到libmpv: {libmpv_path}")
+                                break
+                    if libmpv_path:
+                        break
+            except Exception:
+                pass
+        
+        if not libmpv_path:
+            mpv_dir = os.path.dirname(libmpv_path)
 else:
     # macOS fallback (not currently supported but safe no-op)
-    libmpv_path = None
+    raise Exception("MacOS unsupported for initializing mpv.")
+
+os.environ['MPV_HOME'] = mpv_dir
+os.environ['PATH'] = mpv_dir + os.pathsep + os.environ.get('PATH', '')
 
 if libmpv_path and os.path.exists(libmpv_path):
     os.environ['MPV_LIBRARY'] = libmpv_path
@@ -107,7 +148,7 @@ def _ensure_libmpv_loaded():
         MPV_AVAILABLE = True
         return True
     except Exception as e:
-        libv_name = 'libmpv' if sys.platform != 'win32' else 'libmpv-2.dll'
+        libv_name = 'libmpv'
         logger.error(f"加载{libv_name}失败: {e}")
         return False
 

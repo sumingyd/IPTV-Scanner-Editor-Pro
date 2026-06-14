@@ -145,22 +145,9 @@ jobs:
 
       - name: Prepare MPV (Linux ARM64 native)
         run: |
-          echo "=== Preparing MPV for Linux ARM64 ==="
-          
-          # did not find a static libmpv package, use libmpv in native arm64 linux
-          mkdir -p mpv
-          
-          if [ -f /usr/lib/aarch64-linux-gnu/libmpv.so.2 ]; then
-            sudo cp /usr/lib/aarch64-linux-gnu/libmpv.so.2 mpv/
-            echo "Copied system libmpv.so.2 (ARM64 native)"
-            file mpv/libmpv.so.2
-          else
-            # Download ARM64 static libmpv as fallback
-            echo "System libmpv.so.2 not found, please try to use ARM64 static build..."
-            exit 1 
-          fi
-          echo "list files on mpv folder"
-          ls ./mpv
+          echo "=== Preparing MPV for Linux ARM64 ==="          
+          echo "cannot not find a static libmpv package, user need install mpv before using this app."
+         
 
       - name: Prepare FFmpeg (Linux ARM64 native)
         run: |

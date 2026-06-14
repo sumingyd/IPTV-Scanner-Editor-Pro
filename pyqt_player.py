@@ -2932,9 +2932,6 @@ class IPTVPlayer(QMainWindow):
         if not hasattr(self, '_video_overlay_label') or not self._video_overlay_label:
             return
         self._video_overlay_label.raise_()
-        # Windows-only: SetWindowPos to bring overlay above video (Linux/macOS use Qt natively)
-        if sys.platform != 'win32':
-            return
         try:
             hwnd = int(self._video_overlay_label.winId())
             import ctypes
