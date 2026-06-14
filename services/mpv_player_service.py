@@ -1515,6 +1515,9 @@ class MpvPlayerController(QObject):
         if hasattr(self, '_live_info_timer') and self._live_info_timer:
             self._live_info_timer.stop()
 
+        if hasattr(self, '_media_info_timer') and self._media_info_timer:
+            self._media_info_timer.stop()
+            self._media_info_timer.deleteLater()
         self._media_info_timer = QTimer(self)
         self._media_info_timer.singleShot(1000, self._start_live_info_timer)
 
