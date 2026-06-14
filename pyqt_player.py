@@ -610,17 +610,7 @@ class IPTVPlayer(QMainWindow):
                 event.acceptProposedAction()
                 return
             elif path.lower().endswith(self.VIDEO_EXTENSIONS):
-                name = os.path.splitext(os.path.basename(path))[0]
-                tr = self.language_manager.tr
-                channel = {
-                    'name': name,
-                    'url': path,
-                    'group': tr("local_video", "本地视频"),
-                    '_groups': [tr("local_video", "本地视频")],
-                }
-                self._add_to_local_list(channel)
-                self.config.add_recent_file(path)
-                self.update_recent_files_menu()
+                self._add_local_video_and_track(path)
                 logger.info(f"拖放打开视频文件: {path}")
                 event.acceptProposedAction()
                 return
@@ -3277,16 +3267,7 @@ class IPTVPlayer(QMainWindow):
         tr = self.language_manager.tr
 
         if os.path.isfile(path):
-            name = os.path.splitext(os.path.basename(path))[0]
-            channel = {
-                'name': name,
-                'url': path,
-                'group': tr("local_video", "本地视频"),
-                '_groups': [tr("local_video", "本地视频")],
-            }
-            self._add_to_local_list(channel)
-            self.config.add_recent_file(path)
-            self.update_recent_files_menu()
+            self._add_local_video_and_track(path)
             return
 
         if os.path.isdir(path):
@@ -3335,6 +3316,22 @@ class IPTVPlayer(QMainWindow):
                 self._add_to_local_list(channel)
             self.config.add_recent_file(path)
             self.update_recent_files_menu()
+
+    def _create_local_video_channel(self, path: str, group_key: str = "local_video", group_default: str = "本地视频") -> dict:
+        name = os.path.splitext(os.path.basename(path))[0]
+        group = self.language_manager.tr(group_key, group_default)
+        return {
+            'name': name,
+            'url': path,
+            'group': group,
+            '_groups': [group],
+        }
+
+    def _add_local_video_and_track(self, path: str, group_key: str = "local_video", group_default: str = "本地视频"):
+        channel = self._create_local_video_channel(path, group_key, group_default)
+        self._add_to_local_list(channel)
+        self.config.add_recent_file(path)
+        self.update_recent_files_menu()
 
     def _add_to_local_list(self, channel):
         """将频道添加到本地列表并播放"""
@@ -3916,16 +3913,7 @@ if __name__ == "__main__":
                                              '.flv', '.wmv', '.ts', '.webm')):
                 from PySide6.QtCore import QTimer
                 def _open_video_from_cmdline(fp=file_path):
-                    name = os.path.splitext(os.path.basename(fp))[0]
-                    channel = {
-                        'name': name,
-                        'url': fp,
-                        'group': player.language_manager.tr("local_video", "本地视频"),
-                        '_groups': [player.language_manager.tr("local_video", "本地视频")],
-                    }
-                    player._add_to_local_list(channel)
-                    player.config.add_recent_file(fp)
-                    player.update_recent_files_menu()
+                    player._add_local_video_and_track(fp)
                 QTimer.singleShot(800, _open_video_from_cmdline)
 
     sys.exit(app.exec())

@@ -991,16 +991,7 @@ class SettingsFileOperations:
             if not os.path.isfile(file_path):
                 _handle_not_found()
                 return
-            name = os.path.splitext(os.path.basename(file_path))[0]
-            channel = {
-                'name': name,
-                'url': file_path,
-                'group': tr("local_video", "本地视频"),
-                '_groups': [tr("local_video", "本地视频")],
-            }
-            w._add_to_local_list(channel)
-            w.config.add_recent_file(file_path)
-            w.update_recent_files_menu()
+            w._add_local_video_and_track(file_path)
 
         def _handle_local_playlist():
             try:
