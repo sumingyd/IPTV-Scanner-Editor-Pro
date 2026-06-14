@@ -1050,6 +1050,58 @@ class IPTVPlayer(QMainWindow):
         self.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
         self.playlist_layout.addWidget(self.playlist_title)
 
+        self._create_playlist_tab_buttons(tr)
+        self.playlist_tab = QTabWidget()
+        self.playlist_tab.setStyleSheet(AppStyles.player_tab_style())
+        self.playlist_tab.tabBar().hide()
+
+        sub_tab = self._create_sub_tab(tr)
+        local_tab = self._create_local_tab(tr)
+        fav_tab = self._create_fav_tab(tr)
+        history_tab = self._create_history_tab(tr)
+
+        self.playlist_tab.addTab(sub_tab, tr("subscription_tab", "Subscription"))
+        self.playlist_tab.addTab(local_tab, tr("local_tab", "Local"))
+        self.playlist_tab.addTab(fav_tab, tr("favorites_tab", "Favorites"))
+        self.playlist_tab.addTab(history_tab, tr("history_tab", "History"))
+
+        self.playlist_tab.currentChanged.connect(self._on_playlist_tab_changed)
+        self.playlist_layout.addWidget(self.playlist_tab)
+
+        self.channel_list = self.sub_channel_list
+        self.group_combo = self.sub_group_combo
+        self.channel_empty_label = self.sub_empty_label
+
+        self._click_timer = QTimer()
+        self._click_timer.setSingleShot(True)
+        self._click_timer.timeout.connect(self._deferred_single_click)
+        self._pending_click_item = None
+        self._pending_click_source = None
+
+        self._sub_channels = []
+        self._local_channels = []
+        self._local_channels_dirty = False
+        self._sub_groups = [tr("all_channels", "All Channels")]
+        self._local_groups = [tr("all_channels", "All Channels")]
+
+        from PySide6.QtWidgets import QDockWidget
+        from ui.floating_dialog import FloatingDockWidget
+        self.playlist_dock = FloatingDockWidget(tr("channel_list", "Channel List"), self)
+        self.playlist_dock.setWidget(playlist_container)
+        self.playlist_dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable)
+        self.playlist_dock.setObjectName("playlist_dock")
+        if hasattr(self, 'playlist_panel'):
+            self.playlist_panel = None
+        self.playlist_panel = self.playlist_dock
+
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.playlist_dock)
+        self.playlist_dock.setFloating(True)
+        if not show:
+            self.playlist_dock.hide()
+
+        logger.debug("_create_playlist_panel: 完成")
+
+    def _create_playlist_tab_buttons(self, tr):
         tab_switch_row = QHBoxLayout()
         tab_switch_row.setContentsMargins(0, 0, 0, 0)
         tab_switch_row.setSpacing(2)
@@ -1098,10 +1150,65 @@ class IPTVPlayer(QMainWindow):
             self._playlist_tab_btns.append(btn)
         self.playlist_layout.addLayout(tab_switch_row)
 
-        self.playlist_tab = QTabWidget()
-        self.playlist_tab.setStyleSheet(AppStyles.player_tab_style())
-        self.playlist_tab.tabBar().hide()
+    def _create_channel_list_widget(self, style_type='player', on_click=None, on_double_click=None, on_context_menu=None):
+        from ui.multi_screen_widget import DraggableChannelListWidget
+        widget = DraggableChannelListWidget()
+        widget.style_type = style_type
+        widget.setStyleSheet(AppStyles.player_list_style())
+        widget.setSpacing(2)
+        widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        if on_click:
+            widget.itemClicked.connect(on_click)
+        if on_double_click:
+            widget.itemDoubleClicked.connect(on_double_click)
+        if on_context_menu:
+            widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            widget.customContextMenuRequested.connect(on_context_menu)
+        return widget
 
+    def _create_channel_search_row(self, tr, view_icon_color, search_handler, view_scope):
+        search_row = QHBoxLayout()
+        search_row.setContentsMargins(0, 0, 0, 0)
+        search_row.setSpacing(4)
+
+        search_input = QtWidgets.QLineEdit()
+        search_input.setPlaceholderText(tr("search_channel", "搜索频道..."))
+        search_input.setClearButtonEnabled(True)
+        search_input.setStyleSheet(AppStyles.player_search_input_style())
+        search_input.setToolTip(tr("search_channel", "搜索频道"))
+        search_input.textChanged.connect(search_handler)
+        search_row.addWidget(search_input, 1)
+
+        list_btn = QToolButton()
+        list_btn.setIcon(QIcon(AppStyles.get_icon('list_view', view_icon_color)))
+        list_btn.setIconSize(QSize(14, 14))
+        list_btn.setFixedSize(24, 20)
+        list_btn.setStyleSheet(AppStyles.player_button_style())
+        list_btn.setCheckable(True)
+        list_btn.setChecked(True)
+        list_btn.setToolTip(tr("list_view", "列表视图"))
+        list_btn.clicked.connect(lambda: self._set_channel_view_mode('list', view_scope))
+        search_row.addWidget(list_btn)
+
+        grid_btn = QToolButton()
+        grid_btn.setIcon(QIcon(AppStyles.get_icon('grid_view', view_icon_color)))
+        grid_btn.setIconSize(QSize(14, 14))
+        grid_btn.setFixedSize(24, 20)
+        grid_btn.setStyleSheet(AppStyles.player_button_style())
+        grid_btn.setCheckable(True)
+        grid_btn.setToolTip(tr("grid_view", "网格视图"))
+        grid_btn.clicked.connect(lambda: self._set_channel_view_mode('grid', view_scope))
+        search_row.addWidget(grid_btn)
+
+        view_group = QButtonGroup(self)
+        view_group.setExclusive(True)
+        view_group.addButton(list_btn, 0)
+        view_group.addButton(grid_btn, 1)
+
+        return search_row, search_input, list_btn, grid_btn, view_group
+
+    def _create_sub_tab(self, tr):
         sub_tab = QWidget()
         sub_layout = QVBoxLayout(sub_tab)
         sub_layout.setContentsMargins(4, 4, 4, 4)
@@ -1114,57 +1221,16 @@ class IPTVPlayer(QMainWindow):
         self.sub_group_combo.currentTextChanged.connect(self.on_sub_group_changed)
         sub_layout.addWidget(self.sub_group_combo)
 
-        sub_search_row = QHBoxLayout()
-        sub_search_row.setContentsMargins(0, 0, 0, 0)
-        sub_search_row.setSpacing(4)
-
-        self.sub_search_input = QtWidgets.QLineEdit()
-        self.sub_search_input.setPlaceholderText(tr("search_channel", "搜索频道..."))
-        self.sub_search_input.setClearButtonEnabled(True)
-        self.sub_search_input.setStyleSheet(AppStyles.player_search_input_style())
-        self.sub_search_input.setToolTip(tr("search_channel", "搜索频道"))
-        self.sub_search_input.textChanged.connect(self._on_sub_search_changed)
-        sub_search_row.addWidget(self.sub_search_input, 1)
-
         view_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
-        self.sub_view_list_btn = QToolButton()
-        self.sub_view_list_btn.setIcon(QIcon(AppStyles.get_icon('list_view', view_icon_color)))  # type: ignore[arg-type]
-        self.sub_view_list_btn.setIconSize(QSize(14, 14))
-        self.sub_view_list_btn.setFixedSize(24, 20)
-        self.sub_view_list_btn.setStyleSheet(AppStyles.player_button_style())
-        self.sub_view_list_btn.setCheckable(True)
-        self.sub_view_list_btn.setChecked(True)
-        self.sub_view_list_btn.setToolTip(tr("list_view", "列表视图"))
-        self.sub_view_list_btn.clicked.connect(lambda: self._set_channel_view_mode('list', 'sub'))
-        sub_search_row.addWidget(self.sub_view_list_btn)
-        self.sub_view_grid_btn = QToolButton()
-        self.sub_view_grid_btn.setIcon(QIcon(AppStyles.get_icon('grid_view', view_icon_color)))  # type: ignore[arg-type]
-        self.sub_view_grid_btn.setIconSize(QSize(14, 14))
-        self.sub_view_grid_btn.setFixedSize(24, 20)
-        self.sub_view_grid_btn.setStyleSheet(AppStyles.player_button_style())
-        self.sub_view_grid_btn.setCheckable(True)
-        self.sub_view_grid_btn.setToolTip(tr("grid_view", "网格视图"))
-        self.sub_view_grid_btn.clicked.connect(lambda: self._set_channel_view_mode('grid', 'sub'))
-        sub_search_row.addWidget(self.sub_view_grid_btn)
+        search_row, self.sub_search_input, self.sub_view_list_btn, self.sub_view_grid_btn, self._sub_view_group = \
+            self._create_channel_search_row(tr, view_icon_color, self._on_sub_search_changed, 'sub')
+        sub_layout.addLayout(search_row)
 
-        self._sub_view_group = QButtonGroup(self)
-        self._sub_view_group.setExclusive(True)
-        self._sub_view_group.addButton(self.sub_view_list_btn, 0)
-        self._sub_view_group.addButton(self.sub_view_grid_btn, 1)
-
-        sub_layout.addLayout(sub_search_row)
-
-        from ui.multi_screen_widget import DraggableChannelListWidget
-        self.sub_channel_list = DraggableChannelListWidget()
-        self.sub_channel_list.style_type = 'player'
-        self.sub_channel_list.setStyleSheet(AppStyles.player_list_style())
-        self.sub_channel_list.setSpacing(2)
-        self.sub_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.sub_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.sub_channel_list.itemClicked.connect(self._on_channel_single_click)
-        self.sub_channel_list.itemDoubleClicked.connect(self._on_channel_double_clicked)
-        self.sub_channel_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.sub_channel_list.customContextMenuRequested.connect(self._on_sub_channel_context_menu)
+        self.sub_channel_list = self._create_channel_list_widget(
+            on_click=self._on_channel_single_click,
+            on_double_click=self._on_channel_double_clicked,
+            on_context_menu=self._on_sub_channel_context_menu,
+        )
         sub_layout.addWidget(self.sub_channel_list, 1)
 
         self.sub_empty_label = QLabel(tr("no_channels", "No channels"))
@@ -1172,6 +1238,9 @@ class IPTVPlayer(QMainWindow):
         self.sub_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         sub_layout.addWidget(self.sub_empty_label)
 
+        return sub_tab
+
+    def _create_local_tab(self, tr):
         local_tab = QWidget()
         local_layout = QVBoxLayout(local_tab)
         local_layout.setContentsMargins(4, 4, 4, 4)
@@ -1184,55 +1253,16 @@ class IPTVPlayer(QMainWindow):
         self.local_group_combo.currentTextChanged.connect(self.on_local_group_changed)
         local_layout.addWidget(self.local_group_combo)
 
-        local_search_row = QHBoxLayout()
-        local_search_row.setContentsMargins(0, 0, 0, 0)
-        local_search_row.setSpacing(4)
+        view_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
+        search_row, self.local_search_input, self.local_view_list_btn, self.local_view_grid_btn, self._local_view_group = \
+            self._create_channel_search_row(tr, view_icon_color, self._on_local_search_changed, 'local')
+        local_layout.addLayout(search_row)
 
-        self.local_search_input = QtWidgets.QLineEdit()
-        self.local_search_input.setPlaceholderText(tr("search_channel", "搜索频道..."))
-        self.local_search_input.setClearButtonEnabled(True)
-        self.local_search_input.setStyleSheet(AppStyles.player_search_input_style())
-        self.local_search_input.setToolTip(tr("search_channel", "搜索频道"))
-        self.local_search_input.textChanged.connect(self._on_local_search_changed)
-        local_search_row.addWidget(self.local_search_input, 1)
-
-        self.local_view_list_btn = QToolButton()
-        self.local_view_list_btn.setIcon(QIcon(AppStyles.get_icon('list_view', view_icon_color)))  # type: ignore[arg-type]
-        self.local_view_list_btn.setIconSize(QSize(14, 14))
-        self.local_view_list_btn.setFixedSize(24, 20)
-        self.local_view_list_btn.setStyleSheet(AppStyles.player_button_style())
-        self.local_view_list_btn.setCheckable(True)
-        self.local_view_list_btn.setChecked(True)
-        self.local_view_list_btn.setToolTip(tr("list_view", "列表视图"))
-        self.local_view_list_btn.clicked.connect(lambda: self._set_channel_view_mode('list', 'local'))
-        local_search_row.addWidget(self.local_view_list_btn)
-        self.local_view_grid_btn = QToolButton()
-        self.local_view_grid_btn.setIcon(QIcon(AppStyles.get_icon('grid_view', view_icon_color)))  # type: ignore[arg-type]
-        self.local_view_grid_btn.setIconSize(QSize(14, 14))
-        self.local_view_grid_btn.setFixedSize(24, 20)
-        self.local_view_grid_btn.setStyleSheet(AppStyles.player_button_style())
-        self.local_view_grid_btn.setCheckable(True)
-        self.local_view_grid_btn.setToolTip(tr("grid_view", "网格视图"))
-        self.local_view_grid_btn.clicked.connect(lambda: self._set_channel_view_mode('grid', 'local'))
-        local_search_row.addWidget(self.local_view_grid_btn)
-
-        self._local_view_group = QButtonGroup(self)
-        self._local_view_group.setExclusive(True)
-        self._local_view_group.addButton(self.local_view_list_btn, 0)
-        self._local_view_group.addButton(self.local_view_grid_btn, 1)
-
-        local_layout.addLayout(local_search_row)
-
-        self.local_channel_list = DraggableChannelListWidget()
-        self.local_channel_list.style_type = 'player'
-        self.local_channel_list.setStyleSheet(AppStyles.player_list_style())
-        self.local_channel_list.setSpacing(2)
-        self.local_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.local_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.local_channel_list.itemClicked.connect(self._on_channel_single_click)
-        self.local_channel_list.itemDoubleClicked.connect(self._on_channel_double_clicked)
-        self.local_channel_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.local_channel_list.customContextMenuRequested.connect(self._on_local_channel_context_menu)
+        self.local_channel_list = self._create_channel_list_widget(
+            on_click=self._on_channel_single_click,
+            on_double_click=self._on_channel_double_clicked,
+            on_context_menu=self._on_local_channel_context_menu,
+        )
         local_layout.addWidget(self.local_channel_list, 1)
 
         self.local_empty_label = QLabel(tr("no_channels", "No channels"))
@@ -1240,24 +1270,18 @@ class IPTVPlayer(QMainWindow):
         self.local_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         local_layout.addWidget(self.local_empty_label)
 
-        self.playlist_tab.addTab(sub_tab, tr("subscription_tab", "Subscription"))
-        self.playlist_tab.addTab(local_tab, tr("local_tab", "Local"))
+        return local_tab
 
-        # 收藏标签页
+    def _create_fav_tab(self, tr):
         fav_tab = QWidget()
         fav_layout = QVBoxLayout(fav_tab)
         fav_layout.setContentsMargins(4, 4, 4, 4)
         fav_layout.setSpacing(4)
 
-        self.fav_channel_list = DraggableChannelListWidget()
-        self.fav_channel_list.style_type = 'player'
-        self.fav_channel_list.setStyleSheet(AppStyles.player_list_style())
-        self.fav_channel_list.setSpacing(2)
-        self.fav_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.fav_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.fav_channel_list.itemClicked.connect(self.favorites_ctrl.on_favorite_item_clicked)
-        self.fav_channel_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.fav_channel_list.customContextMenuRequested.connect(self.favorites_ctrl.show_favorites_context_menu)
+        self.fav_channel_list = self._create_channel_list_widget(
+            on_click=self.favorites_ctrl.on_favorite_item_clicked,
+            on_context_menu=self.favorites_ctrl.show_favorites_context_menu,
+        )
         fav_layout.addWidget(self.fav_channel_list, 1)
 
         self.fav_empty_label = QLabel(tr("no_favorites", "No favorites"))
@@ -1265,21 +1289,18 @@ class IPTVPlayer(QMainWindow):
         self.fav_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         fav_layout.addWidget(self.fav_empty_label)
 
-        # 历史标签页
+        return fav_tab
+
+    def _create_history_tab(self, tr):
         history_tab = QWidget()
         history_layout = QVBoxLayout(history_tab)
         history_layout.setContentsMargins(4, 4, 4, 4)
         history_layout.setSpacing(4)
 
-        self.history_channel_list = DraggableChannelListWidget()
-        self.history_channel_list.style_type = 'player'
-        self.history_channel_list.setStyleSheet(AppStyles.player_list_style())
-        self.history_channel_list.setSpacing(2)
-        self.history_channel_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.history_channel_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.history_channel_list.itemClicked.connect(self.favorites_ctrl.on_history_item_clicked)
-        self.history_channel_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.history_channel_list.customContextMenuRequested.connect(self.favorites_ctrl.show_history_context_menu)
+        self.history_channel_list = self._create_channel_list_widget(
+            on_click=self.favorites_ctrl.on_history_item_clicked,
+            on_context_menu=self.favorites_ctrl.show_history_context_menu,
+        )
         history_layout.addWidget(self.history_channel_list, 1)
 
         self.history_empty_label = QLabel(tr("no_history", "No play history"))
@@ -1287,44 +1308,7 @@ class IPTVPlayer(QMainWindow):
         self.history_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         history_layout.addWidget(self.history_empty_label)
 
-        self.playlist_tab.addTab(fav_tab, tr("favorites_tab", "Favorites"))
-        self.playlist_tab.addTab(history_tab, tr("history_tab", "History"))
-
-        self.playlist_tab.currentChanged.connect(self._on_playlist_tab_changed)
-        self.playlist_layout.addWidget(self.playlist_tab)
-
-        self.channel_list = self.sub_channel_list
-        self.group_combo = self.sub_group_combo
-        self.channel_empty_label = self.sub_empty_label
-
-        self._click_timer = QTimer()
-        self._click_timer.setSingleShot(True)
-        self._click_timer.timeout.connect(self._deferred_single_click)
-        self._pending_click_item = None
-        self._pending_click_source = None
-
-        self._sub_channels = []
-        self._local_channels = []
-        self._local_channels_dirty = False
-        self._sub_groups = [tr("all_channels", "All Channels")]
-        self._local_groups = [tr("all_channels", "All Channels")]
-
-        from PySide6.QtWidgets import QDockWidget
-        from ui.floating_dialog import FloatingDockWidget
-        self.playlist_dock = FloatingDockWidget(tr("channel_list", "Channel List"), self)
-        self.playlist_dock.setWidget(playlist_container)
-        self.playlist_dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable)
-        self.playlist_dock.setObjectName("playlist_dock")
-        if hasattr(self, 'playlist_panel'):
-            self.playlist_panel = None
-        self.playlist_panel = self.playlist_dock
-
-        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.playlist_dock)
-        self.playlist_dock.setFloating(True)
-        if not show:
-            self.playlist_dock.hide()
-
-        logger.debug("_create_playlist_panel: 完成")
+        return history_tab
 
     def _switch_playlist_tab(self, idx):
         self.playlist_tab.setCurrentIndex(idx)
