@@ -316,6 +316,7 @@ def observe_property(handle, reply_userdata, name, fmt):
 
 
 _callback_refs = []
+_MAX_CALLBACK_REFS = 16
 
 
 def set_wakeup_callback(handle, callback, data):
@@ -323,6 +324,8 @@ def set_wakeup_callback(handle, callback, data):
         return
     try:
         _callback_refs.append(callback)
+        if len(_callback_refs) > _MAX_CALLBACK_REFS:
+            _callback_refs[:] = _callback_refs[-_MAX_CALLBACK_REFS:]
         libmpv.mpv_set_wakeup_callback(handle, callback, data)
     except Exception:
         pass
