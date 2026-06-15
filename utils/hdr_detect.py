@@ -1,4 +1,5 @@
 import subprocess
+import sys
 import logging
 import os
 import tempfile
@@ -35,7 +36,8 @@ def is_windows_hdr_enabled():
             )
         result = subprocess.run(
             ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script],
-            capture_output=True, text=True, timeout=15
+            capture_output=True, text=True, timeout=15,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
         )
         kind = result.stdout.strip()
         logger.info(f"Windows AdvancedColorKind: {kind}")
