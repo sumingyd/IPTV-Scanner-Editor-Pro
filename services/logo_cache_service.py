@@ -281,7 +281,7 @@ class LogoCacheService(ThreadSafeQObject):
                 os.remove(old_path)
             fmt_map = {'.png': 'PNG', '.jpg': 'JPEG', '.jpeg': 'JPEG', '.gif': 'GIF', '.webp': 'WEBP', '.bmp': 'BMP'}
             save_fmt = fmt_map.get(new_ext.lower(), 'PNG')
-            image.save(disk_path, save_fmt.encode('utf-8'))
+            image.save(disk_path)
             meta_entry = {
                 'url': url,
                 'time': time.time(),

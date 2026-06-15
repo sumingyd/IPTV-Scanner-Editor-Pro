@@ -664,7 +664,7 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
 
         # 13. 延迟加载数据，确保不阻塞首帧渲染
         def load_data_with_delay():
-            self._start_subscription_timers()
+            self.start_subscription_timers()
             self._populate_channel_list(source='subscription')
 
             self._check_for_updates_async()

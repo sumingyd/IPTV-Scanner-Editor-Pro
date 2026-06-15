@@ -143,17 +143,14 @@ class PanelMixin:
     def _handle_playlist_subscription(self, need_update, playlist_url, source_index=None):
         self.subscription_ctrl.handle_playlist_subscription(need_update, playlist_url, source_index)
 
-    def _start_subscription_timers(self):
-        logger.debug("_start_subscription_timers: 开始")
-        self.start_subscription_timers()
-        logger.debug("_start_subscription_timers: 完成")
+    def start_subscription_timers(self):
+        logger.debug("start_subscription_timers: 开始")
+        self.subscription_ctrl.start_subscription_timers()
+        logger.debug("start_subscription_timers: 完成")
 
     def reload_subscription(self):
         if self.subscription_ctrl:
             self.subscription_ctrl.reload_subscription()
-
-    def start_subscription_timers(self):
-        self.subscription_ctrl.start_subscription_timers()
 
     def update_playlist_subscription(self, source_index=None):
         self.subscription_ctrl.update_playlist_subscription(source_index)

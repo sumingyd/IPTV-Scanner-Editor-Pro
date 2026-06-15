@@ -256,9 +256,31 @@ python pyqt_player.py
 
 ```
 IPTV-Scanner-Editor-Pro/
-├── pyqt_player.py              # 主窗口 & 播放器核心
+├── pyqt_player.py              # 主窗口 & 播放器核心（980行，15个Mixin + QMainWindow）
 ├── build.py                    # PyInstaller 打包脚本
 ├── requirements.txt            # Python 依赖
+├── mixins/                     # Mixin 模块（从 IPTVPlayer 拆分的职责）
+│   ├── __init__.py             # Mixin 导出
+│   ├── server_mixin.py         # Server启停/设置
+│   ├── tray_mixin.py           # 系统托盘
+│   ├── update_mixin.py         # 更新检查
+│   ├── thumbnail_mixin.py      # 缩略图/Logo回调
+│   ├── file_ops_mixin.py       # 文件操作/本地视频
+│   ├── panel_mixin.py          # 面板可见性/订阅/EPG回调
+│   ├── progress_mixin.py       # 进度条/Seek
+│   ├── playback_mixin.py       # 播放控制/OSD/窗口调整
+│   ├── epg_mixin.py            # EPG/回看/本地文件判断
+│   ├── channel_mixin.py        # 频道列表/选择/搜索/分组
+│   ├── settings_mixin.py       # 设置/主题/语言
+│   ├── window_mixin.py         # 窗口事件/定位/全屏/覆盖层
+│   ├── control_panel_mixin.py  # 底部控制面板UI构建
+│   ├── playlist_panel_mixin.py # 播放列表面板/EPG面板UI构建
+│   └── event_mixin.py          # Qt事件覆写/拖放修复
+├── tests/                      # 单元测试
+│   ├── conftest.py             # MockMainWindow 基类
+│   ├── test_mixins.py          # Mixin 测试（前9个）
+│   ├── test_mixins_round4.py   # Mixin 测试（第4轮）
+│   └── test_mixins_round5.py   # Mixin 测试（第5轮）
 ├── core/                       # 核心模块
 │   ├── application_state.py    # 应用程序状态管理
 │   ├── config_manager.py       # 配置管理（INI）
