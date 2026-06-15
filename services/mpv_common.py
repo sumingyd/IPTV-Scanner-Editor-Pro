@@ -97,7 +97,7 @@ def _ensure_libmpv_loaded():
         return MPV_AVAILABLE
     _mpv_loaded = True
 
-    if not libmpv_path or not (libmpv_path):
+    if not libmpv_path or not os.path.exists(libmpv_path):
         logger.warning(f"未找到libmpv库: {libmpv_path}")
         return False
 
