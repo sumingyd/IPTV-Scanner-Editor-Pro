@@ -451,6 +451,11 @@ class CatchupController:
             new_start_time = start_time + timedelta(seconds=position)
             now = datetime.now()
 
+            is_timeshift = w.play_state.is_timeshift
+
+            if is_timeshift:
+                end_time = self.catchup_program['end']
+
             if new_start_time >= end_time:
                 ch_name, tvg_id, tvg_name, comma_name = w._get_epg_match_params()
                 current_program = w.epg_parser.get_current_program(ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
@@ -593,6 +598,50 @@ class CatchupController:
             logger.info(f"冷却期结束，执行延迟的时移seek: position={position:.1f}s")
             self.seek_catchup(position)
 
+    def continue_timeshift(self):
+        """时移流播放到终点后自动续播：从当前播放位置重建时移URL"""
+        w = self.window
+        from datetime import timedelta, datetime
+        from core.log_manager import global_logger as logger
+
+        if not self.catchup_program or not self.original_channel:
+            logger.warning("时移续播失败: 缺少节目信息")
+            return
+
+        program_start = self.catchup_program['start']
+        program_end = self.catchup_program['end']
+        now = datetime.now()
+
+        elapsed_since_start = getattr(w, '_catchup_start_progress', None)
+        if elapsed_since_start is not None and hasattr(w, '_catchup_start_time'):
+            import time as _time
+            elapsed_real = _time.time() - w._catchup_start_time
+            new_start_time = program_start + timedelta(seconds=elapsed_since_start + elapsed_real)
+        else:
+            new_start_time = now - timedelta(seconds=5)
+
+        if new_start_time >= now:
+            new_start_time = now - timedelta(seconds=5)
+        if new_start_time < program_start:
+            new_start_time = program_start
+
+        end_time = program_end if program_end > now else now + timedelta(minutes=30)
+
+        catchup_url = self.build_catchup_url(self.original_channel, new_start_time, end_time)
+        channel_name = self.original_channel.get('name', '')
+
+        logger.info(f"时移续播 -> new_start={new_start_time}, end={end_time}, url={catchup_url}")
+
+        w._pending_catchup_progress = 0
+        import time as _time
+        self._last_url_rebuild_time = _time.time()
+        self._url_rebuild_pending = True
+        w._catchup_start_time = _time.time()
+        w._catchup_start_progress = 0
+
+        if hasattr(w, 'player_controller') and w.player_controller:
+            w.player_controller.play(catchup_url, f"{channel_name} (时移续播)")
+
     def start_live_timeshift_from_progress(self, slider_seconds, catchup_source):
         w = self.window
         from datetime import timedelta, datetime
@@ -614,7 +663,7 @@ class CatchupController:
         if target_wallclock < program_start:
             target_wallclock = program_start
 
-        end_time = program_end if program_end else now
+        end_time = now
 
         if not w.current_channel:
             return
@@ -688,6 +737,7 @@ class CatchupController:
         total_duration = int((end_time - program_start).total_seconds())
         if total_duration > 0:
             self._set_progress_range(total_duration)
+            w._pending_catchup_progress = offset_seconds
             self._set_progress_value(offset_seconds)
             w._progress_time_mode = 'epg'
             w._progress_program_start = program_start

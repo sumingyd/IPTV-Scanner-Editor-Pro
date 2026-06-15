@@ -97,6 +97,7 @@ class MpvPlayerController(QObject):
     play_state_changed = Signal(bool)
     play_error = Signal(str)
     reconnect_requested = Signal(str)
+    timeshift_continue_requested = Signal()
     live_media_info_updated = Signal(dict)
     playback_position_updated = Signal(int, int, float)
     logo_cache_loaded = Signal(str, object)
@@ -368,6 +369,11 @@ class MpvPlayerController(QObject):
         return url
 
     @staticmethod
+    def _is_network_url(self, url):
+        if not url:
+            return False
+        return url.lower().startswith(('http://', 'https://', 'rtsp://', 'rtp://', 'udp://', 'rtmp://'))
+
     def _is_network_drive(path):
         if os.name != 'nt':
             path_lower = path.lower()
@@ -843,7 +849,19 @@ class MpvPlayerController(QObject):
                         end_file = ctypes.cast(event.data, ctypes.POINTER(mpv_event_end_file)).contents
                         reason = end_file.reason
                         if reason == MPV_END_FILE_REASON_EOF:
-                            pass
+                            if self._user_stopped:
+                                self.logger.debug("END_FILE_EOF: 用户已停止，忽略")
+                            elif self.current_url and self._is_network_url(self.current_url):
+                                self.logger.info("END_FILE_EOF: 流播放到终点，请求续播")
+                                self.is_playing = False
+                                self.is_paused = False
+                                self._safe_emit(self.play_state_changed, False)
+                                self._safe_emit(self.timeshift_continue_requested)
+                            else:
+                                self.logger.debug("END_FILE_EOF: 非网络流，正常结束")
+                                self.is_playing = False
+                                self.is_paused = False
+                                self._safe_emit(self.play_state_changed, False)
                         elif reason == MPV_END_FILE_REASON_ERROR:
                             if self._switching_channel:
                                 self.logger.debug("频道切换导致的END_FILE，忽略重连")

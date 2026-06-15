@@ -64,6 +64,11 @@ class PlaybackMixin:
                 f"({self.player_controller._reconnect_count}/{self.player_controller._max_reconnect})")
         QTimer.singleShot(self.RECONNECT_DELAY_MS, lambda: self._do_reconnect(url))
 
+    def _on_timeshift_continue(self):
+        if self.play_state.is_timeshift:
+            logger.info("时移流播放到终点，自动续播")
+            self.catchup_ctrl.continue_timeshift()
+
     def _do_reconnect(self, url):
         if self.player_controller._user_stopped:
             return

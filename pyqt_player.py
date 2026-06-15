@@ -778,6 +778,7 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
         self.player_controller.live_media_info_updated.connect(self.on_live_media_info_updated)
         self.player_controller.play_error.connect(self.on_play_error)
         self.player_controller.reconnect_requested.connect(self._on_reconnect_requested)
+        self.player_controller.timeshift_continue_requested.connect(self._on_timeshift_continue)
         self.player_controller.thumbnail_captured.connect(self._on_player_thumbnail_captured)
 
         from services.logo_cache_service import LogoCacheService
