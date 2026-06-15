@@ -1,66 +1,65 @@
-name: Build and Publish Windows EXE
+name: Build and Publish App
 
 on:
   workflow_dispatch:
     inputs:
-      branch:
-        description: "Branch to check out and build."
-        required: true
-        default: "main"
-        type: string
       release_tag:
         description: "Existing release tag to upload the executable to."
         required: true
         type: string
+      platform:
+        description: "Target platform to build for."
+        required: false
+        default: "windows"
+        type: choice
+        options:
+          - windows
+          - macos
+          - linux-arm64
 
 permissions:
   contents: write
 
 env:
-  EXE_PATH: dist/IPTV Scanner Editor Pro.exe
   PYTHONUTF8: "1"
   PYTHONIOENCODING: utf-8
   MPV_URL: "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260610/mpv-dev-x86_64-v3-20260610-git-304426c.7z"
   FFMPEG_URL: "https://github.com/GyanD/codexffmpeg/releases/download/2026-06-08-git-6028720d70/ffmpeg-2026-06-08-git-6028720d70-essentials_build.7z"
+  FFMPEG_LINUX_ARM64_URL: "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-linuxarm64-gpl-8.1.tar.xz"
 
 jobs:
-  build-and-publish:
-    name: Build EXE and update release
+  build-windows:
+    name: Build Windows EXE
     runs-on: windows-latest
+    if: inputs.platform == 'windows'
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.branch }}
-          
+
       - name: Download and Prepare MPV/FFmpeg
         shell: powershell
         run: |
           Write-Host "Downloading mpv from: $env:MPV_URL"
           Invoke-WebRequest -Uri $env:MPV_URL -OutFile "mpv.7z"
-          Write-Host "Extracting mpv.7z to ./mpv"
           7z x mpv.7z -ompv -y
           dir ./mpv
 
           Write-Host "Downloading ffmpeg from: $env:FFMPEG_URL"
-          Invoke-WebRequest -Uri $env:FFMPEG_URL -OutFile "ffmpeg.7z"         
+          Invoke-WebRequest -Uri $env:FFMPEG_URL -OutFile "ffmpeg.7z"
           $ffmpegExtractDir = "_ffmpeg_extract"
-          Write-Host "Extracting ffmpeg.7z to ./$ffmpegExtractDir"
           7z x ffmpeg.7z "-o$ffmpegExtractDir" -y
 
-          Write-Host "Trying to find folder of ffmpeg.exe"
           $ffmpegBin = Get-ChildItem -Path $ffmpegExtractDir -Directory -Recurse |
             Where-Object { Test-Path (Join-Path $_.FullName "ffmpeg.exe") } |
             Select-Object -First 1
 
           if ($null -eq $ffmpegBin) {
             throw "Could not find ffmpeg.exe after extracting ffmpeg.7z."
-          }                   
+          }
           if (Test-Path ".\ffmpeg") {
             Remove-Item ".\ffmpeg" -Recurse -Force
           }
-          Write-Host "Moving $ffmpegBin.FullName (folder of ffmpeg.exe) to .\ffmpeg"
           Move-Item -Path $ffmpegBin.FullName -Destination ".\ffmpeg"
           dir ./ffmpeg
 
@@ -71,32 +70,132 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
 
       - name: Build executable
-        shell: pwsh
-        run: |
-          if (-not (Test-Path "build.py")) {
-            throw "Build script not found: build.py"
-          }
-          python build.py
+        run: python build.py
 
       - name: Verify executable
         shell: pwsh
         run: |
-          if (-not (Test-Path $env:EXE_PATH)) {
-            throw "Expected executable was not found: $env:EXE_PATH"
+          if (-not (Test-Path "dist/IPTV Scanner Editor Pro.exe")) {
+            throw "Expected executable was not found"
           }
 
       - name: Upload executable to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.release_tag }}
-          files: ${{ env.EXE_PATH }}
+          files: dist/IPTV Scanner Editor Pro.exe
+          fail_on_unmatched_files: true
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos:
+    name: Build macOS .app
+    runs-on: macos-latest
+    if: inputs.platform == 'macos'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install MPV via Homebrew
+        run: |
+          brew install mpv
+          mkdir -p mpv
+          cp /opt/homebrew/lib/libmpv.2.dylib mpv/ || cp /usr/local/lib/libmpv.2.dylib mpv/
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14.5"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build .app
+        run: python build.py
+
+      - name: Verify .app
+        run: |
+          if [ ! -d "dist/IPTV Scanner Editor Pro.app" ]; then
+            echo "Expected .app was not found"
+            exit 1
+          fi
+
+      - name: Upload .app to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          files: dist/IPTV Scanner Editor Pro.app
+          fail_on_unmatched_files: true
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux-arm64:
+    name: Build Linux ARM64
+    runs-on: ubuntu-24.04-arm
+    if: inputs.platform == 'linux-arm64'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y libmpv-dev
+
+      - name: Prepare FFmpeg
+        run: |
+          mkdir -p ffmpeg
+          wget -q "$FFMPEG_LINUX_ARM64_URL" -O /tmp/ffmpeg-arm64.tar.xz
+          tar -xf /tmp/ffmpeg-arm64.tar.xz -C /tmp/
+          find /tmp -name "ffprobe" -type f -exec cp {} ffmpeg/ \;
+          if [ ! -f ./ffmpeg/ffprobe ]; then
+            echo "ffprobe not found"
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14.5"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable
+        run: python build.py
+
+      - name: Verify executable
+        run: |
+          if [ ! -f "dist/IPTV Scanner Editor Pro" ]; then
+            echo "Expected executable was not found"
+            exit 1
+          fi
+          chmod +x "dist/IPTV Scanner Editor Pro"
+          file "dist/IPTV Scanner Editor Pro"
+
+      - name: Upload executable to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          files: dist/IPTV Scanner Editor Pro
           fail_on_unmatched_files: true
           overwrite_files: true
         env:

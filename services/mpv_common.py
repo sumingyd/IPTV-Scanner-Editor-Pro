@@ -1,8 +1,10 @@
 import ctypes
 import os
 import sys
+import locale
 
 from core.log_manager import global_logger as logger
+from utils.platform_utils import find_libmpv_path, get_libmpv_filename, is_macos, is_linux
 
 _mpvt_loaded = False
 
@@ -16,11 +18,12 @@ mpv_dir = os.path.join(base_path, 'mpv')
 os.environ['MPV_HOME'] = mpv_dir
 os.environ['PATH'] = mpv_dir + os.pathsep + os.environ.get('PATH', '')
 
-libmpv_path = os.path.join(mpv_dir, 'libmpv-2.dll')
-if os.path.exists(libmpv_path):
+libmpv_path = find_libmpv_path()
+
+if libmpv_path and os.path.exists(libmpv_path):
     os.environ['MPV_LIBRARY'] = libmpv_path
 else:
-    logger.warning(f"未找到libmpv-2.dll: {libmpv_path}")
+    logger.warning(f"未找到libmpv库: {libmpv_path}")
 
 MPV_AVAILABLE = False
 libmpv = None
@@ -37,12 +40,14 @@ def _ensure_libmpv_loaded():
     if _mpv_loaded:
         return MPV_AVAILABLE
 
-
-    if not os.path.exists(libmpv_path):
-        logger.warning(f"未找到libmpv-2.dll: {libmpv_path}")
+    if not libmpv_path or not os.path.exists(libmpv_path):
+        logger.warning(f"未找到libmpv库: {libmpv_path}")
         return False
 
     try:
+        if is_linux():
+            locale.setlocale(locale.LC_NUMERIC, "C")
+
         libmpv = ctypes.CDLL(libmpv_path)
 
         libmpv.mpv_create.restype = ctypes.c_void_p
@@ -91,7 +96,7 @@ def _ensure_libmpv_loaded():
         _mpv_loaded = True
         return True
     except Exception as e:
-        logger.error(f"加载libmpv-2.dll失败: {e}")
+        logger.error(f"加载libmpv失败: {e}")
         _mpv_loaded = False
         return False
 
@@ -204,7 +209,8 @@ def create_mpv_handle():
     try:
         handle = libmpv.mpv_create()
         return handle if handle else None
-    except Exception:
+    except Exception as e:
+        logger.error(f"create_mpv_handle failed: {e}")
         return None
 
 
@@ -213,7 +219,8 @@ def initialize_mpv(handle):
         return False
     try:
         return libmpv.mpv_initialize(handle) >= 0
-    except Exception:
+    except Exception as e:
+        logger.error(f"initialize_mpv failed: {e}")
         return False
 
 

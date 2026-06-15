@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QDir, QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtGui import QAction
+from utils.platform_utils import is_windows
 
 
 _VIDEO_EXTS = ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.m2ts', '.webm')
@@ -42,7 +43,7 @@ class VideoOpenDialog(QDialog):
 
         self._drive_btn = None
         self._drives_cache = None
-        if sys.platform == 'win32':
+        if is_windows():
             self._drive_btn = QPushButton(self._tr("drive", "盘符"))
             self._drive_btn.setFixedWidth(70)
             self._drive_btn.setMenu(self._build_drive_menu())
@@ -97,6 +98,8 @@ class VideoOpenDialog(QDialog):
         return default
 
     def _get_volume_label(self, root_path):
+        if not is_windows():
+            return ''
         try:
             import ctypes
             import threading
@@ -126,6 +129,8 @@ class VideoOpenDialog(QDialog):
             return ''
 
     def _get_win_drives(self):
+        if not is_windows():
+            return []
         try:
             import ctypes
             kernel32 = ctypes.windll.kernel32
@@ -277,7 +282,7 @@ class VideoOpenDialog(QDialog):
         self._list.clear()
         self._path_edit.setText('')
 
-        if sys.platform == 'win32':
+        if is_windows():
             for root_path, display in self._get_drives_cached():
                 item = QListWidgetItem(self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon), display)
                 item.setData(Qt.ItemDataRole.UserRole, ('drive', root_path))
@@ -295,14 +300,14 @@ class VideoOpenDialog(QDialog):
         if parent and parent != self._current_dir:
             self._current_dir = parent
             self._refresh_list()
-        elif sys.platform == 'win32':
+        elif is_windows():
             self._current_dir = ''
             self._show_drives_root()
 
     def _on_path_entered(self):
         path = self._path_edit.text().strip()
         if not path:
-            if sys.platform == 'win32':
+            if is_windows():
                 self._current_dir = ''
                 self._show_drives_root()
             return

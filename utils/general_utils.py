@@ -61,11 +61,17 @@ def get_resource_path(relative_path: str) -> str:
 
 
 def get_icon_path() -> str:
-    """获取程序图标logo.ico的绝对路径（兼容PyInstaller打包和开发环境）"""
     if getattr(sys, 'frozen', False):
         base_path = sys._MEIPASS
     else:
         base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if sys.platform == 'darwin':
+        icns = os.path.join(base_path, 'resources', 'logo.icns')
+        if os.path.exists(icns):
+            return icns
+        png = os.path.join(base_path, 'resources', 'logo.png')
+        if os.path.exists(png):
+            return png
     return os.path.join(base_path, 'resources', 'logo.ico')
 
 

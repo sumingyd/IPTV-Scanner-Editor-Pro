@@ -1,6 +1,7 @@
 from PySide6 import QtCore, QtWidgets, QtGui
 from ui.styles import AppStyles
 from utils.singleton import Singleton
+from utils.platform_utils import is_windows, is_macos
 
 
 class ThemeManager(Singleton, QtCore.QObject):
@@ -110,7 +111,11 @@ class ThemeManager(Singleton, QtCore.QObject):
             print(f"设置窗口背景模糊失败: {e}")
 
     def _enable_dwm_blur(self, window):
-        if not self._is_windows():
+        if is_macos():
+            if AppStyles._visual_style == 'frosted':
+                window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            return
+        if not is_windows():
             return
         try:
             import ctypes
@@ -138,7 +143,9 @@ class ThemeManager(Singleton, QtCore.QObject):
             pass
 
     def _disable_dwm_blur(self, window):
-        if not self._is_windows():
+        if is_macos():
+            return
+        if not is_windows():
             return
         try:
             import ctypes
@@ -177,8 +184,7 @@ class ThemeManager(Singleton, QtCore.QObject):
             pass
 
     def _is_windows(self):
-        import sys
-        return sys.platform == 'win32'
+        return is_windows()
 
     def _reapply_main_window_components(self, window):
         """对主窗口的各区域组件逐一重刷样式，确保Dock/面板/标题栏/菜单栏都更新"""

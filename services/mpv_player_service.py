@@ -1,9 +1,11 @@
 import os
 import time
 import ctypes
+import sys
 import threading
 from PySide6.QtCore import QObject, Signal, QTimer
 from core.log_manager import global_logger
+from utils.platform_utils import is_windows, is_macos
 from services.mpv_common import (
     mpv_event,
     mpv_event_end_file,
@@ -134,13 +136,13 @@ class MpvPlayerController(QObject):
         try:
             import services.mpv_common as _mpv_mod
             if not _mpv_mod._ensure_libmpv_loaded():
-                error_msg = "libmpv-2.dll加载失败"
+                error_msg = "libmpv加载失败"
                 self.logger.error(error_msg)
                 self._safe_emit(self.play_error, error_msg)
                 return False
 
             if not _mpv_mod.MPV_AVAILABLE or _mpv_mod.libmpv is None:
-                error_msg = "libmpv-2.dll加载失败"
+                error_msg = "libmpv加载失败"
                 self.logger.error(error_msg)
                 self._safe_emit(self.play_error, error_msg)
                 return False
@@ -166,8 +168,12 @@ class MpvPlayerController(QObject):
 
             system_hdr_enabled = False
             try:
-                from utils.hdr_detect import is_windows_hdr_enabled
-                system_hdr_enabled = is_windows_hdr_enabled()
+                if is_windows():
+                    from utils.hdr_detect import is_windows_hdr_enabled
+                    system_hdr_enabled = is_windows_hdr_enabled()
+                elif is_macos():
+                    from utils.hdr_detect import is_macos_hdr_enabled
+                    system_hdr_enabled = is_macos_hdr_enabled()
             except Exception as e:
                 self.logger.warning(f"HDR检测失败，保守使用SDR模式: {e}")
 
@@ -375,7 +381,7 @@ class MpvPlayerController(QObject):
         return url.lower().startswith(('http://', 'https://', 'rtsp://', 'rtp://', 'udp://', 'rtmp://'))
 
     def _is_network_drive(path):
-        if os.name != 'nt':
+        if not is_windows():
             path_lower = path.lower()
             return path_lower.startswith('//') or path_lower.startswith('\\\\')
         try:
@@ -443,12 +449,14 @@ class MpvPlayerController(QObject):
     def _fix_unc_path(path):
         if not path:
             return path
+        if not is_windows():
+            return path
         if path.startswith('//'):
             path = '\\\\' + path[2:]
             return path.replace('/', '\\')
         if path.startswith('\\\\'):
             return path.replace('/', '\\')
-        if os.name == 'nt' and len(path) >= 2 and path[1] == ':':
+        if len(path) >= 2 and path[1] == ':':
             return path.replace('/', '\\')
         return path
 
@@ -554,8 +562,12 @@ class MpvPlayerController(QObject):
             if hdr_mode == 'auto':
                 system_hdr_enabled = False
                 try:
-                    from utils.hdr_detect import is_windows_hdr_enabled
-                    system_hdr_enabled = is_windows_hdr_enabled()
+                    if is_windows():
+                        from utils.hdr_detect import is_windows_hdr_enabled
+                        system_hdr_enabled = is_windows_hdr_enabled()
+                    elif is_macos():
+                        from utils.hdr_detect import is_macos_hdr_enabled
+                        system_hdr_enabled = is_macos_hdr_enabled()
                 except Exception:
                     pass
 

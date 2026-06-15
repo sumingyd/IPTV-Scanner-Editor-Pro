@@ -874,20 +874,33 @@ class AppStyles:
 
     @classmethod
     def _detect_system_color_mode(cls):
-        try:
-            import ctypes
-            registry = ctypes.windll.advapi32
-            key = ctypes.c_ulong()
-            access = 0x20019
-            result = registry.RegOpenKeyExW(0x80000001, r'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize', 0, access, ctypes.byref(key))
-            if result == 0:
-                value = ctypes.c_ulong()
-                size = ctypes.c_ulong(4)
-                registry.RegQueryValueExW(key.value, 'AppsUseLightTheme', 0, None, ctypes.byref(value), ctypes.byref(size))
-                registry.RegCloseKey(key.value)
-                return 'light' if value.value == 1 else 'dark'
-        except Exception:
-            pass
+        if sys.platform == 'darwin':
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ['defaults', 'read', '-g', 'AppleInterfaceStyle'],
+                    capture_output=True, text=True, timeout=3
+                )
+                if result.returncode == 0 and 'Dark' in result.stdout:
+                    return 'dark'
+                return 'light'
+            except Exception:
+                pass
+        if sys.platform == 'win32':
+            try:
+                import ctypes
+                registry = ctypes.windll.advapi32
+                key = ctypes.c_ulong()
+                access = 0x20019
+                result = registry.RegOpenKeyExW(0x80000001, r'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize', 0, access, ctypes.byref(key))
+                if result == 0:
+                    value = ctypes.c_ulong()
+                    size = ctypes.c_ulong(4)
+                    registry.RegQueryValueExW(key.value, 'AppsUseLightTheme', 0, None, ctypes.byref(value), ctypes.byref(size))
+                    registry.RegCloseKey(key.value)
+                    return 'light' if value.value == 1 else 'dark'
+            except Exception:
+                pass
         try:
             from PySide6.QtCore import QCoreApplication
             palette = QCoreApplication.instance().palette() if QCoreApplication.instance() else None

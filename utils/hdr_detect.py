@@ -17,6 +17,28 @@ def clear_hdr_cache():
     _hdr_cache_time = 0
 
 
+def is_macos_hdr_enabled():
+    global _hdr_cache, _hdr_cache_time
+    import time
+    now = time.monotonic()
+    if _hdr_cache is not None and (now - _hdr_cache_time) < _HDR_CACHE_TTL:
+        return _hdr_cache
+    try:
+        result = subprocess.run(
+            ['system_profiler', 'SPDisplaysDataType'],
+            capture_output=True, text=True, timeout=10,
+        )
+        output = result.stdout
+        _hdr_cache = 'HDR' in output
+        _hdr_cache_time = now
+        return _hdr_cache
+    except Exception as e:
+        logger.debug(f"macOS HDR检测失败: {e}")
+        _hdr_cache = False
+        _hdr_cache_time = now
+        return False
+
+
 def is_windows_hdr_enabled():
     global _hdr_cache, _hdr_cache_time
     import time

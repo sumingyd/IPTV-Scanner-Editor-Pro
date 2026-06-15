@@ -50,13 +50,7 @@ class EventMixin:
         event.ignore()
 
     def _fix_win32_drag_drop(self):
-        """修复 Win32 无边框窗口拖放失效问题
 
-        Qt6 的 FramelessWindowHint + WA_TranslucentBackground 会导致
-        Windows OLE 拖放目标未注册，需要在窗口显示后手动初始化 OLE。
-        注意：不再调用 DragAcceptFiles，Qt6 自身已通过 OLE 机制处理拖放，
-        双重注册会导致 Windows 发送虚假 WM_DROPFILES 消息。
-        """
         if sys.platform != 'win32':
             return
         try:

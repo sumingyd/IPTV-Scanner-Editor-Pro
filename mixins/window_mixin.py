@@ -26,23 +26,25 @@ class WindowMixin:
         if not hasattr(self, '_video_overlay_label') or not self._video_overlay_label:
             return
         self._video_overlay_label.raise_()
-        try:
-            hwnd = int(self._video_overlay_label.winId())
-            import ctypes
-            SWP_NOMOVE = 0x0002
-            SWP_NOSIZE = 0x0001
-            SWP_NOACTIVATE = 0x0010
-            SWP_SHOWWINDOW = 0x0040
-            ctypes.windll.user32.SetWindowPos(
-                hwnd, -1, 0, 0, 0, 0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW
-            )
-            ctypes.windll.user32.SetWindowPos(
-                hwnd, -2, 0, 0, 0, 0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW
-            )
-        except Exception:
-            pass
+        from utils.platform_utils import is_windows
+        if is_windows():
+            try:
+                hwnd = int(self._video_overlay_label.winId())
+                import ctypes
+                SWP_NOMOVE = 0x0002
+                SWP_NOSIZE = 0x0001
+                SWP_NOACTIVATE = 0x0010
+                SWP_SHOWWINDOW = 0x0040
+                ctypes.windll.user32.SetWindowPos(
+                    hwnd, -1, 0, 0, 0, 0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW
+                )
+                ctypes.windll.user32.SetWindowPos(
+                    hwnd, -2, 0, 0, 0, 0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW
+                )
+            except Exception:
+                pass
 
     def _update_video_overlay_position(self):
         if not hasattr(self, '_video_overlay_label') or not self._video_overlay_label:

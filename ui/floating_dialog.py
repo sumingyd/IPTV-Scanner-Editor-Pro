@@ -5,11 +5,11 @@ from PySide6.QtGui import QPainter, QColor, QPainterPath, QCursor, QIcon, QBitma
 from PySide6.QtCore import Qt, QRectF, QSize
 import PySide6.QtCore as QtCore
 import sys
+from utils.platform_utils import is_windows, is_macos
 
 
 def _hide_from_taskbar(window):
-    """隐藏窗口的任务栏图标（仅 Windows 平台）"""
-    if sys.platform == 'win32':
+    if is_windows():
         try:
             import ctypes
             from ctypes import wintypes
@@ -87,8 +87,25 @@ class FloatingDockWidget(QDockWidget):
         super().show()
         _hide_from_taskbar(self)
 
+    def _try_enable_macos_blur(self):
+        try:
+            from ui.styles import AppStyles
+            if AppStyles._visual_style != 'frosted':
+                if self._dwm_blur_enabled:
+                    self._dwm_blur_enabled = False
+                return
+            if self._dwm_blur_enabled:
+                return
+            self._dwm_blur_enabled = True
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        except Exception:
+            pass
+
     def _try_enable_dwm_blur(self):
-        if sys.platform != 'win32':
+        if is_macos():
+            self._try_enable_macos_blur()
+            return
+        if not is_windows():
             return
         try:
             import ctypes
@@ -134,7 +151,10 @@ class FloatingDockWidget(QDockWidget):
             pass
 
     def _disable_dwm_blur(self):
-        if sys.platform != 'win32':
+        if is_macos():
+            self._dwm_blur_enabled = False
+            return
+        if not is_windows():
             return
         try:
             import ctypes
@@ -356,6 +376,20 @@ class FloatingDialog(QDialog):
         self._cached_frosted_colors = None
         self._cached_frosted_theme = None
 
+    def _try_enable_macos_blur(self):
+        try:
+            from ui.styles import AppStyles
+            if AppStyles._visual_style != 'frosted':
+                if self._dwm_blur_enabled:
+                    self._dwm_blur_enabled = False
+                return
+            if self._dwm_blur_enabled:
+                return
+            self._dwm_blur_enabled = True
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        except Exception:
+            pass
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             widget = QtWidgets.QApplication.widgetAt(event.globalPosition().toPoint())
@@ -432,7 +466,11 @@ class FloatingDialog(QDialog):
 
     def showEvent(self, event):
         super().showEvent(event)
-        if sys.platform != 'win32':
+        if is_macos():
+            if AppStyles._visual_style == 'frosted' and not self._dwm_blur_enabled:
+                self._try_enable_macos_blur()
+            return
+        if not is_windows():
             return
         from ui.styles import AppStyles
         is_frosted = AppStyles._visual_style == 'frosted'

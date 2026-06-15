@@ -6,27 +6,14 @@ import threading
 import time
 from typing import Dict
 from core.log_manager import global_logger
+from utils.platform_utils import get_ffprobe_path as _find_ffprobe_path, get_subprocess_creation_flags
 
 
 def _get_ffprobe_path():
-    if getattr(sys, 'frozen', False):
-        base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
-    else:
-        from models.channel_mappings import get_app_data_dir
-        base_path = get_app_data_dir()
-
-    ffprobe_dir = os.path.join(base_path, 'ffmpeg')
-    ffprobe_exe = os.path.join(ffprobe_dir, 'ffprobe.exe')
-    if os.path.exists(ffprobe_exe):
-        return ffprobe_exe
-
-    ffprobe_dir_alt = os.path.join(base_path, 'ffmpge')
-    ffprobe_exe_alt = os.path.join(ffprobe_dir_alt, 'ffprobe.exe')
-    if os.path.exists(ffprobe_exe_alt):
-        return ffprobe_exe_alt
-
-    global_logger.warning(f"未找到ffprobe.exe: {ffprobe_exe}")
-    return None
+    result = _find_ffprobe_path()
+    if not result:
+        global_logger.warning(f"未找到ffprobe可执行文件")
+    return result
 
 
 def get_optimal_thread_count():
@@ -105,7 +92,7 @@ class FfprobeStreamValidator:
             cmd = self._build_ffprobe_command(ffprobe_path, url, timeout)
             start_time = time.time()
 
-            creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+            creation_flags = get_subprocess_creation_flags()
             proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,

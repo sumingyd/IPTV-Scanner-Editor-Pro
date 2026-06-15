@@ -1,16 +1,25 @@
 from core.log_manager import global_logger as logger
+from utils.platform_utils import is_macos
 
 
 class TrayMixin:
-    """从 IPTVPlayer 提取的系统托盘职责"""
 
     def _setup_system_tray(self):
         from PySide6.QtWidgets import QSystemTrayIcon, QMenu
         from PySide6.QtGui import QIcon
         import os
         project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        icon_path = os.path.join(project_dir, 'resources', 'logo.ico')
-        icon = QIcon(icon_path) if os.path.exists(icon_path) else QIcon()
+        icon_candidates = []
+        if is_macos():
+            icon_candidates.append(os.path.join(project_dir, 'resources', 'logo.icns'))
+            icon_candidates.append(os.path.join(project_dir, 'resources', 'logo.png'))
+        icon_candidates.append(os.path.join(project_dir, 'resources', 'logo.ico'))
+        icon_path = None
+        for p in icon_candidates:
+            if os.path.exists(p):
+                icon_path = p
+                break
+        icon = QIcon(icon_path) if icon_path else QIcon()
         self._system_tray = QSystemTrayIcon(icon, self)
         tray_menu = QMenu()
         tr = self.language_manager.tr
