@@ -70,14 +70,10 @@ else:
                 if libmpv_path:
                     break
         except Exception:
-            pass
-        
-    if not libmpv_path:
-        mpv_dir = os.path.dirname(libmpv_path)
+            pass        
 
-if mpv_dir:
-    os.environ['MPV_HOME'] = mpv_dir
-    os.environ['PATH'] = mpv_dir + os.pathsep + os.environ.get('PATH', '')
+os.environ['MPV_HOME'] = mpv_dir
+os.environ['PATH'] = mpv_dir + os.pathsep + os.environ.get('PATH', '')
 
 if libmpv_path:
     os.environ['MPV_LIBRARY'] = libmpv_path
