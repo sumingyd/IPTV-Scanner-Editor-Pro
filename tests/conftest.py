@@ -78,6 +78,24 @@ class MockMainWindow:
     def mapFromGlobal(self, pos):
         return pos
 
+    def mousePressEvent(self, event):
+        pass
+
+    def mouseMoveEvent(self, event):
+        pass
+
+    def mouseReleaseEvent(self, event):
+        pass
+
+    def mouseDoubleClickEvent(self, event):
+        pass
+
+    def enterEvent(self, event):
+        pass
+
+    def leaveEvent(self, event):
+        pass
+
 
 @pytest.fixture
 def mock_main_window():

@@ -1,0 +1,433 @@
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QToolButton, QComboBox, QDockWidget, QButtonGroup,
+    QListWidget, QPushButton,
+)
+from PySide6 import QtWidgets
+from PySide6.QtCore import Qt, QSize, QTimer
+from PySide6.QtGui import QIcon
+
+from core.log_manager import global_logger as logger
+from core.application_state import app_state
+from ui.styles import AppStyles
+
+
+class PlaylistPanelMixin:
+    """从 IPTVPlayer 提取的播放列表面板和EPG面板UI构建职责"""
+
+    def _create_epg_panel(self, show=True):
+        """创建EPG面板（QDockWidget 停靠左侧）"""
+        logger.debug("_create_epg_panel: 开始")
+        tr = self.language_manager.tr
+
+        epg_container = QWidget()
+        epg_container.setObjectName("panelContainer")
+        epg_container.setStyleSheet("background-color: transparent;")
+        epg_container.setMinimumWidth(200)
+        self.epg_layout = QVBoxLayout(epg_container)
+        self.epg_layout.setContentsMargins(0, 0, 0, 0)
+        self.epg_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        epg_title_row = QHBoxLayout()
+        epg_title_row.setSpacing(6)
+        epg_title_row.setContentsMargins(8, 4, 8, 0)
+        epg_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
+        self.epg_title_icon = QLabel()
+        self.epg_title_icon.setFixedSize(16, 16)
+        self.epg_title_icon.setStyleSheet("background: transparent; border: none;")
+        epg_icon_path = AppStyles.get_icon('calendar', epg_icon_color)
+        if epg_icon_path:
+            from PySide6.QtGui import QPixmap
+            self.epg_title_icon.setPixmap(QPixmap(epg_icon_path))
+        epg_title_row.addWidget(self.epg_title_icon)
+        self.epg_title = QLabel(tr('epg_title', 'Program Guide'))
+        self.epg_title.setStyleSheet(AppStyles.player_epg_title_style())
+        epg_title_row.addWidget(self.epg_title, 1)
+        epg_title_row.addStretch()
+        self.epg_layout.addLayout(epg_title_row)
+
+        date_layout = QHBoxLayout()
+        date_layout.setContentsMargins(8, 4, 8, 4)
+        date_layout.setSpacing(8)
+
+        date_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
+        self.epg_prev_day = QPushButton()
+        self.epg_prev_day.setIcon(QIcon(AppStyles.get_icon('chevron_left', date_icon_color, 12)))  # type: ignore[arg-type]
+        self.epg_prev_day.setIconSize(QSize(12, 12))
+        self.epg_prev_day.setFixedSize(24, 24)
+        self.epg_prev_day.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.epg_prev_day.setStyleSheet(AppStyles.player_date_button_style())
+        self.epg_prev_day.clicked.connect(self.epg_ctrl.on_prev_day)
+        self.epg_prev_day.setToolTip(tr("tooltip_prev_day", "前一天"))
+        date_layout.addWidget(self.epg_prev_day)
+
+        self.epg_date_label = QLabel(tr("today", "Today"))
+        self.epg_date_label.setStyleSheet(AppStyles.player_date_label_style())
+        self.epg_date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        date_layout.addWidget(self.epg_date_label, 1)
+
+        self.epg_next_day = QPushButton()
+        self.epg_next_day.setIcon(QIcon(AppStyles.get_icon('chevron_right', date_icon_color, 12)))  # type: ignore[arg-type]
+        self.epg_next_day.setIconSize(QSize(12, 12))
+        self.epg_next_day.setFixedSize(24, 24)
+        self.epg_next_day.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.epg_next_day.setStyleSheet(AppStyles.player_date_button_style())
+        self.epg_next_day.clicked.connect(self.epg_ctrl.on_next_day)
+        self.epg_next_day.setToolTip(tr("tooltip_next_day", "后一天"))
+        date_layout.addWidget(self.epg_next_day)
+
+        self.epg_layout.addLayout(date_layout)
+
+        self.epg_content = QListWidget()
+        self.epg_content.setStyleSheet(AppStyles.player_list_style())
+        self.epg_content.setSpacing(2)
+        self.epg_content.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.epg_content.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        from controllers.epg_controller import EPGItemDelegate
+        self.epg_content.setItemDelegate(EPGItemDelegate(self.epg_content))
+        self.epg_content.addItem(self.language_manager.tr("loading", "Loading..."))
+        self.epg_content.itemClicked.connect(self.on_epg_item_clicked)
+        self.epg_content.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.epg_content.customContextMenuRequested.connect(self._on_epg_context_menu)
+        self.epg_layout.addWidget(self.epg_content, 1)
+
+        self.epg_empty_label = QLabel(tr("no_epg_data", "No program information"), self.epg_content)
+        self.epg_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.epg_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
+        self.epg_empty_label.hide()
+
+        from ui.floating_dialog import FloatingDockWidget
+        self.epg_dock = FloatingDockWidget(tr("epg_title", "Program Guide"), self)
+        self.epg_dock.setWidget(epg_container)
+        self.epg_dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable)
+        self.epg_dock.setObjectName("epg_dock")
+        if hasattr(self, 'epg_panel'):
+            self.epg_panel = None
+        self.epg_panel = self.epg_dock
+
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.epg_dock)
+        self.epg_dock.setFloating(True)
+        if not show:
+            self.epg_dock.hide()
+
+        logger.debug("_create_epg_panel: 完成")
+
+    def _create_playlist_panel(self, show=True):
+        """创建播放列表面板（双标签：订阅 + 本地）"""
+        logger.debug("_create_playlist_panel: 开始")
+        tr = self.language_manager.tr
+
+        playlist_container = QWidget()
+        playlist_container.setObjectName("panelContainer")
+        playlist_container.setStyleSheet("background-color: transparent;")
+        playlist_container.setMinimumWidth(200)
+        self.playlist_layout = QVBoxLayout(playlist_container)
+        self.playlist_layout.setContentsMargins(6, 6, 6, 6)
+
+        self.playlist_title = QLabel(tr('playlist_title', 'Playlist'))
+        self.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
+        self.playlist_layout.addWidget(self.playlist_title)
+
+        self._create_playlist_tab_buttons(tr)
+        self.playlist_tab = QtWidgets.QTabWidget()
+        self.playlist_tab.setStyleSheet(AppStyles.player_tab_style())
+        self.playlist_tab.tabBar().hide()
+
+        sub_tab = self._create_sub_tab(tr)
+        local_tab = self._create_local_tab(tr)
+        fav_tab = self._create_fav_tab(tr)
+        history_tab = self._create_history_tab(tr)
+
+        self.playlist_tab.addTab(sub_tab, tr("subscription_tab", "Subscription"))
+        self.playlist_tab.addTab(local_tab, tr("local_tab", "Local"))
+        self.playlist_tab.addTab(fav_tab, tr("favorites_tab", "Favorites"))
+        self.playlist_tab.addTab(history_tab, tr("history_tab", "History"))
+
+        self.playlist_tab.currentChanged.connect(self._on_playlist_tab_changed)
+        self.playlist_layout.addWidget(self.playlist_tab)
+
+        self.channel_list = self.sub_channel_list
+        self.group_combo = self.sub_group_combo
+        self.channel_empty_label = self.sub_empty_label
+
+        self._click_timer = QTimer()
+        self._click_timer.setSingleShot(True)
+        self._click_timer.timeout.connect(self._deferred_single_click)
+        self._pending_click_item = None
+        self._pending_click_source = None
+
+        self._sub_channels = []
+        self._local_channels = []
+        self._local_channels_dirty = False
+        self._sub_groups = [tr("all_channels", "All Channels")]
+        self._local_groups = [tr("all_channels", "All Channels")]
+
+        from ui.floating_dialog import FloatingDockWidget
+        self.playlist_dock = FloatingDockWidget(tr("channel_list", "Channel List"), self)
+        self.playlist_dock.setWidget(playlist_container)
+        self.playlist_dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable)
+        self.playlist_dock.setObjectName("playlist_dock")
+        if hasattr(self, 'playlist_panel'):
+            self.playlist_panel = None
+        self.playlist_panel = self.playlist_dock
+
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.playlist_dock)
+        self.playlist_dock.setFloating(True)
+        if not show:
+            self.playlist_dock.hide()
+
+        logger.debug("_create_playlist_panel: 完成")
+
+    def _create_playlist_tab_buttons(self, tr):
+        tab_switch_row = QHBoxLayout()
+        tab_switch_row.setContentsMargins(0, 0, 0, 0)
+        tab_switch_row.setSpacing(2)
+        tab_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
+        btn_icon_size = QSize(14, 14)
+
+        self._playlist_tab_btns = []
+        tab_configs = [
+            ('signal', tr("subscription_tab", "Subscription"), 0),
+            ('folder', tr("local_tab", "Local"), 1),
+            ('favorite', tr("favorites_tab", "Favorites"), 2),
+            ('history', tr("history_tab", "History"), 3),
+        ]
+        for icon_name, tooltip, tab_idx in tab_configs:
+            btn = QToolButton()
+            btn.style_type = 'tab_switch'
+            icon_path = AppStyles.get_icon(icon_name, tab_icon_color, 14)
+            if icon_path:
+                btn.setIcon(QIcon(icon_path))
+            btn.setIconSize(btn_icon_size)
+            btn.setText(tooltip)
+            btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            btn.setFixedHeight(20)
+            btn.setSizePolicy(QtWidgets.QSizePolicy.Policy.Maximum, QtWidgets.QSizePolicy.Policy.Fixed)
+            btn.setStyleSheet(f"""
+                QToolButton {{
+                    color: {tab_icon_color};
+                    background: transparent;
+                    border: none;
+                    padding: 1px 3px;
+                    font-size: 11px;
+                }}
+                QToolButton:checked {{
+                    color: {AppStyles._get_colors().get('accent', AppStyles._safe_fallback('accent'))};
+                    font-weight: bold;
+                }}
+                QToolButton:hover {{
+                    color: {AppStyles._get_colors().get('accent', AppStyles._safe_fallback('accent'))};
+                }}
+            """)
+            btn.setToolTip(tooltip)
+            btn.setCheckable(True)
+            btn.setChecked(tab_idx == 0)
+            btn.clicked.connect(lambda checked, idx=tab_idx: self._switch_playlist_tab(idx))
+            tab_switch_row.addWidget(btn)
+            self._playlist_tab_btns.append(btn)
+        self.playlist_layout.addLayout(tab_switch_row)
+
+    def _create_channel_list_widget(self, style_type='player', on_click=None, on_double_click=None, on_context_menu=None):
+        from ui.multi_screen_widget import DraggableChannelListWidget
+        widget = DraggableChannelListWidget()
+        widget.style_type = style_type
+        widget.setStyleSheet(AppStyles.player_list_style())
+        widget.setSpacing(2)
+        widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        if on_click:
+            widget.itemClicked.connect(on_click)
+        if on_double_click:
+            widget.itemDoubleClicked.connect(on_double_click)
+        if on_context_menu:
+            widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            widget.customContextMenuRequested.connect(on_context_menu)
+        return widget
+
+    def _create_channel_search_row(self, tr, view_icon_color, search_handler, view_scope):
+        search_row = QHBoxLayout()
+        search_row.setContentsMargins(0, 0, 0, 0)
+        search_row.setSpacing(4)
+
+        search_input = QtWidgets.QLineEdit()
+        search_input.setPlaceholderText(tr("search_channel", "搜索频道..."))
+        search_input.setClearButtonEnabled(True)
+        search_input.setStyleSheet(AppStyles.player_search_input_style())
+        search_input.setToolTip(tr("search_channel", "搜索频道"))
+        search_input.textChanged.connect(search_handler)
+        search_row.addWidget(search_input, 1)
+
+        list_btn = QToolButton()
+        list_btn.setIcon(QIcon(AppStyles.get_icon('list_view', view_icon_color)))
+        list_btn.setIconSize(QSize(14, 14))
+        list_btn.setFixedSize(24, 20)
+        list_btn.setStyleSheet(AppStyles.player_button_style())
+        list_btn.setCheckable(True)
+        list_btn.setChecked(True)
+        list_btn.setToolTip(tr("list_view", "列表视图"))
+        list_btn.clicked.connect(lambda: self._set_channel_view_mode('list', view_scope))
+        search_row.addWidget(list_btn)
+
+        grid_btn = QToolButton()
+        grid_btn.setIcon(QIcon(AppStyles.get_icon('grid_view', view_icon_color)))
+        grid_btn.setIconSize(QSize(14, 14))
+        grid_btn.setFixedSize(24, 20)
+        grid_btn.setStyleSheet(AppStyles.player_button_style())
+        grid_btn.setCheckable(True)
+        grid_btn.setToolTip(tr("grid_view", "网格视图"))
+        grid_btn.clicked.connect(lambda: self._set_channel_view_mode('grid', view_scope))
+        search_row.addWidget(grid_btn)
+
+        view_group = QButtonGroup(self)
+        view_group.setExclusive(True)
+        view_group.addButton(list_btn, 0)
+        view_group.addButton(grid_btn, 1)
+
+        return search_row, search_input, list_btn, grid_btn, view_group
+
+    def _create_sub_tab(self, tr):
+        sub_tab = QWidget()
+        sub_layout = QVBoxLayout(sub_tab)
+        sub_layout.setContentsMargins(4, 4, 4, 4)
+        sub_layout.setSpacing(4)
+
+        self.sub_group_combo = QComboBox()
+        self.sub_group_combo.addItems(app_state._channel_groups)
+        self.sub_group_combo.setStyleSheet(AppStyles.player_group_combo_style())
+        self.sub_group_combo.setToolTip(tr("channel_group", "频道分组"))
+        self.sub_group_combo.currentTextChanged.connect(self.on_sub_group_changed)
+        sub_layout.addWidget(self.sub_group_combo)
+
+        view_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
+        search_row, self.sub_search_input, self.sub_view_list_btn, self.sub_view_grid_btn, self._sub_view_group = \
+            self._create_channel_search_row(tr, view_icon_color, self._on_sub_search_changed, 'sub')
+        sub_layout.addLayout(search_row)
+
+        self.sub_channel_list = self._create_channel_list_widget(
+            on_click=self._on_channel_single_click,
+            on_double_click=self._on_channel_double_clicked,
+            on_context_menu=self._on_sub_channel_context_menu,
+        )
+        sub_layout.addWidget(self.sub_channel_list, 1)
+
+        self.sub_empty_label = QLabel(tr("no_channels", "No channels"))
+        self.sub_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.sub_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
+        sub_layout.addWidget(self.sub_empty_label)
+
+        return sub_tab
+
+    def _create_local_tab(self, tr):
+        local_tab = QWidget()
+        local_layout = QVBoxLayout(local_tab)
+        local_layout.setContentsMargins(4, 4, 4, 4)
+        local_layout.setSpacing(4)
+
+        self.local_group_combo = QComboBox()
+        self.local_group_combo.addItems([tr("all_channels", "All Channels")])
+        self.local_group_combo.setStyleSheet(AppStyles.player_group_combo_style())
+        self.local_group_combo.setToolTip(tr("channel_group", "频道分组"))
+        self.local_group_combo.currentTextChanged.connect(self.on_local_group_changed)
+        local_layout.addWidget(self.local_group_combo)
+
+        view_icon_color = AppStyles._get_colors().get('player_panel_text', AppStyles._safe_fallback('player_panel_text'))
+        search_row, self.local_search_input, self.local_view_list_btn, self.local_view_grid_btn, self._local_view_group = \
+            self._create_channel_search_row(tr, view_icon_color, self._on_local_search_changed, 'local')
+        local_layout.addLayout(search_row)
+
+        self.local_channel_list = self._create_channel_list_widget(
+            on_click=self._on_channel_single_click,
+            on_double_click=self._on_channel_double_clicked,
+            on_context_menu=self._on_local_channel_context_menu,
+        )
+        local_layout.addWidget(self.local_channel_list, 1)
+
+        self.local_empty_label = QLabel(tr("no_channels", "No channels"))
+        self.local_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.local_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
+        local_layout.addWidget(self.local_empty_label)
+
+        return local_tab
+
+    def _create_fav_tab(self, tr):
+        fav_tab = QWidget()
+        fav_layout = QVBoxLayout(fav_tab)
+        fav_layout.setContentsMargins(4, 4, 4, 4)
+        fav_layout.setSpacing(4)
+
+        self.fav_channel_list = self._create_channel_list_widget(
+            on_click=self.favorites_ctrl.on_favorite_item_clicked,
+            on_context_menu=self.favorites_ctrl.show_favorites_context_menu,
+        )
+        fav_layout.addWidget(self.fav_channel_list, 1)
+
+        self.fav_empty_label = QLabel(tr("no_favorites", "No favorites"))
+        self.fav_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.fav_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
+        fav_layout.addWidget(self.fav_empty_label)
+
+        return fav_tab
+
+    def _create_history_tab(self, tr):
+        history_tab = QWidget()
+        history_layout = QVBoxLayout(history_tab)
+        history_layout.setContentsMargins(4, 4, 4, 4)
+        history_layout.setSpacing(4)
+
+        self.history_channel_list = self._create_channel_list_widget(
+            on_click=self.favorites_ctrl.on_history_item_clicked,
+            on_context_menu=self.favorites_ctrl.show_history_context_menu,
+        )
+        history_layout.addWidget(self.history_channel_list, 1)
+
+        self.history_empty_label = QLabel(tr("no_history", "No play history"))
+        self.history_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.history_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
+        history_layout.addWidget(self.history_empty_label)
+
+        return history_tab
+
+    def _switch_playlist_tab(self, idx):
+        self.playlist_tab.setCurrentIndex(idx)
+        for i, btn in enumerate(self._playlist_tab_btns):
+            btn.blockSignals(True)
+            btn.setChecked(i == idx)
+            btn.blockSignals(False)
+
+    def _on_playlist_tab_changed(self, index):
+        """播放列表标签页切换"""
+
+        for i, btn in enumerate(self._playlist_tab_btns):
+            btn.blockSignals(True)
+            btn.setChecked(i == index)
+            btn.blockSignals(False)
+        if index == 0:
+            self.channel_list = self.sub_channel_list
+            self.group_combo = self.sub_group_combo
+            self.channel_empty_label = self.sub_empty_label
+        elif index == 1:
+            self.channel_list = self.local_channel_list
+            self.group_combo = self.local_group_combo
+            self.channel_empty_label = self.local_empty_label
+        elif index == 2:
+            self.favorites_ctrl.populate_favorites_tab()
+            return
+        elif index == 3:
+            self.favorites_ctrl.populate_history_tab()
+            return
+
+        if self.channel_list.viewMode() == QListWidget.ViewMode.IconMode:
+            tab = 'sub' if index == 0 else 'local'
+            QTimer.singleShot(200, lambda: self._capture_visible_thumbnails(tab))
+
+    def on_sub_group_changed(self, group_name):
+        """订阅标签分组切换"""
+        self._populate_channel_list_for(self.sub_channel_list, self._sub_channels, group_name)
+        if self.sub_channel_list.viewMode() == QListWidget.ViewMode.IconMode:
+            QTimer.singleShot(200, lambda: self._capture_visible_thumbnails('sub'))
+
+    def on_local_group_changed(self, group_name):
+        """本地标签分组切换"""
+        self._populate_channel_list_for(self.local_channel_list, self._local_channels, group_name)
+        if self.local_channel_list.viewMode() == QListWidget.ViewMode.IconMode:
+            QTimer.singleShot(200, lambda: self._capture_visible_thumbnails('local'))
