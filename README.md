@@ -186,7 +186,7 @@
 python pyqt_player.py
 ```
 
-> **注意**：运行需要 `mpv/` 目录（含 libmpv-2.dll）和 `ffmpeg/` 目录（含 ffprobe.exe），这些二进制文件未纳入版本控制。请自行下载 [MPV](https://mpv.io/) 和 [FFmpeg](https://ffmpeg.org/) 并放置到对应目录。
+> **注意**：运行需要 `mpv/` 目录（含 `libmpv-2.dll` on Windows / `libmpv.2.dylib` on macOS / `libmpv.so.2` on Linux）和 `ffmpeg/` 目录（含 `ffprobe.exe` on Windows / `ffprobe` on macOS/Linux），这些二进制文件未纳入版本控制。请自行下载 [MPV](https://mpv.io/) 和 [FFmpeg](https://ffmpeg.org/) 并放置到对应目录。
 
 ### 方式二：从源码安装依赖
 ```bash
@@ -198,10 +198,24 @@ python pyqt_player.py
 ```
 
 ### 系统要求
-- **操作系统**：Windows 10/11
+- **操作系统**：Windows 10/11, macOS 10.15+, Linux (x86_64 / ARM64)
 - **Python**：3.8+
 - **内存**：2GB RAM 以上
 - **网络**：需要网络连接用于频道扫描、EPG 下载和流媒体播放
+
+### Linux 支持
+本项目已支持 Linux 平台（x86_64 / ARM64），感谢 [@EricYin](https://github.com/EricYin) 的贡献。
+- Linux ARM64 已添加 GitHub CI/CD workflow 来帮助编译
+- ffprobe 和 ffmpeg 静态构建版本会编译进入程序本体，请参考 workflow 中 yml 文件的下载路径
+- 在 Linux 系统上运行前，请确保安装系统依赖：
+  ```bash
+  sudo apt update
+  sudo apt install libmpv-dev
+  ```
+
+### macOS 支持
+- 运行前请安装依赖：`brew install mpv ffmpeg`
+- 打包为 `.app` bundle，可直接分发
 
 ## 📖 使用指南
 
