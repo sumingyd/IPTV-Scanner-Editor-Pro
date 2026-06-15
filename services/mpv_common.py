@@ -104,6 +104,8 @@ def _ensure_libmpv_loaded():
         return False
 
     try:
+        locale.setlocale(locale.LC_NUMERIC, 'C')
+        
         libmpv = ctypes.CDLL(libmpv_path)
 
         libmpv.mpv_create.restype = ctypes.c_void_p
@@ -253,7 +255,6 @@ def create_mpv_handle():
     if not MPV_AVAILABLE or not libmpv:
         return None
     try:
-        locale.setlocale(locale.LC_NUMERIC, 'C')
         handle = libmpv.mpv_create()
         return handle if handle else None
     except Exception as e:
