@@ -197,16 +197,10 @@ class ProgressMixin:
 
         if target_pos < buffer_start:
             catchup_source = self.current_channel.get('catchup_source', '') if self.current_channel else ''
-            if catchup_source and getattr(self, '_progress_time_mode', None) == 'epg' and self._progress_program_start:
-                self._start_live_timeshift_from_progress(position, catchup_source)
+            if catchup_source:
+                has_epg = getattr(self, '_progress_time_mode', None) == 'epg' and self._progress_program_start
+                self._start_live_timeshift_from_progress(position, catchup_source, has_epg=has_epg)
                 return
-            elif catchup_source:
-                self.status_bar_show_message(
-                    self.language_manager.tr(
-                        "timeshift_beyond_cache_no_epg",
-                        "超出缓冲范围，无节目信息，无法自动时移"
-                    )
-                )
             else:
                 self.status_bar_show_message(
                     self.language_manager.tr(
@@ -242,5 +236,5 @@ class ProgressMixin:
     def _seek_catchup(self, position):
         self.catchup_ctrl.seek_catchup(position)
 
-    def _start_live_timeshift_from_progress(self, slider_seconds, catchup_source):
-        self.catchup_ctrl.start_live_timeshift_from_progress(slider_seconds, catchup_source)
+    def _start_live_timeshift_from_progress(self, slider_seconds, catchup_source, has_epg=True):
+        self.catchup_ctrl.start_live_timeshift_from_progress(slider_seconds, catchup_source, has_epg=has_epg)

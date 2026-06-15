@@ -435,16 +435,10 @@ class PlaybackController:
 
         if target_pos < buffer_start:
             catchup_source = w.current_channel.get('catchup_source', '') if w.current_channel else ''
-            if catchup_source and getattr(w, '_progress_time_mode', None) == 'epg' and w._progress_program_start:
-                w._start_live_timeshift_from_progress(position, catchup_source)
+            if catchup_source:
+                has_epg = getattr(w, '_progress_time_mode', None) == 'epg' and w._progress_program_start
+                w._start_live_timeshift_from_progress(position, catchup_source, has_epg=has_epg)
                 return
-            elif catchup_source:
-                w.status_bar_show_message(
-                    w.language_manager.tr(
-                        "timeshift_beyond_cache_no_epg",
-                        "超出缓冲范围，无节目信息，无法自动时移"
-                    )
-                )
             else:
                 w.status_bar_show_message(
                     w.language_manager.tr(

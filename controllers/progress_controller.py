@@ -82,8 +82,9 @@ class ProgressController:
 
     def _update_timeshift_progress(self, current_time_ms, total_time_ms, position):
         w = self.window
+        catchup_program = getattr(w, 'catchup_program', None)
         has_epg, current_program = self._get_current_epg()
-        if has_epg and current_program:
+        if catchup_program or (has_epg and current_program):
             self._update_timeshift_epg_progress(current_program, current_time_ms, total_time_ms, position)
         else:
             self._update_timeshift_live_progress()

@@ -642,20 +642,22 @@ class CatchupController:
         if hasattr(w, 'player_controller') and w.player_controller:
             w.player_controller.play(catchup_url, f"{channel_name} (时移续播)")
 
-    def start_live_timeshift_from_progress(self, slider_seconds, catchup_source):
+    def start_live_timeshift_from_progress(self, slider_seconds, catchup_source, has_epg=True):
         w = self.window
         from datetime import timedelta, datetime
         from core.log_manager import global_logger as logger
 
-        program_start = w._progress_program_start
-        program_end = w._progress_program_end
-
-        if program_start is None:
-            logger.warning("直播时移(进度条) -> program_start 为 None，无法执行时移")
-            return
-
-        target_wallclock = program_start + timedelta(seconds=slider_seconds)
         now = datetime.now()
+
+        if has_epg and w._progress_program_start:
+            program_start = w._progress_program_start
+            program_end = w._progress_program_end
+            target_wallclock = program_start + timedelta(seconds=slider_seconds)
+        else:
+            hour_start = now.replace(minute=0, second=0, microsecond=0)
+            target_wallclock = hour_start + timedelta(seconds=slider_seconds)
+            program_start = hour_start
+            program_end = None
 
         if target_wallclock >= now:
             target_wallclock = now - timedelta(seconds=5)
@@ -739,7 +741,10 @@ class CatchupController:
             self._set_progress_range(total_duration)
             w._pending_catchup_progress = offset_seconds
             self._set_progress_value(offset_seconds)
-            w._progress_time_mode = 'epg'
+            if has_epg:
+                w._progress_time_mode = 'epg'
+            else:
+                w._progress_time_mode = 'hour'
             w._progress_program_start = program_start
             w._progress_program_end = end_time
 
