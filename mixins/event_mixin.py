@@ -53,18 +53,16 @@ class EventMixin:
         """修复 Win32 无边框窗口拖放失效问题
 
         Qt6 的 FramelessWindowHint + WA_TranslucentBackground 会导致
-        Windows OLE 拖放目标未注册，需要在窗口显示后手动初始化 OLE 并重新注册。
+        Windows OLE 拖放目标未注册，需要在窗口显示后手动初始化 OLE。
+        注意：不再调用 DragAcceptFiles，Qt6 自身已通过 OLE 机制处理拖放，
+        双重注册会导致 Windows 发送虚假 WM_DROPFILES 消息。
         """
         if sys.platform != 'win32':
             return
         try:
             import ctypes
-            from ctypes import wintypes
             ole32 = ctypes.windll.ole32
             ole32.OleInitialize(None)
-            hwnd = int(self.winId())
-            user32 = ctypes.windll.user32
-            user32.DragAcceptFiles(hwnd, True)
         except Exception:
             pass
 
