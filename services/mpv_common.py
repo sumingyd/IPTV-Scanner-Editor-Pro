@@ -33,6 +33,7 @@ elif sys.platform.startswith('linux'):
     if not libmpv_path:
         # import glob
         _system_dirs = [
+            ctypes.util.find_library('mpv'),
             '/usr/lib/aarch64-linux-gnu/',      # ARM64 Debian/Ubuntu
             '/usr/lib/x86_64-linux-gnu/',       # x64 Debian/Ubuntu
             '/usr/lib64/',                      # Fedora/RHEL/SUSE
