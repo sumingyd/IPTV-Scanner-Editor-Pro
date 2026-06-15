@@ -182,21 +182,21 @@ python pyqt_player.py
 ```
 
 ### 系统要求
-- **操作系统**：Windows 10/11, Linux (x86_64 / ARM64), macOS (experimental)
+- **操作系统**：Windows 10/11, Linux (x86_64 / ARM64)
 - **Python**：3.8+
 - **内存**：2GB RAM 以上
 - **网络**：需要网络连接用于频道扫描、EPG 下载和流媒体播放
 
 ### Linux ARM64 支持
-本项目已添加对 Linux ARM64 平台的基础支持，包括：
-- 跨平台的 libmpv 库加载（自动检测 `.dll` / `.so`）
-- 跨平台的 ffprobe 二进制文件路径检测
-- GitHub Actions CI/CD 流水线中的 linux-arm64 构建作业
-
+本项目已添加对Linux平台的基础支持。
+linux arm64有添加Github CI/CD workflow来帮助编译, 包括：
+- linux arm64 ffprobe和ffmpeg二进制文件编译进入程序本体，FFmpeg静态构建版本，请参考workflow里面yml文件的下载路径。
 在 Linux ARM64 系统上运行前，请确保：
-1. 安装系统依赖：`libmpv2`, `libssl3`, `libegl1`, `libopengl0` 等
-2. 下载适用于 ARM64 的 [MPV](https://github.com/junterpatrol/mpv-linux-arm64) 和 [FFmpeg](https://johnvansickle.com/ffmpeg/) 静态构建版本
-3. 将二进制文件放置到 `mpv/` 和 `ffmpeg/` 目录中
+安装系统依赖：libmpv
+   sudo apt update
+   sudo apt install libmpv-dev
+原因是没有找到预编译的静态libmpv库可以直接编译进程序本体。
+   
 - **Python**：3.8+
 - **内存**：2GB RAM 以上
 - **网络**：需要网络连接用于频道扫描、EPG 下载和流媒体播放
