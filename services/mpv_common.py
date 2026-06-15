@@ -13,10 +13,12 @@ else:
     base_path = get_app_data_dir()
 
 mpv_dir = os.path.join(base_path, 'mpv')
-
+libmpv_path = None
 # Cross-platform libmpv binary detection
 if sys.platform == 'win32':
-    libmpv_path = os.path.join(mpv_dir, 'libmpv-2.dll')
+    _p = os.path.join(mpv_dir, 'libmpv-2.dll')
+    if os.path.exists(libmpv_path):
+        libmpv_path = _p
 elif sys.platform.startswith('linux'):
     # Try common soname variants for Linux (ARM64/x86_64)
     _possible_names = ['libmpv.so.2', 'libmpv.so.1', 'libmpv.so']
@@ -73,12 +75,10 @@ else:
 os.environ['MPV_HOME'] = mpv_dir
 os.environ['PATH'] = mpv_dir + os.pathsep + os.environ.get('PATH', '')
 
-if libmpv_path and os.path.exists(libmpv_path):
+if libmpv_path:
     os.environ['MPV_LIBRARY'] = libmpv_path
-elif not libmpv_path:
-    logger.warning(f"未找到libmpv库 (平台: {sys.platform}): mpv目录={mpv_dir}")
-else:
-    logger.warning(f"未找到libmpv库: {libmpv_path}")
+else
+    logger.warning(f"未找到libmpv库")
 
 MPV_AVAILABLE = False
 libmpv = None
@@ -148,8 +148,7 @@ def _ensure_libmpv_loaded():
         MPV_AVAILABLE = True
         return True
     except Exception as e:
-        libv_name = 'libmpv'
-        logger.error(f"加载{libv_name}失败: {e}")
+        logger.error(f"加载libmpv失败: {e}")
         return False
 
 
