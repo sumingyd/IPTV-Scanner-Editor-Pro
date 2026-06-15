@@ -15,8 +15,6 @@ print(f"当前工作目录: {os.getcwd()}")
 
 # Cross-platform platform detection
 IS_WINDOWS = sys.platform == 'win32'
-# IS_LINUX = sys.platform.startswith('linux')
-# IS_MACOS = sys.platform == 'darwin'
 
 # 项目根目录
 PROJECT_ROOT = Path(__file__).parent
@@ -150,11 +148,6 @@ PYINSTALLER_CMD = [
     "--hidden-import", "utils.thread_safety",
     str(PROJECT_ROOT / "pyqt_player.py"),
 ]
-
-# if IS_WINDOWS:
-#     mpvdata =["--add-data", f"{PROJECT_ROOT / 'mpv'}{sp}mpv"]
-#     for d in mpvdata:
-#         PYINSTALLER_CMD.append(d)
 
 # 清理之前的构建结果
 def clean_build():
