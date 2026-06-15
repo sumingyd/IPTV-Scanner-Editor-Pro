@@ -250,9 +250,11 @@ def create_mpv_handle():
     if not MPV_AVAILABLE or not libmpv:
         return None
     try:
+        locale.setlocale(locale.LC_NUMERIC, 'C')
         handle = libmpv.mpv_create()
         return handle if handle else None
-    except Exception:
+    except Exception as e:
+        logger.error(f"create_mpv_handle failed: {e}")
         return None
 
 
@@ -261,7 +263,8 @@ def initialize_mpv(handle):
         return False
     try:
         return libmpv.mpv_initialize(handle) >= 0
-    except Exception:
+    except Exception as e:
+        logger.error(f"initialize_mpv failed: {e}")
         return False
 
 
