@@ -22,7 +22,7 @@ def _get_ffprobe_path():
     if os.path.exists(ffprobe_exe_alt):
         return ffprobe_exe_alt
 
-    global_logger.warning(f"未找到{ffprobeName}: ffmpeg目录={ffprobe_dir_alt}")
+    global_logger.warning(f"未找到{ffprobeName}")
     return None
 
 
