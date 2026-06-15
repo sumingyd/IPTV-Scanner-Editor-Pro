@@ -152,13 +152,30 @@ jobs:
       - name: Prepare FFmpeg
         run: |
           mkdir -p ffmpeg
-          wget -q "$FFMPEG_LINUX_ARM64_URL" -O /tmp/ffmpeg-arm64.tar.xz
-          tar -xf /tmp/ffmpeg-arm64.tar.xz -C /tmp/
-          find /tmp -name "ffprobe" -type f -exec cp {} ffmpeg/ \;
+          
+          # Try BtbN FFmpeg build first
+          echo "Trying BtbN FFmpeg ARM64 build..."
+          wget -q "$FFMPEG_LINUX_ARM64_URL" -O /tmp/ffmpeg-arm64.tar.xz 2>/dev/null && {
+            tar -xf /tmp/ffmpeg-arm64.tar.xz -C /tmp/
+            find /tmp -name "ffprobe" -type f -exec cp {} ffmpeg/ \;
+            find /tmp -name "ffmpeg" -type f -exec cp {} ffmpeg/ \;
+          } || echo "BtbN download failed, trying apt..."
+          
+          # Fallback: use system ffmpeg from apt
+          if [ ! -f ./ffmpeg/ffprobe ]; then
+            echo "Using system ffmpeg from apt..."
+            sudo apt install -y ffmpeg
+            cp /usr/bin/ffprobe ffmpeg/
+            cp /usr/bin/ffmpeg ffmpeg/
+          fi
+          
           if [ ! -f ./ffmpeg/ffprobe ]; then
             echo "ffprobe not found"
             exit 1
           fi
+          
+          chmod +x ffmpeg/ffprobe ffmpeg/ffmpeg 2>/dev/null || true
+          ls -la ffmpeg/
 
       - name: Set up Python
         uses: actions/setup-python@v5
