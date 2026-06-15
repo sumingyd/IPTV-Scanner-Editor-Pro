@@ -235,10 +235,9 @@ class ConfigManager(Singleton):
     def get_value(self, section, key, default=None):
         with self._lock:
             try:
+                if not self.config.has_section(section):
+                    self.config.add_section(section)
                 return self.config.get(section, key)
-            except configparser.NoSectionError:
-                logger.debug(f"配置管理- section不存在: {section}")
-                return default
             except configparser.NoOptionError:
                 return default
             except Exception as e:
