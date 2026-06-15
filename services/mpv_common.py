@@ -1,6 +1,7 @@
 import ctypes
 import os
 import sys
+import locale
 
 from core.log_manager import global_logger as logger
 
@@ -104,7 +105,7 @@ def _ensure_libmpv_loaded():
         return False
 
     try:
-        locale.setlocale(locale.LC_NUMERIC, 'C')
+        locale.setlocale(locale.LC_NUMERIC, "C")
         
         libmpv = ctypes.CDLL(libmpv_path)
 
