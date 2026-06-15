@@ -77,7 +77,7 @@ os.environ['PATH'] = mpv_dir + os.pathsep + os.environ.get('PATH', '')
 
 if libmpv_path:
     os.environ['MPV_LIBRARY'] = libmpv_path
-else
+else:
     logger.warning(f"未找到libmpv库")
 
 MPV_AVAILABLE = False
