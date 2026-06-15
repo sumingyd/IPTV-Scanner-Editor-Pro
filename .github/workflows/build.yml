@@ -4,18 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Existing release tag to upload the executable to."
+        description: "Existing release tag to upload the executables to."
         required: true
         type: string
-      platform:
-        description: "Target platform to build for."
-        required: false
-        default: "windows"
-        type: choice
-        options:
-          - windows
-          - macos
-          - linux-arm64
 
 permissions:
   contents: write
@@ -31,7 +22,6 @@ jobs:
   build-windows:
     name: Build Windows EXE
     runs-on: windows-latest
-    if: inputs.platform == 'windows'
 
     steps:
       - name: Checkout repository
@@ -98,7 +88,6 @@ jobs:
   build-macos:
     name: Build macOS .app
     runs-on: macos-latest
-    if: inputs.platform == 'macos'
 
     steps:
       - name: Checkout repository
@@ -125,6 +114,11 @@ jobs:
       - name: Build .app
         run: python build.py
 
+      - name: Package .app as zip
+        run: |
+          cd dist
+          zip -r "IPTV Scanner Editor Pro-macOS.zip" "IPTV Scanner Editor Pro.app"
+
       - name: Verify .app
         run: |
           if [ ! -d "dist/IPTV Scanner Editor Pro.app" ]; then
@@ -136,7 +130,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.release_tag }}
-          files: dist/IPTV Scanner Editor Pro.app
+          files: dist/IPTV Scanner Editor Pro-macOS.zip
           fail_on_unmatched_files: true
           overwrite_files: true
         env:
@@ -145,7 +139,6 @@ jobs:
   build-linux-arm64:
     name: Build Linux ARM64
     runs-on: ubuntu-24.04-arm
-    if: inputs.platform == 'linux-arm64'
 
     steps:
       - name: Checkout repository
@@ -191,11 +184,16 @@ jobs:
           chmod +x "dist/IPTV Scanner Editor Pro"
           file "dist/IPTV Scanner Editor Pro"
 
+      - name: Compress executable
+        run: |
+          cd dist
+          tar czf "IPTV Scanner Editor Pro-Linux-ARM64.tar.gz" "IPTV Scanner Editor Pro"
+
       - name: Upload executable to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.release_tag }}
-          files: dist/IPTV Scanner Editor Pro
+          files: dist/IPTV Scanner Editor Pro-Linux-ARM64.tar.gz
           fail_on_unmatched_files: true
           overwrite_files: true
         env:
