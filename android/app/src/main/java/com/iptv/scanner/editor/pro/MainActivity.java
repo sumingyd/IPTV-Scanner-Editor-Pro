@@ -18,7 +18,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
-import com.iptv.scanner.editor.pro.mpv.MPVLib;
+
 import com.iptv.scanner.editor.pro.mpv.MPVView;
 import com.iptv.scanner.editor.pro.mpv.MpvJsBridge;
 
