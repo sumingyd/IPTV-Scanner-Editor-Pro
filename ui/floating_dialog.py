@@ -5,7 +5,7 @@ from PySide6.QtGui import QPainter, QColor, QPainterPath, QCursor, QIcon, QBitma
 from PySide6.QtCore import Qt, QRectF, QSize
 import PySide6.QtCore as QtCore
 import sys
-from utils.platform_utils import is_windows, is_macos
+from utils.platform_utils import is_windows, is_macos, is_android
 
 
 def _hide_from_taskbar(window):
@@ -102,6 +102,8 @@ class FloatingDockWidget(QDockWidget):
             pass
 
     def _try_enable_dwm_blur(self):
+        if is_android():
+            return
         if is_macos():
             self._try_enable_macos_blur()
             return
@@ -151,6 +153,8 @@ class FloatingDockWidget(QDockWidget):
             pass
 
     def _disable_dwm_blur(self):
+        if is_android():
+            return
         if is_macos():
             self._dwm_blur_enabled = False
             return
@@ -466,6 +470,8 @@ class FloatingDialog(QDialog):
 
     def showEvent(self, event):
         super().showEvent(event)
+        if is_android():
+            return
         if is_macos():
             if AppStyles._visual_style == 'frosted' and not self._dwm_blur_enabled:
                 self._try_enable_macos_blur()

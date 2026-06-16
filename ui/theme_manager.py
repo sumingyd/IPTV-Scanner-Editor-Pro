@@ -1,7 +1,7 @@
 from PySide6 import QtCore, QtWidgets, QtGui
 from ui.styles import AppStyles
 from utils.singleton import Singleton
-from utils.platform_utils import is_windows, is_macos
+from utils.platform_utils import is_windows, is_macos, is_android
 
 
 class ThemeManager(Singleton, QtCore.QObject):
@@ -111,6 +111,8 @@ class ThemeManager(Singleton, QtCore.QObject):
             print(f"设置窗口背景模糊失败: {e}")
 
     def _enable_dwm_blur(self, window):
+        if is_android():
+            return
         if is_macos():
             if AppStyles._visual_style == 'frosted':
                 window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
@@ -143,6 +145,8 @@ class ThemeManager(Singleton, QtCore.QObject):
             pass
 
     def _disable_dwm_blur(self, window):
+        if is_android():
+            return
         if is_macos():
             return
         if not is_windows():

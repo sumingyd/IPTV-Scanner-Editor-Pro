@@ -1,0 +1,22 @@
+{
+  "name": "IPTV Scanner Editor Pro",
+  "short_name": "IPTV Player",
+  "description": "IPTV直播播放器 - 频道浏览、播放、EPG节目单",
+  "start_url": "/mobile/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e",
+  "icons": [
+    {
+      "src": "/resources/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/resources/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

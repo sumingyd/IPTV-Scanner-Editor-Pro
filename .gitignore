@@ -184,6 +184,10 @@ ffmpeg/
 *.log.3
 app.log
 iptv_manager.log
+logcat*.txt
+
+# 截图
+screen.png
 
 # 配置文件
 *.ini
@@ -212,3 +216,10 @@ pyi_rth_vlc.py
 # 构建输出
 build/
 dist/
+
+# Android 构建产物和缓存
+android/.gradle/
+android/.idea/
+android/build_log*.txt
+android/local.properties
+android/app/build/

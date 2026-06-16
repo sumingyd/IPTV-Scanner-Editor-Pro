@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.IPTVScanner" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#1a1a2e</item>
+        <item name="colorPrimaryDark">#0f0f1e</item>
+        <item name="colorAccent">#4CAF50</item>
+        <item name="android:windowBackground">#1a1a2e</item>
+        <item name="android:statusBarColor">#0f0f1e</item>
+        <item name="android:navigationBarColor">#0f0f1e</item>
+    </style>
+</resources>

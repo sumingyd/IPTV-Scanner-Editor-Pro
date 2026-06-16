@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QDir, QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtGui import QAction
-from utils.platform_utils import is_windows
+from utils.platform_utils import is_windows, is_android
 
 
 _VIDEO_EXTS = ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.m2ts', '.webm')

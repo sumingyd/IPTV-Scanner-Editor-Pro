@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""
+IPTV Scanner Editor Pro - 独立 Web 服务器模式
+无需 GUI，直接启动 Web 服务器，提供 RESTful API 和移动端 Web UI
+支持 Windows/macOS/Linux 桌面端和 Android (Chaquopy) 环境
+"""
+
+import asyncio
+import logging
+import os
+import sys
+import signal
+
+from aiohttp import web
+
+
+def _is_android():
+    return getattr(sys, 'platform', '') == 'android' or 'ANDROID_ARGUMENT' in os.environ
+
+
+def _setup_android_env():
+    if not _is_android():
+        return
+    try:
+        from chaquopy.python import Python
+        app = Python.getPlatform().getApplication()
+        files_dir = app.getFilesDir().getAbsolutePath()
+        os.environ.setdefault('IPTV_DATA_DIR', files_dir)
+        config_dir = os.path.join(files_dir, 'IPTV_Scanner_Editor_Pro')
+        os.makedirs(config_dir, exist_ok=True)
+        os.chdir(config_dir)
+    except Exception:
+        pass
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
+    datefmt='%H:%M:%S',
+)
+logger = logging.getLogger('server_main')
+
+
+def create_standalone_app():
+    from server.context import ServerContext
+    from server.routes import create_app
+
+    ServerContext.get_instance(main_window=None)
+    app = create_app()
+
+    mobile_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'server', 'mobile')
+    if not os.path.isdir(mobile_dir):
+        mobile_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mobile')
+    if os.path.isdir(mobile_dir):
+        app.router.add_static('/mobile', mobile_dir, name='mobile')
+
+    return app
+
+
+async def main(host='0.0.0.0', port=8080):
+    if _is_android():
+        host = '127.0.0.1'
+
+    app = create_standalone_app()
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host, port)
+    await site.start()
+    logger.info(f"IPTV Web Server 启动于 http://{host}:{port}")
+    logger.info(f"移动端访问: http://{host}:{port}/mobile/")
+    logger.info(f"API 文档: http://{host}:{port}/")
+
+    stop_event = asyncio.Event()
+
+    def _signal_handler():
+        stop_event.set()
+
+    if sys.platform != 'win32' and not _is_android():
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, _signal_handler)
+
+    try:
+        await stop_event.wait()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        logger.info("正在停止服务器...")
+        await runner.cleanup()
+
+
+if __name__ == '__main__':
+    _setup_android_env()
+
+    import argparse
+    parser = argparse.ArgumentParser(description='IPTV Scanner Editor Pro - Web Server')
+    parser.add_argument('--host', default='0.0.0.0', help='监听地址 (默认: 0.0.0.0)')
+    parser.add_argument('--port', type=int, default=8080, help='监听端口 (默认: 8080)')
+    args = parser.parse_args()
+
+    try:
+        asyncio.run(main(host=args.host, port=args.port))
+    except KeyboardInterrupt:
+        logger.info("服务器已停止")

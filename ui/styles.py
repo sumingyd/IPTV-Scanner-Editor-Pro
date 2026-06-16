@@ -874,6 +874,18 @@ class AppStyles:
 
     @classmethod
     def _detect_system_color_mode(cls):
+        from utils.platform_utils import is_android
+        if is_android():
+            try:
+                from PySide6.QtCore import QGuiApplication
+                if QGuiApplication.instance():
+                    color_scheme = QGuiApplication.styleHints().colorScheme()
+                    if color_scheme == Qt.ColorScheme.Dark:
+                        return 'dark'
+                    elif color_scheme == Qt.ColorScheme.Light:
+                        return 'light'
+            except Exception:
+                pass
         if sys.platform == 'darwin':
             try:
                 import subprocess

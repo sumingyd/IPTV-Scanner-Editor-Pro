@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a1a1a">
+<title>IPTV Scanner Editor Pro</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+
+#splashScreen{position:fixed;inset:0;z-index:100;background:#1a1a1a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s ease}
+#splashScreen.fade-out{opacity:0;pointer-events:none}
+#splashScreen .splash-logo{width:96px;height:96px;opacity:0;transform:scale(.7);animation:splashIn .8s .2s ease forwards}
+#splashScreen h1{font-size:22px;font-weight:700;color:#fff;opacity:0;transform:translateY(10px);animation:splashTextIn .6s .6s ease forwards}
+#splashScreen .splash-sub{font-size:12px;color:rgba(255,255,255,.3);margin-top:4px;opacity:0;animation:splashTextIn .6s .8s ease forwards}
+#splashScreen .splash-bar{width:120px;height:3px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:24px;overflow:hidden;opacity:0;animation:splashTextIn .4s 1s ease forwards}
+#splashScreen .splash-bar-fill{width:0%;height:100%;background:#4a7eff;border-radius:2px;animation:splashLoad 1.5s 1.2s ease forwards}
+@keyframes splashIn{to{opacity:1;transform:scale(1)}}
+@keyframes splashTextIn{to{opacity:1;transform:translateY(0)}}
+@keyframes splashLoad{to{width:100%}}
+
+video#video{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:transparent;z-index:1;display:none}
+video#video.active{display:block}
+
+#centerIcon{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none;opacity:0;transition:opacity .4s}
+#centerIcon.show{opacity:1}
+#centerIcon svg{width:80px;height:80px;fill:rgba(255,255,255,.12);filter:drop-shadow(0 2px 12px rgba(0,0,0,.4))}
+
+#playFeedback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6;pointer-events:none;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
+#playFeedback.show{opacity:1}
+#playFeedback svg{width:64px;height:64px;fill:rgba(255,255,255,.7);filter:drop-shadow(0 4px 12px rgba(0,0,0,.6))}
+
+#osd{position:fixed;top:0;left:0;right:0;padding:20px 24px;background:linear-gradient(180deg,rgba(0,0,0,.7) 0%,transparent 100%);z-index:20;pointer-events:none;opacity:0;transition:opacity .3s}
+#osd.show{opacity:1}
+#osd .ch-name{font-size:18px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8)}
+#osd .ch-group{font-size:13px;color:rgba(255,255,255,.65);margin-top:2px}
+
+#touchLayer{position:fixed;inset:0;z-index:10}
+
+#panelOverlay{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:25;opacity:0;pointer-events:none;transition:opacity .25s}
+#panelOverlay.show{opacity:1;pointer-events:auto}
+
+.floating-panel{position:fixed;z-index:30;background:rgba(30,30,30,.92);border:1px solid rgba(255,255,255,.08);border-radius:14px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 8px 32px rgba(0,0,0,.5);overflow:hidden;transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s}
+
+#panelChannels{top:0;right:0;bottom:0;width:55%;max-width:360px;transform:translateX(100%);opacity:0;display:flex;flex-direction:column;border-radius:14px 0 0 14px}
+#panelChannels.open{transform:translateX(0);opacity:1}
+
+#panelEPG{top:0;left:0;bottom:0;width:55%;max-width:360px;transform:translateX(-100%);opacity:0;display:flex;flex-direction:column;border-radius:0 14px 14px 0}
+#panelEPG.open{transform:translateX(0);opacity:1}
+
+#panelControls{left:0;right:0;bottom:0;transform:translateY(100%);opacity:0;border-radius:18px 18px 0 0;width:100%;max-width:none}
+#panelControls.open{transform:translateY(0);opacity:1}
+
+.panel-titlebar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
+.panel-titlebar .title{font-size:13px;font-weight:700;color:rgba(255,255,255,.9)}
+.panel-titlebar .close-btn{background:none;border:none;color:rgba(255,255,255,.4);font-size:18px;cursor:pointer;padding:2px 6px;line-height:1}
+.panel-titlebar .close-btn:hover{color:rgba(255,255,255,.8)}
+
+.panel-search{padding:8px 12px}
+.panel-search input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 12px;color:#e0e0e0;font-size:13px;outline:none}
+.panel-search input::placeholder{color:#555}
+
+.panel-tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.06);padding:0 8px}
+.panel-tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:rgba(255,255,255,.4);font-size:12px;font-weight:600;padding:8px 0;cursor:pointer;text-align:center}
+.panel-tab.active{color:#4a7eff;border-bottom-color:#4a7eff}
+
+.panel-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 8px 12px}
+
+.group-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:rgba(255,255,255,.8)}
+.group-header:active{background:rgba(255,255,255,.05)}
+.group-header .count{font-size:11px;color:rgba(255,255,255,.35)}
+.group-channels{display:none}
+.group-channels.open{display:block}
+
+.ch-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:13px;color:rgba(255,255,255,.7)}
+.ch-item:active{background:rgba(255,255,255,.05)}
+.ch-item.playing{color:#6a9eff;background:rgba(106,158,255,.08)}
+.ch-item .ch-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.ch-item.playing .ch-dot{background:#4a7eff;box-shadow:0 0 4px #4a7eff}
+.ch-item:not(.playing) .ch-dot{background:rgba(255,255,255,.15)}
+
+.epg-item{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04)}
+.epg-item .epg-time{font-size:11px;color:#4a7eff;font-weight:600}
+.epg-item .epg-title{font-size:13px;margin-top:2px;color:rgba(255,255,255,.8)}
+.epg-item .epg-desc{font-size:11px;color:rgba(255,255,255,.35);margin-top:1px}
+
+.ctrl-media-row{display:flex;align-items:center;gap:4px;padding:8px 16px;border-bottom:1px solid rgba(255,255,255,.06);flex-wrap:wrap}
+.ctrl-media-text{font-size:11px;color:rgba(255,255,255,.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px}
+
+.ctrl-info-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
+.ctrl-ch-logo{width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:18px;color:rgba(255,255,255,.3);flex-shrink:0;overflow:hidden}
+.ctrl-ch-logo img{width:100%;height:100%;object-fit:cover}
+.ctrl-ch-detail{flex:1;min-width:0}
+.ctrl-ch-name-row{display:flex;align-items:center;gap:8px}
+.ctrl-ch-name{font-size:14px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctrl-ch-group{font-size:11px;color:rgba(255,255,255,.35);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctrl-ch-program{font-size:11px;color:#4a7eff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.ctrl-progress-row{display:flex;align-items:center;gap:8px;padding:8px 16px}
+.ctrl-time{font-size:11px;color:rgba(255,255,255,.35);flex-shrink:0;min-width:36px}
+.ctrl-progress-bar{flex:1;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+.ctrl-progress-fill{height:100%;background:#4a7eff;border-radius:2px;width:0%;transition:width .5s}
+
+.ctrl-buttons{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 16px}
+.ctrl-btn{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#e0e0e0;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.ctrl-btn:active{background:rgba(255,255,255,.12)}
+.ctrl-btn svg{width:22px;height:22px;fill:#e0e0e0}
+.ctrl-btn.primary{width:56px;height:56px;background:#4a7eff;border-color:transparent}
+.ctrl-btn.primary svg{fill:#fff;width:26px;height:26px}
+
+.ctrl-bottom-row{display:flex;align-items:center;justify-content:center;gap:10px;padding:4px 12px 12px;flex-wrap:wrap}
+.ctrl-btn-sm{height:36px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.6);cursor:pointer;display:flex;align-items:center;gap:6px;padding:0 14px;font-size:12px}
+.ctrl-btn-sm:active{background:rgba(255,255,255,.12)}
+.ctrl-btn-sm svg{width:16px;height:16px;fill:rgba(255,255,255,.6)}
+
+.ctrl-volume{padding:0 20px 12px;display:flex;align-items:center;gap:10px}
+.ctrl-volume svg{width:18px;height:18px;fill:rgba(255,255,255,.4);flex-shrink:0}
+.ctrl-volume input[type=range]{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;background:rgba(255,255,255,.12);outline:none}
+.ctrl-volume input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#4a7eff;cursor:pointer}
+
+#welcomeScreen{position:fixed;inset:0;background:#1a1a1a;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px}
+#welcomeScreen.show{display:flex}
+#welcomeScreen .logo{width:72px;height:72px;margin-bottom:16px;opacity:.6}
+#welcomeScreen h1{font-size:20px;font-weight:700;margin-bottom:6px;color:#fff}
+#welcomeScreen .sub{font-size:13px;color:rgba(255,255,255,.4);margin-bottom:28px}
+
+.welcome-btn{display:flex;align-items:center;gap:14px;width:100%;max-width:360px;padding:14px 18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;color:#e0e0e0;cursor:pointer;margin-bottom:8px;text-align:left}
+.welcome-btn:active{background:rgba(255,255,255,.08)}
+.welcome-btn svg{width:24px;height:24px;fill:rgba(255,255,255,.5);flex-shrink:0}
+.wb-title{font-size:14px;font-weight:600}
+.wb-desc{font-size:11px;color:rgba(255,255,255,.35);margin-top:1px}
+
+.menu-section{font-size:11px;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:1px;padding:0 4px;margin:16px 0 8px;text-align:left;max-width:380px;width:100%}
+
+#urlInputArea{display:none;width:100%;max-width:360px;margin-top:16px}
+#urlInputArea input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 14px;color:#e0e0e0;font-size:13px;outline:none;margin-bottom:6px}
+#urlInputArea input::placeholder{color:#555}
+#urlInputArea button{width:100%;background:#4a7eff;color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:24px;height:24px;border:2px solid rgba(255,255,255,.1);border-top-color:#4a7eff;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+
+#volumeOSD{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:40;background:rgba(0,0,0,.75);border-radius:14px;padding:16px 24px;display:none;text-align:center;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+#volumeOSD svg{width:32px;height:32px;fill:#fff;margin-bottom:6px}
+#volumeOSD .vol-val{font-size:18px;font-weight:700;color:#fff}
+#volumeOSD .vol-label{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px}
+</style>
+</head>
+<body>
+
+<div id="splashScreen">
+  <svg class="splash-logo" viewBox="0 0 128 128" fill="none">
+    <rect x="8" y="24" width="112" height="80" rx="12" fill="rgba(74,126,255,.15)" stroke="#4a7eff" stroke-width="2.5"/>
+    <rect x="20" y="36" width="88" height="52" rx="4" fill="rgba(74,126,255,.08)"/>
+    <polygon points="52,46 52,78 80,62" fill="#4a7eff" opacity=".8"/>
+    <rect x="48" y="104" width="32" height="4" rx="2" fill="rgba(255,255,255,.15)"/>
+    <circle cx="64" cy="16" r="4" fill="#4a7eff" opacity=".5"/>
+  </svg>
+  <h1>IPTV Scanner Editor Pro</h1>
+  <div class="splash-sub">v47.1</div>
+  <div class="splash-bar"><div class="splash-bar-fill"></div></div>
+</div>
+
+<video id="video" playsinline></video>
+
+<div id="centerIcon">
+  <svg viewBox="0 0 128 128" fill="none">
+    <rect x="8" y="24" width="112" height="80" rx="12" fill="rgba(74,126,255,.08)" stroke="rgba(74,126,255,.3)" stroke-width="2"/>
+    <polygon points="52,46 52,78 80,62" fill="rgba(74,126,255,.4)"/>
+    <rect x="48" y="104" width="32" height="4" rx="2" fill="rgba(255,255,255,.08)"/>
+  </svg>
+</div>
+
+<div id="playFeedback">
+  <svg id="playFeedbackIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+</div>
+
+<div id="osd">
+  <div class="ch-name" id="osdName"></div>
+  <div class="ch-group" id="osdGroup"></div>
+</div>
+
+<div id="touchLayer"></div>
+<div id="panelOverlay"></div>
+
+<div id="panelChannels" class="floating-panel">
+  <div class="panel-titlebar"><span class="title">频道列表</span><button class="close-btn" onclick="closePanels()">&#10005;</button></div>
+  <div class="panel-tabs">
+    <button class="panel-tab active" onclick="switchChTab('sub',this)">订阅</button>
+    <button class="panel-tab" onclick="switchChTab('local',this)">本地</button>
+    <button class="panel-tab" onclick="switchChTab('fav',this)">收藏</button>
+    <button class="panel-tab" onclick="switchChTab('hist',this)">历史</button>
+  </div>
+  <div class="panel-search"><input id="searchInput" placeholder="搜索频道..."></div>
+  <div class="panel-body" id="channelList"></div>
+</div>
+
+<div id="panelEPG" class="floating-panel">
+  <div class="panel-titlebar"><span class="title">节目单</span><button class="close-btn" onclick="closePanels()">&#10005;</button></div>
+  <div class="panel-body" id="epgList"><div style="padding:40px;text-align:center;color:rgba(255,255,255,.25);font-size:13px">请先选择频道</div></div>
+</div>
+
+<div id="panelControls" class="floating-panel">
+  <div class="panel-titlebar"><span class="title">控制面板</span><button class="close-btn" onclick="closePanels()">&#10005;</button></div>
+  <div class="ctrl-media-row">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="rgba(255,255,255,.35)"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12zM9 8h2v2H9z"/></svg>
+    <span class="ctrl-media-text" id="ctrlVideoInfo">未在播放</span>
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="rgba(255,255,255,.35)"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>
+    <span class="ctrl-media-text" id="ctrlAudioInfo">--</span>
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="rgba(255,255,255,.35)"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+    <span class="ctrl-media-text" id="ctrlNetworkInfo">--</span>
+  </div>
+  <div class="ctrl-info-row">
+    <div class="ctrl-ch-logo" id="ctrlLogo"></div>
+    <div class="ctrl-ch-detail">
+      <div class="ctrl-ch-name-row">
+        <span class="ctrl-ch-name" id="ctrlName">IPTV Scanner Editor Pro</span>
+        <span class="ctrl-ch-program" id="ctrlProgram"></span>
+      </div>
+      <div class="ctrl-ch-group" id="ctrlGroup">打开播放列表或导入频道开始观看</div>
+    </div>
+  </div>
+  <div class="ctrl-progress-row">
+    <span class="ctrl-time" id="ctrlTimeStart">00:00</span>
+    <div class="ctrl-progress-bar"><div class="ctrl-progress-fill" id="ctrlProgressFill"></div></div>
+    <span class="ctrl-time" id="ctrlTimeEnd">--:--</span>
+  </div>
+  <div class="ctrl-buttons">
+    <button class="ctrl-btn" onclick="prevChannel()" title="上一频道"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+    <button class="ctrl-btn" onclick="stopPlay()" title="停止"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
+    <button class="ctrl-btn primary" id="ctrlPlay" onclick="togglePlay()" title="播放/暂停"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+    <button class="ctrl-btn" onclick="nextChannel()" title="下一频道"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+    <button class="ctrl-btn" id="ctrlMute" onclick="toggleMute()" title="静音"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg></button>
+  </div>
+  <div class="ctrl-volume">
+    <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+    <input type="range" id="volumeSlider" min="0" max="100" value="100">
+    <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+  </div>
+  <div class="ctrl-bottom-row">
+    <button class="ctrl-btn-sm" onclick="toggleFavorite()"><svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3z"/></svg>收藏</button>
+    <button class="ctrl-btn-sm" onclick="changeSpeed()"><svg viewBox="0 0 24 24"><path d="M10 8v8l6-4-6-4zM6.3 5L5 6.3 6.3 5zM2 12l1.3 1.3L2 12zm4.3 7L5 17.7 6.3 19zM12 22l1.3-1.3L12 22zm5.7-3L19 17.7 17.7 19zM22 12l-1.3-1.3L22 12zm-4.3-7L19 6.3 17.7 5zM12 2l-1.3 1.3L12 2z"/></svg><span id="speedLabel">1.0x</span></button>
+    <button class="ctrl-btn-sm" onclick="openSources()"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>源管理</button>
+    <button class="ctrl-btn-sm" onclick="openLocalFile()"><svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 10H6v-2h8v2zm4-4H6v-2h12v2z"/></svg>打开</button>
+  </div>
+</div>
+
+<div id="volumeOSD">
+  <svg id="volIcon" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+  <div class="vol-val" id="volVal">100</div>
+  <div class="vol-label">音量</div>
+</div>
+
+<div id="welcomeScreen">
+  <svg class="logo" viewBox="0 0 128 128" fill="none" width="72" height="72">
+    <rect x="8" y="24" width="112" height="80" rx="12" fill="rgba(74,126,255,.15)" stroke="#4a7eff" stroke-width="2.5"/>
+    <polygon points="52,46 52,78 80,62" fill="#4a7eff" opacity=".8"/>
+    <rect x="48" y="104" width="32" height="4" rx="2" fill="rgba(255,255,255,.15)"/>
+  </svg>
+  <h1>IPTV Scanner Editor Pro</h1>
+  <div class="sub">v47.1</div>
+  <div style="width:100%;max-width:380px;margin-top:24px">
+    <div class="menu-section">文件</div>
+    <button class="welcome-btn" onclick="openLocalFile()">
+      <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 10H6v-2h8v2zm4-4H6v-2h12v2z"/></svg>
+      <div><div class="wb-title">打开播放列表</div><div class="wb-desc">选择设备上的 M3U/M3U8 文件</div></div>
+    </button>
+    <button class="welcome-btn" onclick="openUrlInput()">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+      <div><div class="wb-title">打开网络流</div><div class="wb-desc">输入 M3U/M3U8 订阅源 URL</div></div>
+    </button>
+    <button class="welcome-btn" onclick="openLocalVideo()">
+      <svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>
+      <div><div class="wb-title">打开本地视频</div><div class="wb-desc">直接播放设备上的视频文件</div></div>
+    </button>
+    <div class="menu-section">工具</div>
+    <button class="welcome-btn" onclick="openSources()">
+      <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      <div><div class="wb-title">订阅源管理</div><div class="wb-desc">添加、编辑、删除 M3U 订阅源</div></div>
+    </button>
+  </div>
+  <div id="urlInputArea">
+    <input id="srcUrl" placeholder="输入 M3U/M3U8 订阅源 URL">
+    <input id="srcName" placeholder="名称（可选）">
+    <button onclick="addSource()">添加</button>
+  </div>
+  <div style="margin-top:24px">
+    <button onclick="enterPlayer()" style="background:none;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:10px;padding:10px 28px;font-size:13px;cursor:pointer">跳过，直接进入</button>
+  </div>
+</div>
+
+<script>
+const API='';
+let channels=[],groups=[],currentIdx=-1,favorites=new Set(),sources=[];
+let chTab='sub',playHistory=[];
+const video=document.getElementById('video');
+let osdTimer=null,panelOpen=null,currentVolume=1;
+
+function loadFavorites(){try{const s=localStorage.getItem('iptv_fav');if(s)favorites=new Set(JSON.parse(s))}catch(e){}}
+function saveFavorites(){localStorage.setItem('iptv_fav',JSON.stringify([...favorites]))}
+function loadHistory(){try{const s=localStorage.getItem('iptv_hist');if(s)playHistory=JSON.parse(s)}catch(e){playHistory=[]}}
+function saveHistory(){localStorage.setItem('iptv_hist',JSON.stringify(playHistory.slice(0,100)))}
+
+async function fetchSources(){
+  try{const r=await fetch(API+'/api/sources');const d=await r.json();sources=d.success?d.sources||d.data||[]:[]}catch(e){sources=[]}
+}
+
+async function fetchChannels(){
+  try{const r=await fetch(API+'/api/channels?size=5000');const d=await r.json();if(d.success){channels=d.data.channels||[];groups=d.data.groups||[];renderChannelList()}}catch(e){}
+}
+
+async function fetchEPG(channelId){
+  try{const r=await fetch(API+'/api/epg?id='+encodeURIComponent(channelId));const d=await r.json();return d.success?d.data:[]}catch(e){return[]}
+}
+
+function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+
+function switchChTab(tab,btn){
+  chTab=tab;
+  document.querySelectorAll('.panel-tab').forEach(t=>t.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderChannelList(document.getElementById('searchInput').value);
+}
+
+function renderChannelList(filter=''){
+  const f=filter.toLowerCase();
+  let list=channels;
+  if(chTab==='fav')list=channels.filter((_,i)=>favorites.has(i));
+  else if(chTab==='hist')list=playHistory.map(idx=>channels[idx]).filter(Boolean);
+  else if(chTab==='local')list=channels.filter(c=>!c.url||!c.url.startsWith('http'));
+  let html='';
+  if(chTab==='sub'||chTab==='local'){
+    for(const g of groups){
+      let gc=channels.filter(c=>c.group===g);
+      if(chTab==='local')gc=gc.filter(c=>!c.url||!c.url.startsWith('http'));
+      if(f)gc=gc.filter(c=>c.name.toLowerCase().includes(f)||c.group.toLowerCase().includes(f));
+      if(!gc.length)continue;
+      html+=`<div class="group-item"><div class="group-header" onclick="toggleGroup(this)"><span>${esc(g)}</span><span class="count">${gc.length}</span></div><div class="group-channels">`;
+      for(const c of gc){
+        const idx=channels.indexOf(c);
+        html+=`<div class="ch-item ${idx===currentIdx?'playing':''}" onclick="playChannel(${idx})"><div class="ch-dot"></div><span>${esc(c.name)}</span></div>`;
+      }
+      html+='</div></div>';
+    }
+  } else {
+    if(f)list=list.filter(c=>c.name.toLowerCase().includes(f));
+    if(!list.length){html='<div style="padding:40px;text-align:center;color:rgba(255,255,255,.2);font-size:13px">'+(chTab==='fav'?'暂无收藏':'暂无历史')+'</div>'}
+    else{for(const c of list){
+      const idx=channels.indexOf(c);
+      html+=`<div class="ch-item ${idx===currentIdx?'playing':''}" onclick="playChannel(${idx})"><div class="ch-dot"></div><span>${esc(c.name)}</span><span style="font-size:11px;color:rgba(255,255,255,.25);margin-left:auto">${esc(c.group)}</span></div>`;
+    }}
+  }
+  if(!html)html='<div style="padding:40px;text-align:center;color:rgba(255,255,255,.2);font-size:13px">暂无频道</div>';
+  document.getElementById('channelList').innerHTML=html;
+}
+
+function renderEPGList(){
+  if(currentIdx<0){document.getElementById('epgList').innerHTML='<div style="padding:40px;text-align:center;color:rgba(255,255,255,.2);font-size:13px">请先选择频道</div>';return}
+  const ch=channels[currentIdx];
+  document.getElementById('epgList').innerHTML='<div class="spinner"></div>';
+  fetchEPG(ch.tvg_id||ch.name).then(p=>{
+    if(!p||!p.length){document.getElementById('epgList').innerHTML='<div style="padding:40px;text-align:center;color:rgba(255,255,255,.2);font-size:13px">暂无节目单</div>';return}
+    let h='';for(const e of p){h+=`<div class="epg-item"><div class="epg-time">${esc(e.start||'')} - ${esc(e.stop||'')}</div><div class="epg-title">${esc(e.title||'')}</div>${e.desc?`<div class="epg-desc">${esc(e.desc)}</div>`:''}</div>`}
+    document.getElementById('epgList').innerHTML=h;
+  });
+}
+
+function toggleGroup(el){el.nextElementSibling.classList.toggle('open')}
+
+function playChannel(idx){
+  if(idx<0||idx>=channels.length)return;
+  currentIdx=idx;const ch=channels[idx];
+  video.classList.add('active');
+  video.src=API+'/stream/'+idx;video.play().catch(()=>{});
+  showOSD(ch.name,ch.group);updateCtrlInfo();closePanels();
+  document.getElementById('centerIcon').classList.remove('show');
+  document.getElementById('welcomeScreen').classList.remove('show');
+  playHistory=playHistory.filter(i=>i!==idx);playHistory.unshift(idx);saveHistory();
+}
+
+function prevChannel(){if(currentIdx>0)playChannel(currentIdx-1)}
+function nextChannel(){if(currentIdx<channels.length-1)playChannel(currentIdx+1)}
+
+function togglePlay(){
+  if(video.paused){video.play();showCenterIcon('play')}
+  else{video.pause();showCenterIcon('pause')}
+}
+
+function stopPlay(){
+  video.pause();video.removeAttribute('src');video.load();video.classList.remove('active');
+  currentIdx=-1;
+  document.getElementById('centerIcon').classList.add('show');
+  document.getElementById('ctrlName').textContent='IPTV Scanner Editor Pro';
+  document.getElementById('ctrlGroup').textContent='打开播放列表或导入频道开始观看';
+  document.getElementById('ctrlProgram').textContent='';
+  document.getElementById('ctrlProgressFill').style.width='0%';
+  document.getElementById('ctrlVideoInfo').textContent='未在播放';
+  document.getElementById('ctrlAudioInfo').textContent='--';
+  document.getElementById('ctrlNetworkInfo').textContent='--';
+  closePanels();
+}
+
+function toggleMute(){
+  video.muted=!video.muted;
+  const btn=document.getElementById('ctrlMute');
+  if(video.muted){btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>'}
+  else{btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>'}
+}
+
+let playSpeed=1.0;
+function changeSpeed(){
+  const speeds=[0.5,0.75,1.0,1.25,1.5,2.0,3.0,5.0];
+  const idx=speeds.indexOf(playSpeed);
+  playSpeed=speeds[(idx+1)%speeds.length];
+  video.playbackRate=playSpeed;
+  document.getElementById('speedLabel').textContent=playSpeed+'x';
+  showOSD(channels[currentIdx]?.name||'','播放速度: '+playSpeed+'x');
+}
+
+function showCenterIcon(type){
+  const pf=document.getElementById('playFeedback');
+  const icon=document.getElementById('playFeedbackIcon');
+  if(type==='play'){icon.innerHTML='<path d="M8 5v14l11-7z"/>'}
+  else{icon.innerHTML='<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>'}
+  pf.classList.add('show');
+  clearTimeout(showCenterIcon._t);
+  showCenterIcon._t=setTimeout(()=>pf.classList.remove('show'),600);
+}
+
+function showOSD(name,group){
+  document.getElementById('osdName').textContent=name||'';
+  document.getElementById('osdGroup').textContent=group||'';
+  document.getElementById('osd').classList.add('show');
+  clearTimeout(osdTimer);osdTimer=setTimeout(()=>document.getElementById('osd').classList.remove('show'),3000);
+}
+
+function updateCtrlInfo(){
+  if(currentIdx>=0&&currentIdx<channels.length){
+    const ch=channels[currentIdx];
+    document.getElementById('ctrlName').textContent=ch.name;
+    document.getElementById('ctrlGroup').textContent=ch.group;
+    const logo=document.getElementById('ctrlLogo');
+    if(ch.logo){logo.innerHTML='<img src="'+esc(ch.logo)+'" onerror="this.outerHTML=\'📺\'">'}else{logo.innerHTML='📺'}
+  }
+  updateMediaInfo();
+}
+
+function updateMediaInfo(){
+  const vi=document.getElementById('ctrlVideoInfo');
+  const ai=document.getElementById('ctrlAudioInfo');
+  const ni=document.getElementById('ctrlNetworkInfo');
+  if(!video.src||video.src===location.href||video.readyState<1){
+    vi.textContent=currentIdx>=0?'加载中...':'未在播放';
+    ai.textContent='--';ni.textContent='--';return;
+  }
+  const w=video.videoWidth,h=video.videoHeight;
+  vi.textContent=w&&h?w+'x'+h:'视频';
+  ai.textContent='音频';
+  ni.textContent=currentIdx>=0?'IPTV':'本地';
+}
+
+function updateProgress(){
+  if(video.duration&&video.duration!==Infinity){
+    const pct=(video.currentTime/video.duration)*100;
+    document.getElementById('ctrlProgressFill').style.width=pct+'%';
+    document.getElementById('ctrlTimeStart').textContent=formatTime(video.currentTime);
+    document.getElementById('ctrlTimeEnd').textContent=formatTime(video.duration);
+  }
+}
+
+function formatTime(s){const m=Math.floor(s/60);const sec=Math.floor(s%60);return(m<10?'0':'')+m+':'+(sec<10?'0':'')+sec}
+
+setInterval(updateProgress,1000);
+
+function openPanel(which){
+  closePanels();panelOpen=which;
+  document.getElementById('panelOverlay').classList.add('show');
+  if(which==='channels'){document.getElementById('panelChannels').classList.add('open');renderChannelList()}
+  else if(which==='epg'){document.getElementById('panelEPG').classList.add('open');renderEPGList()}
+  else if(which==='controls'){document.getElementById('panelControls').classList.add('open');updateCtrlInfo()}
+}
+
+function closePanels(){
+  document.getElementById('panelChannels').classList.remove('open');
+  document.getElementById('panelEPG').classList.remove('open');
+  document.getElementById('panelControls').classList.remove('open');
+  document.getElementById('panelOverlay').classList.remove('show');
+  panelOpen=null;
+}
+
+function toggleFavorite(){
+  if(currentIdx<0)return;
+  if(favorites.has(currentIdx))favorites.delete(currentIdx);else favorites.add(currentIdx);
+  saveFavorites();showOSD(channels[currentIdx].name,favorites.has(currentIdx)?'已收藏':channels[currentIdx].group);
+}
+
+function enterPlayer(){document.getElementById('welcomeScreen').classList.remove('show')}
+function openUrlInput(){document.getElementById('urlInputArea').style.display='block'}
+
+function openLocalFile(){
+  const input=document.createElement('input');input.type='file';input.accept='.m3u,.m3u8,.txt';
+  input.onchange=async e=>{
+    const file=e.target.files[0];if(!file)return;
+    const text=await file.text();
+    try{
+      const r=await fetch(API+'/api/channels/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:text,name:file.name})});
+      document.getElementById('welcomeScreen').querySelector('.menu-section').parentElement.innerHTML='<div class="spinner"></div><p style="text-align:center;color:rgba(255,255,255,.4);margin-top:12px;font-size:13px">正在解析...</p>';
+      setTimeout(fetchChannels,2000);
+    }catch(err){alert('解析失败')}
+  };input.click();
+}
+
+function openLocalVideo(){
+  const input=document.createElement('input');input.type='file';input.accept='video/*,.mp4,.mkv,.avi,.mov,.flv,.ts,.webm';
+  input.onchange=e=>{
+    const file=e.target.files[0];if(!file)return;
+    const url=URL.createObjectURL(file);
+    video.classList.add('active');
+    video.src=url;video.play().catch(()=>{});
+    showOSD(file.name,'本地视频');
+    document.getElementById('welcomeScreen').classList.remove('show');
+    document.getElementById('centerIcon').classList.remove('show');
+  };input.click();
+}
+
+async function addSource(){
+  const url=document.getElementById('srcUrl').value.trim();const name=document.getElementById('srcName').value.trim()||url;
+  if(!url){alert('请输入 URL');return}
+  try{
+    const r=await fetch(API+'/api/sources',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,name})});
+    const d=await r.json();
+    if(d.success){document.getElementById('srcUrl').value='';document.getElementById('srcName').value='';document.getElementById('welcomeScreen').querySelector('.menu-section').parentElement.innerHTML='<div class="spinner"></div><p style="text-align:center;color:rgba(255,255,255,.4);margin-top:12px;font-size:13px">正在加载频道...</p>';setTimeout(fetchChannels,3000)}
+    else alert('添加失败');
+  }catch(e){alert('添加失败')}
+}
+
+function openSources(){
+  closePanels();setTimeout(()=>{
+    openPanel('epg');
+    let html='<div class="panel-titlebar"><span class="title">订阅源管理</span><button class="close-btn" onclick="closePanels()">&#10005;</button></div>';
+    html+='<div style="padding:12px"><input id="newSrcUrl" placeholder="M3U URL" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 12px;color:#e0e0e0;font-size:13px;outline:none;margin-bottom:6px"><input id="newSrcName" placeholder="名称（可选）" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 12px;color:#e0e0e0;font-size:13px;outline:none;margin-bottom:8px"><button onclick="addSrcFromPanel()" style="width:100%;background:#4a7eff;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">添加</button></div>';
+    html+='<div class="panel-body" style="padding:0 8px 12px">';
+    for(let i=0;i<sources.length;i++){const s=sources[i];html+=`<div style="display:flex;align-items:center;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04)"><div style="flex:1;min-width:0"><div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.name||s.url)}</div><div style="font-size:11px;color:rgba(255,255,255,.3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.url)}</div></div><button onclick="delSrc(${i})" style="background:none;border:none;color:#f44336;font-size:12px;cursor:pointer;padding:6px">删除</button></div>`}
+    if(!sources.length)html+='<div style="padding:20px;text-align:center;color:rgba(255,255,255,.2);font-size:13px">暂无订阅源</div>';
+    html+='</div>';
+    document.getElementById('panelEPG').innerHTML=html;
+  },350);
+}
+
+async function addSrcFromPanel(){
+  const url=document.getElementById('newSrcUrl').value.trim();const name=document.getElementById('newSrcName').value.trim()||url;
+  if(!url)return;
+  try{const r=await fetch(API+'/api/sources',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,name})});const d=await r.json();if(d.success){await fetchSources();openSources();setTimeout(fetchChannels,2000)}}catch(e){}
+}
+
+async function delSrc(idx){
+  try{await fetch(API+'/api/sources/'+idx,{method:'DELETE'});await fetchSources();openSources()}catch(e){}
+}
+
+document.getElementById('volumeSlider').addEventListener('input',e=>{
+  currentVolume=e.target.value/100;video.volume=currentVolume;
+});
+
+function showVolumeOSD(vol){
+  const osd=document.getElementById('volumeOSD');
+  document.getElementById('volVal').textContent=Math.round(vol*100);
+  osd.style.display='block';
+  clearTimeout(showVolumeOSD._t);
+  showVolumeOSD._t=setTimeout(()=>osd.style.display='none',1200);
+}
+
+let touchStartX=0,touchStartY=0,touchStartTime=0;
+document.getElementById('touchLayer').addEventListener('touchstart',e=>{
+  touchStartX=e.touches[0].clientX;touchStartY=e.touches[0].clientY;touchStartTime=Date.now();
+},{passive:true});
+
+document.getElementById('touchLayer').addEventListener('touchend',e=>{
+  if(panelOpen)return;
+  const dx=e.changedTouches[0].clientX-touchStartX;
+  const dy=e.changedTouches[0].clientY-touchStartY;
+  const dt=Date.now()-touchStartTime;
+  const w=window.innerWidth,h=window.innerHeight;
+  const sx=e.changedTouches[0].clientX,sy=e.changedTouches[0].clientY;
+
+  if(dt<250&&Math.abs(dx)<20&&Math.abs(dy)<20){
+    if(sx<w*0.35)openPanel('epg');
+    else if(sx>w*0.65)openPanel('channels');
+    else if(sy>h*0.7)openPanel('controls');
+    else togglePlay();
+    return;
+  }
+  if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)){
+    if(dx>0)openPanel('epg');else openPanel('channels');
+    return;
+  }
+  if(Math.abs(dy)>60&&Math.abs(dy)>Math.abs(dx)){
+    if(dy>0)openPanel('controls');
+    else if(currentIdx>=0)nextChannel();
+    return;
+  }
+},{passive:true});
+
+document.getElementById('touchLayer').addEventListener('click',e=>{
+  if(panelOpen)return;
+  const w=window.innerWidth,h=window.innerHeight;
+  if(e.clientX<w*0.35)openPanel('epg');
+  else if(e.clientX>w*0.65)openPanel('channels');
+  else if(e.clientY>h*0.7)openPanel('controls');
+  else togglePlay();
+});
+
+document.getElementById('panelOverlay').addEventListener('click',closePanels);
+
+video.addEventListener('play',()=>{document.getElementById('centerIcon').classList.remove('show');if(currentIdx>=0)showOSD(channels[currentIdx].name,channels[currentIdx].group)});
+video.addEventListener('pause',()=>{if(!video.src||video.src===location.href){document.getElementById('centerIcon').classList.add('show')}});
+video.addEventListener('loadedmetadata',updateMediaInfo);
+
+document.getElementById('searchInput').addEventListener('input',e=>renderChannelList(e.target.value));
+
+loadFavorites();loadHistory();fetchSources();fetchChannels();
+
+setTimeout(()=>{
+  const splash=document.getElementById('splashScreen');
+  splash.classList.add('fade-out');
+  setTimeout(()=>{
+    splash.style.display='none';
+    document.getElementById('centerIcon').classList.add('show');
+  },600);
+},2800);
+
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/mobile/sw.js').catch(()=>{})}
+</script>
+</body>
+</html>

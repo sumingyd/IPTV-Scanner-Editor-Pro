@@ -1,0 +1,4 @@
+-keep class com.chaquo.python.** { *; }
+-keep class com.iptv.scanner.editor.pro.** { *; }
+-dontwarn com.chaquo.python.**
+-dontwarn org.python.**

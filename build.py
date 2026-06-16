@@ -41,7 +41,8 @@ except ImportError:
 
 IS_WINDOWS = sys.platform == 'win32'
 IS_MACOS = sys.platform == 'darwin'
-IS_LINUX = sys.platform.startswith('linux')
+IS_LINUX = sys.platform.startswith('linux') and not getattr(sys, 'platform', '') == 'android'
+IS_ANDROID = getattr(sys, 'platform', '') == 'android' or 'ANDROID_ARGUMENT' in os.environ
 
 APP_NAME = "IPTV Scanner Editor Pro"
 BUNDLE_ID = "com.iptv-scanner-editor-pro.app"
@@ -52,6 +53,9 @@ if IS_WINDOWS:
 elif IS_MACOS:
     DATA_SEP = ':'
     ICON_PATH = str(PROJECT_ROOT / "resources" / "logo.icns") if (PROJECT_ROOT / "resources" / "logo.icns").exists() else None
+elif IS_ANDROID:
+    DATA_SEP = ':'
+    ICON_PATH = None
 elif IS_LINUX:
     DATA_SEP = ':'
     ICON_PATH = str(PROJECT_ROOT / "resources" / "logo.png") if (PROJECT_ROOT / "resources" / "logo.png").exists() else None
@@ -336,6 +340,42 @@ def build_linux():
     return cmd
 
 
+def prepare_android_dependencies():
+    mpv_dir = PROJECT_ROOT / "mpv"
+    mpv_dir.mkdir(exist_ok=True)
+    has_mpv = any((mpv_dir / name).exists() for name in ['libmpv.so', 'libmpv.so.2', 'libmpv.so.1'])
+    if not has_mpv:
+        print("提示: 未找到打包的libmpv.so，运行时将使用系统安装的libmpv")
+    else:
+        print(f"libmpv.so 已就绪: {mpv_dir}")
+
+    ffmpeg_dir = PROJECT_ROOT / "ffmpeg"
+    ffmpeg_dir.mkdir(exist_ok=True)
+    if not (ffmpeg_dir / "ffprobe").exists():
+        print("提示: 未找到 ffmpeg/ffprobe，部分功能可能受限")
+    else:
+        print(f"ffprobe 已就绪: {ffmpeg_dir / 'ffprobe'}")
+
+
+def build_android():
+    prepare_android_dependencies()
+    cmd = [
+        sys.executable, "-m", "PyInstaller",
+        "--onefile",
+        "--windowed",
+        "--name", APP_NAME,
+    ]
+    cmd.extend([
+        "--add-data", f"{PROJECT_ROOT / 'mpv'}{DATA_SEP}mpv",
+        "--add-data", f"{PROJECT_ROOT / 'ffmpeg'}{DATA_SEP}ffmpeg",
+        "--add-data", f"{PROJECT_ROOT / 'resources'}{DATA_SEP}resources",
+    ])
+    for imp in HIDDEN_IMPORTS:
+        cmd.extend(["--hidden-import", imp])
+    cmd.append(str(PROJECT_ROOT / "pyqt_player.py"))
+    return cmd
+
+
 def post_process_macos_app():
     app_path = PROJECT_ROOT / "dist" / f"{APP_NAME}.app"
     if not app_path.exists():
@@ -408,6 +448,8 @@ def clean_build():
 def run_build():
     if IS_MACOS:
         cmd = build_macos()
+    elif IS_ANDROID:
+        cmd = build_android()
     elif IS_LINUX:
         cmd = build_linux()
     else:
@@ -454,6 +496,8 @@ def run_build():
         if IS_MACOS:
             post_process_macos_app()
             print(f"打包完成! .app 位于: dist/{APP_NAME}.app")
+        elif IS_ANDROID:
+            print(f"打包完成! 可执行文件位于: dist/{APP_NAME}")
         elif IS_LINUX:
             print(f"打包完成! 可执行文件位于: dist/{APP_NAME}")
         else:
