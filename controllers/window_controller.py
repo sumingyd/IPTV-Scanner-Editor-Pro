@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt, QPoint, QSize
 from PySide6.QtGui import QPixmap, QIcon
 from ui.styles import AppStyles
 from controllers.main_window_protocol import MainWindowProtocol
+from utils.platform_utils import is_wayland, wayland_move
 
 
 class WindowController:
@@ -141,6 +142,7 @@ class WindowController:
         self._stay_on_top_active = not self._stay_on_top_active
         flags = self.window.windowFlags()
         color = AppStyles._get_colors().get('window_text', '#ffffff')
+        saved_pos = self.window.pos() if is_wayland() else None
         self.window.hide()
         if self._stay_on_top_active:
             self.window.setWindowFlags(flags | Qt.WindowType.WindowStaysOnTopHint)
@@ -160,6 +162,8 @@ class WindowController:
                 self._stay_on_top_btn.setIcon(QIcon(icon_path))
             self._stay_on_top_btn.setStyleSheet(self._title_btn_style())
         self.window.show()
+        if saved_pos is not None:
+            wayland_move(self.window, saved_pos.x(), saved_pos.y())
         self._sync_floating_panels_on_top()
 
     def _sync_floating_panels_on_top(self):
@@ -200,14 +204,17 @@ class WindowController:
                         pass
                     else:
                         self._dragging = True
-                        self._drag_offset = (event.globalPosition().toPoint() - self.window.frameGeometry().topLeft())
+                        if is_wayland():
+                            self._drag_offset = (event.globalPosition().toPoint() - self.window.pos())
+                        else:
+                            self._drag_offset = (event.globalPosition().toPoint() - self.window.frameGeometry().topLeft())
                         if self.window.isMaximized():
                             geo = self.window.geometry()
                             self.window.showNormal()
                             ratio = event.position().toPoint().x() / max(1, geo.width())
                             new_x = event.globalPosition().toPoint().x() - int(self.window.width() * ratio)
                             new_y = event.globalPosition().toPoint().y() - self._drag_offset.y()
-                            self.window.move(new_x, new_y)
+                            wayland_move(self.window, new_x, new_y)
                             self._drag_offset = event.globalPosition().toPoint() - self.window.pos()
                         event.accept()
                         return True
@@ -222,7 +229,7 @@ class WindowController:
         if self._dragging and self._drag_offset is not None:
             if event.buttons() & Qt.MouseButton.LeftButton:
                 new_pos = event.globalPosition().toPoint() - self._drag_offset
-                self.window.move(new_pos)
+                wayland_move(self.window, new_pos.x(), new_pos.y())
                 event.accept()
                 return True
 

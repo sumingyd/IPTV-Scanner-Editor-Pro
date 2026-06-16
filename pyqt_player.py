@@ -552,8 +552,12 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
     def _init_basic_ui(self):
         """创建最基础的UI框架：无边框窗口、容器、标题栏、内容区域"""
         logger.debug("创建最最基本的UI")
-        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Window)
-        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        from utils.platform_utils import is_wayland
+        if is_wayland():
+            self.setWindowFlags(QtCore.Qt.WindowType.Window)
+        else:
+            self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Window)
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setMouseTracking(True)
         self.setAcceptDrops(True)
 
@@ -951,7 +955,8 @@ if __name__ == "__main__":
             ww = int(cfg.get_value('UI', 'window_width') or 1280)
             wh = int(cfg.get_value('UI', 'window_height') or 780)
             sp = splash.size()
-            splash.move(wx + (ww - sp.width()) // 2, wy + (wh - sp.height()) // 2)
+            from utils.platform_utils import wayland_move
+            wayland_move(splash, wx + (ww - sp.width()) // 2, wy + (wh - sp.height()) // 2)
         except Exception:
             pass
         splash.show()

@@ -5,6 +5,7 @@ from PySide6.QtGui import QFont, QCursor
 from ui.floating_dialog import FloatingDialog
 from ui.styles import AppStyles
 from core.log_manager import global_logger as logger
+from utils.platform_utils import wayland_move
 
 
 class ReminderPopup(FloatingDialog):
@@ -137,7 +138,7 @@ class ReminderPopup(FloatingDialog):
                 y = min(y, p.y() - self.height() - gap)
         if y < geo.top() + margin:
             y = geo.top() + margin
-        self.move(x, y)
+        wayland_move(self, x, y)
 
     def _apply_theme(self):
         self.setStyleSheet(AppStyles.popup_dialog_style())

@@ -9,6 +9,7 @@ from PySide6.QtCore import QRect
 
 from core.log_manager import global_logger as logger
 from controllers.main_window_protocol import MainWindowProtocol
+from utils.platform_utils import is_wayland, wayland_move, wayland_set_geometry
 
 
 class PipButton:
@@ -206,7 +207,7 @@ class PipController:
             self.window.setMinimumSize(240, 135)
             self.window.setMaximumSize(16777215, 16777215)
             self.window.resize(pip_w, pip_h)
-            self.window.move(x, y)
+            wayland_move(self.window, x, y)
 
             self.window.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
             self.window.show()
@@ -259,7 +260,7 @@ class PipController:
             if self._pip_saved_maximized:
                 self.window.showMaximized()
             elif self._pip_saved_geometry is not None:
-                self.window.setGeometry(self._pip_saved_geometry)
+                wayland_set_geometry(self.window, self._pip_saved_geometry.x(), self._pip_saved_geometry.y(), self._pip_saved_geometry.width(), self._pip_saved_geometry.height())
 
             self._pip_dragging = False
             self._pip_resizing = False
@@ -307,11 +308,13 @@ class PipController:
     def _create_overlay(self):
         from PySide6.QtWidgets import QWidget
 
+        if is_wayland():
+            overlay_flags = Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint
+        else:
+            overlay_flags = Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint
         self._pip_overlay_widget = QWidget(
             self.window,
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.Tool |
-            Qt.WindowType.WindowStaysOnTopHint
+            overlay_flags
         )
         self._pip_overlay_widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self._pip_overlay_widget.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
@@ -380,7 +383,10 @@ class PipController:
                 return True
             else:
                 self._pip_dragging = True
-                self._pip_drag_pos = event.globalPosition().toPoint() - self.window.frameGeometry().topLeft()
+                if is_wayland():
+                    self._pip_drag_pos = event.globalPosition().toPoint() - self.window.pos()
+                else:
+                    self._pip_drag_pos = event.globalPosition().toPoint() - self.window.frameGeometry().topLeft()
                 return True
         return False
 
@@ -390,7 +396,7 @@ class PipController:
 
         if self._pip_dragging and self._pip_drag_pos is not None:
             new_pos = event.globalPosition().toPoint() - self._pip_drag_pos
-            self.window.move(new_pos)
+            wayland_move(self.window, new_pos.x(), new_pos.y())
             return True
 
         if self._pip_resizing and self._pip_resize_edge:
@@ -417,7 +423,7 @@ class PipController:
             new_w = geo.width() - dx_left + dx_right
             new_h = geo.height() - dy_top + dy_bottom
 
-            self.window.setGeometry(new_x, new_y, max(min_w, new_w), max(min_h, new_h))
+            wayland_set_geometry(self.window, new_x, new_y, max(min_w, new_w), max(min_h, new_h))
             self._update_overlay_geometry()
             self._update_video_geometry()
             return True
@@ -497,7 +503,7 @@ class PipController:
 
         vw = video_widget
         top_left = vw.mapToGlobal(vw.rect().topLeft())
-        overlay.setGeometry(top_left.x(), top_left.y(), vw.width(), vw.height())
+        wayland_set_geometry(overlay, top_left.x(), top_left.y(), vw.width(), vw.height())
 
         btn_size = 44
         spacing = 16

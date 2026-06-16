@@ -2,6 +2,7 @@ from typing import Any, Dict
 
 from PySide6.QtCore import QTimer
 from core.log_manager import global_logger as logger
+from utils.platform_utils import wayland_set_geometry
 
 
 class PlaybackMixin:
@@ -127,7 +128,7 @@ class PlaybackMixin:
             new_x = center_x - new_window_width // 2
             new_y = center_y - current_height // 2
 
-            self.setGeometry(new_x, new_y, new_window_width, current_height)
+            wayland_set_geometry(self, new_x, new_y, new_window_width, current_height)
 
         except Exception as e:
             logger.debug(f"调整窗口大小异常: {e}")

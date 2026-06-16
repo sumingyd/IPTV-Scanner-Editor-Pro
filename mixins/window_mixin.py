@@ -2,6 +2,7 @@ from PySide6.QtWidgets import QDialog
 
 from core.log_manager import global_logger as logger
 from ui.styles import AppStyles
+from utils.platform_utils import is_wayland, wayland_move, wayland_set_geometry
 
 
 class WindowMixin:
@@ -97,7 +98,7 @@ class WindowMixin:
         if hasattr(self, 'epg_dock') and self.epg_dock:
             if not hasattr(self, '_epg_dock_w') or self._epg_dock_w <= 0:
                 self._epg_dock_w = self.epg_dock.width()
-            self.epg_dock.move(mw_x + gap, side_top)
+            wayland_move(self.epg_dock, mw_x + gap, side_top)
             self.epg_dock.setMinimumHeight(max(150, side_h))
             self.epg_dock.setMaximumHeight(max(150, side_h))
             self.epg_dock.setFixedWidth(self._epg_dock_w)
@@ -106,7 +107,7 @@ class WindowMixin:
             if not hasattr(self, '_playlist_dock_w') or self._playlist_dock_w <= 0:
                 self._playlist_dock_w = self.playlist_dock.width()
             pl_w = self._playlist_dock_w
-            self.playlist_dock.move(mw_x + mw_w - pl_w - gap, side_top)
+            wayland_move(self.playlist_dock, mw_x + mw_w - pl_w - gap, side_top)
             self.playlist_dock.setMinimumHeight(max(150, side_h))
             self.playlist_dock.setMaximumHeight(max(150, side_h))
             self.playlist_dock.setFixedWidth(pl_w)
@@ -116,7 +117,7 @@ class WindowMixin:
             self.floating_dock.setMinimumWidth(max(fl_w, 360))
             fl_x = mw_x + (mw_w - self.floating_dock.width()) // 2
             fl_y = mw_y + mw_h - control_panel_h - status_bar_h - gap
-            self.floating_dock.move(fl_x, fl_y)
+            wayland_move(self.floating_dock, fl_x, fl_y)
 
     def toggle_fullscreen(self, checked=None):
         if checked is not None and self.fullscreen_button.isCheckable():
@@ -145,7 +146,7 @@ class WindowMixin:
             screen = self.screen()
             if screen:
                 geo = screen.geometry()
-                self.setGeometry(geo)
+                wayland_set_geometry(self, geo.x(), geo.y(), geo.width(), geo.height())
             logger.debug(f"进入全屏后: geometry={self.geometry().getRect()}, isFullScreen={self.isFullScreen()}")
             self.unsetCursor()
             is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
@@ -160,7 +161,7 @@ class WindowMixin:
             self.showNormal()
             saved_geo = getattr(self, '_before_fullscreen_geo', None)
             if saved_geo:
-                self.setGeometry(saved_geo)
+                wayland_set_geometry(self, saved_geo.x(), saved_geo.y(), saved_geo.width(), saved_geo.height())
             logger.debug(f"退出全屏后: geometry={self.geometry().getRect()}, isFullScreen={self.isFullScreen()}")
             if saved:
                 if saved.get('title_bar', True) and hasattr(self, '_title_bar') and self._title_bar:
@@ -234,7 +235,7 @@ class WindowMixin:
                 dialog_size = dialog.size()
                 x = (screen_geometry.width() - dialog_size.width()) // 2 + screen_geometry.x()
                 y = (screen_geometry.height() - dialog_size.height()) // 2 + screen_geometry.y()
-                dialog.move(x, y)
+                wayland_move(dialog, x, y)
 
     def showEvent(self, event):
         if hasattr(self, 'event_handler') and self.event_handler:

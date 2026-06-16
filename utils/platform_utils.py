@@ -14,6 +14,56 @@ def is_linux():
     return sys.platform.startswith('linux') and not is_android()
 
 
+def is_wayland():
+    if not is_linux():
+        return False
+    session_type = os.environ.get('XDG_SESSION_TYPE', '').lower()
+    if session_type == 'wayland':
+        return True
+    qt_qpa = os.environ.get('QT_QPA_PLATFORM', '').lower()
+    if qt_qpa == 'wayland':
+        return True
+    if session_type == 'x11':
+        return False
+    wayland_display = os.environ.get('WAYLAND_DISPLAY', '')
+    if wayland_display:
+        return True
+    return False
+
+
+def wayland_move(widget, x, y):
+    if not is_wayland():
+        widget.move(x, y)
+        return
+    try:
+        window_handle = widget.windowHandle()
+        if window_handle is None:
+            widget.createWinId()
+            window_handle = widget.windowHandle()
+        if window_handle:
+            from PySide6.QtCore import QPoint
+            window_handle.setPosition(QPoint(x, y))
+    except Exception:
+        widget.move(x, y)
+
+
+def wayland_set_geometry(widget, x, y, w, h):
+    if not is_wayland():
+        widget.setGeometry(x, y, w, h)
+        return
+    try:
+        window_handle = widget.windowHandle()
+        if window_handle is None:
+            widget.createWinId()
+            window_handle = widget.windowHandle()
+        if window_handle:
+            from PySide6.QtCore import QPoint
+            window_handle.setPosition(QPoint(x, y))
+        widget.resize(w, h)
+    except Exception:
+        widget.setGeometry(x, y, w, h)
+
+
 def is_android():
     return getattr(sys, 'platform', '') == 'android' or 'ANDROID_ARGUMENT' in os.environ
 

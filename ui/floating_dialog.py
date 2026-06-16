@@ -5,7 +5,7 @@ from PySide6.QtGui import QPainter, QColor, QPainterPath, QCursor, QIcon, QBitma
 from PySide6.QtCore import Qt, QRectF, QSize
 import PySide6.QtCore as QtCore
 import sys
-from utils.platform_utils import is_windows, is_macos, is_android
+from utils.platform_utils import is_windows, is_macos, is_android, is_wayland, wayland_move
 
 
 def _hide_from_taskbar(window):
@@ -71,7 +71,10 @@ class FloatingDockWidget(QDockWidget):
 
     def _on_floating_changed(self, floating):
         if floating:
-            flags = Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool
+            if is_wayland():
+                flags = Qt.WindowType.Tool
+            else:
+                flags = Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool
             if self.parent() and (self.parent().windowFlags() & Qt.WindowType.WindowStaysOnTopHint):
                 flags |= Qt.WindowType.WindowStaysOnTopHint
             from ui.styles import AppStyles
@@ -369,10 +372,10 @@ class FloatingDialog(QDialog):
             flags |= Qt.WindowType.WindowStaysOnTopHint
         if tool_window:
             flags |= Qt.WindowType.Tool
-        if frameless:
+        if frameless and not is_wayland():
             flags |= Qt.WindowType.FramelessWindowHint
         self.setWindowFlags(flags)
-        if frameless:
+        if frameless and not is_wayland():
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -418,12 +421,15 @@ class FloatingDialog(QDialog):
                         return
                     w = w.parent()
             self.dragging = True
-            self.offset = event.position().toPoint()
+            if is_wayland():
+                self.offset = event.globalPosition().toPoint() - self.pos()
+            else:
+                self.offset = event.position().toPoint()
 
     def mouseMoveEvent(self, event):
         if self.dragging and self.offset is not None:
             new_position = event.globalPosition().toPoint() - self.offset
-            self.move(new_position)
+            wayland_move(self, new_position.x(), new_position.y())
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
