@@ -87,39 +87,34 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
 .epg-item .epg-title{font-size:13px;margin-top:2px;color:rgba(255,255,255,.8)}
 .epg-item .epg-desc{font-size:11px;color:rgba(255,255,255,.35);margin-top:1px}
 
-.ctrl-media-row{display:flex;align-items:center;gap:4px;padding:8px 16px;border-bottom:1px solid rgba(255,255,255,.06);flex-wrap:wrap}
-.ctrl-media-text{font-size:11px;color:rgba(255,255,255,.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px}
+.ctrl-media-row{display:flex;align-items:center;gap:4px;padding:8px 16px;border-bottom:none;flex-wrap:wrap}
+.ctrl-media-text{font-size:11px;color:rgba(255,255,255,.5);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:4px;padding:2px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px}
 
-.ctrl-info-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
-.ctrl-ch-logo{width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:18px;color:rgba(255,255,255,.3);flex-shrink:0;overflow:hidden}
-.ctrl-ch-logo img{width:100%;height:100%;object-fit:cover}
+.ctrl-line{height:1px;background:rgba(255,255,255,.06);margin:0 12px}
+
+.ctrl-info-row{display:flex;align-items:flex-start;gap:12px;padding:10px 16px}
+.ctrl-ch-logo{width:100px;height:36px;border-radius:6px;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;font-size:16px;color:rgba(255,255,255,.3);flex-shrink:0;overflow:hidden}
+.ctrl-ch-logo img{width:100%;height:100%;object-fit:contain}
 .ctrl-ch-detail{flex:1;min-width:0}
-.ctrl-ch-name-row{display:flex;align-items:center;gap:8px}
-.ctrl-ch-name{font-size:14px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ctrl-ch-group{font-size:11px;color:rgba(255,255,255,.35);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ctrl-ch-program{font-size:11px;color:#4a7eff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctrl-ch-name-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctrl-ch-name{font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctrl-ch-program{font-size:12px;color:#4a7eff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.ctrl-time-badge{font-size:11px;color:rgba(255,255,255,.5);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:4px;padding:2px 8px;white-space:nowrap}
+.ctrl-status-badge{font-size:11px;color:rgba(255,255,255,.5);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:4px;padding:2px 8px;white-space:nowrap;min-width:70px;text-align:right}
+.ctrl-ch-desc{font-size:11px;color:rgba(255,255,255,.35);margin-top:3px;max-height:36px;overflow:hidden;line-height:1.4}
 
-.ctrl-progress-row{display:flex;align-items:center;gap:8px;padding:8px 16px}
-.ctrl-time{font-size:11px;color:rgba(255,255,255,.35);flex-shrink:0;min-width:36px}
-.ctrl-progress-bar{flex:1;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+.ctrl-control-row{display:flex;align-items:center;gap:6px;padding:8px 12px;flex-wrap:wrap}
+.ctrl-tool-btn{width:36px;height:32px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#e0e0e0;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ctrl-tool-btn:active{background:rgba(255,255,255,.12)}
+.ctrl-tool-btn svg{width:18px;height:18px;fill:rgba(255,255,255,.7)}
+.ctrl-tool-btn.text-btn{width:auto;padding:0 10px;font-size:12px;font-weight:600;color:rgba(255,255,255,.7)}
+
+.ctrl-prog-label{font-size:11px;color:rgba(255,255,255,.35);flex-shrink:0;min-width:32px;text-align:center}
+.ctrl-progress-bar{flex:1;min-width:60px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
 .ctrl-progress-fill{height:100%;background:#4a7eff;border-radius:2px;width:0%;transition:width .5s}
 
-.ctrl-buttons{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 16px}
-.ctrl-btn{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#e0e0e0;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.ctrl-btn:active{background:rgba(255,255,255,.12)}
-.ctrl-btn svg{width:22px;height:22px;fill:#e0e0e0}
-.ctrl-btn.primary{width:56px;height:56px;background:#4a7eff;border-color:transparent}
-.ctrl-btn.primary svg{fill:#fff;width:26px;height:26px}
-
-.ctrl-bottom-row{display:flex;align-items:center;justify-content:center;gap:10px;padding:4px 12px 12px;flex-wrap:wrap}
-.ctrl-btn-sm{height:36px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.6);cursor:pointer;display:flex;align-items:center;gap:6px;padding:0 14px;font-size:12px}
-.ctrl-btn-sm:active{background:rgba(255,255,255,.12)}
-.ctrl-btn-sm svg{width:16px;height:16px;fill:rgba(255,255,255,.6)}
-
-.ctrl-volume{padding:0 20px 12px;display:flex;align-items:center;gap:10px}
-.ctrl-volume svg{width:18px;height:18px;fill:rgba(255,255,255,.4);flex-shrink:0}
-.ctrl-volume input[type=range]{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;background:rgba(255,255,255,.12);outline:none}
-.ctrl-volume input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#4a7eff;cursor:pointer}
+.ctrl-vol-slider{width:70px;-webkit-appearance:none;height:4px;border-radius:2px;background:rgba(255,255,255,.12);outline:none;flex-shrink:0}
+.ctrl-vol-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#4a7eff;cursor:pointer}
 
 #welcomeScreen{position:fixed;inset:0;background:#1a1a1a;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px}
 #welcomeScreen.show{display:flex}
@@ -201,39 +196,35 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
     <span class="ctrl-media-text" id="ctrlAudioInfo">--</span>
     <svg viewBox="0 0 24 24" width="14" height="14" fill="rgba(255,255,255,.35)"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
     <span class="ctrl-media-text" id="ctrlNetworkInfo">--</span>
+    <span class="ctrl-media-text" id="ctrlBufferInfo" style="display:none"></span>
   </div>
+  <div class="ctrl-line"></div>
   <div class="ctrl-info-row">
     <div class="ctrl-ch-logo" id="ctrlLogo"></div>
     <div class="ctrl-ch-detail">
       <div class="ctrl-ch-name-row">
         <span class="ctrl-ch-name" id="ctrlName">IPTV Scanner Editor Pro</span>
         <span class="ctrl-ch-program" id="ctrlProgram"></span>
+        <span class="ctrl-time-badge" id="ctrlTimeLabel">--:-- - --:--</span>
+        <span class="ctrl-status-badge" id="ctrlRemain">等待播放...</span>
       </div>
-      <div class="ctrl-ch-group" id="ctrlGroup">打开播放列表或导入频道开始观看</div>
+      <div class="ctrl-ch-desc" id="ctrlDesc">打开播放列表或导入频道开始观看</div>
     </div>
   </div>
-  <div class="ctrl-progress-row">
-    <span class="ctrl-time" id="ctrlTimeStart">00:00</span>
+  <div class="ctrl-line"></div>
+  <div class="ctrl-control-row">
+    <button class="ctrl-tool-btn" onclick="togglePlay()" title="播放/暂停" id="ctrlPlay"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+    <button class="ctrl-tool-btn" onclick="stopPlay()" title="停止"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
+    <button class="ctrl-tool-btn" onclick="prevChannel()" title="上一频道"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+    <button class="ctrl-tool-btn" onclick="nextChannel()" title="下一频道"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+    <span class="ctrl-prog-label" id="ctrlTimeStart">--:--</span>
     <div class="ctrl-progress-bar"><div class="ctrl-progress-fill" id="ctrlProgressFill"></div></div>
-    <span class="ctrl-time" id="ctrlTimeEnd">--:--</span>
-  </div>
-  <div class="ctrl-buttons">
-    <button class="ctrl-btn" onclick="prevChannel()" title="上一频道"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
-    <button class="ctrl-btn" onclick="stopPlay()" title="停止"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
-    <button class="ctrl-btn primary" id="ctrlPlay" onclick="togglePlay()" title="播放/暂停"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
-    <button class="ctrl-btn" onclick="nextChannel()" title="下一频道"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
-    <button class="ctrl-btn" id="ctrlMute" onclick="toggleMute()" title="静音"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg></button>
-  </div>
-  <div class="ctrl-volume">
-    <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
-    <input type="range" id="volumeSlider" min="0" max="100" value="100">
-    <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-  </div>
-  <div class="ctrl-bottom-row">
-    <button class="ctrl-btn-sm" onclick="toggleFavorite()"><svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3z"/></svg>收藏</button>
-    <button class="ctrl-btn-sm" onclick="changeSpeed()"><svg viewBox="0 0 24 24"><path d="M10 8v8l6-4-6-4zM6.3 5L5 6.3 6.3 5zM2 12l1.3 1.3L2 12zm4.3 7L5 17.7 6.3 19zM12 22l1.3-1.3L12 22zm5.7-3L19 17.7 17.7 19zM22 12l-1.3-1.3L22 12zm-4.3-7L19 6.3 17.7 5zM12 2l-1.3 1.3L12 2z"/></svg><span id="speedLabel">1.0x</span></button>
-    <button class="ctrl-btn-sm" onclick="openSources()"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>源管理</button>
-    <button class="ctrl-btn-sm" onclick="openLocalFile()"><svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 10H6v-2h8v2zm4-4H6v-2h12v2z"/></svg>打开</button>
+    <span class="ctrl-prog-label" id="ctrlTimeEnd">--:--</span>
+    <button class="ctrl-tool-btn" id="ctrlMute" onclick="toggleMute()" title="音量"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg></button>
+    <input type="range" class="ctrl-vol-slider" id="volumeSlider" min="0" max="100" value="100">
+    <button class="ctrl-tool-btn text-btn" onclick="changeSpeed()" title="播放速度"><span id="speedLabel">1.0x</span></button>
+    <button class="ctrl-tool-btn" onclick="cycleAudio()" title="音轨"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg></button>
+    <button class="ctrl-tool-btn" onclick="cycleSub()" title="字幕"><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm0 4h8v2H6zm10 0h2v2h-2zm-6-4h8v2h-8z"/></svg></button>
   </div>
 </div>
 
@@ -403,12 +394,14 @@ function stopPlay(){
   currentIdx=-1;
   document.getElementById('centerIcon').classList.add('show');
   document.getElementById('ctrlName').textContent='IPTV Scanner Editor Pro';
-  document.getElementById('ctrlGroup').textContent='打开播放列表或导入频道开始观看';
+  document.getElementById('ctrlDesc').textContent='打开播放列表或导入频道开始观看';
   document.getElementById('ctrlProgram').textContent='';
   document.getElementById('ctrlProgressFill').style.width='0%';
   document.getElementById('ctrlVideoInfo').textContent='未在播放';
   document.getElementById('ctrlAudioInfo').textContent='--';
   document.getElementById('ctrlNetworkInfo').textContent='--';
+  document.getElementById('ctrlRemain').textContent='等待播放...';
+  document.getElementById('ctrlTimeLabel').textContent='--:-- - --:--';
   closePanels();
 }
 
@@ -418,6 +411,9 @@ function toggleMute(){
   if(mpvMuted){btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>'}
   else{btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>'}
 }
+
+function cycleAudio(){if(USE_MPV){AndroidMpv.cycleAudio()}}
+function cycleSub(){if(USE_MPV){AndroidMpv.cycleSub()}}
 
 let playSpeed=1.0;
 function changeSpeed(){
@@ -450,7 +446,7 @@ function updateCtrlInfo(){
   if(currentIdx>=0&&currentIdx<channels.length){
     const ch=channels[currentIdx];
     document.getElementById('ctrlName').textContent=ch.name;
-    document.getElementById('ctrlGroup').textContent=ch.group;
+    document.getElementById('ctrlDesc').textContent=ch.group;
     const logo=document.getElementById('ctrlLogo');
     if(ch.logo){logo.innerHTML='<img src="'+esc(ch.logo)+'" onerror="this.outerHTML=\'📺\'">'}else{logo.innerHTML='📺'}
   }
@@ -473,6 +469,9 @@ function updateProgress(){
     document.getElementById('ctrlProgressFill').style.width=pct+'%';
     document.getElementById('ctrlTimeStart').textContent=formatTime(mpvTimePos);
     document.getElementById('ctrlTimeEnd').textContent=formatTime(mpvDuration);
+    document.getElementById('ctrlTimeLabel').textContent=formatTime(mpvTimePos)+' - '+formatTime(mpvDuration);
+    const remain=mpvDuration-mpvTimePos;
+    document.getElementById('ctrlRemain').textContent='-'+formatTime(remain);
   }
 }
 
