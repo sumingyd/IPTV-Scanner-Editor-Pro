@@ -12,7 +12,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
 
 #splashScreen{position:fixed;inset:0;z-index:100;background:#1a1a1a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s ease}
 #splashScreen.fade-out{opacity:0;pointer-events:none}
-#splashScreen .splash-logo{width:96px;height:96px;opacity:0;transform:scale(.7);animation:splashIn .8s .2s ease forwards}
+#splashScreen .splash-logo{width:96px;height:96px;opacity:0;transform:scale(.7);animation:splashIn .8s .2s ease forwards;border-radius:20px}
 #splashScreen h1{font-size:22px;font-weight:700;color:#fff;opacity:0;transform:translateY(10px);animation:splashTextIn .6s .6s ease forwards}
 #splashScreen .splash-sub{font-size:12px;color:rgba(255,255,255,.3);margin-top:4px;opacity:0;animation:splashTextIn .6s .8s ease forwards}
 #splashScreen .splash-bar{width:120px;height:3px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:24px;overflow:hidden;opacity:0;animation:splashTextIn .4s 1s ease forwards}
@@ -26,7 +26,7 @@ video#video.active{display:block}
 
 #centerIcon{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none;opacity:0;transition:opacity .4s}
 #centerIcon.show{opacity:1}
-#centerIcon svg{width:80px;height:80px;fill:rgba(255,255,255,.12);filter:drop-shadow(0 2px 12px rgba(0,0,0,.4))}
+#centerIcon img{width:80px;height:80px;border-radius:16px;display:block;filter:drop-shadow(0 2px 12px rgba(0,0,0,.4))}
 
 #playFeedback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6;pointer-events:none;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
 #playFeedback.show{opacity:1}
@@ -122,7 +122,7 @@ video#video.active{display:block}
 
 #welcomeScreen{position:fixed;inset:0;background:#1a1a1a;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px}
 #welcomeScreen.show{display:flex}
-#welcomeScreen .logo{width:72px;height:72px;margin-bottom:16px;opacity:.6}
+#welcomeScreen .logo{width:72px;height:72px;margin-bottom:16px;opacity:.6;border-radius:14px}
 #welcomeScreen h1{font-size:20px;font-weight:700;margin-bottom:6px;color:#fff}
 #welcomeScreen .sub{font-size:13px;color:rgba(255,255,255,.4);margin-bottom:28px}
 
@@ -151,13 +151,7 @@ video#video.active{display:block}
 <body>
 
 <div id="splashScreen">
-  <svg class="splash-logo" viewBox="0 0 128 128" fill="none">
-    <rect x="8" y="24" width="112" height="80" rx="12" fill="rgba(74,126,255,.15)" stroke="#4a7eff" stroke-width="2.5"/>
-    <rect x="20" y="36" width="88" height="52" rx="4" fill="rgba(74,126,255,.08)"/>
-    <polygon points="52,46 52,78 80,62" fill="#4a7eff" opacity=".8"/>
-    <rect x="48" y="104" width="32" height="4" rx="2" fill="rgba(255,255,255,.15)"/>
-    <circle cx="64" cy="16" r="4" fill="#4a7eff" opacity=".5"/>
-  </svg>
+  <img class="splash-logo" src="logo.png" alt="">
   <h1>IPTV Scanner Editor Pro</h1>
   <div class="splash-sub">v47.1</div>
   <div class="splash-bar"><div class="splash-bar-fill"></div></div>
@@ -166,11 +160,7 @@ video#video.active{display:block}
 <video id="video" playsinline></video>
 
 <div id="centerIcon">
-  <svg viewBox="0 0 128 128" fill="none">
-    <rect x="8" y="24" width="112" height="80" rx="12" fill="rgba(74,126,255,.08)" stroke="rgba(74,126,255,.3)" stroke-width="2"/>
-    <polygon points="52,46 52,78 80,62" fill="rgba(74,126,255,.4)"/>
-    <rect x="48" y="104" width="32" height="4" rx="2" fill="rgba(255,255,255,.08)"/>
-  </svg>
+  <img src="logo.png" alt="">
 </div>
 
 <div id="playFeedback">
@@ -254,11 +244,7 @@ video#video.active{display:block}
 </div>
 
 <div id="welcomeScreen">
-  <svg class="logo" viewBox="0 0 128 128" fill="none" width="72" height="72">
-    <rect x="8" y="24" width="112" height="80" rx="12" fill="rgba(74,126,255,.15)" stroke="#4a7eff" stroke-width="2.5"/>
-    <polygon points="52,46 52,78 80,62" fill="#4a7eff" opacity=".8"/>
-    <rect x="48" y="104" width="32" height="4" rx="2" fill="rgba(255,255,255,.15)"/>
-  </svg>
+  <img class="logo" src="logo.png" alt="">
   <h1>IPTV Scanner Editor Pro</h1>
   <div class="sub">v47.1</div>
   <div style="width:100%;max-width:380px;margin-top:24px">

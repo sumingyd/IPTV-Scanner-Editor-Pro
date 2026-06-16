@@ -153,7 +153,7 @@ def _register_mobile_routes(app, base_dir):
         content_type = _MIME_TYPES.get(ext, 'application/octet-stream')
         with open(file_path, 'rb') as f:
             content = f.read()
-        return web.Response(body=content, content_type=content_type)
+        return web.Response(body=content, content_type=content_type, headers={'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache','Expires':'0'})
 
     app.router.add_get('/mobile/', _handle_mobile)
     app.router.add_get('/mobile/{path:.*}', _handle_mobile)
