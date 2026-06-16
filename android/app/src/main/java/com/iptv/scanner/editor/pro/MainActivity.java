@@ -1,27 +1,33 @@
 package com.iptv.scanner.editor.pro;
 
 import android.annotation.SuppressLint;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-
+import android.widget.FrameLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
-
+import com.iptv.scanner.editor.pro.mpv.MPVLib;
+import com.iptv.scanner.editor.pro.mpv.MPVView;
+import com.iptv.scanner.editor.pro.mpv.MpvJsBridge;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "IPTVMainActivity";
+    private MPVView mpvView;
     private WebView webView;
+    private MpvJsBridge mpvBridge;
     private Thread serverThread;
     private volatile boolean serverReady = false;
 
@@ -31,32 +37,40 @@ public class MainActivity extends AppCompatActivity {
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+        FrameLayout layout = new FrameLayout(this);
 
-        startServer();
+        mpvView = new MPVView(this);
+        layout.addView(mpvView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
 
         webView = new WebView(this);
-        setContentView(webView);
-        setupWebView();
+        webView.setBackgroundColor(Color.TRANSPARENT);
+        layout.addView(webView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
 
+        setContentView(layout);
+
+        setupMPV();
+        setupWebView();
+        startServer();
         waitForServerAndLoad();
     }
 
-    private void startServer() {
-        serverThread = new Thread(() -> {
-            try {
-                Log.i(TAG, "Starting Python server...");
-                Python py = Python.getInstance();
-                py.getModule("android_bridge").callAttr("start_server");
-            } catch (Exception e) {
-                Log.e(TAG, "Server start failed", e);
-            }
-        }, "IPTVServer");
-        serverThread.setDaemon(true);
-        serverThread.start();
+    private void setupMPV() {
+        String configDir = getDir("mpv_config", MODE_PRIVATE).getAbsolutePath();
+        String cacheDir = getCacheDir().getAbsolutePath();
+        mpvView.initialize(configDir, cacheDir);
+
+        mpvBridge = new MpvJsBridge(mpvView, webView);
+        mpvBridge.register();
     }
 
     @SuppressLint("SetJavaScriptEnabled")
     private void setupWebView() {
+        webView.clearCache(true);
+        webView.clearHistory();
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
@@ -88,6 +102,20 @@ public class MainActivity extends AppCompatActivity {
         webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
     }
 
+    private void startServer() {
+        serverThread = new Thread(() -> {
+            try {
+                Log.i(TAG, "Starting Python server...");
+                Python py = Python.getInstance();
+                py.getModule("android_bridge").callAttr("start_server");
+            } catch (Exception e) {
+                Log.e(TAG, "Server start failed", e);
+            }
+        }, "IPTVServer");
+        serverThread.setDaemon(true);
+        serverThread.start();
+    }
+
     private void waitForServerAndLoad() {
         new Thread(() -> {
             Log.i(TAG, "Waiting for server...");
@@ -102,7 +130,7 @@ public class MainActivity extends AppCompatActivity {
                     conn.disconnect();
                     if (code == 200) {
                         serverReady = true;
-                        Log.i(TAG, "Server ready after " + (i+1) + "s");
+                        Log.i(TAG, "Server ready after " + (i + 1) + "s");
                         break;
                     }
                 } catch (Exception ignored) {
@@ -112,7 +140,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.i(TAG, "Loading mobile URL in WebView");
                 runOnUiThread(() -> {
                     try {
-                        webView.loadUrl("http://127.0.0.1:8080/mobile/");
+                        webView.loadUrl("http://127.0.0.1:8080/mobile/?v=" + System.currentTimeMillis());
                         Log.i(TAG, "loadUrl called successfully");
                     } catch (Exception e) {
                         Log.e(TAG, "loadUrl failed", e);
@@ -138,6 +166,12 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (mpvBridge != null) {
+            mpvBridge.unregister();
+        }
+        if (mpvView != null) {
+            mpvView.destroy();
+        }
         if (webView != null) {
             webView.destroy();
         }

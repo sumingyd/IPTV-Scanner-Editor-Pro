@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1a1a1a">
 <title>IPTV Scanner Editor Pro</title>
@@ -21,8 +24,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
 @keyframes splashTextIn{to{opacity:1;transform:translateY(0)}}
 @keyframes splashLoad{to{width:100%}}
 
-video#video{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:transparent;z-index:1;display:none}
-video#video.active{display:block}
 
 #centerIcon{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none;opacity:0;transition:opacity .4s}
 #centerIcon.show{opacity:1}
@@ -157,7 +158,6 @@ video#video.active{display:block}
   <div class="splash-bar"><div class="splash-bar-fill"></div></div>
 </div>
 
-<video id="video" playsinline></video>
 
 <div id="centerIcon">
   <img src="logo.png" alt="">
@@ -279,10 +279,11 @@ video#video.active{display:block}
 
 <script>
 const API='';
+const USE_MPV = typeof AndroidMpv !== 'undefined';
 let channels=[],groups=[],currentIdx=-1,favorites=new Set(),sources=[];
 let chTab='sub',playHistory=[];
-const video=document.getElementById('video');
-let osdTimer=null,panelOpen=null,currentVolume=1;
+let mpvPaused=true,mpvTimePos=0,mpvDuration=0,mpvVolume=100,mpvMuted=false;
+let osdTimer=null,panelOpen=null;
 
 function loadFavorites(){try{const s=localStorage.getItem('iptv_fav');if(s)favorites=new Set(JSON.parse(s))}catch(e){}}
 function saveFavorites(){localStorage.setItem('iptv_fav',JSON.stringify([...favorites]))}
@@ -302,6 +303,27 @@ async function fetchEPG(channelId){
 }
 
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+
+window.onMpvProperty=function(prop,val){
+  if(prop==='pause'){mpvPaused=val;if(!val){document.getElementById('centerIcon').classList.remove('show')}else if(currentIdx<0){document.getElementById('centerIcon').classList.add('show')}}
+  if(prop==='time-pos'){mpvTimePos=val}
+  if(prop==='duration'){mpvDuration=val}
+  if(prop==='volume'){mpvVolume=val}
+  if(prop==='mute'){mpvMuted=val}
+  if(prop==='media-title'&&currentIdx>=0){document.getElementById('ctrlProgram').textContent=val}
+};
+
+window.onMpvEvent=function(eventId){
+  if(eventId===8){
+    document.getElementById('centerIcon').classList.remove('show');
+    if(currentIdx>=0)showOSD(channels[currentIdx].name,channels[currentIdx].group);
+    updateMediaInfo();
+  }
+  if(eventId===7){
+    if(currentIdx>=0&&channels[currentIdx]){}
+    else{document.getElementById('centerIcon').classList.add('show');currentIdx=-1}
+  }
+};
 
 function switchChTab(tab,btn){
   chTab=tab;
@@ -358,8 +380,8 @@ function toggleGroup(el){el.nextElementSibling.classList.toggle('open')}
 function playChannel(idx){
   if(idx<0||idx>=channels.length)return;
   currentIdx=idx;const ch=channels[idx];
-  video.classList.add('active');
-  video.src=API+'/stream/'+idx;video.play().catch(()=>{});
+  const url=API+'/stream/'+idx;
+  if(USE_MPV){AndroidMpv.play(url)}else{console.log('No MPV backend')}
   showOSD(ch.name,ch.group);updateCtrlInfo();closePanels();
   document.getElementById('centerIcon').classList.remove('show');
   document.getElementById('welcomeScreen').classList.remove('show');
@@ -370,12 +392,14 @@ function prevChannel(){if(currentIdx>0)playChannel(currentIdx-1)}
 function nextChannel(){if(currentIdx<channels.length-1)playChannel(currentIdx+1)}
 
 function togglePlay(){
-  if(video.paused){video.play();showCenterIcon('play')}
-  else{video.pause();showCenterIcon('pause')}
+  if(USE_MPV){
+    if(mpvPaused){AndroidMpv.setPause(false);showCenterIcon('play')}
+    else{AndroidMpv.setPause(true);showCenterIcon('pause')}
+  }
 }
 
 function stopPlay(){
-  video.pause();video.removeAttribute('src');video.load();video.classList.remove('active');
+  if(USE_MPV){AndroidMpv.stop()}
   currentIdx=-1;
   document.getElementById('centerIcon').classList.add('show');
   document.getElementById('ctrlName').textContent='IPTV Scanner Editor Pro';
@@ -389,10 +413,10 @@ function stopPlay(){
 }
 
 function toggleMute(){
-  video.muted=!video.muted;
+  if(USE_MPV){AndroidMpv.toggleMute()}
   const btn=document.getElementById('ctrlMute');
-  if(video.muted){btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>'}
-  else{btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>'}
+  if(mpvMuted){btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>'}
+  else{btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>'}
 }
 
 let playSpeed=1.0;
@@ -400,7 +424,7 @@ function changeSpeed(){
   const speeds=[0.5,0.75,1.0,1.25,1.5,2.0,3.0,5.0];
   const idx=speeds.indexOf(playSpeed);
   playSpeed=speeds[(idx+1)%speeds.length];
-  video.playbackRate=playSpeed;
+  if(USE_MPV){AndroidMpv.setSpeed(playSpeed)}
   document.getElementById('speedLabel').textContent=playSpeed+'x';
   showOSD(channels[currentIdx]?.name||'','播放速度: '+playSpeed+'x');
 }
@@ -437,22 +461,18 @@ function updateMediaInfo(){
   const vi=document.getElementById('ctrlVideoInfo');
   const ai=document.getElementById('ctrlAudioInfo');
   const ni=document.getElementById('ctrlNetworkInfo');
-  if(!video.src||video.src===location.href||video.readyState<1){
-    vi.textContent=currentIdx>=0?'加载中...':'未在播放';
-    ai.textContent='--';ni.textContent='--';return;
-  }
-  const w=video.videoWidth,h=video.videoHeight;
-  vi.textContent=w&&h?w+'x'+h:'视频';
+  if(currentIdx<0){vi.textContent='未在播放';ai.textContent='--';ni.textContent='--';return}
+  vi.textContent=mpvDuration>0?'视频':'加载中...';
   ai.textContent='音频';
-  ni.textContent=currentIdx>=0?'IPTV':'本地';
+  ni.textContent='IPTV';
 }
 
 function updateProgress(){
-  if(video.duration&&video.duration!==Infinity){
-    const pct=(video.currentTime/video.duration)*100;
+  if(mpvDuration>0){
+    const pct=(mpvTimePos/mpvDuration)*100;
     document.getElementById('ctrlProgressFill').style.width=pct+'%';
-    document.getElementById('ctrlTimeStart').textContent=formatTime(video.currentTime);
-    document.getElementById('ctrlTimeEnd').textContent=formatTime(video.duration);
+    document.getElementById('ctrlTimeStart').textContent=formatTime(mpvTimePos);
+    document.getElementById('ctrlTimeEnd').textContent=formatTime(mpvDuration);
   }
 }
 
@@ -503,8 +523,7 @@ function openLocalVideo(){
   input.onchange=e=>{
     const file=e.target.files[0];if(!file)return;
     const url=URL.createObjectURL(file);
-    video.classList.add('active');
-    video.src=url;video.play().catch(()=>{});
+    if(USE_MPV){AndroidMpv.play(url)}
     showOSD(file.name,'本地视频');
     document.getElementById('welcomeScreen').classList.remove('show');
     document.getElementById('centerIcon').classList.remove('show');
@@ -546,16 +565,10 @@ async function delSrc(idx){
 }
 
 document.getElementById('volumeSlider').addEventListener('input',e=>{
-  currentVolume=e.target.value/100;video.volume=currentVolume;
+  const vol=parseInt(e.target.value);
+  if(USE_MPV){AndroidMpv.setVolume(vol)}
+  mpvVolume=vol;
 });
-
-function showVolumeOSD(vol){
-  const osd=document.getElementById('volumeOSD');
-  document.getElementById('volVal').textContent=Math.round(vol*100);
-  osd.style.display='block';
-  clearTimeout(showVolumeOSD._t);
-  showVolumeOSD._t=setTimeout(()=>osd.style.display='none',1200);
-}
 
 let touchStartX=0,touchStartY=0,touchStartTime=0;
 document.getElementById('touchLayer').addEventListener('touchstart',e=>{
@@ -582,7 +595,7 @@ document.getElementById('touchLayer').addEventListener('touchend',e=>{
     return;
   }
   if(Math.abs(dy)>60&&Math.abs(dy)>Math.abs(dx)){
-    if(dy>0)openPanel('controls');
+    if(dy<0)openPanel('controls');
     else if(currentIdx>=0)nextChannel();
     return;
   }
@@ -598,10 +611,6 @@ document.getElementById('touchLayer').addEventListener('click',e=>{
 });
 
 document.getElementById('panelOverlay').addEventListener('click',closePanels);
-
-video.addEventListener('play',()=>{document.getElementById('centerIcon').classList.remove('show');if(currentIdx>=0)showOSD(channels[currentIdx].name,channels[currentIdx].group)});
-video.addEventListener('pause',()=>{if(!video.src||video.src===location.href){document.getElementById('centerIcon').classList.add('show')}});
-video.addEventListener('loadedmetadata',updateMediaInfo);
 
 document.getElementById('searchInput').addEventListener('input',e=>renderChannelList(e.target.value));
 

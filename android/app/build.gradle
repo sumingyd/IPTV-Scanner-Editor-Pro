@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'com.chaquo.python'
+    id 'org.jetbrains.kotlin.android'
 }
 
 android {
@@ -30,6 +31,16 @@ android {
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21
     }
+
+    kotlinOptions {
+        jvmTarget = '21'
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['src/main/jniLibs']
+        }
+    }
 }
 
 chaquopy {
@@ -52,4 +63,5 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.webkit:webkit:1.12.1'
     implementation 'com.google.android.material:material:1.12.0'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.0.21'
 }
