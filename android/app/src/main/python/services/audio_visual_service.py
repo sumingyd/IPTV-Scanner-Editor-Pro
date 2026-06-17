@@ -225,12 +225,31 @@ class AudioVisualWidget(QWidget):
         self._random_timer = QTimer(self)
         self._random_timer.setInterval(15000)
         self._random_timer.timeout.connect(self._on_random_tick)
+        self._fade_alpha = 1.0
+        self._fade_state = 'visible'
+        self._pending_style = None
 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
         self._timer.setInterval(16)
 
     def set_style(self, style_key):
+        is_random = (style_key == 'random')
+        self._random_mode = is_random
+        if is_random:
+            style_key = random.choice(STYLE_KEYS)
+            self._random_timer.start()
+        else:
+            self._random_timer.stop()
+        if self._style == style_key and self._fade_state == 'visible':
+            return
+        if self._fade_alpha < 0.05:
+            self._apply_style_now(style_key)
+        else:
+            self._pending_style = style_key
+            self._fade_state = 'fading_out'
+
+    def _apply_style_now(self, style_key):
         self._style = style_key
         if style_key == 'particles':
             self._particles = []
@@ -238,12 +257,10 @@ class AudioVisualWidget(QWidget):
             self._star_stars = []
         elif style_key == 'spectrogram':
             self._spectrogram_history.clear()
-        self._random_mode = (style_key == 'random')
-        if self._random_mode:
-            self._style = random.choice(STYLE_KEYS)
-            self._random_timer.start()
-        else:
-            self._random_timer.stop()
+        self._scope_trail.clear()
+        self._peak_bars = np.zeros(NUM_BARS)
+        self._peak_decay = np.zeros(NUM_BARS, dtype=np.int32)
+        self._smooth_bars = np.zeros(NUM_BARS)
 
     def _on_random_tick(self):
         if not self._random_mode or not self._active:
@@ -253,13 +270,8 @@ class AudioVisualWidget(QWidget):
             new_style = random.choice(available)
         else:
             new_style = STYLE_KEYS[0]
-        self._style = new_style
-        if new_style == 'particles':
-            self._particles = []
-        elif new_style == 'starfield':
-            self._star_stars = []
-        elif new_style == 'spectrogram':
-            self._spectrogram_history.clear()
+        self._pending_style = new_style
+        self._fade_state = 'fading_out'
 
     def get_style(self):
         return self._style
@@ -287,6 +299,7 @@ class AudioVisualWidget(QWidget):
     def _tick(self):
         if not self._active:
             return
+        self._update_fade()
         if self._pc and hasattr(self._pc, '_get_mpv_property_double'):
             try:
                 t = self._pc._get_mpv_property_double('time-pos')
@@ -296,6 +309,21 @@ class AudioVisualWidget(QWidget):
                 pass
         self._update_data()
         self.update()
+
+    def _update_fade(self):
+        if self._fade_state == 'fading_out':
+            self._fade_alpha -= 0.06
+            if self._fade_alpha <= 0.0:
+                self._fade_alpha = 0.0
+                if self._pending_style:
+                    self._apply_style_now(self._pending_style)
+                    self._pending_style = None
+                self._fade_state = 'fading_in'
+        elif self._fade_state == 'fading_in':
+            self._fade_alpha += 0.04
+            if self._fade_alpha >= 1.0:
+                self._fade_alpha = 1.0
+                self._fade_state = 'visible'
 
     def _update_data(self):
         self._frame_count += 1
@@ -383,6 +411,7 @@ class AudioVisualWidget(QWidget):
             'starfield': self._paint_starfield,
         }
         paint_fn = style_map.get(self._style, self._paint_spectrum)
+        painter.setOpacity(self._fade_alpha)
         paint_fn(painter, w, h)
 
         if self._style in ('spectrum', 'mirror_bars', 'circular', 'mountain', 'particles'):
