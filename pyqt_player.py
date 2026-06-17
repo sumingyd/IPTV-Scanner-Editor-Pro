@@ -411,7 +411,8 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
 
     PLAYLIST_EXTENSIONS = ('.m3u', '.m3u8', '.txt')
     VIDEO_EXTENSIONS = ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.webm')
-    ALL_DROP_EXTENSIONS = PLAYLIST_EXTENSIONS + VIDEO_EXTENSIONS
+    AUDIO_EXTENSIONS = ('.mp3', '.flac', '.wav', '.aac', '.ogg', '.opus', '.wma', '.m4a', '.ape', '.alac', '.wv', '.tta', '.dts', '.ac3', '.mid', '.midi')
+    ALL_DROP_EXTENSIONS = PLAYLIST_EXTENSIONS + VIDEO_EXTENSIONS + AUDIO_EXTENSIONS
 
     is_fullscreen = False
     _live_timeshift_seconds = 0
@@ -755,6 +756,11 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
 
         self._video_overlay_label = VideoOverlayBadge(self.video_frame)
         self._video_overlay_label.hide()
+
+        from services.audio_visual_service import AudioVisualWidget
+        self._audio_visual_widget = AudioVisualWidget(self.video_frame)
+        self._audio_visual_widget.hide()
+
         
         # 添加视频区域到布局
         self.top_layout.addWidget(self.video_frame, 1)
@@ -778,6 +784,8 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
         logger.debug("_init_player: 开始")
         
         self.player_controller = MpvPlayerController(self.video_widget)
+        if hasattr(self, '_audio_visual_widget') and self._audio_visual_widget:
+            self.player_controller.audio_visual._widget = self._audio_visual_widget
         self.player_controller.play_state_changed.connect(self.playback_ctrl.handle_play_state_change)
         self.player_controller.live_media_info_updated.connect(self.on_live_media_info_updated)
         self.player_controller.play_error.connect(self.on_play_error)
@@ -895,6 +903,8 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
                     self.video_widget.setGeometry(0, 0, w, h)
                 if hasattr(self, 'video_placeholder') and self.video_placeholder:
                     self.video_placeholder.setGeometry(0, 0, w, h)
+                if hasattr(self, '_audio_visual_widget') and self._audio_visual_widget and self._audio_visual_widget.isVisible():
+                    self._audio_visual_widget.setGeometry(0, 0, w, h)
 
 
     def _update_recent_files_menu(self):
@@ -977,7 +987,10 @@ if __name__ == "__main__":
                 from PySide6.QtCore import QTimer
                 QTimer.singleShot(800, lambda fp=file_path: player.settings_ops.open_specific_file(fp))
             elif file_path.lower().endswith(('.mp4', '.mkv', '.avi', '.mov',
-                                             '.flv', '.wmv', '.ts', '.webm')):
+                                             '.flv', '.wmv', '.ts', '.webm',
+                                             '.mp3', '.flac', '.wav', '.aac', '.ogg', '.opus',
+                                             '.wma', '.m4a', '.ape', '.alac', '.wv', '.tta',
+                                             '.dts', '.ac3', '.mid', '.midi')):
                 from PySide6.QtCore import QTimer
                 def _open_video_from_cmdline(fp=file_path):
                     player._add_local_video_and_track(fp)

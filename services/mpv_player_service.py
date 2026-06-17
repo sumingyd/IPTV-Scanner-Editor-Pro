@@ -127,6 +127,8 @@ class MpvPlayerController(QObject):
         self._switching_channel = False
         self._mpv_initialized = False
         self._terminated = False
+        from services.audio_visual_service import AudioVisualService
+        self.audio_visual = AudioVisualService(self)
 
     def _ensure_mpv_initialized(self):
         if self._mpv_initialized:
@@ -245,6 +247,7 @@ class MpvPlayerController(QObject):
             _mpv_set_property_string(self.mpv_handle, 'mute', 'no')
             _mpv_set_property_string(self.mpv_handle, 'audio', 'yes')
             _mpv_set_property_string(self.mpv_handle, 'audio-device', 'auto')
+
 
             net_to = self._playback_settings.get('network_timeout_sec', 0)
             if net_to > 0:
@@ -383,6 +386,7 @@ class MpvPlayerController(QObject):
             return False
         return url.lower().startswith(('http://', 'https://', 'rtsp://', 'rtp://', 'udp://', 'rtmp://'))
 
+    @staticmethod
     def _is_network_drive(path):
         if not is_windows():
             path_lower = path.lower()
@@ -861,6 +865,8 @@ class MpvPlayerController(QObject):
                     self._schedule_media_info_start()
                     self._adjust_buffer_for_content()
                     self._apply_hdr_on_file_loaded()
+                    if hasattr(self, 'audio_visual') and self.audio_visual:
+                        self.audio_visual.auto_enable_if_audio()
 
                 elif event.event_id == MPV_EVENT_END_FILE:
                     if event.data:
@@ -949,6 +955,8 @@ class MpvPlayerController(QObject):
             self._track_list_logged = False
 
             self._setup_protocol_options(url, program_duration)
+
+
             is_vod = 'starttime=' in url.lower() or 'endtime=' in url.lower() or 'playseek' in url.lower()
             if is_vod:
                 self._set_mpv_string('prefetch-playlist', 'no')
@@ -1081,6 +1089,8 @@ class MpvPlayerController(QObject):
 
             if was_playing:
                 self.logger.info("停止播放")
+            if hasattr(self, 'audio_visual'):
+                self.audio_visual.clear_visual()
         except Exception as e:
             self.logger.error(f"停止播放失败: {str(e)}")
 
@@ -1130,6 +1140,7 @@ class MpvPlayerController(QObject):
             self.logger.info("MPV播放器已完全终止")
         except Exception as e:
             self.logger.error(f"终止MPV播放器失败: {str(e)}")
+
 
     def reinit_for_hdr_change(self, new_hdr_mode):
         try:

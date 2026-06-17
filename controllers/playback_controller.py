@@ -353,6 +353,8 @@ class PlaybackController:
             if hasattr(w, 'video_widget') and w.video_widget and w.video_frame:
                 w.video_widget.setGeometry(0, 0, w.video_frame.width(), w.video_frame.height())
                 w.video_widget.show()
+            if hasattr(w, '_audio_visual_widget') and w._audio_visual_widget and w._audio_visual_widget.isVisible():
+                w._audio_visual_widget.setGeometry(0, 0, w.video_frame.width(), w.video_frame.height())
             w._last_info_key = None
             w.update_timer.start(1000)
             if w._is_local_file():

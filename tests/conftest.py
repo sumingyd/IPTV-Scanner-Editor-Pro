@@ -37,6 +37,11 @@ class MockMainWindow:
         self.playlist_visible = False
         self.floating_panel_visible = False
 
+        self.PLAYLIST_EXTENSIONS = ('.m3u', '.m3u8', '.txt')
+        self.VIDEO_EXTENSIONS = ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.webm')
+        self.AUDIO_EXTENSIONS = ('.mp3', '.flac', '.wav', '.aac', '.ogg', '.opus', '.wma', '.m4a', '.ape', '.alac', '.wv', '.tta', '.dts', '.ac3', '.mid', '.midi')
+        self.ALL_DROP_EXTENSIONS = self.PLAYLIST_EXTENSIONS + self.VIDEO_EXTENSIONS + self.AUDIO_EXTENSIONS
+
     def status_bar_show_message(self, message, timeout=0):
         if self.status_bar:
             self.status_bar.showMessage(message, timeout)

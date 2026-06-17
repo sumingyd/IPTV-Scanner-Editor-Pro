@@ -94,6 +94,11 @@ class MediaController:
             sub_menu.setStyleSheet(AppStyles.player_menu_bar_style())
             self._populate_subtitle_menu(sub_menu)
 
+        if is_playing and self._is_audio_only():
+            vis_menu = menu.addMenu(tr("ctx_audio_visual", "音频可视化"))
+            vis_menu.setStyleSheet(AppStyles.player_menu_bar_style())
+            self._populate_visual_menu(vis_menu)
+
         menu.addSeparator()
 
         if is_playing:
@@ -566,3 +571,53 @@ class MediaController:
                 indicator.hide()
         except Exception as e:
             logger.debug(f"更新回看指示器失败: {e}")
+
+    def _is_audio_only(self):
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing:
+            return False
+        if hasattr(pc, 'audio_visual') and pc.audio_visual:
+            return pc.audio_visual.is_audio_only
+        return False
+
+    def _populate_visual_menu(self, menu):
+        from services.audio_visual_service import AUDIO_VISUAL_STYLES, STYLE_KEYS
+        pc = self.window.player_controller
+        tr = self.window.language_manager.tr
+        current_style = 'none'
+        if pc and hasattr(pc, 'audio_visual') and pc.audio_visual:
+            current_style = pc.audio_visual.current_style
+
+        for key in STYLE_KEYS:
+            style = AUDIO_VISUAL_STYLES[key]
+            label = tr(style['name_key'], style['name_default'])
+            if key == current_style:
+                label += " ✓"
+            menu.addAction(label, lambda *a, k=key: self._set_visual_style(k))
+
+        menu.addSeparator()
+
+        random_label = tr("audio_vis_random", "随机效果")
+        menu.addAction(random_label, lambda *a: self._set_visual_style('random'))
+
+        menu.addSeparator()
+
+        off_style = AUDIO_VISUAL_STYLES['none']
+        off_label = tr(off_style['name_key'], off_style['name_default'])
+        if current_style == 'none':
+            off_label += " ✓"
+        menu.addAction(off_label, lambda *a: self._set_visual_style('none'))
+
+    def _set_visual_style(self, style_key):
+        pc = self.window.player_controller
+        if not pc or not hasattr(pc, 'audio_visual') or not pc.audio_visual:
+            return
+        tr = self.window.language_manager.tr
+        if style_key == 'random':
+            pc.audio_visual.apply_random_style()
+        else:
+            pc.audio_visual.apply_visual_style(style_key)
+        pc.audio_visual.save_current_style()
+        display = pc.audio_visual.get_style_display_name(pc.audio_visual.current_style, self.window.language_manager)
+        if hasattr(self.window, '_show_osd_feedback'):
+            self.window._show_osd_feedback(f"{tr('osd_audio_visual', '音频可视化')}: {display}")

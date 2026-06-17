@@ -42,7 +42,7 @@ class EventMixin:
                     self.settings_ops.open_specific_file(path)
                 event.acceptProposedAction()
                 return
-            elif path.lower().endswith(self.VIDEO_EXTENSIONS):
+            elif path.lower().endswith(self.VIDEO_EXTENSIONS + self.AUDIO_EXTENSIONS):
                 self._add_local_video_and_track(path)
                 logger.info(f"拖放打开视频文件: {path}")
                 event.acceptProposedAction()

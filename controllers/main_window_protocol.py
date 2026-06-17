@@ -288,6 +288,7 @@ class MainWindowProtocol(_WidgetBase):
     _scan_dialog: Any
     scan_window: Any
     config_manager: Any
+    audio_visual: Any
 
     fav_channel_list: Any
     fav_empty_label: Any

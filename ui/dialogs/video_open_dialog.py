@@ -12,6 +12,8 @@ from utils.platform_utils import is_windows, is_android
 
 
 _VIDEO_EXTS = ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.m2ts', '.webm')
+_AUDIO_EXTS = ('.mp3', '.flac', '.wav', '.aac', '.ogg', '.opus', '.wma', '.m4a', '.ape', '.alac', '.wv', '.tta', '.dts', '.ac3', '.mid', '.midi')
+_MEDIA_EXTS = _VIDEO_EXTS + _AUDIO_EXTS
 
 
 class VideoOpenDialog(QDialog):
@@ -21,8 +23,9 @@ class VideoOpenDialog(QDialog):
         self._lm = language_manager
         self._current_dir = QDir.homePath()
         self._show_video_only = True
+        self._show_audio_only = False
 
-        self.setWindowTitle(self._tr("open_video", "打开视频"))
+        self.setWindowTitle(self._tr("open_media", "打开音视频"))
         self.setMinimumSize(640, 480)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
@@ -59,7 +62,9 @@ class VideoOpenDialog(QDialog):
         nav.addWidget(go_btn)
 
         self._filter_combo = QComboBox()
+        self._filter_combo.addItem(self._tr("media_files_only", "音视频文件"))
         self._filter_combo.addItem(self._tr("video_files_only", "仅视频文件"))
+        self._filter_combo.addItem(self._tr("audio_files_only", "仅音频文件"))
         self._filter_combo.addItem(self._tr("all_files", "所有文件"))
         self._filter_combo.setFixedWidth(120)
         self._filter_combo.currentIndexChanged.connect(self._on_filter_changed)
@@ -262,8 +267,11 @@ class VideoOpenDialog(QDialog):
             if is_dir:
                 dirs.append(name)
             elif os.path.isfile(full):
-                if self._show_video_only:
-                    if name.lower().endswith(_VIDEO_EXTS):
+                if self._show_audio_only:
+                    if name.lower().endswith(_AUDIO_EXTS):
+                        files.append(name)
+                elif self._show_video_only:
+                    if name.lower().endswith(_MEDIA_EXTS):
                         files.append(name)
                 else:
                     files.append(name)
@@ -318,6 +326,7 @@ class VideoOpenDialog(QDialog):
 
     def _on_filter_changed(self, index):
         self._show_video_only = (index == 0)
+        self._show_audio_only = (index == 2)
         self._refresh_list()
 
     def _on_single_click(self, item):

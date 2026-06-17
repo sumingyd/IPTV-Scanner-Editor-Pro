@@ -109,10 +109,12 @@ class FileOpsMixin:
                 return
 
             video_exts = ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.m2ts', '.webm')
+            audio_exts = ('.mp3', '.flac', '.wav', '.aac', '.ogg', '.opus', '.wma', '.m4a', '.ape', '.alac', '.wv', '.tta', '.dts', '.ac3', '.mid', '.midi')
+            media_exts = video_exts + audio_exts
             video_files = []
             try:
                 for f in os.listdir(path):
-                    if f.lower().endswith(video_exts):
+                    if f.lower().endswith(media_exts):
                         video_files.append(os.path.join(path, f))
                 video_files.sort(key=lambda x: x.lower())
             except Exception:
@@ -122,7 +124,7 @@ class FileOpsMixin:
                 from PySide6.QtWidgets import QMessageBox
                 QMessageBox.information(
                     self, tr("open_video", "打开视频"),
-                    tr("no_video_in_folder", "所选文件夹中未找到支持的视频文件"),
+                    tr("no_media_in_folder", "所选文件夹中未找到支持的音视频文件"),
                 )
                 return
 
@@ -141,7 +143,11 @@ class FileOpsMixin:
 
     def _create_local_video_channel(self, path: str, group_key: str = "local_video", group_default: str = "本地视频") -> dict:
         name = os.path.splitext(os.path.basename(path))[0]
-        group = self.language_manager.tr(group_key, group_default)
+        audio_exts = ('.mp3', '.flac', '.wav', '.aac', '.ogg', '.opus', '.wma', '.m4a', '.ape', '.alac', '.wv', '.tta', '.dts', '.ac3', '.mid', '.midi')
+        if path.lower().endswith(audio_exts):
+            group = self.language_manager.tr("local_audio", "本地音频")
+        else:
+            group = self.language_manager.tr(group_key, group_default)
         return {
             'name': name,
             'url': path,
