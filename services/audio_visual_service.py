@@ -221,6 +221,10 @@ class AudioVisualWidget(QWidget):
         self._bloom_img = None
         self._bloom_w = 0
         self._bloom_h = 0
+        self._random_mode = False
+        self._random_timer = QTimer(self)
+        self._random_timer.setInterval(15000)
+        self._random_timer.timeout.connect(self._on_random_tick)
 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
@@ -233,6 +237,28 @@ class AudioVisualWidget(QWidget):
         elif style_key == 'starfield':
             self._star_stars = []
         elif style_key == 'spectrogram':
+            self._spectrogram_history.clear()
+        self._random_mode = (style_key == 'random')
+        if self._random_mode:
+            self._style = random.choice(STYLE_KEYS)
+            self._random_timer.start()
+        else:
+            self._random_timer.stop()
+
+    def _on_random_tick(self):
+        if not self._random_mode or not self._active:
+            return
+        available = [k for k in STYLE_KEYS if k != self._style]
+        if available:
+            new_style = random.choice(available)
+        else:
+            new_style = STYLE_KEYS[0]
+        self._style = new_style
+        if new_style == 'particles':
+            self._particles = []
+        elif new_style == 'starfield':
+            self._star_stars = []
+        elif new_style == 'spectrogram':
             self._spectrogram_history.clear()
 
     def get_style(self):
@@ -888,10 +914,10 @@ class AudioVisualService:
         return None
 
     def apply_random_style(self):
-        available = [k for k in STYLE_KEYS if k != self._current_style]
-        if not available:
-            available = STYLE_KEYS
-        return self.apply_visual_style(random.choice(available))
+        self._current_style = 'random'
+        self._show_widget()
+        self.save_current_style()
+        return True
 
     def _show_widget(self):
         if not self._widget:

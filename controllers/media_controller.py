@@ -602,6 +602,8 @@ class MediaController:
         menu.addSeparator()
 
         random_label = tr("audio_vis_random", "随机效果")
+        if current_style == 'random':
+            random_label += " ✓"
         menu.addAction(random_label, lambda *a: self._set_visual_style('random'))
 
         menu.addSeparator()
