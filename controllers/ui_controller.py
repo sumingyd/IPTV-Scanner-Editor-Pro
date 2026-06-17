@@ -596,7 +596,12 @@ class UIController:
                     channel_name, tvg_id, tvg_name, comma_name = self.window._get_epg_match_params()
                     is_local = self.window._is_local_file()
                     if is_local:
-                        self.window.program_desc.setText(self.window.language_manager.tr("local_video_file", "本地视频文件"))
+                        ch_url = self.window.current_channel.get('url', '') if self.window.current_channel else ''
+                        from services.audio_visual_service import AUDIO_EXTENSIONS
+                        if ch_url and ch_url.lower().endswith(AUDIO_EXTENSIONS):
+                            self.window.program_desc.setText(self.window.language_manager.tr("local_audio_file", "本地音频文件"))
+                        else:
+                            self.window.program_desc.setText(self.window.language_manager.tr("local_video_file", "本地视频文件"))
                         self.window.current_program.setText("")
                         self.window.remain_label.setText(self.window.language_manager.tr("playing_label", "Playing..."))
                     elif channel_name:
@@ -724,6 +729,10 @@ class UIController:
                     self.window._video_overlay_label.hide()
 
         self.window.progress_ctrl.update_progress(current_time_ms, total_time_ms, position)
+
+        if hasattr(self.window, '_lyrics_widget') and self.window._lyrics_widget and self.window._lyrics_widget.isVisible():
+            time_pos = self.window.player_controller._get_mpv_property_double('time-pos') or 0.0
+            self.window._lyrics_widget.update_time(time_pos)
 
     def _update_cache_bar(self, buffer_state: dict):
         progress = getattr(self.window, 'program_progress', None)

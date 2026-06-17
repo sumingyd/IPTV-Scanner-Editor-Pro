@@ -254,6 +254,17 @@ class ChannelController:
                             icon_load_set.add(dedupe_key)
                     else:
                         w._logo_cache_service.fetch_async(logo_url)
+                else:
+                    ch_url = channel.get('url', '')
+                    if ch_url:
+                        from services.audio_visual_service import AUDIO_EXTENSIONS, extract_cover_art
+                        if ch_url.lower().endswith(AUDIO_EXTENSIONS):
+                            cover = extract_cover_art(ch_url)
+                            if cover and not cover.isNull():
+                                dedupe_key = ('list_logo', i)
+                                if dedupe_key not in icon_load_set:
+                                    queue_items.append(('list_logo', item, logo_label, cover))
+                                    icon_load_set.add(dedupe_key)
 
         icon_load_queue.extend(queue_items)
         if icon_load_queue and icon_load_timer and not icon_load_timer.isActive():
@@ -287,13 +298,38 @@ class ChannelController:
                 from utils.general_utils import set_default_channel_logo
                 set_default_channel_logo(w.channel_logo, w.channel_logo.width(), w.channel_logo.height())
         else:
-            from utils.general_utils import set_default_channel_logo
-            set_default_channel_logo(w.channel_logo, w.channel_logo.width(), w.channel_logo.height())
+            ch_url = w.current_channel.get('url', '') if w.current_channel else ''
+            from services.audio_visual_service import AUDIO_EXTENSIONS
+            if ch_url and ch_url.lower().endswith(AUDIO_EXTENSIONS):
+                from services.audio_visual_service import extract_cover_art
+                cover = extract_cover_art(ch_url)
+                if cover and not cover.isNull():
+                    from utils.general_utils import set_default_channel_logo
+                    scaled = cover.scaled(w.channel_logo.width(), w.channel_logo.height(),
+                                         Qt.AspectRatioMode.KeepAspectRatio,
+                                         Qt.TransformationMode.SmoothTransformation)
+                    w.channel_logo.setPixmap(scaled)
+                    w.channel_logo.setText("")
+                    if hasattr(w, 'player_controller') and w.player_controller:
+                        if hasattr(w.player_controller, 'audio_visual') and w.player_controller.audio_visual:
+                            if w.player_controller.audio_visual._widget:
+                                w.player_controller.audio_visual._widget.set_cover(cover)
+                else:
+                    from utils.general_utils import set_default_channel_logo
+                    set_default_channel_logo(w.channel_logo, w.channel_logo.width(), w.channel_logo.height())
+            else:
+                from utils.general_utils import set_default_channel_logo
+                set_default_channel_logo(w.channel_logo, w.channel_logo.width(), w.channel_logo.height())
 
         try:
             if w._is_local_file():
                 w.current_program.setText("")
-                w.program_desc.setText(w.language_manager.tr("local_video_file", "本地视频文件"))
+                ch_url = w.current_channel.get('url', '') if w.current_channel else ''
+                from services.audio_visual_service import AUDIO_EXTENSIONS
+                if ch_url and ch_url.lower().endswith(AUDIO_EXTENSIONS):
+                    w.program_desc.setText(w.language_manager.tr("local_audio_file", "本地音频文件"))
+                else:
+                    w.program_desc.setText(w.language_manager.tr("local_video_file", "本地视频文件"))
                 w.time_label.setText("--:-- / --:--")
                 w.remain_label.setText(w.language_manager.tr("loading", "加载中..."))
             else:

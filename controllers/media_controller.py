@@ -99,6 +99,10 @@ class MediaController:
             vis_menu.setStyleSheet(AppStyles.player_menu_bar_style())
             self._populate_visual_menu(vis_menu)
 
+            lyrics_menu = menu.addMenu(tr("ctx_lyrics", "歌词"))
+            lyrics_menu.setStyleSheet(AppStyles.player_menu_bar_style())
+            self._populate_lyrics_menu(lyrics_menu)
+
         menu.addSeparator()
 
         if is_playing:
@@ -621,3 +625,73 @@ class MediaController:
         display = pc.audio_visual.get_style_display_name(pc.audio_visual.current_style, self.window.language_manager)
         if hasattr(self.window, '_show_osd_feedback'):
             self.window._show_osd_feedback(f"{tr('osd_audio_visual', '音频可视化')}: {display}")
+
+    def _populate_lyrics_menu(self, menu):
+        tr = self.window.language_manager.tr
+        show_label = tr("ctx_show_lyrics", "显示歌词")
+        menu.addAction(show_label, lambda *a: self._toggle_lyrics(True))
+        hide_label = tr("ctx_hide_lyrics", "隐藏歌词")
+        menu.addAction(hide_label, lambda *a: self._toggle_lyrics(False))
+        menu.addSeparator()
+        load_label = tr("ctx_load_lyrics", "加载外部歌词...")
+        menu.addAction(load_label, lambda *a: self._load_external_lyrics())
+
+    def _toggle_lyrics(self, show):
+        if not hasattr(self.window, '_lyrics_widget') or not self.window._lyrics_widget:
+            self._create_lyrics_widget()
+        lw = self.window._lyrics_widget
+        if show:
+            vf = self.window.video_frame
+            if vf:
+                lw.setGeometry(0, 0, vf.width(), vf.height())
+            lw.show()
+            lw.raise_()
+            lw.start()
+            self._refresh_lyrics()
+        else:
+            lw.stop()
+            lw.hide()
+
+    def _create_lyrics_widget(self):
+        from ui.lyrics_widget import LyricsWidget
+        lw = LyricsWidget(self.window.video_frame)
+        lw.hide()
+        self.window._lyrics_widget = lw
+
+    def _refresh_lyrics(self):
+        if not hasattr(self.window, '_lyrics_widget') or not self.window._lyrics_widget:
+            return
+        ch = self.window.current_channel
+        if not ch:
+            return
+        url = ch.get('url', '')
+        if not url:
+            return
+        from services.audio_visual_service import extract_lyrics
+        lyrics = extract_lyrics(url)
+        if lyrics:
+            self.window._lyrics_widget.set_lyrics(lyrics, is_lrc='[' in lyrics)
+        else:
+            tr = self.window.language_manager.tr
+            self.window._lyrics_widget.set_lyrics(tr("no_lyrics", "未找到内嵌歌词"), is_lrc=False)
+
+    def _load_external_lyrics(self):
+        from PySide6.QtWidgets import QFileDialog
+        tr = self.window.language_manager.tr
+        file_path, _ = QFileDialog.getOpenFileName(
+            self.window, tr("ctx_load_lyrics", "加载外部歌词..."), '',
+            tr("lyrics_files", "歌词文件") + " (*.lrc *.txt);;" + tr("all_files", "所有文件") + " (*)"
+        )
+        if file_path:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    lyrics = f.read()
+                if not hasattr(self.window, '_lyrics_widget') or not self.window._lyrics_widget:
+                    self._create_lyrics_widget()
+                is_lrc = file_path.lower().endswith('.lrc') or '[' in lyrics
+                self.window._lyrics_widget.set_lyrics(lyrics, is_lrc=is_lrc)
+                self.window._lyrics_widget.show()
+                self.window._lyrics_widget.raise_()
+                self.window._lyrics_widget.start()
+            except Exception:
+                pass

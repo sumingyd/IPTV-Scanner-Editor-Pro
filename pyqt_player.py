@@ -758,7 +758,7 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
         self._video_overlay_label.hide()
 
         from services.audio_visual_service import AudioVisualWidget
-        self._audio_visual_widget = AudioVisualWidget(self.video_frame)
+        self._audio_visual_widget = AudioVisualWidget(self.video_frame, player_controller=None)
         self._audio_visual_widget.hide()
 
         
@@ -786,6 +786,8 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
         self.player_controller = MpvPlayerController(self.video_widget)
         if hasattr(self, '_audio_visual_widget') and self._audio_visual_widget:
             self.player_controller.audio_visual._widget = self._audio_visual_widget
+        if hasattr(self, '_audio_visual_widget') and self._audio_visual_widget:
+            self._audio_visual_widget._pc = self.player_controller
         self.player_controller.play_state_changed.connect(self.playback_ctrl.handle_play_state_change)
         self.player_controller.live_media_info_updated.connect(self.on_live_media_info_updated)
         self.player_controller.play_error.connect(self.on_play_error)
@@ -905,6 +907,8 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
                     self.video_placeholder.setGeometry(0, 0, w, h)
                 if hasattr(self, '_audio_visual_widget') and self._audio_visual_widget and self._audio_visual_widget.isVisible():
                     self._audio_visual_widget.setGeometry(0, 0, w, h)
+                if hasattr(self, '_lyrics_widget') and self._lyrics_widget and self._lyrics_widget.isVisible():
+                    self._lyrics_widget.setGeometry(0, 0, w, h)
 
 
     def _update_recent_files_menu(self):

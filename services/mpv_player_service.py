@@ -956,6 +956,8 @@ class MpvPlayerController(QObject):
 
             self._setup_protocol_options(url, program_duration)
 
+            if hasattr(self, 'audio_visual') and self.audio_visual:
+                self.audio_visual.prepare_before_loadfile(url)
 
             is_vod = 'starttime=' in url.lower() or 'endtime=' in url.lower() or 'playseek' in url.lower()
             if is_vod:
