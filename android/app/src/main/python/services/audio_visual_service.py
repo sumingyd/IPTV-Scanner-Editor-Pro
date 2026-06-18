@@ -199,13 +199,22 @@ def compute_spectrum(samples, fft_size=FFT_SIZE, num_bars=NUM_BARS):
     freqs = np.fft.rfftfreq(fft_size, 1.0 / SAMPLE_RATE)
     min_freq = 20
     max_freq = min(18000, SAMPLE_RATE / 2)
-    bar_freqs = np.logspace(np.log10(min_freq), np.log10(max_freq), num_bars + 1)
+    freq_res = SAMPLE_RATE / fft_size
+    linear_bars = int(num_bars * 0.5)
+    log_bars = num_bars - linear_bars
+    linear_freqs = np.linspace(min_freq, 500, linear_bars + 1)
+    min_bin_width = freq_res * 1.5
+    for i in range(linear_bars):
+        if linear_freqs[i + 1] - linear_freqs[i] < min_bin_width:
+            linear_freqs[i + 1] = linear_freqs[i] + min_bin_width
+    log_freqs = np.logspace(np.log10(max(500, linear_freqs[-1])), np.log10(max_freq), log_bars + 1)
+    bar_freqs = np.concatenate([linear_freqs, log_freqs[1:]])
     bars = np.zeros(num_bars)
     for i in range(num_bars):
         mask = (freqs >= bar_freqs[i]) & (freqs < bar_freqs[i + 1])
         if np.any(mask):
             bars[i] = np.mean(magnitudes[mask])
-    ref = np.percentile(magnitudes, 85) * 2.5
+    ref = np.percentile(magnitudes, 90) * 4.0
     if ref > 0:
         bars = bars / ref
     return np.clip(bars, 0, 1)
