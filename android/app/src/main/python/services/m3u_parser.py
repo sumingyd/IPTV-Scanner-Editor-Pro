@@ -429,35 +429,65 @@ def parse_m3u_content(content: str) -> Tuple[List[Dict[str, Any]], Dict[str, str
         if line.startswith('#'):
             continue
 
-        if current_channel:
-            url = line.strip()
-            valid, reason = is_valid_channel_url(url)
-            if valid:
-                current_channel['url'] = url
-                _extract_fcc_to_channel(url, current_channel)
-                channels.append(current_channel)
+        txt_parsed = False
+        if ',' in line and not current_channel:
+            parts = line.split(',', 1)
+            if len(parts) == 2:
+                maybe_name = parts[0].strip()
+                maybe_url = parts[1].strip()
+                valid, reason = is_valid_channel_url(maybe_url)
+                if valid:
+                    groups_list = [g.strip() for g in current_group.split(';') if g.strip()] if isinstance(current_group, str) else (current_group if isinstance(current_group, list) else ['未分类'])
+                    primary_group = groups_list[0] if groups_list else '未分类'
+                    ch = _make_empty_channel(group=primary_group, groups=groups_list)
+                    ch['name'] = maybe_name if maybe_name else '未命名'
+                    ch['url'] = maybe_url
+                    _extract_fcc_to_channel(maybe_url, ch)
+                    _inherit_header_attrs(ch, header_attrs)
+                    channels.append(ch)
+                    txt_parsed = True
+                else:
+                    valid2, reason2 = is_valid_channel_url(line.strip())
+                    if valid2:
+                        groups_list = [g.strip() for g in current_group.split(';') if g.strip()] if isinstance(current_group, str) else (current_group if isinstance(current_group, list) else ['未分类'])
+                        primary_group = groups_list[0] if groups_list else '未分类'
+                        ch = _make_empty_channel(group=primary_group, groups=groups_list)
+                        ch['name'] = maybe_name if maybe_name else '未命名'
+                        ch['url'] = line.strip()
+                        _inherit_header_attrs(ch, header_attrs)
+                        channels.append(ch)
+                        txt_parsed = True
+
+        if not txt_parsed:
+            if current_channel:
+                url = line.strip()
+                valid, reason = is_valid_channel_url(url)
+                if valid:
+                    current_channel['url'] = url
+                    _extract_fcc_to_channel(url, current_channel)
+                    channels.append(current_channel)
+                else:
+                    ch_name = current_channel.get('name', '?')
+                    logger.debug(f"M3U解析跳过: 频道'{ch_name}' URL无效({reason}): {url}")
+                current_channel = None
             else:
-                ch_name = current_channel.get('name', '?')
-                logger.debug(f"M3U解析跳过: 频道'{ch_name}' URL无效({reason}): {url}")
-            current_channel = None
-        else:
-            url = line.strip()
-            valid, reason = is_valid_channel_url(url)
-            if valid:
-                try:
-                    from models.channel_mappings import extract_channel_name_from_url
-                    ch_name = extract_channel_name_from_url(url)
-                except Exception:
-                    ch_name = ''
-                groups_list = [g.strip() for g in current_group.split(';') if g.strip()] if isinstance(current_group, str) else (current_group if isinstance(current_group, list) else ['未分类'])
-                primary_group = groups_list[0] if groups_list else '未分类'
-                ch = _make_empty_channel(group=primary_group, groups=groups_list)
-                ch['name'] = ch_name if ch_name else '未命名'
-                ch['url'] = url
-                _inherit_header_attrs(ch, header_attrs)
-                channels.append(ch)
-            else:
-                logger.debug(f"M3U解析跳过: 裸URL无效({reason}): {url}")
+                url = line.strip()
+                valid, reason = is_valid_channel_url(url)
+                if valid:
+                    try:
+                        from models.channel_mappings import extract_channel_name_from_url
+                        ch_name = extract_channel_name_from_url(url)
+                    except Exception:
+                        ch_name = ''
+                    groups_list = [g.strip() for g in current_group.split(';') if g.strip()] if isinstance(current_group, str) else (current_group if isinstance(current_group, list) else ['未分类'])
+                    primary_group = groups_list[0] if groups_list else '未分类'
+                    ch = _make_empty_channel(group=primary_group, groups=groups_list)
+                    ch['name'] = ch_name if ch_name else '未命名'
+                    ch['url'] = url
+                    _inherit_header_attrs(ch, header_attrs)
+                    channels.append(ch)
+                else:
+                    logger.debug(f"M3U解析跳过: 裸URL无效({reason}): {url}")
 
     for i, ch in enumerate(channels):
         ch['id'] = i + 1

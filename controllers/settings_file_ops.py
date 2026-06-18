@@ -98,7 +98,7 @@ class SettingsFileOperations:
             self.window,
             self._tr("open_playlist", "Open Playlist"),
             "",
-            "M3U Files (*.m3u *.m3u8);;All Files (*)"
+            "M3U Files (*.m3u *.m3u8);;Text Files (*.txt);;All Files (*)"
         )
         if file_path:
             self._load_playlist_file(file_path)
@@ -1085,7 +1085,7 @@ class SettingsFileOperations:
         tr = w.language_manager.tr
 
         path_lower = urlparse(url).path.lower()
-        maybe_m3u = path_lower.endswith(('.m3u', '.m3u8'))
+        maybe_m3u = path_lower.endswith(('.m3u', '.m3u8', '.txt'))
 
         if maybe_m3u:
             try:
