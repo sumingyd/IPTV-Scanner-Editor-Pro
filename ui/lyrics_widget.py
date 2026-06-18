@@ -95,6 +95,11 @@ class LyricsWidget(QWidget):
         self._timer.stop()
 
     def _tick(self):
+        parent = self.parent()
+        if parent:
+            pw, ph = parent.width(), parent.height()
+            if pw > 0 and ph > 0 and (self.width() != pw or self.height() != ph):
+                self.setGeometry(0, 0, pw, ph)
         diff = self._target_y - self._scroll_y
         if abs(diff) > 0.5:
             self._scroll_y += diff * 0.15

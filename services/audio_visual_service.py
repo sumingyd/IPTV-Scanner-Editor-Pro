@@ -57,6 +57,22 @@ AUDIO_VISUAL_STYLES = {
         'name_key': 'audio_vis_starfield',
         'name_default': '星场',
     },
+    'cosmos': {
+        'name_key': 'audio_vis_cosmos',
+        'name_default': '宇宙',
+    },
+    'warp': {
+        'name_key': 'audio_vis_warp',
+        'name_default': '曲速',
+    },
+    'fluid': {
+        'name_key': 'audio_vis_fluid',
+        'name_default': '流体',
+    },
+    'milkdrop': {
+        'name_key': 'audio_vis_milkdrop',
+        'name_default': '经典',
+    },
     'none': {
         'name_key': 'audio_vis_none',
         'name_default': '关闭可视化',
@@ -68,7 +84,7 @@ STYLE_KEYS = [k for k in AUDIO_VISUAL_STYLES if k != 'none']
 FFT_SIZE = 4096
 SAMPLE_RATE = 44100
 AUDIO_CHANNELS = 2
-NUM_BARS = 64
+NUM_BARS = 128
 
 
 class AudioPCMProvider:
@@ -210,11 +226,32 @@ class AudioVisualWidget(QWidget):
         self._wave_right = np.zeros(512)
         self._scope_trail = deque(maxlen=400)
         self._particles = []
+        self._dust = []
         self._cover_pixmap = None
         self._frame_count = 0
         self._spectrogram_history = deque(maxlen=120)
         self._star_stars = []
         self._aurora_phase = 0.0
+        self._cosmos_bg_stars = []
+        self._cosmos_particles = []
+        self._cosmos_meteors = []
+        self._cosmos_rotation = 0.0
+        self._warp_streaks = []
+        self._warp_rings = []
+        self._warp_sparks = []
+        self._warp_prev_bass = 0.0
+        self._fluid_hue = 0.0
+        self._fluid_phase = 0.0
+        self._fluid_buf = None
+        self._fluid_buf_w = 0
+        self._fluid_buf_h = 0
+        self._milk_hue = 0.0
+        self._milk_phase = 0.0
+        self._milk_rot = 0.0
+        self._milk_zoom = 1.0
+        self._milk_buf = None
+        self._milk_buf_w = 0
+        self._milk_buf_h = 0
         self._bar_colors = [QColor.fromHsv(int(200 + i * 160 / NUM_BARS) % 360, 230, 255) for i in range(NUM_BARS)]
         self._bar_colors_dim = [QColor.fromHsv(int(200 + i * 160 / NUM_BARS) % 360, 180, 80) for i in range(NUM_BARS)]
         self._bar_colors_peak = [QColor.fromHsv(int(200 + i * 160 / NUM_BARS) % 360, 160, 255) for i in range(NUM_BARS)]
@@ -253,10 +290,23 @@ class AudioVisualWidget(QWidget):
         self._style = style_key
         if style_key == 'particles':
             self._particles = []
+            self._dust = []
         elif style_key == 'starfield':
             self._star_stars = []
         elif style_key == 'spectrogram':
             self._spectrogram_history.clear()
+        elif style_key == 'cosmos':
+            self._cosmos_bg_stars = []
+            self._cosmos_particles = []
+            self._cosmos_meteors = []
+        elif style_key == 'warp':
+            self._warp_streaks = []
+            self._warp_rings = []
+            self._warp_sparks = []
+        elif style_key == 'fluid':
+            self._fluid_buf = None
+        elif style_key == 'milkdrop':
+            self._milk_buf = None
         self._scope_trail.clear()
         self._peak_bars = np.zeros(NUM_BARS)
         self._peak_decay = np.zeros(NUM_BARS, dtype=np.int32)
@@ -299,6 +349,7 @@ class AudioVisualWidget(QWidget):
     def _tick(self):
         if not self._active:
             return
+        self._sync_parent_size()
         self._update_fade()
         if self._pc and hasattr(self._pc, '_get_mpv_property_double'):
             try:
@@ -309,6 +360,13 @@ class AudioVisualWidget(QWidget):
                 pass
         self._update_data()
         self.update()
+
+    def _sync_parent_size(self):
+        parent = self.parent()
+        if parent:
+            pw, ph = parent.width(), parent.height()
+            if pw > 0 and ph > 0 and (self.width() != pw or self.height() != ph):
+                self.setGeometry(0, 0, pw, ph)
 
     def _update_fade(self):
         if self._fade_state == 'fading_out':
@@ -327,7 +385,7 @@ class AudioVisualWidget(QWidget):
 
     def _update_data(self):
         self._frame_count += 1
-        needs_bars = self._style in ('spectrum', 'mirror_bars', 'circular', 'mountain', 'particles', 'spectrogram', 'aurora', 'starfield')
+        needs_bars = self._style in ('spectrum', 'mirror_bars', 'circular', 'mountain', 'particles', 'spectrogram', 'aurora', 'starfield', 'cosmos', 'warp', 'fluid', 'milkdrop')
         if needs_bars:
             samples = self._pcm.get_samples(FFT_SIZE)
             self._bars = compute_spectrum(samples, FFT_SIZE, NUM_BARS)
@@ -354,6 +412,18 @@ class AudioVisualWidget(QWidget):
             self._aurora_phase += 0.02 + float(np.mean(self._bars[:8])) * 0.05
         if self._style == 'starfield':
             self._update_starfield()
+        if self._style == 'cosmos':
+            self._update_cosmos()
+        if self._style == 'particles':
+            self._update_particles()
+        if self._style == 'spectrum':
+            self._update_dust()
+        if self._style == 'warp':
+            self._update_warp()
+        if self._style == 'fluid':
+            self._update_fluid()
+        if self._style == 'milkdrop':
+            self._update_milkdrop()
 
     def _update_starfield(self):
         w = self.width()
@@ -377,6 +447,162 @@ class AudioVisualWidget(QWidget):
             if s['z'] > 0.005:
                 alive.append(s)
         self._star_stars = alive[-600:]
+
+    def _update_particles(self):
+        w = self.width()
+        h = self.height()
+        if w <= 0 or h <= 0:
+            return
+        bass = float(np.mean(self._bars[:8]))
+        mid = float(np.mean(self._bars[8:30]))
+        high = float(np.mean(self._bars[30:]))
+        cx, cy = w / 2, h / 2
+        energy = bass + mid + high
+        if energy > 0.2:
+            count = int(energy * 8) + 2
+            for _ in range(count):
+                angle = random.uniform(0, 2 * math.pi)
+                speed = 1.0 + bass * 8 + mid * 3
+                dist = random.uniform(0, min(w, h) * 0.15)
+                hue = random.randint(140, 340)
+                self._particles.append({
+                    'x': cx + math.cos(angle) * dist,
+                    'y': cy + math.sin(angle) * dist,
+                    'vx': math.cos(angle) * speed,
+                    'vy': math.sin(angle) * speed,
+                    'life': 1.0,
+                    'size': 1.5 + bass * 5 + random.random() * 2,
+                    'hue': hue,
+                    'type': 'burst',
+                })
+        if self._frame_count % 3 == 0 and len(self._particles) < 2000:
+            for _ in range(3):
+                self._particles.append({
+                    'x': random.uniform(0, w),
+                    'y': random.uniform(0, h),
+                    'vx': random.uniform(-0.3, 0.3),
+                    'vy': random.uniform(-0.5, -0.1),
+                    'life': random.uniform(0.5, 1.0),
+                    'size': random.uniform(0.5, 2),
+                    'hue': random.randint(180, 260),
+                    'type': 'dust',
+                })
+        alive = []
+        for p in self._particles:
+            p['x'] += p['vx']
+            p['y'] += p['vy']
+            if p['type'] == 'burst':
+                p['vx'] *= 0.99
+                p['vy'] *= 0.99
+                p['life'] -= 0.012
+            else:
+                p['life'] -= 0.005
+            if p['life'] > 0 and -50 <= p['x'] <= w + 50 and -50 <= p['y'] <= h + 50:
+                alive.append(p)
+        self._particles = alive[-2000:]
+
+    def _update_dust(self):
+        w = self.width()
+        h = self.height()
+        if w <= 0 or h <= 0:
+            return
+        if self._frame_count % 4 == 0 and len(self._dust) < 80:
+            self._dust.append({
+                'x': random.uniform(0, w),
+                'y': random.uniform(0, h),
+                'vx': random.uniform(-0.2, 0.2),
+                'vy': random.uniform(-0.3, 0.1),
+                'life': 1.0,
+                'size': random.uniform(0.5, 1.5),
+            })
+        alive = []
+        for d in self._dust:
+            d['x'] += d['vx']
+            d['y'] += d['vy']
+            d['life'] -= 0.003
+            if d['life'] > 0 and 0 <= d['x'] <= w and 0 <= d['y'] <= h:
+                alive.append(d)
+        self._dust = alive
+
+    def _update_cosmos(self):
+        w = self.width()
+        h = self.height()
+        if w <= 0 or h <= 0:
+            return
+        bass = float(np.mean(self._bars[:8]))
+        mid = float(np.mean(self._bars[8:30]))
+        high = float(np.mean(self._bars[30:]))
+        cx, cy = w / 2, h / 2
+        self._cosmos_rotation += 0.003 + bass * 0.01
+        if len(self._cosmos_bg_stars) < 400:
+            for _ in range(5):
+                self._cosmos_bg_stars.append({
+                    'x': random.uniform(0, w),
+                    'y': random.uniform(0, h),
+                    'size': random.uniform(0.3, 1.5),
+                    'twinkle': random.uniform(0, math.pi * 2),
+                    'speed': random.uniform(0.02, 0.06),
+                })
+        for s in self._cosmos_bg_stars:
+            s['twinkle'] += s['speed']
+        energy = bass + mid + high
+        if energy > 0.15:
+            count = int(energy * 10) + 3
+            for _ in range(count):
+                angle = random.uniform(0, 2 * math.pi)
+                speed = 0.8 + bass * 10 + mid * 4
+                dist = random.uniform(0, min(w, h) * 0.08)
+                hue = random.randint(160, 320)
+                self._cosmos_particles.append({
+                    'x': cx + math.cos(angle) * dist,
+                    'y': cy + math.sin(angle) * dist,
+                    'vx': math.cos(angle) * speed,
+                    'vy': math.sin(angle) * speed,
+                    'life': 1.0,
+                    'size': 1 + bass * 4 + random.random() * 2,
+                    'hue': hue,
+                })
+        alive = []
+        for p in self._cosmos_particles:
+            p['x'] += p['vx']
+            p['y'] += p['vy']
+            p['vx'] *= 0.995
+            p['vy'] *= 0.995
+            p['life'] -= 0.008
+            if p['life'] > 0 and -100 <= p['x'] <= w + 100 and -100 <= p['y'] <= h + 100:
+                alive.append(p)
+        self._cosmos_particles = alive[-3000:]
+        if random.random() < 0.02 + bass * 0.15:
+            side = random.randint(0, 3)
+            if side == 0:
+                mx, my = random.uniform(0, w), 0
+            elif side == 1:
+                mx, my = w, random.uniform(0, h)
+            elif side == 2:
+                mx, my = random.uniform(0, w), h
+            else:
+                mx, my = 0, random.uniform(0, h)
+            tx = cx + random.uniform(-w * 0.3, w * 0.3)
+            ty = cy + random.uniform(-h * 0.3, h * 0.3)
+            dx, dy = tx - mx, ty - my
+            dist = math.sqrt(dx * dx + dy * dy) + 1
+            speed = 4 + bass * 8
+            self._cosmos_meteors.append({
+                'x': mx, 'y': my,
+                'vx': dx / dist * speed,
+                'vy': dy / dist * speed,
+                'life': 1.0,
+                'len': 30 + bass * 40,
+                'hue': random.randint(30, 60),
+            })
+        m_alive = []
+        for m in self._cosmos_meteors:
+            m['x'] += m['vx']
+            m['y'] += m['vy']
+            m['life'] -= 0.02
+            if m['life'] > 0 and -50 <= m['x'] <= w + 50 and -50 <= m['y'] <= h + 50:
+                m_alive.append(m)
+        self._cosmos_meteors = m_alive[-30:]
 
     def paintEvent(self, event):
         if not self._active:
@@ -409,13 +635,15 @@ class AudioVisualWidget(QWidget):
             'spectrogram': self._paint_spectrogram,
             'aurora': self._paint_aurora,
             'starfield': self._paint_starfield,
+            'cosmos': self._paint_cosmos,
+            'warp': self._paint_warp,
+            'fluid': self._paint_fluid,
+            'milkdrop': self._paint_milkdrop,
         }
         paint_fn = style_map.get(self._style, self._paint_spectrum)
         painter.setOpacity(self._fade_alpha)
         paint_fn(painter, w, h)
 
-        if self._style in ('spectrum', 'mirror_bars', 'circular', 'mountain', 'particles'):
-            self._paint_bloom(painter, w, h)
 
         painter.end()
 
@@ -434,6 +662,8 @@ class AudioVisualWidget(QWidget):
             'mirror_bars': self._paint_mirror_bars,
             'circular': self._paint_circular,
             'mountain': self._paint_mountain,
+            'cosmos': self._paint_cosmos,
+            'warp': self._paint_warp,
         }
         paint_fn = style_map.get(self._style)
         if paint_fn:
@@ -449,6 +679,19 @@ class AudioVisualWidget(QWidget):
         bars = self._smooth_bars
         peaks = self._peak_bars
         n = len(bars)
+        bass = float(np.mean(bars[:8]))
+        if bass > 0.1:
+            painter.setPen(Qt.PenStyle.NoPen)
+            grad = QRadialGradient(w / 2, h, h * 0.6)
+            grad.setColorAt(0, QColor(30, 60, 150, int(bass * 40)))
+            grad.setColorAt(1, QColor(5, 5, 10, 0))
+            painter.setBrush(QBrush(grad))
+            painter.drawRect(QRectF(0, 0, w, h))
+        painter.setPen(Qt.PenStyle.NoPen)
+        for d in self._dust:
+            alpha = int(d['life'] * 60)
+            painter.setBrush(QColor(150, 200, 255, alpha))
+            painter.drawEllipse(QRectF(d['x'] - d['size'], d['y'] - d['size'], d['size'] * 2, d['size'] * 2))
         margin = 8
         total_w = w - margin * 2
         bar_w = max(1, total_w / n - 1)
@@ -610,39 +853,25 @@ class AudioVisualWidget(QWidget):
         bars = self._smooth_bars
         bass = float(np.mean(bars[:8]))
         mid = float(np.mean(bars[8:30]))
-        high = float(np.mean(bars[30:]))
         cx, cy = w / 2, h / 2
-        energy = bass + mid + high
-        if energy > 0.3:
-            count = int(energy * 4) + 1
-            for _ in range(count):
-                angle = random.uniform(0, 2 * math.pi)
-                speed = 1.5 + bass * 6
-                hue = random.randint(150, 320)
-                self._particles.append({
-                    'x': cx + random.uniform(-20, 20),
-                    'y': cy + random.uniform(-20, 20),
-                    'vx': math.cos(angle) * speed,
-                    'vy': math.sin(angle) * speed,
-                    'life': 1.0,
-                    'size': 2 + bass * 6,
-                    'hue': hue,
-                })
-        alive = []
+        painter.setPen(Qt.PenStyle.NoPen)
+        for i in range(3):
+            r = min(w, h) * (0.15 + i * 0.08)
+            pulse = r + bass * min(w, h) * 0.03 * (3 - i)
+            alpha = int(20 + bass * 40 - i * 8)
+            painter.setPen(QPen(QColor(80, 160, 255, max(5, alpha)), 1))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawEllipse(QRectF(cx - pulse, cy - pulse, pulse * 2, pulse * 2))
         painter.setPen(Qt.PenStyle.NoPen)
         for p in self._particles:
-            p['x'] += p['vx']
-            p['y'] += p['vy']
-            p['vx'] *= 0.99
-            p['vy'] *= 0.99
-            p['life'] -= 0.015
-            if p['life'] > 0 and -50 <= p['x'] <= w + 50 and -50 <= p['y'] <= h + 50:
-                alive.append(p)
-                alpha = int(p['life'] * 220)
-                size = p['size'] * (0.3 + p['life'] * 0.7)
+            alpha = int(p['life'] * 220)
+            size = p['size'] * (0.3 + p['life'] * 0.7)
+            if p['type'] == 'dust':
+                painter.setBrush(QColor(120, 180, 255, int(alpha * 0.3)))
+                painter.drawEllipse(QRectF(p['x'] - size, p['y'] - size, size * 2, size * 2))
+            else:
                 painter.setBrush(QColor.fromHsv(p['hue'], 200, 255, alpha))
                 painter.drawEllipse(QRectF(p['x'] - size, p['y'] - size, size * 2, size * 2))
-        self._particles = alive[-500:]
         inner_r = min(w, h) * 0.12
         for i in range(len(bars)):
             val = bars[i]
@@ -798,6 +1027,406 @@ class AudioVisualWidget(QWidget):
         grad.setColorAt(1, QColor(5, 5, 10, 0))
         painter.setBrush(QBrush(grad))
         painter.drawRect(QRectF(0, 0, w, h))
+
+    def _paint_cosmos(self, painter, w, h):
+        bars = self._smooth_bars
+        bass = float(np.mean(bars[:8]))
+        mid = float(np.mean(bars[8:30]))
+        high = float(np.mean(bars[30:]))
+        cx, cy = w / 2, h / 2
+        painter.setPen(Qt.PenStyle.NoPen)
+        for s in self._cosmos_bg_stars:
+            brightness = 0.4 + 0.6 * (0.5 + 0.5 * math.sin(s['twinkle']))
+            alpha = int(brightness * 180)
+            size = s['size'] * (0.8 + bass * 0.4)
+            painter.setBrush(QColor(200, 220, 255, alpha))
+            painter.drawEllipse(QRectF(s['x'] - size, s['y'] - size, size * 2, size * 2))
+        nebula_r = min(w, h) * 0.4
+        for i in range(3):
+            angle = self._cosmos_rotation + i * 2.1
+            nx = cx + math.cos(angle) * nebula_r * 0.3
+            ny = cy + math.sin(angle) * nebula_r * 0.2
+            hue = int(200 + i * 60 + self._cosmos_rotation * 20) % 360
+            grad = QRadialGradient(nx, ny, nebula_r * (0.5 + bass * 0.2))
+            grad.setColorAt(0, QColor.fromHsv(hue, 120, 200, int(15 + bass * 25)))
+            grad.setColorAt(0.5, QColor.fromHsv(hue, 140, 180, int(8 + mid * 15)))
+            grad.setColorAt(1, QColor.fromHsv(hue, 160, 150, 0))
+            painter.setBrush(QBrush(grad))
+            painter.drawEllipse(QRectF(nx - nebula_r, ny - nebula_r, nebula_r * 2, nebula_r * 2))
+        ring_r = min(w, h) * 0.18
+        for i in range(len(bars)):
+            val = bars[i]
+            if val < 0.02:
+                continue
+            angle = i * 2 * math.pi / len(bars) + self._cosmos_rotation
+            x1 = cx + ring_r * math.cos(angle)
+            y1 = cy + ring_r * math.sin(angle)
+            bar_len = val * min(w, h) * 0.3
+            x2 = cx + (ring_r + bar_len) * math.cos(angle)
+            y2 = cy + (ring_r + bar_len) * math.sin(angle)
+            hue = int(180 + i * 180 / len(bars)) % 360
+            painter.setPen(QPen(QColor.fromHsv(hue, 200, 255, int(40 + val * 200)), max(1, 2 - val)))
+            painter.drawLine(int(x1), int(y1), int(x2), int(y2))
+        painter.setPen(Qt.PenStyle.NoPen)
+        core_r = ring_r * 0.6
+        grad = QRadialGradient(cx, cy, core_r)
+        grad.setColorAt(0, QColor(20, 25, 50, 240))
+        grad.setColorAt(0.6, QColor(15, 18, 40, 200))
+        grad.setColorAt(1, QColor(8, 10, 25, 80))
+        painter.setBrush(QBrush(grad))
+        painter.drawEllipse(QRectF(cx - core_r, cy - core_r, core_r * 2, core_r * 2))
+        if bass > 0.15:
+            for i in range(3):
+                pulse_r = ring_r * (1.05 + i * 0.08 + bass * 0.1)
+                painter.setPen(QPen(QColor(80, 160, 255, int(bass * 60 - i * 15)), 1))
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.drawEllipse(QRectF(cx - pulse_r, cy - pulse_r, pulse_r * 2, pulse_r * 2))
+        painter.setPen(Qt.PenStyle.NoPen)
+        for p in self._cosmos_particles:
+            alpha = int(p['life'] * 200)
+            size = p['size'] * (0.3 + p['life'] * 0.7)
+            painter.setBrush(QColor.fromHsv(p['hue'], 180, 255, alpha))
+            painter.drawEllipse(QRectF(p['x'] - size, p['y'] - size, size * 2, size * 2))
+        for m in self._cosmos_meteors:
+            alpha = int(m['life'] * 220)
+            tail_x = m['x'] - m['vx'] / (abs(m['vx']) + abs(m['vy']) + 0.01) * m['len']
+            tail_y = m['y'] - m['vy'] / (abs(m['vx']) + abs(m['vy']) + 0.01) * m['len']
+            grad = QLinearGradient(tail_x, tail_y, m['x'], m['y'])
+            grad.setColorAt(0, QColor.fromHsv(m['hue'], 100, 255, 0))
+            grad.setColorAt(0.7, QColor.fromHsv(m['hue'], 120, 255, int(alpha * 0.5)))
+            grad.setColorAt(1, QColor(255, 255, 255, alpha))
+            painter.setPen(QPen(QBrush(grad), 2))
+            painter.drawLine(int(tail_x), int(tail_y), int(m['x']), int(m['y']))
+            painter.setPen(Qt.PenStyle.NoPen)
+            head_grad = QRadialGradient(m['x'], m['y'], 4)
+            head_grad.setColorAt(0, QColor(255, 255, 255, alpha))
+            head_grad.setColorAt(1, QColor.fromHsv(m['hue'], 100, 255, 0))
+            painter.setBrush(QBrush(head_grad))
+            painter.drawEllipse(QRectF(m['x'] - 4, m['y'] - 4, 8, 8))
+
+    def _update_warp(self):
+        w = self.width()
+        h = self.height()
+        if w <= 0 or h <= 0:
+            return
+        cx, cy = w / 2, h / 2
+        bass = float(np.mean(self._bars[:8]))
+        mid = float(np.mean(self._bars[8:30]))
+        high = float(np.mean(self._bars[30:]))
+        energy = bass + mid + high
+        bass_hit = bass - self._warp_prev_bass
+        if bass_hit < 0:
+            bass_hit = 0
+        self._warp_prev_bass = bass
+        if self._frame_count % 2 == 0:
+            count = 2 + int(energy * 8)
+            for _ in range(count):
+                angle = random.uniform(0, 2 * math.pi)
+                dist = random.uniform(0, min(w, h) * 0.02)
+                speed = 1.5 + energy * 10
+                hue = random.randint(180, 280)
+                z = random.uniform(0.3, 1.0)
+                self._warp_streaks.append({
+                    'x': cx + math.cos(angle) * dist,
+                    'y': cy + math.sin(angle) * dist,
+                    'angle': angle,
+                    'speed': speed,
+                    'life': 1.0,
+                    'size': 1 + energy * 2,
+                    'hue': hue,
+                    'z': z,
+                })
+        alive = []
+        for s in self._warp_streaks:
+            s['x'] += math.cos(s['angle']) * s['speed'] * s['z']
+            s['y'] += math.sin(s['angle']) * s['speed'] * s['z']
+            s['speed'] *= 1.02
+            s['life'] -= 0.008
+            if s['life'] > 0 and -100 <= s['x'] <= w + 100 and -100 <= s['y'] <= h + 100:
+                alive.append(s)
+        self._warp_streaks = alive[-3000:]
+        if bass_hit > 0.06 or (bass > 0.35 and self._frame_count % 25 == 0):
+            self._warp_rings.append({
+                'r': 5,
+                'max_r': min(w, h) * (0.5 + bass * 0.5),
+                'speed': 3 + bass * 12 + bass_hit * 30,
+                'life': 1.0,
+                'hue': random.randint(180, 280),
+                'width': 2 + bass * 4,
+            })
+            spark_count = int(bass * 40 + bass_hit * 80) + 10
+            for _ in range(spark_count):
+                angle = random.uniform(0, 2 * math.pi)
+                speed = 1.5 + bass * 12 + bass_hit * 25
+                hue = random.randint(160, 300)
+                z = random.uniform(0.2, 1.0)
+                self._warp_sparks.append({
+                    'x': cx,
+                    'y': cy,
+                    'vx': math.cos(angle) * speed * z,
+                    'vy': math.sin(angle) * speed * z,
+                    'life': 1.0,
+                    'size': 1.5 + bass * 4 + random.random() * 2,
+                    'hue': hue,
+                    'z': z,
+                    'trail': [(cx, cy)],
+                })
+        r_alive = []
+        for ring in self._warp_rings:
+            ring['r'] += ring['speed']
+            ring['speed'] *= 0.99
+            ring['life'] -= 0.012
+            if ring['life'] > 0 and ring['r'] < ring['max_r'] * 1.5:
+                r_alive.append(ring)
+        self._warp_rings = r_alive[-20:]
+        s_alive = []
+        for sp in self._warp_sparks:
+            sp['x'] += sp['vx']
+            sp['y'] += sp['vy']
+            sp['vx'] *= 0.985
+            sp['vy'] *= 0.985
+            sp['life'] -= 0.012
+            sp['trail'].append((sp['x'], sp['y']))
+            if len(sp['trail']) > 12:
+                sp['trail'] = sp['trail'][-12:]
+            if sp['life'] > 0 and -80 <= sp['x'] <= w + 80 and -80 <= sp['y'] <= h + 80:
+                s_alive.append(sp)
+        self._warp_sparks = s_alive[-2500:]
+
+    def _paint_warp(self, painter, w, h):
+        bars = self._smooth_bars
+        bass = float(np.mean(bars[:8]))
+        mid = float(np.mean(bars[8:30]))
+        cx, cy = w / 2, h / 2
+        painter.setPen(Qt.PenStyle.NoPen)
+        core_r = min(w, h) * 0.04
+        grad = QRadialGradient(cx, cy, core_r * 3)
+        grad.setColorAt(0, QColor(200, 230, 255, int(80 + bass * 150)))
+        grad.setColorAt(0.3, QColor(100, 160, 255, int(30 + bass * 60)))
+        grad.setColorAt(1, QColor(20, 40, 100, 0))
+        painter.setBrush(QBrush(grad))
+        painter.drawEllipse(QRectF(cx - core_r * 3, cy - core_r * 3, core_r * 6, core_r * 6))
+        for s in self._warp_streaks:
+            alpha = int(s['life'] * 200 * s['z'])
+            tail_len = s['speed'] * 2.5 * s['z']
+            tx = s['x'] - math.cos(s['angle']) * tail_len
+            ty = s['y'] - math.sin(s['angle']) * tail_len
+            grad = QLinearGradient(tx, ty, s['x'], s['y'])
+            grad.setColorAt(0, QColor.fromHsv(s['hue'], 120, 255, 0))
+            grad.setColorAt(0.6, QColor.fromHsv(s['hue'], 140, 255, int(alpha * 0.4)))
+            grad.setColorAt(1, QColor.fromHsv(s['hue'], 100, 255, alpha))
+            painter.setPen(QPen(QBrush(grad), max(1, s['size'] * 0.8 * s['z'])))
+            painter.drawLine(int(tx), int(ty), int(s['x']), int(s['y']))
+        painter.setPen(Qt.PenStyle.NoPen)
+        for ring in self._warp_rings:
+            r = ring['r']
+            alpha = int(ring['life'] * 180)
+            hue = ring['hue']
+            painter.setPen(QPen(QColor.fromHsv(hue, 160, 255, alpha), ring['width'] * ring['life']))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawEllipse(QRectF(cx - r, cy - r, r * 2, r * 2))
+            if ring['life'] > 0.5:
+                inner_r = r * 0.95
+                painter.setPen(QPen(QColor.fromHsv(hue, 100, 255, int(alpha * 0.3)), ring['width'] * ring['life'] * 2))
+                painter.drawEllipse(QRectF(cx - inner_r, cy - inner_r, inner_r * 2, inner_r * 2))
+        painter.setPen(Qt.PenStyle.NoPen)
+        for sp in self._warp_sparks:
+            trail = sp['trail']
+            n = len(trail)
+            if n < 2:
+                continue
+            z = sp['z']
+            for i in range(1, n):
+                frac = i / n
+                alpha = int(sp['life'] * 200 * frac * z)
+                if alpha < 2:
+                    continue
+                x1, y1 = trail[i - 1]
+                x2, y2 = trail[i]
+                painter.setPen(QPen(QColor.fromHsv(sp['hue'], 160, 255, alpha), max(1, sp['size'] * frac * z)))
+                painter.drawLine(int(x1), int(y1), int(x2), int(y2))
+            painter.setPen(Qt.PenStyle.NoPen)
+            alpha = int(sp['life'] * 220 * z)
+            size = sp['size'] * (0.3 + sp['life'] * 0.7) * z
+            painter.setBrush(QColor.fromHsv(sp['hue'], 180, 255, alpha))
+            painter.drawEllipse(QRectF(sp['x'] - size, sp['y'] - size, size * 2, size * 2))
+        inner_r = min(w, h) * 0.06
+        for i in range(len(bars)):
+            val = bars[i]
+            if val < 0.03:
+                continue
+            angle = i * 2 * math.pi / len(bars)
+            bar_len = val * min(w, h) * 0.15
+            x1 = cx + inner_r * math.cos(angle)
+            y1 = cy + inner_r * math.sin(angle)
+            x2 = cx + (inner_r + bar_len) * math.cos(angle)
+            y2 = cy + (inner_r + bar_len) * math.sin(angle)
+            hue = int(180 + i * 180 / len(bars)) % 360
+            painter.setPen(QPen(QColor.fromHsv(hue, 180, 255, int(30 + val * 180)), max(1, 2)))
+            painter.drawLine(int(x1), int(y1), int(x2), int(y2))
+        painter.setPen(Qt.PenStyle.NoPen)
+
+    def _update_fluid(self):
+        self._fluid_hue = (self._fluid_hue + 0.3) % 360
+        bass = float(np.mean(self._bars[:8]))
+        mid = float(np.mean(self._bars[8:30]))
+        self._fluid_phase += 0.02 + bass * 0.06 + mid * 0.03
+
+    def _update_milkdrop(self):
+        self._milk_hue = (self._milk_hue + 0.4) % 360
+        bass = float(np.mean(self._bars[:8]))
+        mid = float(np.mean(self._bars[8:30]))
+        self._milk_phase += 0.015 + bass * 0.05
+        self._milk_rot += 0.002 + bass * 0.01
+        self._milk_zoom = 1.0 + bass * 0.05
+
+    def _paint_fluid(self, painter, w, h):
+        bars = self._smooth_bars
+        bass = float(np.mean(bars[:8]))
+        mid = float(np.mean(bars[8:30]))
+        high = float(np.mean(bars[30:]))
+        cx, cy = w / 2, h / 2
+        phase = self._fluid_phase
+        hue = self._fluid_hue
+
+        if self._fluid_buf is None or self._fluid_buf_w != w or self._fluid_buf_h != h:
+            self._fluid_buf = QImage(w, h, QImage.Format.Format_ARGB32)
+            self._fluid_buf.fill(QColor(0, 0, 0, 0))
+            self._fluid_buf_w = w
+            self._fluid_buf_h = h
+
+        fade_painter = QPainter(self._fluid_buf)
+        fade_painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+        fade_alpha = max(8, min(40, int(12 + (bass + mid) * 15)))
+        fade_painter.fillRect(0, 0, w, h, QColor(0, 0, 0, fade_alpha))
+        fade_painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+        fade_painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        n = len(bars)
+        for i in range(n):
+            val = bars[i]
+            if val < 0.02:
+                continue
+            freq = 20 + i * (18000 - 20) / n
+            angle = phase + i * 0.15 + math.sin(phase * 0.7 + i * 0.05) * 2
+            dist = 30 + val * min(w, h) * 0.35
+            px = cx + math.cos(angle) * dist * 0.3
+            py = cy + math.sin(angle) * dist * 0.3
+            size = 3 + val * 15
+            bar_hue = int(hue + i * 2.8) % 360
+            alpha = int(val * 200)
+            grad = QRadialGradient(px, py, size)
+            grad.setColorAt(0, QColor.fromHsv(bar_hue, 180, 255, alpha))
+            grad.setColorAt(0.5, QColor.fromHsv(bar_hue, 200, 220, int(alpha * 0.5)))
+            grad.setColorAt(1, QColor.fromHsv(bar_hue, 220, 180, 0))
+            fade_painter.setPen(Qt.PenStyle.NoPen)
+            fade_painter.setBrush(QBrush(grad))
+            fade_painter.drawEllipse(QRectF(px - size, py - size, size * 2, size * 2))
+
+        for layer in range(3):
+            points = []
+            y_base = h * (0.3 + layer * 0.15)
+            amp = h * (0.05 + bass * 0.12)
+            for x in range(0, w + 10, 10):
+                wave = math.sin(x * 0.006 + phase + layer * 1.2) * amp
+                wave += math.sin(x * 0.013 + phase * 1.5 + layer * 0.8) * amp * 0.4
+                wave += math.cos(x * 0.003 + phase * 0.5 + layer * 2.1) * amp * 0.3
+                y = y_base + wave
+                points.append((x, y))
+            for i in range(len(points) - 1):
+                x1, y1 = points[i]
+                x2, y2 = points[i + 1]
+                line_hue = int(hue + layer * 80 + i * 0.5) % 360
+                alpha = int(40 + bass * 80)
+                fade_painter.setPen(QPen(QColor.fromHsv(line_hue, 150, 255, alpha), 2 + bass * 3))
+                fade_painter.drawLine(int(x1), int(y1), int(x2), int(y2))
+
+        fade_painter.end()
+        painter.drawImage(0, 0, self._fluid_buf)
+
+    def _paint_milkdrop(self, painter, w, h):
+        bars = self._smooth_bars
+        bass = float(np.mean(bars[:8]))
+        mid = float(np.mean(bars[8:30]))
+        high = float(np.mean(bars[30:]))
+        cx, cy = w / 2, h / 2
+        phase = self._milk_phase
+        hue = self._milk_hue
+
+        if self._milk_buf is None or self._milk_buf_w != w or self._milk_buf_h != h:
+            self._milk_buf = QImage(w, h, QImage.Format.Format_ARGB32)
+            self._milk_buf.fill(QColor(0, 0, 0, 0))
+            self._milk_buf_w = w
+            self._milk_buf_h = h
+
+        temp_buf = QImage(w, h, QImage.Format.Format_ARGB32)
+        temp_painter = QPainter(temp_buf)
+        temp_painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+        fade_alpha = max(6, min(30, int(10 + (bass + mid) * 12)))
+        temp_painter.fillRect(0, 0, w, h, QColor(0, 0, 0, fade_alpha))
+        temp_painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+        temp_painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+
+        zoom = self._milk_zoom
+        rot = self._milk_rot
+        temp_painter.translate(cx, cy)
+        temp_painter.rotate(math.degrees(rot))
+        temp_painter.scale(1.0 / zoom, 1.0 / zoom)
+        temp_painter.translate(-cx, -cy)
+        temp_painter.setOpacity(0.95)
+        temp_painter.drawImage(0, 0, self._milk_buf)
+        temp_painter.end()
+
+        draw_painter = QPainter(temp_buf)
+        draw_painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+        draw_painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        n = len(bars)
+        for i in range(0, n, 2):
+            val = bars[i]
+            if val < 0.02:
+                continue
+            angle = i * 2 * math.pi / n + phase * 0.3
+            dist = 20 + val * min(w, h) * 0.3
+            px = cx + math.cos(angle) * dist
+            py = cy + math.sin(angle) * dist
+            size = 4 + val * 20
+            bar_hue = int(hue + i * 2.8) % 360
+            alpha = int(val * 180)
+            grad = QRadialGradient(px, py, size)
+            grad.setColorAt(0, QColor.fromHsv(bar_hue, 170, 255, alpha))
+            grad.setColorAt(0.6, QColor.fromHsv(bar_hue, 200, 220, int(alpha * 0.4)))
+            grad.setColorAt(1, QColor.fromHsv(bar_hue, 220, 180, 0))
+            draw_painter.setPen(Qt.PenStyle.NoPen)
+            draw_painter.setBrush(QBrush(grad))
+            draw_painter.drawEllipse(QRectF(px - size, py - size, size * 2, size * 2))
+
+        for layer in range(4):
+            y_base = h * (0.2 + layer * 0.15)
+            amp = h * (0.04 + bass * 0.10 + mid * 0.05)
+            prev = None
+            for x in range(0, w + 12, 12):
+                wave = math.sin(x * 0.005 + phase + layer * 1.5) * amp
+                wave += math.sin(x * 0.011 + phase * 1.3 + layer * 0.9) * amp * 0.35
+                wave += math.cos(x * 0.003 + phase * 0.6 + layer * 2.3) * amp * 0.3
+                y = y_base + wave
+                if prev is not None:
+                    line_hue = int(hue + layer * 90 + x * 0.1) % 360
+                    alpha = int(30 + bass * 60)
+                    draw_painter.setPen(QPen(QColor.fromHsv(line_hue, 140, 255, alpha), 1.5 + bass * 2))
+                    draw_painter.drawLine(int(prev[0]), int(prev[1]), int(x), int(y))
+                prev = (x, y)
+
+        if bass > 0.25:
+            ring_r = min(w, h) * 0.1 * (1 + bass * 0.5)
+            ring_hue = int(hue + 60) % 360
+            draw_painter.setPen(QPen(QColor.fromHsv(ring_hue, 150, 255, int(bass * 120)), 2))
+            draw_painter.setBrush(Qt.BrushStyle.NoBrush)
+            draw_painter.drawEllipse(QRectF(cx - ring_r, cy - ring_r, ring_r * 2, ring_r * 2))
+
+        draw_painter.end()
+        self._milk_buf = temp_buf
+        painter.drawImage(0, 0, self._milk_buf)
 
 
 class AudioVisualService:
