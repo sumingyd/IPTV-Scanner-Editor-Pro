@@ -5,7 +5,7 @@ from PySide6.QtGui import QPainter, QColor, QPainterPath, QCursor, QIcon, QBitma
 from PySide6.QtCore import Qt, QRectF, QSize
 import PySide6.QtCore as QtCore
 import sys
-from utils.platform_utils import is_windows, is_macos, is_android, is_wayland, wayland_move
+from utils.platform_utils import is_windows, is_macos, is_android, is_linux, is_wayland, wayland_move
 
 
 def _hide_from_taskbar(window):
@@ -69,12 +69,29 @@ class FloatingDockWidget(QDockWidget):
         self._resize_start_geo = None
         self._resize_start_pos = None
 
+    def _set_transient_parent(self):
+        try:
+            parent_window = self.parent()
+            if parent_window is None:
+                return
+            from PySide6.QtGui import QWindow
+            parent_handle = parent_window.windowHandle()
+            if parent_handle is None:
+                parent_window.createWinId()
+                parent_handle = parent_window.windowHandle()
+            if parent_handle:
+                self_handle = self.windowHandle()
+                if self_handle is None:
+                    self.createWinId()
+                    self_handle = self.windowHandle()
+                if self_handle:
+                    self_handle.setTransientParent(parent_handle)
+        except Exception:
+            pass
+
     def _on_floating_changed(self, floating):
         if floating:
-            if is_wayland():
-                flags = Qt.WindowType.Tool
-            else:
-                flags = Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool
+            flags = Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool
             if self.parent() and (self.parent().windowFlags() & Qt.WindowType.WindowStaysOnTopHint):
                 flags |= Qt.WindowType.WindowStaysOnTopHint
             from ui.styles import AppStyles
@@ -84,6 +101,8 @@ class FloatingDockWidget(QDockWidget):
             self.setWindowFlags(flags)
             if is_frosted:
                 self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+            if is_linux():
+                self._set_transient_parent()
             self.show()
 
     def show(self):
@@ -372,16 +391,42 @@ class FloatingDialog(QDialog):
             flags |= Qt.WindowType.WindowStaysOnTopHint
         if tool_window:
             flags |= Qt.WindowType.Tool
-        if frameless and not is_wayland():
-            flags |= Qt.WindowType.FramelessWindowHint
+        flags |= Qt.WindowType.FramelessWindowHint
         self.setWindowFlags(flags)
-        if frameless and not is_wayland():
-            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self._dwm_blur_enabled = False
         self._cached_frosted_colors = None
         self._cached_frosted_theme = None
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if is_linux() and self.parent():
+            try:
+                from PySide6.QtGui import QWindow
+                parent_handle = self.parent().windowHandle()
+                if parent_handle is None:
+                    self.parent().createWinId()
+                    parent_handle = self.parent().windowHandle()
+                if parent_handle:
+                    self_handle = self.windowHandle()
+                    if self_handle is None:
+                        self.createWinId()
+                        self_handle = self.windowHandle()
+                    if self_handle and self_handle.transientParent() is None:
+                        self_handle.setTransientParent(parent_handle)
+            except Exception:
+                pass
+        if is_android():
+            return
+        if is_macos():
+            from ui.styles import AppStyles
+            if AppStyles._visual_style == 'frosted' and not self._dwm_blur_enabled:
+                self._try_enable_macos_blur()
+            return
+        if not is_windows():
+            return
 
     def _try_enable_macos_blur(self):
         try:
@@ -474,49 +519,3 @@ class FloatingDialog(QDialog):
 
         super().paintEvent(event)
 
-    def showEvent(self, event):
-        super().showEvent(event)
-        if is_android():
-            return
-        if is_macos():
-            if AppStyles._visual_style == 'frosted' and not self._dwm_blur_enabled:
-                self._try_enable_macos_blur()
-            return
-        if not is_windows():
-            return
-        from ui.styles import AppStyles
-        is_frosted = AppStyles._visual_style == 'frosted'
-        if is_frosted and not self._dwm_blur_enabled:
-            try:
-                import ctypes
-                hwnd = int(self.winId())
-                DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-                dark = ctypes.c_int(1 if AppStyles._get_effective_color_mode() == 'dark' else 0)
-                ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                    hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
-                    ctypes.byref(dark), ctypes.sizeof(dark)
-                )
-                DWMWA_SYSTEMBACKDROP_TYPE = 38
-                DWMSBT_MAINVIEW = 2
-                value = ctypes.c_int(DWMSBT_MAINVIEW)
-                ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                    hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
-                    ctypes.byref(value), ctypes.sizeof(value)
-                )
-                self._dwm_blur_enabled = True
-            except Exception:
-                pass
-        elif not is_frosted and self._dwm_blur_enabled:
-            try:
-                import ctypes
-                hwnd = int(self.winId())
-                DWMWA_SYSTEMBACKDROP_TYPE = 38
-                DWMSBT_NONE = 1
-                value = ctypes.c_int(DWMSBT_NONE)
-                ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                    hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
-                    ctypes.byref(value), ctypes.sizeof(value)
-                )
-                self._dwm_blur_enabled = False
-            except Exception:
-                pass

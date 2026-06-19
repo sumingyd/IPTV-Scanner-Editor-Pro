@@ -553,12 +553,8 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
     def _init_basic_ui(self):
         """创建最基础的UI框架：无边框窗口、容器、标题栏、内容区域"""
         logger.debug("创建最最基本的UI")
-        from utils.platform_utils import is_wayland
-        if is_wayland():
-            self.setWindowFlags(QtCore.Qt.WindowType.Window)
-        else:
-            self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Window)
-            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Window)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setMouseTracking(True)
         self.setAcceptDrops(True)
 
