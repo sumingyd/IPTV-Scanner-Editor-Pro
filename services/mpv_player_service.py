@@ -380,7 +380,7 @@ class MpvPlayerController(QObject):
                 self.logger.debug(f"提取原始 URL 失败：{str(e)}")
         return url
 
-    @staticmethod
+
     def _is_network_url(self, url):
         if not url:
             return False

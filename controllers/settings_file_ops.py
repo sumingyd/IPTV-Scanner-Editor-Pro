@@ -1112,9 +1112,20 @@ class SettingsFileOperations:
                 return
 
             if content.lstrip().startswith('#EXTM3U'):
-                is_hls_master = '#EXT-X-STREAM-INF' in content
-                if is_hls_master:
-                    logger.info("检测到HLS Master Playlist，作为单频道串流处理")
+                is_hls = '#EXT-X-STREAM-INF' in content or '#EXT-X-TARGETDURATION' in content or '#EXTINF' in content
+                if is_hls:
+                    logger.info("检测到HLS Playlist，作为单频道串流处理")
+                    name = custom_name
+                    if not name:
+                        name = url.split('/')[-1][:30] if '/' in url else url[:30]
+                    channel = {
+                        'name': name,
+                        'url': url,
+                        'group': tr("temp_stream", "临时串流"),
+                        '_groups': [tr("temp_stream", "临时串流")],
+                    }
+                    w._add_to_local_list(channel)
+                    return
                 else:
                     try:
                         channels, _ = parse_m3u_content(content)
