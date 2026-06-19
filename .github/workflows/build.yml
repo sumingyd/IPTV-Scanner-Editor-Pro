@@ -128,10 +128,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install MPV and FFmpeg via Homebrew (x86_64)
+      - name: Install x86_64 Homebrew and dependencies
         run: |
+          arch -x86_64 /bin/bash -c "NONINTERACTIVE=1 /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+          mkdir -p mpv ffmpeg
           arch -x86_64 /bin/bash -c 'eval "$(/usr/local/bin/brew shellenv)" && brew install mpv ffmpeg'
-          mkdir -p mpv
           arch -x86_64 /bin/bash -c 'eval "$(/usr/local/bin/brew shellenv)" && cp $(brew --prefix mpv)/lib/libmpv.2.dylib mpv/'
           arch -x86_64 /bin/bash -c 'eval "$(/usr/local/bin/brew shellenv)" && cp $(brew --prefix ffmpeg)/bin/ffprobe ffmpeg/'
 
