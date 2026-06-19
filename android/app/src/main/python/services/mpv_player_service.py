@@ -280,7 +280,7 @@ class MpvPlayerController(QObject):
                 return False
 
             try:
-                _mpv_observe_property(self.mpv_handle, 1, 'pause', MPV_FORMAT_STRING)
+                _mpv_observe_property(self.mpv_handle, 1, 'pause', MPV_FORMAT_FLAG)
             except Exception as e:
                 self.logger.warning(f"订阅pause属性失败: {str(e)}")
 
@@ -847,7 +847,13 @@ class MpvPlayerController(QObject):
                             if prop.name:
                                 name = _ctypes.cast(prop.name, _ctypes.c_char_p).value
                                 if name and name.decode('utf-8', errors='ignore') == 'pause':
-                                    if prop.format == MPV_FORMAT_STRING and prop.data:
+                                    if prop.format == MPV_FORMAT_FLAG and prop.data:
+                                        val_ptr = _ctypes.cast(prop.data, _ctypes.POINTER(_ctypes.c_int)).contents
+                                        new_paused = bool(val_ptr.value)
+                                        if new_paused != self.is_paused:
+                                            self.is_paused = new_paused
+                                            self._safe_emit(self.play_state_changed, not new_paused)
+                                    elif prop.format == MPV_FORMAT_STRING and prop.data:
                                         val_ptr = _ctypes.cast(prop.data, _ctypes.POINTER(_ctypes.c_char_p)).contents
                                         if val_ptr:
                                             val = val_ptr.decode('utf-8', errors='ignore')
@@ -1202,6 +1208,9 @@ class MpvPlayerController(QObject):
                     result = _mpv_send_command(self.mpv_handle, ['cycle', 'pause'])
                 if result < 0:
                     self.logger.error(f"切换暂停状态失败: {result}")
+                    self.is_paused = not self.is_paused
+                    self.is_playing = not self.is_paused
+                    self._safe_emit(self.play_state_changed, self.is_playing)
                 else:
                     try:
                         actual_paused = self._get_mpv_property_int('pause')
