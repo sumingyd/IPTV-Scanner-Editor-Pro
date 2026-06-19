@@ -212,34 +212,56 @@ def prepare_macos_dependencies():
     ffprobe_dest = ffmpeg_dir / "ffprobe"
 
     if not ffprobe_dest.exists():
-        import platform
-        mac_arch = platform.machine()
-        if mac_arch == 'arm64':
-            ffprobe_url = "https://www.osxexperts.net/ffprobe81arm.zip"
-        else:
-            ffprobe_url = "https://www.osxexperts.net/ffprobe80intel.zip"
-
-        zip_path = PROJECT_ROOT / "_ffprobe_download.zip"
-        try:
-            _download(ffprobe_url, str(zip_path))
-            extract_dir = PROJECT_ROOT / "_ffprobe_extract"
-            extract_dir.mkdir(exist_ok=True)
-            _run(["unzip", "-o", str(zip_path), "-d", str(extract_dir)], check=True)
-            extracted = list(extract_dir.rglob("ffprobe"))
-            if extracted:
-                shutil.copy2(extracted[0], ffprobe_dest)
+        ffprobe_found = False
+        for src in [
+            Path("/opt/homebrew/bin/ffprobe"),
+            Path("/usr/local/bin/ffprobe"),
+        ]:
+            if src.exists():
+                shutil.copy2(src, ffprobe_dest)
                 os.chmod(ffprobe_dest, 0o755)
-                print(f"ffprobe 已下载并放置到: {ffprobe_dest}")
+                print(f"ffprobe 已从 {src} 复制到 {ffprobe_dest}")
+                ffprobe_found = True
+                break
+
+        if not ffprobe_found:
+            result = _run(["which", "ffprobe"], capture_output=True, text=True)
+            if result.returncode == 0 and result.stdout.strip():
+                src = Path(result.stdout.strip())
+                shutil.copy2(src, ffprobe_dest)
+                os.chmod(ffprobe_dest, 0o755)
+                print(f"ffprobe 已从 {src} 复制到 {ffprobe_dest}")
+                ffprobe_found = True
+
+        if not ffprobe_found:
+            import platform
+            mac_arch = platform.machine()
+            if mac_arch == 'arm64':
+                ffprobe_url = "https://www.osxexperts.net/ffprobe81arm.zip"
             else:
-                print("错误: 下载的 zip 中未找到 ffprobe")
-                sys.exit(1)
-        finally:
-            for p in [zip_path, PROJECT_ROOT / "_ffprobe_extract"]:
-                if p.exists():
-                    if p.is_dir():
-                        shutil.rmtree(p)
-                    else:
-                        p.unlink()
+                ffprobe_url = "https://www.osxexperts.net/ffprobe80intel.zip"
+
+            zip_path = PROJECT_ROOT / "_ffprobe_download.zip"
+            try:
+                _download(ffprobe_url, str(zip_path))
+                extract_dir = PROJECT_ROOT / "_ffprobe_extract"
+                extract_dir.mkdir(exist_ok=True)
+                _run(["unzip", "-o", str(zip_path), "-d", str(extract_dir)], check=True)
+                extracted = list(extract_dir.rglob("ffprobe"))
+                if extracted:
+                    shutil.copy2(extracted[0], ffprobe_dest)
+                    os.chmod(ffprobe_dest, 0o755)
+                    print(f"ffprobe 已下载并放置到: {ffprobe_dest}")
+                else:
+                    print("错误: 下载的 zip 中未找到 ffprobe")
+                    sys.exit(1)
+            finally:
+                for p in [zip_path, PROJECT_ROOT / "_ffprobe_extract"]:
+                    if p.exists():
+                        if p.is_dir():
+                            shutil.rmtree(p)
+                        else:
+                            p.unlink()
     else:
         print(f"ffprobe 已就绪: {ffprobe_dest}")
 

@@ -93,9 +93,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install MPV via Homebrew
+      - name: Install MPV and FFmpeg via Homebrew
         run: |
-          brew install mpv
+          brew install mpv ffmpeg
           mkdir -p mpv
           cp /opt/homebrew/lib/libmpv.2.dylib mpv/ || cp /usr/local/lib/libmpv.2.dylib mpv/
 
@@ -128,9 +128,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install MPV via Homebrew
+      - name: Install MPV and FFmpeg via Homebrew
         run: |
-          brew install mpv
+          brew install mpv ffmpeg
           mkdir -p mpv
           cp /usr/local/lib/libmpv.2.dylib mpv/ || cp /opt/homebrew/lib/libmpv.2.dylib mpv/
 
