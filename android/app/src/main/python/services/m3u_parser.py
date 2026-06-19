@@ -279,6 +279,27 @@ def _extract_fcc_to_channel(url: str, channel: Dict[str, Any]):
         pass
 
 
+def _auto_detect_catchup_from_url(url: str, channel: Dict[str, Any]):
+    """从频道URL中自动检测回看模式并填充catchup字段（如PLTV/TVOD模式）"""
+    try:
+        if not url or channel.get('catchup') or channel.get('catchup_source'):
+            return
+        url_lower = url.lower()
+        if '/pltv/' in url_lower and '/index.m3u8' in url_lower:
+            import re as _re
+            match = _re.search(r'(/PLTV/\d+/\d+/\d+/index\.m3u8)', url, _re.IGNORECASE)
+            if match:
+                pltv_path = match.group(1)
+                tvod_path = pltv_path.replace('/PLTV/', '/TVOD/').replace('/pltv/', '/TVOD/')
+                base_url = url[:match.start()]
+                catchup_source = base_url + tvod_path + '?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}'
+                channel['catchup'] = 'pltv'
+                channel['catchup_days'] = channel.get('catchup_days') or '3'
+                channel['catchup_source'] = catchup_source
+    except Exception:
+        pass
+
+
 def _make_empty_channel(group: str = '未分类', groups: Optional[List[str]] = None, extinf: str = '') -> Dict[str, Any]:
     return {
         'name': '未命名',
@@ -443,6 +464,7 @@ def parse_m3u_content(content: str) -> Tuple[List[Dict[str, Any]], Dict[str, str
                     ch['name'] = maybe_name if maybe_name else '未命名'
                     ch['url'] = maybe_url
                     _extract_fcc_to_channel(maybe_url, ch)
+                    _auto_detect_catchup_from_url(maybe_url, ch)
                     _inherit_header_attrs(ch, header_attrs)
                     channels.append(ch)
                     txt_parsed = True
@@ -454,6 +476,7 @@ def parse_m3u_content(content: str) -> Tuple[List[Dict[str, Any]], Dict[str, str
                         ch = _make_empty_channel(group=primary_group, groups=groups_list)
                         ch['name'] = maybe_name if maybe_name else '未命名'
                         ch['url'] = line.strip()
+                        _auto_detect_catchup_from_url(line.strip(), ch)
                         _inherit_header_attrs(ch, header_attrs)
                         channels.append(ch)
                         txt_parsed = True
@@ -465,6 +488,7 @@ def parse_m3u_content(content: str) -> Tuple[List[Dict[str, Any]], Dict[str, str
                 if valid:
                     current_channel['url'] = url
                     _extract_fcc_to_channel(url, current_channel)
+                    _auto_detect_catchup_from_url(url, current_channel)
                     channels.append(current_channel)
                 else:
                     ch_name = current_channel.get('name', '?')
@@ -484,6 +508,7 @@ def parse_m3u_content(content: str) -> Tuple[List[Dict[str, Any]], Dict[str, str
                     ch = _make_empty_channel(group=primary_group, groups=groups_list)
                     ch['name'] = ch_name if ch_name else '未命名'
                     ch['url'] = url
+                    _auto_detect_catchup_from_url(url, ch)
                     _inherit_header_attrs(ch, header_attrs)
                     channels.append(ch)
                 else:

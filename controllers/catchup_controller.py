@@ -8,7 +8,7 @@ class CatchupController:
 
     CATCHUP_TYPES = {
         'default', 'append', 'shift', 'flussonic', 'fs',
-        'xc', 'xtream', 'vod', 'timemachine'
+        'xc', 'xtream', 'vod', 'timemachine', 'pltv'
     }
 
     URL_REBUILD_COOLDOWN = 3.0
@@ -242,6 +242,15 @@ class CatchupController:
             offset = int((datetime.now() - start_time).total_seconds())
             sep = '&' if '?' in live_url else '?'
             return f"{live_url}{sep}timeshift={offset}"
+
+        elif catchup_type == 'pltv':
+            if catchup_url:
+                return catchup_url
+            pltv_url = re.sub(r'/PLTV/', '/TVOD/', live_url, count=1, flags=re.IGNORECASE)
+            start_str = start_time.strftime('%Y%m%d%H%M%S')
+            end_str = end_time.strftime('%Y%m%d%H%M%S')
+            sep = '&' if '?' in pltv_url else '?'
+            return f"{pltv_url}{sep}playseek={start_str}-{end_str}"
 
         elif catchup_type in ('default', 'vod', 'timemachine', ''):
             return catchup_url if catchup_url else live_url
