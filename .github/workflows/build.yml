@@ -128,13 +128,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install x86_64 Homebrew and dependencies
+      - name: Install x86_64 Homebrew
         run: |
           arch -x86_64 /bin/bash -c "NONINTERACTIVE=1 /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+
+      - name: Install x86_64 dependencies via Homebrew
+        run: |
+          arch -x86_64 /bin/bash -c 'eval "$(/usr/local/bin/brew shellenv)" && brew install mpv && brew install ffmpeg'
+
+      - name: Copy x86_64 libraries
+        run: |
           mkdir -p mpv ffmpeg
-          arch -x86_64 /bin/bash -c 'eval "$(/usr/local/bin/brew shellenv)" && brew install mpv ffmpeg'
           arch -x86_64 /bin/bash -c 'eval "$(/usr/local/bin/brew shellenv)" && cp $(brew --prefix mpv)/lib/libmpv.2.dylib mpv/'
           arch -x86_64 /bin/bash -c 'eval "$(/usr/local/bin/brew shellenv)" && cp $(brew --prefix ffmpeg)/bin/ffprobe ffmpeg/'
+          ls -la mpv/ ffmpeg/
 
       - name: Set up Python (x86_64)
         uses: actions/setup-python@v5
@@ -219,6 +226,67 @@ jobs:
         with:
           tag_name: ${{ inputs.release_tag }}
           files: dist/IPTV Scanner Editor Pro-macOS-Universal.zip
+          fail_on_unmatched_files: true
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux-x86_64:
+    name: Build Linux x86_64
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y libmpv-dev ffmpeg
+
+      - name: Prepare dependencies
+        run: |
+          mkdir -p mpv ffmpeg
+          cp /usr/lib/x86_64-linux-gnu/libmpv.so.2 mpv/ 2>/dev/null || cp /usr/lib/libmpv.so.2 mpv/ 2>/dev/null || true
+          cp /usr/bin/ffprobe ffmpeg/
+          cp /usr/bin/ffmpeg ffmpeg/ 2>/dev/null || true
+          chmod +x ffmpeg/ffprobe ffmpeg/ffmpeg 2>/dev/null || true
+          ls -la mpv/ ffmpeg/
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14.5"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable
+        run: python build.py
+
+      - name: Verify executable
+        run: |
+          if [ ! -f "dist/IPTV Scanner Editor Pro" ]; then
+            echo "Expected executable was not found"
+            exit 1
+          fi
+          chmod +x "dist/IPTV Scanner Editor Pro"
+          file "dist/IPTV Scanner Editor Pro"
+
+      - name: Compress executable
+        run: |
+          cd dist
+          tar czf "IPTV Scanner Editor Pro-Linux-x86_64.tar.gz" "IPTV Scanner Editor Pro"
+
+      - name: Upload executable to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          files: dist/IPTV Scanner Editor Pro-Linux-x86_64.tar.gz
           fail_on_unmatched_files: true
           overwrite_files: true
         env:
