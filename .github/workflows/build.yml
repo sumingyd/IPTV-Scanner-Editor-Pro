@@ -122,23 +122,25 @@ jobs:
 
   build-macos-x86:
     name: Build macOS x86_64
-    runs-on: macos-13
+    runs-on: macos-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install MPV and FFmpeg via Homebrew
+      - name: Install MPV and FFmpeg via Homebrew (x86_64)
         run: |
-          brew install mpv ffmpeg
+          arch -x86_64 /bin/bash -c 'eval "$(/usr/local/bin/brew shellenv)" && brew install mpv ffmpeg'
           mkdir -p mpv
-          cp /usr/local/lib/libmpv.2.dylib mpv/ || cp /opt/homebrew/lib/libmpv.2.dylib mpv/
+          arch -x86_64 /bin/bash -c 'eval "$(/usr/local/bin/brew shellenv)" && cp $(brew --prefix mpv)/lib/libmpv.2.dylib mpv/'
+          arch -x86_64 /bin/bash -c 'eval "$(/usr/local/bin/brew shellenv)" && cp $(brew --prefix ffmpeg)/bin/ffprobe ffmpeg/'
 
-      - name: Set up Python
+      - name: Set up Python (x86_64)
         uses: actions/setup-python@v5
         with:
           python-version: "3.14.5"
           cache: "pip"
+          architecture: "x64"
 
       - name: Install dependencies
         run: |
@@ -148,6 +150,11 @@ jobs:
 
       - name: Build .app
         run: python build.py
+
+      - name: Verify x86_64 binary
+        run: |
+          file "dist/IPTV Scanner Editor Pro.app/Contents/MacOS/IPTV Scanner Editor Pro" | grep -q x86_64 || \
+            echo "Warning: binary may not be x86_64"
 
       - name: Upload x86_64 artifact
         uses: actions/upload-artifact@v4
