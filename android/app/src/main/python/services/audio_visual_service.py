@@ -9,9 +9,10 @@ from collections import deque
 
 import numpy as np
 from PySide6.QtWidgets import QWidget
-from PySide6.QtCore import QTimer, Qt, QRectF
+from PySide6.QtCore import QTimer, Qt, QRectF, QPointF
 from PySide6.QtGui import (QPainter, QColor, QLinearGradient, QRadialGradient,
-                            QPen, QBrush, QFont, QPixmap, QImage)
+                            QPen, QBrush, QFont, QPixmap, QImage, QPolygonF,
+                            QConicalGradient)
 
 AUDIO_EXTENSIONS = ('.mp3', '.flac', '.wav', '.aac', '.ogg', '.opus', '.wma', '.m4a',
                     '.ape', '.alac', '.wv', '.tta', '.dts', '.ac3', '.mid', '.midi')
@@ -19,68 +20,27 @@ AUDIO_EXTENSIONS = ('.mp3', '.flac', '.wav', '.aac', '.ogg', '.opus', '.wma', '.
 AUDIO_VISUAL_STYLES = {
     'spectrum': {
         'name_key': 'audio_vis_spectrum',
-        'name_default': '频谱',
-    },
-    'mirror_bars': {
-        'name_key': 'audio_vis_mirror_bars',
-        'name_default': '镜像柱状',
-    },
-    'circular': {
-        'name_key': 'audio_vis_circular',
-        'name_default': '环形频谱',
+        'name_default': '3D频谱',
     },
     'waves': {
         'name_key': 'audio_vis_waves',
-        'name_default': '波形',
+        'name_default': '3D波形',
     },
-    'vector_scope': {
-        'name_key': 'audio_vis_vectorscope',
-        'name_default': '矢量示波器',
+    'circular': {
+        'name_key': 'audio_vis_circular',
+        'name_default': '3D环形',
     },
-    'particles': {
-        'name_key': 'audio_vis_particles',
-        'name_default': '粒子脉冲',
-    },
-    'mountain': {
-        'name_key': 'audio_vis_mountain',
-        'name_default': '山脉频谱',
-    },
-    'spectrogram': {
-        'name_key': 'audio_vis_spectrogram',
-        'name_default': '瀑布流',
-    },
-    'aurora': {
-        'name_key': 'audio_vis_aurora',
-        'name_default': '极光',
-    },
-    'starfield': {
-        'name_key': 'audio_vis_starfield',
-        'name_default': '星场',
+    'terrain': {
+        'name_key': 'audio_vis_terrain',
+        'name_default': '3D地形',
     },
     'cosmos': {
         'name_key': 'audio_vis_cosmos',
-        'name_default': '宇宙',
-    },
-    'warp': {
-        'name_key': 'audio_vis_warp',
-        'name_default': '曲速',
+        'name_default': '3D宇宙',
     },
     'fluid': {
         'name_key': 'audio_vis_fluid',
-        'name_default': '流体',
-    },
-    'milkdrop': {
-        'name_key': 'audio_vis_milkdrop',
-        'name_default': '经典',
-    },
-    'ring_dots': {
-        'name_key': 'audio_vis_ring_dots',
-        'name_default': '圆环点阵波',
-    },
-
-    'ripple_dots': {
-        'name_key': 'audio_vis_ripple_dots',
-        'name_default': '声波涟漪',
+        'name_default': '3D流体',
     },
     'none': {
         'name_key': 'audio_vis_none',
@@ -93,7 +53,7 @@ STYLE_KEYS = [k for k in AUDIO_VISUAL_STYLES if k != 'none']
 FFT_SIZE = 4096
 SAMPLE_RATE = 44100
 AUDIO_CHANNELS = 2
-NUM_BARS = 128
+NUM_BARS = 64
 
 
 class AudioPCMProvider:
@@ -229,6 +189,25 @@ def compute_spectrum(samples, fft_size=FFT_SIZE, num_bars=NUM_BARS):
     return np.clip(bars, 0, 1)
 
 
+def _project_3d(x, y, z, w, h, cam_dist=8.0, fov_scale=0.1, pitch=0.45, yaw=0.0):
+    cos_p = math.cos(-pitch)
+    sin_p = math.sin(-pitch)
+    cos_y = math.cos(yaw)
+    sin_y = math.sin(yaw)
+    y1 = y * cos_p - z * sin_p
+    z1 = y * sin_p + z * cos_p
+    x2 = x * cos_y - z1 * sin_y
+    z2 = x * sin_y + z1 * cos_y
+    y2 = y1
+    depth = z2 + cam_dist
+    if depth < 0.3:
+        depth = 0.3
+    scale = cam_dist / depth
+    sx = w / 2 + x2 * scale * w * fov_scale
+    sy = h / 2 - y2 * scale * h * fov_scale
+    return sx, sy, depth, scale
+
+
 class AudioVisualWidget(QWidget):
     def __init__(self, parent=None, player_controller=None):
         super().__init__(parent)
@@ -242,51 +221,22 @@ class AudioVisualWidget(QWidget):
         self._peak_decay = np.zeros(NUM_BARS, dtype=np.int32)
         self._wave_left = np.zeros(512)
         self._wave_right = np.zeros(512)
-        self._scope_trail = deque(maxlen=400)
-        self._particles = []
-        self._dust = []
         self._cover_pixmap = None
         self._frame_count = 0
-        self._spectrogram_history = deque(maxlen=120)
-        self._star_stars = []
-        self._aurora_phase = 0.0
+
         self._cosmos_bg_stars = []
         self._cosmos_particles = []
         self._cosmos_meteors = []
         self._cosmos_rotation = 0.0
-        self._warp_streaks = []
-        self._warp_rings = []
-        self._warp_sparks = []
-        self._warp_prev_bass = 0.0
-        self._warp_drift = 0.0
         self._fluid_hue = 0.0
         self._fluid_phase = 0.0
         self._fluid_buf = None
         self._fluid_buf_w = 0
         self._fluid_buf_h = 0
-        self._milk_hue = 0.0
-        self._milk_phase = 0.0
-        self._milk_rot = 0.0
-        self._milk_zoom = 1.0
-        self._milk_buf = None
-        self._milk_buf_w = 0
-        self._milk_buf_h = 0
-        self._ring_dots_phase = 0.0
-        self._ring_dots_ripples = []
-        self._ripple_dots_waves = []
-        self._ripple_dots_prev_bass = 0.0
-        self._ripple_dots_trail = []
-        self._ripple_dots_view_yaw = math.pi / 2
-        self._ripple_dots_view_pitch = 0.0
-        self._ripple_dots_target_yaw = math.pi / 2
-        self._ripple_dots_target_pitch = 0.0
-        self._ripple_dots_view_timer = 0
+        self._spectrum_angle = 0.0
         self._bar_colors = [QColor.fromHsv(int(200 + i * 160 / NUM_BARS) % 360, 230, 255) for i in range(NUM_BARS)]
         self._bar_colors_dim = [QColor.fromHsv(int(200 + i * 160 / NUM_BARS) % 360, 180, 80) for i in range(NUM_BARS)]
         self._bar_colors_peak = [QColor.fromHsv(int(200 + i * 160 / NUM_BARS) % 360, 160, 255) for i in range(NUM_BARS)]
-        self._bloom_img = None
-        self._bloom_w = 0
-        self._bloom_h = 0
         self._random_mode = False
         self._random_timer = QTimer(self)
         self._random_timer.setInterval(15000)
@@ -317,38 +267,14 @@ class AudioVisualWidget(QWidget):
 
     def _apply_style_now(self, style_key):
         self._style = style_key
-        if style_key == 'particles':
-            self._particles = []
-            self._dust = []
-        elif style_key == 'starfield':
-            self._star_stars = []
-        elif style_key == 'spectrogram':
-            self._spectrogram_history.clear()
+        if style_key == 'terrain':
+            self._terrain_phase = 0.0
         elif style_key == 'cosmos':
             self._cosmos_bg_stars = []
             self._cosmos_particles = []
             self._cosmos_meteors = []
-        elif style_key == 'warp':
-            self._warp_streaks = []
-            self._warp_rings = []
-            self._warp_sparks = []
         elif style_key == 'fluid':
             self._fluid_buf = None
-        elif style_key == 'milkdrop':
-            self._milk_buf = None
-        elif style_key == 'ring_dots':
-            self._ring_dots_ripples = []
-
-        elif style_key == 'ripple_dots':
-            self._ripple_dots_waves = []
-            self._ripple_dots_trail = []
-            self._ripple_dots_prev_bass = 0.0
-            self._ripple_dots_view_yaw = 0.0
-            self._ripple_dots_view_pitch = 0.0
-            self._ripple_dots_target_yaw = math.pi / 2
-            self._ripple_dots_target_pitch = 0.0
-            self._ripple_dots_view_timer = 0
-        self._scope_trail.clear()
         self._peak_bars = np.zeros(NUM_BARS)
         self._peak_decay = np.zeros(NUM_BARS, dtype=np.int32)
         self._smooth_bars = np.zeros(NUM_BARS)
@@ -426,7 +352,7 @@ class AudioVisualWidget(QWidget):
 
     def _update_data(self):
         self._frame_count += 1
-        needs_bars = self._style in ('spectrum', 'mirror_bars', 'circular', 'mountain', 'particles', 'spectrogram', 'aurora', 'starfield', 'cosmos', 'warp', 'fluid', 'milkdrop', 'ring_dots', 'ripple_dots')
+        needs_bars = self._style in ('spectrum', 'circular', 'terrain', 'cosmos', 'fluid')
         if needs_bars:
             samples = self._pcm.get_samples(FFT_SIZE)
             self._bars = compute_spectrum(samples, FFT_SIZE, NUM_BARS)
@@ -441,135 +367,15 @@ class AudioVisualWidget(QWidget):
                         self._peak_bars[i] *= 0.9
         if self._style == 'waves':
             self._wave_left, self._wave_right = self._pcm.get_stereo_samples(512)
-        if self._style == 'vector_scope':
-            left, right = self._pcm.get_stereo_samples(512)
-            if len(left) > 0 and len(right) > 0:
-                step = max(1, len(left) // 80)
-                for j in range(0, len(left), step):
-                    self._scope_trail.append((float(left[j]), float(right[j])))
-        if self._style == 'spectrogram':
-            self._spectrogram_history.append(self._smooth_bars.copy())
-        if self._style == 'aurora':
-            self._aurora_phase += 0.02 + float(np.mean(self._bars[:8])) * 0.05
-        if self._style == 'starfield':
-            self._update_starfield()
         if self._style == 'cosmos':
             self._update_cosmos()
-        if self._style == 'particles':
-            self._update_particles()
-        if self._style == 'spectrum':
-            self._update_dust()
-        if self._style == 'warp':
-            self._update_warp()
+        if self._style == 'terrain':
+            self._terrain_phase += 0.015 + float(np.mean(self._bars[:8])) * 0.04
         if self._style == 'fluid':
             self._update_fluid()
-        if self._style == 'milkdrop':
-            self._update_milkdrop()
-        if self._style == 'ring_dots':
-            self._ring_dots_phase += 0.02 + float(np.mean(self._bars[:8])) * 0.06
-            self._update_ring_dots()
+        if self._style == 'spectrum':
+            self._spectrum_angle += 0.003
 
-        if self._style == 'ripple_dots':
-            self._update_ripple_dots()
-
-    def _update_starfield(self):
-        w = self.width()
-        h = self.height()
-        if w <= 0 or h <= 0:
-            return
-        bass = float(np.mean(self._bars[:8]))
-        mid = float(np.mean(self._bars[8:30]))
-        speed = 0.5 + bass * 8 + mid * 3
-        if len(self._star_stars) < 300 and self._frame_count % 2 == 0:
-            for _ in range(max(1, int(bass * 5))):
-                self._star_stars.append({
-                    'x': random.uniform(-1, 1),
-                    'y': random.uniform(-1, 1),
-                    'z': random.uniform(0.01, 1.0),
-                    'hue': random.randint(180, 300),
-                })
-        alive = []
-        for s in self._star_stars:
-            s['z'] -= speed * 0.005
-            if s['z'] > 0.005:
-                alive.append(s)
-        self._star_stars = alive[-600:]
-
-    def _update_particles(self):
-        w = self.width()
-        h = self.height()
-        if w <= 0 or h <= 0:
-            return
-        bass = float(np.mean(self._bars[:8]))
-        mid = float(np.mean(self._bars[8:30]))
-        high = float(np.mean(self._bars[30:]))
-        cx, cy = w / 2, h / 2
-        energy = bass + mid + high
-        if energy > 0.2:
-            count = int(energy * 8) + 2
-            for _ in range(count):
-                angle = random.uniform(0, 2 * math.pi)
-                speed = 1.0 + bass * 8 + mid * 3
-                dist = random.uniform(0, min(w, h) * 0.15)
-                hue = random.randint(140, 340)
-                self._particles.append({
-                    'x': cx + math.cos(angle) * dist,
-                    'y': cy + math.sin(angle) * dist,
-                    'vx': math.cos(angle) * speed,
-                    'vy': math.sin(angle) * speed,
-                    'life': 1.0,
-                    'size': 1.5 + bass * 5 + random.random() * 2,
-                    'hue': hue,
-                    'type': 'burst',
-                })
-        if self._frame_count % 3 == 0 and len(self._particles) < 2000:
-            for _ in range(3):
-                self._particles.append({
-                    'x': random.uniform(0, w),
-                    'y': random.uniform(0, h),
-                    'vx': random.uniform(-0.3, 0.3),
-                    'vy': random.uniform(-0.5, -0.1),
-                    'life': random.uniform(0.5, 1.0),
-                    'size': random.uniform(0.5, 2),
-                    'hue': random.randint(180, 260),
-                    'type': 'dust',
-                })
-        alive = []
-        for p in self._particles:
-            p['x'] += p['vx']
-            p['y'] += p['vy']
-            if p['type'] == 'burst':
-                p['vx'] *= 0.99
-                p['vy'] *= 0.99
-                p['life'] -= 0.012
-            else:
-                p['life'] -= 0.005
-            if p['life'] > 0 and -50 <= p['x'] <= w + 50 and -50 <= p['y'] <= h + 50:
-                alive.append(p)
-        self._particles = alive[-2000:]
-
-    def _update_dust(self):
-        w = self.width()
-        h = self.height()
-        if w <= 0 or h <= 0:
-            return
-        if self._frame_count % 4 == 0 and len(self._dust) < 80:
-            self._dust.append({
-                'x': random.uniform(0, w),
-                'y': random.uniform(0, h),
-                'vx': random.uniform(-0.2, 0.2),
-                'vy': random.uniform(-0.3, 0.1),
-                'life': 1.0,
-                'size': random.uniform(0.5, 1.5),
-            })
-        alive = []
-        for d in self._dust:
-            d['x'] += d['vx']
-            d['y'] += d['vy']
-            d['life'] -= 0.003
-            if d['life'] > 0 and 0 <= d['x'] <= w and 0 <= d['y'] <= h:
-                alive.append(d)
-        self._dust = alive
 
     def _update_cosmos(self):
         w = self.width()
@@ -581,12 +387,13 @@ class AudioVisualWidget(QWidget):
         high = float(np.mean(self._bars[30:]))
         cx, cy = w / 2, h / 2
         self._cosmos_rotation += 0.003 + bass * 0.01
-        if len(self._cosmos_bg_stars) < 400:
+        if len(self._cosmos_bg_stars) < 300:
             for _ in range(5):
                 self._cosmos_bg_stars.append({
-                    'x': random.uniform(0, w),
-                    'y': random.uniform(0, h),
-                    'size': random.uniform(0.3, 1.5),
+                    'x': random.uniform(-4, 4),
+                    'y': random.uniform(-3, 3),
+                    'z': random.uniform(-8, 2),
+                    'size': random.uniform(0.02, 0.08),
                     'twinkle': random.uniform(0, math.pi * 2),
                     'speed': random.uniform(0.02, 0.06),
                 })
@@ -594,62 +401,64 @@ class AudioVisualWidget(QWidget):
             s['twinkle'] += s['speed']
         energy = bass + mid + high
         if energy > 0.15:
-            count = int(energy * 10) + 3
+            count = int(energy * 8) + 2
             for _ in range(count):
                 angle = random.uniform(0, 2 * math.pi)
-                speed = 0.8 + bass * 10 + mid * 4
-                dist = random.uniform(0, min(w, h) * 0.08)
+                speed = 0.03 + bass * 0.15
+                dist = random.uniform(0, 0.3)
                 hue = random.randint(160, 320)
                 self._cosmos_particles.append({
-                    'x': cx + math.cos(angle) * dist,
-                    'y': cy + math.sin(angle) * dist,
+                    'x': math.cos(angle) * dist,
+                    'y': random.uniform(-0.1, 0.1),
+                    'z': math.sin(angle) * dist,
                     'vx': math.cos(angle) * speed,
-                    'vy': math.sin(angle) * speed,
+                    'vy': random.uniform(-0.005, 0.005),
+                    'vz': math.sin(angle) * speed,
                     'life': 1.0,
-                    'size': 1 + bass * 4 + random.random() * 2,
+                    'size': 0.03 + bass * 0.1 + random.random() * 0.03,
                     'hue': hue,
                 })
         alive = []
         for p in self._cosmos_particles:
             p['x'] += p['vx']
             p['y'] += p['vy']
+            p['z'] += p['vz']
             p['vx'] *= 0.995
             p['vy'] *= 0.995
+            p['vz'] *= 0.995
             p['life'] -= 0.008
-            if p['life'] > 0 and -100 <= p['x'] <= w + 100 and -100 <= p['y'] <= h + 100:
+            if p['life'] > 0:
                 alive.append(p)
-        self._cosmos_particles = alive[-3000:]
+        self._cosmos_particles = alive[-2000:]
         if random.random() < 0.02 + bass * 0.15:
-            side = random.randint(0, 3)
-            if side == 0:
-                mx, my = random.uniform(0, w), 0
-            elif side == 1:
-                mx, my = w, random.uniform(0, h)
-            elif side == 2:
-                mx, my = random.uniform(0, w), h
-            else:
-                mx, my = 0, random.uniform(0, h)
-            tx = cx + random.uniform(-w * 0.3, w * 0.3)
-            ty = cy + random.uniform(-h * 0.3, h * 0.3)
-            dx, dy = tx - mx, ty - my
-            dist = math.sqrt(dx * dx + dy * dy) + 1
-            speed = 4 + bass * 8
+            angle = random.uniform(0, 2 * math.pi)
+            speed = 0.1 + bass * 0.2
             self._cosmos_meteors.append({
-                'x': mx, 'y': my,
-                'vx': dx / dist * speed,
-                'vy': dy / dist * speed,
+                'x': math.cos(angle) * 4,
+                'y': random.uniform(-1, 1),
+                'z': math.sin(angle) * 4,
+                'vx': -math.cos(angle) * speed,
+                'vy': random.uniform(-0.01, 0.01),
+                'vz': -math.sin(angle) * speed,
                 'life': 1.0,
-                'len': 30 + bass * 40,
+                'len': 0.5 + bass * 1.0,
                 'hue': random.randint(30, 60),
             })
         m_alive = []
         for m in self._cosmos_meteors:
             m['x'] += m['vx']
             m['y'] += m['vy']
+            m['z'] += m['vz']
             m['life'] -= 0.02
-            if m['life'] > 0 and -50 <= m['x'] <= w + 50 and -50 <= m['y'] <= h + 50:
+            if m['life'] > 0:
                 m_alive.append(m)
         self._cosmos_meteors = m_alive[-30:]
+
+    def _update_fluid(self):
+        self._fluid_hue = (self._fluid_hue + 0.3) % 360
+        bass = float(np.mean(self._bars[:8]))
+        mid = float(np.mean(self._bars[8:30]))
+        self._fluid_phase += 0.02 + bass * 0.06 + mid * 0.03
 
     def paintEvent(self, event):
         if not self._active:
@@ -673,22 +482,11 @@ class AudioVisualWidget(QWidget):
 
         style_map = {
             'spectrum': self._paint_spectrum,
-            'mirror_bars': self._paint_mirror_bars,
-            'circular': self._paint_circular,
             'waves': self._paint_waves,
-            'vector_scope': self._paint_scope,
-            'particles': self._paint_particles,
-            'mountain': self._paint_mountain,
-            'spectrogram': self._paint_spectrogram,
-            'aurora': self._paint_aurora,
-            'starfield': self._paint_starfield,
+            'circular': self._paint_circular,
+            'terrain': self._paint_terrain,
             'cosmos': self._paint_cosmos,
-            'warp': self._paint_warp,
             'fluid': self._paint_fluid,
-            'milkdrop': self._paint_milkdrop,
-            'ring_dots': self._paint_ring_dots,
-
-            'ripple_dots': self._paint_ripple_dots,
         }
         paint_fn = style_map.get(self._style, self._paint_spectrum)
         painter.setOpacity(self._fade_alpha)
@@ -709,139 +507,112 @@ class AudioVisualWidget(QWidget):
 
         painter.end()
 
-    def _paint_bloom(self, painter, w, h):
-        if self._bloom_w != w or self._bloom_h != h or self._bloom_img is None:
-            self._bloom_img = QImage(w // 4, h // 4, QImage.Format.Format_ARGB32)
-            self._bloom_w = w
-            self._bloom_h = h
-        bw = self._bloom_img.width()
-        bh = self._bloom_img.height()
-        small_painter = QPainter(self._bloom_img)
-        small_painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
-        small_painter.scale(bw / w, bh / h)
-        style_map = {
-            'spectrum': self._paint_spectrum,
-            'mirror_bars': self._paint_mirror_bars,
-            'circular': self._paint_circular,
-            'mountain': self._paint_mountain,
-            'cosmos': self._paint_cosmos,
-            'warp': self._paint_warp,
-        }
-        paint_fn = style_map.get(self._style)
-        if paint_fn:
-            small_painter.fillRect(0, 0, w, h, QColor(0, 0, 0, 0))
-            paint_fn(small_painter, w, h)
-        small_painter.end()
-        painter.setOpacity(0.25)
-        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
-        painter.drawImage(QRectF(-8, -8, w + 16, h + 16), self._bloom_img)
-        painter.setOpacity(1.0)
-
     def _paint_spectrum(self, painter, w, h):
         bars = self._smooth_bars
         peaks = self._peak_bars
         n = len(bars)
         bass = float(np.mean(bars[:8]))
+        mid = float(np.mean(bars[8:30]))
         cx = w / 2
+        pitch = 0.5
+        proj = lambda x, y, z: _project_3d(x, y, z, w, h, pitch=pitch)
         painter.setPen(Qt.PenStyle.NoPen)
-        grad = QRadialGradient(cx, h, h * 0.7)
-        grad.setColorAt(0, QColor(30, 60, 150, int(bass * 50)))
-        grad.setColorAt(1, QColor(5, 5, 10, 0))
-        painter.setBrush(QBrush(grad))
+        floor_grad = QRadialGradient(cx, h, h * 0.7)
+        floor_grad.setColorAt(0, QColor(30, 60, 150, int(bass * 50)))
+        floor_grad.setColorAt(1, QColor(5, 5, 10, 0))
+        painter.setBrush(QBrush(floor_grad))
         painter.drawRect(QRectF(0, 0, w, h))
-        for d in self._dust:
-            alpha = int(d['life'] * 60)
-            painter.setBrush(QColor(150, 200, 255, alpha))
-            painter.drawEllipse(QRectF(d['x'] - d['size'], d['y'] - d['size'], d['size'] * 2, d['size'] * 2))
-        margin = 8
-        total_w = w - margin * 2
-        bar_w = max(1, total_w / n - 1)
-        gap = 1
-        painter.setPen(Qt.PenStyle.NoPen)
+
+        grid_z_start = -2.0
+        grid_z_end = 2.0
+        grid_x_start = -4.0
+        grid_x_end = 4.0
+        grid_y_base = -1.5
+        grid_steps_z = 10
+        grid_steps_x = 12
+        painter.setPen(QPen(QColor(40, 60, 120, 25), 1))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        for gi in range(grid_steps_z + 1):
+            z = grid_z_start + gi * (grid_z_end - grid_z_start) / grid_steps_z
+            sx1, sy1, _, _ = proj(grid_x_start, grid_y_base, z)
+            sx2, sy2, _, _ = proj(grid_x_end, grid_y_base, z)
+            painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
+        for gi in range(grid_steps_x + 1):
+            x = grid_x_start + gi * (grid_x_end - grid_x_start) / grid_steps_x
+            sx1, sy1, _, _ = proj(x, grid_y_base, grid_z_start)
+            sx2, sy2, _, _ = proj(x, grid_y_base, grid_z_end)
+            painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
+
+        bar_spacing = (grid_x_end - grid_x_start) / n
+        bar_width_3d = bar_spacing * 0.7
+        sorted_bars = []
         for i in range(n):
+            x3d = grid_x_start + i * bar_spacing + bar_spacing * 0.15
+            z3d = grid_z_start + 0.5 + (i % 3) * 0.3
             val = bars[i]
-            x = margin + i * (bar_w + gap)
-            dist_from_center = abs(x + bar_w / 2 - cx) / (w / 2)
-            depth_fade = max(0.4, 1.0 - dist_from_center * 0.5)
-            bar_h = val * h * 0.85 * depth_fade
-            x = margin + i * (bar_w + gap)
-            y = h - bar_h
-            painter.setBrush(self._bar_colors[i])
-            painter.drawRect(QRectF(x, y, bar_w, bar_h))
-            painter.setBrush(self._bar_colors_dim[i])
-            painter.drawRect(QRectF(x, y, bar_w, max(1, bar_h * 0.15)))
             peak_val = peaks[i]
+            bar_h = val * 3.0
+            peak_h = peak_val * 3.0
+            sorted_bars.append((z3d, x3d, val, peak_val, bar_h, peak_h, i))
+        sorted_bars.sort(key=lambda b: -b[0])
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        for z3d, x3d, val, peak_val, bar_h, peak_h, i in sorted_bars:
+            base_color = QColor(self._bar_colors[i])
+            top_color = QColor(base_color)
+            top_color.setRed(min(255, int(base_color.red() * 1.3)))
+            top_color.setGreen(min(255, int(base_color.green() * 1.3)))
+            top_color.setBlue(min(255, int(base_color.blue() * 1.3)))
+            side_color = QColor(base_color)
+            side_color.setRed(max(0, int(base_color.red() * 0.5)))
+            side_color.setGreen(max(0, int(base_color.green() * 0.5)))
+            side_color.setBlue(max(0, int(base_color.blue() * 0.5)))
+
+            fl_sx, fl_sy, fl_d, fl_sc = proj(x3d, grid_y_base, z3d)
+            fr_sx, fr_sy, fr_d, fr_sc = proj(x3d + bar_width_3d, grid_y_base, z3d)
+            tl_sx, tl_sy, tl_d, tl_sc = proj(x3d, grid_y_base + bar_h, z3d)
+            tr_sx, tr_sy, tr_d, tr_sc = proj(x3d + bar_width_3d, grid_y_base + bar_h, z3d)
+            bl_sx, bl_sy, bl_d, bl_sc = proj(x3d, grid_y_base, z3d + bar_width_3d * 0.5)
+            br_sx, br_sy, br_d, br_sc = proj(x3d + bar_width_3d, grid_y_base, z3d + bar_width_3d * 0.5)
+            btl_sx, btl_sy, _, _ = proj(x3d, grid_y_base + bar_h, z3d + bar_width_3d * 0.5)
+            btr_sx, btr_sy, _, _ = proj(x3d + bar_width_3d, grid_y_base + bar_h, z3d + bar_width_3d * 0.5)
+
+            right_face = QPolygonF([
+                QPointF(fr_sx, fr_sy), QPointF(tr_sx, tr_sy),
+                QPointF(btr_sx, btr_sy), QPointF(br_sx, br_sy),
+            ])
+            painter.setBrush(side_color)
+            painter.drawPolygon(right_face)
+
+            top_face = QPolygonF([
+                QPointF(tl_sx, tl_sy), QPointF(tr_sx, tr_sy),
+                QPointF(btr_sx, btr_sy), QPointF(btl_sx, btl_sy),
+            ])
+            painter.setBrush(top_color)
+            painter.drawPolygon(top_face)
+
+            front_face = QPolygonF([
+                QPointF(fl_sx, fl_sy), QPointF(fr_sx, fr_sy),
+                QPointF(tr_sx, tr_sy), QPointF(tl_sx, tl_sy),
+            ])
+            front_grad = QLinearGradient(fl_sx, tl_sy, fl_sx, fl_sy)
+            front_grad.setColorAt(0, base_color)
+            front_grad.setColorAt(1, QColor(max(0, base_color.red() - 40), max(0, base_color.green() - 40), max(0, base_color.blue() - 40), base_color.alpha()))
+            painter.setBrush(QBrush(front_grad))
+            painter.drawPolygon(front_face)
+
             if peak_val > 0.02:
-                peak_y = h - peak_val * h * 0.88
+                pk_y = grid_y_base + peak_h
+                pfl_sx, pfl_sy, _, _ = proj(x3d, pk_y, z3d)
+                pfr_sx, pfr_sy, _, _ = proj(x3d + bar_width_3d, pk_y, z3d)
+                pbtl_sx, pbtl_sy, _, _ = proj(x3d, pk_y, z3d + bar_width_3d * 0.5)
+                pbtr_sx, pbtr_sy, _, _ = proj(x3d + bar_width_3d, pk_y, z3d + bar_width_3d * 0.5)
+                peak_face = QPolygonF([
+                    QPointF(pfl_sx, pfl_sy), QPointF(pfr_sx, pfr_sy),
+                    QPointF(pbtr_sx, pbtr_sy), QPointF(pbtl_sx, pbtl_sy),
+                ])
                 painter.setBrush(self._bar_colors_peak[i])
-                painter.drawRect(QRectF(x, peak_y - 2, bar_w, 2))
-        reflect_h = h * 0.15
-        grad = QLinearGradient(0, h, 0, h + reflect_h)
-        grad.setColorAt(0, QColor(80, 150, 255, 30))
-        grad.setColorAt(1, QColor(0, 0, 0, 0))
-        painter.setBrush(QBrush(grad))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawRect(QRectF(0, h, w, reflect_h))
-
-    def _paint_mirror_bars(self, painter, w, h):
-        bars = self._smooth_bars
-        n = len(bars)
-        margin = 6
-        total_w = w - margin * 2
-        bar_w = max(1, total_w / n - 1)
-        gap = 1
-        cy = h / 2
-        cx = w / 2
-        max_h = cy * 0.92
-        painter.setPen(Qt.PenStyle.NoPen)
-        for i in range(n):
-            val = bars[i]
-            x = margin + i * (bar_w + gap)
-            dist_from_center = abs(x + bar_w / 2 - cx) / (w / 2)
-            depth_fade = max(0.5, 1.0 - dist_from_center * 0.4)
-            bar_h = val * max_h * depth_fade
-            x = margin + i * (bar_w + gap)
-            painter.setBrush(self._bar_colors[i])
-            painter.drawRect(QRectF(x, cy - bar_h, bar_w, bar_h))
-            dim = QColor(self._bar_colors[i])
-            dim.setAlpha(120)
-            painter.setBrush(dim)
-            painter.drawRect(QRectF(x, cy, bar_w, bar_h))
-        painter.setPen(QPen(QColor(100, 200, 255, 60), 1))
-        painter.drawLine(0, int(cy), w, int(cy))
-
-    def _paint_circular(self, painter, w, h):
-        bars = self._smooth_bars
-        n = len(bars)
-        cx, cy = w / 2, h / 2
-        radius = min(w, h) * 0.2
-        max_bar = min(w, h) * 0.28
-        for i in range(n):
-            val = bars[i]
-            angle = i * 360.0 / n - 90
-            rad = math.radians(angle)
-            x1 = cx + radius * math.cos(rad)
-            y1 = cy + radius * math.sin(rad)
-            bar_len = val * max_bar
-            x2 = cx + (radius + bar_len) * math.cos(rad)
-            y2 = cy + (radius + bar_len) * math.sin(rad)
-            depth_fade = max(0.4, 1.0 - val * 0.3)
-            color = QColor(self._bar_colors[i])
-            color.setAlpha(int(color.alpha() * depth_fade))
-            painter.setPen(QPen(color, max(2, 360 / n * 0.5)))
-            painter.drawLine(int(x1), int(y1), int(x2), int(y2))
-        painter.setPen(Qt.PenStyle.NoPen)
-        grad = QRadialGradient(cx, cy, radius)
-        grad.setColorAt(0, QColor(10, 10, 25, 230))
-        grad.setColorAt(1, QColor(5, 5, 15, 100))
-        painter.setBrush(QBrush(grad))
-        painter.drawEllipse(QRectF(cx - radius, cy - radius, radius * 2, radius * 2))
-        bass = float(np.mean(bars[:8]))
-        if bass > 0.15:
-            pulse_r = radius * (1 + bass * 0.12)
-            painter.setPen(QPen(QColor(100, 180, 255, int(bass * 100)), 2))
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawEllipse(QRectF(cx - pulse_r, cy - pulse_r, pulse_r * 2, pulse_r * 2))
+                painter.drawPolygon(peak_face)
 
     def _paint_waves(self, painter, w, h):
         n = len(self._wave_left)
@@ -849,316 +620,307 @@ class AudioVisualWidget(QWidget):
             return
         cy = h / 2
         cx = w / 2
-        from PySide6.QtCore import QPointF
-        from PySide6.QtGui import QPolygonF
-        for ch_idx, (wave_data, base_alpha, width) in enumerate([
-            (self._wave_left, 220, 3.0), (self._wave_right, 140, 2.0)
-        ]):
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            points = QPolygonF()
-            for i in range(n):
-                x = i * w / (n - 1)
-                dist_from_center = abs(x - cx) / (w / 2)
-                depth_fade = max(0.35, 1.0 - dist_from_center * 0.55)
-                y = cy + wave_data[i] * h * 0.42 * depth_fade
-                points.append(QPointF(x, y))
-            if points.size() > 1:
-                seg_count = points.size() - 1
-                for seg in range(seg_count):
-                    p1 = points.at(seg)
-                    p2 = points.at(seg + 1)
-                    seg_x = (p1.x() + p2.x()) / 2
-                    dist_from_center = abs(seg_x - cx) / (w / 2)
-                    depth_fade = max(0.35, 1.0 - dist_from_center * 0.55)
-                    seg_alpha = int(base_alpha * depth_fade)
-                    t = seg_x / w
-                    if ch_idx == 0:
-                        r = int(0 + 80 * t + 120 * (1 - t))
-                        g = int(180 + 75 * t - 80 * (1 - t))
-                        b = int(255 - 155 * t)
-                    else:
-                        r = int(255 - 175 * t)
-                        g = int(80 + 120 * t)
-                        b = int(200 - 100 * t + 55 * t)
-                    painter.setPen(QPen(QColor(r, g, b, seg_alpha), width * depth_fade))
-                    painter.drawLine(int(p1.x()), int(p1.y()), int(p2.x()), int(p2.y()))
-            if ch_idx == 0:
-                fill_pts = QPolygonF()
-                fill_pts.append(QPointF(0, cy))
-                for i in range(n):
-                    x = i * w / (n - 1)
-                    dist_from_center = abs(x - cx) / (w / 2)
-                    depth_fade = max(0.35, 1.0 - dist_from_center * 0.55)
-                    y = cy + wave_data[i] * h * 0.42 * depth_fade
-                    fill_pts.append(QPointF(x, y))
-                fill_pts.append(QPointF(w, cy))
-                painter.setPen(Qt.PenStyle.NoPen)
-                fill_grad = QLinearGradient(0, cy - h * 0.4, 0, cy + h * 0.4)
-                fill_grad.setColorAt(0, QColor(0, 150, 255, 20))
-                fill_grad.setColorAt(0.5, QColor(0, 200, 255, 8))
-                fill_grad.setColorAt(1, QColor(0, 150, 255, 20))
-                painter.setBrush(QBrush(fill_grad))
-                painter.drawPolygon(fill_pts)
-        glow_grad = QRadialGradient(cx, cy, min(w, h) * 0.45)
-        glow_grad.setColorAt(0, QColor(30, 100, 200, int(15 + abs(float(np.mean(self._wave_left[:8]))) * 30)))
-        glow_grad.setColorAt(0.6, QColor(10, 40, 100, 5))
-        glow_grad.setColorAt(1, QColor(0, 0, 0, 0))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QBrush(glow_grad))
-        painter.drawRect(QRectF(0, 0, w, h))
+        bass = float(np.mean(self._smooth_bars[:8])) if len(self._smooth_bars) > 0 else 0
+        pitch = 0.45
+        proj = lambda x, y, z: _project_3d(x, y, z, w, h, pitch=pitch)
 
-    def _paint_scope(self, painter, w, h):
-        cx, cy = w / 2, h / 2
-        radius = min(w, h) * 0.4
-        max_dist = math.sqrt(cx * cx + cy * cy)
-        painter.setPen(QPen(QColor(30, 30, 45), 1))
+        floor_y = -1.2
+        grid_z_start = -3.0
+        grid_z_end = 3.0
+        grid_x_start = -4.0
+        grid_x_end = 4.0
+        painter.setPen(QPen(QColor(30, 50, 100, 20), 1))
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawEllipse(QRectF(cx - radius, cy - radius, radius * 2, radius * 2))
-        painter.drawLine(int(cx - radius), int(cy), int(cx + radius), int(cy))
-        painter.drawLine(int(cx), int(cy - radius), int(cx), int(cy + radius))
-        trail = list(self._scope_trail)
-        n = len(trail)
-        if n < 2:
-            return
-        for i in range(1, n):
-            alpha = int(20 + 235 * i / n)
-            lx, ly = trail[i - 1]
-            rx, ry = trail[i]
-            x1 = cx + lx * radius
-            y1 = cy - ly * radius
-            x2 = cx + rx * radius
-            y2 = cy - ry * radius
-            mid_x = (x1 + x2) / 2
-            mid_y = (y1 + y2) / 2
-            dist = math.sqrt((mid_x - cx) ** 2 + (mid_y - cy) ** 2)
-            depth_fade = max(0.3, 1.0 - dist / max_dist * 0.6)
-            hue = (int(time.time() * 60) + i * 3) % 360
-            width = (1.0 + 2.0 * i / n) * depth_fade
-            painter.setPen(QPen(QColor.fromHsv(hue, 230, 255, int(alpha * depth_fade)), width))
-            painter.drawLine(int(x1), int(y1), int(x2), int(y2))
-        last = trail[-1]
-        px = cx + last[0] * radius
-        py = cy - last[1] * radius
-        painter.setPen(Qt.PenStyle.NoPen)
-        grad = QRadialGradient(px, py, 18)
-        grad.setColorAt(0, QColor(255, 255, 255, 240))
-        grad.setColorAt(0.3, QColor(100, 200, 255, 160))
-        grad.setColorAt(0.6, QColor(50, 120, 255, 60))
-        grad.setColorAt(1, QColor(0, 60, 200, 0))
-        painter.setBrush(QBrush(grad))
-        painter.drawEllipse(QRectF(px - 18, py - 18, 36, 36))
-        center_glow = QRadialGradient(cx, cy, min(w, h) * 0.35)
-        center_glow.setColorAt(0, QColor(20, 60, 120, int(10 + abs(last[0] + last[1]) * 20)))
-        center_glow.setColorAt(0.5, QColor(10, 30, 80, 5))
-        center_glow.setColorAt(1, QColor(0, 0, 0, 0))
-        painter.setBrush(QBrush(center_glow))
-        painter.drawRect(QRectF(0, 0, w, h))
+        for gi in range(8):
+            z = grid_z_start + gi * (grid_z_end - grid_z_start) / 7
+            sx1, sy1, _, _ = proj(grid_x_start, floor_y, z)
+            sx2, sy2, _, _ = proj(grid_x_end, floor_y, z)
+            painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
 
-    def _paint_particles(self, painter, w, h):
-        bars = self._smooth_bars
-        bass = float(np.mean(bars[:8]))
-        mid = float(np.mean(bars[8:30]))
-        cx, cy = w / 2, h / 2
-        painter.setPen(Qt.PenStyle.NoPen)
-        for i in range(3):
-            r = min(w, h) * (0.15 + i * 0.08)
-            pulse = r + bass * min(w, h) * 0.03 * (3 - i)
-            alpha = int(20 + bass * 40 - i * 8)
-            painter.setPen(QPen(QColor(80, 160, 255, max(5, alpha)), 1))
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawEllipse(QRectF(cx - pulse, cy - pulse, pulse * 2, pulse * 2))
-        painter.setPen(Qt.PenStyle.NoPen)
-        for p in self._particles:
-            alpha = int(p['life'] * 220)
-            size = p['size'] * (0.3 + p['life'] * 0.7)
-            dist = math.sqrt((p['x'] - cx) ** 2 + (p['y'] - cy) ** 2)
-            max_dist = math.sqrt(cx * cx + cy * cy)
-            depth_fade = max(0.3, 1.0 - dist / max_dist * 0.6)
-            if p['type'] == 'dust':
-                painter.setBrush(QColor(120, 180, 255, int(alpha * 0.3 * depth_fade)))
-                painter.drawEllipse(QRectF(p['x'] - size * depth_fade, p['y'] - size * depth_fade, size * 2 * depth_fade, size * 2 * depth_fade))
-            else:
-                painter.setBrush(QColor.fromHsv(p['hue'], 200, 255, int(alpha * depth_fade)))
-                painter.drawEllipse(QRectF(p['x'] - size * depth_fade, p['y'] - size * depth_fade, size * 2 * depth_fade, size * 2 * depth_fade))
-        inner_r = min(w, h) * 0.12
-        for i in range(len(bars)):
-            val = bars[i]
-            if val < 0.03:
+        for ch_idx, (wave_data, base_alpha, ribbon_thick) in enumerate([
+            (self._wave_left, 200, 0.15), (self._wave_right, 120, 0.10)
+        ]):
+            z_base = -0.5 + ch_idx * 1.0
+            x_start = -3.5
+            x_end = 3.5
+            step = max(1, n // 80)
+            top_pts = []
+            bot_pts = []
+            for i in range(0, n, step):
+                x3d = x_start + (x_end - x_start) * i / (n - 1)
+                amp = float(wave_data[i]) * 1.5
+                y_top = floor_y + 0.3 + amp + ribbon_thick
+                y_bot = floor_y + 0.3 + amp - ribbon_thick
+                tsx, tsy, td, tsc = proj(x3d, y_top, z_base)
+                bsx, bsy, bd, bsc = proj(x3d, y_bot, z_base)
+                top_pts.append((tsx, tsy, td))
+                bot_pts.append((bsx, bsy, bd))
+
+            if len(top_pts) < 2:
                 continue
-            angle = i * 2 * math.pi / len(bars)
-            x1 = cx + inner_r * math.cos(angle)
-            y1 = cy + inner_r * math.sin(angle)
-            bar_len = val * min(w, h) * 0.35
-            x2 = cx + (inner_r + bar_len) * math.cos(angle)
-            y2 = cy + (inner_r + bar_len) * math.sin(angle)
-            painter.setPen(QPen(self._bar_colors[i % len(self._bar_colors)], 2))
-            painter.drawLine(int(x1), int(y1), int(x2), int(y2))
 
-    def _paint_mountain(self, painter, w, h):
-        bars = self._smooth_bars
-        n = len(bars)
-        cx = w / 2
-        from PySide6.QtGui import QPolygonF
-        from PySide6.QtCore import QPointF
-        for layer, (y_scale, color_top, color_mid, color_bot) in enumerate([
-            (0.6, QColor(40, 80, 160, 60), QColor(20, 40, 100, 40), QColor(5, 15, 50, 20)),
-            (0.75, QColor(60, 140, 220, 120), QColor(30, 80, 160, 80), QColor(10, 30, 80, 40)),
-            (0.9, QColor(100, 220, 255, 200), QColor(50, 140, 220, 140), QColor(20, 60, 120, 60)),
-        ]):
-            points = QPolygonF()
-            points.append(QPointF(0, h))
-            for i in range(n):
-                x = i * w / (n - 1)
-                dist_from_center = abs(x - cx) / (w / 2)
-                depth_fade = max(0.5, 1.0 - dist_from_center * 0.4)
-                y = h - bars[i] * h * y_scale * depth_fade
-                points.append(QPointF(x, y))
-            points.append(QPointF(w, h))
-            grad = QLinearGradient(0, 0, 0, h)
-            grad.setColorAt(0, color_top)
-            grad.setColorAt(0.4, color_mid)
-            grad.setColorAt(1, color_bot)
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QBrush(grad))
-            painter.drawPolygon(points)
-        painter.setPen(QPen(QColor(140, 230, 255, 180), 2))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        line_pts = QPolygonF()
-        for i in range(n):
-            x = i * w / (n - 1)
-            y = h - bars[i] * h * 0.9
-            line_pts.append(QPointF(x, y))
-        if line_pts.size() > 1:
-            painter.drawPolyline(line_pts)
+            front_face = QPolygonF()
+            for pt in top_pts:
+                front_face.append(QPointF(pt[0], pt[1]))
+            for pt in reversed(bot_pts):
+                front_face.append(QPointF(pt[0], pt[1]))
 
-    def _paint_spectrogram(self, painter, w, h):
-        history = list(self._spectrogram_history)
-        n = len(history)
-        if n == 0:
-            return
-        row_h = max(1, h / n)
-        num_bars = len(history[0]) if n > 0 else NUM_BARS
-        col_w = max(1, w / num_bars)
-        cx = w / 2
-        painter.setPen(Qt.PenStyle.NoPen)
-        for row_idx, frame in enumerate(history):
-            y = h - (row_idx + 1) * row_h
-            age = 1.0 - row_idx / max(n, 1) * 0.5
-            for bar_idx in range(len(frame)):
-                val = frame[bar_idx]
-                if val < 0.005:
-                    continue
-                x = bar_idx * col_w
-                dist_from_center = abs(x + col_w / 2 - cx) / (w / 2)
-                depth_fade = max(0.5, 1.0 - dist_from_center * 0.3)
-                brightness = val * age * depth_fade
-                if val < 0.15:
-                    r, g, b = int(brightness * 30), int(brightness * 80), int(brightness * 180)
-                elif val < 0.4:
-                    r, g, b = int(brightness * 20), int(brightness * 180), int(brightness * 220)
-                elif val < 0.7:
-                    r, g, b = int(brightness * 80), int(brightness * 220), int(brightness * 120)
-                else:
-                    r, g, b = int(brightness * 220), int(brightness * 200), int(brightness * 60)
-                alpha = int(min(255, val * 300 * age * depth_fade))
-                painter.setBrush(QColor(min(255, r), min(255, g), min(255, b), alpha))
-                painter.drawRect(QRectF(x, y, col_w + 1, row_h + 1))
-        tunnel = QRadialGradient(cx, h / 2, min(w, h) * 0.5)
-        tunnel.setColorAt(0, QColor(0, 0, 0, 0))
-        tunnel.setColorAt(0.65, QColor(0, 0, 0, 0))
-        tunnel.setColorAt(1, QColor(0, 0, 0, 100))
-        painter.setBrush(QBrush(tunnel))
-        painter.drawRect(QRectF(0, 0, w, h))
+            if ch_idx == 0:
+                fill_color = QColor(0, 150, 255, int(base_alpha * 0.5))
+                side_color = QColor(0, 80, 180, int(base_alpha * 0.3))
+                edge_color = QColor(100, 200, 255, base_alpha)
+            else:
+                fill_color = QColor(255, 100, 150, int(base_alpha * 0.4))
+                side_color = QColor(180, 50, 80, int(base_alpha * 0.25))
+                edge_color = QColor(255, 150, 200, base_alpha)
 
-    def _paint_aurora(self, painter, w, h):
-        bars = self._smooth_bars
-        bass = float(np.mean(bars[:8]))
-        mid = float(np.mean(bars[8:30]))
-        cx = w / 2
-        from PySide6.QtGui import QPolygonF
-        from PySide6.QtCore import QPointF
-        for layer in range(4):
-            phase = self._aurora_phase + layer * 0.8
-            y_base = h * (0.25 + layer * 0.1)
-            amplitude = h * (0.06 + bass * 0.10 + mid * 0.06)
-            hue_base = int(120 + layer * 50 + math.sin(phase * 0.3) * 25) % 360
-            for strip in range(4):
-                strip_phase = phase + strip * 0.5
-                band_half = 25 + strip * 12 + bass * 15
-                points_top = QPolygonF()
-                points_bot = QPolygonF()
-                for x in range(0, w + 12, 12):
-                    dist_from_center = abs(x - cx) / (w / 2)
-                    depth_fade = max(0.3, 1.0 - dist_from_center * 0.5)
-                    wave = math.sin(x * 0.004 + strip_phase) * amplitude * depth_fade
-                    wave += math.sin(x * 0.009 + strip_phase * 1.4) * amplitude * 0.35 * depth_fade
-                    wave += math.sin(x * 0.002 + strip_phase * 0.6) * amplitude * 0.5 * depth_fade
-                    y = y_base + wave
-                    points_top.append(QPointF(x, y - band_half * depth_fade))
-                    points_bot.append(QPointF(x, y + band_half * depth_fade))
-                all_pts = QPolygonF()
-                for i in range(points_top.size()):
-                    all_pts.append(points_top.at(i))
-                for i in range(points_bot.size() - 1, -1, -1):
-                    all_pts.append(points_bot.at(i))
-                hue = (hue_base + strip * 25) % 360
-                alpha = int(18 + bass * 35 - strip * 4 - layer * 3)
-                alpha = max(3, min(120, alpha))
-                grad = QLinearGradient(0, y_base - band_half - amplitude, 0, y_base + band_half + amplitude)
-                grad.setColorAt(0, QColor.fromHsv(hue, 140, 255, 0))
-                grad.setColorAt(0.3, QColor.fromHsv(hue, 150, 255, alpha))
-                grad.setColorAt(0.5, QColor.fromHsv(hue, 130, 255, int(alpha * 1.3)))
-                grad.setColorAt(0.7, QColor.fromHsv(hue, 150, 255, alpha))
-                grad.setColorAt(1, QColor.fromHsv(hue, 140, 255, 0))
+            z_back = z_base + 0.3
+            back_top_pts = []
+            back_bot_pts = []
+            for i in range(0, n, step):
+                x3d = x_start + (x_end - x_start) * i / (n - 1)
+                amp = float(wave_data[i]) * 1.5
+                y_top = floor_y + 0.3 + amp + ribbon_thick
+                y_bot = floor_y + 0.3 + amp - ribbon_thick
+                tsx, tsy, _, _ = proj(x3d, y_top, z_back)
+                bsx, bsy, _, _ = proj(x3d, y_bot, z_back)
+                back_top_pts.append((tsx, tsy))
+                back_bot_pts.append((bsx, bsy))
+
+            if len(back_top_pts) >= 2:
+                top_face = QPolygonF()
+                for pt in top_pts:
+                    top_face.append(QPointF(pt[0], pt[1]))
+                for pt in reversed(back_top_pts):
+                    top_face.append(QPointF(pt[0], pt[1]))
                 painter.setPen(Qt.PenStyle.NoPen)
-                painter.setBrush(QBrush(grad))
-                painter.drawPolygon(all_pts)
-        glow = QRadialGradient(cx, h / 2, min(w, h) * 0.5)
-        glow.setColorAt(0, QColor(10, 60, 40, int(8 + bass * 15)))
-        glow.setColorAt(0.5, QColor(5, 30, 20, 3))
+                top_grad = QLinearGradient(0, top_pts[0][1], 0, back_top_pts[0][1])
+                top_grad.setColorAt(0, QColor(fill_color.red(), fill_color.green(), fill_color.blue(), int(fill_color.alpha() * 0.8)))
+                top_grad.setColorAt(1, QColor(side_color.red(), side_color.green(), side_color.blue(), int(side_color.alpha() * 0.5)))
+                painter.setBrush(QBrush(top_grad))
+                painter.drawPolygon(top_face)
+
+                right_face = QPolygonF()
+                right_face.append(QPointF(top_pts[-1][0], top_pts[-1][1]))
+                right_face.append(QPointF(back_top_pts[-1][0], back_top_pts[-1][1]))
+                right_face.append(QPointF(back_bot_pts[-1][0], back_bot_pts[-1][1]))
+                right_face.append(QPointF(bot_pts[-1][0], bot_pts[-1][1]))
+                painter.setBrush(side_color)
+                painter.drawPolygon(right_face)
+
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(fill_color))
+            painter.drawPolygon(front_face)
+
+            painter.setPen(QPen(edge_color, 2))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            for j in range(1, len(top_pts)):
+                painter.drawLine(int(top_pts[j-1][0]), int(top_pts[j-1][1]),
+                                 int(top_pts[j][0]), int(top_pts[j][1]))
+
+        glow = QRadialGradient(cx, cy, min(w, h) * 0.45)
+        glow.setColorAt(0, QColor(30, 100, 200, int(15 + bass * 30)))
+        glow.setColorAt(0.6, QColor(10, 40, 100, 5))
         glow.setColorAt(1, QColor(0, 0, 0, 0))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QBrush(glow))
         painter.drawRect(QRectF(0, 0, w, h))
 
-    def _paint_starfield(self, painter, w, h):
+    def _paint_circular(self, painter, w, h):
+        bars = self._smooth_bars
+        n = len(bars)
+        bass = float(np.mean(bars[:8]))
+        mid = float(np.mean(bars[8:30]))
         cx, cy = w / 2, h / 2
-        bass = float(np.mean(self._bars[:8]))
+        pitch = 0.5
+        proj = lambda x, y, z: _project_3d(x, y, z, w, h, pitch=pitch)
+
+        ring_radius = 2.0
+        bar_max_h = 2.5
+        ring_y = 0.0
+        tilt_angle = 0.4 + bass * 0.15
+
         painter.setPen(Qt.PenStyle.NoPen)
-        for s in self._star_stars:
-            if s['z'] <= 0.005:
-                continue
-            sx = cx + s['x'] / s['z'] * w * 0.3
-            sy = cy + s['y'] / s['z'] * h * 0.3
-            if not (0 <= sx <= w and 0 <= sy <= h):
-                continue
-            depth = 1.0 - s['z']
-            size = max(1.5, depth * 5 + bass * 2)
-            alpha = int(min(200, depth * 250))
-            hue = s['hue']
-            grad = QRadialGradient(sx, sy, size * 2.5)
-            grad.setColorAt(0, QColor.fromHsv(hue, 100, 255, alpha))
-            grad.setColorAt(0.3, QColor.fromHsv(hue, 130, 240, int(alpha * 0.6)))
-            grad.setColorAt(1, QColor.fromHsv(hue, 160, 200, 0))
-            painter.setBrush(QBrush(grad))
-            painter.drawEllipse(QRectF(sx - size * 2.5, sy - size * 2.5, size * 5, size * 5))
-            if depth > 0.6:
-                tail_len = depth * 12 + bass * 6
-                prev_z = s['z'] + 0.02
-                px = cx + s['x'] / prev_z * w * 0.3
-                py = cy + s['y'] / prev_z * h * 0.3
-                tail_grad = QLinearGradient(px, py, sx, sy)
-                tail_grad.setColorAt(0, QColor.fromHsv(hue, 120, 255, 0))
-                tail_grad.setColorAt(1, QColor.fromHsv(hue, 120, 255, int(alpha * 0.4)))
-                painter.setPen(QPen(QBrush(tail_grad), max(1, size * 0.5)))
-                painter.drawLine(int(px), int(py), int(sx), int(sy))
-                painter.setPen(Qt.PenStyle.NoPen)
+        floor_pts = []
+        for ai in range(64):
+            a = ai * 2 * math.pi / 64
+            x = ring_radius * 1.8 * math.cos(a)
+            z = ring_radius * 1.8 * math.sin(a)
+            sx, sy, _, _ = proj(x, ring_y - 0.5, z)
+            floor_pts.append(QPointF(sx, sy))
+        if len(floor_pts) > 2:
+            floor_grad = QRadialGradient(cx, cy, min(w, h) * 0.4)
+            floor_grad.setColorAt(0, QColor(10, 15, 40, 80))
+            floor_grad.setColorAt(1, QColor(5, 5, 15, 0))
+            painter.setBrush(QBrush(floor_grad))
+            painter.drawPolygon(QPolygonF(floor_pts))
+
+        ring_base = []
+        for i in range(n):
+            angle = i * 2 * math.pi / n
+            x = ring_radius * math.cos(angle)
+            z = ring_radius * math.sin(angle)
+            sx, sy, d, sc = proj(x, ring_y, z)
+            ring_base.append((sx, sy, d, sc, angle, x, z))
+
+        sorted_indices = sorted(range(n), key=lambda i: -ring_base[i][2])
+
         painter.setPen(Qt.PenStyle.NoPen)
-        grad = QRadialGradient(cx, cy, min(w, h) * 0.35)
-        grad.setColorAt(0, QColor(15, 20, 60, int(20 + bass * 40)))
-        grad.setColorAt(1, QColor(5, 5, 10, 0))
-        painter.setBrush(QBrush(grad))
-        painter.drawRect(QRectF(0, 0, w, h))
+        for idx in sorted_indices:
+            val = bars[idx]
+            if val < 0.01:
+                continue
+            sx, sy, d, sc, angle, x, z = ring_base[idx]
+            bar_h = val * bar_max_h
+            bar_w_3d = 0.12
+
+            base_color = QColor(self._bar_colors[idx])
+            top_color = QColor(base_color)
+            top_color.setRed(min(255, int(base_color.red() * 1.3)))
+            top_color.setGreen(min(255, int(base_color.green() * 1.3)))
+            top_color.setBlue(min(255, int(base_color.blue() * 1.3)))
+            side_color = QColor(base_color)
+            side_color.setRed(max(0, int(base_color.red() * 0.5)))
+            side_color.setGreen(max(0, int(base_color.green() * 0.5)))
+            side_color.setBlue(max(0, int(base_color.blue() * 0.5)))
+
+            dx = math.cos(angle) * bar_w_3d
+            dz = math.sin(angle) * bar_w_3d
+            nx = -math.sin(angle) * bar_w_3d * 0.5
+            nz = math.cos(angle) * bar_w_3d * 0.5
+
+            fl = proj(x - nx, ring_y, z - nz)
+            fr = proj(x + dx - nx, ring_y, z + dz - nz)
+            ftl = proj(x - nx, ring_y + bar_h, z - nz)
+            ftr = proj(x + dx - nx, ring_y + bar_h, z + dz - nz)
+            bl = proj(x - nx, ring_y, z - nz + bar_w_3d * 0.3)
+            br = proj(x + dx - nx, ring_y, z + dz + bar_w_3d * 0.3)
+            btl = proj(x - nx, ring_y + bar_h, z - nz + bar_w_3d * 0.3)
+            btr = proj(x + dx - nx, ring_y + bar_h, z + dz + bar_w_3d * 0.3)
+
+            front_face = QPolygonF([QPointF(fl[0], fl[1]), QPointF(fr[0], fr[1]),
+                                     QPointF(ftr[0], ftr[1]), QPointF(ftl[0], ftl[1])])
+            front_grad = QLinearGradient(fl[0], ftl[1], fl[0], fl[1])
+            front_grad.setColorAt(0, base_color)
+            front_grad.setColorAt(1, QColor(max(0, base_color.red() - 40), max(0, base_color.green() - 40), max(0, base_color.blue() - 40), base_color.alpha()))
+            painter.setBrush(QBrush(front_grad))
+            painter.drawPolygon(front_face)
+
+            top_face = QPolygonF([QPointF(ftl[0], ftl[1]), QPointF(ftr[0], ftr[1]),
+                                   QPointF(btr[0], btr[1]), QPointF(btl[0], btl[1])])
+            painter.setBrush(top_color)
+            painter.drawPolygon(top_face)
+
+            right_face = QPolygonF([QPointF(fr[0], fr[1]), QPointF(br[0], br[1]),
+                                     QPointF(btr[0], btr[1]), QPointF(ftr[0], ftr[1])])
+            painter.setBrush(side_color)
+            painter.drawPolygon(right_face)
+
+        core_sx, core_sy, _, core_sc = proj(0, ring_y, 0)
+        core_r = 15 * core_sc
+        if core_r > 2:
+            core_grad = QRadialGradient(core_sx, core_sy, core_r * 3)
+            core_grad.setColorAt(0, QColor(255, 240, 255, int(100 + bass * 155)))
+            core_grad.setColorAt(0.3, QColor(100, 180, 255, int(50 + bass * 80)))
+            core_grad.setColorAt(1, QColor(20, 40, 100, 0))
+            painter.setBrush(QBrush(core_grad))
+            painter.drawEllipse(QRectF(core_sx - core_r * 3, core_sy - core_r * 3, core_r * 6, core_r * 6))
+
+    def _paint_terrain(self, painter, w, h):
+        bars = self._smooth_bars
+        n = len(bars)
+        bass = float(np.mean(bars[:8]))
+        mid = float(np.mean(bars[8:30]))
+        phase = self._terrain_phase
+        pitch = 0.55
+        yaw = 0.0
+        painter.setPen(Qt.PenStyle.NoPen)
+
+        grid_x = np.linspace(-4, 4, n)
+        grid_z = np.linspace(-3, 3, 20)
+        height_map = []
+        for zi, z in enumerate(grid_z):
+            row = []
+            for xi, x in enumerate(grid_x):
+                freq_idx = min(int(xi * n / n), n - 1)
+                val = bars[freq_idx]
+                h_val = val * 2.5
+                h_val += math.sin(x * 0.8 + phase) * 0.3 * (1 + bass)
+                h_val += math.cos(z * 0.6 + phase * 0.7) * 0.2 * (1 + mid)
+                h_val += math.sin(x * 1.5 + z * 1.2 + phase * 1.3) * 0.15
+                row.append(h_val)
+            height_map.append(row)
+
+        for zi in range(len(grid_z) - 2, -1, -1):
+            z_back = grid_z[zi + 1]
+            z_front = grid_z[zi]
+            for xi in range(n - 1):
+                x0 = grid_x[xi]
+                x1 = grid_x[xi + 1]
+                h00 = height_map[zi][xi]
+                h10 = height_map[zi][xi + 1]
+                h01 = height_map[zi + 1][xi]
+                h11 = height_map[zi + 1][xi + 1]
+
+                p00 = _project_3d(x0, h00, z_front, w, h, pitch=pitch, yaw=yaw)
+                p10 = _project_3d(x1, h10, z_front, w, h, pitch=pitch, yaw=yaw)
+                p01 = _project_3d(x0, h01, z_back, w, h, pitch=pitch, yaw=yaw)
+                p11 = _project_3d(x1, h11, z_back, w, h, pitch=pitch, yaw=yaw)
+
+                avg_h = (h00 + h10 + h01 + h11) / 4
+                t = min(1.0, avg_h / 2.5)
+                if t < 0.3:
+                    r = int(10 + t * 80)
+                    g = int(40 + t * 200)
+                    b = int(80 + t * 150)
+                elif t < 0.6:
+                    r = int(30 + t * 100)
+                    g = int(100 + t * 200)
+                    b = int(180 + t * 75)
+                else:
+                    r = int(100 + t * 155)
+                    g = int(180 + t * 75)
+                    b = int(220 + t * 35)
+                depth_fade = max(0.3, min(1.0, p00[3] * 0.35))
+                alpha = int(200 * depth_fade)
+
+                quad = QPolygonF([
+                    QPointF(p00[0], p00[1]),
+                    QPointF(p10[0], p10[1]),
+                    QPointF(p11[0], p11[1]),
+                    QPointF(p01[0], p01[1]),
+                ])
+                face_color = QColor(min(255, r), min(255, g), min(255, b), alpha)
+                painter.setBrush(face_color)
+                painter.drawPolygon(quad)
+
+                if xi % 4 == 0 and zi % 2 == 0:
+                    painter.setPen(QPen(QColor(min(255, r + 40), min(255, g + 40), min(255, b + 40), int(alpha * 0.3)), 1))
+                    painter.drawLine(int(p00[0]), int(p00[1]), int(p10[0]), int(p10[1]))
+                    painter.drawLine(int(p00[0]), int(p00[1]), int(p01[0]), int(p01[1]))
+                    painter.setPen(Qt.PenStyle.NoPen)
+
+        water_y = -0.2
+        water_pts_front = []
+        water_pts_back = []
+        for xi in range(n):
+            x = grid_x[xi]
+            sf = _project_3d(x, water_y, grid_z[0], w, h, pitch=pitch, yaw=yaw)
+            sb = _project_3d(x, water_y, grid_z[-1], w, h, pitch=pitch, yaw=yaw)
+            water_pts_front.append(QPointF(sf[0], sf[1]))
+            water_pts_back.append(QPointF(sb[0], sb[1]))
+        if len(water_pts_front) > 2:
+            water_poly = QPolygonF()
+            for pt in water_pts_front:
+                water_poly.append(pt)
+            for pt in reversed(water_pts_back):
+                water_poly.append(pt)
+            water_grad = QLinearGradient(0, water_pts_front[0].y(), 0, water_pts_back[0].y())
+            water_grad.setColorAt(0, QColor(20, 60, 140, 40))
+            water_grad.setColorAt(0.5, QColor(10, 40, 120, 25))
+            water_grad.setColorAt(1, QColor(5, 20, 80, 15))
+            painter.setBrush(QBrush(water_grad))
+            painter.drawPolygon(water_poly)
 
     def _paint_cosmos(self, painter, w, h):
         bars = self._smooth_bars
@@ -1166,274 +928,88 @@ class AudioVisualWidget(QWidget):
         mid = float(np.mean(bars[8:30]))
         high = float(np.mean(bars[30:]))
         cx, cy = w / 2, h / 2
-        max_dist = math.sqrt(cx * cx + cy * cy)
+        pitch = 0.35
+        proj = lambda x, y, z: _project_3d(x, y, z, w, h, pitch=pitch)
         painter.setPen(Qt.PenStyle.NoPen)
+
         for s in self._cosmos_bg_stars:
+            sx, sy, depth, scale = proj(s['x'], s['y'], s['z'])
+            if not (0 <= sx <= w and 0 <= sy <= h):
+                continue
             brightness = 0.4 + 0.6 * (0.5 + 0.5 * math.sin(s['twinkle']))
-            dist = math.sqrt((s['x'] - cx) ** 2 + (s['y'] - cy) ** 2)
-            depth_fade = max(0.3, 1.0 - dist / max_dist * 0.5)
-            alpha = int(brightness * 180 * depth_fade)
-            size = s['size'] * (0.8 + bass * 0.4) * depth_fade
-            painter.setBrush(QColor(200, 220, 255, alpha))
-            painter.drawEllipse(QRectF(s['x'] - size, s['y'] - size, size * 2, size * 2))
-        nebula_r = min(w, h) * 0.4
-        for i in range(5):
-            angle = self._cosmos_rotation + i * 1.26
-            nx = cx + math.cos(angle) * nebula_r * 0.3
-            ny = cy + math.sin(angle) * nebula_r * 0.2
-            hue = int(200 + i * 50 + self._cosmos_rotation * 20) % 360
-            grad = QRadialGradient(nx, ny, nebula_r * (0.5 + bass * 0.2))
-            grad.setColorAt(0, QColor.fromHsv(hue, 100, 220, int(20 + bass * 35)))
-            grad.setColorAt(0.4, QColor.fromHsv(hue, 130, 200, int(12 + mid * 25)))
-            grad.setColorAt(1, QColor.fromHsv(hue, 160, 150, 0))
+            depth_fade = max(0.2, min(1.0, scale * 0.4))
+            alpha = int(brightness * 200 * depth_fade)
+            screen_size = max(1, s['size'] * scale * 40)
+            grad = QRadialGradient(sx, sy, screen_size * 2)
+            grad.setColorAt(0, QColor(255, 255, 255, int(alpha * 0.8)))
+            grad.setColorAt(0.3, QColor(200, 220, 255, alpha))
+            grad.setColorAt(1, QColor(100, 150, 255, 0))
             painter.setBrush(QBrush(grad))
-            painter.drawEllipse(QRectF(nx - nebula_r, ny - nebula_r, nebula_r * 2, nebula_r * 2))
-        core_r = min(w, h) * 0.08
-        core_grad = QRadialGradient(cx, cy, core_r * 3)
+            painter.drawEllipse(QRectF(sx - screen_size * 2, sy - screen_size * 2, screen_size * 4, screen_size * 4))
+
+        core_sx, core_sy, core_d, core_sc = proj(0, 0, 0)
+        core_r = max(5, 20 * core_sc)
+        core_grad = QRadialGradient(core_sx, core_sy, core_r * 5)
         core_grad.setColorAt(0, QColor(255, 240, 255, int(150 + bass * 105)))
         core_grad.setColorAt(0.1, QColor(200, 180, 255, int(100 + bass * 80)))
         core_grad.setColorAt(0.3, QColor(120, 100, 230, int(40 + bass * 50)))
-        core_grad.setColorAt(0.6, QColor(60, 50, 180, int(15 + bass * 25)))
         core_grad.setColorAt(1, QColor(20, 15, 80, 0))
         painter.setBrush(QBrush(core_grad))
-        painter.drawEllipse(QRectF(cx - core_r * 3, cy - core_r * 3, core_r * 6, core_r * 6))
+        painter.drawEllipse(QRectF(core_sx - core_r * 5, core_sy - core_r * 5, core_r * 10, core_r * 10))
+
         spiral_arms = 4
         for arm in range(spiral_arms):
             arm_angle = self._cosmos_rotation * 2 + arm * 2 * math.pi / spiral_arms
-            for seg in range(30):
-                t = seg / 30.0
-                r = core_r * (1.5 + t * 8)
+            for seg in range(25):
+                t = seg / 25.0
+                r = 0.3 + t * 3.0
                 a = arm_angle + t * 3.5
-                px = cx + r * math.cos(a)
-                py = cy + r * math.sin(a)
-                dist = math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
-                depth_fade = max(0.2, 1.0 - dist / max_dist * 0.5)
+                x3d = r * math.cos(a)
+                z3d = r * math.sin(a)
+                y3d = (math.sin(a * 2 + t * 4) * 0.3) * (1 - t * 0.5)
+                sx, sy, d, sc = proj(x3d, y3d, z3d)
+                if not (-20 <= sx <= w + 20 and -20 <= sy <= h + 20):
+                    continue
                 arm_val = bass * (1.0 - t * 0.6)
-                dot_size = (1.5 + arm_val * 4) * depth_fade * (1.0 - t * 0.5)
+                dot_size = max(1, (0.04 + arm_val * 0.12) * sc * 30)
                 hue = int(200 + arm * 40 + t * 60) % 360
-                alpha = int((30 + arm_val * 150) * depth_fade * (1.0 - t * 0.6))
-                painter.setBrush(QColor.fromHsv(hue, 160, 255, alpha))
-                painter.drawEllipse(QRectF(px - dot_size, py - dot_size, dot_size * 2, dot_size * 2))
-        painter.setPen(Qt.PenStyle.NoPen)
-        for p in self._cosmos_particles:
+                alpha = int((30 + arm_val * 150) * max(0.2, sc * 0.4) * (1.0 - t * 0.6))
+                grad = QRadialGradient(sx, sy, dot_size * 2)
+                grad.setColorAt(0, QColor(255, 255, 255, int(alpha * 0.5)))
+                grad.setColorAt(0.3, QColor.fromHsv(hue, 160, 255, alpha))
+                grad.setColorAt(1, QColor.fromHsv(hue, 180, 200, 0))
+                painter.setBrush(QBrush(grad))
+                painter.drawEllipse(QRectF(sx - dot_size * 2, sy - dot_size * 2, dot_size * 4, dot_size * 4))
+
+        sorted_particles = sorted(self._cosmos_particles, key=lambda p: -proj(p['x'], p['y'], p['z'])[2])
+        for p in sorted_particles:
             alpha = int(p['life'] * 200)
-            size = p['size'] * (0.3 + p['life'] * 0.7)
-            dist = math.sqrt((p['x'] - cx) ** 2 + (p['y'] - cy) ** 2)
-            depth_fade = max(0.3, 1.0 - dist / max_dist * 0.6)
-            painter.setBrush(QColor.fromHsv(p['hue'], 180, 255, int(alpha * depth_fade)))
-            painter.drawEllipse(QRectF(p['x'] - size * depth_fade, p['y'] - size * depth_fade, size * 2 * depth_fade, size * 2 * depth_fade))
+            sx, sy, d, sc = proj(p['x'], p['y'], p['z'])
+            if not (-20 <= sx <= w + 20 and -20 <= sy <= h + 20):
+                continue
+            screen_size = max(1, p['size'] * sc * 30)
+            depth_fade = max(0.2, min(1.0, sc * 0.4))
+            grad = QRadialGradient(sx, sy, screen_size * 1.5)
+            grad.setColorAt(0, QColor(255, 255, 255, int(alpha * 0.4 * depth_fade)))
+            grad.setColorAt(0.4, QColor.fromHsv(p['hue'], 180, 255, int(alpha * depth_fade)))
+            grad.setColorAt(1, QColor.fromHsv(p['hue'], 200, 200, 0))
+            painter.setBrush(QBrush(grad))
+            painter.drawEllipse(QRectF(sx - screen_size * 1.5, sy - screen_size * 1.5, screen_size * 3, screen_size * 3))
+
         for m in self._cosmos_meteors:
             alpha = int(m['life'] * 220)
-            tail_x = m['x'] - m['vx'] / (abs(m['vx']) + abs(m['vy']) + 0.01) * m['len']
-            tail_y = m['y'] - m['vy'] / (abs(m['vx']) + abs(m['vy']) + 0.01) * m['len']
-            head_dist = math.sqrt((m['x'] - cx) ** 2 + (m['y'] - cy) ** 2)
-            meteor_depth = max(0.4, 1.0 - head_dist / max_dist * 0.4)
-            grad = QLinearGradient(tail_x, tail_y, m['x'], m['y'])
+            sx, sy, d, sc = proj(m['x'], m['y'], m['z'])
+            tail_x = m['x'] - m['vx'] / (abs(m['vx']) + abs(m['vz']) + 0.01) * m['len']
+            tail_z = m['z'] - m['vz'] / (abs(m['vx']) + abs(m['vz']) + 0.01) * m['len']
+            tsx, tsy, _, _ = proj(tail_x, m['y'], tail_z)
+            depth_fade = max(0.3, min(1.0, sc * 0.4))
+            grad = QLinearGradient(tsx, tsy, sx, sy)
             grad.setColorAt(0, QColor.fromHsv(m['hue'], 100, 255, 0))
-            grad.setColorAt(0.7, QColor.fromHsv(m['hue'], 120, 255, int(alpha * 0.5 * meteor_depth)))
-            grad.setColorAt(1, QColor(255, 255, 255, int(alpha * meteor_depth)))
-            painter.setPen(QPen(QBrush(grad), 2 * meteor_depth))
-            painter.drawLine(int(tail_x), int(tail_y), int(m['x']), int(m['y']))
+            grad.setColorAt(0.7, QColor.fromHsv(m['hue'], 120, 255, int(alpha * 0.5 * depth_fade)))
+            grad.setColorAt(1, QColor(255, 255, 255, int(alpha * depth_fade)))
+            painter.setPen(QPen(QBrush(grad), max(1, 2 * depth_fade)))
+            painter.drawLine(int(tsx), int(tsy), int(sx), int(sy))
             painter.setPen(Qt.PenStyle.NoPen)
-            head_grad = QRadialGradient(m['x'], m['y'], 4 * meteor_depth)
-            head_grad.setColorAt(0, QColor(255, 255, 255, int(alpha * meteor_depth)))
-            head_grad.setColorAt(1, QColor.fromHsv(m['hue'], 100, 255, 0))
-            painter.setBrush(QBrush(head_grad))
-            painter.drawEllipse(QRectF(m['x'] - 4 * meteor_depth, m['y'] - 4 * meteor_depth, 8 * meteor_depth, 8 * meteor_depth))
-
-    def _update_warp(self):
-        w = self.width()
-        h = self.height()
-        if w <= 0 or h <= 0:
-            return
-        cx, cy = w / 2, h / 2
-        bass = float(np.mean(self._bars[:8]))
-        mid = float(np.mean(self._bars[8:30]))
-        high = float(np.mean(self._bars[30:]))
-        energy = bass + mid + high
-        bass_hit = bass - self._warp_prev_bass
-        if bass_hit < 0:
-            bass_hit = 0
-        self._warp_prev_bass = bass
-        drift_speed = 1.5 + energy * 5
-        drift_y = drift_speed * 0.35
-        self._warp_drift += drift_speed
-        if self._frame_count % 2 == 0:
-            count = 2 + int(energy * 6)
-            for _ in range(count):
-                angle = random.uniform(0, 2 * math.pi)
-                speed = 1.5 + energy * 10
-                hue = random.randint(190, 270)
-                z = random.uniform(0.1, 1.0)
-                self._warp_streaks.append({
-                    'x': cx,
-                    'y': cy,
-                    'angle': angle,
-                    'speed': speed * z,
-                    'life': 1.0,
-                    'size': 0.8 + energy * 1.5 * z,
-                    'hue': hue,
-                    'z': z,
-                })
-        alive = []
-        for s in self._warp_streaks:
-            s['x'] += math.cos(s['angle']) * s['speed']
-            s['y'] += math.sin(s['angle']) * s['speed']
-            s['x'] -= drift_speed * s['z']
-            s['y'] -= drift_y * s['z']
-            s['speed'] *= 1.015
-            s['life'] -= 0.006
-            if s['life'] > 0 and -200 <= s['x'] <= w + 200 and -200 <= s['y'] <= h + 200:
-                alive.append(s)
-        self._warp_streaks = alive[-3000:]
-        if bass_hit > 0.04 or (bass > 0.25 and self._frame_count % 18 == 0):
-            ring_scale = 0.25 + bass * 0.6 + bass_hit * 1.2
-            self._warp_rings.append({
-                'cx': cx,
-                'cy': cy,
-                'r': 3,
-                'max_r': min(w, h) * ring_scale,
-                'speed': 1.5 + bass * 8 + bass_hit * 18,
-                'life': 1.0,
-                'hue': random.randint(195, 265),
-                'width': 1 + bass * 2.5,
-            })
-            spark_count = int(bass * 25 + bass_hit * 50) + 5
-            for _ in range(spark_count):
-                angle = random.uniform(0, 2 * math.pi)
-                speed = 0.8 + bass * 8 + bass_hit * 15
-                hue = random.randint(185, 275)
-                z = random.uniform(0.15, 1.0)
-                self._warp_sparks.append({
-                    'x': cx,
-                    'y': cy,
-                    'vx': math.cos(angle) * speed * z,
-                    'vy': math.sin(angle) * speed * z,
-                    'life': 1.0,
-                    'size': 1 + bass * 2.5 + random.random() * 1.5,
-                    'hue': hue,
-                    'z': z,
-                    'trail': [(cx, cy)],
-                })
-        r_alive = []
-        for ring in self._warp_rings:
-            ring['r'] += ring['speed']
-            ring['speed'] *= 0.995
-            ring['cx'] -= drift_speed * 0.7
-            ring['cy'] -= drift_y * 0.7
-            ring['life'] -= 0.008
-            if ring['life'] > 0 and ring['r'] < ring['max_r'] * 2 and ring['cx'] > -ring['r']:
-                r_alive.append(ring)
-        self._warp_rings = r_alive[-30:]
-        s_alive = []
-        for sp in self._warp_sparks:
-            sp['x'] += sp['vx']
-            sp['y'] += sp['vy']
-            sp['x'] -= drift_speed * sp['z'] * 0.5
-            sp['y'] -= drift_y * sp['z'] * 0.5
-            sp['vx'] *= 0.988
-            sp['vy'] *= 0.988
-            sp['life'] -= 0.008
-            sp['trail'].append((sp['x'], sp['y']))
-            if len(sp['trail']) > 15:
-                sp['trail'] = sp['trail'][-15:]
-            if sp['life'] > 0 and -100 <= sp['x'] <= w + 100 and -100 <= sp['y'] <= h + 100:
-                s_alive.append(sp)
-        self._warp_sparks = s_alive[-3000:]
-
-    def _paint_warp(self, painter, w, h):
-        bars = self._smooth_bars
-        bass = float(np.mean(bars[:8]))
-        mid = float(np.mean(bars[8:30]))
-        cx, cy = w / 2, h / 2
-        vx = cx + w * 0.12
-        vy = cy + h * 0.08
-        max_dist = math.sqrt(cx * cx + cy * cy)
-        painter.setPen(Qt.PenStyle.NoPen)
-        core_r = min(w, h) * 0.025
-        grad = QRadialGradient(vx, vy, core_r * 5)
-        grad.setColorAt(0, QColor(230, 245, 255, int(120 + bass * 135)))
-        grad.setColorAt(0.15, QColor(140, 190, 255, int(60 + bass * 100)))
-        grad.setColorAt(0.4, QColor(60, 120, 255, int(20 + bass * 50)))
-        grad.setColorAt(1, QColor(15, 30, 80, 0))
-        painter.setBrush(QBrush(grad))
-        painter.drawEllipse(QRectF(vx - core_r * 5, vy - core_r * 5, core_r * 10, core_r * 10))
-        for s in self._warp_streaks:
-            dist = math.sqrt((s['x'] - vx) ** 2 + (s['y'] - vy) ** 2)
-            depth_fade = max(0.15, 1.0 - dist / max_dist * 0.7)
-            alpha = int(s['life'] * 180 * s['z'] * depth_fade)
-            if alpha < 2:
-                continue
-            tail_len = s['speed'] * 2.0 * s['z']
-            tx = s['x'] - math.cos(s['angle']) * tail_len
-            ty = s['y'] - math.sin(s['angle']) * tail_len
-            grad = QLinearGradient(tx, ty, s['x'], s['y'])
-            grad.setColorAt(0, QColor.fromHsv(s['hue'], 120, 255, 0))
-            grad.setColorAt(0.5, QColor.fromHsv(s['hue'], 140, 255, int(alpha * 0.3)))
-            grad.setColorAt(1, QColor.fromHsv(s['hue'], 100, 255, alpha))
-            painter.setPen(QPen(QBrush(grad), max(1, s['size'] * depth_fade)))
-            painter.drawLine(int(tx), int(ty), int(s['x']), int(s['y']))
-        painter.setPen(Qt.PenStyle.NoPen)
-        for ring in self._warp_rings:
-            r = ring['r']
-            rcx = ring['cx']
-            rcy = ring['cy']
-            dist = math.sqrt((rcx - vx) ** 2 + (rcy - vy) ** 2)
-            depth_fade = max(0.2, 1.0 - dist / max_dist * 0.6)
-            alpha = int(ring['life'] * 150 * depth_fade)
-            hue = ring['hue']
-            w_line = ring['width'] * ring['life'] * depth_fade
-            painter.setPen(QPen(QColor.fromHsv(hue, 150, 255, alpha), w_line))
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawEllipse(QRectF(rcx - r, rcy - r, r * 2, r * 2))
-            if ring['life'] > 0.3:
-                glow_alpha = int(alpha * 0.25)
-                painter.setPen(QPen(QColor.fromHsv(hue, 100, 255, glow_alpha), w_line * 3))
-                painter.drawEllipse(QRectF(rcx - r, rcy - r, r * 2, r * 2))
-        painter.setPen(Qt.PenStyle.NoPen)
-        for sp in self._warp_sparks:
-            trail = sp['trail']
-            n = len(trail)
-            if n < 2:
-                continue
-            z = sp['z']
-            dist = math.sqrt((sp['x'] - vx) ** 2 + (sp['y'] - vy) ** 2)
-            depth_fade = max(0.15, 1.0 - dist / max_dist * 0.7)
-            for i in range(1, n):
-                frac = i / n
-                alpha = int(sp['life'] * 180 * frac * z * depth_fade)
-                if alpha < 2:
-                    continue
-                x1, y1 = trail[i - 1]
-                x2, y2 = trail[i]
-                painter.setPen(QPen(QColor.fromHsv(sp['hue'], 160, 255, alpha), max(1, sp['size'] * frac * z * depth_fade)))
-                painter.drawLine(int(x1), int(y1), int(x2), int(y2))
-            painter.setPen(Qt.PenStyle.NoPen)
-            alpha = int(sp['life'] * 200 * z * depth_fade)
-            size = sp['size'] * (0.3 + sp['life'] * 0.7) * z * depth_fade
-            painter.setBrush(QColor.fromHsv(sp['hue'], 180, 255, alpha))
-            painter.drawEllipse(QRectF(sp['x'] - size, sp['y'] - size, size * 2, size * 2))
-        vignette = QRadialGradient(vx, vy, max_dist)
-        vignette.setColorAt(0, QColor(0, 0, 0, 0))
-        vignette.setColorAt(0.5, QColor(0, 0, 0, 0))
-        vignette.setColorAt(0.8, QColor(0, 0, 0, int(60 + (1 - bass) * 80)))
-        vignette.setColorAt(1, QColor(0, 0, 0, 200))
-        painter.setBrush(QBrush(vignette))
-        painter.drawRect(QRectF(0, 0, w, h))
-
-    def _update_fluid(self):
-        self._fluid_hue = (self._fluid_hue + 0.3) % 360
-        bass = float(np.mean(self._bars[:8]))
-        mid = float(np.mean(self._bars[8:30]))
-        self._fluid_phase += 0.02 + bass * 0.06 + mid * 0.03
-
-    def _update_milkdrop(self):
-        self._milk_hue = (self._milk_hue + 0.4) % 360
-        bass = float(np.mean(self._bars[:8]))
-        mid = float(np.mean(self._bars[8:30]))
-        self._milk_phase += 0.015 + bass * 0.05
-        self._milk_rot += 0.002 + bass * 0.01
-        self._milk_zoom = 1.0 + bass * 0.05
 
     def _paint_fluid(self, painter, w, h):
         bars = self._smooth_bars
@@ -1441,7 +1017,6 @@ class AudioVisualWidget(QWidget):
         mid = float(np.mean(bars[8:30]))
         high = float(np.mean(bars[30:]))
         cx, cy = w / 2, h / 2
-        max_dist = math.sqrt(cx * cx + cy * cy)
         phase = self._fluid_phase
         hue = self._fluid_hue
 
@@ -1463,373 +1038,45 @@ class AudioVisualWidget(QWidget):
             val = bars[i]
             if val < 0.02:
                 continue
-            freq = 20 + i * (18000 - 20) / n
             angle = phase + i * 0.15 + math.sin(phase * 0.7 + i * 0.05) * 2
-            dist = 30 + val * min(w, h) * 0.35
-            px = cx + math.cos(angle) * dist * 0.3
-            py = cy + math.sin(angle) * dist * 0.3
-            pt_dist = math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
-            depth_fade = max(0.3, 1.0 - pt_dist / max_dist * 0.5)
-            size = (3 + val * 15) * depth_fade
+            x3d = math.cos(angle) * (0.5 + val * 2.0) * 0.3
+            y3d = math.sin(phase * 0.3 + i * 0.1) * val * 0.5
+            z3d = math.sin(angle) * (0.5 + val * 2.0) * 0.3
+            pitch = 0.45
+            proj = lambda x, y, z: _project_3d(x, y, z, w, h, pitch=pitch)
+            sx, sy, d, sc = proj(x3d, y3d, z3d)
+            if not (-30 <= sx <= w + 30 and -30 <= sy <= h + 30):
+                continue
+            depth_fade = max(0.3, min(1.0, sc * 0.4))
+            size = max(2, (3 + val * 15) * depth_fade)
             bar_hue = int(hue + i * 2.8) % 360
             alpha = int(val * 200 * depth_fade)
-            grad = QRadialGradient(px, py, size)
-            grad.setColorAt(0, QColor.fromHsv(bar_hue, 180, 255, alpha))
-            grad.setColorAt(0.5, QColor.fromHsv(bar_hue, 200, 220, int(alpha * 0.5)))
+            grad = QRadialGradient(sx - size * 0.15, sy - size * 0.15, size * 1.5)
+            grad.setColorAt(0, QColor(255, 255, 255, int(alpha * 0.4)))
+            grad.setColorAt(0.3, QColor.fromHsv(bar_hue, 180, 255, alpha))
+            grad.setColorAt(0.7, QColor.fromHsv(bar_hue, 200, 220, int(alpha * 0.4)))
             grad.setColorAt(1, QColor.fromHsv(bar_hue, 220, 180, 0))
             fade_painter.setPen(Qt.PenStyle.NoPen)
             fade_painter.setBrush(QBrush(grad))
-            fade_painter.drawEllipse(QRectF(px - size, py - size, size * 2, size * 2))
+            fade_painter.drawEllipse(QRectF(sx - size * 1.5, sy - size * 1.5, size * 3, size * 3))
 
         for layer in range(3):
-            points = []
-            y_base = h * (0.3 + layer * 0.15)
-            amp = h * (0.05 + bass * 0.12)
-            for x in range(0, w + 10, 10):
-                dist_from_center = abs(x - cx) / (w / 2)
+            prev = None
+            for xi in range(0, w + 12, 12):
+                dist_from_center = abs(xi - cx) / (w / 2)
                 depth_fade = max(0.3, 1.0 - dist_from_center * 0.5)
-                wave = math.sin(x * 0.006 + phase + layer * 1.2) * amp * depth_fade
-                wave += math.sin(x * 0.013 + phase * 1.5 + layer * 0.8) * amp * 0.4 * depth_fade
-                wave += math.cos(x * 0.003 + phase * 0.5 + layer * 2.1) * amp * 0.3 * depth_fade
-                y = y_base + wave
-                points.append((x, y))
-            for i in range(len(points) - 1):
-                x1, y1 = points[i]
-                x2, y2 = points[i + 1]
-                line_hue = int(hue + layer * 80 + i * 0.5) % 360
-                seg_cx = (x1 + x2) / 2
-                seg_dist = abs(seg_cx - cx) / (w / 2)
-                seg_depth = max(0.3, 1.0 - seg_dist * 0.5)
-                alpha = int((40 + bass * 80) * seg_depth)
-                fade_painter.setPen(QPen(QColor.fromHsv(line_hue, 150, 255, alpha), (2 + bass * 3) * seg_depth))
-                fade_painter.drawLine(int(x1), int(y1), int(x2), int(y2))
+                wave = math.sin(xi * 0.006 + phase + layer * 1.2) * 40 * depth_fade * (1 + bass)
+                wave += math.sin(xi * 0.013 + phase * 1.5 + layer * 0.8) * 15 * depth_fade * (1 + mid)
+                y = h * (0.3 + layer * 0.15) + wave
+                if prev is not None:
+                    line_hue = int(hue + layer * 80 + xi * 0.1) % 360
+                    alpha = int((40 + bass * 80) * depth_fade)
+                    fade_painter.setPen(QPen(QColor.fromHsv(line_hue, 150, 255, alpha), (2 + bass * 3) * depth_fade))
+                    fade_painter.drawLine(int(prev[0]), int(prev[1]), int(xi), int(y))
+                prev = (xi, y)
 
         fade_painter.end()
         painter.drawImage(0, 0, self._fluid_buf)
-
-    def _paint_milkdrop(self, painter, w, h):
-        bars = self._smooth_bars
-        bass = float(np.mean(bars[:8]))
-        mid = float(np.mean(bars[8:30]))
-        high = float(np.mean(bars[30:]))
-        cx, cy = w / 2, h / 2
-        max_dist = math.sqrt(cx * cx + cy * cy)
-        phase = self._milk_phase
-        hue = self._milk_hue
-
-        if self._milk_buf is None or self._milk_buf_w != w or self._milk_buf_h != h:
-            self._milk_buf = QImage(w, h, QImage.Format.Format_ARGB32)
-            self._milk_buf.fill(QColor(0, 0, 0, 0))
-            self._milk_buf_w = w
-            self._milk_buf_h = h
-
-        temp_buf = QImage(w, h, QImage.Format.Format_ARGB32)
-        temp_painter = QPainter(temp_buf)
-        temp_painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
-        fade_alpha = max(6, min(30, int(10 + (bass + mid) * 12)))
-        temp_painter.fillRect(0, 0, w, h, QColor(0, 0, 0, fade_alpha))
-        temp_painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
-        temp_painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
-
-        zoom = self._milk_zoom
-        rot = self._milk_rot
-        temp_painter.translate(cx, cy)
-        temp_painter.rotate(math.degrees(rot))
-        temp_painter.scale(1.0 / zoom, 1.0 / zoom)
-        temp_painter.translate(-cx, -cy)
-        temp_painter.setOpacity(0.95)
-        temp_painter.drawImage(0, 0, self._milk_buf)
-        temp_painter.end()
-
-        draw_painter = QPainter(temp_buf)
-        draw_painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
-        draw_painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        n = len(bars)
-        for i in range(0, n, 2):
-            val = bars[i]
-            if val < 0.02:
-                continue
-            angle = i * 2 * math.pi / n + phase * 0.3
-            dist = 20 + val * min(w, h) * 0.3
-            px = cx + math.cos(angle) * dist
-            py = cy + math.sin(angle) * dist
-            pt_dist = math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
-            depth_fade = max(0.3, 1.0 - pt_dist / max_dist * 0.5)
-            size = (4 + val * 20) * depth_fade
-            bar_hue = int(hue + i * 2.8) % 360
-            alpha = int(val * 180 * depth_fade)
-            grad = QRadialGradient(px, py, size)
-            grad.setColorAt(0, QColor.fromHsv(bar_hue, 170, 255, alpha))
-            grad.setColorAt(0.6, QColor.fromHsv(bar_hue, 200, 220, int(alpha * 0.4)))
-            grad.setColorAt(1, QColor.fromHsv(bar_hue, 220, 180, 0))
-            draw_painter.setPen(Qt.PenStyle.NoPen)
-            draw_painter.setBrush(QBrush(grad))
-            draw_painter.drawEllipse(QRectF(px - size, py - size, size * 2, size * 2))
-
-        for layer in range(4):
-            y_base = h * (0.2 + layer * 0.15)
-            amp = h * (0.04 + bass * 0.10 + mid * 0.05)
-            prev = None
-            for x in range(0, w + 12, 12):
-                dist_from_center = abs(x - cx) / (w / 2)
-                depth_fade = max(0.3, 1.0 - dist_from_center * 0.5)
-                wave = math.sin(x * 0.005 + phase + layer * 1.5) * amp * depth_fade
-                wave += math.sin(x * 0.011 + phase * 1.3 + layer * 0.9) * amp * 0.35 * depth_fade
-                wave += math.cos(x * 0.003 + phase * 0.6 + layer * 2.3) * amp * 0.3 * depth_fade
-                y = y_base + wave
-                if prev is not None:
-                    line_hue = int(hue + layer * 90 + x * 0.1) % 360
-                    alpha = int((30 + bass * 60) * depth_fade)
-                    draw_painter.setPen(QPen(QColor.fromHsv(line_hue, 140, 255, alpha), (1.5 + bass * 2) * depth_fade))
-                    draw_painter.drawLine(int(prev[0]), int(prev[1]), int(x), int(y))
-                prev = (x, y)
-
-        if bass > 0.25:
-            ring_r = min(w, h) * 0.1 * (1 + bass * 0.5)
-            ring_hue = int(hue + 60) % 360
-            draw_painter.setPen(QPen(QColor.fromHsv(ring_hue, 150, 255, int(bass * 120)), 2))
-            draw_painter.setBrush(Qt.BrushStyle.NoBrush)
-            draw_painter.drawEllipse(QRectF(cx - ring_r, cy - ring_r, ring_r * 2, ring_r * 2))
-
-        draw_painter.end()
-        self._milk_buf = temp_buf
-        painter.drawImage(0, 0, self._milk_buf)
-
-    def _update_ring_dots(self):
-        w = self.width()
-        h = self.height()
-        if w <= 0 or h <= 0:
-            return
-        bass = float(np.mean(self._bars[:8]))
-        mid = float(np.mean(self._bars[8:30]))
-        if bass > 0.15:
-            self._ring_dots_ripples.append({
-                'r': 5,
-                'max_r': min(w, h) * (0.3 + bass * 0.5),
-                'speed': 2 + bass * 12,
-                'life': 1.0,
-                'hue': random.randint(180, 280),
-                'intensity': bass,
-            })
-        alive = []
-        for rp in self._ring_dots_ripples:
-            rp['r'] += rp['speed']
-            rp['speed'] *= 0.995
-            rp['life'] -= 0.008
-            if rp['life'] > 0 and rp['r'] < rp['max_r'] * 1.5:
-                alive.append(rp)
-        self._ring_dots_ripples = alive[-40:]
-
-    def _paint_ring_dots(self, painter, w, h):
-        bars = self._smooth_bars
-        bass = float(np.mean(bars[:8]))
-        mid = float(np.mean(bars[8:30]))
-        cx, cy = w / 2, h / 2
-        max_dist = math.sqrt(cx * cx + cy * cy)
-        phase = self._ring_dots_phase
-        painter.setPen(Qt.PenStyle.NoPen)
-
-        num_rings = 14
-        dots_per_ring = 48
-        for ring_i in range(num_rings):
-            base_r = min(w, h) * (0.04 + ring_i * 0.035)
-            freq_idx = int(ring_i * len(bars) / num_rings)
-            freq_idx = min(freq_idx, len(bars) - 1)
-            val = bars[freq_idx]
-            pulse = val * min(w, h) * 0.02
-            r = base_r + pulse
-            depth_fade = max(0.25, 1.0 - ring_i / num_rings * 0.6)
-            for dot_j in range(dots_per_ring):
-                angle = dot_j * 2 * math.pi / dots_per_ring + phase * (0.3 + ring_i * 0.05)
-                dx = cx + r * math.cos(angle)
-                dy = cy + r * math.sin(angle)
-                dist = math.sqrt((dx - cx) ** 2 + (dy - cy) ** 2)
-                dot_depth = max(0.2, 1.0 - dist / max_dist * 0.6) * depth_fade
-                dot_size = (1.5 + val * 4) * dot_depth
-                hue = int(200 + ring_i * 12 + dot_j * 2) % 360
-                alpha = int((40 + val * 200) * dot_depth)
-                painter.setBrush(QColor.fromHsv(hue, 180, 255, alpha))
-                painter.drawEllipse(QRectF(dx - dot_size, dy - dot_size, dot_size * 2, dot_size * 2))
-
-        for rp in self._ring_dots_ripples:
-            r = rp['r']
-            alpha = int(rp['life'] * 120)
-            hue = rp['hue']
-            dots = int(36 + r * 0.15)
-            for j in range(dots):
-                angle = j * 2 * math.pi / dots + phase * 0.2
-                dx = cx + r * math.cos(angle)
-                dy = cy + r * math.sin(angle)
-                dist = math.sqrt((dx - cx) ** 2 + (dy - cy) ** 2)
-                dot_depth = max(0.15, 1.0 - dist / max_dist * 0.7)
-                dot_size = (1.0 + rp['intensity'] * 3) * dot_depth * rp['life']
-                painter.setBrush(QColor.fromHsv(hue, 150, 255, int(alpha * dot_depth)))
-                painter.drawEllipse(QRectF(dx - dot_size, dy - dot_size, dot_size * 2, dot_size * 2))
-
-        core_grad = QRadialGradient(cx, cy, min(w, h) * 0.08)
-        core_grad.setColorAt(0, QColor(200, 230, 255, int(60 + bass * 150)))
-        core_grad.setColorAt(0.5, QColor(80, 140, 255, int(20 + bass * 60)))
-        core_grad.setColorAt(1, QColor(20, 40, 100, 0))
-        painter.setBrush(QBrush(core_grad))
-        painter.drawEllipse(QRectF(cx - min(w, h) * 0.08, cy - min(w, h) * 0.08, min(w, h) * 0.16, min(w, h) * 0.16))
-
-
-    def _update_ripple_dots(self):
-        w = self.width()
-        h = self.height()
-        if w <= 0 or h <= 0:
-            return
-        bass = float(np.mean(self._bars[:8]))
-        mid = float(np.mean(self._bars[8:30]))
-        energy = bass + mid
-        bass_hit = bass - self._ripple_dots_prev_bass
-        if bass_hit < 0:
-            bass_hit = 0
-        self._ripple_dots_prev_bass = bass
-
-        drift = 0.06 + energy * 0.1
-        for wv in self._ripple_dots_waves:
-            wv['z'] -= drift
-            wv['r'] += wv['speed']
-            wv['speed'] *= 0.998
-            wv['life'] -= 0.0008
-        self._ripple_dots_waves = [wv for wv in self._ripple_dots_waves if wv['life'] > 0 and wv['z'] > -40.0]
-        self._ripple_dots_waves = self._ripple_dots_waves[-150:]
-
-        for t in self._ripple_dots_trail:
-            t['z'] -= drift
-            t['x'] += t['vx']
-            t['y'] += t['vy']
-            t['vx'] *= 0.99
-            t['vy'] *= 0.99
-            t['life'] -= 0.001
-        self._ripple_dots_trail = [t for t in self._ripple_dots_trail if t['life'] > 0 and t['z'] > -40.0]
-        self._ripple_dots_trail = self._ripple_dots_trail[-1000:]
-
-        if bass_hit > 0.02 or (bass > 0.15 and self._frame_count % 20 == 0):
-            intensity = bass + bass_hit * 2
-            self._ripple_dots_waves.append({
-                'r': 0.05,
-                'speed': 0.01 + intensity * 0.03,
-                'life': 1.0,
-                'hue': random.randint(190, 280),
-                'intensity': intensity,
-                'dots_count': int(56 + intensity * 60),
-                'z': 0.0,
-            })
-            spark_count = int(intensity * 18) + 4
-            for _ in range(spark_count):
-                angle = random.uniform(0, 2 * math.pi)
-                speed = 0.003 + intensity * 0.02
-                self._ripple_dots_trail.append({
-                    'x': math.cos(angle) * speed * 3,
-                    'y': math.sin(angle) * speed * 3,
-                    'vx': math.cos(angle) * speed * 0.2,
-                    'vy': math.sin(angle) * speed * 0.2,
-                    'z': 0.0,
-                    'life': 1.0,
-                    'size': 0.6 + intensity * 1.5,
-                    'hue': random.randint(190, 280),
-                })
-
-        self._ripple_dots_view_timer += 1
-        if self._ripple_dots_view_timer % 700 == 0:
-            self._ripple_dots_target_yaw = math.pi / 2 + random.uniform(-0.6, 0.6)
-            self._ripple_dots_target_pitch = random.uniform(-0.3, 0.3)
-        self._ripple_dots_view_yaw += (self._ripple_dots_target_yaw - self._ripple_dots_view_yaw) * 0.0008
-        self._ripple_dots_view_pitch += (self._ripple_dots_target_pitch - self._ripple_dots_view_pitch) * 0.0008
-
-    def _ripple_project(self, x3d, y3d, z3d, w, h):
-        yaw = self._ripple_dots_view_yaw
-        pitch = self._ripple_dots_view_pitch
-        cos_y = math.cos(yaw)
-        sin_y = math.sin(yaw)
-        cos_p = math.cos(pitch)
-        sin_p = math.sin(pitch)
-        x1 = x3d
-        y1 = y3d * cos_p - z3d * sin_p
-        z1 = y3d * sin_p + z3d * cos_p
-        x2 = x1 * cos_y - z1 * sin_y
-        z2 = x1 * sin_y + z1 * cos_y
-        y2 = y1
-        cam_dist = 12.0
-        depth = z2 + cam_dist
-        if depth < 0.3:
-            depth = 0.3
-        scale = cam_dist / depth
-        sx = w / 2 + x2 * scale * w * 0.08
-        sy = h / 2 - y2 * scale * h * 0.08
-        return sx, sy, depth, scale
-
-    def _paint_ripple_dots(self, painter, w, h):
-        bars = self._smooth_bars
-        bass = float(np.mean(bars[:8]))
-        mid = float(np.mean(bars[8:30]))
-        painter.setPen(Qt.PenStyle.NoPen)
-
-        lsx, lsy, ldepth, lscale = self._ripple_project(0, 0, 0, w, h)
-        lead_brightness = min(1.0, bass * 2.5)
-        core_r = (5 + bass * 18) * lscale
-        core_grad = QRadialGradient(lsx, lsy, core_r * 4)
-        core_grad.setColorAt(0, QColor(255, 240, 255, int(130 + lead_brightness * 125)))
-        core_grad.setColorAt(0.1, QColor(220, 180, 255, int(90 + lead_brightness * 110)))
-        core_grad.setColorAt(0.3, QColor(140, 100, 230, int(35 + lead_brightness * 65)))
-        core_grad.setColorAt(0.6, QColor(60, 40, 150, int(10 + lead_brightness * 25)))
-        core_grad.setColorAt(1, QColor(20, 10, 60, 0))
-        painter.setBrush(QBrush(core_grad))
-        painter.drawEllipse(QRectF(lsx - core_r * 4, lsy - core_r * 4, core_r * 8, core_r * 8))
-
-        tube_r = 0.5
-        tube_dots = 40
-        tube_rings = 100
-        ring_spacing = 0.35
-        for ring_i in range(tube_rings):
-            z3d = -ring_i * ring_spacing
-            freq_idx = min(int(ring_i * len(bars) / tube_rings), len(bars) - 1)
-            val = bars[freq_idx]
-            z_fade = max(0.02, 1.0 - abs(z3d) / 35.0 * 0.9)
-            for j in range(tube_dots):
-                angle = j * 2 * math.pi / tube_dots
-                x3d = tube_r * math.cos(angle)
-                y3d = tube_r * math.sin(angle)
-                sx, sy, depth, scale = self._ripple_project(x3d, y3d, z3d, w, h)
-                if not (-20 <= sx <= w + 20 and -20 <= sy <= h + 20):
-                    continue
-                dot_size = max(0.5, (0.5 + val * 0.8) * scale * z_fade)
-                alpha = int((3 + val * 15) * z_fade)
-                painter.setBrush(QColor(40, 55, 140, alpha))
-                painter.drawEllipse(QRectF(sx - dot_size, sy - dot_size, dot_size * 2, dot_size * 2))
-
-        for wv in self._ripple_dots_waves:
-            r = wv['r']
-            alpha_base = wv['life'] * 220
-            hue = wv['hue']
-            n_dots = wv['dots_count']
-            z3d = wv['z']
-            z_fade = max(0.03, 1.0 - abs(z3d) / 35.0 * 0.8)
-            for j in range(n_dots):
-                angle = j * 2 * math.pi / n_dots
-                x3d = r * math.cos(angle)
-                y3d = r * math.sin(angle)
-                sx, sy, depth, scale = self._ripple_project(x3d, y3d, z3d, w, h)
-                if not (-20 <= sx <= w + 20 and -20 <= sy <= h + 20):
-                    continue
-                dot_size = max(0.5, (0.8 + wv['intensity'] * 2.5) * scale * z_fade * wv['life'])
-                alpha = int(alpha_base * z_fade)
-                painter.setBrush(QColor.fromHsv(hue, 170, 255, alpha))
-                painter.drawEllipse(QRectF(sx - dot_size, sy - dot_size, dot_size * 2, dot_size * 2))
-
-        for t in self._ripple_dots_trail:
-            sx, sy, depth, scale = self._ripple_project(t['x'], t['y'], t['z'], w, h)
-            if not (-20 <= sx <= w + 20 and -20 <= sy <= h + 20):
-                continue
-            z_fade = max(0.03, 1.0 - abs(t['z']) / 35.0 * 0.8)
-            dot_size = max(0.5, t['size'] * scale * z_fade * t['life'])
-            alpha = int(t['life'] * 150 * z_fade)
-            painter.setBrush(QColor.fromHsv(t['hue'], 160, 255, alpha))
-            painter.drawEllipse(QRectF(sx - dot_size, sy - dot_size, dot_size * 2, dot_size * 2))
-
 
 
 class AudioVisualService:
