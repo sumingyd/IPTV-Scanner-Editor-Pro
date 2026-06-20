@@ -2,6 +2,7 @@ from PySide6 import QtCore, QtWidgets, QtGui
 from ui.styles import AppStyles
 from utils.singleton import Singleton
 from utils.platform_utils import is_windows, is_macos, is_android
+import os
 
 
 class ThemeManager(Singleton, QtCore.QObject):
@@ -290,9 +291,14 @@ class ThemeManager(Singleton, QtCore.QObject):
 
             title_icon_label = getattr(window_ctrl, '_title_icon_label', None)
             if title_icon_label:
-                tv_icon_path = AppStyles.get_icon('tv', AppStyles._get_colors().get('accent', '#0078d4'), 16)
-                if tv_icon_path:
-                    title_icon_label.setPixmap(QIcon(tv_icon_path).pixmap(16, 16))
+                from utils.general_utils import get_icon_path
+                ico_path = get_icon_path()
+                if os.path.exists(ico_path):
+                    title_icon_label.setPixmap(QIcon(ico_path).pixmap(16, 16))
+                else:
+                    tv_icon_path = AppStyles.get_icon('tv', AppStyles._get_colors().get('accent', '#0078d4'), 16)
+                    if tv_icon_path:
+                        title_icon_label.setPixmap(QIcon(tv_icon_path).pixmap(16, 16))
         except Exception as e:
             print(f"重刷标题栏图标失败: {e}")
 

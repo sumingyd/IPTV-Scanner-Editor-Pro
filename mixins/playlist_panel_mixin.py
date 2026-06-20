@@ -10,6 +10,7 @@ from PySide6.QtGui import QIcon
 from core.log_manager import global_logger as logger
 from core.application_state import app_state
 from ui.styles import AppStyles
+from utils.platform_utils import is_wayland
 
 
 class PlaylistPanelMixin:
@@ -106,7 +107,10 @@ class PlaylistPanelMixin:
         self.epg_panel = self.epg_dock
 
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.epg_dock)
-        self.epg_dock.setFloating(True)
+        if is_wayland():
+            self.epg_dock.setFloating(False)
+        else:
+            self.epg_dock.setFloating(True)
         if not show:
             self.epg_dock.hide()
 
@@ -172,7 +176,10 @@ class PlaylistPanelMixin:
         self.playlist_panel = self.playlist_dock
 
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.playlist_dock)
-        self.playlist_dock.setFloating(True)
+        if is_wayland():
+            self.playlist_dock.setFloating(False)
+        else:
+            self.playlist_dock.setFloating(True)
         self.playlist_dock.setMaximumWidth(380)
         if not show:
             self.playlist_dock.hide()

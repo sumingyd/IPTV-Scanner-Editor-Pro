@@ -72,6 +72,16 @@ def get_icon_path() -> str:
         png = os.path.join(base_path, 'resources', 'logo.png')
         if os.path.exists(png):
             return png
+    if sys.platform.startswith('linux'):
+        png = os.path.join(base_path, 'resources', 'logo.png')
+        if os.path.exists(png):
+            return png
+    ico = os.path.join(base_path, 'resources', 'logo.ico')
+    if os.path.exists(ico):
+        return ico
+    png = os.path.join(base_path, 'resources', 'logo.png')
+    if os.path.exists(png):
+        return png
     return os.path.join(base_path, 'resources', 'logo.ico')
 
 

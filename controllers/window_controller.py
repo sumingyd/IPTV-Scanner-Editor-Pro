@@ -183,49 +183,50 @@ class WindowController:
                 panel.show()
 
     def handle_mouse_press_event(self, event) -> bool:
-        """
-        处理鼠标按下事件 - 用于窗口拖动
-        Returns: bool - 是否已处理该事件
-        """
         if event.button() == Qt.MouseButton.LeftButton:
-            # 检查是否点击在标题栏区域（实现窗口拖动）
             if self._title_bar:
                 title_bar_geo = self._title_bar.geometry()
-                # 转换为全局坐标
                 title_global_pos = self._title_bar.mapToGlobal(QPoint(0, 0))
                 mouse_global_pos = event.globalPosition().toPoint()
 
                 if (title_global_pos.x() <= mouse_global_pos.x() <= title_global_pos.x() + title_bar_geo.width() and
                     title_global_pos.y() <= mouse_global_pos.y() <= title_global_pos.y() + title_bar_geo.height()):
 
-                    # 排除按钮区域
                     child = self.window.childAt(event.position().toPoint())
                     if child and isinstance(child, (QPushButton, QLineEdit, QComboBox)):
                         pass
                     else:
-                        self._dragging = True
                         if is_wayland():
-                            self._drag_offset = (event.globalPosition().toPoint() - self.window.pos())
+                            if self.window.isMaximized():
+                                geo = self.window.geometry()
+                                self.window.showNormal()
+                                ratio = event.position().toPoint().x() / max(1, geo.width())
+                                new_x = event.globalPosition().toPoint().x() - int(self.window.width() * ratio)
+                                new_y = max(0, event.globalPosition().toPoint().y() - 16)
+                                wayland_move(self.window, new_x, new_y)
+                            wh = self.window.windowHandle()
+                            if wh:
+                                wh.startSystemMove()
+                            event.accept()
+                            return True
                         else:
+                            self._dragging = True
                             self._drag_offset = (event.globalPosition().toPoint() - self.window.frameGeometry().topLeft())
-                        if self.window.isMaximized():
-                            geo = self.window.geometry()
-                            self.window.showNormal()
-                            ratio = event.position().toPoint().x() / max(1, geo.width())
-                            new_x = event.globalPosition().toPoint().x() - int(self.window.width() * ratio)
-                            new_y = event.globalPosition().toPoint().y() - self._drag_offset.y()
-                            wayland_move(self.window, new_x, new_y)
-                            self._drag_offset = event.globalPosition().toPoint() - self.window.pos()
-                        event.accept()
-                        return True
+                            if self.window.isMaximized():
+                                geo = self.window.geometry()
+                                self.window.showNormal()
+                                ratio = event.position().toPoint().x() / max(1, geo.width())
+                                new_x = event.globalPosition().toPoint().x() - int(self.window.width() * ratio)
+                                new_y = event.globalPosition().toPoint().y() - self._drag_offset.y()
+                                wayland_move(self.window, new_x, new_y)
+                                self._drag_offset = event.globalPosition().toPoint() - self.window.pos()
+                            event.accept()
+                            return True
 
         return False
 
     def handle_mouse_move_event(self, event) -> bool:
-        """
-        处理鼠标移动事件 - 实现窗口拖动
-        Returns: bool - 是否已处理该事件
-        """
+
         if self._dragging and self._drag_offset is not None:
             if event.buttons() & Qt.MouseButton.LeftButton:
                 new_pos = event.globalPosition().toPoint() - self._drag_offset
@@ -236,12 +237,9 @@ class WindowController:
         return False
 
     def handle_mouse_release_event(self, event):
-        """处理鼠标释放事件 - 结束拖动"""
         if event.button() == Qt.MouseButton.LeftButton:
             self._dragging = False
             self._drag_offset = None
-            
-            # 触发悬浮窗提升
             if hasattr(self.window, '_raise_floating_panels'):
                 self.window._raise_floating_panels()
 

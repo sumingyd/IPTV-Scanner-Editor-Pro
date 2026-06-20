@@ -52,7 +52,7 @@ if IS_WINDOWS:
     ICON_PATH = str(PROJECT_ROOT / "resources" / "logo.ico")
 elif IS_MACOS:
     DATA_SEP = ':'
-    ICON_PATH = str(PROJECT_ROOT / "resources" / "logo.icns") if (PROJECT_ROOT / "resources" / "logo.icns").exists() else None
+    ICON_PATH = str(PROJECT_ROOT / "resources" / "logo.png") if (PROJECT_ROOT / "resources" / "logo.png").exists() else None
 elif IS_ANDROID:
     DATA_SEP = ':'
     ICON_PATH = None
@@ -422,6 +422,8 @@ def post_process_macos_app():
         'LSMinimumSystemVersion': '10.15',
         'NSHighResolutionCapable': True,
         'NSSupportsAutomaticGraphicsSwitching': True,
+        'CFBundleIconFile': 'logo',
+        'CFBundleIconName': 'logo',
         'CFBundleDocumentTypes': [
             {
                 'CFBundleTypeName': 'M3U Playlist',
@@ -446,6 +448,28 @@ def post_process_macos_app():
         plistlib.dump(plist, f)
 
     print(f"Info.plist 已更新: {info_plist_path}")
+
+    resources_dir = app_path / "Contents" / "Resources"
+    resources_dir.mkdir(parents=True, exist_ok=True)
+
+    logo_png = PROJECT_ROOT / "resources" / "logo.png"
+    if logo_png.exists():
+        import shutil as shutil_mod
+        shutil_mod.copy2(str(logo_png), str(resources_dir / "logo.png"))
+        print(f"图标已复制: {resources_dir / 'logo.png'}")
+
+    iconset_dir = PROJECT_ROOT / "resources" / "AppIcon.iconset"
+    if iconset_dir.exists():
+        try:
+            subprocess.run(
+                ['iconutil', '-c', 'icns', '-o', str(resources_dir / 'logo.icns'), str(iconset_dir)],
+                check=True, timeout=30,
+            )
+            print(f"logo.icns 已生成: {resources_dir / 'logo.icns'}")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            print("提示: iconutil 不可用，跳过 .icns 生成（macOS 上需要）")
+            if logo_png.exists():
+                print(f"  将使用 logo.png 作为图标")
 
     print(f"macOS .app 打包完成: {app_path}")
 

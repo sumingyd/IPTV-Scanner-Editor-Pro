@@ -19,6 +19,7 @@ from services.mpv_common import (
     MPV_FORMAT_STRING,
     MPV_FORMAT_INT64,
     MPV_FORMAT_DOUBLE,
+    MPV_FORMAT_FLAG,
     MPV_END_FILE_REASON_EOF,
     MPV_END_FILE_REASON_ERROR,
     MPV_END_FILE_REASON_STOP,
@@ -166,6 +167,14 @@ class MpvPlayerController(QObject):
             except Exception as e:
                 self.logger.error(f"设置窗口ID失败: {str(e)}")
 
+            if is_linux():
+                try:
+                    from utils.platform_utils import is_wayland
+                    if is_wayland():
+                        _mpv_set_property_string(self.mpv_handle, 'gpu-context', 'wayland')
+                except Exception:
+                    pass
+
             hdr_mode = self._playback_settings.get('hdr_output_mode', 'disable')
 
             system_hdr_enabled = False
@@ -213,6 +222,8 @@ class MpvPlayerController(QObject):
             if is_windows():
                 _mpv_set_property_string(self.mpv_handle, 'gpu-api', 'd3d11')
                 _mpv_set_property_string(self.mpv_handle, 'd3d11-sync-interval', '1')
+            elif is_macos():
+                _mpv_set_property_string(self.mpv_handle, 'gpu-api', 'opengl')
             _mpv_set_property_string(self.mpv_handle, 'osc', 'no')
             _mpv_set_property_string(self.mpv_handle, 'osd-bar', 'no')
 

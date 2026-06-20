@@ -7,6 +7,7 @@ from PySide6.QtGui import QIcon
 
 from core.log_manager import global_logger as logger
 from ui.styles import AppStyles
+from utils.platform_utils import is_wayland
 
 
 class ControlPanelMixin:
@@ -47,7 +48,10 @@ class ControlPanelMixin:
         self.floating_panel = self.floating_dock
 
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.floating_dock)
-        self.floating_dock.setFloating(True)
+        if is_wayland():
+            self.floating_dock.setFloating(False)
+        else:
+            self.floating_dock.setFloating(True)
         if not show:
             self.floating_dock.hide()
 

@@ -43,6 +43,7 @@ def wayland_move(widget, x, y):
         if window_handle:
             from PySide6.QtCore import QPoint
             window_handle.setPosition(QPoint(x, y))
+            widget.move(x, y)
     except Exception:
         widget.move(x, y)
 
@@ -60,6 +61,7 @@ def wayland_set_geometry(widget, x, y, w, h):
             from PySide6.QtCore import QPoint
             window_handle.setPosition(QPoint(x, y))
         widget.resize(w, h)
+        widget.move(x, y)
     except Exception:
         widget.setGeometry(x, y, w, h)
 

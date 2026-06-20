@@ -238,6 +238,24 @@ class FloatingDockWidget(QDockWidget):
         if event.button() == Qt.MouseButton.LeftButton:
             edge = self._hit_resize_edge(event.position().toPoint())
             if edge:
+                if is_wayland():
+                    wh = self.windowHandle()
+                    if wh:
+                        from PySide6.QtCore import Qt
+                        edges_map = {
+                            'top': Qt.Edge.TopEdge,
+                            'bottom': Qt.Edge.BottomEdge,
+                            'left': Qt.Edge.LeftEdge,
+                            'right': Qt.Edge.RightEdge,
+                            'top_left': Qt.Edge.TopEdge | Qt.Edge.LeftEdge,
+                            'top_right': Qt.Edge.TopEdge | Qt.Edge.RightEdge,
+                            'bottom_left': Qt.Edge.BottomEdge | Qt.Edge.LeftEdge,
+                            'bottom_right': Qt.Edge.BottomEdge | Qt.Edge.RightEdge,
+                        }
+                        qt_edge = edges_map.get(edge)
+                        if qt_edge:
+                            wh.startSystemResize(qt_edge)
+                            return
                 self._resizing = True
                 self._resize_edge = edge
                 self._resize_start_geo = self.geometry()
@@ -465,16 +483,19 @@ class FloatingDialog(QDialog):
                         super().mousePressEvent(event)
                         return
                     w = w.parent()
-            self.dragging = True
             if is_wayland():
-                self.offset = event.globalPosition().toPoint() - self.pos()
-            else:
-                self.offset = event.position().toPoint()
+                wh = self.windowHandle()
+                if wh:
+                    wh.startSystemMove()
+                    event.accept()
+                    return
+            self.dragging = True
+            self.offset = event.position().toPoint()
 
     def mouseMoveEvent(self, event):
         if self.dragging and self.offset is not None:
             new_position = event.globalPosition().toPoint() - self.offset
-            wayland_move(self, new_position.x(), new_position.y())
+            self.move(new_position.x(), new_position.y())
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
