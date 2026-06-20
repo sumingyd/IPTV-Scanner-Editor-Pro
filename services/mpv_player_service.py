@@ -5,7 +5,7 @@ import sys
 import threading
 from PySide6.QtCore import QObject, Signal, QTimer
 from core.log_manager import global_logger
-from utils.platform_utils import is_windows, is_macos, is_android
+from utils.platform_utils import is_windows, is_macos, is_linux, is_android
 from services.mpv_common import (
     mpv_event,
     mpv_event_end_file,

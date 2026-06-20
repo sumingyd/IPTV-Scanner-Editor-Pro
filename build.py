@@ -474,6 +474,65 @@ def post_process_macos_app():
     print(f"macOS .app 打包完成: {app_path}")
 
 
+def post_process_linux():
+    dist_dir = PROJECT_ROOT / "dist"
+    exe_path = dist_dir / APP_NAME
+    if not exe_path.exists():
+        print(f"警告: 可执行文件未找到: {exe_path}")
+        return
+
+    logo_png = PROJECT_ROOT / "resources" / "logo.png"
+    if not logo_png.exists():
+        print("警告: logo.png 不存在，跳过 Linux 图标安装")
+        return
+
+    icon_dir = dist_dir / "icons"
+    icon_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(str(logo_png), str(icon_dir / f"{APP_NAME}.png"))
+    print(f"图标已复制: {icon_dir / APP_NAME}.png")
+
+    desktop_content = f"""[Desktop Entry]
+Type=Application
+Name={APP_NAME}
+Comment=IPTV Channel Scanner and Editor
+Exec="{APP_NAME}"
+Icon={APP_NAME}
+Categories=AudioVideo;Video;Network;
+Terminal=false
+StartupWMClass={APP_NAME}
+"""
+    desktop_path = dist_dir / f"{APP_NAME}.desktop"
+    with open(desktop_path, 'w', encoding='utf-8') as f:
+        f.write(desktop_content)
+    print(f".desktop 文件已生成: {desktop_path}")
+
+    install_script = f"""#!/bin/bash
+# 安装 {APP_NAME} 到系统
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+EXE="$SCRIPT_DIR/{APP_NAME}"
+
+sudo cp "$EXE" /usr/local/bin/{APP_NAME}
+sudo chmod +x /usr/local/bin/{APP_NAME}
+
+sudo mkdir -p /usr/local/share/icons/hicolor/256x256/apps
+sudo cp "$SCRIPT_DIR/icons/{APP_NAME}.png" /usr/local/share/icons/hicolor/256x256/apps/{APP_NAME}.png
+
+sudo cp "$SCRIPT_DIR/{APP_NAME}.desktop" /usr/local/share/applications/{APP_NAME}.desktop
+sudo desktop-file-install /usr/local/share/applications/{APP_NAME}.desktop 2>/dev/null || true
+sudo update-desktop-database /usr/local/share/applications/ 2>/dev/null || true
+
+echo "安装完成! 可以从应用菜单启动 {APP_NAME}"
+"""
+    install_path = dist_dir / "install.sh"
+    with open(install_path, 'w', encoding='utf-8') as f:
+        f.write(install_script)
+    import stat
+    install_path.chmod(install_path.stat().st_mode | stat.S_IEXEC)
+    print(f"安装脚本已生成: {install_path}")
+
+    print(f"Linux 打包后处理完成")
+
+
 def clean_build():
     print("清理之前的构建结果...")
     build_dir = PROJECT_ROOT / "build"
@@ -545,6 +604,7 @@ def run_build():
         elif IS_ANDROID:
             print(f"打包完成! 可执行文件位于: dist/{APP_NAME}")
         elif IS_LINUX:
+            post_process_linux()
             print(f"打包完成! 可执行文件位于: dist/{APP_NAME}")
         else:
             print(f"打包完成! 可执行文件位于: dist/{APP_NAME}.exe")

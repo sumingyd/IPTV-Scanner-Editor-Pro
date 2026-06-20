@@ -109,6 +109,7 @@ class PlaylistPanelMixin:
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.epg_dock)
         if is_wayland():
             self.epg_dock.setFloating(False)
+            self.epg_dock.setMinimumWidth(260)
         else:
             self.epg_dock.setFloating(True)
         if not show:
@@ -178,9 +179,11 @@ class PlaylistPanelMixin:
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.playlist_dock)
         if is_wayland():
             self.playlist_dock.setFloating(False)
+            self.playlist_dock.setMinimumWidth(260)
+            self.playlist_dock.setMaximumWidth(400)
         else:
             self.playlist_dock.setFloating(True)
-        self.playlist_dock.setMaximumWidth(380)
+            self.playlist_dock.setMaximumWidth(380)
         if not show:
             self.playlist_dock.hide()
 

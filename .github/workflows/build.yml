@@ -178,7 +178,7 @@ jobs:
       - name: Compress executable
         run: |
           cd dist
-          tar czf "IPTV Scanner Editor Pro-Linux-x86_64.tar.gz" "IPTV Scanner Editor Pro"
+          tar czf "IPTV Scanner Editor Pro-Linux-x86_64.tar.gz" "IPTV Scanner Editor Pro" "icons" "IPTV Scanner Editor Pro.desktop" "install.sh"
 
       - name: Upload executable to release
         uses: softprops/action-gh-release@v2
@@ -258,7 +258,7 @@ jobs:
       - name: Compress executable
         run: |
           cd dist
-          tar czf "IPTV Scanner Editor Pro-Linux-ARM64.tar.gz" "IPTV Scanner Editor Pro"
+          tar czf "IPTV Scanner Editor Pro-Linux-ARM64.tar.gz" "IPTV Scanner Editor Pro" "icons" "IPTV Scanner Editor Pro.desktop" "install.sh"
 
       - name: Upload executable to release
         uses: softprops/action-gh-release@v2
