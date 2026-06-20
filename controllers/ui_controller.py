@@ -135,6 +135,14 @@ class UIController:
         if hw and hw != 'no':
             vline.append(f'{tr("osd_hwdec", "HWDec")}: {hw}')
 
+        interlaced = info.get('interlaced', '') or ''
+        if interlaced and interlaced.lower() not in ('', 'no', 'false', '0'):
+            vline.append(f'{tr("osd_scan", "Scan")}: {tr("osd_interlaced", "Interlaced")}')
+
+        video_rotate = info.get('video_rotate', 0) or 0
+        if video_rotate and video_rotate != 0:
+            vline.append(f'{tr("osd_rotate", "Rotate")}: {video_rotate}\u00b0')
+
         colormatrix = info.get('colormatrix', '') or ''
         gamma = info.get('gamma', '') or ''
         sig_peak = info.get('sig_peak', 0) or 0
@@ -153,6 +161,9 @@ class UIController:
         pix_fmt = info.get('pixel_format', '') or ''
         if pix_fmt:
             pix_line.append(f'{tr("osd_pixel", "Pixel")}: {pix_fmt}')
+        video_depth = info.get('video_depth', 0) or 0
+        if video_depth > 0:
+            pix_line.append(f'{tr("osd_depth", "Depth")}: {video_depth}bit')
         if colormatrix:
             pix_line.append(f'{tr("osd_matrix", "Matrix")}: {colormatrix}')
         color_primaries = info.get('color_primaries', '') or ''
@@ -186,6 +197,9 @@ class UIController:
                 aline.append(f'{tr("osd_rate", "Rate")}: {sample_rate / 1000:.1f}kHz')
             else:
                 aline.append(f'{tr("osd_rate", "Rate")}: {sample_rate}Hz')
+        audio_depth = info.get('audio_depth', 0) or 0
+        if audio_depth > 0:
+            aline.append(f'{tr("osd_audio_depth", "BitDepth")}: {audio_depth}bit')
         a_br = info.get('audio_bitrate', 0) or 0
         if a_br > 0:
             aline.append(f'{tr("osd_bitrate", "Bitrate")}: {self.format_bitrate(a_br)}')
@@ -207,9 +221,17 @@ class UIController:
         cache_speed = info.get('cache_speed', 0) or 0
         if cache_speed > 0:
             br_line.append(f'{tr("osd_cache", "Cache")}: {self.format_bytes_per_second(cache_speed)}')
+        cache_size = info.get('cache_size', 0) or 0
+        if cache_size > 0:
+            br_line.append(f'{tr("osd_cache_size", "CacheSize")}: {self.format_bytes(cache_size)}')
         buffer_state = info.get('buffer_state', '') or ''
         if buffer_state:
             br_line.append(f'{tr("osd_buffer", "Buffer")}: {buffer_state}')
+        frame_drop = info.get('frame_drop_count', 0) or 0
+        decoder_drop = info.get('decoder_frame_drop_count', 0) or 0
+        total_drops = frame_drop + decoder_drop
+        if total_drops > 0:
+            br_line.append(f'{tr("osd_dropped", "Dropped")}: {total_drops}')
         if br_line:
             lines.append(sep.join(br_line))
 
@@ -230,6 +252,19 @@ class UIController:
             container_line.append(f'{tr("osd_demuxer", "Demuxer")}: {demuxer}')
         if container_line:
             lines.append(sep.join(container_line))
+
+        render_line = []
+        egl_type = info.get('egl_type', '') or ''
+        if egl_type:
+            render_line.append(f'{tr("osd_vo", "VO")}: {egl_type}')
+        current_gpu_api = info.get('current_gpu_api', '') or ''
+        if current_gpu_api:
+            render_line.append(f'{tr("osd_gpu_api", "GPU-API")}: {current_gpu_api}')
+        gpu_context = info.get('gpu_context', '') or ''
+        if gpu_context:
+            render_line.append(f'{tr("osd_gpu_ctx", "Context")}: {gpu_context}')
+        if render_line:
+            lines.append(sep.join(render_line))
 
         if play_url:
             display_url = play_url
@@ -285,6 +320,17 @@ class UIController:
             return f"{bps*8/1000:.0f}Kbps"
         else:
             return f"{bps*8:.0f}bps"
+
+    @staticmethod
+    def format_bytes(num_bytes: float) -> str:
+        if num_bytes >= 1073741824:
+            return f"{num_bytes/1073741824:.1f}GB"
+        elif num_bytes >= 1048576:
+            return f"{num_bytes/1048576:.1f}MB"
+        elif num_bytes >= 1024:
+            return f"{num_bytes/1024:.0f}KB"
+        else:
+            return f"{num_bytes:.0f}B"
 
     @staticmethod
     def shorten_codec_name(codec_name: str) -> str:

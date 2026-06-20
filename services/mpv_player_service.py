@@ -1518,6 +1518,20 @@ class MpvPlayerController(QObject):
                 'cache_speed': get_double('cache-speed') or 0,
                 'cache_used': get_double('demuxer-cache-state/demo-range/avg') or 0,
                 'buffering': get_int('cache-buffering-state') or 0,
+                'video_depth': get_int('video-params/bits-per-component') or 0,
+                'interlaced': get_str('video-params/interlaced') or '',
+                'audio_depth': get_int('audio-params/bits-per-sample') or 0,
+                'frame_drop_count': get_int('frame-drop-count') or 0,
+                'decoder_frame_drop_count': get_int('decoder-frame-drop-count') or 0,
+                'mistimed_frame_count': get_int('mistimed-frame-count') or 0,
+                'vo_delay': get_double('vo-delayed-frame-count') or 0,
+                'cache_size': get_double('demuxer-cache-state/total-bytes') or 0,
+                'cache_range_end': get_double('demuxer-cache-state/seeking-ranges/0/end') or 0,
+                'video_rotate': get_int('video-params/rotate') or 0,
+                'audio_layout': get_str('audio-params/channel-layout') or '',
+                'egl_type': get_str('current-vo') or '',
+                'current_gpu_api': get_str('current-gpu-api') or '',
+                'gpu_context': get_str('gpu-context') or '',
             }
             return info
         except Exception as e:
