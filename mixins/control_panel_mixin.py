@@ -85,6 +85,13 @@ class ControlPanelMixin:
         self.video_info.setText(tr('not_playing', 'Not playing'))
         self.media_row.addWidget(self.video_info)
 
+        self.hdr_badge = QLabel()
+        self.hdr_badge.setStyleSheet(AppStyles.player_hdr_badge_style())
+        self.hdr_badge.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self.hdr_badge.setFixedHeight(22)
+        self.hdr_badge.hide()
+        self.media_row.addWidget(self.hdr_badge)
+
         self.media_row.addSpacing(6)
 
         self.audio_info_icon = QLabel()

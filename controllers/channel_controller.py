@@ -369,6 +369,8 @@ class ChannelController:
         w.network_info.setText(f'{w.language_manager.tr("waiting_connect", "Waiting to connect...")}')
         if hasattr(w, 'buffer_info'):
             w.buffer_info.hide()
+        if hasattr(w, 'hdr_badge'):
+            w.hdr_badge.hide()
 
     @property
     def channel_count(self) -> int:

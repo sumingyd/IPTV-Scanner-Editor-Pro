@@ -77,6 +77,7 @@ class TestControlPanelMixin:
              patch('mixins.control_panel_mixin.QFrame') as mock_frame:
             mock_frame.return_value = MagicMock()
             with patch('mixins.control_panel_mixin.AppStyles.player_media_badge_style', return_value=''), \
+                 patch('mixins.control_panel_mixin.AppStyles.player_hdr_badge_style', return_value=''), \
                  patch('mixins.control_panel_mixin.AppStyles.player_line_style', return_value=''):
                 self.host._create_media_row()
         self.host._create_info_row.assert_called_once()

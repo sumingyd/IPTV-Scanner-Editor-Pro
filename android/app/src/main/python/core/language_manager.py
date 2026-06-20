@@ -1578,6 +1578,8 @@ class LanguageManager(Singleton):
                 main_window.audio_info.setText("--")
             if hasattr(main_window, 'network_info'):
                 main_window.network_info.setText("--")
+            if hasattr(main_window, 'hdr_badge'):
+                main_window.hdr_badge.hide()
 
             if hasattr(main_window, 'channel_name'):
                 main_window.channel_name.setText(self.tr('no_channel_selected', 'No channel selected'))

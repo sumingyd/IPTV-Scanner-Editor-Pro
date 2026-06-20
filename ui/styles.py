@@ -2159,6 +2159,22 @@ class AppStyles:
         """
 
     @staticmethod
+    def player_hdr_badge_style() -> str:
+        colors = AppStyles._get_colors()
+        badge_r = AppStyles._get_scaled_radius('badge')
+        return f"""
+            QLabel {{
+                color: #FFD700;
+                font-size: 11px;
+                font-weight: bold;
+                background-color: rgba(255, 215, 0, 0.12);
+                padding: 1px 6px;
+                border: 1px solid rgba(255, 215, 0, 0.5);
+                border-radius: {badge_r}px;
+            }}
+        """
+
+    @staticmethod
     def player_status_badge_style() -> str:
         colors = AppStyles._get_colors()
         badge_r = AppStyles._get_scaled_radius('badge')

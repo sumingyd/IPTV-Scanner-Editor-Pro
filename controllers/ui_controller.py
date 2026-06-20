@@ -332,8 +332,7 @@ class UIController:
             info.get('sig_peak', 0),
             info.get('video_format', '')
         )
-        if hdr_type:
-            video_parts.append("{}: {}".format(tr('hdr_label', 'HDR') or 'HDR', hdr_type))
+
 
         fps = info.get('fps', 0)
         if fps and fps > 0:
@@ -398,6 +397,7 @@ class UIController:
             'video_text': video_text,
             'audio_text': audio_text,
             'network_text': network_text,
+            'hdr_type': hdr_type,
         }
 
     def update_media_info_labels(self, info: Dict[str, Any], tr):
@@ -406,6 +406,15 @@ class UIController:
         self.window.video_info.setText(result['video_text'])
         self.window.audio_info.setText(result['audio_text'])
         self.window.network_info.setText(result['network_text'])
+
+        hdr_type = result.get('hdr_type', '')
+        hdr_badge = getattr(self.window, 'hdr_badge', None)
+        if hdr_badge:
+            if hdr_type and hdr_type != 'SDR':
+                hdr_badge.setText(hdr_type)
+                hdr_badge.show()
+            else:
+                hdr_badge.hide()
 
     def reapply_all_styles(self):
         """重新应用所有样式（用于主题切换后）"""
@@ -905,6 +914,9 @@ class UIController:
                 self.window.network_info.setStyleSheet(AppStyles.player_media_badge_style())
             if hasattr(self.window, 'buffer_info'):
                 self.window.buffer_info.setStyleSheet(AppStyles.player_media_badge_style())
+
+            if hasattr(self.window, 'hdr_badge'):
+                self.window.hdr_badge.setStyleSheet(AppStyles.player_hdr_badge_style())
 
             # 媒体信息3个图标
             for icon_attr, icon_name in [('video_info_icon', 'tv'), ('audio_info_icon', 'speaker'), ('network_info_icon', 'signal')]:
