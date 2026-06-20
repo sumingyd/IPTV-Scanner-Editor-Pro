@@ -2,7 +2,7 @@ import subprocess
 import sys
 import logging
 import os
-import tempfile
+import winreg
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,6 @@ def is_android_hdr_enabled():
         if QGuiApplication.instance():
             screen = QGuiApplication.primaryScreen()
             if screen:
-                hdr = screen.isLandscape()
                 _hdr_cache = False
                 _hdr_cache_time = now
                 return False
@@ -61,6 +60,46 @@ def is_macos_hdr_enabled():
         return False
 
 
+def _check_windows_hdr_registry():
+    try:
+        base_path = r"SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
+        h_base = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, base_path)
+        i = 0
+        while True:
+            try:
+                subkey_name = winreg.EnumKey(h_base, i)
+                i += 1
+                if subkey_name.lower() != 'monitordatastore':
+                    continue
+                h_mds = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, f"{base_path}\\{subkey_name}")
+                j = 0
+                while True:
+                    try:
+                        monitor_name = winreg.EnumKey(h_mds, j)
+                        j += 1
+                        h_mon = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, f"{base_path}\\{subkey_name}\\{monitor_name}")
+                        try:
+                            val, val_type = winreg.QueryValueEx(h_mon, 'HDREnabled')
+                            winreg.CloseKey(h_mon)
+                            if val_type == winreg.REG_DWORD and val == 1:
+                                winreg.CloseKey(h_mds)
+                                winreg.CloseKey(h_base)
+                                logger.info(f"注册表HDR检测: 显示器 {monitor_name} HDREnabled=1")
+                                return True
+                        except OSError:
+                            pass
+                        winreg.CloseKey(h_mon)
+                    except OSError:
+                        break
+                winreg.CloseKey(h_mds)
+            except OSError:
+                break
+        winreg.CloseKey(h_base)
+    except Exception as e:
+        logger.debug(f"注册表HDR检测失败: {e}")
+    return False
+
+
 def is_windows_hdr_enabled():
     global _hdr_cache, _hdr_cache_time
     import time
@@ -68,34 +107,8 @@ def is_windows_hdr_enabled():
     if _hdr_cache is not None and (now - _hdr_cache_time) < _HDR_CACHE_TTL:
         return _hdr_cache
 
-    script = None
-    try:
-        fd, script = tempfile.mkstemp(suffix='.ps1', prefix='hdr_check_')
-        with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            f.write(
-                '[void][Windows.Graphics.Display.DisplayInformation,Windows.Graphics.Display,ContentType=WindowsRuntime]\n'
-                '$di = [Windows.Graphics.Display.DisplayInformation]::GetForCurrentView()\n'
-                '$aci = $di.GetAdvancedColorInfo()\n'
-                'Write-Output $aci.CurrentAdvancedColorKind\n'
-            )
-        result = subprocess.run(
-            ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script],
-            capture_output=True, text=True, timeout=15,
-            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
-        )
-        kind = result.stdout.strip()
-        logger.info(f"Windows AdvancedColorKind: {kind}")
-        _hdr_cache = kind in ('Hdr', 'Wcg')
-        _hdr_cache_time = now
-        return _hdr_cache
-    except Exception as e:
-        logger.debug(f"HDR检测失败: {e}")
-        _hdr_cache = False
-        _hdr_cache_time = now
-        return False
-    finally:
-        if script:
-            try:
-                os.remove(script)
-            except OSError:
-                pass
+    result = _check_windows_hdr_registry()
+    _hdr_cache = result
+    _hdr_cache_time = now
+    logger.info(f"Windows HDR检测(注册表): {'已启用' if result else '未启用'}")
+    return result

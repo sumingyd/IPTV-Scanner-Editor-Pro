@@ -332,20 +332,22 @@ class MpvPlayerController(QObject):
         self.logger.info("HDR配置: tonemap → SDR (hable, srgb)")
 
     def _apply_passthrough_config(self):
-        self._set_mpv_string('target-prim', 'bt.2020')
-        self._set_mpv_string('target-trc', 'pq')
         self._set_mpv_string('tone-mapping', 'clip')
         self._set_mpv_string('hdr-compute-peak', 'no')
         self._set_mpv_string('d3d11-output-csp', 'pq')
-        self.logger.info("HDR配置: passthrough → HDR (bt.2020, pq)")
+        self._set_mpv_string('target-colorspace-hint', 'yes')
+        self._set_mpv_string('target-prim', '')
+        self._set_mpv_string('target-trc', '')
+        self.logger.info("HDR配置: passthrough → PQ直通 (自动色域)")
 
     def _apply_scrgb_config(self):
-        self._set_mpv_string('target-prim', 'bt.2020')
-        self._set_mpv_string('target-trc', 'linear')
         self._set_mpv_string('tone-mapping', 'clip')
         self._set_mpv_string('hdr-compute-peak', 'no')
-        self._set_mpv_string('d3d11-output-csp', 'scrgb')
-        self.logger.info("HDR配置: scrgb → 线性光 (bt.2020, linear)")
+        self._set_mpv_string('d3d11-output-csp', 'pq')
+        self._set_mpv_string('target-colorspace-hint', 'yes')
+        self._set_mpv_string('target-prim', '')
+        self._set_mpv_string('target-trc', '')
+        self.logger.info("HDR配置: scrgb → PQ直通 (自动色域)")
 
     def _reset_hdr_params(self):
         self._set_mpv_string('tone-mapping', '')
@@ -354,6 +356,7 @@ class MpvPlayerController(QObject):
         self._set_mpv_string('d3d11-output-csp', 'srgb')
         self._set_mpv_string('target-prim', '')
         self._set_mpv_string('target-trc', '')
+        self._set_mpv_string('target-colorspace-hint', 'no')
         self.logger.info("HDR配置: 已重置为SDR默认值")
 
 
