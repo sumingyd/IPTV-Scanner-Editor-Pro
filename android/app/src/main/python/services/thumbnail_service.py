@@ -1,5 +1,6 @@
 import hashlib
 import os
+import sys
 import threading
 import time
 from collections import deque
@@ -74,8 +75,11 @@ def _capture_single(url: str, timeout: int = 8, wid: int = 0, force: bool = Fals
             _mpv_set_option_string(handle, 'wid', str(wid))
         _mpv_set_option_string(handle, 'vo', 'gpu')
         _mpv_set_option_string(handle, 'ao', 'null')
-        _mpv_set_option_string(handle, 'gpu-api', 'd3d11')
-        _mpv_set_option_string(handle, 'hwdec', 'd3d11va')
+        if sys.platform == 'win32':
+            _mpv_set_option_string(handle, 'gpu-api', 'd3d11')
+            _mpv_set_option_string(handle, 'hwdec', 'd3d11va')
+        else:
+            _mpv_set_option_string(handle, 'hwdec', 'auto')
         _mpv_set_option_string(handle, 'osc', 'no')
         _mpv_set_option_string(handle, 'osd-bar', 'no')
         _mpv_set_option_string(handle, 'idle', 'yes')

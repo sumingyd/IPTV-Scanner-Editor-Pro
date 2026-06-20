@@ -210,8 +210,9 @@ class MpvPlayerController(QObject):
             _mpv_set_property_string(self.mpv_handle, 'vo', vo)
             hwdec = 'auto' if self._playback_settings.get('hwdec', True) else 'no'
             _mpv_set_property_string(self.mpv_handle, 'hwdec', hwdec)
-            _mpv_set_property_string(self.mpv_handle, 'gpu-api', 'd3d11')
-            _mpv_set_property_string(self.mpv_handle, 'd3d11-sync-interval', '1')
+            if is_windows():
+                _mpv_set_property_string(self.mpv_handle, 'gpu-api', 'd3d11')
+                _mpv_set_property_string(self.mpv_handle, 'd3d11-sync-interval', '1')
             _mpv_set_property_string(self.mpv_handle, 'osc', 'no')
             _mpv_set_property_string(self.mpv_handle, 'osd-bar', 'no')
 

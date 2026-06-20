@@ -173,6 +173,7 @@ class PlaylistPanelMixin:
 
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.playlist_dock)
         self.playlist_dock.setFloating(True)
+        self.playlist_dock.setMaximumWidth(380)
         if not show:
             self.playlist_dock.hide()
 
