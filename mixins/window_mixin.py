@@ -72,7 +72,6 @@ class WindowMixin:
         if hasattr(self, '_main_container') and self._main_container.layout():
             self._main_container.layout().activate()
 
-
         mw = self.geometry()
         if mw.isEmpty():
             return
@@ -97,28 +96,34 @@ class WindowMixin:
         side_h = mw_h - title_bar_h - menu_bar_h - control_panel_h - status_bar_h - gap * 2
 
         if hasattr(self, 'epg_dock') and self.epg_dock:
+            if not self.epg_dock.isFloating():
+                self.epg_dock.setFloating(True)
             if not hasattr(self, '_epg_dock_w') or self._epg_dock_w <= 0:
                 self._epg_dock_w = self.epg_dock.width()
-            wayland_move(self.epg_dock, mw_x + gap, side_top)
+            self.epg_dock.move(mw_x + gap, side_top)
             self.epg_dock.setMinimumHeight(max(150, side_h))
             self.epg_dock.setMaximumHeight(max(150, side_h))
             self.epg_dock.setFixedWidth(self._epg_dock_w)
 
         if hasattr(self, 'playlist_dock') and self.playlist_dock:
+            if not self.playlist_dock.isFloating():
+                self.playlist_dock.setFloating(True)
             if not hasattr(self, '_playlist_dock_w') or self._playlist_dock_w <= 0:
                 self._playlist_dock_w = self.playlist_dock.width()
             pl_w = self._playlist_dock_w
-            wayland_move(self.playlist_dock, mw_x + mw_w - pl_w - gap, side_top)
+            self.playlist_dock.move(mw_x + mw_w - pl_w - gap, side_top)
             self.playlist_dock.setMinimumHeight(max(150, side_h))
             self.playlist_dock.setMaximumHeight(max(150, side_h))
             self.playlist_dock.setFixedWidth(pl_w)
 
         if hasattr(self, 'floating_dock') and self.floating_dock:
+            if not self.floating_dock.isFloating():
+                self.floating_dock.setFloating(True)
             fl_w = min(mw_w - gap * 2, 1050)
             self.floating_dock.setMinimumWidth(max(fl_w, 360))
             fl_x = mw_x + (mw_w - self.floating_dock.width()) // 2
             fl_y = mw_y + mw_h - control_panel_h - status_bar_h - gap
-            wayland_move(self.floating_dock, fl_x, fl_y)
+            self.floating_dock.move(fl_x, fl_y)
 
     def toggle_fullscreen(self, checked=None):
         if checked is not None and self.fullscreen_button.isCheckable():
