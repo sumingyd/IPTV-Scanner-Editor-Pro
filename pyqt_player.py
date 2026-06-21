@@ -930,6 +930,12 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
         self.ui_ctrl.setup_menu_bar(skip_recent_files)
 
 if __name__ == "__main__":
+    if sys.platform.startswith('linux') and not getattr(sys, 'platform', '') == 'android':
+        import os
+        session_type = os.environ.get('XDG_SESSION_TYPE', '').lower()
+        if session_type == 'wayland':
+            os.environ['QT_QPA_PLATFORM'] = 'xcb'
+
     def _suppress_qfont_pointsize_warning(msg_type, context, msg):
         if msg_type == msg_type.Warning and 'setPointSize' in msg and 'Point size <= 0' in msg:
             return
