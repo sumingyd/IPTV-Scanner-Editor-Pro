@@ -157,13 +157,20 @@ class MpvPlayerController(QObject):
                 self._safe_emit(self.play_error, error_msg)
                 return False
 
+            self.video_widget.show()
+            self.video_widget.repaint()
+
             window_id = self.video_widget.winId()
             if hasattr(window_id, 'value'):
                 window_id = window_id.value
 
             try:
                 window_id_int = int(window_id)
-                _mpv_set_property_string(self.mpv_handle, 'wid', f"{window_id_int}")
+                if window_id_int > 0:
+                    _mpv_set_property_string(self.mpv_handle, 'wid', f"{window_id_int}")
+                    self.logger.info(f"设置窗口ID: {window_id_int}")
+                else:
+                    self.logger.warning(f"窗口ID无效: {window_id_int}")
             except Exception as e:
                 self.logger.error(f"设置窗口ID失败: {str(e)}")
 
