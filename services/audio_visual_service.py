@@ -240,7 +240,9 @@ class AudioVisualWidget(QWidget):
         self._spectrum_angle = 0.0
         self._ripple_phase = 0.0
         self._ripple_orb_x = 0.0
+        self._ripple_cam_angle = 0.0
         self._ripple_ring_particles = []
+        self._ripple_trail_particles = []
         self._ripple_bg_particles = []
         self._ripple_hue = 200.0
         self._bar_colors = [QColor.fromHsv(int(200 + i * 160 / NUM_BARS) % 360, 230, 255) for i in range(NUM_BARS)]
@@ -287,7 +289,9 @@ class AudioVisualWidget(QWidget):
         elif style_key == 'ripple':
             self._ripple_phase = 0.0
             self._ripple_orb_x = 0.0
+            self._ripple_cam_angle = 0.0
             self._ripple_ring_particles = []
+            self._ripple_trail_particles = []
             self._ripple_bg_particles = []
             self._ripple_hue = 200.0
         self._peak_bars = np.zeros(NUM_BARS)
@@ -482,8 +486,10 @@ class AudioVisualWidget(QWidget):
         mid = float(np.mean(self._bars[8:30]))
         self._ripple_phase += 0.012 + bass * 0.04
         self._ripple_hue = (self._ripple_hue + 0.4 + mid * 0.8) % 360
-        # 光斑沿 X 轴匀速向右移动
-        self._ripple_orb_x += 0.045
+        # 光斑沿 X 轴匀速向右移动（较快，让伞面效果间距明显）
+        self._ripple_orb_x += 0.12
+        # 摄像机绕光斑缓慢旋转（多角度观看：后、左、前、右...）
+        self._ripple_cam_angle += 0.006
         # 背景星空粒子
         if len(self._ripple_bg_particles) < 80:
             for _ in range(3):
@@ -518,16 +524,35 @@ class AudioVisualWidget(QWidget):
                 'hue': (base_hue + random.randint(-20, 20)) % 360,
                 'size_factor': random.uniform(0.6, 1.4),
             })
-        # 更新粒子年龄，移除过期粒子
+        # 路径粒子：光斑经过的路径留下持续的粒子轨迹线
+        for _ in range(3):
+            self._ripple_trail_particles.append({
+                'x': orb_x,
+                'y': random.uniform(-0.04, 0.04),
+                'z': random.uniform(-0.04, 0.04),
+                'age': 0.0,
+                'max_age': random.uniform(6.0, 10.0),
+                'hue': (base_hue + random.randint(-10, 10)) % 360,
+                'size_factor': random.uniform(0.5, 1.0),
+            })
+        # 更新圆环粒子年龄，移除过期粒子
         alive = []
         for p in self._ripple_ring_particles:
             p['age'] += 1 / 60.0
             if p['age'] < p['max_age']:
                 alive.append(p)
-        # 限制粒子数量，移除最老的
         if len(alive) > 2000:
             alive = alive[-2000:]
         self._ripple_ring_particles = alive
+        # 更新路径粒子年龄，移除过期粒子
+        trail_alive = []
+        for p in self._ripple_trail_particles:
+            p['age'] += 1 / 60.0
+            if p['age'] < p['max_age']:
+                trail_alive.append(p)
+        if len(trail_alive) > 1500:
+            trail_alive = trail_alive[-1500:]
+        self._ripple_trail_particles = trail_alive
 
     def paintEvent(self, event):
         if not self._active:
@@ -1149,7 +1174,7 @@ class AudioVisualWidget(QWidget):
         painter.drawImage(0, 0, self._fluid_buf)
 
     def _paint_ripple(self, painter, w, h):
-        """粒子震荡洞洞波：光斑沿 X 轴匀速移动 + 节奏震荡粒子圆环 + 伞面效果"""
+        """粒子震荡洞洞波：光斑沿 X 轴匀速移动 + 节奏震荡粒子圆环 + 伞面效果 + 摄像机旋转"""
         bass = float(np.mean(self._smooth_bars[:8]))
         high = float(np.mean(self._smooth_bars[30:]))
         pitch = 0.42
@@ -1158,10 +1183,16 @@ class AudioVisualWidget(QWidget):
         phase = self._ripple_phase
         base_hue = int(self._ripple_hue) % 360
         orb_x = self._ripple_orb_x
+        # 摄像机绕 y 轴旋转（多角度观看光斑）
+        cam_a = self._ripple_cam_angle
+        cos_ca = math.cos(cam_a)
+        sin_ca = math.sin(cam_a)
 
         # 1. 背景星空粒子（营造空间深度，高频驱动闪烁）
         for p in self._ripple_bg_particles:
-            sx, sy, depth, scale = proj(p['x'], p['y'], p['z'])
+            rx = p['x'] * cos_ca + p['z'] * sin_ca
+            rz = -p['x'] * sin_ca + p['z'] * cos_ca
+            sx, sy, depth, scale = proj(rx, p['y'], rz)
             if not (-20 <= sx <= w + 20 and -20 <= sy <= h + 20):
                 continue
             brightness = 0.4 + 0.6 * (0.5 + 0.5 * math.sin(p['twinkle']))
@@ -1176,23 +1207,45 @@ class AudioVisualWidget(QWidget):
             painter.setBrush(QBrush(grad))
             painter.drawEllipse(QRectF(sx - screen_size * 2, sy - screen_size * 2, screen_size * 4, screen_size * 4))
 
-        # 2. 圆环粒子（主体）：光斑沿 X 轴移动时持续发射，粒子留在原地形成伞面
-        # 摄像机跟随光斑，光斑在视角中心；过去的粒子在视角左侧（rel_x < 0）
-        # 按深度排序（z 从小到大，远到近）
-        sorted_particles = sorted(self._ripple_ring_particles,
-                                  key=lambda p: p['r'] * math.cos(p['angle']))
-        for p in sorted_particles:
-            rel_x = p['x'] - orb_x  # 相对于光斑的 x 位置（负值，过去的位置）
-            y3d = p['r'] * math.sin(p['angle'])
-            z3d = p['r'] * math.cos(p['angle'])
-            sx, sy, d, sc = proj(rel_x, y3d, z3d)
+        # 2. 路径粒子（光斑经过的路径留下的持续粒子轨迹线）
+        for p in self._ripple_trail_particles:
+            rel_x = p['x'] - orb_x
+            rx = rel_x * cos_ca + p['z'] * sin_ca
+            rz = -rel_x * sin_ca + p['z'] * cos_ca
+            sx, sy, d, sc = proj(rx, p['y'], rz)
             if not (-40 <= sx <= w + 40 and -40 <= sy <= h + 40):
                 continue
             depth_fade = max(0.1, min(1.0, sc * 0.5))
-            # 生命周期衰减：刚发射时亮，逐渐消失
             life_ratio = p['age'] / p['max_age']
             life_fade = 1.0 - life_ratio * life_ratio
-            # 粒子大小：深度 + 生命周期
+            size = max(0.6, (1.2 + high * 0.5) * depth_fade * p['size_factor'] * (0.4 + life_fade * 0.6))
+            base_alpha = int(200 * life_fade * depth_fade)
+            base_alpha = min(255, base_alpha)
+            if base_alpha < 5:
+                continue
+            p_hue = p['hue']
+            grad = QRadialGradient(sx, sy, size * 2)
+            grad.setColorAt(0, QColor(255, 240, 200, min(255, int(base_alpha * 0.9))))
+            grad.setColorAt(0.3, QColor.fromHsv(p_hue, 120, 255, base_alpha))
+            grad.setColorAt(1, QColor.fromHsv(p_hue, 150, 200, 0))
+            painter.setBrush(QBrush(grad))
+            painter.drawEllipse(QRectF(sx - size * 2, sy - size * 2, size * 4, size * 4))
+
+        # 3. 圆环粒子（主体）：光斑沿 X 轴移动时持续发射，粒子留在原地形成伞面
+        # 摄像机跟随光斑并旋转，光斑在视角中心；过去的粒子在视角后方/侧方
+        for p in self._ripple_ring_particles:
+            rel_x = p['x'] - orb_x
+            y3d = p['r'] * math.sin(p['angle'])
+            z3d = p['r'] * math.cos(p['angle'])
+            # 摄像机绕 y 轴旋转
+            rx = rel_x * cos_ca + z3d * sin_ca
+            rz = -rel_x * sin_ca + z3d * cos_ca
+            sx, sy, d, sc = proj(rx, y3d, rz)
+            if not (-40 <= sx <= w + 40 and -40 <= sy <= h + 40):
+                continue
+            depth_fade = max(0.1, min(1.0, sc * 0.5))
+            life_ratio = p['age'] / p['max_age']
+            life_fade = 1.0 - life_ratio * life_ratio
             size = max(0.8, (1.8 + high * 1.0) * depth_fade * p['size_factor'] * (0.5 + life_fade * 0.5))
             base_alpha = int(255 * life_fade * depth_fade)
             base_alpha = min(255, base_alpha)
@@ -1207,7 +1260,7 @@ class AudioVisualWidget(QWidget):
             painter.setBrush(QBrush(grad))
             painter.drawEllipse(QRectF(sx - size * 2.5, sy - size * 2.5, size * 5, size * 5))
 
-        # 3. 中心光斑（在视角中心，随节奏明暗变化 - 节奏越强亮度越高）
+        # 4. 中心光斑（在视角中心，随节奏明暗变化 - 节奏越强亮度越高）
         core_sx, core_sy, _, core_sc = proj(0, 0, 0)
         core_r = max(5, 18 * core_sc)
         # 光芒线条（随节奏伸长）
