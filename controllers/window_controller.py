@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt, QPoint, QSize
 from PySide6.QtGui import QPixmap, QIcon
 from ui.styles import AppStyles
 from controllers.main_window_protocol import MainWindowProtocol
-from utils.platform_utils import is_wayland, wayland_move
+from utils.platform_utils import is_wayland, wayland_move, is_linux
 
 
 class WindowController:
@@ -196,32 +196,18 @@ class WindowController:
                     if child and isinstance(child, (QPushButton, QLineEdit, QComboBox)):
                         pass
                     else:
-                        if is_wayland():
-                            if self.window.isMaximized():
-                                geo = self.window.geometry()
-                                self.window.showNormal()
-                                ratio = event.position().toPoint().x() / max(1, geo.width())
-                                new_x = event.globalPosition().toPoint().x() - int(self.window.width() * ratio)
-                                new_y = max(0, event.globalPosition().toPoint().y() - 16)
-                                wayland_move(self.window, new_x, new_y)
-                            wh = self.window.windowHandle()
-                            if wh:
-                                wh.startSystemMove()
-                            event.accept()
-                            return True
-                        else:
-                            self._dragging = True
-                            self._drag_offset = (event.globalPosition().toPoint() - self.window.frameGeometry().topLeft())
-                            if self.window.isMaximized():
-                                geo = self.window.geometry()
-                                self.window.showNormal()
-                                ratio = event.position().toPoint().x() / max(1, geo.width())
-                                new_x = event.globalPosition().toPoint().x() - int(self.window.width() * ratio)
-                                new_y = event.globalPosition().toPoint().y() - self._drag_offset.y()
-                                wayland_move(self.window, new_x, new_y)
-                                self._drag_offset = event.globalPosition().toPoint() - self.window.pos()
-                            event.accept()
-                            return True
+                        self._dragging = True
+                        self._drag_offset = (event.globalPosition().toPoint() - self.window.frameGeometry().topLeft())
+                        if self.window.isMaximized():
+                            geo = self.window.geometry()
+                            self.window.showNormal()
+                            ratio = event.position().toPoint().x() / max(1, geo.width())
+                            new_x = event.globalPosition().toPoint().x() - int(self.window.width() * ratio)
+                            new_y = event.globalPosition().toPoint().y() - self._drag_offset.y()
+                            wayland_move(self.window, new_x, new_y)
+                            self._drag_offset = event.globalPosition().toPoint() - self.window.pos()
+                        event.accept()
+                        return True
 
         return False
 

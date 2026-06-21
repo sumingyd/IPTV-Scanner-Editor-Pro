@@ -489,6 +489,7 @@ def post_process_linux():
     icon_dir = dist_dir / "icons"
     icon_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(str(logo_png), str(icon_dir / f"{APP_NAME}.png"))
+    shutil.copy2(str(logo_png), str(dist_dir / f"{APP_NAME}.png"))
     print(f"图标已复制: {icon_dir / APP_NAME}.png")
 
     desktop_content = f"""[Desktop Entry]
@@ -496,7 +497,7 @@ Type=Application
 Name={APP_NAME}
 Comment=IPTV Channel Scanner and Editor
 Exec=./{APP_NAME}
-Icon=icons/{APP_NAME}
+Icon={APP_NAME}
 Categories=AudioVideo;Video;Network;
 Terminal=false
 StartupWMClass={APP_NAME}
@@ -517,6 +518,9 @@ sudo chmod +x /usr/local/bin/{APP_NAME}
 sudo mkdir -p /usr/local/share/icons/hicolor/256x256/apps
 sudo cp "$SCRIPT_DIR/icons/{APP_NAME}.png" /usr/local/share/icons/hicolor/256x256/apps/{APP_NAME}.png
 
+sudo mkdir -p /usr/local/share/pixmaps
+sudo cp "$SCRIPT_DIR/{APP_NAME}.png" /usr/local/share/pixmaps/{APP_NAME}.png
+
 cat > /tmp/{APP_NAME}.desktop << DESKTOP
 [Desktop Entry]
 Type=Application
@@ -532,6 +536,7 @@ DESKTOP
 sudo cp /tmp/{APP_NAME}.desktop /usr/local/share/applications/{APP_NAME}.desktop
 sudo desktop-file-install /usr/local/share/applications/{APP_NAME}.desktop 2>/dev/null || true
 sudo update-desktop-database /usr/local/share/applications/ 2>/dev/null || true
+sudo gtk-update-icon-cache -f /usr/local/share/icons/hicolor/ 2>/dev/null || true
 
 echo "安装完成! 可以从应用菜单启动 {APP_NAME}"
 """
