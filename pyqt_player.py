@@ -754,6 +754,9 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
         # 创建视频播放窗口（初始隐藏，播放时才显示）
         self.video_widget = QWidget(self.video_frame)
         self.video_widget.setStyleSheet(AppStyles.player_background_style())
+        if sys.platform.startswith('linux') and not getattr(sys, 'platform', '') == 'android':
+            self.video_widget.setAttribute(Qt.WidgetAttribute.WA_NativeWindow, True)
+            self.video_widget.setAttribute(Qt.WidgetAttribute.WA_DontCreateNativeAncestors, True)
         self.video_widget.hide()
 
         self._video_overlay_label = VideoOverlayBadge(self.video_frame)
