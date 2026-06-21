@@ -495,8 +495,8 @@ def post_process_linux():
 Type=Application
 Name={APP_NAME}
 Comment=IPTV Channel Scanner and Editor
-Exec="{APP_NAME}"
-Icon={APP_NAME}
+Exec=./{APP_NAME}
+Icon=icons/{APP_NAME}
 Categories=AudioVideo;Video;Network;
 Terminal=false
 StartupWMClass={APP_NAME}
@@ -517,7 +517,19 @@ sudo chmod +x /usr/local/bin/{APP_NAME}
 sudo mkdir -p /usr/local/share/icons/hicolor/256x256/apps
 sudo cp "$SCRIPT_DIR/icons/{APP_NAME}.png" /usr/local/share/icons/hicolor/256x256/apps/{APP_NAME}.png
 
-sudo cp "$SCRIPT_DIR/{APP_NAME}.desktop" /usr/local/share/applications/{APP_NAME}.desktop
+cat > /tmp/{APP_NAME}.desktop << DESKTOP
+[Desktop Entry]
+Type=Application
+Name={APP_NAME}
+Comment=IPTV Channel Scanner and Editor
+Exec=/usr/local/bin/{APP_NAME}
+Icon={APP_NAME}
+Categories=AudioVideo;Video;Network;
+Terminal=false
+StartupWMClass={APP_NAME}
+DESKTOP
+
+sudo cp /tmp/{APP_NAME}.desktop /usr/local/share/applications/{APP_NAME}.desktop
 sudo desktop-file-install /usr/local/share/applications/{APP_NAME}.desktop 2>/dev/null || true
 sudo update-desktop-database /usr/local/share/applications/ 2>/dev/null || true
 

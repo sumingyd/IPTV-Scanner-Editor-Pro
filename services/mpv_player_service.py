@@ -167,6 +167,13 @@ class MpvPlayerController(QObject):
             except Exception as e:
                 self.logger.error(f"设置窗口ID失败: {str(e)}")
 
+            if is_linux():
+                try:
+                    from utils.platform_utils import is_wayland
+                    if is_wayland():
+                        _mpv_set_property_string(self.mpv_handle, 'gpu-context', 'x11')
+                except Exception:
+                    pass
 
             hdr_mode = self._playback_settings.get('hdr_output_mode', 'disable')
 
