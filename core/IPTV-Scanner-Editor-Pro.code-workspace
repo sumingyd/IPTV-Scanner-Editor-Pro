@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		}
+	],
+	"settings": {
+		"clawMode.mode": "editor",
+		"workbench.activityBar.location": "default",
+		"java.configuration.updateBuildConfiguration": "interactive"
+	}
+}

@@ -42,6 +42,10 @@ AUDIO_VISUAL_STYLES = {
         'name_key': 'audio_vis_fluid',
         'name_default': '3D流体',
     },
+    'ripple': {
+        'name_key': 'audio_vis_ripple',
+        'name_default': '粒子震荡洞洞波',
+    },
     'none': {
         'name_key': 'audio_vis_none',
         'name_default': '关闭可视化',
@@ -234,6 +238,11 @@ class AudioVisualWidget(QWidget):
         self._fluid_buf_w = 0
         self._fluid_buf_h = 0
         self._spectrum_angle = 0.0
+        self._ripple_phase = 0.0
+        self._ripple_orb_x = 0.0
+        self._ripple_ring_particles = []
+        self._ripple_bg_particles = []
+        self._ripple_hue = 200.0
         self._bar_colors = [QColor.fromHsv(int(200 + i * 160 / NUM_BARS) % 360, 230, 255) for i in range(NUM_BARS)]
         self._bar_colors_dim = [QColor.fromHsv(int(200 + i * 160 / NUM_BARS) % 360, 180, 80) for i in range(NUM_BARS)]
         self._bar_colors_peak = [QColor.fromHsv(int(200 + i * 160 / NUM_BARS) % 360, 160, 255) for i in range(NUM_BARS)]
@@ -275,6 +284,12 @@ class AudioVisualWidget(QWidget):
             self._cosmos_meteors = []
         elif style_key == 'fluid':
             self._fluid_buf = None
+        elif style_key == 'ripple':
+            self._ripple_phase = 0.0
+            self._ripple_orb_x = 0.0
+            self._ripple_ring_particles = []
+            self._ripple_bg_particles = []
+            self._ripple_hue = 200.0
         self._peak_bars = np.zeros(NUM_BARS)
         self._peak_decay = np.zeros(NUM_BARS, dtype=np.int32)
         self._smooth_bars = np.zeros(NUM_BARS)
@@ -352,7 +367,7 @@ class AudioVisualWidget(QWidget):
 
     def _update_data(self):
         self._frame_count += 1
-        needs_bars = self._style in ('spectrum', 'circular', 'terrain', 'cosmos', 'fluid')
+        needs_bars = self._style in ('spectrum', 'circular', 'terrain', 'cosmos', 'fluid', 'ripple')
         if needs_bars:
             samples = self._pcm.get_samples(FFT_SIZE)
             self._bars = compute_spectrum(samples, FFT_SIZE, NUM_BARS)
@@ -375,6 +390,8 @@ class AudioVisualWidget(QWidget):
             self._update_fluid()
         if self._style == 'spectrum':
             self._spectrum_angle += 0.003
+        if self._style == 'ripple':
+            self._update_ripple()
 
 
     def _update_cosmos(self):
@@ -460,6 +477,58 @@ class AudioVisualWidget(QWidget):
         mid = float(np.mean(self._bars[8:30]))
         self._fluid_phase += 0.02 + bass * 0.06 + mid * 0.03
 
+    def _update_ripple(self):
+        bass = float(np.mean(self._bars[:8]))
+        mid = float(np.mean(self._bars[8:30]))
+        self._ripple_phase += 0.012 + bass * 0.04
+        self._ripple_hue = (self._ripple_hue + 0.4 + mid * 0.8) % 360
+        # 光斑沿 X 轴匀速向右移动
+        self._ripple_orb_x += 0.045
+        # 背景星空粒子
+        if len(self._ripple_bg_particles) < 80:
+            for _ in range(3):
+                angle = random.uniform(0, 2 * math.pi)
+                dist = random.uniform(2.5, 5.5)
+                self._ripple_bg_particles.append({
+                    'x': math.cos(angle) * dist,
+                    'y': random.uniform(-0.4, 0.4),
+                    'z': math.sin(angle) * dist,
+                    'twinkle': random.uniform(0, math.pi * 2),
+                    'speed': random.uniform(0.03, 0.08),
+                    'size': random.uniform(0.02, 0.06),
+                    'hue': random.randint(180, 320),
+                })
+        for p in self._ripple_bg_particles:
+            p['twinkle'] += p['speed']
+        # 每帧在光斑当前位置发射一圈粒子，半径基于节奏强度
+        # 节奏强时半径大、粒子多；节奏弱时半径小、粒子少
+        energy = bass * 0.7 + mid * 0.3
+        num_emit = int(6 + energy * 18)
+        radius = 0.15 + energy * 1.8
+        orb_x = self._ripple_orb_x
+        base_hue = int(self._ripple_hue) % 360
+        for i in range(num_emit):
+            angle = i * 2 * math.pi / num_emit + self._ripple_phase * 0.5
+            self._ripple_ring_particles.append({
+                'x': orb_x,
+                'angle': angle,
+                'r': radius * random.uniform(0.85, 1.15),
+                'age': 0.0,
+                'max_age': random.uniform(1.8, 3.0),
+                'hue': (base_hue + random.randint(-20, 20)) % 360,
+                'size_factor': random.uniform(0.6, 1.4),
+            })
+        # 更新粒子年龄，移除过期粒子
+        alive = []
+        for p in self._ripple_ring_particles:
+            p['age'] += 1 / 60.0
+            if p['age'] < p['max_age']:
+                alive.append(p)
+        # 限制粒子数量，移除最老的
+        if len(alive) > 2000:
+            alive = alive[-2000:]
+        self._ripple_ring_particles = alive
+
     def paintEvent(self, event):
         if not self._active:
             return
@@ -487,6 +556,7 @@ class AudioVisualWidget(QWidget):
             'terrain': self._paint_terrain,
             'cosmos': self._paint_cosmos,
             'fluid': self._paint_fluid,
+            'ripple': self._paint_ripple,
         }
         paint_fn = style_map.get(self._style, self._paint_spectrum)
         painter.setOpacity(self._fade_alpha)
@@ -1078,6 +1148,94 @@ class AudioVisualWidget(QWidget):
         fade_painter.end()
         painter.drawImage(0, 0, self._fluid_buf)
 
+    def _paint_ripple(self, painter, w, h):
+        """粒子震荡洞洞波：光斑沿 X 轴匀速移动 + 节奏震荡粒子圆环 + 伞面效果"""
+        bass = float(np.mean(self._smooth_bars[:8]))
+        high = float(np.mean(self._smooth_bars[30:]))
+        pitch = 0.42
+        proj = lambda x, y, z: _project_3d(x, y, z, w, h, pitch=pitch)
+        painter.setPen(Qt.PenStyle.NoPen)
+        phase = self._ripple_phase
+        base_hue = int(self._ripple_hue) % 360
+        orb_x = self._ripple_orb_x
+
+        # 1. 背景星空粒子（营造空间深度，高频驱动闪烁）
+        for p in self._ripple_bg_particles:
+            sx, sy, depth, scale = proj(p['x'], p['y'], p['z'])
+            if not (-20 <= sx <= w + 20 and -20 <= sy <= h + 20):
+                continue
+            brightness = 0.4 + 0.6 * (0.5 + 0.5 * math.sin(p['twinkle']))
+            depth_fade = max(0.2, min(1.0, scale * 0.4))
+            alpha = int(brightness * 170 * depth_fade * (1.0 + high * 0.5))
+            alpha = min(255, alpha)
+            screen_size = max(1, p['size'] * scale * 40)
+            grad = QRadialGradient(sx, sy, screen_size * 2)
+            grad.setColorAt(0, QColor(255, 255, 255, int(alpha * 0.8)))
+            grad.setColorAt(0.3, QColor.fromHsv(p['hue'], 100, 255, alpha))
+            grad.setColorAt(1, QColor.fromHsv(p['hue'], 150, 200, 0))
+            painter.setBrush(QBrush(grad))
+            painter.drawEllipse(QRectF(sx - screen_size * 2, sy - screen_size * 2, screen_size * 4, screen_size * 4))
+
+        # 2. 圆环粒子（主体）：光斑沿 X 轴移动时持续发射，粒子留在原地形成伞面
+        # 摄像机跟随光斑，光斑在视角中心；过去的粒子在视角左侧（rel_x < 0）
+        # 按深度排序（z 从小到大，远到近）
+        sorted_particles = sorted(self._ripple_ring_particles,
+                                  key=lambda p: p['r'] * math.cos(p['angle']))
+        for p in sorted_particles:
+            rel_x = p['x'] - orb_x  # 相对于光斑的 x 位置（负值，过去的位置）
+            y3d = p['r'] * math.sin(p['angle'])
+            z3d = p['r'] * math.cos(p['angle'])
+            sx, sy, d, sc = proj(rel_x, y3d, z3d)
+            if not (-40 <= sx <= w + 40 and -40 <= sy <= h + 40):
+                continue
+            depth_fade = max(0.1, min(1.0, sc * 0.5))
+            # 生命周期衰减：刚发射时亮，逐渐消失
+            life_ratio = p['age'] / p['max_age']
+            life_fade = 1.0 - life_ratio * life_ratio
+            # 粒子大小：深度 + 生命周期
+            size = max(0.8, (1.8 + high * 1.0) * depth_fade * p['size_factor'] * (0.5 + life_fade * 0.5))
+            base_alpha = int(255 * life_fade * depth_fade)
+            base_alpha = min(255, base_alpha)
+            if base_alpha < 5:
+                continue
+            p_hue = p['hue']
+            grad = QRadialGradient(sx, sy, size * 2.5)
+            grad.setColorAt(0, QColor(255, 255, 255, min(255, int(base_alpha * 0.85))))
+            grad.setColorAt(0.25, QColor.fromHsv(p_hue, 160, 255, base_alpha))
+            grad.setColorAt(0.6, QColor.fromHsv(p_hue, 200, 220, int(base_alpha * 0.4)))
+            grad.setColorAt(1, QColor.fromHsv(p_hue, 200, 200, 0))
+            painter.setBrush(QBrush(grad))
+            painter.drawEllipse(QRectF(sx - size * 2.5, sy - size * 2.5, size * 5, size * 5))
+
+        # 3. 中心光斑（在视角中心，随节奏明暗变化 - 节奏越强亮度越高）
+        core_sx, core_sy, _, core_sc = proj(0, 0, 0)
+        core_r = max(5, 18 * core_sc)
+        # 光芒线条（随节奏伸长）
+        num_rays = 8
+        ray_length = core_r * (2.5 + bass * 7)
+        for i in range(num_rays):
+            angle = i * 2 * math.pi / num_rays + phase * 0.3
+            x2 = core_sx + math.cos(angle) * ray_length
+            y2 = core_sy + math.sin(angle) * ray_length
+            ray_alpha = int(60 + bass * 140)
+            ray_grad = QLinearGradient(core_sx, core_sy, x2, y2)
+            ray_grad.setColorAt(0, QColor(255, 255, 255, ray_alpha))
+            ray_grad.setColorAt(0.3, QColor.fromHsv(base_hue, 120, 255, int(ray_alpha * 0.6)))
+            ray_grad.setColorAt(1, QColor.fromHsv(base_hue, 150, 200, 0))
+            painter.setPen(QPen(QBrush(ray_grad), max(1.0, 2 + bass * 3)))
+            painter.drawLine(QPointF(core_sx, core_sy), QPointF(x2, y2))
+        painter.setPen(Qt.PenStyle.NoPen)
+        # 多层光晕（节奏越强亮度越高）
+        brightness = 0.4 + bass * 0.6
+        core_grad = QRadialGradient(core_sx, core_sy, core_r * 6)
+        core_grad.setColorAt(0, QColor(255, 255, 255, int(min(255, 180 + bass * 75))))
+        core_grad.setColorAt(0.05, QColor(220, 230, 255, int(min(255, 140 + bass * 100))))
+        core_grad.setColorAt(0.2, QColor.fromHsv(base_hue, 140, 255, int((60 + bass * 100) * brightness)))
+        core_grad.setColorAt(0.5, QColor.fromHsv(base_hue, 180, 200, int((20 + bass * 40) * brightness)))
+        core_grad.setColorAt(1, QColor(20, 30, 80, 0))
+        painter.setBrush(QBrush(core_grad))
+        painter.drawEllipse(QRectF(core_sx - core_r * 6, core_sy - core_r * 6, core_r * 12, core_r * 12))
+
 
 class AudioVisualService:
     def __init__(self, player_controller):
@@ -1283,7 +1441,7 @@ class AudioVisualService:
 def extract_cover_art(file_path):
     try:
         import mutagen
-        audio = mutagen.File(file_path)
+        audio = mutagen.File(file_path)  # type: ignore[reportPrivateImportUsage]
         if audio is None:
             return None
         if hasattr(audio, 'tags') and audio.tags:
@@ -1309,7 +1467,7 @@ def extract_cover_art(file_path):
 def extract_lyrics(file_path):
     try:
         import mutagen
-        audio = mutagen.File(file_path)
+        audio = mutagen.File(file_path)  # type: ignore[reportPrivateImportUsage]
         if audio is None:
             return None
         if hasattr(audio, 'tags') and audio.tags:
