@@ -72,8 +72,6 @@ class WindowMixin:
         if hasattr(self, '_main_container') and self._main_container.layout():
             self._main_container.layout().activate()
 
-        if is_wayland():
-            return
 
         mw = self.geometry()
         if mw.isEmpty():
