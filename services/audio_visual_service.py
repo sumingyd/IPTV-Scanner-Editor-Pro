@@ -243,6 +243,7 @@ class AudioVisualWidget(QWidget):
         self._ripple_cam_angle = 0.0
         self._ripple_beat_cooldown = 0.0
         self._ripple_prev_bass = 0.0
+        self._ripple_energy_history = []  # 用于动态阈值
         self._ripple_cones = []
         self._ripple_burst_particles = []
         self._ripple_ring_particles = []
@@ -296,6 +297,7 @@ class AudioVisualWidget(QWidget):
             self._ripple_cam_angle = 0.0
             self._ripple_beat_cooldown = 0.0
             self._ripple_prev_bass = 0.0
+            self._ripple_energy_history = []
             self._ripple_cones = []
             self._ripple_burst_particles = []
             self._ripple_ring_particles = []
@@ -492,6 +494,7 @@ class AudioVisualWidget(QWidget):
     def _update_ripple(self):
         bass = float(np.mean(self._bars[:8]))
         mid = float(np.mean(self._bars[8:30]))
+        high = float(np.mean(self._bars[30:]))
         self._ripple_phase += 0.012 + bass * 0.04
         self._ripple_hue = (self._ripple_hue + 0.4 + mid * 0.8) % 360
         # 光斑沿 X 轴匀速向右移动（较快，让伞面效果间距明显）
@@ -514,28 +517,33 @@ class AudioVisualWidget(QWidget):
                 })
         for p in self._ripple_bg_particles:
             p['twinkle'] += p['speed']
-        # 节奏击打检测：bass 上升沿触发（突然增大才触发，暂停时 bass 不变不会触发）
+        # 节奏检测：动态阈值，覆盖所有频段（鼓点低频 + 乐器中频 + 镲片高频）
         # 无节奏/暂停时不发射震荡粒子，只有光斑和路径线
-        energy = bass * 0.7 + mid * 0.3
+        energy = bass + mid + high
         orb_x = self._ripple_orb_x
         base_hue = int(self._ripple_hue) % 360
-        bass_delta = bass - self._ripple_prev_bass
-        self._ripple_prev_bass = bass
         self._ripple_beat_cooldown -= 1 / 60.0
-        # 上升沿检测：bass 突然增大 + 绝对值足够 + 冷却结束
-        if bass > 0.12 and bass_delta > 0.05 and self._ripple_beat_cooldown <= 0:
-            # 圆锥体的底 = 最大半径（基于 bass），顶 = 中心光斑
-            max_r = 0.5 + bass * 2.5
+        # 动态阈值：基于最近 30 帧（0.5 秒）的能量平均值，适应不同音乐
+        self._ripple_energy_history.append(energy)
+        if len(self._ripple_energy_history) > 30:
+            self._ripple_energy_history.pop(0)
+        avg_energy = sum(self._ripple_energy_history) / max(1, len(self._ripple_energy_history))
+        # 节奏强度 = 当前能量超过近期平均值的部分
+        beat_strength = energy - avg_energy
+        # 节奏触发：显著高于近期平均值 + 绝对能量足够 + 冷却结束
+        if beat_strength > 0.08 and energy > 0.15 and self._ripple_beat_cooldown <= 0:
+            # 圆锥体的底 = 最大半径（基于节奏强度），顶 = 中心光斑
+            max_r = 0.5 + beat_strength * 4.0
             # 创建圆锥体（持续产生侧面粒子）
             self._ripple_cones.append({
                 'x': orb_x,
                 'max_r': max_r,
                 'age': 0.0,
-                'max_age': 2.0 + bass * 1.0,
+                'max_age': 2.0 + beat_strength * 1.0,
                 'hue': base_hue,
             })
             # 发射扩散粒子：从中心扩散到最大半径（扩散过程可见）
-            num_burst = int(30 + bass * 30)
+            num_burst = int(30 + beat_strength * 80)
             for _ in range(num_burst):
                 self._ripple_burst_particles.append({
                     'x': orb_x,
@@ -546,7 +554,7 @@ class AudioVisualWidget(QWidget):
                     'hue': (base_hue + random.randint(-20, 20)) % 360,
                     'size_factor': random.uniform(0.8, 1.4),
                 })
-            self._ripple_beat_cooldown = 0.08
+            self._ripple_beat_cooldown = 0.1  # 冷却时间稍长，避免连续触发
         # 更新圆锥体：每帧产生圆锥体侧面粒子（分布在从 0 到 max_r 之间）
         new_cones = []
         for cone in self._ripple_cones:
