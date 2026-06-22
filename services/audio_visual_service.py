@@ -241,6 +241,10 @@ class AudioVisualWidget(QWidget):
         self._ripple_phase = 0.0
         self._ripple_orb_x = 0.0
         self._ripple_cam_angle = 0.0
+        self._ripple_beat_cooldown = 0.0
+        self._ripple_prev_bass = 0.0
+        self._ripple_cones = []
+        self._ripple_burst_particles = []
         self._ripple_ring_particles = []
         self._ripple_trail_particles = []
         self._ripple_bg_particles = []
@@ -290,6 +294,10 @@ class AudioVisualWidget(QWidget):
             self._ripple_phase = 0.0
             self._ripple_orb_x = 0.0
             self._ripple_cam_angle = 0.0
+            self._ripple_beat_cooldown = 0.0
+            self._ripple_prev_bass = 0.0
+            self._ripple_cones = []
+            self._ripple_burst_particles = []
             self._ripple_ring_particles = []
             self._ripple_trail_particles = []
             self._ripple_bg_particles = []
@@ -506,24 +514,60 @@ class AudioVisualWidget(QWidget):
                 })
         for p in self._ripple_bg_particles:
             p['twinkle'] += p['speed']
-        # 每帧在光斑当前位置发射一圈粒子，半径基于节奏强度
-        # 节奏强时半径大、粒子多；节奏弱时半径小、粒子少
+        # 节奏击打检测：bass 上升沿触发（突然增大才触发，暂停时 bass 不变不会触发）
+        # 无节奏/暂停时不发射震荡粒子，只有光斑和路径线
         energy = bass * 0.7 + mid * 0.3
-        num_emit = int(6 + energy * 18)
-        radius = 0.15 + energy * 1.8
         orb_x = self._ripple_orb_x
         base_hue = int(self._ripple_hue) % 360
-        for i in range(num_emit):
-            angle = i * 2 * math.pi / num_emit + self._ripple_phase * 0.5
-            self._ripple_ring_particles.append({
+        bass_delta = bass - self._ripple_prev_bass
+        self._ripple_prev_bass = bass
+        self._ripple_beat_cooldown -= 1 / 60.0
+        # 上升沿检测：bass 突然增大 + 绝对值足够 + 冷却结束
+        if bass > 0.12 and bass_delta > 0.05 and self._ripple_beat_cooldown <= 0:
+            # 圆锥体的底 = 最大半径（基于 bass），顶 = 中心光斑
+            max_r = 0.5 + bass * 2.5
+            # 创建圆锥体（持续产生侧面粒子）
+            self._ripple_cones.append({
                 'x': orb_x,
-                'angle': angle,
-                'r': radius * random.uniform(0.85, 1.15),
+                'max_r': max_r,
                 'age': 0.0,
-                'max_age': random.uniform(1.8, 3.0),
-                'hue': (base_hue + random.randint(-20, 20)) % 360,
-                'size_factor': random.uniform(0.6, 1.4),
+                'max_age': 2.0 + bass * 1.0,
+                'hue': base_hue,
             })
+            # 发射扩散粒子：从中心扩散到最大半径（扩散过程可见）
+            num_burst = int(30 + bass * 30)
+            for _ in range(num_burst):
+                self._ripple_burst_particles.append({
+                    'x': orb_x,
+                    'angle': random.uniform(0, 2 * math.pi),
+                    'max_r': max_r * random.uniform(0.85, 1.15),
+                    'age': 0.0,
+                    'max_age': random.uniform(0.8, 1.2),
+                    'hue': (base_hue + random.randint(-20, 20)) % 360,
+                    'size_factor': random.uniform(0.8, 1.4),
+                })
+            self._ripple_beat_cooldown = 0.08
+        # 更新圆锥体：每帧产生圆锥体侧面粒子（分布在从 0 到 max_r 之间）
+        new_cones = []
+        for cone in self._ripple_cones:
+            cone['age'] += 1 / 60.0
+            if cone['age'] >= cone['max_age']:
+                continue
+            new_cones.append(cone)
+            progress = cone['age'] / cone['max_age']
+            num = max(6, int(16 * (1 - progress * 0.5)))
+            for i in range(num):
+                angle = i * 2 * math.pi / num + self._ripple_phase * 0.3
+                self._ripple_ring_particles.append({
+                    'x': cone['x'],
+                    'angle': angle,
+                    'r': cone['max_r'] * random.uniform(0.0, 1.0) * (1 - progress * 0.3),
+                    'age': 0.0,
+                    'max_age': random.uniform(1.0, 1.5),
+                    'hue': (cone['hue'] + random.randint(-20, 20)) % 360,
+                    'size_factor': random.uniform(0.6, 1.2),
+                })
+        self._ripple_cones = new_cones
         # 路径粒子：光斑经过的路径留下持续的粒子轨迹线
         for _ in range(3):
             self._ripple_trail_particles.append({
@@ -535,6 +579,15 @@ class AudioVisualWidget(QWidget):
                 'hue': (base_hue + random.randint(-10, 10)) % 360,
                 'size_factor': random.uniform(0.5, 1.0),
             })
+        # 更新扩散粒子年龄，移除过期粒子
+        burst_alive = []
+        for p in self._ripple_burst_particles:
+            p['age'] += 1 / 60.0
+            if p['age'] < p['max_age']:
+                burst_alive.append(p)
+        if len(burst_alive) > 1500:
+            burst_alive = burst_alive[-1500:]
+        self._ripple_burst_particles = burst_alive
         # 更新圆环粒子年龄，移除过期粒子
         alive = []
         for p in self._ripple_ring_particles:
@@ -1231,12 +1284,37 @@ class AudioVisualWidget(QWidget):
             painter.setBrush(QBrush(grad))
             painter.drawEllipse(QRectF(sx - size * 2, sy - size * 2, size * 4, size * 4))
 
-        # 3. 圆环粒子（主体）：光斑沿 X 轴移动时持续发射，粒子留在原地形成伞面
-        # 摄像机跟随光斑并旋转，光斑在视角中心；过去的粒子在视角后方/侧方
+        # 3. 扩散粒子：击打时从中心扩散到最大半径再收缩（sin 曲线），扩散过程可见
+        for p in self._ripple_burst_particles:
+            rel_x = p['x'] - orb_x
+            progress = p['age'] / p['max_age']
+            r = p['max_r'] * math.sin(progress * math.pi)  # 先扩散后收缩
+            y3d = r * math.sin(p['angle'])
+            z3d = r * math.cos(p['angle'])
+            # 摄像机绕 y 轴旋转
+            rx = rel_x * cos_ca + z3d * sin_ca
+            rz = -rel_x * sin_ca + z3d * cos_ca
+            sx, sy, d, sc = proj(rx, y3d, rz)
+            if d <= 0.1:
+                continue
+            alpha = int(220 * (1 - progress))
+            if alpha < 5:
+                continue
+            size = max(1.0, 2.5 * sc * p['size_factor'])
+            p_hue = p['hue']
+            grad = QRadialGradient(sx, sy, size * 2)
+            grad.setColorAt(0, QColor.fromHsv(p_hue, 120, 255, alpha))
+            grad.setColorAt(0.5, QColor.fromHsv(p_hue, 180, 220, int(alpha * 0.6)))
+            grad.setColorAt(1, QColor.fromHsv(p_hue, 200, 200, 0))
+            painter.setBrush(QBrush(grad))
+            painter.drawEllipse(QRectF(sx - size * 2, sy - size * 2, size * 4, size * 4))
+
+        # 4. 圆锥体侧面粒子：分布在从 0 到 max_r 之间，形成圆锥侧面
         for p in self._ripple_ring_particles:
             rel_x = p['x'] - orb_x
-            y3d = p['r'] * math.sin(p['angle'])
-            z3d = p['r'] * math.cos(p['angle'])
+            r = p['r']  # 固定半径（随机分布在 0 到 max_r 之间）
+            y3d = r * math.sin(p['angle'])
+            z3d = r * math.cos(p['angle'])
             # 摄像机绕 y 轴旋转
             rx = rel_x * cos_ca + z3d * sin_ca
             rz = -rel_x * sin_ca + z3d * cos_ca
