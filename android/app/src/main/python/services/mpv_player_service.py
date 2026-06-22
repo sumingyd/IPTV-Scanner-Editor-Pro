@@ -224,6 +224,12 @@ class MpvPlayerController(QObject):
                 _mpv_set_property_string(self.mpv_handle, 'd3d11-sync-interval', '1')
             elif is_macos():
                 _mpv_set_property_string(self.mpv_handle, 'gpu-api', 'opengl')
+            elif is_linux():
+                # Linux下强制使用X11渲染后端，与Qt的XWayland(xcb)保持一致，
+                # 确保mpv的wid嵌入能正常工作（Wayland后端不支持wid嵌入，
+                # 会导致视频在独立窗口中打开）
+                _mpv_set_property_string(self.mpv_handle, 'gpu-api', 'opengl')
+                _mpv_set_property_string(self.mpv_handle, 'gpu-context', 'x11')
             _mpv_set_property_string(self.mpv_handle, 'osc', 'no')
             _mpv_set_property_string(self.mpv_handle, 'osd-bar', 'no')
 
