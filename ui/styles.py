@@ -1617,7 +1617,7 @@ class AppStyles:
             }}
             QTableView::item {{
                 padding: 6px 10px;
-                color: {mw_colors['window_text']};
+
             }}
             QTableView::item:hover {{
                 background-color: {mw_colors['table_hover']};
@@ -1878,7 +1878,7 @@ class AppStyles:
             QTableView::item {{
                 padding: 6px 10px;
                 border-bottom: 1px solid {colors['table_grid']};
-                color: {colors['window_text']};
+
             }}
             QTableView::item:hover {{
                 background-color: {colors['table_hover']};

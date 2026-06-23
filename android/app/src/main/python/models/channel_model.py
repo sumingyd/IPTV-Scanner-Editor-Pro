@@ -989,7 +989,10 @@ class ChannelListModel(QtCore.QAbstractTableModel):
         bottom_right = self.index(index, self.columnCount() - 1)
         self.dataChanged.emit(
             top_left, bottom_right,
-            [QtCore.Qt.ItemDataRole.DisplayRole, QtCore.Qt.ItemDataRole.DecorationRole]
+            [QtCore.Qt.ItemDataRole.DisplayRole,
+             QtCore.Qt.ItemDataRole.DecorationRole,
+             QtCore.Qt.ItemDataRole.BackgroundRole,
+             QtCore.Qt.ItemDataRole.ForegroundRole]
             )
 
         # 强制刷新整个视图以确保所有列都更新
@@ -1003,7 +1006,10 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             bottom_right = self.index(len(self.channels)-1, len(self.headers)-1)
             self.dataChanged.emit(
                 top_left, bottom_right,
-                [QtCore.Qt.ItemDataRole.DisplayRole, QtCore.Qt.ItemDataRole.DecorationRole]
+                [QtCore.Qt.ItemDataRole.DisplayRole,
+                 QtCore.Qt.ItemDataRole.DecorationRole,
+                 QtCore.Qt.ItemDataRole.BackgroundRole,
+                 QtCore.Qt.ItemDataRole.ForegroundRole]
                 )
             self.layoutChanged.emit()
 
