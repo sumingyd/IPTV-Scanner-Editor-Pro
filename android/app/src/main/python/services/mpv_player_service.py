@@ -243,7 +243,16 @@ class MpvPlayerController(QObject):
                 _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'd3d11')
                 _mpv_set_option_string(self.mpv_handle, 'd3d11-sync-interval', '1')
             elif is_macos():
+                # macOS下使用OpenGL渲染，gpu-context必须为coregraphics才能与wid嵌入配合工作
+                # 否则mpv可能无法在Qt窗口中渲染视频画面（表现为只能听到声音看不到画面）
                 _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'opengl')
+                ret_ctx = _mpv_set_option_string(self.mpv_handle, 'gpu-context', 'coregraphics')
+                if ret_ctx < 0:
+                    self.logger.warning(f"设置gpu-context=coregraphics失败(错误码:{ret_ctx})，wid嵌入可能无法工作")
+                else:
+                    self.logger.info("设置gpu-context=coregraphics成功")
+                # 显式禁止mpv创建独立窗口，确保视频只能嵌入到wid指定的窗口
+                _mpv_set_option_string(self.mpv_handle, 'force-window', 'no')
             elif is_linux():
                 # Linux下强制使用X11渲染后端，与Qt的XWayland(xcb)保持一致，
                 # 确保mpv的wid嵌入能正常工作（Wayland后端不支持wid嵌入，
