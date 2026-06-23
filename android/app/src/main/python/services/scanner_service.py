@@ -418,11 +418,11 @@ class ScannerController(QObject):
 
     def _get_validator_class(self):
         """根据配置获取验证器类"""
-        engine = 'mpv'
+        engine = 'ffprobe'
         try:
             from core.config_manager import ConfigManager
             settings = ConfigManager().load_scan_engine_settings()
-            engine = settings.get('engine', 'mpv')
+            engine = settings.get('engine', 'ffprobe')
         except Exception:
             pass
         self._scan_engine = engine

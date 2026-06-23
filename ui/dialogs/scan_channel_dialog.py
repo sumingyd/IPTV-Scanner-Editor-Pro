@@ -88,10 +88,10 @@ class ScanChannelDialog(FloatingDialog):
 
     def _get_validator_class(self):
         """根据配置获取验证器类"""
-        engine = 'mpv'
+        engine = 'ffprobe'
         try:
             settings = self.config.load_scan_engine_settings()
-            engine = settings.get('engine', 'mpv')
+            engine = settings.get('engine', 'ffprobe')
         except Exception:
             pass
         if engine == 'ffprobe':
@@ -477,8 +477,8 @@ class ScanChannelDialog(FloatingDialog):
         engine_layout.addWidget(engine_label)
 
         self.scan_engine_combo = QtWidgets.QComboBox()
-        self.scan_engine_combo.addItem(tr('scan_engine_mpv', 'mpv (Lightweight)'), "mpv")
         self.scan_engine_combo.addItem(tr('scan_engine_ffprobe', 'ffprobe (Detailed)'), "ffprobe")
+        self.scan_engine_combo.addItem(tr('scan_engine_mpv', 'mpv (Lightweight)'), "mpv")
         self.scan_engine_combo.setFixedHeight(28)
         self.scan_engine_combo.setToolTip(
             tr("scan_engine_tooltip", "Select the core engine for scanning and validation")
@@ -495,14 +495,14 @@ class ScanChannelDialog(FloatingDialog):
 
     def _save_scan_engine_settings(self):
         """保存扫描引擎设置到配置文件"""
-        engine = self.scan_engine_combo.currentData() or 'mpv'
+        engine = self.scan_engine_combo.currentData() or 'ffprobe'
         self.config.save_scan_engine_settings(engine)
 
     def _load_scan_engine_settings(self):
         """加载扫描引擎设置"""
         try:
             settings = self.config.load_scan_engine_settings()
-            engine = settings.get('engine', 'mpv')
+            engine = settings.get('engine', 'ffprobe')
             index = self.scan_engine_combo.findData(engine)
             if index >= 0:
                 self.scan_engine_combo.setCurrentIndex(index)

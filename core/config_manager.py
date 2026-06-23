@@ -350,7 +350,7 @@ class ConfigManager(Singleton):
     def load_scan_engine_settings(self) -> dict:
         """加载扫描引擎设置"""
         return {
-            'engine': self.get_value('ScanEngine', 'engine', 'mpv')
+            'engine': self.get_value('ScanEngine', 'engine', 'ffprobe')
         }
 
     def save_server_settings(self, enabled: bool = True, port: int = 8080, host: str = '0.0.0.0', auto_start: bool = True):
