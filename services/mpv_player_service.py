@@ -236,22 +236,33 @@ class MpvPlayerController(QObject):
                 else:
                     vo = 'gpu'
 
-            _mpv_set_property_string(self.mpv_handle, 'vo', vo)
+            _mpv_set_option_string(self.mpv_handle, 'vo', vo)
             hwdec = 'auto' if self._playback_settings.get('hwdec', True) else 'no'
-            _mpv_set_property_string(self.mpv_handle, 'hwdec', hwdec)
+            _mpv_set_option_string(self.mpv_handle, 'hwdec', hwdec)
             if is_windows():
-                _mpv_set_property_string(self.mpv_handle, 'gpu-api', 'd3d11')
-                _mpv_set_property_string(self.mpv_handle, 'd3d11-sync-interval', '1')
+                _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'd3d11')
+                _mpv_set_option_string(self.mpv_handle, 'd3d11-sync-interval', '1')
             elif is_macos():
-                _mpv_set_property_string(self.mpv_handle, 'gpu-api', 'opengl')
+                _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'opengl')
             elif is_linux():
                 # Linux下强制使用X11渲染后端，与Qt的XWayland(xcb)保持一致，
                 # 确保mpv的wid嵌入能正常工作（Wayland后端不支持wid嵌入，
                 # 会导致视频在独立窗口中打开）
-                _mpv_set_property_string(self.mpv_handle, 'gpu-api', 'opengl')
-                _mpv_set_property_string(self.mpv_handle, 'gpu-context', 'x11')
-            _mpv_set_property_string(self.mpv_handle, 'osc', 'no')
-            _mpv_set_property_string(self.mpv_handle, 'osd-bar', 'no')
+                _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'opengl')
+                ret_ctx = _mpv_set_option_string(self.mpv_handle, 'gpu-context', 'x11')
+                if ret_ctx < 0:
+                    self.logger.warning(f"设置gpu-context=x11失败(错误码:{ret_ctx})，尝试x11egl")
+                    ret_ctx = _mpv_set_option_string(self.mpv_handle, 'gpu-context', 'x11egl')
+                    if ret_ctx < 0:
+                        self.logger.error(f"设置gpu-context=x11egl也失败(错误码:{ret_ctx})，wid嵌入可能无法工作")
+                    else:
+                        self.logger.info("设置gpu-context=x11egl成功")
+                else:
+                    self.logger.info("设置gpu-context=x11成功")
+                # 显式禁止mpv创建独立窗口，确保视频只能嵌入到wid指定的窗口
+                _mpv_set_option_string(self.mpv_handle, 'force-window', 'no')
+            _mpv_set_option_string(self.mpv_handle, 'osc', 'no')
+            _mpv_set_option_string(self.mpv_handle, 'osd-bar', 'no')
 
             _mpv_set_property_string(self.mpv_handle, 'osd-font-size', '18')
             _mpv_set_property_string(self.mpv_handle, 'osd-border-size', '2')
@@ -331,8 +342,9 @@ class MpvPlayerController(QObject):
                 _tm = self._get_mpv_property_string('tone-mapping') or '?'
                 _tch = self._get_mpv_property_string('target-colorspace-hint') or '?'
                 _ga = self._get_mpv_property_string('gpu-api') or '?'
+                _gc = self._get_mpv_property_string('gpu-context') or '?'
                 _csp = self._get_mpv_property_string('d3d11-output-csp') or '?'
-                self.logger.info(f"HDR诊断: vo={_vo}, gpu-api={_ga}, target-prim={_tp}, target-trc={_tt}, tone-mapping={_tm}, target-colorspace-hint={_tch}, d3d11-output-csp={_csp}, hdr_mode={hdr_mode}")
+                self.logger.info(f"HDR诊断: vo={_vo}, gpu-api={_ga}, gpu-context={_gc}, target-prim={_tp}, target-trc={_tt}, tone-mapping={_tm}, target-colorspace-hint={_tch}, d3d11-output-csp={_csp}, hdr_mode={hdr_mode}")
             except Exception as e:
                 self.logger.debug(f"HDR诊断读取失败: {e}")
 
