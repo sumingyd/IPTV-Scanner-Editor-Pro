@@ -33,6 +33,7 @@ from services.mpv_common import (
     terminate_destroy_mpv,
     set_property_string as _mpv_set_property_string,
     set_property_int64 as _mpv_set_property_int64,
+    set_option_string as _mpv_set_option_string,
     send_command as _mpv_send_command,
     observe_property as _mpv_observe_property,
     wait_for_event as _mpv_wait_event,
@@ -160,6 +161,21 @@ class MpvPlayerController(QObject):
             self.video_widget.show()
             self.video_widget.repaint()
 
+            # 确保原生窗口已被创建并映射，避免winId()返回未就绪的窗口ID
+            try:
+                from PySide6.QtWidgets import QApplication
+                QApplication.processEvents()
+            except Exception:
+                pass
+
+            # 诊断日志：记录窗口平台环境，帮助排查wid嵌入问题
+            if is_linux():
+                self.logger.info(
+                    f"Linux窗口环境: QT_QPA_PLATFORM={os.environ.get('QT_QPA_PLATFORM', '<未设置>')}, "
+                    f"XDG_SESSION_TYPE={os.environ.get('XDG_SESSION_TYPE', '<未设置>')}, "
+                    f"WAYLAND_DISPLAY={os.environ.get('WAYLAND_DISPLAY', '<未设置>')}"
+                )
+
             window_id = self.video_widget.winId()
             if hasattr(window_id, 'value'):
                 window_id = window_id.value
@@ -167,8 +183,12 @@ class MpvPlayerController(QObject):
             try:
                 window_id_int = int(window_id)
                 if window_id_int > 0:
-                    _mpv_set_property_string(self.mpv_handle, 'wid', f"{window_id_int}")
-                    self.logger.info(f"设置窗口ID: {window_id_int}")
+                    # wid是mpv的选项，必须用set_option_string在initialize之前设置
+                    ret = _mpv_set_option_string(self.mpv_handle, 'wid', f"{window_id_int}")
+                    if ret < 0:
+                        self.logger.error(f"设置wid失败，错误码: {ret}, 窗口ID: {window_id_int}")
+                    else:
+                        self.logger.info(f"设置窗口ID成功: {window_id_int}")
                 else:
                     self.logger.warning(f"窗口ID无效: {window_id_int}")
             except Exception as e:

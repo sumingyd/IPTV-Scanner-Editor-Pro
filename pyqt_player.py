@@ -2,8 +2,13 @@ import sys
 import os
 
 if sys.platform.startswith('linux') and not getattr(sys, 'platform', '') == 'android':
+    # 完整的Wayland检测：与platform_utils.is_wayland()保持一致
+    # 必须在QApplication创建前设置QT_QPA_PLATFORM=xcb，使Qt使用XWayland，
+    # 这样video_widget.winId()返回X11窗口ID，mpv的wid嵌入才能正常工作
     session_type = os.environ.get('XDG_SESSION_TYPE', '').lower()
-    if session_type == 'wayland':
+    wayland_display = os.environ.get('WAYLAND_DISPLAY', '')
+    is_wayland_env = (session_type == 'wayland') or (bool(wayland_display) and session_type != 'x11')
+    if is_wayland_env and not os.environ.get('QT_QPA_PLATFORM'):
         os.environ['QT_QPA_PLATFORM'] = 'xcb'
 
 from datetime import date, datetime
