@@ -1,6 +1,17 @@
 import sys
 import os
 
+if sys.platform == 'darwin' and getattr(sys, 'frozen', False):
+    try:
+        import certifi
+        os.environ['SSL_CERT_FILE'] = certifi.where()
+        os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+    except ImportError:
+        _cert_path = os.path.join(os.path.dirname(sys.executable), 'resources', 'cert.pem')
+        if os.path.exists(_cert_path):
+            os.environ['SSL_CERT_FILE'] = _cert_path
+            os.environ['REQUESTS_CA_BUNDLE'] = _cert_path
+
 if sys.platform.startswith('linux') and not getattr(sys, 'platform', '') == 'android':
     # 完整的Wayland检测：与platform_utils.is_wayland()保持一致
     # 必须在QApplication创建前设置QT_QPA_PLATFORM=xcb，使Qt使用XWayland，

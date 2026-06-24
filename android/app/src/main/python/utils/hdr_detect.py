@@ -2,7 +2,14 @@ import subprocess
 import sys
 import logging
 import os
-import winreg
+
+if sys.platform == 'win32':
+    try:
+        import winreg
+    except ImportError:
+        winreg = None
+else:
+    winreg = None
 
 logger = logging.getLogger(__name__)
 

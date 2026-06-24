@@ -243,15 +243,20 @@ class MpvPlayerController(QObject):
                 _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'd3d11')
                 _mpv_set_option_string(self.mpv_handle, 'd3d11-sync-interval', '1')
             elif is_macos():
-                # macOS下使用OpenGL渲染，gpu-context必须为coregraphics才能与wid嵌入配合工作
-                # 否则mpv可能无法在Qt窗口中渲染视频画面（表现为只能听到声音看不到画面）
-                _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'opengl')
-                ret_ctx = _mpv_set_option_string(self.mpv_handle, 'gpu-context', 'coregraphics')
+                # macOS下gpu-context必须正确设置才能与wid嵌入配合工作
+                # 否则mpv无法在Qt窗口中渲染视频画面（表现为只能听到声音看不到画面）
+                # 注意：不设置gpu-api，让mpv自动选择（macOS上默认为opengl）
+                # gpu-context优先尝试cocoa（mpv 0.35+推荐），失败则回退coregraphics
+                ret_ctx = _mpv_set_option_string(self.mpv_handle, 'gpu-context', 'cocoa')
                 if ret_ctx < 0:
-                    self.logger.warning(f"设置gpu-context=coregraphics失败(错误码:{ret_ctx})，wid嵌入可能无法工作")
+                    self.logger.warning(f"设置gpu-context=cocoa失败(错误码:{ret_ctx})，尝试coregraphics")
+                    ret_ctx = _mpv_set_option_string(self.mpv_handle, 'gpu-context', 'coregraphics')
+                    if ret_ctx < 0:
+                        self.logger.warning(f"设置gpu-context=coregraphics也失败(错误码:{ret_ctx})，wid嵌入可能无法工作")
+                    else:
+                        self.logger.info("设置gpu-context=coregraphics成功")
                 else:
-                    self.logger.info("设置gpu-context=coregraphics成功")
-                # 显式禁止mpv创建独立窗口，确保视频只能嵌入到wid指定的窗口
+                    self.logger.info("设置gpu-context=cocoa成功")
                 _mpv_set_option_string(self.mpv_handle, 'force-window', 'no')
             elif is_linux():
                 # Linux下强制使用X11渲染后端，与Qt的XWayland(xcb)保持一致，
