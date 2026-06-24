@@ -117,11 +117,8 @@ class MultiScreenCell(QWidget):
         self._video_frame = QFrame()
         self._video_frame.setStyleSheet(AppStyles.player_background_style())
         self._video_frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        # Linux和macOS下mpv使用wid嵌入需要原生窗口，否则winId()返回的不是真正的原生窗口ID
-        # 导致mpv无法正确嵌入到Qt窗口中（macOS下表现为只能听到声音看不到画面）
         needs_native_window = (
             (sys.platform.startswith('linux') and not getattr(sys, 'platform', '') == 'android')
-            or sys.platform == 'darwin'
         )
         if needs_native_window:
             self._video_frame.setAttribute(Qt.WidgetAttribute.WA_NativeWindow, True)

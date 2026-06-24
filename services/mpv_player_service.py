@@ -128,7 +128,7 @@ class MpvPlayerController(QObject):
         self._user_stopped = False
         self._switching_channel = False
         self._mpv_initialized = False
-
+        self._use_render_api = False
         self._terminated = False
         from services.audio_visual_service import AudioVisualService
         self.audio_visual = AudioVisualService(self)
@@ -162,38 +162,45 @@ class MpvPlayerController(QObject):
             self.video_widget.show()
             self.video_widget.repaint()
 
-            # 确保原生窗口已被创建并映射，避免winId()返回未就绪的窗口ID
-            try:
-                from PySide6.QtWidgets import QApplication
-                QApplication.processEvents()
-            except Exception:
-                pass
+            # macOS使用vo=libmpv + render API时不需要设置wid
+            _skip_wid = False
+            if is_macos():
+                try:
+                    from services.mpv_gl_widget import MpvGLWidget
+                    _skip_wid = isinstance(self.video_widget, MpvGLWidget)
+                except Exception:
+                    pass
 
-            # 诊断日志：记录窗口平台环境，帮助排查wid嵌入问题
-            if is_linux():
-                self.logger.info(
-                    f"Linux窗口环境: QT_QPA_PLATFORM={os.environ.get('QT_QPA_PLATFORM', '<未设置>')}, "
-                    f"XDG_SESSION_TYPE={os.environ.get('XDG_SESSION_TYPE', '<未设置>')}, "
-                    f"WAYLAND_DISPLAY={os.environ.get('WAYLAND_DISPLAY', '<未设置>')}"
-                )
+            if not _skip_wid:
+                try:
+                    from PySide6.QtWidgets import QApplication
+                    QApplication.processEvents()
+                except Exception:
+                    pass
 
-            window_id = self.video_widget.winId()
-            if hasattr(window_id, 'value'):
-                window_id = window_id.value
+                if is_linux():
+                    self.logger.info(
+                        f"Linux窗口环境: QT_QPA_PLATFORM={os.environ.get('QT_QPA_PLATFORM', '<未设置>')}, "
+                        f"XDG_SESSION_TYPE={os.environ.get('XDG_SESSION_TYPE', '<未设置>')}, "
+                        f"WAYLAND_DISPLAY={os.environ.get('WAYLAND_DISPLAY', '<未设置>')}"
+                    )
 
-            try:
-                window_id_int = int(window_id)
-                if window_id_int > 0:
-                    # wid是mpv的选项，必须用set_option_string在initialize之前设置
-                    ret = _mpv_set_option_string(self.mpv_handle, 'wid', f"{window_id_int}")
-                    if ret < 0:
-                        self.logger.error(f"设置wid失败，错误码: {ret}, 窗口ID: {window_id_int}")
+                window_id = self.video_widget.winId()
+                if hasattr(window_id, 'value'):
+                    window_id = window_id.value
+
+                try:
+                    window_id_int = int(window_id)
+                    if window_id_int > 0:
+                        ret = _mpv_set_option_string(self.mpv_handle, 'wid', f"{window_id_int}")
+                        if ret < 0:
+                            self.logger.error(f"设置wid失败，错误码: {ret}, 窗口ID: {window_id_int}")
+                        else:
+                            self.logger.info(f"设置窗口ID成功: {window_id_int}")
                     else:
-                        self.logger.info(f"设置窗口ID成功: {window_id_int}")
-                else:
-                    self.logger.warning(f"窗口ID无效: {window_id_int}")
-            except Exception as e:
-                self.logger.error(f"设置窗口ID失败: {str(e)}")
+                        self.logger.warning(f"窗口ID无效: {window_id_int}")
+                except Exception as e:
+                    self.logger.error(f"设置窗口ID失败: {str(e)}")
 
 
             hdr_mode = self._playback_settings.get('hdr_output_mode', 'disable')
@@ -243,26 +250,21 @@ class MpvPlayerController(QObject):
                 _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'd3d11')
                 _mpv_set_option_string(self.mpv_handle, 'd3d11-sync-interval', '1')
             elif is_macos():
-                macos_ctx_set = False
-                # 尝试用set_option_string设置gpu-context
-                for ctx_val in ['cocoa', 'coregraphics', 'macos']:
-                    ret_ctx = _mpv_set_option_string(self.mpv_handle, 'gpu-context', ctx_val)
-                    if ret_ctx >= 0:
-                        self.logger.info(f"设置gpu-context={ctx_val}成功(option)")
-                        macos_ctx_set = True
-                        break
-                    self.logger.warning(f"设置gpu-context={ctx_val}失败(option,错误码:{ret_ctx})")
-                if not macos_ctx_set:
-                    # 尝试用set_property_string设置（走不同代码路径）
+                # macOS上mpv v0.41+的gpu-context选项不再支持wid嵌入
+                # 使用vo=libmpv + render API渲染到QOpenGLWidget（IINA等播放器的标准方案）
+                ret_vo = _mpv_set_option_string(self.mpv_handle, 'vo', 'libmpv')
+                if ret_vo >= 0:
+                    self.logger.info("macOS: 设置vo=libmpv成功，将使用render API渲染")
+                    self._use_render_api = True
+                else:
+                    self.logger.warning(f"macOS: 设置vo=libmpv失败(错误码:{ret_vo})，回退wid嵌入")
+                    self._use_render_api = False
                     for ctx_val in ['cocoa', 'coregraphics', 'macos']:
-                        ret_ctx = _mpv_set_property_string(self.mpv_handle, 'gpu-context', ctx_val)
+                        ret_ctx = _mpv_set_option_string(self.mpv_handle, 'gpu-context', ctx_val)
                         if ret_ctx >= 0:
-                            self.logger.info(f"设置gpu-context={ctx_val}成功(property)")
-                            macos_ctx_set = True
+                            self.logger.info(f"设置gpu-context={ctx_val}成功")
                             break
-                        self.logger.warning(f"设置gpu-context={ctx_val}失败(property,错误码:{ret_ctx})")
-                if not macos_ctx_set:
-                    self.logger.warning("gpu-context全部设置失败，依赖mpv自动检测wid渲染")
+                        self.logger.warning(f"设置gpu-context={ctx_val}失败(错误码:{ret_ctx})")
                 _mpv_set_option_string(self.mpv_handle, 'force-window', 'no')
             elif is_linux():
                 _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'opengl')
@@ -278,7 +280,8 @@ class MpvPlayerController(QObject):
                     self.logger.info("设置gpu-context=x11成功")
                 _mpv_set_option_string(self.mpv_handle, 'force-window', 'no')
 
-            _mpv_set_option_string(self.mpv_handle, 'vo', vo)
+            if not (is_macos() and getattr(self, '_use_render_api', False)):
+                _mpv_set_option_string(self.mpv_handle, 'vo', vo)
             hwdec = 'auto' if self._playback_settings.get('hwdec', True) else 'no'
             _mpv_set_option_string(self.mpv_handle, 'hwdec', hwdec)
             _mpv_set_option_string(self.mpv_handle, 'osc', 'no')
@@ -354,6 +357,14 @@ class MpvPlayerController(QObject):
                 self.logger.warning(f"订阅pause属性失败: {str(e)}")
 
             self.logger.info("mpv播放器初始化成功")
+
+            if is_macos() and getattr(self, '_use_render_api', False):
+                try:
+                    if hasattr(self.video_widget, 'setup_render_context'):
+                        if not self.video_widget.setup_render_context(self.mpv_handle):
+                            self.logger.error("macOS render context创建失败，视频可能无法显示")
+                except Exception as e:
+                    self.logger.error(f"macOS render context初始化异常: {e}")
 
             if is_macos():
                 try:
@@ -1189,6 +1200,12 @@ class MpvPlayerController(QObject):
         try:
             self._terminated = True
             self.logger.info("正在终止MPV播放器...")
+
+            if is_macos() and hasattr(self.video_widget, 'cleanup'):
+                try:
+                    self.video_widget.cleanup()
+                except Exception:
+                    pass
 
             for timer_attr in ['_media_info_timer', '_live_info_timer', 'event_timer']:
                 timer = getattr(self, timer_attr, None)

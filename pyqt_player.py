@@ -768,17 +768,20 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
             self.video_placeholder.setText("")
 
         # 创建视频播放窗口（初始隐藏，播放时才显示）
-        self.video_widget = QWidget(self.video_frame)
-        self.video_widget.setStyleSheet(AppStyles.player_background_style())
-        # Linux和macOS下mpv使用wid嵌入需要原生窗口，否则winId()返回的不是真正的原生窗口ID
-        # 导致mpv无法正确嵌入到Qt窗口中（macOS下表现为只能听到声音看不到画面）
-        needs_native_window = (
-            (sys.platform.startswith('linux') and not getattr(sys, 'platform', '') == 'android')
-            or sys.platform == 'darwin'
-        )
-        if needs_native_window:
-            self.video_widget.setAttribute(Qt.WidgetAttribute.WA_NativeWindow, True)
-            self.video_widget.setAttribute(Qt.WidgetAttribute.WA_DontCreateNativeAncestors, True)
+        if sys.platform == 'darwin':
+            # macOS上mpv v0.41+不支持wid嵌入，使用vo=libmpv + render API渲染
+            from services.mpv_gl_widget import MpvGLWidget
+            self.video_widget = MpvGLWidget(self.video_frame)
+            self.video_widget.setStyleSheet(AppStyles.player_background_style())
+        else:
+            self.video_widget = QWidget(self.video_frame)
+            self.video_widget.setStyleSheet(AppStyles.player_background_style())
+            needs_native_window = (
+                (sys.platform.startswith('linux') and not getattr(sys, 'platform', '') == 'android')
+            )
+            if needs_native_window:
+                self.video_widget.setAttribute(Qt.WidgetAttribute.WA_NativeWindow, True)
+                self.video_widget.setAttribute(Qt.WidgetAttribute.WA_DontCreateNativeAncestors, True)
         self.video_widget.hide()
 
         self._video_overlay_label = VideoOverlayBadge(self.video_frame)

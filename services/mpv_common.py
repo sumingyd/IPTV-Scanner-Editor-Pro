@@ -341,3 +341,134 @@ def set_wakeup_callback(handle, callback, data):
         libmpv.mpv_set_wakeup_callback(handle, callback, data)
     except Exception:
         pass
+
+
+MPV_RENDER_API_TYPE_OPENGL = b'opengl'
+MPV_RENDER_PARAM_INVALID = 0
+MPV_RENDER_PARAM_API_TYPE = 1
+MPV_RENDER_PARAM_OPENGL_FBO = 2
+MPV_RENDER_PARAM_FLIP_Y = 3
+MPV_RENDER_PARAM_DEPTH = 4
+MPV_RENDER_PARAM_BLOCK_FOR_TARGET_TIME = 11
+MPV_RENDER_PARAM_SKIP_RENDERING = 12
+
+
+class mpv_opengl_fbo(ctypes.Structure):
+    _fields_ = [
+        ('fbo', ctypes.c_int),
+        ('w', ctypes.c_int),
+        ('h', ctypes.c_int),
+        ('internal_format', ctypes.c_int),
+    ]
+
+
+class mpv_render_param(ctypes.Structure):
+    _fields_ = [
+        ('type', ctypes.c_int),
+        ('data', ctypes.c_void_p),
+    ]
+
+
+_RENDER_CB_REFS = []
+
+
+def init_render_api():
+    if not libmpv:
+        return False
+    try:
+        libmpv.mpv_render_context_create.restype = ctypes.c_int
+        libmpv.mpv_render_context_create.argtypes = [
+            ctypes.POINTER(ctypes.c_void_p), ctypes.c_void_p, ctypes.POINTER(mpv_render_param)
+        ]
+        libmpv.mpv_render_context_set_parameter.restype = ctypes.c_int
+        libmpv.mpv_render_context_set_parameter.argtypes = [
+            ctypes.c_void_p, ctypes.POINTER(mpv_render_param)
+        ]
+        libmpv.mpv_render_context_render.restype = ctypes.c_int
+        libmpv.mpv_render_context_render.argtypes = [
+            ctypes.c_void_p, ctypes.POINTER(mpv_render_param)
+        ]
+        libmpv.mpv_render_context_report_swap.restype = None
+        libmpv.mpv_render_context_report_swap.argtypes = [ctypes.c_void_p]
+        libmpv.mpv_render_context_free.restype = None
+        libmpv.mpv_render_context_free.argtypes = [ctypes.c_void_p]
+        libmpv.mpv_render_context_set_update_callback.restype = None
+        libmpv.mpv_render_context_set_update_callback.argtypes = [
+            ctypes.c_void_p,
+            ctypes.CFUNCTYPE(None, ctypes.c_void_p),
+            ctypes.c_void_p,
+        ]
+        return True
+    except Exception as e:
+        logger.error(f"初始化mpv render API失败: {e}")
+        return False
+
+
+def render_context_create(mpv_handle):
+    if not libmpv or not mpv_handle:
+        return None
+    try:
+        params = [
+            mpv_render_param(MPV_RENDER_PARAM_API_TYPE,
+                             ctypes.cast(ctypes.c_char_p(MPV_RENDER_API_TYPE_OPENGL), ctypes.c_void_p)),
+            mpv_render_param(MPV_RENDER_PARAM_INVALID, ctypes.c_void_p(0)),
+        ]
+        ctx = ctypes.c_void_p()
+        ret = libmpv.mpv_render_context_create(ctypes.byref(ctx), mpv_handle, params)
+        if ret < 0:
+            logger.error(f"mpv_render_context_create失败: {ret}")
+            return None
+        return ctx.value
+    except Exception as e:
+        logger.error(f"mpv_render_context_create异常: {e}")
+        return None
+
+
+def render_context_render(render_ctx, fbo, width, height, flip_y=False):
+    if not libmpv or not render_ctx:
+        return -1
+    try:
+        gl_fbo = mpv_opengl_fbo(fbo=fbo, w=width, h=height, internal_format=0)
+        flip = ctypes.c_int(1 if flip_y else 0)
+        block = ctypes.c_int(1)
+        params = [
+            mpv_render_param(MPV_RENDER_PARAM_OPENGL_FBO,
+                             ctypes.cast(ctypes.byref(gl_fbo), ctypes.c_void_p)),
+            mpv_render_param(MPV_RENDER_PARAM_FLIP_Y,
+                             ctypes.cast(ctypes.byref(flip), ctypes.c_void_p)),
+            mpv_render_param(MPV_RENDER_PARAM_BLOCK_FOR_TARGET_TIME,
+                             ctypes.cast(ctypes.byref(block), ctypes.c_void_p)),
+            mpv_render_param(MPV_RENDER_PARAM_INVALID, ctypes.c_void_p(0)),
+        ]
+        return libmpv.mpv_render_context_render(render_ctx, params)
+    except Exception as e:
+        logger.error(f"mpv_render_context_render异常: {e}")
+        return -1
+
+
+def render_context_report_swap(render_ctx):
+    if libmpv and render_ctx:
+        try:
+            libmpv.mpv_render_context_report_swap(render_ctx)
+        except Exception:
+            pass
+
+
+def render_context_set_update_callback(render_ctx, callback, user_data=None):
+    if not libmpv or not render_ctx:
+        return
+    try:
+        _RENDER_CB_REFS.append(callback)
+        if len(_RENDER_CB_REFS) > _MAX_CALLBACK_REFS:
+            _RENDER_CB_REFS[:] = _RENDER_CB_REFS[-_MAX_CALLBACK_REFS:]
+        libmpv.mpv_render_context_set_update_callback(render_ctx, callback, user_data or ctypes.c_void_p(0))
+    except Exception as e:
+        logger.error(f"mpv_render_context_set_update_callback异常: {e}")
+
+
+def render_context_free(render_ctx):
+    if libmpv and render_ctx:
+        try:
+            libmpv.mpv_render_context_free(render_ctx)
+        except Exception:
+            pass
