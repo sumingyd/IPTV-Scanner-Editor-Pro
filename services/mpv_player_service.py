@@ -128,6 +128,7 @@ class MpvPlayerController(QObject):
         self._user_stopped = False
         self._switching_channel = False
         self._mpv_initialized = False
+
         self._terminated = False
         from services.audio_visual_service import AudioVisualService
         self.audio_visual = AudioVisualService(self)
@@ -236,32 +237,34 @@ class MpvPlayerController(QObject):
                 else:
                     vo = 'gpu'
 
-            _mpv_set_option_string(self.mpv_handle, 'vo', vo)
-            hwdec = 'auto' if self._playback_settings.get('hwdec', True) else 'no'
-            _mpv_set_option_string(self.mpv_handle, 'hwdec', hwdec)
+            # gpu-api和gpu-context必须在vo之前设置
+            # 否则mpv内部锁定渲染后端后，gpu-context设置会被拒绝(错误码-7)
             if is_windows():
                 _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'd3d11')
                 _mpv_set_option_string(self.mpv_handle, 'd3d11-sync-interval', '1')
             elif is_macos():
-                # macOS下gpu-context必须正确设置才能与wid嵌入配合工作
-                # 否则mpv无法在Qt窗口中渲染视频画面（表现为只能听到声音看不到画面）
-                # 注意：不设置gpu-api，让mpv自动选择（macOS上默认为opengl）
-                # gpu-context优先尝试cocoa（mpv 0.35+推荐），失败则回退coregraphics
-                ret_ctx = _mpv_set_option_string(self.mpv_handle, 'gpu-context', 'cocoa')
-                if ret_ctx < 0:
-                    self.logger.warning(f"设置gpu-context=cocoa失败(错误码:{ret_ctx})，尝试coregraphics")
-                    ret_ctx = _mpv_set_option_string(self.mpv_handle, 'gpu-context', 'coregraphics')
-                    if ret_ctx < 0:
-                        self.logger.warning(f"设置gpu-context=coregraphics也失败(错误码:{ret_ctx})，wid嵌入可能无法工作")
-                    else:
-                        self.logger.info("设置gpu-context=coregraphics成功")
-                else:
-                    self.logger.info("设置gpu-context=cocoa成功")
+                macos_ctx_set = False
+                # 尝试用set_option_string设置gpu-context
+                for ctx_val in ['cocoa', 'coregraphics', 'macos']:
+                    ret_ctx = _mpv_set_option_string(self.mpv_handle, 'gpu-context', ctx_val)
+                    if ret_ctx >= 0:
+                        self.logger.info(f"设置gpu-context={ctx_val}成功(option)")
+                        macos_ctx_set = True
+                        break
+                    self.logger.warning(f"设置gpu-context={ctx_val}失败(option,错误码:{ret_ctx})")
+                if not macos_ctx_set:
+                    # 尝试用set_property_string设置（走不同代码路径）
+                    for ctx_val in ['cocoa', 'coregraphics', 'macos']:
+                        ret_ctx = _mpv_set_property_string(self.mpv_handle, 'gpu-context', ctx_val)
+                        if ret_ctx >= 0:
+                            self.logger.info(f"设置gpu-context={ctx_val}成功(property)")
+                            macos_ctx_set = True
+                            break
+                        self.logger.warning(f"设置gpu-context={ctx_val}失败(property,错误码:{ret_ctx})")
+                if not macos_ctx_set:
+                    self.logger.warning("gpu-context全部设置失败，依赖mpv自动检测wid渲染")
                 _mpv_set_option_string(self.mpv_handle, 'force-window', 'no')
             elif is_linux():
-                # Linux下强制使用X11渲染后端，与Qt的XWayland(xcb)保持一致，
-                # 确保mpv的wid嵌入能正常工作（Wayland后端不支持wid嵌入，
-                # 会导致视频在独立窗口中打开）
                 _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'opengl')
                 ret_ctx = _mpv_set_option_string(self.mpv_handle, 'gpu-context', 'x11')
                 if ret_ctx < 0:
@@ -273,8 +276,11 @@ class MpvPlayerController(QObject):
                         self.logger.info("设置gpu-context=x11egl成功")
                 else:
                     self.logger.info("设置gpu-context=x11成功")
-                # 显式禁止mpv创建独立窗口，确保视频只能嵌入到wid指定的窗口
                 _mpv_set_option_string(self.mpv_handle, 'force-window', 'no')
+
+            _mpv_set_option_string(self.mpv_handle, 'vo', vo)
+            hwdec = 'auto' if self._playback_settings.get('hwdec', True) else 'no'
+            _mpv_set_option_string(self.mpv_handle, 'hwdec', hwdec)
             _mpv_set_option_string(self.mpv_handle, 'osc', 'no')
             _mpv_set_option_string(self.mpv_handle, 'osd-bar', 'no')
 
@@ -348,6 +354,16 @@ class MpvPlayerController(QObject):
                 self.logger.warning(f"订阅pause属性失败: {str(e)}")
 
             self.logger.info("mpv播放器初始化成功")
+
+            if is_macos():
+                try:
+                    _ver = self._get_mpv_property_string('mpv-version') or '?'
+                    _vo = self._get_mpv_property_string('vo') or '?'
+                    _ga = self._get_mpv_property_string('gpu-api') or '?'
+                    _gc = self._get_mpv_property_string('gpu-context') or '?'
+                    self.logger.info(f"macOS mpv诊断: version={_ver}, vo={_vo}, gpu-api={_ga}, gpu-context={_gc}")
+                except Exception as e:
+                    self.logger.debug(f"macOS mpv诊断读取失败: {e}")
 
             try:
                 _vo = self._get_mpv_property_string('vo') or '?'

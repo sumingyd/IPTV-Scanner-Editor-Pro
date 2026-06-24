@@ -18,6 +18,11 @@ mpv_dir = os.path.join(base_path, 'mpv')
 os.environ['MPV_HOME'] = mpv_dir
 os.environ['PATH'] = mpv_dir + os.pathsep + os.environ.get('PATH', '')
 
+if is_macos() and os.path.isdir(mpv_dir):
+    existing = os.environ.get('DYLD_LIBRARY_PATH', '')
+    if mpv_dir not in existing:
+        os.environ['DYLD_LIBRARY_PATH'] = mpv_dir + (os.pathsep + existing if existing else '')
+
 libmpv_path = find_libmpv_path()
 
 if libmpv_path and os.path.exists(libmpv_path):

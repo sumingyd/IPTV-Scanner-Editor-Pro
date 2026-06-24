@@ -186,26 +186,77 @@ HIDDEN_IMPORTS = [
 ]
 
 
+def _find_macos_libmpv():
+    search_paths = [
+        Path("/opt/homebrew/lib/libmpv.2.dylib"),
+        Path("/usr/local/lib/libmpv.2.dylib"),
+    ]
+    for p in search_paths:
+        if p.exists():
+            return p
+    try:
+        result = _run(["brew", "--prefix", "mpv"], capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            brew_prefix = result.stdout.strip()
+            candidate = Path(brew_prefix) / "lib" / "libmpv.2.dylib"
+            if candidate.exists():
+                return candidate
+    except Exception:
+        pass
+    return None
+
+
+def _verify_libmpv_cocoa(dylib_path):
+    result = _run(["nm", "-gU", str(dylib_path)], capture_output=True, text=True)
+    if result.returncode == 0 and 'cocoa' in result.stdout.lower():
+        print("  cocoa GPU context 支持: 已确认")
+        return True
+    print("  警告: 未检测到cocoa GPU context支持，macOS下可能无法显示视频")
+    return False
+
+
+def _fix_dylib_install_name(dylib_path):
+    try:
+        result = _run(["otool", "-L", str(dylib_path)], capture_output=True, text=True)
+        if result.returncode != 0:
+            return
+        needs_fix = False
+        for line in result.stdout.splitlines():
+            if '/usr/local/' in line or '/opt/homebrew/' in line:
+                needs_fix = True
+                break
+        if not needs_fix:
+            return
+        print("  修复dylib引用路径为@rpath...")
+        _run(["install_name_tool", "-id", "@rpath/libmpv.2.dylib", str(dylib_path)])
+        for old_prefix in ["/usr/local/lib/", "/opt/homebrew/lib/"]:
+            _run(["install_name_tool", "-change", f"{old_prefix}libmpv.2.dylib",
+                  "@rpath/libmpv.2.dylib", str(dylib_path)])
+    except Exception as e:
+        print(f"  修复dylib引用路径失败: {e}")
+
+
 def prepare_macos_dependencies():
     mpv_dir = PROJECT_ROOT / "mpv"
     mpv_dir.mkdir(exist_ok=True)
     dylib_dest = mpv_dir / "libmpv.2.dylib"
 
-    if not dylib_dest.exists():
-        for src in [
-            Path("/usr/local/lib/libmpv.2.dylib"),
-            Path("/opt/homebrew/lib/libmpv.2.dylib"),
-        ]:
-            if src.exists():
-                shutil.copy2(src, dylib_dest)
-                print(f"libmpv.2.dylib 已从 {src} 复制到 {dylib_dest}")
-                break
+    if dylib_dest.exists():
+        print(f"libmpv.2.dylib 已就绪: {dylib_dest}")
+        _verify_libmpv_cocoa(dylib_dest)
+        _fix_dylib_install_name(dylib_dest)
+    else:
+        src = _find_macos_libmpv()
+        if src:
+            shutil.copy2(src, dylib_dest)
+            print(f"libmpv.2.dylib 已从 {src} 复制到 {dylib_dest}")
+            _verify_libmpv_cocoa(dylib_dest)
+            _fix_dylib_install_name(dylib_dest)
         else:
-            print("错误: 未找到 libmpv.2.dylib，请先安装: brew install mpv")
+            print("错误: 未找到 libmpv.2.dylib")
+            print("  请先安装: brew install mpv")
             print("  或手动放置到: mpv/libmpv.2.dylib")
             sys.exit(1)
-    else:
-        print(f"libmpv.2.dylib 已就绪: {dylib_dest}")
 
     ffmpeg_dir = PROJECT_ROOT / "ffmpeg"
     ffmpeg_dir.mkdir(exist_ok=True)
