@@ -6,6 +6,7 @@ IPTV Scanner Editor Pro - 独立 Web 服务器模式
 """
 
 import asyncio
+import importlib
 import logging
 import os
 import sys
@@ -22,7 +23,7 @@ def _setup_android_env():
     if not _is_android():
         return
     try:
-        from chaquopy.python import Python
+        Python = importlib.import_module('chaquopy.python').Python
         app = Python.getPlatform().getApplication()
         files_dir = app.getFilesDir().getAbsolutePath()
         os.environ.setdefault('IPTV_DATA_DIR', files_dir)

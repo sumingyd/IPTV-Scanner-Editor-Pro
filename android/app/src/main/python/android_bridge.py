@@ -1,3 +1,4 @@
+import importlib
 import logging
 import os
 import sys
@@ -7,7 +8,7 @@ def _setup_android_paths():
     if not getattr(sys, 'platform', '') == 'android':
         return
     try:
-        from chaquopy.python import Python
+        Python = importlib.import_module('chaquopy.python').Python
         app = Python.getPlatform().getApplication()
         files_dir = app.getFilesDir().getAbsolutePath()
         os.environ.setdefault('IPTV_DATA_DIR', files_dir)
@@ -18,7 +19,7 @@ def _setup_android_paths():
 
 def _setup_android_logging():
     try:
-        from android.util import Log
+        Log = importlib.import_module('android.util').Log
         class AndroidLogHandler(logging.Handler):
             def emit(self, record):
                 msg = self.format(record)

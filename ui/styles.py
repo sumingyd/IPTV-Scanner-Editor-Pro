@@ -878,7 +878,7 @@ class AppStyles:
         from utils.platform_utils import is_android
         if is_android():
             try:
-                from PySide6.QtCore import QGuiApplication
+                from PySide6.QtCore import QGuiApplication, Qt
                 if QGuiApplication.instance():
                     color_scheme = QGuiApplication.styleHints().colorScheme()
                     if color_scheme == Qt.ColorScheme.Dark:

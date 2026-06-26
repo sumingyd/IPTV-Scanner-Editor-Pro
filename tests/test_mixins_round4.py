@@ -218,3 +218,11 @@ class TestWindowMixin:
         event = MagicMock()
         with patch('server.app.stop_server'):
             self.host.closeEvent(event)
+
+    def test_close_event_exit_action(self):
+        self.host.config.load_close_behavior.return_value = 'exit'
+        event = MagicMock()
+        with patch('server.app.stop_server') as mock_stop:
+            self.host.closeEvent(event)
+        mock_stop.assert_called_once()
+        self.host.event_handler.closeEvent.assert_called_once()

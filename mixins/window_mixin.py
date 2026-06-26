@@ -192,7 +192,6 @@ class WindowMixin:
     def open_scan_ui(self):
         try:
             from ui.dialogs.scan_channel_dialog import ScanChannelDialog
-            from PySide6.QtCore import Qt
 
             dialog = ScanChannelDialog(self)
             self._scan_dialog = dialog
@@ -298,6 +297,7 @@ class WindowMixin:
                 return
             elif close_action == 'exit':
                 try:
+                    from server.app import stop_server
                     stop_server()
                 except Exception:
                     pass
