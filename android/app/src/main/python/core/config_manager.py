@@ -676,6 +676,7 @@ class ConfigManager(Singleton):
             'network_timeout_sec': 0,
             'audio_passthrough': 'never',
             'hdr_output_mode': 'disable',
+            'queue_mode': 'none',
         }
         if settings:
             defaults.update(settings)
@@ -709,6 +710,7 @@ class ConfigManager(Singleton):
             'network_timeout_sec': 0,
             'audio_passthrough': 'never',
             'hdr_output_mode': 'disable',
+            'queue_mode': 'none',
         }
         result = {}
         need_save = False

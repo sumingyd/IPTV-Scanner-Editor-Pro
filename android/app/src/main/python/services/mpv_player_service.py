@@ -107,6 +107,7 @@ class MpvPlayerController(QObject):
     logo_cache_loaded = Signal(str, object)
     thumbnail_captured = Signal(str)
     file_loaded = Signal()
+    local_file_ended = Signal(str)
 
     def __init__(self, video_widget, channel_model=None):
         super().__init__()
@@ -985,9 +986,11 @@ class MpvPlayerController(QObject):
                                 self._safe_emit(self.timeshift_continue_requested)
                             else:
                                 self.logger.debug("END_FILE_EOF: 非网络流，正常结束")
+                                ended_url = self.current_url or ''
                                 self.is_playing = False
                                 self.is_paused = False
                                 self._safe_emit(self.play_state_changed, False)
+                                self._safe_emit(self.local_file_ended, ended_url)
                         elif reason == MPV_END_FILE_REASON_ERROR:
                             if self._switching_channel:
                                 self.logger.debug("频道切换导致的END_FILE，忽略重连")
@@ -2451,6 +2454,74 @@ class MpvPlayerController(QObject):
             self.send_command(['af', 'remove', '@iptv_eq'])
         except Exception:
             pass
+
+    # ---------- 播放列表控制（loop-file / ab-loop / frame-step） ----------
+    def set_loop_file(self, mode: str) -> bool:
+        """设置单文件循环模式
+        mode: 'no' / 'inf' / 'yes' 或 'once'
+        """
+        if mode not in ('no', 'inf', 'yes', 'once'):
+            mode = 'no'
+        if mode == 'once':
+            mode = '1'
+        return self._set_mpv_string('loop-file', mode) >= 0
+
+    def get_loop_file(self) -> str:
+        return self._get_mpv_property_string('loop-file') or 'no'
+
+    def set_loop_playlist(self, mode: str) -> bool:
+        """设置播放列表循环模式（'no' / 'inf' / 'force'）"""
+        if mode not in ('no', 'inf', 'force'):
+            mode = 'no'
+        return self._set_mpv_string('loop-playlist', mode) >= 0
+
+    def get_loop_playlist(self) -> str:
+        return self._get_mpv_property_string('loop-playlist') or 'no'
+
+    # AB 循环：利用 mpv 原生 ab-loop-a / ab-loop-b 属性
+    def ab_loop_set_a(self) -> float:
+        """将当前位置设为 A 点，返回 A 点时间（秒）"""
+        pos = self._get_mpv_property_double('time-pos')
+        if pos is None:
+            pos = 0.0
+        self._set_mpv_string('ab-loop-a', f"{pos:.3f}")
+        return float(pos)
+
+    def ab_loop_set_b(self) -> float:
+        """将当前位置设为 B 点，返回 B 点时间（秒）"""
+        pos = self._get_mpv_property_double('time-pos')
+        if pos is None:
+            pos = 0.0
+        self._set_mpv_string('ab-loop-b', f"{pos:.3f}")
+        return float(pos)
+
+    def ab_loop_clear(self) -> bool:
+        """清除 AB 循环"""
+        ok1 = self._set_mpv_string('ab-loop-a', 'no') >= 0
+        ok2 = self._set_mpv_string('ab-loop-b', 'no') >= 0
+        return ok1 and ok2
+
+    def ab_loop_get_status(self) -> dict:
+        """读取 AB 循环状态"""
+        a = self._get_mpv_property_double('ab-loop-a')
+        b = self._get_mpv_property_double('ab-loop-b')
+        # mpv 中 'no' 通常返回 None 或字符串 'no'
+        a_val = None if (a is None or a == 'no') else float(a)
+        b_val = None if (b is None or b == 'no') else float(b)
+        return {
+            'a': a_val,
+            'b': b_val,
+            'active': a_val is not None and b_val is not None,
+        }
+
+    # 逐帧播放
+    def frame_step(self) -> bool:
+        """前进一帧（mpv 会自动暂停）"""
+        return self.send_command(['frame-step']) == 0
+
+    def frame_back_step(self) -> bool:
+        """后退一帧"""
+        return self.send_command(['frame-back-step']) == 0
 
     def set_property_string(self, name, value):
         self._set_mpv_string(name, value)

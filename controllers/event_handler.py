@@ -114,7 +114,11 @@ class EventHandler:
                            Qt.Key.Key_R, Qt.Key.Key_T,
                            # 音频调整快捷键
                            Qt.Key.Key_Minus, Qt.Key.Key_Equal,
-                           Qt.Key.Key_G, Qt.Key.Key_H)
+                           Qt.Key.Key_G, Qt.Key.Key_H,
+                           # 播放队列与控制快捷键
+                           Qt.Key.Key_PageUp, Qt.Key.Key_PageDown,
+                           Qt.Key.Key_A, Qt.Key.Key_B, Qt.Key.Key_C,
+                           Qt.Key.Key_BracketLeft, Qt.Key.Key_BracketRight)
             main_only_keys = (Qt.Key.Key_Up, Qt.Key.Key_Down,
                               Qt.Key.Key_Left, Qt.Key.Key_Right)
             if key == Qt.Key.Key_Backspace and self._is_input_widget_focused():
@@ -304,6 +308,38 @@ class EventHandler:
                 elif key == Qt.Key.Key_H:
                     if hasattr(w, 'media_ctrl'):
                         w.media_ctrl.adjust_audio_pitch(0.05)
+                    return True
+                # ---------- 播放队列与控制 ----------
+                # 上一/下一文件（PageUp/PageDown）
+                elif key == Qt.Key.Key_PageUp:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.play_previous_file()
+                    return True
+                elif key == Qt.Key.Key_PageDown:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.play_next_file()
+                    return True
+                # A-B 循环：A 设 A 点 / B 设 B 点 / C 清除
+                elif key == Qt.Key.Key_A:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.ab_loop_set_a()
+                    return True
+                elif key == Qt.Key.Key_B:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.ab_loop_set_b()
+                    return True
+                elif key == Qt.Key.Key_C:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.ab_loop_clear()
+                    return True
+                # 逐帧：[ 后退一帧 / ] 前进一帧
+                elif key == Qt.Key.Key_BracketLeft:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.frame_back_step()
+                    return True
+                elif key == Qt.Key.Key_BracketRight:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.frame_step()
                     return True
 
             elif modifiers == Qt.KeyboardModifier.ControlModifier:

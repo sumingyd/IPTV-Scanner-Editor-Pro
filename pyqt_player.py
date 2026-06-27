@@ -827,6 +827,15 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
         self.player_controller.file_loaded.connect(self.media_ctrl.apply_video_eq_on_load)
         self.player_controller.file_loaded.connect(self.media_ctrl.apply_audio_eq_on_load)
 
+        # 初始化文件队列控制器（在 player_controller 创建后）
+        try:
+            from controllers.file_queue_controller import FileQueueController
+            self.file_queue_ctrl = FileQueueController(self)
+            self.file_queue_ctrl.load_from_config()
+        except Exception as e:
+            logger.error(f"初始化文件队列控制器失败: {e}")
+            self.file_queue_ctrl = None
+
         from services.logo_cache_service import LogoCacheService
         self._logo_cache_service = LogoCacheService(self)
         self._logo_cache_service.logo_loaded.connect(self._on_logo_cache_loaded)

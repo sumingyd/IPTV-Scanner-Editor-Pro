@@ -1279,6 +1279,13 @@ class UIController:
             audio_eq.triggered.connect(lambda: self.window.media_ctrl._show_audio_eq_dialog() if hasattr(self.window, 'media_ctrl') else None)
             playback_menu.addAction(audio_eq)
 
+            playback_menu.addSeparator()
+
+            # 播放队列与控制入口
+            playback_queue = QAction(tr("menu_playback_queue", "Playback Queue..."), self.window)
+            playback_queue.triggered.connect(lambda: self.window.media_ctrl._show_playback_queue_dialog() if hasattr(self.window, 'media_ctrl') else None)
+            playback_menu.addAction(playback_queue)
+
             view_menu = menu_bar.addMenu(tr("menu_view", "View"))
 
             show_epg = QAction(tr("menu_epg_list", "EPG List\tE"), self.window)

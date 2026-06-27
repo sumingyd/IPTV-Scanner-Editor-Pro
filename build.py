@@ -168,6 +168,8 @@ HIDDEN_IMPORTS = [
     "ui.dialogs.subtitle_style_dialog",
     "ui.dialogs.video_eq_dialog",
     "ui.dialogs.audio_eq_dialog",
+    "ui.dialogs.playback_queue_dialog",
+    "controllers.file_queue_controller",
     "services.subtitle_download_service",
     "ui.epg_timeline_widget",
     "ui.floating_dialog",

@@ -86,6 +86,9 @@ class MediaController:
             aspect_menu.addAction(label, lambda *a, r=ratio: self._set_aspect(r))
 
         if is_playing:
+            # 播放队列与控制入口
+            menu.addAction(tr("ctx_playback_queue", "Playback Queue..."), lambda *a: self._show_playback_queue_dialog())
+
             audio_menu = menu.addMenu(tr("ctx_audio_track", "Audio Track"))
             audio_menu.setStyleSheet(AppStyles.player_menu_bar_style())
             self._populate_audio_menu(audio_menu)
@@ -678,6 +681,152 @@ class MediaController:
             pc.reset_audio_eq()
             return
         pc.apply_audio_eq(cfg)
+
+    # ---------- 播放队列与控制 ----------
+    def _show_playback_queue_dialog(self):
+        """打开播放队列与控制对话框"""
+        try:
+            from ui.dialogs.playback_queue_dialog import PlaybackQueueDialog
+            if not hasattr(self.window, '_playback_queue_dialog') or not self.window._playback_queue_dialog:
+                self.window._playback_queue_dialog = PlaybackQueueDialog(self.window)
+            self.window._playback_queue_dialog.show()
+            self.window._playback_queue_dialog.raise_()
+            self.window._playback_queue_dialog.activateWindow()
+        except Exception as e:
+            logger.error(f"打开播放队列对话框失败: {e}")
+
+    def get_queue_controller(self):
+        return getattr(self.window, 'file_queue_ctrl', None)
+
+    def cycle_queue_mode(self):
+        """循环切换队列模式"""
+        qc = self.get_queue_controller()
+        if not qc:
+            return
+        try:
+            new_mode = qc.cycle_queue_mode()
+            tr = self.window.language_manager.tr
+            labels = {
+                'none': tr('playback_queue_mode_none', 'No Loop'),
+                'single': tr('playback_queue_mode_single', 'Loop Single File'),
+                'all': tr('playback_queue_mode_all', 'Loop List'),
+                'shuffle': tr('playback_queue_mode_shuffle', 'Shuffle'),
+            }
+            osd_text = f"{tr('osd_queue_mode', 'Queue Mode')}: {labels.get(new_mode, new_mode)}"
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(osd_text)
+        except Exception as e:
+            logger.debug(f"循环切换队列模式失败: {e}")
+
+    def toggle_shuffle(self):
+        """切换随机播放开关"""
+        qc = self.get_queue_controller()
+        if not qc:
+            return
+        try:
+            is_on = qc.toggle_shuffle()
+            tr = self.window.language_manager.tr
+            key = 'osd_shuffle_on' if is_on else 'osd_shuffle_off'
+            osd_text = tr(key, 'Shuffle: On' if is_on else 'Shuffle: Off')
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(osd_text)
+        except Exception as e:
+            logger.debug(f"切换随机播放失败: {e}")
+
+    def play_next_file(self):
+        """播放下一个文件"""
+        qc = self.get_queue_controller()
+        if not qc:
+            return
+        try:
+            qc.play_next()
+            tr = self.window.language_manager.tr
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(tr('osd_play_next', 'Next File'))
+        except Exception as e:
+            logger.debug(f"播放下一文件失败: {e}")
+
+    def play_previous_file(self):
+        """播放上一个文件"""
+        qc = self.get_queue_controller()
+        if not qc:
+            return
+        try:
+            qc.play_previous()
+            tr = self.window.language_manager.tr
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(tr('osd_play_prev', 'Previous File'))
+        except Exception as e:
+            logger.debug(f"播放上一文件失败: {e}")
+
+    def ab_loop_set_a(self):
+        """设置 A-B 循环 A 点"""
+        qc = self.get_queue_controller()
+        if not qc:
+            return
+        try:
+            pos = qc.ab_loop_set_a()
+            if pos is None:
+                return
+            tr = self.window.language_manager.tr
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(f"{tr('osd_ab_loop_a', 'A Point')}: {pos:.2f}s")
+        except Exception as e:
+            logger.debug(f"设置 A 点失败: {e}")
+
+    def ab_loop_set_b(self):
+        """设置 A-B 循环 B 点"""
+        qc = self.get_queue_controller()
+        if not qc:
+            return
+        try:
+            pos = qc.ab_loop_set_b()
+            if pos is None:
+                return
+            tr = self.window.language_manager.tr
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(f"{tr('osd_ab_loop_b', 'B Point')}: {pos:.2f}s")
+        except Exception as e:
+            logger.debug(f"设置 B 点失败: {e}")
+
+    def ab_loop_clear(self):
+        """清除 A-B 循环"""
+        qc = self.get_queue_controller()
+        if not qc:
+            return
+        try:
+            qc.ab_loop_clear()
+            tr = self.window.language_manager.tr
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(tr('osd_ab_loop_cleared', 'A-B Loop cleared'))
+        except Exception as e:
+            logger.debug(f"清除 A-B 循环失败: {e}")
+
+    def frame_step(self):
+        """前进一帧"""
+        qc = self.get_queue_controller()
+        if not qc:
+            return
+        try:
+            qc.frame_step()
+            tr = self.window.language_manager.tr
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(f"{tr('osd_frame_step', 'Frame')} >>")
+        except Exception as e:
+            logger.debug(f"前进一帧失败: {e}")
+
+    def frame_back_step(self):
+        """后退一帧"""
+        qc = self.get_queue_controller()
+        if not qc:
+            return
+        try:
+            qc.frame_back_step()
+            tr = self.window.language_manager.tr
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(f"<< {tr('osd_frame_step', 'Frame')}")
+        except Exception as e:
+            logger.debug(f"后退一帧失败: {e}")
 
     def adjust_speed(self, delta):
         pc = self.window.player_controller
