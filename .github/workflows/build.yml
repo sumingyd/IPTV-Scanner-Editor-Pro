@@ -140,7 +140,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y libmpv-dev ffmpeg
+          sudo apt install -y libmpv-dev ffmpeg libxcb-cursor0
 
       - name: Prepare dependencies
         run: |
@@ -201,7 +201,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y libmpv-dev
+          sudo apt install -y libmpv-dev libxcb-cursor0
 
       - name: Prepare FFmpeg
         run: |

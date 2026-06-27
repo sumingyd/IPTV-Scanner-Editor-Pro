@@ -209,6 +209,44 @@ def _find_macos_libmpv():
     return None
 
 
+def _find_libxcb_cursor():
+    """查找系统中的 libxcb-cursor.so.0
+
+    Qt6 的 xcb 平台插件依赖此库，PyInstaller 不会自动收集系统库，
+    因此需要手动查找并打包，避免用户在 Ubuntu 22.04+/Debian 12+ 等
+    未预装 libxcb-cursor0 的系统上无法启动应用。
+    """
+    # 1. 通过 ldconfig 缓存查找（最可靠，能解析符号链接的真实路径）
+    try:
+        result = _run(["ldconfig", "-p"], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                if "libxcb-cursor.so.0" in line:
+                    parts = line.strip().split("=>")
+                    if len(parts) == 2:
+                        p = parts[1].strip()
+                        if p and os.path.exists(p):
+                            return p
+    except Exception:
+        pass
+
+    # 2. 按架构在常见系统目录中查找
+    machine = os.uname().machine if hasattr(os, "uname") else ""
+    arch_dirs = []
+    if machine == "aarch64":
+        arch_dirs = ["/usr/lib/aarch64-linux-gnu/", "/usr/lib64/", "/lib/aarch64-linux-gnu/"]
+    elif machine == "x86_64":
+        arch_dirs = ["/usr/lib/x86_64-linux-gnu/", "/usr/lib64/", "/lib/x86_64-linux-gnu/"]
+    arch_dirs.extend(["/usr/local/lib/", "/usr/lib/", "/lib/"])
+
+    for d in arch_dirs:
+        p = os.path.join(d, "libxcb-cursor.so.0")
+        if os.path.exists(p):
+            return p
+
+    return None
+
+
 def _verify_libmpv_cocoa(dylib_path):
     result = _run(["nm", "-gU", str(dylib_path)], capture_output=True, text=True)
     if result.returncode == 0 and 'cocoa' in result.stdout.lower():
@@ -394,6 +432,20 @@ def prepare_linux_dependencies():
         sys.exit(1)
     print(f"ffprobe 已就绪: {ffmpeg_dir / 'ffprobe'}")
 
+    # 打包 libxcb-cursor.so.0：Qt6 的 xcb 平台插件依赖此库，
+    # PyInstaller 不会自动收集系统库，需手动打包以避免用户手动安装 libxcb-cursor0
+    libs_dir = PROJECT_ROOT / "libs"
+    libs_dir.mkdir(exist_ok=True)
+    xcb_cursor_dest = libs_dir / "libxcb-cursor.so.0"
+    xcb_cursor_src = _find_libxcb_cursor()
+    if xcb_cursor_src:
+        shutil.copy2(xcb_cursor_src, xcb_cursor_dest)
+        print(f"libxcb-cursor.so.0 已从 {xcb_cursor_src} 复制到 {xcb_cursor_dest}")
+    else:
+        print("警告: 未找到 libxcb-cursor.so.0")
+        print("  请安装: sudo apt install libxcb-cursor0")
+        print("  否则用户在 Ubuntu 22.04+/Debian 12+ 等系统上可能无法启动应用")
+
 
 def build_linux():
     prepare_linux_dependencies()
@@ -410,6 +462,11 @@ def build_linux():
         "--add-data", f"{PROJECT_ROOT / 'ffmpeg'}{DATA_SEP}ffmpeg",
         "--add-data", f"{PROJECT_ROOT / 'resources'}{DATA_SEP}resources",
     ])
+    # 将 libxcb-cursor.so.0 打包到解压后的根目录，
+    # PyInstaller 运行时会把 _MEIPASS 加入 LD_LIBRARY_PATH，Qt 的 xcb 平台插件即可找到此库
+    xcb_cursor_lib = PROJECT_ROOT / "libs" / "libxcb-cursor.so.0"
+    if xcb_cursor_lib.exists():
+        cmd.extend(["--add-binary", f"{xcb_cursor_lib}{DATA_SEP}."])
     for imp in HIDDEN_IMPORTS:
         cmd.extend(["--hidden-import", imp])
     cmd.append(str(PROJECT_ROOT / "pyqt_player.py"))
