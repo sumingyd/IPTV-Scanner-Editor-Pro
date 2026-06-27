@@ -102,7 +102,10 @@ class EventHandler:
                            Qt.Key.Key_F5, Qt.Key.Key_F11,
                            Qt.Key.Key_Backspace, Qt.Key.Key_S,
                            Qt.Key.Key_Period, Qt.Key.Key_Comma,
-                           Qt.Key.Key_P)
+                           Qt.Key.Key_P,
+                           # 字幕快捷键
+                           Qt.Key.Key_V, Qt.Key.Key_Z, Qt.Key.Key_X,
+                           Qt.Key.Key_Q, Qt.Key.Key_W)
             main_only_keys = (Qt.Key.Key_Up, Qt.Key.Key_Down,
                               Qt.Key.Key_Left, Qt.Key.Key_Right)
             if key == Qt.Key.Key_Backspace and self._is_input_widget_focused():
@@ -209,6 +212,29 @@ class EventHandler:
                 elif key == Qt.Key.Key_P:
                     if hasattr(w, 'pip_ctrl'):
                         w.pip_ctrl.toggle()
+                    return True
+                # 字幕可见性切换（V）
+                elif key == Qt.Key.Key_V:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.toggle_subtitle_visibility()
+                    return True
+                # 字幕延迟 -0.1/+0.1（Z/X）
+                elif key == Qt.Key.Key_Z:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_subtitle_delay(-0.1)
+                    return True
+                elif key == Qt.Key.Key_X:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_subtitle_delay(0.1)
+                    return True
+                # 字幕缩放 -0.1/+0.1（Q/W）
+                elif key == Qt.Key.Key_Q:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_subtitle_scale(-0.1)
+                    return True
+                elif key == Qt.Key.Key_W:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_subtitle_scale(0.1)
                     return True
 
             elif modifiers == Qt.KeyboardModifier.ControlModifier:

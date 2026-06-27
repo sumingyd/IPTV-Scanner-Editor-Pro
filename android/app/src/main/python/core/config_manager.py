@@ -780,6 +780,67 @@ class ConfigManager(Singleton):
             'prefer_source': self.get_value('ChannelMerge', 'prefer_source', 'file'),
         }
 
+    # ---------- 字幕样式与控制 ----------
+    SUBTITLE_STYLE_DEFAULTS = {
+        'color': '#FFFFFFFF',
+        'border_color': '#FF000000',
+        'shadow_color': '#FF000000',
+        'font': 'sans-serif',
+        'font_size': 55,
+        'border_size': 3,
+        'shadow_offset': 1,
+        'bold': False,
+        'italic': False,
+        'margin_x': 25,
+        'margin_y': 22,
+        'align_x': 'center',
+        'align_y': 'bottom',
+        'sub_delay': 0.0,
+        'sub_scale': 1.0,
+        'sub_pos': 100,
+        'sub_visibility': True,
+    }
+
+    def save_subtitle_style(self, settings: dict):
+        """保存字幕样式到 SubtitleStyle 节"""
+        for key, value in settings.items():
+            if isinstance(value, bool):
+                self.set_value('SubtitleStyle', key, 'yes' if value else 'no')
+            elif isinstance(value, float):
+                self.set_value('SubtitleStyle', key, f"{value:.3f}")
+            elif isinstance(value, int):
+                self.set_value('SubtitleStyle', key, str(value))
+            else:
+                self.set_value('SubtitleStyle', key, str(value))
+        return self.save_config()
+
+    def load_subtitle_style(self) -> dict:
+        """加载字幕样式，缺失项写回默认值"""
+        result = {}
+        need_save = False
+        for key, default in self.SUBTITLE_STYLE_DEFAULTS.items():
+            raw = self.get_value('SubtitleStyle', key)
+            if raw is None:
+                result[key] = default
+                need_save = True
+            elif isinstance(default, bool):
+                result[key] = self._parse_bool(raw)
+            elif isinstance(default, float):
+                try:
+                    result[key] = float(raw)
+                except (ValueError, TypeError):
+                    result[key] = default
+            elif isinstance(default, int):
+                try:
+                    result[key] = int(raw)
+                except (ValueError, TypeError):
+                    result[key] = default
+            else:
+                result[key] = raw
+        if need_save:
+            self.save_config()
+        return result
+
     def load_all_settings(self) -> dict:
         """加载所有设置"""
         all_settings = {}

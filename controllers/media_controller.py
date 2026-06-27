@@ -273,6 +273,29 @@ class MediaController:
             )
         menu.addSeparator()
         menu.addAction(tr("ctx_load_subtitle", "Load Subtitle..."), lambda *a: self._load_external_subtitle())
+        menu.addAction(tr("ctx_download_subtitle", "Download Subtitle..."), lambda *a: self._download_subtitle())
+        menu.addAction(tr("ctx_subtitle_style", "Subtitle Style..."), lambda *a: self._show_subtitle_style_dialog())
+        menu.addSeparator()
+        # 字幕可见性切换
+        sub_visible = pc.get_sub_visibility() if hasattr(pc, 'get_sub_visibility') else True
+        vis_act = menu.addAction(tr("ctx_sub_visibility", "Show Subtitle"))
+        vis_act.setCheckable(True)
+        vis_act.setChecked(sub_visible)
+        vis_act.triggered.connect(lambda *a: self._toggle_sub_visibility())
+        # 字幕延迟/缩放/位置快捷调整
+        delay_menu = menu.addMenu(tr("ctx_sub_delay", "Subtitle Delay"))
+        delay_menu.addAction('-0.5s', lambda *a: self._adjust_sub_delay(-0.5))
+        delay_menu.addAction('-0.1s', lambda *a: self._adjust_sub_delay(-0.1))
+        delay_menu.addAction('+0.1s', lambda *a: self._adjust_sub_delay(0.1))
+        delay_menu.addAction('+0.5s', lambda *a: self._adjust_sub_delay(0.5))
+        scale_menu = menu.addMenu(tr("ctx_sub_scale", "Subtitle Scale"))
+        scale_menu.addAction('-0.1', lambda *a: self._adjust_sub_scale(-0.1))
+        scale_menu.addAction('+0.1', lambda *a: self._adjust_sub_scale(0.1))
+        scale_menu.addAction('1.0', lambda *a: self._set_sub_scale(1.0))
+        pos_menu = menu.addMenu(tr("ctx_sub_pos", "Subtitle Position"))
+        pos_menu.addAction(tr("ctx_sub_pos_up", "Up"), lambda *a: self._adjust_sub_pos(5))
+        pos_menu.addAction(tr("ctx_sub_pos_down", "Down"), lambda *a: self._adjust_sub_pos(-5))
+        pos_menu.addAction(tr("ctx_sub_pos_reset", "Reset"), lambda *a: self._set_sub_pos(100))
 
     def _on_sub_track_selected(self, track_id, label, actions):
         pc = self.window.player_controller
@@ -406,6 +429,114 @@ class MediaController:
         if file_path:
             if pc.add_subtitle_file(file_path):
                 self.window._show_osd_feedback(f"{tr('ctx_subtitle', 'Subtitle')}: {file_path.split('/')[-1].split(chr(92))[-1]}")
+
+    # ---------- 字幕样式与控制（菜单入口） ----------
+    def _show_subtitle_style_dialog(self):
+        """打开字幕样式对话框"""
+        try:
+            from ui.dialogs.subtitle_style_dialog import SubtitleStyleDialog
+            if not hasattr(self.window, '_subtitle_style_dialog') or not self.window._subtitle_style_dialog:
+                self.window._subtitle_style_dialog = SubtitleStyleDialog(self.window)
+            self.window._subtitle_style_dialog.show()
+            self.window._subtitle_style_dialog.raise_()
+            self.window._subtitle_style_dialog.activateWindow()
+        except Exception as e:
+            logger.error(f"打开字幕样式对话框失败: {e}")
+
+    def _download_subtitle(self):
+        """打开字幕下载对话框"""
+        try:
+            from ui.dialogs.subtitle_style_dialog import SubtitleDownloadDialog
+            # 当前播放的视频文件路径
+            video_path = ''
+            pc = self.window.player_controller
+            if pc and pc.is_playing:
+                cur = getattr(pc, 'current_url', '') or getattr(pc, '_current_url', '')
+                if cur and not cur.startswith(('http', 'rtp', 'udp', 'rtmp', 'rtsp')):
+                    video_path = cur
+            dialog = SubtitleDownloadDialog(self.window, video_file_path=video_path)
+            dialog.show()
+            dialog.raise_()
+            dialog.activateWindow()
+        except Exception as e:
+            logger.error(f"打开字幕下载对话框失败: {e}")
+
+    def _toggle_sub_visibility(self):
+        pc = self.window.player_controller
+        if not pc or not hasattr(pc, 'toggle_sub_visibility'):
+            return
+        new_state = pc.toggle_sub_visibility()
+        tr = self.window.language_manager.tr
+        if hasattr(self.window, '_show_osd_feedback'):
+            osd_text = tr('osd_sub_visible', 'Subtitle: On') if new_state else tr('osd_sub_hidden', 'Subtitle: Off')
+            self.window._show_osd_feedback(osd_text)
+
+    def _adjust_sub_delay(self, delta: float):
+        pc = self.window.player_controller
+        if not pc or not hasattr(pc, 'adjust_sub_delay'):
+            return
+        new_delay = pc.adjust_sub_delay(delta)
+        tr = self.window.language_manager.tr
+        if hasattr(self.window, '_show_osd_feedback'):
+            self.window._show_osd_feedback(f"{tr('osd_sub_delay', 'Subtitle Delay')}: {new_delay:+.3f}s")
+
+    def _adjust_sub_scale(self, delta: float):
+        pc = self.window.player_controller
+        if not pc or not hasattr(pc, 'adjust_sub_scale'):
+            return
+        new_scale = pc.adjust_sub_scale(delta)
+        tr = self.window.language_manager.tr
+        if hasattr(self.window, '_show_osd_feedback'):
+            self.window._show_osd_feedback(f"{tr('osd_sub_scale', 'Subtitle Scale')}: {new_scale:.2f}x")
+
+    def _set_sub_scale(self, scale: float):
+        pc = self.window.player_controller
+        if not pc or not hasattr(pc, 'set_sub_scale'):
+            return
+        pc.set_sub_scale(scale)
+        tr = self.window.language_manager.tr
+        if hasattr(self.window, '_show_osd_feedback'):
+            self.window._show_osd_feedback(f"{tr('osd_sub_scale', 'Subtitle Scale')}: {scale:.2f}x")
+
+    def _adjust_sub_pos(self, delta: int):
+        pc = self.window.player_controller
+        if not pc or not hasattr(pc, 'get_sub_pos') or not hasattr(pc, 'set_sub_pos'):
+            return
+        new_pos = max(0, min(100, pc.get_sub_pos() + delta))
+        pc.set_sub_pos(new_pos)
+        tr = self.window.language_manager.tr
+        if hasattr(self.window, '_show_osd_feedback'):
+            self.window._show_osd_feedback(f"{tr('osd_sub_pos', 'Subtitle Position')}: {new_pos}")
+
+    def _set_sub_pos(self, pos: int):
+        pc = self.window.player_controller
+        if not pc or not hasattr(pc, 'set_sub_pos'):
+            return
+        pc.set_sub_pos(pos)
+        tr = self.window.language_manager.tr
+        if hasattr(self.window, '_show_osd_feedback'):
+            self.window._show_osd_feedback(f"{tr('osd_sub_pos', 'Subtitle Position')}: {pos}")
+
+    def toggle_subtitle_visibility(self):
+        """供快捷键调用"""
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing:
+            return
+        self._toggle_sub_visibility()
+
+    def adjust_subtitle_delay(self, delta: float):
+        """供快捷键调用"""
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing:
+            return
+        self._adjust_sub_delay(delta)
+
+    def adjust_subtitle_scale(self, delta: float):
+        """供快捷键调用"""
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing:
+            return
+        self._adjust_sub_scale(delta)
 
     def adjust_speed(self, delta):
         pc = self.window.player_controller

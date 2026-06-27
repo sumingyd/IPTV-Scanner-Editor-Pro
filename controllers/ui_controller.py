@@ -1259,6 +1259,16 @@ class UIController:
             subtitle_menu = playback_menu.addMenu(tr("ctx_subtitle", "Subtitle"))
             subtitle_menu.aboutToShow.connect(lambda: self.window.media_ctrl._populate_subtitle_menu(subtitle_menu))
 
+            # 字幕样式对话框入口
+            sub_style = QAction(tr("menu_subtitle_style", "Subtitle Style..."), self.window)
+            sub_style.triggered.connect(lambda: self.window.media_ctrl._show_subtitle_style_dialog() if hasattr(self.window, 'media_ctrl') else None)
+            playback_menu.addAction(sub_style)
+
+            # 在线下载字幕入口
+            sub_download = QAction(tr("menu_subtitle_download", "Download Subtitle..."), self.window)
+            sub_download.triggered.connect(lambda: self.window.media_ctrl._download_subtitle() if hasattr(self.window, 'media_ctrl') else None)
+            playback_menu.addAction(sub_download)
+
             view_menu = menu_bar.addMenu(tr("menu_view", "View"))
 
             show_epg = QAction(tr("menu_epg_list", "EPG List\tE"), self.window)
