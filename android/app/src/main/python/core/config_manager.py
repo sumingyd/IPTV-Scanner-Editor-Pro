@@ -841,6 +841,59 @@ class ConfigManager(Singleton):
             self.save_config()
         return result
 
+    # ---------- 视频图像调整 ----------
+    VIDEO_EQ_DEFAULTS = {
+        'brightness': 0,
+        'contrast': 0,
+        'saturation': 0,
+        'hue': 0,
+        'gamma': 0,
+        'sharpness': 0.0,
+        'video_rotate': 0,
+        'video_flip': '',
+        'reset_on_new_file': False,
+    }
+
+    def save_video_eq(self, settings: dict):
+        """保存视频图像参数到 VideoEQ 节"""
+        for key, value in settings.items():
+            if isinstance(value, bool):
+                self.set_value('VideoEQ', key, 'yes' if value else 'no')
+            elif isinstance(value, float):
+                self.set_value('VideoEQ', key, f"{value:.3f}")
+            elif isinstance(value, int):
+                self.set_value('VideoEQ', key, str(value))
+            else:
+                self.set_value('VideoEQ', key, str(value))
+        return self.save_config()
+
+    def load_video_eq(self) -> dict:
+        """加载视频图像参数，缺失项写回默认值"""
+        result = {}
+        need_save = False
+        for key, default in self.VIDEO_EQ_DEFAULTS.items():
+            raw = self.get_value('VideoEQ', key)
+            if raw is None:
+                result[key] = default
+                need_save = True
+            elif isinstance(default, bool):
+                result[key] = self._parse_bool(raw)
+            elif isinstance(default, float):
+                try:
+                    result[key] = float(raw)
+                except (ValueError, TypeError):
+                    result[key] = default
+            elif isinstance(default, int):
+                try:
+                    result[key] = int(raw)
+                except (ValueError, TypeError):
+                    result[key] = default
+            else:
+                result[key] = raw
+        if need_save:
+            self.save_config()
+        return result
+
     def load_all_settings(self) -> dict:
         """加载所有设置"""
         all_settings = {}

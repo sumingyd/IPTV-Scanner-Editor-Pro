@@ -106,6 +106,7 @@ class MpvPlayerController(QObject):
     playback_position_updated = Signal(int, int, float)
     logo_cache_loaded = Signal(str, object)
     thumbnail_captured = Signal(str)
+    file_loaded = Signal()
 
     def __init__(self, video_widget, channel_model=None):
         super().__init__()
@@ -967,6 +968,7 @@ class MpvPlayerController(QObject):
                     self._apply_hdr_on_file_loaded()
                     if hasattr(self, 'audio_visual') and self.audio_visual:
                         self.audio_visual.auto_enable_if_audio()
+                    self._safe_emit(self.file_loaded)
 
                 elif event.event_id == MPV_EVENT_END_FILE:
                     if event.data:
@@ -2079,6 +2081,210 @@ class MpvPlayerController(QObject):
         except Exception:
             pass
         return result
+
+    # ---------- 视频图像调整（brightness/contrast/saturation/hue/gamma/sharpness） ----------
+    # mpv 属性取值范围：brightness/contrast/saturation/hue/gamma 为 -100~100
+    # sharpness 为 -1.0~1.0；rotate 仅 0/90/180/270；flip 用 vf 滤镜实现
+    def set_brightness(self, v: int) -> bool:
+        v = max(-100, min(100, int(v)))
+        return self._set_mpv_string('brightness', str(v)) >= 0
+
+    def get_brightness(self) -> int:
+        v = self._get_mpv_property_int('brightness')
+        return int(v) if v is not None else 0
+
+    def set_contrast(self, v: int) -> bool:
+        v = max(-100, min(100, int(v)))
+        return self._set_mpv_string('contrast', str(v)) >= 0
+
+    def get_contrast(self) -> int:
+        v = self._get_mpv_property_int('contrast')
+        return int(v) if v is not None else 0
+
+    def set_saturation(self, v: int) -> bool:
+        v = max(-100, min(100, int(v)))
+        return self._set_mpv_string('saturation', str(v)) >= 0
+
+    def get_saturation(self) -> int:
+        v = self._get_mpv_property_int('saturation')
+        return int(v) if v is not None else 0
+
+    def set_hue(self, v: int) -> bool:
+        v = max(-100, min(100, int(v)))
+        return self._set_mpv_string('hue', str(v)) >= 0
+
+    def get_hue(self) -> int:
+        v = self._get_mpv_property_int('hue')
+        return int(v) if v is not None else 0
+
+    def set_gamma(self, v: int) -> bool:
+        v = max(-100, min(100, int(v)))
+        return self._set_mpv_string('gamma', str(v)) >= 0
+
+    def get_gamma(self) -> int:
+        v = self._get_mpv_property_int('gamma')
+        return int(v) if v is not None else 0
+
+    def set_sharpness(self, v: float) -> bool:
+        v = max(-1.0, min(1.0, float(v)))
+        return self._set_mpv_string('sharpen', f"{v:.3f}") >= 0
+
+    def get_sharpness(self) -> float:
+        v = self._get_mpv_property_double('sharpen')
+        return float(v) if v is not None else 0.0
+
+    def adjust_video_eq(self, key: str, delta) -> float:
+        """相对调整图像参数，返回新值
+        key: brightness/contrast/saturation/hue/gamma (int，步进 delta 整数)
+              sharpness (float，步进 0.05)
+        """
+        if key in ('brightness', 'contrast', 'saturation', 'hue', 'gamma'):
+            cur = getattr(self, f'get_{key}')()
+            new_v = max(-100, min(100, int(cur + delta)))
+            getattr(self, f'set_{key}')(new_v)
+            return float(new_v)
+        elif key == 'sharpness':
+            cur = self.get_sharpness()
+            new_v = round(max(-1.0, min(1.0, cur + delta)), 3)
+            self.set_sharpness(new_v)
+            return new_v
+        return 0.0
+
+    def apply_video_eq(self, eq: dict) -> bool:
+        """批量应用图像参数（dict 可含上述 key 与 video_rotate/video_flip/crop_*）"""
+        if not self.mpv_handle or self._terminated:
+            return False
+        try:
+            int_keys = ('brightness', 'contrast', 'saturation', 'hue', 'gamma')
+            for k in int_keys:
+                if k in eq and eq[k] is not None:
+                    getattr(self, f'set_{k}')(eq[k])
+            if 'sharpness' in eq and eq['sharpness'] is not None:
+                self.set_sharpness(eq['sharpness'])
+            if 'video_rotate' in eq and eq['video_rotate'] is not None:
+                self.set_video_rotate(int(eq['video_rotate']))
+            if 'video_flip' in eq and eq['video_flip']:
+                self.set_video_flip(eq['video_flip'])
+            if 'crop_w' in eq and 'crop_h' in eq:
+                self.set_video_crop(int(eq.get('crop_x', 0)), int(eq.get('crop_y', 0)),
+                                    int(eq['crop_w']), int(eq['crop_h']))
+            return True
+        except Exception as e:
+            self.logger.error(f"应用视频参数失败: {e}")
+            return False
+
+    def get_video_eq(self) -> dict:
+        """读取当前所有视频图像参数"""
+        return {
+            'brightness': self.get_brightness(),
+            'contrast': self.get_contrast(),
+            'saturation': self.get_saturation(),
+            'hue': self.get_hue(),
+            'gamma': self.get_gamma(),
+            'sharpness': self.get_sharpness(),
+            'video_rotate': self.get_video_rotate(),
+        }
+
+    def reset_video_eq(self):
+        """重置图像参数为默认（0）"""
+        self.set_brightness(0)
+        self.set_contrast(0)
+        self.set_saturation(0)
+        self.set_hue(0)
+        self.set_gamma(0)
+        self.set_sharpness(0.0)
+
+    # ---------- 画面旋转 / 镜像 / 裁剪（vf 滤镜） ----------
+    def set_video_rotate(self, degree: int) -> bool:
+        """设置画面旋转（0/90/180/270）"""
+        degree = int(degree)
+        if degree not in (0, 90, 180, 270):
+            degree = 0
+        # 通过 video-rotate 属性设置（mpv 0.27+）
+        return self._set_mpv_string('video-rotate', str(degree)) >= 0
+
+    def get_video_rotate(self) -> int:
+        v = self._get_mpv_property_int('video-rotate')
+        return int(v) if v is not None else 0
+
+    def set_video_flip(self, mode: str) -> bool:
+        """设置画面翻转
+        mode: '' / 'horizontal' / 'vertical' / 'both'
+        """
+        if not self.mpv_handle or self._terminated:
+            return False
+        # 通过 vf 滤镜实现；先清除已有 flip 滤镜，再添加新的
+        try:
+            self.send_command(['vf', 'remove', '@iptv_flip'])
+        except Exception:
+            pass
+        if not mode:
+            return True
+        if mode == 'horizontal':
+            args = ['hflip']
+        elif mode == 'vertical':
+            args = ['vflip']
+        elif mode == 'both':
+            args = ['flip', 'y', 'y']  # 二次翻转
+        else:
+            return False
+        # 使用命名标签便于后续替换
+        return self.send_command(['vf', 'add', f'@iptv_flip:{",".join(args)}']) == 0
+
+    def get_video_flip(self) -> str:
+        """读取当前 flip 状态"""
+        try:
+            vf = self._get_mpv_property_string('vf')
+            if not vf:
+                return ''
+            import json
+            data = json.loads(vf) if isinstance(vf, str) else vf
+            for item in data.get('vf', []):
+                params = item.get('params', {})
+                name = params.get('name', '')
+                if name == 'hflip':
+                    return 'horizontal'
+                if name == 'vflip':
+                    return 'vertical'
+            return ''
+        except Exception:
+            return ''
+
+    def set_video_crop(self, x: int, y: int, w: int, h: int) -> bool:
+        """设置画面裁剪（x,y 起点；w,h 大小，0 表示使用视频原尺寸）"""
+        if not self.mpv_handle or self._terminated:
+            return False
+        # 清除旧裁剪
+        try:
+            self.send_command(['vf', 'remove', '@iptv_crop'])
+        except Exception:
+            pass
+        if w <= 0 or h <= 0:
+            return True
+        # crop=w:h:x:y
+        cmd = f"@iptv_crop:crop={w}:{h}:{x}:{y}"
+        return self.send_command(['vf', 'add', cmd]) == 0
+
+    def clear_video_crop(self) -> bool:
+        """清除画面裁剪"""
+        if not self.mpv_handle or self._terminated:
+            return False
+        try:
+            self.send_command(['vf', 'remove', '@iptv_crop'])
+            return True
+        except Exception:
+            return False
+
+    def clear_all_video_filters(self) -> bool:
+        """清除所有由本程序添加的视频滤镜"""
+        if not self.mpv_handle or self._terminated:
+            return False
+        for label in ('@iptv_flip', '@iptv_crop'):
+            try:
+                self.send_command(['vf', 'remove', label])
+            except Exception:
+                pass
+        return True
 
     def set_property_string(self, name, value):
         self._set_mpv_string(name, value)

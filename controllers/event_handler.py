@@ -105,7 +105,13 @@ class EventHandler:
                            Qt.Key.Key_P,
                            # 字幕快捷键
                            Qt.Key.Key_V, Qt.Key.Key_Z, Qt.Key.Key_X,
-                           Qt.Key.Key_Q, Qt.Key.Key_W)
+                           Qt.Key.Key_Q, Qt.Key.Key_W,
+                           # 视频图像调整快捷键
+                           Qt.Key.Key_3, Qt.Key.Key_4,
+                           Qt.Key.Key_5, Qt.Key.Key_6,
+                           Qt.Key.Key_7, Qt.Key.Key_8,
+                           Qt.Key.Key_9, Qt.Key.Key_0,
+                           Qt.Key.Key_R, Qt.Key.Key_T)
             main_only_keys = (Qt.Key.Key_Up, Qt.Key.Key_Down,
                               Qt.Key.Key_Left, Qt.Key.Key_Right)
             if key == Qt.Key.Key_Backspace and self._is_input_widget_focused():
@@ -235,6 +241,48 @@ class EventHandler:
                 elif key == Qt.Key.Key_W:
                     if hasattr(w, 'media_ctrl'):
                         w.media_ctrl.adjust_subtitle_scale(0.1)
+                    return True
+                # 视频图像调整：亮度(3/4) 对比度(5/6) 饱和度(7/8) Gamma(9/0)
+                elif key == Qt.Key.Key_3:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_video_eq('brightness', -2)
+                    return True
+                elif key == Qt.Key.Key_4:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_video_eq('brightness', 2)
+                    return True
+                elif key == Qt.Key.Key_5:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_video_eq('contrast', -2)
+                    return True
+                elif key == Qt.Key.Key_6:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_video_eq('contrast', 2)
+                    return True
+                elif key == Qt.Key.Key_7:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_video_eq('saturation', -2)
+                    return True
+                elif key == Qt.Key.Key_8:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_video_eq('saturation', 2)
+                    return True
+                elif key == Qt.Key.Key_9:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_video_eq('gamma', -2)
+                    return True
+                elif key == Qt.Key.Key_0:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_video_eq('gamma', 2)
+                    return True
+                # 画面旋转循环（R）/ 翻转循环（T）
+                elif key == Qt.Key.Key_R:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.cycle_video_rotate(90)
+                    return True
+                elif key == Qt.Key.Key_T:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.toggle_video_flip()
                     return True
 
             elif modifiers == Qt.KeyboardModifier.ControlModifier:

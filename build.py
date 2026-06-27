@@ -166,6 +166,7 @@ HIDDEN_IMPORTS = [
     "ui.dialogs.epg_search_dialog",
     "ui.dialogs.global_search_dialog",
     "ui.dialogs.subtitle_style_dialog",
+    "ui.dialogs.video_eq_dialog",
     "services.subtitle_download_service",
     "ui.epg_timeline_widget",
     "ui.floating_dialog",

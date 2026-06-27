@@ -94,6 +94,9 @@ class MediaController:
             sub_menu.setStyleSheet(AppStyles.player_menu_bar_style())
             self._populate_subtitle_menu(sub_menu)
 
+            # 视频图像调整入口
+            menu.addAction(tr("ctx_video_eq", "Video Equalizer..."), lambda *a: self._show_video_eq_dialog())
+
         if is_playing and self._is_audio_only():
             vis_menu = menu.addMenu(tr("ctx_audio_visual", "音频可视化"))
             vis_menu.setStyleSheet(AppStyles.player_menu_bar_style())
@@ -537,6 +540,94 @@ class MediaController:
         if not pc or not pc.is_playing:
             return
         self._adjust_sub_scale(delta)
+
+    # ---------- 视频图像调整 ----------
+    def _show_video_eq_dialog(self):
+        """打开视频图像调整对话框"""
+        try:
+            from ui.dialogs.video_eq_dialog import VideoEqualizerDialog
+            if not hasattr(self.window, '_video_eq_dialog') or not self.window._video_eq_dialog:
+                self.window._video_eq_dialog = VideoEqualizerDialog(self.window)
+            self.window._video_eq_dialog.show()
+            self.window._video_eq_dialog.raise_()
+            self.window._video_eq_dialog.activateWindow()
+        except Exception as e:
+            logger.error(f"打开视频 EQ 对话框失败: {e}")
+
+    def adjust_video_eq(self, key: str, delta: float):
+        """相对调整图像参数（供快捷键调用）
+        key: brightness/contrast/saturation/hue/gamma（int 步进）
+              sharpness（float 步进）
+        """
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing or not hasattr(pc, 'adjust_video_eq'):
+            return
+        new_v = pc.adjust_video_eq(key, delta)
+        tr = self.window.language_manager.tr
+        if hasattr(self.window, '_show_osd_feedback'):
+            label_key = f'osd_video_{key}'
+            if key == 'sharpness':
+                self.window._show_osd_feedback(f"{tr(label_key, 'Sharpness')}: {new_v:+.2f}")
+            else:
+                self.window._show_osd_feedback(f"{tr(label_key, key.capitalize())}: {int(new_v):+d}")
+
+    def cycle_video_rotate(self, step: int = 90):
+        """循环切换画面旋转角度（0→90→180→270→0）"""
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing or not hasattr(pc, 'get_video_rotate'):
+            return
+        cur = pc.get_video_rotate()
+        new_degree = (cur + step) % 360
+        pc.set_video_rotate(new_degree)
+        tr = self.window.language_manager.tr
+        if hasattr(self.window, '_show_osd_feedback'):
+            self.window._show_osd_feedback(f"{tr('osd_video_rotate', 'Rotate')}: {new_degree}°")
+
+    def toggle_video_flip(self):
+        """循环切换画面翻转模式（无→水平→垂直→双向→无）"""
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing or not hasattr(pc, 'get_video_flip'):
+            return
+        cur = pc.get_video_flip() or ''
+        order = ['', 'horizontal', 'vertical', 'both']
+        try:
+            idx = order.index(cur)
+        except ValueError:
+            idx = -1
+        new_mode = order[(idx + 1) % len(order)]
+        pc.set_video_flip(new_mode)
+        tr = self.window.language_manager.tr
+        if hasattr(self.window, '_show_osd_feedback'):
+            label_map = {
+                '': tr('video_eq_flip_none', 'None'),
+                'horizontal': tr('video_eq_flip_horizontal', 'Horizontal'),
+                'vertical': tr('video_eq_flip_vertical', 'Vertical'),
+                'both': tr('video_eq_flip_both', 'Both'),
+            }
+            self.window._show_osd_feedback(f"{tr('osd_video_flip', 'Flip')}: {label_map.get(new_mode, new_mode)}")
+
+    def apply_video_eq_on_load(self):
+        """在文件加载时应用已保存的视频 EQ 配置
+        由播放器在加载新文件后调用；若启用 reset_on_new_file 则重置
+        """
+        try:
+            cfg = self.window.config.load_video_eq()
+        except Exception:
+            return
+        pc = self.window.player_controller
+        if not pc or not hasattr(pc, 'apply_video_eq'):
+            return
+        if cfg.get('reset_on_new_file', False):
+            pc.reset_video_eq()
+            pc.set_video_rotate(0)
+            pc.set_video_flip('')
+            pc.clear_video_crop()
+            return
+        # 应用保存的图像参数
+        eq = {k: cfg.get(k, 0) for k in ('brightness', 'contrast', 'saturation', 'hue', 'gamma', 'sharpness')}
+        eq['video_rotate'] = cfg.get('video_rotate', 0)
+        eq['video_flip'] = cfg.get('video_flip', '')
+        pc.apply_video_eq(eq)
 
     def adjust_speed(self, delta):
         pc = self.window.player_controller

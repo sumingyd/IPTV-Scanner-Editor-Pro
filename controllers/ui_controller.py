@@ -1269,6 +1269,11 @@ class UIController:
             sub_download.triggered.connect(lambda: self.window.media_ctrl._download_subtitle() if hasattr(self.window, 'media_ctrl') else None)
             playback_menu.addAction(sub_download)
 
+            # 视频图像调整入口
+            video_eq = QAction(tr("menu_video_eq", "Video Equalizer..."), self.window)
+            video_eq.triggered.connect(lambda: self.window.media_ctrl._show_video_eq_dialog() if hasattr(self.window, 'media_ctrl') else None)
+            playback_menu.addAction(video_eq)
+
             view_menu = menu_bar.addMenu(tr("menu_view", "View"))
 
             show_epg = QAction(tr("menu_epg_list", "EPG List\tE"), self.window)
