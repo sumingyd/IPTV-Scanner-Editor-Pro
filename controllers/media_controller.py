@@ -90,6 +90,9 @@ class MediaController:
             audio_menu.setStyleSheet(AppStyles.player_menu_bar_style())
             self._populate_audio_menu(audio_menu)
 
+            # 音频调整入口
+            menu.addAction(tr("ctx_audio_eq", "Audio Equalizer..."), lambda *a: self._show_audio_eq_dialog())
+
             sub_menu = menu.addMenu(tr("ctx_subtitle", "Subtitle"))
             sub_menu.setStyleSheet(AppStyles.player_menu_bar_style())
             self._populate_subtitle_menu(sub_menu)
@@ -628,6 +631,53 @@ class MediaController:
         eq['video_rotate'] = cfg.get('video_rotate', 0)
         eq['video_flip'] = cfg.get('video_flip', '')
         pc.apply_video_eq(eq)
+
+    # ---------- 音频系统增强 ----------
+    def _show_audio_eq_dialog(self):
+        """打开音频调整对话框"""
+        try:
+            from ui.dialogs.audio_eq_dialog import AudioEqualizerDialog
+            if not hasattr(self.window, '_audio_eq_dialog') or not self.window._audio_eq_dialog:
+                self.window._audio_eq_dialog = AudioEqualizerDialog(self.window)
+            self.window._audio_eq_dialog.show()
+            self.window._audio_eq_dialog.raise_()
+            self.window._audio_eq_dialog.activateWindow()
+        except Exception as e:
+            logger.error(f"打开音频 EQ 对话框失败: {e}")
+
+    def adjust_audio_delay(self, delta: float):
+        """相对调整音频延迟（供快捷键调用）"""
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing or not hasattr(pc, 'adjust_audio_delay'):
+            return
+        new_v = pc.adjust_audio_delay(delta)
+        tr = self.window.language_manager.tr
+        if hasattr(self.window, '_show_osd_feedback'):
+            self.window._show_osd_feedback(f"{tr('osd_audio_delay', 'Audio Delay')}: {new_v:+.3f}s")
+
+    def adjust_audio_pitch(self, delta: float):
+        """相对调整音调补偿（供快捷键调用）"""
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing or not hasattr(pc, 'adjust_audio_pitch'):
+            return
+        new_v = pc.adjust_audio_pitch(delta)
+        tr = self.window.language_manager.tr
+        if hasattr(self.window, '_show_osd_feedback'):
+            self.window._show_osd_feedback(f"{tr('osd_audio_pitch', 'Pitch')}: {new_v:.2f}")
+
+    def apply_audio_eq_on_load(self):
+        """在文件加载时应用已保存的音频 EQ 配置"""
+        try:
+            cfg = self.window.config.load_audio_eq()
+        except Exception:
+            return
+        pc = self.window.player_controller
+        if not pc or not hasattr(pc, 'apply_audio_eq'):
+            return
+        if cfg.get('reset_on_new_file', False):
+            pc.reset_audio_eq()
+            return
+        pc.apply_audio_eq(cfg)
 
     def adjust_speed(self, delta):
         pc = self.window.player_controller

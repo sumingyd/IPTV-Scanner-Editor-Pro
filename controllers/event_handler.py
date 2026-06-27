@@ -111,7 +111,10 @@ class EventHandler:
                            Qt.Key.Key_5, Qt.Key.Key_6,
                            Qt.Key.Key_7, Qt.Key.Key_8,
                            Qt.Key.Key_9, Qt.Key.Key_0,
-                           Qt.Key.Key_R, Qt.Key.Key_T)
+                           Qt.Key.Key_R, Qt.Key.Key_T,
+                           # 音频调整快捷键
+                           Qt.Key.Key_Minus, Qt.Key.Key_Equal,
+                           Qt.Key.Key_G, Qt.Key.Key_H)
             main_only_keys = (Qt.Key.Key_Up, Qt.Key.Key_Down,
                               Qt.Key.Key_Left, Qt.Key.Key_Right)
             if key == Qt.Key.Key_Backspace and self._is_input_widget_focused():
@@ -283,6 +286,24 @@ class EventHandler:
                 elif key == Qt.Key.Key_T:
                     if hasattr(w, 'media_ctrl'):
                         w.media_ctrl.toggle_video_flip()
+                    return True
+                # 音频延迟 -0.1/+0.1（-/=）
+                elif key == Qt.Key.Key_Minus:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_audio_delay(-0.1)
+                    return True
+                elif key == Qt.Key.Key_Equal:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_audio_delay(0.1)
+                    return True
+                # 音调补偿 -0.05/+0.05（G/H）
+                elif key == Qt.Key.Key_G:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_audio_pitch(-0.05)
+                    return True
+                elif key == Qt.Key.Key_H:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.adjust_audio_pitch(0.05)
                     return True
 
             elif modifiers == Qt.KeyboardModifier.ControlModifier:

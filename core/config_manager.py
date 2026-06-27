@@ -894,6 +894,80 @@ class ConfigManager(Singleton):
             self.save_config()
         return result
 
+    # ---------- 音频系统增强 ----------
+    AUDIO_EQ_DEFAULTS = {
+        'audio_delay': 0.0,
+        'audio_channels': 'auto',
+        'audio_pitch': 1.0,
+        'audio_device': '',
+        'eq': [0.0] * 10,
+        'reset_on_new_file': False,
+    }
+
+    def save_audio_eq(self, settings: dict):
+        """保存音频参数到 AudioEQ 节
+        eq 字段为长度 10 的列表，存储为逗号分隔字符串
+        """
+        for key, value in settings.items():
+            if key == 'eq':
+                if isinstance(value, list):
+                    s = ','.join(f"{float(v):.1f}" for v in value)
+                    self.set_value('AudioEQ', key, s)
+                else:
+                    self.set_value('AudioEQ', key, str(value))
+            elif isinstance(value, bool):
+                self.set_value('AudioEQ', key, 'yes' if value else 'no')
+            elif isinstance(value, float):
+                self.set_value('AudioEQ', key, f"{value:.3f}")
+            elif isinstance(value, int):
+                self.set_value('AudioEQ', key, str(value))
+            else:
+                self.set_value('AudioEQ', key, str(value))
+        return self.save_config()
+
+    def load_audio_eq(self) -> dict:
+        """加载音频参数，缺失项写回默认值"""
+        result = {}
+        need_save = False
+        for key, default in self.AUDIO_EQ_DEFAULTS.items():
+            raw = self.get_value('AudioEQ', key)
+            if raw is None:
+                result[key] = default
+                need_save = True
+            elif key == 'eq':
+                # 列表类型，存储为逗号分隔字符串
+                try:
+                    if isinstance(raw, str) and raw:
+                        parts = [float(x) for x in raw.split(',') if x.strip()]
+                        if len(parts) == 10:
+                            result[key] = [max(-12.0, min(12.0, p)) for p in parts]
+                        else:
+                            result[key] = list(default)
+                            need_save = True
+                    else:
+                        result[key] = list(default)
+                        need_save = True
+                except (ValueError, TypeError):
+                    result[key] = list(default)
+                    need_save = True
+            elif isinstance(default, bool):
+                result[key] = self._parse_bool(raw)
+            elif isinstance(default, float):
+                try:
+                    result[key] = float(raw)
+                except (ValueError, TypeError):
+                    result[key] = default
+            elif isinstance(default, int):
+                try:
+                    result[key] = int(raw)
+                except (ValueError, TypeError):
+                    result[key] = default
+            else:
+                result[key] = raw
+        if need_save:
+            self.save_config()
+        return result
+
     def load_all_settings(self) -> dict:
         """加载所有设置"""
         all_settings = {}

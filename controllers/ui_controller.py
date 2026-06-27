@@ -1274,6 +1274,11 @@ class UIController:
             video_eq.triggered.connect(lambda: self.window.media_ctrl._show_video_eq_dialog() if hasattr(self.window, 'media_ctrl') else None)
             playback_menu.addAction(video_eq)
 
+            # 音频调整入口
+            audio_eq = QAction(tr("menu_audio_eq", "Audio Equalizer..."), self.window)
+            audio_eq.triggered.connect(lambda: self.window.media_ctrl._show_audio_eq_dialog() if hasattr(self.window, 'media_ctrl') else None)
+            playback_menu.addAction(audio_eq)
+
             view_menu = menu_bar.addMenu(tr("menu_view", "View"))
 
             show_epg = QAction(tr("menu_epg_list", "EPG List\tE"), self.window)

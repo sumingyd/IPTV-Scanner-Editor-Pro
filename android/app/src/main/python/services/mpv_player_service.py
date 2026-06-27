@@ -2286,6 +2286,172 @@ class MpvPlayerController(QObject):
                 pass
         return True
 
+    # ---------- 音频系统增强（audio-delay/device/channels/pitch/equalizer） ----------
+    # mpv 属性取值范围：audio-delay 秒（-10~10，默认 0）；audio-pitch-correction 0.0~2.0（1.0=正常）
+    # audio-channels 字符串（auto/mono/1.0/2.0/2.1/5.1/7.1 等）；audio-device 字符串
+    # 均衡器通过 af 滤镜 equalizer=g1:g2:...:g10 实现（10 频段，-12~+12 dB）
+    EQ_BANDS = (60, 170, 310, 600, 1000, 3000, 6000, 12000, 14000, 16000)
+    EQ_LABELS = ('60Hz', '170Hz', '310Hz', '600Hz', '1kHz', '3kHz', '6kHz', '12kHz', '14kHz', '16kHz')
+
+    def set_audio_delay(self, v: float) -> bool:
+        v = max(-10.0, min(10.0, float(v)))
+        return self._set_mpv_string('audio-delay', f"{v:.3f}") >= 0
+
+    def get_audio_delay(self) -> float:
+        v = self._get_mpv_property_double('audio-delay')
+        return float(v) if v is not None else 0.0
+
+    def adjust_audio_delay(self, delta: float) -> float:
+        cur = self.get_audio_delay()
+        new_v = round(max(-10.0, min(10.0, cur + delta)), 3)
+        self.set_audio_delay(new_v)
+        return new_v
+
+    def set_audio_device(self, name: str) -> bool:
+        if not name:
+            return False
+        return self._set_mpv_string('audio-device', name) >= 0
+
+    def get_audio_device(self) -> str:
+        return self._get_mpv_property_string('audio-device') or ''
+
+    def get_audio_device_list(self) -> list:
+        """返回音频设备列表，每项为 dict(name, description)"""
+        try:
+            raw = self._get_mpv_property_string('audio-device-list')
+            if not raw:
+                return []
+            import json
+            data = json.loads(raw) if isinstance(raw, str) else raw
+            result = []
+            for item in data:
+                name = item.get('name', '')
+                desc = item.get('description', '')
+                if name:
+                    result.append({'name': name, 'description': desc or name})
+            return result
+        except Exception:
+            return []
+
+    def set_audio_channels(self, ch: str) -> bool:
+        """设置音频声道布局（auto/mono/1.0/2.0/2.1/3.0/4.0/5.0/5.1/6.0/6.1/7.0/7.1）"""
+        if not ch:
+            return False
+        return self._set_mpv_string('audio-channels', ch) >= 0
+
+    def get_audio_channels(self) -> str:
+        return self._get_mpv_property_string('audio-channels') or 'auto'
+
+    def set_audio_pitch(self, v: float) -> bool:
+        """设置音调补偿（0.0~2.0，1.0=正常）"""
+        v = max(0.0, min(2.0, float(v)))
+        return self._set_mpv_string('audio-pitch-correction', f"{v:.3f}") >= 0
+
+    def get_audio_pitch(self) -> float:
+        v = self._get_mpv_property_double('audio-pitch-correction')
+        return float(v) if v is not None else 1.0
+
+    def adjust_audio_pitch(self, delta: float) -> float:
+        cur = self.get_audio_pitch()
+        new_v = round(max(0.0, min(2.0, cur + delta)), 3)
+        self.set_audio_pitch(new_v)
+        return new_v
+
+    def set_audio_eq_band(self, band_index: int, gain_db: float) -> bool:
+        """设置均衡器指定频段的增益（band_index 0-9，gain -12~+12 dB）"""
+        if not (0 <= band_index < 10):
+            return False
+        eq = self.get_audio_eq()
+        eq[band_index] = max(-12.0, min(12.0, float(gain_db)))
+        return self._apply_audio_eq_filter(eq)
+
+    def set_audio_eq(self, gains: list) -> bool:
+        """设置完整均衡器（gains 长度 10，每项 -12~+12 dB）"""
+        if not gains or len(gains) != 10:
+            return False
+        eq = [max(-12.0, min(12.0, float(g))) for g in gains]
+        return self._apply_audio_eq_filter(eq)
+
+    def get_audio_eq(self) -> list:
+        """读取当前均衡器增益列表（长度 10）。无法读取时返回全 0"""
+        try:
+            af = self._get_mpv_property_string('af')
+            if not af:
+                return [0.0] * 10
+            import json
+            data = json.loads(af) if isinstance(af, str) else af
+            for item in data.get('af', []):
+                params = item.get('params', {})
+                if params.get('name') == 'equalizer':
+                    raw = params.get('params', '') or ''
+                    # 格式可能是 "g1:g2:...:g10" 或 dict
+                    if isinstance(raw, str) and raw:
+                        parts = raw.split(':')
+                        if len(parts) == 10:
+                            return [max(-12.0, min(12.0, float(p))) for p in parts]
+                    break
+        except Exception:
+            pass
+        return [0.0] * 10
+
+    def _apply_audio_eq_filter(self, gains: list) -> bool:
+        """内部：应用均衡器 af 滤镜"""
+        if not self.mpv_handle or self._terminated:
+            return False
+        # 先移除已有的 eq 滤镜
+        try:
+            self.send_command(['af', 'remove', '@iptv_eq'])
+        except Exception:
+            pass
+        # 全为 0 时不再添加
+        if all(abs(g) < 0.01 for g in gains):
+            return True
+        cmd = "@iptv_eq:equalizer=" + ":".join(f"{g:.1f}" for g in gains)
+        return self.send_command(['af', 'add', cmd]) == 0
+
+    def apply_audio_eq(self, settings: dict) -> bool:
+        """批量应用音频参数
+        dict 可含：audio_delay, audio_channels, audio_pitch, audio_device, eq(列表)
+        """
+        if not self.mpv_handle or self._terminated:
+            return False
+        try:
+            if 'audio_delay' in settings and settings['audio_delay'] is not None:
+                self.set_audio_delay(float(settings['audio_delay']))
+            if 'audio_pitch' in settings and settings['audio_pitch'] is not None:
+                self.set_audio_pitch(float(settings['audio_pitch']))
+            if 'audio_channels' in settings and settings['audio_channels']:
+                self.set_audio_channels(str(settings['audio_channels']))
+            if 'audio_device' in settings and settings['audio_device']:
+                self.set_audio_device(str(settings['audio_device']))
+            if 'eq' in settings and settings['eq'] is not None:
+                self.set_audio_eq(list(settings['eq']))
+            return True
+        except Exception as e:
+            self.logger.error(f"应用音频参数失败: {e}")
+            return False
+
+    def get_audio_eq_all(self) -> dict:
+        """读取所有音频参数"""
+        return {
+            'audio_delay': self.get_audio_delay(),
+            'audio_channels': self.get_audio_channels(),
+            'audio_pitch': self.get_audio_pitch(),
+            'audio_device': self.get_audio_device(),
+            'eq': self.get_audio_eq(),
+        }
+
+    def reset_audio_eq(self):
+        """重置音频参数为默认"""
+        self.set_audio_delay(0.0)
+        self.set_audio_pitch(1.0)
+        self.set_audio_channels('auto')
+        # 清除均衡器滤镜
+        try:
+            self.send_command(['af', 'remove', '@iptv_eq'])
+        except Exception:
+            pass
+
     def set_property_string(self, name, value):
         self._set_mpv_string(name, value)
 
