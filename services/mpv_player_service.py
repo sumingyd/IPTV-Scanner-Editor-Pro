@@ -2441,12 +2441,121 @@ class MpvPlayerController(QObject):
         """清除所有由本程序添加的视频滤镜"""
         if not self.mpv_handle or self._terminated:
             return False
-        for label in ('@iptv_flip', '@iptv_crop'):
+        for label in ('@iptv_flip', '@iptv_crop', '@iptv_360'):
             try:
                 self.send_command(['vf', 'remove', label])
             except Exception:
                 pass
         return True
+
+    # ---------- 3D 立体模式 / 360° 视角 ----------
+    # mpv video-stereo-mode 取值（简化形式，mpv 会自动识别）：
+    #   mono / sbs / sbs2 / ab / ab2
+    # 对应：普通2D / 左右并排-左前 / 左右并排-右前 / 上下-上前 / 上下-下前
+    _STEREO_MODES = ('mono', 'sbs', 'sbs2', 'ab', 'ab2')
+
+    def set_video_stereo_mode(self, mode: str) -> bool:
+        """设置 3D 立体显示模式
+        mode: 'mono' / 'sbs' / 'sbs2' / 'ab' / 'ab2'
+        """
+        if not self.mpv_handle or self._terminated:
+            return False
+        if mode not in self._STEREO_MODES:
+            mode = 'mono'
+        return self._set_mpv_string('video-stereo-mode', mode) >= 0
+
+    def get_video_stereo_mode(self) -> str:
+        """读取当前 3D 立体模式"""
+        v = self._get_mpv_property_string('video-stereo-mode')
+        if v and v in self._STEREO_MODES:
+            return v
+        return 'mono'
+
+    # 360° 视频视角控制：通过 lavfi panorama 滤镜
+    # 滤镜参数：e=投影方式（flat/equirect/cubemap/sg）, yaw=偏航, pitch=俯仰, roll=滚转
+    # 注意：panorama 滤镜要求 ffmpeg 编译时启用，可能不可用
+    _360_PROJECTIONS = ('flat', 'equirect', 'cubemap')
+
+    def set_360_view(self, yaw: float, pitch: float, roll: float,
+                     projection: str = 'equirect') -> bool:
+        """设置 360° 视频视角
+        yaw:   -180~180 度（偏航）
+        pitch:  -90~ 90 度（俯仰）
+        roll:  -180~180 度（滚转）
+        projection: 'flat' / 'equirect' / 'cubemap'
+        返回成功与否；滤镜不可用时返回 False
+        """
+        if not self.mpv_handle or self._terminated:
+            return False
+        if projection not in self._360_PROJECTIONS:
+            projection = 'equirect'
+        yaw = max(-180.0, min(180.0, float(yaw)))
+        pitch = max(-90.0, min(90.0, float(pitch)))
+        roll = max(-180.0, min(180.0, float(roll)))
+        # 移除旧滤镜
+        try:
+            self.send_command(['vf', 'remove', '@iptv_360'])
+        except Exception:
+            pass
+        # 全 0 视角等同于无滤镜
+        if yaw == 0.0 and pitch == 0.0 and roll == 0.0:
+            return True
+        # 构建 lavfi panorama 滤镜
+        cmd = (f"@iptv_360:lavfi=[panorama=e={projection}:"
+               f"yaw={yaw:.3f}:pitch={pitch:.3f}:roll={roll:.3f}]")
+        return self.send_command(['vf', 'add', cmd]) == 0
+
+    def clear_360_filter(self) -> bool:
+        """清除 360° 视角滤镜"""
+        if not self.mpv_handle or self._terminated:
+            return False
+        try:
+            self.send_command(['vf', 'remove', '@iptv_360'])
+            return True
+        except Exception:
+            return False
+
+    def get_360_view(self) -> dict:
+        """读取当前 360° 视角设置
+        返回 {'yaw','pitch','roll','projection','active'}；滤镜不可用时 active=False
+        """
+        result = {'yaw': 0.0, 'pitch': 0.0, 'roll': 0.0,
+                  'projection': 'equirect', 'active': False}
+        if not self.mpv_handle or self._terminated:
+            return result
+        try:
+            import re
+            vf = self._get_mpv_property_string('vf')
+            if not vf:
+                return result
+            import json
+            data = json.loads(vf) if isinstance(vf, str) else vf
+            for item in data.get('vf', []):
+                params = item.get('params', {})
+                label = params.get('@label', '') or item.get('label', '')
+                if label != '@iptv_360':
+                    continue
+                # lavfi 滤镜的 params 通常含 'graph' 字段
+                graph = params.get('graph', '') or params.get('lavfi', '')
+                if not graph:
+                    continue
+                m = re.search(r'e=(\w+)', graph)
+                if m:
+                    result['projection'] = m.group(1)
+                m = re.search(r'yaw=(-?[\d.]+)', graph)
+                if m:
+                    result['yaw'] = float(m.group(1))
+                m = re.search(r'pitch=(-?[\d.]+)', graph)
+                if m:
+                    result['pitch'] = float(m.group(1))
+                m = re.search(r'roll=(-?[\d.]+)', graph)
+                if m:
+                    result['roll'] = float(m.group(1))
+                result['active'] = True
+                break
+        except Exception:
+            pass
+        return result
 
     # ---------- 音频系统增强（audio-delay/device/channels/pitch/equalizer） ----------
     # mpv 属性取值范围：audio-delay 秒（-10~10，默认 0）；audio-pitch-correction 0.0~2.0（1.0=正常）

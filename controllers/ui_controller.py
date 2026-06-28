@@ -1263,6 +1263,10 @@ class UIController:
             av_sync.triggered.connect(lambda: self.window.media_ctrl._show_av_sync_dialog() if hasattr(self.window, 'media_ctrl') else None)
             playback_menu.addAction(av_sync)
 
+            video_3d = QAction(tr("menu_3d_video", "3D / 360° Video..."), self.window)
+            video_3d.triggered.connect(lambda: self.window.media_ctrl._show_3d_dialog() if hasattr(self.window, 'media_ctrl') else None)
+            playback_menu.addAction(video_3d)
+
             playback_menu.addSeparator()
 
             audio_menu = playback_menu.addMenu(tr("ctx_audio_track", "Audio Track"))

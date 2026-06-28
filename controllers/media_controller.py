@@ -111,6 +111,9 @@ class MediaController:
             # A/V 同步监控入口
             menu.addAction(tr("ctx_av_sync", "A/V Sync Monitor..."), lambda *a: self._show_av_sync_dialog())
 
+            # 3D / 360° 视频入口
+            menu.addAction(tr("ctx_3d_video", "3D / 360° Video..."), lambda *a: self._show_3d_dialog())
+
         if is_playing and self._is_audio_only():
             vis_menu = menu.addMenu(tr("ctx_audio_visual", "音频可视化"))
             vis_menu.setStyleSheet(AppStyles.player_menu_bar_style())
@@ -760,6 +763,18 @@ class MediaController:
             self.window._av_sync_dialog.activateWindow()
         except Exception as e:
             logger.error(f"打开 A/V 同步监控对话框失败: {e}")
+
+    def _show_3d_dialog(self):
+        """打开 3D / 360° 视频对话框"""
+        try:
+            from ui.dialogs.video_3d_dialog import Video3DDialog
+            if not hasattr(self.window, '_video_3d_dialog') or not self.window._video_3d_dialog:
+                self.window._video_3d_dialog = Video3DDialog(self.window)
+            self.window._video_3d_dialog.show()
+            self.window._video_3d_dialog.raise_()
+            self.window._video_3d_dialog.activateWindow()
+        except Exception as e:
+            logger.error(f"打开 3D/360 对话框失败: {e}")
 
     def add_bookmark_now(self):
         """快捷键调用：在当前位置添加书签"""
