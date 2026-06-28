@@ -121,6 +121,9 @@ def create_app() -> web.Application:
     app.router.add_get('/api/sources', handle_sources_list)
     app.router.add_post('/api/sources', handle_sources_add)
     app.router.add_delete('/api/sources/{id}', handle_sources_delete)
+    app.router.add_get('/api/epg/sources', handle_epg_sources_list)
+    app.router.add_post('/api/epg/sources', handle_epg_sources_add)
+    app.router.add_delete('/api/epg/sources/{id}', handle_epg_sources_delete)
     app.router.add_post('/api/scan/start', handle_scan_start)
     app.router.add_post('/api/scan/stop', handle_scan_stop)
     app.router.add_get('/api/scan/status', handle_scan_status)
@@ -559,10 +562,92 @@ async def handle_sources_delete(request):
     return _json_success()
 
 
+async def handle_epg_sources_list(request):
+    """列出 EPG 订阅源"""
+    config = get_config()
+    if not config or not hasattr(config, 'load_epg_sources'):
+        return _json_success(sources=[])
+    try:
+        sources = config.load_epg_sources()
+    except Exception as e:
+        logger.warning(f"加载EPG源失败: {e}")
+        sources = []
+    return _json_success(sources=sources)
+
+
+async def handle_epg_sources_add(request):
+    """添加 EPG 订阅源"""
+    config = get_config()
+    if not config:
+        return _json_error('配置未初始化', 503)
+    if not hasattr(config, 'save_epg_sources'):
+        return _json_error('当前环境不支持 EPG 订阅源管理', 503)
+    data = await request.json()
+    url = data.get('url', '').strip()
+    name = data.get('name', '').strip()
+    if not url:
+        return _json_error('URL不能为空')
+    try:
+        sources = config.load_epg_sources() if hasattr(config, 'load_epg_sources') else []
+    except Exception:
+        sources = []
+    # 去重
+    if any(s.get('url') == url for s in sources):
+        return _json_error('该 EPG 源已存在', 409)
+    sources.append({'url': url, 'name': name or url, 'last_update': None})
+    config.save_epg_sources(sources)
+    # 触发后台重新加载 EPG 数据
+    ctx = get_context()
+    if ctx and hasattr(ctx, 'reload_epg'):
+        ctx.reload_epg()
+    return _json_success()
+
+
+async def handle_epg_sources_delete(request):
+    """删除 EPG 订阅源"""
+    config = get_config()
+    if not config:
+        return _json_error('配置未初始化', 503)
+    if not hasattr(config, 'save_epg_sources'):
+        return _json_error('当前环境不支持 EPG 订阅源管理', 503)
+    try:
+        idx = int(request.match_info['id'])
+    except ValueError:
+        return _json_error('无效的源ID')
+    try:
+        sources = config.load_epg_sources() if hasattr(config, 'load_epg_sources') else []
+    except Exception:
+        sources = []
+    if not (0 <= idx < len(sources)):
+        return _json_error('源不存在', 404)
+    sources.pop(idx)
+    config.save_epg_sources(sources)
+    return _json_success()
+
+
 async def handle_scan_start(request):
     ctx = get_context()
-    if not ctx or ctx.is_standalone():
-        return _json_error('独立模式下不支持扫描', 503)
+    if not ctx:
+        return _json_error('上下文未初始化', 503)
+
+    # 独立模式（Android/无 GUI）：使用 StandaloneScanner
+    if ctx.is_standalone():
+        scanner = ctx.get_standalone_scanner()
+        if not scanner:
+            return _json_error('扫描器未初始化', 503)
+        data = {}
+        try:
+            data = await request.json()
+        except Exception:
+            pass
+        url = data.get('url', '').strip()
+        if scanner.is_scanning():
+            return _json_error('扫描已在进行中', 409)
+        if scanner.start_scan(url):
+            return _json_success(message='扫描已开始')
+        return _json_error('启动扫描失败', 500)
+
+    # 桌面模式：依赖 _scan_dialog
     mw = get_main_window()
     if not mw:
         return _json_error('主窗口未初始化', 503)
@@ -594,8 +679,18 @@ async def handle_scan_start(request):
 
 async def handle_scan_stop(request):
     ctx = get_context()
-    if not ctx or ctx.is_standalone():
-        return _json_error('独立模式下不支持扫描', 503)
+    if not ctx:
+        return _json_error('上下文未初始化', 503)
+
+    # 独立模式：停止 StandaloneScanner
+    if ctx.is_standalone():
+        scanner = ctx.get_standalone_scanner()
+        if scanner:
+            scanner.stop_scan()
+            return _json_success(message='停止扫描已触发')
+        return _json_error('扫描器未初始化', 503)
+
+    # 桌面模式
     mw = get_main_window()
     if not mw:
         return _json_error('主窗口未初始化', 503)
@@ -615,8 +710,33 @@ async def handle_scan_stop(request):
 
 async def handle_scan_status(request):
     ctx = get_context()
-    if not ctx or ctx.is_standalone():
+    if not ctx:
         return _json_success(scanning=False, validating=False, stats={})
+
+    # 独立模式：返回 StandaloneScanner 状态
+    if ctx.is_standalone():
+        scanner = ctx.get_standalone_scanner()
+        if not scanner:
+            return _json_success(scanning=False, validating=False, stats={})
+        status = scanner.get_status()
+        return _json_success(
+            scanning=status.get('running', False),
+            validating=False,
+            running=status.get('running', False),
+            total=status.get('total', 0),
+            valid=status.get('valid', 0),
+            invalid=status.get('invalid', 0),
+            scanned=status.get('scanned', 0),
+            message=status.get('message', ''),
+            stats={
+                'total': status.get('total', 0),
+                'valid': status.get('valid', 0),
+                'invalid': status.get('invalid', 0),
+                'scanned': status.get('scanned', 0),
+            }
+        )
+
+    # 桌面模式
     mw = get_main_window()
     if not mw:
         return _json_error('主窗口未初始化', 503)
@@ -640,6 +760,18 @@ async def handle_epg(request):
     search = request.rel_url.query.get('search', '').strip().lower()
     channel_id = request.rel_url.query.get('id', '').strip()
     try:
+        # SubscriptionManager 接口（standalone 模式）
+        if hasattr(epg_parser, 'get_channel_epg'):
+            if channel_id:
+                programmes = epg_parser.get_channel_epg(channel_id) or []
+                return _json_success(programmes=programmes)
+            if hasattr(epg_parser, 'get_epg_data_copy'):
+                data = epg_parser.get_epg_data_copy() or {}
+                channels = [{'id': k, 'name': k, 'programmes': len(v)} for k, v in data.items()]
+                if search:
+                    channels = [ch for ch in channels if search in ch.get('name', '').lower() or search in ch.get('id', '').lower()]
+                return _json_success(channels=channels)
+        # 桌面端 EPG parser 接口
         if hasattr(epg_parser, 'get_programmes_for_channel'):
             if channel_id:
                 programmes = epg_parser.get_programmes_for_channel(channel_id)

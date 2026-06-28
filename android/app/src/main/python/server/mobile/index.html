@@ -58,19 +58,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
 #topBar .tb-title{flex:1;font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,.8)}
 #topBar .tb-status{font-size:11px;color:rgba(255,255,255,.6);background:rgba(0,0,0,.4);border-radius:4px;padding:2px 6px}
 
-/* Bottom control bar */
-#bottomBar{position:fixed;left:0;right:0;bottom:0;padding:8px 12px 12px;background:linear-gradient(0deg,rgba(0,0,0,.7) 0%,transparent 100%);z-index:15;opacity:0;transition:opacity .3s;pointer-events:none}
-#bottomBar.show{opacity:1;pointer-events:auto}
-#bottomBar .bb-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-#bottomBar .bb-btn{width:38px;height:38px;border-radius:8px;background:rgba(255,255,255,.08);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-#bottomBar .bb-btn:active{background:rgba(255,255,255,.2)}
-#bottomBar .bb-btn.text-btn{width:auto;padding:0 10px;font-size:12px;font-weight:600}
-#bottomBar .bb-btn svg{width:18px;height:18px;fill:#fff}
-#bottomBar .bb-progress{flex:1;min-width:80px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden;cursor:pointer;position:relative}
-#bottomBar .bb-progress-fill{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s}
-#bottomBar .bb-time{font-size:11px;color:rgba(255,255,255,.7);font-variant-numeric:tabular-nums;flex-shrink:0;min-width:38px;text-align:center}
-#bottomBar .bb-vol{width:60px;-webkit-appearance:none;height:4px;border-radius:2px;background:rgba(255,255,255,.15);outline:none;flex-shrink:0}
-#bottomBar .bb-vol::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--accent);cursor:pointer}
+/* Control buttons & widgets (used inside #panelControls control row) */
+.bb-btn{width:38px;height:38px;border-radius:8px;background:rgba(255,255,255,.08);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.bb-btn:active{background:rgba(255,255,255,.2)}
+.bb-btn.text-btn{width:auto;padding:0 10px;font-size:12px;font-weight:600}
+.bb-btn svg{width:18px;height:18px;fill:#fff}
+.bb-progress{flex:1;min-width:80px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden;cursor:pointer;position:relative}
+.bb-progress-fill{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s}
+.bb-time{font-size:11px;color:rgba(255,255,255,.7);font-variant-numeric:tabular-nums;flex-shrink:0;min-width:38px;text-align:center}
+.bb-vol{width:60px;-webkit-appearance:none;height:4px;border-radius:2px;background:rgba(255,255,255,.15);outline:none;flex-shrink:0}
+.bb-vol::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--accent);cursor:pointer}
 
 /* Touch layer */
 #touchLayer{position:fixed;inset:0;z-index:10}
@@ -194,22 +191,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
 .info-card .ic-value.warn{color:var(--warn)}
 .info-card .ic-value.bad{color:var(--danger)}
 
-/* Welcome screen */
-#welcomeScreen{position:fixed;inset:0;background:#1a1a1a;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px;overflow-y:auto;-webkit-overflow-scrolling:touch}
-#welcomeScreen.show{display:flex}
-#welcomeScreen .logo{width:72px;height:72px;margin-bottom:16px;opacity:.6;border-radius:14px}
-#welcomeScreen h1{font-size:20px;font-weight:700;margin-bottom:6px;color:#fff}
-#welcomeScreen .sub{font-size:13px;color:var(--text-faint);margin-bottom:28px}
-.welcome-btn{display:flex;align-items:center;gap:14px;width:100%;max-width:380px;padding:14px 18px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;color:var(--text);cursor:pointer;margin-bottom:8px;text-align:left}
-.welcome-btn:active{background:rgba(255,255,255,.08)}
-.welcome-btn svg{width:24px;height:24px;fill:var(--text-dim);flex-shrink:0}
-.wb-title{font-size:14px;font-weight:600}
-.wb-desc{font-size:11px;color:var(--text-faint);margin-top:1px}
-.menu-section{font-size:11px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;padding:0 4px;margin:16px 0 8px;text-align:left;max-width:380px;width:100%}
-#urlInputArea{display:none;width:100%;max-width:360px;margin-top:16px}
-#urlInputArea input{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--border-strong);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;margin-bottom:6px}
-#urlInputArea input::placeholder{color:#555}
-#urlInputArea button{width:100%;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer}
+/* Menu section separator (used inside funcPanel menus) */
+.menu-section{font-size:11px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;padding:0 4px;margin:12px 0 6px}
 
 /* Spinner */
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -262,24 +245,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
   <button class="tb-btn" id="tbChannelsBtn" title="频道"><svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></button>
 </div>
 
-<div id="bottomBar">
-  <div class="bb-row">
-    <button class="bb-btn" id="bbPrev" title="上一频道"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
-    <button class="bb-btn" id="bbPlay" title="播放/暂停"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
-    <button class="bb-btn" id="bbStop" title="停止"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
-    <button class="bb-btn" id="bbNext" title="下一频道"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
-    <span class="bb-time" id="bbTimeStart">--:--</span>
-    <div class="bb-progress" id="bbProgress"><div class="bb-progress-fill" id="bbProgressFill"></div></div>
-    <span class="bb-time" id="bbTimeEnd">--:--</span>
-    <button class="bb-btn" id="bbMute" title="静音"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg></button>
-    <input type="range" class="bb-vol" id="bbVolSlider" min="0" max="100" value="100">
-    <button class="bb-btn text-btn" id="bbSpeed" title="速度">1.0x</button>
-    <button class="bb-btn" id="bbAudio" title="音轨"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg></button>
-    <button class="bb-btn" id="bbSub" title="字幕"><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm0 4h8v2H6zm10 0h2v2h-2zm-6-4h8v2h-8z"/></svg></button>
-    <button class="bb-btn" id="bbMore" title="更多"><svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg></button>
-  </div>
-</div>
-
 <div id="touchLayer"></div>
 <div id="panelOverlay"></div>
 
@@ -305,8 +270,18 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
 <div id="panelControls" class="floating-panel">
   <div class="panel-titlebar"><span class="title">控制面板</span><button class="close-btn" onclick="closePanels()">&#10005;</button></div>
   <div class="panel-body" style="padding:8px 12px" id="ctrlBody">
-    <div class="ctrl-info-row" style="display:flex;align-items:flex-start;gap:12px;padding:10px 4px">
-      <div style="width:100px;height:36px;border-radius:6px;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text-faint);flex-shrink:0;overflow:hidden" id="ctrlLogo"></div>
+    <!-- 第 1 行：媒体信息行 -->
+    <div class="ctrl-media-row" style="display:flex;align-items:center;gap:8px;padding:6px 4px;flex-wrap:wrap">
+      <span class="ctrl-badge" id="ctrlVideoInfo" style="font-size:11px;color:var(--text-dim);background:rgba(255,255,255,.04);border-radius:4px;padding:2px 6px">未播放</span>
+      <span class="ctrl-badge" id="ctrlHdrBadge" style="font-size:11px;color:#ff9800;background:rgba(255,152,0,.12);border-radius:4px;padding:2px 6px;display:none">HDR</span>
+      <span class="ctrl-badge" id="ctrlAudioInfo" style="font-size:11px;color:var(--text-dim);background:rgba(255,255,255,.04);border-radius:4px;padding:2px 6px">--</span>
+      <span class="ctrl-badge" id="ctrlNetworkInfo" style="font-size:11px;color:var(--text-dim);background:rgba(255,255,255,.04);border-radius:4px;padding:2px 6px">--</span>
+      <span class="ctrl-badge" id="ctrlBufferInfo" style="font-size:11px;color:#4caf50;background:rgba(76,175,80,.12);border-radius:4px;padding:2px 6px;display:none">--</span>
+    </div>
+    <div class="ctrl-line" style="height:1px;background:var(--border);margin:4px 0"></div>
+    <!-- 第 2 行：节目信息行 -->
+    <div class="ctrl-info-row" style="display:flex;align-items:flex-start;gap:12px;padding:8px 4px">
+      <div style="width:64px;height:40px;border-radius:6px;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text-faint);flex-shrink:0;overflow:hidden" id="ctrlLogo">📺</div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="ctrlName">IPTV Scanner Editor Pro</span>
@@ -315,6 +290,26 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
         <div style="font-size:12px;color:var(--accent);margin-top:3px" id="ctrlProgram">打开播放列表开始观看</div>
         <div style="font-size:11px;color:var(--text-faint);margin-top:2px" id="ctrlDesc">支持 M3U / M3U8 / 本地视频</div>
       </div>
+    </div>
+    <div class="ctrl-line" style="height:1px;background:var(--border);margin:4px 0"></div>
+    <!-- 第 3 行：控制行 -->
+    <div class="ctrl-control-row" style="display:flex;align-items:center;gap:6px;padding:6px 0;flex-wrap:wrap">
+      <button class="bb-btn" id="bbPrev" title="上一频道"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+      <button class="bb-btn" id="bbPlay" title="播放/暂停"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+      <button class="bb-btn" id="bbStop" title="停止"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
+      <button class="bb-btn" id="bbNext" title="下一频道"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+      <span class="bb-time" id="bbTimeStart">--:--</span>
+      <div class="bb-progress" id="bbProgress" style="flex:1;min-width:80px"><div class="bb-progress-fill" id="bbProgressFill"></div></div>
+      <span class="bb-time" id="bbTimeEnd">--:--</span>
+      <button class="bb-btn" id="bbMute" title="静音"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg></button>
+      <input type="range" class="bb-vol" id="bbVolSlider" min="0" max="100" value="100">
+      <button class="bb-btn text-btn" id="bbSpeed" title="速度">1.0x</button>
+      <button class="bb-btn text-btn" id="bbAspect" title="画面比例">比例</button>
+      <button class="bb-btn" id="bbAudio" title="音轨"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg></button>
+      <button class="bb-btn" id="bbSub" title="字幕"><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm0 4h8v2H6zm10 0h2v2h-2zm-6-4h8v2h-8z"/></svg></button>
+      <button class="bb-btn" id="bbPip" title="画中画"><svg viewBox="0 0 24 24"><path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"/></svg></button>
+      <button class="bb-btn" id="bbFullscreen" title="全屏"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg></button>
+      <button class="bb-btn" id="bbExitCatchup" title="退出回看" style="display:none"><svg viewBox="0 0 24 24"><path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg></button>
     </div>
   </div>
 </div>
@@ -336,44 +331,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
 <div id="channelNumInput">
   <div class="cn-val" id="cnVal">-</div>
   <div class="cn-label">频道号</div>
-</div>
-
-<div id="welcomeScreen">
-  <img class="logo" src="logo.png" alt="">
-  <h1>IPTV Scanner Editor Pro</h1>
-  <div class="sub">v48.0</div>
-  <div style="width:100%;max-width:380px;margin-top:24px">
-    <div class="menu-section">文件</div>
-    <button class="welcome-btn" onclick="openLocalFile()">
-      <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 10H6v-2h8v2zm4-4H6v-2h12v2z"/></svg>
-      <div><div class="wb-title">打开播放列表</div><div class="wb-desc">选择设备上的 M3U/M3U8 文件</div></div>
-    </button>
-    <button class="welcome-btn" onclick="openUrlInput()">
-      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-      <div><div class="wb-title">打开网络流</div><div class="wb-desc">输入 M3U/M3U8 订阅源 URL</div></div>
-    </button>
-    <button class="welcome-btn" onclick="openLocalVideo()">
-      <svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>
-      <div><div class="wb-title">打开本地视频</div><div class="wb-desc">直接播放设备上的视频文件</div></div>
-    </button>
-    <div class="menu-section">工具</div>
-    <button class="welcome-btn" onclick="openSources()">
-      <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
-      <div><div class="wb-title">订阅源管理</div><div class="wb-desc">添加、编辑、删除 M3U 订阅源</div></div>
-    </button>
-    <button class="welcome-btn" onclick="openFuncPanel('scan')">
-      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-      <div><div class="wb-title">扫描整理</div><div class="wb-desc">扫描订阅源、整理频道列表</div></div>
-    </button>
-  </div>
-  <div id="urlInputArea">
-    <input id="srcUrl" placeholder="输入 M3U/M3U8 订阅源 URL">
-    <input id="srcName" placeholder="名称（可选）">
-    <button onclick="addSource()">添加</button>
-  </div>
-  <div style="margin-top:24px">
-    <button onclick="enterPlayer()" style="background:none;border:1px solid var(--border-strong);color:var(--text-dim);border-radius:10px;padding:10px 28px;font-size:13px;cursor:pointer">跳过，直接进入</button>
-  </div>
 </div>
 
 <script>
@@ -463,7 +420,7 @@ const Mpv = {
 /* ============== 3. 状态管理 ============== */
 const state = {
   channels: [], groups: [], currentIdx: -1, prevIdx: -1,
-  sources: [], favorites: new Set(), playHistory: [], queue: [],
+  sources: [], epgSources: [], favorites: new Set(), playHistory: [], queue: [],
   bookmarks: [], resumeList: [],
   epgReminder: [], epgCache: new Map(),
   chTab: 'sub',
@@ -522,18 +479,30 @@ const api = {
   async fetchSources(){ const d=await this.get('/api/sources'); state.sources = (d && (d.sources||d.data)) || []; },
   async fetchChannels(){
     const d=await this.get('/api/channels?size=5000');
-    if(d && d.success){ state.channels = d.data.channels||[]; state.groups = d.data.groups||[]; renderChannelList(); }
+    if(d && d.success){
+      /* 后端 _json_success 把字段放 JSON 顶层；同时兼容 d.data 子对象 */
+      const r = d.data || d;
+      state.channels = r.channels||[];
+      state.groups = r.groups||[];
+      renderChannelList();
+    }
   },
   async fetchEPG(channelId){
     const d=await this.get('/api/epg?id='+encodeURIComponent(channelId));
-    return (d && d.success && d.data) || [];
+    if(!d || !d.success) return [];
+    return d.programmes || (d.data && (d.data.programmes||d.data.channels)) || d.channels || [];
   },
   async fetchEPGSearch(query){
     const d=await this.get('/api/epg?search='+encodeURIComponent(query));
-    return (d && d.success && d.data) || [];
+    if(!d || !d.success) return [];
+    return d.channels || (d.data && (d.data.channels||d.data.programmes)) || d.programmes || [];
   },
   async addSource(url,name){ return this.post('/api/sources',{url,name}); },
   async delSource(idx){ return this.del('/api/sources/'+idx); },
+  /* EPG 订阅源管理 */
+  async fetchEpgSources(){ const d=await this.get('/api/epg/sources'); state.epgSources = (d && (d.sources||d.data)) || []; return state.epgSources; },
+  async addEpgSource(url,name){ return this.post('/api/epg/sources',{url,name}); },
+  async delEpgSource(idx){ return this.del('/api/epg/sources/'+idx); },
   async importChannels(content, name){ return this.post('/api/channels/import',{content,name}); },
   async startScan(url){ return this.post('/api/scan/start',{url}); },
   async stopScan(){ return this.post('/api/scan/stop'); },
@@ -551,7 +520,7 @@ window.onMpvProperty = function(prop, val){
     else if(prop==='file-format') state.mpv.fileFormat = val;
     else if(prop==='video-format') state.mpv.videoFormat = val;
     else if(prop==='audio-format') state.mpv.audioFormat = val;
-    if(state.controlsVisible) updateMediaInfo();
+    if(state.controlsVisible) updateCtrlInfo();
     return;
   }
   switch(prop){
@@ -591,7 +560,6 @@ function playChannel(idx, opts={}){
   updateCtrlInfo();
   if(!opts.silent){ closePanels(); }
   hideCenterIcon();
-  hideWelcome();
   /* 加入历史 */
   state.playHistory = state.playHistory.filter(i=>i!==idx);
   state.playHistory.unshift(idx);
@@ -666,6 +634,58 @@ function applyAspect(mode){
   else { Mpv.setStr('video-aspect-override', mode); Mpv.setBool('keepaspect',true); Mpv.setInt('panscan',0); }
 }
 
+/* 画中画：调用 Android 系统 PiP（若可用），否则提示 */
+function togglePip(){
+  if(typeof Android !== 'undefined' && Android.enterPictureInPicture){
+    try{ Android.enterPictureInPicture(); showOSD('画中画','已进入'); return; }catch(e){}
+  }
+  /* 备用：mpv 的 video-unscaled 实现画中画效果（小窗口） */
+  if(!USE_MPV){ showOSD('画中画','不可用'); return; }
+  state.pip = !state.pip;
+  if(state.pip){
+    Mpv.setBool('video-unscaled', true);
+    Mpv.setStr('video-margin-vo-top', '0.55');
+    Mpv.setStr('video-margin-vo-right', '0.05');
+    showOSD('画中画','已开启（小窗）');
+  } else {
+    Mpv.setBool('video-unscaled', false);
+    Mpv.setStr('video-margin-vo-top', '0');
+    Mpv.setStr('video-margin-vo-right', '0');
+    showOSD('画中画','已关闭');
+  }
+}
+/* 全屏：切换 Android immersive / 全屏模式 */
+function toggleFullscreen(){
+  if(typeof Android !== 'undefined' && Android.toggleFullscreen){
+    try{ Android.toggleFullscreen(); showOSD('全屏','已切换'); return; }catch(e){}
+  }
+  /* 备用：通过 document.documentElement.requestFullscreen 切换 */
+  if(!document.fullscreenElement){
+    const el = document.documentElement;
+    const rq = el.requestFullscreen || el.webkitRequestFullScreen || el.webkitRequestFullscreen;
+    if(rq){ rq.call(el); showOSD('全屏','已进入'); }
+    else { showOSD('全屏','浏览器不支持'); }
+  } else {
+    const ex = document.exitFullscreen || document.webkitExitFullscreen;
+    if(ex){ ex.call(document); showOSD('全屏','已退出'); }
+  }
+}
+/* 退出回看：停止当前播放并切换回直播源（如果有的话） */
+function exitCatchup(){
+  if(!state.currentIdx || state.currentIdx < 0){ showOSD('回看','未在回看模式'); return; }
+  const ch = state.channels[state.currentIdx];
+  if(!ch){ showOSD('回看','无当前频道'); return; }
+  /* 停止并重新以直播方式播放（去掉 catchup 参数） */
+  if(USE_MPV) Mpv.stop();
+  /* 简化：清除当前频道的 catchup 标记并重新播放 */
+  if(ch.catchup){ ch.catchup=''; ch.catchup_source=''; }
+  /* 重新播放当前频道 */
+  setTimeout(()=>{ playChannel(state.currentIdx); }, 100);
+  /* 隐藏退出回看按钮 */
+  const btn = $('#bbExitCatchup'); if(btn) btn.style.display='none';
+  showOSD('回看','已退出');
+}
+
 /* ============== OSD 与 UI 反馈 ============== */
 function showOSD(name, group, extra){
   $('#osdName').textContent = name||'';
@@ -723,8 +743,70 @@ function resetCtrlInfo(){
   $('#bbProgressFill').style.width='0%';
   $('#bbTimeStart').textContent='--:--';
   $('#bbTimeEnd').textContent='--:--';
+  /* 重置媒体信息徽章 */
+  $('#ctrlVideoInfo').textContent='未播放';
+  $('#ctrlHdrBadge').style.display='none';
+  $('#ctrlAudioInfo').textContent='--';
+  $('#ctrlNetworkInfo').textContent='--';
+  $('#ctrlBufferInfo').style.display='none';
 }
-function updateCtrlInfo(){ updateMediaInfo(); }
+/* 更新媒体信息徽章（视频/音频/网络/缓冲/HDR），参考 PC 端 media_row */
+function updateMediaBadges(){
+  const vEl=$('#ctrlVideoInfo'), hEl=$('#ctrlHdrBadge'), aEl=$('#ctrlAudioInfo'),
+        nEl=$('#ctrlNetworkInfo'), bEl=$('#ctrlBufferInfo');
+  if(!USE_MPV || state.currentIdx<0){
+    vEl.textContent='未播放'; hEl.style.display='none';
+    aEl.textContent='--'; nEl.textContent='--'; bEl.style.display='none';
+    return;
+  }
+  try{
+    /* 视频：分辨率 / fps / 编码 / 硬解 */
+    const w=Mpv.getInt('width'), h=Mpv.getInt('height');
+    const fps=Mpv.getDbl('container-fps')||Mpv.getDbl('estimated-vf-fps');
+    const vcodec=Mpv.getStr('video-codec');
+    const hw=Mpv.getStr('hwdec-current')||state.mpv.hwdec;
+    const vp=[];
+    if(w&&h) vp.push(w+'x'+h);
+    if(fps>0) vp.push(fps.toFixed(0)+'fps');
+    if(vcodec) vp.push(vcodec);
+    if(hw&&hw!=='no') vp.push('HW:'+hw);
+    vEl.textContent = vp.length ? vp.join(' ') : '直播流';
+    /* HDR 徽章：通过 gamma 信号判断 */
+    const gamma=Mpv.getStr('video-params/gamma');
+    let hdr='';
+    if(/pq/i.test(gamma)) hdr='HDR10';
+    else if(/hlg/i.test(gamma)) hdr='HLG';
+    if(hdr){ hEl.textContent=hdr; hEl.style.display=''; }
+    else { hEl.style.display='none'; }
+    /* 音频：编码 / 声道 / 采样率 */
+    const acodec=Mpv.getStr('audio-codec');
+    const ch=Mpv.getInt('audio-params/channels');
+    const sr=Mpv.getInt('audio-params/samplerate');
+    const ap=[];
+    if(acodec) ap.push(acodec);
+    if(ch>0) ap.push(ch+'ch');
+    if(sr>0) ap.push((sr/1000).toFixed(1)+'kHz');
+    aEl.textContent = ap.length ? ap.join(' ') : '--';
+    /* 网络：容器格式 / 缓存时长 */
+    const fmt=Mpv.getStr('file-format')||state.mpv.fileFormat;
+    const cacheDur=Mpv.getDbl('demuxer-cache-duration');
+    const np=[];
+    if(fmt && fmt!=='unknown' && fmt!=='') np.push(fmt);
+    if(cacheDur>0) np.push('缓存'+cacheDur.toFixed(1)+'s');
+    nEl.textContent = np.length ? np.join(' ') : '--';
+    /* 缓冲徽章：仅在缓冲中显示 */
+    const bufState=Mpv.getInt('cache-buffering-state');
+    if(bufState>0 && bufState<100){
+      bEl.textContent='缓冲 '+bufState+'%';
+      bEl.style.display='';
+    } else {
+      bEl.style.display='none';
+    }
+  }catch(e){
+    /* 属性读取失败时保持上次值 */
+  }
+}
+function updateCtrlInfo(){ updateMediaInfo(); updateMediaBadges(); }
 
 function updateProgress(){
   const d=state.mpv.duration, t=state.mpv.timePos;
@@ -1019,7 +1101,7 @@ $('#touchLayer').addEventListener('touchend', e=>{
   if(dt<250 && Math.abs(dx)<20 && Math.abs(dy)<20 && !touchMoved){
     if(sx<w*0.30) openPanel('epg');
     else if(sx>w*0.70) openPanel('channels');
-    else if(sy>h*0.75) openPanel('controls');
+    else if(sy>h*0.75) showControls();
     else if(sy<h*0.25) openMainMenu();
     else togglePlay();
     return;
@@ -1031,7 +1113,7 @@ $('#touchLayer').addEventListener('touchend', e=>{
   }
   /* 纵向滑动：上=控制面板，下=上一频道 */
   if(Math.abs(dy)>60 && Math.abs(dy)>Math.abs(dx)){
-    if(dy<0){ openPanel('controls'); }
+    if(dy<0){ showControls(); }
     else if(state.currentIdx>=0){ prevChannel(); }
     return;
   }
@@ -1041,20 +1123,21 @@ $('#touchLayer').addEventListener('click', e=>{
   const w=window.innerWidth, h=window.innerHeight;
   if(e.clientX<w*0.30) openPanel('epg');
   else if(e.clientX>w*0.70) openPanel('channels');
-  else if(e.clientY>h*0.75) openPanel('controls');
+  else if(e.clientY>h*0.75) showControls();
   else if(e.clientY<h*0.20) openMainMenu();
   else togglePlay();
 });
 
 /* ============== 面板管理 ============== */
 function openPanel(which){
+  /* 'controls' 由 showControls/hideControls 独立管理，不走 panelOverlay 机制 */
+  if(which==='controls'){ showControls(); return; }
   closeFuncPanel();
   closePanels();
   state.panelOpen = which;
   $('#panelOverlay').classList.add('show');
   if(which==='channels'){ $('#panelChannels').classList.add('open'); renderChannelList(); }
   else if(which==='epg'){ $('#panelEPG').classList.add('open'); renderEPGList(); }
-  else if(which==='controls'){ $('#panelControls').classList.add('open'); updateCtrlInfo(); }
 }
 function closePanels(){
   $('#panelChannels').classList.remove('open');
@@ -1067,37 +1150,41 @@ $('#panelOverlay').addEventListener('click', ()=>{ closePanels(); closeFuncPanel
 $('#searchInput').addEventListener('input', e=>renderChannelList(e.target.value));
 $('#epgSearchInput').addEventListener('input', debounce(renderEPGList, 300));
 
-/* 顶/底控制条显示控制 */
+/* 控制面板显示控制（panelControls 由 showControls/hideControls 直接驱动） */
 function showControls(){
   state.controlsVisible = true;
   $('#topBar').classList.add('show');
-  $('#bottomBar').classList.add('show');
+  $('#panelControls').classList.add('open');
+  updateCtrlInfo();
   clearTimeout(state.hideControlsTimer);
   state.hideControlsTimer = setTimeout(hideControls, 4000);
 }
 function hideControls(){
   state.controlsVisible = false;
   $('#topBar').classList.remove('show');
-  $('#bottomBar').classList.remove('show');
+  $('#panelControls').classList.remove('open');
 }
 function toggleTopBars(){
   if(state.controlsVisible) hideControls();
   else showControls();
 }
 
-/* ============== Welcome / 文件操作 ============== */
-function hideWelcome(){ $('#welcomeScreen').classList.remove('show'); }
-function enterPlayer(){ hideWelcome(); }
-function openUrlInput(){ $('#urlInputArea').style.display='block'; }
+/* ============== 文件操作 ============== */
+function openUrlInput(){
+  closeFuncPanel();
+  setTimeout(()=>{
+    openFuncPanel('url_input');
+  }, 50);
+}
 function openLocalFile(){
   const input=document.createElement('input'); input.type='file'; input.accept='.m3u,.m3u8,.txt';
   input.onchange=async e=>{
     const file=e.target.files[0]; if(!file) return;
     const text=await file.text();
-    const spinner=$('<div></div>'); spinner.innerHTML='<div class="spinner"></div><p style="text-align:center;color:var(--text-dim);margin-top:12px;font-size:13px">正在解析...</p>';
-    $('#welcomeScreen').querySelector('.menu-section').parentElement.appendChild(spinner);
+    showOSD('正在解析', file.name);
+    closeFuncPanel();
     try{ await api.importChannels(text, file.name); }catch(err){}
-    setTimeout(()=>{ api.fetchChannels(); hideWelcome(); }, 2000);
+    setTimeout(()=>{ api.fetchChannels(); showOSD('导入完成', file.name); }, 1500);
   };
   input.click();
 }
@@ -1108,7 +1195,8 @@ function openLocalVideo(){
     const url=URL.createObjectURL(file);
     if(USE_MPV) Mpv.play(url);
     showOSD(file.name, '本地视频');
-    hideWelcome(); hideCenterIcon();
+    closeFuncPanel();
+    hideCenterIcon();
   };
   input.click();
 }
@@ -1118,9 +1206,20 @@ async function addSource(){
   const d=await api.addSource(url, name);
   if(d && d.success){
     $('#srcUrl').value=''; $('#srcName').value='';
-    showOSD('添加成功', name);
-    setTimeout(()=>{ api.fetchSources(); api.fetchChannels(); hideWelcome(); }, 1500);
+    showOSD('添加成功', '开始加载频道...');
+    closeFuncPanel();
+    /* 添加源后自动触发扫描，并打开扫描面板实时显示进度 */
+    await api.startScan(url);
+    await api.fetchSources();
+    openFuncPanel('scan');
   } else { alert('添加失败'); }
+}
+async function refreshSource(idx){
+  const s = state.sources[idx];
+  if(!s || !s.url){ showOSD('刷新','无效源'); return; }
+  showOSD('刷新', '开始加载频道...');
+  await api.startScan(s.url);
+  openFuncPanel('scan');
 }
 
 /* 订阅源管理（使用 funcPanel） */
@@ -1128,7 +1227,7 @@ function openSources(){
   closePanels(); openFuncPanel('sources');
 }
 
-/* 顶部/底部按钮事件绑定 */
+/* 顶部按钮与控制面板内按钮事件绑定 */
 $('#tbMenuBtn').addEventListener('click', openMainMenu);
 $('#tbChannelsBtn').addEventListener('click', ()=>openPanel('channels'));
 $('#bbPrev').addEventListener('click', prevChannel);
@@ -1137,9 +1236,12 @@ $('#bbStop').addEventListener('click', stopPlay);
 $('#bbNext').addEventListener('click', nextChannel);
 $('#bbMute').addEventListener('click', toggleMute);
 $('#bbSpeed').addEventListener('click', cycleSpeed);
+$('#bbAspect').addEventListener('click', cycleAspect);
 $('#bbAudio').addEventListener('click', cycleAudio);
 $('#bbSub').addEventListener('click', cycleSub);
-$('#bbMore').addEventListener('click', ()=>openMainMenu());
+$('#bbPip').addEventListener('click', togglePip);
+$('#bbFullscreen').addEventListener('click', toggleFullscreen);
+$('#bbExitCatchup').addEventListener('click', exitCatchup);
 $('#bbVolSlider').addEventListener('input', e=>setVolume(e.target.value));
 $('#bbProgress').addEventListener('click', e=>{
   if(state.mpv.duration<=0) return;
@@ -1153,6 +1255,28 @@ $('#bbProgress').addEventListener('click', e=>{
 /* ---- 主菜单 ---- */
 registerFunc('menu', { title:'主菜单' }, body=>{
   body.innerHTML = `
+    <div class="menu-section">文件</div>
+    <div class="list-item" onclick="openLocalFile()">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 10H6v-2h8v2zm4-4H6v-2h12v2z"/></svg></div>
+      <div class="li-text"><div class="li-title">打开播放列表</div><div class="li-sub">选择设备上的 M3U/M3U8 文件</div></div>
+    </div>
+    <div class="list-item" onclick="openUrlInput()">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div>
+      <div class="li-text"><div class="li-title">打开网络流</div><div class="li-sub">输入 M3U/M3U8 订阅源 URL</div></div>
+    </div>
+    <div class="list-item" onclick="openLocalVideo()">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg></div>
+      <div class="li-text"><div class="li-title">打开本地视频</div><div class="li-sub">直接播放设备上的视频文件</div></div>
+    </div>
+    <div class="list-item" onclick="openSources()">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></div>
+      <div class="li-text"><div class="li-title">订阅源管理</div><div class="li-sub">添加、编辑、删除 M3U 订阅源</div></div>
+    </div>
+    <div class="list-item" onclick="openEpgSources()">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM5 6V5h14v1H5zm2 6h5v5H7z"/></svg></div>
+      <div class="li-text"><div class="li-title">EPG 订阅源</div><div class="li-sub">管理节目单订阅地址（XMLTV）</div></div>
+    </div>
+    <div class="menu-section">播放</div>
     <div class="list-item" onclick="closeFuncPanel();openPanel('channels')">
       <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></div>
       <div class="li-text"><div class="li-title">频道</div><div class="li-sub">订阅 / 本地 / 收藏 / 历史 / 队列</div></div>
@@ -1212,6 +1336,18 @@ registerFunc('menu', { title:'主菜单' }, body=>{
     <div class="list-item" onclick="openFuncPanel('quit')">
       <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg></div>
       <div class="li-text"><div class="li-title">退出</div><div class="li-sub">关闭应用</div></div>
+    </div>
+  `;
+});
+
+/* ---- 打开网络流面板（替代 welcomeScreen 中的 URL 输入） ---- */
+registerFunc('url_input', { title:'打开网络流' }, body=>{
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">输入订阅源 URL</div>
+      <div class="form-row"><input type="text" id="srcUrl" placeholder="输入 M3U/M3U8 订阅源 URL"></div>
+      <div class="form-row"><input type="text" id="srcName" placeholder="名称（可选）"></div>
+      <div class="btn-row"><button class="btn primary sm" onclick="addSource()">添加并加载</button></div>
     </div>
   `;
 });
@@ -2476,12 +2612,6 @@ async function delSource(i){
   $('#srcList').innerHTML=renderSourcesList();
   showOSD('订阅源','已删除');
 }
-async function refreshSource(i){
-  showOSD('订阅源','刷新中...');
-  /* 重新触发扫描 */
-  const s=state.sources[i];
-  if(s){ await api.startScan(s.url); await api.fetchChannels(); showOSD('订阅源','已刷新'); }
-}
 function importM3U(){
   const inp = document.createElement('input'); inp.type='file'; inp.accept='.m3u,.m3u8,text/plain';
   inp.onchange=async e=>{
@@ -2491,6 +2621,64 @@ function importM3U(){
     r.readAsText(f);
   };
   inp.click();
+}
+
+/* ---- EPG 订阅源面板 ---- */
+function openEpgSources(){
+  closePanels(); openFuncPanel('epg_sources');
+}
+registerFunc('epg_sources', { title:'EPG 订阅源' }, async body=>{
+  await api.fetchEpgSources();
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">添加 EPG 订阅源</div>
+      <div class="form-row"><input type="text" id="epgSrcUrl" placeholder="XMLTV / EPG URL（如 https://epg.example.com/xmltv.xml）"></div>
+      <div class="form-row"><input type="text" id="epgSrcName" placeholder="名称（可选）"></div>
+      <div class="btn-row"><button class="btn primary sm" onclick="addEpgSource()">添加并加载</button></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">已订阅 EPG 源（${state.epgSources.length}）</div>
+      <div id="epgSrcList">${renderEpgSourcesList()}</div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">说明</div>
+      <div style="font-size:11px;color:var(--text-faint);padding:4px;line-height:1.6">
+        · EPG 源用于获取节目单数据（XMLTV 格式）<br>
+        · 支持多个源，数据自动合并去重<br>
+        · 添加后会自动后台加载，加载完成后 EPG 时间线和节目单将显示数据
+      </div>
+    </div>
+  `;
+});
+function renderEpgSourcesList(){
+  if(!state.epgSources.length) return '<div style="padding:16px;text-align:center;color:var(--text-faint)">无 EPG 订阅源</div>';
+  return state.epgSources.map((s,i)=>`
+    <div class="list-item">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM5 6V5h14v1H5z"/></svg></div>
+      <div class="li-text"><div class="li-title">${esc(s.name||s.url||'')}</div><div class="li-sub">${esc(s.url||'')}${s.last_update?' · '+esc(s.last_update):''}</div></div>
+      <div class="li-action"><button class="btn sm danger" onclick="delEpgSource(${i})">删</button></div>
+    </div>
+  `).join('');
+}
+async function addEpgSource(){
+  const url=$('#epgSrcUrl').value.trim(); const name=$('#epgSrcName').value.trim()||url;
+  if(!url){ alert('请输入 EPG URL'); return; }
+  const d=await api.addEpgSource(url, name);
+  if(d && d.success){
+    $('#epgSrcUrl').value=''; $('#epgSrcName').value='';
+    showOSD('EPG 源', '已添加，后台加载中...');
+    await api.fetchEpgSources();
+    $('#epgSrcList').innerHTML=renderEpgSourcesList();
+  } else {
+    alert((d && d.error) || '添加失败');
+  }
+}
+async function delEpgSource(i){
+  if(!confirm('删除 EPG 订阅源？')) return;
+  await api.delEpgSource(i);
+  await api.fetchEpgSources();
+  $('#epgSrcList').innerHTML=renderEpgSourcesList();
+  showOSD('EPG 源','已删除');
 }
 
 /* ---- 扫描整理面板 ---- */
@@ -2544,20 +2732,84 @@ async function stopScanNow(){
 async function pollScanStatus(){
   const d=await api.scanStatus();
   if(!d || !d.success) return;
-  const s=d.data||{};
-  const el=$('#scanStatus'); if(!el) return;
-  if(s.running){
-    el.textContent=`运行中: ${s.scanned||0}/${s.total||0} (${s.valid||0} 有效)`;
-    $('#scanProgress').style.display='block';
-    $('#scanProgressBar').style.width=((s.scanned/s.total)*100||0)+'%';
-  } else {
-    el.textContent=`空闲 · 总计 ${s.total||0} / 有效 ${s.valid||0}`;
-    $('#scanProgress').style.display='none';
+  // 兼容独立模式（顶层字段）和桌面模式（stats 子对象 + scanning 字段）
+  const running = d.running || d.scanning || false;
+  const stats = d.stats || {};
+  const total = d.total || stats.total || 0;
+  const valid = d.valid || stats.valid || 0;
+  const scanned = d.scanned || stats.scanned || 0;
+  const msg = d.message || '';
+  const el=$('#scanStatus');
+  if(el){
+    if(running){
+      el.textContent=`运行中: ${scanned}/${total} (${valid} 有效)${msg?' · '+msg:''}`;
+      const pb=$('#scanProgress'); if(pb) pb.style.display='block';
+      const bar=$('#scanProgressBar'); if(bar) bar.style.width=(total>0?(scanned/total*100):0)+'%';
+    } else {
+      el.textContent=`空闲 · 总计 ${total} / 有效 ${valid}${msg?' · '+msg:''}`;
+      const pb=$('#scanProgress'); if(pb) pb.style.display='none';
+    }
+  }
+  /* 扫描完成时自动刷新频道列表（之前已 running 现在停止） */
+  if(!running && pollScanStatus._wasRunning){
+    pollScanStatus._wasRunning=false;
+    await api.fetchChannels();
+    if(typeof showOSD==='function') showOSD('扫描完成', `共 ${state.channels.length} 个频道`);
+  } else if(running){
+    pollScanStatus._wasRunning=true;
   }
 }
-function sortChannels(){ state.channels.sort((a,b)=>a.name.localeCompare(b.name)); showOSD('整理','已按名称排序'); }
-function cleanInvalid(){ showOSD('清理','需要后端支持'); }
-function rebuildGroups(){ showOSD('重建','需要后端支持'); }
+function sortChannels(){
+  if(!state.channels.length){ showOSD('整理','无频道'); return; }
+  state.channels.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  renderChannelList();
+  showOSD('整理',`已按名称排序（${state.channels.length} 个）`);
+}
+function _isValidChannelUrl(u){
+  // 与后端 services/m3u_parser.is_valid_channel_url 保持一致的本地校验
+  if(!u || !u.trim()) return false;
+  u=u.trim();
+  if(u.startsWith('#')) return false;
+  if(['http://0/0.m3u8','http://0','rtmp://0'].includes(u)) return false;
+  if(u.startsWith('http://0/') || u.startsWith('http://0:')) return false;
+  if(u.startsWith('rtp://0.') || u.startsWith('udp://0.')) return false;
+  if(!u.includes('://')) return false;
+  try{
+    const m=u.match(/^[a-zA-Z][a-zA-Z0-9+.\-]*:\/\/([^\/:?#]+)/);
+    if(!m) return false;
+    const host=m[1];
+    if(['0','1','2','3','4','5','6','7','8','9'].includes(host)) return false;
+    const octets=host.split('.');
+    if(octets.length===4){
+      if(octets.every(o=>/^\d+$/.test(o) && Number(o)>=0 && Number(o)<=255)){
+        if(Number(octets[0])===0) return false;
+      }
+    }
+    return true;
+  }catch(e){ return true; }
+}
+function cleanInvalid(){
+  if(!state.channels.length){ showOSD('清理','无频道'); return; }
+  // 基于 URL 格式验证清理无效频道（不涉及网络请求，适合移动端）
+  const before=state.channels.length;
+  state.channels=state.channels.filter(c=>_isValidChannelUrl(c.url||''));
+  const removed=before-state.channels.length;
+  renderChannelList();
+  showOSD('清理',`移除 ${removed} 个无效（剩余 ${state.channels.length}）`);
+}
+function rebuildGroups(){
+  if(!state.channels.length){ showOSD('重建','无频道'); return; }
+  // 重建分组列表
+  const groups=new Map();
+  state.channels.forEach(c=>{
+    const g=c.group||'未分组';
+    if(!groups.has(g)) groups.set(g,[]);
+    groups.get(g).push(c);
+  });
+  state.groups=Array.from(groups.keys());
+  renderChannelList();
+  showOSD('重建',`重建 ${state.groups.length} 个分组`);
+}
 function exportM3U(){
   let m3u='#EXTM3U\n';
   state.channels.forEach((c,i)=>{ m3u+=`#EXTINF:-1 tvg-id="${c.id||i}" tvg-name="${c.name}" tvg-logo="${c.logo||''}" group-title="${c.group||''}",${c.name}\n${c.url}\n`; });
@@ -2630,16 +2882,10 @@ async function initApp(){
     const s=$('#splashScreen'); if(s){ s.classList.add('fade-out'); setTimeout(()=>s.style.display='none', 600); }
   }, 800);
 
-  /* 5. 根据 channel 数决定是否显示欢迎屏 */
-  if(state.channels.length===0){
-    $('#welcomeScreen').classList.add('show');
-  } else {
-    /* 显示中央图标等待用户选择 */
-    showCenterIcon();
-    /* 自动播放上次频道 */
-    if(state.settings.autoResume && state.playHistory.length){
-      playChannel(state.playHistory[0], {silent:true});
-    }
+  /* 5. 直接进入播放页：显示中央图标，有历史则自动续播 */
+  showCenterIcon();
+  if(state.settings.autoResume && state.playHistory.length && state.channels.length){
+    playChannel(state.playHistory[0], {silent:true});
   }
 
   /* 6. 启动后台任务 */
