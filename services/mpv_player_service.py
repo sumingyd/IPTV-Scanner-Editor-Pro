@@ -1962,6 +1962,107 @@ class MpvPlayerController(QObject):
             self.logger.error(f"加载外部字幕失败: {e}")
             return False
 
+    # ---------- 章节（chapter）API ----------
+    def get_chapter_list(self):
+        """获取视频内置章节列表
+        返回 [{title, time}, ...]，time 为秒（float）
+        失败或无章节返回 []
+        """
+        try:
+            if self._terminated or not self.mpv_handle:
+                return []
+            raw = self._get_mpv_property_string('chapter-list')
+            if not raw:
+                return []
+            import json
+            data = json.loads(raw)
+            if not isinstance(data, list):
+                return []
+            result = []
+            for i, ch in enumerate(data):
+                if not isinstance(ch, dict):
+                    continue
+                result.append({
+                    'id': ch.get('id', i),
+                    'title': ch.get('title', '') or '',
+                    'time': float(ch.get('time', 0.0) or 0.0),
+                })
+            return result
+        except Exception as e:
+            self.logger.debug(f"获取章节列表失败: {e}")
+            return []
+
+    def get_chapter_count(self) -> int:
+        """获取章节总数"""
+        try:
+            v = self._get_mpv_property_int('chapter-count')
+            if v is None:
+                v = self._get_mpv_property_int('chapters')
+            return int(v) if v is not None else 0
+        except Exception:
+            return 0
+
+    def get_current_chapter(self):
+        """获取当前章节索引（int），无章节返回 -1"""
+        try:
+            v = self._get_mpv_property_int('chapter')
+            if v is not None:
+                return v
+            s = self._get_mpv_property_string('chapter')
+            if s and s not in ('no', ''):
+                try:
+                    return int(s)
+                except ValueError:
+                    return -1
+            return -1
+        except Exception:
+            return -1
+
+    def set_chapter(self, idx: int) -> bool:
+        """切换到指定章节（索引从 0 开始）"""
+        try:
+            if not self.mpv_handle or self._terminated:
+                return False
+            current = self.get_current_chapter()
+            if current is not None and current == idx:
+                return True
+            with self._lock:
+                if not self.mpv_handle or self._terminated:
+                    return False
+                result = _mpv_set_property_int64(self.mpv_handle, 'chapter', int(idx))
+            if result < 0:
+                result2 = self._set_mpv_string('chapter', str(idx))
+                if result2 < 0:
+                    result3 = self.send_command(['set', 'chapter', str(idx)])
+                    if result3 == 0:
+                        return True
+                    self.logger.debug(f"切换章节失败: chapter={idx}, int64={result}, str={result2}, cmd={result3}")
+                    return False
+            return True
+        except Exception as e:
+            self.logger.error(f"切换章节失败: {e}")
+            return False
+
+    def chapter_next(self) -> bool:
+        """跳转到下一章"""
+        try:
+            if not self.mpv_handle or self._terminated:
+                return False
+            return self.send_command(['add', 'chapter', '1']) == 0
+        except Exception as e:
+            self.logger.debug(f"下一章失败: {e}")
+            return False
+
+    def chapter_prev(self) -> bool:
+        """跳转到上一章"""
+        try:
+            if not self.mpv_handle or self._terminated:
+                return False
+            return self.send_command(['add', 'chapter', '-1']) == 0
+        except Exception as e:
+            self.logger.debug(f"上一章失败: {e}")
+            return False
+
     # ---------- 字幕样式与控制（sub-* 属性） ----------
     def set_sub_delay(self, delay: float) -> bool:
         """设置字幕延迟（秒，可负）"""

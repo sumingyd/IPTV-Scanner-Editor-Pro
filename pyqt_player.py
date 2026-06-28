@@ -844,6 +844,14 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
             logger.error(f"初始化断点续播控制器失败: {e}")
             self.resume_ctrl = None
 
+        # 初始化书签与章节控制器（在 player_controller 创建后）
+        try:
+            from controllers.bookmark_controller import BookmarkController
+            self.bookmark_ctrl = BookmarkController(self)
+        except Exception as e:
+            logger.error(f"初始化书签与章节控制器失败: {e}")
+            self.bookmark_ctrl = None
+
         from services.logo_cache_service import LogoCacheService
         self._logo_cache_service = LogoCacheService(self)
         self._logo_cache_service.logo_loaded.connect(self._on_logo_cache_loaded)

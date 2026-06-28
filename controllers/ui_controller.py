@@ -1255,6 +1255,10 @@ class UIController:
             burst_screenshot.triggered.connect(lambda: self.window.media_ctrl._show_burst_screenshot_dialog() if hasattr(self.window, 'media_ctrl') else None)
             playback_menu.addAction(burst_screenshot)
 
+            bookmarks = QAction(tr("menu_bookmarks", "Bookmarks & Chapters..."), self.window)
+            bookmarks.triggered.connect(lambda: self.window.media_ctrl._show_bookmark_dialog() if hasattr(self.window, 'media_ctrl') else None)
+            playback_menu.addAction(bookmarks)
+
             playback_menu.addSeparator()
 
             audio_menu = playback_menu.addMenu(tr("ctx_audio_track", "Audio Track"))

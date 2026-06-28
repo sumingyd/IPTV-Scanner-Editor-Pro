@@ -28,6 +28,8 @@ class ConfigManager(Singleton):
         self._lock = threading.RLock()
         self._resume_file = os.path.join(config_dir, 'resume_positions.json')
         self._resume_cache: dict | None = None
+        self._bookmark_file = os.path.join(config_dir, 'bookmarks.json')
+        self._bookmark_cache: dict | None = None
         self.load_config()
         self._initialized = True
 
@@ -863,6 +865,164 @@ class ConfigManager(Singleton):
                     os.remove(self._resume_file)
             except Exception as e:
                 logger.debug(f"清除断点文件失败: {e}")
+
+    # ---------- 书签管理（JSON 文件存储）----------
+    # 一个 URL 可对应多个书签，每个书签结构：{position, name, created_at}
+    _BOOKMARK_MAX_URLS = 500  # 最多保存 500 个 URL 的书签
+    _BOOKMARK_MAX_PER_URL = 100  # 每个 URL 最多保存 100 个书签
+    _BOOKMARK_MATCH_TOLERANCE = 0.5  # 删除/查询时位置匹配容差（秒）
+
+    def _load_bookmark_cache(self) -> dict:
+        """懒加载书签缓存"""
+        if self._bookmark_cache is not None:
+            return self._bookmark_cache
+        cache = {}
+        try:
+            if os.path.exists(self._bookmark_file):
+                import json
+                with open(self._bookmark_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        cache = data
+        except Exception as e:
+            logger.debug(f"加载书签缓存失败: {e}")
+        self._bookmark_cache = cache
+        return cache
+
+    def _save_bookmark_cache(self):
+        """保存书签缓存到 JSON 文件"""
+        try:
+            import json
+            cache = self._bookmark_cache or {}
+            with open(self._bookmark_file, 'w', encoding='utf-8') as f:
+                json.dump(cache, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error(f"保存书签缓存失败: {e}")
+
+    def save_bookmark(self, url: str, position: float, name: str = ''):
+        """添加书签
+        - position < 0 时不保存
+        - 同一 URL 同一位置（容差内）的书签会被覆盖
+        """
+        if not url or position < 0:
+            return
+        with self._lock:
+            cache = self._load_bookmark_cache()
+            marks = cache.get(url)
+            if not isinstance(marks, list):
+                marks = []
+            # 检查是否已存在相同位置的书签（覆盖 name 和 created_at）
+            replaced = False
+            for i, m in enumerate(marks):
+                if abs(float(m.get('position', 0)) - position) < self._BOOKMARK_MATCH_TOLERANCE:
+                    marks[i] = {
+                        'position': float(position),
+                        'name': name or '',
+                        'created_at': int(time.time()),
+                    }
+                    replaced = True
+                    break
+            if not replaced:
+                marks.append({
+                    'position': float(position),
+                    'name': name or '',
+                    'created_at': int(time.time()),
+                })
+            # 限制每个 URL 的书签数量（按 created_at 升序淘汰最旧）
+            if len(marks) > self._BOOKMARK_MAX_PER_URL:
+                marks.sort(key=lambda x: x.get('created_at', 0))
+                marks = marks[-self._BOOKMARK_MAX_PER_URL:]
+            cache[url] = marks
+            # 限制 URL 总数（按 created_at 升序淘汰最旧）
+            if len(cache) > self._BOOKMARK_MAX_URLS:
+                # 计算每个 URL 的最新 created_at
+                url_times = []
+                for k, v in cache.items():
+                    if isinstance(v, list) and v:
+                        latest = max(int(m.get('created_at', 0)) for m in v)
+                    else:
+                        latest = 0
+                    url_times.append((k, latest))
+                url_times.sort(key=lambda kv: kv[1])
+                while len(cache) > self._BOOKMARK_MAX_URLS:
+                    k, _ = url_times.pop(0)
+                    cache.pop(k, None)
+            self._bookmark_cache = cache
+            self._save_bookmark_cache()
+
+    def load_bookmarks(self, url: str) -> list:
+        """加载指定 URL 的所有书签（按 position 升序）"""
+        if not url:
+            return []
+        with self._lock:
+            cache = self._load_bookmark_cache()
+            marks = cache.get(url)
+            if not isinstance(marks, list):
+                return []
+            # 返回副本避免外部修改内部缓存
+            result = [dict(m) for m in marks if isinstance(m, dict)]
+        result.sort(key=lambda x: float(x.get('position', 0)))
+        return result
+
+    def load_all_bookmarks(self) -> list:
+        """加载所有书签（按 created_at 降序）
+        返回 [{url, position, name, created_at}, ...]
+        """
+        with self._lock:
+            cache = self._load_bookmark_cache()
+            items = []
+            for url, marks in cache.items():
+                if not isinstance(marks, list):
+                    continue
+                for m in marks:
+                    if isinstance(m, dict):
+                        item = dict(m)
+                        item['url'] = url
+                        items.append(item)
+        items.sort(key=lambda x: int(x.get('created_at', 0)), reverse=True)
+        return items
+
+    def delete_bookmark(self, url: str, position: float) -> bool:
+        """删除指定 URL 中位置匹配（容差内）的书签"""
+        if not url:
+            return False
+        with self._lock:
+            cache = self._load_bookmark_cache()
+            marks = cache.get(url)
+            if not isinstance(marks, list) or not marks:
+                return False
+            new_marks = [m for m in marks
+                         if abs(float(m.get('position', 0)) - position) >= self._BOOKMARK_MATCH_TOLERANCE]
+            if len(new_marks) == len(marks):
+                return False
+            if new_marks:
+                cache[url] = new_marks
+            else:
+                cache.pop(url, None)
+            self._bookmark_cache = cache
+            self._save_bookmark_cache()
+            return True
+
+    def clear_bookmarks(self, url: str):
+        """清除指定 URL 的所有书签"""
+        if not url:
+            return
+        with self._lock:
+            cache = self._load_bookmark_cache()
+            if url in cache:
+                cache.pop(url, None)
+                self._bookmark_cache = cache
+                self._save_bookmark_cache()
+
+    def clear_all_bookmarks(self):
+        """清除所有书签"""
+        with self._lock:
+            self._bookmark_cache = {}
+            try:
+                if os.path.exists(self._bookmark_file):
+                    os.remove(self._bookmark_file)
+            except Exception as e:
+                logger.debug(f"清除书签文件失败: {e}")
 
     def save_timeshift_settings(self, settings):
         for key, value in settings.items():

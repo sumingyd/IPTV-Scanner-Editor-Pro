@@ -105,6 +105,9 @@ class MediaController:
             # 视频图像调整入口
             menu.addAction(tr("ctx_video_eq", "Video Equalizer..."), lambda *a: self._show_video_eq_dialog())
 
+            # 书签/章节入口
+            menu.addAction(tr("ctx_bookmarks", "Bookmarks & Chapters..."), lambda *a: self._show_bookmark_dialog())
+
         if is_playing and self._is_audio_only():
             vis_menu = menu.addMenu(tr("ctx_audio_visual", "音频可视化"))
             vis_menu.setStyleSheet(AppStyles.player_menu_bar_style())
@@ -733,6 +736,42 @@ class MediaController:
             self.window._burst_screenshot_dialog.activateWindow()
         except Exception as e:
             logger.error(f"打开连拍截图对话框失败: {e}")
+
+    def _show_bookmark_dialog(self):
+        """打开书签/章节对话框"""
+        try:
+            bc = getattr(self.window, 'bookmark_ctrl', None)
+            if bc and hasattr(bc, 'show_bookmark_dialog'):
+                bc.show_bookmark_dialog()
+        except Exception as e:
+            logger.error(f"打开书签对话框失败: {e}")
+
+    def add_bookmark_now(self):
+        """快捷键调用：在当前位置添加书签"""
+        try:
+            bc = getattr(self.window, 'bookmark_ctrl', None)
+            if bc and hasattr(bc, 'add_bookmark'):
+                bc.add_bookmark('')
+        except Exception as e:
+            logger.debug(f"添加书签失败: {e}")
+
+    def chapter_next(self):
+        """快捷键调用：跳转到下一章"""
+        try:
+            bc = getattr(self.window, 'bookmark_ctrl', None)
+            if bc and hasattr(bc, 'next_chapter'):
+                bc.next_chapter()
+        except Exception as e:
+            logger.debug(f"下一章失败: {e}")
+
+    def chapter_prev(self):
+        """快捷键调用：跳转到上一章"""
+        try:
+            bc = getattr(self.window, 'bookmark_ctrl', None)
+            if bc and hasattr(bc, 'prev_chapter'):
+                bc.prev_chapter()
+        except Exception as e:
+            logger.debug(f"上一章失败: {e}")
 
     def get_queue_controller(self):
         return getattr(self.window, 'file_queue_ctrl', None)

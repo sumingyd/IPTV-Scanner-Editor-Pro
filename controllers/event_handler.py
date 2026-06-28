@@ -134,6 +134,8 @@ class EventHandler:
         elif modifiers == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
             if key == Qt.Key.Key_O:
                 return True
+            if key == Qt.Key.Key_B:
+                return True
             if key in (Qt.Key.Key_Left, Qt.Key.Key_Right) and self._is_main_window_focused():
                 return True
             return False
@@ -375,6 +377,10 @@ class EventHandler:
                 elif key == Qt.Key.Key_O:
                     if hasattr(w, '_open_video_file'):
                         w._open_video_file()
+                    return True
+                elif key == Qt.Key.Key_B:
+                    if hasattr(w, 'media_ctrl'):
+                        w.media_ctrl.add_bookmark_now()
                     return True
 
         except Exception as e:
