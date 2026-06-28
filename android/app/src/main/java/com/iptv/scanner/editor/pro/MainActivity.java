@@ -1,19 +1,26 @@
 package com.iptv.scanner.editor.pro;
 
 import android.annotation.SuppressLint;
+import android.app.PictureInPictureParams;
+import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.chaquo.python.Python;
@@ -36,11 +43,16 @@ import com.iptv.scanner.editor.pro.mpv.MpvJsBridge;
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "IPTVMainActivity";
+    private static final int FILE_CHOOSER_REQUEST = 10011;
+
     private MPVView mpvView;
     private WebView webView;
     private MpvJsBridge mpvBridge;
     private Thread serverThread;
     private volatile boolean serverReady = false;
+
+    /** 文件选择回调（HTML <input type="file"> 触发） */
+    private ValueCallback<Uri[]> filePathCallback = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,10 +79,80 @@ public class MainActivity extends AppCompatActivity {
 
         setupMPV();
         setupWebView();
+        /* 注入 Android JS 桥接（PiP、全屏等系统功能）
+         * 注意：与 MpvJsBridge 注入的 "AndroidMpv" 区分，这里注入 "Android" */
+        webView.addJavascriptInterface(new AndroidJsBridge(), "Android");
         // 立即显示加载提示页面，避免服务器启动期间黑屏
         showLoadingPage();
         startServer();
         waitForServerAndLoad();
+    }
+
+    /**
+     * Android JS 桥接：提供系统功能给 HTML 调用
+     * - enterPictureInPicture()：进入画中画模式
+     * - toggleFullscreen()：切换沉浸式全屏
+     * - isPiPSupported()：检查是否支持画中画
+     */
+    public class AndroidJsBridge {
+        @JavascriptInterface
+        public void enterPictureInPicture() {
+            runOnUiThread(() -> {
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                            && getPackageManager().hasSystemFeature(
+                                    "android.software.picture_in_picture")) {
+                        PictureInPictureParams.Builder builder =
+                                new PictureInPictureParams.Builder();
+                        enterPictureInPictureMode(builder.build());
+                        Log.i(TAG, "Entered Picture-in-Picture mode");
+                    } else {
+                        Log.w(TAG, "PiP not supported on this device");
+                        webView.evaluateJavascript(
+                                "showOSD('画中画','当前设备不支持');", null);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "enterPictureInPicture failed", e);
+                    webView.evaluateJavascript(
+                            "showOSD('画中画','进入失败: " + e.getMessage() + "');", null);
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public boolean isPiPSupported() {
+            return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                    && getPackageManager().hasSystemFeature(
+                            "android.software.picture_in_picture");
+        }
+
+        @JavascriptInterface
+        public boolean isInPiPMode() {
+            return Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode();
+        }
+
+        @JavascriptInterface
+        public void toggleFullscreen() {
+            runOnUiThread(() -> {
+                try {
+                    int ui = getWindow().getDecorView().getSystemUiVisibility();
+                    int immersive = View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+                    if ((ui & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0) {
+                        /* 当前非全屏，进入全屏 */
+                        getWindow().getDecorView().setSystemUiVisibility(
+                                ui | immersive);
+                    } else {
+                        /* 当前全屏，退出 */
+                        getWindow().getDecorView().setSystemUiVisibility(
+                                ui & ~immersive);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "toggleFullscreen failed", e);
+                }
+            });
+        }
     }
 
     /**
@@ -136,6 +218,30 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onShowCustomView(View view, CustomViewCallback callback) {
                 super.onShowCustomView(view, callback);
+            }
+
+            /**
+             * 支持 HTML <input type="file">：打开系统文件选择器
+             * 用于"打开本地播放列表"和"打开本地视频"功能
+             */
+            @Override
+            public boolean onShowFileChooser(WebView webView,
+                                              ValueCallback<Uri[]> filePathCallback,
+                                              FileChooserParams fileChooserParams) {
+                /* 如果已有未完成的回调，先取消 */
+                if (MainActivity.this.filePathCallback != null) {
+                    MainActivity.this.filePathCallback.onReceiveValue(null);
+                }
+                MainActivity.this.filePathCallback = filePathCallback;
+                try {
+                    Intent intent = fileChooserParams.createIntent();
+                    startActivityForResult(intent, FILE_CHOOSER_REQUEST);
+                    return true;
+                } catch (Exception e) {
+                    Log.e(TAG, "onShowFileChooser failed", e);
+                    MainActivity.this.filePathCallback = null;
+                    return false;
+                }
             }
         });
 
@@ -316,6 +422,63 @@ public class MainActivity extends AppCompatActivity {
                 return true;
         }
         return false;
+    }
+
+    /**
+     * 处理文件选择结果（onShowFileChooser 启动的 Intent）
+     * 将选择的文件 URL 传回给 WebView 的 filePathCallback
+     */
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != FILE_CHOOSER_REQUEST) return;
+        if (filePathCallback == null) return;
+        Uri[] results = null;
+        if (resultCode == RESULT_OK && data != null) {
+            if (data.getData() != null) {
+                results = new Uri[]{data.getData()};
+            } else if (data.getClipData() != null) {
+                int count = data.getClipData().getItemCount();
+                results = new Uri[count];
+                for (int i = 0; i < count; i++) {
+                    results[i] = data.getClipData().getItemAt(i).getUri();
+                }
+            }
+        }
+        filePathCallback.onReceiveValue(results);
+        filePathCallback = null;
+    }
+
+    /**
+     * 用户按 HOME 键离开应用时自动进入 PiP（如果正在播放且支持 PiP）
+     */
+    @Override
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        /* 仅在播放中才自动进入 PiP，避免空闲时也进入 */
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                && getPackageManager().hasSystemFeature(
+                        "android.software.picture_in_picture")
+                && mpvView != null) {
+            try {
+                PictureInPictureParams.Builder builder = new PictureInPictureParams.Builder();
+                enterPictureInPictureMode(builder.build());
+                Log.i(TAG, "Auto-entered PiP on user leave");
+            } catch (Exception e) {
+                Log.w(TAG, "Auto PiP failed: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * PiP 模式变化回调：通知 JS 切换 UI 布局
+     */
+    @Override
+    public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode);
+        final String js = "if(window.onPiPChange)onPiPChange("
+                + (isInPictureInPictureMode ? "true" : "false") + ");";
+        webView.post(() -> webView.evaluateJavascript(js, null));
     }
 
     @Override

@@ -152,12 +152,47 @@ class StandaloneScanner:
                     except Exception as e:
                         latency = int((_t.time() - t0) * 1000)
                         return (u, False, f'RTSP: {str(e)[:40]}', latency, None)
-                # RTP/UDP：组播流无法在非组播环境验证，标记为"未测试"并添加为频道
+                # RTP/UDP：尝试加入组播组并接收数据包验证可达性
+                # 与 PC 端 ffprobe 验证效果类似：能收到数据则视为有效
                 if low.startswith('rtp://') or low.startswith('udp://'):
-                    # 不做可达性检查（UDP 组播需要特殊网络环境），直接添加为待测试频道
-                    ch = {'name': name, 'url': u, 'group': '扫描结果', 'logo': '',
-                          'tvg_id': '', 'tvg_name': name, 'valid': None, 'status': '未测试'}
-                    return (u, None, '未测试(UDP组播)', 0, ch)
+                    try:
+                        parsed = urlparse(u)
+                        host = parsed.hostname or ''
+                        port = parsed.port or 5004
+                        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+                        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                        # 短超时：扫描时使用 timeout/2（最多 5 秒），避免长时间阻塞
+                        sock_timeout = min(max(timeout // 2, 1), 5) if timeout else 3
+                        sock.settimeout(sock_timeout)
+                        try:
+                            # 组播地址（224.0.0.0 - 239.255.255.255）需要 join 才能接收
+                            parts = host.split('.')
+                            is_multicast = (len(parts) == 4
+                                            and 224 <= int(parts[0]) <= 239
+                                            and all(0 <= int(p) <= 255 for p in parts))
+                            if is_multicast:
+                                # IP_ADD_MEMBERSHIP：加入组播组
+                                mreq = socket.inet_aton(host) + socket.inet_aton('0.0.0.0')
+                                sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+                            # 绑定到组播端口（监听任意来源）
+                            sock.bind(('', port))
+                            # 尝试接收第一个数据包
+                            data, addr = sock.recvfrom(2048)
+                            latency = int((_t.time() - t0) * 1000)
+                            ch = {'name': name, 'url': u, 'group': '扫描结果', 'logo': '',
+                                  'tvg_id': '', 'tvg_name': name, 'valid': True}
+                            return (u, True, f'收到数据 {len(data)}B', latency, ch)
+                        finally:
+                            try: sock.close()
+                            except: pass
+                    except socket.timeout:
+                        latency = int((_t.time() - t0) * 1000)
+                        # 超时未收到数据：不添加为频道（避免生成大量无效频道）
+                        return (u, False, '超时无数据', latency, None)
+                    except OSError as e:
+                        latency = int((_t.time() - t0) * 1000)
+                        # 组播 join 失败/权限不足等：标记无效但不影响其他扫描
+                        return (u, False, f'无法验证: {str(e)[:40]}', latency, None)
                 # 其他协议：标记为不支持
                 return (u, False, '不支持的协议', 0, None)
 

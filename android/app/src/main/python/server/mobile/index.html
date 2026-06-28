@@ -643,8 +643,34 @@ function togglePlay(){
 function stopPlay(){
   if(USE_MPV) Mpv.stop();
   state.currentIdx = -1;
+  /* 重置播放状态（与 PC 端 _reset_ui_to_initial_state 对齐）
+   * keep-open=yes 会保留最后一帧画面，但 UI 状态必须正确重置：
+   * - paused=true 让按钮显示"播放"图标
+   * - 清空 timePos/duration 让进度条归零 */
+  state.mpv.paused = true;
+  state.mpv.timePos = 0;
+  state.mpv.duration = 0;
+  state.mpv.mediaTitle = '';
+  state.mpv.videoBitrate = 0;
+  state.mpv.audioBitrate = 0;
+  state.mpv.width = 0;
+  state.mpv.height = 0;
+  state.mpv.fps = 0;
+  state.mpv.videoCodec = '';
+  state.mpv.audioCodec = '';
+  state.mpv.hwdecCurrent = '';
+  state.mpv.fileFormat = '';
+  state.mpv.protocol = '';
+  /* 重置回看/时移状态 */
+  state.playMode = 'idle';
+  state.originalChannel = null;
+  state.catchupProgram = null;
+  state.liveTimeshiftSeconds = 0;
+  const exitBtn = $('#bbExitCatchup');
+  if(exitBtn) exitBtn.style.display='none';
   showCenterIcon();
   resetCtrlInfo();
+  updatePlayBtn();
   closePanels();
 }
 function seekRel(sec){ if(USE_MPV) Mpv.seekRel(sec); }
@@ -695,24 +721,33 @@ function applyAspect(mode){
   else { Mpv.setStr('video-aspect-override', mode); Mpv.setBool('keepaspect',true); Mpv.setInt('panscan',0); }
 }
 
-/* 画中画：调用 Android 系统 PiP（若可用），否则提示 */
+/* 画中画：调用 Android 系统 PiP（Android 8.0+）
+ * MainActivity 注入的 Android JS 桥接提供 enterPictureInPicture() 方法
+ * 进入/退出 PiP 时由 onPictureInPictureModeChanged 回调通知 JS（onPiPChange） */
 function togglePip(){
-  if(typeof Android !== 'undefined' && Android.enterPictureInPicture){
-    try{ Android.enterPictureInPicture(); showOSD('画中画','已进入'); return; }catch(e){}
+  if(typeof Android === 'undefined' || !Android.enterPictureInPicture){
+    showOSD('画中画','当前环境不支持');
+    return;
   }
-  /* 备用：mpv 的 video-unscaled 实现画中画效果（小窗口） */
-  if(!USE_MPV){ showOSD('画中画','不可用'); return; }
-  state.pip = !state.pip;
-  if(state.pip){
-    Mpv.setBool('video-unscaled', true);
-    Mpv.setStr('video-margin-vo-top', '0.55');
-    Mpv.setStr('video-margin-vo-right', '0.05');
-    showOSD('画中画','已开启（小窗）');
+  /* 系统不支持 PiP（如低于 Android 8.0 或无该 feature）时，Android.enterPictureInPicture
+   * 内部会判断并显示 OSD 提示。已进入 PiP 时调用 enterPictureInPicture 会无效果，
+   * 用户可通过点击 PiP 全屏按钮退出 */
+  try{ Android.enterPictureInPicture(); }
+  catch(e){ showOSD('画中画','进入失败'); }
+}
+/* PiP 模式变化回调（由 Java 层 onPictureInPictureModeChanged 触发）
+ * 进入 PiP 时隐藏所有 UI，仅保留视频；退出 PiP 时恢复 */
+window.onPiPChange = function(inPiP){
+  state.inPiP = !!inPiP;
+  document.body.classList.toggle('pip-mode', state.inPiP);
+  if(state.inPiP){
+    /* PiP 模式下隐藏所有 UI 叠加层（仅视频可见） */
+    hideControls();
+    closePanels();
+    closeFuncPanel();
   } else {
-    Mpv.setBool('video-unscaled', false);
-    Mpv.setStr('video-margin-vo-top', '0');
-    Mpv.setStr('video-margin-vo-right', '0');
-    showOSD('画中画','已关闭');
+    /* 退出 PiP 恢复正常 UI */
+    showControls();
   }
 }
 /* 全屏：切换 Android immersive / 全屏模式 */
@@ -3057,29 +3092,8 @@ function delReminder(i){ state.epgReminder.splice(i,1); storage.saveReminders();
 function clearAllReminders(){ if(confirm('清空所有提醒？')){ state.epgReminder=[]; storage.saveReminders(); renderEpgReminders(document.getElementById('funcBody')); } }
 
 /* ---- 频道映射面板 ---- */
-registerFunc('mapping', { title:'频道映射' }, body=>{
-  renderMappingList(body);
-});
-function renderMappingList(body){
-  const c = state.channels[state.currentIdx];
-  body.innerHTML = `
-    <div class="form-section">
-      <div class="form-section-title">当前频道映射</div>
-      <div class="form-row"><span class="label">频道号</span><input type="number" id="mapNum" value="${c?(c.num||''):''}" placeholder="自定义频道号"></div>
-      <div class="form-row"><span class="label">XMLTV ID</span><input type="text" id="mapXmltv" value="${c?(c.xmltv_id||''):''}" placeholder="EPG ID"></div>
-      <div class="form-row"><span class="label">别名</span><input type="text" id="mapAlias" value="${c?(c.alias||''):''}" placeholder="多别名用 / 分隔"></div>
-      <div class="btn-row"><button class="btn primary sm" onclick="saveChannelMapping()">保存</button></div>
-    </div>
-    <div class="form-section">
-      <div class="form-section-title">批量操作</div>
-      <div class="btn-row">
-        <button class="btn sm" onclick="autoAssignNum()">自动分配频道号</button>
-        <button class="btn sm" onclick="autoMatchXmltv()">自动匹配 XMLTV</button>
-        <button class="btn sm" onclick="dedupeChannels()">频道去重</button>
-      </div>
-    </div>
-  `;
-}
+/* 注：registerFunc('mapping') 在文件下方定义（远程+用户映射管理）
+ * 这里仅保留批量操作的辅助函数，供其他面板（如扫描整理）调用 */
 function saveChannelMapping(){
   if(state.currentIdx<0){ showOSD('映射','请先选择频道'); return; }
   const idx = state.currentIdx;
@@ -3202,8 +3216,26 @@ function setAspect(a){
   showOSD('比例', a);
 }
 function showStats(){
-  if(!USE_MPV) return;
-  Mpv.setStr('osd-msg', 'Stats: ${estimated-vf-fps} fps / ${video-bitrate} bps / cache ${demuxer-cache-time}s');
+  if(!USE_MPV){ showOSD('统计','MPV 不可用'); return; }
+  /* 从 mpv 读取实时属性构造统计文本（show-text 不支持 ${} 变量扩展） */
+  const fps = Mpv.getDbl('estimated-vf-fps') || 0;
+  const vBr = Mpv.getInt('video-bitrate') || 0;
+  const aBr = Mpv.getInt('audio-bitrate') || 0;
+  const cacheTime = Mpv.getDbl('demuxer-cache-time') || 0;
+  const cacheDur = Mpv.getDbl('demuxer-cache-duration') || 0;
+  const voDrop = Mpv.getInt('vo-drop-frame-count') || 0;
+  const decDrop = Mpv.getInt('decoder-drop-frame-count') || 0;
+  const cacheSize = Mpv.getInt('demuxer-cache-state-bytes') || 0;
+  const lines = [
+    '统计信息',
+    'FPS: ' + fps.toFixed(2),
+    '视频码率: ' + (vBr ? (vBr/1000).toFixed(0)+' kbps' : '-'),
+    '音频码率: ' + (aBr ? (aBr/1000).toFixed(0)+' kbps' : '-'),
+    '缓存时长: ' + cacheTime.toFixed(1) + 's (可seek ' + cacheDur.toFixed(1) + 's)',
+    '缓存大小: ' + (cacheSize/1024).toFixed(0) + ' KB',
+    '丢帧: vo=' + voDrop + ', dec=' + decDrop,
+  ];
+  Mpv.showOsd(lines.join('\n'), 5000);
 }
 
 /* ---- 设置面板 ---- */
@@ -3497,13 +3529,15 @@ async function delEpgSource(i){
 }
 
 /* ---- 频道映射面板 ---- */
-let _mappingState = { entries: [], remoteUrl: '' };
+/* PC 端默认从 GitHub 拉取远程映射（DEFAULT_REMOTE_URL），用户无需配置 URL
+ * 这里只显示映射数量和列表，与 PC 端 mapping_manager_dialog 行为一致 */
+let _mappingState = { entries: [] };
 registerFunc('mapping', { title:'频道映射' }, body=>{
   body.innerHTML = `
     <div class="form-section">
       <div class="form-section-title">远程映射</div>
       <div style="font-size:11px;color:var(--text-dim);padding:4px 0;line-height:1.5">
-        <div>远程 URL: <span id="mappingRemoteUrl" style="color:var(--accent);word-break:break-all">加载中...</span></div>
+        从默认源自动同步频道名称映射，无需手动配置。
       </div>
       <div class="btn-row">
         <button class="btn primary sm" onclick="refreshRemoteMappings()">刷新远程映射</button>
@@ -3532,7 +3566,6 @@ async function loadMappings(){
   const d = await api.fetchMappings();
   if(d && d.success){
     _mappingState.entries = d.entries || [];
-    _mappingState.remoteUrl = d.remote_url || '';
     renderMappings();
   } else {
     $('#mappingList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-faint);font-size:12px">加载失败</div>';
@@ -3541,8 +3574,6 @@ async function loadMappings(){
 function renderMappings(){
   const el = $('#mappingList');
   const countEl = $('#mappingCount');
-  const urlEl = $('#mappingRemoteUrl');
-  if(urlEl) urlEl.textContent = _mappingState.remoteUrl || '未配置';
   const entries = _mappingState.entries;
   if(countEl) countEl.textContent = entries.length ? `(${entries.length} 条)` : '';
   if(!entries || !entries.length){
