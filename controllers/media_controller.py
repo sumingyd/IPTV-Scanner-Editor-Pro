@@ -114,6 +114,9 @@ class MediaController:
             # 3D / 360° 视频入口
             menu.addAction(tr("ctx_3d_video", "3D / 360° Video..."), lambda *a: self._show_3d_dialog())
 
+            # HDR 模式子菜单
+            self._populate_hdr_submenu(menu)
+
         if is_playing and self._is_audio_only():
             vis_menu = menu.addMenu(tr("ctx_audio_visual", "音频可视化"))
             vis_menu.setStyleSheet(AppStyles.player_menu_bar_style())
@@ -775,6 +778,80 @@ class MediaController:
             self.window._video_3d_dialog.activateWindow()
         except Exception as e:
             logger.error(f"打开 3D/360 对话框失败: {e}")
+
+    # ---------- HDR 模式切换 ----------
+    _HDR_MODES = (
+        ('disable',    'hdr_disable'),
+        ('auto',       'hdr_auto'),
+        ('scrgb',      'hdr_scrgb'),
+        ('passthrough','hdr_passthrough'),
+        ('tonemap',    'hdr_tonemap'),
+    )
+
+    def _populate_hdr_submenu(self, parent_menu):
+        """构造 HDR 模式子菜单"""
+        from PySide6.QtWidgets import QMenu
+        from ui.styles import AppStyles
+        tr = self.window.language_manager.tr
+        pc = self.window.player_controller
+        hdr_menu = parent_menu.addMenu(tr("ctx_hdr_mode", "HDR Mode"))
+        hdr_menu.setStyleSheet(AppStyles.player_menu_bar_style())
+
+        # 顶部：显示当前视频 HDR 类型
+        current_hdr_type = ''
+        if pc and pc.is_playing:
+            try:
+                info = pc.get_live_media_info() if hasattr(pc, 'get_live_media_info') else None
+                if info:
+                    from services.mpv_player_service import MpvPlayerController
+                    current_hdr_type = MpvPlayerController.detect_hdr_type(
+                        info.get('colormatrix', ''),
+                        info.get('gamma', ''),
+                        info.get('sig_peak', 0),
+                        info.get('video_format', '')
+                    )
+            except Exception:
+                current_hdr_type = ''
+        if current_hdr_type:
+            label_action = hdr_menu.addAction(
+                f"{tr('hdr_current_video', 'Current')}: {current_hdr_type}")
+            label_action.setEnabled(False)
+            hdr_menu.addSeparator()
+
+        # 当前模式
+        current_mode = 'disable'
+        if pc and hasattr(pc, '_playback_settings'):
+            current_mode = pc._playback_settings.get('hdr_output_mode', 'disable')
+
+        # 5 个模式选项
+        for mode, key in self._HDR_MODES:
+            label = tr(key, mode)
+            act = hdr_menu.addAction(label, lambda checked=False, m=mode: self._set_hdr_mode(m))
+            act.setCheckable(True)
+            act.setChecked(mode == current_mode)
+
+    def _set_hdr_mode(self, mode: str):
+        """切换 HDR 输出模式（需要重新初始化 mpv）"""
+        try:
+            pc = self.window.player_controller
+            if not pc or not hasattr(pc, 'reinit_for_hdr_change'):
+                return
+            # 持久化到配置文件
+            try:
+                if self.window.config:
+                    settings = self.window.config.load_playback_settings()
+                    settings['hdr_output_mode'] = mode
+                    self.window.config.save_playback_settings(settings)
+            except Exception as e:
+                logger.warning(f"保存 HDR 模式失败: {e}")
+            # 调用 player_controller 切换（会硬重启 mpv）
+            pc.reinit_for_hdr_change(mode)
+            tr = self.window.language_manager.tr
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(
+                    f"{tr('osd_hdr_mode', 'HDR Mode')}: {tr(f'hdr_{mode}', mode)}")
+        except Exception as e:
+            logger.error(f"切换 HDR 模式失败: {e}")
 
     def add_bookmark_now(self):
         """快捷键调用：在当前位置添加书签"""
