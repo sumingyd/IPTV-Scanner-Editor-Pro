@@ -108,6 +108,9 @@ class MediaController:
             # 书签/章节入口
             menu.addAction(tr("ctx_bookmarks", "Bookmarks & Chapters..."), lambda *a: self._show_bookmark_dialog())
 
+            # A/V 同步监控入口
+            menu.addAction(tr("ctx_av_sync", "A/V Sync Monitor..."), lambda *a: self._show_av_sync_dialog())
+
         if is_playing and self._is_audio_only():
             vis_menu = menu.addMenu(tr("ctx_audio_visual", "音频可视化"))
             vis_menu.setStyleSheet(AppStyles.player_menu_bar_style())
@@ -745,6 +748,18 @@ class MediaController:
                 bc.show_bookmark_dialog()
         except Exception as e:
             logger.error(f"打开书签对话框失败: {e}")
+
+    def _show_av_sync_dialog(self):
+        """打开音视频同步监控对话框"""
+        try:
+            from ui.dialogs.av_sync_dialog import AVSyncDialog
+            if not hasattr(self.window, '_av_sync_dialog') or not self.window._av_sync_dialog:
+                self.window._av_sync_dialog = AVSyncDialog(self.window)
+            self.window._av_sync_dialog.show()
+            self.window._av_sync_dialog.raise_()
+            self.window._av_sync_dialog.activateWindow()
+        except Exception as e:
+            logger.error(f"打开 A/V 同步监控对话框失败: {e}")
 
     def add_bookmark_now(self):
         """快捷键调用：在当前位置添加书签"""

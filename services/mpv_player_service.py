@@ -2063,6 +2063,35 @@ class MpvPlayerController(QObject):
             self.logger.debug(f"上一章失败: {e}")
             return False
 
+    # ---------- 音视频同步（A/V sync）API ----------
+    def get_avdiff(self) -> float:
+        """获取音视频时间差（秒，float）
+        - 正值表示音频落后于视频
+        - 负值表示音频领先于视频
+        - 接近 0 表示同步良好
+        """
+        try:
+            v = self._get_mpv_property_double('avdiff')
+            return float(v) if v is not None else 0.0
+        except Exception:
+            return 0.0
+
+    def get_audio_pts(self) -> float:
+        """获取音频当前时间戳（秒）"""
+        try:
+            v = self._get_mpv_property_double('audio-pts')
+            return float(v) if v is not None else 0.0
+        except Exception:
+            return 0.0
+
+    def get_video_pts(self) -> float:
+        """获取视频当前时间戳（秒）"""
+        try:
+            v = self._get_mpv_property_double('video-pts')
+            return float(v) if v is not None else 0.0
+        except Exception:
+            return 0.0
+
     # ---------- 字幕样式与控制（sub-* 属性） ----------
     def set_sub_delay(self, delay: float) -> bool:
         """设置字幕延迟（秒，可负）"""

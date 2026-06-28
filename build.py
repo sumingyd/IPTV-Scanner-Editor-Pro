@@ -173,6 +173,7 @@ HIDDEN_IMPORTS = [
     "ui.dialogs.network_enhance_dialog",
     "ui.dialogs.burst_screenshot_dialog",
     "ui.dialogs.bookmark_dialog",
+    "ui.dialogs.av_sync_dialog",
     "controllers.file_queue_controller",
     "controllers.resume_playback_controller",
     "controllers.bookmark_controller",

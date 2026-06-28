@@ -1259,6 +1259,10 @@ class UIController:
             bookmarks.triggered.connect(lambda: self.window.media_ctrl._show_bookmark_dialog() if hasattr(self.window, 'media_ctrl') else None)
             playback_menu.addAction(bookmarks)
 
+            av_sync = QAction(tr("menu_av_sync", "A/V Sync Monitor..."), self.window)
+            av_sync.triggered.connect(lambda: self.window.media_ctrl._show_av_sync_dialog() if hasattr(self.window, 'media_ctrl') else None)
+            playback_menu.addAction(av_sync)
+
             playback_menu.addSeparator()
 
             audio_menu = playback_menu.addMenu(tr("ctx_audio_track", "Audio Track"))
