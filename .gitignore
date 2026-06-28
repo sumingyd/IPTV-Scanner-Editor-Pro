@@ -177,6 +177,9 @@ cython_debug/
 mpv/
 ffmpeg/
 libs/
+# Android 源代码中的 mpv 包不应被忽略
+!android/app/src/main/java/com/iptv/scanner/editor/pro/mpv/
+!android/app/src/main/java/is/xyz/mpv/
 
 # 日志文件
 *.log

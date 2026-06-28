@@ -49,6 +49,10 @@ chaquopy {
         pip {
             install "aiohttp"
             install "requests"
+            // idna 3.x 在 Windows 会创建 console_script 'idna.exe'，
+            // RECORD 路径 '../../bin/idna.exe' 被 Chaquopy 拒绝。
+            // 固定到 3.6（无 console_scripts）规避。
+            install "idna==3.6"
         }
         extractPackages "server"
     }
