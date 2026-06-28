@@ -83,7 +83,7 @@ def _load_playback_settings():
         'http_headers': '',
         'rtsp_transport': 'tcp',
         'rtsp_user_agent': 'VLC/3.0.18Libmpv',
-        'network_timeout_sec': 0,
+        'network_timeout_sec': 30,
         'audio_passthrough': 'never',
         'http_referer': '',
         'http_proxy': '',
@@ -331,6 +331,19 @@ class MpvPlayerController(QObject):
             if net_to > 0:
                 _mpv_set_property_string(self.mpv_handle, 'network-timeout', str(net_to))
 
+            # source-timeout：source 暂时不可用时快速失败，避免长时间阻塞导致卡顿
+            source_to = self._playback_settings.get('source_timeout_sec', 0)
+            if source_to > 0:
+                _mpv_set_property_string(self.mpv_handle, 'source-timeout', str(source_to))
+
+            # 性能与卡顿优化：
+            # - framedrop=vo：视频输出慢时丢帧，避免渲染积压阻塞 GUI（默认值，但显式指定避免 mpv 版本差异）
+            # - cache-pause-initial=no：初始缓存阶段不暂停，避免直播流启动卡顿
+            # - video-sync=audio：以音频时钟为同步基准，视频帧迟到时丢帧而非阻塞
+            _mpv_set_property_string(self.mpv_handle, 'framedrop', 'vo')
+            _mpv_set_property_string(self.mpv_handle, 'cache-pause-initial', 'no')
+            _mpv_set_property_string(self.mpv_handle, 'video-sync', 'audio')
+
             passthrough = self._playback_settings.get('audio_passthrough', 'never')
             if passthrough and passthrough != 'never':
                 passthrough_map = {
@@ -420,13 +433,17 @@ class MpvPlayerController(QObject):
             pass
 
     def _apply_tonemap_config(self):
-        self._set_mpv_string('tone-mapping', 'hable')
+        # HDR→SDR 色调映射：显式指定目标色域和 gamma，避免 mpv 自动推断失败
+        # （PQ 是绝对 OETF，依赖明确的 target-trc 才能正确逆转换；HLG 有 OOTF 兼容路径不受影响）
+        self._set_mpv_string('tone-mapping', 'bt.2390')      # EETF，比 hable 更适合 HDR→SDR
         self._set_mpv_string('tone-mapping-mode', 'auto')
+        self._set_mpv_string('tone-mapping-desat', '0.5')    # 高光去饱和，避免画面发灰
         self._set_mpv_string('hdr-compute-peak', 'yes')
         self._set_mpv_string('d3d11-output-csp', 'srgb')
-        self._set_mpv_string('target-prim', '')
-        self._set_mpv_string('target-trc', '')
-        self.logger.info("HDR配置: tonemap → SDR (hable, srgb)")
+        self._set_mpv_string('target-prim', 'bt.709')        # SDR 显示器色域
+        self._set_mpv_string('target-trc', 'bt.1886')        # SDR 显示器 gamma
+        self._set_mpv_string('target-colorspace-hint', 'no')  # 避免从 passthrough 切过来残留
+        self.logger.info("HDR配置: tonemap → SDR (bt.2390, bt.709/bt.1886)")
 
     def _apply_passthrough_config(self):
         self._set_mpv_string('tone-mapping', 'clip')
@@ -447,14 +464,16 @@ class MpvPlayerController(QObject):
         self.logger.info("HDR配置: scrgb → PQ直通 (自动色域)")
 
     def _reset_hdr_params(self):
+        # 非 HDR 视频：显式指定 SDR 目标，确保 bt.2020 色域（WCG）视频能正确映射到 bt.709
         self._set_mpv_string('tone-mapping', '')
         self._set_mpv_string('tone-mapping-mode', '')
+        self._set_mpv_string('tone-mapping-desat', '')
         self._set_mpv_string('hdr-compute-peak', '')
         self._set_mpv_string('d3d11-output-csp', 'srgb')
-        self._set_mpv_string('target-prim', '')
-        self._set_mpv_string('target-trc', '')
+        self._set_mpv_string('target-prim', 'bt.709')        # SDR 显示器色域
+        self._set_mpv_string('target-trc', 'bt.1886')        # SDR 显示器 gamma
         self._set_mpv_string('target-colorspace-hint', 'no')
-        self.logger.info("HDR配置: 已重置为SDR默认值")
+        self.logger.info("HDR配置: 已重置为SDR默认值 (bt.709/bt.1886)")
 
 
     def _set_mpv_string(self, name, value):
@@ -1079,6 +1098,25 @@ class MpvPlayerController(QObject):
             if self._terminated:
                 return False
 
+            # 切换频道前显式停止当前播放，让 mpv 释放 hwdec/D3D11 解码器资源
+            # 避免 keep-open=yes + idle=yes 导致旧解码器未释放，新文件 hwdec 初始化失败（黑屏）
+            if (self.is_playing or self.is_paused) and not self._user_stopped:
+                try:
+                    with self._lock:
+                        if self.mpv_handle and not self._terminated:
+                            _mpv_send_command(self.mpv_handle, ['stop'])
+                except Exception as e:
+                    self.logger.debug(f"切换前停止旧播放失败: {e}")
+                # 重置内部状态，但不发 play_state_changed 信号避免 UI 闪烁
+                self.is_playing = False
+                self.is_paused = False
+                self.media_info = {}
+                # 清理可能残留的视频滤镜（flip/crop/360），避免新文件加载时冲突
+                try:
+                    self.clear_all_video_filters()
+                except Exception:
+                    pass
+
             if hasattr(self, 'event_timer') and self.event_timer and not self.event_timer.isActive():
                 self.event_timer.start(100)
 
@@ -1306,6 +1344,12 @@ class MpvPlayerController(QObject):
                     timer.stop()
                 except Exception:
                     pass
+        # 在销毁旧 mpv_handle 前释放 macOS render context，避免 GL 资源泄漏
+        if is_macos() and hasattr(self.video_widget, 'cleanup'):
+            try:
+                self.video_widget.cleanup()
+            except Exception as e:
+                self.logger.debug(f"HDR切换时清理render context失败: {e}")
         with self._lock:
             handle = self.mpv_handle
             self.mpv_handle = None
@@ -1740,7 +1784,18 @@ class MpvPlayerController(QObject):
             filepath = os.path.join(cache_dir, f"{url_hash}.png")
             if os.path.exists(filepath):
                 return
-            self.send_command(['screenshot-to-file', filepath, 'video'])
+            # 异步执行截图，避免在 GUI 线程阻塞 mpv 渲染管线导致播放卡顿
+            import threading
+            handle = self.mpv_handle
+            if not handle or self._terminated:
+                return
+            def _do_screenshot():
+                try:
+                    from services.mpv_common import send_command as _async_send
+                    _async_send(handle, ['screenshot-to-file', filepath, 'video'])
+                except Exception:
+                    pass
+            threading.Thread(target=_do_screenshot, daemon=True).start()
             QTimer.singleShot(1500, lambda: self._check_thumbnail_saved(filepath) if not self._terminated else None)
         except Exception as e:
             self.logger.debug(f"缩略图截取失败: {e}")
