@@ -428,6 +428,7 @@ class ServerContext:
                 return
 
             all_channels: List[Dict] = []
+            errors: List[str] = []  # 记录每个源的加载失败原因
             for idx, source in enumerate(sources):
                 src_url = source.get('url', '')
                 if not src_url or not source.get('enabled', True):
@@ -438,12 +439,23 @@ class ServerContext:
                 try:
                     import requests
                     resp = requests.get(src_url, timeout=15, headers={'User-Agent': 'IPTV-Scanner/1.0'})
+                    if resp.status_code != 200:
+                        err = f'HTTP {resp.status_code}'
+                        errors.append(err)
+                        logger.warning(f"加载源 {src_url} 失败: {err}")
+                        continue
                     content = load_m3u_from_url_data(resp.content)
                     channels, _ = parse_m3u_content(content)
                     if channels:
                         all_channels.extend(channels)
+                    else:
+                        err = 'M3U 解析为空'
+                        errors.append(err)
+                        logger.warning(f"加载源 {src_url} M3U 解析为空（内容长度 {len(content)}）")
                 except Exception as e:
-                    logger.warning(f"加载源 {src_url} 失败: {e}")
+                    err = str(e)[:60]
+                    errors.append(err)
+                    logger.warning(f"加载源 {src_url} 异常: {e}")
 
             # 更新频道列表
             if all_channels:
@@ -455,9 +467,15 @@ class ServerContext:
                     self._source_load_status = {'loading': False, 'total': len(sources), 'loaded': len(sources), 'channels': len(all_channels), 'message': f'完成：{len(all_channels)} 个频道'}
                 logger.info(f"订阅源加载完成，共 {len(all_channels)} 个频道")
             else:
-                # 加载到空列表时不覆盖已有频道，提示当前频道数
+                # 加载到空列表时不覆盖已有频道，提示当前频道数和失败原因
                 existing = len(self._channels)
-                msg = f'本次未加载到新频道（现有 {existing} 个）' if existing > 0 else '未加载到频道'
+                if existing > 0:
+                    msg = f'本次未加载到新频道（现有 {existing} 个）'
+                elif errors:
+                    # 显示首个失败原因，让用户知道为什么加载失败
+                    msg = f'加载失败：{errors[0]}'
+                else:
+                    msg = '未加载到频道'
                 with self._source_load_lock:
                     self._source_loading = False
                     self._source_load_status = {'loading': False, 'total': len(sources), 'loaded': len(sources), 'channels': existing, 'message': msg}

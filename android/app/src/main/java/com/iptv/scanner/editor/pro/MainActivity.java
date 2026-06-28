@@ -67,8 +67,34 @@ public class MainActivity extends AppCompatActivity {
 
         setupMPV();
         setupWebView();
+        // 立即显示加载提示页面，避免服务器启动期间黑屏
+        showLoadingPage();
         startServer();
         waitForServerAndLoad();
+    }
+
+    /**
+     * 服务器启动期间显示加载提示页面（避免黑屏）
+     */
+    private void showLoadingPage() {
+        String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
+                + "<meta name='viewport' content='width=device-width,initial-scale=1.0'>"
+                + "<style>"
+                + "body{margin:0;padding:0;background:#1a1a2e;color:#e0e0e0;"
+                + "font-family:sans-serif;display:flex;flex-direction:column;"
+                + "align-items:center;justify-content:center;height:100vh;}"
+                + ".spinner{width:60px;height:60px;border:4px solid rgba(255,255,255,0.1);"
+                + "border-top-color:#4a9eff;border-radius:50%;"
+                + "animation:spin 1s linear infinite;margin-bottom:24px;}"
+                + "@keyframes spin{to{transform:rotate(360deg);}}"
+                + "h2{margin:0 0 8px 0;font-size:20px;font-weight:500;}"
+                + "p{margin:0;color:#888;font-size:14px;}"
+                + "</style></head><body>"
+                + "<div class='spinner'></div>"
+                + "<h2>IPTV 扫描编辑器专业版</h2>"
+                + "<p>正在启动服务...</p>"
+                + "</body></html>";
+        webView.loadDataWithBaseURL("about:blank", html, "text/html", "UTF-8", null);
     }
 
     private void setupMPV() {
@@ -84,6 +110,7 @@ public class MainActivity extends AppCompatActivity {
     private void setupWebView() {
         webView.clearCache(true);
         webView.clearHistory();
+        WebView.setWebContentsDebuggingEnabled(true);
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
@@ -132,7 +159,8 @@ public class MainActivity extends AppCompatActivity {
     private void waitForServerAndLoad() {
         new Thread(() -> {
             Log.i(TAG, "Waiting for server...");
-            for (int i = 0; i < 120; i++) {
+            final int maxWaitSeconds = 300;  // 最长等待 300 秒（Chaquopy 首次启动可能较慢）
+            for (int i = 0; i < maxWaitSeconds; i++) {
                 try {
                     Thread.sleep(1000);
                     java.net.HttpURLConnection conn = (java.net.HttpURLConnection)
@@ -148,6 +176,11 @@ public class MainActivity extends AppCompatActivity {
                     }
                 } catch (Exception ignored) {
                 }
+                // 每 5 秒更新加载提示，显示等待进度
+                if (i > 0 && i % 5 == 0) {
+                    final int elapsed = i + 1;
+                    runOnUiThread(() -> updateLoadingProgress(elapsed));
+                }
             }
             if (serverReady) {
                 Log.i(TAG, "Loading mobile URL in WebView");
@@ -160,12 +193,41 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
             } else {
-                Log.e(TAG, "Server not ready after 120s");
+                Log.e(TAG, "Server not ready after " + maxWaitSeconds + "s");
                 runOnUiThread(() -> webView.loadData(
-                        "<html><body style='background:#1a1a2e;color:#e0e0e0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif'><h2>Server startup failed</h2></body></html>",
+                        "<html><body style='background:#1a1a2e;color:#e0e0e0;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif'>"
+                        + "<h2 style='color:#ff6b6b'>服务器启动失败</h2>"
+                        + "<p style='color:#888'>请尝试重启应用，或查看 logcat 日志</p>"
+                        + "</body></html>",
                         "text/html", "UTF-8"));
             }
         }).start();
+    }
+
+    /**
+     * 更新加载提示页面的等待进度
+     */
+    private void updateLoadingProgress(int seconds) {
+        String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
+                + "<meta name='viewport' content='width=device-width,initial-scale=1.0'>"
+                + "<style>"
+                + "body{margin:0;padding:0;background:#1a1a2e;color:#e0e0e0;"
+                + "font-family:sans-serif;display:flex;flex-direction:column;"
+                + "align-items:center;justify-content:center;height:100vh;}"
+                + ".spinner{width:60px;height:60px;border:4px solid rgba(255,255,255,0.1);"
+                + "border-top-color:#4a9eff;border-radius:50%;"
+                + "animation:spin 1s linear infinite;margin-bottom:24px;}"
+                + "@keyframes spin{to{transform:rotate(360deg);}}"
+                + "h2{margin:0 0 8px 0;font-size:20px;font-weight:500;}"
+                + "p{margin:0;color:#888;font-size:14px;}"
+                + ".progress{margin-top:16px;color:#666;font-size:12px;}"
+                + "</style></head><body>"
+                + "<div class='spinner'></div>"
+                + "<h2>IPTV 扫描编辑器专业版</h2>"
+                + "<p>正在启动服务...</p>"
+                + "<div class='progress'>已等待 " + seconds + " 秒</div>"
+                + "</body></html>";
+        webView.loadDataWithBaseURL("about:blank", html, "text/html", "UTF-8", null);
     }
 
     /**

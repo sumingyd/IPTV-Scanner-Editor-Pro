@@ -11,7 +11,7 @@
 <title>IPTV Scanner Editor Pro</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
-html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px}
+html,body{width:100%;height:100%;overflow:hidden;background:transparent;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px}
 
 :root{
   --bg:#1a1a1a;--panel:rgba(30,30,30,.94);--panel-solid:#1e1e1e;
@@ -422,8 +422,13 @@ const Mpv = {
   chapterNext(){ this.cmd(['add','chapter','1']); },
   chapterPrev(){ this.cmd(['add','chapter','-1']); },
   showOsd(text,dur){ this.cmd(['show-text', String(text), String(dur||2000)]); },
-  /* 切换频道前先 stop，避免 hwdec/D3D11 资源未释放导致黑屏（项目硬约束） */
-  playChannel(url){ this.stop(); setTimeout(()=>{ this.play(url); }, 80); }
+  /* 切换频道：直接 loadfile 替换当前文件（Android 无 D3D11 资源释放问题，不需要先 stop） */
+  playChannel(url){
+    console.log('[Mpv] playChannel', url, 'USE_MPV=', USE_MPV);
+    if(!USE_MPV){ console.warn('[Mpv] AndroidMpv not available!'); return; }
+    this.cmd(['loadfile', url]);
+    this.setBool('pause', false);
+  }
 };
 
 /* ============== 3. 状态管理 ============== */
@@ -578,6 +583,8 @@ function playChannel(idx, opts={}){
      mpv 原生支持 rtp/udp/rtsp/http/https 等协议，代理会导致非 HTTP 协议失败 */
   const url = ch.url;
   if(!url){ showOSD('错误', '频道 URL 为空'); return; }
+  /* 调试：显示播放信息到屏幕 */
+  Mpv.showOsd('播放: ' + ch.name + ' | URL: ' + url.substring(0,60), 4000);
   Mpv.playChannel(url);
   showOSD(ch.name, ch.group);
   updateCtrlInfo();
@@ -1303,10 +1310,18 @@ async function reloadSubscription(url){
     if(!s || !s.success){ clearInterval(_reloadTimer); _reloadTimer=null; return; }
     if(!s.loading){
       clearInterval(_reloadTimer); _reloadTimer=null;
-      /* 无论消息如何，都刷新频道列表并显示实际频道数 */
-      await api.fetchChannels();
-      const n = state.channels.length;
-      showOSD('加载完成', n>0 ? `共 ${n} 个频道` : '未加载到频道');
+      /* 优先使用后端返回的 channels 字段（避免 /api/channels 调用失败导致误报"未加载到频道"） */
+      const n = s.channels || 0;
+      if(n > 0){
+        /* 后端有频道，刷新前端列表 */
+        await api.fetchChannels();
+        const realN = state.channels.length;
+        /* 如果前端列表刷新失败，用后端的 channels 数作为备选 */
+        showOSD('加载完成', realN>0 ? `共 ${realN} 个频道` : `共 ${n} 个频道（列表刷新失败）`);
+      } else {
+        /* 后端没有频道，显示后端的 message（包含具体失败原因） */
+        showOSD('加载失败', s.message || '未加载到频道');
+      }
     }
   }, 1000);
 }
