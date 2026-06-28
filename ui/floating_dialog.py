@@ -241,7 +241,6 @@ class FloatingDockWidget(QDockWidget):
                 if is_wayland():
                     wh = self.windowHandle()
                     if wh:
-                        from PySide6.QtCore import Qt
                         edges_map = {
                             'top': Qt.Edge.TopEdge,
                             'bottom': Qt.Edge.BottomEdge,
