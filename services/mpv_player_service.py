@@ -85,6 +85,8 @@ def _load_playback_settings():
         'rtsp_user_agent': 'VLC/3.0.18Libmpv',
         'network_timeout_sec': 0,
         'audio_passthrough': 'never',
+        'http_referer': '',
+        'http_proxy': '',
     }
     try:
         from core.config_manager import ConfigManager
@@ -915,6 +917,23 @@ class MpvPlayerController(QObject):
             ua = settings.get('user_agent', DEFAULT_USER_AGENT)
             if ua:
                 self._set_mpv_string('user-agent', ua)
+
+            # HTTP Referer
+            referer = settings.get('http_referer', '') or ''
+            if referer:
+                self._set_mpv_string('referrer', referer)
+                self.logger.debug(f"[mpv] referrer set: {referer[:50]}")
+            else:
+                self._set_mpv_string('referrer', '')
+
+            # HTTP/HTTPS 代理
+            proxy = settings.get('http_proxy', '') or ''
+            if proxy:
+                # mpv 的 http-proxy 选项对 HTTP/HTTPS 流生效
+                self._set_mpv_string('http-proxy', proxy)
+                self.logger.debug(f"[mpv] http-proxy set: {proxy[:50]}")
+            else:
+                self._set_mpv_string('http-proxy', '')
 
     def _process_events(self):
         if self._terminated:
@@ -2532,6 +2551,43 @@ class MpvPlayerController(QObject):
     def frame_back_step(self) -> bool:
         """后退一帧"""
         return self.send_command(['frame-back-step']) == 0
+
+    # ---------- 网络流媒体增强（Referer / 代理） ----------
+    def set_http_referer(self, referer: str) -> bool:
+        """设置 HTTP Referer（运行时生效，对下次 loadfile 起作用）"""
+        try:
+            self._playback_settings['http_referer'] = referer or ''
+            return self._set_mpv_string('referrer', referer or '') >= 0
+        except Exception as e:
+            self.logger.debug(f"设置 Referer 失败: {e}")
+            return False
+
+    def get_http_referer(self) -> str:
+        try:
+            return self._playback_settings.get('http_referer', '') or ''
+        except Exception:
+            return ''
+
+    def set_http_proxy(self, proxy: str) -> bool:
+        """设置 HTTP/HTTPS 代理（运行时生效，对下次 loadfile 起作用）
+        支持格式：
+          http://host:port
+          https://host:port
+          socks5://host:port
+          socks5h://host:port
+        """
+        try:
+            self._playback_settings['http_proxy'] = proxy or ''
+            return self._set_mpv_string('http-proxy', proxy or '') >= 0
+        except Exception as e:
+            self.logger.debug(f"设置 HTTP 代理失败: {e}")
+            return False
+
+    def get_http_proxy(self) -> str:
+        try:
+            return self._playback_settings.get('http_proxy', '') or ''
+        except Exception:
+            return ''
 
     def set_property_string(self, name, value):
         self._set_mpv_string(name, value)

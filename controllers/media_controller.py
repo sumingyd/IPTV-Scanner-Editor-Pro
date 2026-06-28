@@ -148,6 +148,9 @@ class MediaController:
         menu.addAction(tr("ctx_open_video", "Open Video\tCtrl+Shift+O"), lambda *a: self.window._open_video_file())
         menu.addAction(tr("ctx_scan", "Scan & Organize"), lambda *a: self.window.open_scan_ui())
 
+        # 网络流媒体增强入口
+        menu.addAction(tr("ctx_network_enhance", "Network Enhance..."), lambda *a: self._show_network_enhance_dialog())
+
         menu.exec(self.window.video_frame.mapToGlobal(pos))
 
     def take_screenshot(self):
@@ -705,6 +708,18 @@ class MediaController:
                 rc.show_resume_list_dialog()
         except Exception as e:
             logger.error(f"打开断点续播列表对话框失败: {e}")
+
+    def _show_network_enhance_dialog(self):
+        """打开网络流媒体增强对话框"""
+        try:
+            from ui.dialogs.network_enhance_dialog import NetworkEnhanceDialog
+            if not hasattr(self.window, '_network_enhance_dialog') or not self.window._network_enhance_dialog:
+                self.window._network_enhance_dialog = NetworkEnhanceDialog(self.window)
+            self.window._network_enhance_dialog.show()
+            self.window._network_enhance_dialog.raise_()
+            self.window._network_enhance_dialog.activateWindow()
+        except Exception as e:
+            logger.error(f"打开网络流媒体增强对话框失败: {e}")
 
     def get_queue_controller(self):
         return getattr(self.window, 'file_queue_ctrl', None)

@@ -1291,6 +1291,13 @@ class UIController:
             resume_list.triggered.connect(lambda: self.window.media_ctrl._show_resume_list_dialog() if hasattr(self.window, 'media_ctrl') else None)
             playback_menu.addAction(resume_list)
 
+            playback_menu.addSeparator()
+
+            # 网络流媒体增强入口
+            network_enhance = QAction(tr("menu_network_enhance", "Network Enhance..."), self.window)
+            network_enhance.triggered.connect(lambda: self.window.media_ctrl._show_network_enhance_dialog() if hasattr(self.window, 'media_ctrl') else None)
+            playback_menu.addAction(network_enhance)
+
             view_menu = menu_bar.addMenu(tr("menu_view", "View"))
 
             show_epg = QAction(tr("menu_epg_list", "EPG List\tE"), self.window)

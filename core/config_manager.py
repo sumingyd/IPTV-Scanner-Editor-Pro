@@ -680,6 +680,8 @@ class ConfigManager(Singleton):
             'audio_passthrough': 'never',
             'hdr_output_mode': 'disable',
             'queue_mode': 'none',
+            'http_referer': '',
+            'http_proxy': '',
         }
         if settings:
             defaults.update(settings)
@@ -714,6 +716,8 @@ class ConfigManager(Singleton):
             'audio_passthrough': 'never',
             'hdr_output_mode': 'disable',
             'queue_mode': 'none',
+            'http_referer': '',
+            'http_proxy': '',
         }
         result = {}
         need_save = False

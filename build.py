@@ -170,6 +170,7 @@ HIDDEN_IMPORTS = [
     "ui.dialogs.audio_eq_dialog",
     "ui.dialogs.playback_queue_dialog",
     "ui.dialogs.resume_position_dialog",
+    "ui.dialogs.network_enhance_dialog",
     "controllers.file_queue_controller",
     "controllers.resume_playback_controller",
     "services.subtitle_download_service",
